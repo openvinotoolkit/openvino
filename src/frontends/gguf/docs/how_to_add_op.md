@@ -19,11 +19,13 @@ Check that an op translator is actually what is missing:
 
 - **A new architecture or projector** needs an appropriate [builder registration](extensions.md#choose-an-extension).
   Add a translator only when its computation needs an operation missing from the table.
-- **A structurally different use of an existing op** is an `op_case`, not a new translator. Read the
-  [tensor operation contracts](architectures.md#tensor-operations-and-shapes) before
-  adding a case. Its number selects a converter's semantic variant, not the decoder's identity.
+- **A structurally different use of an existing op** is a new named attribute that describes the
+  operation (for example `view_slice`, `cont_reshape`, `rope_mode`), not a new translator. Read the
+  [tensor operation contracts](architectures.md#tensor-operations-and-shapes) first: an attribute
+  describes the operation's geometry or parameters, never the decoder that produced it.
 - Both decoder paths (native builder and llama.cpp cgraph) share translator bodies, so a change here
-  affects both. Keep the body path-agnostic; branch on `op_case`, never on "which decoder made this".
+  affects both. Keep the body path-agnostic: read operand shapes and named attributes that either
+  decoder can supply, never branch on "which decoder made this".
 
 ## Checklist
 
@@ -55,7 +57,6 @@ OutputVector translate_<name>(const NodeContext& context) {
     num_inputs_check(context, 1, 2);        // min / max operand count
 
     float eps = context.get_attribute<float>("eps");
-    int op_case = context.get_op_case();
 
     std::shared_ptr<ov::Node> res = ...;
 
@@ -80,19 +81,20 @@ ggml's packed tensor.
 | `has_input(name)` | Test an optional operand first |
 | `get_input_size()` | Actual operand count |
 | `get_input(idx).get_partial_shape()` | Shape inferred by OpenVINO, including dynamic dimensions |
-| `get_input_shape(idx)` | Source layout when supplied by a cgraph decoder; otherwise the inferred input shape padded to GGML rank four |
-| `get_output_shape()` | Legacy cgraph destination layout; unavailable for native builder operations |
+| `get_input_shape(idx)` | Logical operand shape; native builders return the connected value's shape and cgraph decoders return GGML `ne[]` in OpenVINO order |
+| `get_output_shape()` | GGML destination metadata for operations such as raw strided VIEW; unavailable for native builder operations |
 | `get_input_view_element_offset(idx)` | Element (not byte) offset for a ggml VIEW operand |
-| `get_op_case()` | Structural variant (convenience wrapper, defaults to 0) |
 | `get_attribute<T>(name[, default])` | Any other typed op parameter |
 
 Helpers in [`src/utils.hpp`](../src/utils.hpp): `num_inputs_check`, `get_dimensions`,
-`rename_outputs_with_suffix`, `make_sin_cos` (RoPE), `process_view_input`.
+`rename_outputs_with_suffix` and `make_sin_cos` (RoPE).
 
 `TOP_K` accepts an `int64_t` attribute `k`; OpenVINO infers the output shape from the input
-and this parameter. For compatibility, decoders that omit `k` must supply a static last
-output dimension, where ggml stores `k`. An unknown `k` is rejected, never inferred from
-the input width.
+and this parameter. Every producer must supply `k`; captured output metadata is not an operation
+descriptor.
+
+`REPEAT` accepts fixed integer `repeats`. If a repeat factor varies at runtime, supply the target
+tensor as its second logical operand; the translator derives the factor from both operand shapes.
 
 `ROPE` accepts an optional `int64_t` attribute `rope_offset` (default zero), matching
 `ggml_rope_set_offset`: rotate `n_dims` channels starting at that even offset and preserve
@@ -108,9 +110,59 @@ mask from sinks (an F32 mask can have the same shape as a sink).
 Converters must infer intermediate shapes from their OpenVINO operands, reading only the axes
 needed for the operation. A dynamic token axis does not prevent reading a static head width.
 Use explicit attributes for operation parameters: `reshape_target` / `special_zero`, `view_slice`,
-`repeats`, and TopK `k`. Source destination shapes may provide compatibility defaults for existing
-cgraph importers; native builders never manufacture them. A new converter also serves `GgufGraphContext::node`
+`perm`, `repeats`, and TopK `k`. Do not use destination metadata as an implicit reshape pattern or
+repair an operand based on its producer. A new converter also serves `GgufGraphContext::node`
 without a separate shape implementation in the builder.
+
+Do not add model inputs for values already available from operands: use `ShapeOf` for runtime
+extents and arithmetic for dependent bounds (for example, sequence end = start + count). Use
+constants only for values fixed for the lifetime of the compiled graph. Independent runtime
+information, such as recurrent reset ranges and writeback offsets, remains explicit Parameters,
+including for static-shape models. Bind those Parameters from the current compute state, not
+from a second cached input-value map.
+
+### Graph-ingestion attributes
+
+The frontend owns lowering for both ingestion paths. The llama.cpp adapter exposes facts through
+the existing decoder interface; it must not construct operation subgraphs or reinterpret frontend
+case numbers. The following attributes supplement facts that are not encoded as logical operands:
+
+- `rope_mode`: `normal`, `neox`, `imrope` or `vision`, ggml's rotation semantics. Its operand is an
+  already-materialized logical tensor.
+- `has_mask`: whether FLASH_ATTN_EXT has a mask. An absent mask and present sinks otherwise look
+  like a four-input masked operation after null source slots are removed.
+- `max_bias` and `kq_soft_cap`: separate FLASH_ATTN_EXT parameters, not interchangeable.
+  Nonzero `max_bias` (ALiBi) scales the mask by ggml's per-head slopes and requires a mask.
+- `kv_view`: a VIEW that reads a KV cache whose live length and first stream move with the batch.
+  The descriptor is `{streams, row_width, heads, head_size, active_streams, row_base, transposed,
+  order[4], static_length}`; optional operands after the cache are the live length and the first
+  stream. `transposed` selects the cells-innermost (`-fa off` V) layout, and `order` places the
+  canonical (stream, cell, head, dim) axes in the view's OV order.
+- `output_dynamic_axis`: OV-order axis for a runtime-sized raw VIEW output; `-1` means a fixed
+  extent. The cgraph decoder also uses it when producing an explicit `cont_reshape` descriptor.
+  Do not infer dynamic intent just because two captured dimensions happen to be equal.
+
+VIEW's `view_input_strides` and `view_output_strides` are byte strides in GGML order;
+`view_offset_bytes` is relative to the immediate logical source, not the storage root.
+The frontend resolves supported dense/rectangular views before consumers run. PERMUTE uses only
+the OV-order `perm` attribute and the logical operand it receives. Unsupported view layouts are
+errors.
+
+SET_ROWS updates the destination name in the translation tensor map. Later readers therefore
+observe the new value, while earlier readers retain their original value. A CPY update (`axis`
+present; destination is operand 1) and a ranged SCALE (start/length operands; the tensor is
+operand 0) return their whole destination and update its storage the same way, which is also what
+the model output named after that storage reports. This is graph conversion
+semantics, not runtime buffer ownership; the host still owns execution and buffer lifetime.
+Full-storage RESHAPE aliases are tracked by source tensor names, not by OpenVINO node identity:
+a CONT copy may lower to the same node but is not a storage alias. Alias shape expressions are
+replayed on the updated cache so they do not retain stale extents when stateful conversion grows it.
+
+Contract tests must reuse a compiled request across changing token counts and compare values and
+state updates, not merely inspect successful conversion. The synthetic decoder tests exercise the
+frontend interface but do not replace live llama.cpp backend tests. The native-file acceptance gate
+is `GGUFArchitectureAccuracy.PrefillAndCachedDecodeMatchLlamaCPU`; its numerical fixtures and a
+matched pure-ggml CPU reference are required before claiming end-to-end correctness.
 
 Result-type rules belong in the converter, not in the builder or architecture. `MUL_MAT` and
 `MUL_MAT_ID` produce F32, `TOP_K`/`ARGSORT` produce I32, and `GET_ROWS` returns I32 for integer
@@ -180,7 +232,7 @@ rg -n '^TEST\(' src/frontends/gguf/tests/test_ops.cpp
 
 Follow [testing.md](testing.md) for build flags, binary paths, filters, and CI coverage.
 Run the frontend binary unfiltered before finishing so the operation-coverage gate executes.
-Shared translator or VIEW/`op_case` changes also need architecture fingerprints and numerical
+Shared translator or VIEW/attribute-contract changes also need architecture fingerprints and numerical
 regressions: a guard that fixes one model can reject another's legitimately contiguous view.
 
 ## Bringing up a model that hits a missing op

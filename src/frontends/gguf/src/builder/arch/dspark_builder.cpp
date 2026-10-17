@@ -97,12 +97,11 @@ public:
         for (int layer = 0; layer < m_config.n_layer; ++layer) {
             const auto p = "blk." + std::to_string(layer) + ".";
             auto normalized = blocks::rms_norm(e, current, p + "attn_norm.weight", p + "norm", m_config.rms_eps);
-            auto joined = e.add_op("GGML_OP_CONCAT", p + "context", {context, normalized}, 0, {{"concat_axis", 1}});
+            auto joined = e.add_op("GGML_OP_CONCAT", p + "context", {context, normalized}, {{"concat_axis", 1}});
             auto attention = blocks::attention(e, m_config, kv, layer, joined);
             attention = e.add_op("GGML_OP_VIEW",
                                  p + "draft",
                                  {attention},
-                                 3,
                                  {{"view_slice", std::vector<int64_t>{2, -block, block}}});
             current = e.add_op("GGML_OP_ADD", p + "attn_residual", {current, attention});
             normalized = blocks::rms_norm(e, current, p + "ffn_norm.weight", p + "ffn_norm", m_config.rms_eps);
@@ -138,7 +137,7 @@ public:
             auto features = hidden;
             if (confidence_with_markov)
                 features =
-                    e.add_op("GGML_OP_CONCAT", "dspark.confidence_features", {hidden, latent}, 0, {{"concat_axis", 0}});
+                    e.add_op("GGML_OP_CONCAT", "dspark.confidence_features", {hidden, latent}, {{"concat_axis", 0}});
             e.add_weight("dspark.confidence_head.weight");
             auto confidence =
                 e.add_op("GGML_OP_MUL_MAT", "dspark.confidence", {"dspark.confidence_head.weight", features});

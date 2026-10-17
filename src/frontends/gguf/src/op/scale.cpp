@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <climits>
-#include <vector>
+#include <limits>
 
 #include "node_context.hpp"
 #include "op_table.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/slice.hpp"
 #include "utils.hpp"
@@ -17,45 +17,38 @@
 namespace ov::frontend::gguf::op {
 
 OutputVector translate_scale(const NodeContext& context) {
-    num_inputs_check(context, 1, 1);
-
-    // bias is optional in ggml SCALE; default it so a missing op-param does not abort conversion.
-    float scale = context.get_attribute<float>("scale", 1.0f);
-    float bias = context.get_attribute<float>("bias", 0.0f);
-
-    auto scale_node = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale});
-    ov::Output<ov::Node> value = context.get_input(0);
-    bool updated_cache = false;
-    if (context.get_op_case() == 1 && context.has_input("cache_rs_reset_idx") &&
-        context.has_input("cache_rs_reset_len")) {
-        auto begin = context.get_input("cache_rs_reset_idx");
-        auto end = std::make_shared<ov::op::v1::Add>(begin, context.get_input("cache_rs_reset_len"));
+    num_inputs_check(context, 1, 3);
+    FRONT_END_OP_CONVERSION_CHECK(context.get_input_size() != 2, "SCALE requires both range start and length");
+    const auto data = context.get_input(0);
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, {}, {context.get_attribute<float>("scale", 1.0f)});
+    auto bias = ov::op::v0::Constant::create(ov::element::f32, {}, {context.get_attribute<float>("bias", 0.0f)});
+    const bool has_bias = context.get_attribute<float>("bias", 0.0f) != 0.0f;
+    auto apply = [&](const ov::Output<ov::Node>& value) -> ov::Output<ov::Node> {
+        ov::Output<ov::Node> scaled = std::make_shared<ov::op::v1::Multiply>(
+            value, std::make_shared<ov::op::v1::ConvertLike>(scale, value));
+        if (!has_bias) {
+            return scaled;
+        }
+        return std::make_shared<ov::op::v1::Add>(
+            scaled, std::make_shared<ov::op::v1::ConvertLike>(bias, value));
+    };
+    ov::Output<ov::Node> result;
+    if (context.get_input_size() == 3) {
+        const auto axis_value = context.get_attribute<int64_t>("axis");
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {axis_value});
         auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
         auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-        auto int_max = ov::op::v0::Constant::create(ov::element::i64, {1}, {INT_MAX});
-        auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
-        auto head = std::make_shared<ov::op::v8::Slice>(value, zero, begin, one, axis);
-        auto middle = std::make_shared<ov::op::v8::Slice>(value, begin, end, one, axis);
-        auto tail = std::make_shared<ov::op::v8::Slice>(value, end, int_max, one, axis);
-        auto scaled_middle = std::make_shared<ov::op::v1::Multiply>(middle, scale_node);
-        value = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{head, scaled_middle, tail}, 2);
-        updated_cache = true;
-    }
-    ov::Output<ov::Node> scaled = value;
-    if (!updated_cache) {
-        scaled = std::make_shared<ov::op::v1::Multiply>(value, scale_node);
-    }
-
-    std::shared_ptr<ov::Node> res;
-    if (bias != 0.0f) {
-        auto bias_node =
-            std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{bias});
-        res = std::make_shared<ov::op::v1::Add>(scaled, bias_node);
+        auto limit = ov::op::v0::Constant::create(ov::element::i64, {1}, {std::numeric_limits<int64_t>::max()});
+        auto begin = context.get_input(1);
+        auto end = std::make_shared<ov::op::v1::Add>(begin, context.get_input(2));
+        auto head = std::make_shared<ov::op::v8::Slice>(data, zero, begin, one, axis);
+        auto middle = std::make_shared<ov::op::v8::Slice>(data, begin, end, one, axis);
+        auto tail = std::make_shared<ov::op::v8::Slice>(data, end, limit, one, axis);
+        result = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{head, apply(middle), tail}, axis_value);
     } else {
-        res = scaled.get_node_shared_ptr();
+        result = apply(data);
     }
-
-    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
+    return rename_outputs_with_suffix({result}, context.get_name());
 }
 
 }  // namespace ov::frontend::gguf::op

@@ -43,9 +43,9 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context);
 OutputVector translate_gated_delta_net(const NodeContext& context) {
     num_inputs_check(context, 6, 6);
 
-    auto v_shape = context.get_input_shape(2);  // [B, T, H_v, S_v]
-    auto q_shape = context.get_input_shape(0);  // [B, T, H_k, S_k]
-    auto g_shape = context.get_input_shape(3);  // [B, T, H_v, 1 or S_v]
+    auto v_shape = context.get_input(2).get_partial_shape();  // [B, T, H_v, S_v]
+    auto q_shape = context.get_input(0).get_partial_shape();  // [B, T, H_k, S_k]
+    auto g_shape = context.get_input(3).get_partial_shape();  // [B, T, H_v, 1 or S_v]
 
     const int64_t H_v = v_shape[2].get_length();
     const int64_t S_v = v_shape[3].get_length();
@@ -159,9 +159,9 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
     auto beta = context.get_input(4);
     auto state = context.get_input(5);
 
-    auto v_shape = context.get_input_shape(2);  // [B, T, H_v, S_v]
-    auto q_shape = context.get_input_shape(0);  // [B, T, H_k, S_k]
-    auto g_shape = context.get_input_shape(3);  // [B, T, H_v, 1 or S_v]
+    auto v_shape = v.get_partial_shape();  // [B, T, H_v, S_v]
+    auto q_shape = q.get_partial_shape();  // [B, T, H_k, S_k]
+    auto g_shape = g.get_partial_shape();  // [B, T, H_v, 1 or S_v]
 
     const int64_t B = v_shape[0].get_length();
     const int64_t H_v = v_shape[2].get_length();

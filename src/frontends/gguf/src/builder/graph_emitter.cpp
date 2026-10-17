@@ -87,7 +87,6 @@ const ov::Output<ov::Node>& GraphEmitter::value(const std::string& name) const {
 std::string GraphEmitter::add_op(const std::string& op_type,
                                  const std::string& name,
                                  const std::vector<std::string>& inputs,
-                                 int op_case,
                                  std::map<std::string, ov::Any> attrs,
                                  std::vector<std::string> extra_outputs) {
     if (!inputs.empty() && ((op_type == "GGML_OP_MUL_MAT" && m_hadamard_weights.count(inputs[0])) ||
@@ -113,14 +112,12 @@ std::string GraphEmitter::add_op(const std::string& op_type,
     op.input_names = inputs;
     op.output_name = name;
     op.extra_output_names = std::move(extra_outputs);
-    op.op_case = op_case;
     op.attributes = std::move(attrs);
     m_graph->nodes.push_back(std::move(op));
-    auto decoder = std::make_shared<GgufBuilderDecoder>(m_graph);
-    prepare_graph_inputs(*m_graph->values, *decoder);
     translate_node(std::make_shared<GgufBuilderDecoder>(m_graph, static_cast<int>(m_graph->nodes.size() - 1)),
                    m_graph->values,
-                   m_translators);
+                   m_translators,
+                   m_storage_aliases);
     return name;
 }
 
@@ -278,7 +275,7 @@ void GraphEmitter::emit_weight_op(const std::string& node_name, const WeightTens
     if (tensors.zero_point) {
         attrs["gguf.blob.zp"] = tensors.zero_point;
     }
-    add_op("GGML_OP_NONE", node_name, {}, 0, std::move(attrs));
+    add_op("GGML_OP_NONE", node_name, {}, std::move(attrs));
 }
 
 WeightTensors GraphEmitter::weight_parts(const std::string& base) const {

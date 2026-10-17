@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 
@@ -36,11 +37,6 @@ public:
         auto shape = m_decoder->get_input_shape(m_input_names[input_index]);
         if (shape.rank().is_dynamic()) {
             shape = get_input(static_cast<int>(input_index)).get_partial_shape();
-            if (shape.rank().is_static() && shape.size() < 4) {
-                std::vector<ov::Dimension> dims(4 - shape.size(), 1);
-                dims.insert(dims.end(), shape.begin(), shape.end());
-                shape = ov::PartialShape(dims);
-            }
         }
         return shape;
     }
@@ -55,15 +51,13 @@ public:
         return m_decoder->get_output_shape();
     }
 
-    int get_op_case() const {
-        return get_attribute<int>("op_case", 0);
-    }
-
     Output<Node> get_input(int idx) const override {
-        return m_tensor_map->at(m_input_names[idx]);
+        return m_tensor_map->at(m_input_names.at(idx));
     }
 
     Output<Node> get_input(const std::string& name) const override {
+        FRONT_END_GENERAL_CHECK(std::find(m_input_names.begin(), m_input_names.end(), name) != m_input_names.end(),
+                                "Input is not an operand of this operation: ", name);
         auto it = m_tensor_map->find(name);
         if (it == m_tensor_map->end()) {
             throw std::runtime_error("'" + name + "' not found in tensor map.");
@@ -72,7 +66,23 @@ public:
     }
 
     bool has_input(const std::string& name) const {
-        return m_tensor_map->find(name) != m_tensor_map->end();
+        return std::find(m_input_names.begin(), m_input_names.end(), name) != m_input_names.end() &&
+               m_tensor_map->find(name) != m_tensor_map->end();
+    }
+
+    // Per-translation memo for values that several nodes would otherwise rebuild identically (e.g. the
+    // RoPE sin/cos table shared by every layer). Entries live in the tensor map under a reserved prefix
+    // so they never collide with a GGML tensor name.
+    bool has_cached(const std::string& key) const {
+        return m_tensor_map->find(kCachePrefix + key) != m_tensor_map->end();
+    }
+
+    Output<Node> get_cached(const std::string& key) const {
+        return m_tensor_map->at(kCachePrefix + key);
+    }
+
+    void set_cached(const std::string& key, const Output<Node>& value) const {
+        (*m_tensor_map)[kCachePrefix + key] = value;
     }
 
     const std::string& get_name() const override {
@@ -84,6 +94,7 @@ public:
     }
 
 private:
+    static constexpr const char* kCachePrefix = "__gguf_cache__/";
     std::shared_ptr<GgufDecoder> m_decoder;
     std::shared_ptr<TensorMap>& m_tensor_map;
     std::vector<std::string> m_input_names;

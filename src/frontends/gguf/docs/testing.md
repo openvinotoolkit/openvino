@@ -24,7 +24,7 @@ Multi-configuration generators can add a configuration subdirectory.
 
 | Change | Coverage |
 |---|---|
-| Converter or `op_case` | Relevant `GGUFOps` tests, then the full frontend binary for the operation-coverage gate |
+| Converter or attribute contract | Relevant `GGUFOps` tests, then the full frontend binary for the operation-coverage gate |
 | Architecture/shared decoder blocks | `GGUFArchConversion`, `GGUFArchitectureAccuracy`, relevant adaptation/state tests |
 | mmproj | `GGUFMMProj`, `GGUFMMProjAccuracy`, `GGUFMMProjDynamicAccuracy`; relevant real-checkpoint tests |
 | Extension API or packaging | Builder/extension tests plus the separate architecture-library binary and actual shipped plugin |

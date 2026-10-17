@@ -119,7 +119,7 @@ ProjectorDefinition audio{
     "clip.audio.example", "clip", "audio", "example-audio",
     [](GgufGraphContext& graph) {
         auto input = graph.add_input("audio.example_input", ov::element::f32, {1, 1, -1, 8});
-        auto output = graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.0f}, {"bias", 0.0f}});
+        auto output = graph.node("GGML_OP_SCALE", {input}, {{"scale", 2.0f}, {"bias", 0.0f}});
         return ProjectorResult{output, {{"audio.merge", "1"}}};
     },
     {}};
@@ -150,7 +150,7 @@ frontend->add_extension(std::make_shared<ov::frontend::ConversionExtension>(
 ```
 
 A builder can then call `graph.node("EXAMPLE_NEGATE", {value})`. Use the base `NodeContext`
-interface (`get_attribute<int>("op_case", 0)` for the case); GGUF's concrete one is internal. A
+interface (`get_attribute<T>(name)` for named attributes); GGUF's concrete one is internal. A
 same-named extension overrides the built-in converter and the last registration wins. Preserve the
 operation's semantics, types and layout. For a built-in converter see [how_to_add_op.md](how_to_add_op.md).
 

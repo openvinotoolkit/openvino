@@ -17,6 +17,7 @@
 #include "node_context.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/frontend/gguf/tokenizer_metadata.hpp"
@@ -55,66 +56,10 @@ namespace ov::frontend::gguf {
 
 using namespace ov::op;
 
-namespace {
-
-void add_sliced_mask(TensorMap& tensor_map) {
-    // Publish the decoder's runtime-sized attention mask under the shared name
-    // consumed by the attention translators.
-    auto create_sliced_mask = [&](const std::string& mask_name, const std::string& sliced_name) {
-        if (tensor_map.count(mask_name) && !tensor_map.count(sliced_name)) {
-            auto mask = tensor_map.at(mask_name).get_node_shared_ptr();
-            // The decoder binds the mask with its current runtime shape, so its
-            // token axis already is the active token window.
-            std::shared_ptr<ov::Node> mask_sliced = std::make_shared<ov::op::v0::Convert>(mask, ov::element::f16);
-            mask_sliced->set_friendly_name(sliced_name);
-            tensor_map.insert({sliced_name, mask_sliced->output(0)});
-        }
-    };
-
-    create_sliced_mask("self_kq_mask", "KQ_mask_sliced");
-    create_sliced_mask("self_kq_mask_swa", "KQ_mask_swa_sliced");
-}
-
-void add_rope_sin_cos(TensorMap& tensor_map, GgufDecoder& gguf_model_decoder) {
-    // A decoder bound to a full LLM graph exposes "rope_config"; a decoder wrapping a bare op /
-    // small cgraph (a single-op test) has no such attribute -> default RopeConfig (n_dims == 0,
-    // "no RoPE") so the shared table is skipped and the op falls back to its own sin/cos.
-    const auto rope_config_any = gguf_model_decoder.get_attribute("rope_config");
-    if (rope_config_any.empty()) {
-        return;
-    }
-    const auto& rope_config = rope_config_any.as<RopeConfig>();
-    // n_dims == 0 means the model uses no RoPE; per_op means each ROPE op builds its own sin/cos
-    // (e.g. gemma4 where SWA and global layers differ), so skip the shared table entirely.
-    if (tensor_map.count("rope_cos") || !tensor_map.count("inp_pos") || rope_config.n_dims == 0 || rope_config.per_op) {
-        return;
-    }
-    auto inp_pos = tensor_map.at("inp_pos").get_node_shared_ptr();
-    std::shared_ptr<ov::Node> rope_freqs_weight;
-    if (tensor_map.find("rope_freqs.weight") != tensor_map.end()) {
-        rope_freqs_weight = tensor_map.at("rope_freqs.weight").get_node_shared_ptr();
-    }
-
-    auto sin_cos = make_sin_cos(rope_config, inp_pos, rope_freqs_weight, rope_config.is_imrope);
-    auto sin_theta = sin_cos.first;
-    auto cos_theta = sin_cos.second;
-
-    cos_theta.get_node_shared_ptr()->set_friendly_name("rope_cos");
-    sin_theta.get_node_shared_ptr()->set_friendly_name("rope_sin");
-    tensor_map.insert({"rope_cos", cos_theta});
-    tensor_map.insert({"rope_sin", sin_theta});
-}
-
-}  // namespace
-
-void prepare_graph_inputs(TensorMap& tensor_map, GgufDecoder& gguf_model_decoder) {
-    add_sliced_mask(tensor_map);
-    add_rope_sin_cos(tensor_map, gguf_model_decoder);
-}
-
 void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                     std::shared_ptr<TensorMap>& tensor_map,
-                    const std::unordered_map<std::string, CreatorFunction>& translators) {
+                    const std::unordered_map<std::string, CreatorFunction>& translators,
+                    std::map<std::string, std::string>& storage_aliases) {
     const auto& operation_type = decoder->get_op_type();
     if (operation_type == "GGML_OP_NONE") {
         // A GGML_OP_NONE leaf is a weight if the decoder marks it as one: either the native
@@ -136,7 +81,29 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                                   operation_type,
                                   " is not implemented.");
     NodeContext node_context(decoder, tensor_map);
-    converted_outputs = it->second(node_context);
+    try {
+        converted_outputs = it->second(node_context);
+    } catch (const std::exception& e) {
+        // Name the failing node and its operands: translator checks only describe the local condition.
+        std::string inputs;
+        const auto input_names = decoder->get_input_names();
+        for (size_t i = 0; i < input_names.size(); ++i) {
+            inputs += i ? ", " : "";
+            const auto& name = input_names[i];
+            const auto it = tensor_map->find(name);
+            inputs += it == tensor_map->end() ? "'" + name + "' (not translated)" : it->second.get_partial_shape().to_string();
+        }
+        FRONT_END_OP_CONVERSION_CHECK(false,
+                                      operation_type,
+                                      " '",
+                                      decoder->get_op_name(),
+                                      "' (inputs: ",
+                                      inputs,
+                                      "; ggml output shape: ",
+                                      decoder->get_output_shape().to_string(),
+                                      "): ",
+                                      e.what());
+    }
 
     const auto& node_output_names = decoder->get_output_names();
     FRONT_END_OP_CONVERSION_CHECK(node_output_names.size() == converted_outputs.size(),
@@ -148,10 +115,81 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                                   converted_outputs.size(),
                                   " respectively.");
 
+    const auto storage_name = [&](const std::string& name) {
+        const auto it = storage_aliases.find(name);
+        return it == storage_aliases.end() ? name : it->second;
+    };
+    // Operations that return their whole destination with a region rewritten update that storage in
+    // place: every later read of the storage, and the model output written back to it, must see the
+    // new value. SET_ROWS writes rows of input 2, a CPY update ("axis") writes a range of input 1, and a
+    // ranged SCALE (start/length inputs) rescales a range of input 0.
+    int updated_input = -1;
+    if (operation_type == "GGML_OP_SET_ROWS") {
+        updated_input = 2;
+    } else if (operation_type == "GGML_OP_CPY" && !decoder->get_attribute("axis").empty()) {
+        updated_input = 1;
+    } else if (operation_type == "GGML_OP_SCALE" && decoder->get_input_size() == 3) {
+        updated_input = 0;
+    }
+    std::string output_storage;
+    if (updated_input >= 0) {
+        const auto destination = node_context.get_input(updated_input);
+        output_storage = storage_name(decoder->get_input_names().at(updated_input));
+        const auto previous_root = tensor_map->at(output_storage);
+        const ov::Output<Node> updated_root =
+            previous_root == destination
+                ? converted_outputs.at(0)
+                : std::make_shared<v1::Reshape>(converted_outputs.at(0),
+                                               std::make_shared<v3::ShapeOf>(previous_root, ov::element::i64),
+                                               false)->output(0);
+        std::unordered_map<Node*, std::shared_ptr<Node>> rebound_nodes;
+        const auto rebind = [&](auto&& self, const ov::Output<Node>& value) -> ov::Output<Node> {
+            if (value == previous_root) {
+                return updated_root;
+            }
+            const auto node = value.get_node_shared_ptr();
+            const auto found = rebound_nodes.find(node.get());
+            if (found != rebound_nodes.end()) {
+                return found->second->output(value.get_index());
+            }
+            auto inputs = node->input_values();
+            bool changed = false;
+            for (auto& input : inputs) {
+                auto replacement = self(self, input);
+                changed = changed || replacement != input;
+                input = replacement;
+            }
+            auto rebound = changed ? node->clone_with_new_inputs(inputs) : node;
+            if (changed) {
+                ov::copy_runtime_info(node, rebound);
+            }
+            rebound_nodes.emplace(node.get(), rebound);
+            return rebound->output(value.get_index());
+        };
+        TensorMap updates;
+        // Source RESHAPE aliases share storage; CONT copies may share an OV node but must not be rebound.
+        // Replay their shape expressions on the new value, including ShapeOf, so growing state stays dynamic.
+        for (const auto& entry : *tensor_map) {
+            if (storage_name(entry.first) == output_storage) {
+                updates[entry.first] = entry.second == destination
+                                           ? converted_outputs.at(0)
+                                           : rebind(rebind, entry.second);
+            }
+        }
+        for (const auto& update : updates) {
+            (*tensor_map)[update.first] = update.second;
+        }
+    } else if (operation_type == "GGML_OP_RESHAPE") {
+        output_storage = storage_name(decoder->get_input_names().at(0));
+    }
     for (size_t i = 0; i < node_output_names.size(); ++i) {
         const auto& output_name = node_output_names[i];
         if (i < converted_outputs.size() && converted_outputs[i].get_node_shared_ptr() != nullptr) {
             (*tensor_map)[output_name] = converted_outputs[i];
+        }
+        storage_aliases.erase(output_name);
+        if (!output_storage.empty() && output_storage != output_name) {
+            storage_aliases[output_name] = output_storage;
         }
     }
 }
@@ -217,21 +255,16 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // translate_weight turns into a compressed subgraph during the walk below, which keeps them
     // lazy (never materialized to f32) and keeps one weight-loading path for both ingest paths.
 
+    std::map<std::string, std::string> storage_aliases;
     auto node_visitor = [&](std::shared_ptr<GgufDecoder> decoder) {
-        translate_node(decoder, tensor_map, m_translator_map);
+        translate_node(decoder, tensor_map, m_translator_map, storage_aliases);
     };
 
-    // Build the shared LLM scaffolding (sliced attention mask + rope sin/cos table) once, so all
-    // layers reuse it. Both builders are self-gating: add_sliced_mask only fires when the mask +
-    // token_len_per_seq inputs are present, and add_rope_sin_cos only when inp_pos is present and
-    // the model uses a shared rope table (n_dims != 0, not per-op). For a bare op / small cgraph
-    // (no rope_config -> default n_dims == 0, no mask/pos inputs) both no-op, and the ROPE/attention
-    // translators fall back to building their own -- so there is no separate "naive" mode.
+    // Native builders eagerly translate their nodes; other decoders are walked here.
     const auto builder = std::dynamic_pointer_cast<GgufBuilderDecoder>(gguf_model_decoder);
     if (builder) {
         tensor_map = builder->values();
     } else {
-        prepare_graph_inputs(*tensor_map, *gguf_model_decoder);
         gguf_model_decoder->visit_subgraph(node_visitor);
     }
 

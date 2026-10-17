@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <climits>
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -11,16 +11,14 @@
 #include "op_table.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/slice.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/util/op_types.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -28,21 +26,10 @@ namespace ov::frontend::gguf::op {
 OutputVector translate_mulmat(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
 
-    int op_case = context.get_attribute<int>("op_case", 0);
-
-    ov::Output<Node> res;
     ov::Output<ov::Node> B = context.get_input(0);
     ov::Output<ov::Node> A = context.get_input(1);
     A = apply_hadamard(context, A);
 
-    bool transpose_b = true;
-    if (op_case == 2) {
-        B = B.get_node_shared_ptr()->input_value(0);
-        transpose_b = false;
-    } else if (op_case == 3) {
-        B = process_view_input(context, 0);
-        A = process_view_input(context, 1);
-    }
     // GGML MUL_MAT produces F32, including when both operands are F16.
     if (A.get_element_type() != ov::element::f32) {
         A = std::make_shared<ov::op::v0::Convert>(A, ov::element::f32);
@@ -51,51 +38,58 @@ OutputVector translate_mulmat(const NodeContext& context) {
         B = std::make_shared<ov::op::v0::Convert>(B, ov::element::f32);
     }
 
-    auto B_shape = context.get_input_shape(0);
-    auto A_shape = context.get_input_shape(1);
-    if (A_shape[1].is_dynamic() || B_shape[1].is_dynamic()) {
-        // Variable encoder grids use equal or singleton batch axes. MatMul validates
-        // their broadcast compatibility at runtime; do not freeze a grid dimension.
-        return rename_outputs_with_suffix({std::make_shared<ov::op::v0::MatMul>(A, B, false, transpose_b)},
-                                          context.get_name());
-    }
-    int64_t A_batch = A_shape[1].get_length();
-    int64_t B_batch = B_shape[1].get_length();
-
-    auto A_batch_larger = A_batch > B_batch;
-    auto batch_large = A_batch_larger ? A_batch : B_batch;
-    auto batch_small = A_batch_larger ? B_batch : A_batch;
-
-    Output<Node> Z = A_batch_larger ? B : A;
-    int64_t factor = batch_large / batch_small;
-    if (factor > 1 && batch_small > 1) {
-        auto batch_large_node = ov::op::v0::Constant::create(ov::element::i64, {1}, std::vector<int64_t>{batch_large});
-        auto batch_small_node = ov::op::v0::Constant::create(ov::element::i64, {1}, std::vector<int64_t>{batch_small});
-        auto factor_node = ov::op::v0::Constant::create(ov::element::i64, {1}, std::vector<int64_t>{factor});
-
-        auto unsqueeze_axes = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {2});
-        auto Z_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(Z, unsqueeze_axes);
-
-        auto broadcast_shape = ov::op::v0::Constant::create(ov::element::i64,
-                                                            {5},
-                                                            {(int64_t)1, (int64_t)1, factor, (int64_t)1, (int64_t)1});
-        auto new_Z_shape =
-            ov::op::v0::Constant::create(ov::element::i64,
-                                         {4},
-                                         {(int64_t)0, batch_large, (int64_t)-1, (int64_t)A_shape[3].get_length()});
-
-        auto Z_broadcasted = std::make_shared<ov::op::v3::Broadcast>(Z_unsqueezed,
-                                                                     broadcast_shape,
-                                                                     ov::op::BroadcastType::BIDIRECTIONAL);
-        Z = std::make_shared<ov::op::v1::Reshape>(Z_broadcasted, new_Z_shape, true);
-    }
-    if (A_batch_larger) {
-        B = Z;
-    } else {
-        A = Z;
+    const auto B_shape = B.get_partial_shape();
+    const auto A_shape = A.get_partial_shape();
+    for (const auto& shape : {A_shape, B_shape}) {
+        FRONT_END_OP_CONVERSION_CHECK(shape.rank().is_static() && shape.rank().get_length() >= 2 &&
+                                          shape.rank().get_length() <= 4,
+                                      "MUL_MAT ", context.get_name(),
+                                      " requires rank-2 to rank-4 operands; activation shape: ",
+                                      A_shape, ", weight shape: ", B_shape);
     }
 
-    res = std::make_shared<ov::op::v0::MatMul>(A, B, false, transpose_b);
+    // Missing and singleton batch axes use MatMul's ordinary broadcasting. GGML additionally
+    // repeats groups on non-singleton batch axes (e.g. KV heads [0,0,1,1], not [0,1,0,1]).
+    for (int trailing_axis : {3, 4}) {
+        const int a_axis = static_cast<int>(A_shape.rank().get_length()) - trailing_axis;
+        const int b_axis = static_cast<int>(B_shape.rank().get_length()) - trailing_axis;
+        if (a_axis < 0 || b_axis < 0) {
+            continue;
+        }
+        const auto& a_dim = A_shape[a_axis];
+        const auto& b_dim = B_shape[b_axis];
+        if (a_dim == 1 || b_dim == 1 || (a_dim.is_static() && b_dim.is_static() && a_dim == b_dim)) {
+            continue;
+        }
+        if (a_dim.is_static() && b_dim.is_static()) {
+            const auto small = std::min(a_dim.get_length(), b_dim.get_length());
+            const auto large = std::max(a_dim.get_length(), b_dim.get_length());
+            FRONT_END_OP_CONVERSION_CHECK(small > 0 && large % small == 0,
+                                          "MUL_MAT batch dimensions must be integer multiples");
+        }
+        auto a_count = get_dimensions(A, {a_axis});
+        auto b_count = get_dimensions(B, {b_axis});
+        auto target = std::make_shared<ov::op::v1::Maximum>(a_count, b_count);
+        auto zero = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+        auto one = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
+        auto scalar_axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+        auto end = std::make_shared<ov::op::v0::Squeeze>(target, scalar_axis);
+        auto positions = std::make_shared<ov::op::v4::Range>(zero, end, one, ov::element::i64);
+        const auto repeat_groups = [&](const Output<Node>& value, const Output<Node>& count, int axis) {
+            auto factor = std::make_shared<ov::op::v1::Divide>(target, count);
+            auto indices = std::make_shared<ov::op::v1::Divide>(positions, factor);
+            return std::make_shared<ov::op::v8::Gather>(
+                value, indices, ov::op::v0::Constant::create(ov::element::i64, {}, {axis}));
+        };
+        if (!a_dim.is_static() || !b_dim.is_static() || a_dim.get_length() < b_dim.get_length()) {
+            A = repeat_groups(A, a_count, a_axis);
+        }
+        if (!a_dim.is_static() || !b_dim.is_static() || b_dim.get_length() < a_dim.get_length()) {
+            B = repeat_groups(B, b_count, b_axis);
+        }
+    }
+
+    ov::Output<Node> res = std::make_shared<ov::op::v0::MatMul>(A, B, false, true);
 
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }

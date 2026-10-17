@@ -80,7 +80,6 @@ public:
     std::string add_op(const std::string& op_type,
                        const std::string& name,
                        const std::vector<std::string>& inputs,
-                       int op_case = 0,
                        std::map<std::string, ov::Any> attrs = {},
                        std::vector<std::string> extra_outputs = {});
 
@@ -128,6 +127,8 @@ private:
 
     std::shared_ptr<GgufGraph> m_graph;
     std::unordered_map<std::string, CreatorFunction> m_translators;
+    // Tensor names that alias another tensor's storage (RESHAPE of a cache), rebound by in-place writes.
+    std::map<std::string, std::string> m_storage_aliases;
     // Names of weights already emitted as GGML_OP_NONE leaves, so a weight referenced by several
     // ops (or tied, e.g. MQA tie-V) is emitted once.
     std::set<std::string> m_emitted_weights;

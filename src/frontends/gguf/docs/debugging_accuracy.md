@@ -194,7 +194,7 @@ oracles have separate [regeneration instructions](testing.md#fixtures-and-oracle
 | Partial rotary geometry | Read rotary width/offset from the operation configuration; do not rotate a whole head when only part is rotary |
 | Shared RoPE tables | The table and each consumer must agree on mode, dimensions, and position sections |
 | Dynamic tail slices | Derive offsets from the live length; a prefill offset can overrun during decode |
-| Strided VIEW treated as dense | Inspect `ne[]`, `nb[]`, element offset, and semantic `op_case`; shape alone does not establish contiguity |
+| Strided VIEW treated as dense | Inspect `ne[]`, `nb[]`, element offset, and the VIEW's stride attributes; shape alone does not establish contiguity |
 | Recurrent state shared across subgraphs | Keep per-subgraph bookkeeping separate and test beyond the first decode step |
 | Media adaptation mismatch | Check modality pruning, removed input prefixes, DeepStack splitting, and separate Gemma4 per-layer embeddings |
 

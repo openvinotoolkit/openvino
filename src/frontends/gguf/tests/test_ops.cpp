@@ -11,9 +11,13 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <tuple>
 
 #include "op_table.hpp"
 #include "op_test_utils.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/extractimagepatches.hpp"
@@ -23,6 +27,7 @@
 #include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/topk.hpp"
+#include "openvino/runtime/variable_state.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "utils.hpp"
@@ -30,6 +35,40 @@
 using namespace ov_gguf_test;
 
 namespace {
+
+// A cgraph decoder retains capture-time shapes while its Parameters accept subsequent token counts.
+class CapturedInputDecoder : public SingleOpDecoder {
+public:
+    CapturedInputDecoder(const std::shared_ptr<GgufDecoder>& decoder,
+                         std::map<std::string, ov::PartialShape> captured_shapes,
+                         int64_t view_offset = 0)
+        : SingleOpDecoder(*std::dynamic_pointer_cast<SingleOpDecoder>(decoder)),
+          m_captured_shapes(std::move(captured_shapes)),
+          m_view_offset(view_offset) {}
+
+    ov::PartialShape get_input_shape(const std::string& name) const override {
+        const auto it = m_captured_shapes.find(name);
+        return it == m_captured_shapes.end() ? SingleOpDecoder::get_input_shape(name) : it->second;
+    }
+
+    int64_t get_input_view_element_offset(const std::string&) const override {
+        return m_view_offset;
+    }
+
+private:
+    std::map<std::string, ov::PartialShape> m_captured_shapes;
+    int64_t m_view_offset;
+};
+
+static std::shared_ptr<ov::Model> build_captured_op(
+    const SingleOpBuilder& builder,
+    const std::map<std::string, ov::PartialShape>& captured_shapes,
+    int64_t view_offset = 0) {
+    std::shared_ptr<GgufDecoder> decoder =
+        std::make_shared<CapturedInputDecoder>(builder.decoder(), captured_shapes, view_offset);
+    FrontEnd fe;
+    return fe.convert(fe.load(decoder));
+}
 
 // ── Elementwise binary ops (two equally-shaped f32 inputs) ──────────────────────
 // add / mul / sub / div share the exact same graph shape and driver, so they are
@@ -512,6 +551,7 @@ TEST(GGUFOps, TopKIndexTypeComesFromOperation) {
                      .op("GGML_OP_TOP_K")
                      .input("x", ov::element::f32, {1, 1, 2, 4})
                      .output("out", ov::element::dynamic, {1, 1, 2, 2})
+                     .attr<int64_t>("k", 2)
                      .build();
 
     std::vector<float> x{4, 1, 3, 2, 10, 40, 20, 30};
@@ -531,7 +571,6 @@ TEST(GGUFOps, ViewPassThroughKeepsProducerName) {
                      .op("GGML_OP_VIEW")
                      .input("x", ov::element::f32, {1, 1, 2, 4})
                      .output("myview", ov::element::f32, {1, 1, 2, 4})
-                     .attr<int>("op_case", 3)
                      .attr<ov::Shape>("input_ggml_shape", ov::Shape{1, 1, 2, 4})
                      .build();
 
@@ -670,14 +709,14 @@ TEST(GGUFOps, TransposePerm) {
     expect_near(out, expected);
 }
 
-// Permute op_case 1: the plain head/token axis swap, perm {0,2,1,3}.
+// PERMUTE: the plain head/token axis swap, perm {0,2,1,3}.
 TEST(GGUFOps, PermuteCase1SwapsHeadAndTokenAxes) {
     // [1, tok=2, heads=3, hs=2] -> [1, heads=3, tok=2, hs=2]
     auto model = SingleOpBuilder()
                      .op("GGML_OP_PERMUTE")
                      .input("x", ov::element::f32, {1, 2, 3, 2})
                      .output("out", ov::element::f32, {1, 3, 2, 2})
-                     .op_case(1)
+                     .attr<std::vector<int64_t>>("perm", {0, 2, 1, 3})
                      .build();
 
     std::vector<float> x(12);
@@ -695,45 +734,7 @@ TEST(GGUFOps, PermuteCase1SwapsHeadAndTokenAxes) {
     expect_near(out, expected, 0.0f);
 }
 
-// Permute op_case 4: reshape the flat projection to [n_seq, -1, n_heads, head_size] first, then
-// apply the same axis swap.  This is the Q/K projection path, where the head split and the permute
-// are a single ggml op.
-TEST(GGUFOps, PermuteCase4SplitsHeadsThenSwaps) {
-    // Flat [1, 1, tok=2, heads*hs=6] -> [1, heads=3, tok=2, hs=2]
-    auto model = SingleOpBuilder()
-                     .op("GGML_OP_PERMUTE")
-                     .input("x", ov::element::f32, {1, 1, 2, 6})
-                     .output("out", ov::element::f32, {1, 3, 2, 2})
-                     .op_case(4)
-                     .build();
-
-    std::vector<float> x(12);
-    for (size_t i = 0; i < x.size(); ++i)
-        x[i] = static_cast<float>(i);
-    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 2, 6}, x)}});
-
-    ASSERT_EQ(out.get_shape(), (ov::Shape{1, 3, 2, 2}));
-    // The reshape splits the 6-wide row into 3 heads of 2, so out[0,h,t,d] == x_flat[t*6 + h*2 + d].
-    std::vector<float> expected;
-    for (int64_t h = 0; h < 3; ++h)
-        for (int64_t t = 0; t < 2; ++t)
-            for (int64_t d = 0; d < 2; ++d)
-                expected.push_back(static_cast<float>(t * 6 + h * 2 + d));
-    expect_near(out, expected, 0.0f);
-}
-
-// Permute rejects op_cases it does not implement rather than silently emitting a wrong graph.
-TEST(GGUFOps, PermuteUnsupportedCaseThrows) {
-    EXPECT_THROW(SingleOpBuilder()
-                     .op("GGML_OP_PERMUTE")
-                     .input("x", ov::element::f32, {1, 2, 3, 2})
-                     .output("out", ov::element::f32, {1, 3, 2, 2})
-                     .op_case(7)
-                     .build(),
-                 ov::Exception);
-}
-
-// View with no op_case is a pure reinterpretation of the same buffer: a pass-through.
+// A VIEW with no descriptor is a pure reinterpretation of the same buffer: a pass-through.
 TEST(GGUFOps, ViewDefaultIsPassThrough) {
     auto model = SingleOpBuilder()
                      .op("GGML_OP_VIEW")
@@ -746,14 +747,13 @@ TEST(GGUFOps, ViewDefaultIsPassThrough) {
     expect_near(out, x, 0.0f);
 }
 
-// View op_case 3: the decoder resolves ggml's ne/nb/offset into a {axis, start, len} slice plus the
+// VIEW slice descriptor: the decoder resolves ggml's ne/nb/offset into a {axis, start, len} slice plus the
 // view's own output layout.  Here it selects columns [1, 3) of a [1,1,2,4] source.
 TEST(GGUFOps, ViewCase3SlicesAndReshapes) {
     auto model = SingleOpBuilder()
                      .op("GGML_OP_VIEW")
                      .input("x", ov::element::f32, {1, 1, 2, 4})
                      .output("out", ov::element::f32, {1, 1, 2, 2})
-                     .op_case(3)
                      .attr<ov::Shape>("input_ggml_shape", ov::Shape{1, 1, 2, 4})
                      .attr<std::vector<int64_t>>("view_slice", {3, 1, 2})
                      .attr<std::vector<int64_t>>("view_reshape", {1, 1, 2, 2})
@@ -767,7 +767,7 @@ TEST(GGUFOps, ViewCase3SlicesAndReshapes) {
     expect_near(out, expected, 0.0f);
 }
 
-// View op_case 3 also has to restore the source's original ggml shape when the OV input arrives at
+// A VIEW slice also has to restore the source's original ggml shape when the OV input arrives at
 // a different rank (a preceding op already reshaped it), otherwise the slice lands on the wrong
 // axis.  Same slice as above, but the input is presented flat.
 TEST(GGUFOps, ViewCase3RestoresGgmlShapeBeforeSlicing) {
@@ -775,7 +775,6 @@ TEST(GGUFOps, ViewCase3RestoresGgmlShapeBeforeSlicing) {
                      .op("GGML_OP_VIEW")
                      .input("x", ov::element::f32, {2, 4})
                      .output("out", ov::element::f32, {1, 1, 2, 2})
-                     .op_case(3)
                      .attr<ov::Shape>("input_ggml_shape", ov::Shape{1, 1, 2, 4})
                      .attr<std::vector<int64_t>>("view_slice", {3, 1, 2})
                      .attr<std::vector<int64_t>>("view_reshape", {1, 1, 2, 2})
@@ -826,7 +825,7 @@ TEST(GGUFOps, ViewInputRequiresDirectionalShapeMatch) {
     }
 }
 
-// TopK: indices of the k largest values per row, k taken from the output's last dim.
+// TopK: indices of the k largest values per row, with k supplied by the operation descriptor.
 //
 // ggml's own kernel deliberately swaps the first two result slots ("emphasize that the order is not
 // important", ops.cpp), so only the SET of returned indices is contractual -- the test compares
@@ -836,6 +835,7 @@ TEST(GGUFOps, TopK) {
                      .op("GGML_OP_TOP_K")
                      .input("x", ov::element::f32, {1, 1, 2, 5})
                      .output("out", ov::element::i32, {1, 1, 2, 3})
+                     .attr<int64_t>("k", 3)
                      .build();
 
     std::vector<float> x{1, 9, 3, 7, 5, 50, 10, 40, 20, 30};
@@ -893,12 +893,13 @@ TEST(GGUFOps, TopKRejectsUnknownK) {
     }
 }
 
-// Repeat: tile src to fill the output shape (integer multiples per axis).
+// Repeat: tile src using explicit operation repeat factors.
 TEST(GGUFOps, Repeat) {
     auto model = SingleOpBuilder()
                      .op("GGML_OP_REPEAT")
                      .input("x", ov::element::f32, {1, 1, 1, 3})
                      .output("out", ov::element::f32, {1, 1, 2, 3})
+                     .attr<std::vector<int64_t>>("repeats", {1, 1, 2, 1})
                      .build();
 
     std::vector<float> x{1, 2, 3};
@@ -1370,16 +1371,16 @@ TEST(GGUFOps, SoftMaxMaskAndSinks) {
     expect_near(out, expected, 1e-5f);
 }
 
-// RESHAPE op_case 3: flatten-for-SET_ROWS, [F, tok, 1, 1] -> [1, F*tok?, -1, 1] with the token
+// RESHAPE flatten-for-SET_ROWS, [F, tok, 1, 1] -> [1, F*tok?, -1, 1] with the token
 // count landing on the dynamic axis (constant folds to the static output shape here). Verifies the
 // (previously stubbed) case emits a correct reshape rather than throwing.
 TEST(GGUFOps, ReshapeCase3) {
-    // input [1,1,tok=2,F=4] -> output [1, F=4, tok=2, 1] (op_case 3 places -1 on the token axis).
+    // input [1,1,tok=2,F=4] -> output [1, F=4, tok=2, 1] (the target places -1 on the token axis).
     auto model = SingleOpBuilder()
                      .op("GGML_OP_RESHAPE")
                      .input("x", ov::element::f32, {1, 1, 2, 4})
                      .output("out", ov::element::f32, {1, 4, 2, 1})
-                     .op_case(3)
+                     .attr<std::vector<int64_t>>("reshape_target", {1, 4, -1, 1})
                      .build();
 
     std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8};
@@ -1388,7 +1389,7 @@ TEST(GGUFOps, ReshapeCase3) {
     expect_near(out, x, 0.0f);
 }
 
-// RESHAPE op_cases 1 and 2 are the attention split/merge pair, and they must be LAYOUT-POLYMORPHIC:
+// The attention split/merge RESHAPEs must be LAYOUT-POLYMORPHIC:
 // valid both for plain SDPA inference, which feeds a batch-major activation ([1, tokens, ..]), and
 // after ov::pass::SDPAToPagedAttention, which moves the token count into dim 0 ([tokens, 1, ..]).
 // Those two are the same buffer, so the op must copy the leading dim through rather than pin a
@@ -1406,8 +1407,8 @@ TEST(GGUFOps, ReshapeCase1SplitHeadsIsLayoutPolymorphic) {
                     .op("GGML_OP_RESHAPE")
                     .input("x", ov::element::f32, {1, 1, tokens, heads * head_size})
                     .output("out", ov::element::f32, {1, tokens, heads, head_size})
-                    .attr<std::vector<int64_t>>("reshape_target", {1, tokens, heads, head_size})
-                    .op_case(1)
+                    .attr<std::vector<int64_t>>("reshape_target", {0, -1, heads, head_size})
+                    .attr("special_zero", true)
                     .build();
     auto sdpa_out = run_on_cpu(sdpa, {{"x", make_f32_tensor({1, 1, (size_t)tokens, (size_t)(heads * head_size)}, x)}});
     EXPECT_EQ(sdpa_out.get_shape(), (ov::Shape{1, (size_t)tokens, (size_t)heads, (size_t)head_size}));
@@ -1418,8 +1419,8 @@ TEST(GGUFOps, ReshapeCase1SplitHeadsIsLayoutPolymorphic) {
                   .op("GGML_OP_RESHAPE")
                   .input("x", ov::element::f32, {tokens, 1, 1, heads * head_size})
                   .output("out", ov::element::f32, {1, tokens, heads, head_size})
-                  .attr<std::vector<int64_t>>("reshape_target", {1, tokens, heads, head_size})
-                  .op_case(1)
+                  .attr<std::vector<int64_t>>("reshape_target", {0, -1, heads, head_size})
+                  .attr("special_zero", true)
                   .build();
     auto pa_out = run_on_cpu(pa, {{"x", make_f32_tensor({(size_t)tokens, 1, 1, (size_t)(heads * head_size)}, x)}});
     EXPECT_EQ(pa_out.get_shape(), (ov::Shape{(size_t)tokens, 1, (size_t)heads, (size_t)head_size}));
@@ -1438,8 +1439,8 @@ TEST(GGUFOps, ReshapeCase2MergeHeadsIsLayoutPolymorphic) {
                     .op("GGML_OP_RESHAPE")
                     .input("x", ov::element::f32, {1, tokens, heads, head_size})
                     .output("out", ov::element::f32, {1, 1, tokens, heads * head_size})
-                    .attr<std::vector<int64_t>>("reshape_target", {1, 1, tokens, heads * head_size})
-                    .op_case(2)
+                    .attr<std::vector<int64_t>>("reshape_target", {0, 1, -1, heads * head_size})
+                    .attr("special_zero", true)
                     .build();
     auto sdpa_out =
         run_on_cpu(sdpa, {{"x", make_f32_tensor({1, (size_t)tokens, (size_t)heads, (size_t)head_size}, x)}});
@@ -1450,8 +1451,8 @@ TEST(GGUFOps, ReshapeCase2MergeHeadsIsLayoutPolymorphic) {
                   .op("GGML_OP_RESHAPE")
                   .input("x", ov::element::f32, {tokens, 1, heads, head_size})
                   .output("out", ov::element::f32, {1, 1, tokens, heads * head_size})
-                  .attr<std::vector<int64_t>>("reshape_target", {1, 1, tokens, heads * head_size})
-                  .op_case(2)
+                  .attr<std::vector<int64_t>>("reshape_target", {0, 1, -1, heads * head_size})
+                  .attr("special_zero", true)
                   .build();
     auto pa_out = run_on_cpu(pa, {{"x", make_f32_tensor({(size_t)tokens, 1, (size_t)heads, (size_t)head_size}, x)}});
     EXPECT_EQ(pa_out.get_shape(), (ov::Shape{(size_t)tokens, 1, 1, (size_t)(heads * head_size)}));
@@ -1550,14 +1551,12 @@ TEST(GGUFOps, RopeNeoxPartialRotary) {
     cfg.ext_factor = 0.0f;
     cfg.attn_factor = 1.0f;
     cfg.n_ctx_orig = 4096;
-    const int op_case = (1 << 16);  // NEOX mode lives in the op_case high 16 bits.
-
     auto model = SingleOpBuilder()
                      .op("GGML_OP_ROPE")
                      .input("data", ov::element::f32, {1, T, n_head, head_dim})
                      .input("pos", ov::element::i32, {1, 1, 1, T})
                      .output("out", ov::element::f32, {1, T, n_head, head_dim})
-                     .op_case(op_case)
+                     .attr("rope_mode", std::string("neox"))
                      .attr<RopeConfig>("rope_config", cfg)
                      .build();
 
@@ -1593,14 +1592,12 @@ TEST(GGUFOps, RopeNeoxFullRotary) {
     cfg.ext_factor = 0.0f;
     cfg.attn_factor = 1.0f;
     cfg.n_ctx_orig = 4096;
-    const int op_case = (1 << 16);
-
     auto model = SingleOpBuilder()
                      .op("GGML_OP_ROPE")
                      .input("data", ov::element::f32, {1, T, n_head, head_dim})
                      .input("pos", ov::element::i32, {1, 1, 1, T})
                      .output("out", ov::element::f32, {1, T, n_head, head_dim})
-                     .op_case(op_case)
+                     .attr("rope_mode", std::string("neox"))
                      .attr<RopeConfig>("rope_config", cfg)
                      .build();
 
@@ -1638,8 +1635,6 @@ TEST(GGUFOps, ImropeTextRealDims) {
     cfg.beta_fast = 32.0f;
     cfg.beta_slow = 1.0f;
     cfg.n_ctx_orig = 262144;
-    const int op_case = (2 << 16);  // high 16 bits = TYPE_IMROPE
-
     // pos: mrope needs 4*T ints, section-major [t-sect | h-sect | w-sect | e-sect]; text uses the
     // same position per section, so token t -> pos t in every section: {0,1, 0,1, 0,1, 0,1}.
     auto model = SingleOpBuilder()
@@ -1647,7 +1642,7 @@ TEST(GGUFOps, ImropeTextRealDims) {
                      .input("data", ov::element::f32, {1, T, n_head, head_dim})
                      .input("pos", ov::element::i32, {1, 1, 1, 4 * T})
                      .output("out", ov::element::f32, {1, T, n_head, head_dim})
-                     .op_case(op_case)
+                     .attr("rope_mode", std::string("imrope"))
                      .attr<RopeConfig>("rope_config", cfg)
                      .build();
 
@@ -1818,14 +1813,12 @@ TEST(GGUFOps, ImropePartialRotary) {
     cfg.beta_fast = 32.0f;
     cfg.beta_slow = 1.0f;
     cfg.n_ctx_orig = 262144;
-    const int op_case = (2 << 16);  // TYPE_IMROPE
-
     auto model = SingleOpBuilder()
                      .op("GGML_OP_ROPE")
                      .input("data", ov::element::f32, {1, T, n_head, head_dim})
                      .input("pos", ov::element::i32, {1, 1, 1, 4 * T})
                      .output("out", ov::element::f32, {1, T, n_head, head_dim})
-                     .op_case(op_case)
+                     .attr("rope_mode", std::string("imrope"))
                      .attr<RopeConfig>("rope_config", cfg)
                      .build();
 
@@ -2016,107 +2009,49 @@ TEST(GGUFOps, FlashAttnExt) {
     expect_near(out, expected, 2e-2f);  // fp16 SDPA
 }
 
-TEST(GGUFOps, FlashAttnExtFlatKvWithoutMask) {
-    auto model = SingleOpBuilder()
-                     .op("GGML_OP_FLASH_ATTN_EXT")
-                     .input("q", ov::element::f32, {1, 1, 2, 2})
-                     .input("k_flat", ov::element::f32, {1, 1, 1, 8})
-                     .input("v_flat", ov::element::f32, {1, 1, 1, 8})
-                     .extra_input("attention_size_static", ov::element::i64, {1})
-                     .output("out", ov::element::f32, {1, 2, 1, 2})
-                     .op_case(2)
-                     .attr<float>("scale", 1.0f)
-                     .attr<std::vector<int64_t>>("flat_kv_shape_k", {1, 1, 2, 2})
-                     .attr<std::vector<int64_t>>("flat_kv_shape_v", {1, 1, 2, 2})
-                     .attr<int64_t>("flat_kv_offset_k", 2)
-                     .attr<int64_t>("flat_kv_offset_v", 2)
-                     .build();
-
-    const std::vector<float> q{1, 0, 0, 1};
-    const std::vector<float> k_flat{9, 9, 1, 0, 0, 1, 9, 9};
-    const std::vector<float> v_flat{9, 9, 1, 2, 3, 4, 9, 9};
-    auto out = run_on_cpu(model,
-                          {{"q", make_f32_tensor({1, 1, 2, 2}, q)},
-                           {"k_flat", make_f32_tensor({1, 1, 1, 8}, k_flat)},
-                           {"v_flat", make_f32_tensor({1, 1, 1, 8}, v_flat)},
-                           {"attention_size_static", make_i64_tensor({1}, {2})}});
-
-    const float p = std::exp(1.0f) / (std::exp(1.0f) + 1.0f);
-    expect_near(out, {3.0f - 2.0f * p, 4.0f - 2.0f * p, 1.0f + 2.0f * p, 2.0f + 2.0f * p}, 2e-2f);
-}
-
-TEST(GGUFOps, FlashAttnExtFlatKvGqaWithoutMask) {
-    auto model = SingleOpBuilder()
-                     .op("GGML_OP_FLASH_ATTN_EXT")
-                     .input("q", ov::element::f32, {1, 4, 2, 2})
-                     .input("k_flat", ov::element::f32, {1, 1, 1, 10})
-                     .input("v_flat", ov::element::f32, {1, 1, 1, 10})
-                     .extra_input("attention_size_static", ov::element::i64, {1})
-                     .output("out", ov::element::f32, {1, 2, 4, 2})
-                     .op_case(2)
-                     .attr<float>("scale", 1.0f)
-                     .attr<std::vector<int64_t>>("flat_kv_shape_k", {1, 2, 2, 2})
-                     .attr<std::vector<int64_t>>("flat_kv_shape_v", {1, 2, 2, 2})
-                     .attr<int64_t>("flat_kv_offset_k", 1)
-                     .attr<int64_t>("flat_kv_offset_v", 1)
-                     .build();
-
-    const std::vector<float> q{1, 0, 0, 1, 0.5f, 1, 1, -0.5f, -1, 1, 1, 0, 0, -1, 0.5f, 0.5f};
-    // ggml's [Hkv,T,D] K/V data is stored in the flat cache as [T,Hkv,D].
-    const std::vector<float> k_flat{9, 1, 0, 0.5f, 0.5f, 0, 1, -0.5f, 1, 9};
-    const std::vector<float> v_flat{9, 1, 2, 5, 6, 3, 4, 7, 8, 9};
-    auto out = run_on_cpu(model,
-                          {{"q", make_f32_tensor({1, 4, 2, 2}, q)},
-                           {"k_flat", make_f32_tensor({1, 1, 1, 10}, k_flat)},
-                           {"v_flat", make_f32_tensor({1, 1, 1, 10}, v_flat)},
-                           {"attention_size_static", make_i64_tensor({1}, {2})}});
-
-    // GGML_OP_FLASH_ATTN_EXT on ggml CPU, flash_attn_gqa_oracle.c (Hq=4, Hkv=2).
-    expect_near(out,
-                {1.537883f,
-                 2.537883f,
-                 2.244919f,
-                 3.244919f,
-                 6.635149f,
-                 7.635149f,
-                 5.755081f,
-                 6.755082f,
-                 2.462117f,
-                 3.462117f,
-                 1.364851f,
-                 2.364851f,
-                 5.537883f,
-                 6.537883f,
-                 5.875648f,
-                 6.875647f},
-                2e-2f);
-}
-
-TEST(GGUFOps, FlashAttnExtRejectsMasklessSinks) {
-    for (const auto& sink_shape : {ov::Shape{2}, ov::Shape{1, 1, 1, 2}}) {
-        EXPECT_THROW(SingleOpBuilder()
-                         .op("GGML_OP_FLASH_ATTN_EXT")
-                         .input("q", ov::element::f32, {1, 2, 1, 2})
-                         .input("k", ov::element::f32, {1, 1, 2, 2})
-                         .input("v", ov::element::f32, {1, 1, 2, 2})
-                         .input("sinks", ov::element::f32, sink_shape)
-                         .output("out", ov::element::f32, {1, 1, 2, 2})
-                         .attr<float>("scale", 1.0f)
-                         .attr<bool>("sink_without_mask", true)
-                         .build(),
-                     ov::Exception);
+// A FLASH_ATTN_EXT without a mask ("has_mask" false, so a fourth operand is the sinks) attends to every
+// key: it must match the same operation with an all-zero additive mask, for both the soft-capped
+// decomposition and the attention-sinks path.
+TEST(GGUFOps, FlashAttnExtMasklessMatchesZeroMask) {
+    const std::vector<float> q{0.5f, -1.0f, 0.25f, 2.0f};                    // [1, 2, 1, 2]
+    const std::vector<float> k{1.0f, 0.5f, -0.5f, 1.5f};                     // [1, 1, 2, 2]
+    const std::vector<float> v{0.1f, 0.2f, 0.3f, 0.4f};                      // [1, 1, 2, 2]
+    const std::vector<float> sinks{0.3f, -0.7f};                             // [2]
+    const std::vector<float> zero_mask(2, 0.0f);                             // [1, 1, 1, 2]
+    for (bool with_sinks : {false, true}) {
+        SCOPED_TRACE(with_sinks ? "sinks" : "soft cap");
+        auto build = [&](bool masked) {
+            auto builder = SingleOpBuilder()
+                               .op("GGML_OP_FLASH_ATTN_EXT")
+                               .input("q", ov::element::f32, {1, 2, 1, 2})
+                               .input("k", ov::element::f32, {1, 1, 2, 2})
+                               .input("v", ov::element::f32, {1, 1, 2, 2});
+            if (masked) {
+                builder.input("mask", ov::element::f32, {1, 1, 1, 2});
+            }
+            if (with_sinks) {
+                builder.input("sinks", ov::element::f32, {2});
+            } else {
+                builder.attr<float>("kq_soft_cap", 10.0f);
+            }
+            return builder.output("out", ov::element::f32, {1, 1, 2, 2})
+                .attr<float>("scale", 1.0f)
+                .attr<bool>("has_mask", masked)
+                .build();
+        };
+        std::map<std::string, ov::Tensor> inputs{{"q", make_f32_tensor({1, 2, 1, 2}, q)},
+                                                 {"k", make_f32_tensor({1, 1, 2, 2}, k)},
+                                                 {"v", make_f32_tensor({1, 1, 2, 2}, v)}};
+        if (with_sinks) {
+            inputs["sinks"] = make_f32_tensor({2}, sinks);
+        }
+        const auto maskless = run_on_cpu(build(false), inputs);
+        inputs["mask"] = make_f32_tensor({1, 1, 1, 2}, zero_mask);
+        const auto masked = run_on_cpu(build(true), inputs);
+        ASSERT_EQ(maskless.get_shape(), masked.get_shape());
+        std::vector<float> expected(masked.data<float>(), masked.data<float>() + masked.get_size());
+        expect_near(maskless, expected, 1e-3f);
     }
-
-    EXPECT_THROW(SingleOpBuilder()
-                     .op("GGML_OP_FLASH_ATTN_EXT")
-                     .input("q", ov::element::f32, {1, 2, 1, 2})
-                     .input("k", ov::element::f32, {1, 1, 2, 2})
-                     .input("v", ov::element::f32, {1, 1, 2, 2})
-                     .input("blk.0.attn_sinks.weight", ov::element::f32, {1, 1, 1, 2})
-                     .output("out", ov::element::f32, {1, 1, 2, 2})
-                     .attr<float>("scale", 1.0f)
-                     .build(),
-                 ov::Exception);
 }
 
 TEST(GGUFOps, FlashAttnExtAcceptsF32MaskMatchingHeadCount) {
@@ -2137,46 +2072,7 @@ TEST(GGUFOps, FlashAttnExtAcceptsF32MaskMatchingHeadCount) {
     expect_near(out, {1, 2, 1, 2}, 2e-2f);
 }
 
-TEST(GGUFOps, FlashAttnExtRejectsMasklessSoftCap) {
-    EXPECT_THROW(SingleOpBuilder()
-                     .op("GGML_OP_FLASH_ATTN_EXT")
-                     .input("q", ov::element::f32, {1, 1, 1, 2})
-                     .input("k", ov::element::f32, {1, 1, 1, 2})
-                     .input("v", ov::element::f32, {1, 1, 1, 2})
-                     .output("out", ov::element::f32, {1, 1, 1, 2})
-                     .attr<float>("scale", 1.0f)
-                     .attr<float>("kq_soft_cap", 10.0f)
-                     .build(),
-                 ov::Exception);
-}
-
-TEST(GGUFOps, FlashAttnExtFlatKvWithMask) {
-    auto model = SingleOpBuilder()
-                     .op("GGML_OP_FLASH_ATTN_EXT")
-                     .input("q", ov::element::f32, {1, 1, 1, 2})
-                     .input("k_flat", ov::element::f32, {1, 1, 1, 6})
-                     .input("v_flat", ov::element::f32, {1, 1, 1, 6})
-                     .input("mask", ov::element::f32, {1, 1, 1, 2})
-                     .extra_input("attention_size", ov::element::i64, {1})
-                     .output("out", ov::element::f32, {1, 1, 1, 2})
-                     .op_case(1)
-                     .attr<float>("scale", 1.0f)
-                     .attr<std::vector<int64_t>>("flat_kv_shape_k", {1, 1, 2, 2})
-                     .attr<std::vector<int64_t>>("flat_kv_shape_v", {1, 1, 2, 2})
-                     .attr<int64_t>("flat_kv_offset_k", 1)
-                     .attr<int64_t>("flat_kv_offset_v", 1)
-                     .build();
-
-    auto out = run_on_cpu(model,
-                          {{"q", make_f32_tensor({1, 1, 1, 2}, {1, 0})},
-                           {"k_flat", make_f32_tensor({1, 1, 1, 6}, {9, 1, 0, 0, 1, 9})},
-                           {"v_flat", make_f32_tensor({1, 1, 1, 6}, {9, 1, 2, 3, 4, 9})},
-                           {"mask", make_f32_tensor({1, 1, 1, 2}, {0, -100})},
-                           {"attention_size", make_i64_tensor({1}, {2})}});
-    expect_near(out, {1, 2}, 2e-2f);
-}
-
-// FlashAttnExt with gpt-oss attention sinks (5th input), on the default op_case 0 (llama.cpp cgraph)
+// FlashAttnExt with gpt-oss attention sinks (5th input), in ggml's operand layout (llama.cpp cgraph)
 // layout where q/k/v already arrive as [B, n_head, T, D]. Regression test for a bug where the sink
 // logit was reshaped to [1, q_shape[2], 1, 1] instead of [1, q_shape[head_axis], 1, 1]: q_shape[2] is
 // T on this layout (head_axis == 1), not n_head, so with n_head != T the reshape either throws a
@@ -2797,8 +2693,7 @@ TEST(GGUFOps, MultimodalPoolingAndConvolution) {
                     .op("GGML_OP_POOL_2D")
                     .input("x", ov::element::f32, {1, 1, 2, 4})
                     .output("out", ov::element::f32, {1, 1, 1, 2})
-                    .op_case(2)
-                    .attr<std::vector<int32_t>>("pool_params", {2, 2, 2, 2, 0, 0})
+                    .attr<std::vector<int32_t>>("pool_params", {1, 2, 2, 2, 2, 0, 0})
                     .build();
     const auto x = make_f32_tensor({1, 1, 2, 4}, {1, 2, 3, 4, 5, 6, 7, 8});
     expect_near(run_on_cpu(pool, {{"x", x}}), {3.5f, 5.5f}, 1e-6f);
@@ -2851,8 +2746,8 @@ TEST(GGUFOps, CpyConvolutionStateUsesDestinationType) {
                      .op("GGML_OP_CPY")
                      .input("window", ov::element::f32, {1, 1, 2, 3})
                      .output("out", ov::element::f32, {1, 1, 1, 6})
-                     .op_case(2)
                      .attr<ov::element::Type>("dst_type", ov::element::f32)
+                     .attr<std::vector<int64_t>>("reshape_target", {1, 1, 1, 6})
                      .attr<ov::element::Type>("output_type", ov::element::dynamic)
                      .build();
 
@@ -2868,7 +2763,8 @@ TEST(GGUFOps, CpyEmptyCompactionPreservesCacheProducerName) {
                      .input("empty_rows", ov::element::f32, {1, 1, 0, 4})
                      .input("cache", ov::element::f32, {1, 1, 2, 4})
                      .output("out", ov::element::f32, {1, 1, 2, 4})
-                     .op_case(5)
+                     .attr<int64_t>("axis", 2)
+                     .attr<int64_t>("destination_offset", 2)
                      .build();
 
     const auto& cache = model->get_results()[0]->input_value(0).get_node_shared_ptr();
@@ -2876,17 +2772,14 @@ TEST(GGUFOps, CpyEmptyCompactionPreservesCacheProducerName) {
     EXPECT_EQ(cache->get_friendly_name(), "cache");
 }
 
-// Cont (op_case 1/2): after a PERMUTE/TRANSPOSE the OV tensor is already logically contiguous, so
+// Cont: after a PERMUTE/TRANSPOSE the OV tensor is already logically contiguous, so
 // CONT is an identity passthrough of its input.
 TEST(GGUFOps, Cont) {
     auto model = SingleOpBuilder()
                      .op("GGML_OP_CONT")
                      .input("x", ov::element::f32, {2, 4})
                      .output("out", ov::element::f32, {2, 4})
-                     .op_case(1)  // input from PERMUTE
                      .build();
-
-    EXPECT_EQ(model->get_parameters()[0]->get_friendly_name(), "x");
 
     std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8};
     auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 4}, x)}});
@@ -2898,7 +2791,6 @@ TEST(GGUFOps, ContViewPassThroughPreservesProducerName) {
                      .op("GGML_OP_CONT")
                      .input("x", ov::element::f32, {2, 4})
                      .output("out", ov::element::f32, {2, 4})
-                     .op_case(3)
                      .build();
 
     EXPECT_EQ(model->get_parameters()[0]->get_friendly_name(), "x");
@@ -2971,21 +2863,24 @@ TEST(GGUFOps, GeGLUQuickTwoInputs) {
 
 TEST(GGUFOps, Pool2DMaxAndAverage) {
     const std::vector<float> input{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
-    const std::vector<int32_t> params{2, 2, 2, 1, 1, 0};
+    const std::vector<int32_t> params{2, 2, 2, 1, 1, 0};  // {k0, k1, s0, s1, p0, p1}
+    const auto with_op = [&](int32_t op) {
+        std::vector<int32_t> values{op};
+        values.insert(values.end(), params.begin(), params.end());
+        return values;
+    };
 
     auto max_model = SingleOpBuilder()
                          .op("GGML_OP_POOL_2D")
                          .input("x", ov::element::f32, {1, 1, 3, 4})
                          .output("out", ov::element::f32, {1, 1, 2, 3})
-                         .op_case(1)
-                         .attr<std::vector<int32_t>>("pool_params", params)
+                         .attr<std::vector<int32_t>>("pool_params", with_op(0))
                          .build();
     auto avg_model = SingleOpBuilder()
                          .op("GGML_OP_POOL_2D")
                          .input("x", ov::element::f32, {1, 1, 3, 4})
                          .output("out", ov::element::f32, {1, 1, 2, 3})
-                         .op_case(2)
-                         .attr<std::vector<int32_t>>("pool_params", params)
+                         .attr<std::vector<int32_t>>("pool_params", with_op(1))
                          .build();
 
     auto tensor = make_f32_tensor({1, 1, 3, 4}, input);
@@ -2998,8 +2893,7 @@ TEST(GGUFOps, Pool2DF16InputProducesF32) {
                      .op("GGML_OP_POOL_2D")
                      .input("x", ov::element::f16, {1, 1, 2, 3})
                      .output("out", ov::element::f32, {1, 1, 1, 2})
-                     .op_case(1)
-                     .attr<std::vector<int32_t>>("pool_params", {2, 2, 1, 1, 0, 0})
+                     .attr<std::vector<int32_t>>("pool_params", {0, 2, 2, 1, 1, 0, 0})
                      .build();
 
     auto out = run_on_cpu(model, {{"x", make_f16_tensor({1, 1, 2, 3}, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f})}});
@@ -3008,19 +2902,20 @@ TEST(GGUFOps, Pool2DF16InputProducesF32) {
 
 TEST(GGUFOps, Pool2DRejectsInvalidParams) {
     const std::vector<std::vector<int32_t>> invalid_params{
-        {-1, 2, 1, 1, 0, 0},
-        {2, 0, 1, 1, 0, 0},
-        {2, 2, -1, 1, 0, 0},
-        {2, 2, 1, 0, 0, 0},
-        {2, 2, 1, 1, -1, 0},
-        {2, 2, 1, 1, 0, -1},
+        {1, -1, 2, 1, 1, 0, 0},
+        {1, 2, 0, 1, 1, 0, 0},
+        {1, 2, 2, -1, 1, 0, 0},
+        {1, 2, 2, 1, 0, 0, 0},
+        {1, 2, 2, 1, 1, -1, 0},
+        {1, 2, 2, 1, 1, 0, -1},
+        {1, 2, 2, 1, 1, 0},     // missing a parameter
+        {2, 2, 2, 1, 1, 0, 0},  // unknown pooling op
     };
     for (const auto& params : invalid_params) {
         EXPECT_THROW(SingleOpBuilder()
                          .op("GGML_OP_POOL_2D")
                          .input("x", ov::element::f32, {1, 1, 2, 2})
                          .output("out", ov::element::f32, {1, 1, 1, 1})
-                         .op_case(2)
                          .attr<std::vector<int32_t>>("pool_params", params)
                          .build(),
                      ov::Exception);
@@ -3032,7 +2927,8 @@ TEST(GGUFOps, RollFourAxes) {
                      .op("GGML_OP_ROLL")
                      .input("x", ov::element::f32, {2, 2, 2, 3})
                      .output("out", ov::element::f32, {2, 2, 2, 3})
-                     .attr<std::vector<int64_t>>("roll_shifts", {1, -1, 1, -1})
+                     // ggml op_params order (ggml dim 0 first): OV axes {0, 1, 2, 3} shift by {1, -1, 1, -1}.
+                     .attr<std::vector<int32_t>>("roll_shifts", {-1, 1, -1, 1})
                      .build();
     std::vector<float> input(24);
     for (size_t i = 0; i < input.size(); ++i) {
@@ -3452,7 +3348,6 @@ TEST(GGUFOps, PermuteCase1RankThree) {
                          .op("GGML_OP_PERMUTE")
                          .input("x", ov::element::f32, {-1, 3, 2})
                          .output("out", ov::element::f32, {3, -1, 2})
-                         .op_case(1)
                          .attr<std::vector<int64_t>>("perm", perm)
                          .build();
         auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 3, 2}, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})}});
@@ -3520,7 +3415,7 @@ TEST(GGUFOps, RopeOffsetPreservesPrefixAndTail) {
                          .input("data", ov::element::f32, {1, 2, 2, 8})
                          .input("pos", ov::element::i32, {1, 1, 1, 2})
                          .output("out", ov::element::f32, {1, 2, 2, 8})
-                         .op_case(mode << 16)
+                         .attr<std::string>("rope_mode", mode == 0 ? "normal" : "neox")
                          .attr<RopeConfig>("rope_config", cfg)
                          .attr<int64_t>("rope_offset", 2)
                          .build();
@@ -3554,12 +3449,11 @@ TEST(GGUFOps, RopeInvalidOffsetThrows) {
 }
 
 TEST(GGUFOps, ContDynamicLayoutRequiresReshape) {
-    for (int op_case : {1, 2, 3}) {
+    {
         auto builder = SingleOpBuilder()
                            .op("GGML_OP_CONT")
                            .input("x", ov::element::f32, {1, -1, 3, 2})
-                           .output("out", ov::element::f32, {1, 3, -1, 2})
-                           .op_case(op_case);
+                           .output("out", ov::element::f32, {1, 3, -1, 2});
         EXPECT_THROW(builder.build(), ov::Exception);
         auto model = builder.attr<std::vector<int64_t>>("cont_reshape", {1, 3, -1, 2}).build();
         std::vector<float> values{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
@@ -3575,12 +3469,11 @@ TEST(GGUFOps, ContDynamicLayoutRequiresReshape) {
 }
 
 TEST(GGUFOps, ContDynamicPassThroughPreservesProducer) {
-    for (int op_case : {1, 2, 3}) {
+    {
         auto model = SingleOpBuilder()
                          .op("GGML_OP_CONT")
                          .input("x", ov::element::f32, {1, -1, 3, 2})
                          .output("out", ov::element::f32, {1, -1, 3, 2})
-                         .op_case(op_case)
                          .build();
         EXPECT_EQ(model->get_results()[0]->input_value(0).get_node_shared_ptr(), model->get_parameters()[0]);
         EXPECT_EQ(model->get_parameters()[0]->get_friendly_name(), "x");
@@ -3588,7 +3481,6 @@ TEST(GGUFOps, ContDynamicPassThroughPreservesProducer) {
                                     .op("GGML_OP_CONT")
                                     .input("x", ov::element::f32, {1, -1, 3, 2})
                                     .output("out", ov::element::f32, ov::PartialShape::dynamic())
-                                    .op_case(op_case)
                                     .build();
         EXPECT_EQ(without_metadata->get_results()[0]->input_value(0).get_node_shared_ptr(),
                   without_metadata->get_parameters()[0]);
@@ -3601,7 +3493,7 @@ TEST(GGUFOps, Pool2DF16AverageWithoutOutputType) {
         std::vector<TensorDesc>{{"x", ov::element::f16, {1, 1, 2, 2}}},
         std::vector<TensorDesc>{},
         TensorDesc{"out", ov::element::f32, {1, 1, 1, 1}},
-        std::map<std::string, ov::Any>{{"op_case", 2}, {"pool_params", std::vector<int32_t>{2, 2, 1, 1, 0, 0}}});
+        std::map<std::string, ov::Any>{{"pool_params", std::vector<int32_t>{1, 2, 2, 1, 1, 0, 0}}});
     ov::frontend::gguf::FrontEnd frontend;
     auto model = frontend.convert(frontend.load(decoder));
     auto input = make_f16_tensor({1, 1, 2, 2}, {2048, 1, 0, 0});
@@ -3649,7 +3541,7 @@ TEST(GGUFOps, MultimodalRopeMatchesIndependentSections) {
                          .input("data", ov::element::f32, {1, -1, 3, 64})
                          .input("pos", ov::element::i32, {1, 1, 1, -1})
                          .output("out", ov::element::f32, {1, -1, 3, 64})
-                         .op_case((vision ? 3 : 2) << 16)
+                         .attr<std::string>("rope_mode", vision ? "vision" : "imrope")
                          .attr<RopeConfig>("rope_config", config)
                          .build();
         std::vector<float> data(384);
@@ -3782,7 +3674,6 @@ TEST(GGUFOps, WindowUnpartitionRemovesPadding) {
 TEST(GGUFOps, IndexedRelativePositionsMatchCPU) {
     auto model = SingleOpBuilder()
                      .op("GGML_OP_GET_REL_POS")
-                     .op_case(1)
                      .input("table", ov::element::f32, {3, 4})
                      .input("indices", ov::element::i32, {1, 3, 3})
                      .output("out", ov::element::f32, {3, 3, 4})
@@ -3814,4 +3705,1369 @@ TEST(GGUFOps, ReferenceReshapeTracksSpatialDimensions) {
         {{"x", make_f32_tensor({1, 1, 3, 15}, values)}, {"reference", make_f32_tensor({1, 3, 3, 5}, values)}});
     EXPECT_EQ(result.get_shape(), (ov::Shape{1, 3, 3, 5}));
     expect_near(result, values);
+}
+
+TEST(GGUFOps, ViewRawStridesDenseCropAndDynamicReuse) {
+    // First exercise a dense byte-offset slice whose output uses a different row width.
+    auto dense = SingleOpBuilder()
+                     .op("GGML_OP_VIEW")
+                     .input("x", ov::element::f32, {1, 1, 3, 4})
+                     .output("out", ov::element::f32, {1, 1, 2, 3})
+                     .attr("view_input_strides", std::vector<int64_t>{4, 16, 48, 48})
+                     .attr("view_output_strides", std::vector<int64_t>{4, 12, 24, 24})
+                     .attr("view_offset_bytes", int64_t{8})
+                     .build();
+    auto dense_out =
+        run_on_cpu(dense, {{"x", make_f32_tensor({1, 1, 3, 4}, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})}});
+    ASSERT_EQ(dense_out.get_shape(), (ov::Shape{1, 1, 2, 3}));
+    expect_near(dense_out, {2, 3, 4, 5, 6, 7}, 0.0f, 0.0f);
+
+    // Dense re-layout, rectangular crop, fixed capture-size crop, and stepped columns.
+    for (int variant : {0, 1, 2, 3}) {
+        SCOPED_TRACE(variant);
+        const bool fixed = variant == 2;
+        const int64_t captured_tokens = fixed ? 1 : 2;
+        const ov::PartialShape captured{1, 1, captured_tokens, 6};
+        const ov::PartialShape output = variant == 0 ? ov::PartialShape{1, 2, 3, 2}
+                                                    : ov::PartialShape{1, 1, captured_tokens, fixed ? 6 : 3};
+        const std::vector<int64_t> input_strides{4, 24, 24 * captured_tokens, 24 * captured_tokens};
+        const auto output_strides = variant == 0   ? std::vector<int64_t>{4, 8, 24, 48}
+                                    : variant == 3 ? std::vector<int64_t>{8, 24, 48, 48}
+                                                   : input_strides;
+        auto builder = SingleOpBuilder()
+                           .op("GGML_OP_VIEW")
+                           .input("x", ov::element::f32, {1, 1, ov::Dimension(1, -1), 6})
+                           .output("out", ov::element::f32, output)
+                           .attr("view_input_strides", input_strides)
+                           .attr("view_output_strides", output_strides)
+                           .attr("view_offset_bytes", int64_t{variant == 1 ? 4 : 0})
+                           .attr("output_dynamic_axis", fixed ? -1 : variant == 0 ? 1 : 2);
+        auto model = build_captured_op(builder, {{"x", captured}});
+        ov::Core core;
+        auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+        auto request = compiled.create_infer_request();
+        for (size_t tokens : {2u, 5u, 1u}) {
+            SCOPED_TRACE(tokens);
+            std::vector<float> values(tokens * 6);
+            for (size_t i = 0; i < values.size(); ++i)
+                values[i] = static_cast<float>(100 * tokens + i);
+            request.set_tensor("x", make_f32_tensor({1, 1, tokens, 6}, values));
+            request.infer();
+            const ov::Shape expected_shape = variant == 0 ? ov::Shape{1, tokens, 3, 2}
+                                            : fixed      ? ov::Shape{1, 1, 1, 6}
+                                                         : ov::Shape{1, 1, tokens, 3};
+            ASSERT_EQ(request.get_output_tensor().get_shape(), expected_shape);
+            std::vector<float> expected;
+            if (variant == 0) {
+                expected = values;
+            } else if (fixed) {
+                expected.assign(values.begin(), values.begin() + 6);
+            } else {
+                for (size_t t = 0; t < tokens; ++t)
+                    for (size_t d = 0; d < 3; ++d)
+                        expected.push_back(values[t * 6 + (variant == 1 ? d + 1 : 2 * d)]);
+            }
+            expect_near(request.get_output_tensor(), expected, 0.0f, 0.0f);
+        }
+    }
+}
+
+TEST(GGUFOps, ViewRawInvalidStridesAreRejected) {
+    for (const auto& strides : {std::vector<int64_t>{6, 16, 32, 32},
+                                std::vector<int64_t>{0, 16, 32, 32},
+                                std::vector<int64_t>{-4, 16, 32, 32}}) {
+        SCOPED_TRACE(::testing::PrintToString(strides));
+        try {
+            SingleOpBuilder()
+                .op("GGML_OP_VIEW")
+                .input("x", ov::element::f32, {1, 1, 2, 4})
+                .output("out", ov::element::f32, {1, 1, 2, 2})
+                .attr("view_input_strides", std::vector<int64_t>{4, 16, 32, 32})
+                .attr("view_output_strides", strides)
+                .attr("view_offset_bytes", int64_t{0})
+                .build();
+            FAIL() << "Invalid VIEW strides were accepted";
+        } catch (const std::exception& error) {
+            EXPECT_NE(std::string(error.what()).find("Unsupported VIEW layout"), std::string::npos) << error.what();
+        }
+        try {
+            SingleOpBuilder()
+                .op("GGML_OP_VIEW")
+                .input("x", ov::element::f32, {1, 1, 4, 4})
+                .output("out", ov::element::f32, {1, 1, 2, 3})
+                .attr("view_input_strides", std::vector<int64_t>{4, 16, 64, 64})
+                .attr("view_output_strides", std::vector<int64_t>{4, 16, 64, 64})
+                .attr("view_offset_bytes", int64_t{8})
+                .build();
+            FAIL() << "A row-crossing VIEW must not be silently flattened to contiguous elements 2..7";
+        } catch (const std::exception& error) {
+            EXPECT_NE(std::string(error.what()).find("Unsupported VIEW layout"), std::string::npos) << error.what();
+        }
+    }
+}
+
+// A non-dense view of a dense source (columns 2..5 of every [6]-wide token row, as a merged QKV
+// projection slice [head_size=2, n_head=2, tokens]) is regrouped into a stride grid and sliced.
+TEST(GGUFOps, ViewNonDenseSliceOfDenseSource) {
+    auto builder = SingleOpBuilder()
+                       .op("GGML_OP_VIEW")
+                       .input("x", ov::element::f32, {1, 1, ov::Dimension(1, -1), 6})
+                       .output("out", ov::element::f32, {1, 2, 2, 2})
+                       .attr("view_input_strides", std::vector<int64_t>{4, 24, 48, 48})
+                       .attr("view_output_strides", std::vector<int64_t>{4, 8, 24, 48})
+                       .attr("view_offset_bytes", int64_t{8})
+                       .attr("output_dynamic_axis", 1);
+    auto model = build_captured_op(builder, {{"x", {1, 1, 2, 6}}});
+    ov::Core core;
+    auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+    auto request = compiled.create_infer_request();
+    for (size_t tokens : {2u, 5u, 1u}) {
+        SCOPED_TRACE(tokens);
+        std::vector<float> values(tokens * 6), expected;
+        for (size_t i = 0; i < values.size(); ++i)
+            values[i] = static_cast<float>(100 * tokens + i);
+        for (size_t t = 0; t < tokens; ++t)
+            for (size_t c = 2; c < 6; ++c)
+                expected.push_back(values[t * 6 + c]);
+        request.set_tensor("x", make_f32_tensor({1, 1, tokens, 6}, values));
+        request.infer();
+        ASSERT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, tokens, 2, 2}));
+        expect_near(request.get_output_tensor(), expected, 0.0f, 0.0f);
+    }
+}
+
+// A KV-cache read with runtime bounds: the live length and the first stream are operands, so one
+// compiled model serves every batch. Cache [streams=2, cells=3, features=4], heads 2 x head_size 2.
+TEST(GGUFOps, ViewKvCacheRuntimeBounds) {
+    const size_t streams = 2, cells = 3, width = 4, heads = 2, head_size = 2;
+    std::vector<float> cache(streams * cells * width);
+    for (size_t i = 0; i < cache.size(); ++i)
+        cache[i] = static_cast<float>(i);
+    for (bool transposed : {false, true}) {
+        SCOPED_TRACE(transposed);
+        // Transposed (`-fa off` V): each stream holds `cells` values per feature, cells innermost, and the
+        // view's OV order is [streams, head_size, heads, cells].
+        const std::vector<int64_t> order =
+            transposed ? std::vector<int64_t>{0, 3, 2, 1} : std::vector<int64_t>{0, 1, 2, 3};
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_VIEW")
+                         .input("cache", ov::element::f32, {1, streams, cells, width})
+                         .input("length", ov::element::i64, {1})
+                         .input("first", ov::element::i64, {1})
+                         .output("out", ov::element::f32, {1, -1, heads, head_size})
+                         .attr("kv_view",
+                               std::vector<int64_t>{2, 4, 2, 2, 1, 0, transposed ? 1 : 0, order[0], order[1], order[2],
+                                                    order[3], 3})
+                         .build();
+        ov::Core core;
+        auto request =
+            core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32)).create_infer_request();
+        for (auto bounds : {std::pair<int64_t, int64_t>{2, 1}, {3, 0}, {1, 1}}) {
+            const int64_t length = bounds.first, first = bounds.second;
+            SCOPED_TRACE(length);
+            ov::Tensor length_tensor(ov::element::i64, {1});
+            ov::Tensor first_tensor(ov::element::i64, {1});
+            length_tensor.data<int64_t>()[0] = length;
+            first_tensor.data<int64_t>()[0] = first;
+            request.set_tensor("cache", make_f32_tensor({1, streams, cells, width}, cache));
+            request.set_tensor("length", length_tensor);
+            request.set_tensor("first", first_tensor);
+            request.infer();
+            const auto at = [&](size_t c, size_t h, size_t d) {
+                const size_t base = static_cast<size_t>(first) * cells * width;
+                return transposed ? cache[base + (h * head_size + d) * cells + c]
+                                  : cache[base + c * width + h * head_size + d];
+            };
+            std::vector<float> expected;
+            if (transposed) {
+                for (size_t d = 0; d < head_size; ++d)
+                    for (size_t h = 0; h < heads; ++h)
+                        for (size_t c = 0; c < static_cast<size_t>(length); ++c)
+                            expected.push_back(at(c, h, d));
+            } else {
+                for (size_t c = 0; c < static_cast<size_t>(length); ++c)
+                    for (size_t h = 0; h < heads; ++h)
+                        for (size_t d = 0; d < head_size; ++d)
+                            expected.push_back(at(c, h, d));
+            }
+            expect_near(request.get_output_tensor(0), expected, 0.0f, 0.0f);
+        }
+    }
+}
+
+// whisper's flat KV buffer: a static-length read starting at a whole row, laid out [1, heads, cells, dim].
+TEST(GGUFOps, ViewKvCacheFlatBufferRowBase) {
+    std::vector<float> buffer(4 * 4);
+    for (size_t i = 0; i < buffer.size(); ++i)
+        buffer[i] = static_cast<float>(i);
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_VIEW")
+                     .input("buffer", ov::element::f32, {1, 1, 1, 16})
+                     .output("out", ov::element::f32, {1, 2, 2, 2})
+                     .attr("kv_view", std::vector<int64_t>{1, 4, 2, 2, 1, 1, 0, 0, 2, 1, 3, 2})
+                     .build();
+    auto out = run_on_cpu(model, {{"buffer", make_f32_tensor({1, 1, 1, 16}, buffer)}});
+    std::vector<float> expected;
+    for (size_t h = 0; h < 2; ++h)
+        for (size_t c = 0; c < 2; ++c)
+            for (size_t d = 0; d < 2; ++d)
+                expected.push_back(buffer[(1 + c) * 4 + h * 2 + d]);
+    expect_near(out, expected, 0.0f, 0.0f);
+}
+
+TEST(GGUFOps, ScaleRangeComesFromOperands) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SCALE")
+                     .input("x", ov::element::f32, {5})
+                     .input("begin", ov::element::i64, {1})
+                     .input("length", ov::element::i64, {1})
+                     .output("out", ov::element::f32, {5})
+                     .attr("axis", int64_t{0})
+                     .attr("scale", 2.0f)
+                     .attr("bias", 1.0f)
+                     .build();
+    ov::Tensor begin(ov::element::i64, {1});
+    ov::Tensor length(ov::element::i64, {1});
+    begin.data<int64_t>()[0] = 1;
+    length.data<int64_t>()[0] = 3;
+    expect_near(run_on_cpu(model,
+                           {{"x", make_f32_tensor({5}, {1, 2, 3, 4, 5})},
+                            {"begin", begin},
+                            {"length", length}}),
+                {1, 5, 7, 9, 5});
+}
+
+// PERMUTE consumes the logical input described by its operand; head splitting is a separate
+// RESHAPE operation rather than a producer-specific repair in this translator.
+TEST(GGUFOps, PermuteDescriptorSwapsHeadAndTokenAxes) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_PERMUTE")
+                     .input("x", ov::element::f32, {1, 2, 3, 2})
+                     .output("out", ov::element::f32, {1, 3, 2, 2})
+                     .attr<std::vector<int64_t>>("perm", {0, 2, 1, 3})
+                     .build();
+
+    std::vector<float> x(12);
+    for (size_t i = 0; i < x.size(); ++i)
+        x[i] = static_cast<float>(i);
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 2, 3, 2}, x)}});
+
+    ASSERT_EQ(out.get_shape(), (ov::Shape{1, 3, 2, 2}));
+    // PERMUTE is a plain transpose of its operand: out[0,h,t,d] == x[0,t,h,d] == x_flat[t*6 + h*2 + d].
+    std::vector<float> expected;
+    for (int64_t h = 0; h < 3; ++h)
+        for (int64_t t = 0; t < 2; ++t)
+            for (int64_t d = 0; d < 2; ++d)
+                expected.push_back(static_cast<float>(t * 6 + h * 2 + d));
+    expect_near(out, expected, 0.0f);
+}
+
+// The permutation is operation data and therefore mandatory; an op-case does not imply a layout.
+TEST(GGUFOps, PermuteWithoutDescriptorThrows) {
+    EXPECT_THROW(SingleOpBuilder()
+                     .op("GGML_OP_PERMUTE")
+                     .input("x", ov::element::f32, {1, 2, 3, 2})
+                     .output("out", ov::element::f32, {1, 3, 2, 2})
+                     .build(),
+                 ov::Exception);
+}
+
+// VIEW applies its descriptor to the operand it receives. Legacy producer-shape metadata must not
+// reshape that operand behind the producer's back.
+TEST(GGUFOps, ViewDescriptorUsesOperandLayout) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_VIEW")
+                     .input("x", ov::element::f32, {1, 1, 2, 4})
+                     .output("out", ov::element::f32, {1, 1, 2, 2})
+                     .attr<ov::Shape>("input_ggml_shape", ov::Shape{2, 4})
+                     .attr<std::vector<int64_t>>("view_slice", {3, 1, 2})
+                     .attr<std::vector<int64_t>>("view_reshape", {1, 1, 2, 2})
+                     .build();
+
+    std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 2, 4}, x)}});
+
+    ASSERT_EQ(out.get_shape(), (ov::Shape{1, 1, 2, 2}));
+    std::vector<float> expected{2, 3, 6, 7};
+    expect_near(out, expected, 0.0f);
+}
+
+TEST(GGUFOps, RepeatRejectsCapturedOutputAsDescriptor) {
+    auto builder = SingleOpBuilder()
+                       .op("GGML_OP_REPEAT")
+                       .input("x", ov::element::f32, {1, 1, 1, 3})
+                       .output("out", ov::element::f32, {1, 1, 2, 3});
+    EXPECT_THROW(builder.build(), ov::Exception);
+}
+
+TEST(GGUFOps, RepeatRuntimeTargetComesFromOperand) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_REPEAT")
+                     .input("x", ov::element::f32, {1, 1, 1, 3})
+                     .input("target", ov::element::f32, {1, 1, -1, 3})
+                     .output("out", ov::element::f32, ov::PartialShape::dynamic())
+                     .build();
+
+    std::vector<float> x{1, 2, 3};
+    ov::Tensor target(ov::element::f32, {1, 1, 2, 3});
+    auto out = run_on_cpu(model,
+                          {{"x", make_f32_tensor({1, 1, 1, 3}, x)},
+                           {"target", target}});
+    expect_near(out, {1, 2, 3, 1, 2, 3});
+}
+
+TEST(GGUFOps, PadDoesNotTreatCapturedOutputShapeAsIdentity) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_PAD")
+                     .input("x", ov::element::f32, {1, 1, 1, 2})
+                     .output("out", ov::element::f32, {1, 1, 1, 2})
+                     .attr<std::vector<int32_t>>("pad_params", {0, 1, 0, 0, 0, 0, 0, 0})
+                     .attr<bool>("pad_circular", false)
+                     .build();
+    EXPECT_EQ(model->output().get_partial_shape(), (ov::PartialShape{1, 1, 1, 3}));
+}
+
+TEST(GGUFOps, RopeExplicitModeDoesNotReapplyViewOffset) {
+    class ViewDecoder : public SingleOpDecoder {
+    public:
+        using SingleOpDecoder::SingleOpDecoder;
+        int64_t get_input_view_element_offset(const std::string&) const override {
+            return 2;
+        }
+    };
+    RopeConfig cfg;
+    cfg.n_dims = 4;
+    cfg.freq_base = 10000.0f;
+    cfg.freq_scale = cfg.attn_factor = 1.0f;
+    cfg.n_ctx_orig = 4096;
+    std::shared_ptr<GgufDecoder> decoder = std::make_shared<ViewDecoder>(
+        "GGML_OP_ROPE",
+        std::vector<TensorDesc>{{"data", ov::element::f32, {1, 1, 1, 4}},
+                                {"pos", ov::element::i32, {1, 1, 1, 4}}},
+        std::vector<TensorDesc>{},
+        TensorDesc{"out", ov::element::f32, {1, 1, 1, 4}},
+        std::map<std::string, ov::Any>{{"rope_mode", std::string("imrope")}, {"rope_config", cfg}});
+    FrontEnd fe;
+    auto model = fe.convert(fe.load(decoder));
+    ov::Tensor positions(ov::element::i32, {1, 1, 1, 4});
+    std::fill_n(positions.data<int32_t>(), 4, 3);
+    const std::vector<float> data{1, 2, 3, 4};
+    std::vector<float> c, s;
+    neox_ref_cos_sin(4, cfg.freq_base, 1.0f, 1.0f, 3, c, s);
+    expect_near(run_on_cpu(model, {{"data", make_f32_tensor({1, 1, 1, 4}, data)}, {"pos", positions}}),
+                {data[0] * c[0] - data[2] * s[0],
+                 data[1] * c[1] - data[3] * s[1],
+                 data[0] * s[0] + data[2] * c[0],
+                 data[1] * s[1] + data[3] * c[1]});
+}
+
+TEST(GGUFOps, RopeRejectsUnknownExplicitMode) {
+    RopeConfig cfg;
+    EXPECT_THROW(SingleOpBuilder()
+                     .op("GGML_OP_ROPE")
+                     .input("data", ov::element::f32, {1, 1, 1, 4})
+                     .input("pos", ov::element::i32, {1, 1, 1, 1})
+                     .output("out", ov::element::f32, {1, 1, 1, 4})
+                     .attr("rope_mode", std::string("unsupported"))
+                     .attr("rope_config", cfg)
+                     .build(),
+                 std::exception);
+}
+
+TEST(GGUFOps, RopeDoesNotRepairNonCanonicalOperandRank) {
+    RopeConfig cfg;
+    cfg.n_dims = 4;
+    cfg.freq_base = 10000.0f;
+    cfg.freq_scale = cfg.attn_factor = 1.0f;
+    cfg.n_ctx_orig = 4096;
+    EXPECT_THROW(SingleOpBuilder()
+                     .op("GGML_OP_ROPE")
+                     .input("data", ov::element::f32, {1, 2, 4})
+                     .input("pos", ov::element::i32, {1, 1, 1, 2})
+                     .output("out", ov::element::f32, {1, 2, 1, 4})
+                     .attr("rope_mode", std::string("neox"))
+                     .attr("rope_config", cfg)
+                     .build(),
+                 std::exception);
+}
+
+TEST(GGUFOps, MulMatMatrixWeightsWithDynamicActivations) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_MUL_MAT")
+                     .input("b", ov::element::f32, {2, -1})
+                     .input("a", ov::element::f32, {1, -1, -1, -1})
+                     .output("out", ov::element::f32, ov::PartialShape::dynamic())
+                     .build();
+    for (size_t width : {size_t{3}, size_t{5}}) {
+        const size_t heads = width - 2;
+        std::vector<float> b(2 * width, 1.f);
+        std::fill(b.begin() + width, b.end(), 2.f);
+        std::vector<float> a(heads * 2 * width, 1.f);
+        auto out = run_on_cpu(model, {{"b", make_f32_tensor({2, width}, b)},
+                                      {"a", make_f32_tensor({1, heads, 2, width}, a)}});
+        EXPECT_EQ(out.get_shape(), (ov::Shape{1, heads, 2, 2}));
+        std::vector<float> expected;
+        for (size_t row = 0; row < heads * 2; ++row) {
+            expected.push_back(static_cast<float>(width));
+            expected.push_back(static_cast<float>(2 * width));
+        }
+        expect_near(out, expected, 0.f);
+    }
+}
+
+TEST(GGUFOps, MulMatGroupedHeadsPreserveDynamicRowsAndReduction) {
+    for (bool dynamic_heads : {false, true}) {
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_MUL_MAT")
+                         .input("b", ov::element::f32, {1, dynamic_heads ? -1 : 2, 1, -1})
+                         .input("a", ov::element::f32, {1, dynamic_heads ? -1 : 4, -1, -1})
+                         .output("out", ov::element::f32, ov::PartialShape::dynamic())
+                         .build();
+        for (size_t tokens : {size_t{1}, size_t{3}}) {
+            auto out = run_on_cpu(model, {{"b", make_f32_tensor({1, 2, 1, 2}, {1, 1, 2, 2})},
+                                          {"a", make_f32_tensor({1, 4, tokens, 2},
+                                                                std::vector<float>(4 * tokens * 2, 1.f))}});
+            EXPECT_EQ(out.get_shape(), (ov::Shape{1, 4, tokens, 1}));
+            std::vector<float> expected(4 * tokens, 2.f);
+            std::fill(expected.begin() + 2 * tokens, expected.end(), 4.f);
+            expect_near(out, expected, 0.f);
+        }
+    }
+}
+
+TEST(GGUFOps, FlashAttnExtUsesResolvedViewShape) {
+    class FlatStorageDecoder : public SingleOpDecoder {
+    public:
+        using SingleOpDecoder::SingleOpDecoder;
+        ov::PartialShape get_input_shape(const std::string& name) const override {
+            return name == "k" || name == "v" ? ov::PartialShape{1, 1, 1, 32} : SingleOpDecoder::get_input_shape(name);
+        }
+    };
+    std::shared_ptr<GgufDecoder> decoder = std::make_shared<FlatStorageDecoder>(
+        "GGML_OP_FLASH_ATTN_EXT",
+        std::vector<TensorDesc>{{"q", ov::element::f32, {1, 2, 1, 2}},
+                                {"k", ov::element::f32, {1, 2, 2, 2}},
+                                {"v", ov::element::f32, {1, 2, 2, 2}}},
+        std::vector<TensorDesc>{},
+        TensorDesc{"out", ov::element::f32, {1, 1, 2, 2}},
+        std::map<std::string, ov::Any>{{"scale", 1.0f}});
+    FrontEnd fe;
+    auto model = fe.convert(fe.load(decoder));
+    expect_near(run_on_cpu(model,
+                           {{"q", make_f32_tensor({1, 2, 1, 2}, {0, 0, 0, 0})},
+                            {"k", make_f32_tensor({1, 2, 2, 2}, {1, 2, 3, 4, 5, 6, 7, 8})},
+                            {"v", make_f32_tensor({1, 2, 2, 2}, {1, 2, 3, 4, 5, 6, 7, 8})}}),
+                {2, 3, 6, 7});
+}
+
+TEST(GGUFOps, FlashAttnExtRejectsMaxBiasWithoutMask) {
+    EXPECT_THROW(SingleOpBuilder()
+                     .op("GGML_OP_FLASH_ATTN_EXT")
+                     .input("q", ov::element::f32, {1, 1, 1, 2})
+                     .input("k", ov::element::f32, {1, 1, 1, 2})
+                     .input("v", ov::element::f32, {1, 1, 1, 2})
+                     .output("out", ov::element::f32, {1, 1, 1, 2})
+                     .attr("scale", 1.0f)
+                     .attr("max_bias", 8.0f)
+                     .attr("has_mask", false)
+                     .build(),
+                 std::exception);
+}
+
+// ALiBi: ggml scales the additive mask by a per-head slope. Two heads, max_bias 8: n_head_log2 = 2,
+// m0 = 2^(-8/2) = 1/16, slopes m0^1 and m0^2. With zero queries the scores are slope * mask, so the
+// attention weights expose the slope directly.
+TEST(GGUFOps, FlashAttnExtAlibiScalesMaskPerHead) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_FLASH_ATTN_EXT")
+                     .input("q", ov::element::f32, {1, 2, 1, 2})
+                     .input("k", ov::element::f32, {1, 2, 2, 2})
+                     .input("v", ov::element::f32, {1, 2, 2, 2})
+                     .input("mask", ov::element::f32, {1, 1, 1, 2})
+                     .output("out", ov::element::f32, {1, 1, 2, 2})
+                     .attr("scale", 1.0f)
+                     .attr("max_bias", 8.0f)
+                     .attr("has_mask", true)
+                     .build();
+    const std::vector<float> v{1, 2, 3, 4, 5, 6, 7, 8};
+    const std::vector<float> mask{0.0f, -16.0f};
+    auto out = run_on_cpu(model,
+                          {{"q", make_f32_tensor({1, 2, 1, 2}, {0, 0, 0, 0})},
+                           {"k", make_f32_tensor({1, 2, 2, 2}, {0, 0, 0, 0, 0, 0, 0, 0})},
+                           {"v", make_f32_tensor({1, 2, 2, 2}, v)},
+                           {"mask", make_f32_tensor({1, 1, 1, 2}, mask)}});
+    std::vector<float> expected;  // [B, L, H, D]
+    for (int h = 0; h < 2; ++h) {
+        const float slope = std::pow(1.0f / 16.0f, static_cast<float>(h + 1));
+        const float w0 = 1.0f / (1.0f + std::exp(slope * mask[1]));
+        const float w1 = 1.0f - w0;
+        for (int d = 0; d < 2; ++d)
+            expected.push_back(w0 * v[h * 4 + d] + w1 * v[h * 4 + 2 + d]);
+    }
+    // SDPA runs in f16.
+    expect_near(out, expected, 2e-3f, 2e-3f);
+}
+
+TEST(GGUFOps, CpyDoesNotReshapeToCapturedOutputMetadata) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CPY")
+                     .input("x", ov::element::i32, {2, 4})
+                     .output("out", ov::element::f32, {1, 8})
+                     .build();
+    ov::Tensor input(ov::element::i32, {2, 4});
+    std::iota(input.data<int32_t>(), input.data<int32_t>() + input.get_size(), 1);
+    auto out = run_on_cpu(model, {{"x", input}});
+    EXPECT_EQ(out.get_shape(), (ov::Shape{2, 4}));
+    expect_near(out, {1, 2, 3, 4, 5, 6, 7, 8}, 0.0f);
+}
+
+TEST(GGUFOps, ContCaseZeroIdentityAndReshapeReuse) {
+    auto static_model = SingleOpBuilder()
+                            .op("GGML_OP_CONT")
+                            .input("x", ov::element::f32, {1, 1, 2, 6})
+                            .output("out", ov::element::f32, {1, 2, 3, 2})
+                            .attr("cont_reshape", std::vector<int64_t>{1, 2, 3, 2})
+                            .build();
+    std::vector<float> initial(12);
+    for (size_t i = 0; i < initial.size(); ++i)
+        initial[i] = static_cast<float>(i);
+    const auto static_out = run_on_cpu(static_model, {{"x", make_f32_tensor({1, 1, 2, 6}, initial)}});
+    ASSERT_EQ(static_out.get_shape(), (ov::Shape{1, 2, 3, 2}));
+    expect_near(static_out, initial, 0.0f, 0.0f);
+
+    for (bool reshape : {false, true}) {
+        SCOPED_TRACE(reshape);
+        auto builder = SingleOpBuilder()
+                           .op("GGML_OP_CONT")
+                           .input("x", ov::element::f32, {1, 1, -1, 6})
+                           .output("out",
+                                   ov::element::f32,
+                                   reshape ? ov::PartialShape{1, 2, 3, 2} : ov::PartialShape{1, 1, 2, 6});
+        if (reshape) {
+            builder.attr("cont_reshape", std::vector<int64_t>{1, -1, 3, 2});
+        }
+        auto model = build_captured_op(builder, {{"x", {1, 1, 2, 6}}});
+        ov::Core core;
+        auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+        auto request = compiled.create_infer_request();
+        for (size_t tokens : {2u, 5u, 1u}) {
+            SCOPED_TRACE(tokens);
+            std::vector<float> values(tokens * 6);
+            for (size_t i = 0; i < values.size(); ++i)
+                values[i] = static_cast<float>(100 * tokens + i);
+            request.set_tensor("x", make_f32_tensor({1, 1, tokens, 6}, values));
+            request.infer();
+            const auto out = request.get_output_tensor();
+            ASSERT_EQ(out.get_shape(), (reshape ? ov::Shape{1, tokens, 3, 2} : ov::Shape{1, 1, tokens, 6}));
+            expect_near(out, values, 0.0f, 0.0f);
+        }
+    }
+}
+
+// A negative slice length anchors the end of the axis: [0, -1) keeps every token row but the last one,
+// whatever the runtime token count is (a GATED_DELTA_NET attention view ahead of its state rows).
+TEST(GGUFOps, ViewSliceEndAnchoredKeepsDynamicAxis) {
+    auto builder = SingleOpBuilder()
+                       .op("GGML_OP_VIEW")
+                       .input("x", ov::element::f32, {1, 1, ov::Dimension(1, -1), 3})
+                       .output("out", ov::element::f32, {1, 1, 2, 3})
+                       .attr<std::vector<int64_t>>("view_slice", {2, 0, -1});
+    auto model = build_captured_op(builder, {{"x", {1, 1, 3, 3}}});
+    ov::Core core;
+    auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+    auto request = compiled.create_infer_request();
+    for (size_t tokens : {3u, 6u, 2u}) {
+        SCOPED_TRACE(tokens);
+        std::vector<float> values(tokens * 3);
+        for (size_t i = 0; i < values.size(); ++i)
+            values[i] = static_cast<float>(10 * tokens + i);
+        request.set_tensor("x", make_f32_tensor({1, 1, tokens, 3}, values));
+        request.infer();
+        ASSERT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, 1, tokens - 1, 3}));
+        expect_near(request.get_output_tensor(),
+                    std::vector<float>(values.begin(), values.end() - 3),
+                    0.0f,
+                    0.0f);
+    }
+}
+
+TEST(GGUFOps, PermuteResolvedCasesReuseLogicalInput) {
+    {
+        auto builder = SingleOpBuilder()
+                           .op("GGML_OP_PERMUTE")
+                           .input("x", ov::element::f32, {1, -1, 3, 2})
+                           .output("out", ov::element::f32, {1, 3, 2, 2})
+                           .attr("perm", std::vector<int64_t>{0, 2, 1, 3})
+                           .attr("input_ggml_shape", ov::Shape{1, 2, 3, 2})
+                           .attr("view_seq_offset", int64_t{7});
+        auto model = build_captured_op(builder, {{"x", {1, 2, 3, 2}}}, 7);
+        ov::Core core;
+        auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+        auto request = compiled.create_infer_request();
+        for (size_t tokens : {2u, 5u, 1u}) {
+            SCOPED_TRACE(tokens);
+            std::vector<float> values(tokens * 6), expected;
+            for (size_t i = 0; i < values.size(); ++i)
+                values[i] = static_cast<float>(100 * tokens + i);
+            for (size_t h = 0; h < 3; ++h)
+                for (size_t t = 0; t < tokens; ++t)
+                    for (size_t d = 0; d < 2; ++d)
+                        expected.push_back(values[(t * 3 + h) * 2 + d]);
+            request.set_tensor("x", make_f32_tensor({1, tokens, 3, 2}, values));
+            request.infer();
+            ASSERT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, 3, tokens, 2}));
+            expect_near(request.get_output_tensor(), expected, 0.0f, 0.0f);
+        }
+    }
+}
+
+TEST(GGUFOps, PermuteCaseZeroUsesLiveTokenExtent) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_PERMUTE")
+                     .input("x", ov::element::f32, {1, 1, 3, 2})
+                     .output("out", ov::element::f32, {1, 3, 1, 2})
+                     .attr("input_ggml_shape", ov::Shape{1, 2, 3, 2})
+                     .attr("perm", std::vector<int64_t>{0, 2, 1, 3})
+                     .build();
+    const std::vector<float> values{1, 2, 3, 4, 5, 6};
+    const auto result = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 3, 2}, values)}});
+    ASSERT_EQ(result.get_shape(), (ov::Shape{1, 3, 1, 2}));
+    expect_near(result, values, 0.0f, 0.0f);
+}
+
+TEST(GGUFOps, GetRowsResolvedIndicesIgnoreViewOffsetOnReuse) {
+    auto builder = SingleOpBuilder()
+                       .op("GGML_OP_GET_ROWS")
+                       .input("data", ov::element::f32, {1, 1, 7, 3})
+                       .input("indices", ov::element::i32, {1, 1, 1, -1})
+                       .output("out", ov::element::f32, {1, 1, 2, 3});
+    auto model = build_captured_op(builder, {{"indices", {1, 1, 1, 2}}}, 3);
+    ov::Core core;
+    auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+    auto request = compiled.create_infer_request();
+    std::vector<float> table(21);
+    for (size_t i = 0; i < table.size(); ++i)
+        table[i] = static_cast<float>(i);
+    request.set_tensor("data", make_f32_tensor({1, 1, 7, 3}, table));
+    const std::vector<int32_t> indices{6, 1, 4, 0, 3};
+    for (size_t tokens : {2u, 5u, 1u}) {
+        SCOPED_TRACE(tokens);
+        ov::Tensor ids(ov::element::i32, {1, 1, 1, tokens});
+        std::copy_n(indices.begin(), tokens, ids.data<int32_t>());
+        request.set_tensor("indices", ids);
+        request.infer();
+        ASSERT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, 1, tokens, 3}));
+        std::vector<float> expected;
+        for (size_t t = 0; t < tokens; ++t)
+            for (size_t d = 0; d < 3; ++d)
+                expected.push_back(table[indices[t] * 3 + d]);
+        expect_near(request.get_output_tensor(), expected, 0.0f, 0.0f);
+    }
+}
+
+TEST(GGUFOps, AddMixedPrecisionAccumulatesBeforeOutputRounding) {
+    const std::vector<float> lhs{1.0f, 1024.0f, -1024.0f, -1.0f};
+    const std::vector<float> rhs{-0.9999f, -1023.75f, 1023.75f, 0.9999f};
+    for (auto output_type : {ov::element::f16, ov::element::f32}) {
+        SCOPED_TRACE(output_type);
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_ADD")
+                         .input("a", ov::element::f16, {1, 1, -1, 4})
+                         .input("b", ov::element::f32, {1, 1, -1, 4})
+                         .output("out", output_type, {1, 1, -1, 4})
+                         .build();
+        ov::Core core;
+        auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+        auto request = compiled.create_infer_request();
+        for (size_t tokens : {2u, 5u, 1u}) {
+            SCOPED_TRACE(tokens);
+            ov::Tensor a(ov::element::f16, {1, 1, tokens, 4});
+            std::vector<float> b(tokens * 4), expected(tokens * 4);
+            for (size_t i = 0; i < b.size(); ++i) {
+                a.data<ov::float16>()[i] = ov::float16(lhs[i % 4]);
+                b[i] = rhs[i % 4];
+                const float sum = static_cast<float>(a.data<ov::float16>()[i]) + b[i];
+                expected[i] = output_type == ov::element::f16 ? static_cast<float>(ov::float16(sum)) : sum;
+            }
+            request.set_tensor("a", a);
+            request.set_tensor("b", make_f32_tensor({1, 1, tokens, 4}, b));
+            request.infer();
+            const auto actual = request.get_output_tensor();
+            ASSERT_EQ(actual.get_element_type(), output_type);
+            ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, tokens, 4}));
+            for (size_t i = 0; i < expected.size(); ++i) {
+                const float value = output_type == ov::element::f16
+                                        ? static_cast<float>(actual.data<ov::float16>()[i])
+                                        : actual.data<float>()[i];
+                EXPECT_NEAR(value, expected[i], 1e-7f) << "index " << i;
+            }
+        }
+    }
+}
+
+TEST(GGUFOps, SetRowsViewPermutePreservesFunctionalCacheAcrossCalls) {
+    class CacheGraphDecoder : public SingleOpDecoder {
+    public:
+        CacheGraphDecoder(const std::shared_ptr<GgufDecoder>& inputs,
+                          std::vector<std::shared_ptr<GgufDecoder>> nodes)
+            : SingleOpDecoder(*std::dynamic_pointer_cast<SingleOpDecoder>(inputs)),
+              m_nodes(std::move(nodes)) {}
+
+        void visit_subgraph(std::function<void(std::shared_ptr<GgufDecoder>)> visitor) const override {
+            for (const auto& node : m_nodes)
+                visitor(node);
+        }
+
+        std::vector<std::string> get_model_output_names() const override {
+            return {"cache", "new_cache", "attention_cache", "saved_cache"};
+        }
+
+    private:
+        std::vector<std::shared_ptr<GgufDecoder>> m_nodes;
+    };
+
+    constexpr size_t capacity = 8, heads = 2, width = 2, row = heads * width;
+    for (bool reshaped_destination : {false, true}) {
+        SCOPED_TRACE(reshaped_destination);
+        const ov::Shape root_shape{1, 1, capacity, row};
+        const ov::Shape destination_shape = reshaped_destination ? ov::Shape{1, capacity, heads, width} : root_shape;
+        auto inputs = SingleOpBuilder()
+                          .op("GGML_OP_SET_ROWS")
+                          .input("updates", ov::element::f32, {1, 1, -1, row})
+                          .input("indices", ov::element::i64, {1, 1, 1, -1})
+                          .input("cache", ov::element::f32, root_shape)
+                          .output("new_cache", ov::element::f32, root_shape)
+                          .decoder();
+        std::vector<std::shared_ptr<GgufDecoder>> nodes;
+        nodes.push_back(SingleOpBuilder()
+                            .op("GGML_OP_CONT")
+                            .input("cache", ov::element::f32, root_shape)
+                            .output("saved_cache", ov::element::f32, root_shape)
+                            .decoder());
+        if (reshaped_destination) {
+            nodes.push_back(SingleOpBuilder()
+                                .op("GGML_OP_RESHAPE")
+                                .input("cache", ov::element::f32, root_shape)
+                                .output("destination", ov::element::f32, destination_shape)
+                                .attr("reshape_target", std::vector<int64_t>{1, capacity, heads, width})
+                                .decoder());
+        }
+        nodes.push_back(SingleOpBuilder()
+                            .op("GGML_OP_SET_ROWS")
+                            .input("updates", ov::element::f32, {1, 1, -1, row})
+                            .input("indices", ov::element::i64, {1, 1, 1, -1})
+                            .input(reshaped_destination ? "destination" : "cache", ov::element::f32, destination_shape)
+                            .output("new_cache", ov::element::f32, destination_shape)
+                            .decoder());
+        // Read the root's original name after writing either it or its full-storage reshape alias.
+        nodes.push_back(SingleOpBuilder()
+                            .op("GGML_OP_VIEW")
+                            .input("cache", ov::element::f32, root_shape)
+                            .output("logical_cache", ov::element::f32, {1, capacity, heads, width})
+                            .attr("view_input_strides", std::vector<int64_t>{4, 16, 128, 128})
+                            .attr("view_output_strides", std::vector<int64_t>{4, 8, 16, 128})
+                            .attr("view_offset_bytes", int64_t{0})
+                            .decoder());
+        nodes.push_back(SingleOpBuilder()
+                            .op("GGML_OP_PERMUTE")
+                            .input("logical_cache", ov::element::f32, {1, capacity, heads, width})
+                            .output("attention_cache", ov::element::f32, {1, heads, capacity, width})
+                            .attr("perm", std::vector<int64_t>{0, 2, 1, 3})
+                            .attr("input_ggml_shape", ov::Shape{1, capacity, heads, width})
+                            .decoder());
+        std::shared_ptr<GgufDecoder> decoder = std::make_shared<CacheGraphDecoder>(inputs, std::move(nodes));
+        FrontEnd fe;
+        auto model = fe.convert(fe.load(decoder));
+        ov::Core core;
+        auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+        auto request = compiled.create_infer_request();
+        std::vector<float> expected_cache(capacity * row, -1.0f);
+        auto cache = make_f32_tensor(root_shape, expected_cache);
+        size_t position = 0;
+        for (size_t tokens : {2u, 5u, 1u}) {
+            SCOPED_TRACE(tokens);
+            const auto saved_cache = expected_cache;
+            const size_t rows_per_token = reshaped_destination ? heads : 1;
+            std::vector<float> updates(tokens * row);
+            ov::Tensor indices(ov::element::i64, {1, 1, 1, tokens * rows_per_token});
+            for (size_t t = 0; t < tokens; ++t) {
+                for (size_t h = 0; h < rows_per_token; ++h)
+                    indices.data<int64_t>()[t * rows_per_token + h] =
+                        static_cast<int64_t>((position + t) * rows_per_token + h);
+                for (size_t d = 0; d < row; ++d) {
+                    updates[t * row + d] = static_cast<float>((position + t + 1) * 10 + d);
+                    expected_cache[(position + t) * row + d] = updates[t * row + d];
+                }
+            }
+            request.set_tensor("updates", make_f32_tensor({1, 1, tokens, row}, updates));
+            request.set_tensor("indices", indices);
+            request.set_tensor(compiled.input("cache"), cache);
+            request.infer();
+            ASSERT_EQ(request.get_output_tensor(0).get_shape(), root_shape);
+            expect_near(request.get_output_tensor(0), expected_cache, 0.0f, 0.0f);
+            ASSERT_EQ(request.get_output_tensor(1).get_shape(), destination_shape);
+            expect_near(request.get_output_tensor(1), expected_cache, 0.0f, 0.0f);
+            std::vector<float> expected_attention;
+            for (size_t h = 0; h < heads; ++h)
+                for (size_t t = 0; t < capacity; ++t)
+                    for (size_t d = 0; d < width; ++d)
+                        expected_attention.push_back(expected_cache[t * row + h * width + d]);
+            ASSERT_EQ(request.get_output_tensor(2).get_shape(), (ov::Shape{1, heads, capacity, width}));
+            expect_near(request.get_output_tensor(2), expected_attention, 0.0f, 0.0f);
+            ASSERT_EQ(request.get_output_tensor(3).get_shape(), root_shape);
+            expect_near(request.get_output_tensor(3), saved_cache, 0.0f, 0.0f);
+            request.get_output_tensor(0).copy_to(cache);
+            position += tokens;
+        }
+    }
+}
+
+TEST(GGUFOps, StatefulSetRowsRebindsPrewriteReshapeAndPreservesSnapshot) {
+    class StatefulAliasDecoder : public SingleOpDecoder {
+    public:
+        StatefulAliasDecoder(const std::shared_ptr<GgufDecoder>& inputs,
+                             std::vector<std::shared_ptr<GgufDecoder>> nodes)
+            : SingleOpDecoder(*std::dynamic_pointer_cast<SingleOpDecoder>(inputs)),
+              m_nodes(std::move(nodes)) {}
+
+        void visit_subgraph(std::function<void(std::shared_ptr<GgufDecoder>)> visitor) const override {
+            for (const auto& node : m_nodes)
+                visitor(node);
+        }
+
+        std::vector<std::string> get_model_output_names() const override {
+            return {"alias_read", "saved_cache"};
+        }
+
+    private:
+        std::vector<std::shared_ptr<GgufDecoder>> m_nodes;
+    };
+
+    const ov::PartialShape cache_shape{1, -1, 2, 2};
+    const ov::PartialShape alias_shape{1, 1, -1, 4};
+    auto write = SingleOpBuilder()
+                     .op("GGML_OP_SET_ROWS")
+                     .input("updates", ov::element::f32, cache_shape)
+                     .input("indices", ov::element::i64, {1, 1, 1, -1})
+                     .input("cache", ov::element::f32, cache_shape)
+                     .output("new_cache", ov::element::f32, cache_shape)
+                     .decoder();
+    auto snapshot = SingleOpBuilder()
+                        .op("GGML_OP_CONT")
+                        .input("cache", ov::element::f32, cache_shape)
+                        .output("saved_cache", ov::element::f32, cache_shape)
+                        .decoder();
+    auto alias = SingleOpBuilder()
+                     .op("GGML_OP_RESHAPE")
+                     .input("cache", ov::element::f32, cache_shape)
+                     .output("cache_alias", ov::element::f32, alias_shape)
+                     .attr("reshape_target", std::vector<int64_t>{1, 1, -1, 4})
+                     .decoder();
+    auto read = SingleOpBuilder()
+                    .op("GGML_OP_CONT")
+                    .input("cache_alias", ov::element::f32, alias_shape)
+                    .output("alias_read", ov::element::f32, alias_shape)
+                    .decoder();
+    std::shared_ptr<GgufDecoder> decoder = std::make_shared<StatefulAliasDecoder>(
+        write, std::vector<std::shared_ptr<GgufDecoder>>{snapshot, alias, write, read});
+    FrontEnd fe;
+    fe.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(
+        ov::frontend::gguf::pass::GGUFMakeStateful()));
+    auto model = fe.convert(fe.load(decoder));
+    for (const auto& parameter : model->get_parameters())
+        EXPECT_NE(parameter->get_friendly_name(), "cache");
+    ov::Core core;
+    auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+    auto request = compiled.create_infer_request();
+    ov::Tensor beam(ov::element::i32, {1});
+    beam.data<int32_t>()[0] = 0;
+    request.set_tensor("beam_idx", beam);
+    std::vector<float> expected_cache;
+    size_t past = 0;
+    for (size_t tokens : {2u, 5u, 1u}) {
+        SCOPED_TRACE(tokens);
+        const auto expected_snapshot = expected_cache;
+        std::vector<float> updates(tokens * 4);
+        for (size_t t = 0; t < tokens; ++t)
+            for (size_t d = 0; d < 4; ++d)
+                updates[t * 4 + d] = static_cast<float>((past + t + 1) * 10 + d);
+        expected_cache.insert(expected_cache.end(), updates.begin(), updates.end());
+        request.set_tensor("updates", make_f32_tensor({1, tokens, 2, 2}, updates));
+        for (const auto& input : compiled.inputs()) {
+            if (input.get_names().count("indices")) {
+                ov::Tensor indices(ov::element::i64, {1, 1, 1, tokens * 2});
+                for (size_t i = 0; i < tokens * 2; ++i)
+                    indices.data<int64_t>()[i] = static_cast<int64_t>(past * 2 + i);
+                request.set_tensor(input, indices);
+            }
+        }
+        request.infer();
+        ASSERT_EQ(request.get_output_tensor(0).get_shape(), (ov::Shape{1, 1, past + tokens, 4}));
+        expect_near(request.get_output_tensor(0), expected_cache, 0.0f, 0.0f);
+        ASSERT_EQ(request.get_output_tensor(1).get_shape(), (ov::Shape{1, past, 2, 2}));
+        expect_near(request.get_output_tensor(1), expected_snapshot, 0.0f, 0.0f);
+        const auto states = request.query_state();
+        ASSERT_EQ(states.size(), 1u);
+        EXPECT_EQ(states[0].get_name(), "cache");
+        const auto state = states[0].get_state();
+        ASSERT_EQ(state.get_shape(), (ov::Shape{1, past + tokens, 2, 2}));
+        expect_near(state, expected_cache, 0.0f, 0.0f);
+        past += tokens;
+    }
+}
+
+// SwiGLU with clamped halves (ggml_compute_forward_swiglu_clamp): silu(min(g, limit)) * clamp(u, -limit, limit).
+TEST(GGUFOps, SwigluClamp) {
+    const float limit = 2.0f;
+    auto model = SingleOpBuilder()
+                     .op("GGML_GLU_OP_SWIGLU_CLAMP")
+                     .input("x", ov::element::f32, {2, 8})
+                     .output("out", ov::element::f32, {2, 4})
+                     .attr<bool>("swapped", false)
+                     .attr<float>("glu_limit", limit)
+                     .build();
+    std::vector<float> x{-3, -1, 1, 3, -5, -1, 0.5f, 5, 4, 0.25f, -0.5f, 2.5f, 1, -3, 3, -1};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 8}, x)}});
+    std::vector<float> expected;
+    for (size_t r = 0; r < 2; ++r) {
+        for (size_t c = 0; c < 4; ++c) {
+            const float g = std::min(x[r * 8 + c], limit);
+            const float u = std::clamp(x[r * 8 + 4 + c], -limit, limit);
+            expected.push_back(g / (1.0f + std::exp(-g)) * u);
+        }
+    }
+    expect_near(out, expected);
+}
+
+// GEGLU_QUICK: gelu_quick(g) * u with gelu_quick(x) = x * sigmoid(1.702 x) (ggml_gelu_quick_f32).
+TEST(GGUFOps, GegluQuick) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_GLU_OP_GEGLU_QUICK")
+                     .input("x", ov::element::f32, {2, 6})
+                     .output("out", ov::element::f32, {2, 3})
+                     .attr<bool>("swapped", true)
+                     .build();
+    std::vector<float> x{1, -2, 0.5f, 3, -1, 2, -0.5f, 4, 1.5f, 2, 0.25f, -3};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 6}, x)}});
+    std::vector<float> expected;
+    for (size_t r = 0; r < 2; ++r) {
+        for (size_t c = 0; c < 3; ++c) {
+            const float g = x[r * 6 + 3 + c];  // swapped: the gate is the second half
+            const float u = x[r * 6 + c];
+            expected.push_back(g / (1.0f + std::exp(-1.702f * g)) * u);
+        }
+    }
+    expect_near(out, expected);
+}
+
+// POOL_2D over ggml [W, H, C, N] = OV NCHW, params {op, k0, k1, s0, s1, p0, p1}: a 2-wide, 1-high
+// window stepping 2 along W.
+TEST(GGUFOps, Pool2dMaxAndAvg) {
+    const std::vector<float> x{1, 5, -2, 3, 4, 0, 7, -1};
+    for (int32_t mode : {0, 1}) {
+        SCOPED_TRACE(mode);
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_POOL_2D")
+                         .input("x", ov::element::f32, {1, 1, 2, 4})
+                         .output("out", ov::element::f32, {1, 1, 2, 2})
+                         .attr("pool_params", std::vector<int32_t>{mode, 2, 1, 2, 1, 0, 0})
+                         .build();
+        auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 2, 4}, x)}});
+        if (mode == 0) {
+            expect_near(out, {5, 3, 4, 7});
+        } else {
+            expect_near(out, {3, 0.5f, 2, 3});
+        }
+    }
+}
+
+// ROLL: dst[i] = src[(i - shift) mod n] per axis; shifts are in ggml order (dim 0 innermost).
+TEST(GGUFOps, Roll) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_ROLL")
+                     .input("x", ov::element::f32, {1, 1, 2, 3})
+                     .output("out", ov::element::f32, {1, 1, 2, 3})
+                     .attr("roll_shifts", std::vector<int32_t>{1, 1, 0, 0})
+                     .build();
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 2, 3}, {0, 1, 2, 10, 11, 12})}});
+    // Columns shift by one ([0,1,2] -> [2,0,1]), then the two rows swap.
+    expect_near(out, {12, 10, 11, 2, 0, 1});
+}
+
+// SOLVE_TRI: A X = B with A lower triangular (the only variant ggml accepts), two batches.
+TEST(GGUFOps, SolveTri) {
+    const size_t n = 3, k = 2, batches = 2;
+    std::vector<float> a{2, 0, 0, 1, 4, 0, -1, 3, 5,   // batch 0
+                         1, 0, 0, 2, 1, 0, 3, -2, 4};  // batch 1
+    std::vector<float> b{2, 4, 9, 6, 1, 18, 1, -1, 4, 0, 9, 5};
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SOLVE_TRI")
+                     .input("a", ov::element::f32, {1, batches, n, n})
+                     .input("b", ov::element::f32, {1, batches, n, k})
+                     .output("out", ov::element::f32, {1, batches, n, k})
+                     .build();
+    auto out = run_on_cpu(model,
+                          {{"a", make_f32_tensor({1, batches, n, n}, a)}, {"b", make_f32_tensor({1, batches, n, k}, b)}});
+    std::vector<float> expected(batches * n * k);
+    for (size_t bt = 0; bt < batches; ++bt) {
+        for (size_t c = 0; c < k; ++c) {
+            for (size_t i = 0; i < n; ++i) {
+                float sum = b[(bt * n + i) * k + c];
+                for (size_t j = 0; j < i; ++j)
+                    sum -= a[(bt * n + i) * n + j] * expected[(bt * n + j) * k + c];
+                expected[(bt * n + i) * k + c] = sum / a[(bt * n + i) * n + i];
+            }
+        }
+    }
+    expect_near(out, expected);
+}
+
+// A CPY that rewrites a range of its destination updates that storage in place: a later read of the
+// destination, and the model output written back to it, observe the new value.
+TEST(GGUFOps, CpyUpdateRebindsDestinationStorage) {
+    class GraphDecoder : public SingleOpDecoder {
+    public:
+        GraphDecoder(const std::shared_ptr<GgufDecoder>& inputs, std::vector<std::shared_ptr<GgufDecoder>> nodes)
+            : SingleOpDecoder(*std::dynamic_pointer_cast<SingleOpDecoder>(inputs)),
+              m_nodes(std::move(nodes)) {}
+        void visit_subgraph(std::function<void(std::shared_ptr<GgufDecoder>)> visitor) const override {
+            for (const auto& node : m_nodes)
+                visitor(node);
+        }
+        std::vector<std::string> get_model_output_names() const override {
+            return {"buffer", "read"};
+        }
+
+    private:
+        std::vector<std::shared_ptr<GgufDecoder>> m_nodes;
+    };
+
+    const ov::Shape buffer_shape{1, 1, 1, 8};
+    auto write = [&] {
+        return SingleOpBuilder()
+            .op("GGML_OP_CPY")
+            .input("value", ov::element::f32, {1, 1, 1, -1})
+            .input("buffer", ov::element::f32, buffer_shape)
+            .input("begin", ov::element::i64, {1})
+            .output("written", ov::element::f32, buffer_shape)
+            .attr("dst_type", ov::element::f32)
+            .attr("axis", int64_t{3})
+            .attr("reshape_target", std::vector<int64_t>{1, 1, 1, -1});
+    };
+    std::vector<std::shared_ptr<GgufDecoder>> nodes{write().decoder(),
+                                                    SingleOpBuilder()
+                                                        .op("GGML_OP_SCALE")
+                                                        .input("buffer", ov::element::f32, buffer_shape)
+                                                        .output("read", ov::element::f32, buffer_shape)
+                                                        .attr("scale", 2.0f)
+                                                        .decoder()};
+    std::shared_ptr<GgufDecoder> decoder = std::make_shared<GraphDecoder>(write().decoder(), std::move(nodes));
+    FrontEnd fe;
+    auto model = fe.convert(fe.load(decoder));
+    ov::Core core;
+    auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+    auto request = compiled.create_infer_request();
+    ov::Tensor begin(ov::element::i64, {1});
+    begin.data<int64_t>()[0] = 5;
+    request.set_tensor("value", make_f32_tensor({1, 1, 1, 2}, {7, 9}));
+    request.set_tensor("buffer", make_f32_tensor(buffer_shape, {0, 1, 2, 3, 4, 5, 6, 7}));
+    request.set_tensor("begin", begin);
+    request.infer();
+    const std::vector<float> updated{0, 1, 2, 3, 4, 7, 9, 7};
+    // Outputs follow get_model_output_names(): the written-back buffer, then the later read.
+    expect_near(request.get_output_tensor(0), updated, 0.0f, 0.0f);
+    std::vector<float> doubled;
+    for (float value : updated)
+        doubled.push_back(2 * value);
+    expect_near(request.get_output_tensor(1), doubled, 0.0f, 0.0f);
+}
+
+class GGUFRopeDescriptor : public ::testing::TestWithParam<int> {};
+
+TEST_P(GGUFRopeDescriptor, ReusesDynamicPrefillAndDecode) {
+    const int mode = GetParam();
+    const bool imrope = mode == 2;
+    const int64_t heads = 2, head_dim = 8, n_rot = 6;
+    RopeConfig cfg;
+    cfg.n_dims = n_rot;
+    cfg.freq_base = 10000.0f;
+    cfg.freq_scale = 1.0f;
+    cfg.ext_factor = 0.0f;
+    cfg.attn_factor = 1.0f;
+    cfg.n_ctx_orig = 4096;
+    auto builder = SingleOpBuilder()
+                       .op("GGML_OP_ROPE")
+                       .input("data", ov::element::f32, {1, -1, heads, head_dim})
+                       .input("pos", ov::element::i32, {1, 1, 1, -1})
+                       .output("out", ov::element::f32, {1, -1, heads, head_dim})
+                       .attr("rope_config", cfg)
+                       .attr("rope_mode", std::string(mode == 0 ? "normal" : mode == 1 ? "neox" : "imrope"));
+    ov::Core core;
+    auto compiled = core.compile_model(builder.build(), "CPU", ov::hint::inference_precision(ov::element::f32));
+    auto request = compiled.create_infer_request();
+    for (size_t tokens : {3u, 1u}) {
+        SCOPED_TRACE(tokens);
+        std::vector<float> data(tokens * heads * head_dim);
+        for (size_t i = 0; i < data.size(); ++i) {
+            data[i] = 0.13f * static_cast<float>(i + 1);
+        }
+        ov::Tensor positions(ov::element::i32, {1, 1, 1, tokens * (imrope ? 4 : 1)});
+        for (size_t plane = 0; plane < (imrope ? 4u : 1u); ++plane) {
+            for (size_t t = 0; t < tokens; ++t) {
+                positions.data<int32_t>()[plane * tokens + t] = static_cast<int32_t>(5 + t);
+            }
+        }
+        request.set_tensor("data", make_f32_tensor({1, tokens, heads, head_dim}, data));
+        request.set_tensor("pos", positions);
+        request.infer();
+        ASSERT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, tokens, heads, head_dim}));
+        std::vector<float> expected = data;
+        for (size_t t = 0; t < tokens; ++t) {
+            std::vector<float> cos_v, sin_v;
+            neox_ref_cos_sin(n_rot, cfg.freq_base, cfg.freq_scale, cfg.attn_factor, 5 + t, cos_v, sin_v);
+            for (int64_t h = 0; h < heads; ++h) {
+                const auto base = (t * heads + h) * head_dim;
+                for (int64_t j = 0; j < n_rot / 2; ++j) {
+                    const auto first = base + (mode == 0 ? 2 * j : j);
+                    const auto second = mode == 0 ? first + 1 : first + n_rot / 2;
+                    expected[first] = data[first] * cos_v[j] - data[second] * sin_v[j];
+                    expected[second] = data[first] * sin_v[j] + data[second] * cos_v[j];
+                }
+            }
+        }
+        expect_near(request.get_output_tensor(), expected);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(GGUFOps,
+                         GGUFRopeDescriptor,
+                         ::testing::Values(0, 1, 2));
+
+class GGUFFlashDescriptor : public ::testing::TestWithParam<std::tuple<bool, float, bool>> {};
+
+TEST_P(GGUFFlashDescriptor, ReusesDynamicPrefillAndDecode) {
+    const bool has_mask = std::get<0>(GetParam());
+    const float softcap = std::get<1>(GetParam());
+    const bool has_sinks = std::get<2>(GetParam());
+    const size_t heads = 4, kv_heads = 2, width = 3, value_width = 2;
+    const float scale = 0.71f;
+    auto shape = [&](size_t h, size_t d) {
+        return ov::PartialShape{1, h, -1, d};
+    };
+    auto builder = SingleOpBuilder()
+                       .op("GGML_OP_FLASH_ATTN_EXT")
+                       .input("q", ov::element::f32, shape(heads, width))
+                       .input("k", ov::element::f32, shape(kv_heads, width))
+                       .input("v", ov::element::f32, shape(kv_heads, value_width));
+    if (has_mask) {
+        builder.input("mask", ov::element::f32, {1, 1, 8, -1});
+    }
+    if (has_sinks) {
+        builder.input("sinks", ov::element::f32, {heads});
+    }
+    builder.output("out", ov::element::f32, {1, -1, heads, value_width})
+        .attr("scale", scale)
+        .attr("kq_soft_cap", softcap)
+        .attr("has_mask", has_mask);
+    ov::Core core;
+    auto compiled = core.compile_model(builder.build(), "CPU", ov::hint::inference_precision(ov::element::f32));
+    auto request = compiled.create_infer_request();
+    for (size_t tokens : {3u, 1u}) {
+        SCOPED_TRACE(tokens);
+        const size_t keys = tokens == 3 ? 5 : 7;
+        auto index = [&](size_t h, size_t t, size_t d, size_t H, size_t T, size_t D) {
+            return (h * T + t) * D + d;
+        };
+        auto tensor_shape = [&](size_t H, size_t T, size_t D) {
+            return ov::Shape{1, H, T, D};
+        };
+        std::vector<float> q(heads * tokens * width), k(kv_heads * keys * width), v(kv_heads * keys * value_width);
+        for (size_t i = 0; i < q.size(); ++i)
+            q[i] = 0.137f * static_cast<float>(i % 17) - 0.81f;
+        for (size_t i = 0; i < k.size(); ++i)
+            k[i] = 0.173f * static_cast<float>(i % 13) - 0.92f;
+        for (size_t i = 0; i < v.size(); ++i)
+            v[i] = 0.227f * static_cast<float>(i % 11) - 0.37f;
+        std::vector<float> mask(8 * keys);
+        for (size_t t = 0; t < 8; ++t)
+            for (size_t s = 0; s < keys; ++s)
+                mask[t * keys + s] = s > t + 2 ? -10000.0f : -0.17f * static_cast<float>(s);
+        const std::vector<float> sinks{-0.3f, 0.4f, 0.2f, -0.1f};
+        request.set_tensor("q", make_f32_tensor(tensor_shape(heads, tokens, width), q));
+        request.set_tensor("k", make_f32_tensor(tensor_shape(kv_heads, keys, width), k));
+        request.set_tensor("v", make_f32_tensor(tensor_shape(kv_heads, keys, value_width), v));
+        if (has_mask)
+            request.set_tensor("mask", make_f32_tensor({1, 1, 8, keys}, mask));
+        if (has_sinks)
+            request.set_tensor("sinks", make_f32_tensor({heads}, sinks));
+        request.infer();
+        ASSERT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, tokens, heads, value_width}));
+        std::vector<float> expected(tokens * heads * value_width);
+        for (size_t t = 0; t < tokens; ++t) {
+            for (size_t h = 0; h < heads; ++h) {
+                const auto kh = h / (heads / kv_heads);
+                std::vector<float> logits(keys + (has_sinks ? 1 : 0));
+                for (size_t s = 0; s < keys; ++s) {
+                    float dot = 0.0f;
+                    for (size_t d = 0; d < width; ++d)
+                        dot += q[index(h, t, d, heads, tokens, width)] * k[index(kh, s, d, kv_heads, keys, width)];
+                    const float scaled = scale * dot;
+                    logits[s] = (softcap == 0.0f ? scaled : softcap * std::tanh(scaled / softcap)) +
+                                (has_mask ? mask[t * keys + s] : 0.0f);
+                }
+                if (has_sinks)
+                    logits[keys] = sinks[h];
+                const auto maximum = *std::max_element(logits.begin(), logits.end());
+                float sum = 0.0f;
+                for (auto& logit : logits) {
+                    logit = std::exp(logit - maximum);
+                    sum += logit;
+                }
+                for (size_t d = 0; d < value_width; ++d) {
+                    for (size_t s = 0; s < keys; ++s) {
+                        expected[(t * heads + h) * value_width + d] +=
+                            logits[s] / sum * v[index(kh, s, d, kv_heads, keys, value_width)];
+                    }
+                }
+            }
+        }
+        expect_near(request.get_output_tensor(), expected, 1e-4f, OV_GGUF_TEST_DEFAULT_RTOL);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    GGUFOps,
+    GGUFFlashDescriptor,
+    ::testing::Values(std::make_tuple(true, 0.0f, false),
+                      std::make_tuple(false, 0.0f, false),
+                      std::make_tuple(true, 0.8f, false),
+                      std::make_tuple(false, 0.8f, false),
+                      std::make_tuple(true, 0.8f, true),
+                      std::make_tuple(false, 0.8f, true),
+                      std::make_tuple(false, 0.0f, true)));
+
+// Ops ported from the llama.cpp OpenVINO backend: described by ggml op parameters only.
+TEST(GGUFOps, MeanAndSumReduce) {
+    const auto x = make_f32_tensor({1, 1, 2, 3}, {1, 2, 3, 4, 5, 6});
+    auto mean = SingleOpBuilder().op("GGML_OP_MEAN").input("x", ov::element::f32, {1, 1, 2, 3}).output("out", ov::element::f32, {1, 1, 2, 1}).build();
+    expect_near(run_on_cpu(mean, {{"x", x}}), {2, 5});
+    auto sum = SingleOpBuilder().op("GGML_OP_SUM").input("x", ov::element::f32, {1, 1, 2, 3}).output("out", ov::element::f32, {1, 1, 1, 1}).build();
+    expect_near(run_on_cpu(sum, {{"x", x}}), {21});
+}
+
+TEST(GGUFOps, DupCopiesItsOperand) {
+    auto model = SingleOpBuilder().op("GGML_OP_DUP").input("x", ov::element::f32, {1, 1, 1, 3}).output("out", ov::element::f32, {1, 1, 1, 3}).build();
+    expect_near(run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 1, 3}, {1, -2, 3})}}), {1, -2, 3});
+}
+
+TEST(GGUFOps, DupConvertsToTheOutputType) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_DUP")
+                     .input("x", ov::element::f32, {1, 1, 1, 3})
+                     .output("out", ov::element::f16, {1, 1, 1, 3})
+                     .attr<ov::element::Type>("dst_type", ov::element::f16)
+                     .build();
+    // 0.1f is not representable in f16, so the values show the conversion happened.
+    const std::vector<float> values{0.1f, -2.5f, 3.0f};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 1, 3}, values)}});
+    ASSERT_EQ(out.get_element_type(), ov::element::f16);
+    ASSERT_EQ(out.get_size(), values.size());
+    const auto* data = out.data<ov::float16>();
+    for (size_t i = 0; i < values.size(); ++i) {
+        EXPECT_EQ(static_cast<float>(data[i]), static_cast<float>(ov::float16(values[i]))) << "index " << i;
+    }
+}
+
+TEST(GGUFOps, UnaryHardsigmoidExpm1StepRound) {
+    const std::vector<float> v{-4.0f, -0.5f, 0.0f, 0.5f, 2.5f};
+    const auto run = [&](const char* op) {
+        auto model = SingleOpBuilder().op(op).input("x", ov::element::f32, {1, 1, 1, 5}).output("out", ov::element::f32, {1, 1, 1, 5}).build();
+        return run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 1, 5}, v)}});
+    };
+    std::vector<float> hs, em, st, rd;
+    for (float x : v) {
+        hs.push_back(std::min(1.0f, std::max(0.0f, x / 6.0f + 0.5f)));
+        em.push_back(std::expm1(x));
+        st.push_back(x > 0.0f ? 1.0f : 0.0f);
+        rd.push_back(std::round(x));
+    }
+    expect_near(run("GGML_UNARY_OP_HARDSIGMOID"), hs);
+    expect_near(run("GGML_UNARY_OP_EXPM1"), em);
+    expect_near(run("GGML_UNARY_OP_STEP"), st);
+    expect_near(run("GGML_UNARY_OP_ROUND"), rd);
+}
+
+TEST(GGUFOps, ConvDepthwiseAndTransposed) {
+    // Depthwise 2x2 kernel per channel, stride 1, no padding: one output per channel.
+    auto dw = SingleOpBuilder()
+                  .op("GGML_OP_CONV_2D_DW")
+                  .input("w", ov::element::f32, {2, 1, 2, 2})
+                  .input("x", ov::element::f32, {1, 2, 2, 2})
+                  .output("out", ov::element::f32, {1, 2, 1, 1})
+                  .attr<std::vector<int64_t>>("conv_params", {1, 1, 0, 0, 1, 1})
+                  .build();
+    expect_near(run_on_cpu(dw, {{"w", make_f32_tensor({2, 1, 2, 2}, {1, 1, 1, 1, 1, 0, 0, 1})},
+                                {"x", make_f32_tensor({1, 2, 2, 2}, {1, 2, 3, 4, 5, 6, 7, 8})}}),
+                {10, 13});
+    // 1D transposed conv, Cin = Cout = 1, K = 2, stride 2: each input sample emits the kernel scaled.
+    auto t1 = SingleOpBuilder()
+                  .op("GGML_OP_CONV_TRANSPOSE_1D")
+                  .input("w", ov::element::f32, {1, 1, 1, 2})
+                  .input("x", ov::element::f32, {1, 1, 1, 2})
+                  .output("out", ov::element::f32, {1, 1, 1, 4})
+                  .attr<std::vector<int64_t>>("conv_params", {2, 0, 1})
+                  .build();
+    expect_near(run_on_cpu(t1, {{"w", make_f32_tensor({1, 1, 1, 2}, {1, 10})}, {"x", make_f32_tensor({1, 1, 1, 2}, {1, 2})}}),
+                {1, 10, 2, 20});
+    // 2D transposed conv, 1x1 kernel, stride 2: inputs land on the even grid, zeros elsewhere.
+    auto t2 = SingleOpBuilder()
+                  .op("GGML_OP_CONV_TRANSPOSE_2D")
+                  .input("w", ov::element::f32, {1, 1, 1, 1})
+                  .input("x", ov::element::f32, {1, 1, 1, 2})
+                  .output("out", ov::element::f32, {1, 1, 1, 3})
+                  .attr<std::vector<int64_t>>("conv_params", {2})
+                  .build();
+    expect_near(run_on_cpu(t2, {{"w", make_f32_tensor({1, 1, 1, 1}, {3})}, {"x", make_f32_tensor({1, 1, 1, 2}, {1, 2})}}),
+                {3, 0, 6});
+}
+
+TEST(GGUFOps, Conv3dSumsTheKernelWindow) {
+    // c = n = oc = 1, a 2x2x2 all-ones kernel over a 2x2x2 input: the single output is the input sum.
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CONV_3D")
+                     .input("w", ov::element::f32, {1, 2, 2, 2})
+                     .input("x", ov::element::f32, {1, 2, 2, 2})
+                     .output("out", ov::element::f32, {1, 1, 1, 1})
+                     .attr<std::vector<int64_t>>("conv_params", {1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1})
+                     .build();
+    expect_near(run_on_cpu(model, {{"w", make_f32_tensor({1, 2, 2, 2}, std::vector<float>(8, 1.0f))},
+                                   {"x", make_f32_tensor({1, 2, 2, 2}, {1, 2, 3, 4, 5, 6, 7, 8})}}),
+                {36});
+}
+
+TEST(GGUFOps, Im2col3dSinglePatch) {
+    // A 2x2x2 kernel over a 2x2x2 single-channel volume yields one patch holding every element.
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_IM2COL_3D")
+                     .input("w", ov::element::f32, {1, 2, 2, 2})
+                     .input("x", ov::element::f32, {1, 2, 2, 2})
+                     .output("out", ov::element::f32, {1, 1, 1, 8})
+                     .attr<std::vector<int32_t>>("im2col_params", {1, 1, 1, 0, 0, 0, 1, 1, 1, 1})
+                     .build();
+    const std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8};
+    // The kernel only supplies its shape, so its Parameter is not part of the converted model.
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 2, 2, 2}, x)}});
+    ASSERT_EQ(out.get_shape(), (ov::Shape{1, 1, 1, 8}));
+    expect_near(out, x);
+}
+
+TEST(GGUFOps, UpscaleToFixedSizes) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_UPSCALE")
+                     .input("x", ov::element::f32, {1, 1, 1, 2})
+                     .output("out", ov::element::f32, {1, 1, 2, 4})
+                     .attr<int>("interpolation_mode", 0)
+                     .attr<std::vector<int64_t>>("upscale_sizes", {2, 4})
+                     .build();
+    expect_near(run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 1, 2}, {1, 2})}}), {1, 1, 2, 2, 1, 1, 2, 2});
 }

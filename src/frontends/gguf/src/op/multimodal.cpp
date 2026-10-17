@@ -93,8 +93,10 @@ ov::Output<ov::Node> antialiased_bilinear(const ov::Output<ov::Node>& input,
 }
 }  // namespace
 
+// GGML_OP_UPSCALE. The target spatial size is a second operand (its values, or with "resize_like" its shape),
+// or the "upscale_sizes" attribute {H, W} when the operation has a fixed size.
 OutputVector translate_upscale(const NodeContext& context) {
-    num_inputs_check(context, 2, 2);
+    num_inputs_check(context, 1, 2);
     const int flags = context.get_attribute<int>("interpolation_mode", 1);
     FRONT_END_OP_CONVERSION_CHECK((flags & ~0x303) == 0 && (flags & 0xff) <= 2, "Unsupported interpolation mode");
     using Interpolate = ov::op::v4::Interpolate;
@@ -110,9 +112,15 @@ OutputVector translate_upscale(const NodeContext& context) {
     attrs.antialias = (flags & 0x200) != 0;
     attrs.pads_begin = attrs.pads_end = {0, 0, 0, 0};
     const std::vector<int> axes{2, 3};
-    auto sizes = context.get_attribute<bool>("resize_like", false)
-                     ? get_dimensions(context.get_input(1), axes)->output(0)
-                     : context.get_input(1);
+    ov::Output<ov::Node> sizes;
+    if (context.get_input_size() == 2) {
+        sizes = context.get_attribute<bool>("resize_like", false) ? get_dimensions(context.get_input(1), axes)->output(0)
+                                                                   : context.get_input(1);
+    } else {
+        const auto target = context.get_attribute<std::vector<int64_t>>("upscale_sizes");
+        FRONT_END_OP_CONVERSION_CHECK(target.size() == axes.size(), "UPSCALE requires upscale_sizes {H, W}");
+        sizes = ov::op::v0::Constant::create(ov::element::i64, {target.size()}, target);
+    }
     if ((flags & 0xff) == 1 && attrs.antialias) {
         return rename_outputs_with_suffix({antialiased_bilinear(context.get_input(0), sizes, (flags & 0x100) != 0)},
                                           context.get_name());
@@ -208,8 +216,8 @@ OutputVector translate_win_unpart(const NodeContext& context) {
 }
 
 OutputVector translate_get_rel_pos(const NodeContext& context) {
+    // The two-input form gathers a decomposed relative-position table by explicit query/key indices.
     num_inputs_check(context, 2, 2);
-    FRONT_END_OP_CONVERSION_CHECK(context.get_op_case() == 1, "Indexed relative positions require case 1");
     using namespace ov::op;
     auto table = context.get_input(0), indices = context.get_input(1);
     const auto& c = i64_const;
