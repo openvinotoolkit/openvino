@@ -122,8 +122,9 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
                               const std::string& netPrecision,
                               unsigned int priority,
                               const ov::auto_plugin::DeviceSelectionPolicy& selection_policy,
-                              const std::string& low_power_device) {
-            return plugin->Plugin::select_device(metaDevices, netPrecision, priority, selection_policy, low_power_device);
+                              const std::string& low_power_device,
+                              bool is_low_power_mode_active) {
+            return plugin->Plugin::select_device(metaDevices, netPrecision, priority, selection_policy, low_power_device, is_low_power_mode_active);
         });
 
     ON_CALL(*plugin, sort_device_by_perf_curve)
