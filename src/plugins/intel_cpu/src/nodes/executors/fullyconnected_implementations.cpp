@@ -382,7 +382,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             OperationType::MatMul,
             // supports
             [](const FCConfig& config) -> bool {
-                VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(all_of(f32, srcType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(any_of(weiType(config), f32, i8, i4, u4), UNSUPPORTED_WEI_PRECISIONS);
