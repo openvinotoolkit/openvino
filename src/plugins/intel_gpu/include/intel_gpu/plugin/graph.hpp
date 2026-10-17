@@ -37,7 +37,7 @@ public:
         POSTPROC = 4
     };
 
-    Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id = 0);
+    Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id = 0, ov::internal::WeightSharingCtxPtr weight_sharing_ctx = nullptr);
     Graph(cldnn::BinaryInputBuffer& ib, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id = 0);
     Graph(std::shared_ptr<Graph> graph, uint16_t stream_id = 0);
     ~Graph();
@@ -78,6 +78,10 @@ public:
 
     bool use_external_queue() const;
 
+    std::set<std::shared_ptr<ov::AlignedBuffer>> get_shared_weight_sources() const {
+        return m_shared_weight_sources;
+    }
+
     std::vector<HostTimeProfilingEntry> host_exec_times;
 
 private:
@@ -97,6 +101,7 @@ private:
     std::vector<cldnn::primitive_id> profilingIDs;
 
     std::map<size_t, cldnn::layout> m_input_layouts;
+    std::set<std::shared_ptr<ov::AlignedBuffer>> m_shared_weight_sources;
 
     void build(std::shared_ptr<cldnn::program> program);
     std::shared_ptr<ov::Model> get_runtime_model(std::vector<cldnn::primitive_info>& pi, bool filter_const_primitives = true);
