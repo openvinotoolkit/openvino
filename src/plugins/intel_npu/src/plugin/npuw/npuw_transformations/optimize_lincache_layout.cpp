@@ -16,11 +16,9 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/transpose.hpp"
-#include "openvino/op/util/gather_base.hpp"
 
 namespace {
 
@@ -43,40 +41,19 @@ bool is_rank3(const ov::PartialShape& shape) {
     return shape.rank().is_static() && shape.rank().get_length() == 3;
 }
 
-// True when the state is consumed as [batch, channels, kernel]: following the state through
-// layout-neutral ops (Convert, the beam-search Gather along the batch axis), every Concat it
-// reaches appends along the last axis, i.e. the kernel axis is innermost. States stored in any
-// other layout are left alone, since swapping their axes would move them away from NHWC.
+// Matches the conv state consumer of the supported hybrid models (Qwen3.5, MiniCPM-V-4.7, LFM2).
+// StatefulToStateless replaces the beam-search Gather on the state with the Parameter, so the pass sees
+//     Parameter -> Concat(last axis)
+// New tokens are appended along the last axis, so the kernel axis is innermost. Any other graph
+// shape is not recognized and the state is left alone.
 bool is_kernel_innermost(const ov::Output<ov::Node>& state) {
-    constexpr int64_t kernel_axis = 2;
-    std::vector<ov::Output<ov::Node>> pending{state};
-    size_t concat_count = 0;
-    while (!pending.empty()) {
-        const auto current = pending.back();
-        pending.pop_back();
-        for (const auto& target : current.get_target_inputs()) {
-            const auto node = target.get_node()->shared_from_this();
-            if (const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(node)) {
-                const auto rank = concat->get_output_partial_shape(0).rank();
-                if (rank.is_dynamic() || rank.get_length() != 3) {
-                    return false;
-                }
-                const auto axis = concat->get_axis() < 0 ? concat->get_axis() + 3 : concat->get_axis();
-                if (axis != kernel_axis) {
-                    return false;
-                }
-                ++concat_count;
-            } else if (ov::is_type<ov::op::v0::Convert>(node)) {
-                pending.push_back(node->output(0));
-            } else if (const auto gather = ov::as_type_ptr<ov::op::util::GatherBase>(node)) {
-                const auto axis = ov::util::get_constant_from_source(gather->input_value(2));
-                if (target.get_index() == 0 && axis != nullptr && axis->cast_vector<int64_t>().at(0) == 0) {
-                    pending.push_back(node->output(0));
-                }
-            }
+    for (const auto& input : state.get_target_inputs()) {
+        if (const auto concat = ov::as_type<ov::op::v0::Concat>(input.get_node())) {
+            const auto rank = concat->get_output_partial_shape(0).rank();
+            return rank.is_static() && ov::util::normalize_axis(concat->get_axis(), rank.get_length()) == 2;
         }
     }
-    return concat_count > 0;
+    return false;
 }
 
 std::shared_ptr<ov::op::v0::Constant> swap_last_two_axes() {

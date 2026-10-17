@@ -23,8 +23,8 @@ namespace util {
 // Graph semantics are preserved: a Transpose is inserted right after each
 // cache_params.past.conv.N Parameter and right before each
 // cache_params.present.conv.N Result. Tensor names stay on the model I/O.
-// The layout is verified from the graph: the state must be appended to along its last axis
-// (kernel innermost); otherwise no state is changed.
+// Only the conv state consumer of the supported hybrid models is recognized,
+// Parameter -> Concat(last axis); otherwise no state is changed.
 // The pass is not idempotent: run it once, before the prefill and generate models are cloned.
 class OptimizeLinCacheLayout : public ov::pass::ModelPass {
 public:

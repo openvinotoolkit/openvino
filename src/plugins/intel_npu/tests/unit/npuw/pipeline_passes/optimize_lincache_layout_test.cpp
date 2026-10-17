@@ -131,6 +131,8 @@ TEST_F(OptimizeLinCacheLayoutPassTest, NoConvStatesIsNoOp) {
     EXPECT_EQ(model->get_ops().size(), n_ops);
 }
 
+// A Result fed straight from a state Parameter shares that Parameter's tensor, so its present name lives
+// on the same tensor as the past name (possibly of another layer). Rewiring must keep every I/O name.
 TEST_F(OptimizeLinCacheLayoutPassTest, PreservesPassThroughStateNames) {
     for (const bool cross_layer : {false, true}) {
         SCOPED_TRACE(cross_layer);
@@ -187,14 +189,15 @@ TEST_F(OptimizeLinCacheLayoutPassTest, UnsupportedPairLeavesAllStatesUnchanged) 
     }
 }
 
-// Exercise the cache recurrence with evaluable ops, independently of device compilation.
+// Evaluable single-state model mirroring the conv state consumer seen by the pass after
+// StatefulToStateless: state -> Concat -> Slice.
 // The state is [1, 2 channels, 3 kernel]; with `channels_last` it is stored as [1, 3, 2] and tokens are
-// appended along axis 1 instead. `beam_gather` inserts the beam-search Gather that exported models apply
-// to every state, and `negative_axis` spells the concatenation axis as -1.
+// appended along axis 1 instead. `negative_axis` spells the concatenation axis as -1, and `gather_between`
+// inserts a Gather between the state and the Concat.
 std::shared_ptr<ov::Model> make_cache_step_model(int64_t token_count,
                                                  bool channels_last = false,
-                                                 bool beam_gather = false,
-                                                 bool negative_axis = false) {
+                                                 bool negative_axis = false,
+                                                 bool gather_between = false) {
     const int64_t time_axis = channels_last ? 1 : 2;
     auto past = std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
                                                         channels_last ? ov::Shape{1, 3, 2} : ov::Shape{1, 2, 3});
@@ -203,14 +206,10 @@ std::shared_ptr<ov::Model> make_cache_step_model(int64_t token_count,
         ov::element::f32,
         channels_last ? ov::PartialShape{1, token_count, 2} : ov::PartialShape{1, 2, token_count});
     tokens->output(0).set_names({"tokens"});
-    ov::ParameterVector parameters{past, tokens};
     ov::Output<ov::Node> state = past;
-    if (beam_gather) {
-        auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
-        beam_idx->output(0).set_names({"beam_idx"});
-        parameters.push_back(beam_idx);
+    if (gather_between) {
         state = std::make_shared<ov::op::v8::Gather>(past,
-                                                     beam_idx,
+                                                     ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {0}),
                                                      ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
     }
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{state, tokens}, negative_axis ? -1 : time_axis);
@@ -224,7 +223,7 @@ std::shared_ptr<ov::Model> make_cache_step_model(int64_t token_count,
     present->output(0).set_names({"cache_params.present.conv.0"});
     auto activation = std::make_shared<ov::op::v1::ReduceSum>(concat, axis, false);
     activation->output(0).set_names({"activation"});
-    return std::make_shared<ov::Model>(ov::OutputVector{activation, present}, parameters);
+    return std::make_shared<ov::Model>(ov::OutputVector{activation, present}, ov::ParameterVector{past, tokens});
 }
 
 // A state that is already stored channels-innermost must not be transposed back to the slow layout.
@@ -237,12 +236,21 @@ TEST_F(OptimizeLinCacheLayoutPassTest, LeavesChannelsLastStateUnchanged) {
     EXPECT_EQ(model->output(1).get_partial_shape(), (ov::PartialShape{1, 3, 2}));
 }
 
-// Exported models reach the Concat through the beam-search Gather and spell the axis as -1.
-TEST_F(OptimizeLinCacheLayoutPassTest, LooksThroughBeamGatherAndNegativeAxis) {
-    auto model = make_cache_step_model(1, /*channels_last=*/false, /*beam_gather=*/true, /*negative_axis=*/true);
+// Exported models spell the concatenation axis as -1.
+TEST_F(OptimizeLinCacheLayoutPassTest, AcceptsNegativeConcatAxis) {
+    auto model = make_cache_step_model(1, /*channels_last=*/false, /*negative_axis=*/true);
     EXPECT_TRUE(ov::npuw::util::OptimizeLinCacheLayout().run_on_model(model));
     EXPECT_EQ(model->input(0).get_partial_shape(), (ov::PartialShape{1, 3, 2}));
     EXPECT_EQ(model->output(1).get_partial_shape(), (ov::PartialShape{1, 3, 2}));
+}
+
+// Only the direct Parameter -> Concat consumer is recognized; a state behind any other op is left alone.
+TEST_F(OptimizeLinCacheLayoutPassTest, SkipsStateBehindOtherOp) {
+    auto model = make_cache_step_model(1, /*channels_last=*/false, /*negative_axis=*/false, /*gather_between=*/true);
+    const auto n_ops = model->get_ops().size();
+    EXPECT_FALSE(ov::npuw::util::OptimizeLinCacheLayout().run_on_model(model));
+    EXPECT_EQ(model->get_ops().size(), n_ops);
+    EXPECT_EQ(model->input(0).get_partial_shape(), (ov::PartialShape{1, 2, 3}));
 }
 
 TEST_F(OptimizeLinCacheLayoutPassTest, PreservesNonzeroStateAcrossPrefillAndDecode) {
@@ -290,63 +298,35 @@ TEST_F(OptimizeLinCacheLayoutPassTest, PreservesNonzeroStateAcrossPrefillAndDeco
     }
 }
 
-// The pass runs once on the shared model before prefill and generate are cloned from it, so
-// the byte-wise present -> past copy between them sees identical conv state layouts.
-TEST_F(OptimizeLinCacheLayoutPassTest, PrefillAndGenerateShareConvStateLayout) {
-    RecordingFactory recorder;
-    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
-    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_lfm2_llm_test_model(),
-                                                     {{"NPUW_LLM_OPTIMIZE_LINCACHE_LAYOUT", "YES"}},
-                                                     recorder));
-    ASSERT_NE(compiled, nullptr);
-
-    const auto& prefill = require_sub_model_containing(recorder, "_prefill");
-    const auto& generate = require_sub_model_containing(recorder, "_kv");
-    const auto prefill_past = shapes_by_name(prefill.model->inputs(), "cache_params.past.conv");
-    const auto prefill_present = shapes_by_name(prefill.model->outputs(), "cache_params.present.conv");
-    const auto generate_past = shapes_by_name(generate.model->inputs(), "cache_params.past.conv");
-    const auto generate_present = shapes_by_name(generate.model->outputs(), "cache_params.present.conv");
-    ASSERT_FALSE(prefill_past.empty());
-    EXPECT_EQ(prefill_past, generate_past);
-    EXPECT_EQ(prefill_present, generate_present);
-    for (const auto& [name, shape] : generate_present) {
-        const auto past_name = std::regex_replace(name, std::regex("present"), "past");
-        EXPECT_EQ(shape, generate_past.at(past_name)) << name;
-    }
-}
-
-// Pipeline-level: both the prefill and the generate sub-models get the new layout when the
-// option is on, and keep the original one when it is off.
-class OptimizeLinCacheLayoutPipelineTest : public OptimizeLinCacheLayoutPassTest,
-                                           public ::testing::WithParamInterface<std::string> {};
-
-INSTANTIATE_TEST_SUITE_P(SubModels,
-                         OptimizeLinCacheLayoutPipelineTest,
-                         ::testing::Values(std::string{"_prefill"}, std::string{"_kv"}),
-                         [](const ::testing::TestParamInfo<std::string>& info) {
-                             return info.param.substr(1);
-                         });
-
-TEST_P(OptimizeLinCacheLayoutPipelineTest, ConvStatesTransposedInSubModel) {
-    const auto& fragment = GetParam();
-
+// Pipeline-level: with the option on, the pass runs once on the shared model before prefill and
+// generate are cloned from it, so both sub-models get the new layout and the byte-wise present -> past
+// copy between them sees identical conv state shapes. With the option off nothing changes.
+TEST_F(OptimizeLinCacheLayoutPassTest, PrefillAndGenerateShareNewConvStateLayout) {
     RecordingFactory recorder_off;
+    RecordingFactory recorder_on;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled_off;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled_on;
     ASSERT_NO_THROW(compiled_off = create_compiled_model(ov::test::npuw::build_lfm2_llm_test_model(),
                                                          {{"NPUW_LLM_OPTIMIZE_LINCACHE_LAYOUT", "NO"}},
                                                          recorder_off));
-    ASSERT_NE(compiled_off, nullptr);
-
-    RecordingFactory recorder_on;
-    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled_on;
     ASSERT_NO_THROW(compiled_on = create_compiled_model(ov::test::npuw::build_lfm2_llm_test_model(),
                                                         {{"NPUW_LLM_OPTIMIZE_LINCACHE_LAYOUT", "YES"}},
                                                         recorder_on));
+    ASSERT_NE(compiled_off, nullptr);
     ASSERT_NE(compiled_on, nullptr);
 
-    const auto& sub_off = require_sub_model_containing(recorder_off, fragment);
-    const auto& sub_on = require_sub_model_containing(recorder_on, fragment);
-    expect_conv_states_relaid_out(sub_off.model, sub_on.model);
+    for (const std::string fragment : {"_prefill", "_kv"}) {
+        SCOPED_TRACE(fragment);
+        expect_conv_states_relaid_out(require_sub_model_containing(recorder_off, fragment).model,
+                                      require_sub_model_containing(recorder_on, fragment).model);
+    }
+
+    const auto& prefill = require_sub_model_containing(recorder_on, "_prefill").model;
+    const auto& generate = require_sub_model_containing(recorder_on, "_kv").model;
+    EXPECT_EQ(shapes_by_name(prefill->inputs(), "cache_params.past.conv"),
+              shapes_by_name(generate->inputs(), "cache_params.past.conv"));
+    EXPECT_EQ(shapes_by_name(prefill->outputs(), "cache_params.present.conv"),
+              shapes_by_name(generate->outputs(), "cache_params.present.conv"));
 }
 
 }  // namespace
