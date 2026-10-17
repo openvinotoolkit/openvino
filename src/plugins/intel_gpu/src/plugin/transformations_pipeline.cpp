@@ -75,6 +75,7 @@
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/read_value_base.hpp"
+#include "openvino/op/util/sdpa_util.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/opsets/opset10_decl.hpp"
@@ -992,6 +993,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
 
             auto sdpa = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(node);
+
+            // The SDPA kernels take an integer key or value only as a compressed KV cache, which
+            // carries scale operands this op does not have. Decompose instead, which converts it
+            // to the query's type as the op specification defines.
+            if (ov::op::util::sdpa_has_integer_kv(*sdpa)) {
+                return false;
+            }
+
             // TODO: sdpa_opt is not supporting sink_input for 1st token case yet
             constexpr size_t sink_idx = cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::SINK;
             if (sdpa->get_input_size() > sink_idx && !device_info.supports_immad) {
