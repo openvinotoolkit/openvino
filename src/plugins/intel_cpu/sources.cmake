@@ -927,8 +927,8 @@ set(CPU_PLUGIN_ARM_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/arm/pass/deconv_1d_decomposition.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/arm/pass/deconv_1d_decomposition.hpp
-    ${CPU_SRC_DIR}/transformations/cpu_opset/arm/pass/fallback_unsupported_lp_conv_to_fp16.cpp
-    ${CPU_SRC_DIR}/transformations/cpu_opset/arm/pass/fallback_unsupported_lp_conv_to_fp16.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/arm/pass/fallback_unsupported_lp_conv_to_float.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/arm/pass/fallback_unsupported_lp_conv_to_float.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/arm/pass/fc_mul_add_fq_block.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/arm/pass/fc_mul_add_fq_block.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/arm/pass/grid_sample_decomposition.cpp
