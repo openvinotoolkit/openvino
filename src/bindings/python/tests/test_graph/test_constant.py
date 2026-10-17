@@ -844,3 +844,38 @@ def test_constant_from_non_contiguous_array_keeps_type(src_dtype, ov_type, make_
     assert list(ov_const.shape) == list(arr.shape)
     assert ov_const.data.dtype == arr.dtype
     assert np.array_equal(ov_const.data, arr)
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (np.array(["openvino"], dtype=str), ["openvino"]),
+        (np.array(["text", "", "x" * 40], dtype=str), ["text", "", "x" * 40]),
+        (np.array([["ab", "c"], ["d", "efg"]], dtype=str), ["ab", "c", "d", "efg"]),
+        (np.array([b"bytes", b"b"], dtype=np.bytes_), ["bytes", "b"]),
+        (np.array("scalar", dtype=str), ["scalar"]),
+        (np.array(["openvino", "test"], dtype=str)[::-1], ["test", "openvino"]),
+    ],
+)
+def test_string_constant(value, expected):
+    ov_const = ops.constant(value)
+
+    assert isinstance(ov_const, Constant)
+    assert ov_const.get_element_type() == Type.string
+    assert list(ov_const.shape) == list(value.shape)
+    assert ov_const.get_value_strings() == expected
+
+
+def test_string_constant_inference():
+    value = np.array(["openvino", "string", "constant"], dtype=str)
+    param = ops.parameter([3], dtype=Type.string, name="input")
+    model = Model([ops.concat([param, ops.constant(value)], axis=0)], [param])
+
+    result = compile_model(model, "CPU")([np.array(["a", "b", "c"], dtype=str)])[0]
+
+    assert list(result) == ["a", "b", "c", "openvino", "string", "constant"]
+
+
+def test_string_constant_with_shared_memory():
+    with pytest.raises(RuntimeError, match="String types can be only copied"):
+        Constant(np.array(["openvino"], dtype=str), shared_memory=True)
