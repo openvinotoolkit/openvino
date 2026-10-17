@@ -832,7 +832,17 @@ protected:
 
     MemoryPtr getScratchPadMem(const MemoryDescPtr& desc) {
         if (!scratchpadMem || !scratchpadMem->getDesc().isCompatible(*desc)) {
-            scratchpadMem = context->getScratchPad()->createScratchPadMem(desc);
+            try {
+                scratchpadMem = context->getScratchPad()->createScratchPadMem(desc);
+            } catch (const std::exception& e) {
+                // scratchpad size is computed by the selected oneDNN primitive, name/type pinpoints which node/primitive asked for it
+                OPENVINO_THROW("Scratchpad allocation failed for node '",
+                               getName(),
+                               "' of type ",
+                               getTypeStr(),
+                               ": ",
+                               e.what());
+            }
         }
         return scratchpadMem;
     }
