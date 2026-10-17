@@ -1680,13 +1680,23 @@ public:
                                       {1, subgroup_size, SUBGROUP_NUM});
 
             // Per-token reduction: final[t] = sum(scratch.y[t * REDUCE_COUNT .. (t+1) * REDUCE_COUNT - 1])
+
+            auto get_best_lws = [&](size_t gws) {
+                // Select the largest subgroup multiple that evenly divides the GWS.
+                OPENVINO_ASSERT(gws % subgroup_size == 0, "MoE reduce: gws=", gws, " is not a multiple of subgroup_size=", subgroup_size);
+                size_t lws = std::min(max_work_group_size, size_t{1024}) / subgroup_size * subgroup_size;
+                while (gws % lws != 0) {
+                    lws -= subgroup_size;
+                }
+                return lws;
+            };
             ret = execute_stage({ret_event},
                                 instance,
                                 *stage_reduce,
                                 {scratch.y},
                                 {final_hidden_states_mem_ptr},
                                 {token_num, static_cast<size_t>(_hidden_size)},
-                                {1, std::min(max_work_group_size, size_t{1024})},
+                                {1, get_best_lws(static_cast<size_t>(_hidden_size))},
                                 instance.needs_completion_event());
         }
         return ret;
