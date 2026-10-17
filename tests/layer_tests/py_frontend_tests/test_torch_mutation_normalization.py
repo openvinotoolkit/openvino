@@ -8,6 +8,10 @@ import torch
 
 
 class FrameSliceMutation(torch.nn.Module):
+    def __init__(self, repeated):
+        super().__init__()
+        self.repeated = repeated
+
     def forward(self, source):
         frames = torch.zeros_like(source)
         for index in range(source.shape[1]):
@@ -15,16 +19,20 @@ class FrameSliceMutation(torch.nn.Module):
         selected = frames[0, source[0, :, 0] > 0]
         output = torch.zeros_like(source)
         output[0, :selected.size(0), :] = selected
+        if self.repeated:
+            selected = frames[0, source[0, :, 1] < 0]
+            output[0, :selected.size(0), :] = selected
         return output
 
 
 @pytest.mark.precommit
 @pytest.mark.nightly
 @pytest.mark.parametrize("trace", [False, True])
-def test_slice_mutation_after_loop(trace):
+@pytest.mark.parametrize("repeated", [False, True])
+def test_slice_mutation_after_loop(trace, repeated):
     generator = torch.Generator().manual_seed(42)
     example = torch.randn(2, 5, 4, generator=generator)
-    module = FrameSliceMutation()
+    module = FrameSliceMutation(repeated)
     model = torch.jit.trace(torch.jit.script(module), example) if trace else torch.jit.script(module)
     converted = ov.convert_model(model, example_input=(example,))
     compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})

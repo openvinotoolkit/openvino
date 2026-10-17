@@ -11,9 +11,9 @@ namespace ov::frontend::pytorch::pass {
 /**
  * Replace sequence of reverseprop operations with ScatterNdUpdate.
  */
-class ReversepropResolver : public ov::pass::GraphRewrite {
+class ReversepropResolver : public ov::pass::MatcherPass {
 public:
-    OPENVINO_GRAPH_REWRITE_RTTI("ov::frontend::pytorch::pass::ReversepropResolver");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::ReversepropResolver");
     ReversepropResolver();
 };
 
