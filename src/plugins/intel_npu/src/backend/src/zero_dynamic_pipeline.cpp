@@ -7,7 +7,9 @@
 #include <level_zero/ze_api.h>
 #include <ze_graph_ext.h>
 
+#include <algorithm>
 #include <sstream>
+#include <vector>
 
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
@@ -26,6 +28,7 @@ namespace intel_npu {
 
 struct MemRefTypeImpl {
     npu_vm_runtime_mem_ref_handle_t _memRef;
+    int64_t _dimsCapacity = 0;
 
     MemRefTypeImpl() : _memRef(nullptr) {}
 
@@ -38,15 +41,31 @@ struct MemRefTypeImpl {
             return;
         }
 
+        // The runtime writes back up to the rank the handle was created with, which may differ from the rank of
+        // memref. Parse into scratch buffers sized after the handle and validate the reported rank before copying.
+        std::vector<int64_t> sizes(static_cast<size_t>(_dimsCapacity));
+        std::vector<int64_t> strides(static_cast<size_t>(_dimsCapacity));
+        int64_t dimsCount = 0;
+
         if (npuVMRuntimeParseMemRef(_memRef,
                                     &memref._basePtr,
                                     &memref._data,
                                     &memref._offset,
-                                    memref._sizes.data(),
-                                    memref._strides.data(),
-                                    &memref._dimsCount) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+                                    sizes.data(),
+                                    strides.data(),
+                                    &dimsCount) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
             OPENVINO_THROW("Failed to parse MemRef handle");
         }
+
+        if (dimsCount < 0 || static_cast<size_t>(dimsCount) > sizes.size() ||
+            static_cast<size_t>(dimsCount) > memref._sizes.size() ||
+            static_cast<size_t>(dimsCount) > memref._strides.size()) {
+            OPENVINO_THROW("MemRef handle reported an invalid tensor rank: ", dimsCount);
+        }
+
+        std::copy_n(sizes.begin(), dimsCount, memref._sizes.begin());
+        std::copy_n(strides.begin(), dimsCount, memref._strides.begin());
+        memref._dimsCount = dimsCount;
     }
 
     bool UpdateMemRefHandleStatus(MemRefType& memref, bool useV2Api = false) {
@@ -55,6 +74,10 @@ struct MemRefTypeImpl {
         if (_memRef == nullptr) {
             createMemRef(memref._dimsCount);
             newMemRefHandleCreated = true;
+        }
+        if (memref._dimsCount < 0 || static_cast<size_t>(memref._dimsCount) > memref._sizes.size() ||
+            static_cast<size_t>(memref._dimsCount) > memref._strides.size()) {
+            OPENVINO_THROW("MemRef rank ", memref._dimsCount, " does not match the described tensor");
         }
         // Determine the dirty flag based on whether a new MemRef handle was created or existing metadata was modified.
         const uint32_t dirtyFlag = newMemRefHandleCreated ? MemRefType::ALL_DIRTY : memref.getDirtyFlag();
@@ -81,8 +104,14 @@ struct MemRefTypeImpl {
 private:
     void createMemRef(int64_t dimsCount) {
         if (_memRef == nullptr) {
+            if (dimsCount < 0) {
+                OPENVINO_THROW("Cannot create a MemRef handle with a negative tensor rank: ", dimsCount);
+            }
             auto result = npuVMRuntimeCreateMemRef(dimsCount, &_memRef);
-            OPENVINO_ASSERT(result == NPU_VM_RUNTIME_RESULT_SUCCESS, "Failed to create MemRef handle");
+            if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+                OPENVINO_THROW("Failed to create MemRef handle");
+            }
+            _dimsCapacity = dimsCount;
         }
     }
 
@@ -570,10 +599,24 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
     std::vector<ov::Shape> predictedShapes(outputsMemRefs.size());
     bool outputShapeChanged = false;
     for (size_t i = 0; i < outputsMemRefs.size(); ++i) {
+        const auto& memRef = outputsMemRefs[i];
+        OPENVINO_ASSERT(memRef._dimsCount >= 0 && static_cast<size_t>(memRef._dimsCount) <= memRef._sizes.size(),
+                        "Predicted output ",
+                        i,
+                        " has an invalid rank: ",
+                        memRef._dimsCount);
+
         ov::Shape shape;
-        shape.reserve(static_cast<size_t>(outputsMemRefs[i]._dimsCount));
-        for (int64_t j = 0; j < outputsMemRefs[i]._dimsCount; ++j) {
-            shape.push_back(static_cast<size_t>(outputsMemRefs[i]._sizes[j]));
+        shape.reserve(static_cast<size_t>(memRef._dimsCount));
+        for (int64_t j = 0; j < memRef._dimsCount; ++j) {
+            OPENVINO_ASSERT(memRef._sizes[static_cast<size_t>(j)] >= 0,
+                            "Predicted output ",
+                            i,
+                            " has a negative dimension at index ",
+                            j,
+                            ": ",
+                            memRef._sizes[static_cast<size_t>(j)]);
+            shape.push_back(static_cast<size_t>(memRef._sizes[static_cast<size_t>(j)]));
         }
 
         predictedShapes[i] = std::move(shape);
