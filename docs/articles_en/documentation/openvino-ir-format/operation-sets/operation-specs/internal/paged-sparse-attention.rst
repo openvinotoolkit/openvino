@@ -199,7 +199,11 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 
 * *T*: any supported floating-point type.
 
-* *T_cache*: the precision of the KV cache; ``f32``, ``f16`` or ``bf16``. It may differ from *T*.
+* *T_cache* - cache precision; may differ from *T*. Every cache has its own precision, independently of
+  the other caches.
+
+  * Allowed for ``key_cache`` (input 3): ``u4``, ``i8``, ``u8``, ``f16``, ``f32``, ``bf16``.
+  * Allowed for ``value_cache`` (input 4): ``u4``, ``u8``, ``f16``, ``f32``, ``bf16``.
 
 
 **Dimensions**

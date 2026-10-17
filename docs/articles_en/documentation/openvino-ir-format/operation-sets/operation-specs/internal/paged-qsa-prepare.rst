@@ -204,7 +204,13 @@ Properties that follow from the definition:
 * *T*: any supported floating-point type. The pooling and the normalization are computed with at
   least ``f32`` precision.
 
-* *T_cache*: the precision of the caches; ``f32``, ``f16`` or ``bf16``. It may differ from *T*.
+* *T_cache* - cache precision; may differ from *T*. Every cache has its own precision, independently of
+  the other caches.
+
+  * Allowed for ``index_key_cache`` (input 1): ``u4``, ``u8``, ``f16``, ``f32``, ``bf16``.
+  * Allowed for ``pa_block_index_keys`` (input 2): ``u4``, ``u8``, ``f16``, ``f32``, ``bf16``.
+  * Allowed for ``index_block_rope_cache`` (input 3): ``f16``, ``f32``, ``bf16``. It holds RoPE cos / sin
+    values and is not quantized, as ``rotation_trig_lut`` of *PagedAttentionExtension*.
 
 
 **Dimensions**

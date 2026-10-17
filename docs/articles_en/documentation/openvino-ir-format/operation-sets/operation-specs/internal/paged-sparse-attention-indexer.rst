@@ -173,7 +173,8 @@ Properties that follow from the definition:
 * *T*: any supported floating-point type. The scores are accumulated with at least ``f32``
   precision.
 
-* *T_cache*: the precision of ``pa_block_index_keys``; ``f32``, ``f16`` or ``bf16``.
+* *T_cache* - cache precision; may differ from *T*.
+  Allowed for ``pa_block_index_keys`` (input 1): ``u4``, ``u8``, ``f16``, ``f32``, ``bf16``.
 
 
 **Dimensions**
