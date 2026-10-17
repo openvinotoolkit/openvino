@@ -17,6 +17,7 @@
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/nms_selected_indices.hpp"
+#include "transformations/rt_info/nonconvertible_divide.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
 #include "transformations/rt_info/old_api_map_order_attribute.hpp"
 #include "transformations/rt_info/preprocessing_attribute.hpp"

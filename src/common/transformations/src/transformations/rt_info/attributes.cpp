@@ -13,6 +13,7 @@ ov::pass::Attributes::Attributes() {
     OPENVINO_SUPPRESS_DEPRECATED_END
     register_factory<DisablePrecisionConversion>();
     register_factory<NmsSelectedIndices>();
+    register_factory<NonconvertibleDivide>();
     register_factory<OldApiMapOrder>();
     register_factory<OldApiMapElementType>();
     register_factory<LayoutAttribute>();
