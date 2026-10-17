@@ -20,7 +20,7 @@ blocks completed by the new tokens are computed.
 
 *QSAPrepare* is the first stage of a QSA layer in a model with
 *ScaledDotProductAttention*-style caches. The graph flow is *QSAPrepare* ->
-:doc:`SparseAttentionIndexer <sparse-attention-indexer>` -> :doc:`SparseAttention <sparse-attention>`; the paged
+:doc:`SparseAttentionIndexer <../sequence/sparse-attention-indexer-17>` -> :doc:`SparseAttention <../sequence/sparse-attention-17>`; the paged
 counterpart is :doc:`PagedQSAPrepare <paged-qsa-prepare>`. It covers the key compression of the
 engines: the "compress K" part of the ``qsa_prepare`` kernel of vLLM and the pooling, normalization
 and rotation of the block keys in ``build_qsa_top_k`` of llama.cpp.
@@ -47,7 +47,7 @@ new value of the state. A decode step completes at most one block, so the poolin
 and the rotation are done for at most two blocks per decode step instead of for all ``B`` blocks.
 
 **Batches with padding.** The sequences of a batch are aligned to the right (left padding), as for
-:doc:`SparseAttentionIndexer <sparse-attention-indexer>`: sequence ``n`` has ``key_length[n]`` valid key tokens, the last ones
+:doc:`SparseAttentionIndexer <../sequence/sparse-attention-indexer-17>`: sequence ``n`` has ``key_length[n]`` valid key tokens, the last ones
 of the ``S`` key positions. Its blocks start at its first valid token: block ``b`` is formed by the
 key positions ``S - key_length[n] + b * key_block_size ..``, and ``block_index_keys[n, b]`` is the key
 of that block. A padded sequence gets the same block keys as alone in a batch of one, and padding
@@ -143,7 +143,7 @@ Properties that follow from the definition:
      ``max(0, (Bp * key_block_size - pad) // key_block_size)`` rows, a lower bound that needs no
      ``key_length_previous``, and recomputes at most one valid cached block.
 
-   See the note *Padding layout* of :doc:`SparseAttentionIndexer <sparse-attention-indexer>` for the query axis and an
+   See the note *Padding layout* of :doc:`SparseAttentionIndexer <../sequence/sparse-attention-indexer-17>` for the query axis and an
    example:
 
    .. code-block:: text

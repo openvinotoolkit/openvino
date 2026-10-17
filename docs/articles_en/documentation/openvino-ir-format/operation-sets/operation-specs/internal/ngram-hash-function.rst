@@ -13,8 +13,7 @@ NGramHashFunction
 
 **Short description**: *NGramHashFunction* hashes the bigrams, trigrams and longer n-grams that end at
 every token into the row indices of a packed n-gram embedding table. It takes the n-gram of every token
-already prepared, so it is stateless and serves both the SDPA and the paged attention flows. The 64-bit
-integer arithmetic of the hash stays inside the operation; the inputs and outputs fit 32-bit integers.
+already prepared, so it is stateless. The 64-bit integer arithmetic of the hash stays inside the operation; the inputs and outputs fit 32-bit integers.
 
 **Detailed description**:
 
@@ -41,14 +40,12 @@ arithmetic in the graph (for example a plugin that converts ``i64`` to ``i32``) 
 hash with regular operations; *NGramHashFunction* keeps the 64-bit arithmetic inside its kernel, and
 the constants as ``int64`` attributes.
 
-The windows are prepared:
-
-* with SDPA, in the graph with regular operations: the history of the previous ``ngram_size - 1``
-  tokens of every sequence (a state or an input) is concatenated with the tokens of the call, the
-  window of every token is sliced out and the tokens across an EOS are replaced by EOS (see the
-  pseudo-code below); the last ``ngram_size - 1`` tokens are the history of the next call;
-* with paged attention, by :doc:`PagedNGramWindow <paged-ngram-window>`, which keeps the history of
-  every sequence in a paged table.
+The windows are prepared in the graph with regular operations: the history of the previous
+``ngram_size - 1`` tokens of every sequence (an input of the model) is concatenated with the tokens of
+the call, the window of every token is sliced out and the tokens across an EOS are replaced by EOS (see
+``make_ngrams`` below); the last ``ngram_size - 1`` tokens are the history of the next call. The n-gram
+embedding model of Qwen3.8-Flash-Next is the same with SDPA and with paged attention: it is not
+transformed to paged attention, and the host keeps the history of every sequence.
 
 The graph flow of the PLE lookup is *NGramHashFunction* -> *Gather* (``table``, ``row_ids``, axis 0)
 -> *Reshape* ``[..., H * head_dim]``.
@@ -70,7 +67,7 @@ The graph flow of the PLE lookup is *NGramHashFunction* -> *Gather* (``table``, 
                 rows.append(mix % int(head_vocab_sizes[h]) + int(head_offsets[h]))
         return numpy.stack(rows, axis=-1).astype(numpy.int32)   # [..., H]
 
-The windows of the SDPA flow are prepared by regular operations equivalent to:
+The windows are prepared by regular operations equivalent to:
 
 .. code-block:: py
    :force:
@@ -90,13 +87,13 @@ The windows of the SDPA flow are prepared by regular operations equivalent to:
 
 Properties that follow from the definition:
 
-* With windows prepared by ``make_ngrams`` (or :doc:`PagedNGramWindow <paged-ngram-window>`), the result
+* With windows prepared by ``make_ngrams``, the result
   equals the row indices of ``Qwen4ExpTextNGramEmbedding.forward``: the history plays the role of the
   cached previous context (EOS tokens at the start of a sequence), and the EOS rule is
   ``_shift_right_ignore_eos``. A token right after an EOS sees EOS as all its previous tokens.
-* The operation is element-wise over the leading dimensions: ``[N, L, ngram_size]`` with SDPA and
-  ``[T, ngram_size]`` with paged attention give ``[N, L, H]`` and ``[T, H]``. It has no state and no
-  notion of padding; the rows of padded positions are computed and ignored.
+* The operation is element-wise over the leading dimensions: ``[N, L, ngram_size]`` gives
+  ``[N, L, H]``, and any other rank of the leading dimensions is handled the same way. It has no state
+  and no notion of padding; the rows of padded positions are computed and ignored.
 * All arithmetic is exact integer arithmetic. The mix of every n-gram is below ``2^63``, so a 64-bit
   implementation is exact; ``row_ids`` is below ``head_offsets[H - 1] + head_vocab_sizes[H - 1]``.
 * The graph replaces the ids of padded positions by ``eos_token_id`` before preparing the windows, as
@@ -156,8 +153,7 @@ Properties that follow from the definition:
 
 * **0**: ``ngrams`` - tensor of type *T_IND* and shape ``[..., ngram_size]``: the n-gram window of
   every token, oldest first, the token itself last; tokens before the start of the sequence or across
-  an EOS are ``eos_token_id``. ``[N, L, ngram_size]`` with SDPA, ``[T, ngram_size]`` with paged
-  attention. **Required.**
+  an EOS are ``eos_token_id``. For example ``[N, L, ngram_size]``. **Required.**
 
 
 **Outputs**
@@ -173,14 +169,14 @@ Properties that follow from the definition:
 
 **Dimensions**
 
-* ``...`` - leading dimensions, the tokens: ``[N, L]`` with SDPA, ``[T]`` with paged attention.
+* ``...`` - leading dimensions, the tokens, for example ``[N, L]``.
 
 * ``H`` - number of hashed heads, ``(ngram_size - 1) * heads_per_ngram``.
 
 
 **Example**
 
-*Qwen3.8-Flash-Next prefill of 300 tokens (SDPA)*
+*Qwen3.8-Flash-Next prefill of 300 tokens*
 
 .. code-block:: xml
    :force:

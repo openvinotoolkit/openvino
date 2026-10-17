@@ -3,11 +3,11 @@ SparseAttention
 
 
 .. meta::
-  :description: Learn about SparseAttention - grouped-query scaled dot-product attention
+  :description: Learn about SparseAttention-17 - grouped-query scaled dot-product attention
                 restricted to dynamically selected key blocks, optionally causal with the query's
                 incomplete block, with selections per query token or per query block.
 
-**Versioned name**: *SparseAttention*
+**Versioned name**: *SparseAttention-17*
 
 **Category**: *Sequence processing*
 
@@ -23,7 +23,7 @@ blocks are not a fixed sparsity pattern: they are selected per query token, or p
 
 * Qwen Sparse Attention (QSA) of the attention layers of Qwen3.8-Flash-Next (``qwen4_exp`` in
   Hugging Face Transformers), with blocks of ``key_block_size = 4`` tokens selected by
-  :doc:`SparseAttentionIndexer <sparse-attention-indexer>`. Most of this document uses it as the
+  :doc:`SparseAttentionIndexer <sparse-attention-indexer-17>`. Most of this document uses it as the
   example;
 * DeepSeek Sparse Attention (DSA) of DeepSeek-V3.2 and GLM-MoE-DSA, with single-token blocks
   (``key_block_size = 1``). See the note below;
@@ -70,7 +70,7 @@ query head has its own selection. In the causal mode, the incomplete block of th
 by every head.
 
 **Batches with padding.** The sequences of a batch are aligned to the right (left padding), as for
-:doc:`SparseAttentionIndexer <sparse-attention-indexer>`: sequence ``n`` has ``key_length[n]`` valid key tokens, the last ones
+:doc:`SparseAttentionIndexer <sparse-attention-indexer-17>`: sequence ``n`` has ``key_length[n]`` valid key tokens, the last ones
 of the ``S`` key positions. The positions, the blocks and the block indices of a sequence are counted
 from its first valid token: block ``b`` of sequence ``n`` is formed by the key positions
 ``S - key_length[n] + b * key_block_size ..``, and its query ``l`` has the position
@@ -180,7 +180,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
      sequence: block ``b`` is the key positions ``pad + b * key_block_size ..``. A padding query has
      ``block_count = 0``.
 
-   See the note *Padding layout* of :doc:`SparseAttentionIndexer <sparse-attention-indexer>` for the fake rows of the block
+   See the note *Padding layout* of :doc:`SparseAttentionIndexer <sparse-attention-indexer-17>` for the fake rows of the block
    axis and an example:
 
    .. code-block:: text
@@ -203,7 +203,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 
    With ``key_block_size = 1``, every block is a single token and the incomplete block is always
    empty, so a query attends to exactly the tokens listed in ``block_indices``. Together with
-   :doc:`SparseAttentionIndexer <sparse-attention-indexer>` configured as described there, this covers the sparse attention
+   :doc:`SparseAttentionIndexer <sparse-attention-indexer-17>` configured as described there, this covers the sparse attention
    of DeepSeek Sparse Attention (DSA) models such as DeepSeek-V3.2 and GLM-MoE-DSA. Their
    multi-head latent attention maps to this operation in its absorbed form, as multi-query
    attention with ``Hkv = 1``, ``E = kv_lora_rank + qk_rope_head_dim`` (``576``) and
@@ -350,7 +350,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 .. code-block:: xml
    :force:
 
-    <layer id="3" name="sparse_attention" type="SparseAttention" version="extension">
+    <layer id="3" name="sparse_attention" type="SparseAttention" version="opset17">
         <data key_block_size="4"/>
         <input>
             <port id="0" precision="BF16"> <!-- query -->
@@ -398,7 +398,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 .. code-block:: xml
    :force:
 
-    <layer id="4" name="sparse_attention" type="SparseAttention" version="extension">
+    <layer id="4" name="sparse_attention" type="SparseAttention" version="opset17">
         <data key_block_size="4"/>
         <input>
             <port id="0" precision="FP32"> <!-- query -->
@@ -452,7 +452,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 
     <!-- 66 windows of 128 tokens per chunk of 2 latent frames (6 x 11 windows), queries = current chunk,
          keys = 3 cached chunks + the current chunk = 264 windows -->
-    <layer id="5" name="lcsa_attention" type="SparseAttention" version="extension">
+    <layer id="5" name="lcsa_attention" type="SparseAttention" version="opset17">
         <data key_block_size="128" query_block_size="128" causal="false"/>
         <input>
             <port id="0" precision="BF16"> <!-- query, tokens in 3D-window order -->

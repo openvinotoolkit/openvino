@@ -12,7 +12,7 @@ PagedSparseAttention
 **Category**: *Internal*
 
 **Short description**: *PagedSparseAttention* is the paged variant of
-:doc:`SparseAttention <sparse-attention>`. It processes the tokens of several sequences
+:doc:`SparseAttention <../sequence/sparse-attention-17>`. It processes the tokens of several sequences
 packed into one batch, writes their keys and values into a block-paged KV cache, and computes
 grouped-query attention in which every token attends only to the tokens of its selected key blocks
 and of the incomplete block that contains it.

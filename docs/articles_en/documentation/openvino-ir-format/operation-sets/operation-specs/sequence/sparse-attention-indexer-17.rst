@@ -3,11 +3,11 @@ SparseAttentionIndexer
 
 
 .. meta::
-  :description: Learn about SparseAttentionIndexer - the indexer of dynamic sparse attention that
+  :description: Learn about SparseAttentionIndexer-17 - the indexer of dynamic sparse attention that
                 selects the key blocks each query attends to (Qwen Sparse Attention, DeepSeek Sparse
                 Attention).
 
-**Versioned name**: *SparseAttentionIndexer*
+**Versioned name**: *SparseAttentionIndexer-17*
 
 **Category**: *Sequence processing*
 
@@ -18,7 +18,7 @@ number.
 **Detailed description**:
 
 *SparseAttentionIndexer* is the selection stage of dynamic, query-dependent sparse attention. Its
-output is consumed by :doc:`SparseAttention <sparse-attention>`. It covers:
+output is consumed by :doc:`SparseAttention <sparse-attention-17>`. It covers:
 
 * Qwen Sparse Attention (QSA) of the attention layers of Qwen3.8-Flash-Next (``qwen4_exp`` in
   Hugging Face Transformers), with blocks of ``key_block_size = 4`` tokens. Most of this document
@@ -32,7 +32,7 @@ output is consumed by :doc:`SparseAttention <sparse-attention>`. It covers:
   which score one compressed entry per ``4`` tokens (``key_block_size = 4``,
   ``token_budget = 4 * index_topk``). Their block keys come from a learned, softmax-gated pooling
   computed by regular operations of the graph instead of
-  :doc:`QSAPrepare <qsa-prepare>`. DeepSeek-V4 attends to the selected compressed entries rather
+  :doc:`QSAPrepare <../internal/qsa-prepare>`. DeepSeek-V4 attends to the selected compressed entries rather
   than to the tokens of the selected blocks, which *SparseAttention* does not cover.
 
 The selection is decoupled from the attention in the same way as in inference engines:
@@ -64,7 +64,7 @@ represented by one index key (``block_index_keys``). For every query token,
 
 The operation is weight-free: the index projection and the normalization and rotation of the index
 query are computed by regular operations of the graph, and the pooling, normalization and rotation
-of the block keys by :doc:`QSAPrepare <qsa-prepare>`. They are passed in through ``index_query`` and
+of the block keys by :doc:`QSAPrepare <../internal/qsa-prepare>`. They are passed in through ``index_query`` and
 ``block_index_keys``.
 
 **Selection heads.** By default a query token gets one selection, shared by all attention heads that
@@ -219,20 +219,20 @@ Qwen3.8-Flash-Next, that gives ``Hi`` query heads and one key head of size ``Di`
 * ``index_query``: the query heads, RMS-normalized with ``q_layernorm`` and rotated with the same
   (M-)RoPE and positions as the main attention query. Regular operations of the graph compute it
   (*RMS* with the weight ``1 + w``, *RoPE*), as for the query of the main attention.
-* ``block_index_keys``: computed by :doc:`QSAPrepare <qsa-prepare>`. The raw key head of every token
+* ``block_index_keys``: computed by :doc:`QSAPrepare <../internal/qsa-prepare>`. The raw key head of every token
   (before normalization and rotation) is mean-pooled over each complete block of ``key_block_size``
   tokens, RMS-normalized with ``k_layernorm``, and rotated with the (M-)RoPE position of the first
   token of the block.
 
 The graph flow of a QSA layer is *QSAPrepare* -> *SparseAttentionIndexer* ->
-:doc:`SparseAttention <sparse-attention>`, with the index query prepared next to
+:doc:`SparseAttention <sparse-attention-17>`, with the index query prepared next to
 *QSAPrepare* by *RMS* and *RoPE*. In a stateful model with
 *ScaledDotProductAttention*-style caches, two more states are kept next to the key and value
 caches: the raw index keys of the past tokens, with the shape ``[N, S, Di]``, and the block index
 keys of the past complete blocks, with the shape ``[N, B, Di]``, so that *QSAPrepare* computes only
 the blocks completed by the new tokens. The paged counterparts are
-:doc:`PagedQSAPrepare <paged-qsa-prepare>` -> :doc:`PagedSparseAttentionIndexer <paged-sparse-attention-indexer>` ->
-:doc:`PagedSparseAttention <paged-sparse-attention>`.
+:doc:`PagedQSAPrepare <../internal/paged-qsa-prepare>` -> :doc:`PagedSparseAttentionIndexer <../internal/paged-sparse-attention-indexer>` ->
+:doc:`PagedSparseAttention <../internal/paged-sparse-attention>`.
 
 **Relation to DeepSeek Sparse Attention (DSA)**
 
@@ -257,7 +257,7 @@ the blocks completed by the new tokens. The paged counterparts are
    DSA scores the keys with ``sum_h w[h] * ReLU(softmax_scale * q[h] . k)``, which is the score of
    *SparseAttentionIndexer* up to the positive factor. The Hadamard rotation and the FP8 quantization of the
    reference DSA indexer are precision optimizations and are not part of the definition. The
-   selected tokens are consumed by :doc:`SparseAttention <sparse-attention>` with
+   selected tokens are consumed by :doc:`SparseAttention <sparse-attention-17>` with
    ``key_block_size = 1``.
 
 
@@ -358,7 +358,7 @@ the blocks completed by the new tokens. The paged counterparts are
 .. code-block:: xml
    :force:
 
-    <layer id="1" name="indexer" type="SparseAttentionIndexer" version="extension">
+    <layer id="1" name="indexer" type="SparseAttentionIndexer" version="opset17">
         <data key_block_size="4" token_budget="2048"/>
         <input>
             <port id="0" precision="BF16"> <!-- index_query -->
@@ -394,7 +394,7 @@ the blocks completed by the new tokens. The paged counterparts are
 .. code-block:: xml
    :force:
 
-    <layer id="2" name="indexer" type="SparseAttentionIndexer" version="extension">
+    <layer id="2" name="indexer" type="SparseAttentionIndexer" version="opset17">
         <data key_block_size="4" token_budget="2048"/>
         <input>
             <port id="0" precision="FP32"> <!-- index_query -->
@@ -431,7 +431,7 @@ the blocks completed by the new tokens. The paged counterparts are
 .. code-block:: xml
    :force:
 
-    <layer id="3" name="dsa_indexer" type="SparseAttentionIndexer" version="extension">
+    <layer id="3" name="dsa_indexer" type="SparseAttentionIndexer" version="opset17">
         <data key_block_size="1" token_budget="2048"/>
         <input>
             <port id="0" precision="BF16"> <!-- index_query -->

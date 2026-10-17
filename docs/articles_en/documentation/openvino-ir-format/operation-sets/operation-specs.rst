@@ -229,6 +229,8 @@ Operation Specifications
    SoftSign-9 <operation-specs/activation/softsign-9>
    SpaceToBatch-2 <operation-specs/movement/space-to-batch-2>
    SpaceToDepth-1 <operation-specs/movement/space-to-depth-1>
+   SparseAttention-17 <operation-specs/sequence/sparse-attention-17>
+   SparseAttentionIndexer-17 <operation-specs/sequence/sparse-attention-indexer-17>
    SparseFillEmptyRows-16 <operation-specs/sparse/fill-empty-rows-16>
    Split-1 <operation-specs/movement/split-1>
    Sqrt-1 <operation-specs/arithmetic/sqrt-1>

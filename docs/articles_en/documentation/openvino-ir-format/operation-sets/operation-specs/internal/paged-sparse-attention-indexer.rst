@@ -11,7 +11,7 @@ PagedSparseAttentionIndexer
 **Category**: *Internal*
 
 **Short description**: *PagedSparseAttentionIndexer* is the paged variant of
-:doc:`SparseAttentionIndexer <sparse-attention-indexer>`. For every token of a packed batch it scores
+:doc:`SparseAttentionIndexer <../sequence/sparse-attention-indexer-17>`. For every token of a packed batch it scores
 the complete key blocks of its sequence, read from the paged block index keys, and returns the
 indices of a budget of the best-scoring blocks together with their number.
 
