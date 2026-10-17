@@ -163,4 +163,55 @@ TEST_F(OptimizeValueTensorsPassTest, DirectValuePatternsDoNotDependOnNodeNames) 
     EXPECT_EQ(prefill_transpose->get_output_partial_shape(0), ov::PartialShape({1, 2, 4, 3}));
 }
 
+TEST_F(OptimizeValueTensorsPassTest, SharedDirectGenerateValueIsTransposedOnce) {
+    auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 4});
+    auto scores_0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 5, 3});
+    auto scores_1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 6, 3});
+    auto softmax_0 = std::make_shared<ov::op::v8::Softmax>(scores_0);
+    auto softmax_1 = std::make_shared<ov::op::v8::Softmax>(scores_1);
+    auto matmul_0 = std::make_shared<ov::op::v0::MatMul>(softmax_0, value);
+    auto matmul_1 = std::make_shared<ov::op::v0::MatMul>(softmax_1, value);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{matmul_0, matmul_1},
+                                             ov::ParameterVector{value, scores_0, scores_1});
+
+    ASSERT_NO_THROW(ov::npuw::util::OptimizeValueTensors(false, true).run_on_model(model));
+    EXPECT_TRUE(matmul_0->get_transpose_b());
+    EXPECT_TRUE(matmul_1->get_transpose_b());
+    EXPECT_EQ(value->get_partial_shape(), ov::PartialShape({1, 2, 4, 3}));
+}
+
+TEST_F(OptimizeValueTensorsPassTest, SharedConcatGenerateValueIsTransposedOnce) {
+    auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 4});
+    ov::OutputVector results;
+    ov::ParameterVector parameters{value};
+    std::vector<std::shared_ptr<ov::op::v0::Concat>> concats;
+    std::vector<std::shared_ptr<ov::op::v0::MatMul>> matmuls;
+
+    for (std::size_t query_length : {5u, 6u}) {
+        auto new_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 2, 4});
+        auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(new_value, order);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{value, transpose}, 2);
+        auto scores =
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
+                                                    ov::PartialShape{1, 2, static_cast<int64_t>(query_length), 4});
+        auto softmax = std::make_shared<ov::op::v8::Softmax>(scores);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(softmax, concat);
+
+        results.push_back(matmul);
+        parameters.push_back(new_value);
+        parameters.push_back(scores);
+        concats.push_back(concat);
+        matmuls.push_back(matmul);
+    }
+
+    auto model = std::make_shared<ov::Model>(results, parameters);
+    ASSERT_NO_THROW(ov::npuw::util::OptimizeValueTensors(false).run_on_model(model));
+    EXPECT_EQ(value->get_partial_shape(), ov::PartialShape({1, 2, 4, 3}));
+    for (std::size_t index = 0; index < matmuls.size(); ++index) {
+        EXPECT_EQ(concats[index]->get_axis(), 3u);
+        EXPECT_TRUE(matmuls[index]->get_transpose_b());
+    }
+}
+
 }  // namespace
