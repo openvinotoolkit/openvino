@@ -73,6 +73,24 @@ def _infer_pipelines_impl(test_input, preprocess_pipeline, input_channels=3):
     return torch_result, ov_result
 
 
+def test_torch_tensor_input_example():
+    # input_example can be a torch.Tensor in NCHW layout, not only an image
+    torch_model = Convnet(3)
+    ov_model = convert_model(torch_model)
+    test_input = torch.rand(1, 3, 224, 224)
+    preprocess_pipeline = transforms.Compose([transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+
+    ov_model = PreprocessConverter.from_torchvision(
+        model=ov_model, transform=preprocess_pipeline, input_example=test_input,
+    )
+    ov_model = Core().compile_model(ov_model, "CPU", {inference_precision: Type.f32})
+    ov_result = ov_model(test_input.numpy())[ov_model.output(0)]
+
+    with torch.no_grad():
+        torch_result = torch_model(preprocess_pipeline(test_input)).numpy()
+    assert np.max(np.absolute(torch_result - ov_result)) < 4e-05
+
+
 def test_normalize():
     test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint8)
     preprocess_pipeline = transforms.Compose(
