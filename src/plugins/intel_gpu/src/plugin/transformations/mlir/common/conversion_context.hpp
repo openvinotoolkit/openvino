@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <openvino/pass/graph_rewrite.hpp>
-
 #include "convert_common.hpp"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Value.h"
+#include "openvino/pass/graph_rewrite.hpp"
 #include "typedefs.hpp"
 
 namespace ov::intel_gpu::mlir {
