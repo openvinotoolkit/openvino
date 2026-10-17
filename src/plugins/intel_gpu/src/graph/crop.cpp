@@ -72,11 +72,15 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
             auto split_length_mem = impl_param.memory_deps.at(2);
             cldnn::mem_lock<uint8_t, mem_lock_type::read> split_length_mem_lock(split_length_mem, impl_param.get_stream());
             const_data.emplace(2, make_tensor(split_length_mem->get_layout(), split_length_mem_lock.data()));
+        }
 
-            ov::op::v1::VariadicSplit op;
-            op.set_friendly_name(desc->id);
-            output_shapes = shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
-        } else {
+        ov::op::v1::VariadicSplit op;
+        op.set_friendly_name(desc->id);
+        output_shapes = shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
+
+        if (output_shapes.empty()) {
+            // Don't even know number of output, simply return dynamic as output shape
+            GPU_DEBUG_TRACE_DETAIL << impl_param.desc->id << " shape_infer return empty: splits [" << impl_param.get_input_layout(2) << "]" << std::endl;
             auto input0_layout = impl_param.get_input_layout(0);
             auto out_shape = ov::PartialShape::dynamic(input0_layout.get_partial_shape().size());
             return { layout{out_shape, input0_layout.data_type, input0_layout.format } };
