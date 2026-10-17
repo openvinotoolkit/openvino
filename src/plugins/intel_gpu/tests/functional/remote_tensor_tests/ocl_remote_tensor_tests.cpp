@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <numeric>
 
 #if !defined(_WIN32)
 # include <fcntl.h>
@@ -2636,6 +2637,51 @@ TEST(RemoteTensor, smoke_CopyToEmptyTensor) {
     OV_EXPECT_THROW_HAS_SUBSTRING(empty_remote_tensor.copy_to(remote_tensor),
                                   ov::Exception,
                                   "Check '_impl != nullptr' failed");
+}
+
+TEST(RemoteTensor, smoke_CopyExpandedRoiRank) {
+#    if defined(ANDROID)
+    GTEST_SKIP();
+#    endif
+    ov::Core core;
+    auto context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+    auto src_owner = context.create_tensor(ov::element::i32, {4, 4});
+    auto dst_owner = context.create_tensor(ov::element::i32, {1, 4, 4});
+    ov::Tensor src_host{ov::element::i32, {4, 4}};
+    std::iota(src_host.data<int32_t>(), src_host.data<int32_t>() + src_host.get_size(), 1);
+    src_owner.copy_from(src_host);
+    ov::Tensor dst_host{ov::element::i32, {1, 4, 4}};
+    std::fill_n(dst_host.data<int32_t>(), dst_host.get_size(), 0);
+    dst_owner.copy_from(dst_host);
+
+    ov::RemoteTensor src_roi{src_owner, {1, 1}, {3, 3}};
+    ov::RemoteTensor dst_roi{dst_owner, {0, 1, 1}, {1, 3, 3}};
+    src_roi.set_shape({1, 2, 2});
+    OV_ASSERT_NO_THROW(src_roi.copy_to(dst_roi));
+    OV_ASSERT_NO_THROW(dst_owner.copy_to(dst_host));
+    const std::vector<int32_t> expected = {0, 0, 0, 0, 0, 6, 7, 0, 0, 10, 11, 0, 0, 0, 0, 0};
+    EXPECT_THAT(std::vector<int32_t>(dst_host.data<int32_t>(), dst_host.data<int32_t>() + dst_host.get_size()), testing::ElementsAreArray(expected));
+
+    std::vector<int32_t> strided_data = {42, -1, 43, -1, 44, -1, 45, -1};
+    ov::Tensor strided_host{ov::element::i32, {1, 2, 2}, strided_data.data(), {32, 16, 8}};
+    OV_ASSERT_NO_THROW(src_roi.copy_from(strided_host));
+    std::fill(strided_data.begin(), strided_data.end(), -1);
+    OV_ASSERT_NO_THROW(src_roi.copy_to(strided_host));
+    EXPECT_THAT(strided_data, testing::ElementsAre(42, -1, 43, -1, 44, -1, 45, -1));
+    OV_ASSERT_NO_THROW(dst_roi.copy_from(src_roi));
+    ov::Tensor result{ov::element::i32, {1, 2, 2}};
+    OV_ASSERT_NO_THROW(dst_roi.copy_to(result));
+    EXPECT_THAT(std::vector<int32_t>(result.data<int32_t>(), result.data<int32_t>() + result.get_size()), testing::ElementsAre(42, 43, 44, 45));
+
+    auto vector_owner = context.create_tensor(ov::element::i32, {4});
+    ov::RemoteTensor single_roi{vector_owner, {1}, {2}};
+    single_roi.set_shape({1, 1});
+    ov::Tensor single_host{ov::element::i32, {1, 1}};
+    single_host.data<int32_t>()[0] = 99;
+    OV_ASSERT_NO_THROW(single_roi.copy_from(single_host));
+    single_host.data<int32_t>()[0] = 0;
+    OV_ASSERT_NO_THROW(single_roi.copy_to(single_host));
+    EXPECT_EQ(single_host.data<int32_t>()[0], 99);
 }
 
 TEST(RemoteTensor, smoke_EmptyRoiTensor) {

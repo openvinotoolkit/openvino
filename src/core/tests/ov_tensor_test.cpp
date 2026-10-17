@@ -21,6 +21,8 @@
 #include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/allocator.hpp"
+#include "openvino/runtime/iremote_tensor.hpp"
+#include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -693,8 +695,336 @@ TEST_F(OVTensorTest, setShapeExpandRoiRank) {
 
     EXPECT_NO_THROW(roi_tensor.set_shape({1, 1, 2}));
     EXPECT_EQ(roi_tensor.get_shape(), ov::Shape({1, 1, 2}));
+    EXPECT_EQ(roi_tensor.get_strides(), ov::Strides({64, 64, 4}));
+
     EXPECT_NO_THROW(roi_tensor.set_shape({1, 1, 2, 2}));
     EXPECT_EQ(roi_tensor.get_shape(), ov::Shape({1, 1, 2, 2}));
+    EXPECT_EQ(roi_tensor.get_strides(), ov::Strides({128, 128, 64, 4}));
+}
+
+TEST_F(OVTensorTest, copyToExpandedRoiRank) {
+    ov::Tensor owner{ov::element::i64, {4}};
+    ov::Tensor roi{owner, {0}, {1}};
+    ov::Tensor src{ov::element::i64, {1, 1}};
+    src.data<int64_t>()[0] = 42;
+
+    EXPECT_NO_THROW(src.copy_to(roi));
+    EXPECT_EQ(roi.get_shape(), ov::Shape({1, 1}));
+    EXPECT_EQ(roi.get_strides(), ov::Strides({8, 8}));
+    EXPECT_EQ(roi.data<int64_t>()[0], 42);
+
+    ov::Tensor dst{ov::element::i64, {1, 1}};
+    EXPECT_NO_THROW(roi.copy_to(dst));
+    EXPECT_EQ(dst.get_shape(), ov::Shape({1, 1}));
+    EXPECT_EQ(dst.get_strides(), ov::Strides({8, 8}));
+    EXPECT_EQ(dst.data<int64_t>()[0], 42);
+}
+
+TEST_F(OVTensorTest, copyToExpandedNonContinuousRoiRank) {
+    ov::Tensor owner{ov::element::i32, {4, 4}};
+    std::fill_n(owner.data<int32_t>(), owner.get_size(), 0);
+    ov::Tensor roi{owner, {1, 1}, {3, 3}};
+    ov::Tensor src{ov::element::i32, {1, 1, 2, 2}};
+    std::iota(src.data<int32_t>(), src.data<int32_t>() + src.get_size(), 42);
+
+    OV_ASSERT_NO_THROW(src.copy_to(roi));
+    EXPECT_EQ(roi.get_shape(), src.get_shape());
+    EXPECT_EQ(roi.get_strides(), byteStrides({8, 8, 4, 1}, ov::element::i32));
+    EXPECT_FALSE(roi.is_continuous());
+    const std::vector<int32_t> expected = {0, 0, 0, 0, 0, 42, 43, 0, 0, 44, 45, 0, 0, 0, 0, 0};
+    EXPECT_THAT(std::vector<int32_t>(owner.data<int32_t>(), owner.data<int32_t>() + owner.get_size()),
+                testing::ElementsAreArray(expected));
+
+    ov::Tensor dst{ov::element::i32, src.get_shape()};
+    OV_ASSERT_NO_THROW(roi.copy_to(dst));
+    EXPECT_THAT(std::vector<int32_t>(dst.data<int32_t>(), dst.data<int32_t>() + dst.get_size()),
+                testing::ElementsAre(42, 43, 44, 45));
+}
+
+TEST_F(OVTensorTest, expandedRoiStridesAfterOwnerSetShape) {
+    ov::Tensor owner{ov::element::i32, {4, 4}};
+    std::iota(owner.data<int32_t>(), owner.data<int32_t>() + owner.get_size(), 1);
+    ov::Tensor roi{owner, {0, 0}, {2, 2}};
+
+    OV_ASSERT_NO_THROW(roi.set_shape({1, 2, 2}));
+    EXPECT_EQ(roi.get_strides(), byteStrides({8, 4, 1}, ov::element::i32));
+    OV_ASSERT_NO_THROW(owner.set_shape({2, 3}));
+    EXPECT_EQ(roi.get_strides(), byteStrides({6, 3, 1}, ov::element::i32));
+
+    ov::Tensor dst{ov::element::i32, roi.get_shape()};
+    OV_ASSERT_NO_THROW(roi.copy_to(dst));
+    EXPECT_THAT(std::vector<int32_t>(dst.data<int32_t>(), dst.data<int32_t>() + dst.get_size()),
+                testing::ElementsAre(1, 2, 4, 5));
+
+    ov::Tensor src{ov::element::i32, roi.get_shape()};
+    std::iota(src.data<int32_t>(), src.data<int32_t>() + src.get_size(), 42);
+    OV_ASSERT_NO_THROW(src.copy_to(roi));
+    EXPECT_THAT(std::vector<int32_t>(owner.data<int32_t>(), owner.data<int32_t>() + owner.get_size()),
+                testing::ElementsAre(42, 43, 3, 44, 45, 6));
+
+    OV_ASSERT_NO_THROW(owner.set_shape({1, 2, 2}));
+    EXPECT_EQ(roi.get_strides(), owner.get_strides());
+    OV_ASSERT_NO_THROW(owner.set_shape({4}));
+    OV_EXPECT_THROW(roi.get_strides(), ov::Exception, HasSubstr("outside owner shape"));
+    OV_EXPECT_THROW(roi.data(), ov::Exception, HasSubstr("outside owner shape"));
+}
+
+TEST_F(OVTensorTest, expandedRoiAfterHigherRankOwnerSetShape) {
+    ov::Tensor owner{ov::element::i32, {2, 3}};
+    std::iota(owner.data<int32_t>(), owner.data<int32_t>() + owner.get_size(), 1);
+    ov::Tensor roi{owner, {1, 0}, {2, 2}};
+    OV_ASSERT_NO_THROW(roi.set_shape({1, 1, 2}));
+    OV_ASSERT_NO_THROW(owner.set_shape({1, 1, 2, 3}));
+
+    EXPECT_EQ(roi.get_strides(), byteStrides({6, 3, 1}, ov::element::i32));
+    EXPECT_EQ(roi.data<int32_t>(), owner.data<int32_t>() + 3);
+    EXPECT_TRUE(roi.is_continuous());
+    ov::Tensor dst{ov::element::i32, roi.get_shape()};
+    OV_ASSERT_NO_THROW(roi.copy_to(dst));
+    EXPECT_THAT(std::vector<int32_t>(dst.data<int32_t>(), dst.data<int32_t>() + dst.get_size()),
+                testing::ElementsAre(4, 5));
+
+    ov::Tensor src{ov::element::i32, roi.get_shape()};
+    std::iota(src.data<int32_t>(), src.data<int32_t>() + src.get_size(), 42);
+    OV_ASSERT_NO_THROW(src.copy_to(roi));
+    EXPECT_THAT(std::vector<int32_t>(owner.data<int32_t>(), owner.data<int32_t>() + owner.get_size()),
+                testing::ElementsAre(1, 2, 3, 42, 43, 6));
+}
+
+TEST_F(OVTensorTest, expandedRoiOffsetAfterOwnerSetShape) {
+    ov::Tensor owner{ov::element::i32, {4, 4}};
+    std::iota(owner.data<int32_t>(), owner.data<int32_t>() + owner.get_size(), 1);
+    ov::Tensor roi{owner, {1, 0}, {2, 2}};
+    OV_ASSERT_NO_THROW(roi.set_shape({1, 1, 2}));
+    OV_ASSERT_NO_THROW(owner.set_shape({2, 3}));
+
+    EXPECT_EQ(roi.data<int32_t>(), owner.data<int32_t>() + 3);
+    EXPECT_EQ(static_cast<const ov::Tensor&>(roi).data<int32_t>(), owner.data<int32_t>() + 3);
+    EXPECT_EQ(roi.get_strides(), byteStrides({3, 3, 1}, ov::element::i32));
+    ov::Tensor dst{ov::element::i32, roi.get_shape()};
+    OV_ASSERT_NO_THROW(roi.copy_to(dst));
+    EXPECT_THAT(std::vector<int32_t>(dst.data<int32_t>(), dst.data<int32_t>() + dst.get_size()),
+                testing::ElementsAre(4, 5));
+
+    ov::Tensor src{ov::element::i32, roi.get_shape()};
+    std::iota(src.data<int32_t>(), src.data<int32_t>() + src.get_size(), 42);
+    OV_ASSERT_NO_THROW(src.copy_to(roi));
+    EXPECT_THAT(std::vector<int32_t>(owner.data<int32_t>(), owner.data<int32_t>() + owner.get_size()),
+                testing::ElementsAre(1, 2, 3, 42, 43, 6));
+
+    ov::Tensor nested_roi{roi, {0, 0, 1}, {1, 1, 2}};
+    OV_ASSERT_NO_THROW(owner.set_shape({2, 2}));
+    EXPECT_EQ(roi.data<int32_t>(), owner.data<int32_t>() + 2);
+    EXPECT_EQ(nested_roi.data<int32_t>(), owner.data<int32_t>() + 3);
+    EXPECT_EQ(nested_roi.data<int32_t>()[0], 42);
+
+    OV_ASSERT_NO_THROW(owner.set_shape({1, 4}));
+    OV_EXPECT_THROW(roi.get_strides(), ov::Exception, HasSubstr("outside owner shape"));
+    OV_EXPECT_THROW(roi.data(), ov::Exception, HasSubstr("outside owner shape"));
+    OV_EXPECT_THROW(roi.copy_to(dst), ov::Exception, HasSubstr("outside owner shape"));
+}
+
+namespace {
+class MockTensor : public ov::ITensor {
+public:
+    MOCK_METHOD(void, set_shape, (ov::Shape), (override));
+    MOCK_METHOD(const ov::element::Type&, get_element_type, (), (const, override));
+    MOCK_METHOD(const ov::Shape&, get_shape, (), (const, override));
+    MOCK_METHOD(const ov::Strides&, get_strides, (), (const, override));
+    MOCK_METHOD(void*, data, (), (override));
+    MOCK_METHOD(const void*, data, (), (const, override));
+    MOCK_METHOD(void*, data, (const ov::element::Type&), (override));
+    MOCK_METHOD(const void*, data, (const ov::element::Type&), (const, override));
+    MOCK_METHOD(void*, data_rw, (), (override));
+    MOCK_METHOD(void*, data_rw, (const ov::element::Type&), (override));
+};
+
+class MockRemoteTensor : public ov::IRemoteTensor {
+public:
+    MOCK_METHOD(void, set_shape, (ov::Shape), (override));
+    MOCK_METHOD(const ov::element::Type&, get_element_type, (), (const, override));
+    MOCK_METHOD(const ov::Shape&, get_shape, (), (const, override));
+    MOCK_METHOD(const ov::Strides&, get_strides, (), (const, override));
+    MOCK_METHOD(const ov::AnyMap&, get_properties, (), (const, override));
+    MOCK_METHOD(const std::string&, get_device_name, (), (const, override));
+    MOCK_METHOD(void,
+                copy_to,
+                (const std::shared_ptr<ov::ITensor>&, size_t, size_t, const ov::Shape&),
+                (const, override));
+    MOCK_METHOD(void,
+                copy_from,
+                (const std::shared_ptr<const ov::ITensor>&, size_t, size_t, const ov::Shape&),
+                (override));
+};
+}  // namespace
+
+TEST_F(OVTensorTest, expandedRemoteRoiOffsetAfterOwnerSetShape) {
+    const ov::element::Type type = ov::element::i32;
+    ov::Shape owner_shape = {4, 4};
+    ov::Strides owner_strides = byteStrides({4, 1}, type);
+    auto owner = std::make_shared<testing::NiceMock<MockRemoteTensor>>();
+    ON_CALL(*owner, get_element_type()).WillByDefault(testing::ReturnRef(type));
+    ON_CALL(*owner, get_shape()).WillByDefault(testing::ReturnRef(owner_shape));
+    ON_CALL(*owner, get_strides()).WillByDefault(testing::ReturnRef(owner_strides));
+
+    auto roi = ov::make_tensor(owner, {1, 0}, {2, 2});
+    const ov::Shape roi_shape = {1, 1, 2};
+    OV_ASSERT_NO_THROW(roi->set_shape(roi_shape));
+    owner_shape = {2, 3};
+    owner_strides = byteStrides({3, 1}, type);
+    EXPECT_EQ(roi->get_strides(), byteStrides({3, 3, 1}, type));
+
+    auto host = ov::make_tensor(type, roi_shape);
+    const auto offset = 3 * type.size();
+    EXPECT_CALL(*owner, copy_to(host, offset, 0, roi_shape));
+    OV_ASSERT_NO_THROW(roi->copy_to(host));
+    EXPECT_CALL(*owner, copy_from(testing::Eq(host), 0, offset, roi_shape));
+    OV_ASSERT_NO_THROW(host->copy_to(roi));
+
+    auto other_roi = ov::make_tensor(owner, {0, 0}, {1, 2});
+    OV_ASSERT_NO_THROW(other_roi->set_shape(roi_shape));
+    EXPECT_CALL(*owner, copy_to(testing::Pointee(testing::Ref(*owner)), offset, 0, roi_shape));
+    OV_ASSERT_NO_THROW(roi->copy_to(other_roi));
+    EXPECT_CALL(*owner, copy_from(testing::Pointee(testing::Ref(*owner)), offset, 0, roi_shape));
+    OV_ASSERT_NO_THROW(std::dynamic_pointer_cast<ov::IRemoteTensor>(other_roi)->copy_from(roi));
+}
+
+TEST_F(OVTensorTest, rejectInvalidStrideRanksBeforeCopy) {
+    const ov::element::Type type = ov::element::i32;
+    const ov::Shape shape = {1, 2};
+    ov::Strides strides;
+    auto tensor = std::make_shared<testing::NiceMock<MockTensor>>();
+    ON_CALL(*tensor, get_element_type()).WillByDefault(testing::ReturnRef(type));
+    ON_CALL(*tensor, get_shape()).WillByDefault(testing::ReturnRef(shape));
+    ON_CALL(*tensor, get_strides()).WillByDefault(testing::ReturnRef(strides));
+    EXPECT_CALL(*tensor, data()).Times(0);
+    EXPECT_CALL(testing::Const(*tensor), data()).Times(0);
+
+    auto valid_tensor = ov::make_tensor(type, shape);
+    for (const auto& invalid_strides : {ov::Strides{}, ov::Strides{4}, ov::Strides{8, 8, 4}}) {
+        strides = invalid_strides;
+        OV_EXPECT_THROW(tensor->copy_to(tensor), ov::Exception, HasSubstr("strides rank must match shape rank"));
+        OV_EXPECT_THROW(tensor->copy_to(valid_tensor), ov::Exception, HasSubstr("strides rank must match shape rank"));
+        OV_EXPECT_THROW(valid_tensor->copy_to(tensor), ov::Exception, HasSubstr("strides rank must match shape rank"));
+        OV_EXPECT_THROW(tensor->is_continuous(), ov::Exception, HasSubstr("strides rank must match shape rank"));
+    }
+}
+
+TEST_F(OVTensorTest, setShapeExpandScalarRoiRank) {
+    ov::Tensor t{ov::element::i32, {}};
+    t.data<int32_t>()[0] = 99;
+    ov::Tensor roi_tensor{t, {}, {}};
+
+    EXPECT_NO_THROW(roi_tensor.set_shape({1}));
+    EXPECT_EQ(roi_tensor.get_shape(), ov::Shape({1}));
+    EXPECT_EQ(roi_tensor.get_strides(), ov::Strides({4}));
+    EXPECT_EQ(roi_tensor.data<int32_t>()[0], 99);
+
+    EXPECT_NO_THROW(roi_tensor.set_shape({1, 1}));
+    EXPECT_EQ(roi_tensor.get_shape(), ov::Shape({1, 1}));
+    EXPECT_EQ(roi_tensor.get_strides(), ov::Strides({4, 4}));
+    EXPECT_EQ(roi_tensor.data<int32_t>()[0], 99);
+
+    OV_ASSERT_NO_THROW(t.set_shape({1, 1, 1}));
+    EXPECT_EQ(roi_tensor.get_strides(), ov::Strides({4, 4}));
+    EXPECT_EQ(roi_tensor.data<int32_t>()[0], 99);
+    OV_ASSERT_NO_THROW(t.set_shape({}));
+    EXPECT_EQ(roi_tensor.get_strides(), ov::Strides({4, 4}));
+    EXPECT_EQ(roi_tensor.data<int32_t>()[0], 99);
+}
+
+TEST_F(OVTensorTest, expandedRoiAfterLowerRankOwnerSetShape) {
+    ov::Tensor owner{ov::element::i32, {1, 4}};
+    std::iota(owner.data<int32_t>(), owner.data<int32_t>() + owner.get_size(), 1);
+    ov::Tensor roi{owner, {0, 1}, {1, 3}};
+    OV_ASSERT_NO_THROW(roi.set_shape({1, 1, 2}));
+    OV_ASSERT_NO_THROW(owner.set_shape({4}));
+
+    EXPECT_EQ(roi.get_strides(), byteStrides({2, 2, 1}, ov::element::i32));
+    EXPECT_EQ(roi.data<int32_t>(), owner.data<int32_t>() + 1);
+    ov::Tensor dst{ov::element::i32, roi.get_shape()};
+    OV_ASSERT_NO_THROW(roi.copy_to(dst));
+    EXPECT_THAT(std::vector<int32_t>(dst.data<int32_t>(), dst.data<int32_t>() + dst.get_size()),
+                testing::ElementsAre(2, 3));
+}
+
+TEST_F(OVTensorTest, copyLowPrecisionTensorWithoutStrides) {
+    ov::Tensor src{ov::element::u4, {4}};
+    auto* data = static_cast<uint8_t*>(src.data());
+    data[0] = 0x21;
+    data[1] = 0x43;
+    ov::Tensor dst{ov::element::u4, {4}};
+
+    OV_ASSERT_NO_THROW(src.copy_to(dst));
+    const auto* copied_data = static_cast<const uint8_t*>(dst.data());
+    EXPECT_EQ(copied_data[0], data[0]);
+    EXPECT_EQ(copied_data[1], data[1]);
+}
+
+TEST_F(OVTensorTest, alignRemoteCopyStridesToRoiShape) {
+    auto tensor = ov::make_tensor(ov::element::i32, {4});
+    EXPECT_EQ(tensor->get_strides_for_shape({1, 1, 2}), byteStrides({2, 2, 1}, ov::element::i32));
+    OV_EXPECT_THROW(tensor->get_strides_for_shape({2, 2}), ov::Exception, HasSubstr("leading ROI dimensions"));
+    OV_EXPECT_THROW(tensor->get_strides_for_shape({1, 5}), ov::Exception, HasSubstr("exceeds tensor shape"));
+    tensor->set_shape({1, 2, 2});
+    EXPECT_EQ(tensor->get_strides_for_shape({2, 2}), byteStrides({2, 1}, ov::element::i32));
+    tensor->set_shape({});
+    EXPECT_EQ(tensor->get_strides_for_shape({1, 1}), byteStrides({1, 1}, ov::element::i32));
+    EXPECT_TRUE(tensor->get_strides_for_shape({}).empty());
+}
+
+TEST_F(OVTensorTest, copyExpandedRemoteRoiThroughStridedBackend) {
+    const ov::element::Type type = ov::element::i32;
+    const ov::Shape owner_shape = {4};
+    const ov::Strides owner_strides = byteStrides({1}, type);
+    std::vector<int32_t> remote_data = {1, 2, 3, 4};
+    auto owner = std::make_shared<testing::NiceMock<MockRemoteTensor>>();
+    ON_CALL(*owner, get_element_type()).WillByDefault(testing::ReturnRef(type));
+    ON_CALL(*owner, get_shape()).WillByDefault(testing::ReturnRef(owner_shape));
+    ON_CALL(*owner, get_strides()).WillByDefault(testing::ReturnRef(owner_strides));
+    ON_CALL(*owner, copy_to(_, _, _, _))
+        .WillByDefault(
+            [&](const std::shared_ptr<ov::ITensor>& dst, size_t src_offset, size_t dst_offset, const ov::Shape& shape) {
+                const auto* src_data = reinterpret_cast<const uint8_t*>(remote_data.data()) + src_offset;
+                auto* dst_data = static_cast<uint8_t*>(dst->data_rw()) + dst_offset;
+                auto src_view = ov::make_tensor(type, shape, src_data, owner->get_strides_for_shape(shape));
+                auto dst_view = ov::make_tensor(type, shape, dst_data, dst->get_strides_for_shape(shape));
+                src_view->copy_to(dst_view);
+            });
+    ON_CALL(*owner, copy_from(_, _, _, _))
+        .WillByDefault([&](const std::shared_ptr<const ov::ITensor>& src,
+                           size_t src_offset,
+                           size_t dst_offset,
+                           const ov::Shape& shape) {
+            const auto* src_data = static_cast<const uint8_t*>(src->data()) + src_offset;
+            auto* dst_data = reinterpret_cast<uint8_t*>(remote_data.data()) + dst_offset;
+            auto src_view = ov::make_tensor(type, shape, src_data, src->get_strides_for_shape(shape));
+            auto dst_view = ov::make_tensor(type, shape, dst_data, owner->get_strides_for_shape(shape));
+            src_view->copy_to(dst_view);
+        });
+
+    auto roi = ov::make_tensor(owner, {1}, {3});
+    const ov::Shape expanded_shape = {1, 1, 2};
+    OV_ASSERT_NO_THROW(roi->set_shape(expanded_shape));
+    std::vector<int32_t> data = {42, -1, 43, -1};
+    auto host = ov::make_tensor(type, expanded_shape, data.data(), byteStrides({4, 4, 2}, type));
+    OV_ASSERT_NO_THROW(host->copy_to(roi));
+    EXPECT_THAT(remote_data, testing::ElementsAre(1, 42, 43, 4));
+    std::fill(data.begin(), data.end(), -1);
+    OV_ASSERT_NO_THROW(roi->copy_to(host));
+    EXPECT_THAT(data, testing::ElementsAre(42, -1, 43, -1));
+
+    auto nested_roi = ov::make_tensor(roi, {0, 0, 1}, {1, 1, 2});
+    auto dst = ov::make_tensor(type, {1, 1, 1});
+    OV_ASSERT_NO_THROW(nested_roi->copy_to(dst));
+    EXPECT_EQ(*dst->data<int32_t>(), 43);
+    *dst->data<int32_t>() = 99;
+    OV_ASSERT_NO_THROW(dst->copy_to(nested_roi));
+    EXPECT_THAT(remote_data, testing::ElementsAre(1, 42, 99, 4));
+    OV_EXPECT_THROW(roi->copy_to(nullptr), ov::Exception, HasSubstr("Destination tensor was not initialized"));
+    OV_EXPECT_THROW(std::dynamic_pointer_cast<ov::IRemoteTensor>(roi)->copy_from(nullptr),
+                    ov::Exception,
+                    HasSubstr("Source tensor was not initialized"));
 }
 
 TEST_F(OVTensorTest, setShapeInvalidExpandRoiRank) {
