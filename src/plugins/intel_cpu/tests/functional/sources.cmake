@@ -233,6 +233,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/eltwise_caching.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/eltwise_chain.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/fullyconnected_strided_inputs_outputs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/fullyconnected_two_bias_adds.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/fuse_muladd_ewsimple.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/fuse_non0_output_port.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/fuse_scaleshift_and_fakequantize.cpp
@@ -771,6 +772,7 @@ set(TMP_LIST_OF_COMMON_SUBGRAPH_TESTS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/eltwise_caching.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/eltwise_chain.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/fullyconnected_strided_inputs_outputs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/fullyconnected_two_bias_adds.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/fuse_muladd_ewsimple.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/fuse_non0_output_port.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/fuse_scaleshift_and_fakequantize.cpp
