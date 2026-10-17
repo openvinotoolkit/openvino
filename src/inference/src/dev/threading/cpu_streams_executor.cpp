@@ -26,6 +26,12 @@
 namespace ov {
 namespace threading {
 struct CPUStreamsExecutor::Impl {
+    struct StreamIdPool {
+        std::mutex _mutex;
+        int _nextId = 0;
+        std::queue<int> _availableIds;
+    };
+
     struct Stream {
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         struct Observer : public custom::task_scheduler_observer {
@@ -51,37 +57,37 @@ struct CPUStreamsExecutor::Impl {
             ~Observer() override = default;
         };
 #endif
-        explicit Stream(Impl* impl) : _impl(impl) {
+        explicit Stream(Impl* impl) : _streamIdPool(impl->_streamIdPool) {
             {
-                std::lock_guard<std::mutex> lock{_impl->_streamIdMutex};
-                if (_impl->_streamIdQueue.empty()) {
-                    _streamId = _impl->_streamId++;
+                std::lock_guard<std::mutex> lock{_streamIdPool->_mutex};
+                if (_streamIdPool->_availableIds.empty()) {
+                    _streamId = _streamIdPool->_nextId++;
                 } else {
-                    _streamId = _impl->_streamIdQueue.front();
-                    _impl->_streamIdQueue.pop();
+                    _streamId = _streamIdPool->_availableIds.front();
+                    _streamIdPool->_availableIds.pop();
                 }
             }
             _numaNodeId =
-                _impl->_config.get_streams()
-                    ? _impl->_usedNumaNodes.at((_streamId % _impl->_config.get_streams()) /
-                                               ((_impl->_config.get_streams() + _impl->_usedNumaNodes.size() - 1) /
-                                                _impl->_usedNumaNodes.size()))
-                    : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
+                impl->_config.get_streams()
+                    ? impl->_usedNumaNodes.at((_streamId % impl->_config.get_streams()) /
+                                              ((impl->_config.get_streams() + impl->_usedNumaNodes.size() - 1) /
+                                               impl->_usedNumaNodes.size()))
+                    : impl->_usedNumaNodes.at(_streamId % impl->_usedNumaNodes.size());
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
-            if (_impl->_config.get_streams_info_table().size() > 0) {
-                init_stream();
+            if (impl->_config.get_streams_info_table().size() > 0) {
+                init_stream(impl);
             }
 #elif OV_THREAD == OV_THREAD_OMP
-            omp_set_num_threads(_impl->_config.get_threads_per_stream());
-            if (!check_open_mp_env_vars(false) && _impl->_config.get_cpu_pinning()) {
+            omp_set_num_threads(impl->_config.get_threads_per_stream());
+            if (!check_open_mp_env_vars(false) && impl->_config.get_cpu_pinning()) {
                 CpuSet processMask;
                 int ncpus = 0;
                 std::tie(processMask, ncpus) = get_process_mask();
                 if (nullptr != processMask) {
-                    parallel_nt(_impl->_config.get_threads_per_stream(), [&](int threadIndex, int threadsPerStream) {
-                        int thrIdx = _streamId * _impl->_config.get_threads_per_stream() + threadIndex +
-                                     _impl->_config.get_thread_binding_offset();
-                        pin_thread_to_vacant_core(thrIdx, _impl->_config.get_thread_binding_step(), ncpus, processMask);
+                    parallel_nt(impl->_config.get_threads_per_stream(), [&](int threadIndex, int threadsPerStream) {
+                        int thrIdx = _streamId * impl->_config.get_threads_per_stream() + threadIndex +
+                                     impl->_config.get_thread_binding_offset();
+                        pin_thread_to_vacant_core(thrIdx, impl->_config.get_thread_binding_step(), ncpus, processMask);
                     });
                 }
             }
@@ -89,8 +95,8 @@ struct CPUStreamsExecutor::Impl {
         }
         ~Stream() {
             {
-                std::lock_guard<std::mutex> lock{_impl->_streamIdMutex};
-                _impl->_streamIdQueue.push(_streamId);
+                std::lock_guard<std::mutex> lock{_streamIdPool->_mutex};
+                _streamIdPool->_availableIds.push(_streamId);
             }
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
             if (nullptr != _observer) {
@@ -137,14 +143,15 @@ struct CPUStreamsExecutor::Impl {
             return mapped_core_types;
         }
 
-        void create_tbb_task_arena(const int stream_id,
+        void create_tbb_task_arena(Impl* impl,
+                                   const int stream_id,
                                    const StreamCreateType stream_type,
                                    const int concurrency,
                                    const std::vector<int>& core_types,
                                    const int numa_node_id,
                                    const int socket_id,
                                    const int max_threads_per_core) {
-            auto stream_processors = _impl->_config.get_stream_processor_ids();
+            auto stream_processors = impl->_config.get_stream_processor_ids();
             _numaNodeId = numa_node_id;
             _socketId = socket_id;
             auto _stream_type = stream_type;
@@ -234,7 +241,7 @@ struct CPUStreamsExecutor::Impl {
                 }
             }
         }
-        void init_stream() {
+        void init_stream(Impl* impl) {
             int concurrency;
             std::vector<int> cpu_core_types;
             int numa_node_id;
@@ -242,13 +249,13 @@ struct CPUStreamsExecutor::Impl {
             int max_threads_per_core;
             StreamCreateType stream_type;
             const auto org_proc_type_table = get_org_proc_type_table();
-            int streams_num = _impl->_config.get_streams();
+            int streams_num = impl->_config.get_streams();
             const auto stream_id = streams_num == 0 ? 0 : _streamId % streams_num;
-            _rank = _impl->_config.get_rank();
+            _rank = impl->_config.get_rank();
             get_cur_stream_info(stream_id,
-                                _impl->_config.get_cpu_pinning(),
+                                impl->_config.get_cpu_pinning(),
                                 org_proc_type_table,
-                                _impl->_config.get_streams_info_table(),
+                                impl->_config.get_streams_info_table(),
                                 stream_type,
                                 concurrency,
                                 cpu_core_types,
@@ -258,7 +265,8 @@ struct CPUStreamsExecutor::Impl {
             if (concurrency <= 0) {
                 return;
             }
-            create_tbb_task_arena(stream_id,
+            create_tbb_task_arena(impl,
+                                  stream_id,
                                   stream_type,
                                   concurrency,
                                   cpu_core_types,
@@ -268,7 +276,9 @@ struct CPUStreamsExecutor::Impl {
         }
 #endif
 
-        Impl* _impl = nullptr;
+        // Shared with Impl: keeps the pool alive even if this Stream outlives Impl,
+        // so ~Stream() never dereferences a dangling Impl*.
+        std::shared_ptr<StreamIdPool> _streamIdPool;
         int _streamId = 0;
         int _numaNodeId = 0;
         int _socketId = 0;
@@ -504,9 +514,7 @@ struct CPUStreamsExecutor::Impl {
     }
 
     Config _config;
-    std::mutex _streamIdMutex;
-    int _streamId = 0;
-    std::queue<int> _streamIdQueue;
+    std::shared_ptr<StreamIdPool> _streamIdPool = std::make_shared<StreamIdPool>();
     std::vector<std::thread> _threads;
     std::mutex _mutex;
     std::condition_variable _queueCondVar;
@@ -514,7 +522,6 @@ struct CPUStreamsExecutor::Impl {
     bool _isStopped = false;
     std::vector<int> _usedNumaNodes;
     std::shared_ptr<CustomThreadLocal> _streams;
-    bool _isExit = false;
     std::vector<int> _cpu_ids_all;
     std::mutex _cpu_ids_mutex;
 };
