@@ -216,6 +216,26 @@ INSTANTIATE_TEST_SUITE_P(smoke, fully_connected_fake_align_test,
             layout{ov::PartialShape{264, 1, 511}, data_types::f16, format::bfyx},                      // fake_aligned input layout_dgpu
             layout{ov::PartialShape{264, 1, 800}, data_types::f16, format::bfyx}                       // fake_aligned output layout_dgpu
         },
+        // 4-bit weights with up to 4 rows are not padded on iGPU: the padded shape would select
+        // the 256-GRF systolic gemm instead of the 128-GRF dot kernel that covers 2..4 rows
+        {
+            layout{ov::PartialShape{3, 1024}, data_types::f16, format::bfyx},                         // input_layout
+            layout{ov::PartialShape{1000, 1024}, data_types::i4, format::bfyx},                        // weight layout
+            data_types::f16,
+            layout{ov::PartialShape{3, 1024}, data_types::f16, format::bfyx},                         // fake_aligned input layout_igpu
+            layout{ov::PartialShape{3, 1000}, data_types::f16, format::bfyx},                         // fake_aligned output layout_igpu
+            layout{ov::PartialShape{8, 1024}, data_types::f16, format::bfyx},                         // fake_aligned input layout_dgpu
+            layout{ov::PartialShape{8, 1000}, data_types::f16, format::bfyx}                          // fake_aligned output layout_dgpu
+        },
+        {
+            layout{ov::PartialShape{5, 1024}, data_types::f16, format::bfyx},                         // input_layout
+            layout{ov::PartialShape{1000, 1024}, data_types::i4, format::bfyx},                        // weight layout
+            data_types::f16,
+            layout{ov::PartialShape{16, 1024}, data_types::f16, format::bfyx},                        // fake_aligned input layout_igpu
+            layout{ov::PartialShape{16, 1000}, data_types::f16, format::bfyx},                        // fake_aligned output layout_igpu
+            layout{ov::PartialShape{8, 1024}, data_types::f16, format::bfyx},                         // fake_aligned input layout_dgpu
+            layout{ov::PartialShape{8, 1000}, data_types::f16, format::bfyx}                          // fake_aligned output layout_dgpu
+        },
     }));
 
 class fully_connected_skip_fake_align_test : public testing::TestWithParam<fc_fake_align_params> {};
