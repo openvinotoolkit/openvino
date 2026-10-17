@@ -168,7 +168,9 @@ the following setup options:
 |                                              |                                                                    |
 |                                              | Enables/disables CPU as acceleration (or the helper device) in the |
 |                                              | beginning. The default value is ``true``, indicating that CPU is   |
-|                                              | used as acceleration by default.                                   |
+|                                              |                                                                    |
+|                                              | As a trade-off, two model instances will be kept, resulting in     |
+|                                              | additional memory usage of approximately one model’s size.         |
 +----------------------------------------------+--------------------------------------------------------------------+
 | ``ov::intel_auto::enable_runtime_fallback``  | **Values**:                                                        |
 |                                              |                                                                    |
@@ -192,6 +194,23 @@ the following setup options:
 |                                              | plugin for AUTO cumulative mode.                                   |
 |                                              |                                                                    |
 |                                              | The default value is ``DEVICE_PRIORITY``.                          |
++----------------------------------------------+--------------------------------------------------------------------+
+| ``ov::intel_auto::compile_for_all``          | **Values**:                                                        |
+|                                              |                                                                    |
+|                                              | ``true``                                                           |
+|                                              |                                                                    |
+|                                              | ``false``                                                          |
+|                                              |                                                                    |
+|                                              | Enables compiling the model to all candidate devices in the        |
+|                                              | background (in addition to the actual and CPU helper devices)      |
+|                                              | to populate cache blobs for faster subsequent loading. Only        |
+|                                              | takes effect when a cache path (``ov::cache_path``) is             |
+|                                              | configured.                                                        |
+|                                              |                                                                    |
+|                                              | The peak memory usage can be approximately three times the model   |
+|                                              | size if ``ov::intel_auto::enable_startup_fallback`` is ``true``    |
+|                                              |                                                                    |
+|                                              | The default value is ``false``.                                    |
 +----------------------------------------------+--------------------------------------------------------------------+
 
 Inference with AUTO is configured similarly to when device plugins are used:

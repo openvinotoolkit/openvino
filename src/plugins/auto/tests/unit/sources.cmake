@@ -4,6 +4,7 @@
 
 set(OV_AUTO_UNIT_TESTS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/auto_unit_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/cache_compile_for_all_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/compile_model_metric_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/compile_model_property_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ctput_test.cpp
