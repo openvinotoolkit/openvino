@@ -1,0 +1,138 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// Q3 - SparseSDPA sparse attention (dense, read-only on main K/V).
+//
+// Same selected-block gather + always-visible causal tail + online softmax algorithm as
+// sparse_attention_paged.cm, but addressed directly through dense `[B, H, *, D]`
+// strides (no page table). The causal position is the RST's bottom-right-aligned
+// `q_abs = S - L + l`, not a `past_lens`-derived origin; this op has no `past_lens`
+// input. The selection plan (`sel_indices`/`sel_count`) is read using the SAME flat
+// token index `t = b * L + l` that the paired QSAIndexer uses to populate it.
+//
+// JIT constants: QSA_HEADS, QSA_KV_HEADS, QSA_K_HEAD_SIZE, QSA_V_HEAD_SIZE,
+// QSA_COMPRESS_RATIO, QSA_BLOCK_TOPK, QSA_SCALE
+//
+// Dispatch: gws = [QSA_HEADS, B * L, 1], lws = [1, 1, 1]
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+#include "qsa_ops_common.hpp"
+
+#define QSA_SPLIT_DENSE_LOG2E 1.4426950408889634f
+
+CM_INLINE void sparse_attention_dense_softmax_step(float score, float& running_max, float& running_sum, float& corr, float& weight) {
+    const float new_max = running_max > score ? running_max : score;
+    vector<float, 2> e;
+    e[0] = (running_max - new_max) * QSA_SPLIT_DENSE_LOG2E;
+    e[1] = (score - new_max) * QSA_SPLIT_DENSE_LOG2E;
+    e = cm_exp(e);
+    corr = e[0];
+    weight = e[1];
+    running_sum = running_sum * corr + weight;
+    running_max = new_max;
+}
+
+template <int DH, int DV, int HKV, int SPAN>
+CM_INLINE void sparse_attention_attend_span_dense(vector_ref<float, DH> q, vector_ref<float, DV> acc, float& running_max, float& running_sum,
+                                           const half* key ATTR, const half* value ATTR, uint batch, uint kv_head, uint k_pitch, uint v_pitch,
+                                           uint pos0) {
+    const uint base_k = qsa_ops::kv_offset_dense(batch, kv_head, pos0, HKV, k_pitch, DH);
+    const uint base_v = qsa_ops::kv_offset_dense(batch, kv_head, pos0, HKV, v_pitch, DV);
+
+    vector<half, SPAN * DH> ktile;
+    qsa_gr::load_hv<SPAN * DH>(ktile, key, base_k);
+    vector<half, SPAN * DV> vtile;
+    qsa_gr::load_hv<SPAN * DV>(vtile, value, base_v);
+
+#pragma unroll
+    for (int s = 0; s < SPAN; s++) {
+        float score = 0.0f;
+#pragma unroll
+        for (int k = 0; k < DH; k += 16) {
+            vector<float, 16> kv = ktile.template select<16, 1>(s * DH + k);
+            score += cm_sum<float>(q.template select<16, 1>(k) * kv);
+        }
+
+        float corr = 0.0f;
+        float weight = 0.0f;
+        sparse_attention_dense_softmax_step(score, running_max, running_sum, corr, weight);
+
+#pragma unroll
+        for (int k = 0; k < DV; k += 16) {
+            vector<float, 16> vv = vtile.template select<16, 1>(s * DV + k);
+            acc.template select<16, 1>(k) = acc.template select<16, 1>(k) * corr + vv * weight;
+        }
+    }
+}
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,               // [B, Hq, L, Dh]
+                                        const half* key ATTR,                 // [B, Hkv, S, Dh], dense history
+                                        const half* value ATTR,               // [B, Hkv, S, Dv], dense history
+                                        const int32_t* selected_blocks ATTR,  // [B*L, block_topk]
+                                        const int32_t* selected_counts ATTR,  // [B*L]
+                                        half* output ATTR,                    // [B, Hq, L, Dv]
+                                        uint32_t seq_len,                     // L
+                                        uint32_t history_len,                 // S
+                                        uint32_t num_rows,                    // B*L
+                                        uint32_t k_seq_pitch,                 // padded S of key
+                                        uint32_t v_seq_pitch) {               // padded S of value
+    constexpr uint HQ = QSA_HEADS;
+    constexpr uint HKV = QSA_KV_HEADS;
+    constexpr uint DH = QSA_K_HEAD_SIZE;
+    constexpr uint DV = QSA_V_HEAD_SIZE;
+    constexpr uint R = QSA_COMPRESS_RATIO;
+    constexpr uint K_TOPK = QSA_BLOCK_TOPK;
+
+    static_assert(DH % 16 == 0 && DV % 16 == 0, "head sizes must be multiples of 16");
+
+    const uint head = cm_global_id(0);
+    const uint row = cm_global_id(1);
+    if (head >= HQ || row >= num_rows) {
+        return;
+    }
+
+    const uint batch = row / seq_len;
+    const uint l = row - batch * seq_len;
+    const uint q_abs = history_len - seq_len + l;  // bottom-right aligned, RST q_abs = S - L + l
+
+    const uint kv_head = head / (HQ / HKV);
+
+    const uint q_elem = ((batch * HQ + head) * seq_len + l) * DH;
+    vector<half, DH> q_h;
+    qsa_gr::load_hv<DH>(q_h, query, q_elem);
+    vector<float, DH> q = q_h;
+    q = q * (float)QSA_SCALE;
+
+    float running_max = -1e30f;
+    float running_sum = 0.0f;
+    vector<float, DV> acc = 0.0f;
+
+    const uint selected = (uint)selected_counts[row];
+    for (uint i = 0; i < selected && i < K_TOPK; i++) {
+        const int32_t b = selected_blocks[row * K_TOPK + i];
+        if (b < 0) {
+            continue;
+        }
+        sparse_attention_attend_span_dense<DH, DV, HKV, R>(q, acc, running_max, running_sum, key, value, batch, kv_head, k_seq_pitch, v_seq_pitch,
+                                                           (uint)b * R);
+    }
+
+    const uint tail_begin = qsa_ops::num_complete_blocks(q_abs) * R;
+    for (uint p = tail_begin; p <= q_abs; p++) {
+        sparse_attention_attend_span_dense<DH, DV, HKV, 1>(q, acc, running_max, running_sum, key, value, batch, kv_head, k_seq_pitch, v_seq_pitch, p);
+    }
+
+    const float inv_sum = running_sum > 0.0f ? 1.0f / running_sum : 0.0f;
+
+    vector<half, DV> out;
+#pragma unroll
+    for (uint k = 0; k < DV; k += 16) {
+        vector<float, 16> o = acc.select<16, 1>(k) * inv_sum;
+        out.select<16, 1>(k) = o;
+    }
+    qsa_gr::store_hv<DV>(output, ((batch * HQ + head) * seq_len + l) * DV, out);
+}

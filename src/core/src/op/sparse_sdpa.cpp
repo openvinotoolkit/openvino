@@ -1,0 +1,102 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "openvino/op/sparse_sdpa.hpp"
+
+#include <string>
+#include <utility>
+
+#include "itt.hpp"
+
+namespace ov::op::internal {
+
+SparseSDPA::SparseSDPA(const ov::OutputVector& args, const Config& config, const ov::element::Type output_type)
+    : Op(args),
+      m_config(config),
+      m_output_type(output_type) {
+    constructor_validate_and_infer_types();
+}
+
+bool SparseSDPA::validate_config(const Config& c, std::string& reason) {
+    auto fail = [&reason](const char* msg) {
+        reason = msg;
+        return false;
+    };
+    if (c.num_heads == 0 || c.num_kv_heads == 0 || c.num_heads % c.num_kv_heads != 0) {
+        return fail("num_heads must be a positive multiple of num_kv_heads");
+    }
+    if (c.h_sel != 1 && c.h_sel != c.num_kv_heads && c.h_sel != c.num_heads) {
+        return fail("h_sel must be 1, num_kv_heads, or num_heads");
+    }
+    if (c.k_head_size == 0 || c.k_head_size % 16 != 0 || c.v_head_size == 0 || c.v_head_size % 16 != 0) {
+        return fail("k_head_size / v_head_size must be positive multiples of 16");
+    }
+    if (c.sel_block_size == 0) {
+        return fail("sel_block_size must be positive");
+    }
+    if (c.q_block_size != 1) {
+        return fail("q_block_size != 1 is not implemented in this pass");
+    }
+    return true;
+}
+
+bool SparseSDPA::visit_attributes(ov::AttributeVisitor& visitor) {
+    OV_OP_SCOPE(internal_SparseSDPA_visit_attributes);
+    visitor.on_attribute("num_heads", m_config.num_heads);
+    visitor.on_attribute("num_kv_heads", m_config.num_kv_heads);
+    visitor.on_attribute("h_sel", m_config.h_sel);
+    visitor.on_attribute("k_head_size", m_config.k_head_size);
+    visitor.on_attribute("v_head_size", m_config.v_head_size);
+    visitor.on_attribute("sel_block_size", m_config.sel_block_size);
+    visitor.on_attribute("q_block_size", m_config.q_block_size);
+    visitor.on_attribute("causal", m_config.causal);
+    visitor.on_attribute("output_type", m_output_type);
+    return true;
+}
+
+void SparseSDPA::validate_and_infer_types() {
+    OV_OP_SCOPE(internal_SparseSDPA_validate_and_infer_types);
+    NODE_VALIDATION_CHECK(this,
+                           get_input_size() >= InputIdx::COUNT_MIN && get_input_size() <= InputIdx::COUNT_MAX,
+                           "SparseSDPA expects ",
+                           InputIdx::COUNT_MIN,
+                           "..",
+                           InputIdx::COUNT_MAX,
+                           " inputs, got ",
+                           get_input_size());
+
+    std::string reason;
+    NODE_VALIDATION_CHECK(this, validate_config(m_config, reason), "SparseSDPA configuration is invalid: ", reason);
+
+    const auto& query_ps = get_input_partial_shape(InputIdx::QUERY);
+    NODE_VALIDATION_CHECK(this, query_ps.rank().is_dynamic() || query_ps.size() == 4, "SparseSDPA expects a rank-4 [B, Hq, L, Dh] query input, got ", query_ps);
+
+    // The kernels read the selection plan as int32_t.
+    const std::pair<size_t, int64_t> int_inputs[] = {{InputIdx::SEL_INDICES, 4}, {InputIdx::SEL_COUNT, 3}};
+    for (const auto& [idx, rank] : int_inputs) {
+        const auto& et = get_input_element_type(idx);
+        const auto& ps = get_input_partial_shape(idx);
+        NODE_VALIDATION_CHECK(this, et.is_dynamic() || et == element::i32, "SparseSDPA expects an i32 input ", idx, ", got ", et);
+        NODE_VALIDATION_CHECK(this, ps.rank().compatible(rank), "SparseSDPA expects a rank-", rank, " input ", idx, ", got ", ps);
+    }
+
+    auto out_ps = ov::PartialShape::dynamic(4);
+    if (query_ps.rank().is_static()) {
+        out_ps[0] = query_ps[0];
+        out_ps[2] = query_ps[2];
+    }
+    out_ps[1] = ov::Dimension(static_cast<int64_t>(m_config.num_heads));
+    out_ps[3] = ov::Dimension(static_cast<int64_t>(m_config.v_head_size));
+
+    const auto out_et = m_output_type == ov::element::dynamic ? get_input_element_type(InputIdx::QUERY) : m_output_type;
+    set_output_size(1);
+    set_output_type(0, out_et, out_ps);
+}
+
+std::shared_ptr<Node> SparseSDPA::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+    check_new_args_count(this, new_args);
+    return std::make_shared<SparseSDPA>(new_args, m_config, m_output_type);
+}
+
+}  // namespace ov::op::internal

@@ -336,3 +336,8 @@ REGISTER_FACTORY(internal, Atan2);
 #ifdef ENABLE_MLIR_FOR_GPU
 REGISTER_FACTORY(internal, MLIR);
 #endif
+REGISTER_FACTORY(internal, GatedResidual);
+REGISTER_FACTORY(internal, PagedQSAIndexer);
+REGISTER_FACTORY(internal, QSAIndexer);
+REGISTER_FACTORY(internal, SparsePA);
+REGISTER_FACTORY(internal, SparseSDPA);

@@ -1,0 +1,68 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// Q3 decode, split-selected-KV variant (paged), pass 2 - merge pass.
+//
+// Ported from the proven qsa_sparse_attention_split_reduce.cm. Separate dispatch on the
+// same in-order queue provides global visibility of pass 1's writes; no gate (the split
+// ABI carries none). Merges every partition's (max, sum, weighted-V) state with the
+// standard online-softmax combine rule; an empty partition (sum <= 0, e.g. the tail
+// partition when the token has no selected blocks and an empty tail) is skipped BEFORE
+// exponentiating so its possibly-garbage max never contaminates the running max.
+//
+// JIT constants: QSA_HEADS, QSA_V_HEAD_SIZE, QSA_SPLIT_PARTITIONS, QSA_REDUCE_COLS
+//
+// Dispatch: gws = [QSA_HEADS, num_tokens, QSA_V_HEAD_SIZE / QSA_REDUCE_COLS], lws = [1, 1, 1]
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+#include "qsa_gr_common.hpp"
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const float* partial_acc ATTR,  // [num_tokens, Hq, P, Dv]
+                                        const float* partial_ml ATTR,  // [num_tokens, Hq, P, 2]
+                                        half* output ATTR,             // [num_tokens, Hq*Dv]
+                                        uint32_t num_tokens) {
+    constexpr uint HQ = QSA_HEADS;
+    constexpr uint DV = QSA_V_HEAD_SIZE;
+    constexpr uint P = QSA_SPLIT_PARTITIONS;
+    constexpr uint COLS = QSA_REDUCE_COLS;
+    static_assert(P == 4 || P == 8 || P == 16 || P == 32 || P == 64, "partition (max, sum) pairs are loaded as whole vectors");
+    static_assert(COLS % 16 == 0 && DV % COLS == 0, "invalid reduce column slice");
+
+    const uint head = cm_global_id(0);
+    const uint token_idx = cm_global_id(1);
+    const uint col0 = cm_global_id(2) * COLS;
+    if (head >= HQ || token_idx >= num_tokens || col0 >= DV) {
+        return;
+    }
+
+    const uint row0 = (token_idx * HQ + head) * P;
+    constexpr uint ML_CHUNK = 2 * P < 64 ? 2 * P : 64;
+    vector<float, 2 * P> ml;
+#pragma unroll
+    for (uint i = 0; i < 2 * P; i += ML_CHUNK) {
+        ml.select<ML_CHUNK, 1>(i) = cm_ptr_load<float, ML_CHUNK>(partial_ml, (row0 * 2 + i) * (uint)sizeof(float));
+    }
+    const vector<float, P> l = ml.select<P, 2>(1);
+    vector<float, P> m = ml.select<P, 2>(0);
+    m.merge(-1e30f, l <= 0.0f);
+    const float m_max = cm_reduced_max<float>(m);
+    vector<float, P> w = cm_exp((m - m_max) * qsa_gr::LOG2E);
+    w.merge(0.0f, l <= 0.0f);
+    const float sum = cm_sum<float>(w * l);
+
+    vector<float, COLS> acc = 0.0f;
+    // Every producer writes all P rows (zeros when empty), so unconditional loads are safe.
+#pragma unroll
+    for (uint p = 0; p < P; p++) {
+        vector<float, COLS> a = cm_ptr_load<float, COLS>(partial_acc, ((row0 + p) * DV + col0) * (uint)sizeof(float));
+        acc += a * w[p];
+    }
+    const float inv_sum = sum > 0.0f ? 1.0f / sum : 0.0f;
+
+    vector<half, COLS> out = acc * inv_sum;
+    qsa_gr::store_hv<COLS>(output, (token_idx * HQ + head) * DV + col0, out);
+}
