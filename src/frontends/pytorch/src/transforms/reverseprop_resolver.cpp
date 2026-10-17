@@ -4,10 +4,6 @@
 
 #include "reverseprop_resolver.hpp"
 
-#include <memory>
-#include <unordered_map>
-#include <utility>
-
 #include "helper_ops/gather_assign.hpp"
 #include "helper_ops/internal_op.hpp"
 #include "helper_ops/slice_assign.hpp"
@@ -30,62 +26,12 @@ namespace ov::frontend::pytorch::pass {
 using namespace ov::pass;
 using namespace ov::op;
 
-namespace {
-using ValidatedNodes = std::unordered_map<Node*, std::weak_ptr<Node>>;
-
-bool is_validated(const std::shared_ptr<Node>& node, const ValidatedNodes& validated_nodes) {
-    const auto found = validated_nodes.find(node.get());
-    return found != validated_nodes.end() && found->second.lock() == node;
-}
-
-void refresh_shapes(const std::shared_ptr<Node>& root, ValidatedNodes& validated_nodes) {
-    NodeVector pending{root};
-    while (!pending.empty()) {
-        const auto node = pending.back();
-        if (is_validated(node, validated_nodes)) {
-            pending.pop_back();
-            continue;
-        }
-        bool inputs_ready = true;
-        for (const auto& input : node->input_values()) {
-            const auto producer = input.get_node_shared_ptr();
-            if (!is_validated(producer, validated_nodes)) {
-                pending.push_back(producer);
-                inputs_ready = false;
-            }
-        }
-        if (inputs_ready) {
-            if (node->get_input_size() != 0) {
-                node->revalidate_and_infer_types();
-            }
-            validated_nodes[node.get()] = node;
-            pending.pop_back();
-        }
-    }
-}
-
-void invalidate_consumers(const Output<Node>& output, ValidatedNodes& validated_nodes) {
-    OutputVector pending{output};
-    while (!pending.empty()) {
-        const auto value = pending.back();
-        pending.pop_back();
-        for (const auto& consumer : value.get_target_inputs()) {
-            const auto node = consumer.get_node()->shared_from_this();
-            if (!is_validated(node, validated_nodes)) {
-                continue;
-            }
-            validated_nodes.erase(node.get());
-            const auto outputs = node->outputs();
-            pending.insert(pending.end(), outputs.begin(), outputs.end());
-        }
-    }
-}
-}  // namespace
-
 ReversepropResolver::ReversepropResolver() {
+    // GraphRewrite refreshes shapes before later mutations use them.
+    m_enable_shape_inference = true;
     auto reverse_op = pattern::wrap_type<InternalReverseOperation>();
 
-    ov::matcher_pass_callback callback = [validated_nodes = ValidatedNodes{}](pattern::Matcher& m) mutable {
+    ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto base_op = m.get_match_root();
         // Apply this transformation only to starting reverse operation
         if (ov::as_type_ptr<InternalReverseOperation>(base_op->get_input_node_shared_ptr(1)))
@@ -102,10 +48,6 @@ ReversepropResolver::ReversepropResolver() {
         }
         if (rev_ops.size() < 1)
             return false;
-
-        for (const auto& node : rev_ops) {
-            refresh_shapes(node, validated_nodes);
-        }
 
         ov::pass::NodeRegistry rg;
         auto zero = v0::Constant::create(element::i64, Shape{}, {0});
@@ -157,8 +99,6 @@ ReversepropResolver::ReversepropResolver() {
         // Reshape to initial shape
         auto res_node = rg.make<v1::Reshape>(updated_data_1d, input_shape, false);
         copy_runtime_info_and_name(base_op, rg.get());
-        // Refresh affected consumers only if a later mutation needs them.
-        invalidate_consumers(start_op->output(0), validated_nodes);
         start_op->output(0).replace(res_node);
 
         return true;
@@ -166,7 +106,7 @@ ReversepropResolver::ReversepropResolver() {
 
     auto m =
         std::make_shared<ov::pass::pattern::Matcher>(reverse_op, "ov::frontend::pytorch::pass::ReversepropResolver");
-    register_matcher(m, callback);
+    add_matcher(std::make_shared<ov::pass::MatcherPass>(m, callback));
 };
 
 }  // namespace ov::frontend::pytorch::pass

@@ -160,9 +160,32 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
                 (*m_tensor_map)[alias_id] = info.output;
             }
         }
-        const auto alias = m_translate_session->m_may_be_alias.find(input_id);
-        if (alias != m_translate_session->m_may_be_alias.end()) {
-            alias->second.output = ov_output;
+        auto member_id = input_id;
+        auto member_value = ov_output;
+        for (auto alias = m_translate_session->m_may_be_alias.find(member_id);
+             alias != m_translate_session->m_may_be_alias.end();
+             alias = m_translate_session->m_may_be_alias.find(member_id)) {
+            auto& info = alias->second;
+            const auto sequence = ov::as_type_ptr<SequenceMark>(info.base_value.get_node_shared_ptr());
+            if (!sequence) {
+                info.output = member_value;
+                break;
+            }
+            auto elements = sequence->get_sequence();
+            const auto member = std::find(elements.begin(), elements.end(), info.output);
+            if (member == elements.end()) {
+                info.output = member_value;
+                break;
+            }
+            *member = member_value;
+            const auto updated_sequence = make_list_construct(elements);
+            info.output = member_value;
+            info.base_value = updated_sequence;
+            member_id = info.base_id;
+            member_value = updated_sequence;
+            (*m_tensor_map)[member_id] = member_value;
+            m_translate_session->encode_tensor_name(member_value, member_id);
+            m_mutated_tensors->insert(member_id);
         }
         return;
     }

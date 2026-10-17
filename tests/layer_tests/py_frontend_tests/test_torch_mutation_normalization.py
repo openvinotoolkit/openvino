@@ -29,7 +29,7 @@ class FrameSliceMutation(torch.nn.Module):
 @pytest.mark.nightly
 @pytest.mark.parametrize("trace", [False, True])
 @pytest.mark.parametrize("repeated", [False, True])
-def test_slice_mutation_after_loop(trace, repeated):
+def test_slice_mutation_uses_updated_shapes_after_loop(trace, repeated):
     generator = torch.Generator().manual_seed(42)
     example = torch.randn(2, 5, 4, generator=generator)
     module = FrameSliceMutation(repeated)

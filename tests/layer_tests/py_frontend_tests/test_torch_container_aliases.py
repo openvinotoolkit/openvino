@@ -2,11 +2,75 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
+from typing import Tuple
 
 import numpy as np
 import openvino as ov
 import pytest
 import torch
+
+
+class ContainerMetadataMutation(torch.nn.Module):
+    __constants__ = ["mutation", "right", "update_other"]
+
+    def __init__(self, mutation, right, update_other):
+        super().__init__()
+        self.mutation = mutation
+        self.right = right
+        self.update_other = update_other
+
+    def forward(self, cache: Tuple[torch.Tensor, torch.Tensor]):
+        return self.mutate(cache)
+
+    def mutate(self, cache: Tuple[torch.Tensor, torch.Tensor]):
+        left, right = cache
+        member = right if self.right else left
+        other = left if self.right else right
+        view = member[:, :2]
+        if self.update_other:
+            other.add_(1)
+        if self.mutation == "transpose":
+            member.transpose_(0, 1)
+        elif self.mutation == "unsqueeze":
+            member.unsqueeze_(0)
+        else:
+            member.squeeze_(0)
+        if self.update_other:
+            other.unsqueeze_(-1)
+            member.add_(2)
+        return cache, view
+
+
+class NestedContainerMetadataMutation(ContainerMetadataMutation):
+    def forward(self, cache: Tuple[Tuple[torch.Tensor, torch.Tensor]]):
+        inner, = cache
+        _, view = self.mutate(inner)
+        return cache, view
+
+
+@pytest.mark.precommit
+@pytest.mark.nightly
+@pytest.mark.parametrize("mutation", ["transpose", "unsqueeze", "squeeze"])
+@pytest.mark.parametrize("right", [False, True])
+@pytest.mark.parametrize("update_other", [False, True])
+@pytest.mark.parametrize("nested", [False, True])
+def test_torch_container_metadata_mutation(mutation, right, update_other, nested):
+    generator = torch.Generator().manual_seed(42)
+    rows = 1 if mutation == "squeeze" else 2
+    inputs = tuple(torch.randn(rows, 3, generator=generator) for _ in range(2))
+    inputs = (inputs,) if nested else inputs
+    module = NestedContainerMetadataMutation if nested else ContainerMetadataMutation
+    model = torch.jit.script(module(mutation, right, update_other))
+    converted = ov.convert_model(model, example_input=(deepcopy(inputs),))
+    compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+    for columns in (3, 5):
+        inputs = tuple(torch.randn(rows, columns, generator=generator) for _ in range(2))
+        cache, view = model(deepcopy((inputs,) if nested else inputs))
+        cache = cache[0] if nested else cache
+        actual = list(compiled([member.numpy() for member in inputs]).values())
+        assert len(actual) == 3
+        for reference, result in zip((*cache, view), actual):
+            np.testing.assert_array_equal(result, reference.numpy())
 
 
 class ContainerMutation(torch.nn.Module):
