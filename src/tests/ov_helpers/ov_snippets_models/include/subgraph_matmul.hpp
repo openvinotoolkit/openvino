@@ -152,7 +152,9 @@ protected:
 
 class TransposeMatMulFunction : public MatMulFunctionBase {
 public:
-    explicit TransposeMatMulFunction(const std::vector<PartialShape>& inputShapes) : MatMulFunctionBase(inputShapes, MatMulType::MatMul) {
+    explicit TransposeMatMulFunction(const std::vector<PartialShape>& inputShapes,
+                                     const std::vector<ov::element::Type>& precisions)
+        : MatMulFunctionBase(inputShapes, MatMulType::MatMul, precisions) {
         OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
 protected:
@@ -161,7 +163,9 @@ protected:
 
 class TransposeMatMulBiasFunction : public MatMulFunctionBase {
 public:
-    explicit TransposeMatMulBiasFunction(const std::vector<PartialShape>& inputShapes) : MatMulFunctionBase(inputShapes, MatMulType::MatMul) {
+    explicit TransposeMatMulBiasFunction(const std::vector<PartialShape>& inputShapes,
+                                         const std::vector<ov::element::Type>& precisions)
+        : MatMulFunctionBase(inputShapes, MatMulType::MatMul, precisions) {
         OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
     }
 protected:
