@@ -18,6 +18,7 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "pass_manager.h"
 #include "program_wrapper.h"
+#include "quantize_inst.h"
 #include "random_generator.hpp"
 #include "reduce_inst.h"
 #include "reshape_inst.h"
@@ -892,4 +893,57 @@ TEST(prepare_primitive_fusing, keeps_eltwise_after_onednn_post_ops_limit_unfused
         EXPECT_FALSE(has_node(*prog, "eltw_" + std::to_string(i)));
     }
     EXPECT_TRUE(has_node(*prog, "eltw_32"));
+}
+
+TEST(prepare_primitive_fusing, counts_quantize_onednn_post_ops_exactly) {
+    const auto output_layout = layout{ov::PartialShape{1, 1}, data_types::f32, format::bfyx};
+    const QuantizeFuseParams output_range_params(output_layout,
+                                                 true,
+                                                 true,
+                                                 true,
+                                                 true,
+                                                 false,
+                                                 false,
+                                                 false,
+                                                 true,
+                                                 false,
+                                                 false,
+                                                 true,
+                                                 false,
+                                                 false,
+                                                 -1.0f,
+                                                 1.0f,
+                                                 1.0f,
+                                                 0.0f,
+                                                 -1.0f,
+                                                 1.0f,
+                                                 1.0f,
+                                                 0.0f);
+    EXPECT_EQ(output_range_params.onednn_ops_count(false), 5u);
+    EXPECT_EQ(output_range_params.onednn_ops_count(true), 6u);
+
+    const QuantizeFuseParams input_range_params(output_layout,
+                                                true,
+                                                true,
+                                                true,
+                                                true,
+                                                true,
+                                                true,
+                                                true,
+                                                false,
+                                                false,
+                                                false,
+                                                false,
+                                                false,
+                                                false,
+                                                -1.0f,
+                                                1.0f,
+                                                1.0f,
+                                                0.0f,
+                                                -1.0f,
+                                                1.0f,
+                                                1.0f,
+                                                0.0f);
+    EXPECT_EQ(input_range_params.onednn_ops_count(false), 7u);
+    EXPECT_EQ(input_range_params.onednn_ops_count(true), 7u);
 }
