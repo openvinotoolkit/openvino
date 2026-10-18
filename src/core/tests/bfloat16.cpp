@@ -114,6 +114,34 @@ TEST(bfloat16, round_to_nearest_even) {
     EXPECT_EQ(bf_round, 0x3FFF);
 }
 
+TEST(bfloat16, round_to_nearest_even_nan) {
+    struct TestCase {
+        const char* bits;
+        uint16_t expected;
+    };
+    const TestCase cases[] = {
+        // Signaling NaNs whose payload is entirely in the discarded low bits.
+        {"0  11111111  000 0000 0000 0000 0000 0001", 0x7FC0},
+        {"1  11111111  000 0000 0000 0000 0000 0001", 0xFFC0},
+        // NaN mantissas near the sign boundary must not carry into sign/exponent.
+        {"0  11111111  111 1111 1000 0000 0000 0000", 0x7FFF},
+        {"1  11111111  111 1111 1000 0000 0000 0000", 0xFFFF},
+        // Quiet NaNs retain their sign and the payload bits that fit in BF16.
+        {"0  11111111  100 0001 0010 0011 0100 0101", 0x7FC1},
+        {"1  11111111  100 0001 0010 0011 0100 0101", 0xFFC1},
+    };
+
+    for (const auto& test_case : cases) {
+        const auto value = ov::test::utils::bits_to_float(test_case.bits);
+        const auto rounded = bfloat16::round_to_nearest_even(value);
+        EXPECT_EQ(rounded, test_case.expected);
+        EXPECT_EQ((rounded & 0x7F80), 0x7F80) << "expected a NaN exponent";
+        EXPECT_NE((rounded & 0x007F), 0) << "expected a non-zero NaN mantissa";
+        EXPECT_NE((rounded & 0x0040), 0) << "expected a quiet NaN";
+        EXPECT_EQ(bfloat16(value).to_bits(), test_case.expected);
+    }
+}
+
 TEST(bfloat16, to_float) {
     bfloat16 bf;
     const char* source_string;

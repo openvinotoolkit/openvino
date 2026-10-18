@@ -4,8 +4,12 @@
 
 #include "openvino/op/generate_proposals.hpp"
 
+#include <algorithm>
+#include <array>
+#include <cmath>
 #include <gtest/gtest.h>
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -14,6 +18,75 @@ using namespace ov;
 using Attrs = op::v9::GenerateProposals::Attributes;
 
 namespace {
+using ProposalRecord = std::array<float, 5>;
+
+bool match_proposals_by_score_group(const std::vector<ProposalRecord>& expected,
+                                   const std::vector<size_t>& expected_counts,
+                                   const std::vector<ProposalRecord>& actual,
+                                   const std::vector<size_t>& actual_counts,
+                                   double rel_threshold,
+                                   double abs_threshold) {
+    if (expected_counts != actual_counts || expected.size() != actual.size()) {
+        return false;
+    }
+
+    size_t offset = 0;
+    for (const auto count : actual_counts) {
+        if (offset + count > actual.size() || offset + count > expected.size()) {
+            return false;
+        }
+
+        std::vector<bool> matched(count, false);
+        for (size_t i = 0; i < count; ++i) {
+            const auto& proposal = actual[offset + i];
+            if (i > 0 && actual[offset + i - 1][4] < proposal[4]) {
+                return false;
+            }
+
+            bool found = false;
+            for (size_t j = 0; j < count; ++j) {
+                const auto& reference = expected[offset + j];
+                bool coordinates_match = true;
+                for (size_t coordinate = 0; coordinate < 4; ++coordinate) {
+                    const auto difference = std::abs(static_cast<double>(proposal[coordinate]) -
+                                                     static_cast<double>(reference[coordinate]));
+                    const auto allowed_difference =
+                        ov::test::utils::tensor_comparation::calculate_threshold(abs_threshold,
+                                                                                  rel_threshold,
+                                                                                  reference[coordinate]);
+                    if (difference > allowed_difference) {
+                        coordinates_match = false;
+                        break;
+                    }
+                }
+                if (!matched[j] && proposal[4] == reference[4] && coordinates_match) {
+                    matched[j] = true;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                return false;
+            }
+        }
+        offset += count;
+    }
+    return offset == expected.size();
+}
+
+std::vector<ProposalRecord> get_proposal_records(const ov::Tensor& rois, const ov::Tensor& scores) {
+    const auto* roi_data = rois.data<const ov::bfloat16>();
+    const auto* score_data = scores.data<const ov::bfloat16>();
+    std::vector<ProposalRecord> records(rois.get_shape()[0]);
+    for (size_t i = 0; i < records.size(); ++i) {
+        for (size_t j = 0; j < 4; ++j) {
+            records[i][j] = static_cast<float>(roi_data[i * 4 + j]);
+        }
+        records[i][4] = static_cast<float>(score_data[i]);
+    }
+    return records;
+}
+
 struct GPParams {
     template <class IT, class RT>
     GPParams(const Attrs& attrs,
@@ -77,6 +150,58 @@ public:
         inputData = {params.imageSizeInfoData, params.anchorsData, params.deltasData, params.scoresData};
         refOutData = {params.refRoisData, params.refScoresData, params.refRoiNumData};
     }
+
+    void Validate() override {
+        const auto& params = GetParam();
+        if (params.inType != element::bf16 || params.testcaseName != "batch_2") {
+            CommonReferenceTest::Validate();
+            return;
+        }
+
+        ASSERT_EQ(executableNetwork.outputs().size(), refOutData.size());
+        actualOutData.clear();
+        for (const auto& output : executableNetwork.outputs()) {
+            actualOutData.emplace_back(inferRequest.get_tensor(output));
+        }
+        ASSERT_EQ(actualOutData.size(), 3);
+        ASSERT_EQ(refOutData.size(), 3);
+        for (size_t i = 0; i < actualOutData.size(); ++i) {
+            ASSERT_EQ(actualOutData[i].get_element_type(), refOutData[i].get_element_type());
+            ASSERT_EQ(actualOutData[i].get_shape(), refOutData[i].get_shape());
+        }
+
+        ValidateBlobs(refOutData[2], actualOutData[2], 2, threshold, abs_threshold, legacy_compare);
+        const auto* expected_counts = refOutData[2].data<const int64_t>();
+        const auto* actual_counts = actualOutData[2].data<const int64_t>();
+        std::vector<size_t> expected_count_values(refOutData[2].get_size());
+        std::vector<size_t> actual_count_values(actualOutData[2].get_size());
+        for (size_t i = 0; i < expected_count_values.size(); ++i) {
+            ASSERT_GE(expected_counts[i], 0);
+            ASSERT_GE(actual_counts[i], 0);
+            expected_count_values[i] = static_cast<size_t>(expected_counts[i]);
+            actual_count_values[i] = static_cast<size_t>(actual_counts[i]);
+        }
+
+        const auto expected = get_proposal_records(refOutData[0], refOutData[1]);
+        const auto actual = get_proposal_records(actualOutData[0], actualOutData[1]);
+        const auto effective_abs_threshold =
+            abs_threshold < 0.0f
+                ? ov::test::utils::tensor_comparation::calculate_default_abs_threshold(element::bf16, element::bf16)
+                : abs_threshold;
+        const auto effective_rel_threshold =
+            threshold < 0.0f
+                ? ov::test::utils::tensor_comparation::calculate_default_rel_threshold(element::bf16, element::bf16)
+                : threshold;
+        EXPECT_TRUE(match_proposals_by_score_group(expected,
+                                                   expected_count_values,
+                                                   actual,
+                                                   actual_count_values,
+                                                   effective_rel_threshold,
+                                                   effective_abs_threshold))
+            << "Proposal ROI and score records must match one-to-one, with scores nonincreasing and tied-score order "
+               "unconstrained";
+    }
+
     static std::string getTestCaseName(const testing::TestParamInfo<GPParams>& obj) {
         const auto& param = obj.param;
         std::ostringstream result;
@@ -105,6 +230,35 @@ private:
                                            ParameterVector{im_info, anchors, deltas, scores});
     }
 };
+
+TEST(GenerateProposalsBf16Comparison, accepts_either_order_for_tied_scores) {
+    const auto abs_threshold =
+        ov::test::utils::tensor_comparation::calculate_default_abs_threshold(element::bf16, element::bf16);
+    const std::vector<ProposalRecord> expected{{149.0f, 0.0f, 149.0f, 149.0f, 0.94140625f},
+                                               {149.0f, 60.0f, 149.0f, 149.0f, 0.94140625f}};
+    const std::vector<ProposalRecord> reversed{expected[1], expected[0]};
+    EXPECT_TRUE(match_proposals_by_score_group(expected, {2}, reversed, {2}, 0.01, abs_threshold));
+
+    auto wrong_coordinates = reversed;
+    wrong_coordinates[0][0] = 100.0f;
+    EXPECT_FALSE(match_proposals_by_score_group(expected, {2}, wrong_coordinates, {2}, 0.01, abs_threshold));
+
+    auto wrong_score = expected;
+    wrong_score[1][4] = 0.9375f;
+    EXPECT_FALSE(match_proposals_by_score_group(expected, {2}, wrong_score, {2}, 0.01, abs_threshold));
+    const std::vector<ProposalRecord> duplicated{expected[0], expected[0]};
+    EXPECT_FALSE(match_proposals_by_score_group(expected, {2}, duplicated, {2}, 0.01, abs_threshold));
+    EXPECT_FALSE(match_proposals_by_score_group(expected, {2}, {reversed[0]}, {1}, 0.01, abs_threshold));
+}
+
+TEST(GenerateProposalsBf16Comparison, preserves_order_for_distinct_scores) {
+    const auto abs_threshold =
+        ov::test::utils::tensor_comparation::calculate_default_abs_threshold(element::bf16, element::bf16);
+    const std::vector<ProposalRecord> expected{{149.0f, 0.0f, 149.0f, 149.0f, 0.94921875f},
+                                               {149.0f, 60.0f, 149.0f, 149.0f, 0.94140625f}};
+    const std::vector<ProposalRecord> reversed{expected[1], expected[0]};
+    EXPECT_FALSE(match_proposals_by_score_group(expected, {2}, reversed, {2}, 0.01, abs_threshold));
+}
 
 TEST_P(ReferenceGPLayerTest, CompareWithRefs) {
     Exec();

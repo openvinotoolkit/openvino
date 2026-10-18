@@ -52,6 +52,11 @@ public:
 
     static uint16_t round_to_nearest_even(float x) {
         auto bits = ov::intel_cpu::bit_cast<uint32_t>(x);
+        // Keep NaNs as NaNs when the payload is present only in the discarded
+        // low bits, and quiet signaling NaNs while preserving their sign.
+        if ((bits & 0x7fffffffU) > 0x7f800000U) {
+            return static_cast<uint16_t>((bits >> 16) | 0x0040U);
+        }
         return static_cast<uint16_t>((bits + 0x7fffU + ((bits >> 16) & 1)) >> 16);
     }
 
