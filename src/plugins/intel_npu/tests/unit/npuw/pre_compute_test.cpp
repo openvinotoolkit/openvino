@@ -181,7 +181,10 @@ std::shared_ptr<ov::Model> make_rope_model(bool with_concat2) {
 }
 
 // Builds a Gemma 4-style model with hybrid attention, it has multiple independent RoPE blocks.
-std::shared_ptr<ov::Model> make_multi_rope_model(const std::vector<std::vector<float>>& inv_freqs) {
+// `result_order`, as (block index, is_cos) pairs, lets a test pick a non-default Results
+// ordering; empty means the natural per-block (sin_i, cos_i) grouping.
+std::shared_ptr<ov::Model> make_multi_rope_model(const std::vector<std::vector<float>>& inv_freqs,
+                                                 const std::vector<std::pair<size_t, bool>>& result_order = {}) {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 4});
     auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4});
 
@@ -199,7 +202,8 @@ std::shared_ptr<ov::Model> make_multi_rope_model(const std::vector<std::vector<f
     auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(position_ids, unsq_axis);
     auto convert = std::make_shared<ov::op::v0::Convert>(unsqueeze, ov::element::f32);
 
-    ov::ResultVector results;
+    std::vector<ov::Output<ov::Node>> sin_outs(inv_freqs.size());
+    std::vector<ov::Output<ov::Node>> cos_outs(inv_freqs.size());
     for (size_t i = 0; i < inv_freqs.size(); ++i) {
         const auto& freqs = inv_freqs[i];
         auto inv_freq = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, freqs.size(), 1}, freqs);
@@ -219,11 +223,35 @@ std::shared_ptr<ov::Model> make_multi_rope_model(const std::vector<std::vector<f
         sin->set_friendly_name("sin_" + std::to_string(i));
         cos->set_friendly_name("cos_" + std::to_string(i));
 
-        results.push_back(std::make_shared<ov::op::v0::Result>(sin));
-        results.push_back(std::make_shared<ov::op::v0::Result>(cos));
+        sin_outs[i] = sin->output(0);
+        cos_outs[i] = cos->output(0);
+    }
+
+    ov::ResultVector results;
+    if (result_order.empty()) {
+        for (size_t i = 0; i < inv_freqs.size(); ++i) {
+            results.push_back(std::make_shared<ov::op::v0::Result>(sin_outs[i]));
+            results.push_back(std::make_shared<ov::op::v0::Result>(cos_outs[i]));
+        }
+    } else {
+        for (const auto& entry : result_order) {
+            results.push_back(
+                std::make_shared<ov::op::v0::Result>(entry.second ? cos_outs[entry.first] : sin_outs[entry.first]));
+        }
     }
 
     return std::make_shared<ov::Model>(results, ov::ParameterVector{data, position_ids}, "multi_rope_test_model");
+}
+
+// A model with one full RoPE block (Sin+Cos) plus a second, independent Cos with no Sin partner.
+std::shared_ptr<ov::Model> make_rope_model_with_lone_cos(const std::vector<float>& paired_freqs,
+                                                         const std::vector<float>& lone_cos_freqs) {
+    auto model = make_multi_rope_model({paired_freqs, lone_cos_freqs});
+
+    // Drop the second block's Sin result, turning it into a Cos-only chain.
+    auto results = model->get_results();
+    model->remove_result(results[2]);  // sin_1
+    return model;
 }
 
 bool has_input_name(const std::shared_ptr<ov::Model>& model, const std::string& name) {
@@ -503,6 +531,69 @@ TEST(PreComputeTest, RopeCacheTransformsTwoIndependentRopeBlocks) {
                 << "cache constants " << i << " and " << j << " are unexpectedly identical";
         }
     }
+}
+
+// Reads the f16 cache row a Result's Squeeze->Convert->Gather chain was bound to.
+std::vector<float> read_cache_row(const ov::Output<ov::Node>& result_input, size_t row) {
+    auto convert = result_input.get_node()->input_value(0).get_node();
+    auto gather = convert->input_value(0).get_node();
+    auto cache = ov::as_type_ptr<ov::op::v0::Constant>(gather->input_value(0).get_node_shared_ptr());
+    OPENVINO_ASSERT(cache, "Expected a cache Constant feeding the Gather");
+
+    const auto* data = cache->get_data_ptr<ov::float16>();
+    const auto rotary_ndims = cache->get_shape().back();
+    std::vector<float> values(rotary_ndims);
+    for (size_t k = 0; k < rotary_ndims; ++k) {
+        values[k] = static_cast<float>(data[row * rotary_ndims + k]);
+    }
+    return values;
+}
+
+// Match pairing must key off the shared input node, not vector index - MultiMatcher doesn't
+// guarantee a block's Sin and Cos land at the same index. Results are ordered here so naive
+// index-based pairing would cross-wire the two blocks' caches.
+TEST(PreComputeTest, RopeCacheTransformsTwoIndependentRopeBlocksWithScrambledMatchOrder) {
+    auto model = make_multi_rope_model({{0.5f, 0.1f}, {0.2f, 0.05f}},
+                                       /*result_order=*/{{0, false}, {1, false}, {1, true}, {0, true}});
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    const auto& results = model->get_results();
+    auto sin0 = read_cache_row(results[0]->input_value(0), /*row=*/1);
+    auto sin1 = read_cache_row(results[1]->input_value(0), /*row=*/1);
+    auto cos1 = read_cache_row(results[2]->input_value(0), /*row=*/1);
+    auto cos0 = read_cache_row(results[3]->input_value(0), /*row=*/1);
+
+    for (size_t k = 0; k < sin0.size(); ++k) {
+        EXPECT_NEAR(cos0[k] * cos0[k] + sin0[k] * sin0[k], 1.0f, 0.01f) << "block 0 cos/sin mismatch at " << k;
+        EXPECT_NEAR(cos1[k] * cos1[k] + sin1[k] * sin1[k], 1.0f, 0.01f) << "block 1 cos/sin mismatch at " << k;
+    }
+}
+
+// A pattern match without its sin/cos counterpart (e.g. an unrelated Cos-only computation that
+// coincidentally matches the same antecedent chain) must be left in place, not rejected.
+TEST(PreComputeTest, RopeCacheLeavesUnpairedCosUntouched) {
+    auto model = make_rope_model_with_lone_cos({0.5f, 0.1f}, {0.2f, 0.05f});
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    const auto& ops = model->get_ops();
+    EXPECT_EQ(std::count_if(ops.begin(),
+                            ops.end(),
+                            [](const auto& op) {
+                                return ov::is_type<ov::op::v0::Sin>(op);
+                            }),
+              0)
+        << "the paired Sin must be cached away";
+    EXPECT_EQ(std::count_if(ops.begin(),
+                            ops.end(),
+                            [](const auto& op) {
+                                return ov::is_type<ov::op::v0::Cos>(op);
+                            }),
+              1)
+        << "only the lone, unpaired Cos should remain";
 }
 
 }  // namespace

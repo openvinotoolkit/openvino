@@ -7,9 +7,9 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
-#include "openvino/core/except.hpp"
 #include "openvino/pass/pattern/multi_matcher.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -43,9 +43,19 @@ public:
         return [this, output_sin, output_cos](const auto& matches) {
             const auto& sin_matches = matches.at(output_sin);
             const auto& cos_matches = matches.at(output_cos);
-            OPENVINO_ASSERT(sin_matches.size() == cos_matches.size(), "RoPE pattern: mismatched sin/cos match counts");
-            for (size_t i = 0; i < sin_matches.size(); ++i) {
-                bind_match(sin_matches[i], cos_matches[i]);
+
+            std::unordered_map<ov::Node*, const ov::pass::pattern::PatternValueMap*> cos_by_shared_input;
+            for (const auto& cos_match : cos_matches) {
+                cos_by_shared_input[cos_match.at(output_cos).get_node()->input_value(0).get_node()] = &cos_match;
+            }
+
+            for (const auto& sin_match : sin_matches) {
+                auto* shared_input = sin_match.at(output_sin).get_node()->input_value(0).get_node();
+                auto it = cos_by_shared_input.find(shared_input);
+                if (it == cos_by_shared_input.end()) {
+                    continue;  // no matching Cos for this Sin - leave it untouched
+                }
+                bind_match(sin_match, *it->second);
                 transform_cb();
             }
         };
