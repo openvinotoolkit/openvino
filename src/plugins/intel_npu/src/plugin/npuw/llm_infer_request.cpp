@@ -1126,6 +1126,15 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
     const uint32_t start_offset = kvcache_desc.max_prompt_size - static_cast<uint32_t>(remaining_prompts);
     const uint32_t other_outs_accum_base = kvcache_desc.num_stored_tokens;
+    if (other_outs_accum_base == 0 && start_offset > 0) {
+        // Fresh prefill: zero the unwritten left-padding rows so stale data from a
+        // previous, longer prompt isn't exposed.
+        for (auto&& [port, dim] : m_prefill_other_outs_seqdims) {
+            auto pad_slice =
+                util::make_tensor_slice(m_prefill_other_outs_accum[port], static_cast<uint32_t>(dim), 0, start_offset);
+            util::fill_tensor_bytes(pad_slice, 0u);
+        }
+    }
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by

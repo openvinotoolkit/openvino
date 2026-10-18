@@ -611,8 +611,12 @@ std::map<ov::Output<const ov::Node>, std::size_t> find_other_outputs_with_seqdim
             }
 
             if (match_count == 0) {
+                // NB: such an output is not accumulated across chunks, so in chunked prefill
+                //     it will only hold the value computed from the last processed chunk.
                 LOG_WARN("No dynamic dimension matched the max sequence length for output port: "
-                         << port.get_any_name() << ", assuming that given output doesn't need accumulation.");
+                         << port.get_any_name()
+                         << ", assuming that given output doesn't need accumulation. "
+                            "Its value will reflect only the last processed prefill chunk.");
                 continue;
             }
 
@@ -880,6 +884,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (m_use_chunk_prefill) {
         LOG_VERB("Find all models outputs besides logits that also have dynamic shapes to handle in chunked prefill.");
         other_dynamic_outputs = find_other_dynamic_outputs(model);
+        // Chunk size 1 makes the batch and sequence axes indistinguishable (both are 1),
+        // which breaks sequence-axis detection for non-logits outputs below.
+        OPENVINO_ASSERT(m_prefill_chunk_size != 1 || other_dynamic_outputs.empty(),
+                        "NPUW_LLM_PREFILL_CHUNK_SIZE=1 is not supported together with non-logits outputs. "
+                        "Please use a larger chunk size.");
     }
 
     LOG_DEBUG("Creating kvcache model as clone of passed one.");

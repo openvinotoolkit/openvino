@@ -45,9 +45,7 @@ void SimpleLLMPipeline::initialize(const std::string& model_path, ov::Core& core
     initialize(core.read_model(model_path), core, config);
 }
 
-std::vector<int64_t> SimpleLLMPipeline::generate(const std::vector<int64_t>& input_ids_vec) {
-    std::vector<int64_t> result;
-
+int64_t SimpleLLMPipeline::prefill(const std::vector<int64_t>& input_ids_vec) {
     // NB: Check if there is enough space in KV-cache to process input prompt
     auto prompt_len = input_ids_vec.size();
     if (prompt_len > m_max_prompt_len) {
@@ -75,7 +73,14 @@ std::vector<int64_t> SimpleLLMPipeline::generate(const std::vector<int64_t>& inp
     OPENVINO_ASSERT(logits.get_shape()[1] == 1);
 
     // Get token with greedy search
-    int64_t out_token = get_token_as_max_logit(logits);
+    return get_token_as_max_logit(logits);
+}
+
+std::vector<int64_t> SimpleLLMPipeline::generate(const std::vector<int64_t>& input_ids_vec) {
+    std::vector<int64_t> result;
+
+    auto prompt_len = input_ids_vec.size();
+    int64_t out_token = prefill(input_ids_vec);
     result.push_back(out_token);
 
     // Create variables for new input_ids and position_ids

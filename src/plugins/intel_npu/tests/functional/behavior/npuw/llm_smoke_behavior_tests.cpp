@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstring>
 #include <numeric>
 
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -68,16 +69,33 @@ TEST_F(MultiOutsLLMSmokeBehaviorNPUW, NonLogitsOutputIsFullSizedAfterChunkedPref
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     const auto multiouts_llm = build_multiouts_llm_model(false);
-    simple_llm.initialize(multiouts_llm, core, chunked_prefill_props);
-    EXPECT_NO_THROW(simple_llm.generate(input_ids));
 
-    const auto& llm_infer_request = simple_llm.get_request();
-    const auto hidden_states = llm_infer_request->get_tensor("hidden_states");
+    // Prefill stage: non-logits output must be accumulated to the full prompt length.
+    simple_llm.initialize(multiouts_llm, core, chunked_prefill_props);
+    EXPECT_NO_THROW(simple_llm.prefill(input_ids));
+    const auto hidden_states = simple_llm.get_request()->get_tensor("hidden_states");
     EXPECT_EQ(hidden_states.get_shape(), (ov::Shape{1, 128, 64}));
 
-    const auto logits = llm_infer_request->get_tensor("logits");
-    EXPECT_EQ(logits.get_shape()[0], 1u);
-    EXPECT_EQ(logits.get_shape()[1], 1u);
+    const auto prefill_logits = simple_llm.get_request()->get_tensor("logits");
+    EXPECT_EQ(prefill_logits.get_shape()[0], 1u);
+    EXPECT_EQ(prefill_logits.get_shape()[1], 1u);
+
+    // Chunked accumulation must produce the same values as a whole (non-chunked) prefill.
+    auto whole_prefill_props = chunked_prefill_props;
+    whole_prefill_props.erase("NPUW_LLM_PREFILL_CHUNK_SIZE");
+    SimpleLLMPipeline whole_prefill_llm;
+    whole_prefill_llm.initialize(multiouts_llm, core, whole_prefill_props);
+    EXPECT_NO_THROW(whole_prefill_llm.prefill(input_ids));
+    const auto whole_hidden_states = whole_prefill_llm.get_request()->get_tensor("hidden_states");
+    EXPECT_EQ(hidden_states.get_shape(), whole_hidden_states.get_shape());
+    EXPECT_EQ(memcmp(hidden_states.data(), whole_hidden_states.data(), hidden_states.get_byte_size()), 0);
+
+    // Generate stage: non-logits output reflects only the newly generated token, not the prompt.
+    SimpleLLMPipeline generate_llm;
+    generate_llm.initialize(multiouts_llm, core, chunked_prefill_props);
+    EXPECT_NO_THROW(generate_llm.generate(input_ids));
+    const auto generate_hidden_states = generate_llm.get_request()->get_tensor("hidden_states");
+    EXPECT_EQ(generate_hidden_states.get_shape(), (ov::Shape{1, 1, 64}));
 }
 
 TEST_F(MultiOutsLLMSmokeBehaviorNPUW, DifferentNonLogitsOutputs) {
@@ -85,7 +103,7 @@ TEST_F(MultiOutsLLMSmokeBehaviorNPUW, DifferentNonLogitsOutputs) {
 
     const auto multi_different_outs_llm = build_multiouts_llm_model(true);
     simple_llm.initialize(multi_different_outs_llm, core, chunked_prefill_props);
-    EXPECT_NO_THROW(simple_llm.generate(input_ids));
+    EXPECT_NO_THROW(simple_llm.prefill(input_ids));
 
     const auto& llm_infer_request = simple_llm.get_request();
     const auto hidden_states = llm_infer_request->get_tensor("hidden_states");
@@ -95,6 +113,7 @@ TEST_F(MultiOutsLLMSmokeBehaviorNPUW, DifferentNonLogitsOutputs) {
     EXPECT_EQ(logits.get_shape()[0], 1u);
     EXPECT_EQ(logits.get_shape()[1], 1u);
 
+    // NB: pooled_hidden_state has no sequence axis, so only its shape is checked here.
     const auto pooled_hidden = llm_infer_request->get_tensor("pooled_hidden_state");
     EXPECT_EQ(pooled_hidden.get_shape(), (ov::Shape{1, 64}));
     EXPECT_EQ(pooled_hidden.get_shape().size(), 2u);
