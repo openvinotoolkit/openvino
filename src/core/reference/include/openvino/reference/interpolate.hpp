@@ -349,7 +349,7 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
     // Channel-last layout (e.g. NHWC / NDHWC): interpolated axes are {1, ..., rank - 2}.
     // The kernel below assumes batch and channels occupy the first two dimensions, so the
     // tensor is moved to channel-first layout, interpolated, then moved back.
-    if (input_rank >= 4 && num_of_axes == input_rank - 2) {
+    if ((input_rank == 4 || input_rank == 5) && num_of_axes == input_rank - 2) {
         std::vector<int64_t> channel_last_axes(num_of_axes);
         std::iota(channel_last_axes.begin(), channel_last_axes.end(), int64_t{1});
 
@@ -410,7 +410,7 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
         ((input_rank == 2) && (num_of_axes == 2) && (m_axes[0] == 0) && (m_axes[1] == 1)) ||
         ((input_rank == 3) && (num_of_axes == 3) && (m_axes[0] == 0) && (m_axes[1] == 1) && (m_axes[2] == 2));
 
-    if (input_rank >= 4) {
+    if (input_rank == 4 || input_rank == 5) {
         std::vector<int64_t> all_axes;
         std::vector<int64_t> axes_without_batch_and_channels;
         all_axes.push_back(0);
