@@ -1008,6 +1008,7 @@ DQMatMulGQ2iMoE::DQMatMulGQ2iMoE(Context::Ref ctx) {
 
         auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
         auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
+        auto matched_node_qcvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
         auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
         auto matched_node_qreshp = node_to_output.at(qreshp).get_node_shared_ptr();
         auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
@@ -1026,23 +1027,58 @@ DQMatMulGQ2iMoE::DQMatMulGQ2iMoE(Context::Ref ctx) {
         const bool qweight_type_ok = qweight_type == ov::element::i4 || qweight_type == ov::element::i8 ||
                                      qweight_type == ov::element::f8e4m3 || qweight_type == ov::element::f8e5m2 ||
                                      qweight_type == ov::element::f8e8m0;
+        // i4 is nibble-packed, so odd group sizes can't be physically relaid out - bail out here.
+        // TODO: extend permute_4d_0213 with a nibble-addressable path to support this.
+        const bool qweight_group_size_permutable = qweight_type != ov::element::i4 || qweight_shape[3] % 2 == 0;
+
+        // The physical relayout below is only safe if this matched chain is the sole consumer
+        // of each of its nodes - otherwise an unrelated reader could silently see stale data.
+        auto has_single_reader = [](const std::shared_ptr<ov::Node>& node) {
+            return node->output(0).get_target_inputs().size() == 1;
+        };
+        const bool dq_chain_exclusive_to_match =
+            has_single_reader(matched_node_qweight) && has_single_reader(matched_node_qcoeff) &&
+            has_single_reader(matched_node_qcvtw) && has_single_reader(matched_node_qmuls);
+
+        // Gather (if present) must select whole experts: axis 0, no batching, rank-1 indices,
+        // otherwise the relayout below may silently select the wrong data.
+        auto gather_is_plain_expert_select = [&](const std::shared_ptr<ov::Node>& pattern_node) {
+            auto it = node_to_output.find(pattern_node);
+            if (it == node_to_output.end()) {
+                return true;  // Gather absent (host router) - nothing to check
+            }
+            auto gather = ov::as_type_ptr<ov::op::v8::Gather>(it->second.get_node_shared_ptr());
+            if (!gather || !has_single_reader(gather) || gather->get_batch_dims() != 0) {
+                return false;
+            }
+            auto axis_const = ov::as_type_ptr<ov::op::v0::Constant>(gather->input_value(2).get_node_shared_ptr());
+            if (!axis_const) {
+                return false;  // axis isn't a literal Constant - can't verify it's 0, reject
+            }
+            auto axis = axis_const->cast_vector<int64_t>().at(0);
+            const auto& data_rank = gather->get_input_partial_shape(0).rank();
+            if (axis < 0 && data_rank.is_static()) {
+                axis += data_rank.get_length();
+            }
+            if (axis != 0) {
+                return false;
+            }
+            const auto& indices_rank = gather->get_input_partial_shape(1).rank();
+            return indices_rank.is_static() && indices_rank.get_length() == 1;
+        };
 
         // MoE expert shape: Wdict [E,OC,NSPLIT,G], Sdict [E,OC,NSPLIT,1]. Act's leading
         // dim must match the number of experts the weight presents here: K (device
         // router) or E (host router).
-        if (qweight_type_ok && qweight_shape.size() == 4 && qcoeff_shape.size() == 4 &&
+        if (qweight_type_ok && qweight_group_size_permutable && qweight_shape.size() == 4 && qcoeff_shape.size() == 4 &&
             qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[1] == qweight_shape[1] &&
             qcoeff_shape[2] == qweight_shape[2] && qcoeff_shape[3] == 1 && act_shape.size() == 3 &&
             act_shape[0] == qgthrw_shape[0] && !matched_matmul->get_transpose_a() &&
-            matched_matmul->get_transpose_b()) {
+            matched_matmul->get_transpose_b() && gather_is_plain_expert_select(qgthrw) &&
+            gather_is_plain_expert_select(qgthrs) && dq_chain_exclusive_to_match) {
             // Re-layout Wdict/Sdict closures: [E,OC,NSPLIT,G] -> [E,NSPLIT,OC,G] (Sdict: last dim stays 1)
             ctx.get().permute(matched_qweight, {0, 2, 1, 3});
             ctx.get().permute(matched_qcoeff, {0, 2, 1, 3});
-
-            // Mark S closure to be lowered to f16, same convention as the sibling DQMatMul* passes
-            if (ov::element::f32 == matched_qcoeff->get_element_type()) {
-                ctx.get().to_f16(matched_qcoeff);
-            }
 
             // Insert a Transpose after Multiply to restore the [*,OC,NSPLIT,G] order
             // the existing Reshape still expects

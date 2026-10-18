@@ -126,7 +126,7 @@ std::shared_ptr<op::v1::Transpose> transpose_before_reshape(const std::shared_pt
 TEST(DQMatMulGQ2iMoETest, DeviceRouterCaseIsTransformed) {
     auto graph = make_moe_graph(/*with_gather=*/true, /*act_tokens=*/1);
 
-    ov::npuw::patterns::opt::Context ctx;
+    ov::npuw::patterns::opt::Context ctx(graph.model, 0);
     run_dqmatmulgq2imoe(graph.model, ctx);
 
     EXPECT_NO_THROW(graph.model->validate_nodes_and_infer_types());
@@ -159,7 +159,7 @@ TEST(DQMatMulGQ2iMoETest, DeviceRouterCaseIsTransformed) {
 TEST(DQMatMulGQ2iMoETest, HostRouterCaseIsTransformed) {
     auto graph = make_moe_graph(/*with_gather=*/false, /*act_tokens=*/4);
 
-    ov::npuw::patterns::opt::Context ctx;
+    ov::npuw::patterns::opt::Context ctx(graph.model, 0);
     run_dqmatmulgq2imoe(graph.model, ctx);
 
     EXPECT_NO_THROW(graph.model->validate_nodes_and_infer_types());
@@ -178,8 +178,7 @@ TEST(DQMatMulGQ2iMoETest, HostRouterCaseIsTransformed) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// The eligibility guard accepts a family of quantized weight types (i4, i8,
-// f8e4m3, f8e5m2, f8e8m0), not just i4 - pin that i8 is matched too.
+// The guard also accepts i8 weights, not just i4.
 // ─────────────────────────────────────────────────────────────────────────────
 TEST(DQMatMulGQ2iMoETest, I8WeightIsTransformed) {
     auto graph = make_moe_graph(/*with_gather=*/true,
@@ -189,7 +188,7 @@ TEST(DQMatMulGQ2iMoETest, I8WeightIsTransformed) {
                                 /*out_channels=*/kOutChannels,
                                 /*weight_type=*/ov::element::i8);
 
-    ov::npuw::patterns::opt::Context ctx;
+    ov::npuw::patterns::opt::Context ctx(graph.model, 0);
     run_dqmatmulgq2imoe(graph.model, ctx);
 
     EXPECT_NO_THROW(graph.model->validate_nodes_and_infer_types());
@@ -198,17 +197,16 @@ TEST(DQMatMulGQ2iMoETest, I8WeightIsTransformed) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Core regression target: the host router and device router share the SAME Wdict/Sdict
-// closures (see opt.cpp's "NB" comment), and the weights bank only dedups them if both
-// record an IDENTICAL permute order - this test pins that invariant.
+// Host and device router variants share the same closures, so they must record
+// the same permute order to stay deduplicatable.
 // ─────────────────────────────────────────────────────────────────────────────
 TEST(DQMatMulGQ2iMoETest, DeviceAndHostRouterRecordIdenticalPermuteOrder) {
     auto device_router = make_moe_graph(/*with_gather=*/true, /*act_tokens=*/1);
     auto host_router = make_moe_graph(/*with_gather=*/false, /*act_tokens=*/4);
 
-    ov::npuw::patterns::opt::Context ctx_device_router;
+    ov::npuw::patterns::opt::Context ctx_device_router(device_router.model, 0);
     run_dqmatmulgq2imoe(device_router.model, ctx_device_router);
-    ov::npuw::patterns::opt::Context ctx_host_router;
+    ov::npuw::patterns::opt::Context ctx_host_router(host_router.model, 0);
     run_dqmatmulgq2imoe(host_router.model, ctx_host_router);
 
     ASSERT_EQ(ctx_device_router.closures_to_permute.count(device_router.weight), 1u);
@@ -220,22 +218,21 @@ TEST(DQMatMulGQ2iMoETest, DeviceAndHostRouterRecordIdenticalPermuteOrder) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// A scale closure that's still f32 must be marked for the same f16 lowering the
-// sibling DQMatMul* passes apply - regardless of whether Gather is present.
+// An f32 scale closure is left untouched - this pass must not lower it to f16.
 // ─────────────────────────────────────────────────────────────────────────────
-TEST(DQMatMulGQ2iMoETest, F32CoeffIsMarkedForF16Conversion) {
+TEST(DQMatMulGQ2iMoETest, F32CoeffIsNotLoweredToF16) {
     auto graph = make_moe_graph(/*with_gather=*/true, /*act_tokens=*/1, /*coeff_type=*/ov::element::f32);
 
-    ov::npuw::patterns::opt::Context ctx;
+    ov::npuw::patterns::opt::Context ctx(graph.model, 0);
     run_dqmatmulgq2imoe(graph.model, ctx);
 
-    EXPECT_EQ(ctx.closures_to_f16.count(graph.coeff), 1u);
+    EXPECT_NO_THROW(graph.model->validate_nodes_and_infer_types());
+    EXPECT_EQ(ctx.closures_to_f16.count(graph.coeff), 0u);
+    EXPECT_EQ(graph.coeff->get_element_type(), ov::element::f32);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Negative: matmul with transpose_b=false does not match DQMatMulGQ2iMoE's
-// eligibility guard (this pass only handles the already-transpose_b=true
-// layout; see DQMatMulGQi for the transpose_b=false family).
+// Negative: transpose_b=false is out of scope for this pass.
 // ─────────────────────────────────────────────────────────────────────────────
 TEST(DQMatMulGQ2iMoETest, NonTransposedMatMulIsNotTransformed) {
     // out_channels == kHidden keeps the MatMul shape-valid with transpose_b=false too.
@@ -245,7 +242,7 @@ TEST(DQMatMulGQ2iMoETest, NonTransposedMatMulIsNotTransformed) {
                                 /*transpose_b=*/false,
                                 /*out_channels=*/kHidden);
 
-    ov::npuw::patterns::opt::Context ctx;
+    ov::npuw::patterns::opt::Context ctx(graph.model, 0);
     run_dqmatmulgq2imoe(graph.model, ctx);
 
     EXPECT_NO_THROW(graph.model->validate_nodes_and_infer_types());
@@ -254,8 +251,7 @@ TEST(DQMatMulGQ2iMoETest, NonTransposedMatMulIsNotTransformed) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Negative: a 3D (non-MoE, no expert axis) weight/scale dict belongs to the
-// plain DQMatMulGQi family, not this MoE-specific pass.
+// Negative: a 3D (non-MoE) weight/scale dict is out of scope for this pass.
 // ─────────────────────────────────────────────────────────────────────────────
 TEST(DQMatMulGQ2iMoETest, ThreeDWeightIsNotTransformed) {
     auto weight = std::make_shared<op::v0::Parameter>(element::i4, Shape{kNumSplits, kGroupSize, kOutChannels});
@@ -274,10 +270,113 @@ TEST(DQMatMulGQ2iMoETest, ThreeDWeightIsNotTransformed) {
     auto result = std::make_shared<op::v0::Result>(matmul);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{weight, coeff, act});
 
-    ov::npuw::patterns::opt::Context ctx;
+    ov::npuw::patterns::opt::Context ctx(model, 0);
     run_dqmatmulgq2imoe(model, ctx);
 
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
     EXPECT_TRUE(ctx.closures_to_permute.empty());
     EXPECT_EQ(ov::as_type_ptr<op::v1::Transpose>(reshp->input_value(0).get_node_shared_ptr()), nullptr);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Negative: a Gather over a non-expert axis (here: OC, not E) must not be
+// treated as expert selection.
+// ─────────────────────────────────────────────────────────────────────────────
+TEST(DQMatMulGQ2iMoETest, GatherOnNonZeroAxisIsNotTransformed) {
+    constexpr size_t kGatheredChannels = 2;  // K' of OC channels selected (NOT experts)
+    constexpr size_t hidden = kNumSplits * kGroupSize;
+
+    auto weight =
+        std::make_shared<op::v0::Parameter>(element::i4, Shape{kExperts, kOutChannels, kNumSplits, kGroupSize});
+    auto coeff = std::make_shared<op::v0::Parameter>(element::f16, Shape{kExperts, kOutChannels, kNumSplits, 1});
+    auto ids = std::make_shared<op::v0::Parameter>(element::i32, Shape{kGatheredChannels});
+    auto axis = op::v0::Constant::create(element::i64, Shape{}, {1});  // axis=1, NOT the expert axis
+    auto gthrw = std::make_shared<op::v8::Gather>(weight, ids, axis);
+    auto gthrs = std::make_shared<op::v8::Gather>(coeff, ids, axis);
+    auto cvtw = std::make_shared<op::v0::Convert>(gthrw, element::f16);
+    auto muls = std::make_shared<op::v1::Multiply>(cvtw, gthrs);
+    auto reshape_const = op::v0::Constant::create(element::i64,
+                                                  Shape{3},
+                                                  std::vector<int64_t>{static_cast<int64_t>(kExperts),
+                                                                       static_cast<int64_t>(kGatheredChannels),
+                                                                       static_cast<int64_t>(hidden)});
+    auto reshp = std::make_shared<op::v1::Reshape>(muls, reshape_const, false);
+    auto cvtm = std::make_shared<op::v0::Convert>(reshp, element::f32);
+    auto act = std::make_shared<op::v0::Parameter>(element::f32, Shape{kExperts, 1, hidden});
+    auto matmul = std::make_shared<op::v0::MatMul>(act, cvtm, false, true);
+    auto result = std::make_shared<op::v0::Result>(matmul);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{weight, coeff, ids, act});
+
+    ov::npuw::patterns::opt::Context ctx(model, 0);
+    run_dqmatmulgq2imoe(model, ctx);
+
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_TRUE(ctx.closures_to_permute.empty());
+    EXPECT_EQ(transpose_before_reshape(reshp), nullptr);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Negative: Multiply has a second reader besides the matched Reshape, so the
+// pass must not fire.
+// ─────────────────────────────────────────────────────────────────────────────
+TEST(DQMatMulGQ2iMoETest, SharedMultiplyReaderIsNotTransformed) {
+    auto weight =
+        std::make_shared<op::v0::Parameter>(element::i4, Shape{kExperts, kOutChannels, kNumSplits, kGroupSize});
+    auto coeff = std::make_shared<op::v0::Parameter>(element::f16, Shape{kExperts, kOutChannels, kNumSplits, 1});
+    auto cvtw = std::make_shared<op::v0::Convert>(weight, element::f16);
+    auto muls = std::make_shared<op::v1::Multiply>(cvtw, coeff);
+    auto reshape_const = op::v0::Constant::create(element::i64,
+                                                  Shape{3},
+                                                  std::vector<int64_t>{static_cast<int64_t>(kExperts),
+                                                                       static_cast<int64_t>(kOutChannels),
+                                                                       static_cast<int64_t>(kHidden)});
+    auto reshp = std::make_shared<op::v1::Reshape>(muls, reshape_const, false);
+    auto cvtm = std::make_shared<op::v0::Convert>(reshp, element::f32);
+    auto act = std::make_shared<op::v0::Parameter>(element::f32, Shape{kExperts, 1, kHidden});
+    auto matmul = std::make_shared<op::v0::MatMul>(act, cvtm, false, true);
+    auto result = std::make_shared<op::v0::Result>(matmul);
+    // Second consumer of Multiply's output, bypassing Reshape entirely.
+    auto extra_result = std::make_shared<op::v0::Result>(muls);
+    auto model =
+        std::make_shared<ov::Model>(ov::ResultVector{result, extra_result}, ov::ParameterVector{weight, coeff, act});
+
+    ov::npuw::patterns::opt::Context ctx(model, 0);
+    run_dqmatmulgq2imoe(model, ctx);
+
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_TRUE(ctx.closures_to_permute.empty());
+    EXPECT_EQ(transpose_before_reshape(reshp), nullptr);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Negative: an i4 weight with an odd group width G cannot be physically
+// relaid out, so the pass must bail out instead of asserting later.
+// ─────────────────────────────────────────────────────────────────────────────
+TEST(DQMatMulGQ2iMoETest, OddI4GroupSizeIsNotTransformed) {
+    constexpr size_t kOddGroupSize = 3;
+    constexpr size_t hidden = kNumSplits * kOddGroupSize;
+
+    auto weight =
+        std::make_shared<op::v0::Parameter>(element::i4, Shape{kExperts, kOutChannels, kNumSplits, kOddGroupSize});
+    auto coeff = std::make_shared<op::v0::Parameter>(element::f16, Shape{kExperts, kOutChannels, kNumSplits, 1});
+    auto cvtw = std::make_shared<op::v0::Convert>(weight, element::f16);
+    auto muls = std::make_shared<op::v1::Multiply>(cvtw, coeff);
+    auto reshape_const = op::v0::Constant::create(element::i64,
+                                                  Shape{3},
+                                                  std::vector<int64_t>{static_cast<int64_t>(kExperts),
+                                                                       static_cast<int64_t>(kOutChannels),
+                                                                       static_cast<int64_t>(hidden)});
+    auto reshp = std::make_shared<op::v1::Reshape>(muls, reshape_const, false);
+    auto cvtm = std::make_shared<op::v0::Convert>(reshp, element::f32);
+    auto act = std::make_shared<op::v0::Parameter>(element::f32, Shape{kExperts, 1, hidden});
+    auto matmul = std::make_shared<op::v0::MatMul>(act, cvtm, false, true);
+    auto result = std::make_shared<op::v0::Result>(matmul);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{weight, coeff, act});
+
+    ov::npuw::patterns::opt::Context ctx(model, 0);
+    run_dqmatmulgq2imoe(model, ctx);
+
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_TRUE(ctx.closures_to_permute.empty());
+    EXPECT_EQ(transpose_before_reshape(reshp), nullptr);
 }
