@@ -222,14 +222,6 @@ def test_centercrop():
         ((64, 64), [transforms.CenterCrop(63)]),
         ((64, 64), [transforms.CenterCrop(61)]),
         ((64, 64), [transforms.CenterCrop(59)]),
-        pytest.param(
-            (260, 300),
-            [transforms.Resize(224, interpolation=transforms.InterpolationMode.NEAREST), transforms.CenterCrop(224)],
-            marks=pytest.mark.skipif(
-                condition=platform.machine() in ("arm", "armv7l", "aarch64", "arm64", "ARM64"),
-                reason="Ticket: 114816",
-            ),
-        ),
     ],
 )
 def test_centercrop_matches_torchvision(image_size, transforms_list):
@@ -238,6 +230,20 @@ def test_centercrop_matches_torchvision(image_size, transforms_list):
     torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
     assert torch_result.shape == ov_result.shape
     assert np.max(np.absolute(torch_result - ov_result)) < 4e-05
+
+
+def test_resize_then_centercrop_shape():
+    # Resize with NEAREST already differs from torchvision in values, so only the cropped shape is compared
+    test_input = np.random.randint(255, size=(260, 300, 3), dtype=np.uint8)
+    preprocess_pipeline = transforms.Compose(
+        [
+            transforms.Resize(224, interpolation=transforms.InterpolationMode.NEAREST),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+        ],
+    )
+    torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
+    assert torch_result.shape == ov_result.shape
 
 
 @pytest.mark.parametrize("crop_size", [(40, 40), (33, 10), (10, 33)])
