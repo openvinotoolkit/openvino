@@ -29,9 +29,8 @@ constexpr size_t gr_max_lowrank = 512;        // GR_LOWRANK is kept in registers
 constexpr size_t gr_max_total_width = 16384;  // C*D must fit into SLM as f16
 constexpr size_t gr_dpas_k_step = 32;         // K consumed per dpas loop step (two K16 slices)
 constexpr size_t gr_dpas_n = 16;              // dpas N axis == GRF width on Xe2
-// Up to this many rows the split-K tiling wins: the wide token tiles leave too few threads
-// to stream the weights (measured crossover ~200 rows on B580 at C=4/D=640/L=320).
-constexpr size_t gr_dpas_small_rows = 192;
+constexpr size_t gr_down_tn = 32;             // low-rank columns per down-projection thread
+constexpr size_t gr_decode_rows = 32;         // up to here both GEMMs use decode tiling
 
 constexpr auto get_gr_build_options() {
     return " -cmc -Qxcm_register_file_size=256";
@@ -84,29 +83,60 @@ size_t largest_divisor_up_to(size_t n, size_t cap) {
     return 1;
 }
 
-/// Per-thread tiling of the two dpas GEMM kernels (see gr_down_proj_dpas.cm /
-/// gr_up_proj_dpas.cm). `few_rows` = few rows (decode): 8-token tiles and the K reduction
-/// split over a work-group, so the weights are streamed by many threads in parallel.
-struct GrDpasTiling {
-    size_t down_tm;
-    size_t down_tn;
-    size_t down_ksplit;
-    size_t up_tm;
-    size_t up_ksplit;
-    size_t up_lws_y;  // token tiles per work-group sharing the same W_up columns
-};
+/// Row-count regimes of the two dpas GEMM kernels. Measured on B580 (160 EU) and PTL B390
+/// (96 EU) at C=4/D=2560/L=320: few rows need the K reduction split over a work-group so
+/// the weights are streamed by enough threads; the split stops paying off once the token
+/// tiles alone fill the GPU (~4 rows per EU for the down projection).
+enum class GrTier { decode, mid, wide };
 
-GrDpasTiling gr_dpas_tiling(const gated_residual& desc, bool few_rows) {
-    if (!few_rows) {
-        return {32, 32, 1, 16, 1, 8};
+GrTier gr_down_tier(size_t num_rows, const cldnn::device_info& info) {
+    if (num_rows <= gr_decode_rows) {
+        return GrTier::decode;
     }
-    const size_t cd_steps = desc.hc_count * desc.hidden_size / gr_dpas_k_step;
-    const size_t l_steps = desc.lowrank / gr_dpas_k_step;
-    return {8, 32, largest_divisor_up_to(cd_steps, 8), 8, largest_divisor_up_to(l_steps, 5), 1};
+    return num_rows <= 4 * static_cast<size_t>(info.execution_units_count) ? GrTier::mid : GrTier::wide;
 }
 
-bool use_small_tiling(size_t num_rows) {
-    return num_rows <= gr_dpas_small_rows;
+GrTier gr_up_tier(size_t num_rows) {
+    return num_rows <= gr_decode_rows ? GrTier::decode : GrTier::wide;
+}
+
+struct GrGemmTiling {
+    size_t tm;      // tokens per thread
+    size_t ksplit;  // threads of a work-group splitting the K reduction
+    size_t lws_y;   // token tiles per work-group (ksplit == 1 only)
+};
+
+GrGemmTiling gr_down_tiling(const gated_residual& desc, const cldnn::device_info& info, GrTier tier) {
+    const size_t cd_steps = desc.hc_count * desc.hidden_size / gr_dpas_k_step;
+    switch (tier) {
+    case GrTier::decode:
+        return {16, largest_divisor_up_to(cd_steps, 8), 1};
+    case GrTier::mid:
+        return {32, largest_divisor_up_to(cd_steps, info.execution_units_count >= 128 ? 4 : 2), 1};
+    default:
+        return {32, 1, 1};
+    }
+}
+
+GrGemmTiling gr_up_tiling(const gated_residual& desc, const cldnn::device_info& info, GrTier tier) {
+    if (tier != GrTier::decode) {
+        return {16, 1, 8};
+    }
+    // Narrow D leaves few column tiles; split L until there are ~2 threads per EU.
+    const size_t col_tiles = desc.hidden_size / gr_dpas_n;
+    const size_t cap = std::max<size_t>(1, 2 * static_cast<size_t>(info.execution_units_count) / col_tiles);
+    return {8, largest_divisor_up_to(desc.lowrank / gr_dpas_k_step, cap), 1};
+}
+
+const char* gr_tier_suffix(GrTier tier) {
+    switch (tier) {
+    case GrTier::decode:
+        return "_decode_cm";
+    case GrTier::mid:
+        return "_mid_cm";
+    default:
+        return "_cm";
+    }
 }
 
 /// Whether the systolic (cm_dpas) READ/FINAL_MIX pipeline (gr_rbar_dpas ->
@@ -298,9 +328,9 @@ protected:
 // ---------------------------------------------------------------------------
 class GatedResidualDownProjDpasGenerator : public KernelGenerator {
 public:
-    explicit GatedResidualDownProjDpasGenerator(bool few_rows = false)
-        : KernelGenerator("gr_down_proj_dpas", few_rows ? "_small_cm" : "_cm"),
-          m_small(few_rows) {}
+    explicit GatedResidualDownProjDpasGenerator(GrTier tier = GrTier::wide)
+        : KernelGenerator("gr_down_proj_dpas", gr_tier_suffix(tier)),
+          m_tier(tier) {}
 
 protected:
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
@@ -310,12 +340,12 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         const auto desc = params.typed_desc<gated_residual>();
-        const auto tiling = gr_dpas_tiling(*desc, m_small);
+        const auto tiling = gr_down_tiling(*desc, params.get_device_info(), m_tier);
         jit.add(make_common_jit(desc));
         jit.make("GR_LOWRANK", desc->lowrank);
-        jit.make("GR_DOWN_TM", tiling.down_tm);
-        jit.make("GR_DOWN_TN", tiling.down_tn);
-        jit.make("GR_DOWN_KSPLIT", tiling.down_ksplit);
+        jit.make("GR_DOWN_TM", tiling.tm);
+        jit.make("GR_DOWN_TN", gr_down_tn);
+        jit.make("GR_DOWN_KSPLIT", tiling.ksplit);
         jit.make("GR_PRODUCE_WRITE_GATE", desc->produce_write_gate ? 1 : 0);
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
         return jit;
@@ -338,17 +368,17 @@ protected:
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[few_rows = m_small](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
+        return DispatchDataFunc{[tier = m_tier](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
-            const auto tiling = gr_dpas_tiling(*desc, few_rows);
-            const size_t col_tiles = desc->lowrank / tiling.down_tn + (desc->produce_write_gate ? 1 : 0);
-            const size_t row_tiles = std::max<size_t>(1, (num_rows + tiling.down_tm - 1) / tiling.down_tm);
+            const auto tiling = gr_down_tiling(*desc, params.get_device_info(), tier);
+            const size_t col_tiles = desc->lowrank / gr_down_tn + (desc->produce_write_gate ? 1 : 0);
+            const size_t row_tiles = std::max<size_t>(1, (num_rows + tiling.tm - 1) / tiling.tm);
 
             auto& wgs = kd.params.workGroups;
             // One work-group per (column tile, token tile); KSPLIT threads split the K reduction.
-            wgs.global = {col_tiles * tiling.down_ksplit, row_tiles, 1};
-            wgs.local = {tiling.down_ksplit, 1, 1};
+            wgs.global = {col_tiles * tiling.ksplit, row_tiles, 1};
+            wgs.local = {tiling.ksplit, 1, 1};
 
             kd.params.scalars.clear();
             scalar_desc s;
@@ -359,7 +389,7 @@ protected:
     }
 
 private:
-    bool m_small;
+    GrTier m_tier;
 };
 
 // ---------------------------------------------------------------------------
@@ -367,9 +397,9 @@ private:
 // ---------------------------------------------------------------------------
 class GatedResidualUpProjDpasGenerator : public KernelGenerator {
 public:
-    explicit GatedResidualUpProjDpasGenerator(bool few_rows = false)
-        : KernelGenerator("gr_up_proj_dpas", few_rows ? "_small_cm" : "_cm"),
-          m_small(few_rows) {}
+    explicit GatedResidualUpProjDpasGenerator(GrTier tier = GrTier::wide)
+        : KernelGenerator("gr_up_proj_dpas", gr_tier_suffix(tier)),
+          m_tier(tier) {}
 
 protected:
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
@@ -379,11 +409,11 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         const auto desc = params.typed_desc<gated_residual>();
-        const auto tiling = gr_dpas_tiling(*desc, m_small);
+        const auto tiling = gr_up_tiling(*desc, params.get_device_info(), m_tier);
         jit.add(make_common_jit(desc));
         jit.make("GR_LOWRANK", desc->lowrank);
-        jit.make("GR_UP_TM", tiling.up_tm);
-        jit.make("GR_UP_KSPLIT", tiling.up_ksplit);
+        jit.make("GR_UP_TM", tiling.tm);
+        jit.make("GR_UP_KSPLIT", tiling.ksplit);
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
         return jit;
     }
@@ -399,20 +429,20 @@ protected:
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[few_rows = m_small](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
+        return DispatchDataFunc{[tier = m_tier](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
-            const auto tiling = gr_dpas_tiling(*desc, few_rows);
+            const auto tiling = gr_up_tiling(*desc, params.get_device_info(), tier);
             const size_t col_tiles = desc->hidden_size / gr_dpas_n;
-            const size_t row_tiles = std::max<size_t>(1, (num_rows + tiling.up_tm - 1) / tiling.up_tm);
+            const size_t row_tiles = std::max<size_t>(1, (num_rows + tiling.tm - 1) / tiling.tm);
 
             auto& wgs = kd.params.workGroups;
-            if (tiling.up_ksplit > 1) {
-                wgs.global = {col_tiles * tiling.up_ksplit, row_tiles, 1};
-                wgs.local = {tiling.up_ksplit, 1, 1};
+            if (tiling.ksplit > 1) {
+                wgs.global = {col_tiles * tiling.ksplit, row_tiles, 1};
+                wgs.local = {tiling.ksplit, 1, 1};
             } else {
-                // Work-groups of up_lws_y token tiles reuse the same W_up columns from L1.
-                const size_t lws_y = std::min(tiling.up_lws_y, row_tiles);
+                // Work-groups of lws_y token tiles reuse the same W_up columns from L1.
+                const size_t lws_y = std::min(tiling.lws_y, row_tiles);
                 wgs.global = {col_tiles, (row_tiles + lws_y - 1) / lws_y * lws_y, 1};
                 wgs.local = {1, lws_y, 1};
             }
@@ -426,7 +456,7 @@ protected:
     }
 
 private:
-    bool m_small;
+    GrTier m_tier;
 };
 
 class GatedResidualCMImpl : public PrimitiveImplCM {
@@ -437,9 +467,10 @@ public:
     Stage::Ptr gr_write = make_stage<GatedResidualWriteGenerator>();
     Stage::Ptr gr_rbar_dpas = make_stage<GatedResidualRbarDpasGenerator>();
     Stage::Ptr gr_down_proj_dpas = make_stage<GatedResidualDownProjDpasGenerator>();
+    Stage::Ptr gr_down_proj_dpas_mid = make_stage<GatedResidualDownProjDpasGenerator>(GrTier::mid);
+    Stage::Ptr gr_down_proj_dpas_decode = make_stage<GatedResidualDownProjDpasGenerator>(GrTier::decode);
     Stage::Ptr gr_up_proj_dpas = make_stage<GatedResidualUpProjDpasGenerator>();
-    Stage::Ptr gr_down_proj_dpas_small = make_stage<GatedResidualDownProjDpasGenerator>(true);
-    Stage::Ptr gr_up_proj_dpas_small = make_stage<GatedResidualUpProjDpasGenerator>(true);
+    Stage::Ptr gr_up_proj_dpas_decode = make_stage<GatedResidualUpProjDpasGenerator>(GrTier::decode);
 
     GatedResidualCMImpl() : PrimitiveImplCM(GatedResidualCMImplementationManager::get_type_info_static()) {}
     GatedResidualCMImpl(const program_node& /*node*/, const RuntimeParams& params) : GatedResidualCMImpl() {
@@ -451,19 +482,26 @@ public:
             // Producer/consumer order through the RBAR/T scratch buffers is enforced by
             // execute(); static shapes only build the tiling their row count needs.
             add_stage(gr_rbar_dpas, params);
-            const bool dynamic = params.is_dynamic();
-            const size_t rows = dynamic ? 0 : get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
-            if (dynamic || use_small_tiling(rows)) {
-                add_stage(gr_down_proj_dpas_small, params);
-                add_stage(gr_up_proj_dpas_small, params);
-            }
-            if (dynamic || !use_small_tiling(rows)) {
-                add_stage(gr_down_proj_dpas, params);
-                add_stage(gr_up_proj_dpas, params);
+            if (params.is_dynamic()) {
+                for (auto* stage : {&gr_down_proj_dpas_decode, &gr_down_proj_dpas_mid, &gr_down_proj_dpas, &gr_up_proj_dpas_decode, &gr_up_proj_dpas}) {
+                    add_stage(*stage, params);
+                }
+            } else {
+                const size_t rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
+                add_stage(down_stage(gr_down_tier(rows, params.get_device_info())), params);
+                add_stage(up_stage(gr_up_tier(rows)), params);
             }
         } else {
             add_stage(gr_read, params);
         }
+    }
+
+    Stage::Ptr& down_stage(GrTier tier) {
+        return tier == GrTier::decode ? gr_down_proj_dpas_decode : tier == GrTier::mid ? gr_down_proj_dpas_mid : gr_down_proj_dpas;
+    }
+
+    Stage::Ptr& up_stage(GrTier tier) {
+        return tier == GrTier::decode ? gr_up_proj_dpas_decode : gr_up_proj_dpas;
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
@@ -491,9 +529,9 @@ public:
             const auto& params = *instance.get_impl_params();
             const auto desc = params.typed_desc<gated_residual>();
             const size_t rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
-            const bool few_rows = has_stage(gr_down_proj_dpas_small) && (use_small_tiling(rows) || !has_stage(gr_down_proj_dpas));
-            auto& down = few_rows ? gr_down_proj_dpas_small : gr_down_proj_dpas;
-            auto& up = few_rows ? gr_up_proj_dpas_small : gr_up_proj_dpas;
+            auto& down = down_stage(gr_down_tier(rows, params.get_device_info()));
+            auto& up = up_stage(gr_up_tier(rows));
+            OPENVINO_ASSERT(has_stage(down) && has_stage(up), "[GPU][CM] gated_residual: dpas stage for ", rows, " rows was not built");
 
             auto ev_rbar = execute_stage(events, instance, gr_rbar_dpas);
             record_stage_event("RBAR", ev_rbar);

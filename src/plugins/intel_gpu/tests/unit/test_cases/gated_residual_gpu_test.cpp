@@ -275,8 +275,9 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            gr_read_case{16, 32, 16, true},
                                            // Below: C*D and L satisfy can_use_dpas_gr_read(), so these route
                                            // through gr_rbar_dpas -> gr_down_proj_dpas[+write gate] ->
-                                           // gr_up_proj_dpas[+branch mix] instead of gr_read.cm. Up to 192
-                                           // rows the split-K ("small") tiling is used, above it the wide one.
+                                           // gr_up_proj_dpas[+branch mix] instead of gr_read.cm. Up to 32
+                                           // rows the decode tiling is used, up to 4 rows per EU the mid
+                                           // (split-K wide) tiling, above it the wide one.
                                            gr_read_case{32, 64, 32, true},    // exact token-tile boundary
                                            gr_read_case{37, 96, 32, false},   // partial last token tile, no write gate
                                            gr_read_case{41, 48, 64, true},    // partial tile; D=48, split-K over 6 K steps
@@ -287,10 +288,14 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            gr_read_case{19, 64, 32, true, true},  // DPAS path, gain stored as w (1 + w)
                                            gr_read_case{1, 640, 320, true},   // production width, decode
                                            gr_read_case{17, 640, 320, true},  // production width, prefill with a partial tile
-                                           gr_read_case{193, 32, 32, true, true},  // first row count on the wide tiling
-                                           gr_read_case{200, 64, 32, true},   // wide tiling, partial 32-token tile
-                                           gr_read_case{300, 48, 64, false},  // wide tiling, D=48 column tiles
-                                           gr_read_case{257, 640, 320, true}));  // production width, wide tiling
+                                           gr_read_case{193, 32, 32, true, true},  // mid tiling
+                                           gr_read_case{200, 64, 32, true},   // mid tiling, partial 32-token tile
+                                           gr_read_case{300, 48, 64, false},  // mid tiling, D=48 column tiles
+                                           gr_read_case{257, 640, 320, true},  // production-like width, mid tiling
+                                           gr_read_case{17, 2560, 320, true},   // real Qwen4-Exp width, decode tiling
+                                           gr_read_case{100, 2560, 320, true},  // real Qwen4-Exp width, mid tiling
+                                           gr_read_case{1000, 64, 32, true},  // wide tiling on <= 250-EU devices
+                                           gr_read_case{777, 48, 64, false}));  // wide tiling, partial tiles
 
 class gated_residual_final_mix_test : public ::testing::TestWithParam<gr_read_case> {};
 
@@ -355,8 +360,9 @@ TEST_P(gated_residual_final_mix_test, matches_read) {
 INSTANTIATE_TEST_SUITE_P(smoke,
                          gated_residual_final_mix_test,
                          ::testing::Values(gr_read_case{4, 64, 16, false},      // scalar gr_read
-                                           gr_read_case{17, 64, 32, false},     // DPAS pipeline, split-K tiling
-                                           gr_read_case{250, 64, 32, false}));  // DPAS pipeline, wide tiling
+                                           gr_read_case{17, 64, 32, false},     // DPAS pipeline, decode tiling
+                                           gr_read_case{250, 64, 32, false},    // DPAS pipeline, mid tiling
+                                           gr_read_case{1100, 64, 32, false}));  // DPAS pipeline, wide tiling
 
 TEST(gated_residual_gpu_test, write_combines_branches) {
     if (!cm_gr_available()) {
@@ -631,8 +637,8 @@ TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_reuses_dispatch_da
     fill_tensor(infer_request.get_input_tensor(3), w_up);
     fill_tensor(infer_request.get_input_tensor(4), w_inject);
 
-    // 300 switches the dynamic impl from the split-K to the wide tiling and 2 back again.
-    for (const size_t rows : {size_t{5}, size_t{37}, size_t{1}, size_t{300}, size_t{2}}) {
+    // Walks the dynamic impl through the decode, mid and wide tilings and back again.
+    for (const size_t rows : {size_t{5}, size_t{37}, size_t{1}, size_t{300}, size_t{1500}, size_t{2}}) {
         tests::random_generator input_rg;
         input_rg.set_seed(static_cast<uint32_t>(rows));
         const auto residual = random_vec(input_rg, rows * CD, 1.0f);
