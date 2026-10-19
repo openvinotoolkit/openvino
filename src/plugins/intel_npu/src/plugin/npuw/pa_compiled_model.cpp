@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <map>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -19,6 +20,14 @@
 #include "intel_npu/config/npuw.hpp"
 #include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -96,6 +105,32 @@ bool is_chunkable_pa_model(const std::shared_ptr<ov::Model>& model) {
            lshape[2].is_static();
 }
 
+// `shape` without dimension `drop`, and a batch of 1 in front.
+ov::Shape as_batch_one(const ov::Shape& shape, std::size_t drop) {
+    ov::Shape out{1};
+    for (std::size_t i = 0; i < shape.size(); ++i) {
+        if (i != drop) {
+            out.push_back(shape[i]);
+        }
+    }
+    return out;
+}
+
+// The highest dimension past 0 that is 1 in every given shape. Rewriting all
+// the operands of an op at the same dimension keeps their dimensions paired,
+// so elementwise and broadcast semantics are preserved.
+std::optional<std::size_t> shared_singleton(const std::vector<ov::Shape>& shapes) {
+    for (std::size_t i = shapes.front().size(); i-- > 1;) {
+        const auto is_one = [i, &shapes](const ov::Shape& s) {
+            return s.size() == shapes.front().size() && s[i] == 1;
+        };
+        if (std::all_of(shapes.begin(), shapes.end(), is_one)) {
+            return i;
+        }
+    }
+    return std::nullopt;
+}
+
 std::shared_ptr<ov::Model> derive_pa_semi_static_model(const std::shared_ptr<ov::Model>& base_model,
                                                        std::size_t chunk_size) {
     for (const char* name : {"input_ids", "position_ids"}) {
@@ -105,6 +140,7 @@ std::shared_ptr<ov::Model> derive_pa_semi_static_model(const std::shared_ptr<ov:
     auto derived = base_model->clone();
     derived->reshape({{"input_ids", ov::PartialShape{static_cast<int64_t>(chunk_size)}},
                       {"position_ids", ov::PartialShape{static_cast<int64_t>(chunk_size)}}});
+    ov::npuw::pa::relayout_token_major(derived, chunk_size);
     derived->set_friendly_name(base_model->get_friendly_name() + "_pa_token_" + std::to_string(chunk_size));
     return derived;
 }
@@ -128,6 +164,107 @@ std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> compile_pa_semi_static_vari
 }
 
 }  // anonymous namespace
+
+void ov::npuw::pa::relayout_token_major(const std::shared_ptr<ov::Model>& model, std::size_t tokens) {
+    if (tokens <= 1) {
+        return;
+    }
+    const auto is_token_major = [tokens](const ov::PartialShape& shape) {
+        return shape.is_static() && shape.rank().get_length() >= 3 &&
+               static_cast<std::size_t>(shape[0].get_length()) == tokens;
+    };
+    // An operand whose dimensions are all 1 but the innermost broadcasts
+    // against any token count, so the rewrite does not affect it.
+    const auto broadcasts_over_tokens = [](const ov::PartialShape& shape) {
+        if (shape.is_dynamic()) {
+            return false;
+        }
+        for (auto i = 0; i + 1 < shape.rank().get_length(); ++i) {
+            if (shape[i].get_length() != 1) {
+                return false;
+            }
+        }
+        return true;
+    };
+    const auto reshape_to = [](const ov::Output<ov::Node>& src, const ov::Shape& shape) {
+        auto target = ov::op::v0::Constant::create(ov::element::i64,
+                                                   ov::Shape{shape.size()},
+                                                   std::vector<int64_t>(shape.begin(), shape.end()));
+        return std::make_shared<ov::op::v1::Reshape>(src, target, false);
+    };
+    // Feeds the given inputs of `op` in their batch-1 form and restores the
+    // original output shape for its consumers.
+    const auto rebatch =
+        [&](const std::shared_ptr<ov::Node>& op, const std::vector<std::size_t>& inputs, std::size_t drop) {
+            const auto out_shape = op->get_output_shape(0);
+            const auto consumers = op->output(0).get_target_inputs();
+            for (const auto idx : inputs) {
+                op->input(idx).replace_source_output(
+                    reshape_to(op->input_value(idx), as_batch_one(op->get_input_shape(idx), drop)));
+            }
+            op->validate_and_infer_types();
+            auto restored = reshape_to(op, out_shape);
+            for (auto consumer : consumers) {
+                consumer.replace_source_output(restored);
+            }
+        };
+    const auto rebatch_eltwise = [&](const std::shared_ptr<ov::Node>& op) {
+        std::vector<std::size_t> token_inputs;
+        std::vector<ov::Shape> token_shapes;
+        for (std::size_t i = 0; i < op->get_input_size(); ++i) {
+            const auto& shape = op->get_input_partial_shape(i);
+            if (is_token_major(shape)) {
+                token_inputs.push_back(i);
+                token_shapes.push_back(op->get_input_shape(i));
+            } else if (!broadcasts_over_tokens(shape)) {
+                return false;
+            }
+        }
+        if (token_inputs.empty()) {
+            return false;
+        }
+        const auto drop = shared_singleton(token_shapes);
+        if (!drop) {
+            return false;
+        }
+        rebatch(op, token_inputs, *drop);
+        return true;
+    };
+
+    bool changed = false;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (node->get_output_size() != 1 || node->get_output_partial_shape(0).is_dynamic()) {
+            continue;
+        }
+        if (auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node)) {
+            const auto& act = matmul->get_input_partial_shape(0);
+            const auto& rhs = matmul->get_input_partial_shape(1);
+            if (!matmul->get_transpose_a() && is_token_major(act) && rhs.rank().get_length() == 2) {
+                // A batch of single-row GEMVs against one weight matrix.
+                if (const auto drop = shared_singleton({matmul->get_input_shape(0)})) {
+                    rebatch(matmul, {0}, *drop);
+                    changed = true;
+                }
+            } else if (!matmul->get_transpose_a() && !matmul->get_transpose_b() && act.is_static() && rhs.is_static() &&
+                       act.rank().get_length() == 3 && rhs.rank().get_length() == 3 && is_token_major(act) &&
+                       act[2].get_length() == 1 && rhs[1].get_length() == 1) {
+                // The RoPE position outer product: with K = 1 it is a broadcast
+                // Multiply, rebatched like the other elementwise ops.
+                auto product = std::make_shared<ov::op::v1::Multiply>(matmul->input_value(0), matmul->input_value(1));
+                product->set_friendly_name(matmul->get_friendly_name());
+                ov::replace_node(matmul, product);
+                rebatch_eltwise(product);
+                changed = true;
+            }
+        } else if (ov::is_type<ov::op::v1::Multiply>(node) || ov::is_type<ov::op::v1::Add>(node) ||
+                   ov::is_type<ov::op::v1::Subtract>(node) || ov::is_type<ov::op::v1::Divide>(node)) {
+            changed |= rebatch_eltwise(node);
+        }
+    }
+    if (changed) {
+        model->validate_nodes_and_infer_types();
+    }
+}
 
 ov::AnyMap ov::npuw::PACompiledModel::make_variant_config(const ov::AnyMap& properties,
                                                           const std::string& pa_device,
