@@ -294,3 +294,56 @@ TEST(execution_config, finish_after_enqueue_default_off) {
         GTEST_FAIL() << "finish_after_enqueue must default to OFF when OV_GPU_FINISH_AFTER_ENQUEUE is unset";
     }
 }
+
+TEST(execution_config, moe_offload_enables_weightless_by_default) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto model = make_pa_matmul_model(ov::element::f32);
+
+    ExecutionConfig config;
+    config.set_user_property(ov::intel_gpu::offload_ratio(20));
+    config.finalize(ctx.get(), model.get());
+
+    ASSERT_TRUE(config.get_enable_weightless());
+}
+
+TEST(execution_config, moe_offload_rejects_explicitly_disabled_weightless) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto model = make_pa_matmul_model(ov::element::f32);
+
+    ExecutionConfig config;
+    config.set_user_property(ov::intel_gpu::offload_ratio(20));
+    config.set_user_property(ov::cache_dir("cache_dir"));
+    config.set_user_property(ov::enable_weightless(false));
+
+    ASSERT_ANY_THROW(config.finalize(ctx.get(), model.get()));
+}
+
+TEST(execution_config, moe_offload_rejects_optimize_speed_cache_mode) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto model = make_pa_matmul_model(ov::element::f32);
+
+    ExecutionConfig config;
+    config.set_user_property(ov::intel_gpu::offload_ratio(20));
+    config.set_user_property(ov::cache_dir("cache_dir"));
+    config.set_user_property(ov::cache_mode(ov::CacheMode::OPTIMIZE_SPEED));
+
+    ASSERT_ANY_THROW(config.finalize(ctx.get(), model.get()));
+}
+
+TEST(execution_config, moe_offload_accepts_optimize_size_cache_mode) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto model = make_pa_matmul_model(ov::element::f32);
+
+    ExecutionConfig config;
+    config.set_user_property(ov::intel_gpu::offload_ratio(20));
+    config.set_user_property(ov::cache_dir("cache_dir"));
+    config.set_user_property(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+    config.finalize(ctx.get(), model.get());
+
+    ASSERT_TRUE(config.get_enable_weightless());
+}
+}

@@ -183,7 +183,11 @@ static constexpr Property<bool> enable_large_allocations{"GPU_ENABLE_LARGE_ALLOC
  * In string-based configs, set to "AUTO" to let the plugin pick a suitable ratio
  * automatically based on available device/host memory and the model's weight sizes.
  * In typed C++ API usage, set to OFFLOAD_RATIO_AUTO (i.e. -1) for the same behavior.
- * Currently supported for MoE expert weights only.
+ * Currently supported for MoE expert weights only. This property automatically enables
+ * @ref ov::enable_weightless. When model caching is enabled with @ref ov::cache_dir, only
+ * weightless caching is supported. Setting this property together with
+ * @ref ov::enable_weightless(false) or @ref ov::cache_mode(ov::CacheMode::OPTIMIZE_SPEED)
+ * throws an exception when @ref ov::cache_dir is set.
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
 static constexpr Property<int64_t, PropertyMutability::RW> offload_ratio{"OFFLOAD_RATIO"};

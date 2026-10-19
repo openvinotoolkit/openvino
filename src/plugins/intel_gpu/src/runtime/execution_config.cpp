@@ -229,11 +229,17 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
 
     // WEIGHTS_PATH is used for the weightless cache mechanism which is used only as defined by
     // ov::util::is_weightless_enabled. Not setting WEIGHTS_PATH will result in not
-    // using that mechanism.  OTD (MoE offload) also requires the .bin path.
-    if (const auto enable_weightless = ov::util::is_weightless_enabled(get_user_properties()); enable_weightless) {
-        set_property({ov::enable_weightless(*enable_weightless)});
+    // using that mechanism. OTD (MoE offload) also requires the .bin path.
+    const auto enable_weightless = ov::util::is_weightless_enabled(get_user_properties());
+    if (get_offload_ratio() > 0) {
+        OPENVINO_ASSERT(get_cache_dir().empty() || enable_weightless.value_or(true),
+                        "OFFLOAD_RATIO requires weightless cache when CACHE_DIR is set. Do not set "
+                        "ENABLE_WEIGHTLESS=false or CACHE_MODE=OPTIMIZE_SPEED when using OFFLOAD_RATIO.");
+        set_property(ov::enable_weightless(true));
+    } else if (enable_weightless) {
+        set_property(ov::enable_weightless(*enable_weightless));
     }
-    if (get_enable_weightless() || get_offload_ratio() != 0) {
+    if (get_enable_weightless() || get_offload_ratio() > 0) {
         apply_rt_info_property(ov::weights_path, rt_info);
     }
 }
