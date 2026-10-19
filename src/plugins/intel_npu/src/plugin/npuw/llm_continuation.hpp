@@ -153,6 +153,12 @@ public:
         m_continuable = true;
     }
 
+    // The cached KV was rewritten in place, so none of it matches what a prefill
+    // produced any more. Every proposal is granted zero until the next prefill.
+    void drop_watermark() {
+        m_watermark = 0u;
+    }
+
     uint32_t live_tokens() const {
         return m_live_tokens;
     }
