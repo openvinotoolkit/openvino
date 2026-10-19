@@ -248,7 +248,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Interaction", Type::Interaction},
         {"Unique", Type::Unique},
         {"Ngram", Type::Ngram},
-        {"NgramHash", Type::NgramHash},
+        {"NGramHashFunction", Type::NgramHash},
         {"ScaledDotProductAttention", Type::ScaledDotProductAttention},
         {"ScaledDotProductAttentionWithKVCache", Type::ScaledDotProductAttention},
         {"SDPAWithTransposeReshape", Type::ScaledDotProductAttention},

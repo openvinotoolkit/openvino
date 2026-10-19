@@ -581,8 +581,6 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/leaky_relu.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/ngram.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/ngram.hpp
-    ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/ngram_hash.cpp
-    ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/ngram_hash.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/power_static.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/power_static.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/read_value_with_subgraph.cpp
@@ -625,8 +623,6 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/move_readvalue_inputs_to_subgraph.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/ngram_fusion.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/ngram_fusion.hpp
-    ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/ngram_hash_fusion.cpp
-    ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/ngram_hash_fusion.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/permute_slice_n_interpolation.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/rnn_sequences_optimization.cpp

@@ -18,6 +18,7 @@
 
 namespace ov::intel_cpu::node {
 
+// Executes ov::op::internal::NGramHashFunction.
 class NgramHash : public Node {
 public:
     NgramHash(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
@@ -39,9 +40,11 @@ private:
     template <typename T>
     void executeImpl();
 
-    std::vector<uint64_t> m_multipliers;
-    std::vector<int64_t> m_moduli;
-    std::vector<int64_t> m_offsets;
+    size_t m_ngram_size = 0;
+    std::vector<int64_t> m_heads_per_order;
+    std::vector<int64_t> m_multipliers;
+    std::vector<int64_t> m_head_vocab_sizes;
+    std::vector<int64_t> m_head_offsets;
     ov::element::Type m_precision;
 };
 
