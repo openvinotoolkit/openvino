@@ -413,4 +413,39 @@ TEST_F(TransformationTestsF, QKVProjFusionCombinedRejectedByCallbackNotFused) {
     register_qkv_fusion<intel_cpu::QKVProjFusionPass2>(manager, false);
 }
 
+// A vector weight makes MatMul a matrix-vector product, [2048, hidden] x [hidden] -> [2048]: its last (only) axis
+// still splits into q + k + v, but there is no [rows, hidden] weight to fuse.
+TEST_F(TransformationTestsF, QKVProjFusionCombinedVectorWeightNotFused) {
+    auto input = std::make_shared<v0::Parameter>(element::f32, PartialShape{2048, hidden_size});
+    auto mm = std::make_shared<v0::MatMul>(input, make_weight(element::f32, Shape{hidden_size}), false, true);
+    auto split = std::make_shared<v1::VariadicSplit>(mm,
+                                                     axis_const(element::i64, -1),
+                                                     v0::Constant::create(element::i64, Shape{3}, {1024, 512, 512}));
+    model = std::make_shared<Model>(split->outputs(), ParameterVector{input});
+    register_qkv_fusion<intel_cpu::QKVProjFusionPass2>(manager);
+}
+
+// Three MatMuls on vector weights: same for the separate-projection form.
+TEST_F(TransformationTestsF, QKVProjFusionSeparateVectorWeightNotFused) {
+    auto input = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, hidden_size});
+    OutputVector outputs;
+    for (int i = 0; i < 3; i++) {
+        outputs.push_back(
+            std::make_shared<v0::MatMul>(input, make_weight(element::f32, Shape{hidden_size}), false, true));
+    }
+    model = std::make_shared<Model>(outputs, ParameterVector{input});
+    register_qkv_fusion<intel_cpu::QKVProjFusionPass1>(manager);
+}
+
+// Without a Convert an integer MatMul matches the pattern too; QKVProjection only takes real features.
+TEST_F(TransformationTestsF, QKVProjFusionCombinedIntegerInputNotFused) {
+    auto input = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1, hidden_size});
+    auto mm = std::make_shared<v0::MatMul>(input, make_weight(element::i32, Shape{6144, hidden_size}), false, true);
+    auto split = std::make_shared<v1::VariadicSplit>(mm,
+                                                     axis_const(element::i64, 1),
+                                                     v0::Constant::create(element::i64, Shape{3}, {2048, 2048, 2048}));
+    model = std::make_shared<Model>(split->outputs(), ParameterVector{input});
+    register_qkv_fusion<intel_cpu::QKVProjFusionPass2>(manager);
+}
+
 }  // namespace
