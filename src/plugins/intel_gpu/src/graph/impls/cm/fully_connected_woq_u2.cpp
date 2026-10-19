@@ -56,7 +56,6 @@ public:
     using KernelGenerator::KernelGenerator;
 
 protected:
-
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         const auto epi = epilogue_of(params);
@@ -66,7 +65,7 @@ protected:
             // N-major unless a test selected the group-major path (see fully_connected_woq_u2.hpp).
             make_jit_constant("WLAYOUT", static_cast<int>(woq_u2_weight_layout_for_tests())),
             make_jit_constant("OUT_F16", params.get_output_layout(0).data_type == data_types::f16 ? 1 : 0),
-            make_jit_constant("EPI_F16", epi_f16 ? 1 : 0),      // epilogue tensor is half
+            make_jit_constant("EPI_F16", epi_f16 ? 1 : 0),  // epilogue tensor is half
         });
         return jit;
     }
@@ -77,20 +76,20 @@ protected:
         // (epi_mode = 0) the kernel never reads it and the output buffer is bound in its place.
         const bool bias = has_bias(params);
         Arguments args;
-        args.push_back({ArgumentDescriptor::Types::INPUT, 0});                                            // A
-        args.push_back({ArgumentDescriptor::Types::INPUT, 1});                                            // Wq
+        args.push_back({ArgumentDescriptor::Types::INPUT, 0});                                              // A
+        args.push_back({ArgumentDescriptor::Types::INPUT, 1});                                              // Wq
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(woq_u2_scale_idx(bias))});  // scales
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(woq_u2_zp_idx(bias))});     // zero points (u8)
         const auto epi = epilogue_of(params);
         if (epi.dep >= 0)
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(epi.dep)});  // epi
         else
-            args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});     // epi (unused, epi_mode = 0)
-        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});         // C
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});         // M
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});         // K
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});         // N
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});         // epi_mode
+            args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // epi (unused, epi_mode = 0)
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});      // C
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});      // M
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});      // K
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});      // N
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});      // epi_mode
         return args;
     }
 
@@ -143,8 +142,8 @@ public:
 
 protected:
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
-        return KernelGenerator::get_build_options(params) + " -Qxcm_register_file_size=128 -DNCB=1 -DRBG=1 -DLS=16 -DPFG=4 -DGEMV_MAXT=" +
-               std::to_string(gemv_maxt) + " ";
+        return KernelGenerator::get_build_options(params) +
+               " -Qxcm_register_file_size=128 -DNCB=1 -DRBG=1 -DLS=16 -DPFG=4 -DGEMV_MAXT=" + std::to_string(gemv_maxt) + " ";
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {

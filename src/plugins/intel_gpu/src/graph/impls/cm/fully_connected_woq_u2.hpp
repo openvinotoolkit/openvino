@@ -20,10 +20,11 @@
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
-#define CM_FC_LOG_AND_RETURN_FALSE(node, reason) do {                                                        \
-    GPU_DEBUG_TRACE_DETAIL << (node).id() << " : Do not select cm::fully_connected::woq_u2 (" << reason << ")" << std::endl; \
-    return false;                                                                                          \
-} while (0)
+#define CM_FC_LOG_AND_RETURN_FALSE(node, reason)                                                                                 \
+    do {                                                                                                                         \
+        GPU_DEBUG_TRACE_DETAIL << (node).id() << " : Do not select cm::fully_connected::woq_u2 (" << reason << ")" << std::endl; \
+        return false;                                                                                                            \
+    } while (0)
 
 namespace ov::intel_gpu::cm {
 
@@ -41,8 +42,12 @@ inline WoqU2WeightLayout& woq_u2_weight_layout_for_tests() {
 // Dependencies of the FC: 0 = input, 1 = weights, [2 = bias], then decompression scale and zero point,
 // then the outer dependencies of fused primitives.
 constexpr size_t woq_u2_bias_idx = 2;
-inline size_t woq_u2_scale_idx(bool has_bias) { return has_bias ? 3 : 2; }
-inline size_t woq_u2_zp_idx(bool has_bias) { return woq_u2_scale_idx(has_bias) + 1; }
+inline size_t woq_u2_scale_idx(bool has_bias) {
+    return has_bias ? 3 : 2;
+}
+inline size_t woq_u2_zp_idx(bool has_bias) {
+    return woq_u2_scale_idx(has_bias) + 1;
+}
 
 // The epilogue the CM u2 kernels apply (their epi_mode) and the FC dependency that provides its tensor
 // (`epi`), derived from the FC's bias and fused primitives. Supported, and nothing else:
@@ -53,10 +58,12 @@ inline size_t woq_u2_zp_idx(bool has_bias) { return woq_u2_scale_idx(has_bias) +
 // The operand itself is checked by woq_u2_check_epi_operand (dtype; shape like the output, or one row [N]
 // when the output is one row too).
 struct WoqU2Epilogue {
-    int32_t mode = 0;      // kernel epi_mode
-    int32_t dep = -1;      // FC dependency index of the epilogue tensor, -1 if none
-    std::string error;     // non-empty: unsupported combination (the reason)
-    bool ok() const { return error.empty(); }
+    int32_t mode = 0;   // kernel epi_mode
+    int32_t dep = -1;   // FC dependency index of the epilogue tensor, -1 if none
+    std::string error;  // non-empty: unsupported combination (the reason)
+    bool ok() const {
+        return error.empty();
+    }
 };
 
 inline WoqU2Epilogue woq_u2_epilogue(const std::vector<fused_primitive_desc>& fused, bool has_bias) {
@@ -253,8 +260,7 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
 
         // Activations: last dim is K.
         const auto& in_pshape = in.get_partial_shape();
-        if (in_pshape.rank().is_dynamic() || in_pshape[in_pshape.size() - 1].is_dynamic() ||
-            in_pshape[in_pshape.size() - 1].get_length() != K)
+        if (in_pshape.rank().is_dynamic() || in_pshape[in_pshape.size() - 1].is_dynamic() || in_pshape[in_pshape.size() - 1].get_length() != K)
             CM_FC_LOG_AND_RETURN_FALSE(node, "activation last dim != K or dynamic");
 
         auto is_per_group = [&](const cldnn::layout& l) {
@@ -273,10 +279,10 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
             size_t total = 1;
             for (auto d : scale.get_shape())
                 total *= d;
-            CM_FC_LOG_AND_RETURN_FALSE(node, "scale shape/format mismatch: format=" << scale.format
-                                        << " total_elems=" << total << " expected(N*K/64)=" << (N * KG)
-                                        << " N=" << N << " K=" << K
-                                        << " implied_group_size=" << (total > 0 ? (N * K) / static_cast<int64_t>(total) : -1));
+            CM_FC_LOG_AND_RETURN_FALSE(
+                node,
+                "scale shape/format mismatch: format=" << scale.format << " total_elems=" << total << " expected(N*K/64)=" << (N * KG) << " N=" << N
+                                                       << " K=" << K << " implied_group_size=" << (total > 0 ? (N * K) / static_cast<int64_t>(total) : -1));
         }
 
         // Zero points: a per-group u8 tensor only.
@@ -289,10 +295,10 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
             size_t total = 1;
             for (auto d : zp.get_shape())
                 total *= d;
-            CM_FC_LOG_AND_RETURN_FALSE(node, "zero point shape/format mismatch: format=" << zp.format
-                                        << " total_elems=" << total << " expected(N*K/64)=" << (N * KG)
-                                        << " N=" << N << " K=" << K
-                                        << " implied_group_size=" << (total > 0 ? (N * K) / static_cast<int64_t>(total) : -1));
+            CM_FC_LOG_AND_RETURN_FALSE(node,
+                                       "zero point shape/format mismatch: format=" << zp.format << " total_elems=" << total << " expected(N*K/64)=" << (N * KG)
+                                                                                   << " N=" << N << " K=" << K << " implied_group_size="
+                                                                                   << (total > 0 ? (N * K) / static_cast<int64_t>(total) : -1));
         }
 
         if (!check_epilogue)

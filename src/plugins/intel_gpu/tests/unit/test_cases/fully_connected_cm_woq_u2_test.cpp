@@ -32,13 +32,13 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
-#include <iomanip>
-#include <iostream>
 #include <cmath>
 #include <cstdlib>
+#include <iomanip>
+#include <iostream>
 #include <random>
-#include <string>
 #include <sstream>
+#include <string>
 #include <thread>
 
 #include "fully_connected_inst.h"
@@ -59,8 +59,8 @@
 
 using namespace cldnn;
 using namespace ::tests;
-using ov::intel_gpu::cm::WoqU2WeightLayout;
 using ov::intel_gpu::cm::woq_u2_weight_layout_for_tests;
+using ov::intel_gpu::cm::WoqU2WeightLayout;
 
 namespace {
 
@@ -73,20 +73,24 @@ enum class Epi { none, bias, add, swiglu };
 struct WoqU2Case {
     int64_t M, K, N;
     ZpKind zp;
-    int64_t seq = 0;         // > 0: 3D input [M/seq, seq, K]
-    bool dynamic = false;    // dynamic M; executed at M and at two more sizes
+    int64_t seq = 0;           // > 0: 3D input [M/seq, seq, K]
+    bool dynamic = false;      // dynamic M; executed at M and at two more sizes
     bool sample_rows = false;  // reference computes a row sample only (all N columns, all of K)
     Epi epi = Epi::none;
-    bool epi_row = false;    // add / SwiGLU operand is one row [.., 1, N] (per column; M = 1 only)
-    int bd = 0;              // > 0: number of the benchdnn case it reproduces
+    bool epi_row = false;  // add / SwiGLU operand is one row [.., 1, N] (per column; M = 1 only)
+    int bd = 0;            // > 0: number of the benchdnn case it reproduces
 };
 
 std::string zp_name(ZpKind z) {
     switch (z) {
-    case ZpKind::none: return "nozp";
-    case ZpKind::tensor_f16: return "zpf16";
-    case ZpKind::tensor_u8: return "zpu8";
-    default: return "zpscalar";
+    case ZpKind::none:
+        return "nozp";
+    case ZpKind::tensor_f16:
+        return "zpf16";
+    case ZpKind::tensor_u8:
+        return "zpu8";
+    default:
+        return "zpscalar";
     }
 }
 
@@ -99,20 +103,25 @@ using WoqU2Param = std::tuple<WoqU2Case, WoqU2WeightLayout, data_types>;
 
 std::string case_name(const testing::TestParamInfo<WoqU2Param>& info) {
     const auto& c = std::get<0>(info.param);
-    std::string name = (c.bd ? "bd" + std::to_string(c.bd) + "_" : std::string()) + "M" + std::to_string(c.M) + "_K" + std::to_string(c.K) + "_N" + std::to_string(c.N) + "_" + zp_name(c.zp);
-    if (c.seq) name += "_seq" + std::to_string(c.seq);
-    if (c.dynamic) name += "_dyn";
-    if (c.epi == Epi::bias) name += "_bias";
-    if (c.epi == Epi::add) name += c.epi_row ? "_addrow" : "_add";
-    if (c.epi == Epi::swiglu) name += c.epi_row ? "_swiglurow" : "_swiglu";
+    std::string name = (c.bd ? "bd" + std::to_string(c.bd) + "_" : std::string()) + "M" + std::to_string(c.M) + "_K" + std::to_string(c.K) + "_N" +
+                       std::to_string(c.N) + "_" + zp_name(c.zp);
+    if (c.seq)
+        name += "_seq" + std::to_string(c.seq);
+    if (c.dynamic)
+        name += "_dyn";
+    if (c.epi == Epi::bias)
+        name += "_bias";
+    if (c.epi == Epi::add)
+        name += c.epi_row ? "_addrow" : "_add";
+    if (c.epi == Epi::swiglu)
+        name += c.epi_row ? "_swiglurow" : "_swiglu";
     return name + "_" + layout_name(std::get<1>(info.param)) + (std::get<2>(info.param) == data_types::f32 ? "_f32out" : "_f16out");
 }
 
 bool cm_woq_u2_supported(engine& e) {
     const auto& info = e.get_device_info();
     auto config = get_test_default_config(e);
-    return (info.arch == gpu_arch::xe2 || info.arch == gpu_arch::xe3) && info.max_local_mem_size >= 98304 &&
-           check_cm_jit_support(e, config);
+    return (info.arch == gpu_arch::xe2 || info.arch == gpu_arch::xe3) && info.max_local_mem_size >= 98304 && check_cm_jit_support(e, config);
 }
 
 // Constant inputs of one u2 FC. Host copies are always N-major: packed weights [N, K/4] (4 per byte, LSB
@@ -168,7 +177,12 @@ std::vector<ov::float16> random_activations(size_t count, uint64_t seed) {
     return v;
 }
 
-WoqU2Weights make_weights(engine& engine, int64_t K, int64_t N, ZpKind zk, tests::random_generator& rg, uint32_t seed,
+WoqU2Weights make_weights(engine& engine,
+                          int64_t K,
+                          int64_t N,
+                          ZpKind zk,
+                          tests::random_generator& rg,
+                          uint32_t seed,
                           WoqU2WeightLayout layout = WoqU2WeightLayout::n_major) {
     const int64_t KG = K / 64;
     WoqU2Weights r;
@@ -237,11 +251,24 @@ void add_weights(topology& topo, const std::string& prefix, const WoqU2Weights& 
         topo.add(data(prefix + "zp", w.zp));
 }
 
-fully_connected make_fc(const std::string& id, const std::string& input, const std::string& prefix, ZpKind zk, data_types out_dt,
-                        size_t input_rank, float zp_scalar, bool with_bias = false) {
+fully_connected make_fc(const std::string& id,
+                        const std::string& input,
+                        const std::string& prefix,
+                        ZpKind zk,
+                        data_types out_dt,
+                        size_t input_rank,
+                        float zp_scalar,
+                        bool with_bias = false) {
     const bool zp_tensor = zk == ZpKind::tensor_f16 || zk == ZpKind::tensor_u8;
-    auto fc = fully_connected(id, input_info(input), prefix + "weights", with_bias ? prefix + "bias" : "", prefix + "scale",
-                              zp_tensor ? prefix + "zp" : "", out_dt, input_rank, 2);
+    auto fc = fully_connected(id,
+                              input_info(input),
+                              prefix + "weights",
+                              with_bias ? prefix + "bias" : "",
+                              prefix + "scale",
+                              zp_tensor ? prefix + "zp" : "",
+                              out_dt,
+                              input_rank,
+                              2);
     if (zk == ZpKind::scalar)
         fc.decompression_zero_point_scalar = zp_scalar;
     return fc;
@@ -353,7 +380,10 @@ float distance_to_fp16_rounding_interval(float x, ov::float16 h) {
 
 // CM output vs the host reference, row-major [rows, N]; `row_ids` names the output row of each compared
 // row. `ref` is always the unrounded reference.
-void compare_values(const std::vector<float>& out, const std::vector<float>& ref, int64_t N, const std::vector<int64_t>* row_ids = nullptr,
+void compare_values(const std::vector<float>& out,
+                    const std::vector<float>& ref,
+                    int64_t N,
+                    const std::vector<int64_t>* row_ids = nullptr,
                     bool out_f16 = false) {
     size_t bad = 0, first_bad = 0, differing = 0;
     float max_err = 0.0f;
@@ -369,19 +399,19 @@ void compare_values(const std::vector<float>& out, const std::vector<float>& ref
         }
     }
     if (out_f16)
-        std::cout << "        [cm vs host ref, f16] min possible f32 error = " << max_err << " (limit " << max_abs_diff << "), "
-                  << differing << " / " << out.size() << " at a rounding midpoint (" << 100.0 * static_cast<double>(differing) / static_cast<double>(out.size())
+        std::cout << "        [cm vs host ref, f16] min possible f32 error = " << max_err << " (limit " << max_abs_diff << "), " << differing << " / "
+                  << out.size() << " at a rounding midpoint (" << 100.0 * static_cast<double>(differing) / static_cast<double>(out.size())
                   << " %, allowed <= " << 100.0 * max_midpoint_fraction << " %)" << "\n";
     else
         std::cout << "        [cm vs host ref, f32] max|d| = " << max_err << " (limit " << max_abs_diff << ")" << "\n";
     const int64_t bad_row = row_ids ? (*row_ids)[static_cast<size_t>(first_bad / N)] : static_cast<int64_t>(first_bad / N);
     ASSERT_EQ(bad, size_t(0)) << bad << " of " << out.size() << " compared outputs are more than " << max_abs_diff
-                              << (out_f16 ? " from any value that rounds to them" : " off") << "; first at row " << bad_row << ", col "
-                              << first_bad % N << ": got " << out[first_bad] << ", reference " << ref[first_bad];
+                              << (out_f16 ? " from any value that rounds to them" : " off") << "; first at row " << bad_row << ", col " << first_bad % N
+                              << ": got " << out[first_bad] << ", reference " << ref[first_bad];
     if (out_f16)
         ASSERT_LE(static_cast<double>(differing), max_midpoint_fraction * static_cast<double>(out.size()))
-            << differing << " of " << out.size() << " f16 outputs differ from the fp16-rounded reference (more than "
-            << 100.0 * max_midpoint_fraction << " %): too many for rounding-midpoint cases";
+            << differing << " of " << out.size() << " f16 outputs differ from the fp16-rounded reference (more than " << 100.0 * max_midpoint_fraction
+            << " %): too many for rounding-midpoint cases";
 }
 
 // CM output rows `rows` of an [m, N] output vs the host reference.
@@ -393,8 +423,13 @@ struct HostEpi {
 };
 
 // The reference applies the epilogue in double, in the kernel's order: acc + t, or acc / (1 + exp(-acc)) * t.
-void check_rows(memory::ptr out_mem, int64_t m, const std::vector<ov::float16>& a, const std::vector<int64_t>& rows, const WoqU2Weights& w,
-                bool out_f32, const HostEpi& epi = {}) {
+void check_rows(memory::ptr out_mem,
+                int64_t m,
+                const std::vector<ov::float16>& a,
+                const std::vector<int64_t>& rows,
+                const WoqU2Weights& w,
+                bool out_f32,
+                const HostEpi& epi = {}) {
     const int64_t N = w.N, R = static_cast<int64_t>(rows.size());
     const auto out_all = read_output(out_mem, static_cast<size_t>(m * N), out_f32);
     std::vector<float> out_rows(static_cast<size_t>(R * N));
@@ -477,8 +512,7 @@ TEST_P(fully_connected_cm_woq_u2, conformance) {
             return p.seq ? ov::PartialShape{1, 1, N} : ov::PartialShape{1, N};
         return make_out_shape(m);
     };
-    auto net_epi_shape = p.epi_row ? make_epi_shape(1)
-                                   : (p.dynamic ? (p.seq ? ov::PartialShape{-1, p.seq, N} : ov::PartialShape{-1, N}) : make_out_shape(M));
+    auto net_epi_shape = p.epi_row ? make_epi_shape(1) : (p.dynamic ? (p.seq ? ov::PartialShape{-1, p.seq, N} : ov::PartialShape{-1, N}) : make_out_shape(M));
     // Operand / bias values: f16-representable, so the same values serve an f16 and an f32 tensor.
     auto make_epi_values = [&](size_t count, uint64_t seed) {
         const auto h = random_activations(count, seed);
@@ -604,14 +638,14 @@ TEST(fully_connected_cm_woq_u2_perf, DISABLED_benchmark_shapes) {
         ZpKind zp;
     };
     std::vector<Shape> shapes = {{512, 5120, 7680, ZpKind::tensor_u8},
-                                       {512, 5120, 5120, ZpKind::tensor_u8},
-                                       {512, 5120, 17920, ZpKind::tensor_u8},
-                                       {512, 17920, 5120, ZpKind::tensor_u8},
-                                       {1024, 5120, 7680, ZpKind::tensor_u8},
-                                       {1024, 5120, 17920, ZpKind::tensor_u8},
-                                       {2048, 5120, 7680, ZpKind::tensor_u8},
-                                       {2048, 5120, 17920, ZpKind::tensor_u8},
-                                       {2048, 17920, 5120, ZpKind::tensor_u8}};
+                                 {512, 5120, 5120, ZpKind::tensor_u8},
+                                 {512, 5120, 17920, ZpKind::tensor_u8},
+                                 {512, 17920, 5120, ZpKind::tensor_u8},
+                                 {1024, 5120, 7680, ZpKind::tensor_u8},
+                                 {1024, 5120, 17920, ZpKind::tensor_u8},
+                                 {2048, 5120, 7680, ZpKind::tensor_u8},
+                                 {2048, 5120, 17920, ZpKind::tensor_u8},
+                                 {2048, 17920, 5120, ZpKind::tensor_u8}};
     if (const char* env = std::getenv("OV_WOQ_U2_PERF_SHAPES")) {
         shapes.clear();
         std::stringstream list(env);
@@ -629,8 +663,16 @@ TEST(fully_connected_cm_woq_u2_perf, DISABLED_benchmark_shapes) {
     }
 
     // Kernel execution times (ms) of the FC over `iters` runs after `warmup` runs.
-    auto measure = [&](const WoqU2Weights& w, ZpKind zk, data_types out_dt, memory::ptr input_mem, int64_t M, int64_t K, const ExecutionConfig& cfg,
-                       int warmup, int iters, std::string& impl_name) {
+    auto measure = [&](const WoqU2Weights& w,
+                       ZpKind zk,
+                       data_types out_dt,
+                       memory::ptr input_mem,
+                       int64_t M,
+                       int64_t K,
+                       const ExecutionConfig& cfg,
+                       int warmup,
+                       int iters,
+                       std::string& impl_name) {
         topology topo(input_layout("input", layout{ov::PartialShape{M, K}, data_types::f16, format::bfyx}));
         add_weights(topo, "", w);
         topo.add(make_fc("fc_prim", "input", "", zk, out_dt, 2, w.zp_scalar));
@@ -659,65 +701,67 @@ TEST(fully_connected_cm_woq_u2_perf, DISABLED_benchmark_shapes) {
               << "      M      K      N zp   layout out |  CM best  CM median  TFLOP/s  %roof\n";
     tests::random_generator rg(GET_SUITE_NAME);
     for (const auto& s : shapes) {
-      for (const auto wl : {WoqU2WeightLayout::n_major, WoqU2WeightLayout::group_major}) {
-       for (const auto out_dt : {data_types::f16, data_types::f32}) {
-        const WeightLayoutScope layout_scope(wl);
-        auto w = make_weights(engine, s.K, s.N, s.zp, rg, 5, wl);
-        w.weights = to_device(engine, w.weights);
-        w.scale = to_device(engine, w.scale);
-        w.zp = to_device(engine, w.zp);
-        auto a = random_activations(static_cast<size_t>(s.M * s.K), 17);
-        auto host_input = engine.allocate_memory({ov::PartialShape{s.M, s.K}, data_types::f16, format::bfyx});
-        set_values(host_input, a);
-        auto input_mem = to_device(engine, host_input);
+        for (const auto wl : {WoqU2WeightLayout::n_major, WoqU2WeightLayout::group_major}) {
+            for (const auto out_dt : {data_types::f16, data_types::f32}) {
+                const WeightLayoutScope layout_scope(wl);
+                auto w = make_weights(engine, s.K, s.N, s.zp, rg, 5, wl);
+                w.weights = to_device(engine, w.weights);
+                w.scale = to_device(engine, w.scale);
+                w.zp = to_device(engine, w.zp);
+                auto a = random_activations(static_cast<size_t>(s.M * s.K), 17);
+                auto host_input = engine.allocate_memory({ov::PartialShape{s.M, s.K}, data_types::f16, format::bfyx});
+                set_values(host_input, a);
+                auto input_mem = to_device(engine, host_input);
 
-        std::string cm_impl;
-        const auto cm = measure(w, s.zp, out_dt, input_mem, s.M, s.K, woq_config(engine, {"fc_prim"}), 5, cm_iters, cm_impl);
-        ASSERT_FALSE(cm.empty()) << "no profiling data";
-        ASSERT_NE(cm_impl.find("woq_u2"), std::string::npos) << "CM implementation not selected (got " << cm_impl << ")";
-        const double best = cm.front(), median = cm[cm.size() / 2];
-        const double tflops = 2.0 * static_cast<double>(s.M) * s.K * s.N / (best * 1e-3) * 1e-12;
-        std::cout << std::setw(7) << s.M << std::setw(7) << s.K << std::setw(7) << s.N << " " << std::left << std::setw(4) << zp_name(s.zp).substr(2)
-                  << std::setw(7) << layout_name(wl) << std::setw(4) << (out_dt == data_types::f16 ? "f16" : "f32") << std::right << " | " << std::setprecision(4) << std::setw(8) << best << std::setw(11) << median << std::setprecision(1)
-                  << std::setw(9) << tflops << std::setw(6) << 100.0 * tflops / peak_tflops << "%\n" << std::flush;
-       }
-      }
+                std::string cm_impl;
+                const auto cm = measure(w, s.zp, out_dt, input_mem, s.M, s.K, woq_config(engine, {"fc_prim"}), 5, cm_iters, cm_impl);
+                ASSERT_FALSE(cm.empty()) << "no profiling data";
+                ASSERT_NE(cm_impl.find("woq_u2"), std::string::npos) << "CM implementation not selected (got " << cm_impl << ")";
+                const double best = cm.front(), median = cm[cm.size() / 2];
+                const double tflops = 2.0 * static_cast<double>(s.M) * s.K * s.N / (best * 1e-3) * 1e-12;
+                std::cout << std::setw(7) << s.M << std::setw(7) << s.K << std::setw(7) << s.N << " " << std::left << std::setw(4) << zp_name(s.zp).substr(2)
+                          << std::setw(7) << layout_name(wl) << std::setw(4) << (out_dt == data_types::f16 ? "f16" : "f32") << std::right << " | "
+                          << std::setprecision(4) << std::setw(8) << best << std::setw(11) << median << std::setprecision(1) << std::setw(9) << tflops
+                          << std::setw(6) << 100.0 * tflops / peak_tflops << "%\n"
+                          << std::flush;
+            }
+        }
     }
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          fully_connected_cm_woq_u2,
                          ::testing::Combine(::testing::Values(
-                             // correctness shapes of test_woq_cm.py (u8 zero points)
-                             WoqU2Case{8, 128, 256, ZpKind::tensor_u8},
-                             WoqU2Case{5, 128, 256, ZpKind::tensor_u8},
-                             WoqU2Case{13, 192, 512, ZpKind::tensor_u8},   // KG = 3 (odd group count)
-                             WoqU2Case{16, 256, 256, ZpKind::tensor_u8},
-                             WoqU2Case{3, 320, 512, ZpKind::tensor_u8},    // KG = 5
-                             WoqU2Case{300, 448, 1024, ZpKind::tensor_u8}, // KG = 7
-                             WoqU2Case{517, 5120, 512, ZpKind::tensor_u8},
-                             // edge cases: tiny, partial column work-group (N % 256 != 0), 3D input
-                             WoqU2Case{1, 64, 32, ZpKind::tensor_u8},
-                             WoqU2Case{64, 256, 288, ZpKind::tensor_u8},
-                             WoqU2Case{33, 1024, 800, ZpKind::tensor_u8},
-                             WoqU2Case{256, 512, 256, ZpKind::tensor_u8},
-                             WoqU2Case{24, 384, 512, ZpKind::tensor_u8, 6},
-                             // dynamic M (shape-agnostic kernel, re-dispatched per shape)
-                             WoqU2Case{96, 512, 512, ZpKind::tensor_u8, 0, true},
-                             WoqU2Case{40, 256, 544, ZpKind::tensor_u8, 8, true},
-                             // post-ops: tiled kernel (M > 8) and GEMV (M <= 8), operand shaped like the output
-                             WoqU2Case{64, 256, 288, ZpKind::tensor_u8, 0, false, false, Epi::add},
-                             WoqU2Case{40, 512, 512, ZpKind::tensor_u8, 0, false, false, Epi::swiglu},
-                             WoqU2Case{24, 384, 512, ZpKind::tensor_u8, 6, false, false, Epi::add},
-                             WoqU2Case{5, 128, 256, ZpKind::tensor_u8, 0, false, false, Epi::add},
-                             WoqU2Case{8, 128, 256, ZpKind::tensor_u8, 0, false, false, Epi::swiglu},
-                             // per-column operand / bias: M = 1 only
-                             WoqU2Case{1, 256, 288, ZpKind::tensor_u8, 0, false, false, Epi::add, true},
-                             WoqU2Case{1, 512, 256, ZpKind::tensor_u8, 0, false, false, Epi::swiglu, true},
-                             WoqU2Case{1, 64, 32, ZpKind::tensor_u8, 0, false, false, Epi::bias},
-                             // post-ops with dynamic M
-                             WoqU2Case{96, 512, 512, ZpKind::tensor_u8, 0, true, false, Epi::add},
-                             WoqU2Case{40, 256, 544, ZpKind::tensor_u8, 8, true, false, Epi::swiglu}),
+                                                // correctness shapes of test_woq_cm.py (u8 zero points)
+                                                WoqU2Case{8, 128, 256, ZpKind::tensor_u8},
+                                                WoqU2Case{5, 128, 256, ZpKind::tensor_u8},
+                                                WoqU2Case{13, 192, 512, ZpKind::tensor_u8},  // KG = 3 (odd group count)
+                                                WoqU2Case{16, 256, 256, ZpKind::tensor_u8},
+                                                WoqU2Case{3, 320, 512, ZpKind::tensor_u8},     // KG = 5
+                                                WoqU2Case{300, 448, 1024, ZpKind::tensor_u8},  // KG = 7
+                                                WoqU2Case{517, 5120, 512, ZpKind::tensor_u8},
+                                                // edge cases: tiny, partial column work-group (N % 256 != 0), 3D input
+                                                WoqU2Case{1, 64, 32, ZpKind::tensor_u8},
+                                                WoqU2Case{64, 256, 288, ZpKind::tensor_u8},
+                                                WoqU2Case{33, 1024, 800, ZpKind::tensor_u8},
+                                                WoqU2Case{256, 512, 256, ZpKind::tensor_u8},
+                                                WoqU2Case{24, 384, 512, ZpKind::tensor_u8, 6},
+                                                // dynamic M (shape-agnostic kernel, re-dispatched per shape)
+                                                WoqU2Case{96, 512, 512, ZpKind::tensor_u8, 0, true},
+                                                WoqU2Case{40, 256, 544, ZpKind::tensor_u8, 8, true},
+                                                // post-ops: tiled kernel (M > 8) and GEMV (M <= 8), operand shaped like the output
+                                                WoqU2Case{64, 256, 288, ZpKind::tensor_u8, 0, false, false, Epi::add},
+                                                WoqU2Case{40, 512, 512, ZpKind::tensor_u8, 0, false, false, Epi::swiglu},
+                                                WoqU2Case{24, 384, 512, ZpKind::tensor_u8, 6, false, false, Epi::add},
+                                                WoqU2Case{5, 128, 256, ZpKind::tensor_u8, 0, false, false, Epi::add},
+                                                WoqU2Case{8, 128, 256, ZpKind::tensor_u8, 0, false, false, Epi::swiglu},
+                                                // per-column operand / bias: M = 1 only
+                                                WoqU2Case{1, 256, 288, ZpKind::tensor_u8, 0, false, false, Epi::add, true},
+                                                WoqU2Case{1, 512, 256, ZpKind::tensor_u8, 0, false, false, Epi::swiglu, true},
+                                                WoqU2Case{1, 64, 32, ZpKind::tensor_u8, 0, false, false, Epi::bias},
+                                                // post-ops with dynamic M
+                                                WoqU2Case{96, 512, 512, ZpKind::tensor_u8, 0, true, false, Epi::add},
+                                                WoqU2Case{40, 256, 544, ZpKind::tensor_u8, 8, true, false, Epi::swiglu}),
                                             ::testing::Values(WoqU2WeightLayout::n_major, WoqU2WeightLayout::group_major),
                                             ::testing::Values(data_types::f16, data_types::f32)),
                          case_name);
@@ -733,16 +777,16 @@ std::vector<WoqU2Param> benchdnn_u2_cases() {
     const auto u8 = ZpKind::tensor_u8;
     const std::vector<BenchCase> cases = {
         // src : wei, post-op (benchdnn mask 6 = full [M, N] tensor, mask 4 = per column)
-        {WoqU2Case{512, 5120, 7680, u8, 1, false, true, Epi::none, false, 1}, data_types::f16},     // 512x1x5120:1x5120x7680
-        {WoqU2Case{512, 5120, 5120, u8, 512, false, true, Epi::add, false, 2}, data_types::f32},    // 1x512x5120:1x5120x5120, add f32:6
-        {WoqU2Case{512, 5120, 17920, u8, 1, false, true, Epi::none, false, 3}, data_types::f16},    // 512x1x5120:1x5120x17920
+        {WoqU2Case{512, 5120, 7680, u8, 1, false, true, Epi::none, false, 1}, data_types::f16},       // 512x1x5120:1x5120x7680
+        {WoqU2Case{512, 5120, 5120, u8, 512, false, true, Epi::add, false, 2}, data_types::f32},      // 1x512x5120:1x5120x5120, add f32:6
+        {WoqU2Case{512, 5120, 17920, u8, 1, false, true, Epi::none, false, 3}, data_types::f16},      // 512x1x5120:1x5120x17920
         {WoqU2Case{512, 5120, 17920, u8, 512, false, true, Epi::swiglu, false, 4}, data_types::f16},  // 1x512x5120:1x5120x17920, swish+mul f16:6
-        {WoqU2Case{512, 17920, 5120, u8, 512, false, true, Epi::add, false, 5}, data_types::f32},   // 1x512x17920:1x17920x5120, add f32:6
-        {WoqU2Case{1, 5120, 7680, u8, 1, false, false, Epi::none, false, 7}, data_types::f16},      // 1x1x5120:1x5120x7680
-        {WoqU2Case{1, 5120, 5120, u8, 1, false, false, Epi::add, true, 8}, data_types::f32},        // 1x1x5120:1x5120x5120, add f32:4
-        {WoqU2Case{1, 5120, 17920, u8, 1, false, false, Epi::none, false, 9}, data_types::f16},     // 1x1x5120:1x5120x17920
-        {WoqU2Case{1, 5120, 17920, u8, 1, false, false, Epi::swiglu, true, 10}, data_types::f16},   // 1x1x5120:1x5120x17920, swish+mul f16:4
-        {WoqU2Case{1, 17920, 5120, u8, 1, false, false, Epi::add, true, 11}, data_types::f32},      // 1x1x17920:1x17920x5120, add f32:4
+        {WoqU2Case{512, 17920, 5120, u8, 512, false, true, Epi::add, false, 5}, data_types::f32},     // 1x512x17920:1x17920x5120, add f32:6
+        {WoqU2Case{1, 5120, 7680, u8, 1, false, false, Epi::none, false, 7}, data_types::f16},        // 1x1x5120:1x5120x7680
+        {WoqU2Case{1, 5120, 5120, u8, 1, false, false, Epi::add, true, 8}, data_types::f32},          // 1x1x5120:1x5120x5120, add f32:4
+        {WoqU2Case{1, 5120, 17920, u8, 1, false, false, Epi::none, false, 9}, data_types::f16},       // 1x1x5120:1x5120x17920
+        {WoqU2Case{1, 5120, 17920, u8, 1, false, false, Epi::swiglu, true, 10}, data_types::f16},     // 1x1x5120:1x5120x17920, swish+mul f16:4
+        {WoqU2Case{1, 17920, 5120, u8, 1, false, false, Epi::add, true, 11}, data_types::f32},        // 1x1x17920:1x17920x5120, add f32:4
     };
     std::vector<WoqU2Param> params;
     for (const auto& bc : cases)
@@ -772,10 +816,14 @@ TEST(fully_connected_cm_woq_u2_perf, DISABLED_benchdnn_cases) {
 
     auto post_name = [](const WoqU2Case& c) -> std::string {
         switch (c.epi) {
-        case Epi::bias: return "bias";
-        case Epi::add: return c.epi_row ? "add/col" : "add";
-        case Epi::swiglu: return c.epi_row ? "swiglu/col" : "swiglu";
-        default: return "-";
+        case Epi::bias:
+            return "bias";
+        case Epi::add:
+            return c.epi_row ? "add/col" : "add";
+        case Epi::swiglu:
+            return c.epi_row ? "swiglu/col" : "swiglu";
+        default:
+            return "-";
         }
     };
     std::cout << "\n  XMX roof " << std::fixed << std::setprecision(1) << peak_tflops << " TFLOP/s. " << iters << " runs per case." << "\n"
@@ -866,9 +914,10 @@ TEST(fully_connected_cm_woq_u2_perf, DISABLED_benchdnn_cases) {
         const double weight_gbs = static_cast<double>(c.K) * c.N * (0.25 + 2.0 / 64 + 1.0 / 64) / (best * 1e-3) * 1e-9;
         std::cout << "  " << std::left << std::setw(4) << ("bd" + std::to_string(c.bd)) << std::right << std::setw(5) << c.M << std::setw(7) << c.K
                   << std::setw(7) << c.N << "  " << (out_dt == data_types::f16 ? "f16" : "f32") << "  " << std::left << std::setw(11) << post_name(c)
-                  << std::setw(6) << (c.M <= 8 ? "gemv" : "tiled") << std::right << " | " << std::setprecision(4) << std::setw(8) << best
-                  << std::setw(11) << median << std::setprecision(1) << std::setw(9) << tflops << std::setw(6) << 100.0 * tflops / peak_tflops << "%"
-                  << std::setw(13) << weight_gbs << "\n" << std::flush;
+                  << std::setw(6) << (c.M <= 8 ? "gemv" : "tiled") << std::right << " | " << std::setprecision(4) << std::setw(8) << best << std::setw(11)
+                  << median << std::setprecision(1) << std::setw(9) << tflops << std::setw(6) << 100.0 * tflops / peak_tflops << "%" << std::setw(13)
+                  << weight_gbs << "\n"
+                  << std::flush;
     }
 }
 
@@ -889,8 +938,18 @@ U2ReorderResult run_u2_reorder_passes(engine& engine, int64_t N, int64_t K, bool
     topo.add(data("weights", engine.allocate_memory({w_shape, data_types::u2, format::bfyx})));
     topo.add(data("scale", engine.allocate_memory({p_shape, data_types::f16, format::bfyx})));
     topo.add(data("zp", engine.allocate_memory({p_shape, data_types::u8, format::bfyx})));
-    topo.add(fully_connected("fc", input_info("input"), "weights", "", "scale", "zp", data_types::f16, 2, 2, weights_transposed,
-                             transpose_b_params, transpose_b_params));
+    topo.add(fully_connected("fc",
+                             input_info("input"),
+                             "weights",
+                             "",
+                             "scale",
+                             "zp",
+                             data_types::f16,
+                             2,
+                             2,
+                             weights_transposed,
+                             transpose_b_params,
+                             transpose_b_params));
 
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
