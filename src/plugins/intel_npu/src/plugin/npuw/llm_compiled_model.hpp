@@ -90,6 +90,11 @@ public:
     void set_property(const ov::AnyMap& properties) override;
     ov::Any get_property(const std::string& name) const override;
 
+    // False for a model compiled prefill-only, which has no generate variants.
+    bool has_generate() const {
+        return !m_generate_compiled_variants.empty();
+    }
+
 protected:
     friend class LLMInferBaseRequest;
     friend class LLMInferRequest;
