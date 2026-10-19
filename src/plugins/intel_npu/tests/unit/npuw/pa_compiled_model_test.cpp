@@ -9,13 +9,16 @@
 #include <algorithm>
 #include <cmath>
 #include <optional>
+#include <random>
 #include <set>
 #include <string>
 
 #include "llm_test_helpers.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
@@ -243,6 +246,90 @@ TEST(PACompiledModelEndToEnd, VariantsCompileAndMatchTheDynamicModel) {
             EXPECT_NEAR(expected[step][i], actual[step][i], 1e-3f * scale) << "step " << step << " at " << i;
         }
     }
+}
+
+// A token-major trunk as the PA model has it: a weight MatMul over
+// [tokens, 1, hidden], elementwise ops on it, and the RoPE position outer
+// product, a MatMul with K = 1 between two activations.
+std::shared_ptr<ov::Model> make_token_major_model(std::size_t tokens) {
+    const auto t = static_cast<int64_t>(tokens);
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{t, 1, 16});
+    auto y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{t, 1, 12});
+    auto freq = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{t, 4, 1});
+    auto pos = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{t, 1, 1});
+    std::vector<float> w(12 * 16), b(12);
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> dist(-1.f, 1.f);
+    for (auto& v : w) {
+        v = dist(rng);
+    }
+    for (auto& v : b) {
+        v = dist(rng);
+    }
+    auto weights = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{12, 16}, w);
+    auto linear = std::make_shared<ov::op::v0::MatMul>(x, weights, false, true);
+    auto bias = std::make_shared<ov::op::v1::Add>(linear, ov::op::v0::Constant::create(ov::element::f32, {12}, b));
+    auto gate = std::make_shared<ov::op::v1::Multiply>(bias, y);
+    auto rope = std::make_shared<ov::op::v0::MatMul>(freq, pos);
+    return std::make_shared<ov::Model>(ov::OutputVector{gate, rope}, ov::ParameterVector{x, y, freq, pos});
+}
+
+ov::TensorVector evaluate(const std::shared_ptr<ov::Model>& model) {
+    std::mt19937 rng(7);
+    std::uniform_real_distribution<float> dist(-2.f, 2.f);
+    ov::TensorVector inputs;
+    for (const auto& param : model->get_parameters()) {
+        ov::Tensor tensor(ov::element::f32, param->get_shape());
+        for (std::size_t i = 0; i < tensor.get_size(); ++i) {
+            tensor.data<float>()[i] = dist(rng);
+        }
+        inputs.push_back(tensor);
+    }
+    ov::TensorVector outputs;
+    for (const auto& result : model->outputs()) {
+        outputs.emplace_back(ov::element::f32, result.get_shape());
+    }
+    EXPECT_TRUE(model->evaluate(outputs, inputs));
+    return outputs;
+}
+
+TEST(PARelayoutTokenMajor, MovesTheTokenCountOutOfTheBatchPosition) {
+    constexpr std::size_t tokens = 8;
+    const auto reference = make_token_major_model(tokens);
+    auto model = reference->clone();
+    ov::npuw::pa::relayout_token_major(model, tokens);
+
+    std::size_t matmuls = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v0::MatMul>(node) && !ov::is_type<ov::op::v1::Multiply>(node) &&
+            !ov::is_type<ov::op::v1::Add>(node)) {
+            continue;
+        }
+        matmuls += ov::is_type<ov::op::v0::MatMul>(node) ? 1 : 0;
+        for (const auto& input : node->inputs()) {
+            const auto& shape = input.get_shape();
+            EXPECT_FALSE(shape.size() >= 3 && shape[0] == tokens) << node << " input " << shape;
+        }
+    }
+    // The outer product became a Multiply; the weight MatMul stays.
+    EXPECT_EQ(matmuls, 1u);
+
+    const auto expected = evaluate(reference);
+    const auto actual = evaluate(model);
+    ASSERT_EQ(expected.size(), actual.size());
+    for (std::size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i].get_shape(), actual[i].get_shape());
+        for (std::size_t j = 0; j < expected[i].get_size(); ++j) {
+            EXPECT_FLOAT_EQ(expected[i].data<float>()[j], actual[i].data<float>()[j]) << "output " << i << " at " << j;
+        }
+    }
+}
+
+TEST(PARelayoutTokenMajor, LeavesTheOneTokenVariantAlone) {
+    auto model = make_token_major_model(1);
+    const auto ops = model->get_ops().size();
+    ov::npuw::pa::relayout_token_major(model, 1);
+    EXPECT_EQ(model->get_ops().size(), ops);
 }
 
 }  // namespace
