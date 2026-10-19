@@ -43,6 +43,7 @@
 
 #include "fully_connected_inst.h"
 #include "impls/cm/fully_connected_woq_u2.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
@@ -50,7 +51,10 @@
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
+#include "pass_manager.h"
+#include "program_wrapper.h"
 #include "random_generator.hpp"
+#include "reorder_inst.h"
 #include "test_utils.h"
 
 using namespace cldnn;
@@ -866,6 +870,85 @@ TEST(fully_connected_cm_woq_u2_perf, DISABLED_benchdnn_cases) {
                   << std::setw(11) << median << std::setprecision(1) << std::setw(9) << tflops << std::setw(6) << 100.0 * tflops / peak_tflops << "%"
                   << std::setw(13) << weight_gbs << "\n" << std::flush;
     }
+}
+
+// Scale / zero-point reorder decision for a u2 FC: prepare_quantization defers it, select_preferred_formats
+// keeps bfyx for CM and otherwise reorders only when weights_transposed and transpose_b_scale / zp are set.
+struct U2ReorderResult {
+    bool deferred = false;    // no reorder after prepare_quantization
+    bool cm_accepts = false;  // CM validate_impl result
+    bool scale_reordered = false;
+    bool zp_reordered = false;
+};
+
+U2ReorderResult run_u2_reorder_passes(engine& engine, int64_t N, int64_t K, bool weights_transposed, bool transpose_b_params) {
+    const int64_t G = K / 64;
+    const auto w_shape = weights_transposed ? ov::PartialShape{N, K} : ov::PartialShape{K, N};
+    const auto p_shape = weights_transposed && transpose_b_params ? ov::PartialShape{N, G} : ov::PartialShape{G, N};
+    topology topo(input_layout("input", layout{ov::PartialShape{16, K}, data_types::f16, format::bfyx}));
+    topo.add(data("weights", engine.allocate_memory({w_shape, data_types::u2, format::bfyx})));
+    topo.add(data("scale", engine.allocate_memory({p_shape, data_types::f16, format::bfyx})));
+    topo.add(data("zp", engine.allocate_memory({p_shape, data_types::u8, format::bfyx})));
+    topo.add(fully_connected("fc", input_info("input"), "weights", "", "scale", "zp", data_types::f16, 2, 2, weights_transposed,
+                             transpose_b_params, transpose_b_params));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topo, config, false, true);
+    auto& fc = prog->get_node("fc").as<fully_connected>();
+    fc.get_output_layouts(false);
+
+    U2ReorderResult r;
+    program_wrapper::apply_opt_pass<prepare_quantization>(*prog);
+    r.deferred = !fc.get_dependency(2).is_type<reorder>() && !fc.get_dependency(3).is_type<reorder>();
+    r.cm_accepts = ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager::validate_base(fc, true);
+    program_wrapper::apply_opt_pass<select_preferred_formats>(*prog);
+    r.scale_reordered = fc.get_dependency(2).is_type<reorder>();
+    r.zp_reordered = fc.get_dependency(3).is_type<reorder>();
+    return r;
+}
+
+TEST(fully_connected_cm_woq_u2_reorder, cm_selected_keeps_scale_zp_bfyx) {
+    auto& engine = get_test_engine();
+    if (!cm_woq_u2_supported(engine))
+        GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
+    const auto r = run_u2_reorder_passes(engine, 64, 128, true, true);
+    ASSERT_TRUE(r.deferred);
+    ASSERT_TRUE(r.cm_accepts);
+    ASSERT_FALSE(r.scale_reordered);
+    ASSERT_FALSE(r.zp_reordered);
+}
+
+TEST(fully_connected_cm_woq_u2_reorder, cm_not_selected_reorders_scale_zp) {
+    auto& engine = get_test_engine();
+    // N % 32 != 0: CM rejects it.
+    const auto r = run_u2_reorder_passes(engine, 48, 128, true, true);
+    ASSERT_TRUE(r.deferred);
+    ASSERT_FALSE(r.cm_accepts);
+    ASSERT_TRUE(r.scale_reordered);
+    ASSERT_TRUE(r.zp_reordered);
+}
+
+TEST(fully_connected_cm_woq_u2_reorder, scale_zp_not_transposed_no_reorder) {
+    auto& engine = get_test_engine();
+    // Scale / zp [G, N]; the second case is square (N == G).
+    for (const auto& [N, K] : std::vector<std::pair<int64_t, int64_t>>{{64, 128}, {32, 32 * 64}}) {
+        SCOPED_TRACE("N=" + std::to_string(N) + " K=" + std::to_string(K));
+        const auto r = run_u2_reorder_passes(engine, N, K, true, false);
+        ASSERT_FALSE(r.cm_accepts);
+        ASSERT_FALSE(r.scale_reordered);
+        ASSERT_FALSE(r.zp_reordered);
+    }
+}
+
+TEST(fully_connected_cm_woq_u2_reorder, weights_not_transposed_no_reorder) {
+    auto& engine = get_test_engine();
+    // transpose_b_scale / zp left true: only the weights_transposed early return prevents the reorder.
+    const auto r = run_u2_reorder_passes(engine, 64, 128, false, true);
+    ASSERT_FALSE(r.cm_accepts);
+    ASSERT_FALSE(r.scale_reordered);
+    ASSERT_FALSE(r.zp_reordered);
 }
 
 }  // namespace
