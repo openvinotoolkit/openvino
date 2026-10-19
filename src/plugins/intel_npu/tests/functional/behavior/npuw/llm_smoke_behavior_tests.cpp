@@ -4,9 +4,9 @@
 
 #include <gtest/gtest.h>
 
-#include <cstring>
 #include <numeric>
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "npuw/test_engine/models/model_builder.hpp"
 #include "npuw/test_engine/simple_llm_pipeline.hpp"
@@ -80,7 +80,8 @@ TEST_F(MultiOutsLLMSmokeBehaviorNPUW, NonLogitsOutputIsFullSizedAfterChunkedPref
     EXPECT_EQ(prefill_logits.get_shape()[0], 1u);
     EXPECT_EQ(prefill_logits.get_shape()[1], 1u);
 
-    // Chunked accumulation must produce the same values as a whole (non-chunked) prefill.
+    // Chunked accumulation must produce values close to a whole (non-chunked) prefill.
+    // NB: not bit-exact due to floating point rounding from different reduction order.
     auto whole_prefill_props = chunked_prefill_props;
     whole_prefill_props.erase("NPUW_LLM_PREFILL_CHUNK_SIZE");
     SimpleLLMPipeline whole_prefill_llm;
@@ -88,7 +89,10 @@ TEST_F(MultiOutsLLMSmokeBehaviorNPUW, NonLogitsOutputIsFullSizedAfterChunkedPref
     EXPECT_NO_THROW(whole_prefill_llm.prefill(input_ids));
     const auto whole_hidden_states = whole_prefill_llm.get_request()->get_tensor("hidden_states");
     EXPECT_EQ(hidden_states.get_shape(), whole_hidden_states.get_shape());
-    EXPECT_EQ(memcmp(hidden_states.data(), whole_hidden_states.data(), hidden_states.get_byte_size()), 0);
+    constexpr double abs_threshold = 1e-2;
+    constexpr double rel_threshold = 1e-2;
+    EXPECT_NO_THROW(
+        ov::test::utils::compare(whole_hidden_states, hidden_states, ov::element::f16, abs_threshold, rel_threshold));
 
     // Generate stage: non-logits output reflects only the newly generated token, not the prompt.
     SimpleLLMPipeline generate_llm;
