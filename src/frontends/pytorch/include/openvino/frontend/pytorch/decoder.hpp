@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <map>
+
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/node_context.hpp"
@@ -142,6 +144,13 @@ public:
 
     /// \brief Converts the node if `has_converter` returns true
     virtual OutputVector convert(const ov::frontend::NodeContext* context) const = 0;
+
+    using InputSequences = std::map<size_t, std::vector<size_t>>;
+
+    // Sequence input indices mapped to their ordered element output indices; empty when unknown.
+    virtual InputSequences get_input_sequences() const {
+        return {};
+    }
 };
 
 }  // namespace ov::frontend::pytorch
