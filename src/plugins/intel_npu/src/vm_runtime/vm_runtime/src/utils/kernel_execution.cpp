@@ -1036,7 +1036,7 @@ result_t executeGraph(ExecutionContext& executionContext, ze_command_list_handle
 
     ze_result_t result = ZE_RESULT_SUCCESS;
     if (waitSyncRequired == true) {
-        result = pfnAppendGraphExecute(commandListHandle, graphHandle, nullptr, nullptr, waitEvents.size(),
+        result = pfnAppendGraphExecute(commandListHandle, graphHandle, nullptr, nullptr, static_cast<uint32_t>(waitEvents.size()),
                                        waitEvents.data());
         if (result != ZE_RESULT_SUCCESS) {
             return failure(result, "Failed to append graph execute in command list: {}, kern: {}, numWaits: {}",

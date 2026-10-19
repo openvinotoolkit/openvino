@@ -252,7 +252,7 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreate(cons
         const auto bytecodeSize = desc->inputSize;
 
         auto handle = std::make_unique<_npu_vm_runtime_handle_t>();
-        if (npu_vm_parse_module(bytecodePtr, bytecodeSize, &handle->module) != NPU_VM_SUCCESS) {
+        if (npu_vm_parse_module(bytecodePtr, static_cast<uint32_t>(bytecodeSize), &handle->module) != NPU_VM_SUCCESS) {
             return NPU_VM_RUNTIME_RESULT_ERROR_UNKNOWN;
         }
         auto metadata = intel_npu::vm::getNetworkMetadata(handle->module);
