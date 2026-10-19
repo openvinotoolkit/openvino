@@ -1680,13 +1680,20 @@ public:
                                       {1, subgroup_size, SUBGROUP_NUM});
 
             // Per-token reduction: final[t] = sum(scratch.y[t * REDUCE_COUNT .. (t+1) * REDUCE_COUNT - 1])
+            // The local size must divide hidden_size: drivers may reject non-uniform work-groups (-54).
+            const size_t hidden_size = static_cast<size_t>(_hidden_size);
+            size_t reduce_lws = std::min(max_work_group_size, size_t{1024}) / subgroup_size * subgroup_size;
+            while (reduce_lws > 0 && hidden_size % reduce_lws != 0) {
+                reduce_lws -= subgroup_size;
+            }
+            OPENVINO_ASSERT(reduce_lws > 0, "MoE mlp_reduce: hidden_size=", hidden_size, " is not a multiple of SUBGROUP_SIZE=", subgroup_size);
             ret = execute_stage({ret_event},
                                 instance,
                                 *stage_reduce,
                                 {scratch.y},
                                 {final_hidden_states_mem_ptr},
-                                {token_num, static_cast<size_t>(_hidden_size)},
-                                {1, std::min({max_work_group_size, size_t{1024}, static_cast<size_t>(_hidden_size)})},
+                                {token_num, hidden_size},
+                                {1, reduce_lws},
                                 instance.needs_completion_event());
         }
         return ret;
