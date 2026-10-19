@@ -26,7 +26,7 @@ bool FuseRMSRoPE::run_on_model(const std::shared_ptr<ov::Model>& model) {
         const auto& config = rope->get_config();
 
         if (rope->get_input_size() != 3 || config.gather_position_arg_id != 0 || config.is_qwen || config.is_chatglm || config.is_ltx_video ||
-            config.is_interleaved || config.output_trans0213 || config.slice_start != 0 || config.slice_stop != 0 ||
+            config.is_interleaved || config.input_interleaved || config.output_trans0213 || config.slice_start != 0 || config.slice_stop != 0 ||
             rope->get_input_element_type(0) != ov::element::f16) {
             continue;
         }
