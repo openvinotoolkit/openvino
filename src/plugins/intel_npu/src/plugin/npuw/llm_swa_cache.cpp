@@ -138,8 +138,23 @@ void ov::npuw::SwaKVCacheHelper::copy_prefill_to_generate() {
             const uint32_t valid_past_chunks = std::min(tokens_in_past_chunks, pre_capacity);
 
             if (valid_past_chunks > 0u) {
-                // The SWA past is never bound to the generate ring, so it can be read in place.
-                auto prefill_past_kv_chunks = uu::make_tensor_slice(prefill_past_kv, pre_kv_dim, 0u, valid_past_chunks);
+                ov::SoPtr<ov::ITensor> prefill_past_kv_chunks;
+                if (prefill_past_kv->data() == kvcache_in_tensor->data()) {
+                    // Without continuous prefill the SWA past is bound to the generate ring,
+                    // so snapshot it before seeding the ring.
+                    auto tmp_dense_kv_tensor =
+                        ov::npuw::util::allocMem(prefill_past_kv->get_element_type(),
+                                                 prefill_past_kv->get_shape(),
+                                                 m_request.m_pre_alloc_device,
+                                                 m_request.m_npuw_llm_compiled_model->get_plugin());
+                    NPUW_ASSERT(tmp_dense_kv_tensor._ptr &&
+                                "KV cache buffer allocation failed — check device availability and memory constraints");
+                    prefill_past_kv->copy_to(tmp_dense_kv_tensor._ptr);
+                    prefill_past_kv_chunks =
+                        uu::make_tensor_slice(tmp_dense_kv_tensor, pre_kv_dim, 0u, valid_past_chunks);
+                } else {
+                    prefill_past_kv_chunks = uu::make_tensor_slice(prefill_past_kv, pre_kv_dim, 0u, valid_past_chunks);
+                }
                 append_to_generate_swa(prefill_past_kv_chunks, pre_kv_dim, 0u, tokens_in_past_chunks);
             }
         }
