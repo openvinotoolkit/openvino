@@ -8,10 +8,12 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "llm_compiled_model_utils.hpp"
 #include "npuw/compiled_model.hpp"
 #include "pa_dispatch.hpp"
 
@@ -28,11 +30,13 @@ public:
                     const std::shared_ptr<const ov::IPlugin>& plugin,
                     const ov::AnyMap& properties);
 
-    // The NPUW config the variants compile with: the partitioning above as
-    // defaults under the caller's properties, one weights bank for all.
+    // The NPUW config the variants compile with: the NPU defaults of the LLM
+    // path plus the partitioning above, under the caller's properties, with one
+    // weights bank for all.
     static ov::AnyMap make_variant_config(const ov::AnyMap& properties,
                                           const std::string& pa_device,
-                                          const std::string& weights_bank);
+                                          const std::string& weights_bank,
+                                          const std::optional<util::NPUDesc>& npudesc);
 
     const std::vector<ov::Output<const ov::Node>>& inputs() const override;
     const std::vector<ov::Output<const ov::Node>>& outputs() const override;
