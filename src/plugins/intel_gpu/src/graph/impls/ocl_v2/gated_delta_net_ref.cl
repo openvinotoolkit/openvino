@@ -138,7 +138,7 @@ KERNEL(gated_delta_net_ref)
  __global OUTPUT1_TYPE* output_state,
 #endif
 #if OUTPUT_SNAPSHOTS
- __global OUTPUT2_TYPE* snapshots,
+ __global OUTPUT1_TYPE* snapshots,
 #endif
  int seq_len,
  int query_offset,
@@ -265,7 +265,7 @@ KERNEL(gated_delta_net_ref)
 #        pragma unroll
                     for (int j = 0; j < 8; j++) {
                         const int row_idx = lane_k_base + c * 8 + j;
-                        snapshots[OUTPUT2_GET_INDEX(slot, b, h, row_idx, start_iv + v_idx)] = (OUTPUT2_TYPE)(s[j]);
+                        snapshots[OUTPUT1_GET_INDEX(slot, b, h, row_idx, start_iv + v_idx)] = (OUTPUT1_TYPE)(s[j]);
                     }
                 }
 #    endif
@@ -334,7 +334,7 @@ KERNEL(gated_delta_net_ref)
 #    if OUTPUT_SNAPSHOTS
                     if (T_len - 1 - t < SNAPSHOT_COUNT) {
                         const int slot = T_len - 1 - t;
-                        snapshots[OUTPUT2_GET_INDEX(slot, b, h, k_idx, curr_iv)] = (OUTPUT2_TYPE)(h_state_f[v_idx][k_idx]);
+                        snapshots[OUTPUT1_GET_INDEX(slot, b, h, k_idx, curr_iv)] = (OUTPUT1_TYPE)(h_state_f[v_idx][k_idx]);
                     }
 #    endif
                     b_output = fma(h_state_f[v_idx][k_idx], q_norm[k_idx], b_output);
@@ -346,6 +346,7 @@ KERNEL(gated_delta_net_ref)
 #endif
     }
 
+#if !OUTPUT_SNAPSHOTS
 #if (K_HEAD_DIM == 128 && (V_HEAD_DIM % V_BLOCK_SIZE == 0))
 // 4. WRITE BACK STATE BLOCK
 #    pragma unroll
@@ -380,4 +381,5 @@ KERNEL(gated_delta_net_ref)
         }
     }
 #endif
+#endif  // !OUTPUT_SNAPSHOTS
 }

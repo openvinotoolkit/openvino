@@ -95,10 +95,10 @@ std::vector<TRShape> shape_infer(const GatedDeltaNet* op, const std::vector<T>& 
         state_hidden_size_1,
         " and ",
         v_head_size);
-    // output has the same shape and type as input value, output state has the same shape and type as input
-    // recurrent_state
+    // Output 0 has the same shape as input value. Output 1 normally matches recurrent_state;
+    // in snapshot mode it prepends snapshot_count to the recurrent_state shape.
     if (op->get_snapshot_count() > 1) {
-        output_shapes.emplace_back(TRShape{op->get_snapshot_count(), state_ps[0], state_ps[1], state_ps[2], state_ps[3]});
+        output_shapes[1] = TRShape{op->get_snapshot_count(), state_ps[0], state_ps[1], state_ps[2], state_ps[3]};
     }
     return output_shapes;
 }

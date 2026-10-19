@@ -59,16 +59,20 @@ TEST(type_prop, gated_delta_net_snapshots) {
                                  PartialShape{{1, 4}, -1, 4},
                                  PartialShape{{1, 4}, -1, 4},
                                  count);
-        EXPECT_EQ(op->get_output_size(), 3);
-        EXPECT_EQ(op->get_output_element_type(2), element::f32);
-        EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{count, {1, 4}, 4, 8, 16}));
+        EXPECT_EQ(op->get_output_size(), 2);
+        EXPECT_EQ(op->get_output_element_type(1), element::f32);
+        EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{count, {1, 4}, 4, 8, 16}));
         const auto clone = as_type_ptr<op::internal::GatedDeltaNet>(op->clone_with_new_inputs(op->input_values()));
         ASSERT_NE(clone, nullptr);
         EXPECT_EQ(clone->get_snapshot_count(), count);
-        EXPECT_EQ(clone->get_output_partial_shape(2), op->get_output_partial_shape(2));
+        EXPECT_EQ(clone->get_output_partial_shape(1), op->get_output_partial_shape(1));
         op->set_snapshot_count(count + 1);
         op->validate_and_infer_types();
-        EXPECT_EQ(op->get_output_partial_shape(2)[0], Dimension(count + 1));
+        EXPECT_EQ(op->get_output_partial_shape(1)[0], Dimension(count + 1));
+        op->set_snapshot_count(1);
+        op->validate_and_infer_types();
+        EXPECT_EQ(op->get_output_size(), 2);
+        EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{{1, 4}, 4, 8, 16}));
     }
 }
 

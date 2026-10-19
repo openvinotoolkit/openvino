@@ -27,7 +27,8 @@ TEST(attributes, gated_delta_net_snapshots) {
         EXPECT_FLOAT_EQ(restored->get_q_l2_norm_eps(), 1e-5f);
         EXPECT_FLOAT_EQ(restored->get_k_l2_norm_eps(), 1e-4f);
         EXPECT_EQ(restored->get_snapshot_count(), count);
-        EXPECT_EQ(restored->get_output_size(), op->get_output_size());
+        EXPECT_EQ(restored->get_output_size(), 2);
+        EXPECT_EQ(restored->get_output_partial_shape(1), op->get_output_partial_shape(1));
     }
 }
 

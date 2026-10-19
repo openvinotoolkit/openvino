@@ -192,8 +192,7 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         topo.add(linear_attn_prim);
         topo.add(reorder("output", input_info("gated_delta_net", 0), format::bfyx, output_dt));
         if (GetParam().snapshot_count > 1) {
-            topo.add(reorder("states", input_info("gated_delta_net", 1), format::bfyx, output_dt));
-            topo.add(reorder("snapshots", input_info("gated_delta_net", 2), format::bfzyx, output_dt));
+            topo.add(reorder("snapshots", input_info("gated_delta_net", 1), format::bfzyx, output_dt));
         }
         return topo;
     }
@@ -299,14 +298,11 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         }
         if (p.snapshot_count > 1) {
             auto outputs = net_opt_ptr->execute();
-            auto states = outputs.at("states").get_memory();
             auto snapshots = outputs.at("snapshots").get_memory();
-            cldnn::mem_lock<T, mem_lock_type::read> state_data(states, get_test_stream());
             cldnn::mem_lock<T, mem_lock_type::read> snapshot_data(snapshots, get_test_stream());
-            ASSERT_EQ(states->count(), input_state.size());
             ASSERT_EQ(snapshots->count(), ref_snapshots.size());
             for (size_t i = 0; i < input_state.size(); ++i) {
-                ASSERT_NEAR(state_data[i], input_state[i], tolerance) << " at index=" << i;
+                ASSERT_NEAR(snapshot_data[i], input_state[i], tolerance) << " at index=" << i;
             }
             const size_t valid_size = std::min(size_t(t), size_t(p.snapshot_count)) * input_state.size();
             for (size_t i = 0; i < valid_size; ++i) {

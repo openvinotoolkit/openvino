@@ -106,9 +106,6 @@ void GatedDeltaNet::validate_and_infer_types() {
     set_output_size(output_shapes.size());
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
     set_output_type(1, get_input_element_type(3), output_shapes[1]);
-    if (m_snapshot_count > 1) {
-        set_output_type(2, get_input_element_type(3), output_shapes[2]);
-    }
 }
 
 bool GatedDeltaNet::visit_attributes(AttributeVisitor& visitor) {

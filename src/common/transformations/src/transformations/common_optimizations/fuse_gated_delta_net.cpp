@@ -360,7 +360,8 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
                                                                          pattern_map.at(beta),
                                                                          true,
                                                                          q_l2_norm_eps,
-                                                                         k_l2_norm_eps);
+                                                                         k_l2_norm_eps,
+                                                                         gdn_node->get_snapshot_count());
         ov::copy_runtime_info(gdn_node, new_gdn);
         new_gdn->set_friendly_name(gdn_node->get_friendly_name());
         ov::replace_node(gdn_node, new_gdn);
@@ -507,7 +508,8 @@ ov::pass::FuseGroupedQueryIntoGDN::FuseGroupedQueryIntoGDN() {
                                                                          gdn_node->input_value(5),
                                                                          gdn_node->get_fuse_qk_l2norm(),
                                                                          gdn_node->get_q_l2_norm_eps(),
-                                                                         gdn_node->get_k_l2_norm_eps());
+                                                                         gdn_node->get_k_l2_norm_eps(),
+                                                                         gdn_node->get_snapshot_count());
         new_gdn->set_friendly_name(gdn_node->get_friendly_name());
         ov::copy_runtime_info(gdn_node, new_gdn);
         ov::replace_node(gdn_node, new_gdn);

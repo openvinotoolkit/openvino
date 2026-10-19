@@ -497,6 +497,67 @@ TEST(TransformationTests, FuseGroupedQueryIntoGDN_Positive) {
     ASSERT_EQ(k_split, v_split);
 }
 
+TEST(TransformationTests, FuseGroupedQueryIntoGDN_PreservesSnapshots) {
+    auto model = build_gdn_with_shared_qk_anchor(true);
+    auto original = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(
+        model->get_results().at(0)->input_value(0).get_node_shared_ptr());
+    original->set_snapshot_count(3);
+    model->validate_nodes_and_infer_types();
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
+    manager.run_passes(model);
+
+    auto fused = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(
+        model->get_results().at(0)->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(fused, nullptr);
+    ASSERT_NE(fused, original);
+    EXPECT_EQ(fused->get_snapshot_count(), 3);
+    EXPECT_EQ(fused->get_output_size(), 2);
+    EXPECT_EQ(fused->get_output_shape(1), (ov::Shape{3, 1, 4, 8, 8}));
+    EXPECT_EQ(model->get_results().at(1)->input_value(0), fused->output(1));
+}
+
+TEST(TransformationTests, FuseL2NormIntoGDN_PreservesSnapshots) {
+    auto q = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 2, 8});
+    auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 2, 8});
+    auto v = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 4, 16});
+    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 8, 16});
+    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 4});
+    auto beta = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 4});
+    auto normalize = [](const ov::Output<ov::Node>& input, float epsilon) {
+        auto squared = std::make_shared<ov::op::v1::Multiply>(input, input);
+        auto sum = std::make_shared<ov::op::v1::ReduceSum>(
+            squared, ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}), true);
+        auto denominator = std::make_shared<ov::op::v0::Sqrt>(std::make_shared<ov::op::v1::Add>(
+            sum, ov::op::v0::Constant::create(ov::element::f32, {}, {epsilon})));
+        auto inverse = std::make_shared<ov::op::v1::Divide>(
+            ov::op::v0::Constant::create(ov::element::f32, {}, {1.f}), denominator);
+        return std::make_shared<ov::op::v1::Multiply>(input, inverse);
+    };
+    auto original = std::make_shared<ov::op::internal::GatedDeltaNet>(
+        normalize(q, 1e-5f), normalize(k, 1e-4f), v, state, gate, beta, false, 1e-6f, 1e-6f, 3);
+    auto model = std::make_shared<ov::Model>(original->outputs(), ov::ParameterVector{q, k, v, state, gate, beta});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::FuseL2NormIntoGDN>();
+    manager.run_passes(model);
+
+    auto fused = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(
+        model->get_results().at(0)->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(fused, nullptr);
+    ASSERT_NE(fused, original);
+    EXPECT_TRUE(fused->get_fuse_qk_l2norm());
+    EXPECT_FLOAT_EQ(fused->get_q_l2_norm_eps(), 1e-5f);
+    EXPECT_FLOAT_EQ(fused->get_k_l2_norm_eps(), 1e-4f);
+    EXPECT_EQ(fused->input_value(0), q->output(0));
+    EXPECT_EQ(fused->input_value(1), k->output(0));
+    EXPECT_EQ(fused->get_snapshot_count(), 3);
+    EXPECT_EQ(fused->get_output_size(), 2);
+    EXPECT_EQ(fused->get_output_shape(1), (ov::Shape{3, 1, 4, 8, 16}));
+    EXPECT_EQ(model->get_results().at(1)->input_value(0), fused->output(1));
+}
+
 TEST(TransformationTests, FuseGroupedQueryIntoGDN_NegativeDifferentAnchors) {
     auto model = build_gdn_with_shared_qk_anchor(false);
     ov::pass::Manager manager;

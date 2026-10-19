@@ -31,7 +31,7 @@ struct gated_delta_net : public primitive_base<gated_delta_net> {
     gated_delta_net(const primitive_id& id, const std::vector<input_info>& inputs, bool fuse_qk_l2norm = false, float q_l2_norm_eps = 1e-6f, float k_l2_norm_eps = 1e-6f, int64_t snapshot_count = 1)
         : primitive_base(id, inputs), fuse_qk_l2norm(fuse_qk_l2norm), q_l2_norm_eps(q_l2_norm_eps), k_l2_norm_eps(k_l2_norm_eps), snapshot_count(snapshot_count) {
         if (snapshot_count > 1)
-            num_outputs = 3;
+            num_outputs = 2;
     }
 
     size_t hash() const override {
