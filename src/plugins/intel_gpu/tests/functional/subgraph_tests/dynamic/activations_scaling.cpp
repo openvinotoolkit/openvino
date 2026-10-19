@@ -15,6 +15,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_mean.hpp"
@@ -270,6 +271,68 @@ protected:
 
 TEST_F(ActivationsScalingFeatureAxisRMS, Inference) {
     core->set_property(targetDevice, ov::hint::activations_scale_factor(8.f));
+    run();
+}
+
+// Gemma3-like layer: with the post norms kept in f32 by DisableFP16CompForGemma3RMSPattern, the embedding
+// normalizer and the residual Adds stay in f32 while the following input norms run in f16, so the graph has
+// Multiply(f32) -> Convert(f16) -> RMS. EliminateScalarMul must drop that Multiply: the embedding times the
+// normalizer exceeds the f16 range, the embedding itself doesn't.
+//
+//   ids -> Gather -> Multiply ─┬─> RMS -> MatMul -> RMS -> Add ─┬─> RMS -> MatMul -> RMS -> Add -> RMS
+//                              └──────────────────────────────┘ └──────────────────────────────┘
+class ActivationsScalingF32Norm : virtual public ov::test::SubgraphBaseTest {
+protected:
+    static constexpr size_t hidden_size = 64;
+    static constexpr size_t vocab_size = 512;
+
+    static ov::Output<ov::Node> make_rms_norm(const ov::Output<ov::Node>& x) {
+        auto square = std::make_shared<ov::op::v1::Power>(x, ov::op::v0::Constant::create(ov::element::f32, {}, {2.f}));
+        auto mean = std::make_shared<ov::op::v1::ReduceMean>(square, ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}), true);
+        auto eps = ov::op::v0::Constant::create(ov::element::f32, {}, {1e-6f});
+        auto sqrt = std::make_shared<ov::op::v0::Sqrt>(std::make_shared<ov::op::v1::Add>(mean, eps));
+        auto div = std::make_shared<ov::op::v1::Divide>(x, sqrt);
+        auto gamma = ov::op::v0::Constant::create(ov::element::f32, {hidden_size}, {1.f});
+        return std::make_shared<ov::op::v1::Multiply>(div, gamma);
+    }
+
+    static ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& x, int seed) {
+        const auto weights =
+            ov::test::utils::create_and_fill_tensor(ov::element::f32, {hidden_size, hidden_size}, ov::test::utils::InputGenerateData(-1, 2, 1000, seed));
+        return std::make_shared<ov::op::v0::MatMul>(x, std::make_shared<ov::op::v0::Constant>(weights));
+    }
+
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        configuration = {{ov::hint::inference_precision.name(), ov::element::f16}, {ov::hint::activations_scale_factor.name(), 8.f}};
+        abs_threshold = 0.05;
+        rel_threshold = 0.05;
+
+        init_input_shapes({{{-1, -1}, {{1, 12}, {2, 7}}}});
+
+        auto ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[0]);
+        // embedding values up to 3000 fit f16, times the normalizer they don't
+        const auto table =
+            ov::test::utils::create_and_fill_tensor(ov::element::f16, {vocab_size, hidden_size}, ov::test::utils::InputGenerateData(1000, 2000, 1, 1));
+        auto table_f32 = std::make_shared<ov::op::v0::Convert>(std::make_shared<ov::op::v0::Constant>(table), ov::element::f32);
+        auto gather = std::make_shared<ov::op::v8::Gather>(table_f32, ids, ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
+        auto embedding = std::make_shared<ov::op::v1::Multiply>(gather, ov::op::v0::Constant::create(ov::element::f32, {}, {40.f}));
+
+        auto residual0 = std::make_shared<ov::op::v1::Add>(embedding, make_rms_norm(make_linear(make_rms_norm(embedding), 1)));
+        auto residual1 = std::make_shared<ov::op::v1::Add>(residual0, make_rms_norm(make_linear(make_rms_norm(residual0), 2)));
+        function = std::make_shared<ov::Model>(ov::OutputVector{make_rms_norm(residual1)}, ov::ParameterVector{ids}, "ActivationsScalingF32Norm");
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto ids = function->get_parameters()[0];
+        auto tensor =
+            ov::test::utils::create_and_fill_tensor(ov::element::i64, targetInputStaticShapes[0], ov::test::utils::InputGenerateData(0, vocab_size - 1, 1, 1));
+        inputs.insert({ids, tensor});
+    }
+};
+
+TEST_F(ActivationsScalingF32Norm, smoke_GPU_ActivationsScalingF32Norm) {
     run();
 }
 } // namespace
