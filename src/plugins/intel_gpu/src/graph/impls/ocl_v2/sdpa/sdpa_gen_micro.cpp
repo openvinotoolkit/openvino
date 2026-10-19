@@ -488,6 +488,8 @@ sdpa_config_t xe3_h256_pa = {16, 16, 16, 16, 16, 1, 16, 1};
 sdpa_config_t xe3_q_h256 = {32, 32, 32, 32, 8, 2, 8, 2};
 sdpa_config_t xe3_q_h256_2nd = {32, 32, 32, 32, 8, 1, 8, 1};
 
+sdpa_config_t xe2_h256_pa_mixed = {16, 32, 32, 32, 8, 2, 8, 2};
+
 sdpa_config_t xe3_h512 = {32, 16, 32, 16, 16, 2, 16, 2};
 sdpa_config_t xe3_h512_pa = {16, 16, 16, 16, 16, 2, 16, 2};
 sdpa_config_t xe3_h512_2nd = {32, 16, 32, 16, 16, 1, 16, 1};
@@ -847,7 +849,11 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
     return nullptr;
 }
 
-sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill) {
+sdpa_config_t*
+choose_config_xe2(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill, int v_head_size, gpu_arch arch) {
+    if (is_pa && !is_prefill && !thin_q && (arch == gpu_arch::xe2 || arch == gpu_arch::xe3) && head_size > 128 && head_size <= 256 && v_head_size <= 256) {
+        return &xe2_h256_pa_mixed;
+    }
     if (seq <= 0 && is_pa) {
         return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
     }
@@ -952,7 +958,8 @@ sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quant
     return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
 }
 
-sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill, int sliding_window) {
+sdpa_config_t*
+choose_config_xe3p(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill, int sliding_window, int v_head_size) {
     if (is_pa && !is_prefill && !thin_q) {
         if (head_size > 32 && head_size <= 64) {
             return &xe3_h64_pa;
@@ -994,7 +1001,7 @@ sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quan
         if (quantized) {
             return &xe3_q_h256;
         }
-        return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
+        return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill, v_head_size, gpu_arch::xe3p);
     }
     if (head_size <= 512) {
         if (thin_q) {
@@ -1008,7 +1015,7 @@ sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quan
         }
         return &xe3_fma_q_h512;
     }
-    return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
+    return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill, v_head_size, gpu_arch::xe3p);
 }
 
 }  // namespace
@@ -1844,7 +1851,15 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     }
     case gpu_arch::xe2:
     case gpu_arch::xe3:
-        config = choose_config_xe2(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
+        config = choose_config_xe2(static_cast<int32_t>(k_head_size),
+                                   nkeys_v,
+                                   thin_q,
+                                   is_quantized,
+                                   is_integrated,
+                                   is_paged_attention,
+                                   is_prefill,
+                                   static_cast<int32_t>(v_head_size),
+                                   device_info.arch);
         break;
     case gpu_arch::xe3p:
         config = choose_config_xe3p(static_cast<int32_t>(k_head_size),
@@ -1854,10 +1869,19 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
                                     is_integrated,
                                     is_paged_attention,
                                     is_prefill,
-                                    static_cast<int32_t>(configuration.paged_attention_sliding_window));
+                                    static_cast<int32_t>(configuration.paged_attention_sliding_window),
+                                    static_cast<int32_t>(v_head_size));
         break;
     default: {
-        config = choose_config_xe2(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
+        config = choose_config_xe2(static_cast<int32_t>(k_head_size),
+                                   nkeys_v,
+                                   thin_q,
+                                   is_quantized,
+                                   is_integrated,
+                                   is_paged_attention,
+                                   is_prefill,
+                                   static_cast<int32_t>(v_head_size),
+                                   device_info.arch);
         break;
     }
     }
