@@ -15,7 +15,8 @@
 #include <openvino/core/type/element_type.hpp>
 
 #include <ze_graph_ext.h>
-#include "intel_npu/utils/zero/zero_utils.hpp"
+#include <intel_npu/utils/zero/zero_utils.hpp>
+#include <openvino/zero_api.hpp>
 
 #include <algorithm>
 #include <cstdint>
@@ -42,6 +43,7 @@ struct _npu_vm_runtime_handle_t {
     ze_command_queue_handle_t commandQueue{};
     std::vector<ze_command_queue_handle_t> commandQueues;
     ze_command_queue_npu_dditable_ext_t* commandQueueDdiTableExt{nullptr};
+    std::shared_ptr<ov::ZeroApi> levelZeroDdiTable;
     std::mutex mutex;
 };
 
@@ -115,14 +117,15 @@ ze_result_t createCmdQueue(npu_vm_runtime_handle_t hRuntime, ze_command_queue_ha
         ze_queue_desc.pNext = &command_queue_desc;
     }
 
-    auto handle = zeCommandQueueCreate(context, device, &ze_queue_desc, commandQueue);
+    auto levelZeroDdiTable = hRuntime->levelZeroDdiTable;
+    auto handle = levelZeroDdiTable->zeCommandQueueCreate(context, device, &ze_queue_desc, commandQueue);
 
     if (desc.workload_type != ZE_WORKLOAD_TYPE_DEFAULT) {
         auto result = commandQueueDdiTableExt->pfnSetWorkloadType(
                 *commandQueue, static_cast<ze_command_queue_workload_type_t>(desc.workload_type));
 
         if (ZE_RESULT_SUCCESS != result) {
-            zeCommandQueueDestroy(*commandQueue);
+            levelZeroDdiTable->zeCommandQueueDestroy(*commandQueue);
             *commandQueue = nullptr;
             return result;
         }
@@ -252,6 +255,11 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreate(cons
         const auto bytecodeSize = desc->inputSize;
 
         auto handle = std::make_unique<_npu_vm_runtime_handle_t>();
+         handle->levelZeroDdiTable = ov::ZeroApi::get_instance();
+        if (handle->levelZeroDdiTable == nullptr) {
+            return NPU_VM_RUNTIME_RESULT_ERROR_UNKNOWN;
+        }
+
         if (npu_vm_parse_module(bytecodePtr, static_cast<uint32_t>(bytecodeSize), &handle->module) != NPU_VM_SUCCESS) {
             return NPU_VM_RUNTIME_RESULT_ERROR_UNKNOWN;
         }
@@ -300,9 +308,10 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeDestroy(npu
         }
     }
 
+    auto levelZeroDdiTable = hRuntime->levelZeroDdiTable;
     for (auto& commandQueue : hRuntime->commandQueues) {
         if (commandQueue != nullptr) {
-            auto cmdQueueDestroyResult = zeCommandQueueDestroy(commandQueue);
+            auto cmdQueueDestroyResult = levelZeroDdiTable->zeCommandQueueDestroy(commandQueue);
             if (cmdQueueDestroyResult != ZE_RESULT_SUCCESS) {
                 NPU_VM_LOG_ERROR("Failed to destroy command queue: {}", cmdQueueDestroyResult);
                 result = NPU_VM_RUNTIME_RESULT_ERROR_UNKNOWN;
@@ -311,6 +320,8 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeDestroy(npu
             }
         }
     }
+
+    hRuntime->levelZeroDdiTable.reset();
 
     // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
     delete hRuntime;
@@ -773,7 +784,7 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecu
     if (hRuntime->metadata.numStreams != 0) {
         // Checks whether a blob is compiled for single tile.
         ze_device_properties_t deviceProperties{};
-        zeDeviceGetProperties(pParams->device, &deviceProperties);
+        hRuntime->levelZeroDdiTable->zeDeviceGetProperties(pParams->device, &deviceProperties);
         if (deviceProperties.numSlices > 1 && hRuntime->metadata.numStreams == 1) {
             // The blob is compiled for single tile, but the device has multiple slices.
             // In this case, we need to set the number of tiles to concurrentJobCount

@@ -5,13 +5,11 @@
 
 #pragma once
 
+#include <openvino/zero_api.hpp>
+
 #include "buffer.hpp"
 #include "buffer_metadata.hpp"
 #include "vm_runtime/npu_vm_runtime.hpp"
-
-#include <ze_api.h>
-#include <ze_graph_ext.h>
-#include <ze_graph_profiling_ext.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -129,6 +127,8 @@ public:
         std::vector<std::vector<ze_event_handle_t>> _signalEvents;
         uint32_t _signalEventsArrayIndex = 1;
 
+        ov::ZeroApi* _ddiTable{nullptr};
+
         bool _hostSyncWithEventRequired = false;
 
         bool _eventResetRequired = true;
@@ -145,7 +145,7 @@ public:
 
         result_t initialize(ze_device_handle_t deviceHandle, ze_context_handle_t context, uint32_t cmdListCount,
                             ExecutionMode executionMode, bool isCounterBasedEventSupported,
-                            bool hostSyncWithEventRequired, uint32_t concurrentJobCount);
+                            bool hostSyncWithEventRequired, uint32_t concurrentJobCount, ov::ZeroApi* ddiTable);
 
         // Returns the next event handle for synchronization.
         ze_event_handle_t getSignalEvent();
@@ -211,10 +211,11 @@ public:
             // resetEventCount is selected below to reset only the events that may remain signaled on host.
             auto resetEventCount = getEventCountForReset();
 
+            auto pfnEventHostReset = _ddiTable->zeEventHostReset;
             for (uint32_t i = 0; i < resetEventCount; ++i) {
                 auto& event = _events.at(i);
                 if (event != nullptr) {
-                    auto result = zeEventHostReset(event);
+                    auto result = pfnEventHostReset(event);
                     if (result != ZE_RESULT_SUCCESS) {
                         return result;
                     }
@@ -242,6 +243,7 @@ public:
         ze_device_handle_t _device{nullptr};
         ExecutionMode _executionMode = ExecutionMode::TILE_BOUND;
         uint32_t _groupOrdinal = 0;
+        ov::ZeroApi* _ddiTable{nullptr};
 
     public:
         CmdListPool() = default;
@@ -283,7 +285,7 @@ public:
         }
 
         result_t initialize(ze_context_handle_t context, ze_device_handle_t device, uint32_t cmdListCount,
-                            uint32_t groupOrdinal, bool dynamicCmdListCount);
+                            uint32_t groupOrdinal, bool dynamicCmdListCount, ov::ZeroApi* ddiTable);
 
         ze_command_list_handle_t* getCmdListArrayPtr(uint32_t cmdListIndex) {
             return _cmdLists.data() + cmdListIndex;
@@ -360,6 +362,8 @@ protected:
     ze_graph_dditable_ext_t* _graphDdiTable{nullptr};
     ze_command_queue_npu_dditable_ext_t* _commandQueueDdiTableExt{nullptr};
 
+    ov::ZeroApi* _levelZeroDdiTable{nullptr};
+
     // Stores whether the execution context has been initialized,
     // used for determining whether to initialize the event pool and events
     bool _executionObjectsInitialized = false;
@@ -377,7 +381,7 @@ protected:
 public:
     // note: numNetworkArgs will be used in support for mutable command list in the future
     // but currently it is not used.
-    ExecutionContext() = default;
+    ExecutionContext();
     ExecutionContext(const ExecutionContext&) = delete;
     ExecutionContext& operator=(const ExecutionContext&) = delete;
     ExecutionContext(ExecutionContext&&) noexcept = delete;
@@ -422,7 +426,8 @@ public:
             return result;
         }
         if (_internalHostSyncObjectType == HostSyncOjbectType::FENCE && _hostSyncFence != nullptr) {
-            result = zeFenceReset(_hostSyncFence);
+            auto pfnFenceReset = _levelZeroDdiTable->zeFenceReset;
+            result = pfnFenceReset(_hostSyncFence);
             if (result != ZE_RESULT_SUCCESS) {
                 return result;
             }
@@ -570,7 +575,8 @@ public:
     result_t createHostSyncObject(ze_command_queue_handle_t commandQueue) {
         if (_internalHostSyncObjectType == HostSyncOjbectType::FENCE) {
             if (_hostSyncFence != nullptr) {
-                auto result = zeFenceDestroy(_hostSyncFence);
+                auto pfnFenceDestroy = _levelZeroDdiTable->zeFenceDestroy;
+                auto result = pfnFenceDestroy(_hostSyncFence);
                 _hostSyncFence = nullptr;
                 if (result != ZE_RESULT_SUCCESS) {
                     return result;
@@ -578,8 +584,9 @@ public:
             }
 
             if (commandQueue != nullptr) {
+                auto pfnFenceCreate = _levelZeroDdiTable->zeFenceCreate;
                 ze_fence_desc_t fence_desc = {ZE_STRUCTURE_TYPE_FENCE_DESC, nullptr, 0};
-                auto result = zeFenceCreate(commandQueue, &fence_desc, &_hostSyncFence);
+                auto result = pfnFenceCreate(commandQueue, &fence_desc, &_hostSyncFence);
                 if (result != ZE_RESULT_SUCCESS) {
                     return result;
                 }
@@ -673,6 +680,11 @@ public:
         return true;
     }
 
+    // return a ddi table pointer to the level zero ddi table, which will be used for executing the graph.
+    ov::ZeroApi* getDdiTable() {
+        return _levelZeroDdiTable;
+    }
+
     // Prepares submission by adding signal events for sync between command lists and host
     result_t prepareSubmission(ze_command_list_handle_t cmdListHandle, bool needHostSync,
                                uint32_t& cmdListCountToBeSubmitted);
@@ -689,7 +701,8 @@ public:
         }
 
         if (_commandQueue) {
-            auto result = zeCommandQueueExecuteCommandLists(_commandQueue,
+            auto pfnCommandQueueExecuteCommandLists = _levelZeroDdiTable->zeCommandQueueExecuteCommandLists;
+            auto result = pfnCommandQueueExecuteCommandLists(_commandQueue,
                                                             static_cast<uint32_t>(_recordedCommandLists.size()),
                                                             _recordedCommandLists.data(), _hostSyncFence);
             if (result != ZE_RESULT_SUCCESS) {
