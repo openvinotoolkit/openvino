@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "collect2 error ld returned 1 exit status undefined reference to symbol defined in source file omitted from new explicit sources cmake list after glob removal gpu plugin build|Code Issue",
+  "signature_hash": "5f728509974fc6e1",
+  "title": "GPU plugin link fails: FuseRoPEInputDeinterleave and SDPAImplementationManager omitted from new explicit sources.cmake",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-10-19T10:01:47Z",
+  "last_seen": "2026-10-19T10:01:47Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/39230131464"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38655"
+  ],
+  "recent_timestamps": [
+    "2026-10-19T10:01:47Z"
+  ],
+  "rerun_search_string": null
+}

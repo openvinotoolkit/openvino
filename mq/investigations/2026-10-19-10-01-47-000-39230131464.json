@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-19-10-01-47-000-39230131464",
+  "timestamp": "2026-10-19T10:01:47Z",
+  "run_id": "39230131464",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39230131464",
+  "workflow_name": "Build / Build",
+  "pr_number": "38655",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38655",
+  "author": "praasz",
+  "category": "Code Issue",
+  "title": "GPU plugin link fails: FuseRoPEInputDeinterleave and SDPAImplementationManager omitted from new explicit sources.cmake",
+  "signature": "collect2 error ld returned 1 exit status undefined reference to symbol defined in source file omitted from new explicit sources cmake list after glob removal gpu plugin build|Code Issue",
+  "signature_hash": "5f728509974fc6e1",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "Cmake build - OpenVINO step fails; ninja link of libopenvino_intel_gpu_plugin.so fails with ld: undefined reference errors"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Downstream status check fails because the Build job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] /home/runner/_work/openvino/openvino/openvino/bin/intel64/Release/libopenvino_intel_gpu_plugin.so",
+    "transformations_pipeline.cpp:(.text...): undefined reference to `ov::intel_gpu::FuseRoPEInputDeinterleave::FuseRoPEInputDeinterleave()'",
+    "sdpa_impls.cpp:(.text...): undefined reference to `vtable for cldnn::onednn::SDPAImplementationManager'",
+    "collect2: error: ld returned 1 exit status",
+    "ninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "PR #38655 replaces file(GLOB_RECURSE ...) source collection in the Intel GPU plugin CMake with explicit source lists in new sources.cmake files. The new src/plugins/intel_gpu/sources.cmake (GPU_PLUGIN_TRANSFORMATIONS_SOURCES) omits src/plugin/transformations/fuse_rope_input_deinterleave.cpp (defining ov::intel_gpu::FuseRoPEInputDeinterleave), and the new src/plugins/intel_gpu/src/graph/impls/onednn/sources.cmake (GPU_ONEDNN_IMPL_SOURCES) omits sdpa_onednn.cpp/.hpp (defining cldnn::onednn::SDPAImplementationManager, used by src/graph/registry/sdpa_impls.cpp). Both .cpp translation units still exist on disk and are referenced elsewhere in the codebase, but since the old GLOB no longer runs, they are silently excluded from compilation, leaving their symbols undefined at link time for libopenvino_intel_gpu_plugin.so.",
+  "reproduction_steps": "Checkout PR #38655 (cmake/migrate-from-glob-in-gpu-plugin branch), configure with -DENABLE_INTEL_GPU=ON -DENABLE_ONEDNN_FOR_GPU=ON (default CI cmake options), then `ninja openvino_intel_gpu_plugin` (or full `ninja`). The link step for libopenvino_intel_gpu_plugin.so fails with undefined reference to FuseRoPEInputDeinterleave::FuseRoPEInputDeinterleave() and vtable for cldnn::onednn::SDPAImplementationManager.",
+  "recommended_actions": [
+    "Add ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_rope_input_deinterleave.cpp (and its .hpp if a headers list is tracked) to GPU_PLUGIN_TRANSFORMATIONS_SOURCES in src/plugins/intel_gpu/sources.cmake.",
+    "Add ${CMAKE_CURRENT_LIST_DIR}/sdpa_onednn.cpp and sdpa_onednn.hpp to GPU_ONEDNN_IMPL_SOURCES in src/plugins/intel_gpu/src/graph/impls/onednn/sources.cmake.",
+    "Diff the new explicit sources.cmake file lists against a `git ls-files` / `find` listing of the corresponding directories (pre-PR GLOB behaviour) to catch any other omitted .cpp files across all of the PR's new sources.cmake files (cm, common, cpu, ocl, ocl_v2, onednn, sycl, graph, kernel_selector, runtime, plugin, tests/functional).",
+    "Re-run the local CMake configure+build with ENABLE_ONEDNN_FOR_GPU=ON after the fix to confirm the full link succeeds."
+  ],
+  "prevention_strategies": "When converting a GLOB-based CMake source list to an explicit list, generate the initial explicit list programmatically from the actual GLOB result (e.g., `git ls-files '*.cpp' '*.hpp'` in each directory) rather than hand-curating it, and add a CI/pre-commit check that diffs the explicit list against a fresh glob of the same directory tree to catch any accidental omissions before merge.",
+  "historical_context": "A related but distinct pattern (signature_hash 424833cadb6f935d, 'GPU unit tests CMake glob removal missing two test source files') was seen 5 times between 2026-09-08 across PRs #38007, #37208, #37914 - a CMake configure-time error ('exists on disk but is not listed in target sources') for GPU unit test sources during an earlier glob-removal effort. This is the same class of regression (explicit source list missing files after de-globbing) but manifesting at link time instead of configure time, and in the plugin/graph libraries rather than the unit test target - indicating the de-globbing migration effort across intel_gpu has repeatedly missed files and should get a systematic verification step (see Recommended Actions)."
+}
