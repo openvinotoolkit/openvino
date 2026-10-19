@@ -18,6 +18,7 @@
 #include "paged_attention_opt.hpp"
 #include "sdpa_base.hpp"
 #include "../utils/kernel_generator.hpp"
+#include "openvino/core/validation_util.hpp"
 // clang-format on
 namespace ov::intel_gpu::ocl {
 namespace {
@@ -487,6 +488,8 @@ sdpa_config_t xe3_h256_pa = {16, 16, 16, 16, 16, 1, 16, 1};
 sdpa_config_t xe3_q_h256 = {32, 32, 32, 32, 8, 2, 8, 2};
 sdpa_config_t xe3_q_h256_2nd = {32, 32, 32, 32, 8, 1, 8, 1};
 
+sdpa_config_t xe2_h256_pa_mixed = {16, 32, 32, 32, 8, 2, 8, 2};
+
 sdpa_config_t xe3_h512 = {32, 16, 32, 16, 16, 2, 16, 2};
 sdpa_config_t xe3_h512_pa = {16, 16, 16, 16, 16, 2, 16, 2};
 sdpa_config_t xe3_h512_2nd = {32, 16, 32, 16, 16, 1, 16, 1};
@@ -846,7 +849,11 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
     return nullptr;
 }
 
-sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill) {
+sdpa_config_t*
+choose_config_xe2(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill, int v_head_size, gpu_arch arch) {
+    if (is_pa && !is_prefill && !thin_q && (arch == gpu_arch::xe2 || arch == gpu_arch::xe3) && head_size > 128 && head_size <= 256 && v_head_size <= 256) {
+        return &xe2_h256_pa_mixed;
+    }
     if (seq <= 0 && is_pa) {
         return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
     }
@@ -951,7 +958,8 @@ sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quant
     return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
 }
 
-sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill, int sliding_window) {
+sdpa_config_t*
+choose_config_xe3p(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill, int sliding_window, int v_head_size) {
     if (is_pa && !is_prefill && !thin_q) {
         if (head_size > 32 && head_size <= 64) {
             return &xe3_h64_pa;
@@ -993,7 +1001,7 @@ sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quan
         if (quantized) {
             return &xe3_q_h256;
         }
-        return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
+        return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill, v_head_size, gpu_arch::xe3p);
     }
     if (head_size <= 512) {
         if (thin_q) {
@@ -1007,7 +1015,7 @@ sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quan
         }
         return &xe3_fma_q_h512;
     }
-    return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
+    return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill, v_head_size, gpu_arch::xe3p);
 }
 
 }  // namespace
@@ -1280,6 +1288,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
         // QQ_BIAS is a paged-attention-only feature.
         jit.make("HAS_QQ_BIAS", 0);
+
+        jit.make("SLIDING_WINDOW_SIZE", config.sliding_window);
     }
     const auto& device_info = params.get_device_info();
 
@@ -1480,7 +1490,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     const ov::Dimension n_keys = micro_get_seq_length(params, 1);
     const ov::Dimension n_queries = micro_get_seq_length(params, 0);
-    const ov::Dimension n_values = ov::Dimension(static_cast<ov::Dimension::value_type>(v_head_size));
+    const ov::Dimension n_values = ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(v_head_size));
 
     bool d_full = (head_size == static_cast<size_t>(d_max));
     bool v_full = (head_size == static_cast<size_t>(tile_v));
@@ -1523,11 +1533,14 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     }
 
     if (device_info.arch >= gpu_arch::xe_hpc) {
-        jit.make("PREFETCH_MASK", 1);
+        const int disabled_prefetch = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_micro_sdpa_disable_prefetch(), 0);
+        if (!(disabled_prefetch & 1))
+            jit.make("PREFETCH_MASK", 1);
         const bool enable_kv_prefetch = (!config.is_paged_attention || m_is_prefill) && !is_byte_packed_int4;
-        jit.make("PREFETCH_K0", enable_kv_prefetch);
-        jit.make("PREFETCH_K", enable_kv_prefetch);
-        jit.make("PREFETCH_V", enable_kv_prefetch);
+        const bool enable_k_prefetch = enable_kv_prefetch && ((disabled_prefetch & 2) == 0);
+        jit.make("PREFETCH_K0", enable_k_prefetch);
+        jit.make("PREFETCH_K", enable_k_prefetch);
+        jit.make("PREFETCH_V", enable_kv_prefetch && ((disabled_prefetch & 4) == 0));
         bool no_rem = d_full && v_full && k_full;
         jit.make("PREFETCH_REMAINDER", !no_rem);
         jit.make("PREFETCH_D_MAX", std::min<int64_t>(d_max, 64));
@@ -1812,7 +1825,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     const ov::Dimension n_keys = micro_get_seq_length(params, 1);
     const ov::Dimension n_queries = micro_get_seq_length(params, 0);
-    const ov::Dimension n_values = ov::Dimension(static_cast<ov::Dimension::value_type>(v_head_size));
+    const ov::Dimension n_values = ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(v_head_size));
     const auto head_num = micro_get_num_heads(params, 0);
     const auto batch = out_ps[0] * static_cast<ov::Dimension>(head_num);
 
@@ -1841,7 +1854,15 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     }
     case gpu_arch::xe2:
     case gpu_arch::xe3:
-        config = choose_config_xe2(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
+        config = choose_config_xe2(static_cast<int32_t>(k_head_size),
+                                   nkeys_v,
+                                   thin_q,
+                                   is_quantized,
+                                   is_integrated,
+                                   is_paged_attention,
+                                   is_prefill,
+                                   static_cast<int32_t>(v_head_size),
+                                   device_info.arch);
         break;
     case gpu_arch::xe3p:
         config = choose_config_xe3p(static_cast<int32_t>(k_head_size),
@@ -1851,10 +1872,19 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
                                     is_integrated,
                                     is_paged_attention,
                                     is_prefill,
-                                    static_cast<int32_t>(configuration.paged_attention_sliding_window));
+                                    static_cast<int32_t>(configuration.paged_attention_sliding_window),
+                                    static_cast<int32_t>(v_head_size));
         break;
     default: {
-        config = choose_config_xe2(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
+        config = choose_config_xe2(static_cast<int32_t>(k_head_size),
+                                   nkeys_v,
+                                   thin_q,
+                                   is_quantized,
+                                   is_integrated,
+                                   is_paged_attention,
+                                   is_prefill,
+                                   static_cast<int32_t>(v_head_size),
+                                   device_info.arch);
         break;
     }
     }

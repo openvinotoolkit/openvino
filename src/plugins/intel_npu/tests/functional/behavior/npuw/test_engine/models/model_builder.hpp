@@ -175,6 +175,7 @@ struct LoRAConfig : public BaseModelConfig {
     size_t lora_rank = 8;
     std::vector<std::string> lora_targets;  ///< Empty = q,k,v,o,gate,up,down.
     bool lora_stateful = false;             ///< true = ReadValue/Assign states.
+    ov::element::Type lora_precision = ov::element::dynamic;
 };
 
 struct LLMConfig : public BaseModelConfig {
@@ -191,6 +192,10 @@ struct LLMConfig : public BaseModelConfig {
     /// Partial RoPE: rotate only the first rotary_dim of each head (0 = full head_dim).
     /// Only applies when build_llm auto-creates the RoPE functor.
     size_t rotary_dim = 0;
+
+    /// Phi-style LongRoPE inverse frequencies. Only applies when build_llm auto-creates
+    /// a full-width HalfRotationRoPE functor.
+    LongRopeSpec longrope;
 
     // MoE configuration (num_experts=0 means dense, no MoE)
     size_t num_experts = 0;           ///< Total experts. 0 = dense model.

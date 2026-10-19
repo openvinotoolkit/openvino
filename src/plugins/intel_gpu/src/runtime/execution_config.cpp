@@ -36,6 +36,10 @@
 #include "openvino/op/gated_delta_net.hpp"
 #include "transformations/utils/utils.hpp"
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl.hpp>
+#endif
+
 namespace ov::intel_gpu {
 
 namespace {
@@ -348,12 +352,18 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     if (!is_set_by_user(ov::internal::enable_lp_transformations)) {
         m_enable_lp_transformations = info.supports_imad || info.supports_immad;
     }
+#ifdef ENABLE_ONEDNN_FOR_GPU
     if (!is_set_by_user(ov::intel_gpu::use_onednn) && info.supports_immad) {
         m_use_onednn = true;
     }
-    if (get_use_onednn()) {
+    if (m_use_onednn) {
         m_queue_type = QueueTypes::in_order;
     }
+    if (m_use_onednn && dnnl::verbose_profiling_enabled()) {
+        // Auto-enable profiling when OneDNN verbose profiling is enabled.
+        m_enable_profiling = true;
+    }
+#endif
 
     // Enable dynamic quantization by default for non-systolic platforms
     if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && get_dynamic_quantization_group_size() == 0) {

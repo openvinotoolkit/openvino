@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <memory>
 #include <optional>
 
 #include "intel_npu/common/icompiler_adapter.hpp"
@@ -13,7 +14,6 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "ivcl_compiler.hpp"
-#include "openvino/runtime/so_ptr.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 namespace intel_npu {
@@ -31,7 +31,7 @@ public:
      * @param compiler The compiler-in-plugin to adapt; must be non-null.
      */
     PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                          ov::SoPtr<IVCLCompiler> compiler);
+                          std::shared_ptr<IVCLCompiler> compiler);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
                                     const Config& config,
@@ -53,7 +53,7 @@ public:
 private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
-    ov::SoPtr<IVCLCompiler> _compiler;
+    std::shared_ptr<IVCLCompiler> _compiler;
 
     Logger _logger;
 };
