@@ -4,8 +4,15 @@
 
 #include "llm_compiled_model_utils.hpp"
 
+#include <algorithm>
+#include <cstdlib>
 #include <cstring>
+#include <string_view>
+#include <unordered_set>
 
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/npu_private_properties.hpp"
+#include "logging.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -15,6 +22,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 
 bool ov::npuw::util::has_input(const std::shared_ptr<ov::Model>& model, const std::string& name) {
     auto inputs = model->inputs();
@@ -107,4 +115,156 @@ std::optional<uint32_t> ov::npuw::util::get_max_position_embeddings(const std::s
         }
     }
     return std::nullopt;
+}
+
+std::optional<ov::npuw::util::NPUDesc> ov::npuw::util::extract_npu_descriptor(
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& config) {
+    if (!plugin->get_core()) {
+        return std::nullopt;
+    }
+    std::vector<std::string> all_devices;
+    try {
+        all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+    } catch (const ov::Exception& ex) {
+        LOG_WARN("Failed to query NPU capabilities, defaulting LLM config to backend-agnostic path: " << ex.what());
+        return std::nullopt;
+    }
+    if (all_devices.empty()) {
+        return std::nullopt;
+    }
+    NPUDesc desc;
+    desc.arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
+    desc.max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
+
+    // Don't use reference here!
+    const auto supported_properties =
+        plugin->get_property(ov::supported_properties.name(), ov::AnyMap{}).as<std::vector<ov::PropertyName>>();
+    if (std::find(supported_properties.begin(), supported_properties.end(), "NPU_COMPILER_DYNAMIC_QUANTIZATION") !=
+        supported_properties.end()) {
+        desc.compiler_dq = true;
+    }
+
+    // Get compiler version based on NPU_COMPILER_TYPE configuration
+    // If NPU_COMPILER_TYPE is not specified in config, use default compiler version
+    auto compiler_type_it = config.find(ov::intel_npu::compiler_type.name());
+    if (compiler_type_it == config.end()) {
+        // NPU_COMPILER_TYPE is not specified in config, use default compiler version
+        desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
+    } else {
+        // NPU_COMPILER_TYPE is specified in config, get compiler version for the specified compiler type
+        auto target_compiler_type = compiler_type_it->second.as<std::string>();
+        desc.compiler_ver = plugin
+                                ->get_property(ov::intel_npu::compiler_version.name(),
+                                               ov::AnyMap{{ov::intel_npu::compiler_type.name(), target_compiler_type}})
+                                .as<int64_t>();
+    }
+    LOG_INFO("Compiler version: " << ONEAPI_VERSION_MAJOR(desc.compiler_ver) << "."
+                                  << ONEAPI_VERSION_MINOR(desc.compiler_ver));
+
+    constexpr std::string_view compiler_gate_support_msg =
+        "Compiler: accurate gated matmul (MatMul -> Divide -> Tanh -> Multiply -> Result) : ";
+
+    if (desc.compiler_ver >= ONEAPI_MAKE_VERSION(7, 28)) {
+        // accuracy for gated matmul fixed at 7.28
+        desc.compiler_matmul_gate = true;
+        LOG_INFO(compiler_gate_support_msg << "supported");
+    } else {
+        LOG_WARN(compiler_gate_support_msg << "unsupported");
+    }
+
+    static const std::unordered_set<std::string_view> flash_attention_tile_supported_platforms = {
+        ov::intel_npu::Platform::NPU5010,
+        ov::intel_npu::Platform::NPU6010};
+
+    // Flash attention tile with GQA is supported starting from compiler version 8.1 on supported platforms
+    desc.support_flash_attention_tile =
+        flash_attention_tile_supported_platforms.count(desc.arch) && desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1);
+
+    return std::make_optional(std::move(desc));
+}
+
+namespace {
+ov::AnyMap get_baseline_common_config(const std::optional<ov::npuw::util::NPUDesc>& npudesc) {
+    ov::AnyMap config = {
+        {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm"},
+        {"NPUW_DEVICES", "NPU"},
+        {"NPU_USE_NPUW", "YES"},
+        {"NPUW_FOLD", "YES"},
+        {"NPUW_DCOFF_TYPE", "f16"},
+        {"NPUW_DCOFF_SCALE", "YES"},
+        {"NPUW_SLICE_OUT", "YES"},
+        {"NPUW_FUNCALL_ASYNC", "YES"}};
+    // FIXME: this config logic is getting more and more complex
+    if (npudesc.has_value() && npudesc->compiler_dq) {
+        config.emplace("NPUW_DQ", "YES");
+        config.emplace("NPUW_DQ_FULL", "NO");
+        config.emplace("NPU_COMPILER_DYNAMIC_QUANTIZATION", "YES");
+        config.erase("NPUW_DCOFF_TYPE");
+        config.erase("NPUW_DCOFF_SCALE");
+    }
+
+    // default value is ON
+    // for compiler versions >= 7.28 value is ON
+    // for other compiler versions value is OFF
+    if (npudesc.has_value()) {
+        config.emplace("NPUW_MM_GATED", (npudesc->compiler_matmul_gate ? "YES" : "NO"));
+    }
+    return config;
+}
+}  // namespace
+
+ov::AnyMap ov::npuw::util::get_default_common_config(const std::optional<NPUDesc>& npudesc) {
+    // FIXME: add `if_model_contain_slice()` condition for `SLICE_OUT` option.
+    auto config = get_baseline_common_config(npudesc);
+    const char* npu_l0 = std::getenv("DISABLE_OPENVINO_GENAI_NPU_L0");
+    if (npu_l0 && std::atoi(npu_l0) == 1) {
+        config.emplace("NPUW_WEIGHTS_BANK_ALLOC", "CPU");
+    } else {
+        config.emplace("NPUW_FUNCALL_FOR_ALL", "YES");
+    }
+    auto set_max_tiles_based_on_arch = [&config, &npudesc]() {
+        if (!npudesc.has_value()) {
+            return;
+        }
+        LOG_DEBUG("NPU architecture detected: " << npudesc->arch << ", max tiles: " << npudesc->max_tiles
+                                                << ", compiler DQ support: " << (npudesc->compiler_dq ? "YES" : "NO"));
+
+        // Platform parameter has a higher priority than deviceID
+        std::string npu_platform;
+        if (npudesc->arch != ov::intel_npu::Platform::AUTO_DETECT) {
+            npu_platform = ov::intel_npu::Platform::standardize(npudesc->arch);
+        } else {
+            npu_platform = npudesc->arch;
+        }
+
+        bool set_npu_tiles = false;
+        std::string arch_added_compilation_param;
+        if (npu_platform == ov::intel_npu::Platform::NPU3720) {
+            // Keep baseline settings
+        } else if (npu_platform == ov::intel_npu::Platform::NPU4000) {
+            set_npu_tiles = true;
+            arch_added_compilation_param = "optimization-level=3";
+        } else if (npu_platform == ov::intel_npu::Platform::NPU5010 ||
+                   npu_platform == ov::intel_npu::Platform::NPU5020) {
+            set_npu_tiles = true;
+        } else if (npu_platform == ov::intel_npu::Platform::NPU6010) {
+            arch_added_compilation_param = "performance-hint-override=latency";
+        } else if (npu_platform == ov::intel_npu::Platform::AUTO_DETECT) {
+            // Keep baseline settings
+        } else {
+            LOG_WARN("Unknown NPU platform: " << npu_platform << ". Default config will be used.");
+        }
+
+        if (set_npu_tiles) {
+            config["NPU_TILES"] = npudesc->max_tiles;
+        }
+
+        if (!arch_added_compilation_param.empty()) {
+            config["NPU_COMPILATION_MODE_PARAMS"] =
+                config["NPU_COMPILATION_MODE_PARAMS"].as<std::string>() + " " + arch_added_compilation_param;
+        }
+    };
+    set_max_tiles_based_on_arch();
+    return config;
 }
