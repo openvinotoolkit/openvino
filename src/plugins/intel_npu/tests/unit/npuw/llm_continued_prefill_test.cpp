@@ -29,6 +29,7 @@
 #include "llm_infer_request.hpp"
 #include "llm_kvcache_strategy.hpp"
 #include "llm_test_helpers.hpp"
+#include "npuw_transformations/detect_causal_mask.hpp"
 #include "openvino/openvino.hpp"
 #include "util.hpp"
 
@@ -581,9 +582,11 @@ TEST_F(LLMQuantizedContinuedPrefillTest, QuantizedKvCacheSupportsContinuousPrefi
 // Sliding window models. The sub-requests below run a small hashed transformer
 // instead of zeroing outputs. Every token row a layer writes to its present KV
 // hashes the token, its position, the model that produced it and everything the
-// row attends to, as selected by the attention mask, the sliding window mask and
-// the past KV rows. The logits hash the last row after the last layer, so two runs
-// produce equal logits only when every step saw equal inputs, masks and visible KV.
+// row attends to. A shrunk sliding layer attends as the externalized sliding window
+// mask says. With the full KV cache a sliding layer applies its window in the graph,
+// which the sub-requests reproduce from the window annotated on the model. The
+// logits hash the last row after the last layer, so two runs produce equal logits
+// only when every step saw equal inputs, masks and visible KV.
 
 // Where the token rows of the KV tensors live, known once the model is compiled.
 struct KvLayout {
@@ -646,6 +649,48 @@ void fill_with_tag(const ov::SoPtr<ov::ITensor>& tensor, uint64_t tag) {
     }
 }
 
+size_t layer_index(const std::string& past_name) {
+    return std::stoul(past_name.substr(std::string("past_key_values.").size()));
+}
+
+// The sliding window of every layer, read from the mask annotation on the attention
+// its past key feeds. A full attention layer gets zero.
+std::map<size_t, int64_t> sliding_windows(const std::shared_ptr<ov::Model>& model) {
+    std::map<size_t, int64_t> windows;
+    for (const auto& param : model->get_parameters()) {
+        const auto& name = param->output(0).get_any_name();
+        if (!ov::npuw::util::isPastKeyParam(name)) {
+            continue;
+        }
+        // Walk downstream to this layer's attention, which ends at its SDPA or Softmax.
+        std::vector<std::shared_ptr<ov::Node>> queue{param};
+        std::map<const ov::Node*, bool> seen;
+        int64_t window = 0;
+        for (size_t head = 0; head < queue.size(); ++head) {
+            const auto& node = queue[head];
+            const auto& rt_info = node->get_rt_info();
+            if (const auto it = rt_info.find(ov::npuw::NPUW_SDPA_MASK_RT_KEY); it != rt_info.end()) {
+                window = std::max<int64_t>(it->second.as<int64_t>(), 0);
+                break;
+            }
+            const std::string type = node->get_type_name();
+            if (type == "ScaledDotProductAttention" || type == "Softmax") {
+                continue;
+            }
+            for (const auto& output : node->outputs()) {
+                for (const auto& input : output.get_target_inputs()) {
+                    if (!seen[input.get_node()]) {
+                        seen[input.get_node()] = true;
+                        queue.push_back(input.get_node()->shared_from_this());
+                    }
+                }
+            }
+        }
+        windows[layer_index(name)] = window;
+    }
+    return windows;
+}
+
 class HashingSubCompiledModel;
 
 class HashingSubInferRequest final : public ov::ISyncInferRequest {
@@ -672,6 +717,7 @@ private:
     void infer_layers(const ov::SoPtr<ov::ITensor>& input_ids);
 
     std::shared_ptr<const KvLayout> m_layout;
+    std::map<size_t, int64_t> m_windows;
 };
 
 class HashingSubCompiledModel final : public ov::npuw::ICompiledModel_v0 {
@@ -681,10 +727,15 @@ public:
                             std::shared_ptr<const KvLayout> layout)
         : ov::npuw::ICompiledModel_v0(model, plugin),
           m_model(model),
-          m_layout(std::move(layout)) {}
+          m_layout(std::move(layout)),
+          m_windows(sliding_windows(model)) {}
 
     std::shared_ptr<const KvLayout> layout() const {
         return m_layout;
+    }
+
+    const std::map<size_t, int64_t>& windows() const {
+        return m_windows;
     }
 
     void export_model(std::ostream&) const override {}
@@ -725,11 +776,13 @@ public:
 private:
     std::shared_ptr<ov::Model> m_model;
     std::shared_ptr<const KvLayout> m_layout;
+    std::map<size_t, int64_t> m_windows;
 };
 
 HashingSubInferRequest::HashingSubInferRequest(std::shared_ptr<const HashingSubCompiledModel> compiled_model)
     : ov::ISyncInferRequest(compiled_model),
-      m_layout(compiled_model->layout()) {
+      m_layout(compiled_model->layout()),
+      m_windows(compiled_model->windows()) {
     for (const auto& input : get_compiled_model()->inputs()) {
         ov::ISyncInferRequest::set_tensor(input,
                                           ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
@@ -800,26 +853,31 @@ void HashingSubInferRequest::infer_layers(const ov::SoPtr<ov::ITensor>& input_id
 
     struct Layer {
         ov::SoPtr<ov::ITensor> past_key, past_value, present_key, present_value;
-        bool sliding = false;
+        bool shrunk = false;
     };
     std::map<size_t, Layer> layers;
-    const std::string prefix = "past_key_values.";
     for (const auto& input : get_compiled_model()->inputs()) {
         const auto& name = input.get_any_name();
-        if (name.rfind(prefix, 0) != 0u) {
+        if (name.rfind("past_key_values.", 0) != 0u) {
             continue;
         }
-        auto& layer = layers[std::stoul(name.substr(prefix.size()))];
+        auto& layer = layers[layer_index(name)];
         const bool is_value = uu::isPastValueParam(name);
         (is_value ? layer.past_value : layer.past_key) = get_tensor(input);
         (is_value ? layer.present_value : layer.present_key) = find_tensor(uu::past_key_values_to_present_name(name));
-        layer.sliding = uu::is_swa_kv_cache_name(name);
+        layer.shrunk = uu::is_swa_kv_cache_name(name);
     }
+    // The fixture only runs sliding window models.
+    OPENVINO_ASSERT(std::any_of(m_windows.begin(), m_windows.end(), [](const auto& entry) {
+        return entry.second > 0;
+    }));
 
     const bool v_transposed = is_prefill ? m_layout->v_transposed_pre : m_layout->v_transposed_gen;
     const uint32_t key_axis = m_layout->dim;
     const uint32_t value_axis = v_transposed ? 3u : m_layout->dim;
     for (const auto& [index, layer] : layers) {
+        const int64_t window = m_windows.at(index);
+        OPENVINO_ASSERT(!layer.shrunk || window > 0, "Only sliding layers are shrunk.");
         std::vector<uint64_t> key(n), value(n), row_kv(n), next(n);
         for (size_t r = 0; r < n; ++r) {
             key[r] = combine(combine(index, hidden[r]), 'k');
@@ -832,7 +890,17 @@ void HashingSubInferRequest::infer_layers(const ov::SoPtr<ov::ITensor>& input_id
             past_kv[s] =
                 combine(read_row_tag(layer.past_key, key_axis, s), read_row_tag(layer.past_value, value_axis, s));
         }
-        OPENVINO_ASSERT(layer.sliding ? swa_mask->get_shape().back() == layer_past + n : layer_past == past_len);
+        OPENVINO_ASSERT(layer.shrunk ? swa_mask->get_shape().back() == layer_past + n : layer_past == past_len);
+        // The full cache keeps token s in slot s, the tests start positions at zero, and
+        // a sliding layer hides past slots older than its window from the query position.
+        const auto past_visible = [&](size_t r, size_t s) {
+            return layer.shrunk ? swa_attends(r, s)
+                                : mask[s] == 1 && (window == 0 || static_cast<int64_t>(s) > positions[r] - window);
+        };
+        const auto present_visible = [&](size_t r, size_t j) {
+            return layer.shrunk ? swa_attends(r, layer_past + j)
+                                : valid[j] && j <= r && (window == 0 || static_cast<int64_t>(r - j) < window);
+        };
         for (size_t r = 0; r < n; ++r) {
             if (!valid[r]) {
                 continue;
@@ -840,12 +908,12 @@ void HashingSubInferRequest::infer_layers(const ov::SoPtr<ov::ITensor>& input_id
             // Attention is order free, so the visible rows are summed.
             uint64_t attended = 0u;
             for (size_t s = 0; s < layer_past; ++s) {
-                if (layer.sliding ? swa_attends(r, s) : mask[s] == 1) {
+                if (past_visible(r, s)) {
                     attended += past_kv[s];
                 }
             }
             for (size_t j = 0; j < n; ++j) {
-                if (layer.sliding ? swa_attends(r, layer_past + j) : (valid[j] && j <= r)) {
+                if (present_visible(r, j)) {
                     attended += row_kv[j];
                 }
             }
