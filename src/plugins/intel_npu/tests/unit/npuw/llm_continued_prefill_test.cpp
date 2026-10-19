@@ -6,9 +6,11 @@
 // strategy. The tests drive the public LLMInferRequest surface: infer() for
 // routing and the npuw_stored_tokens_state variable state for the propose/grant
 // negotiation. Submodels are compiled through a factory that returns fake
-// sub-requests whose infer() only zeroes outputs, so every byte that the tests
-// observe in a KV tensor was moved there by the plugin's own KV plumbing.
+// sub-requests whose infer() zeroes the outputs and, when a test asks for it,
+// records the prefill inputs. Every byte that the tests observe in a KV tensor
+// was moved there by the plugin's own KV plumbing.
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -33,7 +35,6 @@
 #include "openvino/op/gather_nd.hpp"
 #include "openvino/op/non_zero.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/openvino.hpp"
@@ -237,7 +238,8 @@ private:
 };
 
 // Delegates every strategy call to the real contiguous strategy but fails the
-// continuation, modelling a failure inside the strategy.
+// continuation while armed, modelling a failure inside the strategy. A preflight
+// test arms it to prove that a rejection happened before the repack.
 class ThrowingContinuationStrategy final : public ov::npuw::LLMKVCacheStrategy {
 public:
     ThrowingContinuationStrategy(ov::npuw::LLMInferRequest& req, std::unique_ptr<ov::npuw::LLMKVCacheStrategy> inner)
@@ -274,12 +276,20 @@ public:
                                 bool to_long) override {
         m_inner->rerotate_longrope_keys(request, in_ports, num_cached_tokens, to_long);
     }
-    void continue_prefill(uint32_t, uint32_t) override {
-        OPENVINO_THROW("Injected continued-prefill failure.");
+    void continue_prefill(uint32_t keep, uint32_t delta_len) override {
+        if (m_armed) {
+            OPENVINO_THROW("Injected continued-prefill failure.");
+        }
+        m_inner->continue_prefill(keep, delta_len);
+    }
+
+    void disarm() {
+        m_armed = false;
     }
 
 private:
     std::unique_ptr<ov::npuw::LLMKVCacheStrategy> m_inner;
+    bool m_armed = true;
 };
 
 void fill_tensor_pattern(const ov::SoPtr<ov::ITensor>& tensor, uint8_t seed) {
@@ -706,10 +716,10 @@ TEST_F(LLMBlockContinuedPrefillTest, GrantedContinuationTruncatesBlockPoolAndRun
 
 // VLM language models feed the prefill with inputs_embeds and, depending on the
 // family, token_type_ids (Gemma-3), per_layer_inputs (Gemma-4 E2B/E4B), 3-D M-RoPE
-// position ids (Qwen2.5-VL) or M-RoPE plus DeepStack injections (Qwen3-VL). Every caller tensor of a
-// continued prefill holds only the delta, so the tests below check that the
-// chunks of a continuation stage exactly what the same chunks of a full-history
-// prefill stage.
+// position ids (Qwen2.5-VL) or M-RoPE plus DeepStack injections (Qwen3-VL). Every
+// caller tensor of a continued prefill holds only the delta, so the tests below
+// check that the chunks of a continuation stage exactly what the same chunks of a
+// full-history prefill stage.
 enum class VlmInputs { InputsEmbeds, TokenTypeIds, PerLayerInputs, MRoPE, DeepStack };
 
 constexpr size_t kVlmTotal = 104;      // full second-turn history
@@ -728,38 +738,6 @@ bool is_vlm_image_token(size_t i) {
 
 size_t vlm_image_tokens_before(size_t i) {
     return std::clamp(i, kVlmImageBegin, kVlmImageEnd) - kVlmImageBegin;
-}
-
-// Gemma-3 style token_type_ids input. The model builder's bidirectional image
-// mask reads token_type_ids over the whole history, which does not reshape to a
-// chunked prefill, so the input reaches the graph through a probe output. The
-// fake sub-requests never execute the graph; the tests check the staged chunk.
-void add_token_type_ids_input(const std::shared_ptr<ov::Model>& model) {
-    auto token_type_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
-    token_type_ids->output(0).set_names({"token_type_ids"});
-    auto zero = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1, 1}, {0});
-    auto probe = std::make_shared<ov::op::v1::Add>(token_type_ids, zero);
-    probe->output(0).set_names({"token_type_ids_probe"});
-    auto result = std::make_shared<ov::op::v0::Result>(probe);
-    model->add_parameters({token_type_ids});
-    model->add_results({result});
-    model->validate_nodes_and_infer_types();
-}
-
-// Gemma-4 E2B/E4B style per_layer_inputs, reaching the graph through a probe
-// output like token_type_ids above.
-void add_per_layer_inputs_input(const std::shared_ptr<ov::Model>& model) {
-    auto per_layer_inputs = std::make_shared<ov::op::v0::Parameter>(
-        ov::element::f32,
-        ov::PartialShape{1, -1, static_cast<int64_t>(kVlmPleLayers), static_cast<int64_t>(kVlmPleDim)});
-    per_layer_inputs->output(0).set_names({"per_layer_inputs"});
-    auto zero = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {0.0f});
-    auto probe = std::make_shared<ov::op::v1::Add>(per_layer_inputs, zero);
-    probe->output(0).set_names({"per_layer_inputs_probe"});
-    auto result = std::make_shared<ov::op::v0::Result>(probe);
-    model->add_parameters({per_layer_inputs});
-    model->add_results({result});
-    model->validate_nodes_and_infer_types();
 }
 
 // Qwen3-VL style DeepStack injection on the input embeddings, the pattern
@@ -808,11 +786,20 @@ std::shared_ptr<ov::Model> build_vlm_test_model(VlmInputs kind) {
     }
     ov::test::npuw::ModelBuilder mb;
     auto model = mb.build_llm(cfg);
+    // The model builder's bidirectional image mask reads token_type_ids over the
+    // whole history, which does not reshape to a chunked prefill, so Gemma-3 style
+    // token_type_ids and Gemma-4 E2B/E4B style per_layer_inputs reach the graph
+    // through probe outputs. The fake sub-requests never execute the graph; the
+    // tests check the staged chunks.
     if (kind == VlmInputs::TokenTypeIds) {
-        add_token_type_ids_input(model);
+        ov::test::npuw::add_probe_input(model, "token_type_ids", ov::element::i64, ov::PartialShape{-1, -1});
     }
     if (kind == VlmInputs::PerLayerInputs) {
-        add_per_layer_inputs_input(model);
+        ov::test::npuw::add_probe_input(
+            model,
+            "per_layer_inputs",
+            ov::element::f32,
+            ov::PartialShape{1, -1, static_cast<int64_t>(kVlmPleLayers), static_cast<int64_t>(kVlmPleDim)});
     }
     if (kind == VlmInputs::DeepStack) {
         add_deepstack_injection(model, cfg.hidden_size);
@@ -1015,55 +1002,68 @@ TEST_P(LLMVlmContinuedPrefillTest, ContinuedPrefillStagesTheSameChunksAsFullHist
     }
 }
 
-// A per-token input left at full-history length is a preflight rejection: the
-// grant stays armed and the correctly sliced delta still completes.
-TEST_P(LLMVlmContinuedPrefillTest, FullHistoryInputIsRejectedBeforeTheRepack) {
+// A delta input with the wrong length or layout is a preflight rejection. The
+// strategy is armed to throw if the repack is reached, so each rejection has to
+// come from the preflight. The grant stays armed and the correct delta completes.
+TEST_P(LLMVlmContinuedPrefillTest, WrongDeltaInputIsRejectedBeforeTheRepack) {
     constexpr size_t kHidden = 64;
     const auto full = VlmPrompt::full_history(mrope(), kHidden);
     start_session();
     prepare_continuation(full, kHidden);
 
-    auto wrong = full.slice(kVlmKeep, kVlmTotal);
+    // Each case gets one input of the delta wrong, paired with the expected error.
+    const auto delta = full.slice(kVlmKeep, kVlmTotal);
+    std::vector<std::pair<std::string, VlmPrompt>> cases;
+    auto wrong = delta;
     switch (GetParam()) {
     case VlmInputs::InputsEmbeds:
-    case VlmInputs::MRoPE:
         wrong.position_ids = full.position_ids;
+        cases.emplace_back("position ids must cover exactly the delta", wrong);
+        wrong.position_ids = make_i64({2, kVlmTotal - kVlmKeep}, 0);
+        cases.emplace_back("position ids must have the prefill layout", wrong);
         break;
     case VlmInputs::TokenTypeIds:
         wrong.token_type_ids = full.token_type_ids;
+        cases.emplace_back("token_type_ids must cover exactly the delta", wrong);
         break;
     case VlmInputs::PerLayerInputs:
         wrong.per_layer_inputs = full.per_layer_inputs;
+        cases.emplace_back("per_layer_inputs must cover exactly the delta", wrong);
+        wrong.per_layer_inputs = ov::Tensor(ov::element::f32, ov::Shape{1, 0, kVlmPleLayers, kVlmPleDim});
+        cases.emplace_back("per_layer_inputs must cover exactly the delta", wrong);
         break;
+    case VlmInputs::MRoPE:
     case VlmInputs::DeepStack:
-        wrong.deepstack = full.deepstack;
+        wrong.position_ids = full.position_ids;
+        cases.emplace_back("position ids must cover exactly the delta", wrong);
+        wrong.position_ids = slice_axis(delta.position_ids, 0, 0, 2);  // [2, 1, delta]
+        cases.emplace_back("position ids must have the prefill layout", wrong);
+        if (GetParam() == VlmInputs::DeepStack) {
+            wrong = delta;
+            wrong.deepstack = full.deepstack;
+            cases.emplace_back("deepstack_visual_embeds must hold one row per visual token", wrong);
+        }
         break;
     }
-    EXPECT_THROW(run_prefill(wrong, kVlmTotal), ov::Exception);
-    EXPECT_EQ(stored_tokens(), static_cast<int64_t>(kVlmKeep));
 
-    run_prefill(full.slice(kVlmKeep, kVlmTotal), kVlmTotal);
-    EXPECT_EQ(stored_tokens(), static_cast<int64_t>(kVlmTotal));
-}
+    auto inner = LLMContinuedPrefillTestAccess::take_strategy(request());
+    ASSERT_NE(inner, nullptr);
+    auto armed = std::make_unique<ThrowingContinuationStrategy>(request(), std::move(inner));
+    auto* strategy = armed.get();
+    LLMContinuedPrefillTestAccess::set_strategy(request(), std::move(armed));
 
-// M-RoPE ids sliced on the sequence axis but with the wrong axis count are a
-// preflight rejection too: the chunk copy would otherwise stage a partial ROI or
-// fail after the repack.
-TEST_P(LLMVlmContinuedPrefillTest, WrongPositionIdsLayoutIsRejectedBeforeTheRepack) {
-    if (!mrope()) {
-        GTEST_SKIP() << "M-RoPE position ids only";
+    for (const auto& [error, prompt] : cases) {
+        try {
+            run_prefill(prompt, kVlmTotal);
+            ADD_FAILURE() << "Expected a rejection with: " << error;
+        } catch (const ov::Exception& e) {
+            EXPECT_THAT(e.what(), ::testing::HasSubstr(error));
+        }
+        EXPECT_EQ(stored_tokens(), static_cast<int64_t>(kVlmKeep));
     }
-    constexpr size_t kHidden = 64;
-    const auto full = VlmPrompt::full_history(mrope(), kHidden);
-    start_session();
-    prepare_continuation(full, kHidden);
 
-    auto wrong = full.slice(kVlmKeep, kVlmTotal);
-    wrong.position_ids = slice_axis(wrong.position_ids, 0, 0, 2);  // [2, 1, delta]
-    EXPECT_THROW(run_prefill(wrong, kVlmTotal), ov::Exception);
-    EXPECT_EQ(stored_tokens(), static_cast<int64_t>(kVlmKeep));
-
-    run_prefill(full.slice(kVlmKeep, kVlmTotal), kVlmTotal);
+    strategy->disarm();
+    run_prefill(delta, kVlmTotal);
     EXPECT_EQ(stored_tokens(), static_cast<int64_t>(kVlmTotal));
 }
 
