@@ -272,9 +272,7 @@ void transfer_tensor(Stream& stream, ov::Tensor& var, const s11n::TensorAllocato
 // Reopen s11n for weightless helpers that need the orc declarations above.
 namespace s11n {
 
-inline void write_weightless(std::ostream& stream,
-                             const std::vector<ov::Tensor>& var,
-                             const ExportWeightsContext& ctx) {
+inline void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const ExportWeightsContext& ctx) {
     auto stream_io = Stream::writer(stream);
     auto& mutable_var = const_cast<std::vector<ov::Tensor>&>(var);
     orc::serialize_weightless(stream_io, mutable_var, ctx);

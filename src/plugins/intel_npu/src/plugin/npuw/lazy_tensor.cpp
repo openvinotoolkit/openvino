@@ -40,8 +40,7 @@ Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
     m_cached_ptr = m_node->get_data_ptr();
     m_byte_size = m_node->get_byte_size();
 
-    std::optional<ov::weight_sharing::WeightOriginMetaData> origin_metadata =
-        ov::weight_sharing::Extension::get_constant_origin(*m_node);
+    std::optional<ov::weight_sharing::WeightOriginMetaData> origin_metadata = ov::weight_sharing::Extension::get_constant_origin(*m_node);
     if (origin_metadata) {
         m_offset = origin_metadata->m_offset;
     } else {
