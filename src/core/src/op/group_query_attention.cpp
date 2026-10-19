@@ -141,12 +141,25 @@ void GroupQueryAttention::validate_and_infer_types() {
         return "unknown";
     };
 
+    const auto is_present = [&](GroupQueryAttentionInputs input) {
+        const auto pos = static_cast<size_t>(input);
+        return (pos < get_input_size()) && !ov::util::is_empty_constant_tensor(input_value(pos));
+    };
+    const auto is_typed_empty_past = [&](GroupQueryAttentionInputs input) {
+        const auto pos = static_cast<size_t>(input);
+        if (pos >= get_input_size() || !ov::util::is_empty_constant_tensor(input_value(pos))) {
+            return false;
+        }
+        const auto& shape = get_input_partial_shape(pos);
+        return shape.rank().is_static() && shape.rank().get_length() == 4 && get_input_element_type(pos).is_static();
+    };
+
     const auto check_input = [&](GroupQueryAttentionInputs input,
                                  std::initializer_list<Rank> allowed_ranks,
                                  const std::vector<element::Type>& allowed_types,
                                  bool required = true) {
         const auto pos = static_cast<size_t>(input);
-        const bool present = (pos < get_input_size()) && !ov::util::is_empty_constant_tensor(input_value(pos));
+        const bool present = is_present(input);
         NODE_VALIDATION_CHECK(this,
                               !required || present,
                               "GroupQueryAttention requires ",
@@ -207,12 +220,29 @@ void GroupQueryAttention::validate_and_infer_types() {
     check_input(GroupQueryAttentionInputs::QUERY, {4}, float_types);
     check_input(GroupQueryAttentionInputs::KEY, {4}, float_types);
     check_input(GroupQueryAttentionInputs::VALUE, {4}, float_types);
+    // An absent past (empty Constant) is an empty KV cache; past_key and past_value come as a pair.
     check_input(GroupQueryAttentionInputs::PAST_KEY,
                 {4},
-                {element::f32, element::f16, element::bf16, element::i8, element::u8, element::f8e4m3});
+                {element::f32, element::f16, element::bf16, element::i8, element::u8, element::f8e4m3},
+                false);
     check_input(GroupQueryAttentionInputs::PAST_VALUE,
                 {4},
-                {element::f32, element::f16, element::bf16, element::i8, element::u8, element::f8e4m3});
+                {element::f32, element::f16, element::bf16, element::i8, element::u8, element::f8e4m3},
+                false);
+    // RemoveEmptyKVInputs replaces a zero-sized past Parameter with a rank-4 Constant of the same type and shape.
+    // The frontend uses a rank-1 {0} Constant when ONNX omits past; infer its layout from KEY, but reject quantization
+    // because the floating-point KEY cannot identify the cache type.
+    const bool has_past = is_present(GroupQueryAttentionInputs::PAST_KEY);
+    const bool has_past_value = is_present(GroupQueryAttentionInputs::PAST_VALUE);
+    NODE_VALIDATION_CHECK(this,
+                          has_past == has_past_value,
+                          "GroupQueryAttention expects past_key and past_value to be both present or both absent");
+    const bool has_past_layout = has_past || is_typed_empty_past(GroupQueryAttentionInputs::PAST_KEY);
+    const bool has_past_value_layout = has_past_value || is_typed_empty_past(GroupQueryAttentionInputs::PAST_VALUE);
+    NODE_VALIDATION_CHECK(this,
+                          has_past_layout == has_past_value_layout,
+                          "GroupQueryAttention expects past_key and past_value to both provide cache layout "
+                          "information or neither");
     check_input(GroupQueryAttentionInputs::SEQLENS_K, {1, 2}, integral_types);
     // output_qk is laid out over total_sequence_length (ORT), so qk_output needs it.
     check_input(GroupQueryAttentionInputs::TOTAL_SEQUENCE_LENGTH,
@@ -277,8 +307,6 @@ void GroupQueryAttention::validate_and_infer_types() {
                                   get_input_element_type(pos));
         }
     }
-    const auto past_k_shape = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::PAST_KEY));
-
     const auto& q_type = get_input_element_type(static_cast<size_t>(GroupQueryAttentionInputs::QUERY));
 
     const auto& batch_size = q_shape[0];
@@ -367,14 +395,26 @@ void GroupQueryAttention::validate_and_infer_types() {
 
     // The KV cache (past_key/past_value, input 3/4) may be quantized. present_key/present_value inherit the
     // cache element type so a quantized (i8/u8/f8e4m3) cache round-trips from past to present, matching the ONNX spec.
-    const auto& kv_cache_type = get_input_element_type(static_cast<size_t>(GroupQueryAttentionInputs::PAST_KEY));
-    const auto& past_value_type = get_input_element_type(static_cast<size_t>(GroupQueryAttentionInputs::PAST_VALUE));
     NODE_VALIDATION_CHECK(this,
-                          kv_cache_type.compatible(past_value_type),
-                          "GroupQueryAttention expects past_key and past_value element types to match, got ",
-                          kv_cache_type,
-                          " and ",
-                          past_value_type);
+                          has_past || (!m_sliding_window_cache && !is_shared_kv()),
+                          "GroupQueryAttention requires past_key and past_value for a windowed or shared "
+                          "KV cache");
+    NODE_VALIDATION_CHECK(this,
+                          has_past_layout || !is_kv_quantized(),
+                          "GroupQueryAttention with a quantized KV cache and no past requires a typed rank-4 empty "
+                          "past_key and past_value");
+    const auto kv_cache_type = get_input_element_type(
+        static_cast<size_t>(has_past_layout ? GroupQueryAttentionInputs::PAST_KEY : GroupQueryAttentionInputs::KEY));
+    if (has_past_layout) {
+        const auto& past_value_type =
+            get_input_element_type(static_cast<size_t>(GroupQueryAttentionInputs::PAST_VALUE));
+        NODE_VALIDATION_CHECK(this,
+                              kv_cache_type.compatible(past_value_type),
+                              "GroupQueryAttention expects past_key and past_value element types to match, got ",
+                              kv_cache_type,
+                              " and ",
+                              past_value_type);
+    }
     if (is_kv_quantized()) {
         NODE_VALIDATION_CHECK(
             this,
@@ -405,6 +445,14 @@ void GroupQueryAttention::validate_and_infer_types() {
 
     // present_key/present_value keep the past KV layout: kv head size may differ from query head size
     // when the cache is quantized (e.g. 4-bit values packed two per byte).
+    const auto& key_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::KEY));
+    const auto past_key_pos = static_cast<size_t>(GroupQueryAttentionInputs::PAST_KEY);
+    const auto past_k_shape = has_past_layout
+                                  ? get_input_partial_shape(past_key_pos)
+                                  : PartialShape{Dimension::dynamic(),
+                                                 m_kv_num_heads,
+                                                 0,
+                                                 key_ps.rank().is_static() ? key_ps[3] : Dimension::dynamic()};
     auto kv_shape = PartialShape{batch_size, m_kv_num_heads, past_k_shape[2], past_k_shape[3]};
     auto& output_kv_len = kv_shape[2];
     // A windowed KV cache keeps the past buffer's own (capacity) sequence dimension: it rolls in place
@@ -412,7 +460,6 @@ void GroupQueryAttention::validate_and_infer_types() {
     // A zero-capacity past (absent/empty cache) cannot be written in place either, so present grows by the step.
     // Shared KV (statically empty key, kv_sequence_length == 0) appends nothing: present is the past as is.
     // A key/value of dynamic length cannot be written in place, so present grows by its own length.
-    const auto& key_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::KEY));
     const bool dynamic_kv_len = key_ps.rank().is_static() && key_ps[2].is_dynamic();
     if (!m_sliding_window_cache && !is_shared_kv() && !has_fixed_kv_capacity()) {
         output_kv_len += dynamic_kv_len ? key_ps[2] : sequence_len;

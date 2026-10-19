@@ -539,6 +539,73 @@ TEST(GroupQueryAttentionValues, shared_kv_attends_to_past_and_returns_it_as_pres
     EXPECT_TRUE(params[1]->output(0).get_target_inputs().empty());
 }
 
+TEST(GroupQueryAttentionValues, absent_past_returns_current_kv_as_present) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 3, 8});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3, 8});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3, 8});
+    const auto empty_past = op::v0::Constant::create(element::f32, Shape{1, 2, 0, 8}, {});
+    const auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+    const auto total_length = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+    const auto gqa = std::make_shared<GroupQueryAttention>(
+        OutputVector{query, key, value, empty_past, empty_past, seqlens_k, total_length},
+        4,
+        2,
+        0.0f,
+        false,
+        false);
+    auto model = std::make_shared<Model>(gqa->outputs(), ParameterVector{query, key, value, seqlens_k, total_length});
+    decompose(model);
+
+    ASSERT_NE(find_sdpa(model), nullptr);
+    EXPECT_EQ(model->get_results()[1]->get_input_node_shared_ptr(0), key);
+    EXPECT_EQ(model->get_results()[2]->get_input_node_shared_ptr(0), value);
+}
+
+TEST(GroupQueryAttentionValues, absent_quantized_past_returns_quantized_current_kv) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 3, 8});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3, 8});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3, 8});
+    const auto empty_past = op::v0::Constant::create(element::i8, Shape{1, 2, 0, 8}, {});
+    const auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+    const auto total_length = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+    const auto absent = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    const auto k_scale = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
+    const auto v_scale = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
+    const auto per_tensor = op::internal::GroupQueryAttentionQuantType::PER_TENSOR;
+    const auto gqa = std::make_shared<GroupQueryAttention>(OutputVector{query,
+                                                                        key,
+                                                                        value,
+                                                                        empty_past,
+                                                                        empty_past,
+                                                                        seqlens_k,
+                                                                        total_length,
+                                                                        absent,
+                                                                        absent,
+                                                                        absent,
+                                                                        absent,
+                                                                        absent,
+                                                                        k_scale,
+                                                                        v_scale},
+                                                           4,
+                                                           2,
+                                                           0.0f,
+                                                           false,
+                                                           false,
+                                                           8,
+                                                           per_tensor,
+                                                           per_tensor);
+    auto model = std::make_shared<Model>(gqa->outputs(),
+                                         ParameterVector{query, key, value, seqlens_k, total_length, k_scale, v_scale});
+    decompose(model);
+
+    for (size_t port : {1, 2}) {
+        const auto present = model->get_results()[port]->get_input_node_shared_ptr(0);
+        EXPECT_TRUE(is_type<op::v0::Convert>(present)) << "present must be the quantized current K/V";
+        EXPECT_EQ(present->get_output_element_type(0), element::i8);
+        EXPECT_EQ(present->get_output_partial_shape(0), (PartialShape{1, 2, 3, 8}));
+    }
+}
+
 TEST(GroupQueryAttentionValues, softcap_grouped_query_does_not_replicate_kv) {
     auto model = make_gqa_model(GqaParams{"softcap_gqa"}.soft_cap(30.0f).shape(1, Dimension::dynamic()));
     decompose(model);
