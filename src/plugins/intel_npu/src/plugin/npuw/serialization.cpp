@@ -43,8 +43,7 @@ ov::npuw::s11n::BF16Cache ov::npuw::s11n::get_bf16_consts(const std::shared_ptr<
             if (c->get_element_type() != ov::element::bf16) {
                 continue;
             }
-            std::optional<ov::weight_sharing::WeightOriginMetaData> origin_metadata =
-                ov::weight_sharing::Extension::get_constant_origin(*c);
+            std::optional<ov::weight_sharing::WeightOriginMetaData> origin_metadata = ov::weight_sharing::Extension::get_constant_origin(c);
             if (!origin_metadata) {
                 continue;
             }
