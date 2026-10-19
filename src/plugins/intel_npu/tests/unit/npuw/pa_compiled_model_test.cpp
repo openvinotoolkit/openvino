@@ -44,4 +44,19 @@ TEST(PAVariantConfig, ForwardsTheCallerPropertiesButNotTheWholeModelChoices) {
     EXPECT_EQ(str(config, "KV_CACHE_PRECISION"), "f16");
 }
 
+TEST(PAVariantConfig, CallerPropertiesOverrideTheDefaults) {
+    const ov::AnyMap properties = {{"NPUW_DEVICES", "CPU"},
+                                   {"NPUW_ONLINE_AVOID", "Op:Select/NPU"},
+                                   {"NPU_USE_NPUW", "NO"},
+                                   {"NPUW_WEIGHTS_BANK", "caller"}};
+    const auto config = PACompiledModel::make_variant_config(properties, "CPU", "bank2");
+
+    EXPECT_EQ(str(config, "NPUW_DEVICES"), "CPU");
+    EXPECT_EQ(str(config, "NPUW_ONLINE_AVOID"), "Op:Select/NPU");
+    EXPECT_EQ(str(config, "NPUW_ONLINE_ISOLATE"), "Op:PagedAttentionExtension/pa");
+    // A variant is always an NPUW model with the bank the front-end chose.
+    EXPECT_EQ(str(config, "NPU_USE_NPUW"), "YES");
+    EXPECT_EQ(str(config, "NPUW_WEIGHTS_BANK"), "bank2");
+}
+
 }  // namespace

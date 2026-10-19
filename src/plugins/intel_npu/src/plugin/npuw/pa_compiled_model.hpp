@@ -28,8 +28,8 @@ public:
                     const std::shared_ptr<const ov::IPlugin>& plugin,
                     const ov::AnyMap& properties);
 
-    // The NPUW config the variants compile with: the caller's properties and
-    // the partitioning above, one weights bank shared by all of them.
+    // The NPUW config the variants compile with: the partitioning above as
+    // defaults under the caller's properties, one weights bank for all.
     static ov::AnyMap make_variant_config(const ov::AnyMap& properties,
                                           const std::string& pa_device,
                                           const std::string& weights_bank);
