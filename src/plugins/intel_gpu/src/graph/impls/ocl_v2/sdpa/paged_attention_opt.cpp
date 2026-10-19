@@ -78,10 +78,14 @@ inline bool get_k_token_major(const RuntimeParams& params, const char* consumer 
     const auto& precision = data_type_traits::is_i4_u4(kv_cache_dt) ? kv_cache_dt : ov::element::Type(key_cache_layout.data_type);
     if (!cldnn::paged_attention::k_token_major_for(precision, params.typed_desc<paged_attention>()->is_key_by_channel))
         return false;
+#ifdef SDPA_OCL_NO_GETENV  // TEMP(ttft32), see sdpa_ocl_utils.hpp
+    (void)consumer;
+#else
     if (consumer != nullptr) {
         if (const char* brk = std::getenv("OV_GPU_PA_K_TM_BREAK"))
             return std::strcmp(brk, consumer) != 0;
     }
+#endif
     return true;
 }
 
@@ -1720,6 +1724,7 @@ public:
         //     sequence count -- so if they differ, a stale entry past the last real sequence can turn
         //     a plain prefill (every real past_len == 0) into a MIXED dispatch.
         // Delete once the MIXED-stage tuning is done.
+#ifndef SDPA_OCL_NO_GETENV  // TEMP(ttft32), see sdpa_ocl_utils.hpp
         if (std::getenv("SDPA_OCL_TRACE_STAGE") != nullptr && !params.is_dynamic()) {
             static const char* const kStageName[] = {"GENERATE", "PREFILL", "MIXED", "UNKNOWN"};
             const auto& q_ps = params.get_input_layout(PagedAttentionInputIdx::QUERY).get_partial_shape();
@@ -1744,6 +1749,7 @@ public:
             }
             std::cerr << os.str() << std::endl;
         }
+#endif
 
         rt_params->partition_size = get_partitioning_size(params, desc->v_head_size, rt_params->stage, desc->k_head_size);
 
