@@ -162,10 +162,10 @@ public:
             if (!is_dynamic || wait_for_static_impls) {
                 ASSERT_FALSE(impl->is_dynamic()) << "rows = " << rows;
             }
-            // A single-row static impl of a dynamic model takes both of its stages from the dynamic impl
+            // A static impl of a dynamic model takes the quantizer from the dynamic impl, and a single-row one its GEMV too
             if (wait_for_static_impls) {
                 const size_t total_rows = is_3d ? p.batch * rows : rows;
-                ASSERT_EQ(impl->get_kernels().size(), total_rows == 1 ? 0u : 2u) << "rows = " << rows;
+                ASSERT_EQ(impl->get_kernels().size(), total_rows == 1 ? 0u : 1u) << "rows = " << rows;
             }
             ASSERT_EQ(impl->get_kernel_name().rfind("ocl::fc_int3_dpas", 0), 0u) << "rows = " << rows << ", impl = " << impl->get_kernel_name();
             if (impl->is_dynamic()) {

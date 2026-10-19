@@ -605,7 +605,8 @@ public:
     // Every variant is declared so that an impl loaded from the cache finds the stages it was built with. A static
     // impl activates the quantizer and the variant for its row count. A dynamic impl activates every variant the FC
     // can use, so that they are all compiled with the model, and picks one per execution. Its single-row GEMV is
-    // compiled for exactly one row, so a single-row static impl of a dynamic model can reuse it with the quantizer.
+    // compiled for exactly one row, so a single-row static impl of a dynamic model can reuse it. Every static impl of
+    // a dynamic model reuses its quantizer.
     Stage::Ptr quantize = make_stage<Int3FcQuantize>();
     std::array<Stage::Ptr, 11> gemms = {make_stage<Int3FcGemm>("scalar", GemmConfig{}),
                                         make_stage<Int3FcGemm>("v1_t8", get_v1_config(8, 1)),
@@ -632,17 +633,19 @@ public:
                 add_gemm_stage(get_gemm_variant(info, arch, rows), params);
             }
         } else {
-            // A single-row impl of a dynamic model takes both of its stages from the dynamic impl, so decode never
-            // compiles at runtime. Others compile their own quantizer too: running the dynamic impl's quantizer
-            // next to their GEMM cost ~4% of a 128-token prefill on Xe2.
+            // A static impl of a dynamic model takes the shape-agnostic quantizer from the dynamic impl, and a
+            // single-row one its GEMV too, so decode never compiles at runtime.
             const size_t rows = get_rows(params.get_input_layout(0));
-            const auto* dynamic_impl = rows == 1 ? get_compiled_dynamic_impl(node) : nullptr;
+            const auto* dynamic_impl = get_compiled_dynamic_impl(node);
             auto& gemm = gemms[static_cast<size_t>(get_gemm_variant(info, arch, rows))];
             if (dynamic_impl != nullptr) {
                 reuse_stage(quantize, *dynamic_impl);
-                reuse_stage(gemm, *dynamic_impl);
             } else {
                 add_stage(quantize, params);
+            }
+            if (dynamic_impl != nullptr && rows == 1) {
+                reuse_stage(gemm, *dynamic_impl);
+            } else {
                 add_stage(gemm, params);
             }
         }
