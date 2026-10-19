@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "intel_npu/config/npuw.hpp"
+#include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -130,20 +131,32 @@ std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> compile_pa_semi_static_vari
 
 ov::AnyMap ov::npuw::PACompiledModel::make_variant_config(const ov::AnyMap& properties,
                                                           const std::string& pa_device,
-                                                          const std::string& weights_bank) {
-    // Every PA op is a block of its own, kept off NPU. The static repeated
-    // blocks around them fold onto NPU and share one weights bank across the
-    // variants, which are clones of one model. The caller's properties
-    // override these defaults.
-    ov::AnyMap config = {
-        {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU," + pa_device},
-        {std::string(::intel_npu::NPUW_ONLINE_PIPELINE::key()), std::string("REP")},
-        {std::string(::intel_npu::NPUW_ONLINE_ISOLATE::key()), std::string("Op:PagedAttentionExtension/pa")},
-        {std::string(::intel_npu::NPUW_ONLINE_AVOID::key()), std::string("Op:PagedAttentionExtension/NPU")},
-        {std::string(::intel_npu::NPUW_ONLINE_KEEP_BLOCKS_TAGGED::key()), std::string("pa")},
-        {std::string(::intel_npu::NPUW_FOLD::key()), std::string("YES")}};
+                                                          const std::string& weights_bank,
+                                                          const std::optional<util::NPUDesc>& npudesc) {
+    // The variants start from the NPU defaults of the NPUW LLM path. On top of
+    // them every PA op is a block of its own, kept off NPU, and the static
+    // repeated blocks around them fold onto NPU and share one weights bank
+    // across the variants, which are clones of one model. The PA model picks
+    // its logits rows itself, so there is no last token to slice out, and the
+    // tail that does it has a dynamic row count, so it cannot be made a
+    // function like the static subgraphs. The caller's properties override
+    // these defaults, and extend the compilation mode parameters.
+    auto config = util::get_default_common_config(npudesc);
+    config.erase(std::string(::intel_npu::NPUW_SLICE_OUT::key()));
+    config.erase(std::string(::intel_npu::NPUW_FUNCALL_FOR_ALL::key()));
+    config[std::string(::intel_npu::NPUW_DEVICES::key())] = "NPU," + pa_device;
+    config[std::string(::intel_npu::NPUW_ONLINE_PIPELINE::key())] = std::string("REP");
+    config[std::string(::intel_npu::NPUW_ONLINE_ISOLATE::key())] = std::string("Op:PagedAttentionExtension/pa");
+    config[std::string(::intel_npu::NPUW_ONLINE_AVOID::key())] = std::string("Op:PagedAttentionExtension/NPU");
+    config[std::string(::intel_npu::NPUW_ONLINE_KEEP_BLOCKS_TAGGED::key())] = std::string("pa");
+    const auto compilation_mode_params = std::string(::intel_npu::COMPILATION_MODE_PARAMS::key());
     for (const auto& [key, value] : properties) {
-        config[key] = value;
+        if (key == compilation_mode_params) {
+            config[key] =
+                ov::npuw::util::merge_compilation_mode_params(config[key].as<std::string>(), value.as<std::string>());
+        } else {
+            config[key] = value;
+        }
     }
 
     // A variant is an ordinary NPUW model: it must not select the PA front-end
@@ -197,8 +210,9 @@ ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& mod
         const auto bank_it = properties.find(std::string(::intel_npu::NPUW_WEIGHTS_BANK::key()));
         const auto caller_bank = bank_it == properties.end() ? std::string{} : bank_it->second.as<std::string>();
         const auto bank = caller_bank.empty() ? ov::npuw::util::generate_random_string() : caller_bank;
-        m_semi_static_models =
-            compile_pa_semi_static_variants(model, plugin, make_variant_config(properties, device, bank));
+        const auto variant_config =
+            make_variant_config(properties, device, bank, util::extract_npu_descriptor(plugin, properties));
+        m_semi_static_models = compile_pa_semi_static_variants(model, plugin, variant_config);
     } else {
         LOG_INFO("PA: model is outside the chunkable flat-token contract; every dispatch runs 1:1");
     }
