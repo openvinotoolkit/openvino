@@ -415,8 +415,18 @@ ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& mod
         const auto bank_it = properties.find(std::string(::intel_npu::NPUW_WEIGHTS_BANK::key()));
         const auto caller_bank = bank_it == properties.end() ? std::string{} : bank_it->second.as<std::string>();
         const auto bank = caller_bank.empty() ? ov::npuw::util::generate_random_string() : caller_bank;
-        const auto variant_config =
+        auto variant_config =
             make_variant_config(properties, device, bank, util::extract_npu_descriptor(plugin, properties));
+        // NPUW builds the PA blocks of the variants as new models, without the
+        // rt_info runtime options the dynamic model may take its cache settings
+        // from. Both read the same cache pools, so the variants take its
+        // effective settings.
+        for (const auto* key : {ov::key_cache_precision.name(),
+                                ov::value_cache_precision.name(),
+                                ov::key_cache_group_size.name(),
+                                ov::value_cache_group_size.name()}) {
+            variant_config[key] = m_compiled_model->get_property(key);
+        }
         m_semi_static_models = compile_pa_semi_static_variants(model, plugin, variant_config);
     } else {
         LOG_INFO("PA: model is outside the chunkable flat-token contract; every dispatch runs 1:1");
