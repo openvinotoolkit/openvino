@@ -153,6 +153,7 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
+#include "transformations/common_optimizations/fuse_moe_experts.hpp"
 #include "transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
@@ -708,6 +709,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (infer_precision == ov::element::f16) {
                 supported_activation_types.insert(supported_activation_types.end(), {ov::element::f32, ov::element::bf16});
             }
+            // Dense-unrolled MoE (all experts on all tokens + Add chain) -> TiledMoeBlock.
+            manager.register_pass<ov::pass::FuseDenseMOEExperts>();
             manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_compressed_weights_types,
                                                                                  supported_activation_types);
             manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(supported_activation_types,

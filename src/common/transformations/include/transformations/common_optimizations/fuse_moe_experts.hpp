@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/multi_matcher.hpp"
 #include "transformations_visibility.hpp"
 
@@ -40,6 +41,29 @@ class TRANSFORMATIONS_API FuseMOEExperts : public ov::pass::MultiMatcher {
 public:
     OPENVINO_RTTI("FuseMOEExperts");
     FuseMOEExperts();
+};
+
+/**
+ * @brief Detects dense-unrolled Mixture-of-Experts (MoE) layers where every expert processes
+ * all tokens and the weighted expert outputs are accumulated by a chain of Add operations,
+ * and replaces them with the tiled batched 3-GEMM representation.
+ *
+ * Per expert e the matched subgraph is:
+ *   gate_up = MatMul(x, W_gate_up^T) -> VariadicSplit(-1) -> Swish(gate) * up
+ *   y_e     = MatMul(., W_down^T) * Unsqueeze(ReduceSum(Gather(onehot_mask, e) * Transpose(routing), 0))
+ * and the layer output is y_0 + y_1 + ... + y_{E-1} (+ optional non-expert addends).
+ * The gate/up projection may also feed ShapeOf nodes used to compute shared split lengths;
+ * additional data consumers are not supported.
+ *
+ * Per-expert weights (optionally decompressed via Convert/Subtract/Multiply) are stacked into
+ * [E, N, K] constants with the fused gate_up weight split into separate gate and up weights.
+ * The routing mask is rebuilt as ScatterElementsUpdate(zeros[T, E], topk_indices, routing, axis=1,
+ * reduction=sum), so the result is matched by @c ConvertTiledMoeBlockToGatherMatmuls.
+ */
+class TRANSFORMATIONS_API FuseDenseMOEExperts : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("FuseDenseMOEExperts");
+    FuseDenseMOEExperts();
 };
 
 /**

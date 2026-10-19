@@ -4,10 +4,14 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <limits>
 #include <memory>
+#include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/moe.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/opsets/opset12.hpp"
@@ -15,6 +19,8 @@
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "ov_ops/gather_matmul.hpp"
+#include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
 #include "transformations/common_optimizations/fuse_moe_experts.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/utils/gen_pattern.hpp"
@@ -308,4 +314,233 @@ TEST_F(TransformationTestsF, ConvertMOEToFuseMOE_FP16) {
     model = BuildMOE(expert_num, topk);
     ov::pass::FuseMOE().run_on_model(model);
     model_ref = BuildFusedMOE(expert_num, topk);
+}
+
+namespace {
+
+// Per-output-channel i8 weights decompressed as Convert(f16) -> Multiply(scale) -> Convert(f32)
+ov::Output<ov::Node> make_dense_moe_compressed_weight(size_t rows, size_t cols, size_t seed) {
+    std::vector<int8_t> weights(rows * cols);
+    for (size_t i = 0; i < weights.size(); ++i) {
+        weights[i] = static_cast<int8_t>(static_cast<int>((i * 7 + seed * 13) % 15) - 7);
+    }
+    std::vector<ov::float16> scales(rows);
+    for (size_t i = 0; i < rows; ++i) {
+        scales[i] = ov::float16(0.01f + 0.001f * static_cast<float>((i + seed) % 5));
+    }
+    auto weights_const = v0::Constant::create(ov::element::i8, ov::Shape{rows, cols}, weights);
+    auto convert = std::make_shared<v0::Convert>(weights_const, ov::element::f16);
+    auto scale_const = v0::Constant::create(ov::element::f16, ov::Shape{rows, 1}, scales);
+    auto multiply = std::make_shared<v1::Multiply>(convert, scale_const);
+    auto out_convert = std::make_shared<v0::Convert>(multiply, ov::element::f32);
+    ov::mark_as_decompression(out_convert);
+    return out_convert;
+}
+
+// Dense-unrolled MoE as exported by the optimum-intel Qwen3-Omni Talker patcher before the
+// batched-matmul export: every expert runs on all tokens and expert outputs are summed by an Add chain.
+std::shared_ptr<ov::Model> build_dense_moe(size_t num_experts,
+                                           size_t topk,
+                                           size_t hidden_size,
+                                           size_t intermediate_size,
+                                           size_t skip_expert = std::numeric_limits<size_t>::max()) {
+    auto x = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, static_cast<int64_t>(hidden_size)});
+
+    std::vector<float> router_weights(num_experts * hidden_size);
+    for (size_t i = 0; i < router_weights.size(); ++i) {
+        router_weights[i] = 0.05f * static_cast<float>(static_cast<int>((i * 5) % 11) - 5);
+    }
+    auto router_const = v0::Constant::create(ov::element::f32, ov::Shape{num_experts, hidden_size}, router_weights);
+    auto logits = std::make_shared<v0::MatMul>(x, router_const, false, true);
+    auto softmax = std::make_shared<ov::op::v8::Softmax>(logits, -1);
+    auto topk_node = std::make_shared<ov::op::v11::TopK>(softmax,
+                                                         v0::Constant::create(ov::element::i64, ov::Shape{}, {topk}),
+                                                         -1,
+                                                         ov::op::TopKMode::MAX,
+                                                         ov::op::TopKSortType::SORT_VALUES,
+                                                         ov::element::i64);
+    auto topk_sum = std::make_shared<v1::ReduceSum>(topk_node->output(0),
+                                                    v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}),
+                                                    true);
+    auto routing = std::make_shared<v1::Divide>(topk_node->output(0), topk_sum);
+    auto one_hot = std::make_shared<v1::OneHot>(topk_node->output(1),
+                                                v0::Constant::create(ov::element::i64, ov::Shape{}, {num_experts}),
+                                                v0::Constant::create(ov::element::i64, ov::Shape{}, {1}),
+                                                v0::Constant::create(ov::element::i64, ov::Shape{}, {0}),
+                                                2);
+    auto permute =
+        std::make_shared<v1::Transpose>(one_hot, v0::Constant::create(ov::element::i64, ov::Shape{3}, {2, 1, 0}));
+    auto routing_t =
+        std::make_shared<v1::Transpose>(routing, v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0}));
+
+    ov::Output<ov::Node> accumulated;
+    for (size_t e = 0; e < num_experts; ++e) {
+        if (e == skip_expert) {
+            continue;
+        }
+        auto gate_up =
+            std::make_shared<v0::MatMul>(x,
+                                         make_dense_moe_compressed_weight(2 * intermediate_size, hidden_size, e),
+                                         false,
+                                         true);
+        auto split = std::make_shared<v1::VariadicSplit>(
+            gate_up,
+            v0::Constant::create(ov::element::i64, ov::Shape{}, {-1}),
+            v0::Constant::create(ov::element::i64, ov::Shape{2}, {intermediate_size, intermediate_size}));
+        auto act = std::make_shared<ov::op::v4::Swish>(split->output(0));
+        auto swiglu = std::make_shared<v1::Multiply>(act, split->output(1));
+        auto down =
+            std::make_shared<v0::MatMul>(swiglu,
+                                         make_dense_moe_compressed_weight(hidden_size, intermediate_size, e + 100),
+                                         false,
+                                         true);
+
+        auto mask = std::make_shared<ov::op::v8::Gather>(permute,
+                                                         v0::Constant::create(ov::element::i64, ov::Shape{}, {e}),
+                                                         v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+        auto mask_f32 = std::make_shared<v0::Convert>(mask, ov::element::f32);
+        auto weighted_mask = std::make_shared<v1::Multiply>(mask_f32, routing_t);
+        auto token_weights = std::make_shared<v1::ReduceSum>(weighted_mask,
+                                                             v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}),
+                                                             false);
+        auto token_weights_2d =
+            std::make_shared<v0::Unsqueeze>(token_weights, v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
+        auto expert_out = std::make_shared<v1::Multiply>(down, token_weights_2d);
+        accumulated = accumulated.get_node() ? std::make_shared<v1::Add>(accumulated, expert_out)->output(0)
+                                             : expert_out->output(0);
+    }
+    return std::make_shared<ov::Model>(ov::OutputVector{accumulated}, ov::ParameterVector{x});
+}
+
+size_t count_ops_of_type(const std::shared_ptr<ov::Model>& model, const ov::DiscreteTypeInfo& type) {
+    const auto ops = model->get_ops();
+    return std::count_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ov::Node>& op) {
+        return op->get_type_info() == type;
+    });
+}
+
+ov::Tensor evaluate_dense_moe(const std::shared_ptr<ov::Model>& model, const ov::Tensor& input) {
+    ov::TensorVector outputs{ov::Tensor(ov::element::f32,
+                                        model->get_result()->get_output_partial_shape(0).is_static()
+                                            ? model->get_result()->get_output_shape(0)
+                                            : ov::Shape{input.get_shape()[0], input.get_shape()[1]})};
+    OPENVINO_ASSERT(model->evaluate(outputs, ov::TensorVector{input}), "Model evaluation failed");
+    return outputs[0];
+}
+
+}  // namespace
+
+TEST(FuseDenseMOEExpertsTest, FusesDenseExpertsIntoTiledBlock) {
+    constexpr size_t num_experts = 4, topk = 2, hidden_size = 16, intermediate_size = 8, num_tokens = 5;
+    auto model = build_dense_moe(num_experts, topk, hidden_size, intermediate_size);
+    auto model_ref = model->clone();
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::FuseDenseMOEExperts>();
+    manager.run_passes(model);
+
+    EXPECT_EQ(count_ops_of_type(model, v1::Add::get_type_info_static()), 0u);
+    EXPECT_EQ(count_ops_of_type(model, v1::OneHot::get_type_info_static()), 0u);
+    EXPECT_EQ(count_ops_of_type(model, ov::op::v1::VariadicSplit::get_type_info_static()), 0u);
+    EXPECT_EQ(count_ops_of_type(model, v12::ScatterElementsUpdate::get_type_info_static()), 1u);
+    EXPECT_EQ(count_ops_of_type(model, ov::op::v0::Tile::get_type_info_static()), 1u);
+    // Router MatMul + gate/up/down batched MatMuls
+    EXPECT_EQ(count_ops_of_type(model, v0::MatMul::get_type_info_static()), 4u);
+    for (const auto& op : model->get_ops()) {
+        if (ov::is_type<v0::MatMul>(op) && op->get_output_partial_shape(0).rank() == 3) {
+            EXPECT_EQ(op->get_input_partial_shape(1)[0], num_experts);
+        }
+    }
+
+    std::vector<float> input_data(num_tokens * hidden_size);
+    for (size_t i = 0; i < input_data.size(); ++i) {
+        input_data[i] = 0.1f * static_cast<float>(static_cast<int>((i * 3) % 17) - 8);
+    }
+    ov::Tensor input(ov::element::f32, ov::Shape{num_tokens, hidden_size}, input_data.data());
+    const auto expected = evaluate_dense_moe(model_ref, input);
+    const auto actual = evaluate_dense_moe(model, input);
+    ASSERT_EQ(expected.get_shape(), actual.get_shape());
+    const auto* expected_data = expected.data<const float>();
+    const auto* actual_data = actual.data<const float>();
+    for (size_t i = 0; i < expected.get_size(); ++i) {
+        EXPECT_NEAR(expected_data[i], actual_data[i], 1e-5f) << "at index " << i;
+    }
+}
+
+TEST(FuseDenseMOEExpertsTest, FusedBlockIsConvertedToGatherMatmuls) {
+    auto model = build_dense_moe(4, 2, 16, 8);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::FuseDenseMOEExperts>();
+    manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(
+        std::vector<ov::element::Type>{ov::element::i8});
+    manager.run_passes(model);
+
+    EXPECT_EQ(count_ops_of_type(model, ov::op::internal::GatherMatmul::get_type_info_static()), 3u);
+    EXPECT_EQ(count_ops_of_type(model, ov::op::v0::Tile::get_type_info_static()), 0u);
+}
+
+TEST(FuseDenseMOEExpertsTest, NotAppliedWhenExpertIsMissing) {
+    auto model = build_dense_moe(4, 2, 16, 8, /*skip_expert=*/2);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::FuseDenseMOEExperts>();
+    manager.run_passes(model);
+
+    EXPECT_EQ(count_ops_of_type(model, v1::Add::get_type_info_static()), 2u);
+    EXPECT_EQ(count_ops_of_type(model, v1::OneHot::get_type_info_static()), 1u);
+    EXPECT_EQ(count_ops_of_type(model, v12::ScatterElementsUpdate::get_type_info_static()), 0u);
+}
+
+TEST(FuseDenseMOEExpertsTest, FusesWithGateUpShapeConsumer) {
+    auto model = build_dense_moe(4, 2, 16, 8);
+    std::vector<std::shared_ptr<v1::VariadicSplit>> splits;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto split = ov::as_type_ptr<v1::VariadicSplit>(node)) {
+            splits.push_back(split);
+        }
+    }
+    ASSERT_EQ(splits.size(), 4u);
+    auto shape = std::make_shared<v3::ShapeOf>(splits.front()->input_value(0), ov::element::i64);
+    auto width = std::make_shared<ov::op::v8::Gather>(shape,
+                                                      v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+                                                      v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+    auto half_width = std::make_shared<v1::Divide>(width, v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    auto lengths = std::make_shared<v0::Concat>(ov::OutputVector{half_width, half_width}, 0);
+    for (const auto& split : splits) {
+        split->input(2).replace_source_output(lengths);
+    }
+    model->validate_nodes_and_infer_types();
+    const auto model_ref = model->clone();
+    // Evaluate the intermediate tiled form before lowering it to internal GPU operators.
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::FuseDenseMOEExperts>();
+    manager.run_passes(model);
+    ASSERT_EQ(count_ops_of_type(model, v12::ScatterElementsUpdate::get_type_info_static()), 1u);
+    ov::Tensor input(ov::element::f32, ov::Shape{5, 16});
+    for (size_t i = 0; i < input.get_size(); ++i) {
+        input.data<float>()[i] = 0.1f * static_cast<float>(static_cast<int>(i % 17) - 8);
+    }
+    const auto expected = evaluate_dense_moe(model_ref, input);
+    const auto actual = evaluate_dense_moe(model, input);
+    ASSERT_EQ(expected.get_shape(), actual.get_shape());
+    for (size_t i = 0; i < expected.get_size(); ++i) {
+        EXPECT_NEAR(expected.data<const float>()[i], actual.data<const float>()[i], 1e-5f);
+    }
+    ov::pass::Manager lowering_manager;
+    lowering_manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(
+        std::vector<ov::element::Type>{ov::element::i8});
+    lowering_manager.run_passes(model);
+    EXPECT_EQ(count_ops_of_type(model, ov::op::internal::GatherMatmul::get_type_info_static()), 3u);
+}
+
+TEST_F(TransformationTestsF, FuseDenseMOEExperts_RejectsAdditionalProjectionDataConsumer) {
+    model = build_dense_moe(4, 2, 16, 8);
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto split = ov::as_type_ptr<v1::VariadicSplit>(node)) {
+            model->add_results({std::make_shared<v0::Result>(split->input_value(0))});
+            break;
+        }
+    }
+    manager.register_pass<ov::pass::FuseDenseMOEExperts>();
 }

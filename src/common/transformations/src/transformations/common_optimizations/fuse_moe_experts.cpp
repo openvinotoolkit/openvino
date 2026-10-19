@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <string>
 #include <unordered_map>
@@ -34,6 +35,7 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/topk.hpp"
@@ -41,11 +43,14 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/block.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -512,6 +517,437 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
     };
 
     register_patterns(std::vector<std::shared_ptr<Node>>{expert_scatter, last_add}, callback, true);
+}
+
+namespace {
+
+// Weight subgraph: Constant -> [Convert] -> [Subtract(zp)] -> [Multiply(scale)] -> [Convert]
+struct DenseWeightChain {
+    std::shared_ptr<v0::Constant> weights;
+    std::shared_ptr<v0::Convert> convert;
+    std::shared_ptr<v1::Subtract> subtract;
+    std::shared_ptr<v0::Constant> zp;
+    std::shared_ptr<v0::Convert> zp_convert;
+    std::shared_ptr<v1::Multiply> multiply;
+    std::shared_ptr<v0::Constant> scale;
+    std::shared_ptr<v0::Convert> scale_convert;
+    std::shared_ptr<v0::Convert> out_convert;
+};
+
+// Accepts Constant or Convert(Constant)
+bool parse_const_operand(const Output<Node>& output,
+                         std::shared_ptr<v0::Constant>& constant,
+                         std::shared_ptr<v0::Convert>& convert) {
+    auto node = output.get_node_shared_ptr();
+    convert = ov::as_type_ptr<v0::Convert>(node);
+    if (convert) {
+        node = convert->get_input_node_shared_ptr(0);
+    }
+    constant = ov::as_type_ptr<v0::Constant>(node);
+    return constant != nullptr;
+}
+
+bool parse_dense_weight_chain(const Output<Node>& output, DenseWeightChain& chain) {
+    auto node = output.get_node_shared_ptr();
+    if (auto convert = ov::as_type_ptr<v0::Convert>(node)) {
+        auto input = convert->get_input_node_shared_ptr(0);
+        if (ov::is_type<v1::Multiply>(input) || ov::is_type<v1::Subtract>(input)) {
+            chain.out_convert = convert;
+            node = input;
+        }
+    }
+    if (auto multiply = ov::as_type_ptr<v1::Multiply>(node)) {
+        chain.multiply = multiply;
+        // The data input keeps the full weight shape, the scale input is broadcast to it
+        const auto& out_shape = multiply->get_output_partial_shape(0);
+        const size_t data_idx = multiply->get_input_partial_shape(0) == out_shape ? 0 : 1;
+        if (!parse_const_operand(multiply->input_value(1 - data_idx), chain.scale, chain.scale_convert)) {
+            return false;
+        }
+        node = multiply->get_input_node_shared_ptr(data_idx);
+    }
+    if (auto subtract = ov::as_type_ptr<v1::Subtract>(node)) {
+        chain.subtract = subtract;
+        if (!parse_const_operand(subtract->input_value(1), chain.zp, chain.zp_convert)) {
+            return false;
+        }
+        node = subtract->get_input_node_shared_ptr(0);
+    }
+    if (auto convert = ov::as_type_ptr<v0::Convert>(node)) {
+        chain.convert = convert;
+        node = convert->get_input_node_shared_ptr(0);
+    }
+    chain.weights = ov::as_type_ptr<v0::Constant>(node);
+    return chain.weights && chain.weights->get_shape().size() == 2;
+}
+
+bool has_same_structure(const DenseWeightChain& a, const DenseWeightChain& b) {
+    auto same = [](const std::shared_ptr<Node>& x, const std::shared_ptr<Node>& y) {
+        if (!x || !y) {
+            return !x && !y;
+        }
+        return x->get_output_element_type(0) == y->get_output_element_type(0);
+    };
+    return same(a.weights, b.weights) && a.weights->get_shape() == b.weights->get_shape() &&
+           same(a.convert, b.convert) && same(a.subtract, b.subtract) && same(a.zp, b.zp) &&
+           same(a.zp_convert, b.zp_convert) && same(a.multiply, b.multiply) && same(a.scale, b.scale) &&
+           same(a.scale_convert, b.scale_convert) && same(a.out_convert, b.out_convert);
+}
+
+// Stacks 2D constants into a [num_experts, rows, cols] constant. Rows [row_begin, row_end) are taken
+// from constants whose first dimension equals full_rows; single-row (broadcast) constants are kept as is.
+std::shared_ptr<v0::Constant> stack_constants(const std::vector<std::shared_ptr<v0::Constant>>& constants,
+                                              size_t full_rows,
+                                              size_t row_begin,
+                                              size_t row_end) {
+    const auto& type = constants.front()->get_element_type();
+    auto shape_2d = [](const Shape& shape) {
+        return shape.empty() ? Shape{1, 1} : shape;
+    };
+    const auto src_shape = shape_2d(constants.front()->get_shape());
+    if (src_shape.size() != 2) {
+        return nullptr;
+    }
+    size_t begin = 0;
+    size_t rows = src_shape[0];
+    if (src_shape[0] == full_rows) {
+        begin = row_begin;
+        rows = row_end - row_begin;
+    } else if (src_shape[0] != 1) {
+        return nullptr;
+    }
+    const size_t cols = src_shape[1];
+    if ((cols * type.bitwidth()) % 8 != 0) {
+        return nullptr;
+    }
+    const size_t row_bytes = cols * type.bitwidth() / 8;
+
+    ov::Tensor stacked(type, Shape{constants.size(), rows, cols});
+    auto* dst = static_cast<uint8_t*>(stacked.data());
+    for (const auto& constant : constants) {
+        if (constant->get_element_type() != type || shape_2d(constant->get_shape()) != src_shape) {
+            return nullptr;
+        }
+        const auto* src = static_cast<const uint8_t*>(constant->get_data_ptr()) + begin * row_bytes;
+        std::memcpy(dst, src, rows * row_bytes);
+        dst += rows * row_bytes;
+    }
+    return std::make_shared<v0::Constant>(stacked);
+}
+
+// Rebuilds the (decompression) weight subgraph over stacked per-expert constants
+std::shared_ptr<Node> build_stacked_weight(const std::vector<DenseWeightChain>& chains,
+                                           size_t row_begin,
+                                           size_t row_end,
+                                           const std::string& suffix) {
+    const auto& proto = chains.front();
+    const size_t full_rows = proto.weights->get_shape()[0];
+
+    auto stack = [&](std::shared_ptr<v0::Constant> DenseWeightChain::*member) -> std::shared_ptr<Node> {
+        std::vector<std::shared_ptr<v0::Constant>> constants;
+        constants.reserve(chains.size());
+        for (const auto& chain : chains) {
+            constants.push_back(chain.*member);
+        }
+        auto stacked = stack_constants(constants, full_rows, row_begin, row_end);
+        if (stacked) {
+            stacked->set_friendly_name((proto.*member)->get_friendly_name() + suffix);
+            stacked->get_rt_info() = (proto.*member)->get_rt_info();
+        }
+        return stacked;
+    };
+    auto clone_convert = [&](const Output<Node>& input, const std::shared_ptr<v0::Convert>& origin) {
+        auto convert = std::make_shared<v0::Convert>(input, origin->get_destination_type());
+        convert->set_friendly_name(origin->get_friendly_name() + suffix);
+        convert->get_rt_info() = origin->get_rt_info();
+        return convert;
+    };
+
+    std::shared_ptr<Node> current = stack(&DenseWeightChain::weights);
+    if (!current) {
+        return nullptr;
+    }
+    if (proto.convert) {
+        current = clone_convert(current, proto.convert);
+    }
+    if (proto.subtract) {
+        std::shared_ptr<Node> zp = stack(&DenseWeightChain::zp);
+        if (!zp) {
+            return nullptr;
+        }
+        if (proto.zp_convert) {
+            zp = clone_convert(zp, proto.zp_convert);
+        }
+        auto subtract = std::make_shared<v1::Subtract>(current, zp);
+        subtract->set_friendly_name(proto.subtract->get_friendly_name() + suffix);
+        subtract->get_rt_info() = proto.subtract->get_rt_info();
+        current = subtract;
+    }
+    if (proto.multiply) {
+        std::shared_ptr<Node> scale = stack(&DenseWeightChain::scale);
+        if (!scale) {
+            return nullptr;
+        }
+        if (proto.scale_convert) {
+            scale = clone_convert(scale, proto.scale_convert);
+        }
+        auto multiply = std::make_shared<v1::Multiply>(current, scale);
+        multiply->set_friendly_name(proto.multiply->get_friendly_name() + suffix);
+        multiply->get_rt_info() = proto.multiply->get_rt_info();
+        current = multiply;
+    }
+    if (proto.out_convert) {
+        current = clone_convert(current, proto.out_convert);
+    }
+    return current;
+}
+
+}  // namespace
+
+ov::pass::FuseDenseMOEExperts::FuseDenseMOEExperts() {
+    MATCHER_SCOPE(FuseDenseMOEExperts);
+
+    // Single expert: SwiGLU MLP over all tokens weighted by the dense routing weight of the expert
+    auto x = pattern::any_input(pattern::rank_equals(2));
+    auto gate_up_weights = pattern::any_input();
+    auto single_data_consumer = [](const Output<Node>& output) {
+        const auto consumers = output.get_target_inputs();
+        // Exported split lengths can depend on ShapeOf of the first expert's projection.
+        return std::count_if(consumers.begin(), consumers.end(), [](const Input<Node>& input) {
+                   return !ov::is_type<op_util::ShapeOfBase>(input.get_node());
+               }) == 1;
+    };
+    auto gate_up = pattern::wrap_type<v0::MatMul>(
+        {x, gate_up_weights},
+        single_data_consumer && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
+    auto split_axis = pattern::wrap_type<v0::Constant>();
+    auto split = pattern::wrap_type_strict_index<v1::VariadicSplit>({gate_up, split_axis, pattern::any_input()});
+    auto act = pattern::wrap_type<v4::Swish>({split->output(0)}, pattern::consumers_count(1));
+    auto swiglu = pattern::wrap_type<v1::Multiply>({act, split->output(1)}, pattern::consumers_count(1));
+    auto down_weights = pattern::any_input();
+    auto down = pattern::wrap_type<v0::MatMul>(
+        {swiglu, down_weights},
+        pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
+
+    // Dense routing weight: sum_k(one_hot[t, k, e] * routing[t, k])
+    auto one_hot = pattern::wrap_type<v1::OneHot>();
+    auto permute = pattern::wrap_type<v1::Transpose>(
+        {one_hot, pattern::wrap_type<v0::Constant>(pattern::value_matches("2, 1, 0"))});
+    auto expert_id = pattern::wrap_type<v0::Constant>(pattern::rank_equals(0));
+    auto mask = pattern::wrap_type<v8::Gather>(
+        {permute, expert_id, pattern::wrap_type<v0::Constant>(pattern::value_matches("0"))},
+        {{"batch_dims", 0}});
+    auto mask_convert = pattern::optional<v0::Convert>({mask});
+    auto routing = pattern::any_input(pattern::rank_equals(2));
+    auto routing_t =
+        pattern::wrap_type<v1::Transpose>({routing, pattern::wrap_type<v0::Constant>(pattern::value_matches("1, 0"))});
+    auto weighted_mask = pattern::wrap_type<v1::Multiply>({mask_convert, routing_t}, pattern::consumers_count(1));
+    auto token_weights = pattern::wrap_type<v1::ReduceSum>(
+        {weighted_mask, pattern::wrap_type<v0::Constant>(pattern::value_matches("0"))},
+        pattern::consumers_count(1),
+        {{"keep_dims", false}});
+    auto unsqueeze_axis = pattern::wrap_type<v0::Constant>();
+    auto token_weights_2d =
+        pattern::wrap_type<v0::Unsqueeze>({token_weights, unsqueeze_axis}, pattern::consumers_count(1));
+    auto expert_out = pattern::wrap_type<v1::Multiply>({down, token_weights_2d});
+
+    // The root is the last Add of the chain accumulating the expert outputs
+    auto chain_tail = pattern::wrap_type<v1::Add>();
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto tail = m.get_match_root();
+        if (transformation_callback(tail)) {
+            return false;
+        }
+        const auto consumers = tail->output(0).get_target_inputs();
+        if (consumers.empty() || (consumers.size() == 1 && ov::is_type<v1::Add>(consumers.begin()->get_node()))) {
+            return false;
+        }
+
+        OutputVector leaves;
+        std::vector<std::shared_ptr<Node>> stack{tail};
+        while (!stack.empty()) {
+            const auto node = stack.back();
+            stack.pop_back();
+            for (const auto& input : node->input_values()) {
+                const auto input_node = input.get_node_shared_ptr();
+                if (ov::is_type<v1::Add>(input_node) && input.get_target_inputs().size() == 1) {
+                    stack.push_back(input_node);
+                } else {
+                    leaves.push_back(input);
+                }
+            }
+        }
+
+        struct ExpertInfo {
+            size_t id;
+            DenseWeightChain gate_up;
+            DenseWeightChain down;
+        };
+        std::vector<ExpertInfo> experts;
+        OutputVector other_addends;
+        Output<Node> x_value, permute_value, routing_value;
+        std::shared_ptr<v1::OneHot> one_hot_node;
+        int64_t gate_rows = -1;
+
+        for (const auto& leaf : leaves) {
+            pattern::Matcher expert_matcher(expert_out);
+            if (leaf.get_target_inputs().size() != 1 || !expert_matcher.match(leaf)) {
+                other_addends.push_back(leaf);
+                continue;
+            }
+            const auto& pm = expert_matcher.get_pattern_value_map();
+            if (experts.empty()) {
+                x_value = pm.at(x);
+                permute_value = pm.at(permute);
+                routing_value = pm.at(routing);
+                one_hot_node = ov::as_type_ptr<v1::OneHot>(pm.at(one_hot).get_node_shared_ptr());
+            } else if (pm.at(x) != x_value || pm.at(permute) != permute_value || pm.at(routing) != routing_value) {
+                return false;
+            }
+
+            const auto axis = ov::as_type_ptr<v0::Constant>(pm.at(unsqueeze_axis).get_node_shared_ptr());
+            const auto axis_values = axis->cast_vector<int64_t>();
+            if (axis_values.size() != 1 || (axis_values[0] != 1 && axis_values[0] != -1)) {
+                return false;
+            }
+
+            const auto split_node = pm.at(split).get_node_shared_ptr();
+            const auto split_axis_values =
+                ov::as_type_ptr<v0::Constant>(pm.at(split_axis).get_node_shared_ptr())->cast_vector<int64_t>();
+            if (split_axis_values.size() != 1 || (split_axis_values[0] != 1 && split_axis_values[0] != -1) ||
+                split_node->get_output_size() != 2 || split_node->get_output_target_inputs(0).size() != 1 ||
+                split_node->get_output_target_inputs(1).size() != 1) {
+                return false;
+            }
+            const auto& gate_shape = split_node->get_output_partial_shape(0);
+            const auto& up_shape = split_node->get_output_partial_shape(1);
+            if (gate_shape.rank() != 2 || up_shape.rank() != 2 || gate_shape[1].is_dynamic() ||
+                up_shape[1].is_dynamic()) {
+                return false;
+            }
+
+            ExpertInfo info;
+            info.id = static_cast<size_t>(
+                ov::as_type_ptr<v0::Constant>(pm.at(expert_id).get_node_shared_ptr())->cast_vector<int64_t>()[0]);
+            if (!parse_dense_weight_chain(pm.at(gate_up_weights), info.gate_up) ||
+                !parse_dense_weight_chain(pm.at(down_weights), info.down)) {
+                return false;
+            }
+            const auto expert_gate_rows = gate_shape[1].get_length();
+            if (static_cast<size_t>(expert_gate_rows + up_shape[1].get_length()) !=
+                info.gate_up.weights->get_shape()[0]) {
+                return false;
+            }
+            if (experts.empty()) {
+                gate_rows = expert_gate_rows;
+            } else if (gate_rows != expert_gate_rows || !has_same_structure(experts.front().gate_up, info.gate_up) ||
+                       !has_same_structure(experts.front().down, info.down)) {
+                return false;
+            }
+            experts.push_back(std::move(info));
+        }
+        if (experts.size() < 2) {
+            return false;
+        }
+
+        // Routing mask must be a one-hot of the top-k indices covering exactly all experts
+        const auto depth = ov::as_type_ptr<v0::Constant>(one_hot_node->get_input_node_shared_ptr(1));
+        const auto on_value = ov::as_type_ptr<v0::Constant>(one_hot_node->get_input_node_shared_ptr(2));
+        const auto off_value = ov::as_type_ptr<v0::Constant>(one_hot_node->get_input_node_shared_ptr(3));
+        const auto& topk_indices = one_hot_node->input_value(0);
+        if (!depth || !on_value || !off_value || on_value->cast_vector<float>() != std::vector<float>{1.0f} ||
+            off_value->cast_vector<float>() != std::vector<float>{0.0f} ||
+            topk_indices.get_partial_shape().rank() != 2 ||
+            (one_hot_node->get_axis() != 2 && one_hot_node->get_axis() != -1)) {
+            return false;
+        }
+        const auto num_experts = static_cast<size_t>(depth->cast_vector<int64_t>()[0]);
+        std::sort(experts.begin(), experts.end(), [](const ExpertInfo& a, const ExpertInfo& b) {
+            return a.id < b.id;
+        });
+        if (experts.size() != num_experts) {
+            return false;
+        }
+        for (size_t i = 0; i < num_experts; ++i) {
+            if (experts[i].id != i) {
+                return false;
+            }
+        }
+
+        const auto& x_shape = x_value.get_partial_shape();
+        if (x_shape[1].is_dynamic() || routing_value.get_element_type() != tail->get_output_element_type(0)) {
+            return false;
+        }
+        const auto hidden_size = x_shape[1].get_length();
+        const auto output_size = static_cast<int64_t>(experts.front().down.weights->get_shape()[0]);
+        const auto gate_up_rows = experts.front().gate_up.weights->get_shape()[0];
+
+        std::vector<DenseWeightChain> gate_up_chains, down_chains;
+        for (const auto& expert : experts) {
+            gate_up_chains.push_back(expert.gate_up);
+            down_chains.push_back(expert.down);
+        }
+        const auto gate_weights = build_stacked_weight(gate_up_chains, 0, gate_rows, "/fused_dense_moe_gate");
+        const auto up_weights = build_stacked_weight(gate_up_chains, gate_rows, gate_up_rows, "/fused_dense_moe_up");
+        const auto fused_down_weights =
+            build_stacked_weight(down_chains, 0, static_cast<size_t>(output_size), "/fused_dense_moe_down");
+        if (!gate_weights || !up_weights || !fused_down_weights) {
+            return false;
+        }
+
+        const auto num_experts_i64 = static_cast<int64_t>(num_experts);
+        auto i64_const = [](const Shape& shape, const std::vector<int64_t>& values) {
+            return v0::Constant::create(element::i64, shape, values);
+        };
+
+        // Batched expert computation over all tokens: [E, T, H]
+        auto tile = std::make_shared<v0::Tile>(x_value, i64_const(Shape{2}, {num_experts_i64, 1}));
+        auto tiled_input =
+            std::make_shared<v1::Reshape>(tile, i64_const(Shape{3}, {num_experts_i64, -1, hidden_size}), false);
+        auto gate_mm = std::make_shared<v0::MatMul>(tiled_input, gate_weights, false, true);
+        auto gate_act = std::make_shared<v4::Swish>(gate_mm);
+        auto up_mm = std::make_shared<v0::MatMul>(tiled_input, up_weights, false, true);
+        auto swiglu_mul = std::make_shared<v1::Multiply>(gate_act, up_mm);
+        auto down_mm = std::make_shared<v0::MatMul>(swiglu_mul, fused_down_weights, false, true);
+        auto expert_outputs =
+            std::make_shared<v1::Reshape>(down_mm, i64_const(Shape{3}, {num_experts_i64, -1, output_size}), false);
+
+        // Dense routing weights [E, T, 1]; sum reduction keeps the one-hot accumulation semantics
+        auto routing_shape = std::make_shared<v3::ShapeOf>(routing_value, element::i64);
+        auto num_tokens =
+            std::make_shared<v8::Gather>(routing_shape, i64_const(Shape{1}, {0}), i64_const(Shape{}, {0}));
+        auto scatter_shape =
+            std::make_shared<v0::Concat>(OutputVector{num_tokens, i64_const(Shape{1}, {num_experts_i64})}, 0);
+        auto zeros =
+            std::make_shared<v3::Broadcast>(v0::Constant::create(routing_value.get_element_type(), Shape{}, {0}),
+                                            scatter_shape);
+        auto scatter = std::make_shared<v12::ScatterElementsUpdate>(zeros,
+                                                                    topk_indices,
+                                                                    routing_value,
+                                                                    i64_const(Shape{}, {1}),
+                                                                    v12::ScatterElementsUpdate::Reduction::SUM,
+                                                                    true);
+        auto router_transpose = std::make_shared<v1::Transpose>(scatter, i64_const(Shape{2}, {1, 0}));
+        auto router_reshape =
+            std::make_shared<v1::Reshape>(router_transpose, i64_const(Shape{2}, {num_experts_i64, -1}), false);
+        auto router_unsqueeze = std::make_shared<v0::Unsqueeze>(router_reshape, i64_const(Shape{1}, {-1}));
+
+        auto weighted_outputs = std::make_shared<v1::Multiply>(expert_outputs, router_unsqueeze);
+        std::shared_ptr<Node> result =
+            std::make_shared<v1::ReduceSum>(weighted_outputs, i64_const(Shape{1}, {0}), false);
+        for (const auto& addend : other_addends) {
+            result = std::make_shared<v1::Add>(result, addend);
+        }
+
+        result->set_friendly_name(tail->get_friendly_name());
+        ov::copy_runtime_info(tail, result);
+        ov::replace_node(tail, result);
+        return true;
+    };
+
+    auto matcher = std::make_shared<pattern::Matcher>(chain_tail, matcher_name);
+    register_matcher(matcher, callback);
 }
 
 bool ov::pass::FuseMOE::run_on_model(const std::shared_ptr<ov::Model>& model) {
