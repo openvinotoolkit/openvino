@@ -225,8 +225,10 @@ TEST(PACompiledModelEndToEnd, VariantsCompileAndMatchTheDynamicModel) {
     ASSERT_EQ(model->input("input_ids").get_partial_shape().rank().get_length(), 1);
     ASSERT_EQ(model->input("position_ids").get_partial_shape().rank().get_length(), 1);
 
-    const ov::AnyMap common = {{ov::hint::inference_precision.name(), ov::element::f32},
-                               {ov::hint::kv_cache_precision.name(), ov::element::f16}};
+    // The cache precision comes with the model, in its runtime options, so the
+    // PA blocks of the variants must take it from the dynamic model.
+    model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
+    const ov::AnyMap common = {{ov::hint::inference_precision.name(), ov::element::f32}};
     ov::AnyMap npuw = common;
     npuw.insert({{"NPU_USE_NPUW", "YES"}, {"NPUW_PA", "YES"}, {"NPUW_DEVICES", "CPU"}, {"NPUW_F16IC", "NO"}});
     // An explicit NPU device stays with the NPU submodels. The CPU running the
