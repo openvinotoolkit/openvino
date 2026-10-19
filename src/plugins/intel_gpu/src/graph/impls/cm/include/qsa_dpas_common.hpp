@@ -175,6 +175,91 @@ CM_INLINE void load_vnni_rows(vector_ref<half, ROWS * QSA_REG_N> dst, const half
     cm_load<lsc::VNNI>(dst, desc.set_block_x(n_offset));
 }
 
+// Token-major GEMM K32 step: dst[token][n] += A[token][k] * W[n][k] over 32 k.
+// A comes in TML-row messages holding two K16 slices each ([2][TML][16] halfs);
+// W tile j comes from rows y0 + j * y_stride through a transposed d32 load, one per
+// K16 slice ([8][16] uints each). acc row (j * MT + m) is the [8 tokens][16 n] tile.
+constexpr uint TOKEN_GEMM_K = 2 * QSA_REG_K;
+
+template <int TML, int NL>
+CM_INLINE void token_gemm_load_a(matrix_ref<half, NL, 2 * TML * QSA_REG_K> a, lsc::block_2d_desc<half, 2, TML, QSA_REG_K>& desc, uint y0, uint k) {
+    desc.set_block_x(k);
+#    pragma unroll
+    for (int i = 0; i < NL; ++i) {
+        cm_load<lsc::Normal>(a.row(i), desc.set_block_y(y0 + i * TML));
+    }
+}
+
+template <int NB>
+CM_INLINE void token_gemm_load_b(matrix_ref<uint, 2 * NB, QSA_REG_K / 2 * QSA_REG_N> b,
+                                 lsc::block_2d_desc<uint, 1, QSA_REG_N, QSA_REG_K / 2>& desc,
+                                 uint y0,
+                                 uint y_stride,
+                                 uint k) {
+#    pragma unroll
+    for (int j = 0; j < NB; ++j) {
+        desc.set_block_y(y0 + j * y_stride);
+#    pragma unroll
+        for (int h = 0; h < 2; ++h) {
+            cm_load<lsc::Transpose>(b.row(2 * j + h), desc.set_block_x((k + h * QSA_REG_K) / 2));
+        }
+    }
+}
+
+template <int TML, int NL, int MT, int NB>
+CM_INLINE void token_gemm_mma(matrix_ref<float, NB * MT, 8 * QSA_REG_N> acc,
+                              matrix_ref<half, NL, 2 * TML * QSA_REG_K> a,
+                              matrix_ref<uint, 2 * NB, QSA_REG_K / 2 * QSA_REG_N> b) {
+#    pragma unroll
+    for (int h = 0; h < 2; ++h) {
+#    pragma unroll
+        for (int m = 0; m < MT; ++m) {
+            const int li = (m * 8) / TML;
+            const int off = h * TML * QSA_REG_K + ((m * 8) % TML) * QSA_REG_K;
+#    pragma unroll
+            for (int j = 0; j < NB; ++j) {
+                acc.row(j * MT + m) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, QSA_SYSTOLIC_DEPTH, 8, float>(
+                    acc.row(j * MT + m),
+                    b.row(2 * j + h).template format<int32_t>(),
+                    a.row(li).template select<8 * QSA_REG_K, 1>(off).template format<int32_t>());
+            }
+        }
+    }
+}
+
+/// Double-buffered K loop over [k_begin, k_end): the next step's loads are issued before
+/// the current step's dpas so load latency overlaps the systolic work.
+template <int TML, int NL, int MT, int NB>
+CM_INLINE void token_gemm(matrix_ref<float, NB * MT, 8 * QSA_REG_N> acc,
+                          lsc::block_2d_desc<half, 2, TML, QSA_REG_K>& desc_a,
+                          uint a_y0,
+                          lsc::block_2d_desc<uint, 1, QSA_REG_N, QSA_REG_K / 2>& desc_b,
+                          uint b_y0,
+                          uint b_y_stride,
+                          uint k_begin,
+                          uint k_end) {
+    matrix<half, NL, 2 * TML * QSA_REG_K> a0, a1;
+    matrix<uint, 2 * NB, QSA_REG_K / 2 * QSA_REG_N> b0, b1;
+    token_gemm_load_a<TML, NL>(a0, desc_a, a_y0, k_begin);
+    token_gemm_load_b<NB>(b0, desc_b, b_y0, b_y_stride, k_begin);
+    for (uint k = k_begin; k < k_end; k += 2 * TOKEN_GEMM_K) {
+        const bool has1 = k + TOKEN_GEMM_K < k_end;
+        if (has1) {
+            token_gemm_load_a<TML, NL>(a1, desc_a, a_y0, k + TOKEN_GEMM_K);
+            token_gemm_load_b<NB>(b1, desc_b, b_y0, b_y_stride, k + TOKEN_GEMM_K);
+        }
+        token_gemm_mma<TML, NL, MT, NB>(acc, a0, b0);
+        if (!has1) {
+            break;
+        }
+        if (k + 2 * TOKEN_GEMM_K < k_end) {
+            token_gemm_load_a<TML, NL>(a0, desc_a, a_y0, k + 2 * TOKEN_GEMM_K);
+            token_gemm_load_b<NB>(b0, desc_b, b_y0, b_y_stride, k + 2 * TOKEN_GEMM_K);
+        }
+        token_gemm_mma<TML, NL, MT, NB>(acc, a1, b1);
+    }
+}
+
 #    endif  // CM_HAS_LSC_UNTYPED_2D
 
 }  // namespace qsa_dpas

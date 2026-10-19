@@ -169,16 +169,12 @@ std::vector<std::string> executed_stages() {
 }
 
 /// With C = 4, C*D is always a multiple of 64, so only L decides the DPAS READ pipeline.
-std::vector<std::string> expected_read_stages(size_t L, bool write_gate) {
+/// The write gate is fused into DOWN_PROJ and the branch mix into UP_PROJ.
+std::vector<std::string> expected_read_stages(size_t L, bool /*write_gate*/) {
     if (L % 32 != 0) {
         return {"READ"};
     }
-    std::vector<std::string> stages = {"RBAR", "DOWN_PROJ", "UP_PROJ"};
-    if (write_gate) {
-        stages.push_back("WRITE_GATE");
-    }
-    stages.push_back("COMBINE");
-    return stages;
+    return {"RBAR", "DOWN_PROJ", "UP_PROJ"};
 }
 
 struct gr_read_case {
@@ -278,19 +274,23 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            gr_read_case{7, 128, 32, true},
                                            gr_read_case{16, 32, 16, true},
                                            // Below: C*D and L satisfy can_use_dpas_gr_read(), so these route
-                                           // through the new gr_rbar_dpas -> gr_down_proj_dpas ->
-                                           // gr_up_proj_dpas -> [gr_writegate_dpas] -> gr_combine pipeline
-                                           // instead of the scalar gr_read.cm kernel.
-                                           gr_read_case{32, 64, 32, true},    // exact N-tile boundary (2x16), GR_COMBINE_TILE=64
-                                           gr_read_case{37, 96, 32, false},   // partial last N-tile (37=2*16+5), no write gate, tile=32
-                                           gr_read_case{41, 48, 64, true},    // partial tile; D=48 forces GR_COMBINE_TILE/GR_WRITE_TILE down to 16
+                                           // through gr_rbar_dpas -> gr_down_proj_dpas[+write gate] ->
+                                           // gr_up_proj_dpas[+branch mix] instead of gr_read.cm. Up to 192
+                                           // rows the split-K ("small") tiling is used, above it the wide one.
+                                           gr_read_case{32, 64, 32, true},    // exact token-tile boundary
+                                           gr_read_case{37, 96, 32, false},   // partial last token tile, no write gate
+                                           gr_read_case{41, 48, 64, true},    // partial tile; D=48, split-K over 6 K steps
                                            gr_read_case{16, 64, 32, true},    // exactly one N-tile
                                            gr_read_case{48, 64, 32, false},   // three full N-tiles
-                                           gr_read_case{3, 32, 32, true},     // D=32 -> GR_COMBINE_TILE=32
+                                           gr_read_case{3, 32, 32, true},     // narrowest D
                                            gr_read_case{5, 64, 16, true, true},   // scalar path, gain stored as w (1 + w)
                                            gr_read_case{19, 64, 32, true, true},  // DPAS path, gain stored as w (1 + w)
                                            gr_read_case{1, 640, 320, true},   // production width, decode
-                                           gr_read_case{17, 640, 320, true}));  // production width, prefill with a partial tile
+                                           gr_read_case{17, 640, 320, true},  // production width, prefill with a partial tile
+                                           gr_read_case{193, 32, 32, true, true},  // first row count on the wide tiling
+                                           gr_read_case{200, 64, 32, true},   // wide tiling, partial 32-token tile
+                                           gr_read_case{300, 48, 64, false},  // wide tiling, D=48 column tiles
+                                           gr_read_case{257, 640, 320, true}));  // production width, wide tiling
 
 class gated_residual_final_mix_test : public ::testing::TestWithParam<gr_read_case> {};
 
@@ -354,8 +354,9 @@ TEST_P(gated_residual_final_mix_test, matches_read) {
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          gated_residual_final_mix_test,
-                         ::testing::Values(gr_read_case{4, 64, 16, false},     // scalar gr_read
-                                           gr_read_case{17, 64, 32, false}));  // DPAS pipeline, partial N-tile
+                         ::testing::Values(gr_read_case{4, 64, 16, false},      // scalar gr_read
+                                           gr_read_case{17, 64, 32, false},     // DPAS pipeline, split-K tiling
+                                           gr_read_case{250, 64, 32, false}));  // DPAS pipeline, wide tiling
 
 TEST(gated_residual_gpu_test, write_combines_branches) {
     if (!cm_gr_available()) {
@@ -630,7 +631,8 @@ TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_reuses_dispatch_da
     fill_tensor(infer_request.get_input_tensor(3), w_up);
     fill_tensor(infer_request.get_input_tensor(4), w_inject);
 
-    for (const size_t rows : {size_t{5}, size_t{37}, size_t{1}}) {
+    // 300 switches the dynamic impl from the split-K to the wide tiling and 2 back again.
+    for (const size_t rows : {size_t{5}, size_t{37}, size_t{1}, size_t{300}, size_t{2}}) {
         tests::random_generator input_rg;
         input_rg.set_seed(static_cast<uint32_t>(rows));
         const auto residual = random_vec(input_rg, rows * CD, 1.0f);
@@ -666,7 +668,7 @@ TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_reuses_dispatch_da
 // Companion to ov_model_read_mode_dynamic_rows_reuses_dispatch_data above, but for the
 // scalar (non-DPAS) gr_read.cm kernel: L=16 fails can_use_dpas_gr_read()'s "lowrank must
 // be a multiple of 32" check, so GatedResidualCMImpl selects the single-kernel gr_read
-// stage instead of the rbar/down/up/[writegate]/combine pipeline. Exercises the SAME
+// stage instead of the rbar/down/up dpas pipeline. Exercises the SAME
 // dispatch-data bug (the unconditional `if (params.is_dynamic()) return;` guard) in the
 // one generator the DPAS-path test above never reaches.
 TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_scalar_kernel) {
@@ -855,11 +857,16 @@ double executing_ms(const event::ptr& ev) {
 }
 
 /// GPU-side total duration of one gated_residual call, summed across every CM kernel
-/// dispatch recorded via gr_stage_events.hpp. The systolic READ/FINAL_MIX path fuses 4-5
-/// independent kernels (RBAR, down-proj, up-proj, [write-gate], combine) behind one clDNN
-/// primitive, so `network::get_executed_primitives()` alone would only expose the last of
-/// them (see gr_stage_events.hpp / qsa_gpu_test.cpp's identical situation for QSA).
-double time_primitive_ms(network& net, const std::string& primitive_id, int warmup, int iterations) {
+/// dispatch recorded via gr_stage_events.hpp. The systolic READ/FINAL_MIX path runs 3
+/// kernels (RBAR, down-proj, up-proj) behind one clDNN primitive, so
+/// `network::get_executed_primitives()` alone would only expose the last of them (see
+/// gr_stage_events.hpp / qsa_gpu_test.cpp's identical situation for QSA). `per_stage`, if
+/// given, receives each stage's mean time in dispatch order.
+double time_primitive_ms(network& net,
+                         const std::string& primitive_id,
+                         int warmup,
+                         int iterations,
+                         std::vector<std::pair<std::string, double>>* per_stage = nullptr) {
     for (int i = 0; i < warmup; i++) {
         auto outputs = net.execute();
         outputs.at(primitive_id).get_memory();
@@ -869,14 +876,23 @@ double time_primitive_ms(network& net, const std::string& primitive_id, int warm
             }
         }
     }
+    // Iterations are enqueued back-to-back and only synchronized at the end: a host wait per
+    // iteration leaves the GPU idle long enough for DVFS to drop the clock (650 vs 2900 MHz
+    // observed on B580), which made the per-kernel times drift by >2x within one run.
+    std::vector<std::vector<std::pair<std::string, event::ptr>>> iteration_events;
+    iteration_events.reserve(static_cast<size_t>(iterations));
+    for (int i = 0; i < iterations; i++) {
+        net.execute();
+        iteration_events.push_back(ov::intel_gpu::cm::gr_debug::take_stage_events());
+    }
     std::vector<double> samples;
     samples.reserve(static_cast<size_t>(iterations));
-    for (int i = 0; i < iterations; i++) {
-        auto outputs = net.execute();
-        outputs.at(primitive_id).get_memory();  // forces the whole stage chain to complete
+    std::vector<std::pair<std::string, double>> stage_sums;
+    for (const auto& stage_events : iteration_events) {
         double total = 0.0;
         bool any = false;
-        for (const auto& stage_event : ov::intel_gpu::cm::gr_debug::take_stage_events()) {
+        size_t idx = 0;
+        for (const auto& stage_event : stage_events) {
             if (stage_event.second != nullptr) {
                 stage_event.second->wait();
             }
@@ -884,7 +900,12 @@ double time_primitive_ms(network& net, const std::string& primitive_id, int warm
             if (ms >= 0.0) {
                 total += ms;
                 any = true;
+                if (stage_sums.size() <= idx) {
+                    stage_sums.emplace_back(stage_event.first, 0.0);
+                }
+                stage_sums[idx].second += ms;
             }
+            idx++;
         }
         if (any) {
             samples.push_back(total);
@@ -893,6 +914,11 @@ double time_primitive_ms(network& net, const std::string& primitive_id, int warm
     if (samples.empty()) {
         ADD_FAILURE() << "no 'executing' profiling interval was captured for " << primitive_id;
         return 0.0;
+    }
+    if (per_stage != nullptr) {
+        for (auto& s : stage_sums) {
+            per_stage->emplace_back(s.first, s.second / static_cast<double>(samples.size()));
+        }
     }
     return mean_ms(samples);
 }
@@ -927,7 +953,12 @@ void run_point(const char* phase, size_t tokens) {
     const auto w_up = random_vec(rg, CD * p.L, 0.1f);
 
     auto& engine = get_test_engine();
-    auto residual_mem = make_f16(engine, {static_cast<int64_t>(rows), static_cast<int64_t>(CD)}, residual);
+    // Device-resident like real activations; the default lockable allocation is usm_shared
+    // on dGPU, which would make RBAR measure PCIe reads instead of the kernel.
+    auto residual_mem = engine.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(rows), static_cast<int64_t>(CD)}, data_types::f16, format::bfyx},
+                                               allocation_type::usm_device);
+    const auto residual_f16 = to_f16(residual);
+    residual_mem->copy_from(get_test_stream(), residual_f16.data(), true);
 
     topology topology;
     topology.add(input_layout("residual", residual_mem->get_layout()));
@@ -951,7 +982,11 @@ void run_point(const char* phase, size_t tokens) {
     network net(engine, topology, config);
     net.set_input_data("residual", residual_mem);
 
-    const double ms = time_primitive_ms(net, "gr_read", /*warmup=*/2, /*iterations=*/100);
+    std::vector<std::pair<std::string, double>> per_stage;
+    const double ms = time_primitive_ms(net, "gr_read", /*warmup=*/20, /*iterations=*/100, &per_stage);
+    for (const auto& s : per_stage) {
+        print_measurement(phase, tokens, s.first.c_str(), s.second);
+    }
     print_measurement(phase, tokens, "READ/MIX", ms);
 }
 
@@ -976,6 +1011,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_roofline,
                                            gr_roofline_case{2048, false},
                                            gr_roofline_case{2048, true},
                                            gr_roofline_case{4096, false},
-                                           gr_roofline_case{4096, true}));
+                                           gr_roofline_case{4096, true},
+                                           gr_roofline_case{8192, false}));
 
 }  // namespace

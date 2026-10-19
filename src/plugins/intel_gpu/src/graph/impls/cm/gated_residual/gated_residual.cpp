@@ -27,8 +27,11 @@ namespace {
 constexpr size_t gr_wg_size = 16;
 constexpr size_t gr_max_lowrank = 512;        // GR_LOWRANK is kept in registers by gr_read.cm
 constexpr size_t gr_max_total_width = 16384;  // C*D must fit into SLM as f16
-constexpr size_t gr_dpas_m = 8;               // dpas RepeatCount (M axis) used by the down/up projections
+constexpr size_t gr_dpas_k_step = 32;         // K consumed per dpas loop step (two K16 slices)
 constexpr size_t gr_dpas_n = 16;              // dpas N axis == GRF width on Xe2
+// Up to this many rows the split-K tiling wins: the wide token tiles leave too few threads
+// to stream the weights (measured crossover ~200 rows on B580 at C=4/D=640/L=320).
+constexpr size_t gr_dpas_small_rows = 192;
 
 constexpr auto get_gr_build_options() {
     return " -cmc -Qxcm_register_file_size=256";
@@ -61,8 +64,8 @@ JitConstants make_common_jit(const std::shared_ptr<const gated_residual>& desc) 
 }
 
 /// Widest elements-per-thread tile (a multiple of 16) that evenly divides `width`. Used by
-/// both gr_write.cm (branch loop moved inside the kernel) and gr_combine.cm; 16 is always
-/// a valid fallback since GR_HIDDEN % 16 == 0 is enforced by validate_impl.
+/// gr_write.cm (branch loop moved inside the kernel); 16 is always a valid fallback since
+/// GR_HIDDEN % 16 == 0 is enforced by validate_impl.
 size_t gr_best_tile(size_t width) {
     for (size_t t : {size_t{64}, size_t{32}, size_t{16}}) {
         if (width % t == 0) {
@@ -72,10 +75,43 @@ size_t gr_best_tile(size_t width) {
     return 16;
 }
 
-/// Whether the systolic (cm_dpas) READ/FINAL_MIX pipeline (gr_rbar_dpas -> gr_down_proj_dpas
-/// -> gr_up_proj_dpas -> [gr_writegate_dpas] -> gr_combine) can replace the single fused
-/// scalar gr_read.cm kernel. Mirrors qsa.cpp's can_use_dpas_projection: the down/up
-/// projections are the identical M8/N16/K16 systolic GEMM shape as qsa_project_dpas.cm.
+size_t largest_divisor_up_to(size_t n, size_t cap) {
+    for (size_t d = std::min(n, cap); d > 1; d--) {
+        if (n % d == 0) {
+            return d;
+        }
+    }
+    return 1;
+}
+
+/// Per-thread tiling of the two dpas GEMM kernels (see gr_down_proj_dpas.cm /
+/// gr_up_proj_dpas.cm). `few_rows` = few rows (decode): 8-token tiles and the K reduction
+/// split over a work-group, so the weights are streamed by many threads in parallel.
+struct GrDpasTiling {
+    size_t down_tm;
+    size_t down_tn;
+    size_t down_ksplit;
+    size_t up_tm;
+    size_t up_ksplit;
+    size_t up_lws_y;  // token tiles per work-group sharing the same W_up columns
+};
+
+GrDpasTiling gr_dpas_tiling(const gated_residual& desc, bool few_rows) {
+    if (!few_rows) {
+        return {32, 32, 1, 16, 1, 8};
+    }
+    const size_t cd_steps = desc.hc_count * desc.hidden_size / gr_dpas_k_step;
+    const size_t l_steps = desc.lowrank / gr_dpas_k_step;
+    return {8, 32, largest_divisor_up_to(cd_steps, 8), 8, largest_divisor_up_to(l_steps, 5), 1};
+}
+
+bool use_small_tiling(size_t num_rows) {
+    return num_rows <= gr_dpas_small_rows;
+}
+
+/// Whether the systolic (cm_dpas) READ/FINAL_MIX pipeline (gr_rbar_dpas ->
+/// gr_down_proj_dpas[+write gate] -> gr_up_proj_dpas[+branch mix]) can replace the single
+/// fused scalar gr_read.cm kernel.
 bool can_use_dpas_gr_read(const gated_residual& desc, const cldnn::device_info& info) {
     if (info.arch < gpu_arch::xe2) {
         return false;  // the kernels assert a 512-bit (16-wide) GRF
@@ -85,10 +121,10 @@ bool can_use_dpas_gr_read(const gated_residual& desc, const cldnn::device_info& 
         return false;  // 2D surfaces need >=64B width / 64B-aligned row pitch
     }
     if (desc.lowrank < 32 || desc.lowrank % 32 != 0) {
-        return false;
+        return false;  // 64B T surface, 32-wide down-projection column tiles
     }
-    if (desc.hc_count == 0 || desc.hc_count % 2 != 0 || desc.hc_count > 8) {
-        return false;  // write-gate dpas RepeatCount must fit one tile and pack in half-pairs
+    if (desc.hc_count == 0 || desc.hc_count % 2 != 0 || desc.hc_count > gr_dpas_n) {
+        return false;  // the write gate is one N16 column tile stored in half pairs
     }
     return true;
 }
@@ -207,7 +243,7 @@ protected:
 };
 
 // ---------------------------------------------------------------------------
-// G1 systolic pipeline, stage 1/4: branch-wise grouped RMSNorm -> RBAR scratch
+// G1 systolic pipeline, stage 1/3: branch-wise grouped RMSNorm -> RBAR scratch
 // ---------------------------------------------------------------------------
 class GatedResidualRbarDpasGenerator : public KernelGenerator {
 public:
@@ -224,7 +260,6 @@ protected:
         jit.add(make_common_jit(desc));
         jit.add(make_jit_constant("GR_EPS", desc->epsilon));
         jit.make("GR_NORM_GAIN_PLUS_ONE", desc->norm_gain_plus_one ? 1 : 0);
-        jit.make("GR_WG_SIZE", gr_wg_size);
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
         return jit;
     }
@@ -244,8 +279,9 @@ protected:
             const size_t num_rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
 
             auto& wgs = kd.params.workGroups;
-            wgs.global = {gr_wg_size, num_rows, 1};
-            wgs.local = {gr_wg_size, 1, 1};
+            // One thread per (branch, row): the norm is branch-wise, so no reduction across threads.
+            wgs.global = {desc->hc_count, std::max<size_t>(1, num_rows), 1};
+            wgs.local = {desc->hc_count, 1, 1};
 
             kd.params.scalars.clear();
             scalar_desc s;
@@ -257,11 +293,14 @@ protected:
 };
 
 // ---------------------------------------------------------------------------
-// G1 systolic pipeline, stage 2/4: low-rank down projection + 1/C scale + SiLU
+// G1 systolic pipeline, stage 2/3: low-rank down projection + 1/C scale + SiLU
+// (+ the write-gate projection as one extra column tile)
 // ---------------------------------------------------------------------------
 class GatedResidualDownProjDpasGenerator : public KernelGenerator {
 public:
-    GatedResidualDownProjDpasGenerator() : KernelGenerator("gr_down_proj_dpas", "_cm") {}
+    explicit GatedResidualDownProjDpasGenerator(bool few_rows = false)
+        : KernelGenerator("gr_down_proj_dpas", few_rows ? "_small_cm" : "_cm"),
+          m_small(few_rows) {}
 
 protected:
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
@@ -271,30 +310,45 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         const auto desc = params.typed_desc<gated_residual>();
+        const auto tiling = gr_dpas_tiling(*desc, m_small);
         jit.add(make_common_jit(desc));
         jit.make("GR_LOWRANK", desc->lowrank);
+        jit.make("GR_DOWN_TM", tiling.down_tm);
+        jit.make("GR_DOWN_TN", tiling.down_tn);
+        jit.make("GR_DOWN_KSPLIT", tiling.down_ksplit);
+        jit.make("GR_PRODUCE_WRITE_GATE", desc->produce_write_gate ? 1 : 0);
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
         return jit;
     }
 
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        const auto desc = params.typed_desc<gated_residual>();
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, GatedResidualInternalBufIdx::RBAR});
         args.push_back({ArgumentDescriptor::Types::INPUT, 2});  // W_down
+        if (desc->produce_write_gate) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, 4});  // W_inject
+        }
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, GatedResidualInternalBufIdx::T_SCRATCH});
+        if (desc->produce_write_gate) {
+            args.push_back({ArgumentDescriptor::Types::OUTPUT, 1});  // write gate S
+        }
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // num_rows
         return args;
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
+        return DispatchDataFunc{[few_rows = m_small](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
+            const auto tiling = gr_dpas_tiling(*desc, few_rows);
+            const size_t col_tiles = desc->lowrank / tiling.down_tn + (desc->produce_write_gate ? 1 : 0);
+            const size_t row_tiles = std::max<size_t>(1, (num_rows + tiling.down_tm - 1) / tiling.down_tm);
 
             auto& wgs = kd.params.workGroups;
-            // gws = [L/8, ceil(rows/16), 1]; one work-item owns an M8 x N16 dpas tile.
-            wgs.global = {desc->lowrank / gr_dpas_m, (num_rows + gr_dpas_n - 1) / gr_dpas_n, 1};
-            wgs.local = {1, 1, 1};
+            // One work-group per (column tile, token tile); KSPLIT threads split the K reduction.
+            wgs.global = {col_tiles * tiling.down_ksplit, row_tiles, 1};
+            wgs.local = {tiling.down_ksplit, 1, 1};
 
             kd.params.scalars.clear();
             scalar_desc s;
@@ -303,14 +357,19 @@ protected:
             kd.params.scalars.push_back(s);
         }};
     }
+
+private:
+    bool m_small;
 };
 
 // ---------------------------------------------------------------------------
-// G1 systolic pipeline, stage 3/4: low-rank up projection (read-gate logits)
+// G1 systolic pipeline, stage 3/3: low-rank up projection + sigmoid + branch mix
 // ---------------------------------------------------------------------------
 class GatedResidualUpProjDpasGenerator : public KernelGenerator {
 public:
-    GatedResidualUpProjDpasGenerator() : KernelGenerator("gr_up_proj_dpas", "_cm") {}
+    explicit GatedResidualUpProjDpasGenerator(bool few_rows = false)
+        : KernelGenerator("gr_up_proj_dpas", few_rows ? "_small_cm" : "_cm"),
+          m_small(few_rows) {}
 
 protected:
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
@@ -320,8 +379,11 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         const auto desc = params.typed_desc<gated_residual>();
+        const auto tiling = gr_dpas_tiling(*desc, m_small);
         jit.add(make_common_jit(desc));
         jit.make("GR_LOWRANK", desc->lowrank);
+        jit.make("GR_UP_TM", tiling.up_tm);
+        jit.make("GR_UP_KSPLIT", tiling.up_ksplit);
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
         return jit;
     }
@@ -330,117 +392,30 @@ protected:
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, GatedResidualInternalBufIdx::T_SCRATCH});
         args.push_back({ArgumentDescriptor::Types::INPUT, 3});  // W_up
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, GatedResidualInternalBufIdx::GATE_SCRATCH});
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // num_rows
-        return args;
-    }
-
-    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
-            const auto desc = params.typed_desc<gated_residual>();
-            const size_t num_rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
-            const size_t cd = desc->hc_count * desc->hidden_size;
-
-            auto& wgs = kd.params.workGroups;
-            // gws = [C*D/8, ceil(rows/16), 1]; one work-item owns an M8 x N16 dpas tile.
-            wgs.global = {cd / gr_dpas_m, (num_rows + gr_dpas_n - 1) / gr_dpas_n, 1};
-            wgs.local = {1, 1, 1};
-
-            kd.params.scalars.clear();
-            scalar_desc s;
-            s.t = scalar_desc::Types::UINT32;
-            s.v.u32 = static_cast<uint32_t>(num_rows);
-            kd.params.scalars.push_back(s);
-        }};
-    }
-};
-
-// ---------------------------------------------------------------------------
-// G1 systolic pipeline, stage 4a/4 (optional): write-gate low-rank projection
-// ---------------------------------------------------------------------------
-class GatedResidualWriteGateDpasGenerator : public KernelGenerator {
-public:
-    GatedResidualWriteGateDpasGenerator() : KernelGenerator("gr_writegate_dpas", "_cm") {}
-
-protected:
-    [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
-        return KernelGenerator::get_build_options(params) + get_gr_build_options();
-    }
-
-    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
-        auto jit = KernelGenerator::get_jit_constants(params);
-        jit.add(make_common_jit(params.typed_desc<gated_residual>()));
-        jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
-        return jit;
-    }
-
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
-        Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, GatedResidualInternalBufIdx::RBAR});
-        args.push_back({ArgumentDescriptor::Types::INPUT, 4});   // W_inject
-        args.push_back({ArgumentDescriptor::Types::OUTPUT, 1});  // write gate S
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // num_rows
-        return args;
-    }
-
-    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
-            const auto desc = params.typed_desc<gated_residual>();
-            const size_t num_rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
-
-            auto& wgs = kd.params.workGroups;
-            // gws = [1, ceil(rows/16), 1]; a single dpas tile covers all C(<=8) branches.
-            wgs.global = {1, (num_rows + gr_dpas_n - 1) / gr_dpas_n, 1};
-            wgs.local = {1, 1, 1};
-
-            kd.params.scalars.clear();
-            scalar_desc s;
-            s.t = scalar_desc::Types::UINT32;
-            s.v.u32 = static_cast<uint32_t>(num_rows);
-            kd.params.scalars.push_back(s);
-        }};
-    }
-};
-
-// ---------------------------------------------------------------------------
-// G1 systolic pipeline, stage 4b/4: branch reduce-mean combine (no dpas)
-// ---------------------------------------------------------------------------
-class GatedResidualCombineGenerator : public KernelGenerator {
-public:
-    GatedResidualCombineGenerator() : KernelGenerator("gr_combine", "_cm") {}
-
-protected:
-    [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
-        return KernelGenerator::get_build_options(params) + get_gr_build_options();
-    }
-
-    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
-        auto jit = KernelGenerator::get_jit_constants(params);
-        const auto desc = params.typed_desc<gated_residual>();
-        jit.add(make_common_jit(desc));
-        jit.make("GR_COMBINE_TILE", gr_best_tile(desc->hidden_size));
-        jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
-        return jit;
-    }
-
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
-        Arguments args;
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, GatedResidualInternalBufIdx::RBAR});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, GatedResidualInternalBufIdx::GATE_SCRATCH});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // mixed
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // num_rows
         return args;
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
+        return DispatchDataFunc{[few_rows = m_small](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
-            const size_t tile = gr_best_tile(desc->hidden_size);
+            const auto tiling = gr_dpas_tiling(*desc, few_rows);
+            const size_t col_tiles = desc->hidden_size / gr_dpas_n;
+            const size_t row_tiles = std::max<size_t>(1, (num_rows + tiling.up_tm - 1) / tiling.up_tm);
 
             auto& wgs = kd.params.workGroups;
-            wgs.global = {(desc->hidden_size + tile - 1) / tile, num_rows, 1};
-            wgs.local = {1, 1, 1};
+            if (tiling.up_ksplit > 1) {
+                wgs.global = {col_tiles * tiling.up_ksplit, row_tiles, 1};
+                wgs.local = {tiling.up_ksplit, 1, 1};
+            } else {
+                // Work-groups of up_lws_y token tiles reuse the same W_up columns from L1.
+                const size_t lws_y = std::min(tiling.up_lws_y, row_tiles);
+                wgs.global = {col_tiles, (row_tiles + lws_y - 1) / lws_y * lws_y, 1};
+                wgs.local = {1, lws_y, 1};
+            }
 
             kd.params.scalars.clear();
             scalar_desc s;
@@ -449,6 +424,9 @@ protected:
             kd.params.scalars.push_back(s);
         }};
     }
+
+private:
+    bool m_small;
 };
 
 class GatedResidualCMImpl : public PrimitiveImplCM {
@@ -460,8 +438,8 @@ public:
     Stage::Ptr gr_rbar_dpas = make_stage<GatedResidualRbarDpasGenerator>();
     Stage::Ptr gr_down_proj_dpas = make_stage<GatedResidualDownProjDpasGenerator>();
     Stage::Ptr gr_up_proj_dpas = make_stage<GatedResidualUpProjDpasGenerator>();
-    Stage::Ptr gr_writegate_dpas = make_stage<GatedResidualWriteGateDpasGenerator>();
-    Stage::Ptr gr_combine = make_stage<GatedResidualCombineGenerator>();
+    Stage::Ptr gr_down_proj_dpas_small = make_stage<GatedResidualDownProjDpasGenerator>(true);
+    Stage::Ptr gr_up_proj_dpas_small = make_stage<GatedResidualUpProjDpasGenerator>(true);
 
     GatedResidualCMImpl() : PrimitiveImplCM(GatedResidualCMImplementationManager::get_type_info_static()) {}
     GatedResidualCMImpl(const program_node& /*node*/, const RuntimeParams& params) : GatedResidualCMImpl() {
@@ -470,17 +448,19 @@ public:
         if (desc->mode == gated_residual::Mode::WRITE) {
             add_stage(gr_write, params);
         } else if (can_use_dpas_gr_read(*desc, params.get_device_info())) {
-            // Default execute() chains added stages strictly in registration order (each
-            // stage waits on the previous stage's event before dispatching), which is
-            // exactly the safe producer/consumer ordering the RBAR/T/gate scratch round
-            // trips through global memory need - see gr_rbar_dpas.cm.
+            // Producer/consumer order through the RBAR/T scratch buffers is enforced by
+            // execute(); static shapes only build the tiling their row count needs.
             add_stage(gr_rbar_dpas, params);
-            add_stage(gr_down_proj_dpas, params);
-            add_stage(gr_up_proj_dpas, params);
-            if (desc->produce_write_gate) {
-                add_stage(gr_writegate_dpas, params);
+            const bool dynamic = params.is_dynamic();
+            const size_t rows = dynamic ? 0 : get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
+            if (dynamic || use_small_tiling(rows)) {
+                add_stage(gr_down_proj_dpas_small, params);
+                add_stage(gr_up_proj_dpas_small, params);
             }
-            add_stage(gr_combine, params);
+            if (dynamic || !use_small_tiling(rows)) {
+                add_stage(gr_down_proj_dpas, params);
+                add_stage(gr_up_proj_dpas, params);
+            }
         } else {
             add_stage(gr_read, params);
         }
@@ -491,10 +471,9 @@ public:
     }
 
     // Default execute() (unused here) would only expose the LAST dispatched kernel's event
-    // via get_executed_primitives(), which is wrong for the 4-5-kernel dpas READ pipeline
-    // (see gr_stage_events.hpp). This override reproduces the same stage ordering/event
-    // chaining the default implementation would have done, plus records every stage's own
-    // event for roofline test consumption.
+    // via get_executed_primitives(), which is wrong for the 3-kernel dpas READ pipeline
+    // (see gr_stage_events.hpp). This override chains the stages explicitly and records
+    // every stage's own event for roofline test consumption.
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         kernel_dump_info.clear_entries();
         if (instance.can_be_optimized()) {
@@ -509,24 +488,20 @@ public:
             return ev;
         }
         if (has_stage(gr_rbar_dpas)) {
+            const auto& params = *instance.get_impl_params();
+            const auto desc = params.typed_desc<gated_residual>();
+            const size_t rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
+            const bool few_rows = has_stage(gr_down_proj_dpas_small) && (use_small_tiling(rows) || !has_stage(gr_down_proj_dpas));
+            auto& down = few_rows ? gr_down_proj_dpas_small : gr_down_proj_dpas;
+            auto& up = few_rows ? gr_up_proj_dpas_small : gr_up_proj_dpas;
+
             auto ev_rbar = execute_stage(events, instance, gr_rbar_dpas);
             record_stage_event("RBAR", ev_rbar);
-            auto ev_down = execute_stage({ev_rbar}, instance, gr_down_proj_dpas);
+            auto ev_down = execute_stage({ev_rbar}, instance, down);
             record_stage_event("DOWN_PROJ", ev_down);
-            auto ev_up = execute_stage({ev_down}, instance, gr_up_proj_dpas);
+            auto ev_up = execute_stage({ev_down}, instance, up);
             record_stage_event("UP_PROJ", ev_up);
-            std::vector<event::ptr> all_events = {ev_rbar, ev_down, ev_up};
-            event::ptr prev = ev_up;
-            if (has_stage(gr_writegate_dpas)) {
-                auto ev_wg = execute_stage({prev}, instance, gr_writegate_dpas);
-                record_stage_event("WRITE_GATE", ev_wg);
-                all_events.push_back(ev_wg);
-                prev = ev_wg;
-            }
-            auto ev_combine = execute_stage({prev}, instance, gr_combine);
-            record_stage_event("COMBINE", ev_combine);
-            all_events.push_back(ev_combine);
-            return instance.get_network().get_stream().aggregate_events(all_events, true, instance.is_output());
+            return instance.get_network().get_stream().aggregate_events({ev_rbar, ev_down, ev_up}, true, instance.is_output());
         }
         auto ev = execute_stage(events, instance, gr_read);
         record_stage_event("READ", ev);
@@ -545,7 +520,6 @@ public:
         std::vector<BufferDescriptor> bufs;
         bufs.emplace_back(num_rows * cd, ov::element::f16);  // RBAR
         bufs.emplace_back(num_rows * l, ov::element::f16);   // T_SCRATCH
-        bufs.emplace_back(num_rows * cd, ov::element::f16);  // GATE_SCRATCH
         return bufs;
     }
 };

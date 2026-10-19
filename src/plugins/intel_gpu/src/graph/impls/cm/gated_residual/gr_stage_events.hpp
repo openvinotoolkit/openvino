@@ -3,8 +3,8 @@
 //
 
 // Debug-only hook that lets test code recover the per-CM-kernel GPU events of the last
-// GatedResidualCMImpl::execute() call. The systolic READ/FINAL_MIX path fuses five
-// independent CM kernel dispatches (RBAR, down-proj, up-proj, [write-gate], combine)
+// GatedResidualCMImpl::execute() call. The systolic READ/FINAL_MIX path runs three
+// independent CM kernel dispatches (RBAR, down-proj, up-proj)
 // behind a single clDNN primitive, so `network::get_executed_primitives()` only exposes
 // the *last* one of them (see qsa_stage_events.hpp for the identical QSA situation, which
 // this mirrors). This header is only meant to be used by roofline/perf unit tests:
