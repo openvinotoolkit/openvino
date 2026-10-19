@@ -30,6 +30,7 @@ LayerStatistics getModelLayerStatistics(const IGraph& graph, const Query& query)
     }
 
     try {
+        // Level Zero provides raw profiling bytes; the graph's decoder converts them to layer statistics.
         return graph.process_profiling_output(query.template getData<uint8_t>());
     } catch (const std::exception& ex) {
         Logger::global().warning(

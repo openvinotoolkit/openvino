@@ -15,8 +15,6 @@ namespace intel_npu {
 
 /**
  * @brief Decodes VCL profiling output using only the VCL profiling entry points.
- * @note Construction resolves the VCL function table but does not call vclCompilerCreate. The import path only
- * constructs it when PERF_COUNT is enabled.
  */
 class VCLProfilingDecoder final : public IProfilingDecoder {
 public:
