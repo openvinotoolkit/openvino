@@ -194,7 +194,7 @@ ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
     // QKVProjection flattens all leading dims into M, so a flattened [tokens, hidden] input works as well.
     auto input = pattern::any_input(pattern::rank_equals(2) || pattern::rank_equals(3));
 
-    auto qkv_proj_weight_const = pattern::wrap_const();
+    auto qkv_proj_weight_const = pattern::wrap_type<op::v0::Constant>(pattern::rank_equals(2));
     auto qkv_proj_cvt =
         pattern::optional<op::v0::Convert>({qkv_proj_weight_const}, pattern::type_matches(element::f32));
 
