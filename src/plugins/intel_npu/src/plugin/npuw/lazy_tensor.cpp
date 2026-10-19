@@ -9,7 +9,7 @@
 #include <type_traits>
 #include <variant>
 
-#ifndef _WIN32
+#ifdef __ANDROID__
 #    include <fcntl.h>
 #    include <unistd.h>
 #endif
@@ -176,11 +176,12 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
 // The weight has been copied to its destination and is not needed anymore: drop its file range from the page cache
 // right away instead of leaving it there for the reclaim, so the weights do not pile up in the page cache during the
 // model load. This has to happen after the mapping is released, pages that are still mapped cannot be dropped.
+// TODO: Enabled only on Android for now, until a generic fix is found.
 static void drop_file_range(const std::string& path,
                             const ov::FileHandleProvider& provider,
                             std::size_t offset,
                             std::size_t size) {
-#if !defined(_WIN32) && defined(POSIX_FADV_DONTNEED)
+#if defined(__ANDROID__) && defined(POSIX_FADV_DONTNEED)
     if (size == 0 || (path.empty() && !provider) ||
         offset + size > static_cast<std::size_t>(std::numeric_limits<off_t>::max())) {
         return;
