@@ -33,18 +33,20 @@ source_group("include" FILES ${LIBRARY_PUBLIC_HEADERS})
 # Create library file from sources.
 add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 
-# Find OpenCV components if exist
-find_package(OpenCV QUIET COMPONENTS core imgproc imgcodecs)
-if(NOT OpenCV_FOUND OR NOT OpenCV_VERSION VERSION_GREATER_EQUAL 3)
-    message(WARNING "OpenCV ver. 3.0+ is not found, ${TARGET_NAME} will be built without OpenCV support")
-else()
-    target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCV_LIBRARIES} ie_samples_utils)
-    if(UNIX AND NOT APPLE)
-        # Workaround issue that rpath-link is missing for PRIVATE dependencies
-        # Fixed in cmake 3.16.0 https://gitlab.kitware.com/cmake/cmake/issues/19556
-        target_link_libraries(${TARGET_NAME} INTERFACE "-Wl,-rpath-link,${OpenCV_INSTALL_PATH}/lib")
+if(SAMPLES_ENABLE_OPENCV)
+    # Find OpenCV components if exist
+    find_package(OpenCV QUIET COMPONENTS core imgproc imgcodecs)
+    if(NOT OpenCV_FOUND OR NOT OpenCV_VERSION VERSION_GREATER_EQUAL 3)
+        message(WARNING "OpenCV ver. 3.0+ is not found, ${TARGET_NAME} will be built without OpenCV support")
+    else()
+        target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCV_LIBRARIES} ie_samples_utils)
+        if(UNIX AND NOT APPLE)
+            # Workaround issue that rpath-link is missing for PRIVATE dependencies
+            # Fixed in cmake 3.16.0 https://gitlab.kitware.com/cmake/cmake/issues/19556
+            target_link_libraries(${TARGET_NAME} INTERFACE "-Wl,-rpath-link,${OpenCV_INSTALL_PATH}/lib")
+        endif()
+        target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
     endif()
-    target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
 endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_OV_ONNX_FRONTEND)
+if(ENABLE_OV_ONNX_FRONTEND AND ENABLE_ONNX_FRONTEND_TESTS)
     # if requirements are not installed automatically, we need to checks whether they are here
     ov_check_pip_packages(REQUIREMENTS_FILE "${OpenVINO_SOURCE_DIR}/src/frontends/onnx/tests/requirements.txt"
                           RESULT_VAR onnx_FOUND

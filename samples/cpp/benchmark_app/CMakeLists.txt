@@ -101,16 +101,8 @@ if(SAMPLES_ENABLE_OPENCL)
             list(APPEND OpenCL_HEADERS ${CL2_HPP_INCLUDE_DIR})
         endif()
 
-        # cmake cannot set properties for imported targets
-        get_target_property(opencl_target OpenCL::OpenCL ALIASED_TARGET)
-        if(NOT TARGET ${opencl_target})
-            set(opencl_target OpenCL::OpenCL)
-        endif()
-
-        set_property(TARGET ${opencl_target} APPEND PROPERTY
-            INTERFACE_INCLUDE_DIRECTORIES ${OpenCL_HEADERS})
-        set_property(TARGET ${opencl_target} APPEND PROPERTY
-            INTERFACE_COMPILE_DEFINITIONS ${OpenCL_DEFINITIONS})
+        target_include_directories(${TARGET_NAME} PRIVATE ${OpenCL_HEADERS})
+        target_compile_definitions(${TARGET_NAME} PRIVATE ${OpenCL_DEFINITIONS})
 
         target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
     else()
@@ -120,10 +112,12 @@ endif()
 
 # Optional OpenCV dependency
 
-find_package(OpenCV QUIET COMPONENTS core)
-if(NOT OpenCV_FOUND OR NOT OpenCV_VERSION VERSION_GREATER_EQUAL 3)
-    message(WARNING "OpenCV ver. 3.0+ is not found, ${TARGET_NAME} will be built without OpenCV support. Set OpenCV_DIR")
-else()
-    target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
-    target_link_libraries(${TARGET_NAME} PRIVATE opencv_core)
+if(SAMPLES_ENABLE_OPENCV)
+    find_package(OpenCV QUIET COMPONENTS core)
+    if(NOT OpenCV_FOUND OR NOT OpenCV_VERSION VERSION_GREATER_EQUAL 3)
+        message(WARNING "OpenCV ver. 3.0+ is not found, ${TARGET_NAME} will be built without OpenCV support. Set OpenCV_DIR")
+    else()
+        target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
+        target_link_libraries(${TARGET_NAME} PRIVATE opencv_core)
+    endif()
 endif()

@@ -16,8 +16,10 @@ set(shellcheck_skip_list
     "${OpenVINO_SOURCE_DIR}/src/bindings/python/thirdparty/pybind11"
     "${TEMP}")
 
-ov_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
-                      SKIP ${shellcheck_skip_list})
+if(ENABLE_SHELLCHECK)
+    ov_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
+                          SKIP ${shellcheck_skip_list})
+endif()
 
 #
 # cpack

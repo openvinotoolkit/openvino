@@ -14,6 +14,6 @@ ov_add_frontend(NAME tensorflow_lite
 
 ov_build_target_faster(openvino_tensorflow_lite_frontend PCH)
 
-if(ENABLE_TESTS)
+if(ENABLE_TF_LITE_FRONTEND_TESTS)
     add_subdirectory(tests)
 endif()

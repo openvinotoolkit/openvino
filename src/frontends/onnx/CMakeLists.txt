@@ -23,6 +23,6 @@ endif()
 
 ov_build_target_faster(openvino_onnx_frontend PCH)
 
-if(ENABLE_TESTS)
+if(ENABLE_ONNX_FRONTEND_TESTS)
     add_subdirectory(tests)
 endif()

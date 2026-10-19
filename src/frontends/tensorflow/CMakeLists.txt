@@ -36,6 +36,6 @@ if(Python3_Interpreter_FOUND)
     endif()
 endif()
 
-if(ENABLE_TESTS)
+if(ENABLE_TF_FRONTEND_TESTS)
     add_subdirectory(tests)
 endif()

@@ -132,6 +132,7 @@ elseif(gflags_required)
 endif()
 
 # include common utils
+option(SAMPLES_ENABLE_OPENCV "Enable OpenCV support in samples" ON)
 add_subdirectory(common)
 
 # samples build can be switched off during whole OpenVINO build

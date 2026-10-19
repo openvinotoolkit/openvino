@@ -4,6 +4,6 @@
 
 add_subdirectory(src)
 
-if(ENABLE_TESTS)
+if(ENABLE_PADDLE_FRONTEND_TESTS)
    add_subdirectory(tests)
 endif()

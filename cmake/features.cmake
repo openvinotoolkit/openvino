@@ -152,6 +152,11 @@ ov_dependent_option (ENABLE_PLUGINS_XML "Generate plugins.xml configuration file
 
 ov_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS" OFF)
 
+ov_dependent_option (ENABLE_TEMPLATE_OPENCV_TESTS "Template preprocessing tests using OpenCV" ON
+    "ENABLE_TESTS;ENABLE_TEMPLATE" OFF)
+
+ov_option (ENABLE_SHELLCHECK "Enable shell script checks" ON)
+
 ov_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package" ON)
 
 set(OPENVINO_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
@@ -170,6 +175,15 @@ ov_option(ENABLE_OV_JAX_FRONTEND "Enable JAX FrontEnd" ON)
 ov_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ov_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
 ov_option(ENABLE_OV_GGUF_FRONTEND "Enable GGUF FrontEnd" ON)
+
+ov_dependent_option (ENABLE_ONNX_FRONTEND_TESTS "ONNX frontend tests and model generation" ON
+    "ENABLE_TESTS;ENABLE_OV_ONNX_FRONTEND" OFF)
+ov_dependent_option (ENABLE_TF_FRONTEND_TESTS "TensorFlow frontend tests and model generation" ON
+    "ENABLE_TESTS;ENABLE_OV_TF_FRONTEND" OFF)
+ov_dependent_option (ENABLE_TF_LITE_FRONTEND_TESTS "TensorFlow Lite frontend tests and model generation" ON
+    "ENABLE_TESTS;ENABLE_OV_TF_LITE_FRONTEND" OFF)
+ov_dependent_option (ENABLE_PADDLE_FRONTEND_TESTS "Paddle frontend tests and model generation" ON
+    "ENABLE_TESTS;ENABLE_OV_PADDLE_FRONTEND" OFF)
 
 if(WIN32 AND AARCH64 AND CMAKE_CL_64)
     # Failed: openvino/src/bindings/js/node/thirdparty/node-lib.def: no such file or directory
