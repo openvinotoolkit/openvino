@@ -50,6 +50,7 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 #include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
@@ -531,8 +532,10 @@ bool has_per_layer_inputs(const std::shared_ptr<ov::Model>& model) {
 bool is_moe_model(const std::shared_ptr<ov::Model>& model) {
     const ov::npuw::moe::BatchedMoEPattern pattern;
     for (const auto& op : model->get_ops()) {
-        if (pattern.match(op))
+        if (pattern.match(op)) {
+            LOG_INFO("Detected MoE model: supported batched expert topology");
             return true;
+        }
         const std::string& node_name = op->get_friendly_name();
         // Check for MoE-specific patterns:
         // - layers.*.mlp.router (router network for expert selection)
@@ -544,7 +547,7 @@ bool is_moe_model(const std::shared_ptr<ov::Model>& model) {
             return true;
         }
     }
-    LOG_DEBUG("Non-MoE model detected: no .mlp.router or .mlp.expert nodes found");
+    LOG_DEBUG("Non-MoE model detected: no supported topology or legacy router/expert names");
     return false;
 }
 
@@ -562,15 +565,17 @@ void apply_moe_config(ov::AnyMap& stage_config,
             {"NPUW_UNFOLD_IREQS", "NO"},
         };
         merge_config_with(stage_config, expert_opts);
-        // Sparse execution is not optional merely because a model has fewer
-        // repeated layers than the generic folding profitability threshold.
-        // Preserve the expert tag without changing folding for unrelated ops.
+        // Keep isolated experts even below the generic repeated-block threshold.
         const auto keep_key = "NPUW_ONLINE_KEEP_BLOCKS_TAGGED";
         auto keep = stage_config.find(keep_key);
         if (keep == stage_config.end() || keep->second.as<std::string>().empty()) {
             stage_config[keep_key] = "expert";
         } else {
-            keep->second = keep->second.as<std::string>() + ",expert";
+            const auto& value = keep->second.as<std::string>();
+            const auto tags = ov::util::split(value);
+            if (std::find(tags.begin(), tags.end(), "expert") == tags.end()) {
+                keep->second = value + ",expert";
+            }
         }
         auto isol_it = stage_config.find("NPUW_ONLINE_ISOLATE");
         if (isol_it != stage_config.end() && !isol_it->second.as<std::string>().empty()) {
@@ -1376,9 +1381,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                 bool found = false;
                 const ov::npuw::moe::BatchedMoEPattern pattern;
                 for (const auto& node : variant->get_ordered_ops()) {
-                    if (const auto topology = pattern.match(node)) {
-                        if (!ov::npuw::moe::can_device_route(*topology))
+                    if (!ov::is_type<ov::op::v1::ReduceSum>(node)) {
+                        continue;
+                    }
+                    opp::Matcher matcher(pattern.root(), "LLMMoEDeviceEligibility");
+                    if (matcher.match(node)) {
+                        const auto topology = pattern.extract(matcher);
+                        if (!topology || !ov::npuw::moe::can_device_route(*topology)) {
                             return false;
+                        }
                         found = true;
                     }
                 }

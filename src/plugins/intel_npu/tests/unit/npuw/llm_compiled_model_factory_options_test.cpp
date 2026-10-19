@@ -12,14 +12,18 @@
 #include <utility>
 #include <vector>
 
+#include "intel_npu/config/npuw.hpp"
 #include "llm_compiled_model_utils.hpp"
 #include "llm_test_helpers.hpp"
+#include "moe_transformations/moe_topology.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -27,6 +31,7 @@
 #include "whisper/prepare_whisper_model.hpp"
 
 namespace {
+using MoEHint = intel_npu::npuw::llm::MoEHint;
 using ov::test::npuw::CompileCall;
 using ov::test::npuw::NullPlugin;
 using ov::test::npuw::RecordingFactory;
@@ -104,7 +109,17 @@ TEST(LLMMoEAutoRoutingTest, UsesDeviceOnlyForSupportedSingleTokenGraphs) {
                                             recorder.make_factory());
         const auto* generate = recorder.find_contains("_kv");
         ASSERT_NE(generate, nullptr);
+        EXPECT_EQ(compiled.get_property("NPUW_LLM_GENERATE_MOE_HINT").as<MoEHint>(),
+                  tokens == 1 ? MoEHint::DEVICE_ROUTED : MoEHint::HOST_ROUTED);
         EXPECT_EQ(generate->props.at("NPUW_UNFOLD_IREQS").as<std::string>(), tokens == 1 ? "YES" : "NO");
+        const ov::npuw::moe::BatchedMoEPattern pattern;
+        const auto generate_ops = generate->model->get_ops();
+        EXPECT_EQ(std::any_of(generate_ops.begin(),
+                              generate_ops.end(),
+                              [&](const auto& op) {
+                                  return pattern.match(op).has_value();
+                              }),
+                  tokens != 1);
         if (tokens == 8) {
             props["NPUW_LLM_GENERATE_MOE_HINT"] = "DEVICE_ROUTED";
             EXPECT_THROW(ov::npuw::LLMCompiledModel(ov::test::npuw::build_qwen3_moe_llm_test_model(),
@@ -142,14 +157,12 @@ TEST(LLMMoEAutoRoutingTest, RetainsArchitectureAndCompilerEligibilityGates) {
         SCOPED_TRACE(test.arch + "/" + std::to_string(test.compiler));
         auto plugin = std::make_shared<ArchAwarePlugin>(test.arch, 3, test.compiler);
         auto core = attach_mock_core_with_npu_device(plugin);
-        ov::AnyMap props{{"NPUW_LLM", "YES"},
-                         {"NPUW_LLM_MAX_PROMPT_LEN", "128"},
-                         {"NPUW_LLM_MIN_RESPONSE_LEN", "64"}};
+        ov::AnyMap props{{"NPUW_LLM", "YES"}, {"NPUW_LLM_MAX_PROMPT_LEN", "128"}, {"NPUW_LLM_MIN_RESPONSE_LEN", "64"}};
         RecordingFactory recorder;
         ov::npuw::LLMCompiledModel compiled(ov::test::npuw::build_qwen3_moe_llm_test_model(),
-                                           plugin,
-                                           props,
-                                           recorder.make_factory());
+                                            plugin,
+                                            props,
+                                            recorder.make_factory());
         const auto* generate = recorder.find_contains("_kv");
         ASSERT_NE(generate, nullptr);
         EXPECT_EQ(generate->props.at("NPUW_UNFOLD_IREQS").as<std::string>(), test.device_routed ? "YES" : "NO");
@@ -172,9 +185,9 @@ TEST(LLMMoEAutoRoutingTest, ExplicitHostHintPreservesOtherStageProperties) {
                      {"NPUW_FUNCALL_ASYNC", "NO"}};
     RecordingFactory recorder;
     ov::npuw::LLMCompiledModel compiled(ov::test::npuw::build_qwen3_moe_llm_test_model(),
-                                       plugin,
-                                       props,
-                                       recorder.make_factory());
+                                        plugin,
+                                        props,
+                                        recorder.make_factory());
     for (const auto* call : {recorder.find_suffix("_prefill"), recorder.find_contains("_kv")}) {
         ASSERT_NE(call, nullptr);
         EXPECT_EQ(call->props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "NO");
@@ -182,6 +195,88 @@ TEST(LLMMoEAutoRoutingTest, ExplicitHostHintPreservesOtherStageProperties) {
         EXPECT_EQ(call->props.at("NPUW_FALLBACK_EXEC").as<std::string>(), "NO");
         EXPECT_EQ(call->props.at("NPUW_FUNCALL_ASYNC").as<std::string>(), "NO");
     }
+}
+
+TEST(LLMMoEAutoRoutingTest, DoesNotDuplicateExistingExpertTag) {
+    auto plugin = std::make_shared<NullPlugin>();
+    for (const std::string tags : {"expert", "attn,expert,custom"}) {
+        SCOPED_TRACE(tags);
+        ov::AnyMap props{{"NPUW_LLM", "YES"},
+                         {"NPUW_LLM_MAX_PROMPT_LEN", "128"},
+                         {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                         {"NPUW_LLM_GENERATE_MOE_HINT", "HOST_ROUTED"},
+                         {"NPUW_ONLINE_KEEP_BLOCKS_TAGGED", tags}};
+        RecordingFactory recorder;
+        ov::npuw::LLMCompiledModel compiled(ov::test::npuw::build_qwen3_moe_llm_test_model(),
+                                            plugin,
+                                            props,
+                                            recorder.make_factory());
+        for (const auto* call : {recorder.find_suffix("_prefill"), recorder.find_contains("_kv")}) {
+            ASSERT_NE(call, nullptr);
+            EXPECT_EQ(call->props.at("NPUW_ONLINE_KEEP_BLOCKS_TAGGED").as<std::string>(), tags);
+        }
+    }
+}
+
+TEST(LLMMoEAutoRoutingTest, MixedSupportedAndUnsupportedBlocksKeepHostRouting) {
+    auto plugin = std::make_shared<ArchAwarePlugin>("5010", 3, (8 << 16) | 3);
+    auto core = attach_mock_core_with_npu_device(plugin);
+    auto model = ov::test::npuw::build_qwen3_moe_llm_test_model();
+    const ov::npuw::moe::BatchedMoEPattern pattern;
+    std::vector<ov::npuw::moe::BatchedMoE> blocks;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (const auto moe = pattern.match(op)) {
+            blocks.push_back(*moe);
+        }
+    }
+    ASSERT_GT(blocks.size(), 1u);
+    const auto& block = blocks.front();
+    bool modified = false;
+    for (const auto& op : block.expert_nodes) {
+        const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(op);
+        if (!matmul) {
+            continue;
+        }
+        const auto prefix = matmul->input_value(0).get_node_shared_ptr();
+        if (prefix == block.tile ||
+            (ov::is_type<ov::op::v1::Reshape>(prefix) && prefix->input_value(0).get_node_shared_ptr() == block.tile)) {
+            auto relu = std::make_shared<ov::op::v0::Relu>(matmul->input_value(0));
+            matmul->input(0).replace_source_output(relu);
+            modified = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(modified);
+    model->validate_nodes_and_infer_types();
+    ASSERT_FALSE(pattern.match(block.reduction));
+    ASSERT_TRUE(pattern.match(blocks.back().reduction));
+    ov::AnyMap props{{"NPUW_LLM", "YES"},
+                     {"NPUW_LLM_MAX_PROMPT_LEN", "2048"},
+                     {"NPUW_LLM_MIN_RESPONSE_LEN", "128"},
+                     {"NPUW_LLM_GENERATE_PYRAMID", "YES"}};
+    RecordingFactory recorder;
+    ov::npuw::LLMCompiledModel compiled(model, plugin, props, recorder.make_factory());
+    EXPECT_EQ(compiled.get_property("NPUW_LLM_GENERATE_MOE_HINT").as<MoEHint>(), MoEHint::HOST_ROUTED);
+    ASSERT_EQ(recorder.count_contains("_kv"), 2u);
+    for (const auto& call : recorder.calls()) {
+        if (call.friendly_name.find("_kv") != std::string::npos) {
+            EXPECT_EQ(call.props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "NO");
+        }
+    }
+}
+
+TEST(LLMMoEAutoRoutingTest, KeepsHostRoutingWithoutAnNpuDescriptor) {
+    auto plugin = std::make_shared<NullPlugin>();
+    ov::AnyMap props{{"NPUW_LLM", "YES"}, {"NPUW_LLM_MAX_PROMPT_LEN", "128"}, {"NPUW_LLM_MIN_RESPONSE_LEN", "64"}};
+    RecordingFactory recorder;
+    ov::npuw::LLMCompiledModel compiled(ov::test::npuw::build_qwen3_moe_llm_test_model(),
+                                        plugin,
+                                        props,
+                                        recorder.make_factory());
+    EXPECT_EQ(compiled.get_property("NPUW_LLM_GENERATE_MOE_HINT").as<MoEHint>(), MoEHint::HOST_ROUTED);
+    const auto* generate = recorder.find_contains("_kv");
+    ASSERT_NE(generate, nullptr);
+    EXPECT_EQ(generate->props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "NO");
 }
 
 TEST(LLMMoEAutoRoutingTest, DetectsUnnamedTopologyAndPreparesEveryGenerateVariant) {
@@ -206,9 +301,15 @@ TEST(LLMMoEAutoRoutingTest, DetectsUnnamedTopologyAndPreparesEveryGenerateVarian
     const auto* prefill = recorder.find_suffix("_prefill");
     ASSERT_NE(prefill, nullptr);
     EXPECT_EQ(prefill->props.at("NPUW_ONLINE_KEEP_BLOCKS_TAGGED").as<std::string>(), "expert");
+    EXPECT_EQ(compiled.get_property("NPUW_LLM_GENERATE_MOE_HINT").as<MoEHint>(), MoEHint::DEVICE_ROUTED);
+    const ov::npuw::moe::BatchedMoEPattern pattern;
     for (const auto& call : recorder.calls()) {
-        if (call.model->get_friendly_name().find("_kv") != std::string::npos)
+        if (call.model->get_friendly_name().find("_kv") != std::string::npos) {
             EXPECT_EQ(call.props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "YES");
+            for (const auto& op : call.model->get_ops()) {
+                EXPECT_FALSE(pattern.match(op));
+            }
+        }
     }
 }
 
@@ -221,9 +322,9 @@ TEST(LLMMoEAutoRoutingTest, RejectsExplicitDevicePrefillAndUnsupportedDecode) {
                      {"NPUW_LLM_PREFILL_MOE_HINT", "DEVICE_ROUTED"}};
     RecordingFactory recorder;
     EXPECT_THROW(ov::npuw::LLMCompiledModel(ov::test::npuw::build_qwen3_moe_llm_test_model(),
-                                           plugin,
-                                           props,
-                                           recorder.make_factory()),
+                                            plugin,
+                                            props,
+                                            recorder.make_factory()),
                  ov::Exception);
     props["NPUW_LLM_PREFILL_MOE_HINT"] = "HOST_ROUTED";
     props["NPUW_LLM_GENERATE_MOE_HINT"] = "DEVICE_ROUTED";
