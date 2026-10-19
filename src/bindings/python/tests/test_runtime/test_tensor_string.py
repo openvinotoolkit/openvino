@@ -142,6 +142,29 @@ def test_init_with_numpy(string_data):
 
 
 @pytest.mark.parametrize(
+    ("string_data"),
+    [
+        (np.array(["text", "abc", "openvino"]).astype("S")[::-1]),  # "|S", reversed
+        (np.array(["text", "abc", "openvino", "xyz"]).astype(np.bytes_)[::2]),  # "|S", strided
+        (np.array(["text", "abc", "openvino"])[::-1]),  # "<U", reversed
+        (np.array([["text", "больше текста"], ["jeszcze więcej słów", "효과가 있었어"]]).T),  # "<U", transposed
+    ],
+)
+def test_init_with_non_contiguous_numpy(string_data):
+    assert not string_data.flags["C_CONTIGUOUS"]
+
+    tensor = ov.Tensor(string_data, shared_memory=False)
+
+    assert tensor.element_type == ov.Type.string
+    # Tensor keeps a C-contiguous copy of the data.
+    expected_data = np.ascontiguousarray(string_data)
+    # Encoded:
+    check_bytes_based(tensor, expected_data)
+    # Decoded:
+    check_string_based(tensor, expected_data)
+
+
+@pytest.mark.parametrize(
     ("init_type"),
     [
         (ov.Type.string),
