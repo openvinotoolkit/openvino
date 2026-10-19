@@ -83,6 +83,8 @@ private:
     bool _external_memory_standard_allocation_supported = false;
     bool _external_memory_fd_win32_supported = false;
     bool _command_queue_set_priority_supported = false;
+    // unused but must stay: keeps layout identical to ZeroInitStructsHolder for reinterpret_pointer_cast
+    uint32_t _context_options = 0;
 
     uint32_t _command_queue_group_ordinal = 0;
 
