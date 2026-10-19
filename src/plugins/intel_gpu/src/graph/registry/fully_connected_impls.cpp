@@ -16,8 +16,10 @@ namespace ov::intel_gpu {
 using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<fully_connected>::get_implementations() {
+    // The OpenCL kernels subtract the zero point before scaling only (see prepare_quantization)
     static const auto ocl_supports_weights_layout = [](const program_node& node) {
-        return node.as<fully_connected>().get_primitive()->weights_transposed;
+        const auto& prim = node.as<fully_connected>().get_primitive();
+        return prim->weights_transposed && !prim->decompression_zero_point_after_scale;
     };
 
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {

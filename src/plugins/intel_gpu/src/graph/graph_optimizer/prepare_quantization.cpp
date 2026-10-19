@@ -545,11 +545,102 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
     return true;
 }
 
+// oneDNN's default mode subtracts an integer zero point before scaling. A floating-point zero point (e.g. GGUF Q4_K) needs
+// static_sbzp, which subtracts it after scaling: w = scale * q - zp * scale. Store zp * scale once and mark the primitive
+// (the OpenCL kernels don't support it). Only for what oneDNN implements: integer weights, f16 / bf16 activations, and
+// grouped scale and zero point of the activations' type and shape.
+static void use_zero_point_after_scale(fully_connected_node& fc_node, program& p) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    auto fc_prim = fc_node.get_primitive();
+    if (!fc_prim->compressed_weights || !fc_prim->decompression_scale.is_valid() || !fc_prim->decompression_zero_point.is_valid() ||
+        fc_prim->decompression_zero_point_after_scale || fc_prim->dynamic_quantized_activation)
+        return;
+
+    const auto& info = p.get_engine().get_device_info();
+    if (!info.supports_immad || info.arch == gpu_arch::unknown || !p.get_config().get_use_onednn())
+        return;
+
+    const size_t scale_idx = fc_node.bias_term() ? 3 : 2;
+    const size_t zp_idx = scale_idx + 1;
+    auto& scale_node = fc_node.get_dependency(scale_idx);
+    auto& zp_node = fc_node.get_dependency(zp_idx);
+    if (!scale_node.is_type<data>() || !zp_node.is_type<data>())
+        return;
+
+    const auto in_dt = fc_node.get_input_layout(0).data_type;
+    const auto wei_dt = fc_node.get_input_layout(1).data_type;
+    const auto& scale_layout = scale_node.get_output_layout();
+    const auto& zp_layout = zp_node.get_output_layout();
+    if (!one_of(in_dt, {data_types::f16, data_types::bf16}) || !one_of(wei_dt, {data_types::u4, data_types::i4, data_types::u8}) ||
+        zp_layout.data_type != in_dt || scale_layout.data_type != in_dt)
+        return;
+    if (scale_layout.is_dynamic() || zp_layout.get_partial_shape() != scale_layout.get_partial_shape() || zp_layout.format != scale_layout.format ||
+        scale_layout.data_padding || zp_layout.data_padding)
+        return;
+
+    // 2D weights [N, K] and 2D scale / zero point of the same orientation: [N, groups] (transpose_b) or [groups, N], grouped
+    // along K with at least two groups (the same rule as the oneDNN implementation's group size)
+    const auto& weights_shape = fc_node.get_input_layout(1).get_partial_shape();
+    auto weights_rank = std::count_if(weights_shape.begin(), weights_shape.end(), [](ov::Dimension d) {
+        return d.get_length() > 1;
+    });
+    if (!fc_prim->weights_transposed || weights_rank > 2 || fc_prim->transpose_b_scale != fc_prim->transpose_b_zp)
+        return;
+    const auto& param_shape = scale_layout.get_partial_shape();
+    if (param_shape.size() != 2 || !one_of(scale_layout.format, {format::bfyx, format::fbyx}))
+        return;
+    const bool n_major = fc_prim->transpose_b_zp;
+    const size_t rows = static_cast<size_t>(param_shape[n_major ? 0 : 1].get_length());
+    const size_t groups = static_cast<size_t>(param_shape[n_major ? 1 : 0].get_length());
+    if (groups < 2 || rows * groups != zp_layout.count())
+        return;
+
+    // [N, groups] zero points are reordered to fbyx ([groups][N]) by optimize_weights_decompression_parameters: write
+    // zp * scale in fbyx directly, which avoids an extra copy of the zero points while the program is built.
+    // [groups, N] zero points are already in that order and are not reordered: keep their layout.
+    auto out_layout = zp_layout;
+    if (n_major)
+        out_layout.format = format::fbyx;
+
+    auto& stream = p.get_stream();
+    auto scale_mem = scale_node.as<data>().get_attached_memory_ptr();
+    auto zp_mem = zp_node.as<data>().get_attached_memory_ptr();
+    auto zp_after_scale_mem = p.get_engine().allocate_memory(out_layout, false);
+    auto compute = [&](auto tag) {
+        using T = decltype(tag);
+        mem_lock<T, mem_lock_type::read> scale_lock{scale_mem, stream};
+        mem_lock<T, mem_lock_type::read> zp_lock{zp_mem, stream};
+        mem_lock<T, mem_lock_type::write> out_lock{zp_after_scale_mem, stream};
+        // the inputs are [groups][N] in memory when they are [groups, N], or [N, groups] already in fbyx
+        const bool in_groups_major = !n_major || scale_layout.format == format::fbyx;
+        for (size_t n = 0; n < rows; n++) {
+            for (size_t g = 0; g < groups; g++) {
+                const size_t i = in_groups_major ? g * rows + n : n * groups + g;
+                out_lock[g * rows + n] = T(static_cast<float>(zp_lock[i]) * static_cast<float>(scale_lock[i]));
+            }
+        }
+    };
+    if (in_dt == data_types::f16)
+        compute(ov::float16{});
+    else
+        compute(ov::bfloat16{});
+
+    auto zp_after_scale_prim = std::make_shared<data>(zp_node.id() + "_after_scale_" + fc_node.id(), zp_after_scale_mem);
+    auto& zp_after_scale_node = p.get_or_create(zp_after_scale_prim);
+    p.get_inputs().push_back(&zp_after_scale_node);
+    p.get_processing_order().insert(&fc_node, &zp_after_scale_node);
+    fc_node.replace_dependency(zp_idx, zp_after_scale_node);  // removes the old zero point if it has no other user
+    std::const_pointer_cast<fully_connected>(fc_prim)->decompression_zero_point_after_scale = true;
+#endif  // ENABLE_ONEDNN_FOR_GPU
+}
+
 static void optimize_weights_decompression_parameters(fully_connected_node& fc_node, program& p) {
     auto fc_prim = fc_node.get_primitive();
     // Grouped scale/zp of non-transposed weights [K, N] are [K / G, N], so they already have the [groups, N] physical layout.
     if (!fc_prim->compressed_weights || !fc_prim->weights_transposed)
         return;
+
+    use_zero_point_after_scale(fc_node, p);
 
     auto reorder_bfyx = [&](size_t dep_id, cldnn::format format) {
         auto& dep = fc_node.get_dependency(dep_id);
@@ -573,7 +664,8 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
 
         auto groups_idx = dep_rank == 1 ? 0 : weight_rank - 1;
         auto groups_count = dep_pshape[groups_idx].get_length();
-        return groups_count > 1;
+        // grouped parameters that are already in fbyx (uploaded or computed that way) need no reorder
+        return groups_count > 1 && dep_layout.format != format::fbyx;
     };
     // possible cases
     // legacy [K, N, 1, 1] => crop padded dims
