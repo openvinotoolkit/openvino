@@ -12,6 +12,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
+#include "util.hpp"
 
 namespace {
 
@@ -226,6 +227,14 @@ TEST(NPUWConfigOptionsSmokeTest, ScoringTagsSurviveConfigStringRoundTrip) {
 
     EXPECT_TRUE(restored.get<::intel_npu::NPUW_TEXT_RERANK>());
     EXPECT_TRUE(restored.get<::intel_npu::NPUW_TEXT_EMBED>());
+}
+
+TEST(NPUWConfigOptionsSmokeTest, SubmodelDeviceLastNamesTheTailSubgraph) {
+    const auto devices = ov::npuw::util::parse_submodel_devices("0:CPU,last:NPU", 57);
+
+    ASSERT_EQ(devices.size(), 2u);
+    EXPECT_EQ(devices.at(0), "CPU");
+    EXPECT_EQ(devices.at(56), "NPU");
 }
 
 }  // namespace
