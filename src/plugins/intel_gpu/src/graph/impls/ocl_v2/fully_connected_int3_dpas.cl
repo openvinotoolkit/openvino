@@ -194,6 +194,8 @@ KERNEL(quantize_input)(
 #define V2_GRAN_PER_SG   (V2_GRAN_PER_ITER / SG_M)
 #define V2_ITERS_K       (GROUPS_K / V2_GPI)
 #define V2_RB            ((TILE_M + 15) / 16)
+// Transposed 2D block reads for the weights; measured faster with 8 subgroups only.
+#define V2_B2D (SG_M == 8 && (V2_GRAN_PER_SG % 2) == 0 && (V2_GPI * CHUNKS_PER_GROUP) % 2 == 0)
 #if (V2_GRAN_PER_ITER % SG_M) != 0 || (GROUPS_K % V2_GPI) != 0 || (V2_GPI % 2) != 0 || (CHUNKS_PER_GROUP % 2) != 0 || SG_M < 2
 #   error "fully_connected_int3_dpas.cl - invalid DPAS_V2 configuration"
 #endif
@@ -231,24 +233,24 @@ KERNEL(quantize_input)(
 #   endif
 #endif
 
-// Bit-stream extraction of value i (a literal) from the three granule words.
-// Both branches fold away at compile time; only i == 10 and i == 21 straddle.
-#define U3_WORD(w0, w1, w2, idx) ((idx) == 0 ? (w0) : ((idx) == 1 ? (w1) : (w2)))
-#define U3_BIT(i) (3u * (i))
-#define U3_IDX(i) (U3_BIT(i) >> 5)
-#define U3_OFF(i) (U3_BIT(i) & 31u)
-#define U3_AT(w0, w1, w2, i)                                                        \
-    ((U3_OFF(i) <= 29u)                                                             \
-         ? ((U3_WORD(w0, w1, w2, U3_IDX(i)) >> U3_OFF(i)) & 7u)                     \
-         : (((U3_WORD(w0, w1, w2, U3_IDX(i)) >> U3_OFF(i)) |                        \
-             (U3_WORD(w0, w1, w2, U3_IDX(i) + 1u) << (32u - U3_OFF(i)))) & 7u))
+// Four consecutive u3 values (the low 12 bits of f; higher bits are ignored) spread into the four bytes of an int:
+// 6-bit halves at bytes 0 and 2, then 3-bit values at each byte.
+inline int FUNC(u3_spread4_b)(uint f) {
+    const uint u = (f & 0x3Fu) | ((f << 10) & 0x003F0000u);
+    return as_int((u & 0x00070007u) | ((u << 5) & 0x07000700u));
+}
 
-// Four consecutive weights as a char4. The zero point is deliberately NOT folded
-// in here: it is applied once per group through the activation sum instead, which
-// keeps this correct for per-channel and per-group zero points alike.
-#define U3_CHAR4(w0, w1, w2, i)                                                     \
-    (char4)((char)U3_AT(w0, w1, w2, (i) + 0), (char)U3_AT(w0, w1, w2, (i) + 1),      \
-            (char)U3_AT(w0, w1, w2, (i) + 2), (char)U3_AT(w0, w1, w2, (i) + 3))
+// The 12-bit window holding values j .. j + 3 of a granule (j a literal multiple of 4) in its low bits.
+// Only j == 8 and j == 20 straddle two words.
+#define U3_WIN12(w0, w1, w2, j)                                                                         \
+    ((j) == 0 ? (w0) : (j) == 4 ? ((w0) >> 12) : (j) == 8 ? (((w0) >> 24) | ((w1) << 8)) :             \
+     (j) == 12 ? ((w1) >> 4) : (j) == 16 ? ((w1) >> 16) : (j) == 20 ? (((w1) >> 28) | ((w2) << 4)) :   \
+     (j) == 24 ? ((w2) >> 8) : ((w2) >> 20))
+
+// Four consecutive weights i .. i + 3 (i a literal multiple of 4) as a char4. The zero point is deliberately NOT
+// folded in here: it is applied once per group through the activation sum instead, which keeps this correct for
+// per-channel and per-group zero points alike.
+#define U3_CHAR4(w0, w1, w2, i) as_char4(FUNC_CALL(u3_spread4_b)(U3_WIN12(w0, w1, w2, i)))
 
 // One granule as the DPAS b operand: 32 int8 in increasing K order, low k in the
 // least significant byte of each component.
@@ -355,28 +357,48 @@ KERNEL(fc)(
         unroll_for (uint t = 0; t < TILE_M; ++t)
             acc_f[j][t] = 0.0f;
 
-    __local int4 wshare[3][V2_GRAN_PER_ITER][SIMD];
-    uint raw[V2_GRAN_PER_SG][3];
-
-    // The weight rows are loaded along K: flat granule f of the iteration is chunk f % V2_CPR of channel
-    // f / V2_CPR, so the lanes read runs of V2_CPR consecutive granules of a row. The decoded granule is stored
-    // to the [granule][column] slot the DPAS reads: granule (group gi, chunk cc, column block j) of the iteration.
 #define V2_CPR (V2_GPI * CHUNKS_PER_GROUP)
-#define V2_ROW(i) (((sg * V2_GRAN_PER_SG + (i)) * SIMD + lane) / V2_CPR)
-#define V2_COL(i) (((sg * V2_GRAN_PER_SG + (i)) * SIMD + lane) % V2_CPR)
-#define V2_LOAD_RAW(it_)                                                            \
+    // The decoded granule is stored to the [granule][column] slot the DPAS reads: granule (group gi, chunk cc,
+    // column block j) of its iteration, here chunk c of the iteration for channel r of the work-group.
+#define V2_STORE_GRAN(it_, c_, r_, w0, w1, w2)                                      \
+    wshare[(it_) % 3u][((c_) / CHUNKS_PER_GROUP) * V2_GRAN_PER_GROUP + ((c_) % CHUNKS_PER_GROUP) * V2_NB + \
+                       (r_) / SIMD][(r_) % SIMD] = FUNC_CALL(u3_to_dpas_b4)(w0, w1, w2)
+    __local int4 wshare[3][V2_GRAN_PER_ITER][SIMD];
+#if V2_B2D
+    // Unit u of an iteration is chunks 2k and 2k + 1 (dwords 6k .. 6k + 5; the read is 8 dwords wide) of the 16
+    // channels of column block j, through a transposed 2D block read: lane L holds channel j * 16 + L, which is
+    // also its SLM column. This takes fewer and wider memory requests than the row-wise loads below.
+#   define V2_UNITS_PER_SG (V2_GRAN_PER_SG / 2)
+#   define V2_UNIT_J(i) ((sg * V2_UNITS_PER_SG + (i)) % V2_NB)
+#   define V2_UNIT_K(i) ((sg * V2_UNITS_PER_SG + (i)) / V2_NB)
+    uint raw[V2_UNITS_PER_SG][8];
+#   define V2_LOAD_RAW(it_)                                                         \
+    unroll_for (uint i = 0; i < V2_UNITS_PER_SG; ++i)                               \
+        intel_sub_group_2d_block_read_transpose_32b_16r8x1c(                        \
+            (__global void*)B, CHUNKS_K * 12, TILE_OUT_F_NUM, CHUNKS_K * 12,        \
+            (int2)(((it_) * V2_CPR + 2 * V2_UNIT_K(i)) * 3, (nbw * V2_NB + V2_UNIT_J(i)) * SIMD), raw[i]);
+#   define V2_STAGE_RAW(it_)                                                        \
+    unroll_for (uint i = 0; i < V2_UNITS_PER_SG; ++i) {                             \
+        const uint r_ = V2_UNIT_J(i) * SIMD + lane;                                 \
+        V2_STORE_GRAN(it_, 2 * V2_UNIT_K(i), r_, raw[i][0], raw[i][1], raw[i][2]);     \
+        V2_STORE_GRAN(it_, 2 * V2_UNIT_K(i) + 1, r_, raw[i][3], raw[i][4], raw[i][5]); \
+    }
+#else
+    // Flat granule f of an iteration is chunk f % V2_CPR of channel f / V2_CPR, so the lanes read runs of V2_CPR
+    // consecutive granules of a row.
+#   define V2_ROW(i) (((sg * V2_GRAN_PER_SG + (i)) * SIMD + lane) / V2_CPR)
+#   define V2_COL(i) (((sg * V2_GRAN_PER_SG + (i)) * SIMD + lane) % V2_CPR)
+    uint raw[V2_GRAN_PER_SG][3];
+#   define V2_LOAD_RAW(it_)                                                         \
     unroll_for (uint i = 0; i < V2_GRAN_PER_SG; ++i) {                              \
         const uint3 g_ = vload3(0, B + (nbw * V2_NB * SIMD + V2_ROW(i)) * (CHUNKS_K * 3) + \
                                        ((it_) * V2_CPR + V2_COL(i)) * 3);           \
         raw[i][0] = g_.s0; raw[i][1] = g_.s1; raw[i][2] = g_.s2;                    \
     }
-#define V2_STAGE_RAW(b_)                                                            \
-    unroll_for (uint i = 0; i < V2_GRAN_PER_SG; ++i) {                              \
-        const uint c_ = V2_COL(i), r_ = V2_ROW(i);                                  \
-        wshare[b_][(c_ / CHUNKS_PER_GROUP) * V2_GRAN_PER_GROUP +                    \
-                   (c_ % CHUNKS_PER_GROUP) * V2_NB + r_ / SIMD][r_ % SIMD] =        \
-            FUNC_CALL(u3_to_dpas_b4)(raw[i][0], raw[i][1], raw[i][2]);              \
-    }
+#   define V2_STAGE_RAW(it_)                                                        \
+    unroll_for (uint i = 0; i < V2_GRAN_PER_SG; ++i)                                \
+        V2_STORE_GRAN(it_, V2_COL(i), V2_ROW(i), raw[i][0], raw[i][1], raw[i][2]);
+#endif
 
     V2_LOAD_RAW(0)
     V2_STAGE_RAW(0)
@@ -388,7 +410,7 @@ KERNEL(fc)(
     for (uint it = 0; it < V2_ITERS_K; ++it) {
         const uint buf = it % 3u;
         if (it + 1 < V2_ITERS_K) {
-            V2_STAGE_RAW((it + 1) % 3u)
+            V2_STAGE_RAW(it + 1)
             intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
             if (it + 2 < V2_ITERS_K) {
                 V2_LOAD_RAW(it + 2)
@@ -489,9 +511,16 @@ KERNEL(fc)(
     }
 #undef V2_LOAD_RAW
 #undef V2_STAGE_RAW
-#undef V2_CPR
+#undef V2_STORE_GRAN
+#ifdef V2_ROW
 #undef V2_ROW
 #undef V2_COL
+#else
+#undef V2_UNITS_PER_SG
+#undef V2_UNIT_J
+#undef V2_UNIT_K
+#endif
+#undef V2_CPR
 
     // All rows of a column block are finished before any is stored: the fused-op
     // inputs may alias the output as far as the compiler knows, so a store would
@@ -831,6 +860,7 @@ KERNEL(fc)(
 #undef V2_WEI_ZP
 #undef V2_ACC_BIAS
 #undef V2_SCALE_VEC
+#undef V2_B2D
 #endif
 
 #endif  // !FC_KERNEL_DYNAMIC_QUANTIZE
