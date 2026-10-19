@@ -435,9 +435,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type_multi_subsequence,
 class paged_attention_token_type_mixed_multi_subsequence_test : public paged_attention_token_type_multi_subsequence_test {};
 
 TEST_P(paged_attention_token_type_mixed_multi_subsequence_test, mixed_stage_two_subsequences) {
-    const auto& device_info = tests::get_test_engine().get_device_info();
     auto p = GetParam();
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    const auto& device_info = tests::get_test_engine().get_device_info();
     const bool micro_expected = device_info.supports_immad && device_info.arch >= cldnn::gpu_arch::xe_hpg;
+#else
+    const bool micro_expected = false;  // no micro SDPA without oneDNN
+#endif
 
     ASSERT_TRUE(this->pam.has_value());
     auto& pam = *this->pam;
