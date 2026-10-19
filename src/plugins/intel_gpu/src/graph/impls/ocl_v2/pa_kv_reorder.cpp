@@ -130,8 +130,10 @@ protected:
         // OV_GPU_PA_K_TM_BREAK=reorder forces just this kernel back to d-major, to test whether
         // pa_kv_reorder_gpu actually observes it.
         bool key_token_major = cldnn::paged_attention::k_token_major_for(key_cache_dt, is_key_by_channel);
+#ifndef SDPA_OCL_NO_GETENV  // TEMP(ttft32), see sdpa_ocl_utils.hpp
         if (const char* brk = std::getenv("OV_GPU_PA_K_TM_BREAK"))
             key_token_major = key_token_major && std::strcmp(brk, "reorder") != 0;
+#endif
         jit.make("IS_KEY_TOKEN_MAJOR", key_token_major ? 1 : 0);
 
         jit.add(make_type_jit_constants("UNCOMPRESSED", is_kv_compressed ? cldnn::data_types::f16 : key_cache_dt));
