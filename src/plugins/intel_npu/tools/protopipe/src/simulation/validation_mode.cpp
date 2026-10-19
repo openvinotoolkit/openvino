@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -131,7 +130,7 @@ Result reportValidationResult(const std::vector<FailedIter>& failed_iters, const
     if (!failed_iters.empty()) {
         const auto kItersToShow = 10u;
         const auto kLimit = failed_iters.size() < kItersToShow ? failed_iters.size() : kItersToShow;
-        ss << "Accuraccy check failed on " << failed_iters.size() << " iteration(s)"
+        ss << "Accuracy check failed on " << failed_iters.size() << " iteration(s)"
            << " (first " << kLimit << "):";
         ss << "\n";
         for (uint32_t i = 0; i < kLimit; ++i) {
