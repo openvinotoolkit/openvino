@@ -22,22 +22,39 @@
 namespace ov::intel_gpu::ocl::sdpa_ocl_utils {
 
 // Debug and tuning switches, read when a kernel is generated.
+// TEMP(ttft32): SDPA_OCL_NO_GETENV (ON by default, cmake -DSDPA_OCL_NO_GETENV=OFF restores the switches) makes every
+// switch read as unset without calling getenv, to measure the host cost of the reads.
 inline bool env_set(const char* name) {
+#ifdef SDPA_OCL_NO_GETENV
+    (void)name;
+    return false;
+#else
     return std::getenv(name) != nullptr;
+#endif
 }
 
 // atoi() of the variable, or `fallback` when it is not set.
 inline int env_int(const char* name, int fallback) {
+#ifdef SDPA_OCL_NO_GETENV
+    (void)name;
+    return fallback;
+#else
     if (const char* env = std::getenv(name)) {
         return std::atoi(env);
     }
     return fallback;
+#endif
 }
 
 // Whether the variable starts with '1', or `unset` when it is not set.
 inline bool env_on(const char* name, bool unset = false) {
+#ifdef SDPA_OCL_NO_GETENV
+    (void)name;
+    return unset;
+#else
     const char* env = std::getenv(name);
     return env == nullptr ? unset : env[0] == '1';
+#endif
 }
 
 inline size_t align_up(size_t value, size_t alignment) {
