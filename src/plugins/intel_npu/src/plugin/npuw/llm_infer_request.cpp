@@ -1381,6 +1381,7 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                           attention_mask,
                                           position_ids,
                                           token_type_ids,
+                                          per_layer_inputs,
                                           visual_pos_masks,
                                           deepstack_visual_embeds);
         } else {
@@ -1443,9 +1444,19 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 void ov::npuw::LLMInferRequest::validate_continued_position_ids(const ov::SoPtr<ov::ITensor>& position_ids,
                                                                 uint32_t keep,
                                                                 uint32_t delta_len) const {
-    // A length mismatch must be a preflight rejection: it would otherwise only
-    // surface inside the chunk loop, after the repack mutated the cache.
+    // A layout or length mismatch must be a preflight rejection: it would otherwise
+    // only surface inside the chunk loop, after the repack mutated the cache, or
+    // silently stage a partial copy.
     const auto& shape = position_ids->get_shape();
+    const auto& prefill_shape =
+        m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids))->get_shape();
+    OPENVINO_ASSERT(
+        shape.size() == prefill_shape.size() && std::equal(shape.begin(), shape.end() - 1, prefill_shape.begin()),
+        "Continued prefill: position ids must have the prefill layout ",
+        prefill_shape,
+        " apart from the sequence axis, got ",
+        shape,
+        ".");
     const size_t count = shape.back();
     OPENVINO_ASSERT(count == delta_len,
                     "Continued prefill: position ids must cover exactly the delta. Expected ",
@@ -1483,6 +1494,7 @@ void ov::npuw::LLMInferRequest::prepare_for_continued_prefill(uint32_t keep,
                                                               ov::SoPtr<ov::ITensor> attention_mask,
                                                               ov::SoPtr<ov::ITensor> position_ids,
                                                               ov::SoPtr<ov::ITensor> token_type_ids,
+                                                              ov::SoPtr<ov::ITensor> per_layer_inputs,
                                                               ov::SoPtr<ov::ITensor> visual_pos_masks,
                                                               ov::SoPtr<ov::ITensor> deepstack_visual_embeds) {
     LOG_DEBUG("Continuing the conversation, keep=" << keep);
@@ -1519,6 +1531,10 @@ void ov::npuw::LLMInferRequest::prepare_for_continued_prefill(uint32_t keep,
         OPENVINO_ASSERT(!per_token || per_token->get_shape().back() == delta_len,
                         "Continued prefill: token_type_ids and visual_pos_masks must cover exactly the delta.");
     }
+    // per_layer_inputs [1, seq, layers, dim] is empty for a dangling input (Gemma-4 MoE).
+    OPENVINO_ASSERT(!per_layer_inputs || per_layer_inputs->get_byte_size() == 0u ||
+                        per_layer_inputs->get_shape().at(1) == delta_len,
+                    "Continued prefill: per_layer_inputs must cover exactly the delta.");
     if (m_prefill_in_ports.count(layer_names::deepstack_visual_embeds) > 0u) {
         OPENVINO_ASSERT(
             deepstack_visual_embeds && visual_pos_masks &&
