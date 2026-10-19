@@ -264,11 +264,8 @@ private:
         std::size_t ops{};
     };
 
-    // Shouldn't this be counter instead? There's nothing much to
-    // average across compilation processes per model (it's a single
-    // process).
     using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
-    ov::npuw::perf::Profile<MS> m_profile;
+    ov::npuw::perf::Profile<MS> m_profile{ov::npuw::perf::Scope::Compilation};
 
     void init_profiling();
 

@@ -196,6 +196,13 @@ public:
         return m_profile;
     }
 
+    void collect_execution_profiles(std::vector<ov::npuw::perf::IProfile*>& out) {
+        if (m_profile) {
+            out.push_back(&m_profile->iterative);
+            out.push_back(&m_profile->batch);
+        }
+    }
+
 private:
     // === Dependency injection ===
     ISubrequestAccessor& m_accessor;  // Access to JustInferRequest internals

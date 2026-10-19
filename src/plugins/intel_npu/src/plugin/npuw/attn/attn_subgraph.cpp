@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
+#include <iomanip>
 #include <limits>
 #include <sstream>
 #include <unordered_map>
@@ -19,6 +21,7 @@
 #include "../logging.hpp"
 #include "../partitioning/partitioning.hpp"
 #include "../partitioning/patterns/sdpa.hpp"
+#include "../perf_tags.hpp"
 #include "../pyramid_attention.hpp"
 #include "../serialization.hpp"
 
@@ -62,6 +65,12 @@ struct RuntimeState {
     HFARequestSet hfa_requests;
     ov::SoPtr<ov::IAsyncInferRequest> base_request;
     ov::SoPtr<ov::IAsyncInferRequest> base_pipeline_request;
+
+    // Profiling handles, resolved once per level / per tile kind - never per call
+    std::vector<ov::npuw::perf::metric_ptr> perf_pyramid_levels;
+    ov::npuw::perf::metric_ptr perf_hfa_tile = nullptr;
+    ov::npuw::perf::metric_ptr perf_hfa_final_tile = nullptr;
+    ov::npuw::perf::metric_ptr perf_hfa_host_prep = nullptr;
 };
 
 ov::npuw::JustInferRequest& get_request(ov::npuw::v1::subgraphs::InferContext& ctx) {
@@ -110,6 +119,27 @@ RuntimeState& get_runtime_state(ov::npuw::v1::subgraphs::InferContext& ctx) {
         state = &ctx.runtime_state->emplace<RuntimeState>();
     }
     return *state;
+}
+
+// Profiling handle of the pyramid level selected for this call. The tag is built at
+// most once per level; every later call just reads the cached pointer.
+ov::npuw::perf::metric_ptr pyramid_perf_handle(ov::npuw::v1::subgraphs::InferContext& ctx,
+                                               RuntimeState& state,
+                                               std::size_t pyramid_id) {
+    auto& request = get_request(ctx);
+    if (!request.perf().execution.enabled()) {
+        return nullptr;
+    }
+    const auto* pyramid =
+        ov::npuw::attn::get_compiled_pyramid(get_subgraph_pipeline(ctx, ctx.real_subgraph_idx).context);
+    if (state.perf_pyramid_levels.empty()) {
+        state.perf_pyramid_levels.resize(pyramid ? pyramid->_compiled_models.size() : pyramid_id + 1u, nullptr);
+    }
+    auto& handle = state.perf_pyramid_levels.at(pyramid_id);
+    return request.perf().handle(handle, [&]() {
+        const std::size_t context_length = pyramid ? pyramid->get_context_length(pyramid_id) : 0u;
+        return ov::npuw::perf::tags::pyramid(request.perf_submodel_tag(ctx.subgraph_idx), pyramid_id, context_length);
+    });
 }
 
 BehaviorIO& get_behavior_io(RuntimeState& state,
@@ -423,6 +453,11 @@ void prepare_pyramid(ov::npuw::v1::subgraphs::InferContext& ctx) {
     if (request.is_subrequest_pipelined(ctx.real_subgraph_idx)) {
         request.set_pipeline_subrequest(ctx.real_subgraph_idx, state.pyramid_requests.pipeline_requests.at(pyramid_id));
     }
+
+    // Publish which level this subgraph's next run should be attributed to. The generic
+    // subgraph timer in IBaseInferRequest::infer() reads it, so the breakdown does not
+    // depend on which dispatch path unsafe_during() picks.
+    request.set_perf_attribution(ctx.real_subgraph_idx, pyramid_perf_handle(ctx, state, pyramid_id));
 }
 
 void prepare_hfa(ov::npuw::v1::subgraphs::InferContext& ctx) {
@@ -931,7 +966,11 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
             void run(ov::npuw::v1::subgraphs::InferContext& ctx) override {
                 switch (m_kind) {
                 case BehaviorKind::Dynamic:
+                    ctx.legacy_infer();
+                    return;
                 case BehaviorKind::Pyramid:
+                    // Timing comes from the generic subgraph timer via the attribution
+                    // table published in prepare_pyramid()
                     ctx.legacy_infer();
                     return;
                 case BehaviorKind::HFA:
@@ -1076,9 +1115,13 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                 int64_t kv_offset,
                                                 int64_t mask_offset,
                                                 int64_t tile_length,
+                                                ov::npuw::perf::metric_ptr tile_metric,
                                                 bool async = false,
                                                 bool process_with_mask = true,
                                                 bool is_final_tile = false) {
+                            // NB: no nested lambda here - a lambda inside a generic lambda
+                            // cannot see the enclosing captures on MSVC (C2065)
+                            ov::npuw::perf::sample host_prep(state.perf_hfa_host_prep);
                             auto k_tile_buffer = request->get_tensor(model->inputs()[tile_in.k]);
                             auto v_tile_buffer = request->get_tensor(model->inputs()[tile_in.v]);
                             ov::SoPtr<ov::ITensor> mask_tile_buffer;
@@ -1168,6 +1211,11 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 }
                             }
 
+                            // Host-side tile/mask preparation ends here - the rest is
+                            // the actual (device) inference of this tile
+                            host_prep.commit();
+
+                            ov::npuw::perf::sample tile(tile_metric);
                             if (async) {
                                 request->start_async();
                                 if (state.hfa_runtime_ctx && state.hfa_runtime_ctx->has_state_buffers()) {
@@ -1177,10 +1225,27 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             } else {
                                 request->infer();
                             }
+                            tile.commit();
                         };
 
                         int64_t mask_tile_offset = 0;
                         int64_t remaining_full_tiles = past_full_tiles;  // tiles driven from past blocks
+
+                        // Tiles of one call all have the same shape, so a single handle per
+                        // kind is enough. Resolved once, then read as a plain pointer.
+                        auto& perf_request = get_request(ctx);
+                        state.perf_hfa_tile = perf_request.perf().handle(state.perf_hfa_tile, [&]() {
+                            return ov::npuw::perf::tags::hfa_tile(perf_request.perf_submodel_tag(ctx.subgraph_idx),
+                                                                  past_tile_size);
+                        });
+                        state.perf_hfa_final_tile = perf_request.perf().handle(state.perf_hfa_final_tile, [&]() {
+                            return ov::npuw::perf::tags::hfa_final_tile(
+                                perf_request.perf_submodel_tag(ctx.subgraph_idx));
+                        });
+                        state.perf_hfa_host_prep = perf_request.perf().handle(state.perf_hfa_host_prep, [&]() {
+                            return ov::npuw::perf::tags::hfa_host_prep(
+                                perf_request.perf_submodel_tag(ctx.subgraph_idx));
+                        });
 
                         // For the fused hfa, the regular tile model has no mask input (6 inputs)
                         const bool uses_mask = hfa_desc->_compiled_tile_model->inputs().size() > tile_in.mask;
@@ -1222,6 +1287,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                              t * past_tile_size,
                                              mask_tile_offset,
                                              past_tile_size,
+                                             state.perf_hfa_tile,
                                              false,       // async
                                              uses_mask);  // process_with_mask
                                 mask_tile_offset += past_tile_size;
@@ -1245,6 +1311,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                          0,
                                          final_mask_offset,
                                          final_tile_size,
+                                         state.perf_hfa_final_tile,
                                          true,   // async
                                          true,   // process_with_mask
                                          true);  // is_final_tile: use the dedicated final mask buffer

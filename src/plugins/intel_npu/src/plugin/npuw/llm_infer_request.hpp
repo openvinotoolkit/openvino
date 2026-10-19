@@ -173,6 +173,7 @@ protected:
     std::vector<std::shared_ptr<ov::npuw::IBaseInferRequest>> m_generate_base_requests;
     // This infer request is optional, so can be null.
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
+    std::shared_ptr<ov::npuw::IBaseInferRequest> m_lm_head_base_request;
     ov::SoPtr<ov::ITensor> m_logits;
 
     PortsMap m_prefill_in_ports;
@@ -246,6 +247,7 @@ protected:
     // LLM-level profiling for 1st token generation analysis
     using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
     ov::npuw::perf::Profile<MS> m_llm_profile;
+    ov::npuw::perf::RunBoundary m_perf_boundary;
 
     // KV cache management strategy (set once in the constructor, valid for the object's lifetime)
     std::unique_ptr<LLMKVCacheStrategy> m_kvcache_strategy;

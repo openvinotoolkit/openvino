@@ -87,6 +87,28 @@ public:
         return needs_copy(idx);
     }
 
+    ov::npuw::perf::RequestPerf& perf() {
+        return m_perf;
+    }
+
+    virtual void collect_execution_profiles(std::vector<ov::npuw::perf::IProfile*>& out) {
+        out.push_back(&m_perf.execution);
+    }
+
+    // Resolves (and caches) the profiling tag of a submodel. Attention sub-entries
+    // hang under it, so two distinct attention subgraphs never collapse into one.
+    // Only valid when the execution profile is enabled.
+    const std::string& perf_submodel_tag(std::size_t idx);
+
+    // Attribution table, indexed by the _real_ subgraph id. A runtime behavior's
+    // prepare() hook publishes here which metric the next run of that subgraph
+    // should additionally be attributed to (e.g. the selected pyramid level).
+    // Read - not consumed - by the generic subgraph timer, so all calls of a
+    // repeating prototype are counted. Cleared at the start of every infer().
+    void set_perf_attribution(std::size_t real_idx, ov::npuw::perf::metric_ptr m) {
+        m_perf.attribute(real_idx, m);
+    }
+
 protected:
     int64_t m_history_size = 0;
 
@@ -203,15 +225,20 @@ protected:
     void dump_input_tensors(std::size_t idx);
     void dump_output_tensors(std::size_t idx);
 
-    // Quick-and-dirty profiling
-    using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
-    using B = ov::npuw::perf::counter<ov::npuw::perf::Bytes>;
+    mutable ov::npuw::perf::RequestPerf m_perf;  // mutable due to lazy I/O allocation in get_tensor()
 
-    MS m_ms_unpack;
-    ov::npuw::perf::Profile<MS> m_profile;
-    mutable ov::npuw::perf::Profile<B> m_footprint;  // mutable due to lazy I/O allocation in get_tensor()
-
-    std::string profile_tag(std::size_t idx) const;
+    ov::npuw::perf::metric_ptr perf_submodel_handle(std::size_t idx);
+    ov::npuw::perf::metric_ptr perf_device_handle(std::size_t idx) {
+        return m_perf.execution.enabled() ? perf_device_handle_slow(idx) : nullptr;
+    }
+    void perf_record_submodel(std::size_t idx, float elapsed);
+    void perf_record_unfold(std::size_t idx, ov::npuw::perf::sample& timer) {
+        if (m_perf.execution.enabled()) {
+            perf_record_unfold_slow(idx, timer);
+        }
+    }
+    ov::npuw::perf::metric_ptr perf_device_handle_slow(std::size_t idx);
+    void perf_record_unfold_slow(std::size_t idx, ov::npuw::perf::sample& timer);
 
     // Various name/dump formatting methods
     // TODO: These methods should probably go to CompiledModel

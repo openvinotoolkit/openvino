@@ -18,11 +18,9 @@ namespace npuw {
 namespace moe {
 
 // MoEProfile constructor - uses existing profiling infrastructure
-MoEProfile::MoEProfile() {
+MoEProfile::MoEProfile() : iterative(ov::npuw::perf::Scope::Execution), batch(ov::npuw::perf::Scope::Execution) {
     iterative.area = "MoE Expert Iterative";  // EXPERT_ITERATIVE mode profiling
     batch.area = "MoE Expert Batch";          // EXPERT_BATCH mode profiling
-    iterative.report_on_die = ov::npuw::profiling_enabled();
-    batch.report_on_die = ov::npuw::profiling_enabled();
 }
 
 void MoEChunkStats::init(bool active) {
@@ -315,8 +313,6 @@ RequestCache::RequestCache(size_t num_layers, size_t pool_size_per_layer) : m_po
     m_cache_lookup.resize(num_layers);
     m_free_list.resize(num_layers);
     m_lru_index.resize(num_layers);
-
-    m_report_on_die = ov::npuw::profiling_enabled();
 }
 
 RequestCache::~RequestCache() {
@@ -443,7 +439,7 @@ std::pair<uint64_t, uint64_t> RequestCache::get_statistics() const {
 }
 
 void RequestCache::print_statistics() const {
-    if (m_total_queries > 0 && m_report_on_die) {
+    if (m_total_queries > 0 && m_report_cache_stats) {
         double hit_rate = static_cast<double>(m_cache_hits) / m_total_queries * 100.0;
         std::cout << "[MoE Cache Statistics]" << std::endl;
         std::cout << "  Total Queries: " << m_total_queries << std::endl;
