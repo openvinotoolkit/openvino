@@ -25,6 +25,7 @@
 #include "serialization.hpp"
 #include "spatial.hpp"
 #include "v1/subgraph_pipeline.hpp"
+#include "weights_context.hpp"
 #include "weights_bank.hpp"
 
 namespace intel_npu {
@@ -313,9 +314,18 @@ private:
         execution_stats stat;
 
         void serialize(ov::npuw::s11n::Stream& stream,
-                       const ov::npuw::s11n::WeightsContext& ctx,
-                       std::optional<std::size_t> orc_device_index = std::nullopt,
-                       const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx = nullptr);
+                       const ov::npuw::s11n::ExportWeightsContext& ctx,
+                       std::optional<std::size_t> orc_device_index = std::nullopt);
+        void deserialize(ov::npuw::s11n::Stream& stream,
+                         const ov::npuw::s11n::ImportWeightsContext& ctx,
+                         const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx = nullptr);
+
+    private:
+        template <typename WeightsCtx, bool IsImport>
+        void serialize_impl(ov::npuw::s11n::Stream& stream,
+                            const WeightsCtx& ctx,
+                            std::optional<std::size_t> orc_device_index,
+                            const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 
@@ -328,7 +338,7 @@ private:
 
     std::unordered_map<const void*, std::size_t> m_const_to_offset;
     ov::npuw::s11n::BF16Cache m_bf16_consts;
-    ov::npuw::s11n::WeightsContext m_import_weights_ctx;
+    ov::npuw::s11n::ImportWeightsContext m_import_weights_ctx;
 
     std::shared_future<void> m_eval_future;
 
