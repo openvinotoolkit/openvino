@@ -131,23 +131,27 @@ std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> compile_pa_semi_static_vari
 ov::AnyMap ov::npuw::PACompiledModel::make_variant_config(const ov::AnyMap& properties,
                                                           const std::string& pa_device,
                                                           const std::string& weights_bank) {
+    // Every PA op is a block of its own, kept off NPU. The static repeated
+    // blocks around them fold onto NPU and share one weights bank across the
+    // variants, which are clones of one model. The caller's properties
+    // override these defaults.
+    ov::AnyMap config = {
+        {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU," + pa_device},
+        {std::string(::intel_npu::NPUW_ONLINE_PIPELINE::key()), std::string("REP")},
+        {std::string(::intel_npu::NPUW_ONLINE_ISOLATE::key()), std::string("Op:PagedAttentionExtension/pa")},
+        {std::string(::intel_npu::NPUW_ONLINE_AVOID::key()), std::string("Op:PagedAttentionExtension/NPU")},
+        {std::string(::intel_npu::NPUW_ONLINE_KEEP_BLOCKS_TAGGED::key()), std::string("pa")},
+        {std::string(::intel_npu::NPUW_FOLD::key()), std::string("YES")}};
+    for (const auto& [key, value] : properties) {
+        config[key] = value;
+    }
+
     // A variant is an ordinary NPUW model: it must not select the PA front-end
     // again, and a partitioning chosen for the whole model does not apply to it.
-    auto config = properties;
     config.erase(std::string(::intel_npu::NPUW_PA::key()));
     config.erase(std::string(::intel_npu::NPUW_PLAN::key()));
     config.erase(std::string(::intel_npu::NPUW_SUBMODEL_DEVICE::key()));
     config[ov::intel_npu::use_npuw.name()] = std::string("YES");
-
-    // Every PA op is a block of its own, kept off NPU. The static repeated
-    // blocks around them fold onto NPU and share one weights bank across the
-    // variants, which are clones of one model.
-    config[std::string(::intel_npu::NPUW_DEVICES::key())] = "NPU," + pa_device;
-    config[std::string(::intel_npu::NPUW_ONLINE_PIPELINE::key())] = std::string("REP");
-    config[std::string(::intel_npu::NPUW_ONLINE_ISOLATE::key())] = std::string("Op:PagedAttentionExtension/pa");
-    config[std::string(::intel_npu::NPUW_ONLINE_AVOID::key())] = std::string("Op:PagedAttentionExtension/NPU");
-    config[std::string(::intel_npu::NPUW_ONLINE_KEEP_BLOCKS_TAGGED::key())] = std::string("pa");
-    config[std::string(::intel_npu::NPUW_FOLD::key())] = std::string("YES");
     config[std::string(::intel_npu::NPUW_WEIGHTS_BANK::key())] = weights_bank;
     return config;
 }
