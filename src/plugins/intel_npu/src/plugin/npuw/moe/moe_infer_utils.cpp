@@ -4,6 +4,7 @@
 
 #include "moe_infer_utils.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
@@ -98,6 +99,17 @@ ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_i
                                << view_tensor.get_shape());
 
     return view_tensor;
+}
+
+bool requires_expert_slice(const ov::Tensor& source, const ov::Shape& target_shape, size_t num_experts) {
+    const auto& source_shape = source.get_shape();
+    if (source_shape == target_shape)
+        return false;
+    OPENVINO_ASSERT(!source_shape.empty() && source_shape.size() == target_shape.size() &&
+                        source_shape[0] == num_experts && target_shape[0] == 1 &&
+                        std::equal(source_shape.begin() + 1, source_shape.end(), target_shape.begin() + 1),
+                    "MoE: closure shape does not match its transformed input");
+    return true;
 }
 
 namespace {
