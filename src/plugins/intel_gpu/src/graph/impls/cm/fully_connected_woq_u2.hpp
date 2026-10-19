@@ -21,7 +21,7 @@
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 #define CM_FC_LOG_AND_RETURN_FALSE(node, reason) do {                                                        \
-    GPU_DEBUG_TRACE << (node).id() << " : Do not select cm::fully_connected::woq_u2 (" << reason << ")" << std::endl; \
+    GPU_DEBUG_TRACE_DETAIL << (node).id() << " : Do not select cm::fully_connected::woq_u2 (" << reason << ")" << std::endl; \
     return false;                                                                                          \
 } while (0)
 
@@ -214,6 +214,8 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
             CM_FC_LOG_AND_RETURN_FALSE(node, "weights not transposed");
         if (prim->weights_rank != 2)
             CM_FC_LOG_AND_RETURN_FALSE(node, "weights_rank != 2: " << prim->weights_rank);
+        if (!prim->transpose_b_scale || !prim->transpose_b_zp)
+            CM_FC_LOG_AND_RETURN_FALSE(node, "scale/zp not [N, K/64] (transpose_b_scale/zp false)");
 
         const bool has_bias = fc_node.bias_term();
         const auto in_layouts = node.get_input_layouts();

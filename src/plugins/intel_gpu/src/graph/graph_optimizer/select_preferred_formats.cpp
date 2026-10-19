@@ -185,10 +185,7 @@ void select_preferred_formats::run(program& p) {
 
     auto forcing_map = p.get_config().get_force_implementations();
 
-    // Computes and assigns preferred formats for one node (choose_impl + query_formats), same logic for
-    // every node this pass visits; also used, out of processing order, for reorder nodes inserted by the
-    // u2/CM re-check below (add_intermediate() places them before the fully_connected node's position, so
-    // the main loop below would otherwise never reach them). Returns the chosen factory, if any.
+    // Returns the chosen factory, if any.
     auto select_formats_for = [&](program_node* n) -> std::shared_ptr<ImplementationManager> {
         n->recalc_output_layout();
         if (n->is_input() || !n->is_in_data_flow()) {
@@ -265,26 +262,24 @@ void select_preferred_formats::run(program& p) {
     for (auto* n : p.get_processing_order()) {
         auto factory = select_formats_for(n);
 
-#if OV_GPU_WITH_CM
-        // u2 FCs keep their decompression scale/zp in bfyx (see prepare_quantization) as long as CM's
-        // u2 kernel is chosen above; once fusion and format selection are final, reorder them to
-        // fbyx/byfx for oneDNN like every other compressed FC, reusing this choose_impl() result instead
-        // of re-running validate_impl() separately.
+        // u2 scale/zp were left bfyx by prepare_quantization; CM keeps them, other impls get the usual reorder.
         if (n->is_type<fully_connected>()) {
             auto& fc_node = n->as<fully_connected>();
             auto fc_prim = fc_node.get_primitive();
             if (fc_prim->compressed_weights && fc_node.get_input_layout(1).data_type == data_types::u2) {
-                const bool cm_selected = factory && factory->get_type_info() == ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager::get_type_info_static();
-                GPU_DEBUG_TRACE << fc_node.id() << " : post-choose_impl u2 check = "
-                                << (cm_selected ? "CM selected (left bfyx)" : "CM not selected (reorder for oneDNN)") << std::endl;
+                bool cm_selected = false;
+#if OV_GPU_WITH_CM
+                cm_selected = factory && factory->get_type_info() == ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager::get_type_info_static();
+#else
+                (void)factory;
+#endif
+                GPU_DEBUG_TRACE_DETAIL << fc_node.id() << " : u2 FC, CM " << (cm_selected ? "selected, scale/zp kept bfyx" : "not selected") << std::endl;
                 if (!cm_selected) {
-                    // These new reorder nodes sit before fc_node in processing order, so visit them here
-                    // directly instead of relying on the loop above to reach them.
+                    // New reorders precede fc_node in processing order, so the main loop would skip them.
                     for (auto* new_reorder : reorder_fc_decompression_params_if_needed(fc_node, p))
                         select_formats_for(new_reorder);
                 }
             }
         }
-#endif
     }
 }

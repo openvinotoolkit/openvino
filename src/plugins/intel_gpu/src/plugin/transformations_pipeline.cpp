@@ -1860,7 +1860,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 // u2 FCs (CM and oneDNN kernels) expect f16 activations; dynamic activation quantization would
                 // make the CM u2 kernel decline. Keep weight-only quantization until i8 activation support exists.
                 if (root->get_input_element_type(1) == ov::element::u2) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: u2 weights require f16 activations" << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL << root->get_friendly_name() << "  dyn_quan is turned off: u2 weights require f16 activations" << std::endl;
                     return true;
                 }
 
