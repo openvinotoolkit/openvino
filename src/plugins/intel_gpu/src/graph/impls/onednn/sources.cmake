@@ -31,6 +31,8 @@ set(GPU_ONEDNN_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/reduce_onednn.hpp
     ${CMAKE_CURRENT_LIST_DIR}/reorder_onednn.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reorder_onednn.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sdpa_onednn.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sdpa_onednn.hpp
     ${CMAKE_CURRENT_LIST_DIR}/utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/utils.hpp
 )
