@@ -33,6 +33,7 @@ class LLMInferRequest;  // forward declaration — helper always outlived by its
  *   5. Per generate step, after m_kvcache_strategy->on_generate_step_done():
  *      update_generate(num_tokens)
  *   6. Before every prefill/generate infer(): fill_attention_masks(...)
+ *   7. Continued prefill, after m_kvcache_strategy->continue_prefill(): continue_prefill(keep)
  */
 class SwaKVCacheHelper {
 public:
@@ -57,6 +58,14 @@ public:
     // Circular SWA past KV update for the generate model.
     void update_generate(uint32_t num_tokens);
 
+    // The oldest keep a continued prefill can resume from, 0 without SWA layers. The
+    // prefill past holds the window that ends here and generate steps never touch it.
+    uint32_t min_keep() const;
+
+    // Moves the prefill window end to keep by appending the kept rows of the last
+    // prefill chunk, which are still in the prefill model's present outputs.
+    void continue_prefill(uint32_t keep);
+
     // Fills the externalized sliding-window attention mask input for `request`, and, if
     // present, overlays the vision-bidirectional mask from token type ids.
     void fill_attention_masks(const std::shared_ptr<ov::IAsyncInferRequest>& request,
@@ -74,6 +83,8 @@ private:
 
     LLMInferRequest& m_request;
     uint32_t m_window_size;
+    // Token count the prefill SWA past window ends at.
+    uint32_t m_window_end = 0u;
 };
 
 }  // namespace npuw

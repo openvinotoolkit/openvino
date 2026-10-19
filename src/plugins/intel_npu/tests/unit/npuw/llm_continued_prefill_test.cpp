@@ -1025,7 +1025,7 @@ TEST_P(LLMSlidingWindowContinuedPrefillTest, EditBeforeWindowFallsBackToFullPref
 
 INSTANTIATE_TEST_SUITE_P(SlidingWindow,
                          LLMSlidingWindowContinuedPrefillTest,
-                         ::testing::Values(false),
+                         ::testing::Bool(),
                          [](const ::testing::TestParamInfo<bool>& info) {
                              return info.param ? "ShrunkCache" : "FullCache";
                          });
