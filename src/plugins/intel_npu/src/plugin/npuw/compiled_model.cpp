@@ -252,6 +252,9 @@ ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const
                         device_properties[device_name][opt.first] = opt.second;
                     }
                 }
+            } else {
+                // The DEVICE_ID this plugin was given names an NPU device.
+                device_properties[device_name].erase(ov::device::id.name());
             }  // if(NPU)
         }
     }

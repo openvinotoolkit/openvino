@@ -229,6 +229,9 @@ TEST(PACompiledModelEndToEnd, VariantsCompileAndMatchTheDynamicModel) {
                                {ov::hint::kv_cache_precision.name(), ov::element::f16}};
     ov::AnyMap npuw = common;
     npuw.insert({{"NPU_USE_NPUW", "YES"}, {"NPUW_PA", "YES"}, {"NPUW_DEVICES", "CPU"}, {"NPUW_F16IC", "NO"}});
+    // An explicit NPU device stays with the NPU submodels. The CPU running the
+    // PA blocks takes no device id.
+    npuw.insert({ov::device::id.name(), "0"});
 
     ov::Core core;
     auto reference = core.compile_model(model->clone(), "CPU", common);
