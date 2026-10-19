@@ -311,6 +311,13 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_test_params{64, 32, 128, 128, 2, true, 0.125f, false, 0.0f, data_types::bf16},  // bf16 scale_val
         sdpa_test_params{64, 32, 128, 128, 2, false, 1.0f, true, 0.5f},     // attn_mask only
         sdpa_test_params{512, 8, 1, 1024, 2, true},
+        // a few query rows on a long context (e.g. stacked grouped-query heads at decode): single-token kernel, keys
+        // split into partitions; 4 rows is the limit, 5 takes the multi-token kernels
+        sdpa_test_params{64, 8, 4, 2048, 1, false},
+        sdpa_test_params{64, 8, 4, 2048, 1, true},
+        sdpa_test_params{64, 8, 3, 4096, 2, true},
+        sdpa_test_params{128, 8, 4, 1024, 1, false},
+        sdpa_test_params{128, 8, 5, 1024, 1, false},
         sdpa_test_params{64, 32, 128, 128, 2, true, data_types::bf16},   // bf16 dynamic
         sdpa_test_params{64, 32, 128, 128, 2, false, data_types::bf16},  // bf16 static
         sdpa_test_params{64, 10, 77, 77, 1, true, data_types::bf16}      // bf16 two ranks mask

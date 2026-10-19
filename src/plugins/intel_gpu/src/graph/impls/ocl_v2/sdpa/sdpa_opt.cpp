@@ -26,6 +26,30 @@ using namespace cldnn;
 
 namespace ov::intel_gpu::ocl {
 
+namespace {
+
+// Decode with grouped-query heads stacked as query rows has a few rows per KV head (3-4 on common models). The single-token
+// kernel splits the keys into partitions, so it stays parallel on long contexts, but it reads the keys once per row:
+// from 8 rows on it was slower than the multi-token kernels.
+constexpr int64_t max_single_token_rows = 4;
+
+int64_t target_rows(const RuntimeParams& params) {
+    auto desc = params.typed_desc<scaled_dot_product_attention>();
+    const auto target_seq_len = extract_dim(get_transposed_channel(ChannelName::Y, desc->input_q_transpose_order), params.input_layouts[0]);
+    return target_seq_len.is_static() ? target_seq_len.get_length() : -1;
+}
+
+bool use_multi_token_stage(const RuntimeParams& params) {
+    return target_rows(params) > max_single_token_rows;
+}
+
+// The micro single-token kernel has no key partitions: it is used for one query row only.
+bool single_query_row(const RuntimeParams& params) {
+    return target_rows(params) <= 1;
+}
+
+}  // namespace
+
 bool SDPAOpt::has_per_channel_compressed_kv(const kernel_impl_params& params) {
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
     if (!desc->is_kv_compressed) {
@@ -90,7 +114,7 @@ public:
         } else {
             auto is_indirect = params.typed_desc<scaled_dot_product_attention>()->indirect_axis != -1;
             GPU_DEBUG_TRACE_DETAIL << "add stage for non-dynamic, is_indirect = " << is_indirect << "\n";
-            if (is_prefill_stage(params) || unaligned_head_size(params)) {
+            if (use_multi_token_stage(params) || unaligned_head_size(params)) {
                 if (is_indirect) {
                     GPU_DEBUG_TRACE_DETAIL << "add stage for indirect non-dynamic with prefill_stage \n";
                     add_stage(indirect_multi_tokens, params);
@@ -115,7 +139,7 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
                 bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
-                bool can_use_micro_sdpa = SDPAOpt::supports_micro_sdpa(params) && !is_ARL_H && !is_indirect;
+                bool can_use_micro_sdpa = SDPAOpt::supports_micro_sdpa(params) && !is_ARL_H && !is_indirect && single_query_row(params);
                 if (can_use_micro_sdpa) {
                     add_stage(regular_micro_single_token, params);
                 }
@@ -131,7 +155,7 @@ public:
     [[nodiscard]] event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         const auto& params = *instance.get_impl_params();
         auto new_params = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
-        bool is_prefill = is_prefill_stage(new_params);
+        bool is_prefill = use_multi_token_stage(new_params);
         const bool use_multi_tokens = is_prefill || unaligned_head_size(new_params);
         bool is_indirect = need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance));
         GPU_DEBUG_TRACE_DETAIL << "execute indirect = " << is_indirect << ", prefill = " << is_prefill << "\n";
@@ -160,7 +184,7 @@ public:
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        if (has_stage(regular_micro_single_token) && !is_indirect) {
+        if (has_stage(regular_micro_single_token) && !is_indirect && single_query_row(new_params)) {
             return execute_stage(events, instance, regular_micro_single_token);
         }
 #endif
@@ -182,7 +206,7 @@ public:
         const auto head_size = get_head_size(params_canonicalization.get_input_layout(0), extended_input_q_transpose_order);
 
         const auto num_of_partitions = get_partitions_num(params_canonicalization, SDPAStage::SINGLE_TOKEN);
-        const auto is_prefill = is_prefill_stage(params_canonicalization);
+        const auto is_prefill = use_multi_token_stage(params_canonicalization);
         const size_t buf_elements_count = (num_of_partitions == 1 || is_prefill) ? 1 : params.output_layouts[0].count() / head_size * num_of_partitions;
         const size_t tmp_out_elements_count = (num_of_partitions == 1 || is_prefill) ? 2 : params.output_layouts[0].count() * num_of_partitions;
 
