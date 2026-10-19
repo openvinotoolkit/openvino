@@ -198,6 +198,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/model_builder_lora_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning_options_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_options_smoke_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_compiled_model_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_dispatch_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pre_compute_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/resolve_dynamic_quant_storage_types_test.cpp
