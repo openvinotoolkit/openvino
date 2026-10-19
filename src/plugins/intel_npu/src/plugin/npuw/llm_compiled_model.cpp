@@ -834,11 +834,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     // Detect supported MoE structure, retaining name hints for legacy exports.
     const bool is_moe = is_moe_model(model);
-    // Hardware capability is necessary but not sufficient. Defer automatic
-    // selection until the static generate variants can be checked structurally.
-    const bool auto_device_moe = is_moe && npuw_llm_props.count("NPUW_LLM_GENERATE_MOE_HINT") == 0 && npudesc &&
-                                 npudesc->arch == "5010" && npudesc->compiler_ver >= ONEAPI_MAKE_VERSION(7, 29) &&
-                                 m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>() == 1;
 
     // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
     // the generate model they're not mutually exclusive
@@ -1376,28 +1371,29 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model_variant);
         }
 
-        if (auto_device_moe && !generate_model_variants.empty()) {
-            const auto eligible = [](const std::shared_ptr<ov::Model>& variant) {
-                bool found = false;
-                const ov::npuw::moe::BatchedMoEPattern pattern;
-                for (const auto& node : variant->get_ordered_ops()) {
-                    if (!ov::is_type<ov::op::v1::ReduceSum>(node)) {
-                        continue;
-                    }
-                    opp::Matcher matcher(pattern.root(), "LLMMoEDeviceEligibility");
-                    if (matcher.match(node)) {
-                        const auto topology = pattern.extract(matcher);
-                        if (!topology || !ov::npuw::moe::can_device_route(*topology)) {
-                            return false;
-                        }
-                        found = true;
-                    }
+        const auto eligible = [](const std::shared_ptr<ov::Model>& variant) {
+            bool found = false;
+            const ov::npuw::moe::BatchedMoEPattern pattern;
+            for (const auto& node : variant->get_ordered_ops()) {
+                if (!ov::is_type<ov::op::v1::ReduceSum>(node)) {
+                    continue;
                 }
-                return found;
-            };
-            if (std::all_of(generate_model_variants.begin(), generate_model_variants.end(), eligible)) {
-                m_cfg.update({{"NPUW_LLM_GENERATE_MOE_HINT", "DEVICE_ROUTED"}});
+                opp::Matcher matcher(pattern.root(), "LLMMoEDeviceEligibility");
+                if (matcher.match(node)) {
+                    const auto topology = pattern.extract(matcher);
+                    if (!topology || !ov::npuw::moe::can_device_route(*topology)) {
+                        return false;
+                    }
+                    found = true;
+                }
             }
+            return found;
+        };
+        if (npuw_llm_props.count("NPUW_LLM_GENERATE_MOE_HINT") == 0 && npudesc && npudesc->arch == "5010" &&
+            npudesc->compiler_ver >= ONEAPI_MAKE_VERSION(7, 29) &&
+            m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>() == 1 && !generate_model_variants.empty() &&
+            std::all_of(generate_model_variants.begin(), generate_model_variants.end(), eligible)) {
+            m_cfg.update({{"NPUW_LLM_GENERATE_MOE_HINT", "DEVICE_ROUTED"}});
         }
 
         const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
