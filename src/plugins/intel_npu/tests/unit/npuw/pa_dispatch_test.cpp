@@ -2,24 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Unit tests for the PA dispatch-contract validation (ov::npuw::pa). The
-// contract is a pure function over the parsed control tensors, so the tests
-// construct Dispatch values directly and assert on the specific violation
-// each malformed dispatch must report.
+// Unit tests for the PA dispatch helpers (ov::npuw::pa): the contract
+// validation, the chunk plan and the controls of one chunk. They are pure
+// functions over the parsed control tensors, so the tests construct Dispatch
+// values directly.
 
 #include "pa_dispatch.hpp"
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <numeric>
 #include <string>
+#include <vector>
 
 #include "openvino/core/except.hpp"
 
 namespace {
 
+using ov::npuw::pa::Chunk;
+using ov::npuw::pa::chunk_controls;
 using ov::npuw::pa::Dispatch;
+using ov::npuw::pa::plan_chunks;
 using ov::npuw::pa::validate_dispatch;
-using ov::npuw::pa::variants_serve;
 
 // A well-formed two-subsequence dispatch: 4 + 2 scheduled tokens on top of
 // 0 / 6 past tokens, a covering block table (block_size 4) and one sampled
@@ -168,46 +173,151 @@ TEST(PADispatchContract, ViolationNamesTheDispatch) {
     }
 }
 
-// A dispatch shaped as N subsequences of the given scheduled lengths; only the
-// fields variants_serve reads are populated.
-Dispatch make_dispatch_of(const std::vector<int32_t>& seq_lens) {
+// A dispatch of subsequences with the given scheduled and past lengths, one
+// block of 4 per 4 context tokens and, by default, each subsequence's last
+// row sampled.
+Dispatch make_flat_dispatch(const std::vector<int32_t>& seq_lens,
+                            const std::vector<int32_t>& past = {},
+                            const std::vector<int64_t>& sampled = {}) {
     Dispatch d;
     d.subsequence_begins = {0};
-    for (const auto len : seq_lens) {
-        d.past_lens.push_back(0);
-        d.subsequence_begins.push_back(d.subsequence_begins.back() + len);
+    d.block_indices_begins = {0};
+    for (std::size_t s = 0; s < seq_lens.size(); ++s) {
+        d.past_lens.push_back(past.empty() ? 0 : past[s]);
+        d.subsequence_begins.push_back(d.subsequence_begins.back() + seq_lens[s]);
+        const auto ctx = d.past_lens.back() + seq_lens[s];
+        for (int32_t b = 0; b < (ctx + 3) / 4; ++b) {
+            d.block_indices.push_back(static_cast<int32_t>(d.block_indices.size()));
+        }
+        d.block_indices_begins.push_back(static_cast<int32_t>(d.block_indices.size()));
+        if (sampled.empty()) {
+            d.sampled_tokens_indices.push_back(d.subsequence_begins.back() - 1);
+        }
     }
+    if (!sampled.empty()) {
+        d.sampled_tokens_indices = sampled;
+    }
+    d.has_block_table = true;
+    d.has_sampled_tokens = true;
     return d;
 }
 
 const std::vector<std::size_t> kChunkSizes = {1024u, 128u, 1u};
+constexpr std::size_t kMaxSampled = 16u;
 
-TEST(PADispatchRouting, SingleSequenceDecodeServedByTheOneTokenVariant) {
-    EXPECT_TRUE(variants_serve(make_dispatch_of({1}), kChunkSizes));
-    EXPECT_FALSE(variants_serve(make_dispatch_of({1}), {1024u, 128u}));
+// The plan as "tokens[/chunk_size]+...", checked to tile the token axis with
+// no chunk sampling more rows than its variant produces.
+std::string plan(const Dispatch& d) {
+    const auto chunks = plan_chunks(d, kChunkSizes, kMaxSampled);
+    std::string out;
+    int64_t next = 0;
+    for (const auto& c : chunks) {
+        EXPECT_EQ(c.begin, next);
+        EXPECT_GT(c.tokens, 0);
+        EXPECT_LE(static_cast<std::size_t>(c.tokens), c.chunk_size);
+        const auto sampled =
+            std::count_if(d.sampled_tokens_indices.begin(), d.sampled_tokens_indices.end(), [&](int64_t row) {
+                return row >= c.begin && row < c.begin + c.tokens;
+            });
+        EXPECT_LE(static_cast<std::size_t>(sampled), std::min(c.chunk_size, kMaxSampled));
+        next = c.begin + c.tokens;
+        out += (out.empty() ? "" : "+") + std::to_string(c.tokens);
+        if (static_cast<std::size_t>(c.tokens) != c.chunk_size) {
+            out += "/" + std::to_string(c.chunk_size);
+        }
+    }
+    EXPECT_EQ(next, d.tokens());
+    return out;
 }
 
-TEST(PADispatchRouting, DecodeBatchRunsOneToOne) {
-    EXPECT_FALSE(variants_serve(make_dispatch_of({1, 1, 1, 1}), kChunkSizes));
+TEST(PAChunkPlan, LongPrefillTakesTheLargestThatFitsAndPadsTheLast) {
+    EXPECT_EQ(plan(make_flat_dispatch({2500})), "1024+1024+128+128+128+68/128");
+    EXPECT_EQ(plan(make_flat_dispatch({1024})), "1024");
 }
 
-TEST(PADispatchRouting, ShortPrefillRunsOneToOne) {
-    EXPECT_FALSE(variants_serve(make_dispatch_of({32, 32, 32, 32}), kChunkSizes));
-    EXPECT_FALSE(variants_serve(make_dispatch_of({127}), kChunkSizes));
+TEST(PAChunkPlan, ChunksCrossSubsequenceBoundaries) {
+    EXPECT_EQ(plan(make_flat_dispatch({1300, 48, 192, 192}, {0, 0, 64, 0})), "1024+128+128+128+128+128+68/128");
 }
 
-TEST(PADispatchRouting, LongPrefillIsChunked) {
-    EXPECT_TRUE(variants_serve(make_dispatch_of({128}), kChunkSizes));
-    EXPECT_TRUE(variants_serve(make_dispatch_of({7638}), kChunkSizes));
+TEST(PAChunkPlan, SingleRowTakesTheOneTokenVariant) {
+    EXPECT_EQ(plan(make_flat_dispatch({1})), "1");
+    EXPECT_EQ(plan(make_flat_dispatch({1025})), "1024+1");
 }
 
-TEST(PADispatchRouting, MixedDispatchWithOneLongSubsequenceIsChunked) {
-    EXPECT_TRUE(variants_serve(make_dispatch_of({1, 1, 200, 1}), kChunkSizes));
+TEST(PAChunkPlan, DecodeBatchIsOneChunk) {
+    EXPECT_EQ(plan(make_flat_dispatch({1, 1, 1, 1, 1, 1}, {7, 30, 2, 9, 64, 1})), "6/128");
 }
 
-TEST(PADispatchRouting, NoVariantsOrNoTokensRunOneToOne) {
-    EXPECT_FALSE(variants_serve(make_dispatch_of({7638}), {}));
-    EXPECT_FALSE(variants_serve(make_dispatch_of({}), kChunkSizes));
+TEST(PAChunkPlan, ChunkEndsBeforeTheSampledRowsItCannotProduce) {
+    EXPECT_EQ(plan(make_flat_dispatch(std::vector<int32_t>(40, 1))), "16/128+16/128+8/128");
+
+    // Every row of a prompt sampled (echo, prompt logprobs).
+    std::vector<int64_t> all_rows(200);
+    std::iota(all_rows.begin(), all_rows.end(), 0);
+    std::string expected;
+    for (int i = 0; i < 12; ++i) {
+        expected += "16/128+";
+    }
+    EXPECT_EQ(plan(make_flat_dispatch({200}, {}, all_rows)), expected + "8/128");
+}
+
+TEST(PAChunkPlan, MixedDecodeAndPrefill) {
+    std::vector<int32_t> lens(20, 1);
+    lens.push_back(1004);
+    EXPECT_EQ(plan(make_flat_dispatch(lens)), "16/128+128+128+128+128+128+128+128+112/128");
+}
+
+TEST(PAChunkPlan, IntermediatePrefillSamplesNothing) {
+    auto d = make_flat_dispatch({300});
+    d.sampled_tokens_indices.clear();
+    EXPECT_EQ(plan(d), "128+128+44/128");
+}
+
+// Subsequences A (6 rows, no past), B (7 rows, 5 past), C (3 rows, no past):
+// blocks A {0,1}, B {2,3,4}, C {5}; the last row of each is sampled.
+Dispatch make_three_subsequences() {
+    return make_flat_dispatch({6, 7, 3}, {0, 5, 0});
+}
+
+TEST(PAChunkControls, ChunkInsideOneSubsequence) {
+    const auto c = chunk_controls(make_three_subsequences(), Chunk{8, 3, 4u});
+    EXPECT_EQ(c.past_lens, (std::vector<int32_t>{7}));
+    EXPECT_EQ(c.subsequence_begins, (std::vector<int32_t>{0, 3}));
+    EXPECT_EQ(c.block_indices, (std::vector<int32_t>{2, 3, 4}));
+    EXPECT_EQ(c.block_indices_begins, (std::vector<int32_t>{0, 3}));
+    EXPECT_TRUE(c.sampled_tokens_indices.empty());
+    EXPECT_TRUE(c.logits_rows.empty());
+}
+
+TEST(PAChunkControls, ChunkStartingInsideASubsequence) {
+    const auto c = chunk_controls(make_three_subsequences(), Chunk{4, 8, 8u});
+    EXPECT_EQ(c.past_lens, (std::vector<int32_t>{4, 5}));
+    EXPECT_EQ(c.subsequence_begins, (std::vector<int32_t>{0, 2, 8}));
+    EXPECT_EQ(c.block_indices, (std::vector<int32_t>{0, 1, 2, 3, 4}));
+    EXPECT_EQ(c.block_indices_begins, (std::vector<int32_t>{0, 2, 5}));
+    EXPECT_EQ(c.sampled_tokens_indices, (std::vector<int64_t>{1}));
+    EXPECT_EQ(c.logits_rows, (std::vector<std::size_t>{0}));
+}
+
+TEST(PAChunkControls, ChunkStartingAtASubsequence) {
+    const auto c = chunk_controls(make_three_subsequences(), Chunk{6, 10, 16u});
+    EXPECT_EQ(c.past_lens, (std::vector<int32_t>{5, 0}));
+    EXPECT_EQ(c.subsequence_begins, (std::vector<int32_t>{0, 7, 10}));
+    EXPECT_EQ(c.block_indices, (std::vector<int32_t>{2, 3, 4, 5}));
+    EXPECT_EQ(c.block_indices_begins, (std::vector<int32_t>{0, 3, 4}));
+    EXPECT_EQ(c.sampled_tokens_indices, (std::vector<int64_t>{6, 9}));
+    EXPECT_EQ(c.logits_rows, (std::vector<std::size_t>{1, 2}));
+}
+
+TEST(PAChunkControls, SampledRowsKeepTheCallerOrder) {
+    auto d = make_three_subsequences();
+    d.sampled_tokens_indices = {15, 5, 12};
+    const auto all = chunk_controls(d, Chunk{0, 16, 16u});
+    EXPECT_EQ(all.sampled_tokens_indices, (std::vector<int64_t>{15, 5, 12}));
+    EXPECT_EQ(all.logits_rows, (std::vector<std::size_t>{0, 1, 2}));
+    const auto tail = chunk_controls(d, Chunk{8, 8, 8u});
+    EXPECT_EQ(tail.sampled_tokens_indices, (std::vector<int64_t>{7, 4}));
+    EXPECT_EQ(tail.logits_rows, (std::vector<std::size_t>{0, 2}));
 }
 
 }  // namespace
