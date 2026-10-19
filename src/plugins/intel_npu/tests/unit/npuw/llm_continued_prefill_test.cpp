@@ -967,8 +967,10 @@ std::vector<uint8_t> logits_of(ov::npuw::LLMInferRequest& request) {
 // prefills the whole history every turn, and every logits tensor must match.
 class LLMSlidingWindowContinuedPrefillTest : public ::testing::TestWithParam<bool> {
 protected:
-    // A window wider than one 32-token chunk.
-    static constexpr size_t kWindow = 48u;
+    // A window wider than one 32-token chunk unless a variant narrows it.
+    virtual size_t window() const {
+        return 48u;
+    }
 
     struct Turn {
         size_t edit_from;       // the previous history is kept up to here
@@ -1005,7 +1007,7 @@ protected:
         };
         Session session;
         session.compiled = std::make_shared<ov::npuw::LLMCompiledModel>(
-            ov::test::npuw::build_sliding_window_test_model(kWindow, 1, {}, 4),
+            ov::test::npuw::build_sliding_window_test_model(window(), 1, {}, 4),
             m_plugin,
             props,
             factory);
@@ -1091,12 +1093,42 @@ TEST_P(LLMSlidingWindowContinuedPrefillTest, EditBeforeWindowFallsBackToFullPref
     run_conversation({{0, 72, 2, 0}, {40, 90, 3, GetParam() ? 0 : 32}});
 }
 
+// The second turn's delta ends on a chunk boundary, so the third turn resumes after
+// that chunk and the window is extended with rows a continued prefill produced.
+TEST_P(LLMSlidingWindowContinuedPrefillTest, ContinuationEndingOnChunkResumesAfterIt) {
+    run_conversation({{0, 72, 2, 0}, {74, 96, 2, 64}, {98, 110, 2, 96}});
+}
+
+const auto sliding_window_cache_name = [](const ::testing::TestParamInfo<bool>& info) {
+    return info.param ? "ShrunkCache" : "FullCache";
+};
+
 INSTANTIATE_TEST_SUITE_P(SlidingWindow,
                          LLMSlidingWindowContinuedPrefillTest,
                          ::testing::Bool(),
-                         [](const ::testing::TestParamInfo<bool>& info) {
-                             return info.param ? "ShrunkCache" : "FullCache";
-                         });
+                         sliding_window_cache_name);
+
+// A window narrower than the chunk: extending it with a whole chunk keeps only
+// the newest window of that chunk.
+class LLMNarrowSlidingWindowContinuedPrefillTest : public LLMSlidingWindowContinuedPrefillTest {
+protected:
+    size_t window() const override {
+        return 16u;
+    }
+};
+
+TEST_P(LLMNarrowSlidingWindowContinuedPrefillTest, ChunkAlignedPromptResumesAfterLastChunk) {
+    run_conversation({{0, 64, 3, 0}, {67, 80, 3, 64}, {83, 128, 2, 64}});
+}
+
+TEST_P(LLMNarrowSlidingWindowContinuedPrefillTest, DeltaLongerThanWindowMatchesFullHistory) {
+    run_conversation({{0, 72, 2, 0}, {74, 140, 3, 64}});
+}
+
+INSTANTIATE_TEST_SUITE_P(SlidingWindow,
+                         LLMNarrowSlidingWindowContinuedPrefillTest,
+                         ::testing::Bool(),
+                         sliding_window_cache_name);
 
 // Block-mode variant of the fixture: the same synthetic model compiled with the
 // pyramid attention hint so SplitKVCacheIntoBlocks applies, giving the block
