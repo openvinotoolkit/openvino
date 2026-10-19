@@ -5,7 +5,7 @@
 """Verify the OV lm_head rebuilds on weight reload/update, instead of going stale.
 
 build_ov_lm_head bakes lm_head.weight into an OV constant at install time
-(plugin._install_ov_lm_head). Without the reload_weights/update_weights
+(plugin._install_ov_lm_head). Without the reload_weights/finish_weight_update
 patches, any in-place weight mutation after load -- checkpoint reload, RLHF
 weight sync -- would leave the compiled lm_head silently serving logits off
 the pre-reload weight. This checks both halves: _install_ov_lm_head actually
@@ -74,7 +74,7 @@ def test_install_ov_lm_head_picks_up_reloaded_weight():
     assert not torch.allclose(stale.float(), _ref(x, w2).float(), atol=0.1), (
         "old closure already reflects the new weight -- test setup is wrong")
 
-    # This is what the reload_weights/update_weights patches do afterward.
+    # This is what the reload_weights/finish_weight_update patches do afterward.
     plugin._install_ov_lm_head(model)
     cpu_linear_2 = model.lm_head.cpu_linear
     assert cpu_linear_2 is not cpu_linear_1, "lm_head.cpu_linear was not rebuilt"
@@ -102,19 +102,19 @@ def test_reload_and_update_weights_are_patched():
 
     CPUModelRunner.reload_weights = _pristine
     CPUModelRunner._ov_plugin_reload_patched = False
-    CPUWorker.update_weights = _pristine
+    CPUWorker.finish_weight_update = _pristine
     CPUWorker._ov_plugin_update_patched = False
 
     orig_reload = CPUModelRunner.reload_weights
-    orig_update = CPUWorker.update_weights
+    orig_finish = CPUWorker.finish_weight_update
 
     plugin._patch_reload_weights()
     plugin._patch_worker_update_weights()
 
     assert CPUModelRunner.reload_weights is not orig_reload, (
         "CPUModelRunner.reload_weights was not patched")
-    assert CPUWorker.update_weights is not orig_update, (
-        "CPUWorker.update_weights was not patched")
+    assert CPUWorker.finish_weight_update is not orig_finish, (
+        "CPUWorker.finish_weight_update was not patched")
     assert getattr(CPUModelRunner, "_ov_plugin_reload_patched", False)
     assert getattr(CPUWorker, "_ov_plugin_update_patched", False)
 
@@ -180,8 +180,8 @@ def test_patched_reload_weights_rebuilds_lm_head():
 
 
 @pytest.mark.precommit
-def test_patched_update_weights_rebuilds_lm_head():
-    """Same as above, for CPUWorker.update_weights (RLHF-style weight sync)."""
+def test_patched_finish_weight_update_rebuilds_lm_head():
+    """Same as above, for the end of an RLHF-style weight sync (CPUWorker.finish_weight_update)."""
     from vllm.v1.worker.cpu_worker import CPUWorker
 
     torch.manual_seed(2)
@@ -193,10 +193,13 @@ def test_patched_update_weights_rebuilds_lm_head():
 
     w2 = torch.randn(V, H, dtype=torch.bfloat16)
 
-    def _fake_orig_update_weights(self, *args, **kwargs):
-        self.model_runner.get_model().lm_head.weight.data.copy_(w2)
+    # The chunks were written by update_weights earlier in the session.
+    model.lm_head.weight.data.copy_(w2)
 
-    CPUWorker.update_weights = _fake_orig_update_weights
+    def _fake_orig_finish_weight_update(self, *args, **kwargs):
+        pass
+
+    CPUWorker.finish_weight_update = _fake_orig_finish_weight_update
     CPUWorker._ov_plugin_update_patched = False
     plugin._patch_worker_update_weights()
 
@@ -214,10 +217,10 @@ def test_patched_update_weights_rebuilds_lm_head():
             self.model_runner = model_runner
 
     worker = _FakeWorker(_FakeModelRunner(model))
-    CPUWorker.update_weights(worker, {})
+    CPUWorker.finish_weight_update(worker)
 
     assert model.lm_head.cpu_linear is not cpu_linear_1, (
-        "update_weights patch did not rebuild lm_head")
+        "finish_weight_update patch did not rebuild lm_head")
     x = torch.randn(2, H, dtype=torch.bfloat16)
     out = model.lm_head.cpu_linear(x, model.lm_head.weight, None)
     assert torch.allclose(out.float(), _ref(x, w2).float(), atol=0.1), (
