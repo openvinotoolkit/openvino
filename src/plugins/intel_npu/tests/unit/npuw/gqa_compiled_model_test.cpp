@@ -1349,49 +1349,65 @@ TEST_F(GQACompiledModelTest, GetPropertyReturnsEffectiveSlidingWindowCapacityIns
     EXPECT_EQ(sliding_window_len.as<uint32_t>(), 8u);
 }
 
-TEST_F(GQACompiledModelTest, CaseV2GenerateSlidingCapacityHonorsPrefillChunkSize) {
+TEST_F(GQACompiledModelTest, GetPropertyReturnsSlidingWindowHeadroomInsteadOfThrowing) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+    auto model = build_gqa_model_with_dynamic_kv_cache(2);
+
+    ASSERT_NO_THROW(compiled =
+                        create_compiled_model(model,
+                                              {{"NPUW_LLM_MAX_CONTEXT_LEN", "16"}, {"NPUW_LLM_SWA_HEADROOM", "512"}},
+                                              recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_EQ(recorder.only_call().props.count("NPUW_LLM_SWA_HEADROOM"), 0u);
+
+    ov::Any headroom;
+    ASSERT_NO_THROW(headroom = compiled->get_property("NPUW_LLM_SWA_HEADROOM"));
+    EXPECT_EQ(headroom.as<uint32_t>(), 512u);
+}
+
+TEST_F(GQACompiledModelTest, CaseV2GenerateSlidingCapacityHonorsSwaHeadroom) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
     auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1, /*as_v2_model=*/true);
     ASSERT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::V2);
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(
-                        model,
-                        {{"NPUW_LLM_MAX_CONTEXT_LEN", "16384"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}},
-                        recorder));
+    ASSERT_NO_THROW(compiled =
+                        create_compiled_model(model,
+                                              {{"NPUW_LLM_MAX_CONTEXT_LEN", "16384"}, {"NPUW_LLM_SWA_HEADROOM", "512"}},
+                                              recorder));
 
     const auto& call = recorder.only_call();
     EXPECT_EQ(parameter_shape(call.model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
     EXPECT_EQ(parameter_shape(call.model, "past_values_30"), ov::PartialShape({1, 10, 128, 4608}));
     // LLM-only option: must not leak into the inner CompiledModel.
-    EXPECT_EQ(call.props.count("NPUW_LLM_PREFILL_CHUNK_SIZE"), 0u);
+    EXPECT_EQ(call.props.count("NPUW_LLM_SWA_HEADROOM"), 0u);
 }
 
-TEST_F(GQACompiledModelTest, CaseV2GenerateSlidingCapacityIgnoresDefaultPrefillChunkSize) {
+TEST_F(GQACompiledModelTest, CaseV2GenerateSlidingCapacityWithoutSwaHeadroom) {
     RecordingFactory recorder;
     auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1, /*as_v2_model=*/true);
 
     ASSERT_NO_THROW(create_compiled_model(model, {{"NPUW_LLM_MAX_CONTEXT_LEN", "16384"}}, recorder));
 
-    // Unset option -> no extra headroom from its 1024 default.
+    // Unset option -> only the default 16-token headroom.
     EXPECT_EQ(parameter_shape(recorder.only_call().model, "past_keys_30"), ov::PartialShape({1, 10, 4112, 128}));
 }
 
-TEST_F(GQACompiledModelTest, NonV2SlidingCapacityIgnoresPrefillChunkSize) {
+TEST_F(GQACompiledModelTest, NonV2SlidingCapacityHonorsSwaHeadroom) {
     RecordingFactory recorder;
     auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1, /*as_v2_model=*/true);
     // Drop the u2 weight: the same graph classifies as Case::V0.
     model->remove_parameter(model->get_parameters().at(1));
     ASSERT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::V0);
 
-    ASSERT_NO_THROW(
-        create_compiled_model(model,
-                              {{"NPUW_LLM_MAX_CONTEXT_LEN", "16384"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}},
-                              recorder));
+    ASSERT_NO_THROW(create_compiled_model(model,
+                                          {{"NPUW_LLM_MAX_CONTEXT_LEN", "16384"}, {"NPUW_LLM_SWA_HEADROOM", "512"}},
+                                          recorder));
 
     const auto& call = recorder.only_call();
-    EXPECT_EQ(parameter_shape(call.model, "past_keys_30"), ov::PartialShape({1, 10, 4112, 128}));
-    EXPECT_EQ(call.props.count("NPUW_LLM_PREFILL_CHUNK_SIZE"), 0u);
+    EXPECT_EQ(parameter_shape(call.model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
+    EXPECT_EQ(call.props.count("NPUW_LLM_SWA_HEADROOM"), 0u);
 }
 
 TEST_F(GQACompiledModelTest, ReshapesDynamicAttentionBiasToStaticCapacity) {
@@ -1910,11 +1926,11 @@ TEST(ReshapeToStaticGQATest, SWALayerPrefillHeadroomCoversWholeQueryChunk) {
     EXPECT_FALSE(model->is_dynamic());
 }
 
-TEST(ReshapeToStaticGQATest, SWALayerGenerateHeadroomCoversConfiguredPrefillChunk) {
+TEST(ReshapeToStaticGQATest, SWALayerGenerateHeadroomCoversConfiguredSwaHeadroom) {
     auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1);
     ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/16384,
                                                        /*default_sliding_window_capacity=*/std::nullopt,
-                                                       /*prefill_chunk_size=*/512);
+                                                       /*sliding_window_headroom=*/512);
     ASSERT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
 
     // Generate shares the prefill KV buffers: align16(4095) + align16(max(16, 1, 512)) = 4608.
