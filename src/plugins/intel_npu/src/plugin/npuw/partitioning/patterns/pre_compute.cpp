@@ -153,6 +153,282 @@ void replaceSinCosByCache(int max_prompt_len, const ov::OutputVector& cache, con
     }
 }
 
+// --- M-RoPE section discovery -----------------------------------------------------------
+//
+// Unwraps a chain of single-input Reshape nodes (pure flatten/unflatten boilerplate used by the
+// traced "SliceAssign"/"GatherAssign" in-place-update idiom), returning the first non-Reshape
+// producer found.
+std::shared_ptr<ov::Node> skip_reshapes(std::shared_ptr<ov::Node> n) {
+    while (n && ov::is_type<ov::op::v1::Reshape>(n)) {
+        n = n->input_value(0).get_node_shared_ptr();
+    }
+    return n;
+}
+
+// Reads the single integer value out of a scalar/1-element integer Constant, or nullopt if
+// `node` isn't one.
+std::optional<int64_t> read_scalar_index(const std::shared_ptr<ov::Node>& node) {
+    auto c = ov::as_type_ptr<ov::op::v0::Constant>(node);
+    if (!c) {
+        return std::nullopt;
+    }
+    auto values = c->cast_vector<int64_t>();
+    if (values.size() != 1) {
+        return std::nullopt;
+    }
+    return values.front();
+}
+
+// Reads {begin, end, step, count} off a positive-stride, last-axis opset8::Slice, or nullopt if
+// `slice_node` doesn't have that shape (non-constant bounds, non-positive step, or an axis other
+// than the last). `count` is the number of channels the slice actually selects: begin,
+// begin+step, begin+2*step, ..., for `count` elements (step == 1 gives the common contiguous
+// case; step > 1 is an interleaved/strided assignment, e.g. Qwen's "interleaved mrope" layout).
+struct SliceRange {
+    int64_t begin = 0;
+    int64_t end = 0;
+    int64_t step = 1;
+    int64_t count = 0;
+};
+
+std::optional<SliceRange> read_last_axis_slice_range(const std::shared_ptr<ov::op::v8::Slice>& slice_node,
+                                                     int64_t full_width) {
+    auto begin_node = slice_node->input_value(1).get_node_shared_ptr();
+    auto end_node = slice_node->input_value(2).get_node_shared_ptr();
+    auto step_node = slice_node->input_value(3).get_node_shared_ptr();
+    auto begin = read_scalar_index(begin_node);
+    auto end = read_scalar_index(end_node);
+    auto step = read_scalar_index(step_node);
+    if (!begin || !end || !step) {
+        return std::nullopt;
+    }
+    if (step.value() <= 0) {
+        return std::nullopt;
+    }
+    if (slice_node->get_input_size() > 4) {
+        auto axis_node = slice_node->input_value(4).get_node_shared_ptr();
+        auto axis = read_scalar_index(axis_node);
+        const auto last_axis = static_cast<int64_t>(slice_node->get_input_partial_shape(0).rank().get_length()) - 1;
+        if (!axis || (axis.value() != -1 && axis.value() != last_axis)) {
+            return std::nullopt;
+        }
+    }
+    auto b = begin.value() < 0 ? begin.value() + full_width : begin.value();
+    auto e = end.value() < 0 ? end.value() + full_width : std::min(end.value(), full_width);
+    if (b < 0 || e > full_width || b >= e) {
+        return std::nullopt;
+    }
+    const auto step_value = step.value();
+    const auto count = (e - b + step_value - 1) / step_value;
+    return SliceRange{b, e, step_value, count};
+}
+
+// Checks that `node` eventually (through any number of Reshape-unwraps and nested
+// ScatterNDUpdate "GatherAssign" write-backs - irrelevant here, see RopePatternMRope's class
+// comment) traces back to the shared stacked `transpose_output`, directly or via a Gather
+// reading it. Used only as a sanity check on a section's own select-Gather input - does not
+// itself extract any section information.
+bool reaches_transpose_output(const std::shared_ptr<ov::Node>& node,
+                              const ov::Output<ov::Node>& transpose_output,
+                              int depth = 0) {
+    if (depth > 16) {
+        return false;  // guard against unexpectedly deep/cyclic chains
+    }
+    auto cur = skip_reshapes(node);
+    if (!cur) {
+        return false;
+    }
+    if (cur->output(0) == transpose_output) {
+        return true;
+    }
+    if (auto gather = ov::as_type_ptr<ov::op::v8::Gather>(cur)) {
+        return reaches_transpose_output(gather->input_value(0).get_node_shared_ptr(), transpose_output, depth + 1);
+    }
+    if (auto scatter = ov::as_type_ptr<ov::op::v3::ScatterNDUpdate>(cur)) {
+        return reaches_transpose_output(scatter->input_value(0).get_node_shared_ptr(), transpose_output, depth + 1);
+    }
+    return false;
+}
+
+// Recognizes the shared M-RoPE frequency prologue standing above every section's terminal
+// select-Gather:
+//   Transpose(MatMul(Broadcast(Convert?(inv_freq), any) | Convert?(inv_freq),
+//                    Convert(Unsqueeze(position_ids, any))),
+//             any)
+// This can't be expressed as part of the same static (opp::) pattern graph as `concat_2` below,
+// because the chain between them is a dynamically-sized, recursively-defined merge (see
+// discover_mrope_sections()) - it's instead recognized imperatively, once the merge chain has
+// been walked all the way back down to its terminal Gather. Returns {inv_freq, position_ids} on
+// success, or nullopt if `node` isn't that Transpose.
+std::optional<std::pair<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>> match_mrope_prefix(
+    const std::shared_ptr<ov::Node>& node) {
+    auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(node);
+    if (!transpose) {
+        return std::nullopt;
+    }
+    auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(transpose->input_value(0).get_node_shared_ptr());
+    if (!matmul) {
+        return std::nullopt;
+    }
+
+    auto freq_side = matmul->input_value(0).get_node_shared_ptr();
+    if (ov::is_type<ov::op::v3::Broadcast>(freq_side)) {
+        freq_side = freq_side->input_value(0).get_node_shared_ptr();
+    }
+    if (ov::is_type<ov::op::v0::Convert>(freq_side)) {
+        freq_side = freq_side->input_value(0).get_node_shared_ptr();
+    }
+    auto inv_freq = ov::as_type_ptr<ov::op::v0::Constant>(freq_side);
+    if (!inv_freq) {
+        return std::nullopt;
+    }
+
+    auto position_side = matmul->input_value(1).get_node_shared_ptr();
+    if (ov::is_type<ov::op::v0::Convert>(position_side)) {
+        position_side = position_side->input_value(0).get_node_shared_ptr();
+    }
+    auto unsqueeze = ov::as_type_ptr<ov::op::v0::Unsqueeze>(position_side);
+    if (!unsqueeze) {
+        return std::nullopt;
+    }
+
+    return std::make_pair(std::static_pointer_cast<ov::Node>(inv_freq),
+                          unsqueeze->input_value(0).get_node_shared_ptr());
+}
+
+// Recognizes one "section merge" step feeding into the final Concat: a ScatterNDUpdate whose
+// `updates` operand (port 2) is a (Reshape-wrapped) Gather("select")->Slice->optional
+// shape-preserving Broadcast("copy_") chain reading one channel sub-range out of the shared
+// stacked frequency tensor, and whose `base` operand (port 0) is either the previous
+// (Reshape-wrapped) ScatterNDUpdate in the chain (recursed into), or a terminal
+// (Reshape-wrapped) Gather("select") reading the shared M-RoPE prologue's Transpose output
+// directly (see match_mrope_prefix()) - the first section, matched here as a full, not-yet-
+// sliced row; its effective channel range is whatever is left over after subtracting every
+// other discovered section's range (computed by the caller).
+//
+// Appends one entry per explicitly-sliced section found to `sections` (first/terminal section
+// discovered first, since validation happens on the way back up the recursion) and returns the
+// terminal Gather("select") node on success, or nullptr if the chain doesn't match the expected
+// idiom anywhere along the way.
+std::shared_ptr<ov::op::v8::Gather> discover_mrope_sections(const std::shared_ptr<ov::Node>& node,
+                                                            int64_t full_width,
+                                                            std::vector<pre_compute::MRopeSection>& sections) {
+    auto cur = skip_reshapes(node);
+    if (!cur) {
+        return nullptr;
+    }
+
+    if (auto gather = ov::as_type_ptr<ov::op::v8::Gather>(cur)) {
+        // Terminal: the first section, reading the shared prologue's Transpose output directly.
+        auto prefix_ok = match_mrope_prefix(gather->input_value(0).get_node_shared_ptr()).has_value();
+        return prefix_ok ? gather : nullptr;
+    }
+
+    auto scatter = ov::as_type_ptr<ov::op::v3::ScatterNDUpdate>(cur);
+    if (!scatter) {
+        return nullptr;
+    }
+
+    auto updates = skip_reshapes(scatter->input_value(2).get_node_shared_ptr());
+    if (updates && ov::is_type<ov::op::v3::Broadcast>(updates)) {
+        updates = updates->input_value(0).get_node_shared_ptr();
+    }
+    auto slice = ov::as_type_ptr<ov::op::v8::Slice>(updates);
+    if (!slice) {
+        return nullptr;
+    }
+    auto range = read_last_axis_slice_range(slice, full_width);
+    auto select = ov::as_type_ptr<ov::op::v8::Gather>(skip_reshapes(slice->input_value(0).get_node_shared_ptr()));
+    if (!range || !select) {
+        return nullptr;
+    }
+    auto row_index = read_scalar_index(select->input_value(1).get_node_shared_ptr());
+    if (!row_index) {
+        return nullptr;
+    }
+
+    // Recurse into the base (port 0) first - this both discovers earlier sections and, via the
+    // terminal first-section Gather, pins down the shared Transpose node every section's own
+    // select-Gather is checked against below.
+    auto terminal = discover_mrope_sections(scatter->input_value(0).get_node_shared_ptr(), full_width, sections);
+    if (!terminal) {
+        return nullptr;
+    }
+    if (!reaches_transpose_output(select->input_value(0).get_node_shared_ptr(), terminal->input_value(0))) {
+        return nullptr;
+    }
+
+    sections.push_back({row_index.value(), range->begin, range->step, range->count});
+    return terminal;
+}
+
+// Builds the M-RoPE replacement: gathers the implicit/base row's own position_ids row in full
+// from a *non-duplicated* [1, max_prompt_len, rotary_ndims/2] LUT, then - for every
+// explicitly-sliced section - gathers that section's own row too and overwrites its (possibly
+// strided/interleaved) channel sub-range on top of the base via ScatterUpdate, before
+// reproducing the model's own final torch.cat([row, row], dim=-1) duplication. This mirrors the
+// original model's own Gather(select)->Slice->ScatterNDUpdate merge exactly - a simple
+// sorted-Slice-then-Concat reassembly of channel ranges cannot represent a channel_step > 1
+// (interleaved) section assignment.
+void replaceSinCosByMRopeCache(const ov::OutputVector& cache, const pre_compute::RopePatternMRope* rpe) {
+    auto axis0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto axis1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto last_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+
+    // Gathers `row_index`'s own position_ids row out of the LUT, producing the FULL (un-sliced)
+    // [batch, seq, rotary_ndims/2] frequency row for that rotary axis.
+    auto gather_full_row = [&](const ov::Output<ov::Node>& lut, int64_t row_index) {
+        // matched_position_ids is [num_sections, batch, seq]; Gather+Squeeze(axis 0) picks this
+        // section's row, giving [batch, seq].
+        auto row_index_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {row_index});
+        auto position_ids_row = std::make_shared<ov::op::v8::Gather>(rpe->matched_position_ids, row_index_const, axis0);
+        auto position_ids_row_sq = std::make_shared<ov::op::v0::Squeeze>(position_ids_row, axis0);
+
+        // Gather that row out of the LUT (shape becomes [1, batch, seq, rotary_ndims/2]) and drop
+        // the LUT's own leading batch-1 dim.
+        auto gathered = std::make_shared<ov::op::v8::Gather>(lut, position_ids_row_sq, axis1);
+        auto gathered_fp32 = std::make_shared<ov::op::v0::Convert>(gathered, ov::element::f32);
+        return std::make_shared<ov::op::v0::Squeeze>(gathered_fp32, axis0)->output(0);
+    };
+
+    // matched_sections holds only the explicit, Slice-discovered sections (see
+    // RopePatternMRope::matched_sections's comment in pre_compute.hpp) - the implicit/base row
+    // (matched_base_row_index) is never itself sliced.
+    const auto& sections = rpe->matched_sections;
+
+    auto merge_rows = [&](const ov::Output<ov::Node>& lut) {
+        ov::Output<ov::Node> merged = gather_full_row(lut, rpe->matched_base_row_index);
+        for (const auto& section : sections) {
+            auto full_row = gather_full_row(lut, section.position_ids_row_index);
+
+            std::vector<int64_t> channel_indices(static_cast<size_t>(section.channel_count));
+            for (int64_t k = 0; k < section.channel_count; ++k) {
+                channel_indices[static_cast<size_t>(k)] = section.channel_offset + k * section.channel_step;
+            }
+            auto indices =
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{channel_indices.size()}, channel_indices);
+
+            // Pick out this section's own (possibly strided) channels from its full row, then
+            // overwrite the same channel positions in the merged row.
+            auto updates = std::make_shared<ov::op::v8::Gather>(full_row, indices, last_axis);
+            merged = std::make_shared<ov::op::v3::ScatterUpdate>(merged, indices, updates, last_axis);
+        }
+        return merged;
+    };
+
+    auto merged_cos = merge_rows(cache[0]);
+    auto merged_sin = merge_rows(cache[1]);
+
+    auto dup_cos = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{merged_cos, merged_cos}, -1);
+    auto dup_sin = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{merged_sin, merged_sin}, -1);
+
+    LOG_VERB("M-RoPE cos detected at: " << rpe->matched_cos->get_name() << ", replacing by cache merge of "
+                                        << sections.size() << " sections");
+
+    ov::replace_node(rpe->matched_cos, dup_cos);
+    ov::replace_node(rpe->matched_sin, dup_sin);
+}
+
 }  // namespace
 
 bool ov::npuw::patterns::pre_compute::RopePatternLLama2::is_valid_match(
@@ -234,6 +510,96 @@ ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matche
 
         LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name()
                                      << " (duplicate_freqs=" << duplicate_freqs << ")");
+    };
+
+    matcher.register_patterns({output_sin, output_cos}, make_matcher_callback(output_sin, output_cos));
+}
+
+ov::npuw::patterns::pre_compute::RopePatternMRope::RopePatternMRope() : matcher("mrope-sin-cos-matcher") {
+    // Unlike RopePatternLLama2, the shared frequency prologue (inv_freq/position_ids/Broadcast/
+    // MatMul/Transpose) can't be wired into the same static pattern graph as `concat_2` below -
+    // M-RoPE merges several channel-ranged "sections" of that prologue's stacked output through
+    // a dynamically-sized, recursively-defined per-section Gather("select")/Slice/
+    // ScatterNDUpdate chain first (see discover_mrope_sections()), which isn't expressible as a
+    // fixed sequence of op types. It's instead recognized imperatively below, once the merge
+    // chain has been walked all the way back down to its terminal Gather (match_mrope_prefix()).
+    auto concat_2 = opp::wrap_type<ov::op::v0::Concat>({opp::any_input(), opp::any_input()});
+    auto output_sin = opp::wrap_type<ov::op::v0::Sin>({concat_2});
+    auto output_cos = opp::wrap_type<ov::op::v0::Cos>({concat_2});
+
+    bind_match = [=](const auto& map_sin, const auto& map_cos) {
+        this->matched_concat.reset();
+        this->matched_cos = map_cos.at(output_cos).get_node_shared_ptr();
+        this->matched_sin = map_sin.at(output_sin).get_node_shared_ptr();
+        auto matched_concat_2 = map_sin.at(concat_2).get_node_shared_ptr();
+
+        // Only torch.cat([row, row], dim=-1) - both Concat inputs being the exact same tensor -
+        // is reproduced by replaceSinCosByMRopeCache's own final self-duplicating Concat.
+        this->duplicate_freqs = matched_concat_2->input_value(0) == matched_concat_2->input_value(1);
+        if (!this->duplicate_freqs) {
+            this->accept_match = false;
+            return;
+        }
+
+        // The pre-duplication channel width is needed up front to validate each section's Slice
+        // range (and to compute the implicit first section's complement range below) - read it
+        // off the (pre-duplication) Concat input's own shape, since matched_inv_freq isn't known
+        // until discovery below succeeds.
+        const auto& pre_dup_shape = matched_concat_2->get_input_partial_shape(0);
+        if (pre_dup_shape.rank().is_dynamic() || pre_dup_shape[pre_dup_shape.rank().get_length() - 1].is_dynamic()) {
+            this->accept_match = false;
+            return;
+        }
+        const auto full_width = pre_dup_shape[pre_dup_shape.rank().get_length() - 1].get_length();
+
+        this->matched_sections.clear();
+        auto first_section_gather = discover_mrope_sections(matched_concat_2->input_value(0).get_node_shared_ptr(),
+                                                            full_width,
+                                                            this->matched_sections);
+        // Require at least one explicit section plus the implicit (complement-range) first one -
+        // a single, unsliced section with no merging at all is already RopePatternLLama2's job.
+        if (!first_section_gather || this->matched_sections.empty()) {
+            this->accept_match = false;
+            return;
+        }
+        auto first_row = read_scalar_index(first_section_gather->input_value(1).get_node_shared_ptr());
+        auto prefix = match_mrope_prefix(first_section_gather->input_value(0).get_node_shared_ptr());
+        if (!first_row || !prefix) {
+            this->accept_match = false;
+            return;
+        }
+        this->matched_inv_freq = prefix->first;
+        this->matched_position_ids = prefix->second;
+        if (static_cast<int64_t>(ov::shape_size(this->matched_inv_freq->get_shape())) != full_width) {
+            this->accept_match = false;
+            return;
+        }
+
+        // Every discovered section's channels must be disjoint and in range; reject anything
+        // else rather than risk a silently wrong (overlapping) LUT merge. Channels no explicit
+        // section claims simply keep the implicit/base row's own value (see
+        // replaceSinCosByMRopeCache()) - their shape doesn't need to be contiguous or even
+        // regular, so no further validation is needed for them.
+        std::vector<bool> covered(static_cast<size_t>(full_width), false);
+        bool overlap_rejected = false;
+        for (const auto& section : this->matched_sections) {
+            for (int64_t k = 0; k < section.channel_count; ++k) {
+                const auto c = section.channel_offset + k * section.channel_step;
+                if (c < 0 || c >= full_width || covered[static_cast<size_t>(c)]) {
+                    this->accept_match = false;
+                    overlap_rejected = true;
+                    break;
+                }
+                covered[static_cast<size_t>(c)] = true;
+            }
+            if (overlap_rejected) {
+                return;
+            }
+        }
+        this->matched_base_row_index = first_row.value();
+
+        LOG_VERB("M-RoPE found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name()
+                                       << ", sections=" << this->matched_sections.size());
     };
 
     matcher.register_patterns({output_sin, output_cos}, make_matcher_callback(output_sin, output_cos));
@@ -452,6 +818,16 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
         replaceSinCosByCache(max_prompt_len, cache, rpe.get());
     };
     rpe->run_on_model(model);
+
+    // M-RoPE (multi-section rotary, e.g. Qwen2-VL-style) models aren't matched by
+    // RopePatternLLama2 above - the stacked per-section frequency tensor is merged into a single
+    // row before Sin/Cos rather than concatenated with itself directly. See RopePatternMRope.
+    auto mrope = std::make_shared<RopePatternMRope>();
+    mrope->transform_cb = [&]() {
+        auto cache = makeCosSinCache(max_prompt_len, mrope->matched_inv_freq, /*duplicate=*/false);
+        replaceSinCosByMRopeCache(cache, mrope.get());
+    };
+    mrope->run_on_model(model);
 
     // LongRoPE cos/sin LUTs are model inputs, not Constants: the host picks the
     // short/long factor mode and binds the matching rows, so no in-graph Select - and
