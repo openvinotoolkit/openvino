@@ -595,7 +595,18 @@ protected:
 #endif
                 _prim.execute(stream.get_onednn_stream(), _args[net_id]);
             } catch (dnnl::error& err) {
-                OPENVINO_THROW(err.what());
+                OPENVINO_THROW("[", instance.id(), "] ", err.what());
+            }
+
+            // Diagnostic: onednn primitives execute directly on the onednn stream and never pass through
+            // ocl_stream::enqueue_kernel, so force completion here too to surface async errors
+            // (e.g. CL_OUT_OF_RESOURCES) at this exact onednn primitive/layer.
+            GPU_DEBUG_IF(network.get_config().get_finish_after_enqueue()) {
+                try {
+                    stream.finish();
+                } catch (std::exception& err) {
+                    OPENVINO_THROW("[FINISH_AFTER_ENQUEUE][onednn] [", instance.id(), "] ", err.what());
+                }
             }
 
             if (_enable_profiling) {

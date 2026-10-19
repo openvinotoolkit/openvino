@@ -58,6 +58,9 @@ class TestAtan2Types(PytorchLayerTest):
     @pytest.mark.parametrize(("lhs_type", "rhs_type"),
                              [[torch.int, torch.float32],
                               [torch.int, torch.float64],
+                              [torch.int, torch.int],
+                              [torch.int64, torch.int32],
+                              [torch.bool, torch.bool],
                               [torch.float32, torch.float64],
                               [torch.int64, torch.float32]
                               ])
@@ -75,6 +78,24 @@ class TestAtan2Types(PytorchLayerTest):
         self.rhs_shape = rhs_shape
         self._test(*self.create_model(lhs_type, rhs_type),
                    ie_device, precision, ir_version, freeze_model=False, trace_model=True, fx_kind="aten.arctan2")
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_atan2_int_default_dtype(self, ie_device, precision, ir_version):
+        # integer inputs give torch.get_default_dtype(), not always float32
+        if self.use_torch_export() or self.use_torch_compile_backend():
+            pytest.skip("The FX decoder reports a dynamic output type for this node, so f32 is used")
+        self.lhs_type = torch.int32
+        self.lhs_shape = [2, 3]
+        self.rhs_type = torch.int32
+        self.rhs_shape = [2, 3]
+        default_dtype = torch.get_default_dtype()
+        torch.set_default_dtype(torch.float64)
+        try:
+            self._test(*self.create_model(torch.int32, torch.int32),
+                       ie_device, precision, ir_version, freeze_model=False, trace_model=True, fx_kind="aten.arctan2")
+        finally:
+            torch.set_default_dtype(default_dtype)
 
 
 class TestAtan2ZeroEdgeCases(PytorchLayerTest):

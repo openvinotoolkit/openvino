@@ -2176,7 +2176,7 @@ public:
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         // FlashAttn v1 or v2?
-        config.set_property(ov::intel_gpu::could_use_flashattn_v2(p.force_flashattn_v2 ? true : p.disable_flashattn_v2));
+        config.set_property(ov::intel_gpu::could_use_flashattn_v2(p.force_flashattn_v2 ? true : !p.disable_flashattn_v2));
         config.set_property(ov::internal::key_cache_quant_mode(p.key_cache_quant_mode));
         if (p.use_cm_kernel) {
             config.set_property(ov::intel_gpu::kernel_selection(

@@ -242,8 +242,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
 bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertBuffers")
     const auto& loop_manager = linear_ir.get_loop_manager();
-    const auto loop_data_map = loop_manager->get_map();
-    for (const auto& loop_data : loop_data_map) {
+    for (const auto& loop_data : loop_manager->get_map()) {
         const auto loop_info = loop_data.second;
         const auto loop_entries = loop_info->get_input_ports();
         const auto loop_exits = loop_info->get_output_ports();
