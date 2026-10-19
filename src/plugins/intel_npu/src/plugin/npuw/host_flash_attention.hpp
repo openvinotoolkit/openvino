@@ -491,6 +491,11 @@ public:
     using Ptr = std::shared_ptr<Selector>;
     virtual ~Selector() = default;
     virtual void prepare(int64_t past_len) = 0;
+
+    // The KV length the current chunk attends to, laid out as [past | present]: an upper bound on
+    // the live past plus the present (query) length. It carries no tile alignment - the runtime
+    // rounds the past up to whole past tiles and caps it at the KV bound to the layer (see
+    // plan_past_length()), so it may be passed raw.
     virtual int64_t context_length() const = 0;
 
     Case this_case() const {
@@ -537,7 +542,9 @@ public:
 //
 // The additive mask is always present though, and it already encodes the answer: each query row
 // is unmasked precisely over the KV positions it attends to, so the union over the chunk's rows of
-// the leading visible run is the KV length the chunk needs.
+// the leading visible run is the live past the chunk needs. context_length() is that past plus
+// the query length, unrounded: past tiles may be shorter than the query (SWA layers), so tile
+// planning is left to plan_past_length() rather than done here.
 //
 // SCOPE: like PositionIDs, this reads the *top-level* infer request. Its _mask_idx therefore
 // indexes that request's inputs -- NOT the attention function body's parameters. The two are
@@ -546,20 +553,31 @@ public:
 // mask *inside* the block, which is not even bound yet when prepare() runs) and must never be
 // passed in here.
 class MaskLength final : public Selector {
-    std::size_t _mask_idx = 0u;  // index into the top-level request's inputs
-    std::size_t _tile_size = 1u;
+    std::size_t _mask_idx = 0u;    // index into the top-level request's inputs
+    std::size_t _query_size = 0u;  // length of the present slice at the end of the merged KV
     std::size_t _context_size = 0u;
     int64_t _context_length = 0;
 
     std::reference_wrapper<const ov::ISyncInferRequest> _rq;
 
-    MaskLength(std::size_t mask_idx, std::size_t tile_size, std::size_t context_size, const ov::ISyncInferRequest& rq);
+    MaskLength(std::size_t mask_idx, std::size_t query_size, std::size_t context_size, const ov::ISyncInferRequest& rq);
     void prepare(int64_t past_len) override;
     int64_t context_length() const override;
 
 public:
-    static Selector::Ptr find(std::size_t tile_size, std::size_t context_size, const ov::ISyncInferRequest& rq);
+    // past_tile_size is only used to recognise the mask (it may be up to one past tile short of the
+    // context); query_size is the present length the past is measured against.
+    static Selector::Ptr find(std::size_t past_tile_size,
+                              std::size_t query_size,
+                              std::size_t context_size,
+                              const ov::ISyncInferRequest& rq);
 };
+
+// Turn a Selector::context_length() into the number of past KV positions the regular tiles
+// process: the live past (context_length - present_length) rounded up to whole past tiles, capped
+// at past_capacity (the past KV bound to the layer, itself a whole number of past tiles). The
+// positions added by the rounding are masked out, so processing them does not change the result.
+int64_t plan_past_length(int64_t context_length, int64_t present_length, int64_t past_tile_size, int64_t past_capacity);
 
 }  // namespace host_flash_attention
 }  // namespace runtime

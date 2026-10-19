@@ -1575,19 +1575,23 @@ bool looks_like_attention_mask(const ov::Output<const ov::Node>& p, std::size_t 
 }  // anonymous namespace
 
 MaskLength::MaskLength(std::size_t mask_idx,
-                       std::size_t tile_size,
+                       std::size_t query_size,
                        std::size_t context_size,
                        const ov::ISyncInferRequest& rq)
     : _mask_idx(mask_idx),
-      _tile_size(tile_size),
+      _query_size(query_size),
       _context_size(context_size),
       _context_length(static_cast<int64_t>(context_size)),
       _rq(rq) {
     _case = Case::PREFILL;
 }
 
-Selector::Ptr MaskLength::find(std::size_t tile_size, std::size_t context_size, const ov::ISyncInferRequest& rq) {
-    if (tile_size == 0 || context_size == 0 || tile_size > context_size) {
+Selector::Ptr MaskLength::find(std::size_t past_tile_size,
+                               std::size_t query_size,
+                               std::size_t context_size,
+                               const ov::ISyncInferRequest& rq) {
+    if (past_tile_size == 0 || query_size == 0 || context_size == 0 || past_tile_size > context_size ||
+        query_size > context_size) {
         return Selector::Ptr{};
     }
     // Search the top-level request's own inputs. The attention block's mask Parameter cannot be
@@ -1598,7 +1602,7 @@ Selector::Ptr MaskLength::find(std::size_t tile_size, std::size_t context_size, 
     const auto& inputs = rq.get_inputs();
     std::size_t found = inputs.size();
     for (std::size_t i = 0; i < inputs.size(); ++i) {
-        if (!looks_like_attention_mask(inputs[i], tile_size, context_size)) {
+        if (!looks_like_attention_mask(inputs[i], past_tile_size, context_size)) {
             continue;
         }
         // Prefer the longest candidate (an exact context match over a padded one). With one mask
@@ -1616,7 +1620,7 @@ Selector::Ptr MaskLength::find(std::size_t tile_size, std::size_t context_size, 
     LOG_VERB("HFA: deriving the KV length from model input "
              << found << " ('" << inputs[found].get_node()->get_friendly_name() << "', " << inputs[found].get_shape()
              << ")");
-    return Selector::Ptr{new MaskLength(found, tile_size, context_size, rq)};
+    return Selector::Ptr{new MaskLength(found, query_size, context_size, rq)};
 }
 
 void MaskLength::prepare(int64_t past_len) {
@@ -1630,10 +1634,10 @@ void MaskLength::prepare(int64_t past_len) {
     const std::size_t num_rows = dims[dims.size() - 2];
 
     // The merged KV is laid out [ past cache | present slice ], and the runtime's tile loop always
-    // feeds the trailing present slice through the final tile. So only the past region is measured;
-    // the present slice is added back below. The row can be shorter than the context (it describes
-    // the KV length before tile alignment padding), hence the clamp.
-    const std::size_t past_len_max = std::min(_context_size - _tile_size, row_len);
+    // feeds the trailing present slice - query_size long - through the final tile. So only the past
+    // region is measured; the present slice is added back below. The row can be shorter than the
+    // context (it describes the KV length before tile alignment padding), hence the clamp.
+    const std::size_t past_len_max = std::min(_context_size - _query_size, row_len);
 
     // Take the union over every query row of the chunk. Under a sliding window the last row sees
     // the LEAST of the past, not the most: once the window has slid into the present slice it may
@@ -1659,16 +1663,31 @@ void MaskLength::prepare(int64_t past_len) {
         max_past = std::max(max_past, run.first);
     }
 
-    // Round the past up to whole tiles (the extra positions are masked out anyway) and add the
-    // present slice, which is always exactly one tile.
-    const std::size_t past_tiles = (max_past + _tile_size - 1) / _tile_size;
-    _context_length = static_cast<int64_t>(std::min((past_tiles + 1) * _tile_size, _context_size));
-    LOG_DEBUG("HFA mask-derived KV length: past " << max_past << " -> " << _context_length << " total (tile "
-                                                  << _tile_size << ")");
+    // Live past plus the present slice. No tile rounding here: plan_past_length() does it against
+    // the layer's own past tile size, which need not equal the query size.
+    _context_length = static_cast<int64_t>(max_past + _query_size);
+    LOG_DEBUG("HFA mask-derived KV length: past " << max_past << " + present " << _query_size << " = "
+                                                  << _context_length);
 }
 
 int64_t MaskLength::context_length() const {
     return _context_length;
+}
+
+int64_t plan_past_length(int64_t context_length,
+                         int64_t present_length,
+                         int64_t past_tile_size,
+                         int64_t past_capacity) {
+    OPENVINO_ASSERT(past_tile_size > 0, "HFA: past tile size must be positive, got ", past_tile_size);
+    OPENVINO_ASSERT(past_capacity >= 0 && past_capacity % past_tile_size == 0,
+                    "HFA: past KV capacity ",
+                    past_capacity,
+                    " is not a whole number of ",
+                    past_tile_size,
+                    "-long past tiles");
+    const int64_t live_past = std::max<int64_t>(0, context_length - present_length);
+    const int64_t rounded_past = (live_past + past_tile_size - 1) / past_tile_size * past_tile_size;
+    return std::min(rounded_past, past_capacity);
 }
 
 // ============================================================================

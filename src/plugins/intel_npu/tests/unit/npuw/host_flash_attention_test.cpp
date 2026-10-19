@@ -854,11 +854,15 @@ std::shared_ptr<ov::ISyncInferRequest> make_mask_length_request(const ov::Shape&
 const float kMasked = static_cast<float>(std::numeric_limits<ov::float16>::lowest());
 const float kVisible = 0.0f;
 
+// Query rows (= present length) of the masks below that do not set their own.
+constexpr std::size_t kQueryRows = 4;
+
 }  // namespace
 
 // Sliding window with past capacity == chunk == window == 4: the LAST row's window has slid
 // entirely into the present slice, but rows 0-2 still see 1-3 real past columns. The past tile
-// must not be skipped, and tiles only come whole, so the answer is the full context.
+// must not be skipped. Those columns are a suffix of the past, not a prefix, so the selector
+// falls back to the full context.
 TEST(HostFlashAttentionMaskLengthSelectorTest, SWALastRowFullyMasked_PastTileMustNotBeSkipped) {
     constexpr std::size_t kTileSize = 4;
     constexpr std::size_t kContextSize = 8;  // past (4) + present (4)
@@ -874,7 +878,7 @@ TEST(HostFlashAttentionMaskLengthSelectorTest, SWALastRowFullyMasked_PastTileMus
     // clang-format on
 
     auto rq = make_mask_length_request(ov::Shape{1, 1, 4, kContextSize}, mask_data);
-    auto selector = ov::npuw::runtime::host_flash_attention::MaskLength::find(kTileSize, kContextSize, *rq);
+    auto selector = ov::npuw::runtime::host_flash_attention::MaskLength::find(kTileSize, kQueryRows, kContextSize, *rq);
     ASSERT_NE(selector, nullptr);
 
     selector->prepare(/*past_len=*/0);  // ignored on this path -- the mask is the authority
@@ -882,7 +886,7 @@ TEST(HostFlashAttentionMaskLengthSelectorTest, SWALastRowFullyMasked_PastTileMus
 }
 
 // First prefill call: nothing has been written to the past yet, so every row's past region is
-// masked end to end and the past tile is skipped.
+// masked end to end and the past tile is skipped: only the present remains.
 TEST(HostFlashAttentionMaskLengthSelectorTest, FirstCallNoPastWritten_PastTileSkipped) {
     constexpr std::size_t kTileSize = 4;
     constexpr std::size_t kContextSize = 8;  // past (4) + present (4)
@@ -897,15 +901,16 @@ TEST(HostFlashAttentionMaskLengthSelectorTest, FirstCallNoPastWritten_PastTileSk
     // clang-format on
 
     auto rq = make_mask_length_request(ov::Shape{1, 1, 4, kContextSize}, mask_data);
-    auto selector = ov::npuw::runtime::host_flash_attention::MaskLength::find(kTileSize, kContextSize, *rq);
+    auto selector = ov::npuw::runtime::host_flash_attention::MaskLength::find(kTileSize, kQueryRows, kContextSize, *rq);
     ASSERT_NE(selector, nullptr);
 
     selector->prepare(/*past_len=*/0);
-    EXPECT_EQ(selector->context_length(), static_cast<int64_t>(kTileSize));
+    EXPECT_EQ(selector->context_length(), static_cast<int64_t>(kQueryRows));
 }
 
-// Global (non-windowed) attention: a partially filled past is a clean prefix on every row, so
-// only the occupied past tile is kept and the unoccupied one is skipped.
+// Global (non-windowed) attention: a partially filled past is a clean prefix on every row. The
+// selector reports the 3 live past positions plus the present, unrounded; plan_past_length()
+// then keeps the occupied past tile and skips the unoccupied one.
 TEST(HostFlashAttentionMaskLengthSelectorTest, PartiallyFilledPast_OccupiedTilesOnly) {
     constexpr std::size_t kTileSize = 4;
     constexpr std::size_t kContextSize = 12;  // past (8, two tiles) + present (4)
@@ -921,11 +926,16 @@ TEST(HostFlashAttentionMaskLengthSelectorTest, PartiallyFilledPast_OccupiedTiles
     // clang-format on
 
     auto rq = make_mask_length_request(ov::Shape{1, 1, 4, kContextSize}, mask_data);
-    auto selector = ov::npuw::runtime::host_flash_attention::MaskLength::find(kTileSize, kContextSize, *rq);
+    auto selector = ov::npuw::runtime::host_flash_attention::MaskLength::find(kTileSize, kQueryRows, kContextSize, *rq);
     ASSERT_NE(selector, nullptr);
 
     selector->prepare(/*past_len=*/0);
-    EXPECT_EQ(selector->context_length(), static_cast<int64_t>(2 * kTileSize));
+    EXPECT_EQ(selector->context_length(), static_cast<int64_t>(3 + kQueryRows));
+    EXPECT_EQ(ov::npuw::runtime::host_flash_attention::plan_past_length(selector->context_length(),
+                                                                        kQueryRows,
+                                                                        kTileSize,
+                                                                        /*past_capacity=*/8),
+              static_cast<int64_t>(kTileSize));
 }
 
 // Every row sees the entire two-tile past: nothing may be dropped.
@@ -943,7 +953,7 @@ TEST(HostFlashAttentionMaskLengthSelectorTest, FullyVisiblePastAcrossMultipleTil
     // clang-format on
 
     auto rq = make_mask_length_request(ov::Shape{1, 1, 4, kContextSize}, mask_data);
-    auto selector = ov::npuw::runtime::host_flash_attention::MaskLength::find(kTileSize, kContextSize, *rq);
+    auto selector = ov::npuw::runtime::host_flash_attention::MaskLength::find(kTileSize, kQueryRows, kContextSize, *rq);
     ASSERT_NE(selector, nullptr);
 
     selector->prepare(/*past_len=*/0);
@@ -957,9 +967,135 @@ TEST(HostFlashAttentionMaskLengthSelectorTest, FindMatchesOnlyAMaskForThisContex
     const std::vector<float> data(1 * 1 * 4 * 8, kVisible);
 
     auto mask_rq = make_mask_length_request(ov::Shape{1, 1, 4, 8}, data, "attention_mask");
-    EXPECT_NE(MaskLength::find(/*tile_size=*/4, /*context_size=*/8, *mask_rq), nullptr);
-    EXPECT_EQ(MaskLength::find(/*tile_size=*/4, /*context_size=*/16, *mask_rq), nullptr);
+    EXPECT_NE(MaskLength::find(/*past_tile_size=*/4, /*query_size=*/4, /*context_size=*/8, *mask_rq), nullptr);
+    EXPECT_EQ(MaskLength::find(/*past_tile_size=*/4, /*query_size=*/4, /*context_size=*/16, *mask_rq), nullptr);
 
     auto cache_rq = make_mask_length_request(ov::Shape{1, 1, 4, 8}, data, "past_key_values.0.value");
-    EXPECT_EQ(MaskLength::find(/*tile_size=*/4, /*context_size=*/8, *cache_rq), nullptr);
+    EXPECT_EQ(MaskLength::find(/*past_tile_size=*/4, /*query_size=*/4, /*context_size=*/8, *cache_rq), nullptr);
+}
+
+// SWA layer whose past capacity (2) is shorter than the query (4), so past_tile_size (2) differs
+// from the present length. First call: the past is masked end to end. Only the 2 past columns may
+// be measured - measuring past_tile_size short of the context would read 2 present columns as
+// past, see a visible entry after a masked run and fall back to the full context.
+TEST(HostFlashAttentionMaskLengthSelectorTest, PastTileShorterThanQuery_FirstCall_PastTileSkipped) {
+    constexpr std::size_t kPastTile = 2;
+    constexpr std::size_t kQuery = 4;
+    constexpr std::size_t kContextSize = kPastTile + kQuery;
+
+    // clang-format off
+    const std::vector<float> mask_data = {
+        kMasked, kMasked,  kVisible, kMasked,  kMasked,  kMasked,   // row 0
+        kMasked, kMasked,  kVisible, kVisible, kMasked,  kMasked,   // row 1
+        kMasked, kMasked,  kMasked,  kVisible, kVisible, kMasked,   // row 2 (window 2)
+        kMasked, kMasked,  kMasked,  kMasked,  kVisible, kVisible,  // row 3 (window 2)
+    };
+    // clang-format on
+
+    auto rq = make_mask_length_request(ov::Shape{1, 1, kQuery, kContextSize}, mask_data);
+    auto selector = ov::npuw::runtime::host_flash_attention::MaskLength::find(kPastTile, kQuery, kContextSize, *rq);
+    ASSERT_NE(selector, nullptr);
+
+    selector->prepare(/*past_len=*/0);
+    EXPECT_EQ(selector->context_length(), static_cast<int64_t>(kQuery));
+    EXPECT_EQ(ov::npuw::runtime::host_flash_attention::plan_past_length(selector->context_length(),
+                                                                        kQuery,
+                                                                        kPastTile,
+                                                                        /*past_capacity=*/kPastTile),
+              0);
+}
+
+// Same layer, past fully written and visible to every row: the whole past tile is kept.
+TEST(HostFlashAttentionMaskLengthSelectorTest, PastTileShorterThanQuery_FullPast_PastTileKept) {
+    constexpr std::size_t kPastTile = 2;
+    constexpr std::size_t kQuery = 4;
+    constexpr std::size_t kContextSize = kPastTile + kQuery;
+
+    // clang-format off
+    const std::vector<float> mask_data = {
+        kVisible, kVisible,  kVisible, kMasked,  kMasked,  kMasked,   // row 0
+        kVisible, kVisible,  kVisible, kVisible, kMasked,  kMasked,   // row 1
+        kVisible, kVisible,  kVisible, kVisible, kVisible, kMasked,   // row 2
+        kVisible, kVisible,  kVisible, kVisible, kVisible, kVisible,  // row 3
+    };
+    // clang-format on
+
+    auto rq = make_mask_length_request(ov::Shape{1, 1, kQuery, kContextSize}, mask_data);
+    auto selector = ov::npuw::runtime::host_flash_attention::MaskLength::find(kPastTile, kQuery, kContextSize, *rq);
+    ASSERT_NE(selector, nullptr);
+
+    selector->prepare(/*past_len=*/0);
+    EXPECT_EQ(selector->context_length(), static_cast<int64_t>(kContextSize));
+    EXPECT_EQ(ov::npuw::runtime::host_flash_attention::plan_past_length(selector->context_length(),
+                                                                        kQuery,
+                                                                        kPastTile,
+                                                                        /*past_capacity=*/kPastTile),
+              static_cast<int64_t>(kPastTile));
+}
+
+// ---------------------------------------------------------------------------
+// runtime::host_flash_attention::plan_past_length
+// ---------------------------------------------------------------------------
+
+// A live past is rounded up to whole past tiles; one already aligned is kept as is.
+TEST(HostFlashAttentionPlanPastLengthTest, RoundsLivePastUpToWholeTiles) {
+    using ov::npuw::runtime::host_flash_attention::plan_past_length;
+    EXPECT_EQ(plan_past_length(/*context_length=*/3000 + 1024, 1024, 1024, /*past_capacity=*/16384), 3072);
+    EXPECT_EQ(plan_past_length(/*context_length=*/3072 + 1024, 1024, 1024, /*past_capacity=*/16384), 3072);
+    EXPECT_EQ(plan_past_length(/*context_length=*/1 + 1024, 1024, 1024, /*past_capacity=*/16384), 1024);
+}
+
+// No live past (first chunk), or a context shorter than the present: no past tile is processed.
+TEST(HostFlashAttentionPlanPastLengthTest, NoLivePastGivesZero) {
+    using ov::npuw::runtime::host_flash_attention::plan_past_length;
+    EXPECT_EQ(plan_past_length(/*context_length=*/1024, 1024, 1024, /*past_capacity=*/16384), 0);
+    EXPECT_EQ(plan_past_length(/*context_length=*/512, 1024, 1024, /*past_capacity=*/16384), 0);
+}
+
+// The past never exceeds what is bound to the layer: an SWA layer keeps only its window, and a
+// rounding that would run past a global layer's capacity is cut at the capacity.
+TEST(HostFlashAttentionPlanPastLengthTest, CappedAtPastCapacity) {
+    using ov::npuw::runtime::host_flash_attention::plan_past_length;
+    EXPECT_EQ(plan_past_length(/*context_length=*/8192 + 1024, 1024, 1024, /*past_capacity=*/1024), 1024);
+    EXPECT_EQ(plan_past_length(/*context_length=*/16383 + 1024, 1024, 1024, /*past_capacity=*/16384), 16384);
+    EXPECT_EQ(plan_past_length(/*context_length=*/99999, 1024, 1024, /*past_capacity=*/16384), 16384);
+    EXPECT_EQ(plan_past_length(/*context_length=*/99999, 1024, 1024, /*past_capacity=*/0), 0);
+}
+
+// Past tile shorter than the query (SWA layer with a short window): rounding is to the past tile,
+// not to the query length.
+TEST(HostFlashAttentionPlanPastLengthTest, PastTileShorterThanQuery) {
+    using ov::npuw::runtime::host_flash_attention::plan_past_length;
+    EXPECT_EQ(plan_past_length(/*context_length=*/3 + 1024, 1024, 768, /*past_capacity=*/768), 768);
+    EXPECT_EQ(plan_past_length(/*context_length=*/300 + 512, 512, 256, /*past_capacity=*/1024), 512);
+    EXPECT_EQ(plan_past_length(/*context_length=*/1024, 1024, 768, /*past_capacity=*/768), 0);
+}
+
+// Every value the runtime accepted before - min(context, past_capacity + present) - present, when
+// a whole number of past tiles - is returned unchanged, so position_ids-driven runs plan the same
+// tiles as before.
+TEST(HostFlashAttentionPlanPastLengthTest, UnchangedForEveryPreviouslyAcceptedValue) {
+    using ov::npuw::runtime::host_flash_attention::plan_past_length;
+    const int64_t present = 1024;
+    for (const int64_t past_tile : {int64_t{256}, int64_t{512}, int64_t{768}, int64_t{1024}}) {
+        for (int64_t capacity_tiles = 0; capacity_tiles <= 20; ++capacity_tiles) {
+            const int64_t capacity = capacity_tiles * past_tile;
+            for (int64_t context = 0; context <= 24 * present; context += 128) {
+                const int64_t old_past = std::min(context, capacity + present) - present;
+                if (old_past < 0 || old_past % past_tile != 0) {
+                    continue;  // the old code asserted here
+                }
+                EXPECT_EQ(plan_past_length(context, present, past_tile, capacity), old_past)
+                    << "context " << context << ", past tile " << past_tile << ", capacity " << capacity;
+            }
+        }
+    }
+}
+
+// The capacity must be a whole number of past tiles, and the tile must be positive.
+TEST(HostFlashAttentionPlanPastLengthTest, RejectsInvalidTiling) {
+    using ov::npuw::runtime::host_flash_attention::plan_past_length;
+    EXPECT_ANY_THROW(plan_past_length(2048, 1024, 0, 0));
+    EXPECT_ANY_THROW(plan_past_length(2048, 1024, 1024, 1000));
+    EXPECT_ANY_THROW(plan_past_length(2048, 1024, 1024, -1024));
 }
