@@ -19,13 +19,20 @@ namespace ov::npuw {
 
 // Front-end for the dynamic PagedAttention model the GenAI CB pipeline
 // deploys. The model is compiled 1:1 on the PA device (CPU) next to its
-// semi-static variants. The ports are the inner model's, so the pipeline reads
-// the device-resolved KV cache geometry off them.
+// semi-static variants, which NPUW partitions: the repeated blocks fold onto
+// NPU and every PA op stays on the PA device. The ports are the inner model's,
+// so the pipeline reads the device-resolved KV cache geometry off them.
 class PACompiledModel final : public ov::npuw::ICompiledModel {
 public:
     PACompiledModel(const std::shared_ptr<ov::Model>& model,
                     const std::shared_ptr<const ov::IPlugin>& plugin,
                     const ov::AnyMap& properties);
+
+    // The NPUW config the variants compile with: the caller's properties and
+    // the partitioning above, one weights bank shared by all of them.
+    static ov::AnyMap make_variant_config(const ov::AnyMap& properties,
+                                          const std::string& pa_device,
+                                          const std::string& weights_bank);
 
     const std::vector<ov::Output<const ov::Node>>& inputs() const override;
     const std::vector<ov::Output<const ov::Node>>& outputs() const override;

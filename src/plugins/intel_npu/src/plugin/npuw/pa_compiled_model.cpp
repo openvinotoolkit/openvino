@@ -108,21 +108,18 @@ std::shared_ptr<ov::Model> derive_pa_semi_static_model(const std::shared_ptr<ov:
     return derived;
 }
 
+// The variants go through NPUW on this plugin's device, partitioned by
+// make_variant_config().
 std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> compile_pa_semi_static_variants(
     const std::shared_ptr<ov::Model>& base_model,
     const std::shared_ptr<const ov::IPlugin>& plugin,
-    const std::string& device,
-    const ov::AnyMap& inner_config) {
+    const ov::AnyMap& variant_config) {
     std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> variants;
     for (const auto chunk_size : kChunkSizes) {
         auto derived = derive_pa_semi_static_model(base_model, chunk_size);
-        auto compiled = plugin->get_core()->compile_model(derived, device, inner_config);
-        OPENVINO_ASSERT(compiled != nullptr,
-                        "PA semi-static derivation failed to compile chunk_size=",
-                        chunk_size,
-                        " on ",
-                        device);
-        LOG_INFO("PA: compiled semi-static variant chunk_size=" << chunk_size << " on " << device);
+        auto compiled = plugin->get_core()->compile_model(derived, plugin->get_device_name(), variant_config);
+        OPENVINO_ASSERT(compiled != nullptr, "PA semi-static derivation failed to compile chunk_size=", chunk_size);
+        LOG_INFO("PA: compiled semi-static variant chunk_size=" << chunk_size << " through NPUW");
         variants.emplace(chunk_size, std::move(compiled));
     }
 
@@ -130,6 +127,30 @@ std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> compile_pa_semi_static_vari
 }
 
 }  // anonymous namespace
+
+ov::AnyMap ov::npuw::PACompiledModel::make_variant_config(const ov::AnyMap& properties,
+                                                          const std::string& pa_device,
+                                                          const std::string& weights_bank) {
+    // A variant is an ordinary NPUW model: it must not select the PA front-end
+    // again, and a partitioning chosen for the whole model does not apply to it.
+    auto config = properties;
+    config.erase(std::string(::intel_npu::NPUW_PA::key()));
+    config.erase(std::string(::intel_npu::NPUW_PLAN::key()));
+    config.erase(std::string(::intel_npu::NPUW_SUBMODEL_DEVICE::key()));
+    config[ov::intel_npu::use_npuw.name()] = std::string("YES");
+
+    // Every PA op is a block of its own, kept off NPU. The static repeated
+    // blocks around them fold onto NPU and share one weights bank across the
+    // variants, which are clones of one model.
+    config[std::string(::intel_npu::NPUW_DEVICES::key())] = "NPU," + pa_device;
+    config[std::string(::intel_npu::NPUW_ONLINE_PIPELINE::key())] = std::string("REP");
+    config[std::string(::intel_npu::NPUW_ONLINE_ISOLATE::key())] = std::string("Op:PagedAttentionExtension/pa");
+    config[std::string(::intel_npu::NPUW_ONLINE_AVOID::key())] = std::string("Op:PagedAttentionExtension/NPU");
+    config[std::string(::intel_npu::NPUW_ONLINE_KEEP_BLOCKS_TAGGED::key())] = std::string("pa");
+    config[std::string(::intel_npu::NPUW_FOLD::key())] = std::string("YES");
+    config[std::string(::intel_npu::NPUW_WEIGHTS_BANK::key())] = weights_bank;
+    return config;
+}
 
 ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& model,
                                            const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -168,11 +189,16 @@ ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& mod
     OPENVINO_ASSERT(m_compiled_model != nullptr, "PACompiledModel requires a valid inner compiled model");
 
     if (is_chunkable_pa_model(model)) {
-        m_semi_static_models = compile_pa_semi_static_variants(model, plugin, device, inner_config);
+        // One bank for all the variants, unless the caller names one.
+        const auto bank_it = properties.find(std::string(::intel_npu::NPUW_WEIGHTS_BANK::key()));
+        const auto caller_bank = bank_it == properties.end() ? std::string{} : bank_it->second.as<std::string>();
+        const auto bank = caller_bank.empty() ? ov::npuw::util::generate_random_string() : caller_bank;
+        m_semi_static_models =
+            compile_pa_semi_static_variants(model, plugin, make_variant_config(properties, device, bank));
     } else {
         LOG_INFO("PA: model is outside the chunkable flat-token contract; every dispatch runs 1:1");
     }
-    LOG_INFO("PA: " << m_semi_static_models.size() << " semi-static variant(s) on " << device);
+    LOG_INFO("PA: " << m_semi_static_models.size() << " semi-static variant(s), PA ops on " << device);
 }
 
 const std::vector<ov::Output<const ov::Node>>& ov::npuw::PACompiledModel::inputs() const {
