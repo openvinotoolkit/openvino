@@ -16,6 +16,7 @@
 #include "llm_test_helpers.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -331,6 +332,77 @@ TEST(PARelayoutTokenMajor, LeavesTheOneTokenVariantAlone) {
     const auto ops = model->get_ops().size();
     ov::npuw::pa::relayout_token_major(model, 1);
     EXPECT_EQ(model->get_ops().size(), ops);
+}
+
+// Tied embeddings: one decompressed table feeds the embedding Gather and the
+// LM head MatMul.
+std::shared_ptr<ov::Model> make_tied_embedding_model() {
+    std::vector<uint8_t> table(32 * 16);
+    std::vector<float> scales(32);
+    for (std::size_t i = 0; i < table.size(); ++i) {
+        table[i] = static_cast<uint8_t>(i * 37 % 251);
+    }
+    for (std::size_t i = 0; i < scales.size(); ++i) {
+        scales[i] = 0.01f * static_cast<float>(i + 1);
+    }
+    auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 16}, table);
+    auto convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{32, 1}, scales);
+    auto decompressed = std::make_shared<ov::op::v1::Multiply>(convert, scale);
+
+    auto ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{4});
+    auto hidden = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 16});
+    auto embed = std::make_shared<ov::op::v8::Gather>(decompressed,
+                                                      ids,
+                                                      ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
+    auto lm_head = std::make_shared<ov::op::v0::MatMul>(hidden, decompressed, false, true);
+    return std::make_shared<ov::Model>(ov::OutputVector{embed, lm_head}, ov::ParameterVector{ids, hidden});
+}
+
+TEST(PAUntieMatMulWeights, GivesTheLMHeadItsOwnDecompression) {
+    const auto reference = make_tied_embedding_model();
+    auto model = reference->clone();
+    ov::npuw::pa::untie_matmul_weights(model);
+
+    std::shared_ptr<ov::Node> lm_head, embed;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v0::MatMul>(node)) {
+            lm_head = node;
+        } else if (ov::is_type<ov::op::v8::Gather>(node)) {
+            embed = node;
+        }
+    }
+    ASSERT_NE(lm_head, nullptr);
+    ASSERT_NE(embed, nullptr);
+    const auto head_weights = lm_head->get_input_node_shared_ptr(1);
+    const auto embed_table = embed->get_input_node_shared_ptr(0);
+    EXPECT_NE(head_weights, embed_table);
+    EXPECT_EQ(head_weights->output(0).get_target_inputs().size(), 1u);
+    // Both still read the one weight constant.
+    EXPECT_EQ(head_weights->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0),
+              embed_table->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0));
+
+    // Untying is idempotent and keeps the results.
+    const auto ops = model->get_ops().size();
+    ov::npuw::pa::untie_matmul_weights(model);
+    EXPECT_EQ(model->get_ops().size(), ops);
+
+    ov::TensorVector inputs = {ov::Tensor(ov::element::i64, {4}), ov::Tensor(ov::element::f32, {2, 16})};
+    for (std::size_t i = 0; i < 4; ++i) {
+        inputs[0].data<int64_t>()[i] = static_cast<int64_t>(i * 7 % 32);
+    }
+    for (std::size_t i = 0; i < 32; ++i) {
+        inputs[1].data<float>()[i] = 0.1f * static_cast<float>(i % 11) - 0.5f;
+    }
+    ov::TensorVector expected = {ov::Tensor(ov::element::f32, {4, 16}), ov::Tensor(ov::element::f32, {2, 32})};
+    ov::TensorVector actual = {ov::Tensor(ov::element::f32, {4, 16}), ov::Tensor(ov::element::f32, {2, 32})};
+    ASSERT_TRUE(reference->evaluate(expected, inputs));
+    ASSERT_TRUE(model->evaluate(actual, inputs));
+    for (std::size_t o = 0; o < expected.size(); ++o) {
+        for (std::size_t i = 0; i < expected[o].get_size(); ++i) {
+            EXPECT_FLOAT_EQ(expected[o].data<float>()[i], actual[o].data<float>()[i]) << "output " << o << " at " << i;
+        }
+    }
 }
 
 }  // namespace

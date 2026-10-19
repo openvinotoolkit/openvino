@@ -31,6 +31,14 @@ namespace pa {
 // the NPU gets batch-1 layers. The reshapes are metadata only.
 void relayout_token_major(const std::shared_ptr<ov::Model>& model, std::size_t tokens);
 
+// A model with tied embeddings decompresses one weight table for both the
+// embedding Gather and the LM head MatMul. Partitioned as is, the head
+// subgraph outputs the whole decompressed table every inference and the tail
+// takes it as an input, so the LM head weights are no longer constants. This
+// gives every MatMul whose constant-only weight decompression it shares with
+// other consumers its own copy of the decompression ops.
+void untie_matmul_weights(const std::shared_ptr<ov::Model>& model);
+
 }  // namespace pa
 
 // Front-end for the dynamic PagedAttention model the GenAI CB pipeline
