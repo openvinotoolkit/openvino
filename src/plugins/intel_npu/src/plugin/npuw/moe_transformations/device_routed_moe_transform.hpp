@@ -7,8 +7,9 @@
  * @brief Device-routed MoE transformation using Gather-based expert selection
  *
  * This transformation implements DEVICE_ROUTED mode for MoE models, where expert
- * selection is performed dynamically on the device using Gather operations driven
- * by Router's TopK outputs, avoiding graph splitting and reducing host-device overhead.
+ * selection is performed on the device using Gather operations driven by TopK
+ * indices. The original scatter updates supply mixing scores without changing
+ * their normalization, activation, or learned scales. Single-token decode only.
  *
  * Key Features:
  * - Uses TopK indices from router to dynamically gather expert weights and biases
@@ -19,7 +20,7 @@
  * Transformation Strategy (Two-Phase Approach):
  * Phase 1 - Collection:
  *   1. Locate Router's TopK node (selecting K active experts per token)
- *   2. Extract TopK indices and Softmax scores
+ *   2. Extract TopK indices and the original mixing scores (not necessarily softmax)
  *   3. Collect all expert nodes for the layer:
  *      - Tile nodes (expert dimension expansion)
  *      - Reshape nodes (constant or dynamic/unsqueeze-like)
@@ -33,10 +34,11 @@
  *   3. Replace dynamic reshapes with Unsqueeze operations
  *   4. Insert Gather on expert weights/scales (for MatMul inputs)
  *   5. Insert Gather on expert biases (for Add inputs)
- *   6. Replace routing scores with TopK Softmax outputs
+ *   6. Replace scatter/broadcast with the original selected mixing scores
+ * All replacements are constructed before updating the original graph.
  *
  * Quantization Support:
- *   - Detects Multiply nodes in weight path (quantized_weight * scale)
+ *   - Supports conversion, dequantization arithmetic, and expert-preserving group reshapes
  *   - Inserts Gather on both quantized weights and per-expert scales
  *   - Preserves Convert nodes for data type handling
  */
@@ -54,8 +56,8 @@ namespace pass {
  *
  * Pattern to match:
  *   Router:
- *     Input → MatMul(router_weights) → Add(router_bias) → TopK(K=num_active_experts)
- *     TopK.output(0): top-K scores  → Softmax → routing weights
+ *     Selection expression → TopK(K=num_active_experts)
+ *     Original score expression → routing weights (may differ from selection logits)
  *     TopK.output(1): top-K indices → used for Gather operations
  *
  *   Experts (batched execution for all num_experts):
@@ -67,7 +69,7 @@ namespace pass {
  * Transformation:
  *   Router:
  *     TopK.output(1) → Reshape([K]) → used as Gather indices
- *     TopK.output(0) → Softmax → replaces ScatterElementsUpdate routing scores
+ *     ScatterElementsUpdate.input(2) → preserves original selected routing scores
  *
  *   Experts (dynamic execution for K active experts):
  *     - Tile(repeat=[K, 1, ...])  // reduced from num_experts to K
