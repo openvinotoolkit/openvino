@@ -2,7 +2,7 @@ name: Linux GPU MLIR / Graph Compiler ( Ubuntu 24.04 )
 
 # Validates the MLIR / Graph-Compiler path of the GPU plugin:
 #   * one build with -DENABLE_MLIR_FOR_GPU=ON (LLVM + Graph Compiler are built from source,
-#     LLVM install tree is cached on /mount)
+#     LLVM install tree is cached on /mount, the cache is saved on push only)
 #   * all MLIR functional tests with MLIR enabled (OV_GPU_ENABLE_MLIR=1)
 #
 # `paths:` below narrows the trigger down to MLIR-related files.
@@ -154,11 +154,15 @@ jobs:
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
+      SCCACHE_ERROR_LOG: ${{ github.workspace }}/sccache_log.txt
       SCCACHE_LOG: warn
       SCCACHE_AZURE_KEY_PREFIX: ubuntu_24_04_x86_64_mlir_Release
+      # nproc does not respect Kubernetes pod CPU limits
+      CMAKE_BUILD_PARALLEL_LEVEL: '15'
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       BUILD_DIR: ${{ github.workspace }}/openvino_build
       INSTALL_DIR: ${{ github.workspace }}/openvino_install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/openvino_tests
       GC_REPO: ${{ github.workspace }}/graph-compiler
       # Graph Compiler `scripts/build.sh` inputs. With GITHUB_ACTIONS=true and
       # LLVM_BUILD_TARGET=install it skips the LLVM build when LLVM_INSTALL_DIR already
@@ -166,6 +170,8 @@ jobs:
       GC_BUILD_TYPE: 'Release'
       LLVM_BUILD_TYPE: 'Release'
       GC_DYLINK: 'OFF'
+      LLVM_CMAKE_ARGS: '-DMLIR_ENABLE_BINDINGS_PYTHON=OFF'
+      GC_CMAKE_ARGS: '-DGC_ENABLE_TEST=OFF -DGC_ENABLE_TOOLS=OFF -DGC_ENABLE_PYTHON_BINDINGS=OFF'
       LLVM_BUILD_TARGET: install
       LLVM_INSTALL_DIR: ${{ github.workspace }}/graph-compiler/externals/llvm/Release
       GC_INSTALL_DIR: ${{ github.workspace }}/graph-compiler/build/Release/install
@@ -204,38 +210,34 @@ jobs:
       - name: System info
         uses: ./openvino/.github/actions/system_info
 
-      - name: Disable unused Graph Compiler and LLVM components
-        working-directory: ${{ env.GC_REPO }}
-        run: |
-          sed -i -E 's/^(option\(GC_ENABLE_(TEST|TOOLS|PYTHON_BINDINGS) .*) ON\)$/\1 OFF)/' CMakeLists.txt
-          sed -i 's/-DMLIR_ENABLE_BINDINGS_PYTHON=ON/-DMLIR_ENABLE_BINDINGS_PYTHON=OFF/' scripts/build.sh
-          # On a cache hit there is no LLVM build tree: use the cached llvm-lit instead of `which lit`
-          sed -i 's|lit_path=$(which lit)|lit_path="$LLVM_INSTALL_DIR/bin/llvm-lit"|' scripts/build.sh
-          # Fail loudly if upstream changed and a replacement did not apply
-          [ "$(grep -cE '^option\(GC_ENABLE_(TEST|TOOLS|PYTHON_BINDINGS) .* OFF\)$' CMakeLists.txt)" -eq 3 ] \
-            || { echo "Failed to disable GC tests/tools/python bindings"; exit 1; }
-          grep -q -- '-DMLIR_ENABLE_BINDINGS_PYTHON=OFF' scripts/build.sh \
-            || { echo "Failed to disable MLIR python bindings"; exit 1; }
-          grep -qF 'lit_path="$LLVM_INSTALL_DIR/bin/llvm-lit"' scripts/build.sh \
-            || { echo "Failed to replace the lit lookup"; exit 1; }
-
       - name: Compute LLVM cache key
         id: cache_keys
         working-directory: ${{ env.GC_REPO }}
         run: |
-          llvm_sha=$({ cat cmake/llvm-version.txt scripts/build.sh scripts/utils.sh patches/*.patch; c++ --version; } \
+          llvm_sha=$({ cat cmake/llvm-version.txt scripts/build.sh scripts/utils.sh patches/*.patch; c++ --version; echo "${LLVM_CMAKE_ARGS}"; } \
             | sha1sum | cut -d' ' -f1)
           echo "llvm-key=llvm-${LLVM_BUILD_TYPE}-dylink${GC_DYLINK}-${llvm_sha}" >> "$GITHUB_OUTPUT"
           # The restore action creates the target directory with a non-recursive mkdir
           mkdir -p "$(dirname "${LLVM_INSTALL_DIR}")"
 
-      - name: Restore LLVM from cache
+      - name: Setup LLVM cache
         id: llvm_cache
-        uses: ./openvino/.github/actions/cache/restore
+        uses: ./openvino/.github/actions/cache
         with:
+          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
           cache-path: ${{ env.LLVM_CACHE_DIR }}
           path: ${{ env.LLVM_INSTALL_DIR }}
           key: ${{ steps.cache_keys.outputs.llvm-key }}
+
+      - name: Clean up old LLVM caches
+        if: github.event_name == 'push'
+        uses: ./openvino/.github/actions/cache/cleanup
+        with:
+          cache-path: ${{ env.LLVM_CACHE_DIR }}
+          key: ${{ steps.cache_keys.outputs.llvm-key }}
+          restore-keys: llvm-${{ env.LLVM_BUILD_TYPE }}-dylink${{ env.GC_DYLINK }}-
+          cache-size: 3
+          max-cache-size: 6
 
       - name: Clean sccache stats
         run: ${SCCACHE_PATH} --zero-stats
@@ -243,6 +245,11 @@ jobs:
       - name: Build LLVM and Graph Compiler
         working-directory: ${{ env.GC_REPO }}
         run: ./scripts/build.sh
+
+      - name: Show and clean sccache stats (LLVM + Graph Compiler)
+        run: |
+          ${SCCACHE_PATH} --show-stats
+          ${SCCACHE_PATH} --zero-stats
 
       - name: Shrink the LLVM install tree
         if: steps.llvm_cache.outputs.cache-hit != 'true'
@@ -256,14 +263,6 @@ jobs:
             ! -name FileCheck ! -name llvm-lit \
             -exec truncate -s 0 {} +
           du -sh "${LLVM_INSTALL_DIR}"
-
-      - name: Save LLVM to cache
-        if: steps.llvm_cache.outputs.cache-hit != 'true'
-        uses: ./openvino/.github/actions/cache/save
-        with:
-          cache-path: ${{ env.LLVM_CACHE_DIR }}
-          path: ${{ env.LLVM_INSTALL_DIR }}
-          key: ${{ steps.cache_keys.outputs.llvm-key }}
 
       - name: Build OpenVINO
         run: |
@@ -282,18 +281,28 @@ jobs:
             -DENABLE_OV_PYTORCH_FRONTEND=OFF -DENABLE_OV_JAX_FRONTEND=OFF \
             -DENABLE_PYTHON=OFF -DENABLE_SAMPLES=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-          cmake --build "${BUILD_DIR}" --parallel $(nproc) -- --quiet
+          cmake --build "${BUILD_DIR}" --parallel "${CMAKE_BUILD_PARALLEL_LEVEL}" -- --quiet
 
-      - name: Show sccache stats
+      - name: Show sccache stats (OpenVINO)
         run: ${SCCACHE_PATH} --show-stats
+
+      - name: Upload sccache log
+        if: always()
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: sccache_log
+          path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'ignore'
 
       - name: CMake install - OpenVINO
         run: |
           cmake --install "${BUILD_DIR}" --prefix "${INSTALL_DIR}"
-          cmake --install "${BUILD_DIR}" --prefix "${INSTALL_DIR}" --component tests
+          cmake --install "${BUILD_DIR}" --prefix "${INSTALL_TEST_DIR}" --component tests
 
-      - name: Pack openvino_package
-        run: tar -I pigz -cf "${BUILD_DIR}/openvino_package.tar.gz" -C "${INSTALL_DIR}" .
+      - name: Pack openvino_package and openvino_tests
+        run: |
+          tar -I pigz -cf "${BUILD_DIR}/openvino_package.tar.gz" -C "${INSTALL_DIR}" .
+          tar -I pigz -cf "${BUILD_DIR}/openvino_tests.tar.gz" -C "${INSTALL_TEST_DIR}" .
 
       - name: Upload openvino package
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
@@ -302,62 +311,25 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
 
+      - name: Upload openvino tests
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: openvino_tests
+          path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+          if-no-files-found: 'error'
+
   Test:
     name: Arc BMG dGPU MLIR Tests
     needs: [ Build, Docker ]
-    timeout-minutes: 80
-    defaults:
-      run:
-        shell: bash
-    runs-on:
-      group: 'Intel-GPU'
-      labels: [ self-hosted, dgpu, BMG-precommit, Linux ]
-    container:
+    uses: ./.github/workflows/job_gpu_tests.yml
+    with:
+      device: 'dgpu'
+      test_type: 'func'
+      runner: "[ 'self-hosted', 'dgpu', 'BMG-precommit', 'Linux' ]"
+      runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
-      volumes:
-        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro # Needed to access CA certificates
-        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
-    env:
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
-      TEST_RESULTS_DIR: ${{ github.workspace }}/install/tests/dgpu_mlir_tests
-    steps:
-      - name: Download OpenVINO package
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
-        with:
-          name: openvino_package
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Extract OpenVINO package
-        run: tar -I pigz -xf openvino_package.tar.gz
-        working-directory: ${{ env.INSTALL_DIR }}
-
-      - name: Verify devices
-        timeout-minutes: 5
-        run: clinfo
-
-      - name: OpenVINO GPU MLIR Tests
-        run: |
-          source "${INSTALL_DIR}/setupvars.sh"
-          mkdir -p "${TEST_RESULTS_DIR}"
-
-          # gtest has no parallel runner, only sharding: run the shards in parallel and
-          # keep logs and XML reports of the failed ones only
-          export OV_GPU_ENABLE_MLIR=1 GTEST_TOTAL_SHARDS=32
-          seq 0 $((GTEST_TOTAL_SHARDS - 1)) | xargs -P "$GTEST_TOTAL_SHARDS" -I{} bash -c '
-            out="${TEST_RESULTS_DIR}/shard_$0"
-            GTEST_SHARD_INDEX=$0 "${INSTALL_TEST_DIR}/ov_gpu_func_tests" --gtest_filter="mlir_*" \
-              --gtest_output="xml:$out.xml" &> "$out.log" && rm "$out.xml" "$out.log" || { cat "$out.log"; exit 1; }' {}
-
-      - name: Upload Test Results
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        if: ${{ failure() }}
-        with:
-          name: test-results-mlir-dgpu
-          path: ${{ env.TEST_RESULTS_DIR }}
-          if-no-files-found: 'ignore'
+      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129 -e OV_GPU_ENABLE_MLIR=1"
+      test_filter: 'mlir_*'
 
   Overall_Status:
     name: ci/gha_overall_status_dev_gpu_linux_mlir
