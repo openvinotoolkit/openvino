@@ -86,6 +86,12 @@ public:
               const CpuParallelPtr& cpu_parallel) override;
 
     static bool supports([[maybe_unused]] const EltwiseConfig& config);
+
+private:
+    template <typename U = T>
+    void execFloatingPoint(const jit_eltwise_call_args_ptrs& args_ptrs,
+                           const VectorDims& dims_out,
+                           const CpuParallelPtr& cpu_parallel);
 };
 
 template <typename T>
