@@ -282,6 +282,30 @@ INSTANTIATE_TEST_SUITE_P(GGUFOps,
                              return std::string(i.param.name);
                          });
 
+TEST(GGUFOps, StepIncludesNeitherZeroNorNegativeValues) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_UNARY_OP_STEP")
+                     .input("x", ov::element::f32, {1, 5})
+                     .output("out", ov::element::f32, {1, 5})
+                     .build();
+    auto output = run_on_cpu(model, {{"x", make_f32_tensor({1, 5}, {-2.f, -0.f, 0.f, 1e-6f, 3.f})}});
+    expect_near(output, {0.f, 0.f, 0.f, 1.f, 1.f}, 0.f);
+}
+
+TEST(GGUFOps, ConvTranspose1DAccumulatesOverlappingTaps) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CONV_TRANSPOSE_1D")
+                     .input("w", ov::element::f32, {2, 1, 3})
+                     .input("x", ov::element::f32, {1, 2, 2})
+                     .output("out", ov::element::f32, {1, 1, 5})
+                     .attr<int64_t>("stride", 2)
+                     .build();
+    auto output = run_on_cpu(model,
+                             {{"w", make_f32_tensor({2, 1, 3}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f})},
+                              {"x", make_f32_tensor({1, 2, 2}, {1.f, 2.f, 3.f, 4.f})}});
+    expect_near(output, {13.f, 17.f, 39.f, 24.f, 30.f}, 0.f);
+}
+
 // Scale: out = in * scale + bias (scale/bias in op-params slots 0,1).
 TEST(GGUFOps, Scale) {
     const float scale = 2.5f;

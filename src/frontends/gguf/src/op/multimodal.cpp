@@ -7,11 +7,13 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/logical_and.hpp"
@@ -93,6 +95,33 @@ ov::Output<ov::Node> antialiased_bilinear(const ov::Output<ov::Node>& input,
 }
 }  // namespace
 
+OutputVector translate_unary_step(const NodeContext& context) {
+    num_inputs_check(context, 1, 1);
+    const auto input = context.get_input(0);
+    auto zero = ov::op::v0::Constant::create(input.get_element_type(), {}, {0});
+    auto result = std::make_shared<ov::op::v0::Convert>(std::make_shared<ov::op::v1::Greater>(input, zero),
+                                                        input.get_element_type());
+    return rename_outputs_with_suffix({result}, context.get_name());
+}
+
+OutputVector translate_conv_transpose_1d(const NodeContext& context) {
+    num_inputs_check(context, 2, 2);
+    const auto stride = context.get_attribute<int64_t>("stride");
+    FRONT_END_OP_CONVERSION_CHECK(stride > 0, "CONV_TRANSPOSE_1D requires a positive stride");
+    auto w = context.get_input(0), x = context.get_input(1);
+    FRONT_END_OP_CONVERSION_CHECK(w.get_partial_shape().rank() == 3 && x.get_partial_shape().rank() == 3,
+                                  "CONV_TRANSPOSE_1D expects [IC,OC,K] weights and [B,IC,T] input");
+    if (w.get_element_type() != x.get_element_type())
+        w = std::make_shared<ov::op::v1::ConvertLike>(w, x);
+    auto result = std::make_shared<ov::op::v1::ConvolutionBackpropData>(x,
+                                                                        w,
+                                                                        ov::Strides{size_t(stride)},
+                                                                        ov::CoordinateDiff{0},
+                                                                        ov::CoordinateDiff{0},
+                                                                        ov::Strides{1});
+    return rename_outputs_with_suffix({result}, context.get_name());
+}
+
 OutputVector translate_upscale(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     const int flags = context.get_attribute<int>("interpolation_mode", 1);
@@ -137,13 +166,25 @@ OutputVector translate_conv_2d(const NodeContext& context) {
         w = std::make_shared<ov::op::v0::Convert>(w, ov::element::f32);
     if (x.get_element_type() != ov::element::f32)
         x = std::make_shared<ov::op::v0::Convert>(x, ov::element::f32);
+    const auto strides = ov::Strides{size_t(p[1]), size_t(p[0])};
+    const auto pads = ov::CoordinateDiff{std::ptrdiff_t(p[3]), std::ptrdiff_t(p[2])};
+    const auto dilation = ov::Strides{size_t(p[5]), size_t(p[4])};
+    const auto auto_pad =
+        context.get_attribute<bool>("same_padding", false) ? ov::op::PadType::SAME_UPPER : ov::op::PadType::EXPLICIT;
+    if (context.get_attribute<bool>("depthwise", false)) {
+        const auto shape = w.get_partial_shape();
+        FRONT_END_OP_CONVERSION_CHECK(shape.is_static() && shape.rank() == 4 && shape[1] == 1,
+                                      "Depthwise CONV_2D expects [channels, 1, height, width] weights");
+        w = std::make_shared<ov::op::v1::Reshape>(
+            w,
+            i64_const({shape[0].get_length(), 1, 1, shape[2].get_length(), shape[3].get_length()}),
+            false);
+        return rename_outputs_with_suffix(
+            {std::make_shared<ov::op::v1::GroupConvolution>(x, w, strides, pads, pads, dilation, auto_pad)},
+            context.get_name());
+    }
     return rename_outputs_with_suffix(
-        {std::make_shared<ov::op::v1::Convolution>(x,
-                                                   w,
-                                                   ov::Strides{size_t(p[1]), size_t(p[0])},
-                                                   ov::CoordinateDiff{std::ptrdiff_t(p[3]), std::ptrdiff_t(p[2])},
-                                                   ov::CoordinateDiff{std::ptrdiff_t(p[3]), std::ptrdiff_t(p[2])},
-                                                   ov::Strides{size_t(p[5]), size_t(p[4])})},
+        {std::make_shared<ov::op::v1::Convolution>(x, w, strides, pads, pads, dilation, auto_pad)},
         context.get_name());
 }
 

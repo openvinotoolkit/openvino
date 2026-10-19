@@ -616,6 +616,101 @@ protected:
     }
 };
 
+TEST_F(GGUFMMProj, Qwen3TTSMatchesCPUAndResetsStreamingState) {
+    const auto arrays = cnpy::npz_load(
+        (std::filesystem::path(ov_gguf_test::test_data_dir()) / "mmproj_accuracy/qwen3tts_gen.npz").string());
+    const auto array = [&](const std::string& name) -> const cnpy::NpyArray& {
+        return ov_gguf_test::npz_array(arrays, name);
+    };
+    ov_gguf_test::TemporaryGguf file(array("model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    auto full = frontend.convert(frontend.load(file.path));
+    const auto component = [&](bool waveform) {
+        ov::ResultVector results;
+        for (const auto& result : full->get_results()) {
+            const auto& names = result->input_value(0).get_names();
+            const bool wave = std::any_of(names.begin(), names.end(), [](const auto& name) {
+                return name == "gen_audio.waveform" || name.find("gen_audio.state_out.") == 0;
+            });
+            if (wave == waveform)
+                results.push_back(result);
+        }
+        auto model = std::make_shared<ov::Model>(results, full->get_parameters())->clone();
+        const auto parameters = model->get_parameters();
+        for (const auto& parameter : parameters)
+            if (parameter->output(0).get_target_inputs().empty())
+                model->remove_parameter(parameter);
+        model->validate_nodes_and_infer_types();
+        return ov::Core{}
+            .compile_model(model,
+                           "CPU",
+                           ov::hint::inference_precision(ov::element::f32),
+                           ov::hint::dynamic_quantization_group_size(0),
+                           ov::inference_num_threads(2))
+            .create_infer_request();
+    };
+    const auto tensor = [&](const std::string& name, ov::element::Type type) {
+        const auto& values = array(name);
+        ov::Tensor output(type, values.shape);
+        std::memcpy(output.data(), values.data<char>(), output.get_byte_size());
+        return output;
+    };
+    const auto compare = [&](const ov::Tensor& actual, const std::string& name) {
+        const auto& expected = array(name);
+        ASSERT_EQ(actual.get_size(), expected.num_vals);
+        ov_gguf_test::expect_nmse_below(
+            ov_gguf_test::nmse(actual.data<const float>(), expected.data<float>(), actual.get_size()),
+            1e-5);
+    };
+    auto predictor = component(false);
+    predictor.set_tensor("gen_audio.hidden_states", tensor("hidden", ov::element::f32));
+    predictor.set_tensor("gen_audio.code0", tensor("code0", ov::element::i32));
+    for (size_t group = 0; group < 15; ++group) {
+        ov::Tensor random(ov::element::f32, {1, 1, 1, 1});
+        *random.data<float>() = array("random").data<float>()[group];
+        predictor.set_tensor("gen_audio.random." + std::to_string(group), random);
+    }
+    for (int repeat = 0; repeat < 2; ++repeat) {
+        predictor.infer();
+        const auto codes = predictor.get_tensor("gen_audio.codes");
+        ASSERT_EQ(codes.get_size(), array("codes").num_vals);
+        for (size_t i = 0; i < codes.get_size(); ++i)
+            EXPECT_EQ(codes.data<const int32_t>()[i], array("codes").data<int32_t>()[i]);
+        compare(predictor.get_tensor("gen_audio.embeddings"), "feedback");
+        for (int group = 1; group < 15; ++group)
+            compare(predictor.get_tensor("gen_audio.logits." + std::to_string(group)),
+                    "logits" + std::to_string(group));
+    }
+    auto wave = component(true);
+    wave.set_tensor("gen_audio.audio_codes", tensor("wave_codes", ov::element::i32));
+    for (int repeat = 0; repeat < 2; ++repeat) {
+        size_t states = 0;
+        for (const auto& input : wave.get_compiled_model().inputs()) {
+            if (input.get_any_name().find("gen_audio.state_in.") != 0)
+                continue;
+            ov::Tensor state(input.get_element_type(), input.get_shape());
+            std::memset(state.data(), 0, state.get_byte_size());
+            wave.set_tensor(input.get_any_name(), state);
+            ++states;
+        }
+        EXPECT_EQ(states, 38u);
+        for (int step = 0; step < 2; ++step) {
+            wave.infer();
+            compare(wave.get_tensor("gen_audio.waveform"), "waveform" + std::to_string(step));
+            for (const auto& output : wave.get_compiled_model().outputs()) {
+                const auto name = output.get_any_name();
+                if (name.find("gen_audio.state_out.") != 0)
+                    continue;
+                const auto value = wave.get_tensor(name);
+                ov::Tensor copied(value.get_element_type(), value.get_shape());
+                value.copy_to(copied);
+                wave.set_tensor("gen_audio.state_in." + name.substr(std::string("gen_audio.state_out.").size()),
+                                copied);
+            }
+        }
+    }
+}
+
 TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
     if (std::string(GetParam()).find("resampler") == 0) {
         const std::string name = GetParam();
@@ -679,6 +774,65 @@ TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
 }
 
 class GGUFMMProjDynamicAccuracy : public GGUFMMProjAccuracy {};
+class GGUFMMProjMiniCpmPackedAccuracy : public GGUFMMProjAccuracy {};
+
+TEST_P(GGUFMMProjMiniCpmPackedAccuracy, PackedGridsMatchLlamaCPU) {
+    const std::string family = GetParam();
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    auto adapted = model->clone();
+    Adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS).run_on_model(adapted);
+    auto request = compile(adapted);
+    const size_t patch = 2;
+    for (const auto step : {0, 1, 0}) {
+        const auto prefix = std::to_string(step) + ".";
+        const auto& source = array(prefix + "pixel_values");
+        const auto rows = source.shape[2] / patch;
+        const auto cols = source.shape[3] / patch;
+        ov::Tensor packed(ov::element::f32, {1, 3, patch, rows * cols * patch});
+        for (size_t channel = 0; channel < 3; ++channel)
+            for (size_t y = 0; y < rows; ++y)
+                for (size_t x = 0; x < cols; ++x)
+                    for (size_t dy = 0; dy < patch; ++dy)
+                        for (size_t dx = 0; dx < patch; ++dx)
+                            packed.data<float>()[(channel * patch + dy) * rows * cols * patch + (y * cols + x) * patch +
+                                                 dx] =
+                                source.data<float>()[(channel * rows * patch + y * patch + dy) * cols * patch +
+                                                     x * patch + dx];
+        request.set_tensor("pixel_values", packed);
+        ov::Tensor positions(ov::element::i64, {rows * cols});
+        const auto& position_values = array(prefix + "position_ids");
+        std::copy_n(position_values.data<int32_t>(), rows * cols, positions.data<int64_t>());
+        request.set_tensor("position_ids", positions);
+        ov::Tensor grid(ov::element::i64, {2});
+        grid.data<int64_t>()[0] = rows;
+        grid.data<int64_t>()[1] = cols;
+        request.set_tensor("patch_grid", grid);
+        const auto interleave = [&](const std::string& name) {
+            const auto count = array(prefix + name + ".indices.0").num_vals;
+            ov::Tensor indices(ov::element::i64, {count * 4});
+            for (size_t part = 0; part < 4; ++part) {
+                const auto& values = array(prefix + name + ".indices." + std::to_string(part));
+                for (size_t i = 0; i < count; ++i)
+                    indices.data<int64_t>()[i * 4 + part] = values.data<int32_t>()[i];
+            }
+            return indices;
+        };
+        request.set_tensor("merge_index", interleave("merger"));
+        const bool windowed = family == "minicpmv4_7";
+        request.set_tensor("window_index", interleave(windowed ? "vit_merger" : "merger"));
+        request.infer();
+        const auto output = request.get_output_tensor();
+        const auto& expected = array(prefix + "embeddings");
+        ASSERT_EQ(output.get_shape(), (ov::Shape{expected.shape[2], expected.shape[3]}));
+        ov_gguf_test::expect_nmse_below(
+            ov_gguf_test::nmse(output.data<const float>(), expected.data<float>(), output.get_size()),
+            1e-5);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(Reference,
+                         GGUFMMProjMiniCpmPackedAccuracy,
+                         ::testing::Values("minicpmv4_7", "minicpmv4_7_4x"));
 
 // The low-contrast fixture's patch projection cancels to rounding noise, which differs with the
 // platform's summation order (3e-5 on ARM64). Dropping its recentering raises the error to 1e-3.
@@ -729,6 +883,12 @@ INSTANTIATE_TEST_SUITE_P(Reference,
                                            "gemma4uv_low_contrast",
                                            "gemma4ua",
                                            "minicpmv4_6",
+                                           "minicpmv4_7",
+                                           "minicpmv4_7_4x",
+                                           "qwen3a",
+                                           "qwen3tts_spkenc",
+                                           "gemma3nv",
+                                           "gemma3nv_attention",
                                            "gemma4a",
                                            "deepseekocr",
                                            "deepseekocr2",

@@ -38,6 +38,8 @@ struct DecoderConfig {
     int pooling_type = 0;
     bool causal_attention = true;
     bool layer_norm = false;
+    bool parallel_ffn = false;
+    int deepstack_layers = 0;
     bool relu_squared_ffn = false;
     std::vector<uint32_t> n_head_kv_per_layer;  // non-empty when head_count_kv varies by layer
 
@@ -96,8 +98,24 @@ struct DecoderConfig {
     int expert_groups = 1;
     int expert_groups_used = 1;
     float embedding_scale = 1.0f;
+    float attention_value_scale = 0.0f;
     // Like llama.cpp's Gemma3/Gemma4, scale token lookups only; injected embeddings stay raw.
     bool embedding_scale_tokens_only = false;
+    bool draft_norm_before_fc = false;
+    bool draft_norm_before_residual = false;
+    int draft_conv_kernel = 0;
+    int draft_conv_group = 0;
+    int draft_block_size = 0;
+    int draft_selector_rank = 0;
+    int draft_selector_top_k = 0;
+    int lilicorr_hidden = 0;
+    int lilicorr_top_k = 0;
+    int lilicorr_heads = 0;
+    int lilicorr_layers = 0;
+    int lilicorr_factor = 0;
+    int lilicorr_mlp = 0;
+    float lilicorr_eps = 1e-6f;
+    float lilicorr_scale = 1.f;
     float residual_scale = 1.0f;
     float logit_scale = 1.0f;
     float attention_scale = 0.0f;  // 0 -> 1/sqrt(head_size)

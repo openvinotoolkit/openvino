@@ -34,16 +34,21 @@ struct ArchitectureEntry {
     const char* id = nullptr;
 };
 const ArchitectureEntry architectures[] = {
+    {"afmoe", RopeMode::Neox},
     {"bailingmoe2", RopeMode::Neox},
     {"clip",
      make_mmproj_builder,
      [](const GgufMetadata& meta) {
          return meta.has("clip.projector_type") || meta.has("clip.vision.projector_type") ||
-                meta.has("clip.audio.projector_type");
+                meta.has("clip.audio.projector_type") || meta.has("clip.gen.audio.projector_type");
      },
      "clip.mmproj"},
+    {"cohere2", RopeMode::Normal},
+    {"gemma3n", RopeMode::Neox},
     {"deepseek2-ocr", RopeMode::Neox},
     {"dspark", make_dspark_builder},
+    {"dflash", RopeMode::Neox},
+    {"eagle3", RopeMode::Normal},
     {"ernie4_5-moe", RopeMode::Normal},
     {"exaone-moe", RopeMode::Neox},
     {"exaone4", RopeMode::Neox},
@@ -73,6 +78,10 @@ const ArchitectureEntry architectures[] = {
     {"qwen3", RopeMode::Neox},
     {"qwen35", RopeMode::Interleaved},
     {"qwen35moe", RopeMode::Interleaved},
+    {"qwen3next", RopeMode::Neox},
+    {"qwen3vl", RopeMode::Interleaved},
+    {"qwen3tts", RopeMode::Interleaved},
+    {"qwen3vlmoe", RopeMode::Interleaved},
     {"qwen3moe", RopeMode::Neox},
     {"smollm3", RopeMode::Normal},
 };

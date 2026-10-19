@@ -23,6 +23,15 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 
 | Architecture | Notes | Real checkpoint | Choices |
 |---|---|---|---|
+| `afmoe` | Dense lead, sigmoid routed/shared experts, post-norms and periodic RoPE | — | |
+| `cohere2` | Parallel LayerNorm attention/FFN; RoPE on local layers | — | |
+| `qwen3next` | Hybrid Gated DeltaNet/full attention; fused and legacy projections | — | |
+| `qwen3vl`, `qwen3vlmoe` | Interleaved multimodal RoPE and DeepStack inputs | Qwen3-VL-2B Q4_0 | 13/13 |
+| `qwen3a` | Qwen3-ASR language decoder | Qwen3-ASR-0.6B Q4_K_M | 10/13; numerical parity fails |
+| `qwen3tts` | Talker codec vocabulary and normalized hidden-state output | — | |
+| `gemma3n` | AltUp, Laurel, sparse FFN, per-layer embeddings and shared KV | Gemma3n E2B Q4_K_M | 13/13; numerical parity fails |
+| `eagle3` | Target feature fusion, optional pre-FC/residual norms and vocabulary mapping | — | |
+| `dflash` | Context-only cache commits, noncausal noise block, optional post-norms/scales and shared V | — | |
 | `bailingmoe2` | Sigmoid routing, biased/grouped selection, shared experts | Ling-mini-2.0 Q2_K | 12/13 |
 | `deepseek2-ocr` | Language backbone: dense lead layers, shared/routed experts | DeepSeek-OCR-2 Q4_K_M | 13/13 |
 | `ernie4_5-moe` | Interleaved MoE, biased selection, normalized weights, shared experts | ERNIE-4.5-21B-A3B-PT Q4_K_M | 12/13 |
@@ -155,3 +164,22 @@ endpoints to 1000 and 0, independent of the bounds. Both bounds must still be pr
 finite and strictly ordered, as required by the model's conditioning metadata.
 Hidden-correction checkpoints and generic GenAI decoder adaptation are not supported.
 Draft blocks up to 4096 tokens are supported.
+
+## 2026 family validation
+
+The new family fixtures use llama.cpp CPU revision `098ce526b546b5a190327c1da82929cee051b9ac`.
+AFMoE, Cohere2, Qwen3Next, Qwen3VL dense/MoE, EAGLE3 and DFlash have independent
+small F32 prefill/decode references. DFlash also covers GELU, FC/output scales, post-norms,
+missing V weights, dynamic convolution, reduced-vocabulary scatter, selector and LiLiCorr
+lattices. Gemma3n's three-step fixture exceeds the existing `1e-5` NMSE gate
+at the final step (`1.65684e-5`); matching greedy tokens does not establish parity.
+The real Qwen3-ASR quantized decoder also fails its original full-logit parity gate.
+
+Drafts may omit token embeddings and the output head. Native conversion then exposes
+`gguf.target_token_embedding` and `gguf.target_lm_head` weight inputs; the GenAI integration
+clones the target weight subgraphs before compilation. EAGLE3's reduced-vocabulary `d2t`
+is an auxiliary constant for the consumer's mapping; omitted tables use identity mapping.
+DFlash selector and LiLiCorr lattice consumers use a fixed noise block. DSpark variants
+of `dflash` still need implementation and validation.
+Real-checkpoint drafting and all multimodal combinations remain
+outstanding acceptance work. These catalog entries describe implemented graph paths.

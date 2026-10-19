@@ -74,7 +74,9 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
                         "[GGUF] unsupported embedding pooling type: ",
                         pooling_type);
     }
-    layer_norm = arch == "jais2";
+    layer_norm = arch == "jais2" || arch == "cohere2";
+    parallel_ffn = arch == "cohere2";
+    deepstack_layers = cfg_i("deepstack_layers");
     relu_squared_ffn = arch == "jais2";
 
     // Per-architecture structure, auto-detected from the GGUF tensor table (layer 0).
@@ -102,7 +104,7 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     // gemma4 only: V projection is also RMSNorm'd (no weight, just normalize). gemma3 has
     // Q/K norm but NO V norm -- llama.cpp src/models/gemma3.cpp norms Qcur/Kcur only and
     // sends Vcur straight to the cache (gemma4.cpp:227 adds the extra ggml_rms_norm on V).
-    has_v_norm = (arch == "gemma4");
+    has_v_norm = arch == "gemma4" || arch == "gemma3n";
     n_expert = cfg_i("expert_count");
     n_expert_used = cfg_i("expert_used_count");
     expert_groups = std::max(1, cfg_i("expert_groups"));
@@ -147,15 +149,16 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     // tighter eps (post_norm_eps = 1e-8) than the pre-norms use.
     const bool is_muse_glimmer = arch == "muse-glimmer";
     scaleless_embd_norm = is_muse_glimmer;
-    rope_on_swa_only = is_muse_glimmer || arch == "exaone-moe" || (arch == "exaone4" && n_layer == 64);
-    rope_skip_period = options.rope_skip_period.value_or(arch == "smollm3" ? 4 : 0);
+    rope_on_swa_only =
+        is_muse_glimmer || arch == "exaone-moe" || arch == "cohere2" || (arch == "exaone4" && n_layer == 64);
+    rope_skip_period = options.rope_skip_period.value_or((arch == "smollm3" || arch == "afmoe") ? 4 : 0);
     OPENVINO_ASSERT(rope_skip_period >= 0, "[GGUF] RoPE skip period must be nonnegative");
     post_norm_eps = is_muse_glimmer ? 1e-8f : 0.0f;  // 0 -> reuse rms_eps
 
     // ---- qwen35 (Qwen3.5/3.6): hybrid Gated-DeltaNet + full attention ----
     // Layers alternate: every full_attention_interval-th layer is full attention, the rest
     // run a linear-attention (GDN) block. llama.cpp src/models/qwen35.cpp.
-    is_qwen35 = arch == "qwen35" || arch == "qwen35moe";
+    is_qwen35 = arch == "qwen35" || arch == "qwen35moe" || arch == "qwen3next";
     ssm_conv_kernel = cfg_i("ssm_conv_kernel");
     ssm_state_size = cfg_i("ssm_state_size");
     ssm_group_count = cfg_i("ssm_group_count");
@@ -203,15 +206,56 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
 
     // Per-architecture scalars from metadata (1.0 / 0.0 when absent -> no-op).
     embedding_scale = cfg_f("embedding_scale");
-    embedding_scale_tokens_only = arch == "gemma3" || arch == "gemma4";
+    attention_value_scale = cfg_f("attention_value_scale");
+    if (arch == "dflash") {
+        const auto& activation = std::get<std::string>(config.at("hidden_act"));
+        OPENVINO_ASSERT(activation == "silu" || activation == "gelu" || activation == "gelu_pytorch_tanh",
+                        "[GGUF] unsupported DFlash hidden activation: ",
+                        activation);
+        is_geglu = activation != "silu";
+    }
+    embedding_scale_tokens_only = arch == "gemma3" || arch == "gemma4" || arch == "gemma3n";
+    draft_norm_before_fc = cfg_i("draft_norm_before_fc") != 0;
+    draft_norm_before_residual = cfg_i("draft_norm_before_residual") != 0;
+    draft_conv_kernel = cfg_i("draft_conv_kernel");
+    draft_conv_group = cfg_i("draft_conv_group");
+    draft_block_size = cfg_i("draft_block_size");
+    draft_selector_rank = cfg_i("draft_selector_rank");
+    draft_selector_top_k = cfg_i("draft_selector_top_k");
+    lilicorr_hidden = cfg_i("lilicorr_hidden_size");
+    lilicorr_top_k = cfg_i("lilicorr_candidate_topk");
+    lilicorr_heads = cfg_i("lilicorr_num_heads");
+    lilicorr_layers = cfg_i("lilicorr_num_layers");
+    lilicorr_factor = cfg_i("lilicorr_factor_dim");
+    lilicorr_mlp = cfg_i("lilicorr_mlp_hidden_size");
+    lilicorr_eps = cfg_f("lilicorr_vector_eps");
+    lilicorr_scale = cfg_f("lilicorr_logit_scale");
+    if (lilicorr_hidden > 0) {
+        OPENVINO_ASSERT(draft_block_size > 1 && lilicorr_heads > 0 && lilicorr_hidden % lilicorr_heads == 0 &&
+                            lilicorr_top_k > 0 && lilicorr_layers > 0 && lilicorr_layers <= n_layer &&
+                            lilicorr_factor > 0 && lilicorr_mlp > 0 && draft_selector_top_k == 0 &&
+                            int64_t(lilicorr_top_k) * (lilicorr_top_k + 1) <= n_embd,
+                        "[GGUF] invalid LiLiCorr geometry");
+    }
+    if (weights.count("selector_hidden.weight")) {
+        OPENVINO_ASSERT(draft_block_size > 0 && draft_selector_rank > 0 && draft_selector_top_k > 0 &&
+                            draft_conv_kernel > 0 && draft_conv_group > 0 &&
+                            int64_t(draft_selector_top_k) * (draft_selector_top_k + 1) <= n_embd,
+                        "[GGUF] invalid DFlash selector geometry");
+    }
+    OPENVINO_ASSERT(draft_conv_kernel >= 0 && draft_conv_group >= 0 &&
+                        ((draft_conv_kernel == 0 && draft_conv_group == 0) ||
+                         (draft_conv_kernel > 0 && draft_conv_group > 0 && n_embd % draft_conv_group == 0)),
+                    "[GGUF] invalid draft convolution geometry");
     residual_scale = cfg_f("residual_scale");
     logit_scale = cfg_f("logit_scale");
     attention_scale = cfg_f("attention_scale");            // 0 -> 1/sqrt(head_size)
     expert_weights_scale = cfg_f("expert_weights_scale");  // 0 -> 1.0 no-op
     // These llama.cpp builders require normalization independently of optional GGUF metadata.
     expert_weights_norm = options.normalize_expert_weights.value_or(
-        arch == "hunyuan-moe" || arch == "minimax-m2" || arch == "qwen3moe" || arch == "qwen35moe" ||
-        arch == "ernie4_5-moe" || arch == "mellum" || arch == "gemma4" || cfg_i("expert_weights_norm") != 0);
+        arch == "qwen3next" || arch == "qwen3vlmoe" || arch == "hunyuan-moe" || arch == "minimax-m2" ||
+        arch == "qwen3moe" || arch == "qwen35moe" || arch == "ernie4_5-moe" || arch == "mellum" || arch == "gemma4" ||
+        cfg_i("expert_weights_norm") != 0);
     rope_freq_base_swa = cfg_f("rope_freq_base_swa");
     swa_layer_pattern = cfg_i("swa_layer_pattern");
     // Gemma4: per-layer SWA boolean flags (non-empty when swa_layer_pattern==0).
@@ -229,9 +273,11 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
 
     // Interleaved M-RoPE (qwen35 / qwen3vl) is its own mode, so it must be decided here rather
     // than in the per-arch block above -- this assignment runs later and would overwrite it.
-    rope_op_case = is_qwen35                   ? ROPE_OP_CASE_IMROPE
-                   : arch_uses_neox_rope(arch) ? ROPE_OP_CASE_NEOX
-                                               : ROPE_OP_CASE_NORMAL;
+    rope_op_case =
+        (arch == "qwen35" || arch == "qwen35moe" || arch == "qwen3vl" || arch == "qwen3vlmoe" || arch == "qwen3tts")
+            ? ROPE_OP_CASE_IMROPE
+        : arch_uses_neox_rope(arch) ? ROPE_OP_CASE_NEOX
+                                    : ROPE_OP_CASE_NORMAL;
 
     rope_config.n_dims = cfg_i("rope_dimension_count");
     rope_config.n_ctx_orig = cfg_i("rope_n_ctx_orig");

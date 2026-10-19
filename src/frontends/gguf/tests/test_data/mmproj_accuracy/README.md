@@ -58,3 +58,9 @@ shared by the generator and the model hub tests.
 See [testing](../../../docs/testing.md#real-checkpoints) for pytest commands, dependencies,
 oracle caches, and local-file lists, and [coverage limits](../../../docs/mmproj.md#validation-coverage)
 for checkpoint tolerance overrides and skipped cases.
+
+`qwen3tts_gen.npz` contains a tiny F32 predictor with two query heads, one KV head,
+16 codebooks, and the full waveform topology. `gen_qwen3tts_accuracy.py` regenerates it
+with `qwen3tts_oracle.cpp` against CPU revision `098ce526b546b5a190327c1da82929cee051b9ac`
+(`GGML_OPENVINO=OFF`). The regression checks exact sampled codes/feedback, full logits,
+two streaming chunks and reset of all 38 states at the existing `1e-5` NMSE gate.

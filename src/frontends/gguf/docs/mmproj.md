@@ -37,7 +37,7 @@ frontend.
 
 InternViT-6B (width 3200, 45 layers) uses RMS norms like the reference, but has no fixture.
 
-Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `gemma3nv`, `llama4`, `qwen3a`, `lfm2`,
+Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `llama4`, `lfm2`,
 `kimivl`, `paddleocr`, `lightonocr`, `cogvlm`, `dots_ocr`, `lfm2a`, `glm4v`, `youtuvl`, `yasa2`,
 `kimik25`, `nemotron_v2_vl`, `exaone4_5`, `hunyuanvl`, `granite_speech`, `mimovl`,
 `granite4_vision`. `gemma3na` has no graph builder in the reference.
@@ -264,3 +264,25 @@ they do not construct tokenizers, media preprocessing, or a complete GenAI pipel
 Use [ProjectorExtension](extensions.md#extend-mmproj-with-a-projector-component) to add or replace one
 vision/audio branch under the `clip` coordinator; the [examples](../examples/architecture_extension/README.md)
 build and run one. A different whole-model format needs an `ArchitectureExtension`.
+
+## Added 2026 projector paths
+
+| Projector | Graph and validation |
+|---|---|
+| `minicpmv4_7` | Explicit patch grids, packed windows and inverse order; independent CPU merge-2/merge-4 fixtures |
+| `gemma3nv` | MobileNet stem, expansion/UIR, attention and multiscale feature branches; native/adapted CPU fixtures including unequal Q/KV attention grids |
+| `qwen3a` | Qwen3-ASR convolutional audio encoder and projector; independent 100/200-frame fixtures |
+| `qwen3tts_spkenc` | Speaker convolution and attentive statistics pooling; independent dynamic-frame CPU features |
+| `qwen3tts_gen` | 16-codebook predictor and streaming waveform decoder; independent unequal-Q/KV F32 fixture with 38 state buffers and reset |
+
+Qwen3TTS predictor inputs include the talker's normalized hidden state, codebook zero and
+15 uniform sampling scalars. Outputs include all 16 codes, summed feedback embeddings
+and auxiliary logits. The waveform branch takes 72 codec frames plus explicit streaming
+state buffers and emits 1920 samples per frame at 24 kHz. The GenAI GGUF path supports
+sampling temperature 1, top-k 50 and top-p 1; unsupported subtalker settings are rejected.
+The real Q4_K_M talker/Q8_0 projector produces finite PCM and exact repeated seeded calls,
+but original quantized predictor/waveform numerical parity remains failing. Represented-F32
+predictor comparisons isolate arithmetic differences and do not replace the quantized gate.
+
+Real Gemma3n/MiniCPM media, Omni audio preprocessing, ASR transcription quality and
+TTS audio quality/cancellation still need acceptance coverage.

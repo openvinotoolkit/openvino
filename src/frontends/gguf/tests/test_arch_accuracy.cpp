@@ -13,6 +13,7 @@
 #include <tuple>
 
 #include "builder/api/metadata_store.hpp"
+#include "builder/arch/decoder_builder.hpp"
 #include "builder/arch/dspark_builder.hpp"
 #include "builder/gguf_builder_decoder.hpp"
 #include "builder/gguf_graph.hpp"
@@ -44,6 +45,29 @@
 
 namespace {
 class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {};
+
+TEST(GGUFDraftAdaptation, KeepsBorrowedTargetWeightsWithoutDuplicateParameters) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/dflash.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    auto loaded = get_gguf_data(temporary.path);
+    auto& weights = std::get<1>(loaded);
+    weights.erase("token_embd.weight");
+    weights.erase("output.weight");
+    auto config = decoder_config_from_meta(std::get<0>(loaded));
+    auto builder = DecoderBuilder(config, weights, std::get<2>(loaded));
+    std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(builder.build());
+    FrontEnd frontend;
+    frontend.add_extension(std::make_shared<GenAIExtension>(GenAIExtension::InputMode::IDS_TO_LOGITS));
+    auto model = frontend.convert(frontend.load(decoder));
+    EXPECT_EQ(model->input("gguf.target_token_embedding").get_partial_shape(), (ov::PartialShape{-1, 32}));
+    EXPECT_EQ(model->input("gguf.target_lm_head").get_partial_shape(), (ov::PartialShape{-1, 32}));
+    std::set<const ov::Node*> parameters;
+    for (const auto& parameter : model->get_parameters())
+        EXPECT_TRUE(parameters.insert(parameter.get()).second);
+    EXPECT_NO_THROW(model->input("input_ids"));
+    EXPECT_NO_THROW(model->input("hidden_states"));
+}
 
 TEST(GGUFDSparkAccuracy, ConfidenceAndMarkovHeadsAreIndependent) {
     using namespace ov::frontend::gguf;
@@ -533,8 +557,15 @@ void check_batched_decode(const std::shared_ptr<ov::Model>& model) {
 }
 
 TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttention) {
-    for (const auto* family :
-         {"qwen35", "bonsai2-hadamard", "qwen35moe", "qwen35moe-fused", "gemma4-mqa", "gemma4-moe", "gemma4-ple"}) {
+    for (const auto* family : {"qwen35",
+                               "qwen3next",
+                               "qwen3next-legacy",
+                               "bonsai2-hadamard",
+                               "qwen35moe",
+                               "qwen35moe-fused",
+                               "gemma4-mqa",
+                               "gemma4-moe",
+                               "gemma4-ple"}) {
         SCOPED_TRACE(family);
         auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
         const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
@@ -889,6 +920,11 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     const bool real_checkpoint = override_dir && !std::filesystem::exists(base.string() + ".npz");
     std::vector<std::vector<int64_t>> schedule{{1, 2, 3}, {4}, {5, 6}};
     std::vector<float> reference;
+    std::vector<float> draft_features;
+    std::vector<std::vector<float>> selector_lattices;
+    size_t draft_width = 0;
+    std::vector<float> deepstack_reference;
+    size_t deepstack_layers = 0, hidden_width = 0;
     int32_t vocab = 0;
     std::string model_path = base.string() + ".gguf";
     std::unique_ptr<ov_gguf_test::TemporaryGguf> temporary;
@@ -926,11 +962,39 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         vocab = static_cast<int32_t>(logits.shape[1]);
         const auto* values = logits.data<float>();
         reference.assign(values, values + 3 * vocab);
+        if (const auto it = std::find_if(arrays.begin(),
+                                         arrays.end(),
+                                         [](const auto& item) {
+                                             return item.first == "deepstack";
+                                         });
+            it != arrays.end()) {
+            deepstack_layers = it->second.shape[1];
+            hidden_width = it->second.shape[2];
+            deepstack_reference.assign(it->second.data<float>(), it->second.data<float>() + it->second.num_vals);
+        }
+        if (std::any_of(arrays.begin(), arrays.end(), [](const auto& item) {
+                return item.first == "hidden_states";
+            })) {
+            const auto& features = array("hidden_states");
+            draft_width = features.shape[1];
+            draft_features.assign(features.data<float>(), features.data<float>() + features.num_vals);
+        }
         temporary = std::make_unique<ov_gguf_test::TemporaryGguf>(array("model"));
+        if (GetParam() == std::string("dflash-lilicorr"))
+            schedule = {{1, 2, 3}, {4, 5, 6}, {4, 5, 6}};
+        if (GetParam() == std::string("dflash-selector") || GetParam() == std::string("dflash-lilicorr")) {
+            for (size_t step = 0; step < 3; ++step) {
+                const auto& lattice = array("lattice_" + std::to_string(step));
+                selector_lattices.emplace_back(lattice.data<float>(), lattice.data<float>() + lattice.num_vals);
+            }
+        }
         model_path = temporary->path;
     }
     ov::frontend::gguf::FrontEnd fe;
-    fe.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+    using GenAIExtension = ov::frontend::gguf::GenAIExtension;
+    auto extension = std::make_shared<GenAIExtension>(deepstack_layers ? GenAIExtension::InputMode::EMBEDS_TO_LOGITS
+                                                                       : GenAIExtension::InputMode::IDS_TO_LOGITS);
+    fe.add_extension(extension);
     auto model = fe.convert(fe.load(model_path));
     if (mamba) {
         EXPECT_EQ(model->input("input_ids").get_partial_shape(), (ov::PartialShape{1, -1}));
@@ -945,27 +1009,67 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
                                        ov::hint::dynamic_quantization_group_size(0),
                                        ov::hint::kv_cache_precision(ov::element::f16));
     auto request = compiled.create_infer_request();
+    ov::InferRequest lookup;
+    if (!real_checkpoint && GetParam() == std::string("eagle3-mapped")) {
+        auto mapping = ov::as_type_ptr<ov::op::v0::Constant>(
+            model->output("d2t").get_node()->input_value(0).get_node_shared_ptr());
+        ASSERT_TRUE(mapping);
+        const auto values = mapping->cast_vector<int64_t>();
+        ASSERT_EQ(values.size(), 16u);
+        for (size_t i = 0; i < values.size(); ++i)
+            EXPECT_EQ(values[i], static_cast<int64_t>(2 * i));
+    }
+    if (deepstack_layers)
+        lookup = core.compile_model(extension->get_embedding_model(), "CPU").create_infer_request();
     const auto infer = [&](const std::vector<int64_t>& tokens, size_t past) {
         const auto count = tokens.size();
+        const auto attention_count = std::string(GetParam()).find("dflash") == 0 ? 2 * count : count;
         ov::Tensor ids(ov::element::i64, {1, count});
-        ov::Tensor positions(ov::element::i64, ids.get_shape());
-        ov::Tensor mask(ov::element::i64, {1, past + count});
+        ov::Tensor positions(ov::element::i64, {1, attention_count});
+        ov::Tensor mask(ov::element::i64, {1, past + attention_count});
         ov::Tensor beam(ov::element::i32, {1});
         *beam.data<int32_t>() = 0;
         for (size_t i = 0; i < count; ++i) {
             ids.data<int64_t>()[i] = tokens[i];
-            positions.data<int64_t>()[i] = static_cast<int64_t>(past + i);
         }
+        for (size_t i = 0; i < attention_count; ++i)
+            positions.data<int64_t>()[i] = static_cast<int64_t>(past + i);
         std::fill_n(mask.data<int64_t>(), mask.get_size(), 1);
-        request.set_tensor("input_ids", ids);
-        request.set_tensor("position_ids", positions);
+        if (deepstack_layers) {
+            lookup.set_tensor("input_ids", ids);
+            lookup.infer();
+            request.set_tensor("inputs_embeds", lookup.get_output_tensor());
+            ov::Tensor media_mask(ov::element::boolean, {1, count});
+            std::fill_n(media_mask.data<bool>(), count, true);
+            ov::Tensor features(ov::element::f32, {deepstack_layers, count, hidden_width});
+            for (size_t l = 0; l < deepstack_layers; ++l)
+                for (size_t t = 0; t < count; ++t)
+                    for (size_t d = 0; d < hidden_width; ++d)
+                        features.data<float>()[(l * count + t) * hidden_width + d] =
+                            deepstack_reference[((past + t) * deepstack_layers + l) * hidden_width + d];
+            request.set_tensor("deepstack_visual_embeds", features);
+            request.set_tensor("visual_pos_masks", media_mask);
+            ov::Tensor multimodal_positions(ov::element::i64, {3, 1, count});
+            for (size_t section = 0; section < 3; ++section)
+                for (size_t t = 0; t < count; ++t)
+                    multimodal_positions.data<int64_t>()[section * count + t] = past + t;
+            request.set_tensor("position_ids", multimodal_positions);
+        } else {
+            request.set_tensor("input_ids", ids);
+            request.set_tensor("position_ids", positions);
+        }
+        if (draft_width) {
+            ov::Tensor hidden(ov::element::f32, {1, count, draft_width});
+            std::copy_n(draft_features.data() + past * draft_width, hidden.get_size(), hidden.data<float>());
+            request.set_tensor("hidden_states", hidden);
+        }
         request.set_tensor("attention_mask", mask);
         if (std::any_of(compiled.inputs().begin(), compiled.inputs().end(), [](const ov::Output<const ov::Node>& p) {
                 return p.get_names().count("beam_idx");
             }))
             request.set_tensor("beam_idx", beam);
         request.infer();
-        return request.get_output_tensor();
+        return request.get_tensor("logits");
     };
     size_t past = 0;
     size_t step = 0;
@@ -973,11 +1077,41 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     for (const auto& tokens : schedule) {
         SCOPED_TRACE("past=" + std::to_string(past) + ", tokens=" + std::to_string(tokens.size()));
         const auto result = infer(tokens, past);
+        if (!selector_lattices.empty()) {
+            const auto lattice = request.get_tensor("draft_lattice");
+            const auto& wanted_lattice = selector_lattices.at(step);
+            ASSERT_EQ(lattice.get_size(), wanted_lattice.size());
+            const auto lattice_metric =
+                ov_gguf_test::nmse(lattice.data<const float>(), wanted_lattice.data(), wanted_lattice.size());
+            if (tokens.size() == 1) {
+                for (size_t i = 0; i < lattice.get_size(); ++i) {
+                    EXPECT_EQ(wanted_lattice[i], 0.f);
+                    EXPECT_EQ(lattice.data<const float>()[i], 0.f);
+                }
+            } else {
+                ov_gguf_test::expect_nmse_below(lattice_metric, 1e-5);
+            }
+        }
         ASSERT_EQ(result.get_element_type(), ov::element::f32);
         ASSERT_GE(result.get_size(), static_cast<size_t>(vocab));
         const auto* actual = result.data<const float>() + result.get_size() - vocab;
         const auto* expected = reference.data() + step++ * vocab;
-        const auto metric = ov_gguf_test::nmse(actual, expected, static_cast<size_t>(vocab));
+        std::vector<float> mapped_actual, mapped_expected;
+        if (GetParam() == std::string("dflash-mapped")) {
+            for (int row = 0; row < vocab; ++row) {
+                if (row % 2) {
+                    EXPECT_EQ(actual[row], -std::numeric_limits<float>::infinity());
+                    EXPECT_EQ(expected[row], -std::numeric_limits<float>::infinity());
+                } else {
+                    mapped_actual.push_back(actual[row]);
+                    mapped_expected.push_back(expected[row]);
+                }
+            }
+        }
+        const auto metric =
+            mapped_actual.empty()
+                ? ov_gguf_test::nmse(actual, expected, static_cast<size_t>(vocab))
+                : ov_gguf_test::nmse(mapped_actual.data(), mapped_expected.data(), mapped_actual.size());
         ASSERT_TRUE(metric.all_finite());
         ASSERT_GT(metric.reference_norm(), 1e-12) << "Reference must contain nonzero logits";
         const auto predicted = std::max_element(actual, actual + vocab) - actual;
@@ -1020,6 +1154,24 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
 INSTANTIATE_TEST_SUITE_P(Architectures,
                          GGUFArchitectureAccuracy,
                          ::testing::Values("qwen35",
+                                           "qwen3next",
+                                           "qwen3next-legacy",
+                                           "qwen3vl",
+                                           "qwen3vl-deepstack",
+                                           "qwen3vlmoe",
+                                           "qwen3tts",
+                                           "cohere2",
+                                           "gemma3n",
+                                           "eagle3",
+                                           "eagle3-mapped",
+                                           "dflash",
+                                           "dflash-post",
+                                           "dflash-shared",
+                                           "dflash-conv",
+                                           "dflash-mapped",
+                                           "dflash-selector",
+                                           "dflash-lilicorr",
+                                           "afmoe",
                                            "bonsai2-hadamard",
                                            "qwen35-mixed",
                                            "qwen35moe",

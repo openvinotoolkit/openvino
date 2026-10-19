@@ -280,6 +280,64 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeExtractsLookupAndAcceptsInjectedValues) {
     EXPECT_FALSE(pass.run_on_model(m.model));
 }
 
+TEST(GGUFAdaptToGenAI, DeepStackScattersMediaFeaturesAcrossBatchesAndAcceptsTextOnly) {
+    auto m = build_minimal_gguf_model(4, 2);
+    auto deepstack = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{-1, 2, -1, 2}, "deepstack_embeds");
+    auto injection = std::make_shared<v1::ReduceSum>(deepstack, v0::Constant::create(ov::element::i64, {1}, {1}), true);
+    auto combined = std::make_shared<v1::Add>(m.embd, injection);
+    m.embd->output(0).replace(combined->output(0));
+    combined->input(0).replace_source_output(m.embd);
+    m.model->add_parameters({deepstack});
+    AdaptToGenAI adapter(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+    ASSERT_TRUE(adapter.run_on_model(m.model));
+    ov::Core core;
+    auto request =
+        core.compile_model(m.model, "CPU", ov::hint::inference_precision(ov::element::f32)).create_infer_request();
+    for (size_t batch : {1, 2}) {
+        for (size_t length : {3, 1, 2}) {
+            ov::Tensor embeds(ov::element::f32, {batch, length, 2});
+            std::fill_n(embeds.data<float>(), embeds.get_size(), 1.f);
+            ov::Tensor positions(ov::element::i64, {batch, length});
+            std::fill_n(positions.data<int64_t>(), positions.get_size(), 0);
+            ov::Tensor attention(ov::element::i64, {batch, length});
+            std::fill_n(attention.data<int64_t>(), attention.get_size(), 1);
+            for (bool media : {true, false}) {
+                for (bool packed : {false, true}) {
+                    const ov::Shape token_shape = packed ? ov::Shape{batch * length, 1} : ov::Shape{batch, length};
+                    embeds.set_shape({token_shape[0], token_shape[1], 2});
+                    positions.set_shape(token_shape);
+                    attention.set_shape(token_shape);
+                    ov::Tensor mask(ov::element::boolean, {batch, media ? length : 1});
+                    std::fill_n(mask.data<bool>(), mask.get_size(), false);
+                    if (media)
+                        for (size_t b = 0; b < batch; ++b)
+                            mask.data<bool>()[b * length + length - 1] = true;
+                    ov::Tensor features(ov::element::f32, {2, media ? batch : 1, 2});
+                    for (size_t i = 0; i < features.get_size(); ++i)
+                        features.data<float>()[i] = float(i + 1);
+                    request.set_tensor("inputs_embeds", embeds);
+                    request.set_tensor("position_ids", positions);
+                    request.set_tensor("attention_mask", attention);
+                    request.set_tensor("visual_pos_masks", mask);
+                    request.set_tensor("deepstack_visual_embeds", features);
+                    request.infer();
+                    const auto output = request.get_output_tensor();
+                    ASSERT_EQ(output.get_shape(), (ov::Shape{token_shape[0], token_shape[1], 1}));
+                    for (size_t b = 0; b < batch; ++b)
+                        for (size_t t = 0; t < length; ++t) {
+                            float expected = 2.f;
+                            if (media && t == length - 1)
+                                for (size_t layer = 0; layer < 2; ++layer)
+                                    for (size_t d = 0; d < 2; ++d)
+                                        expected += features.data<float>()[(layer * batch + b) * 2 + d];
+                            EXPECT_EQ(output.data<float>()[b * length + t], expected);
+                        }
+                }
+            }
+        }
+    }
+}
+
 TEST(GGUFAdaptToGenAI, EmbeddingModeMovesPerLayerTokenLookupToItsOwnModel) {
     auto m = build_minimal_gguf_model(4, 2, false, true);
     m.pe_tok->get_rt_info()["gguf.per_layer_token_embedding"] = int64_t{2};

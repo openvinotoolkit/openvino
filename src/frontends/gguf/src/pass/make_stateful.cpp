@@ -439,7 +439,24 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto concat = std::make_shared<v0::Concat>(ov::OutputVector{past, new_rows}, axis);
         caches.push_back({read_value, concat.get(), init_shape});
         concat->set_friendly_name(set_rows->get_friendly_name());
-        new_sinks.push_back(std::make_shared<v6::Assign>(concat, var));
+        ov::Output<ov::Node> committed = concat;
+        const auto& info = set_rows->get_rt_info();
+        if (const auto it = info.find("gguf.draft_context"); it != info.end()) {
+            ov::Output<ov::Node> context;
+            for (const auto& node : model->get_ordered_ops())
+                if (node->get_friendly_name() == it->second.as<std::string>())
+                    context = node;
+            OPENVINO_ASSERT(context.get_node(), "[GGUF] missing draft context boundary");
+            auto shape = std::make_shared<v3::ShapeOf>(context, ov::element::i64);
+            auto count = std::make_shared<v8::Gather>(shape, v0::Constant::create(ov::element::i64, {1}, {2}), axis0);
+            auto context_rows = std::make_shared<v8::Slice>(new_rows,
+                                                            v0::Constant::create(ov::element::i64, {1}, {0}),
+                                                            count,
+                                                            v0::Constant::create(ov::element::i64, {1}, {1}),
+                                                            v0::Constant::create(ov::element::i64, {1}, {axis}));
+            committed = std::make_shared<v0::Concat>(ov::OutputVector{past, context_rows}, axis);
+        }
+        new_sinks.push_back(std::make_shared<v6::Assign>(committed, var));
 
         // The stateless graph returns each updated cache as a Result; in the stateful form the Assign
         // sink above takes that role, so those Results go. Identify them as the Results reading THIS

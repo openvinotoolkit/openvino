@@ -722,11 +722,13 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     }
     config["hidden_size"] = metadata_to_int(metadata, arch + ".embedding_length");
     config["max_position_embeddings"] = metadata_to_int_or(metadata, arch + ".context_length", 2048);
+    config["deepstack_layers"] = metadata_to_int_or(metadata, arch + ".n_deepstack_layers", 0);
     config["pooling_type"] = metadata_to_int_or(metadata, arch + ".pooling_type", 0);
-    config["causal_attention"] = metadata_to_bool_or(metadata, arch + ".attention.causal", true) ? 1 : 0;
-    config["rms_norm_eps"] = metadata_to_float(
-        metadata,
-        arch + (arch == "jais2" ? ".attention.layer_norm_epsilon" : ".attention.layer_norm_rms_epsilon"));
+    config["causal_attention"] = metadata_to_bool_or(metadata, arch + ".attention.causal", arch != "dflash") ? 1 : 0;
+    config["rms_norm_eps"] =
+        metadata_to_float(metadata,
+                          arch + ((arch == "jais2" || arch == "cohere2") ? ".attention.layer_norm_epsilon"
+                                                                         : ".attention.layer_norm_rms_epsilon"));
     config["rope_freq_base"] = metadata_to_float_or(metadata, arch + ".rope.freq_base", 10000.0f);
     // Advisory: the dominant quant type of the file. Purely informational -- every weight carries
     // its own type in the tensor info, which is what the dequant path uses. Optional because
@@ -776,6 +778,27 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // shared_kv_layers trailing layers reuse KV from the preceding full-KV layer.
     // 0 = all layers have KV (default for non-Gemma4 architectures).
     config["shared_kv_layers"] = metadata_to_int_or(metadata, arch + ".attention.shared_kv_layers", 0);
+    if (arch == "eagle3" || arch == "dflash") {
+        config["draft_target_layers"] = metadata_to_i32_vector(metadata, arch + ".target_layers");
+        config["draft_mask_token_id"] = metadata_to_int_or(metadata, "tokenizer.ggml.mask_token_id", 0);
+    }
+    config["draft_norm_before_fc"] = metadata_to_bool_or(metadata, arch + ".norm_before_fc", false) ? 1 : 0;
+    config["draft_norm_before_residual"] = metadata_to_bool_or(metadata, arch + ".norm_before_residual", false) ? 1 : 0;
+    config["draft_conv_kernel"] = metadata_to_int_or(metadata, arch + ".conv_kernel_size", 0);
+    config["draft_conv_group"] = metadata_to_int_or(metadata, arch + ".conv_group_size", 0);
+    config["draft_block_size"] = metadata_to_int_or(metadata, arch + ".block_size", 0);
+    config["draft_selector_rank"] = metadata_to_int_or(metadata, arch + ".selector_rank", 0);
+    config["draft_selector_top_k"] = metadata_to_int_or(metadata, arch + ".selector_top_k", 0);
+    for (const auto key : {"hidden_size", "candidate_topk", "num_heads", "num_layers", "factor_dim", "mlp_hidden_size"})
+        config[std::string("lilicorr_") + key] = metadata_to_int_or(metadata, std::string("lilicorr.") + key, 0);
+    config["lilicorr_vector_eps"] = metadata_to_float_or(metadata, "lilicorr.vector_eps", 1e-6f);
+    config["lilicorr_logit_scale"] = metadata_to_float_or(metadata, "lilicorr.logit_scale", 1.f);
+    config["hidden_act"] = metadata.count(arch + ".hidden_activation") ? metadata.at(arch + ".hidden_activation")
+                                                                       : GGUFMetaData(std::string("silu"));
+    if (arch == "gemma3n") {
+        config["n_embd_per_layer"] = 256;
+        config["shared_kv_layers"] = std::max(0, std::get<int>(config["layer_num"]) - 20);
+    }
 
     // Mixture-of-experts config (0 when dense).
     config["expert_count"] = metadata_to_int_or(metadata, arch + ".expert_count", 0);
@@ -793,13 +816,20 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // exports carry the keys and override. Other archs default to 1.0 (no-op).
     const bool is_minicpm = arch.rfind("minicpm", 0) == 0;
     // Gemma/Gemma2/Gemma3/Gemma4 scale embeddings by sqrt(n_embd) before the first layer.
-    const bool is_gemma = arch == "gemma" || arch == "gemma2" || arch == "gemma3" || arch == "gemma4";
+    const bool is_gemma =
+        arch == "gemma" || arch == "gemma2" || arch == "gemma3" || arch == "gemma4" || arch == "gemma3n";
     const float def_embedding_scale =
-        is_minicpm ? 12.0f : (is_gemma ? std::sqrt(static_cast<float>(std::get<int>(config["hidden_size"]))) : 1.0f);
+        is_minicpm
+            ? 12.0f
+            : ((is_gemma || arch == "afmoe") ? std::sqrt(static_cast<float>(std::get<int>(config["hidden_size"])))
+                                             : 1.0f);
     const float def_residual_scale =
         is_minicpm ? 1.4f / std::sqrt(static_cast<float>(std::get<int>(config["layer_num"]))) : 1.0f;
     const float def_logit_scale = is_minicpm ? 256.0f / static_cast<float>(std::get<int>(config["hidden_size"])) : 1.0f;
     config["embedding_scale"] = metadata_to_float_or(metadata, arch + ".embedding_scale", def_embedding_scale);
+    if (arch == "dflash" && std::get<float>(config["embedding_scale"]) == 0.f)
+        config["embedding_scale"] = 1.f;
+    config["attention_value_scale"] = metadata_to_float_or(metadata, arch + ".attention.value_scale", 0.f);
     config["residual_scale"] = metadata_to_float_or(metadata, arch + ".residual_scale", def_residual_scale);
     const float logit_scale = metadata_to_float_or(metadata, arch + ".logit_scale", def_logit_scale);
     // MiniCPM shares llama.cpp's Granite graph, which divides logits by this scale.
@@ -834,7 +864,7 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // Gemma3 (like gemma/gemma2) uses 1/sqrt(n_embd_head_k); llama.cpp applies it as a
     // Qcur pre-scale with build_attn(scale=1.0), which is numerically 1/sqrt(head_size) --
     // exactly the default branch here, so gemma3 must NOT force scale=1.0.
-    const float def_attention_scale = arch == "gemma4" ? 1.0f
+    const float def_attention_scale = (arch == "gemma4" || arch == "gemma3n") ? 1.0f
                                       : arch == "gemma2" && std::get<int>(config["layer_num"]) == 46
                                           ? 1.0f / std::sqrt(static_cast<float>(std::get<int>(config["hidden_size"]) /
                                                                                 std::get<int>(config["head_num"])))
@@ -847,8 +877,9 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // absent (it does not reset to the global base first, unlike gemma2/gemma4/cohere2/etc.), so
     // gemma3 SWA layers rope at freq_base=10000 while global layers use 1000000. See
     // llama.cpp src/models/gemma3.cpp load_arch_hparams.
-    const float def_freq_base_swa =
-        (arch == "gemma3" || arch == "plamo3") ? 10000.0f : std::get<float>(config["rope_freq_base"]);
+    const float def_freq_base_swa = (arch == "gemma3" || arch == "gemma3n" || arch == "plamo3")
+                                        ? 10000.0f
+                                        : std::get<float>(config["rope_freq_base"]);
     config["rope_freq_base_swa"] = metadata_to_float_or(metadata, arch + ".rope.freq_base_swa", def_freq_base_swa);
 
     // has_swa: true when the GGUF carries either a sliding_window_pattern or a
@@ -900,7 +931,9 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
         // No explicit pattern key. gemma3 defaults to period 6 (llama.cpp gemma3 load_arch_hparams
         // passes swa_period=6 to get_key_or_arr); gpt-oss and others default to 2.
         config["swa_layer_pattern"] = arch == "gemma3"                              ? 6
+                                      : arch == "gemma3n"                           ? 5
                                       : arch == "plamo3"                            ? 8
+                                      : (arch == "afmoe" || arch == "cohere2")      ? 4
                                       : (arch == "exaone4" || arch == "exaone-moe") ? 4
                                                                                     : 2;
         config["swa_layer_flags"] = std::vector<int32_t>{};
@@ -913,8 +946,9 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     config["moe_layer_step"] = metadata_to_int_or(metadata, arch + ".interleave_moe_layer_step", 1);
     config["expert_groups"] = metadata_to_int_or(metadata, arch + ".expert_group_count", 1);
     config["expert_groups_used"] = metadata_to_int_or(metadata, arch + ".expert_group_used_count", 1);
-    auto expert_gating_func = metadata_to_int_or(metadata, arch + ".expert_gating_func", arch == "glm4moe" ? 2 : 1);
-    if (arch == "glm4moe" && expert_gating_func == 0)
+    auto expert_gating_func =
+        metadata_to_int_or(metadata, arch + ".expert_gating_func", (arch == "glm4moe" || arch == "afmoe") ? 2 : 1);
+    if ((arch == "glm4moe" || arch == "afmoe") && expert_gating_func == 0)
         expert_gating_func = 2;
     config["expert_gating_func"] = expert_gating_func;
     config["expert_weights_norm"] = metadata_to_bool_or(metadata, arch + ".expert_weights_norm", false) ? 1 : 0;
@@ -925,7 +959,8 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
 
     // Gemma2/Gemma3 final logit soft-cap applied after lm_head: tanh(x/cap)*cap.
     // 0.0 means no soft-cap.
-    config["final_logit_softcapping"] = metadata_to_float_or(metadata, arch + ".final_logit_softcapping", 0.0f);
+    config["final_logit_softcapping"] =
+        metadata_to_float_or(metadata, arch + ".final_logit_softcapping", arch == "gemma3n" ? 30.0f : 0.0f);
 
     for (const auto& [key, value] : metadata) {
         if (key.compare(0, 15, "prism.hadamard.") == 0)

@@ -41,6 +41,7 @@ struct GgufOp {
 // a parsed GGUF file; consumed by GgufBuilderDecoder.
 struct GgufGraph {
     std::string architecture;
+    ov::AnyMap model_rt_info;
     std::vector<GgufOp> nodes;
     std::shared_ptr<TensorMap> values = std::make_shared<TensorMap>();
 
