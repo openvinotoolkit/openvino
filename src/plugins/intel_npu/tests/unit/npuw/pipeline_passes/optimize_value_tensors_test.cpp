@@ -7,12 +7,16 @@
 #include <gtest/gtest.h>
 
 #include "llm_pass_test_fixture.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace {
 
@@ -210,6 +214,53 @@ TEST_F(OptimizeValueTensorsPassTest, SharedConcatGenerateValueIsTransposedOnce) 
     EXPECT_EQ(value->get_partial_shape(), ov::PartialShape({1, 2, 4, 3}));
     for (std::size_t index = 0; index < matmuls.size(); ++index) {
         EXPECT_EQ(concats[index]->get_axis(), 3u);
+        EXPECT_TRUE(matmuls[index]->get_transpose_b());
+    }
+}
+
+TEST_F(OptimizeValueTensorsPassTest, SharedGqaConcatGenerateValueIsTransposedOnce) {
+    auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 3, 4});
+    ov::OutputVector results;
+    ov::ParameterVector parameters{value};
+    std::vector<std::shared_ptr<ov::op::v0::Concat>> concats;
+    std::vector<std::shared_ptr<ov::op::v3::Broadcast>> broadcasts;
+    std::vector<std::shared_ptr<ov::op::v1::Reshape>> reshapes;
+    std::vector<std::shared_ptr<ov::op::v0::MatMul>> matmuls;
+
+    for (std::size_t query_length : {5u, 6u}) {
+        auto new_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 1, 4});
+        auto transpose_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(new_value, transpose_order);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{value, transpose}, 2);
+        auto unsqueeze_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(concat, unsqueeze_axes);
+        auto broadcast_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, {1, 1, 2, 5, 4});
+        auto broadcast =
+            std::make_shared<ov::op::v3::Broadcast>(unsqueeze, broadcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto reshape_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 2, 5, 4});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(broadcast, reshape_shape, false);
+        auto scores =
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
+                                                    ov::PartialShape{1, 2, static_cast<int64_t>(query_length), 5});
+        auto softmax = std::make_shared<ov::op::v8::Softmax>(scores);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(softmax, reshape);
+
+        results.push_back(matmul);
+        parameters.push_back(new_value);
+        parameters.push_back(scores);
+        concats.push_back(concat);
+        broadcasts.push_back(broadcast);
+        reshapes.push_back(reshape);
+        matmuls.push_back(matmul);
+    }
+
+    auto model = std::make_shared<ov::Model>(results, parameters);
+    ASSERT_NO_THROW(ov::npuw::util::OptimizeValueTensors(false).run_on_model(model));
+    EXPECT_EQ(value->get_partial_shape(), ov::PartialShape({1, 1, 4, 3}));
+    for (std::size_t index = 0; index < matmuls.size(); ++index) {
+        EXPECT_EQ(concats[index]->get_axis(), 3u);
+        EXPECT_EQ(broadcasts[index]->get_output_partial_shape(0), ov::PartialShape({1, 1, 2, 4, 5}));
+        EXPECT_EQ(reshapes[index]->get_output_partial_shape(0), ov::PartialShape({1, 2, 4, 5}));
         EXPECT_TRUE(matmuls[index]->get_transpose_b());
     }
 }
