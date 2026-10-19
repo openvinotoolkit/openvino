@@ -11,6 +11,7 @@
 #include <string>
 
 #include "intel_gpu/op/convolution.hpp"
+#include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/data.hpp"
@@ -40,6 +41,7 @@
 #include "openvino/op/util/binary_elementwise_bitwise.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/reference/transpose.hpp"
 #include "ov_ops/moe_compressed.hpp"
 
 namespace ov::intel_gpu {
@@ -95,7 +97,34 @@ static cldnn::tensor getConstTensor(const ov::Shape constDims) {
 
 struct ConstProperties {
     bool needsBatchInterpretation;
+    // Upload a [N, groups] weight decompression scale or zero point in the fbyx layout that the fully connected
+    // implementations read, instead of letting prepare_quantization reorder it (which keeps both copies while compiling).
+    bool uploadAsGroupedFcParam = false;
 };
+
+// True if every user of the constant is a compressed fully connected with transposed 2D weights that takes it as its
+// grouped [N, groups] weight decompression scale or zero point (input 3 with transpose_b_scale, input 4 with
+// transpose_b_zp). prepare_quantization reorders exactly these to fbyx.
+static bool is_grouped_fc_decompression_param(const ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Constant>& op) {
+    const auto& shape = op->get_shape();
+    // sub-byte types (u4 / i4 zero points) pack two values per byte; they are small and keep the plain layout
+    if (!p.use_new_shape_infer() || shape.size() != 2 || shape[1] < 2 || op->get_output_element_type(0).bitwidth() < 8)
+        return false;
+    const auto users = op->get_output_target_inputs(0);
+    if (users.empty())
+        return false;
+    for (const auto& user : users) {
+        auto* fc = ov::as_type<op::FullyConnectedCompressed>(user.get_node());
+        if (!fc || (user.get_index() != 3 && user.get_index() != 4) || !fc->get_transpose_b())
+            return false;
+        if (!(user.get_index() == 3 ? fc->get_transpose_b_scale() : fc->get_transpose_b_zp()))
+            return false;
+        const auto& w_shape = fc->get_input_partial_shape(1);
+        if (w_shape.rank().is_dynamic() || w_shape.size() != 2 || w_shape[0].is_dynamic() || static_cast<size_t>(w_shape[0].get_length()) != shape[0])
+            return false;
+    }
+    return true;
+}
 
 static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const std::shared_ptr<ov::op::v0::Constant>& op, const ConstProperties& props) {
     cldnn::tensor constTensor = getConstTensor(const_shape);
@@ -132,6 +161,29 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
                                  constLayout);
 
         cldnn::memory::ptr mem = nullptr;
+
+        if (props.uploadAsGroupedFcParam && !partial_upload.enabled && op->get_output_element_type(0) == ov::element::Type(out_dtype) &&
+            constLayout.bytes_count() > 0) {
+            // fbyx of [N, groups] is [groups][N] in memory
+            auto fbyx_layout = constLayout;
+            fbyx_layout.format = cldnn::format::fbyx;
+            mem = p.get_engine().allocate_memory(fbyx_layout, false);
+            GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: " << fbyx_layout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size()
+                          << " bytes)" << std::endl;
+            {
+                cldnn::mem_lock<char> lock{mem, p.get_engine().get_service_stream()};
+                ov::reference::transpose(data,
+                                         lock.data(),
+                                         const_shape,
+                                         op->get_output_element_type(0).size(),
+                                         {1, 0},
+                                         ov::Shape{const_shape[1], const_shape[0]});
+            }
+            ov::wsh::Extension::hint_evict(*op);
+            p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
+            // not added to blobMemCache: other constants with the same data may need the plain layout
+            return;
+        }
 
         if (partial_upload.enabled) {
             mem = partial_upload.memory;
@@ -325,6 +377,10 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
                 constDims = std::move(reshaped_const_dims);
             }
         }
+    }
+
+    if (constDims == op->get_shape() && is_grouped_fc_decompression_param(p, op)) {
+        consts[op].uploadAsGroupedFcParam = true;
     }
 
     for (auto& it : consts) {

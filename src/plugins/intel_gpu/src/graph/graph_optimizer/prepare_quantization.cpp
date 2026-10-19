@@ -573,7 +573,8 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
 
         auto groups_idx = dep_rank == 1 ? 0 : weight_rank - 1;
         auto groups_count = dep_pshape[groups_idx].get_length();
-        return groups_count > 1;
+        // grouped parameters that are already in fbyx (uploaded or computed that way) need no reorder
+        return groups_count > 1 && dep_layout.format != format::fbyx;
     };
     // possible cases
     // legacy [K, N, 1, 1] => crop padded dims
