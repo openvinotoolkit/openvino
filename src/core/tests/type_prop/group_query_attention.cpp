@@ -149,6 +149,87 @@ TEST(type_prop, group_query_attention_dynamic_kv_len_accumulates) {
     EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, {6, 13}, 8}));
 }
 
+TEST(type_prop, group_query_attention_absent_past_is_empty_cache) {
+    auto args = make_valid_gqa_args();
+    const auto empty = op::v0::Constant::create(element::f32, Shape{1, 2, 0, 8}, {});
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_KEY)] = empty;
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_VALUE)] = empty;
+
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+
+    EXPECT_EQ(op->get_output_element_type(1), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 4, 8}));
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, 4, 8}));
+}
+
+TEST(type_prop, group_query_attention_absent_past_key_only) {
+    auto args = make_valid_gqa_args();
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_KEY)] =
+        op::v0::Constant::create(element::f32, Shape{1, 2, 0, 8}, {});
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("both present or both absent"));
+}
+
+TEST(type_prop, group_query_attention_absent_typed_past_with_quantized_cache) {
+    auto args = make_valid_gqa_quant_args(element::i8, 8);
+    const auto empty = op::v0::Constant::create(element::i8, Shape{1, 2, 0, 8}, {});
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_KEY)] = empty;
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_VALUE)] = empty;
+    const auto quantize_type = op::internal::GroupQueryAttentionQuantType::PER_TENSOR;
+
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args,
+                                                                        6,
+                                                                        2,
+                                                                        1.0f,
+                                                                        false,
+                                                                        false,
+                                                                        8,
+                                                                        quantize_type,
+                                                                        quantize_type);
+
+    EXPECT_EQ(op->get_output_element_type(1), element::i8);
+    EXPECT_EQ(op->get_output_element_type(2), element::i8);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 4, 8}));
+}
+
+TEST(type_prop, group_query_attention_absent_typed_past_with_4bit_cache) {
+    auto args = make_valid_gqa_quant_args(element::u8, 4);
+    const auto empty = op::v0::Constant::create(element::u8, Shape{1, 2, 0, 4}, {});
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_KEY)] = empty;
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_VALUE)] = empty;
+    const auto quantize_type = op::internal::GroupQueryAttentionQuantType::PER_TENSOR;
+
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args,
+                                                                        6,
+                                                                        2,
+                                                                        1.0f,
+                                                                        false,
+                                                                        false,
+                                                                        4,
+                                                                        quantize_type,
+                                                                        quantize_type);
+
+    EXPECT_EQ(op->get_output_element_type(1), element::u8);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 4, 4}));
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, 4, 4}));
+}
+
+TEST(type_prop, group_query_attention_absent_unshaped_past_with_quantized_cache) {
+    auto args = make_valid_gqa_quant_args(element::i8, 8);
+    const auto empty = op::v0::Constant::create(element::i8, Shape{0}, {});
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_KEY)] = empty;
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_VALUE)] = empty;
+    const auto quantize_type = op::internal::GroupQueryAttentionQuantType::PER_TENSOR;
+
+    OV_EXPECT_THROW(
+        std::ignore = std::make_shared<
+            op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false, 8, quantize_type, quantize_type),
+        ov::NodeValidationFailure,
+        HasSubstr("typed rank-4 empty past"));
+}
+
 TEST(type_prop, group_query_attention_invalid_query_rank) {
     auto args = make_valid_gqa_args();
     args[0] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 6, 8});

@@ -37,6 +37,14 @@ auto match_down_up_convert_subgraph_after_lpt = [](const ov::Output<ov::Node>& i
     return downconvert;
 };
 
+constexpr size_t kPastKeyInput = static_cast<size_t>(ov::op::internal::GroupQueryAttentionInputs::PAST_KEY);
+constexpr size_t kPastValueInput = static_cast<size_t>(ov::op::internal::GroupQueryAttentionInputs::PAST_VALUE);
+
+bool is_empty_param(const ov::Output<ov::Node>& output) {
+    return ov::is_type<ov::op::v0::Parameter>(output.get_node()) && output.get_partial_shape().is_static() &&
+           ov::shape_size(output.get_shape()) == 0;
+}
+
 // diagnostics warnings on OPENVINO_MATCHER_PASS_RTTI() definition: visibility hidden
 #ifdef __GNUC__
 #    pragma GCC diagnostic push
@@ -121,27 +129,32 @@ public:
     using Context = RemoveEmptyKVTensors::Context;
 
     RemoveEmptyGQAPastInputs(Context::Ref ctx) {
-        auto past_key = opp::wrap_type<ov::op::v0::Parameter>(opp::has_static_shape());
-        auto past_value = opp::wrap_type<ov::op::v0::Parameter>(opp::has_static_shape());
-        auto query = opp::any_input();
-        auto key = opp::any_input();
-        auto value = opp::any_input();
-        auto other_past = opp::any_input();
-        auto gqa_key = opp::wrap_type<ov::op::internal::GroupQueryAttention>({query, key, value, past_key, other_past});
-        auto gqa_value =
-            opp::wrap_type<ov::op::internal::GroupQueryAttention>({query, key, value, other_past, past_value});
-        auto gqa = std::make_shared<opp::op::Or>(ov::OutputVector{gqa_key, gqa_value});
+        // GQA has a variable number of inputs, so the past inputs are checked by a node predicate.
+        auto gqa = opp::wrap_type<ov::op::internal::GroupQueryAttention>(opp::op::Predicate(
+            [](const ov::Output<ov::Node>& output) {
+                const auto node = output.get_node();
+                for (size_t input_pos : {kPastKeyInput, kPastValueInput}) {
+                    if (is_empty_param(node->input_value(input_pos))) {
+                        return true;
+                    }
+                }
+                return false;
+            },
+            "has_empty_past_param"));
 
         auto callback = [=](opp::Matcher& m) {
-            auto matched_gqa = ov::as_type_ptr<ov::op::internal::GroupQueryAttention>(m.get_match_root());
+            auto matched_gqa = m.get_match_root();
             bool changed = false;
-            for (size_t input_pos : {size_t{3}, size_t{4}}) {
-                auto past =
-                    ov::as_type_ptr<ov::op::v0::Parameter>(matched_gqa->input_value(input_pos).get_node_shared_ptr());
-                if (!past || !past->get_partial_shape().is_static() || ov::shape_size(past->get_shape()) != 0) {
+            for (size_t input_pos : {kPastKeyInput, kPastValueInput}) {
+                const auto past_output = matched_gqa->input_value(input_pos);
+                if (!is_empty_param(past_output)) {
                     continue;
                 }
+                auto past = ov::as_type_ptr<ov::op::v0::Parameter>(past_output.get_node_shared_ptr());
+                // An empty Constant marks the GQA past as absent, i.e. an empty KV cache.
                 auto empty = std::make_shared<ov::op::v0::Constant>(past->get_element_type(), past->get_shape());
+                empty->set_friendly_name(past->get_friendly_name());
+                ov::copy_runtime_info(past, empty);
                 ov::replace_node(past, empty);
                 ctx.get().old_params.push_back(past);
                 changed = true;

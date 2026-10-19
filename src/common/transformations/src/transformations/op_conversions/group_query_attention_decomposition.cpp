@@ -131,8 +131,12 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto Q = get_input(GQAInputs::QUERY);
     auto K = get_input(GQAInputs::KEY);
     auto V = get_input(GQAInputs::VALUE);
-    auto past_key = get_input(GQAInputs::PAST_KEY);
-    auto past_value = get_input(GQAInputs::PAST_VALUE);
+    const bool has_past = has_input(GQAInputs::PAST_KEY);
+    ov::Output<ov::Node> past_key, past_value;
+    if (has_past) {
+        past_key = get_input(GQAInputs::PAST_KEY);
+        past_value = get_input(GQAInputs::PAST_VALUE);
+    }
     auto seqlens_k = get_input(GQAInputs::SEQLENS_K);
 
     // Quantized KV cache (com.microsoft spec): past/present KV are i8/u8/f8e4m3 and are dequantized before the
@@ -141,7 +145,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto kv_cache_bit_width = node->get_kv_cache_bit_width();
     const auto k_quant_type = node->get_k_quant_type();
     const auto v_quant_type = node->get_v_quant_type();
-    const auto kv_cache_type = past_key.get_element_type();
+    const auto kv_cache_type = node->get_output_element_type(1);
     ov::Output<ov::Node> k_scale, v_scale;
 
     // Get k_scale and v_scale from their actual input indices.
@@ -259,6 +263,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // zero-capacity past (an absent ONNX past or an empty cache) has nothing to write into, so it grows by
     // concatenation instead. Same rule as the op's present shape inference.
     const auto is_static_input = node->has_fixed_kv_capacity();
+    const bool empty_past =
+        !has_past || (past_key.get_partial_shape()[2].is_static() && past_key.get_partial_shape()[2].get_length() == 0);
 
     // Quantize-on-write: when the cache is quantized, quantize the (post-RoPE) current K/V into the cache type
     // before appending them, so the assembled present cache stays quantized and the past bytes are preserved
@@ -285,7 +291,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         V = past_value;
         present_k = past_key;
         present_v = past_value;
-    } else if (past_key.get_partial_shape()[2].is_static() && past_key.get_partial_shape()[2].get_length() == 0) {
+    } else if (empty_past) {
         // With no past tokens, the current K/V already are the complete present cache.
         present_k = K;
         present_v = V;
