@@ -118,11 +118,11 @@ using SectionDecoder = std::function<std::optional<T>(const Section&)>;
 template <typename T>
 SectionDecoder<T> make_section_decoder(std::function<std::optional<T>(ov::util::MemoryView)> parse) {
     return [parse = std::move(parse)](const Section& section) -> std::optional<T> {
-        if (const auto view = section.view(); view.data() != nullptr) {
-            return parse(view);
-        } else {
+        if (const auto view = section.view(); view.empty()) {
             const auto bytes = section.to_bytes();
             return bytes ? parse(ov::util::MemoryView(bytes->data(), bytes->size())) : std::nullopt;
+        } else {
+            return parse(view);
         }
     };
 }
