@@ -297,6 +297,27 @@ public:
         m_request->infer();
     }
 
+    // The new tokens of a continued prefill on top of a granted keep.
+    void delta_prefill(size_t keep, size_t delta_len) {
+        set_inputs(make_i64({1, delta_len}, 1),
+                   make_i64({1, keep + delta_len}, 1),
+                   make_i64_iota({1, delta_len}, static_cast<int64_t>(keep)));
+        m_request->infer();
+    }
+
+    // Proposes a common prefix through npuw_stored_tokens_state and returns the grant.
+    int64_t propose(int64_t k_common) {
+        for (const auto& state : m_request->query_state()) {
+            if (state->get_name() == "npuw_stored_tokens_state") {
+                auto proposal = ov::Tensor(ov::element::i64, ov::Shape{1});
+                proposal.data<int64_t>()[0] = k_common;
+                state->set_state(ov::get_tensor_impl(proposal));
+                return state->get_state()->data<int64_t>()[0];
+            }
+        }
+        OPENVINO_THROW("npuw_stored_tokens_state is not exposed by the request");
+    }
+
     // The past keys of every layer, flattened, in m_kvcache_past_names order.
     std::vector<std::vector<float>> generate_keys() {
         std::vector<std::vector<float>> out;
@@ -503,6 +524,57 @@ TEST(LLMLongRopeMode, RejectedTransitionLeavesTheCacheAndTheModeAlone) {
                                          kCached);
     EXPECT_TRUE(LLMLongRopeModeTestAccess::long_mode(req));
     EXPECT_NE(crossing.generate_keys(), before);
+}
+
+// Continuous prefill on a LongRoPE model whose limit equals the prompt window: a
+// continued prefill never reaches the limit, while generate does at position 64.
+constexpr int64_t kPromptWindowLimit = 64;
+
+ov::AnyMap continuous_prefill_props() {
+    return {{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "16"}};
+}
+
+TEST(LLMLongRopeMode, ContinuationBelowTheLimitKeepsThePrefix) {
+    LongRopePipeline pipeline(kPromptWindowLimit, continuous_prefill_props());
+    ASSERT_TRUE(pipeline.compiled().get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
+    auto& req = pipeline.request();
+
+    pipeline.prefill(40, 0);
+    for (int64_t position = 40; position < 48; ++position) {
+        pipeline.generate_step(static_cast<size_t>(position), position);
+    }
+    ASSERT_FALSE(LLMLongRopeModeTestAccess::long_mode(req));
+
+    // The 40 prefilled tokens round down to two chunks.
+    EXPECT_EQ(pipeline.propose(48), 32);
+    pipeline.delta_prefill(32, 24);
+    EXPECT_EQ(LLMLongRopeModeTestAccess::stored_tokens(req), 56u);
+    EXPECT_FALSE(LLMLongRopeModeTestAccess::long_mode(req));
+}
+
+// Generate re-rotates the cache when it crosses the limit. The turned keys cannot
+// seed a continuation, so the next turn is a full prefill, after which continuing
+// works again.
+TEST(LLMLongRopeMode, CrossingDuringGenerateFallsBackToFullPrefill) {
+    LongRopePipeline pipeline(kPromptWindowLimit, continuous_prefill_props());
+    ASSERT_TRUE(pipeline.compiled().get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
+    auto& req = pipeline.request();
+
+    pipeline.prefill(40, 0);
+    for (int64_t position = 40; position <= kPromptWindowLimit; ++position) {
+        pipeline.generate_step(static_cast<size_t>(position), position);
+    }
+    ASSERT_TRUE(LLMLongRopeModeTestAccess::long_mode(req));
+
+    EXPECT_EQ(pipeline.propose(kPromptWindowLimit + 1), 0);
+    pipeline.prefill(56, 0);
+    EXPECT_FALSE(LLMLongRopeModeTestAccess::long_mode(req));
+
+    pipeline.generate_step(56, 56);
+    EXPECT_EQ(pipeline.propose(57), 48);
+    pipeline.delta_prefill(48, 8);
+    EXPECT_EQ(LLMLongRopeModeTestAccess::stored_tokens(req), 56u);
+    EXPECT_FALSE(LLMLongRopeModeTestAccess::long_mode(req));
 }
 
 // A block-based cache holds the same keys in a pool of fixed-size blocks, so the turn has

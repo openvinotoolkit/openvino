@@ -308,8 +308,9 @@ TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillReportsOffWithShrunkSl
 }
 
 TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillFollowsTheLongRopeLimit) {
-    // The KV cache holds 128 prompt + 64 response positions. It is continuable
-    // while no position can reach the LongRoPE limit.
+    // The KV cache holds 128 prompt + 64 response positions. A continued prefill
+    // must stay below the LongRoPE limit, while a crossing during generate is
+    // handled at run time.
     const auto compile_longrope_model = [this](int64_t context_limit) {
         RecordingFactory recorder;
         auto props = base_props();
@@ -326,7 +327,8 @@ TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillFollowsTheLongRopeLimi
 
     EXPECT_TRUE(continuous_prefill(4096));
     EXPECT_TRUE(continuous_prefill(192));
-    EXPECT_FALSE(continuous_prefill(191));
+    EXPECT_TRUE(continuous_prefill(128));
+    EXPECT_FALSE(continuous_prefill(127));
 }
 
 TEST(HybridModelBuilderTest, HybridLinearAttnModelBuilds) {
