@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <map>
 #include <memory>
 #include <numeric>
 #include <string>
@@ -24,6 +25,7 @@
 #include "executor.hpp"
 #include "llm_block_kvcache_strategy.hpp"
 #include "llm_compiled_model.hpp"
+#include "llm_compiled_model_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "llm_kvcache_strategy.hpp"
 #include "llm_test_helpers.hpp"
@@ -41,6 +43,10 @@ struct LLMContinuedPrefillTestAccess {
 
     static const std::vector<std::string>& past_names(Request& req) {
         return req.m_kvcache_past_names;
+    }
+
+    static const std::vector<std::string>& swa_past_names(Request& req) {
+        return req.m_swa_past_names;
     }
 
     static ov::SoPtr<ov::ITensor> generate_past(Request& req, const std::string& name) {
@@ -571,6 +577,458 @@ TEST_F(LLMQuantizedContinuedPrefillTest, QuantizedKvCacheSupportsContinuousPrefi
     run_generate_step(104);
     EXPECT_EQ(stored_tokens(), 105);
 }
+
+// Sliding window models. The sub-requests below run a small hashed transformer
+// instead of zeroing outputs. Every token row a layer writes to its present KV
+// hashes the token, its position, the model that produced it and everything the
+// row attends to, as selected by the attention mask, the sliding window mask and
+// the past KV rows. The logits hash the last row after the last layer, so two runs
+// produce equal logits only when every step saw equal inputs, masks and visible KV.
+
+// Where the token rows of the KV tensors live, known once the model is compiled.
+struct KvLayout {
+    uint32_t dim = 2u;
+    bool v_transposed_pre = false;
+    bool v_transposed_gen = false;
+};
+
+uint64_t mix(uint64_t x) {
+    x += 0x9e3779b97f4a7c15ull;
+    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ull;
+    x = (x ^ (x >> 27)) * 0x94d049bb133111ebull;
+    return x ^ (x >> 31);
+}
+
+uint64_t combine(uint64_t a, uint64_t b) {
+    return mix(a ^ mix(b));
+}
+
+// A token row of a [1, heads, seq, dim] KV tensor, or [1, heads, dim, seq] when the
+// sequence is on axis 3, carries an 8-byte tag at the start of every head.
+size_t tag_element(const ov::Shape& shape, uint32_t seq_axis, size_t head, size_t row, size_t word) {
+    return seq_axis == 2u ? (head * shape[2] + row) * shape[3] + word : (head * shape[2] + word) * shape[3] + row;
+}
+
+void write_row_tag(const ov::SoPtr<ov::ITensor>& tensor, uint32_t seq_axis, size_t row, uint64_t tag) {
+    const auto& shape = tensor->get_shape();
+    const size_t elem = tensor->get_element_type().size();
+    auto* data = static_cast<uint8_t*>(tensor->data());
+    for (size_t head = 0; head < shape[1]; ++head) {
+        for (size_t word = 0; word < sizeof(tag) / elem; ++word) {
+            std::memcpy(data + tag_element(shape, seq_axis, head, row, word) * elem,
+                        reinterpret_cast<const uint8_t*>(&tag) + word * elem,
+                        elem);
+        }
+    }
+}
+
+uint64_t read_row_tag(const ov::SoPtr<ov::ITensor>& tensor, uint32_t seq_axis, size_t row) {
+    const auto& shape = tensor->get_shape();
+    const size_t elem = tensor->get_element_type().size();
+    const auto* data = static_cast<const uint8_t*>(tensor->data());
+    uint64_t result = 0u;
+    for (size_t head = 0; head < shape[1]; ++head) {
+        uint64_t tag = 0u;
+        for (size_t word = 0; word < sizeof(tag) / elem; ++word) {
+            std::memcpy(reinterpret_cast<uint8_t*>(&tag) + word * elem,
+                        data + tag_element(shape, seq_axis, head, row, word) * elem,
+                        elem);
+        }
+        result = combine(result, tag);
+    }
+    return result;
+}
+
+void fill_with_tag(const ov::SoPtr<ov::ITensor>& tensor, uint64_t tag) {
+    auto* data = static_cast<uint8_t*>(tensor->data());
+    for (size_t i = 0; i < tensor->get_byte_size(); ++i) {
+        data[i] = static_cast<uint8_t>(tag >> (8u * (i % sizeof(tag))));
+    }
+}
+
+class HashingSubCompiledModel;
+
+class HashingSubInferRequest final : public ov::ISyncInferRequest {
+public:
+    explicit HashingSubInferRequest(std::shared_ptr<const HashingSubCompiledModel> compiled_model);
+
+    void infer() override;
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override {
+        return ov::ISyncInferRequest::get_tensor(port);
+    }
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override {
+        ov::ISyncInferRequest::set_tensor(port, tensor);
+    }
+    void check_tensors() const override {}
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
+        return {};
+    }
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
+        return {};
+    }
+
+private:
+    ov::SoPtr<ov::ITensor> find_tensor(const std::string& name) const;
+    void infer_layers(const ov::SoPtr<ov::ITensor>& input_ids);
+
+    std::shared_ptr<const KvLayout> m_layout;
+};
+
+class HashingSubCompiledModel final : public ov::npuw::ICompiledModel_v0 {
+public:
+    HashingSubCompiledModel(const std::shared_ptr<ov::Model>& model,
+                            const std::shared_ptr<const ov::IPlugin>& plugin,
+                            std::shared_ptr<const KvLayout> layout)
+        : ov::npuw::ICompiledModel_v0(model, plugin),
+          m_model(model),
+          m_layout(std::move(layout)) {}
+
+    std::shared_ptr<const KvLayout> layout() const {
+        return m_layout;
+    }
+
+    void export_model(std::ostream&) const override {}
+    std::shared_ptr<const ov::Model> get_runtime_model() const override {
+        return m_model;
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
+        auto self = std::static_pointer_cast<const HashingSubCompiledModel>(shared_from_this());
+        return std::make_shared<HashingSubInferRequest>(std::move(self));
+    }
+    std::shared_ptr<ov::npuw::IBaseInferRequest> create_base_infer_request() const override {
+        return {};
+    }
+    std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
+        std::shared_ptr<ov::npuw::IBaseInferRequest>) const override {
+        return std::make_shared<ov::IAsyncInferRequest>(create_sync_infer_request(),
+                                                        intel_npu::make_executor("hashing_task", 1),
+                                                        intel_npu::make_executor("hashing_callback", 1));
+    }
+    std::string submodel_device(std::size_t) const override {
+        return "CPU";
+    }
+    std::size_t num_submodels() const override {
+        return 1;
+    }
+    std::shared_ptr<ov::npuw::weights::Bank> get_weights_bank() const override {
+        return {};
+    }
+    void set_weights_bank(std::shared_ptr<ov::npuw::weights::Bank>) override {}
+    void finalize_weights_bank() override {}
+    void reconstruct_closure() override {}
+    void serialize(std::ostream&, const ov::npuw::s11n::CompiledContext&) const override {}
+
+private:
+    std::shared_ptr<ov::Model> m_model;
+    std::shared_ptr<const KvLayout> m_layout;
+};
+
+HashingSubInferRequest::HashingSubInferRequest(std::shared_ptr<const HashingSubCompiledModel> compiled_model)
+    : ov::ISyncInferRequest(compiled_model),
+      m_layout(compiled_model->layout()) {
+    for (const auto& input : get_compiled_model()->inputs()) {
+        ov::ISyncInferRequest::set_tensor(input,
+                                          ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
+    }
+    for (const auto& output : get_compiled_model()->outputs()) {
+        ov::ISyncInferRequest::set_tensor(
+            output,
+            ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
+    }
+}
+
+ov::SoPtr<ov::ITensor> HashingSubInferRequest::find_tensor(const std::string& name) const {
+    for (const auto& ports : {get_compiled_model()->inputs(), get_compiled_model()->outputs()}) {
+        for (const auto& port : ports) {
+            if (port.get_names().count(name) > 0u) {
+                return get_tensor(port);
+            }
+        }
+    }
+    return {};
+}
+
+void HashingSubInferRequest::infer() {
+    for (const auto& output : get_compiled_model()->outputs()) {
+        auto tensor = get_tensor(output);
+        std::memset(tensor->data(), 0, tensor->get_byte_size());
+    }
+    if (auto input_ids = find_tensor("input_ids")) {
+        infer_layers(input_ids);
+        return;
+    }
+    // The shared LM head hashes its inputs into the logits.
+    uint64_t digest = 0u;
+    for (const auto& input : get_compiled_model()->inputs()) {
+        for (const auto byte : materialize_bytes(get_tensor(input))) {
+            digest = combine(digest, byte);
+        }
+    }
+    for (const auto& output : get_compiled_model()->outputs()) {
+        fill_with_tag(get_tensor(output), digest);
+    }
+}
+
+void HashingSubInferRequest::infer_layers(const ov::SoPtr<ov::ITensor>& input_ids) {
+    namespace uu = ov::npuw::util;
+    const size_t n = input_ids->get_size();
+    const bool is_prefill = n > 1u;
+    const auto* tokens = input_ids->data<int64_t>();
+    const auto* positions = find_tensor("position_ids")->data<int64_t>();
+    const auto attention_mask = find_tensor("attention_mask");
+    const auto* mask = attention_mask->data<int64_t>();
+    const size_t past_len = attention_mask->get_size() - n;
+    const auto swa_mask = find_tensor(uu::kSlidingWindowAttentionMaskParamName);
+    const auto swa_attends = [&](size_t row, size_t col) {
+        const size_t idx = row * swa_mask->get_shape().back() + col;
+        const float value = swa_mask->get_element_type() == ov::element::f16
+                                ? static_cast<float>(swa_mask->data<ov::float16>()[idx])
+                                : swa_mask->data<float>()[idx];
+        return value == 0.0f;
+    };
+
+    std::vector<bool> valid(n);
+    std::vector<uint64_t> hidden(n);
+    for (size_t r = 0; r < n; ++r) {
+        valid[r] = mask[past_len + r] == 1;
+        hidden[r] = combine(combine(tokens[r], positions[r]), is_prefill ? 1u : 2u);
+    }
+
+    struct Layer {
+        ov::SoPtr<ov::ITensor> past_key, past_value, present_key, present_value;
+        bool sliding = false;
+    };
+    std::map<size_t, Layer> layers;
+    const std::string prefix = "past_key_values.";
+    for (const auto& input : get_compiled_model()->inputs()) {
+        const auto& name = input.get_any_name();
+        if (name.rfind(prefix, 0) != 0u) {
+            continue;
+        }
+        auto& layer = layers[std::stoul(name.substr(prefix.size()))];
+        const bool is_value = uu::isPastValueParam(name);
+        (is_value ? layer.past_value : layer.past_key) = get_tensor(input);
+        (is_value ? layer.present_value : layer.present_key) = find_tensor(uu::past_key_values_to_present_name(name));
+        layer.sliding = uu::is_swa_kv_cache_name(name);
+    }
+
+    const bool v_transposed = is_prefill ? m_layout->v_transposed_pre : m_layout->v_transposed_gen;
+    const uint32_t key_axis = m_layout->dim;
+    const uint32_t value_axis = v_transposed ? 3u : m_layout->dim;
+    for (const auto& [index, layer] : layers) {
+        std::vector<uint64_t> key(n), value(n), row_kv(n), next(n);
+        for (size_t r = 0; r < n; ++r) {
+            key[r] = combine(combine(index, hidden[r]), 'k');
+            value[r] = combine(combine(index, hidden[r]), 'v');
+            row_kv[r] = combine(key[r], value[r]);
+        }
+        const size_t layer_past = layer.past_key->get_shape()[key_axis];
+        std::vector<uint64_t> past_kv(layer_past);
+        for (size_t s = 0; s < layer_past; ++s) {
+            past_kv[s] =
+                combine(read_row_tag(layer.past_key, key_axis, s), read_row_tag(layer.past_value, value_axis, s));
+        }
+        OPENVINO_ASSERT(layer.sliding ? swa_mask->get_shape().back() == layer_past + n : layer_past == past_len);
+        for (size_t r = 0; r < n; ++r) {
+            if (!valid[r]) {
+                continue;
+            }
+            // Attention is order free, so the visible rows are summed.
+            uint64_t attended = 0u;
+            for (size_t s = 0; s < layer_past; ++s) {
+                if (layer.sliding ? swa_attends(r, s) : mask[s] == 1) {
+                    attended += past_kv[s];
+                }
+            }
+            for (size_t j = 0; j < n; ++j) {
+                if (layer.sliding ? swa_attends(r, layer_past + j) : (valid[j] && j <= r)) {
+                    attended += row_kv[j];
+                }
+            }
+            next[r] = combine(hidden[r], attended);
+            write_row_tag(layer.present_key, key_axis, r, key[r]);
+            write_row_tag(layer.present_value, value_axis, r, value[r]);
+        }
+        hidden = std::move(next);
+    }
+
+    OPENVINO_ASSERT(valid[n - 1], "The last row of a request is always a real token.");
+    for (const auto& output : get_compiled_model()->outputs()) {
+        if (output.get_any_name().rfind("present", 0) != 0u) {
+            fill_with_tag(get_tensor(output), hidden[n - 1]);
+        }
+    }
+}
+
+ov::SoPtr<ov::IVariableState> stored_tokens_state_of(ov::npuw::LLMInferRequest& request) {
+    for (const auto& state : request.query_state()) {
+        if (state->get_name() == "npuw_stored_tokens_state") {
+            return state;
+        }
+    }
+    OPENVINO_THROW("npuw_stored_tokens_state is not exposed by the request");
+}
+
+// Feeds history[begin, end) with positions from begin and a mask over the whole history:
+// a full prefill from 0, a continued prefill from the grant, or a generate step.
+void infer_history(ov::npuw::LLMInferRequest& request, const std::vector<int64_t>& history, size_t begin) {
+    const size_t n = history.size() - begin;
+    ov::Tensor input_ids(ov::element::i64, ov::Shape{1, n});
+    std::copy(history.begin() + begin, history.end(), input_ids.data<int64_t>());
+    const auto& inputs = request.get_inputs();
+    request.set_tensor(ov::npuw::util::find_port_by_name(inputs, "input_ids").value(), ov::get_tensor_impl(input_ids));
+    request.set_tensor(ov::npuw::util::find_port_by_name(inputs, "attention_mask").value(),
+                       ov::get_tensor_impl(make_i64({1, history.size()}, 1)));
+    request.set_tensor(ov::npuw::util::find_port_by_name(inputs, "position_ids").value(),
+                       ov::get_tensor_impl(make_i64_iota({1, n}, static_cast<int64_t>(begin))));
+    request.infer();
+}
+
+std::vector<uint8_t> logits_of(ov::npuw::LLMInferRequest& request) {
+    return materialize_bytes(
+        request.get_tensor(ov::npuw::util::find_port_by_name(request.get_outputs(), "logits").value()));
+}
+
+// A multi-turn chat on a model with sliding (0, 2) and full attention (1, 3) layers,
+// with the full KV cache or the window-shrunk one. The continuous request prefills
+// only the delta from its grant, the reference request has continuous prefill off and
+// prefills the whole history every turn, and every logits tensor must match.
+class LLMSlidingWindowContinuedPrefillTest : public ::testing::TestWithParam<bool> {
+protected:
+    // A window wider than one 32-token chunk.
+    static constexpr size_t kWindow = 48u;
+
+    struct Turn {
+        size_t edit_from;       // the previous history is kept up to here
+        size_t history_len;     // the whole history this turn feeds
+        size_t generated;       // generate steps after the prefill
+        int64_t expected_keep;  // the grant of the continuous request, unused on the first turn
+    };
+
+    struct Session {
+        std::shared_ptr<ov::npuw::LLMCompiledModel> compiled;
+        std::unique_ptr<ov::npuw::LLMInferRequest> request;
+    };
+
+    void SetUp() override {
+        m_plugin = std::make_shared<NullPlugin>();
+        m_continuous = compile(true);
+        m_reference = compile(false);
+    }
+
+    Session compile(bool continuous_prefill) {
+        auto layout = std::make_shared<KvLayout>();
+        ov::AnyMap props{{"NPUW_LLM", "YES"},
+                         {"NPUW_DEVICES", "CPU"},
+                         {"NPUW_LLM_MAX_PROMPT_LEN", "256"},
+                         {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                         {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                         {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"},
+                         {"NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", GetParam() ? "YES" : "NO"},
+                         {"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", continuous_prefill ? "YES" : "NO"}};
+        auto factory = [layout](const std::shared_ptr<ov::Model>& model,
+                                const std::shared_ptr<const ov::IPlugin>& plugin,
+                                const ov::AnyMap&) -> std::shared_ptr<ov::npuw::ICompiledModel_v0> {
+            return std::make_shared<HashingSubCompiledModel>(model, plugin, layout);
+        };
+        Session session;
+        session.compiled = std::make_shared<ov::npuw::LLMCompiledModel>(
+            ov::test::npuw::build_sliding_window_test_model(kWindow, 1, {}, 4),
+            m_plugin,
+            props,
+            factory);
+        EXPECT_EQ(session.compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>(), continuous_prefill);
+        session.request = std::make_unique<ov::npuw::LLMInferRequest>(session.compiled);
+        EXPECT_EQ(LLMContinuedPrefillTestAccess::swa_past_names(*session.request).empty(), !GetParam());
+        const auto& desc = LLMContinuedPrefillTestAccess::desc(*session.request);
+        layout->dim = desc.dim;
+        layout->v_transposed_pre = desc.v_tensors_transposed_pre;
+        layout->v_transposed_gen = desc.v_tensors_transposed_gen;
+        return session;
+    }
+
+    void run_conversation(const std::vector<Turn>& turns) {
+        auto& continuous = *m_continuous.request;
+        auto& reference = *m_reference.request;
+        std::vector<int64_t> history;
+        int64_t next_token = 0;
+        const auto append_token = [&]() {
+            history.push_back((next_token++ * 37 + 11) % 251 + 1);
+        };
+        for (size_t t = 0; t < turns.size(); ++t) {
+            const auto& turn = turns[t];
+            size_t keep = 0u;
+            if (t > 0u) {
+                // The common prefix of the cached and the new history.
+                auto proposal = ov::Tensor(ov::element::i64, ov::Shape{1});
+                proposal.data<int64_t>()[0] = static_cast<int64_t>(std::min(turn.edit_from, history.size()));
+                auto state = stored_tokens_state_of(continuous);
+                state->set_state(ov::get_tensor_impl(proposal));
+                const int64_t granted = state->get_state()->data<int64_t>()[0];
+                EXPECT_EQ(granted, turn.expected_keep) << "turn " << t;
+                keep = static_cast<size_t>(granted);
+            }
+            history.resize(turn.edit_from);
+            while (history.size() < turn.history_len) {
+                append_token();
+            }
+            infer_history(continuous, history, keep);
+            infer_history(reference, history, 0u);
+            EXPECT_EQ(logits_of(continuous), logits_of(reference)) << "turn " << t << " prefill";
+            for (size_t step = 0; step < turn.generated; ++step) {
+                append_token();
+                infer_history(continuous, history, history.size() - 1u);
+                infer_history(reference, history, history.size() - 1u);
+                EXPECT_EQ(logits_of(continuous), logits_of(reference)) << "turn " << t << " generate step " << step;
+            }
+        }
+    }
+
+    std::shared_ptr<ov::IPlugin> m_plugin;
+    Session m_continuous;
+    Session m_reference;
+};
+
+// The first turn prefills 72 tokens in chunks of 32, so the grant is 64 and the
+// 20-token delta fits into one window.
+TEST_P(LLMSlidingWindowContinuedPrefillTest, DeltaInsideWindowMatchesFullHistory) {
+    run_conversation({{0, 72, 2, 0}, {74, 84, 3, 64}});
+}
+
+// A 100-token delta spans several windows, and the third turn resumes from the
+// window the continued prefill itself left behind.
+TEST_P(LLMSlidingWindowContinuedPrefillTest, DeltaLongerThanWindowMatchesFullHistory) {
+    run_conversation({{0, 72, 2, 0}, {74, 164, 3, 64}, {167, 172, 2, 160}});
+}
+
+// After 70 generated tokens the keep lies further back than the window the
+// generate cache still holds, so the sliding layers resume from the prefill side.
+TEST_P(LLMSlidingWindowContinuedPrefillTest, KeepFurtherBackThanWindowMatchesFullHistory) {
+    run_conversation({{0, 72, 70, 0}, {142, 148, 3, 64}});
+}
+
+// A chunk-aligned prompt ends on a full chunk, so the grant equals the prompt and
+// the window is extended with the whole last chunk.
+TEST_P(LLMSlidingWindowContinuedPrefillTest, ChunkAlignedPromptResumesAfterLastChunk) {
+    run_conversation({{0, 64, 3, 0}, {67, 80, 3, 64}});
+}
+
+// The history is edited at token 40. The full cache resumes from 32, while the
+// shrunk cache only holds the window from 64 on and falls back to a full prefill.
+TEST_P(LLMSlidingWindowContinuedPrefillTest, EditBeforeWindowFallsBackToFullPrefill) {
+    run_conversation({{0, 72, 2, 0}, {40, 90, 3, GetParam() ? 0 : 32}});
+}
+
+INSTANTIATE_TEST_SUITE_P(SlidingWindow,
+                         LLMSlidingWindowContinuedPrefillTest,
+                         ::testing::Values(false),
+                         [](const ::testing::TestParamInfo<bool>& info) {
+                             return info.param ? "ShrunkCache" : "FullCache";
+                         });
 
 // Block-mode variant of the fixture: the same synthetic model compiled with the
 // pyramid attention hint so SplitKVCacheIntoBlocks applies, giving the block
