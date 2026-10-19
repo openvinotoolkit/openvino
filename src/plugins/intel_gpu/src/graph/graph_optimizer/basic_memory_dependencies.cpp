@@ -7,6 +7,7 @@
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "program_helpers.h"
+#include "stateless_kv_inst.h"
 #include "intel_gpu/runtime/itt.hpp"
 #include <vector>
 
@@ -25,10 +26,27 @@ void basic_memory_dependencies::run(program& p) {
             continue;
         }
 
+        // stateless_kv may update input 0 (`past`) in place.
+        const bool inplace_kv = node->is_type<stateless_kv>();
+
         // add my dependencies to restriction list (can't share input.output buffers)
-        for (const auto& it : node->get_dependencies()) {
-            add_memory_dependency(node, it.first);
-            add_memory_dependency(it.first, node);
+        const auto& deps = node->get_dependencies();
+        for (size_t i = 0; i < deps.size(); ++i) {
+            if (inplace_kv && i == 0) {
+                continue;
+            }
+            add_memory_dependency(node, deps[i].first);
+            add_memory_dependency(deps[i].first, node);
+        }
+
+        if (inplace_kv) {
+            // As for the oneDNN sum post-op: keep both ends of the alias out of pool sharing.
+            node->can_share_buffer(false);
+            auto* root = &node->get_dependency(0);
+            while (root->can_be_optimized() && !root->get_dependencies().empty()) {
+                root = &root->get_dependency(0);
+            }
+            root->can_share_buffer(false);
         }
 
         // LoRA can reuse the memory of the previous node, but not be optimized
