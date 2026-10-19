@@ -171,7 +171,7 @@ def _compile_ov_forward(model, options) -> None:
     )
 
 
-def _rebuild_ov_model(model) -> None:
+def _rebuild_ov_model(runner, model) -> None:
     """Recompile the OV forward and lm_head after the weights were updated in place.
 
     AOT freezing baked every weight into the OV model as a constant, and the
@@ -179,7 +179,8 @@ def _rebuild_ov_model(model) -> None:
     storage address, which an in-place update keeps. Without a rebuild the
     model would keep serving the old weights.
     """
-    if getattr(model, "_ov_eager_forward", None) is not None:
+    recompiled = getattr(model, "_ov_eager_forward", None) is not None
+    if recompiled:
         import torch
         from openvino.frontend.pytorch.torchdynamo import execute
         execute.clear_caches()
@@ -189,6 +190,12 @@ def _rebuild_ov_model(model) -> None:
         options = dict(model._ov_compile_options, model_id=next(_next_model_id))
         _compile_ov_forward(model, options)
     _install_ov_lm_head(model)
+    if recompiled and hasattr(runner, "warming_up_model"):
+        # As at load: the warmup takes dynamo's first, shape-specialized trace
+        # (it runs eagerly), so OV only compiles the dynamic graph. Otherwise the
+        # first request after the rebuild gets a static OV model of its own
+        # next to the dynamic one, each holding a copy of the weights.
+        runner.warming_up_model()
 
 
 def _patch_cpu_model_runner():
@@ -325,7 +332,7 @@ def _patch_reload_weights():
     def patched_reload_weights(self, *args, **kwargs):
         _orig_reload_weights(self, *args, **kwargs)
         if _ov_active(self):
-            _rebuild_ov_model(self.model)
+            _rebuild_ov_model(self, self.model)
 
     CPUModelRunner.reload_weights = patched_reload_weights
     CPUModelRunner._ov_plugin_reload_patched = True
@@ -353,7 +360,7 @@ def _patch_worker_update_weights():
         _orig_finish_weight_update(self, *args, **kwargs)
         model_runner = getattr(self, "model_runner", None)
         if model_runner is not None and _ov_active(model_runner):
-            _rebuild_ov_model(model_runner.get_model())
+            _rebuild_ov_model(model_runner, model_runner.get_model())
 
     CPUWorker.finish_weight_update = patched_finish_weight_update
     CPUWorker._ov_plugin_update_patched = True
