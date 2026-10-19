@@ -106,6 +106,7 @@ struct DecoderConfig {
     int draft_conv_kernel = 0;
     int draft_conv_group = 0;
     int draft_block_size = 0;
+    bool draft_sample_from_anchor = true;
     int draft_selector_rank = 0;
     int draft_selector_top_k = 0;
     int lilicorr_hidden = 0;

@@ -39,6 +39,9 @@ CASES = {
     "dflash-selector": {"architecture": "dflash", "layers": 2, "qk": True, "conv_kernel": 4,
                          "conv_group": 8, "selector": True},
     "dflash-lilicorr": {"architecture": "dflash", "layers": 2, "qk": True, "lilicorr": True},
+    "dflash-markov": {"architecture": "dflash", "layers": 2, "qk": True, "markov": True},
+    "dflash-markov-mapped": {"architecture": "dflash", "layers": 2, "qk": True, "markov": True,
+                             "output_vocab": 16, "d2t": True, "sample_from_anchor": False},
     "afmoe": {"qk": True, "moe": True, "shared": True, "lead": 1, "post": True,
                 "swa": True, "gate": True, "selection_bias": True, "sigmoid": True, "layers": 4},
     "qwen35moe-fused": {"architecture": "qwen35moe", "fused_experts": True},
@@ -464,6 +467,14 @@ def write_model(path, arch, opts):
         tensor("output.weight", (opts.get("output_vocab", vocab), d))
     if arch == "dflash":
         tensor("enc.output_norm.weight", (d,), True)
+        if opts.get("markov"):
+            w.add_uint32("dflash.block_size", 3)
+            w.add_bool("dflash.sample_from_anchor", opts.get("sample_from_anchor", True))
+            tensor("markov_w1.weight", (vocab, 8))
+            tensor("markov_w2.weight", (opts.get("output_vocab", vocab), 8))
+            w.add_tensor("markov_w2.scale", np.array([1.3], dtype=np.float32))
+            tensor("conf_proj.weight", (1, d + 8))
+            w.add_tensor("conf_proj.bias", np.array([.1], dtype=np.float32))
         if opts.get("conv_kernel"):
             w.add_uint32("dflash.conv_kernel_size", opts["conv_kernel"])
             w.add_uint32("dflash.conv_group_size", opts["conv_group"])
@@ -644,6 +655,10 @@ def main():
                 for step in range(3):
                     extra[f"lattice_{step}"] = np.fromfile(str(reference) + f".lattice{step}", dtype=np.float32).reshape(3, 32)
                     extra[f"anchor_{step}"] = np.fromfile(str(reference) + f".anchor{step}", dtype=np.float32).reshape(3, 32)
+            if CASES[arch].get("markov"):
+                for step, count in enumerate((3, 1, 2)):
+                    extra[f"confidence_{step}"] = np.fromfile(str(reference) + f".lattice{step}", dtype=np.float32).reshape(count, 32)
+                    extra[f"alllogits_{step}"] = np.fromfile(str(reference) + f".alllogits{step}", dtype=np.float32).reshape(count, vocab)
             save_npz(args.out_dir / f"{arch}.npz", {"model": np.fromfile(model, dtype=np.uint8), "logits": logits, **extra})
             print(f"{arch}: {model.stat().st_size} bytes, reference logits {logits.shape}", flush=True)
 

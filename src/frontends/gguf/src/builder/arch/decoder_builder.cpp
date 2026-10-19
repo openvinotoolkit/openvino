@@ -33,6 +33,7 @@
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gelu.hpp"
+#include "openvino/op/greater.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
@@ -49,6 +50,7 @@
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/sigmoid.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/sqrt.hpp"
@@ -102,6 +104,11 @@ DecoderBuilder::DecoderBuilder(const std::map<std::string, GGUFMetaData>& config
             info["mask_token_id"] = std::to_string(std::get<int>(config.at("draft_mask_token_id")));
             info["candidate_position_offset"] = "0";
             graph.model_rt_info["dflash"] = info;
+            if (m_emit.has_weight("markov_w1.weight")) {
+                graph.model_rt_info["gguf.dflash_block_size"] = m_cfg.draft_block_size;
+                graph.model_rt_info["gguf.dflash_markov"] = true;
+                graph.model_rt_info["gguf.dflash_sample_from_anchor"] = m_cfg.draft_sample_from_anchor;
+            }
             if (m_emit.has_weight("selector_hidden.weight")) {
                 graph.model_rt_info["gguf.dflash_selector_top_k"] = m_cfg.draft_selector_top_k;
                 graph.model_rt_info["gguf.dflash_block_size"] = m_cfg.draft_block_size;
@@ -465,6 +472,8 @@ std::string DecoderBuilder::build_head(const std::string& in) {
         m_emit.add_extra_input_node("result_output_mapped", scattered);
         logits = "result_output_mapped";
     }
+    if (m_cfg.arch == "dflash" && m_emit.has_weight("markov_w1.weight"))
+        logits = build_dflash_markov(logits);
     return logits;
 }
 
@@ -529,6 +538,104 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
         graph->model_output_names.push_back("d2t");
     }
     return graph;
+}
+
+std::string DecoderBuilder::build_dflash_markov(const std::string& logits) {
+    using namespace ov::op;
+    using O = ov::Output<ov::Node>;
+    const auto scalar = [](int64_t value) {
+        return v0::Constant::create(i64, {}, {value});
+    };
+    const auto axis = [](int64_t value) {
+        return v0::Constant::create(i64, {1}, {value});
+    };
+    const auto weight = [&](const std::string& name) -> O {
+        if (name.size() >= 7 && name.compare(name.size() - 7, 7, ".weight") == 0)
+            m_emit.add_weight(name);
+        else
+            m_emit.add_named_weight(name);
+        return m_emit.value(name);
+    };
+    const auto w1 = weight("markov_w1.weight");
+    const auto w2 = weight("markov_w2.weight");
+    OPENVINO_ASSERT(m_cfg.draft_block_size > 0 && w1.get_partial_shape().rank() == 2 &&
+                        w2.get_partial_shape().rank() == 2 && w1.get_partial_shape()[1] == w2.get_partial_shape()[1],
+                    "[GGUF] invalid DFlash Markov geometry");
+    O base = m_emit.value(logits);
+    O hidden = m_emit.value("result_norm");
+    O length = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(base), scalar(2), scalar(0));
+    const auto column = [&](O value, int64_t index) -> O {
+        O safe = std::make_shared<v1::Minimum>(scalar(index), std::make_shared<v1::Subtract>(length, scalar(1)));
+        return std::make_shared<v8::Gather>(value, std::make_shared<v0::Unsqueeze>(safe, axis(0)), scalar(2));
+    };
+    O prev = std::make_shared<v8::Gather>(m_emit.value("inp_tokens"), scalar(0), scalar(3));
+    const bool confidence = m_emit.has_weight("conf_proj.weight");
+    ov::OutputVector columns, scores;
+    for (int64_t index = 0; index < m_cfg.draft_block_size; ++index) {
+        O value = column(base, index);
+        if (index || m_cfg.draft_sample_from_anchor) {
+            O latent = std::make_shared<v8::Gather>(w1, prev, scalar(0));
+            O bias = std::make_shared<v0::MatMul>(latent, w2, false, true);
+            if (m_emit.has_weight("markov_w2.scale"))
+                bias = std::make_shared<v1::Multiply>(bias, weight("markov_w2.scale"));
+            if (m_emit.has_weight("d2t")) {
+                auto full = std::make_shared<v3::Broadcast>(v0::Constant::create(f32, {}, {0.f}),
+                                                            std::make_shared<v3::ShapeOf>(value));
+                bias = std::make_shared<v3::ScatterUpdate>(full,
+                                                           std::make_shared<v0::Constant>(m_emit.weights().at("d2t")),
+                                                           bias,
+                                                           scalar(3));
+            }
+            value = std::make_shared<v1::Add>(value, bias);
+            if (confidence) {
+                O features = std::make_shared<v0::Concat>(ov::OutputVector{column(hidden, index), latent}, 3);
+                O score = std::make_shared<v0::MatMul>(features, weight("conf_proj.weight"), false, true);
+                if (m_emit.has_weight("conf_proj.bias"))
+                    score = std::make_shared<v1::Add>(score, weight("conf_proj.bias"));
+                scores.push_back(std::make_shared<v0::Sigmoid>(score));
+            }
+            prev =
+                std::make_shared<v0::Squeeze>(make_topk_indices(value, scalar(1), -1, v11::TopK::Mode::MAX), axis(3));
+        } else if (confidence) {
+            scores.push_back(std::make_shared<v0::Sigmoid>(std::make_shared<v8::Gather>(value, axis(0), scalar(3))));
+        }
+        columns.push_back(value);
+    }
+    const auto trim = [&](O value) -> O {
+        return std::make_shared<v8::Slice>(value,
+                                           axis(0),
+                                           std::make_shared<v0::Unsqueeze>(length, axis(0)),
+                                           axis(1),
+                                           axis(2));
+    };
+    O tail = std::make_shared<v8::Slice>(base,
+                                         axis(m_cfg.draft_block_size),
+                                         std::make_shared<v0::Unsqueeze>(length, axis(0)),
+                                         axis(1),
+                                         axis(2));
+    O chain = trim(std::make_shared<v0::Concat>(ov::OutputVector{std::make_shared<v0::Concat>(columns, 2), tail}, 2));
+    O result = std::make_shared<v1::Select>(std::make_shared<v1::Greater>(length, scalar(m_cfg.draft_block_size)),
+                                            base,
+                                            chain);
+    result.get_node_shared_ptr()->set_friendly_name("dflash.markov_logits");
+    m_emit.add_extra_input_node("dflash.markov_logits", result.get_node_shared_ptr());
+    if (confidence) {
+        O padding = std::make_shared<v8::Gather>(tail, axis(0), scalar(3));
+        padding = std::make_shared<v3::Broadcast>(v0::Constant::create(f32, {}, {0.f}),
+                                                  std::make_shared<v3::ShapeOf>(padding));
+        O score =
+            trim(std::make_shared<v0::Concat>(ov::OutputVector{std::make_shared<v0::Concat>(scores, 2), padding}, 2));
+        score = std::make_shared<v3::Broadcast>(score, std::make_shared<v3::ShapeOf>(hidden));
+        O empty = std::make_shared<v3::Broadcast>(v0::Constant::create(f32, {}, {0.f}),
+                                                  std::make_shared<v3::ShapeOf>(hidden));
+        score = std::make_shared<v1::Select>(std::make_shared<v1::Greater>(length, scalar(m_cfg.draft_block_size)),
+                                             empty,
+                                             score);
+        score.get_node_shared_ptr()->set_friendly_name("dflash.confidence");
+        m_emit.add_extra_input_node("dflash.confidence", score.get_node_shared_ptr());
+        m_emit.graph()->model_output_names.push_back("dflash.confidence");
+    }
+    return "dflash.markov_logits";
 }
 
 void DecoderBuilder::build_lilicorr(const std::string& logits) {

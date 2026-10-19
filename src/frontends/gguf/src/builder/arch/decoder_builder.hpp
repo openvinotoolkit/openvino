@@ -65,6 +65,7 @@ private:
     std::string build_dflash(const std::string& embeddings);
     void build_dflash_selector(const std::string& logits);
     void build_lilicorr(const std::string& logits);
+    std::string build_dflash_markov(const std::string& logits);
     std::string build_dflash_conv(const std::string& hidden,
                                   const std::string& dynamic,
                                   const std::string& base,

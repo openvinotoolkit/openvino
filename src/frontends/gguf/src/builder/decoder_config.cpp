@@ -220,6 +220,7 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     draft_conv_kernel = cfg_i("draft_conv_kernel");
     draft_conv_group = cfg_i("draft_conv_group");
     draft_block_size = cfg_i("draft_block_size");
+    draft_sample_from_anchor = cfg_i("draft_sample_from_anchor") != 0;
     draft_selector_rank = cfg_i("draft_selector_rank");
     draft_selector_top_k = cfg_i("draft_selector_top_k");
     lilicorr_hidden = cfg_i("lilicorr_hidden_size");

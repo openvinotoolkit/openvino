@@ -179,7 +179,11 @@ Drafts may omit token embeddings and the output head. Native conversion then exp
 `gguf.target_token_embedding` and `gguf.target_lm_head` weight inputs; the GenAI integration
 clones the target weight subgraphs before compilation. EAGLE3's reduced-vocabulary `d2t`
 is an auxiliary constant for the consumer's mapping; omitted tables use identity mapping.
-DFlash selector and LiLiCorr lattice consumers use a fixed noise block. DSpark variants
-of `dflash` still need implementation and validation.
-Real-checkpoint drafting and all multimodal combinations remain
-outstanding acceptance work. These catalog entries describe implemented graph paths.
+DFlash selector and LiLiCorr lattice consumers use a fixed noise block. The DSpark Markov
+head under `dflash` supports greedy in-graph conditioning, optional confidence outputs,
+reduced vocabulary, and both anchor rules. Independent CPU fixtures check every token's
+logits and confidence. Its DeepSeek-V4 backbone variant still needs implementation.
+The real Qwen3-8B Q8_0/EAGLE3 F16 pair passes repeated PA generation, two-request continuous
+batching and target-only greedy-token agreement. The Qwen3.6-35B-A3B Q4_K_M/DFlash BF16 pair
+passes repeated PA generation with prefix caching disabled. Broader drafting and multimodal
+acceptance remains outstanding. These catalog entries describe implemented graph paths.

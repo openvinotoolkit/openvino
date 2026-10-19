@@ -68,6 +68,9 @@ int main(int argc, char** argv) {
     char lilicorr_metadata[32]{};
     const bool lilicorr =
         llama_model_meta_val_str(model, "lilicorr.hidden_size", lilicorr_metadata, sizeof(lilicorr_metadata)) >= 0;
+    char markov_metadata[32]{};
+    const bool markov =
+        llama_model_meta_val_str(model, "dflash.sample_from_anchor", markov_metadata, sizeof(markov_metadata)) >= 0;
     std::ifstream embedding_file;
     if (embeddings || draft)
         embedding_file.open(argv[4], std::ios::binary);
@@ -119,7 +122,7 @@ int main(int argc, char** argv) {
             }
         }
         if (dflash) {
-            if (llama_model_dflash_selector_top_k(model) > 0 || lilicorr)
+            if (llama_model_dflash_selector_top_k(model) > 0 || lilicorr || markov)
                 llama_set_embeddings_nextn(ctx, true, false);
             const size_t width = 3 * llama_model_n_embd(model);
             std::vector<float> features(tokens.size() * width);
@@ -160,7 +163,12 @@ int main(int argc, char** argv) {
             }
             if (llama_process(ctx, LLAMA_PROCESS_TYPE_DECODE, decoder))
                 return 10;
-            if (llama_model_dflash_selector_top_k(model) > 0 || lilicorr) {
+            if (markov) {
+                std::ofstream all_logits(std::string(argv[2]) + ".alllogits" + std::to_string(step), std::ios::binary);
+                all_logits.write(reinterpret_cast<const char*>(llama_get_logits(ctx)),
+                                 tokens.size() * llama_vocab_n_tokens(llama_model_get_vocab(model)) * sizeof(float));
+            }
+            if (llama_model_dflash_selector_top_k(model) > 0 || lilicorr || markov) {
                 std::ofstream lattice(std::string(argv[2]) + ".lattice" + std::to_string(step), std::ios::binary);
                 lattice.write(reinterpret_cast<const char*>(llama_get_embeddings_nextn(ctx)),
                               tokens.size() * llama_model_n_embd(model) * sizeof(float));

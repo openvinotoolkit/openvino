@@ -846,6 +846,12 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     if (arch == "dflash") {
         for (const auto& result : auxiliary_results) {
             const auto name = result->input_value(0).get_node()->get_friendly_name();
+            if (name.find("dflash.confidence") != std::string::npos) {
+                auto confidence = make_shared<v0::Squeeze>(result->input_value(0), one_1);
+                name_output(confidence, "draft_confidence");
+                result->input(0).replace_source_output(confidence);
+                continue;
+            }
             if (name.find("lilicorr.lattice") != std::string::npos) {
                 name_output(result->input_value(0), "draft_lattice");
                 continue;

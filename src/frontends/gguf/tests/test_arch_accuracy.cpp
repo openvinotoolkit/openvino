@@ -554,6 +554,14 @@ void check_batched_decode(const std::shared_ptr<ov::Model>& model) {
     a = infer(first, 1, {4}, {1, 1, 1, 1}, {3}, {0});
     b = infer(second, 1, {5}, {1, 1, 1}, {2}, {0});
     compare(infer(batch, 2, {5, 4}, {0, 1, 1, 1, 1, 1, 1, 1}, {2, 3}, {1, 0}), b, a);
+    for (auto* request : {&first, &second, &batch})
+        for (auto state : request->query_state())
+            state.reset();
+    auto fresh = compiled.create_infer_request();
+    a = infer(fresh, 1, {6, 2}, {1, 1}, {0, 1}, {0});
+    compare(infer(batch, 2, {6, 2, 6, 2}, {1, 1, 1, 1}, {0, 1, 0, 1}, {0, 0}), a, a);
+    compare(infer(first, 1, {6, 2}, {1, 1}, {0, 1}, {0}), a, {});
+    compare(infer(second, 1, {6, 2}, {1, 1}, {0, 1}, {0}), a, {});
 }
 
 TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttention) {
@@ -922,6 +930,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     std::vector<float> reference;
     std::vector<float> draft_features;
     std::vector<std::vector<float>> selector_lattices;
+    std::vector<std::vector<float>> all_logits;
     size_t draft_width = 0;
     std::vector<float> deepstack_reference;
     size_t deepstack_layers = 0, hidden_width = 0;
@@ -982,10 +991,17 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         temporary = std::make_unique<ov_gguf_test::TemporaryGguf>(array("model"));
         if (GetParam() == std::string("dflash-lilicorr"))
             schedule = {{1, 2, 3}, {4, 5, 6}, {4, 5, 6}};
-        if (GetParam() == std::string("dflash-selector") || GetParam() == std::string("dflash-lilicorr")) {
+        if (GetParam() == std::string("dflash-selector") || GetParam() == std::string("dflash-lilicorr") ||
+            std::string(GetParam()).find("dflash-markov") == 0) {
             for (size_t step = 0; step < 3; ++step) {
-                const auto& lattice = array("lattice_" + std::to_string(step));
+                const auto& lattice =
+                    array((std::string(GetParam()).find("dflash-markov") == 0 ? "confidence_" : "lattice_") +
+                          std::to_string(step));
                 selector_lattices.emplace_back(lattice.data<float>(), lattice.data<float>() + lattice.num_vals);
+                if (std::string(GetParam()).find("dflash-markov") == 0) {
+                    const auto& full = array("alllogits_" + std::to_string(step));
+                    all_logits.emplace_back(full.data<float>(), full.data<float>() + full.num_vals);
+                }
             }
         }
         model_path = temporary->path;
@@ -1077,13 +1093,30 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     for (const auto& tokens : schedule) {
         SCOPED_TRACE("past=" + std::to_string(past) + ", tokens=" + std::to_string(tokens.size()));
         const auto result = infer(tokens, past);
+        if (!all_logits.empty()) {
+            const auto& full = all_logits.at(step);
+            ASSERT_EQ(result.get_size(), full.size());
+            std::vector<float> finite_actual, finite_expected;
+            for (size_t i = 0; i < full.size(); ++i) {
+                if (std::isfinite(full[i])) {
+                    finite_actual.push_back(result.data<const float>()[i]);
+                    finite_expected.push_back(full[i]);
+                } else {
+                    EXPECT_EQ(result.data<const float>()[i], full[i]);
+                }
+            }
+            ov_gguf_test::expect_nmse_below(
+                ov_gguf_test::nmse(finite_actual.data(), finite_expected.data(), finite_expected.size()),
+                1e-5);
+        }
         if (!selector_lattices.empty()) {
-            const auto lattice = request.get_tensor("draft_lattice");
+            const auto lattice = request.get_tensor(
+                std::string(GetParam()).find("dflash-markov") == 0 ? "draft_confidence" : "draft_lattice");
             const auto& wanted_lattice = selector_lattices.at(step);
             ASSERT_EQ(lattice.get_size(), wanted_lattice.size());
             const auto lattice_metric =
                 ov_gguf_test::nmse(lattice.data<const float>(), wanted_lattice.data(), wanted_lattice.size());
-            if (tokens.size() == 1) {
+            if (tokens.size() == 1 && std::string(GetParam()).find("dflash-markov") != 0) {
                 for (size_t i = 0; i < lattice.get_size(); ++i) {
                     EXPECT_EQ(wanted_lattice[i], 0.f);
                     EXPECT_EQ(lattice.data<const float>()[i], 0.f);
@@ -1097,7 +1130,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         const auto* actual = result.data<const float>() + result.get_size() - vocab;
         const auto* expected = reference.data() + step++ * vocab;
         std::vector<float> mapped_actual, mapped_expected;
-        if (GetParam() == std::string("dflash-mapped")) {
+        if (GetParam() == std::string("dflash-mapped") || GetParam() == std::string("dflash-markov-mapped")) {
             for (int row = 0; row < vocab; ++row) {
                 if (row % 2) {
                     EXPECT_EQ(actual[row], -std::numeric_limits<float>::infinity());
@@ -1171,6 +1204,8 @@ INSTANTIATE_TEST_SUITE_P(Architectures,
                                            "dflash-mapped",
                                            "dflash-selector",
                                            "dflash-lilicorr",
+                                           "dflash-markov",
+                                           "dflash-markov-mapped",
                                            "afmoe",
                                            "bonsai2-hadamard",
                                            "qwen35-mixed",

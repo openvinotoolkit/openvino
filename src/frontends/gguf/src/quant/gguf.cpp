@@ -787,6 +787,7 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     config["draft_conv_kernel"] = metadata_to_int_or(metadata, arch + ".conv_kernel_size", 0);
     config["draft_conv_group"] = metadata_to_int_or(metadata, arch + ".conv_group_size", 0);
     config["draft_block_size"] = metadata_to_int_or(metadata, arch + ".block_size", 0);
+    config["draft_sample_from_anchor"] = metadata_to_bool_or(metadata, arch + ".sample_from_anchor", true) ? 1 : 0;
     config["draft_selector_rank"] = metadata_to_int_or(metadata, arch + ".selector_rank", 0);
     config["draft_selector_top_k"] = metadata_to_int_or(metadata, arch + ".selector_top_k", 0);
     for (const auto key : {"hidden_size", "candidate_topk", "num_heads", "num_layers", "factor_dim", "mlp_hidden_size"})
