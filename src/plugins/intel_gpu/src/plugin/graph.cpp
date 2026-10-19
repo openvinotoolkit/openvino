@@ -228,7 +228,7 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
         m_network = std::make_shared<cldnn::network>(program, m_stream_id);
     }
 
-    std::vector<cldnn::state_conversion_key> conversion_keys;
+    std::vector<cldnn::tensor_conversion_key> conversion_keys;
     for (const auto& variable : m_network->get_variables_info()) {
         const auto& info = variable.second;
         const bool special_kv_state = std::any_of(info.m_primitives.begin(), info.m_primitives.end(),
@@ -244,7 +244,7 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
                                      : static_cast<ov::element::Type_t>(info.m_user_specified_type);
         conversion_keys.emplace_back(source_type, info.m_layout.data_type);
     }
-    program->prepare_state_conversions(conversion_keys);
+    program->prepare_tensor_conversions(conversion_keys);
 
     std::string dry_run_path = GPU_DEBUG_VALUE_OR(m_config.get_dry_run_path(), "");
     std::string dump_graphs_path = GPU_DEBUG_VALUE_OR(m_config.get_dump_graphs_path(), "");
