@@ -13,6 +13,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/sdpa_util.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/fuse_ssm.hpp"
@@ -81,6 +82,22 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
                     "No ScaledDotProductAttention operation observed in the graph, cannot perform "
                     "the SDPAToPagedAttention transformation.");
+
+    // PagedAttentionExtension takes its key and value in the query's type and keeps its own cache,
+    // so an integer key or value cannot be converted. Reject here, before any parameter is added or
+    // any match is rewritten: a model holding a supported SDPA ahead of an integer one would
+    // otherwise be left half-converted by a throw from inside the matcher callback.
+    for (const auto& op : model->get_ordered_ops()) {
+        const auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op);
+        if (sdpa && ov::op::util::sdpa_has_integer_kv(*sdpa)) {
+            OPENVINO_THROW("SDPAToPagedAttention does not support a quantized key or value operand. Node ",
+                           sdpa->get_friendly_name(),
+                           " has key type ",
+                           sdpa->get_input_element_type(1),
+                           " and value type ",
+                           sdpa->get_input_element_type(2));
+        }
+    }
 
     m_params = PaParams{model->get_parameters()};
     m_results = PaResults{model->get_results()};
