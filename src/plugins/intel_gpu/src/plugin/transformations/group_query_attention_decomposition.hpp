@@ -36,6 +36,8 @@ protected:
                                                   bool sliding_window_cache,
                                                   float scale,
                                                   bool has_sink) override;
+    // RMSFusion runs before this pass on GPU, so QK-Norm is emitted as the fused RMS op directly.
+    ov::Output<ov::Node> make_qk_norm(const ov::Output<ov::Node>& input, const ov::Output<ov::Node>& weight, float epsilon) override;
     std::optional<CompressedKV> prepare_compressed_kv(
         const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
         const ov::Output<ov::Node>& key,
