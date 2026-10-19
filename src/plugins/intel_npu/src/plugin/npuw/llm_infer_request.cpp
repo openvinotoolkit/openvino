@@ -1448,8 +1448,7 @@ void ov::npuw::LLMInferRequest::validate_continued_position_ids(const ov::SoPtr<
     // only surface inside the chunk loop, after the repack mutated the cache, or
     // silently stage a partial copy.
     const auto& shape = position_ids->get_shape();
-    const auto& prefill_shape =
-        m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids))->get_shape();
+    const auto& prefill_shape = m_prefill_in_ports.at(layer_names::position_ids).get_shape();
     OPENVINO_ASSERT(
         shape.size() == prefill_shape.size() && std::equal(shape.begin(), shape.end() - 1, prefill_shape.begin()),
         "Continued prefill: position ids must have the prefill layout ",
@@ -1468,13 +1467,11 @@ void ov::npuw::LLMInferRequest::validate_continued_position_ids(const ov::SoPtr<
         // M-RoPE position ids [axes, batch, seq] do not follow the token index: an image
         // block spans fewer positions than tokens, and the text after it resumes from the
         // block's largest position. The caller passes the [keep, end) slice of the full
-        // history position ids, which cannot be derived here, so only the length is checked.
+        // history position ids, which cannot be derived here, so the values are not checked.
         return;
     }
     // A continued prefill is validated from the whole position id sequence, never from
     // a single scalar equality, which would become a second routing heuristic.
-    OPENVINO_ASSERT(position_ids->get_size() == delta_len,
-                    "Continued prefill: position ids must be a single [1, delta] sequence.");
     const auto* data = position_ids->data<int64_t>();
     const int64_t expected_start = m_first_position_id + static_cast<int64_t>(keep);
     OPENVINO_ASSERT(data[0] == expected_start,
@@ -1525,21 +1522,40 @@ void ov::npuw::LLMInferRequest::prepare_for_continued_prefill(uint32_t keep,
                     attention_mask->get_size(),
                     ".");
     validate_continued_position_ids(position_ids, keep, delta_len);
-    // The per-token VLM inputs hold only the delta, like the embeddings, and DeepStack
-    // carries one row per visual token of the delta.
-    for (const auto& per_token : {token_type_ids, visual_pos_masks}) {
-        OPENVINO_ASSERT(!per_token || per_token->get_shape().back() == delta_len,
-                        "Continued prefill: token_type_ids and visual_pos_masks must cover exactly the delta.");
+    // The per-token VLM inputs hold only the delta, like the embeddings.
+    const auto validate_delta_len = [delta_len](const char* name, size_t len) {
+        OPENVINO_ASSERT(len == delta_len,
+                        "Continued prefill: ",
+                        name,
+                        " must cover exactly the delta. Expected ",
+                        delta_len,
+                        " entries, got ",
+                        len,
+                        ".");
+    };
+    if (token_type_ids) {
+        validate_delta_len(layer_names::token_type_ids, token_type_ids->get_shape().back());
     }
-    // per_layer_inputs [1, seq, layers, dim] is empty for a dangling input (Gemma-4 MoE).
-    OPENVINO_ASSERT(!per_layer_inputs || per_layer_inputs->get_byte_size() == 0u ||
-                        per_layer_inputs->get_shape().at(1) == delta_len,
-                    "Continued prefill: per_layer_inputs must cover exactly the delta.");
+    if (visual_pos_masks) {
+        validate_delta_len(layer_names::visual_pos_masks, visual_pos_masks->get_shape().back());
+    }
+    // A dangling per_layer_inputs (Gemma-4 MoE) compiles to an empty prefill input and is never read.
+    if (per_layer_inputs && ov::shape_size(m_prefill_in_ports.at(layer_names::per_layer_inputs).get_shape()) > 0u) {
+        validate_delta_len(layer_names::per_layer_inputs, per_layer_inputs->get_shape().at(1));
+    }
+    // DeepStack carries one row per visual token of the delta.
     if (m_prefill_in_ports.count(layer_names::deepstack_visual_embeds) > 0u) {
-        OPENVINO_ASSERT(
-            deepstack_visual_embeds && visual_pos_masks &&
-                deepstack_visual_embeds->get_shape().at(1) == count_visual_tokens_before(visual_pos_masks, delta_len),
-            "Continued prefill: deepstack_visual_embeds must hold one row per visual token of the delta.");
+        OPENVINO_ASSERT(deepstack_visual_embeds && visual_pos_masks,
+                        "deepstack_visual_embeds and visual_pos_masks must be provided for DeepStack VLM prefill.");
+        const size_t visual_tokens = count_visual_tokens_before(visual_pos_masks, delta_len);
+        const size_t rows = deepstack_visual_embeds->get_shape().at(1);
+        OPENVINO_ASSERT(rows == visual_tokens,
+                        "Continued prefill: deepstack_visual_embeds must hold one row per visual token of the delta. "
+                        "Expected ",
+                        visual_tokens,
+                        " rows, got ",
+                        rows,
+                        ".");
     }
 
     // The strategy validates its own preconditions before moving any byte, so

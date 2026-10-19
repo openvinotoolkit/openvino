@@ -271,27 +271,36 @@ inline std::shared_ptr<ov::Model> build_gemma4_moe_llm_test_model() {
     return model;
 }
 
+/// Appends a consumed input `name` that reaches the graph only through a dedicated
+/// Add + Result probe output, so the input exists by name without changing the
+/// rest of the model.
+inline void add_probe_input(const std::shared_ptr<ov::Model>& model,
+                            const std::string& name,
+                            ov::element::Type type,
+                            const ov::PartialShape& shape) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    input->output(0).set_names({name});
+    auto sibling = ov::op::v0::Constant::create(type, ov::Shape(shape.size(), 1u), {0});
+    auto add = std::make_shared<ov::op::v1::Add>(input, sibling);
+    add->output(0).set_names({name + "_probe_output"});
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    result->set_friendly_name(name + "_probe_output");
+
+    model->add_parameters({input});
+    model->add_results({result});
+    model->validate_nodes_and_infer_types();
+}
+
 /// Real stateful LLM (like build_llm_test_model) plus a *consumed* per_layer_inputs
 /// parameter (non-zero, dynamic proj_dim), used to probe LLMCompiledModel's
 /// is_per_layer_inputs_model auto-enable path (Gemma-4 E2B/E4B cross-group KV sharing).
 /// A minimal standalone graph without beam_idx/KV-cache state fails
 /// StatefulToStateless (which LLMCompiledModel always runs), so this builds on the same
-/// base topology as the other test models and appends the probe input via a dedicated
-/// Add + Result, matching how build_gemma4_moe_llm_test_model appends its dangling PLE.
+/// base topology as the other test models and appends the probe input.
 inline std::shared_ptr<ov::Model> build_per_layer_inputs_probe_model() {
     ModelBuilder mb;
     auto model = mb.build_llm(make_test_model_config());
-
-    auto per_layer_inputs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, -1, -1});
-    per_layer_inputs->output(0).set_names({"per_layer_inputs"});
-    auto sibling = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {0.0f});
-    auto add = std::make_shared<ov::op::v1::Add>(per_layer_inputs, sibling);
-    add->output(0).set_names({"per_layer_inputs_probe_output"});
-    auto result = std::make_shared<ov::op::v0::Result>(add);
-    result->set_friendly_name("per_layer_inputs_probe_output");
-
-    model->add_parameters({per_layer_inputs});
-    model->add_results({result});
+    add_probe_input(model, "per_layer_inputs", ov::element::f32, ov::PartialShape{1, -1, -1, -1});
     return model;
 }
 
