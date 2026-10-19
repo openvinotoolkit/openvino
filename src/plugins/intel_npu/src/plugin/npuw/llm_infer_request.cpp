@@ -540,9 +540,9 @@ void ov::npuw::LLMInferRequest::bind_past_kv() {
             continue;
         }
 
-        // The SWA past keeps its own buffer: it holds the window a continued prefill
-        // resumes from, which the generate ring would overwrite.
-        if (ov::npuw::util::is_swa_kv_cache_name(input_name)) {
+        // With continuous prefill the SWA past keeps its own buffer: it holds the window
+        // a continued prefill resumes from, which the generate ring would overwrite.
+        if (m_continuation.enabled() && ov::npuw::util::is_swa_kv_cache_name(input_name)) {
             continue;
         }
 
