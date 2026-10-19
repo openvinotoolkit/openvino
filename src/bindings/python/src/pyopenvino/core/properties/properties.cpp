@@ -82,8 +82,6 @@ void regmodule_properties(py::module m) {
         .value("THROUGHPUT", ov::hint::PerformanceMode::THROUGHPUT)
         .value("CUMULATIVE_THROUGHPUT", ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);
 
-    py::enum_<ov::hint::AttnMode>(m_hint, "AttnMode", py::arithmetic()).value("PA_CM", ov::hint::AttnMode::PA_CM);
-
     py::enum_<ov::hint::SchedulingCoreType>(m_hint, "SchedulingCoreType", py::arithmetic())
         .value("ANY_CORE", ov::hint::SchedulingCoreType::ANY_CORE)
         .value("PCORE_ONLY", ov::hint::SchedulingCoreType::PCORE_ONLY)
@@ -101,7 +99,6 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::inference_precision, "inference_precision");
     wrap_property_RW(m_hint, ov::hint::model_priority, "model_priority");
     wrap_property_RW(m_hint, ov::hint::performance_mode, "performance_mode");
-    wrap_property_RW(m_hint, ov::hint::attn_mode, "attn_mode");
     wrap_property_RW(m_hint, ov::hint::enable_cpu_pinning, "enable_cpu_pinning");
     wrap_property_RW(m_hint, ov::hint::enable_cpu_reservation, "enable_cpu_reservation");
     wrap_property_RW(m_hint, ov::hint::scheduling_core_type, "scheduling_core_type");
@@ -134,6 +131,10 @@ void regmodule_properties(py::module m) {
     // Submodule intel_gpu
     py::module m_intel_gpu =
         m_properties.def_submodule("intel_gpu", "openvino.properties.intel_gpu submodule that simulates ov::intel_gpu");
+
+    py::enum_<ov::intel_gpu::KernelSelection>(m_intel_gpu, "KernelSelection", py::arithmetic())
+        .value("PA_CM", ov::intel_gpu::KernelSelection::PA_CM);
+    wrap_property_RW(m_intel_gpu, ov::intel_gpu::kernel_selection, "kernel_selection");
 
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::device_total_mem_size, "device_total_mem_size");
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::device_max_alloc_mem_size, "device_max_alloc_mem_size");

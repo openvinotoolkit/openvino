@@ -32,8 +32,8 @@ struct PaKVReorderImplementationManager : public cldnn::ImplementationManager {
         }
 
         const auto& config = node.get_program().get_config();
-        const auto& attn_modes = config.get_attn_mode();
-        return desc->has_xattention || std::find(attn_modes.begin(), attn_modes.end(), ov::hint::AttnMode::PA_CM) != attn_modes.end();
+        const auto& kernel_selections = config.get_kernel_selection();
+        return desc->has_xattention || std::find(kernel_selections.begin(), kernel_selections.end(), ov::intel_gpu::KernelSelection::PA_CM) != kernel_selections.end();
     }
 };
 

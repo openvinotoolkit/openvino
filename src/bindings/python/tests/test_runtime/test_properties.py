@@ -87,9 +87,9 @@ def test_properties_rw_base():
             ),
         ),
         (
-            hints.AttnMode,
+            intel_gpu.KernelSelection,
             (
-                (hints.AttnMode.PA_CM, "AttnMode.PA_CM", 0),
+                (intel_gpu.KernelSelection.PA_CM, "KernelSelection.PA_CM", 0),
             ),
         ),
         (
@@ -310,9 +310,9 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((hints.PerformanceMode.LATENCY, hints.PerformanceMode.LATENCY),),
         ),
         (
-            hints.attn_mode,
-            "ATTENTION_MODE",
-            (([hints.AttnMode.PA_CM], [hints.AttnMode.PA_CM]),),
+            intel_gpu.kernel_selection,
+            "KERNEL_SELECTION",
+            (([intel_gpu.KernelSelection.PA_CM], [intel_gpu.KernelSelection.PA_CM]),),
         ),
         (
             hints.enable_cpu_pinning,
