@@ -1939,8 +1939,8 @@ bool ov::npuw::LLMCompiledModel::can_continue_prefill() const {
     if (m_is_whisper || m_is_embedding || m_is_eagle) {
         return false;  // out of scope pipelines
     }
-    if (m_longrope_context_limit > 0u) {
-        return false;  // LongRoPE threshold can be crossed mid-generation
+    if (m_longrope_context_limit > 0u && m_kvcache_desc.total_size > m_longrope_context_limit) {
+        return false;  // a position past the LongRoPE limit switches to the long factors mid-conversation
     }
     if (m_swa_window_size > 0u) {
         return false;
