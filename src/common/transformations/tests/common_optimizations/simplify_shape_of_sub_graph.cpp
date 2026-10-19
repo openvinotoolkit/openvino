@@ -14,6 +14,7 @@
 #include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -22,6 +23,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/opsets/opset7_decl.hpp"
@@ -441,6 +443,37 @@ TEST_F(TransformationTestsF, AbsInTheUnknown) {
 
         model = std::make_shared<Model>(OutputVector{abs}, ParameterVector{data});
         manager.register_pass<pass::AbsSinking>();
+    }
+}
+
+TEST_F(TransformationTestsF, AbsSinkingKeepsAbsOnNegativeBounds) {
+    {
+        auto lhs = op::v0::Constant::create(element::i64, {3}, {1, -2, 3});
+        auto rhs = op::v0::Constant::create(element::i64, {3}, {4, 1, -1});
+        auto sub = std::make_shared<op::v1::Subtract>(lhs, rhs);
+        auto abs = std::make_shared<op::v0::Abs>(sub);
+
+        model = std::make_shared<Model>(OutputVector{abs}, ParameterVector{});
+        manager.register_pass<pass::AbsSinking>();
+    }
+}
+
+TEST_F(TransformationTestsF, AbsSinkingRemovesAbsOnNonNegativeBounds) {
+    {
+        auto lhs = op::v0::Constant::create(element::i64, {2}, {1, 2});
+        auto rhs = op::v0::Constant::create(element::i64, {2}, {3, 4});
+        auto add = std::make_shared<op::v1::Add>(lhs, rhs);
+        auto abs = std::make_shared<op::v0::Abs>(add);
+
+        model = std::make_shared<Model>(OutputVector{abs}, ParameterVector{});
+        manager.register_pass<pass::AbsSinking>();
+    }
+    {
+        auto lhs = op::v0::Constant::create(element::i64, {2}, {1, 2});
+        auto rhs = op::v0::Constant::create(element::i64, {2}, {3, 4});
+        auto add = std::make_shared<op::v1::Add>(lhs, rhs);
+
+        model_ref = std::make_shared<Model>(OutputVector{add}, ParameterVector{});
     }
 }
 

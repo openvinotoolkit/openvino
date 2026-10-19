@@ -4,10 +4,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "utils.hpp"
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 OutputVector translate_sort_common(const NodeContext& context, bool stable, int64_t dim, bool descending) {
     const auto input_tensor = context.get_input(0);
@@ -54,7 +51,4 @@ OutputVector translate_argsort(const NodeContext& context) {
     return {sort[1]};
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op
