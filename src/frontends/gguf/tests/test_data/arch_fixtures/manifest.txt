@@ -80,7 +80,7 @@ mistral4-moe.gguf.hdr 4403296 reject
 mpt-dense.gguf.hdr 4094464 reject
 nemotron-dense.gguf.hdr 3956480 reject
 nemotron_h-dense.gguf.hdr 4230240 convert
-nemotron_h_moe-dense.gguf.hdr 4230240 reject
+nemotron_h_moe-dense.gguf.hdr 4230240 convert
 olmo-dense.gguf.hdr 4725632 reject
 olmoe-moe.gguf.hdr 7098240 convert
 openelm-dense.gguf.hdr 4595328 reject

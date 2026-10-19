@@ -25,6 +25,7 @@ numerical fixture checked against the llama.cpp CPU encoder (see
 | Vision | `phi4` | dynamic resolution, resized positions |
 | Vision | `gemma4v`, `gemma4uv` | two-axis positions, per-tensor clipping, pooling; unified patch normalization |
 | Vision | `muse-glimmer` | sparse/global windows, two-axis RoPE, pixel shuffle |
+| Vision | `nemotron_omni` | RADIO ViT, prefix registers, bilinear learned positions, spatial merge and ReLU² projector; Omni adds a separate temporal-pair patch encoder |
 | Vision | `deepseekocr`, `deepseekocr2` | SAM local/global attention, tiles, queries, view separators |
 | Audio | `gemma4a` | causal convolution, 12-position relative attention with softcap |
 | Audio | `gemma4ua` | raw 640-sample waveform frames |
@@ -39,7 +40,7 @@ InternViT-6B (width 3200, 45 layers) uses RMS norms like the reference, but has 
 
 Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `gemma3nv`, `llama4`, `qwen3a`, `lfm2`,
 `kimivl`, `paddleocr`, `lightonocr`, `cogvlm`, `dots_ocr`, `lfm2a`, `glm4v`, `youtuvl`, `yasa2`,
-`kimik25`, `nemotron_v2_vl`, `exaone4_5`, `hunyuanvl`, `granite_speech`, `mimovl`,
+`kimik25`, `exaone4_5`, `hunyuanvl`, `granite_speech`, `mimovl`,
 `granite4_vision`. `gemma3na` has no graph builder in the reference.
 
 ## Validation coverage
@@ -90,6 +91,7 @@ fixed-resolution encoders retain the size recorded in metadata.
 | Qwen2.5 vision | also `vision.attention_mask [1,1,T,T]` (additive window mask) and `vision.output_indices [1,1,1,T/4]` |
 | Pixtral / Phi4 / Gemma4 vision | `vision.pixel_values [1,3,H,W]`; Pixtral and Gemma4 also `vision.position_x`, `vision.position_y [1,1,1,T]` |
 | Muse Glimmer | pixels; `patch_indices` in window order with each window padded to `window_size²` slots; one-based `position_x` / `position_y` per slot; `output_indices`; pixel-shuffle `merge_indices`; additive key mask `window_mask [W,1,1,window_size²]` that hides the padding |
+| Nemotron Omni | `vision.pixel_values [1,3,H,W]` for images; `vision.video_pixel_values [1,6,H,W]` for a temporal pair, repeating the last frame when odd; separate `vision.video_embeddings` output |
 | MiniCPM-V 4.6 | pixels, position IDs, `window_indices`, `inverse_window_indices`, `attention_mask`, `vit_merger.indices.N`, `merger.indices.N` |
 | DeepSeek-OCR / OCR2 | `vision.pixel_values [B,3,H,W]` (independent square tiles), local/global relative-position indices, `vision.output_indices`; OCR1 `position_indices`, OCR2 `query_indices`, `query_output_indices`, `position_ids`, `attention_mask` |
 | Gemma4 audio | `audio.features [1,1,mel,frames]` |
@@ -264,3 +266,17 @@ they do not construct tokenizers, media preprocessing, or a complete GenAI pipel
 Use [ProjectorExtension](extensions.md#extend-mmproj-with-a-projector-component) to add or replace one
 vision/audio branch under the `clip` coordinator; the [examples](../examples/architecture_extension/README.md)
 build and run one. A different whole-model format needs an `ArchitectureExtension`.
+
+Nemotron Omni image and temporal encoders are exposed through `VISION_ENCODERS` as `vision_embeddings` and `vision_embeddings_video`. The image input uses three normalized NCHW channels; the video input concatenates the two frames into six channels. Spatial dimensions must be divisible by patch size times merge size. Independent CPU fixtures pass NMSE < 1e-5; real Bolt/Super image and temporal-pair feature comparisons on represented-F32 weights pass
+`1e-5`. Original BF16 Bolt and Q8_0 Super projector comparisons have failed cases: Bolt image
+NMSE reaches `2.05e-5`, and Super image NMSE reaches `0.00769`. Their original-versus-F32
+llama.cpp comparisons show similar differences. These diagnostics establish graph behavior
+without waiving original-checkpoint parity checks. GenAI uses float32 antialiased bicubic
+preprocessing, image patch budgets, video geometry, timestamp labels and odd-frame repetition.
+At the native 512×512 image size, original feature NMSE is `1.99e-5` for Bolt and
+`0.003374` for Super; both exceed the strict `1e-5` gate.
+
+For the same Super 512×512 image, the represented-F32 CPU oracle and OpenVINO features
+have NMSE `1.54e-8`, while the original Q8 CPU output differs from that oracle by
+`0.003372`. This isolates a projector arithmetic difference but does not waive the
+original feature or decoder logit gates.

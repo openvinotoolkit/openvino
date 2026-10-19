@@ -101,3 +101,5 @@ Use `OV_GGUF_Q4_K_ZP_F16=1` for Q4_K accuracy comparisons.
 For the embedding checkpoint, put `llama-embed.gguf` and the output of
 `embedding_oracle llama-embed.gguf llama-embed.bin "<prompt>"` in a directory and set
 `OV_GGUF_EMBEDDING_DATA` to it; `GGUFEmbeddingAccuracy` then compares per-token embeddings.
+
+The `nemotron_h_moe`, `nemotron_h_moe-latent` and `nemotron_h_moe-puzzle` fixtures use llama.cpp CPU `23f7aabc16c72f6f707dba227251c35d7bd1ed96`. They cover ReLU² routed/shared experts, sigmoid selection with correction bias, latent projections, per-layer expert counts/top-k/widths, epsilon fallback, nonunit SSM input/output projection scales, and ignored NextN blocks.

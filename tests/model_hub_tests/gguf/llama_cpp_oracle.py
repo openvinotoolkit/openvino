@@ -21,7 +21,7 @@ from pathlib import Path
 
 LLAMA_CPP_REPO = "https://github.com/ggml-org/llama.cpp"
 # The revision the GGUF frontend's mmproj fixtures are generated with.
-LLAMA_CPP_REVISION = "03fa73cb27f5c251b9528489b18d303b1366aca4"
+LLAMA_CPP_REVISION = "23f7aabc16c72f6f707dba227251c35d7bd1ed96"
 
 
 def frontend_test_file(name: str) -> Path:

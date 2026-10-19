@@ -66,6 +66,7 @@ const ArchitectureEntry architectures[] = {
     {"mistral3", RopeMode::Normal},
     {"muse-glimmer", RopeMode::Normal},
     {"nemotron_h", make_mamba2_builder},
+    {"nemotron_h_moe", make_mamba2_builder},
     {"olmoe", RopeMode::Neox},
     {"phi3", RopeMode::Neox},
     {"plamo3", RopeMode::Neox},

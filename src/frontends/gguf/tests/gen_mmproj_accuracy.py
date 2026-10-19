@@ -26,7 +26,7 @@ SINGLE_GRID = ("gemma3", "gemma3_fused", "gemma3_legacy", "idefics3", "janus_pro
                "voxtral_odd", "resampler", "resampler_v2", "resampler_v4")
 # Single-grid models rerun here on two grids with different token counts.
 REGRIDDED = ("qwen2.5vl_merger_grids", "resampler_grids")
-TWO_GRID = ("muse-glimmer", "pixtral", "pixtral_merge", "phi4", "gemma4v", "gemma4uv", "gemma4uv_low_contrast",
+TWO_GRID = ("nemotron_omni", "muse-glimmer", "pixtral", "pixtral_merge", "phi4", "gemma4v", "gemma4uv", "gemma4uv_low_contrast",
             "gemma4ua", "gemma4v_one_sided", "minicpmv4_6", "gemma4a", "deepseekocr", "deepseekocr2",
             "deepseekocr_resize", "deepseekocr_overview", "deepseekocr2_overview", *REGRIDDED)
 
@@ -580,7 +580,63 @@ def single_grid_fixture(oracle, family):
         return {"model": np.frombuffer(path.read_bytes(), np.uint8), "inputs": inputs, "embeddings": output, **extra}
 
 
+def write_nemotron_model(path):
+    w = gguf.GGUFWriter(path, "clip")
+    w.add_bool("clip.has_vision_encoder", True)
+    w.add_string("clip.projector_type", "nemotron_omni")
+    w.add_bool("clip.use_gelu", True)
+    for name, value in {"embedding_length": 8, "feed_forward_length": 12, "block_count": 2,
+                        "attention.head_count": 2, "image_size": 8, "patch_size": 2,
+                        "projection_dim": 6, "projector.scale_factor": 2,
+                        "image_min_pixels": 64, "image_max_pixels": 256}.items():
+        w.add_uint32("clip.vision." + name, value)
+    w.add_float32("clip.vision.attention.layer_norm_epsilon", 1e-6)
+    w.add_array("clip.vision.image_mean", [0.0, 0.0, 0.0])
+    w.add_array("clip.vision.image_std", [1.0, 1.0, 1.0])
+    t = TensorWriter(w, np.random.default_rng(20261016))
+    t.tensor("v.patch_embd.weight", (8, 3, 2, 2))
+    t.tensor("v.patch_embd.weight.1", (8, 6, 2, 2))
+    t.tensor("v.position_embd.weight", (64, 8))
+    t.tensor("v.class_embd", (3, 8))
+    t.norm("v.post_ln", 8)
+    for layer in range(2):
+        prefix = f"v.blk.{layer}."
+        t.norm(prefix + "ln1", 8)
+        t.norm(prefix + "ln2", 8)
+        for projection in ("attn_q", "attn_k", "attn_v", "attn_out"):
+            t.linear(prefix + projection, 8, 8)
+        t.linear(prefix + "ffn_up", 8, 12)
+        t.linear(prefix + "ffn_down", 12, 8)
+    t.norm("mm.model.mlp.0", 32, False)
+    t.linear("mm.model.mlp.1", 32, 24, False)
+    t.linear("mm.model.mlp.3", 24, 6, False)
+    finish(w)
+
+
+def nemotron_fixture(oracle):
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "model.gguf"
+        write_nemotron_model(path)
+        result = {"model": np.frombuffer(path.read_bytes(), np.uint8)}
+        for step, (width, height) in enumerate(((8, 8), (12, 8))):
+            raw = np.random.default_rng(20261016 + step).normal(0, .4, (height, width, 3)).astype(np.float32)
+            output = run_encoder_oracle(oracle, path, "nemotron_omni", width, height, raw)
+            result[f"{step}.pixel_values"] = raw.transpose(2, 0, 1)[None].copy()
+            result[f"{step}.embeddings"] = output.reshape(1, 1, -1, 6)
+            second = np.random.default_rng(20261020 + step).normal(0, .4, raw.shape).astype(np.float32)
+            video = run_encoder_oracle(oracle, path, "nemotron_omni", width, height, raw, second)
+            result[f"{step}.video_pixel_values"] = np.concatenate((raw, second), axis=2).transpose(2, 0, 1)[None].copy()
+            result[f"{step}.video_embeddings"] = video.reshape(1, 1, -1, 6)
+            environment = dict(os.environ, GGUF_ORACLE_VIDEO="1")
+            padded = run_encoder_oracle(oracle, path, "nemotron_omni", width, height, raw, env=environment)
+            result[f"{step}.padded_video_pixel_values"] = np.concatenate((raw, raw), axis=2).transpose(2, 0, 1)[None].copy()
+            result[f"{step}.padded_video_embeddings"] = padded.reshape(1, 1, -1, 6)
+        return result
+
+
 def two_grid_fixture(oracle, family):
+    if family == "nemotron_omni":
+        return nemotron_fixture(oracle)
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "model.gguf"
         if family in REGRIDDED:

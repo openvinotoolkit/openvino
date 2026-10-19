@@ -28,6 +28,7 @@ enum class EncoderTopology {
     WHISPER,
     QWEN,
     INTERNVL,
+    NEMOTRON,
     RESAMPLER,
     PIXTRAL,
     GEMMA4,
@@ -76,6 +77,7 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"vision", "janus_pro", EncoderTopology::SIGLIP},
     {"vision", "mlp", EncoderTopology::CLIP, SWAPPED_FFN},
     {"vision", "internvl", EncoderTopology::INTERNVL},
+    {"vision", "nemotron_omni", EncoderTopology::NEMOTRON},
     {"vision", "resampler", EncoderTopology::RESAMPLER},
     {"vision", "qwen2vl_merger", EncoderTopology::QWEN, SWAPPED_FFN},
     {"vision", "qwen2.5vl_merger", EncoderTopology::QWEN, RMS_NORM | SWAPPED_FFN},
@@ -161,6 +163,8 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality, cons
     c.activation = modality == "audio" ? "GGML_UNARY_OP_GELU_ERF"
                    : gelu              ? "GGML_UNARY_OP_GELU"
                                        : "GGML_UNARY_OP_GELU_QUICK";
+    if (c.projector == "nemotron_omni")
+        c.activation = "GGML_UNARY_OP_GELU_ERF";
     if (modality == "vision" && silu)
         c.activation = "GGML_UNARY_OP_SILU";
     if (modality == "vision") {
@@ -258,6 +262,12 @@ public:
             result.config["vision.patch_size"] = std::to_string(c.patch);
         }
         return result;
+    }
+
+    GgufValue nemotron_video() {
+        auto c = config(g.metadata(), "vision", "nemotron_omni");
+        c.rms = rms_encoder(c);
+        return nemotron_vision(c, true);
     }
 
 private:
@@ -529,7 +539,36 @@ private:
     GgufValue gather_rows(const GgufValue& x, const std::string& index_name) {
         return g.node("GGML_OP_GET_ROWS", {x, index_input(index_name)});
     }
+    GgufValue nemotron_vision(const EncoderConfig& c, bool video = false) {
+        auto pixels = g.add_input(video ? "vision.video_pixel_values" : "vision.pixel_values",
+                                  ov::element::f32,
+                                  {1, video ? 6 : 3, -1, -1});
+        auto spatial = convolution(pixels, video ? "v.patch_embd.weight.1" : "v.patch_embd.weight", c.patch);
+        auto x = patch_embeddings(spatial, c.width);
+        auto position = g.tensors().require("v.position_embd.weight");
+        position = resize_square_table(position, spatial, c.width, 1, "Nemotron");
+        position = reshape(transpose(position, {0, 2, 3, 1}), {1, 1, -1, c.width});
+        x = add(x, position);
+        auto registers = g.tensors().require("v.class_embd");
+        OPENVINO_ASSERT(registers.ne(0) == c.width && registers.ne(1) > 0,
+                        "[GGUF] Nemotron requires a nonempty register-token matrix");
+        x = concat(reshape(registers, {1, 1, registers.ne(1), c.width}), x, 1);
+        x = vit(x, c, {});
+        x = slice(x, 2, registers.ne(1), std::numeric_limits<int32_t>::max() - registers.ne(1));
+        auto merged_grid = pool(spatial, c.merge, c.merge);
+        x = reshape_like(x, merged_grid, {1, -1, 0, c.width * c.merge}, {-1, -1, 3, -1});
+        x = transpose(x, {0, 2, 1, 3});
+        x = reshape_like(x, merged_grid, {1, 0, 0, c.width * c.merge * c.merge}, {-1, 3, 2, -1});
+        x = transpose(x, {0, 2, 1, 3});
+        x = reshape(x, {1, 1, -1, c.width * c.merge * c.merge});
+        x = g.build_norm(x, g.tensors().require("mm.model.mlp.0.weight"), 1e-5f);
+        x = linear(x, "mm.model.mlp.1", false);
+        x = g.node("GGML_OP_SQR", {g.node("GGML_UNARY_OP_RELU", {x})});
+        return linear(x, "mm.model.mlp.3", false);
+    }
     GgufValue vision(const EncoderConfig& c) {
+        if (c.topology == EncoderTopology::NEMOTRON)
+            return nemotron_vision(c);
         if (c.topology == EncoderTopology::OCR || c.topology == EncoderTopology::OCR2)
             return ocr_vision(c);
         if (c.topology == EncoderTopology::PIXTRAL || c.topology == EncoderTopology::GEMMA4 ||
@@ -1119,6 +1158,8 @@ public:
             auto result = definition->build(g);
             OPENVINO_ASSERT(result.output, "[GGUF] projector handler '", definition->id, "' returned no output");
             g.set_output(result.output, definition->modality + ".embeddings");
+            if (definition->projector_type == "nemotron_omni" && g.tensors().has("v.patch_embd.weight.1"))
+                g.set_output(BuiltinProjectorBuilder(g).nemotron_video(), "vision.video_embeddings");
             for (const auto& entry : result.config) {
                 OPENVINO_ASSERT(entry.first.rfind(definition->modality + ".", 0) == 0,
                                 "[GGUF] projector metadata must use its modality prefix");

@@ -103,7 +103,7 @@ def muse_glimmer_indices(height, width, window, merge=2):
 WHISPER_AUDIO = {"qwen2a", "ultravox", "voxtral", "musicflamingo", "meralion", "glma"}
 FIXED_VISION = {"gemma3", "idefics3", "internvl", "janus_pro", "mlp"}
 DYNAMIC_VISION = {"gemma4v", "gemma4uv", "pixtral", "qwen2vl_merger", "qwen2.5vl_merger", "qwen3vl_merger",
-                  "muse-glimmer"}
+                  "muse-glimmer", "nemotron_omni"}
 
 
 def vision_patch(metadata):

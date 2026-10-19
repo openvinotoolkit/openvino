@@ -81,7 +81,8 @@ GgufValue GgufGraphContext::decoder_attention(int layer, const GgufValue& input)
 GgufValue GgufGraphContext::decoder_ffn(int layer, const GgufValue& input) {
     m_impl->check_layer(layer);
     m_impl->value_name(input);
-    const auto& cfg = *m_impl->decoder;
+    auto cfg = *m_impl->decoder;
+    cfg.n_expert_used = cfg.layer_n_expert_used(layer);
     auto& emitter = m_impl->emitter;
     const auto prefix = "blk." + std::to_string(layer) + ".";
     const auto output = cfg.layer_is_moe(layer) ? blocks::moe_ffn(emitter, cfg, prefix, input.name())
@@ -133,7 +134,9 @@ GgufValue GgufGraphContext::add_constant(const std::string& name, const ov::Tens
 GgufValue GgufGraphContext::build_inp_embd(const GgufValue& tok_embd) {
     OPENVINO_ASSERT(tok_embd, "[GGUF] build_inp_embd: the token embedding weight is missing");
     auto tokens = add_input("inp_tokens", i32, ov::PartialShape({1, 1, 1, D}));
-    return node("GGML_OP_GET_ROWS", {tok_embd, tokens});
+    auto embedding = node("GGML_OP_GET_ROWS", {tok_embd, tokens});
+    embedding.m_value.get_node_shared_ptr()->get_rt_info()["gguf.token_embedding"] = true;
+    return embedding;
 }
 
 GgufValue GgufGraphContext::build_inp_pos() {

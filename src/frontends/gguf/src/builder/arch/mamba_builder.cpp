@@ -29,7 +29,10 @@ public:
                             "'");
             return *value;
         };
-        const auto layers = positive("block_count");
+        const auto block_count = positive("block_count");
+        const auto draft_layers = g.metadata().get_int(g.arch() + ".nextn_predict_layers").value_or(0);
+        OPENVINO_ASSERT(draft_layers >= 0 && draft_layers < block_count, "[GGUF] invalid Nemotron NextN layer count");
+        const auto layers = block_count - draft_layers;
         const auto inner = positive("ssm.inner_size");
         const auto heads = positive("ssm.time_step_rank");
         const auto groups = positive("ssm.group_count");
@@ -40,15 +43,15 @@ public:
                         "and conv_kernel > 1");
         const auto head_dim = inner / heads;
         const auto conv_dim = inner + 2 * groups * state_size;
-        const auto eps_value = g.metadata().get_float(g.arch() + ".attention.layer_norm_rms_epsilon");
+        auto eps_value = g.metadata().get_float(g.arch() + ".attention.layer_norm_rms_epsilon");
+        if (!eps_value && (g.arch() == "nemotron_h" || g.arch() == "nemotron_h_moe"))
+            eps_value = g.metadata().get_float(g.arch() + ".attention.layer_norm_epsilon");
         OPENVINO_ASSERT(eps_value && std::isfinite(*eps_value) && *eps_value > 0,
                         "[GGUF] Mamba2 requires a positive RMS normalization epsilon");
         const auto eps = static_cast<float>(*eps_value);
         auto weights = g.tensors();
-        const bool hybrid = g.arch() == "nemotron_h";
+        const bool hybrid = g.arch() == "nemotron_h" || g.arch() == "nemotron_h_moe";
         if (hybrid) {
-            OPENVINO_ASSERT(g.metadata().get_int(g.arch() + ".expert_count").value_or(0) == 0,
-                            "[GGUF] Nemotron-H MoE is not supported by the dense builder");
             DecoderOptions options;
             options.rope_skip_period = 1;  // Nemotron-H attention has no positional embedding.
             g.configure_decoder(RopeMode::Normal, options);
@@ -71,16 +74,12 @@ public:
                 if (weights.has(prefix + "attn_q.weight") || weights.has(prefix + "attn_qkv.weight")) {
                     cur = g.decoder_attention(static_cast<int>(layer), cur);
                 } else {
-                    cur = g.node("GGML_OP_MUL_MAT", {w("ffn_up.weight"), cur});
-                    if (weights.has(prefix + "ffn_up.bias"))
-                        cur = g.node("GGML_OP_ADD", {cur, w("ffn_up.bias")});
-                    cur = g.node("GGML_OP_SQR", {g.node("GGML_UNARY_OP_RELU", {cur})});
-                    cur = g.node("GGML_OP_MUL_MAT", {w("ffn_down.weight"), cur});
-                    if (weights.has(prefix + "ffn_down.bias"))
-                        cur = g.node("GGML_OP_ADD", {cur, w("ffn_down.bias")});
+                    cur = g.decoder_ffn(static_cast<int>(layer), cur);
                 }
             } else {
                 auto projected = g.node("GGML_OP_MUL_MAT", {w("ssm_in.weight"), cur});
+                if (weights.has(prefix + "ssm_in.scale"))
+                    projected = g.node("GGML_OP_MUL", {projected, w("ssm_in.scale")});
                 const auto z = reshape(slice(projected, 0, inner), {0, -1, heads, head_dim});
                 auto xbc = slice(projected, inner, conv_dim);
                 const auto xbc_layout = xbc;
@@ -117,6 +116,8 @@ public:
                 y = g.build_norm(y, w("ssm_norm.weight"), eps);
                 y = reshape(y, {0, 1, -1, inner});
                 cur = g.node("GGML_OP_MUL_MAT", {w("ssm_out.weight"), y});
+                if (weights.has(prefix + "ssm_out.scale"))
+                    cur = g.node("GGML_OP_MUL", {cur, w("ssm_out.scale")});
             }
             if (layer == layers - 1) {
                 cur = g.node("GGML_OP_GET_ROWS", {cur, out_ids});

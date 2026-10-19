@@ -72,6 +72,8 @@ The type columns describe stored Constants; their decompression or Convert outpu
 | Q8_0 | 32 | 34 | `i8` | `f16` | — | `32 + 2` = 34 | 0% |
 | Q8_K | 256 | 292 | `i8` | `f32` | — | `256 + 4` = 260 | -11.0% |
 | MXFP4 | 32 | 17 | `f4e2m1` | `f8e8m0` | — | `16 + 1` = 17 | 0% |
+| IQ2_XXS | 256 | 66 | `i8` | `f32` (one scale per 32 values) | — | `256 + 32` = 288 | +336.4% |
+| NVFP4 | 64 | 36 | `i8` | `f32` (one scale per 16 values) | — | `64 + 16` = 80 | +122.2% |
 
 Ordinary native Q4_1/Q4_K and Q5_K matrix weights use integer zero points by default.
 `token_embd.weight` and `output.weight` use fractional zero points for these affine formats;
@@ -340,3 +342,5 @@ expert matmul does not support `u2` in this implementation, so Q2 MoE weights ca
 Weight reorders and temporary buffers add to these costs; reducing context length does not
 remove them. KV caches, activation buffers and Hadamard transforms are separate from weight
 payload estimates. See [checkpoint-specific limits](supported_models.md#runtime-limitations).
+
+IQ2_XXS and NVFP4 expand their codebooks to signed 8-bit values with F32 group scales. Their decompression multiplies in F32 to preserve the reference values, including rank-three expert tensors. They increase frontend storage compared with the original GGUF blocks; CPU compilation can increase memory further. The IQ2_XXS codebook and algorithms follow the MIT-licensed llama.cpp source; see `LICENSE.llama-cpp`.

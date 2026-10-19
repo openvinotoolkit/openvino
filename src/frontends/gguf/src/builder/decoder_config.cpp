@@ -75,7 +75,8 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
                         pooling_type);
     }
     layer_norm = arch == "jais2";
-    relu_squared_ffn = arch == "jais2";
+    const bool nemotron = arch == "nemotron_h" || arch == "nemotron_h_moe";
+    relu_squared_ffn = arch == "jais2" || nemotron;
 
     // Per-architecture structure, auto-detected from the GGUF tensor table (layer 0).
     has_qk_norm = has("blk.0.attn_q_norm.weight");
@@ -105,6 +106,20 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     has_v_norm = (arch == "gemma4");
     n_expert = cfg_i("expert_count");
     n_expert_used = cfg_i("expert_used_count");
+    if (config.count("expert_used_count_per_layer")) {
+        const auto& tensor = std::get<ov::Tensor>(config.at("expert_used_count_per_layer"));
+        const auto* values = tensor.data<const uint32_t>();
+        n_expert_used_per_layer.assign(values, values + tensor.get_size());
+    }
+    if (nemotron) {
+        moe_layers.resize(n_layer);
+        is_moe = false;
+        for (int layer = 0; layer < n_layer; ++layer) {
+            const auto prefix = "blk." + std::to_string(layer) + ".";
+            moe_layers[layer] = has(prefix + "ffn_gate_inp.weight");
+            is_moe = is_moe || moe_layers[layer];
+        }
+    }
     expert_groups = std::max(1, cfg_i("expert_groups"));
     expert_groups_used = std::max(1, cfg_i("expert_groups_used"));
     has_moe_gate_bias = has("blk.0.ffn_gate_inp.bias");     // gpt-oss
@@ -123,7 +138,7 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     has_ffn_post_norm = has("blk.0." + ffn_post_norm_key) && (post_norm_only || has("blk.0.ffn_norm.weight"));
     if (!post_norm_only && !has("blk.0.ffn_norm.weight") && has("blk.0.post_attention_norm.weight"))
         ffn_norm_key = "post_attention_norm.weight";
-    moe_sigmoid_gating = cfg_i("expert_gating_func") == 2;
+    moe_sigmoid_gating = nemotron || cfg_i("expert_gating_func") == 2;
     // gpt-oss uses "softmax-after-topk" gating + the OAI gated activation; OLMoE uses
     // softmax-before-topk + plain SwiGLU. Detect by weight-tensor presence so the logic
     // extends to future architectures without touching this file.
@@ -136,6 +151,16 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     has_fused_qkv = has("blk.0.attn_qkv.weight");  // phi-3, minicpm
     has_qkv_bias = has("blk.0.attn_q.bias") || has("blk.0.attn_qkv.bias");
     has_attn_out_bias = has("blk.0.attn_output.bias");
+    if (nemotron) {
+        for (int layer = 0; layer < n_layer; ++layer) {
+            const auto prefix = "blk." + std::to_string(layer) + ".";
+            if (has(prefix + "attn_q.weight") || has(prefix + "attn_qkv.weight")) {
+                has_qkv_bias = has(prefix + "attn_q.bias") || has(prefix + "attn_qkv.bias");
+                has_attn_out_bias = has(prefix + "attn_output.bias");
+                break;
+            }
+        }
+    }
     has_rope_freqs = has("rope_freqs.weight");
     // muse-glimmer: sigmoid output gate on the attention sublayer. The gate is projected
     // from the SAME pre-attention normed hidden the Q/K/V projections consume, so it is
@@ -314,6 +339,8 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
 }
 
 bool DecoderConfig::layer_is_moe(int il) const {
+    if (!moe_layers.empty())
+        return il >= 0 && il < int(moe_layers.size()) && moe_layers[il];
     return is_moe && il >= n_dense_lead && (il + 1) % moe_layer_step == 0;
 }
 
@@ -332,6 +359,10 @@ int DecoderConfig::layer_n_head_kv(int il) const {
     return (!n_head_kv_per_layer.empty() && il < static_cast<int>(n_head_kv_per_layer.size()))
                ? static_cast<int>(n_head_kv_per_layer[il])
                : n_head_kv;
+}
+
+int DecoderConfig::layer_n_expert_used(int il) const {
+    return n_expert_used_per_layer.empty() ? n_expert_used : int(n_expert_used_per_layer.at(il));
 }
 
 float DecoderConfig::layer_kq_scale(int il) const {

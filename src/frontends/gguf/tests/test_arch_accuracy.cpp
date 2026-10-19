@@ -879,9 +879,61 @@ TEST(GGUFEmbeddingAccuracy, RealCheckpointTokenEmbeddingsMatchLlamaCPU) {
     ov_gguf_test::expect_nmse_below(metric, 1e-5);
 }
 
+TEST(GGUFNemotronAccuracy, EmbeddingModeMatchesTokensAcrossDecodeAndReset) {
+    using namespace ov::frontend::gguf;
+    for (const auto* variant : {"nemotron_h_moe", "nemotron_h_moe-latent", "nemotron_h_moe-puzzle"}) {
+        SCOPED_TRACE(variant);
+        const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + variant + ".npz");
+        const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+        FrontEnd tokens_frontend, embeds_frontend;
+        tokens_frontend.add_extension(std::make_shared<GenAIExtension>());
+        auto extension = std::make_shared<GenAIExtension>(GenAIExtension::InputMode::EMBEDS_TO_LOGITS);
+        embeds_frontend.add_extension(extension);
+        auto token_model = tokens_frontend.convert(tokens_frontend.load(temporary.path));
+        auto embed_model = embeds_frontend.convert(embeds_frontend.load(temporary.path));
+        ASSERT_NE(extension->get_embedding_model(), nullptr);
+        ov::Core core;
+        const ov::AnyMap config{{ov::hint::inference_precision.name(), ov::element::f32},
+                                {ov::hint::dynamic_quantization_group_size.name(), uint64_t(0)}};
+        auto tokens = core.compile_model(token_model, "CPU", config).create_infer_request();
+        auto embeds = core.compile_model(embed_model, "CPU", config).create_infer_request();
+        auto lookup = core.compile_model(extension->get_embedding_model(), "CPU", config).create_infer_request();
+        for (int reset = 0; reset < 2; ++reset) {
+            size_t past = 0;
+            for (size_t length : {3, 1, 2}) {
+                ov::Tensor ids(ov::element::i64, {1, length}), positions(ov::element::i64, {1, length});
+                ov::Tensor mask(ov::element::i64, {1, past + length}), beam(ov::element::i32, {1});
+                *beam.data<int32_t>() = 0;
+                for (size_t i = 0; i < length; ++i) {
+                    ids.data<int64_t>()[i] = i + 1;
+                    positions.data<int64_t>()[i] = past + i;
+                }
+                std::fill_n(mask.data<int64_t>(), mask.get_size(), 1);
+                lookup.set_tensor("input_ids", ids);
+                lookup.infer();
+                tokens.set_tensor("input_ids", ids);
+                embeds.set_tensor("inputs_embeds", lookup.get_output_tensor());
+                for (auto* request : {&tokens, &embeds}) {
+                    request->set_tensor("position_ids", positions);
+                    request->set_tensor("attention_mask", mask);
+                    request->set_tensor("beam_idx", beam);
+                    request->infer();
+                }
+                auto expected = tokens.get_output_tensor(), actual = embeds.get_output_tensor();
+                ASSERT_EQ(actual.get_shape(), expected.get_shape());
+                for (size_t i = 0; i < actual.get_size(); ++i)
+                    EXPECT_NEAR(actual.data<const float>()[i], expected.data<const float>()[i], 1e-5f);
+                past += length;
+            }
+            tokens.reset_state();
+            embeds.reset_state();
+        }
+    }
+}
+
 TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     const char* override_dir = std::getenv("OV_GGUF_ACCURACY_DATA");
-    const bool mamba = std::string(GetParam()).find("mamba2") == 0 || std::string(GetParam()) == "nemotron_h";
+    const bool mamba = std::string(GetParam()).find("mamba2") == 0 || std::string(GetParam()).find("nemotron_h") == 0;
     const auto directory = override_dir ? std::filesystem::path(override_dir)
                                         : std::filesystem::path(ov_gguf_test::test_data_dir()) / "arch_accuracy";
     ASSERT_TRUE(std::filesystem::exists(directory)) << "Missing architecture reference data: " << directory;
@@ -1028,6 +1080,9 @@ INSTANTIATE_TEST_SUITE_P(Architectures,
                                            "gemma4-moe",
                                            "gemma4-ple",
                                            "nemotron_h",
+                                           "nemotron_h_moe",
+                                           "nemotron_h_moe-latent",
+                                           "nemotron_h_moe-puzzle",
                                            "mamba2",
                                            "mamba2-tied",
                                            "llama",

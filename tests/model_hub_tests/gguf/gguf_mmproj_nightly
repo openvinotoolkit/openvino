@@ -13,3 +13,6 @@ qwen3vl_merger,prism-ml/Ternary-Bonsai-27B-gguf,Ternary-Bonsai-27B-mmproj-BF16.g
 qwen3vl_merger,prism-ml/Ternary-Bonsai-27B-gguf,Ternary-Bonsai-27B-mmproj-Q8_0.gguf
 qwen3vl_merger,prism-ml/Ternary-Bonsai-2-27B-gguf,Ternary-Bonsai-2-27B-mmproj-BF16.gguf
 qwen3vl_merger,prism-ml/Ternary-Bonsai-2-27B-gguf,Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf
+
+nemotron_omni,nvidia/NVIDIA-Nemotron-3.5-Bolt-74B-A9B-24GB-GGUF,mmproj-NVIDIA-Nemotron-3.5-Bolt-74B-A9B-24GB.gguf
+nemotron_omni,ggml-org/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-GGUF,mmproj-NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-Q8_0.gguf
