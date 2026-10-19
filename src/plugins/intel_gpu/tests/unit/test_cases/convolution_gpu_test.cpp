@@ -10030,7 +10030,8 @@ using TestParamType_convolution_gpu_onednn = ::testing::tuple<  int,    // 0 - I
         std::string,    // 12 - Implementation name
         bool,           // 13 - With bias
         format,         // 14 - Expected convolution format
-        bool>;          // 15 - Is dynamic
+        bool,           // 15 - Is dynamic
+        data_types>;    // 16 - Input/weights data type
 
 struct convolution_gpu_onednn : public ::testing::TestWithParam<TestParamType_convolution_gpu_onednn> {
     static std::string PrintToStringParamName(
@@ -10050,7 +10051,8 @@ struct convolution_gpu_onednn : public ::testing::TestWithParam<TestParamType_co
                           std::to_string(testing::get<11>(param_info.param)) + "_with_bias_" +
                           std::to_string(testing::get<13>(param_info.param)) + "_conv_format_" +
                           std::to_string(testing::get<14>(param_info.param)) + "_is_dynamic_" +
-                          std::to_string(testing::get<15>(param_info.param));
+                          std::to_string(testing::get<15>(param_info.param)) + "_dt_" +
+                          ov::element::Type(testing::get<16>(param_info.param)).get_type_name();
 
         if (testing::get<12>(param_info.param) != "") {
             res += "_kernel_" + testing::get<12>(param_info.param);
@@ -10065,40 +10067,29 @@ INSTANTIATE_TEST_SUITE_P(conv_onednn_cases,
                         ::testing::Values(
                             // Input X size, Input Y size, Input Z size, Input features, Output features,
                             // Kernel size X, Kernel size Y, Kernel size Z, Groups number, Stride, Batch,
-                            // Input data format, Implementation name, WithBias, Expected Conv format, Is-dynamic
-                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true, format::bs_fs_yx_bsv32_fsv16, false),
-                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true, format::byxf, true),
-                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false, format::bs_fs_yx_bsv32_fsv16, false),
-                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false, format::byxf, true)
+                            // Input data format, Implementation name, WithBias, Expected Conv format, Is-dynamic, Data type
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true, format::bs_fs_yx_bsv32_fsv16, false, data_types::f16),
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true, format::byxf, true, data_types::f16),
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false, format::bs_fs_yx_bsv32_fsv16, false, data_types::f16),
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false, format::byxf, true, data_types::f16),
+                            // Cases for fp32
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true, format::bs_fs_yx_bsv16_fsv16, false, data_types::f32),
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true, format::bfyx, true, data_types::f32),
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false, format::bs_fs_yx_bsv16_fsv16, false, data_types::f32),
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false, format::bfyx, true, data_types::f32)
                         ),
                         convolution_gpu_onednn::PrintToStringParamName);
 
-
-TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
+template <typename T>
+void run_convolution_gpu_onednn_test(data_types data_type,
+                                     int input_x, int input_y, int input_f, int output_f,
+                                     int filter_x, int filter_y, int groups,
+                                     uint64_t stride, int batch_num,
+                                     format input_data_format, bool with_bias,
+                                     format expected_conv_format, bool is_dynamic,
+                                     float tolerance) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_immad)
-        return;
-
-    if (!engine.get_device_info().supports_fp16)
-    {
-        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
-    }
-
-    const int input_x = testing::get<0>(GetParam()),
-              input_y = testing::get<1>(GetParam()),
-              input_f = testing::get<3>(GetParam()),
-              output_f = testing::get<4>(GetParam()),
-              filter_x = testing::get<5>(GetParam()),
-              filter_y = testing::get<6>(GetParam()),
-              groups = testing::get<8>(GetParam()),
-              batch_num = testing::get<10>(GetParam());
-    const uint64_t stride = testing::get<9>(GetParam());
-    auto input_data_format = testing::get<11>(GetParam());
-    auto impl_name = testing::get<12>(GetParam());
-    auto with_bias = testing::get<13>(GetParam());
-    auto expected_conv_format = testing::get<14>(GetParam());
-    auto is_dynamic = testing::get<15>(GetParam());
 
     ov::PartialShape target_pshape = {batch_num, input_f, input_x, input_y};
     ov::PartialShape input_pshape;
@@ -10111,28 +10102,28 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     } else {
         input_pshape = target_pshape;
     }
-    layout in_layout{input_pshape, data_types::f16, format::bfyx};
+    layout in_layout{input_pshape, data_type, format::bfyx};
 
-    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto input_data = rg.generate_random_4d<T>(batch_num, input_f, input_y, input_x, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
-    auto input_mem = engine.allocate_memory({ target_pshape, data_types::f16, format::bfyx });
+    auto input_mem = engine.allocate_memory({ target_pshape, data_type, format::bfyx });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_y, filter_x, 1);
-    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, input_f, filter_y, filter_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<T>(output_f, input_f, filter_y, filter_x, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
-    auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
+    auto weights_mem = engine.allocate_memory({ data_type, format::bfyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
 
     // Will be used to store reference values calculated in branches depending on bias
-    auto expected_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
+    auto expected_result = VVVVF<T>(batch_num, VVVF<T>(output_f));
     topology topology;
 
     // Calculate reference values
     if (with_bias) {
         auto biases_size = tensor(1, output_f, 1, 1);
-        auto biases_data = rg.generate_random_1d<ov::float16>(output_f, -1, 1);
-        auto biases_mem = engine.allocate_memory({ data_types::f16, format::bfyx, biases_size });
+        auto biases_data = rg.generate_random_1d<T>(output_f, -1, 1);
+        auto biases_mem = engine.allocate_memory({ data_type, format::bfyx, biases_size });
         set_values(biases_mem, biases_data);
 
         for (auto bi = 0; bi < batch_num; ++bi) {
@@ -10150,7 +10141,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
         topology.add(input_layout("input", in_layout),
                      data("weights_fsv", weights_mem),
                      data("bias", biases_mem),
-                     reorder("input_fsv", input_info("input"), input_data_format, data_types::f16));
+                     reorder("input_fsv", input_info("input"), input_data_format, data_type));
 
         auto conv_fsv = convolution("conv_fsv",
                                     input_info("input_fsv"),
@@ -10163,7 +10154,6 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
                                     { 0, 0 },
                                     false);
         conv_fsv.output_paddings = {padding({ 0, 0, 0, 0 }, 0.f)};
-
         topology.add(conv_fsv);
     } else {
         for (auto bi = 0; bi < batch_num; ++bi) {
@@ -10180,7 +10170,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
 
         topology.add(input_layout("input", in_layout),
                      data("weights_fsv", weights_mem),
-                     reorder("input_fsv", input_info("input"), input_data_format, data_types::f16));
+                     reorder("input_fsv", input_info("input"), input_data_format, data_type));
 
         auto conv_fsv = convolution("conv_fsv",
                                     input_info("input_fsv"),
@@ -10208,9 +10198,6 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     ASSERT_EQ(outputs.size(), size_t(2));
     ASSERT_TRUE(outputs.find("conv_fsv") != outputs.end());
 
-    for (auto& p : network.get_primitives_info())
-        std::cerr << p.original_id << " " << p.kernel_id << std::endl;
-
     auto out_ptr = get_output_values_to_float<float>(network, outputs.find("reorder_bfyx")->second);
     auto output_memory = outputs.at("reorder_bfyx").get_memory();
     auto out_lay = output_memory->get_layout();
@@ -10228,7 +10215,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
                     auto offset = out_lay.get_linear_offset(coords);
                     auto val = out_ptr[offset];
                     auto val_ref = expected_result[bi][ofi][yi][xi];
-                    auto equal = are_equal(val_ref, val, 1);
+                    auto equal = are_equal(val_ref, val, tolerance);
                     if (!equal) {
                         std::cout << "Value at batch: " << bi << ", output_f: " << ofi
                                     << ", y: " << yi << ", x: " << xi << " = " << static_cast<float>(val) << std::endl;
@@ -10237,9 +10224,49 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
                     }
                     ASSERT_TRUE(equal);
                 }
-
-    out_lay = network.get_primitive("conv_fsv")->get_node_output_layout();
+    auto prim = network.get_primitive("conv_fsv");
+    ASSERT_TRUE(prim->get_impl()->is_onednn());
+    out_lay = prim->get_node_output_layout();
     ASSERT_EQ(out_lay.get_format(), expected_conv_format);
+}
+
+
+TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "The test is skipped (device does not support immad)";
+
+    const int input_x = testing::get<0>(GetParam()),
+              input_y = testing::get<1>(GetParam()),
+              input_f = testing::get<3>(GetParam()),
+              output_f = testing::get<4>(GetParam()),
+              filter_x = testing::get<5>(GetParam()),
+              filter_y = testing::get<6>(GetParam()),
+              groups = testing::get<8>(GetParam()),
+              batch_num = testing::get<10>(GetParam());
+    const uint64_t stride = testing::get<9>(GetParam());
+    auto input_data_format = testing::get<11>(GetParam());
+    auto with_bias = testing::get<13>(GetParam());
+    auto expected_conv_format = testing::get<14>(GetParam());
+    auto is_dynamic = testing::get<15>(GetParam());
+    auto data_type = testing::get<16>(GetParam());
+
+    if (data_type == data_types::f16) {
+        if (!engine.get_device_info().supports_fp16) {
+            GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
+        }
+        run_convolution_gpu_onednn_test<ov::float16>(data_type, input_x, input_y, input_f, output_f,
+                                                     filter_x, filter_y, groups, stride, batch_num,
+                                                     input_data_format, with_bias, expected_conv_format,
+                                                     is_dynamic, /* tolerance */ 1.f);
+    } else if (data_type == data_types::f32) {
+        run_convolution_gpu_onednn_test<float>(data_type, input_x, input_y, input_f, output_f,
+                                               filter_x, filter_y, groups, stride, batch_num,
+                                               input_data_format, with_bias, expected_conv_format,
+                                               is_dynamic, /* tolerance */ 1e-2f);
+    } else {
+        GTEST_FAIL() << "Test does not support " << data_type;
+    }
 }
 
 TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
