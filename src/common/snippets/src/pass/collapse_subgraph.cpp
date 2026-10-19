@@ -39,6 +39,9 @@
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/hsigmoid.hpp"
 #include "openvino/op/hswish.hpp"
+#include "openvino/op/is_finite.hpp"
+#include "openvino/op/is_inf.hpp"
+#include "openvino/op/is_nan.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/logical_and.hpp"
@@ -189,7 +192,10 @@ auto is_supported_op(const std::shared_ptr<const Node>& n) -> bool {
                                   ov::op::v0::Gelu,
                                   ov::op::v7::Gelu,
                                   ov::op::v4::Swish,
-                                  ov::op::v4::HSwish>(n);
+                                  ov::op::v4::HSwish,
+                                  ov::op::v10::IsFinite,
+                                  ov::op::v10::IsInf,
+                                  ov::op::v10::IsNaN>(n);
     };
 
     auto is_supported_softmax = [](const std::shared_ptr<const Node>& n) -> bool {

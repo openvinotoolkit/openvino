@@ -68,8 +68,9 @@ inline SingleTokenQChunking get_single_token_q_chunking(const kernel_impl_params
     const int32_t budget_bytes = reg_file_size * grf_bytes - 1;
 
     int32_t max_q_by_matrix = budget_bytes / (bytes_per_float * rs_cols);
-    if (max_q_by_matrix < 1)
+    if (max_q_by_matrix < 1) {
         max_q_by_matrix = 1;
+    }
 
     const int32_t target_chunk = std::min<int32_t>(MaxRepeatCount, max_q_by_matrix);
 

@@ -4,14 +4,13 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
+#include <utility>
 
 #include "builder/graph_emitter.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace blocks {
+namespace ov::frontend::gguf::blocks {
 
 // Small, architecture-agnostic graph fragments shared by every model family.
 //
@@ -28,13 +27,29 @@ std::string rms_norm(GraphEmitter& e,
                      const std::string& out_prefix,
                      float eps);
 
+// NORM -> MUL(weight) -> ADD(bias).
+std::string layer_norm(GraphEmitter& e,
+                       const std::string& in,
+                       const std::string& weight,
+                       const std::string& out_prefix,
+                       float eps);
+
 // Scale a tensor by a constant: GGML_OP_SCALE with attr "scale" (and bias 0).
 std::string scale(GraphEmitter& e, const std::string& x, float factor, const std::string& name);
+
+// "<name>.weight" -> "<name>.bias".
+std::string bias_weight_name(const std::string& weight_name);
 
 // Elementwise add of a (broadcast) bias weight: GGML_OP_ADD(x, bias_weight).
 std::string add_bias(GraphEmitter& e, const std::string& x, const std::string& bias_weight, const std::string& name);
 
-}  // namespace blocks
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+// Register the tensors of a derived weight `base` with quant type `qtype`.
+void store_parts(GraphEmitter& e, const std::string& base, const WeightTensors& t, GgufTensorType qtype);
+
+// Concatenate the rows of two weights with the same quantization layout into one; empty on mismatch.
+std::optional<WeightTensors> concat_rows(const WeightTensors& a,
+                                         const WeightTensors& b,
+                                         GgufTensorType qa,
+                                         GgufTensorType qb);
+
+}  // namespace ov::frontend::gguf::blocks

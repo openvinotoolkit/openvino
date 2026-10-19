@@ -8,6 +8,9 @@
 #include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace intel_npu {
 
@@ -30,6 +33,48 @@ void ZeroVariableState::set_state(const ov::SoPtr<ov::ITensor>& new_state) {
         // set_tensor called with the same tensor object; no action needed
         _logger.debug("ZeroVariableState::set_state - got the same state, do nothing");
         return;
+    }
+
+    OPENVINO_ASSERT(new_state._ptr != nullptr, "The tensor set for state '", get_name(), "' is null.");
+
+    // m_state currently holds the model's state buffer: the initial allocation, or a previously accepted replacement
+    // that this same validation proved matches it. The state input and its state output share that Level Zero buffer
+    // and the compiled graph interprets it with the model's state metadata, so a replacement must match the state's
+    // element type and shape, not merely be large enough: a differently shaped or typed tensor would be read and
+    // written with the wrong layout, and a smaller one would let the state output write past the shared buffer.
+    if (m_state._ptr != nullptr) {
+        const auto expected_element_type = m_state->get_element_type();
+        const auto expected_shape = m_state->get_shape();
+        const auto required_byte_size = m_state->get_byte_size();
+
+        const auto new_element_type = new_state->get_element_type();
+        if (new_element_type != expected_element_type) {
+            // Exception case for boolean treated as u8 by the NPU driver (mirrors ZeroInferRequest::check_tensor).
+            OPENVINO_ASSERT(
+                (new_element_type == ov::element::boolean || new_element_type == ov::element::u8) &&
+                    (expected_element_type == ov::element::boolean || expected_element_type == ov::element::u8),
+                "The tensor set for state '",
+                get_name(),
+                "' has element type ",
+                new_element_type,
+                " but the model's state requires ",
+                expected_element_type,
+                ".");
+        }
+
+        OPENVINO_ASSERT(new_state->get_shape() == expected_shape,
+                        "The tensor set for state '",
+                        get_name(),
+                        "' has shape ",
+                        new_state->get_shape(),
+                        " but the model's state requires ",
+                        expected_shape,
+                        ".");
+
+        OPENVINO_ASSERT(new_state->get_byte_size() >= required_byte_size,
+                        "The tensor set for state '",
+                        get_name(),
+                        "' is smaller than the model's state requires.");
     }
 
     m_state = new_state;

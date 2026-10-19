@@ -56,8 +56,9 @@ bool PoolingKernelGPUByxfPaddingOpt::Validate(const Params& p) const {
     }
 
     const pooling_params& params = static_cast<const pooling_params&>(p);
-    if (params.inputs[0].Feature().v % 8 != 0)
+    if (params.inputs[0].Feature().v % 8 != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }

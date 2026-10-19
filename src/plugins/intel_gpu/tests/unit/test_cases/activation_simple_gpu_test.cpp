@@ -22,6 +22,43 @@
 using namespace cldnn;
 using namespace ::tests;
 
+class activation_relu_byxf_gpu_test : public ::testing::TestWithParam<bool> {};
+
+TEST_P(activation_relu_byxf_gpu_test, basic) {
+    const bool is_dynamic = GetParam();
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ov::PartialShape{2, 2, 2, 2}, data_types::f32, format::byxf});
+    set_values(input, {1.f, -3.f, -2.f, 4.f, -5.f, 6.f, 7.f, -8.f,
+                       9.f, -10.f, -11.f, 12.f, -13.f, 14.f, 15.f, -16.f});
+
+    auto in_layout = is_dynamic ? layout{ov::PartialShape::dynamic(4), data_types::f32, format::byxf}
+                                : input->get_layout();
+    topology topology(input_layout("input", in_layout),
+                      activation("activation", input_info("input"), activation_func::relu));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    if (is_dynamic)
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto output = network.execute().at("activation").get_memory();
+    ASSERT_EQ(output->get_layout().format, format::byxf);
+    mem_lock<float, mem_lock_type::read> result(output, get_test_stream());
+    const std::vector<float> expected = {1.f, 0.f, 0.f, 4.f, 0.f, 6.f, 7.f, 0.f,
+                                         9.f, 0.f, 0.f, 12.f, 0.f, 14.f, 15.f, 0.f};
+    ASSERT_EQ(result.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i)
+        EXPECT_FLOAT_EQ(result[i], expected[i]);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         activation_relu_byxf_gpu_test,
+                         ::testing::Values(false, true),
+                         [](const ::testing::TestParamInfo<bool>& info) {
+                             return info.param ? "dynamic" : "static";
+                         });
+
 TEST(activation_f32_fw_gpu, dynamic) {
     auto& engine = get_test_engine();
 
@@ -918,7 +955,7 @@ TEST(activation_bf16_fw_gpu, pow_basic_yxfb) {
     }
 }
 
-TEST(activation_f16_fw_gpu, softplus_do_not_fuse_for_f16_prevent_overflow) {
+TEST(activation_f16_fw_gpu, softplus_f16_fusion_test) {
     auto& engine = get_test_engine();
 
     tensor input_shape{2, 4, 2, 3};
@@ -1053,7 +1090,10 @@ TEST(activation_f16_fw_gpu, gws_b_fs_yx_fsv16_small_feature_batch) {
     cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(out_ref, get_test_stream());
     ASSERT_EQ(ref_ptr.size(), out_ptr.size());
     for (size_t i = 0; i < ref_ptr.size(); ++i) {
-        ASSERT_EQ(ref_ptr[i], out_ptr[i]) << "at i=" << i;
+        // CPU (fp32) vs GPU (fp16) softplus: mathematically identical but the
+        // fp16 rounding can differ by a ULP from the fp32 reference, so compare
+        // with a tolerance rather than bit-exactly (as the F16 fusion tests do).
+        ASSERT_NEAR(static_cast<float>(ref_ptr[i]), static_cast<float>(out_ptr[i]), 1e-2f) << "at i=" << i;
     }
 }
 
@@ -2745,5 +2785,43 @@ TEST(activation_gpu, has_proper_synchronization) {
 
     for (size_t i = 0; i < res_ref->get_layout().get_linear_size(); ++i) {
         ASSERT_EQ(test_mem[i], ref_mem[i]);
+    }
+}
+
+// F16 Softplus enablement: the vectorised activation_opt
+// kernel (half4) must evaluate Softplus without overflowing float16.
+// exp(15) is already past the f16 max (~65504), so the naive log(exp(x) + 1)
+// in half precision returns +INF; the fp32 evaluation must yield a finite
+// value ~= x for large x.
+TEST(activation_f16_fw_gpu, softplus_fsv16_opt_large_input_finite) {
+    auto& engine = get_test_engine();
+
+    const size_t b = 2, f = 16, y = 8, x = 8;
+    auto in_layout = cldnn::layout(ov::PartialShape{b, f, y, x}, cldnn::data_types::f16, cldnn::format::bfyx);
+    auto in_mem = engine.allocate_memory(in_layout);
+    set_values<ov::float16>(in_mem, std::vector<ov::float16>(in_layout.get_linear_size(), ov::float16(15.0f)));
+
+    auto topology = cldnn::topology(
+        cldnn::input_layout("input", in_layout),
+        cldnn::reorder("to_fsv16", input_info("input"), cldnn::format::b_fs_yx_fsv16, cldnn::data_types::f16),
+        cldnn::activation("softplus", input_info("to_fsv16"), cldnn::activation_func::softplus));
+
+    auto config = get_test_default_config(engine);
+    auto impl_desc = ov::intel_gpu::ImplementationDesc{cldnn::format::b_fs_yx_fsv16, "activation_opt", cldnn::impl_types::ocl};
+    ov::intel_gpu::ImplForcingMap forcing_map{{"softplus", impl_desc}};
+    config.set_property(ov::intel_gpu::force_implementations(forcing_map));
+
+    cldnn::network net(engine, topology, config);
+    net.set_input_data("input", in_mem);
+    auto out_mem = net.execute().at("softplus").get_memory();
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+    ASSERT_EQ(out_ptr.size(), in_layout.get_linear_size());
+    for (size_t i = 0; i < out_ptr.size(); ++i) {
+        float v = static_cast<float>(out_ptr[i]);
+        ASSERT_FALSE(std::isinf(v)) << "at i=" << i;
+        ASSERT_FALSE(std::isnan(v)) << "at i=" << i;
+        // softplus(15) ~= 15.0
+        ASSERT_NEAR(v, 15.0f, 0.02f) << "at i=" << i;
     }
 }

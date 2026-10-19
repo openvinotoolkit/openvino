@@ -63,22 +63,26 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
     dnnl::memory::dims pad_r(prim->padding_end.begin(), prim->padding_end.end());
 
     if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
+        // Plain 1D descriptors have one spatial axis; grouped or blocked ones may
+        // retain a trailing singleton axis. Calculate padding in descriptor order.
+        const auto input_dims = input_md.get_dims();
+        const auto weights_dims = weights_md.get_dims();
+        const auto spatial_rank = input_dims.size() - 2;
+        auto auto_pad_stride = prim->stride;
+        auto auto_pad_dilation = prim->dilation;
+        auto_pad_stride.resize(spatial_rank, 1);
+        auto_pad_dilation.resize(spatial_rank, 1);
+        stride.resize(spatial_rank, 1);
+        dilation.resize(spatial_rank, 1);
+        pad_l.resize(spatial_rank, 0);
+        pad_r.resize(spatial_rank, 0);
+
         ov::op::v1::Convolution op;
-        op.set_dilations(prim->dilation);
-        op.set_strides(prim->stride);
+        op.set_dilations(auto_pad_dilation);
+        op.set_strides(auto_pad_stride);
         op.set_auto_pad(auto_pad);
-        const auto spatial_rank = input_layout.get_spatial_rank();
 
-        ov::PartialShape kernel;
-        for (int32_t i = static_cast<int32_t>(spatial_rank) - 1; i >= 0; i--) {
-            kernel.emplace_back(weights_layout.spatial(i));
-        }
-
-        ov::op::convolution::apply_auto_pad(&op,
-                                            input_layout.get_partial_shape(),
-                                            kernel,
-                                            pad_l.begin(),
-                                            pad_r.begin());
+        ov::op::convolution::apply_auto_pad(&op, ov::PartialShape(input_dims), ov::PartialShape(weights_dims), pad_l.begin(), pad_r.begin());
         for (size_t i = 0; i < dilation.size(); i++) {
             dilation[i]--;
         }
@@ -221,7 +225,8 @@ protected:
         auto attrs = impl_params.attrs_onednn;
 
         // accumulation_mode::any allows oneDNN to use f16 as the accumulation type.
-        if (impl_params.get_input_layout(0).data_type == data_types::f16) {
+        if ((impl_params.get_input_layout(0).data_type == data_types::f16) &&
+            (impl_params.prog->get_config().get_execution_mode() != ov::hint::ExecutionMode::ACCURACY)) {
             attrs->set_accumulation_mode(dnnl::accumulation_mode::any);
         }
 
@@ -305,9 +310,7 @@ public:
             ob << make_data(&_wzp_data_type, sizeof(dnnl::memory::data_type));
         }
 
-        std::vector<uint8_t> prim_cache;
-        prim_cache = _prim.get_cache_blob();
-        ob << prim_cache;
+        ob << get_cache_blob();
 #endif
     }
 
@@ -343,8 +346,9 @@ public:
         if (prim->activations_zero_points.is_valid()) {
             auto& a_zp = impl_params->get_program().get_node_ptr(prim->id)->as<convolution>().activations_zero_points().as<data>();
             memory::ptr s32_mem = onednn::convert_zp_data_to_s32(a_zp.get_attached_memory_ptr());
-            if (s32_mem != nullptr)
+            if (s32_mem != nullptr) {
                 a_zp.attach_memory(s32_mem, false);
+            }
         }
         bool has_wzp = prim->weights_zero_points.is_valid();
         if (has_wzp) {
@@ -376,7 +380,7 @@ public:
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
 
-        _prim = dnnl::primitive(_pd, prim_cache);
+        _prim = make_primitive_from_blob(prim_cache);
 #endif
     }
 
@@ -415,8 +419,9 @@ in_out_fmts_t ConvolutionImplementationManager::query_formats(const program_node
     auto prim_desc = get_convolution_primitive_descriptor(*node.get_kernel_impl_params(), dnnl::primitive_attr(), dnnl::memory::format_tag::any);
 
     for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
-        if (node.get_dependency(idx).is_constant())
+        if (node.get_dependency(idx).is_constant()) {
             continue;
+        }
 
         // Conv or deconv gets a preferred format for its data input based on source memory description
         // But an input format for fused post-ops should be same with an output format of conv/deconv
@@ -434,8 +439,9 @@ in_out_fmts_t ConvolutionImplementationManager::query_formats(const program_node
         }
 
         // WA: Avoid b_fs_yx_fsv2 because Onednn tag aBcd2b is not declared.
-        if (src_fmt == format::b_fs_yx_fsv2)
+        if (src_fmt == format::b_fs_yx_fsv2) {
             src_fmt = format::byxf;
+        }
 
         // WA: shallow convolution needs to set input format by bfyx.
         //     onednn recommended byxf for input format. It will insert reorder before shallow conv.
@@ -474,8 +480,9 @@ in_out_fmts_t ConvolutionImplementationManager::query_formats(const program_node
     }
 
     // WA: Avoid b_fs_yx_fsv2 because Onednn tag aBcd2b is not declared.
-    if (out_fmts[0] == format::b_fs_yx_fsv2)
+    if (out_fmts[0] == format::b_fs_yx_fsv2) {
         out_fmts[0] = format::byxf;
+    }
 
     // Errata: Best impl for shallow input conv with zero-point ops is ocl:xe_lp.
     if (in_fmts[0] == format::bfyx) {

@@ -77,7 +77,7 @@ const std::vector<ov::AnyMap> compat_CorrectPluginDefaultMutableProperties = {
     {{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::LATENCY}},
     {{ov::hint::num_requests.name(), 1u}},
     {{ov::log::level.name(), getTestsLogLevelFromEnvironmentOr(ov::log::Level::WARNING)}},
-    {{ov::device::id.name(), ""}},
+    {{ov::device::id.name(), "0"}},
     {{ov::num_streams.name(), ov::streams::AUTO}},
 };
 
@@ -89,7 +89,6 @@ const std::vector<ov::AnyMap> CorrectPluginDefaultMutableProperties = {
 const std::vector<std::string> ImmutableProperties{
     ov::supported_properties.name(),
     ov::streams::num.name(),
-    ov::optimal_number_of_infer_requests.name(),
     ov::intel_npu::device_alloc_mem_size.name(),
     ov::intel_npu::device_total_mem_size.name(),
     ov::intel_npu::driver_version.name(),
@@ -117,7 +116,6 @@ const std::vector<ov::AnyMap> CorrectCompiledModelProperties = {
 };
 
 const std::vector<ov::AnyMap> IncorrectImmutableProperties = {
-    {{ov::optimal_number_of_infer_requests.name(), 4}},
     {{ov::intel_npu::device_alloc_mem_size.name(), 1024}},
     {{ov::intel_npu::device_total_mem_size.name(), 2048}},
     {{ov::intel_npu::driver_version.name(), 3}},

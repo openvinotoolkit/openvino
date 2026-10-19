@@ -93,7 +93,9 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const data_types data_type,
                     const size_t input_size = 2,
                     const size_t weights_rank = 2,
-                    const bool weights_transposed = true)
+                    const bool weights_transposed = true,
+                    const bool transpose_b_scale = true,
+                    const bool transpose_b_zp = true)
         : primitive_base(id, { input }, 1, {optional_data_type{data_type}}),
           weights(weights),
           bias(bias),
@@ -104,7 +106,9 @@ struct fully_connected : public primitive_base<fully_connected> {
           dynamic_quantized_activation_zp(false),
           input_size(input_size),
           weights_rank(weights_rank),
-          weights_transposed(weights_transposed) {
+          weights_transposed(weights_transposed),
+          transpose_b_scale(transpose_b_scale),
+          transpose_b_zp(transpose_b_zp) {
         OPENVINO_ASSERT(!decompression_scale.empty(), "[GPU] Compressed fully connected requires at least decompression scale input");
     }
 
@@ -130,7 +134,9 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const data_types data_type,
                     const size_t input_size = 2,
                     const size_t weights_rank = 2,
-                    const bool weights_transposed = true)
+                    const bool weights_transposed = true,
+                    const bool transpose_b_scale = true,
+                    const bool transpose_b_zp = true)
         : primitive_base(id, { input }, 1, {optional_data_type{data_type}}),
           weights(weights),
           bias(bias),
@@ -144,13 +150,18 @@ struct fully_connected : public primitive_base<fully_connected> {
           activation_precomputed_reduction(activation_precomputed_reduction),
           input_size(input_size),
           weights_rank(weights_rank),
-          weights_transposed(weights_transposed) {
-        if (activation_scale.is_valid())
+          weights_transposed(weights_transposed),
+          transpose_b_scale(transpose_b_scale),
+          transpose_b_zp(transpose_b_zp) {
+        if (activation_scale.is_valid()) {
             dynamic_quantized_activation = true;
-        if (activation_zero_point.is_valid())
+        }
+        if (activation_zero_point.is_valid()) {
             dynamic_quantized_activation_zp = true;
-        if (activation_precomputed_reduction.is_valid())
+        }
+        if (activation_precomputed_reduction.is_valid()) {
             dynamic_quantized_precomputed_reduction = true;
+        }
 
         OPENVINO_ASSERT(!decompression_scale.empty(), "[GPU] Compressed fully connected requires at least decompression scale input");
     }
@@ -177,6 +188,9 @@ struct fully_connected : public primitive_base<fully_connected> {
     size_t weights_rank = 2;
     /// @brief Weights transposed.
     bool weights_transposed = true;
+    /// @brief true: scale/zp layout is [N, groups]; false: [groups, N].
+    bool transpose_b_scale = true;
+    bool transpose_b_zp = true;
 
 
     size_t hash() const override {
@@ -184,6 +198,8 @@ struct fully_connected : public primitive_base<fully_connected> {
         seed = hash_combine(seed, input_size);
         seed = hash_combine(seed, weights_rank);
         seed = hash_combine(seed, weights_transposed);
+        seed = hash_combine(seed, transpose_b_scale);
+        seed = hash_combine(seed, transpose_b_zp);
         seed = hash_combine(seed, bias.is_valid());
         seed = hash_combine(seed, compressed_weights);
         seed = hash_combine(seed, !decompression_scale.is_valid());
@@ -197,14 +213,17 @@ struct fully_connected : public primitive_base<fully_connected> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const fully_connected>(rhs);
 
         return input_size == rhs_casted.input_size &&
                weights_rank == rhs_casted.weights_rank &&
                weights_transposed == rhs_casted.weights_transposed &&
+               transpose_b_scale == rhs_casted.transpose_b_scale &&
+               transpose_b_zp == rhs_casted.transpose_b_zp &&
                bias.is_valid() == rhs_casted.bias.is_valid() &&
                compressed_weights == rhs_casted.compressed_weights &&
                decompression_scale.is_valid() == rhs_casted.decompression_scale.is_valid() &&
@@ -228,6 +247,8 @@ struct fully_connected : public primitive_base<fully_connected> {
         ob << input_size;
         ob << weights_rank;
         ob << weights_transposed;
+        ob << transpose_b_scale;
+        ob << transpose_b_zp;
         ob << dynamic_quantized_activation;
         ob << dynamic_quantized_activation_zp;
         ob << dynamic_quantized_precomputed_reduction;
@@ -254,6 +275,8 @@ struct fully_connected : public primitive_base<fully_connected> {
         ib >> input_size;
         ib >> weights_rank;
         ib >> weights_transposed;
+        ib >> transpose_b_scale;
+        ib >> transpose_b_zp;
         ib >> dynamic_quantized_activation;
         ib >> dynamic_quantized_activation_zp;
         ib >> dynamic_quantized_precomputed_reduction;
@@ -277,23 +300,29 @@ protected:
         OPENVINO_ASSERT(weights.is_valid());
         ret[idx++] = &weights;
 
-        if (bias.is_valid())
+        if (bias.is_valid()) {
             ret[idx++] = &bias;
+        }
 
-        if (decompression_scale.is_valid())
+        if (decompression_scale.is_valid()) {
             ret[idx++] = &decompression_scale;
+        }
 
-        if (decompression_zero_point.is_valid())
+        if (decompression_zero_point.is_valid()) {
             ret[idx++] = &decompression_zero_point;
+        }
 
-        if (activation_scale.is_valid())
+        if (activation_scale.is_valid()) {
             ret[idx++] = &activation_scale;
+        }
 
-        if (activation_zero_point.is_valid())
+        if (activation_zero_point.is_valid()) {
             ret[idx++] = &activation_zero_point;
+        }
 
-        if (activation_precomputed_reduction.is_valid())
+        if (activation_precomputed_reduction.is_valid()) {
             ret[idx++] = &activation_precomputed_reduction;
+        }
 
         return ret;
     }

@@ -22,12 +22,15 @@ SliceKernelRefNeededInputs SliceKernelRefNeededInputs::Create(const slice_node& 
     const bool step_in_runtime = !node_inputs[InputIndices::kStep].first->is_constant();
 
     inputs.neededIndexes.push_back(InputIndices::kData);
-    if (start_in_runtime)
+    if (start_in_runtime) {
         inputs.neededIndexes.push_back(InputIndices::kStart);
-    if (step_in_runtime)
+    }
+    if (step_in_runtime) {
         inputs.neededIndexes.push_back(InputIndices::kStep);
-    if (axes_in_runtime)
+    }
+    if (axes_in_runtime) {
         inputs.neededIndexes.push_back(InputIndices::kAxes);
+    }
 
     // NOTE: stop is never needed as it is passed implicitely via output shape.
 

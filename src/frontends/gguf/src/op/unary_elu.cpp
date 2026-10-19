@@ -8,10 +8,7 @@
 #include "openvino/op/elu.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 OutputVector translate_unary_elu(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
@@ -20,10 +17,7 @@ OutputVector translate_unary_elu(const NodeContext& context) {
     // ggml's op_elu is `x > 0 ? x : expm1(x)`, i.e. ELU with alpha fixed at 1; it takes no param.
     auto res = std::make_shared<ov::op::v0::Elu>(input, 1.0);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

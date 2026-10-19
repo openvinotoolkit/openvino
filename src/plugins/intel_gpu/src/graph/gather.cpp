@@ -23,8 +23,9 @@ layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_para
         dims_converted.push_back(static_cast<tensor::value_type>(dim));
     }
     // extend shape to 4d
-    for (size_t i = dims_converted.size(); i < 4; i++)
+    for (size_t i = dims_converted.size(); i < 4; i++) {
         dims_converted.push_back(1);
+    }
 
     format output_format = input_layout.format;
     if (dims_converted.size() == 5) {
@@ -139,16 +140,19 @@ void gather_inst::on_execute() {
 }
 
 void gather_inst::update_output_memory() {
-    if (!can_be_optimized())
+    if (!can_be_optimized()) {
         return;
+    }
 
     build_deps();
 
-    if (input_memory_ptr() == nullptr)
+    if (input_memory_ptr() == nullptr) {
         return;
+    }
 
-    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory())) {
         return;
+    }
 
     GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
                            << " : " << input_memory_ptr()->buffer_ptr() << std::endl;

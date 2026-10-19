@@ -25,8 +25,9 @@ JitConstants GatherMatmulScatterGenerator::get_jit_constants(const kernel_impl_p
 
 Arguments GatherMatmulScatterGenerator::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
-    if (params.is_dynamic())
+    if (params.is_dynamic()) {
         args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+    }
 
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 8});  // PACKED_OUT
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});

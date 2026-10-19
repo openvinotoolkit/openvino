@@ -133,8 +133,9 @@ struct activation : public primitive_base<activation> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const activation>(rhs);
 
@@ -163,8 +164,9 @@ protected:
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
 
-        if (additional_params_input.is_valid())
+        if (additional_params_input.is_valid()) {
             ret[idx++] = &additional_params_input;
+        }
 
         return ret;
     }
