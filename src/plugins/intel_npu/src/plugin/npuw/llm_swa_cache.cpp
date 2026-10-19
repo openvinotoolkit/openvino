@@ -53,6 +53,7 @@ void ov::npuw::SwaKVCacheHelper::share_across_generate_variants() {
 
 void ov::npuw::SwaKVCacheHelper::zero_prefill_tensors() {
     m_request.zero_prefill_past_tensors(m_request.m_swa_past_names);
+    m_window_end = 0u;
 }
 
 void ov::npuw::SwaKVCacheHelper::copy_prefill_to_generate() {
@@ -137,23 +138,8 @@ void ov::npuw::SwaKVCacheHelper::copy_prefill_to_generate() {
             const uint32_t valid_past_chunks = std::min(tokens_in_past_chunks, pre_capacity);
 
             if (valid_past_chunks > 0u) {
-                ov::SoPtr<ov::ITensor> prefill_past_kv_chunks;
-                if (m_request.m_past_kv_bound) {
-                    // When prefill/generate past are bound to shared backing, snapshot first
-                    // to avoid aliasing while we seed generate SWA.
-                    auto tmp_dense_kv_tensor =
-                        ov::npuw::util::allocMem(prefill_past_kv->get_element_type(),
-                                                 prefill_past_kv->get_shape(),
-                                                 m_request.m_pre_alloc_device,
-                                                 m_request.m_npuw_llm_compiled_model->get_plugin());
-                    NPUW_ASSERT(tmp_dense_kv_tensor._ptr &&
-                                "KV cache buffer allocation failed — check device availability and memory constraints");
-                    prefill_past_kv->copy_to(tmp_dense_kv_tensor._ptr);
-                    prefill_past_kv_chunks =
-                        uu::make_tensor_slice(tmp_dense_kv_tensor, pre_kv_dim, 0u, valid_past_chunks);
-                } else {
-                    prefill_past_kv_chunks = uu::make_tensor_slice(prefill_past_kv, pre_kv_dim, 0u, valid_past_chunks);
-                }
+                // The SWA past is never bound to the generate ring, so it can be read in place.
+                auto prefill_past_kv_chunks = uu::make_tensor_slice(prefill_past_kv, pre_kv_dim, 0u, valid_past_chunks);
                 append_to_generate_swa(prefill_past_kv_chunks, pre_kv_dim, 0u, tokens_in_past_chunks);
             }
         }
@@ -217,6 +203,45 @@ void ov::npuw::SwaKVCacheHelper::update_prefill(uint32_t num_tokens) {
                  num_tokens,
                  kvcache_desc.v_tensors_transposed_pre,
                  /*use_circular_layout=*/false);
+    m_window_end = kvcache_desc.num_stored_tokens;
+}
+
+uint32_t ov::npuw::SwaKVCacheHelper::min_keep() const {
+    return m_request.m_swa_past_names.empty() ? 0u : m_window_end;
+}
+
+void ov::npuw::SwaKVCacheHelper::continue_prefill(uint32_t keep) {
+    if (m_request.m_swa_past_names.empty()) {
+        return;
+    }
+    namespace uu = ov::npuw::util;
+    const auto& kvcache_desc = m_request.m_npuw_llm_compiled_model->m_kvcache_desc;
+    const auto last_chunk_tokens = static_cast<uint32_t>(m_request.m_tokens_in_present_chunk);
+    // The coordinator grants no keep below min_keep(), and a keep never passes the last prefill.
+    OPENVINO_ASSERT(keep >= m_window_end && keep - m_window_end <= last_chunk_tokens,
+                    "Continued prefill: keep ",
+                    keep,
+                    " is outside the SWA window range [",
+                    m_window_end,
+                    ", ",
+                    m_window_end + last_chunk_tokens,
+                    "].");
+    const uint32_t num_new_tokens = keep - m_window_end;
+    if (num_new_tokens > 0u) {
+        ov::parallel_for(m_request.m_swa_past_names.size(), [&](size_t i) {
+            const auto& input_name = m_request.m_swa_past_names[i];
+            const auto output_name = uu::past_key_values_to_present_name(input_name);
+            auto past = m_request.m_prefill_request->get_tensor(m_request.m_prefill_in_ports.at(input_name));
+            auto present = m_request.m_prefill_request->get_tensor(m_request.m_prefill_out_ports.at(output_name));
+            const bool is_value = output_name.find("value") != std::string::npos;
+            const uint32_t kv_dim = (is_value && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
+            // The last chunk sits right-aligned in the present output.
+            const auto first_row = static_cast<uint32_t>(present->get_shape()[kv_dim]) - last_chunk_tokens;
+            auto kept_rows = uu::make_tensor_slice(present, kv_dim, first_row, first_row + num_new_tokens);
+            uu::write_swa_kv_slice_left_aligned(past, kept_rows, kv_dim, kv_dim, m_window_end, num_new_tokens);
+        });
+    }
+    m_window_end = keep;
 }
 
 void ov::npuw::SwaKVCacheHelper::update_generate(uint32_t num_tokens) {

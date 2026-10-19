@@ -36,7 +36,10 @@ namespace npuw {
  * represent, and W is the prefill-produced watermark. A proposal arriving after
  * a prompt-only turn is granted zero: the live prefix is then split between the
  * prefill model's past inputs and its present outputs, where no continuation
- * source exists. The rule is evaluated here at propose time and nowhere else.
+ * source exists. A keep below the floor F published with the last prefill is
+ * also granted zero: a window-sized sliding attention cache only holds the
+ * window that ends at F, so an older prefix needs a full prefill. The rule is
+ * evaluated here at propose time and nowhere else.
  *
  * Note for callers of the variable state: a write is not idempotent. You write
  * X and read back Y <= X, and must always slice at the granted value.
@@ -95,12 +98,14 @@ public:
         // proposal after a prompt-only turn is granted zero, which arms an
         // ordinary full-history reset.
         const uint32_t clamped = m_continuable ? std::min({static_cast<uint32_t>(k_common), m_k_max, m_watermark}) : 0u;
-        const uint32_t granted = m_chunk_size * (clamped / m_chunk_size);
+        const uint32_t aligned = m_chunk_size * (clamped / m_chunk_size);
+        const uint32_t granted = aligned >= m_min_keep ? aligned : 0u;
 
         m_pending_keep = granted;
         m_stage = Stage::PENDING;
         LOG_DEBUG("Continuous prefill: proposed " << k_common << ", granted " << granted << " (K_max=" << m_k_max
-                                                  << ", W=" << m_watermark << ", C=" << m_chunk_size << ")");
+                                                  << ", W=" << m_watermark << ", F=" << m_min_keep
+                                                  << ", C=" << m_chunk_size << ")");
         return granted;
     }
 
@@ -130,10 +135,12 @@ public:
     }
 
     // Publish a committed prefill, full or continued. The new live count is also
-    // the new prefill-produced watermark.
-    void commit_prefill(uint32_t live_tokens) {
+    // the new prefill-produced watermark, and min_keep is the oldest keep the
+    // cache can still resume from.
+    void commit_prefill(uint32_t live_tokens, uint32_t min_keep = 0u) {
         m_live_tokens = live_tokens;
         m_watermark = live_tokens;
+        m_min_keep = min_keep;
         m_pending_keep = 0u;
         m_stage = Stage::IDLE;
         // The freshly prefilled prefix is split with the last chunk still in the
@@ -179,6 +186,7 @@ private:
     uint32_t m_watermark = 0u;
     uint32_t m_chunk_size = 0u;
     uint32_t m_k_max = 0u;
+    uint32_t m_min_keep = 0u;
     // Whether the live prefix sits in the generate past KV, the only layout a
     // continuation can be sourced from. Prefills clear it, generate steps set it.
     bool m_continuable = false;
