@@ -103,6 +103,195 @@ result_t createImmediateCmdList(ze_context_handle_t context, ze_device_handle_t 
     return cmdListCreateFunc(context, device, &queueDesc, &handle);
 }
 
+result_t executeGraphImmediate(ExecutionContext& executionContext, ze_graph_handle_t graphHandle, void* kernelName) {
+    if (graphHandle == nullptr) {
+        return failure(ZE_RESULT_ERROR_INVALID_NULL_HANDLE, "Invalid graph handle");
+    }
+
+    auto graphDdiTable = executionContext.getGraphDdiTable();
+    auto cmdListIndex = executionContext.getCurrentCmdListIndex();
+    auto cmdList = executionContext.getCmdList(cmdListIndex);
+    if (kernelName == nullptr) {
+        NPU_VM_LOG_TRACE("Executing graph for unnamed kernel at handle {}", graphHandle);
+    } else {
+        NPU_VM_LOG_TRACE("Executing graph for kernel {} at handle {} in cmdList {} and execContext {}",
+                         static_cast<const char*>(kernelName), graphHandle, cmdList, &executionContext);
+    }
+
+    ze_pfnAppendGraphExecute_ext_t pfnAppendGraphExecute = graphDdiTable->pfnAppendGraphExecute;
+    ze_result_t result = ZE_RESULT_SUCCESS;
+    auto& eventPool = executionContext.getEventPool();
+    auto& waitEvents = eventPool.getWaitEvents();
+    auto signalEvent = eventPool.getSignalEvent();
+    result = pfnAppendGraphExecute(cmdList, graphHandle, nullptr, signalEvent, static_cast<uint32_t>(waitEvents.size()),
+                                   const_cast<ze_event_handle_t*>(waitEvents.data()));
+    if (result != ZE_RESULT_SUCCESS) {
+        return failure(result, "Failed to append graph execute in command list: {}, kern: {}, numWaits: {}", cmdList,
+                       graphHandle, waitEvents.size());
+    }
+
+    NPU_VM_LOG_TRACE("Executed graph for kernel: {}", graphHandle);
+
+    return success();
+}
+
+result_t executeGraphCmdListPool(ExecutionContext& executionContext, ze_graph_handle_t graphHandle, void* kernelName) {
+    if (graphHandle == nullptr) {
+        return failure(ZE_RESULT_ERROR_INVALID_NULL_HANDLE, "Invalid graph handle");
+    }
+    auto ddiTable = executionContext.getDdiTable();
+    auto graphDdiTable = executionContext.getGraphDdiTable();
+    auto cmdListIndex = executionContext.getCurrentCmdListIndex();
+    auto cmdList = executionContext.getCmdList(cmdListIndex);
+    if (kernelName == nullptr) {
+        NPU_VM_LOG_TRACE("Executing graph for unnamed kernel at handle {}", graphHandle);
+    } else {
+        NPU_VM_LOG_TRACE("Executing graph for kernel {} at handle {} in cmdList {} and execContext {}",
+                         static_cast<const char*>(kernelName), graphHandle, cmdList, &executionContext);
+    }
+
+    ze_pfnAppendGraphExecute_ext_t pfnAppendGraphExecute = graphDdiTable->pfnAppendGraphExecute;
+    ze_result_t result = ZE_RESULT_SUCCESS;
+    auto& eventPool = executionContext.getEventPool();
+    auto& waitEvents = eventPool.getWaitEvents();
+    auto signalEvent = eventPool.getSignalEvent();
+
+    auto pfnCommandListReset = ddiTable->zeCommandListReset;
+    auto pfnCommandListClose = ddiTable->zeCommandListClose;
+    auto pfnCommandQueueExecuteCommandLists = ddiTable->zeCommandQueueExecuteCommandLists;
+    result = pfnCommandListReset(cmdList);
+    if (result != ZE_RESULT_SUCCESS) {
+        return failure(result, "Failed to zeCommandListReset");
+    }
+    result = pfnAppendGraphExecute(cmdList, graphHandle, nullptr, signalEvent, static_cast<uint32_t>(waitEvents.size()),
+                                   const_cast<ze_event_handle_t*>(waitEvents.data()));
+    if (result != ZE_RESULT_SUCCESS) {
+        return failure(result, "Failed to append graph execute in command list: {}, kern: {}, numWaits: {}", cmdList,
+                       graphHandle, waitEvents.size());
+    }
+    result = pfnCommandListClose(cmdList);
+    if (result != ZE_RESULT_SUCCESS) {
+        return failure(result, "Failed to close a command list");
+    }
+
+    result = pfnCommandQueueExecuteCommandLists(executionContext.getCommandQueue(), 1, &cmdList, nullptr);
+    if (result != ZE_RESULT_SUCCESS) {
+        return failure(result,
+                       "Failed to zeCommandQueueExecuteCommandList with command queue: {}, command "
+                       "list: {}",
+                       executionContext.getCommandQueue(), cmdList);
+    }
+
+    NPU_VM_LOG_TRACE("Executed graph for kernel: {}", graphHandle);
+
+    return success();
+}
+
+result_t submitCmdListPool(ExecutionContext& executionContext, ze_command_list_handle_t, bool needHostSync) {
+    ze_fence_handle_t fence = nullptr;
+    ze_event_handle_t event = nullptr;
+    if (needHostSync) {
+        event = executionContext.getHostSyncEvent();
+        fence = executionContext.getHostSyncFence();
+
+        if (event != nullptr && fence != nullptr) {
+            // Both event and fence are provided, which is not expected
+            // as they serve similar synchronization purposes.
+            return failure(ZE_RESULT_ERROR_INVALID_ARGUMENT,
+                           "Both event and fence are not nullptr(event: {}, fence: {})", event, fence);
+        }
+    }
+
+    auto commandQueue = executionContext.getCommandQueue();
+    // executionContext.in
+    //  note command queue is null when immediate command list is used
+    auto& eventPool = executionContext.getEventPool();
+    eventPool.increaseSignalEventsArrayIndex();
+
+    auto ddiTable = executionContext.getDdiTable();
+    auto pfnCommandListReset = ddiTable->zeCommandListReset;
+    auto pfnCommandListAppendBarrier = ddiTable->zeCommandListAppendBarrier;
+    auto pfnCommandListClose = ddiTable->zeCommandListClose;
+    auto pfnCommandQueueExecuteCommandLists = ddiTable->zeCommandQueueExecuteCommandLists;
+    if (commandQueue != nullptr && event) {
+        auto cmdList = executionContext.getCmdList(executionContext.getCurrentCmdListIndex());
+        NPU_VM_LOG_TRACE("Submitting command list: {}, fence: {}, event: {}", cmdList, fence, event);
+        if (cmdList == nullptr) {
+            return failure(ZE_RESULT_ERROR_INVALID_NULL_HANDLE,
+                           "Invalid commandListHandle for submission, command queue: {}, fence: {}, event: {}",
+                           commandQueue, fence, event);
+        }
+
+        auto& waitEvents = eventPool.getWaitEvents();
+        auto result = pfnCommandListReset(cmdList);
+        if (result != ZE_RESULT_SUCCESS) {
+            return failure(result, "Failed to reset command list");
+        }
+
+        // For the last command list, event or fence will be not nullptr when host synchronization is needed
+        if (event != nullptr) {
+            // host sync with an event given by npu-plugin
+            result = pfnCommandListAppendBarrier(cmdList, event, static_cast<uint32_t>(waitEvents.size()),
+                                                const_cast<ze_event_handle_t*>(waitEvents.data()));
+
+            if (result != ZE_RESULT_SUCCESS) {
+                return failure(result, "Failed to zeCommandListAppendBarrier");
+            }
+        }
+        result = pfnCommandListClose(cmdList);
+        if (result != ZE_RESULT_SUCCESS) {
+            return failure(result, "Failed to zeCommandListClose");
+        }
+
+        result = pfnCommandQueueExecuteCommandLists(commandQueue, 1, &cmdList, fence);
+        if (result != ZE_RESULT_SUCCESS) {
+            return failure(
+                    result,
+                    "Failed to zeCommandQueueExecuteCommandList with event: {}, fence: {}, command queue: {}, command "
+                    "list: {}",
+                    event, fence, commandQueue, cmdList);
+        }
+        NPU_VM_LOG_TRACE("Submitted command list: {}", cmdList);
+    }
+    return success();
+}
+
+result_t submitCmdListImmediate(ExecutionContext& executionContext, ze_command_list_handle_t, bool needHostSync) {
+    ze_fence_handle_t fence = nullptr;
+    ze_event_handle_t event = nullptr;
+    if (needHostSync) {
+        event = executionContext.getHostSyncEvent();
+        fence = executionContext.getHostSyncFence();
+
+        if (event != nullptr && fence != nullptr) {
+            // Both event and fence are provided, which is not expected
+            // as they serve similar synchronization purposes.
+            return failure(ZE_RESULT_ERROR_INVALID_ARGUMENT,
+                           "Both event and fence are not nullptr(event: {}, fence: {})", event, fence);
+        }
+    }
+
+    // make all signal events as wait events
+    auto& eventPool = executionContext.getEventPool();
+    eventPool.increaseSignalEventsArrayIndex();
+    result_t result = ZE_RESULT_SUCCESS;
+    if (event) {
+        auto ddiTable = executionContext.getDdiTable();
+        auto pfnCommandListAppendBarrier = ddiTable->zeCommandListAppendBarrier;
+        auto cmdList = executionContext.getCmdList(executionContext.getCurrentCmdListIndex());
+        auto& waitEvents = eventPool.getWaitEvents();
+        result =
+                pfnCommandListAppendBarrier(cmdList, event, static_cast<uint32_t>(waitEvents.size()), waitEvents.data());
+        if (result != ZE_RESULT_SUCCESS) {
+            return failure(result, "Failed to zeCommandListAppendBarrier");
+        }
+
+        NPU_VM_LOG_TRACE("Submitted command list: {}", cmdList);
+    }
+
+    return success();
+}
+
 }  // namespace
 
 namespace intel_npu::vm {
@@ -937,90 +1126,6 @@ result_t setBindings(ExecutionContext& executionContext, ze_graph_handle_t graph
     return success();
 }
 
-result_t executeGraphImmediate(ExecutionContext& executionContext, ze_graph_handle_t graphHandle, void* kernelName) {
-    if (graphHandle == nullptr) {
-        return failure(ZE_RESULT_ERROR_INVALID_NULL_HANDLE, "Invalid graph handle");
-    }
-
-    auto graphDdiTable = executionContext.getGraphDdiTable();
-    auto cmdListIndex = executionContext.getCurrentCmdListIndex();
-    auto cmdList = executionContext.getCmdList(cmdListIndex);
-    if (kernelName == nullptr) {
-        NPU_VM_LOG_TRACE("Executing graph for unnamed kernel at handle {}", graphHandle);
-    } else {
-        NPU_VM_LOG_TRACE("Executing graph for kernel {} at handle {} in cmdList {} and execContext {}",
-                         static_cast<const char*>(kernelName), graphHandle, cmdList, &executionContext);
-    }
-
-    ze_pfnAppendGraphExecute_ext_t pfnAppendGraphExecute = graphDdiTable->pfnAppendGraphExecute;
-    ze_result_t result = ZE_RESULT_SUCCESS;
-    auto& eventPool = executionContext.getEventPool();
-    auto& waitEvents = eventPool.getWaitEvents();
-    auto signalEvent = eventPool.getSignalEvent();
-    result = pfnAppendGraphExecute(cmdList, graphHandle, nullptr, signalEvent, static_cast<uint32_t>(waitEvents.size()),
-                                   const_cast<ze_event_handle_t*>(waitEvents.data()));
-    if (result != ZE_RESULT_SUCCESS) {
-        return failure(result, "Failed to append graph execute in command list: {}, kern: {}, numWaits: {}", cmdList,
-                       graphHandle, waitEvents.size());
-    }
-
-    NPU_VM_LOG_TRACE("Executed graph for kernel: {}", graphHandle);
-
-    return success();
-}
-
-result_t executeGraphCmdListPool(ExecutionContext& executionContext, ze_graph_handle_t graphHandle, void* kernelName) {
-    if (graphHandle == nullptr) {
-        return failure(ZE_RESULT_ERROR_INVALID_NULL_HANDLE, "Invalid graph handle");
-    }
-    auto ddiTable = executionContext.getDdiTable();
-    auto graphDdiTable = executionContext.getGraphDdiTable();
-    auto cmdListIndex = executionContext.getCurrentCmdListIndex();
-    auto cmdList = executionContext.getCmdList(cmdListIndex);
-    if (kernelName == nullptr) {
-        NPU_VM_LOG_TRACE("Executing graph for unnamed kernel at handle {}", graphHandle);
-    } else {
-        NPU_VM_LOG_TRACE("Executing graph for kernel {} at handle {} in cmdList {} and execContext {}",
-                         static_cast<const char*>(kernelName), graphHandle, cmdList, &executionContext);
-    }
-
-    ze_pfnAppendGraphExecute_ext_t pfnAppendGraphExecute = graphDdiTable->pfnAppendGraphExecute;
-    ze_result_t result = ZE_RESULT_SUCCESS;
-    auto& eventPool = executionContext.getEventPool();
-    auto& waitEvents = eventPool.getWaitEvents();
-    auto signalEvent = eventPool.getSignalEvent();
-
-    auto pfnCommandListReset = ddiTable->zeCommandListReset;
-    auto pfnCommandListClose = ddiTable->zeCommandListClose;
-    auto pfnCommandQueueExecuteCommandLists = ddiTable->zeCommandQueueExecuteCommandLists;
-    result = pfnCommandListReset(cmdList);
-    if (result != ZE_RESULT_SUCCESS) {
-        return failure(result, "Failed to zeCommandListReset");
-    }
-    result = pfnAppendGraphExecute(cmdList, graphHandle, nullptr, signalEvent, static_cast<uint32_t>(waitEvents.size()),
-                                   const_cast<ze_event_handle_t*>(waitEvents.data()));
-    if (result != ZE_RESULT_SUCCESS) {
-        return failure(result, "Failed to append graph execute in command list: {}, kern: {}, numWaits: {}", cmdList,
-                       graphHandle, waitEvents.size());
-    }
-    result = pfnCommandListClose(cmdList);
-    if (result != ZE_RESULT_SUCCESS) {
-        return failure(result, "Failed to close a command list");
-    }
-
-    result = pfnCommandQueueExecuteCommandLists(executionContext.getCommandQueue(), 1, &cmdList, nullptr);
-    if (result != ZE_RESULT_SUCCESS) {
-        return failure(result,
-                       "Failed to zeCommandQueueExecuteCommandList with command queue: {}, command "
-                       "list: {}",
-                       executionContext.getCommandQueue(), cmdList);
-    }
-
-    NPU_VM_LOG_TRACE("Executed graph for kernel: {}", graphHandle);
-
-    return success();
-}
-
 result_t executeGraph(ExecutionContext& executionContext, ze_command_list_handle_t commandListHandle,
                       ze_graph_handle_t graphHandle, void* kernelName) {
     auto executionMode = executionContext.getExecutionMode();
@@ -1099,111 +1204,6 @@ result_t executeGraph(ExecutionContext& executionContext, ze_command_list_handle
     executionContext.increaseInferenceCmdId(cmdListIndex);
 
     NPU_VM_LOG_TRACE("Executed graph for kernel: {}", graphHandle);
-
-    return success();
-}
-
-result_t submitCmdListPool(ExecutionContext& executionContext, ze_command_list_handle_t, bool needHostSync) {
-    ze_fence_handle_t fence = nullptr;
-    ze_event_handle_t event = nullptr;
-    if (needHostSync) {
-        event = executionContext.getHostSyncEvent();
-        fence = executionContext.getHostSyncFence();
-
-        if (event != nullptr && fence != nullptr) {
-            // Both event and fence are provided, which is not expected
-            // as they serve similar synchronization purposes.
-            return failure(ZE_RESULT_ERROR_INVALID_ARGUMENT,
-                           "Both event and fence are not nullptr(event: {}, fence: {})", event, fence);
-        }
-    }
-
-    auto commandQueue = executionContext.getCommandQueue();
-    // executionContext.in
-    //  note command queue is null when immediate command list is used
-    auto& eventPool = executionContext.getEventPool();
-    eventPool.increaseSignalEventsArrayIndex();
-
-    auto ddiTable = executionContext.getDdiTable();
-    auto pfnCommandListReset = ddiTable->zeCommandListReset;
-    auto pfnCommandListAppendBarrier = ddiTable->zeCommandListAppendBarrier;
-    auto pfnCommandListClose = ddiTable->zeCommandListClose;
-    auto pfnCommandQueueExecuteCommandLists = ddiTable->zeCommandQueueExecuteCommandLists;
-    if (commandQueue != nullptr && event) {
-        auto cmdList = executionContext.getCmdList(executionContext.getCurrentCmdListIndex());
-        NPU_VM_LOG_TRACE("Submitting command list: {}, fence: {}, event: {}", cmdList, fence, event);
-        if (cmdList == nullptr) {
-            return failure(ZE_RESULT_ERROR_INVALID_NULL_HANDLE,
-                           "Invalid commandListHandle for submission, command queue: {}, fence: {}, event: {}",
-                           commandQueue, fence, event);
-        }
-
-        auto& waitEvents = eventPool.getWaitEvents();
-        auto result = pfnCommandListReset(cmdList);
-        if (result != ZE_RESULT_SUCCESS) {
-            return failure(result, "Failed to reset command list");
-        }
-
-        // For the last command list, event or fence will be not nullptr when host synchronization is needed
-        if (event != nullptr) {
-            // host sync with an event given by npu-plugin
-            result = pfnCommandListAppendBarrier(cmdList, event, static_cast<uint32_t>(waitEvents.size()),
-                                                const_cast<ze_event_handle_t*>(waitEvents.data()));
-
-            if (result != ZE_RESULT_SUCCESS) {
-                return failure(result, "Failed to zeCommandListAppendBarrier");
-            }
-        }
-        result = pfnCommandListClose(cmdList);
-        if (result != ZE_RESULT_SUCCESS) {
-            return failure(result, "Failed to zeCommandListClose");
-        }
-
-        result = pfnCommandQueueExecuteCommandLists(commandQueue, 1, &cmdList, fence);
-        if (result != ZE_RESULT_SUCCESS) {
-            return failure(
-                    result,
-                    "Failed to zeCommandQueueExecuteCommandList with event: {}, fence: {}, command queue: {}, command "
-                    "list: {}",
-                    event, fence, commandQueue, cmdList);
-        }
-        NPU_VM_LOG_TRACE("Submitted command list: {}", cmdList);
-    }
-    return success();
-}
-
-result_t submitCmdListImmediate(ExecutionContext& executionContext, ze_command_list_handle_t, bool needHostSync) {
-    ze_fence_handle_t fence = nullptr;
-    ze_event_handle_t event = nullptr;
-    if (needHostSync) {
-        event = executionContext.getHostSyncEvent();
-        fence = executionContext.getHostSyncFence();
-
-        if (event != nullptr && fence != nullptr) {
-            // Both event and fence are provided, which is not expected
-            // as they serve similar synchronization purposes.
-            return failure(ZE_RESULT_ERROR_INVALID_ARGUMENT,
-                           "Both event and fence are not nullptr(event: {}, fence: {})", event, fence);
-        }
-    }
-
-    // make all signal events as wait events
-    auto& eventPool = executionContext.getEventPool();
-    eventPool.increaseSignalEventsArrayIndex();
-    result_t result = ZE_RESULT_SUCCESS;
-    if (event) {
-        auto ddiTable = executionContext.getDdiTable();
-        auto pfnCommandListAppendBarrier = ddiTable->zeCommandListAppendBarrier;
-        auto cmdList = executionContext.getCmdList(executionContext.getCurrentCmdListIndex());
-        auto& waitEvents = eventPool.getWaitEvents();
-        result =
-                pfnCommandListAppendBarrier(cmdList, event, static_cast<uint32_t>(waitEvents.size()), waitEvents.data());
-        if (result != ZE_RESULT_SUCCESS) {
-            return failure(result, "Failed to zeCommandListAppendBarrier");
-        }
-
-        NPU_VM_LOG_TRACE("Submitted command list: {}", cmdList);
-    }
 
     return success();
 }
