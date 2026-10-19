@@ -59,7 +59,8 @@ public:
     void update_generate(uint32_t num_tokens);
 
     // The oldest keep a continued prefill can resume from, 0 without SWA layers. The
-    // prefill past holds the window that ends here and generate steps never touch it.
+    // prefill past holds the window that ends here, and with continuous prefill it is
+    // not bound to the generate ring, so generate steps never touch it.
     uint32_t min_keep() const;
 
     // Moves the prefill window end to keep by appending the kept rows of the last
