@@ -69,6 +69,15 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx,
     return false;
 }
 
+std::map<std::size_t, std::string> ov::npuw::util::parse_submodel_devices(const std::string& opt,
+                                                                          const std::size_t num_subgraphs) {
+    std::string str(opt);
+    if (const auto last_pos = str.find("last"); last_pos != std::string::npos && num_subgraphs > 0) {
+        str.replace(last_pos, 4, std::to_string(num_subgraphs - 1));
+    }
+    return ::intel_npu::OptionParser<std::map<std::size_t, std::string>>::parse(str);
+}
+
 ov::npuw::util::DynamicQuantStorageTypes ov::npuw::util::resolve_dynamic_quant_storage_types(
     DynamicQuantDecomposeMode decompose_mode,
     bool is_symmetric,

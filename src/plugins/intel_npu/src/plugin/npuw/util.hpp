@@ -5,6 +5,7 @@
 #pragma once
 
 #include <future>
+#include <map>
 #include <optional>
 #include <ostream>
 #include <random>
@@ -29,6 +30,10 @@ bool is_set(const std::size_t sub_idx,
             const std::string& opt,
             const std::size_t real_idx = SIZE_MAX,
             const std::size_t end_idx = SIZE_MAX);
+
+// The NPUW_SUBMODEL_DEVICE map of a model with `num_subgraphs` subgraphs, where
+// "last" names the tail subgraph.
+std::map<std::size_t, std::string> parse_submodel_devices(const std::string& opt, const std::size_t num_subgraphs);
 
 // Every great project has its own string class...
 // NB: Newer C++ standards would allow to use string views or smt
