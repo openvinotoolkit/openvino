@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cstdlib>
 #include <functional>
 #include <numeric>
 #include <string>
@@ -14,7 +13,6 @@
 
 #include "common_utils/jitter.hpp"
 #include "fully_connected_inst.h"
-#include "intel_gpu/graph/serialization/weights_reorder_params.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
@@ -31,7 +29,7 @@ namespace {
 constexpr const char* kernel_name = "fully_connected_int3_dpas";
 constexpr size_t simd = 16;
 constexpr size_t k_chunk = 32;  // u3 values per granule, and the DPAS K step
-constexpr size_t osv = 16;      // output channels per weights block
+constexpr size_t osv = 16;      // output channels per GEMM column block
 // Rows at or above which the matrix-engine variants win over the K-split one, which reads all weights once per row.
 constexpr size_t dpas_min_rows = 2;
 // Column blocks per subgroup and rows per subgroup of the v2 path. Its 16 x 64 tiles need 256 registers per thread.
@@ -73,6 +71,12 @@ RuntimeParams make_single_row_params(const RuntimeParams& params) {
     }
     for (auto& l : single_row.output_layouts) {
         to_single_row(l);
+    }
+    for (auto& fd : single_row.fused_desc) {
+        to_single_row(fd.input_layout);
+        for (auto& l : fd.output_layouts) {
+            to_single_row(l);
+        }
     }
     return single_row;
 }
@@ -147,8 +151,8 @@ bool get_int3_fc_info(const fully_connected& desc, const std::vector<layout>& in
 
     info.ifm = static_cast<size_t>(in_pshape[in_pshape.size() - 1].get_length());
     info.ofm = static_cast<size_t>(w_pshape[0].get_length());
-    // The weights reorder produces whole (16 output x 32 input) blocks; anything that does not fill them exactly
-    // would need edge handling the GEMM lacks. K % 32 also keeps the quantized activation rows 4-byte aligned.
+    // The GEMMs work on whole 16-column blocks of 32-value granules; anything that does not fill them exactly would
+    // need edge handling they lack. K % 32 also keeps the weight and quantized activation rows 4-byte aligned.
     if (static_cast<size_t>(w_pshape[1].get_length()) != info.ifm || info.ifm == 0 || info.ofm == 0 || info.ifm % k_chunk != 0 || info.ofm % osv != 0) {
         return false;
     }
@@ -339,38 +343,21 @@ size_t get_scalar_sg_k(const Int3FcInfo& info) {
     return 1;
 }
 
-bool use_plain_weights_experiment() {
-    static const bool plain = std::getenv("INT3_PLAIN_W") != nullptr;
-    return plain;
-}
-
-// Single-row GEMV on plain weights with the lanes along K: a step covers SIMD consecutive granules of a row, so each
-// subgroup streams its rows contiguously.
+// Single-row GEMV with the lanes along K: a step covers SIMD consecutive granules of a row, so each subgroup streams
+// its weight rows contiguously.
 bool use_k_lanes(const Int3FcInfo& info, const GemmConfig& cfg) {
-    static const bool disabled = std::getenv("INT3_NO_KLANES") != nullptr;
-    return !disabled && use_plain_weights_experiment() && !cfg.dpas && cfg.tile_m == 1 && ((info.ifm / k_chunk) % simd) == 0;
+    return !cfg.dpas && cfg.tile_m == 1 && ((info.ifm / k_chunk) % simd) == 0;
 }
 
-// Subgroups splitting the SIMD output channels of a k-lanes work-group; each streams SIMD / sg_k rows over all of K.
-size_t get_k_lanes_sg_k(const Int3FcInfo&) {
-    static const size_t sg_k = std::getenv("INT3_KL_SGK") ? std::stoul(std::getenv("INT3_KL_SGK")) : 8;
-    return sg_k;
-}
+// Subgroups splitting the SIMD output channels of a k-lanes work-group; each streams SIMD / k_lanes_sg_k rows over
+// all of K.
+constexpr size_t k_lanes_sg_k = 8;
 
 size_t get_sg_k(const Int3FcInfo& info, const GemmConfig& cfg) {
     if (cfg.dpas) {
         return 1;
     }
-    return use_k_lanes(info, cfg) ? get_k_lanes_sg_k(info) : get_scalar_sg_k(info);
-}
-
-std::shared_ptr<WeightsReorderParams> make_weights_reorder_params(const layout& weights) {
-    if (use_plain_weights_experiment() || weights.format == format::os_is_yx_osv16_isv32) {
-        return nullptr;
-    }
-    const auto& pshape = weights.get_partial_shape();
-    const layout repacked(ov::PartialShape{pshape[0], pshape[1]}, weights.data_type, format::os_is_yx_osv16_isv32);
-    return std::make_shared<WeightsReorderParams>(weights, repacked, false);
+    return use_k_lanes(info, cfg) ? k_lanes_sg_k : get_scalar_sg_k(info);
 }
 
 class Int3FcGeneratorBase : public KernelGenerator {
@@ -475,7 +462,6 @@ protected:
             jit.make("BIAS_TYPE", to_ocl_type(params.get_input_layout(2).data_type));
         }
 
-        jit.make("WEIGHTS_PLAIN", use_plain_weights_experiment());
         jit.make("USE_DPAS", m_cfg.dpas);
         jit.make("DPAS_V2", m_cfg.v2);
         jit.make("V2_NB", m_cfg.nb);
@@ -622,16 +608,16 @@ public:
     // compiled for exactly one row, so a single-row static impl of a dynamic model can reuse it with the quantizer.
     Stage::Ptr quantize = make_stage<Int3FcQuantize>();
     std::array<Stage::Ptr, 11> gemms = {make_stage<Int3FcGemm>("scalar", GemmConfig{}),
-                                       make_stage<Int3FcGemm>("v1_t8", get_v1_config(8, 1)),
-                                       make_stage<Int3FcGemm>("v1_t16", get_v1_config(16, 1)),
-                                       make_stage<Int3FcGemm>("v1_t32_sg1", get_v1_config(32, 1)),
-                                       make_stage<Int3FcGemm>("v1_t32_sg2", get_v1_config(32, 2)),
-                                       make_stage<Int3FcGemm>("v1_t32_sg4", get_v1_config(32, 4)),
-                                       make_stage<Int3FcGemm>("v1_t32_sg8", get_v1_config(32, 8)),
-                                       make_stage<Int3FcGemm>("v2_sg8", get_v2_config(8)),
-                                       make_stage<Int3FcGemm>("v2_sg16", get_v2_config(16)),
-                                       make_stage<Int3FcGemm>("scalar_t8", get_scalar_config(8)),
-                                       make_stage<Int3FcGemm>("scalar_t16", get_scalar_config(16))};
+                                        make_stage<Int3FcGemm>("v1_t8", get_v1_config(8, 1)),
+                                        make_stage<Int3FcGemm>("v1_t16", get_v1_config(16, 1)),
+                                        make_stage<Int3FcGemm>("v1_t32_sg1", get_v1_config(32, 1)),
+                                        make_stage<Int3FcGemm>("v1_t32_sg2", get_v1_config(32, 2)),
+                                        make_stage<Int3FcGemm>("v1_t32_sg4", get_v1_config(32, 4)),
+                                        make_stage<Int3FcGemm>("v1_t32_sg8", get_v1_config(32, 8)),
+                                        make_stage<Int3FcGemm>("v2_sg8", get_v2_config(8)),
+                                        make_stage<Int3FcGemm>("v2_sg16", get_v2_config(16)),
+                                        make_stage<Int3FcGemm>("scalar_t8", get_scalar_config(8)),
+                                        make_stage<Int3FcGemm>("scalar_t16", get_scalar_config(16))};
 
     FullyConnectedInt3DpasImpl() : PrimitiveImplOCL(FullyConnectedInt3Dpas::get_type_info_static()) {}
     FullyConnectedInt3DpasImpl(const program_node& node, const RuntimeParams& params) : FullyConnectedInt3DpasImpl() {
@@ -659,10 +645,6 @@ public:
                 add_stage(quantize, params);
                 add_stage(gemm, params);
             }
-        }
-
-        if (params.weights_layout.has_value()) {
-            _weights_reorder_params = make_weights_reorder_params(params.weights_layout.value());
         }
     }
 
@@ -787,8 +769,10 @@ bool FullyConnectedInt3Dpas::validate_impl(const program_node& node) const {
         return false;
     }
 
-    if (!desc.compressed_weights || !desc.weights_transposed || desc.weights_rank != 2 ||
-        fc_node.weights().get_output_layout(false).data_type != ov::element::u3) {
+    // The GEMMs read the weights in their plain [N, K] order, with no reorder.
+    const auto& weights_layout = fc_node.weights().get_output_layout(false);
+    if (!desc.compressed_weights || !desc.weights_transposed || desc.weights_rank != 2 || weights_layout.data_type != ov::element::u3 ||
+        !format::is_simple_data_format(weights_layout.format) || !is_dense(weights_layout)) {
         return false;
     }
 

@@ -19,16 +19,12 @@
 //
 // Weight layout
 // -------------
-// os_is_yx_osv16_isv32, produced by reorder_weights_int3. u3 values are packed
+// The plain [N, K] u3 weights as they come from the model. u3 values are packed
 // LSB-first as a linear bit stream, so 32 values of one output channel occupy
-// exactly 96 bits = 3 uints with no straddle at the granule boundary. Within a
-// (16 output x 32 input) block the three words of the 16 channels are stored as
-// three planes of 16 uints:
+// exactly 96 bits = 3 uints with no straddle at the granule boundary, and a row
+// is CHUNKS_K such granules:
 //
-//   uint index = (n_block * CHUNKS_K + k_chunk) * 48 + w * 16 + lane
-//
-// so lane L owning column n = n_block * 16 + L gathers its 32 weights with three
-// fully coalesced subgroup block reads.
+//   uint index = n * CHUNKS_K * 3 + k_chunk * 3 + w
 //
 // Compute path
 // ------------
@@ -139,7 +135,6 @@ KERNEL(quantize_input)(
 
 #define SIMD             16
 #define K_CHUNK          32                        // u3 values per 12-byte granule, and the DPAS K step
-#define CHUNK_UINTS      (3 * SIMD)
 #define GROUP_SIZE       QUANTIZE_GROUP_SIZE
 #define CHUNKS_PER_GROUP (GROUP_SIZE / K_CHUNK)
 #define CHUNKS_K         (IFM_SIZE / K_CHUNK)
@@ -149,23 +144,12 @@ KERNEL(quantize_input)(
 #define A_UINTS_PER_CHUNK (K_CHUNK / 4)
 
 // The three words of granule `chunk` (along K) of output channel nblk * 16 + lane.
-#if WEIGHTS_PLAIN
-// Plain [N, K] u3 bit stream: a row is CHUNKS_K granules of 3 words each.
 #define LOAD_GRANULE(B, nblk, chunk, w0, w1, w2)                                         \
     do {                                                                                 \
         const uint3 g_ = vload3(0, (B) + ((nblk) * SIMD + get_sub_group_local_id()) *    \
                                          (CHUNKS_K * 3) + (chunk) * 3);                  \
         w0 = g_.s0; w1 = g_.s1; w2 = g_.s2;                                              \
     } while (0)
-#else
-#define LOAD_GRANULE(B, nblk, chunk, w0, w1, w2)                                         \
-    do {                                                                                 \
-        const __global uint* wp_ = (B) + ((nblk) * CHUNKS_K + (chunk)) * CHUNK_UINTS;    \
-        w0 = intel_sub_group_block_read(wp_);                                            \
-        w1 = intel_sub_group_block_read(wp_ + SIMD);                                     \
-        w2 = intel_sub_group_block_read(wp_ + 2 * SIMD);                                 \
-    } while (0)
-#endif
 
 // Quantization groups staged into SLM per barrier, so that every subgroup has at
 // least one granule to decode.
@@ -242,7 +226,7 @@ KERNEL(quantize_input)(
 // K steps of SIMD granules each; every subgroup covers KL_RPS of the work-group's SIMD channels over all of K.
 #   define KL_STEPS (CHUNKS_K / SIMD)
 #   define KL_RPS (SIMD / SG_K)
-#   if !WEIGHTS_PLAIN || TILE_M != 1 || (CHUNKS_K % SIMD) != 0 || (SIMD % SG_K) != 0
+#   if TILE_M != 1 || (CHUNKS_K % SIMD) != 0 || (SIMD % SG_K) != 0
 #       error "fully_connected_int3_dpas.cl - invalid K_LANES configuration"
 #   endif
 #endif
@@ -374,15 +358,9 @@ KERNEL(fc)(
     __local int4 wshare[3][V2_GRAN_PER_ITER][SIMD];
     uint raw[V2_GRAN_PER_SG][3];
 
-    // Granule gidx of staging iteration it: group gi, chunk cc, column block j.
-#define V2_GRAN_NBLK(gidx) (nbw * V2_NB + ((gidx) % V2_NB))
-#define V2_GRAN_CHUNK(it, gidx)                                                     \
-    (((it) * V2_GPI + (gidx) / V2_GRAN_PER_GROUP) * CHUNKS_PER_GROUP +              \
-     ((gidx) / V2_NB) % CHUNKS_PER_GROUP)
-#if WEIGHTS_PLAIN
-    // Plain rows are loaded along K instead: flat granule f of the iteration is chunk f % V2_CPR of channel
+    // The weight rows are loaded along K: flat granule f of the iteration is chunk f % V2_CPR of channel
     // f / V2_CPR, so the lanes read runs of V2_CPR consecutive granules of a row. The decoded granule is stored
-    // to the [granule][column] slot the DPAS reads.
+    // to the [granule][column] slot the DPAS reads: granule (group gi, chunk cc, column block j) of the iteration.
 #define V2_CPR (V2_GPI * CHUNKS_PER_GROUP)
 #define V2_ROW(i) (((sg * V2_GRAN_PER_SG + (i)) * SIMD + lane) / V2_CPR)
 #define V2_COL(i) (((sg * V2_GRAN_PER_SG + (i)) * SIMD + lane) % V2_CPR)
@@ -399,18 +377,6 @@ KERNEL(fc)(
                    (c_ % CHUNKS_PER_GROUP) * V2_NB + r_ / SIMD][r_ % SIMD] =        \
             FUNC_CALL(u3_to_dpas_b4)(raw[i][0], raw[i][1], raw[i][2]);              \
     }
-#else
-#define V2_LOAD_RAW(it_)                                                            \
-    unroll_for (uint i = 0; i < V2_GRAN_PER_SG; ++i) {                              \
-        const uint gidx_ = sg * V2_GRAN_PER_SG + i;                                 \
-        LOAD_GRANULE(B, V2_GRAN_NBLK(gidx_), V2_GRAN_CHUNK(it_, gidx_),             \
-                     raw[i][0], raw[i][1], raw[i][2]);                              \
-    }
-#define V2_STAGE_RAW(b_)                                                            \
-    unroll_for (uint i = 0; i < V2_GRAN_PER_SG; ++i)                                \
-        wshare[b_][sg * V2_GRAN_PER_SG + i][lane] =                                 \
-            FUNC_CALL(u3_to_dpas_b4)(raw[i][0], raw[i][1], raw[i][2]);
-#endif
 
     V2_LOAD_RAW(0)
     V2_STAGE_RAW(0)
@@ -521,15 +487,11 @@ KERNEL(fc)(
         if (it + 1 < V2_ITERS_K)
             intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
     }
-#undef V2_GRAN_NBLK
-#undef V2_GRAN_CHUNK
 #undef V2_LOAD_RAW
 #undef V2_STAGE_RAW
-#if WEIGHTS_PLAIN
 #undef V2_CPR
 #undef V2_ROW
 #undef V2_COL
-#endif
 
     // All rows of a column block are finished before any is stored: the fused-op
     // inputs may alias the output as far as the compiler knows, so a store would
@@ -739,7 +701,7 @@ KERNEL(fc)(
         unroll_for (uint t = 0; t < TILE_M; ++t)
             acc[t] = 0;
 
-#if WEIGHTS_PLAIN && CHUNKS_PER_GROUP == 4
+#if CHUNKS_PER_GROUP == 4
         // The group's 4 granules are 48 contiguous bytes of this lane's row.
         const __global uint* gp = B + (nb * SIMD + lane) * (CHUNKS_K * 3) + g * CHUNKS_PER_GROUP * 3;
         const uint8 ga = vload8(0, gp);
@@ -749,7 +711,7 @@ KERNEL(fc)(
         unroll_for (uint cc = 0; cc < CHUNKS_PER_GROUP; ++cc) {
             const uint chunk = g * CHUNKS_PER_GROUP + cc;
             uint w0, w1, w2;
-#if WEIGHTS_PLAIN && CHUNKS_PER_GROUP == 4
+#if CHUNKS_PER_GROUP == 4
             w0 = gw[cc * 3]; w1 = gw[cc * 3 + 1]; w2 = gw[cc * 3 + 2];
 #else
             LOAD_GRANULE(B, nb, chunk, w0, w1, w2);
@@ -840,7 +802,6 @@ KERNEL(fc)(
 
 #undef SIMD
 #undef K_CHUNK
-#undef CHUNK_UINTS
 #undef GROUP_SIZE
 #undef CHUNKS_PER_GROUP
 #undef CHUNKS_K

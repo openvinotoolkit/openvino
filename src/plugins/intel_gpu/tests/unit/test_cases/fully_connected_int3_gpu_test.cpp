@@ -372,3 +372,9 @@ TEST_F(fully_connected_int3_gpu_tests, cached_dynamic) {
     p.fused_eltwise = true;
     run(p, true, true, {1, 20, 3});
 }
+
+TEST_F(fully_connected_int3_gpu_tests, cached_dynamic_static_impls_reuse_stages) {
+    auto p = with(base, 1, 1);
+    p.fused_eltwise = true;
+    run(p, true, true, {1, 20, 1}, {}, true);
+}
