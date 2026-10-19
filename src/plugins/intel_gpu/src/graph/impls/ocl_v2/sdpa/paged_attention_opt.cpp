@@ -1597,7 +1597,7 @@ public:
         if (!params.get_program().get_config().get_enable_sdpa_micro()) {
             GPU_DEBUG_TRACE_DETAIL << "[GPU] PA micro SDPA kernel DISABLED via OV_GPU_ENABLE_SDPA_MICRO=0; "
                                       "falling back to OCL paged_attention/sdpa_opt kernel.\n";
-            return false;
+            return DpasBackend::none;
         }
 
         if (params.get_device_info().supports_immad) {
