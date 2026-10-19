@@ -44,12 +44,14 @@ the input transform `hadamard/hadamard_fwht.cl` in front of either.
 | File | Role |
 |---|---|
 | `impls/ocl_v2/ternocl_int2/fully_connected_ternocl_int2.hpp` | Registration, acceptance rules, fused-chain -> epilogue mapping |
-| `impls/ocl_v2/ternocl_int2/fully_connected_ternocl_int2.cpp` | Weight packing, program cache, tile tables, execution of both GEMM families |
+| `impls/ocl_v2/ternocl_int2/fully_connected_ternocl_int2.cpp` | Weights reorder request, program cache, tile tables, execution of both GEMM families |
+| `impls/ocl_v2/ternocl_int2/ternocl_int2_weights_reorder.cpp` | Weights reorder `u2` -> `format::is_os_yx_isv16_ternary`, folded at build time (section 3) |
 | `impls/ocl_v2/CMakeLists.txt` | Embeds the TernOCL sources (up-convert, int2 x int8, FWHT, epilogue) as chunked string literals at configure time |
 | `thirdparty/TernOCL` | Submodule: [TernOCL](https://github.com/libxsmm/TernOCL) kernels, drivers, validation, tuning scripts |
 | `plugin/transformations/fuse_hadamard_fc.cpp` | Folds the graph-level rotation of rotated-basis checkpoints into the FC (section 7) |
 | `plugin/transformations/fuse_rms_rope.cpp` | Folds the per-head Q/K RMSNorm into RoPE when the rotation covers the whole head (Bonsai 1.7B-8B; Bonsai 2 27B's partial-rotary heads stay unfused). Controlled by `GPU_ENABLE_RMS_ROPE_FUSION` (default on) |
 | `registry/fully_connected_impls.cpp` | Priority relative to oneDNN/OpenCL |
+| `registry/reorder_impls.cpp` | Registers the weights reorder ahead of the stock reorders; it accepts only the TernOCL packed format and hands any other reorder to the stock CPU reorder when the CPU impl type is forced |
 | `primitive_inst.cpp` | Lets `ternocl_int2` keep its fused chain under dynamic shapes (section 4) |
 
 The impl needs only the plugin's OpenCL runtime (`GPU_RT_TYPE=OCL`).
@@ -67,6 +69,8 @@ holds; anything else falls through to the existing paths unchanged:
 
 - weights are a constant `u2` `[N, K]` with `K % 128 == 0` and `N % 16 == 0`
   (one lane per output column; the kernels clip partial tiles, so N is not padded)
+- the decompression scales are `f16` with the physical layout `[K/128, N]`, which is
+  what `prepare_quantization` produces for FC scales (`[N, K/128]` reordered to `fbyx`)
 - the zero point is the scalar 1 (`decompression_zero_point_scalar`), i.e. the
   codes {0, 1, 2} are the ternary values {-1, 0, +1}
 - activations are `f16`, a plain row-major `[M, K]` matrix without padding
@@ -99,26 +103,39 @@ covers, and its Hadamard input cannot fall back to another implementation.
 
 ## 3. Compile-time preparation
 
-Performed once per node in `create()`:
+The weights are packed with OpenVINO's weights reorder mechanism, like the
+blocked weight formats of the stock FC and convolution kernels:
 
-- **Weights**: read from their `data` node with a blocking copy, re-encoded from
-  `code - zp` to two's complement (`-1` as `0b11`) and packed 16 values per
-  `uint32`, K-major: word `(k/16, n)` holds rows `16*(k/16) .. +15` of column n,
-  row `16*kb+j` at bits `[2j, 2j+1]`. The result is a `[K/16, N]` USM device buffer.
+- `create()` sets the impl's `WeightsReorderParams` from the `u2` weights layout to
+  the same shape in `format::is_os_yx_isv16_ternary`.
+- `post_optimize_weights` inserts that reorder in front of the FC, and
+  `propagate_constants` folds it, so the packed weights are an ordinary constant of the
+  program: it is freed with the compiled model, saved by `export_model` / the model
+  cache like any other constant, and the source `u2` constant is left untouched
+  (it is dropped when nothing else reads it). FCs on the same weights share one
+  packed constant.
+- `TernoclInt2WeightsReorderImplementationManager` executes the reorder on the host:
+  it re-encodes `code - 1` to two's complement (`-1` as `0b11`), rejecting a code
+  outside `{0, 1, 2}`, and packs 16 values per `uint32`, K-major: word `(k/16, n)`
+  holds rows `16*(k/16) .. +15` of column n, row `16*kb+j` at bits `[2j, 2j+1]`.
   Both GEMM families read this layout: the up-convert kernels dequantize it, the
   int8 kernels feed the codes to the s8 x s2 DPAS as they are.
-- **Scales**: OpenVINO stores them `[N, K/128]`; the kernels want `[K/128, N]`,
-  transposed once into a device buffer.
-- **Hadamard signs** (rotated checkpoints): the `+-1` vector as `i8[K]` on the device.
+
+- **Scales**: read from the FC's scale input, whose `[K/128, N]` physical layout
+  `prepare_quantization` already provides.
+- **Hadamard signs** (rotated checkpoints): the `+-1` vector as `i8[K]` on the device,
+  owned by the impl and rebuilt from the primitive when an exported model is loaded.
+  The signs are part of the primitive's hash and equality, so an impl taken from the
+  in-memory impl cache always carries the signs of the node that uses it.
 
 Per-node scratch is allocated at execution and grown with M: the rotated
 activation `f16 [M, K]` (rotated checkpoints) and, for the int8 prefill, the
 activation scales `f16 [K/128, (M+31) & ~31]`.
 
-OpenVINO caches `primitive_impl` objects by `kernel_impl_params`, so one impl
-object can serve several nodes of identical shape. The packed buffers therefore
-live in a process-wide map keyed by node id and are resolved per execution; the
-impl keeps its own copy as a fallback for a renamed node.
+The impl keeps no per-node buffers: weights and scales come from the node's
+inputs, so one impl object can serve every node with equal `kernel_impl_params`.
+`save()` / `load()` serialize its scalar state; kernels are rebuilt on first use
+after a load.
 
 ---
 
@@ -126,7 +143,7 @@ impl keeps its own copy as a fallback for a renamed node.
 
 ```mermaid
 flowchart TD
-    A["execute_impl"] --> B["resolve packed weights / scales by node id"]
+    A["execute_impl"] --> B["packed weights and scales from the node's inputs"]
     B --> C{"hadamard_block?"}
     C -->|yes| D["hadamard_fwht_1024: y = H(s*x)/32<br/>into a per-node scratch"]
     C -->|no| E
@@ -145,8 +162,9 @@ Kernels are launched through the plugin stream (`set_arguments` /
 event handling and cost no host synchronisation.
 
 **Programs** are built with `clBuildProgram` on the engine's `cl_context`, once
-per (source, option string), and cached process-wide; each impl creates its
-`cl_kernel` from them on first use of a launch class. Clones share the kernel
+per (source, option string), in a cache shared by the impls created on that
+context and released with the last of them; each impl creates its `cl_kernel`
+from them on first use of a launch class. Clones share the kernel
 handles, like the stock OpenCL impls: OpenVINO clones cached impls on every
 shape update.
 

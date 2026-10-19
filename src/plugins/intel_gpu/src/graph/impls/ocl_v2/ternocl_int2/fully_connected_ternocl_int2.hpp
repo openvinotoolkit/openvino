@@ -58,11 +58,32 @@ inline std::optional<TernoclPostop> ternocl_int2_postop(const std::vector<fused_
     return std::nullopt;
 }
 
+// The kernels read the grouped f16 scales as [groups, N]. With transpose_b_scale the scales are
+// [N, groups], which prepare_quantization reorders to fbyx, i.e. that physical layout (a single
+// group is not reordered: [N, 1] in bfyx is the same); otherwise they are [groups, N] in bfyx.
+inline bool ternocl_scales_group_major(const layout& l, bool transpose_b_scale, int64_t N, int64_t G) {
+    if (l.data_type != data_types::f16 || l.data_padding || l.is_dynamic())
+        return false;
+    const auto& ps = l.get_partial_shape();
+    if (ps.size() < 2)
+        return false;
+    for (size_t i = 2; i < ps.size(); ++i) {
+        if (ps[i].get_length() != 1)
+            return false;
+    }
+    const auto d0 = ps[0].get_length();
+    const auto d1 = ps[1].get_length();
+    if (transpose_b_scale)
+        return d0 == N && d1 == G && (l.format == format::fbyx || (G == 1 && l.format == format::bfyx));
+    return d0 == G && d1 == N && l.format == format::bfyx;
+}
+
 // Weight-only-quantized FullyConnected on 2-bit ternary weights, executed by the
 // TernOCL int2 x f16 up-convert OpenCL kernels (fp16 DPAS). OpenVINO has no
 // signed 2-bit type, so ternary weights arrive as u2 codes {0,1,2} plus a zero
-// point of 1; they are re-encoded to the kernel's {0,1,3} and packed once, when
-// the impl is created.
+// point of 1. The impl requests format::is_os_yx_isv16_ternary through its weights
+// reorder params: the weights are re-encoded to the kernel's {0,1,3} and packed by
+// TernoclInt2WeightsReorderImplementationManager when the program folds its constants.
 struct TernoclInt2FCImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("TernoclInt2FCImplementationManager")
     TernoclInt2FCImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, vf) {}
@@ -146,6 +167,17 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
             TERNOCL_REJECT("N is not a multiple of 16");
         if (fc_prim->hadamard_block != 0 && (fc_prim->hadamard_block != 1024 || K % 1024 != 0))
             TERNOCL_REJECT("hadamard block must be 1024 and divide K");
+        if (fc_prim->hadamard_block != 0 && !fc_prim->hadamard_signs.empty() && fc_prim->hadamard_signs.size() != static_cast<size_t>(K))
+            TERNOCL_REJECT("hadamard signs length differs from K");
+
+        const size_t scale_dep = fc_prim->bias.is_valid() ? 3 : 2;
+        if (!fc_prim->decompression_scale.is_valid() || scale_dep >= fc_node.get_dependencies().size())
+            TERNOCL_REJECT("no decompression scale");
+        if (!ternocl_scales_group_major(fc_node.get_dependency(scale_dep).get_output_layout(false),
+                                        fc_prim->transpose_b_scale,
+                                        N,
+                                        K / static_cast<int64_t>(kTernoclGroupSize)))
+            TERNOCL_REJECT("decompression scales are not f16 [groups, N]: " + fc_node.get_dependency(scale_dep).get_output_layout(false).to_short_string());
 
         GPU_DEBUG_TRACE_DETAIL << "[ternocl-int2] accept " << fc_node.id() << std::endl;
         return true;
