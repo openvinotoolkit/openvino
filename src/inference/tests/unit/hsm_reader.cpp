@@ -106,13 +106,18 @@ class RecordingHandler : public hsm::ISectionReaderHandler {
 public:
     RecordingHandler(hsm::DeviceId device, uint32_t tag_id) : m_device(device), m_tag_id(tag_id) {}
 
-    bool handle_section(const hsm::ManifestEntry& entry, ov::util::MemoryView section) override {
+    bool handle_section(const hsm::ManifestEntry& entry, const hsm::Section& section) override {
         if (entry.device != m_device || entry.tag.id() != m_tag_id) {
             return false;
         }
-        last_payload = {reinterpret_cast<const char*>(section.data()), section.size()};
-        ++handled_count;
-        return true;
+
+        if (const auto bytes = section.to_bytes()) {
+            last_payload = to_string(*bytes);
+            ++handled_count;
+            return true;
+        } else {
+            return false;  // matches the previous read-failure-skips-the-entry behavior
+        }
     }
 
     std::string last_payload;
@@ -222,10 +227,12 @@ TEST(ISectionReaderHandlerTest, recognizes_own_device_and_tag) {
     hsm::ManifestEntry entry{};
     entry.device = fake_device_id;
     entry.tag = hsm::SectionTag::make(/*id=*/42, /*is_inline=*/false);
+    entry.size = 4;
 
     const std::byte payload[4] = {};
+    const hsm::Section section(entry, ov::util::MemoryView{payload, 4});
     RecordingHandler handler(fake_device_id, /*tag_id=*/42);
-    EXPECT_TRUE(handler.handle_section(entry, ov::util::MemoryView{payload, 4}));
+    EXPECT_TRUE(handler.handle_section(entry, section));
     EXPECT_EQ(handler.last_payload.size(), 4u);
     EXPECT_EQ(handler.handled_count, 1u);
 }
@@ -235,8 +242,9 @@ TEST(ISectionReaderHandlerTest, skips_entry_it_does_not_own) {
     entry.device = fake_device_id + 1;  // different device
     entry.tag = hsm::SectionTag::make(/*id=*/42, /*is_inline=*/false);
 
+    const hsm::Section section(entry, ov::util::MemoryView{});
     RecordingHandler handler(fake_device_id, /*tag_id=*/42);
-    EXPECT_FALSE(handler.handle_section(entry, ov::util::MemoryView{}));
+    EXPECT_FALSE(handler.handle_section(entry, section));
     EXPECT_EQ(handler.handled_count, 0u);  // never called
 }
 
