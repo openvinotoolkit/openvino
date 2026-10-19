@@ -80,7 +80,7 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
             auto cu_seqlens_param = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
             // Optionally copy all names from old input except replaced name
-            op::util::set_name(*cu_seqlens_param, std::string(new_name));
+            op::util::set_name(*cu_seqlens_param, new_name);
             model->replace_parameter(model->get_parameter_index(attn_param), cu_seqlens_param);
 
             for (auto target : cu_seqlens_param->get_output_target_inputs(0)) {

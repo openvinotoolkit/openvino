@@ -8,8 +8,35 @@ endif()
 
 set(TARGET_NAME openvino_hetero_plugin)
 
-file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
+set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/async_infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_serialization.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graph_debug_dump.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/device_subgraph.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_context.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_tensor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/subgraph_collector.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sync_infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/version.cpp)
+
+set(HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/async_infer_request.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_serialization.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/config.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graph_debug_dump.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/itt.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/device_subgraph.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/perf_log.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/properties.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_context.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_tensor.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/subgraph_collector.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sync_infer_request.hpp)
 
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "HETERO"

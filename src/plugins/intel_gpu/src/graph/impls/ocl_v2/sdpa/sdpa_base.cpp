@@ -78,16 +78,52 @@ size_t get_beam_table_id(const std::shared_ptr<const scaled_dot_product_attentio
 // innermost dimension (head_size) of K/V layouts.  Any code that reads head_size
 // from K/V layouts must use the logical (un-halved) size from the query layout.
 bool SDPABase::is_int4_kv_cache(const kernel_impl_params& params) {
+    if (params.is_type<scaled_dot_product_attention>()) {
+        const auto& desc = params.typed_desc<scaled_dot_product_attention>();
+        return desc->is_kv_compressed && data_type_traits::is_i4_u4(desc->quantization_attributes.quantization_dt);
+    }
+
     const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-    return ov::element::Type(kv_cache_dt).bitwidth() == 4;
+    return data_type_traits::is_i4_u4(kv_cache_dt);
+}
+
+// Returns {k_head_size, v_head_size} as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAMicro
+// and PagedAttentionOpt share this via SDPABase). For PagedAttention these are simply the descriptor
+// fields; for SDPA they are derived from the K/V input layouts (honoring transpose orders), with the
+// int4 KV-cache override (physical K/V layouts are packed to half size; use the logical, un-halved
+// head size taken from the query layout instead).
+std::pair<int64_t, int64_t> SDPABase::get_effective_head_sizes(const kernel_impl_params& params) {
+    if (params.is_type<paged_attention>()) {
+        const auto desc = params.typed_desc<paged_attention>();
+        return {static_cast<int64_t>(desc->k_head_size), static_cast<int64_t>(desc->v_head_size)};
+    }
+
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
+    auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
+
+    int64_t k_head_size = get_head_size(params.get_input_layout(1), extended_input_k_transpose_order);
+    int64_t v_head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
+
+    // 4-bit KV-cache: K/V layouts have head_size/2 due to u4→i8 packing.
+    // Override with logical head size from query (which is not packed).
+    if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
+        auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
+        const int64_t q_head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
+        k_head_size = q_head_size;
+        v_head_size = q_head_size;
+    }
+
+    return {k_head_size, v_head_size};
 }
 
 std::pair<int64_t, int64_t> SDPABase::get_gqa_params(const kernel_impl_params& params) const {
     if (params.is_type<scaled_dot_product_attention>()) {
         auto desc = params.typed_desc<scaled_dot_product_attention>();
         auto transpose_pshape = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order) {
-            if (order.empty())
+            if (order.empty()) {
                 return pshape;
+            }
 
             auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
             for (size_t i = 0; i < order.size(); i++) {
@@ -136,8 +172,9 @@ sdpa_configuration SDPABase::get_sdpa_configuration(const kernel_impl_params& im
     sdpa_configuration config;
 
     auto transpose_pshape = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order) {
-        if (order.empty())
+        if (order.empty()) {
             return pshape;
+        }
 
         auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
         for (size_t i = 0; i < order.size(); i++) {
@@ -159,11 +196,13 @@ sdpa_configuration SDPABase::get_sdpa_configuration(const kernel_impl_params& im
         }
     }
 
-    if (query_shape[query_shape.size() - 1].is_static())
+    if (query_shape[query_shape.size() - 1].is_static()) {
         config.k_head_size = query_shape[query_shape.size() - 1].get_length();
+    }
 
-    if (value_shape[value_shape.size() - 1].is_static())
+    if (value_shape[value_shape.size() - 1].is_static()) {
         config.v_head_size = value_shape[value_shape.size() - 1].get_length();
+    }
 
     // 4-bit KV-cache: physical V layout has head_size/2 due to u4 packing.
     // Use logical head size from query to get the correct un-halved value.
@@ -203,6 +242,8 @@ sdpa_configuration SDPABase::get_sdpa_configuration(const kernel_impl_params& im
     // figure out sdpa input number: QKV + attention_mask + scale, exclude: beam table, key compression scale/zp, value compression scale/zp
     config.input_num = get_data_inputs_num(*desc);
 
+    config.sliding_window = desc->sliding_window;
+
     return config;
 }
 
@@ -225,12 +266,14 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
 
         jit.make("IS_CAUSAL", desc->is_causal);
         jit.make("CAUSAL_MASK_LOWER_RIGHT", desc->causal_lower_right);
+        jit.make("SLIDING_WINDOW_SIZE", desc->sliding_window);
         if (desc->has_sink_input) {
             jit.make("SINK_DATA_T", to_ocl_type(params.input_layouts[5].data_type));
             jit.make("HAS_SINK_INPUT", 1);
         }
         jit.make("IS_KV_COMPRESSED", desc->is_kv_compressed);
         jit.make("IS_INT4_COMPRESSED", desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params));
+        jit.make("IS_INT4_SIGNED", desc->is_kv_compressed && desc->quantization_attributes.quantization_dt == ov::element::i4);
         GPU_DEBUG_TRACE_DETAIL << "desc->is_kv_compressed = " << desc->is_kv_compressed << std::endl;
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
@@ -309,6 +352,9 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
 
         jit.make("TARGET_SEQ_LEN", q_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_q_transpose_order)));
         jit.make("SOURCE_SEQ_LEN", k_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_k_transpose_order)));
+        jit.make("Q_BATCH_NUM", q_jitter.dim(get_transposed_channel(ChannelName::BATCH, extended_input_q_transpose_order)));
+        jit.make("K_BATCH_NUM", k_jitter.dim(get_transposed_channel(ChannelName::BATCH, extended_input_k_transpose_order)));
+        jit.make("V_BATCH_NUM", v_jitter.dim(get_transposed_channel(ChannelName::BATCH, extended_input_v_transpose_order)));
 
         auto get_static_or_runtime_dim = [](int64_t dim, std::string runtime_dim, const char* dim_name) {
             if (dim < 0)
@@ -408,13 +454,23 @@ kernel_impl_params SDPABase::static_canonicalize_shapes(const kernel_impl_params
     };
 
     const auto attn_mask_idx = 3;
+    // An attention_mask input with an empty (rank 0) shape is just a placeholder (e.g. used when only a
+    // scalar attn_mask_val is provided, or no mask is used at all) and must remain scalar - do not extend
+    // it to a false higher-rank shape, otherwise it becomes indistinguishable from a real static mask.
     if (updated_impl_params.input_layouts.size() > attn_mask_idx) {
         const auto attn_mask_shape = updated_impl_params.input_layouts[attn_mask_idx].get_partial_shape();
-        updated_impl_params.input_layouts[attn_mask_idx].set_partial_shape(extend_shape_to_rank_from_begin(attn_mask_shape));
+        if (attn_mask_shape.size() != 0) {
+            updated_impl_params.input_layouts[attn_mask_idx].set_partial_shape(extend_shape_to_rank_from_begin(attn_mask_shape));
+        }
     }
 
     // For scale of 1D tensor or attention_mask of empty shape, use extend_shape_to_rank_from_end as before
-    for (auto& input_layout : updated_impl_params.input_layouts) {
+    for (size_t idx = 0; idx < updated_impl_params.input_layouts.size(); ++idx) {
+        if (idx == attn_mask_idx && updated_impl_params.input_layouts[idx].get_partial_shape().size() == 0) {
+            // Keep the placeholder attention_mask scalar.
+            continue;
+        }
+        auto& input_layout = updated_impl_params.input_layouts[idx];
         size_t input_rank = input_layout.get_partial_shape().size();
         input_layout.set_partial_shape(input_rank <= 1 ? extend_shape_to_rank_from_end(input_layout.get_partial_shape())
                                                        : extend_pshape_to_rank_in_num_heads_dim(input_layout.get_partial_shape()));

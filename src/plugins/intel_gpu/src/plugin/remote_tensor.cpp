@@ -457,7 +457,8 @@ void RemoteTensorImpl::allocate() {
     update_properties();
     update_strides();
 
-    if (enable_caching && m_memory_object)
+    // update_properties() already asserts that m_memory_object is allocated
+    if (enable_caching)
         context->add_to_cache(m_hash, m_memory_object);
 }
 
@@ -476,11 +477,7 @@ bool RemoteTensorImpl::is_shared() const noexcept {
 }
 
 bool RemoteTensorImpl::supports_caching() const {
-#ifdef _WIN32
     return is_shared() && !m_mapped_memory;
-#else
-    return is_shared() && !m_mapped_memory && m_mem_type != TensorType::BT_SURF_SHARED;
-#endif
 }
 
 void RemoteTensorImpl::update_hash() {

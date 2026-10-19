@@ -70,8 +70,9 @@ static void CreateGatedMLPOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_
 
     }();
 
-    if (p.use_new_shape_infer())
+    if (p.use_new_shape_infer()) {
         prim.output_data_types = get_output_data_types(op);
+    }
 
     p.add_primitive(*op, prim);
 }

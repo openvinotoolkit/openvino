@@ -36,6 +36,7 @@ class TestSearchSorted(PytorchLayerTest):
     @pytest.mark.parametrize("right_mode", [False, True])
     @pytest.mark.parametrize("sorted_type", [np.float32, np.float16, np.int8])
     @pytest.mark.parametrize("values_type", [np.float16, np.int32, np.int64])
+    @pytest.mark.precommit_torch_export
     def test_searchsorted(self, sorted, values, right_mode, sorted_type, values_type, ie_device, precision, ir_version):
         self.sorted = sorted
         self.values = values

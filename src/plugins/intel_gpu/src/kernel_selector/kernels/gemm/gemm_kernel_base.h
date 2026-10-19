@@ -36,8 +36,9 @@ struct gemm_params : public base_params {
         ParamsKey k = base_params::GetParamsKey();
         k.EnableQuantization(quantization);
 
-        if (indirect_input0 || indirect_input1)
+        if (indirect_input0 || indirect_input1) {
             k.EnableIndirectGemm();
+        }
         return k;
     }
 };

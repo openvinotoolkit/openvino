@@ -43,7 +43,7 @@ size_t countOccurrences(const std::string& haystack, const std::string& needle) 
 }
 
 // Only PluginCompilerAdapter's successful bulk load logs a distinctive, identifiable marker (see
-// "VCLCompilerImpl return supported_options" in plugin_compiler_adapter.cpp). DriverCompilerAdapter has
+// "VCLCompilerImpl return supported_options" in compiler_impl.cpp). DriverCompilerAdapter has
 // no equivalent marker on its success path, so "exactly once" bulk-load checks below only apply to PLUGIN.
 std::string bulkLoadMarkerFor(ov::intel_npu::CompilerType compilerType) {
     return compilerType == ov::intel_npu::CompilerType::PLUGIN ? "VCLCompilerImpl return supported_options" : "";

@@ -98,8 +98,9 @@ struct arg_max_min : public primitive_base<arg_max_min> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const arg_max_min>(rhs);
 

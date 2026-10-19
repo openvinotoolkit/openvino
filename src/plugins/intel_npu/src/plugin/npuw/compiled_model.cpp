@@ -8,6 +8,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <unordered_map>
 
 #include "accuracy/comparator.hpp"
 #include "attn/attn_subgraph.hpp"
@@ -25,13 +26,16 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "orc/schema_npuw.hpp"
 #include "pa_compiled_model.hpp"
 #include "partitioning/patterns/opt.hpp"
 #include "pipelines/kokoro/kokoro_compiled_model.hpp"
 #include "plugin.hpp"
+#include "serialization.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "util.hpp"
 #include "v1/elements/accuracy_checked.hpp"
+#include "v1/elements/batched.hpp"
 #include "v1/elements/failsafe.hpp"
 
 // required for get_properties_per_device()
@@ -206,6 +210,16 @@ std::set<std::string> device_list_to_set(const std::string& device_list) {
     }
     return result;
 }
+
+void validate_closure_metadata_sizes(std::size_t closure_size,
+                                     std::size_t lazy_closure_size,
+                                     std::size_t is_remote_size,
+                                     std::size_t closure_uid_size) {
+    NPUW_ASSERT(lazy_closure_size == closure_size &&
+                "Malformed ORC blob: lazy_closure size does not match closure size");
+    NPUW_ASSERT(is_remote_size == closure_size && "Malformed ORC blob: is_remote size does not match closure size");
+    NPUW_ASSERT(closure_uid_size == closure_size && "Malformed ORC blob: closure_uid size does not match closure size");
+}
 }  // anonymous namespace
 
 namespace ov {
@@ -310,19 +324,43 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     auto config = properties;
     config.erase(ov::cache_dir.name());
 
-    if (properties.count(use_flux2_key) && properties.at(use_flux2_key).as<bool>() == true) {
+    const bool flux2_requested = properties.count(use_flux2_key) && properties.at(use_flux2_key).as<bool>() == true;
+    const bool llm_requested = properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true;
+    const bool pa_requested = properties.count(use_pa_key) && properties.at(use_pa_key).as<bool>() == true;
+    const bool kokoro_requested = properties.count(use_kokoro_key) && properties.at(use_kokoro_key).as<bool>() == true;
+
+    const bool gqa_explicitly_set = properties.count(use_gqa_key) > 0;
+    const bool gqa_explicitly_disabled = gqa_explicitly_set && properties.at(use_gqa_key).as<bool>() == false;
+    const bool gqa_requested = gqa_explicitly_set && properties.at(use_gqa_key).as<bool>() == true;
+    // Auto-detect GQA models unless NPUW_GQA=NO or another front-end was explicitly requested.
+    const bool gqa_detected = !gqa_explicitly_disabled && !flux2_requested && !llm_requested && !pa_requested &&
+                              !kokoro_requested && ov::npuw::GQACompiledModel::supports(model);
+
+    if (flux2_requested) {
         LOG_INFO("ov::npuw::Flux2CompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::Flux2CompiledModel>(model, plugin, config);
-    } else if (properties.count(use_gqa_key) && properties.at(use_gqa_key).as<bool>() == true) {
+    } else if (gqa_requested || gqa_detected) {
         LOG_INFO("ov::npuw::GQACompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::GQACompiledModel>(model, plugin, config);
-    } else if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
+    } else if (llm_requested) {
         LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
-        compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
-    } else if (properties.count(use_pa_key) && properties.at(use_pa_key).as<bool>() == true) {
+        auto llm_compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
+        const auto scoring_tags = ov::npuw::batched::scoring_tags(config);
+        if (scoring_tags.text_rerank || scoring_tags.text_embed) {
+            // Single-shot scoring pipelines (text rerank / embedding) may submit
+            // batched [N, ...] inputs, while the LLM pipeline pins everything to a
+            // static batch of 1. The batched element unrolls such an infer row by
+            // row over the unchanged batch-1 inner request.
+            LOG_INFO("Wrapping with ov::npuw::batched::CompiledModel.");
+            compiled_model =
+                std::make_shared<ov::npuw::batched::CompiledModel>(llm_compiled_model, plugin, scoring_tags);
+        } else {
+            compiled_model = llm_compiled_model;
+        }
+    } else if (pa_requested) {
         LOG_INFO("ov::npuw::PACompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::PACompiledModel>(model, plugin, config);
-    } else if (properties.count(use_kokoro_key) && properties.at(use_kokoro_key).as<bool>() == true) {
+    } else if (kokoro_requested) {
         LOG_INFO("ov::npuw::KokoroCompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::KokoroCompiledModel>(model, plugin, config);
     } else {
@@ -331,6 +369,71 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     }
     LOG_INFO("Done");
     return compiled_model;
+}
+
+namespace {
+bool is_partitioned_orc(std::istream& stream) {
+    const auto header = ov::npuw::orc::is_orc(stream);
+    return header.has_value() && header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA;
+}
+
+bool has_npuw_indicator(std::istream& stream) {
+    const auto start = stream.tellg();
+    ov::npuw::s11n::IndicatorType indicator;
+    const bool found = ov::npuw::orc::try_read_bytes(stream, indicator.data(), indicator.size()) &&
+                       indicator == NPUW_SERIALIZATION_INDICATOR;
+    stream.clear();
+    stream.seekg(start);
+    return found;
+}
+}  // anonymous namespace
+
+bool ov::npuw::ICompiledModel::is_npuw_blob(std::istream& stream) {
+    return is_partitioned_orc(stream) || has_npuw_indicator(stream);
+}
+
+std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model(
+    std::istream& stream,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
+    LOG_INFO("Choosing which NPUW CompiledModel to import");
+    LOG_BLOCK();
+
+    // The partitioned CompiledModel is a plain ORC container with no indicator
+    // header of its own.
+    if (is_partitioned_orc(stream)) {
+        return ov::npuw::CompiledModel::import_model(stream, plugin, properties);
+    }
+
+    const auto stream_start_pos = stream.tellg();
+    ov::npuw::s11n::IndicatorType serialization_indicator;
+    OPENVINO_ASSERT(
+        ov::npuw::orc::try_read_bytes(stream, serialization_indicator.data(), serialization_indicator.size()) &&
+            serialization_indicator == NPUW_SERIALIZATION_INDICATOR,
+        "Couldn't deserialize NPUW blob - no NPUW serialization indicator found!");
+    ov::npuw::s11n::IndicatorType compiled_model_indicator;
+    OPENVINO_ASSERT(
+        ov::npuw::orc::try_read_bytes(stream, compiled_model_indicator.data(), compiled_model_indicator.size()),
+        "Couldn't deserialize NPUW blob - no compiled model indicator found!");
+    stream.clear();
+    stream.seekg(stream_start_pos);
+
+    if (compiled_model_indicator == NPUW_FLUX2_COMPILED_MODEL_INDICATOR) {
+        return ov::npuw::Flux2CompiledModel::import_model(stream, plugin, properties);
+    } else if (compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
+        return ov::npuw::GQACompiledModel::import_model(stream, plugin, properties);
+    } else if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
+        // Properties are required for ov::weights_path
+        return ov::npuw::LLMCompiledModel::import_model(stream, plugin, properties);
+    } else if (compiled_model_indicator == NPUW_BATCHED_COMPILED_MODEL_INDICATOR) {
+        return ov::npuw::batched::CompiledModel::import_model(stream, plugin, properties);
+    } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
+        // The flat CompiledModel moved to the ORC container above; its old
+        // indicator-headed layout has no reader anymore.
+        OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
+                       "the current ORC serializer.");
+    }
+    OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
 }
 
 ov::npuw::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -830,7 +933,8 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
     }
 
     // Check NPUW_HOST_GATHER:QUANT based on the patterns (for tail vocab)
-    ov::npuw::patterns::opt::Context ctx;
+    // Before closure extraction, every Parameter is a function input.
+    ov::npuw::patterns::opt::Context ctx(model, model->get_parameters().size());
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm<ov::op::v0::Constant>>(std::ref(ctx), true);
     rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm<ov::op::v0::Constant>>(std::ref(ctx), true);
@@ -894,6 +998,193 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
     return false;
 }
 
+namespace {
+// Routing checks that need no compiled model, so they can also run for a function call desc
+// (whose compiled model lives in the function body and is not resolvable at codec time).
+void validate_routing_self_consistency(const ov::npuw::Subgraph::Gather& host_gather,
+                                       const ov::npuw::Subgraph::QuantUnpackGather& quant_unpack_gather,
+                                       std::size_t param_base,
+                                       std::size_t closure_size) {
+    auto require_sentinel_or_non_negative = [](int64_t idx, const char* field_name) {
+        OPENVINO_ASSERT(idx >= -1,
+                        "NPUW routing: \"",
+                        field_name,
+                        "\" value ",
+                        idx,
+                        " is negative and not the -1 sentinel");
+    };
+    require_sentinel_or_non_negative(host_gather.dst_idx, "host_gather.dst_idx");
+    require_sentinel_or_non_negative(host_gather.src_idx, "host_gather.src_idx");
+    require_sentinel_or_non_negative(host_gather.idx_idx, "host_gather.idx_idx");
+    require_sentinel_or_non_negative(quant_unpack_gather.dst_idx, "quant_unpack_gather.dst_idx");
+    require_sentinel_or_non_negative(quant_unpack_gather.src_w_idx, "quant_unpack_gather.src_w_idx");
+    require_sentinel_or_non_negative(quant_unpack_gather.src_z_idx, "quant_unpack_gather.src_z_idx");
+    require_sentinel_or_non_negative(quant_unpack_gather.src_s_idx, "quant_unpack_gather.src_s_idx");
+    require_sentinel_or_non_negative(quant_unpack_gather.idx_idx, "quant_unpack_gather.idx_idx");
+
+    // Validate consistency of host_gather indices.
+    if (host_gather.dst_idx != -1) {
+        OPENVINO_ASSERT(host_gather.src_idx != -1,
+                        "NPUW routing: \"host_gather.src_idx\" cannot be -1 when \"host_gather.dst_idx\" is active");
+        OPENVINO_ASSERT(host_gather.idx_idx != -1,
+                        "NPUW routing: \"host_gather.idx_idx\" cannot be -1 when \"host_gather.dst_idx\" is active");
+    } else {
+        OPENVINO_ASSERT(host_gather.src_idx == -1,
+                        "NPUW routing: \"host_gather.src_idx\" must be -1 when \"host_gather.dst_idx\" is -1");
+        OPENVINO_ASSERT(host_gather.idx_idx == -1,
+                        "NPUW routing: \"host_gather.idx_idx\" must be -1 when \"host_gather.dst_idx\" is -1");
+    }
+
+    // Validate consistency of quant_unpack_gather indices.
+    if (quant_unpack_gather.dst_idx != -1) {
+        OPENVINO_ASSERT(quant_unpack_gather.idx_idx != -1,
+                        "NPUW routing: \"quant_unpack_gather.idx_idx\" cannot be -1 when "
+                        "\"quant_unpack_gather.dst_idx\" is active");
+        OPENVINO_ASSERT(quant_unpack_gather.src_w_idx != -1,
+                        "NPUW routing: \"quant_unpack_gather.src_w_idx\" cannot be -1 when "
+                        "\"quant_unpack_gather.dst_idx\" is active");
+        OPENVINO_ASSERT(quant_unpack_gather.src_s_idx != -1,
+                        "NPUW routing: \"quant_unpack_gather.src_s_idx\" cannot be -1 when "
+                        "\"quant_unpack_gather.dst_idx\" is active");
+    } else {
+        OPENVINO_ASSERT(
+            quant_unpack_gather.idx_idx == -1,
+            "NPUW routing: \"quant_unpack_gather.idx_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
+        OPENVINO_ASSERT(
+            quant_unpack_gather.src_w_idx == -1,
+            "NPUW routing: \"quant_unpack_gather.src_w_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
+        OPENVINO_ASSERT(
+            quant_unpack_gather.src_s_idx == -1,
+            "NPUW routing: \"quant_unpack_gather.src_s_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
+        OPENVINO_ASSERT(
+            quant_unpack_gather.src_z_idx == -1,
+            "NPUW routing: \"quant_unpack_gather.src_z_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
+    }
+
+    // host_gather.src_idx is an index into closure (not inputs): validate against closure_size.
+    if (host_gather.src_idx != -1) {
+        OPENVINO_ASSERT(static_cast<std::size_t>(host_gather.src_idx) >= param_base,
+                        "NPUW routing: \"host_gather.src_idx\" (",
+                        host_gather.src_idx,
+                        ") is less than param_base (",
+                        param_base,
+                        ")");
+        const std::size_t closure_idx = static_cast<std::size_t>(host_gather.src_idx) - param_base;
+        OPENVINO_ASSERT(closure_idx < closure_size,
+                        "NPUW routing: host_gather.src_idx - param_base (",
+                        closure_idx,
+                        ") is out of closure bounds [0, ",
+                        closure_size,
+                        ")");
+    }
+}
+}  // anonymous namespace
+
+void ov::npuw::validate_submodel_indices(const Subgraph::Gather& host_gather,
+                                         const Subgraph::QuantUnpackGather& quant_unpack_gather,
+                                         std::size_t param_base,
+                                         std::size_t closure_size,
+                                         bool has_compiled_model,
+                                         std::size_t n_model_inputs,
+                                         bool skip_param_base_bound_check) {
+    if (!has_compiled_model) {
+        // No compiled model was loaded: all routing indices must be the disabled sentinel (-1).
+        auto require_disabled = [](int64_t idx, const char* field_name) {
+            OPENVINO_ASSERT(idx == -1,
+                            "NPUW routing: \"",
+                            field_name,
+                            "\" = ",
+                            idx,
+                            " but no compiled model was loaded for this subgraph");
+        };
+        require_disabled(host_gather.dst_idx, "host_gather.dst_idx");
+        require_disabled(host_gather.src_idx, "host_gather.src_idx");
+        require_disabled(host_gather.idx_idx, "host_gather.idx_idx");
+        require_disabled(quant_unpack_gather.dst_idx, "quant_unpack_gather.dst_idx");
+        require_disabled(quant_unpack_gather.src_w_idx, "quant_unpack_gather.src_w_idx");
+        require_disabled(quant_unpack_gather.src_z_idx, "quant_unpack_gather.src_z_idx");
+        require_disabled(quant_unpack_gather.src_s_idx, "quant_unpack_gather.src_s_idx");
+        require_disabled(quant_unpack_gather.idx_idx, "quant_unpack_gather.idx_idx");
+        return;
+    }
+
+    validate_routing_self_consistency(host_gather, quant_unpack_gather, param_base, closure_size);
+
+    // Validate indices that directly address compiled_model->inputs().
+    auto check_input_idx = [&](int64_t idx, const char* field_name) {
+        OPENVINO_ASSERT(idx == -1 || (idx >= 0 && static_cast<std::size_t>(idx) < n_model_inputs),
+                        "NPUW routing: \"",
+                        field_name,
+                        "\" value ",
+                        idx,
+                        " is out of range [0, ",
+                        n_model_inputs,
+                        ")");
+    };
+    check_input_idx(host_gather.dst_idx, "host_gather.dst_idx");
+    check_input_idx(host_gather.idx_idx, "host_gather.idx_idx");
+    check_input_idx(quant_unpack_gather.dst_idx, "quant_unpack_gather.dst_idx");
+    check_input_idx(quant_unpack_gather.src_w_idx, "quant_unpack_gather.src_w_idx");
+    check_input_idx(quant_unpack_gather.src_z_idx, "quant_unpack_gather.src_z_idx");
+    check_input_idx(quant_unpack_gather.src_s_idx, "quant_unpack_gather.src_s_idx");
+    check_input_idx(quant_unpack_gather.idx_idx, "quant_unpack_gather.idx_idx");
+
+    // Block-KV HFA has one function param per KV block, more than its tile model's inputs.
+    if (!skip_param_base_bound_check) {
+        OPENVINO_ASSERT(param_base <= n_model_inputs && closure_size <= n_model_inputs - param_base,
+                        "NPUW routing: param_base (",
+                        param_base,
+                        ") + closure_size (",
+                        closure_size,
+                        ") exceeds n_model_inputs (",
+                        n_model_inputs,
+                        ")");
+    }
+}
+
+void ov::npuw::CompiledModel::validate_submodels(const std::vector<CompiledModelDesc>& submodels) {
+    for (std::size_t idx = 0; idx < submodels.size(); ++idx) {
+        const auto& subm = submodels[idx];
+        ov::SoPtr<ov::ICompiledModel> effective_compiled_model = subm.compiled_model;
+        // Imported function calls do not restore pipeline state, the function body owns it.
+        const CompiledModelDesc* behavior_desc = &subm;
+
+        if (subm.replaced_by.has_value()) {
+            const std::size_t target_idx = subm.replaced_by.value();
+            OPENVINO_ASSERT(target_idx < submodels.size(),
+                            "NPUW routing: submodel ",
+                            idx,
+                            " replaced_by index ",
+                            target_idx,
+                            " is out of range [0, ",
+                            submodels.size(),
+                            ")");
+            effective_compiled_model = submodels[target_idx].compiled_model;
+            behavior_desc = &submodels[target_idx];
+            OPENVINO_ASSERT(effective_compiled_model,
+                            "NPUW routing: submodel ",
+                            idx,
+                            " replaced_by target ",
+                            target_idx,
+                            " has no compiled model");
+        }
+
+        const auto& closure_desc = subm.closure.get();
+        const std::size_t closure_size = closure_desc.closure.size();
+        const bool has_compiled_model = static_cast<bool>(effective_compiled_model);
+        const std::size_t n_model_inputs = has_compiled_model ? effective_compiled_model->inputs().size() : 0u;
+        const bool skip_param_base_bound_check = ov::npuw::attn::has_block_kv_hfa(behavior_desc->pipeline);
+
+        validate_submodel_indices(subm.host_gather,
+                                  subm.quant_unpack_gather,
+                                  subm.param_base,
+                                  closure_size,
+                                  has_compiled_model,
+                                  n_model_inputs,
+                                  skip_param_base_bound_check);
+    }
+}
+
 void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Stream& stream,
                                                            const ov::npuw::s11n::WeightsContext& ctx,
                                                            std::optional<std::size_t> orc_device_index,
@@ -945,6 +1236,9 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
         host_gather.idx_idx & quant_unpack_gather.dst_idx & quant_unpack_gather.src_w_idx &
         quant_unpack_gather.src_z_idx & quant_unpack_gather.src_s_idx & quant_unpack_gather.idx_idx & spatial;
 
+    // Closure size is not yet known at this point; full index bounds validation (including
+    // src_idx vs closure) is deferred to after closure_size is read – see calls below.
+
     // Function calls share pipeline.context with their function body at runtime.
     // There is no need to serialize the compiled moe/attn state for each call –
     // doing so would re-import NPU blobs for every repeated layer (one per call),
@@ -984,17 +1278,35 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
 
     stream & closure_desc.is_remote & closure_desc.closure_uid;
 
+    // A funcall's own compiled_model lives in the function body and cannot be resolved here, so only
+    // the model-independent checks run for it - validate_submodels() covers the rest once all descs are read.
+    auto validate_routing_indices = [&](std::size_t closure_size) {
+        if (is_fcall) {
+            validate_routing_self_consistency(host_gather, quant_unpack_gather, param_base, closure_size);
+        } else {
+            const bool skip_param_base_bound_check = ov::npuw::attn::has_block_kv_hfa(pipeline);
+            ov::npuw::validate_submodel_indices(host_gather,
+                                                quant_unpack_gather,
+                                                param_base,
+                                                closure_size,
+                                                static_cast<bool>(compiled_model),
+                                                compiled_model ? compiled_model->inputs().size() : 0u,
+                                                skip_param_base_bound_check);
+        }
+    };
+
     if (ctx.is_weightless) {
         serialize_weightless(stream, scales, ctx);
         serialize_weightless(stream, zerops, ctx);
 
         std::size_t closure_size = closure_desc.closure.size();
         stream & closure_size;
+        validate_routing_indices(closure_size);
         if (stream.input()) {
-            NPUW_ASSERT(closure_desc.closure_uid.size() == closure_size &&
-                        "Malformed ORC blob: closure_uid size does not match closure size");
-            NPUW_ASSERT(closure_desc.is_remote.size() == closure_size &&
-                        "Malformed ORC blob: is_remote size does not match closure size");
+            validate_closure_metadata_sizes(closure_size,
+                                            closure_size,
+                                            closure_desc.is_remote.size(),
+                                            closure_desc.closure_uid.size());
         }
         std::vector<ov::Tensor> cpu_closures;
         std::vector<std::size_t> cpu_closure_ids;
@@ -1044,11 +1356,12 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
 
         std::size_t closure_size = closure_desc.closure.size();
         stream & closure_size;
+        validate_routing_indices(closure_size);
         if (stream.input()) {
-            NPUW_ASSERT(closure_desc.closure_uid.size() == closure_size &&
-                        "Malformed ORC blob: closure_uid size does not match closure size");
-            NPUW_ASSERT(closure_desc.is_remote.size() == closure_size &&
-                        "Malformed ORC blob: is_remote size does not match closure size");
+            validate_closure_metadata_sizes(closure_size,
+                                            closure_size,
+                                            closure_desc.is_remote.size(),
+                                            closure_desc.closure_uid.size());
         }
         std::vector<std::size_t> cpu_closure_ids;
         if (stream.output()) {
@@ -1143,7 +1456,7 @@ void ov::npuw::CompiledModel::ensure_phase0_compatibility() const {
 
 void ov::npuw::CompiledModel::serialize_orc(std::ostream& stream) const {
     ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA);
-    serialize_orc_container(stream, true, get_encrypt_callback(m_non_npuw_props));
+    serialize_orc_container(stream, true, get_encrypt_callback(non_npuw_props()));
 }
 
 void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
@@ -1151,6 +1464,8 @@ void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
                                                       const std::function<std::string(const std::string&)>& encrypt,
                                                       const ov::npuw::s11n::BF16Cache* bf16_consts) const {
     using namespace ov::npuw;
+
+    validate_submodels(m_compiled_submodels);
 
     if (m_cfg.get<::intel_npu::NPUW_ENSURE_COMPATIBILITY>()) {
         if (encrypt) {
@@ -1160,7 +1475,8 @@ void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
         ensure_phase0_compatibility();
     }
 
-    bool is_weightless = should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
+    ov::AnyMap serializable_props = non_npuw_props();
+    bool is_weightless = should_use_weightless_flow(serializable_props, m_cfg, m_const_to_offset);
     LOG_INFO("Serialization will be done via " << (is_weightless ? "weightless" : "flow with weights") << ".");
     // For top-level CompiledModel export we serialize this model's own BF16 cache.
     // For nested export (e.g. inside LLMCompiledModel) the parent may provide a
@@ -1168,7 +1484,6 @@ void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
     // propagated view must win so weightless import can reconstruct tensors correctly.
     const auto& bf16_cache = bf16_consts != nullptr ? *bf16_consts : m_bf16_consts;
 
-    ov::AnyMap serializable_props = m_non_npuw_props;
     serializable_props.erase(ov::cache_encryption_callbacks.name());
     s11n::WeightsContext weights_ctx(is_weightless, m_const_to_offset);
 
@@ -1280,6 +1595,9 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         meta_stream & compiled->m_cfg;
         compiled->m_cfg.parseEnvVars();
         meta_stream & compiled->m_non_npuw_props;
+        // Model priority is a runtime-only property: the submodels are imported with the default one,
+        // so drop the value saved at export time to report what they actually use
+        compiled->m_non_npuw_props.erase(ov::hint::model_priority.name());
         meta_stream & is_weightless;
         meta_stream & compiled->m_bf16_consts;
         if (encrypted) {
@@ -1396,6 +1714,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         OPENVINO_THROW("Missing ORC weights bank container");
     }
 
+    validate_submodels(compiled->m_compiled_submodels);
     validate_import_routing_tables(compiled);
 
     compiled->implement_properties();
@@ -1441,8 +1760,15 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
                 return;
             }
             const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
-            if (submodel_desc.compiled_model != nullptr &&
-                link.second >= submodel_desc.compiled_model->inputs().size()) {
+            if (submodel_desc.compiled_model == nullptr) {
+                return;
+            }
+            // Block-KV HFA has one function param per KV block, more than its tile model's inputs.
+            // Routed ports are function params, all of them are before the closure.
+            const std::size_t n_inputs = ov::npuw::attn::has_block_kv_hfa(submodel_desc.pipeline)
+                                             ? submodel_desc.param_base
+                                             : submodel_desc.compiled_model->inputs().size();
+            if (link.second >= n_inputs) {
                 OPENVINO_THROW("Invalid ",
                                table_name,
                                "[",
@@ -1452,7 +1778,7 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
                                " for submodel ",
                                link.first,
                                " (inputs: ",
-                               submodel_desc.compiled_model->inputs().size(),
+                               n_inputs,
                                ")");
             }
         };
@@ -1583,6 +1909,11 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& desc_closure = comp_model_desc.closure.get();
 
+        validate_closure_metadata_sizes(desc_closure.closure.size(),
+                                        desc_closure.closure.size(),
+                                        desc_closure.is_remote.size(),
+                                        desc_closure.closure_uid.size());
+
         for (std::size_t cidx = 0; cidx < desc_closure.closure.size(); ++cidx) {
             if (desc_closure.closure[cidx]) {
                 // host-side closure - already set, do nothing
@@ -1617,7 +1948,7 @@ void ov::npuw::CompiledModel::set_weights_bank(std::shared_ptr<ov::npuw::weights
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
     LOG_INFO("Finalizing weights bank...");
-    std::shared_future<void> weights_bank_evaluation = std::async(std::launch::async, [&]() {
+    auto finalize_weights = [&]() {
         // Register lazy tensors
         for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
             auto& comp_model_desc = m_compiled_submodels[idx];
@@ -1628,6 +1959,11 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             }
 
             const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+
+            validate_closure_metadata_sizes(comp_model_desc.closure.unsafe_get().closure.size(),
+                                            comp_model_desc.lazy_closure.size(),
+                                            comp_model_desc.closure.unsafe_get().is_remote.size(),
+                                            comp_model_desc.closure.unsafe_get().closure_uid.size());
 
             for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
                 if (comp_model_desc.closure.unsafe_get().closure[tidx]) {
@@ -1668,9 +2004,9 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
         }
 
         m_import_weights_ctx.reset();
-    });
+    };
 
-    m_eval_future = weights_bank_evaluation;
+    m_eval_future = std::async(std::launch::async, finalize_weights);
 
     for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
@@ -1680,7 +2016,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             continue;
         }
 
-        comp_model_desc.closure.set_future(weights_bank_evaluation);
+        comp_model_desc.closure.set_future(m_eval_future);
     }
 
     LOG_INFO("Done.");
@@ -1987,6 +2323,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                     const auto& first_model = pyramid_attn_models[0];
                     npu_device_str = device;
                     const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+                    std::lock_guard<std::mutex> lock(m_props_mutex);
                     const ov::Any existing_any =
                         ov::npuw::util::at::_(m_meta_devices[npu_device_str]).at_or(strides_key, std::string{});
                     saved_strides = existing_any.as<std::string>();
@@ -2022,6 +2359,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
 
         if (support_strides_for && !npu_device_str.empty()) {
             const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+            std::lock_guard<std::mutex> lock(m_props_mutex);
             if (saved_strides.empty()) {
                 m_meta_devices[npu_device_str].erase(strides_key);
             } else {
@@ -2058,6 +2396,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                 hfa->_can_use_tensor_view = true;
                 npu_device_str = device;
                 const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+                std::lock_guard<std::mutex> lock(m_props_mutex);
                 const ov::Any existing_any =
                     ov::npuw::util::at::_(m_meta_devices[device]).at_or(strides_key, std::string{});
                 saved_strides = existing_any.as<std::string>();
@@ -2078,6 +2417,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
 
             if (supports_strides_for && !npu_device_str.empty()) {
                 const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+                std::lock_guard<std::mutex> lock(m_props_mutex);
                 if (saved_strides.empty()) {
                     m_meta_devices[npu_device_str].erase(strides_key);
                 } else {
@@ -2097,11 +2437,24 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
 
     // set exclusive_async_requests in case when model is split
     // NOTE(dm): Not sure if it is required for the NPUW plugin, but likely it is
-    // Make a device config COPY here!
-    auto device_config = m_meta_devices[device];
+    // Make a device config COPY here! It may be called at runtime (failsafe fallback) while
+    // set_property() updates the per-device configs
+    ov::AnyMap device_config;
+    {
+        std::lock_guard<std::mutex> lock(m_props_mutex);
+        if (auto it = m_meta_devices.find(device); it != m_meta_devices.end()) {
+            device_config = it->second;
+        }
+    }
 
     if (ov::npuw::util::starts_with(device, "NPU") && m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
         device_config["NPU_RUN_INFERENCES_SEQUENTIALLY"] = "YES";
+    }
+
+    if (ov::npuw::util::starts_with(device, "NPU")) {
+        // Internal submodel recompilation; prevent re-entering NPUW auto-detect
+        // (e.g. on an un-decomposed GroupQueryAttention op).
+        device_config[ov::intel_npu::use_npuw.name()] = false;
     }
 
     const auto& cache_dir = m_cfg.get<::intel_npu::NPUW_CACHE_DIR>();
@@ -2428,8 +2781,132 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel::create_infer_re
     return wrap_async_infer_request(create_base_infer_request());
 }
 
+namespace {
+// Validates a user-supplied value and returns it in the property's typed form
+using PropertyNormalizer = ov::Any (*)(const ov::Any&);
+
+template <typename T, ov::PropertyMutability M>
+std::pair<std::string, PropertyNormalizer> typed_property(const ov::Property<T, M>& property) {
+    return {property.name(), [](const ov::Any& value) {
+                return ov::Any(value.as<T>());
+            }};
+}
+}  // anonymous namespace
+
 void ov::npuw::CompiledModel::set_property(const ov::AnyMap& properties) {
-    OPENVINO_NOT_IMPLEMENTED;
+    // Properties which can be changed after compilation.
+    static const std::unordered_map<std::string, PropertyNormalizer> runtime_mutable = {
+        typed_property(ov::hint::model_priority)};
+
+    ov::AnyMap updates;
+    for (const auto& [key, value] : properties) {
+        const auto it = runtime_mutable.find(key);
+        if (it == runtime_mutable.end()) {
+            OPENVINO_THROW("NPUW CompiledModel: '", key, "' cannot be changed after the model is compiled");
+        }
+        updates.emplace(key, it->second(value));
+    }
+    if (updates.empty()) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> set_property_lock(m_set_property_mutex);
+
+    // Each device config gets only the keys its device can change (e.g. CPU can't change any).
+    // Query the devices outside of m_props_mutex, take it only to access the maps.
+    std::vector<std::string> devices;
+    {
+        std::lock_guard<std::mutex> props_lock(m_props_mutex);
+        for (const auto& [device, device_props] : m_meta_devices) {
+            devices.push_back(device);
+        }
+    }
+    auto core = get_npuw_plugin()->get_core();
+    std::unordered_map<std::string, ov::AnyMap> device_updates;
+    for (const auto& device : devices) {
+        const auto device_mutable =
+            ov::npuw::util::mutable_properties(core->get_property(device, ov::supported_properties));
+        for (const auto& [key, value] : updates) {
+            if (device_mutable.count(key)) {
+                device_updates[device][key] = value;
+            }
+        }
+    }
+
+    // Collect every device-level compiled model owned by this partitioned model, once.
+    // Function calls have neither a compiled model nor extra models of their own (they run
+    // their body's), so each model appears only in the submodel which owns it. The extra
+    // models may reuse that submodel's own compiled model (e.g. the last pyramid model or
+    // the HFA final tile), so skip those.
+    std::vector<ov::SoPtr<ov::ICompiledModel>> targets;
+    for (const auto& desc : m_compiled_submodels) {
+        if (desc.compiled_model) {
+            targets.push_back(desc.compiled_model);
+        }
+        if (desc.pipeline.for_each_extra_compiled_model) {
+            desc.pipeline.for_each_extra_compiled_model(desc.pipeline.context,
+                                                        [&](const ov::SoPtr<ov::ICompiledModel>& cm) {
+                                                            if (cm && cm._ptr != desc.compiled_model._ptr) {
+                                                                targets.push_back(cm);
+                                                            }
+                                                        });
+        }
+    }
+
+    // Keys which at least one compiled submodel can change at runtime. Only those are
+    // remembered, so get_property never reports a value no submodel uses.
+    ov::AnyMap applied;
+
+    // Same for the compiled submodels
+    std::vector<std::pair<ov::SoPtr<ov::ICompiledModel>, ov::AnyMap>> cm_updates;
+    for (const auto& cm : targets) {
+        const auto cm_mutable = ov::npuw::util::mutable_properties(
+            cm->get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>());
+        ov::AnyMap props;
+        for (const auto& [key, value] : updates) {
+            if (cm_mutable.count(key)) {
+                props.emplace(key, value);
+                applied[key] = value;
+            }
+        }
+        if (props.empty()) {
+            LOG_DEBUG("Skipping a submodel which can't change any of the requested properties");
+            continue;
+        }
+        cm_updates.emplace_back(cm, std::move(props));
+    }
+
+    for (const auto& [key, value] : updates) {
+        if (!applied.count(key)) {
+            LOG_WARN("NPUW CompiledModel: '" << key << "' can't be changed by any of the submodels, ignoring it");
+        }
+    }
+
+    // Update the per-device configs first, so submodels compiled from now on (e.g. failsafe
+    // fallbacks) inherit the new values, and remember them for get_property/export. A fallback
+    // which already took the old config holds its failsafe lock until it's done, so the
+    // propagation below waits for it and then reaches the newly compiled model.
+    {
+        std::lock_guard<std::mutex> props_lock(m_props_mutex);
+        for (const auto& [device, props] : device_updates) {
+            auto& device_props = m_meta_devices.at(device);
+            for (const auto& [key, value] : props) {
+                device_props[key] = value;
+            }
+        }
+        for (const auto& [key, value] : applied) {
+            m_non_npuw_props[key] = value;
+        }
+    }
+
+    for (const auto& [cm, props] : cm_updates) {
+        cm->set_property(props);
+    }
+}
+
+ov::AnyMap ov::npuw::CompiledModel::non_npuw_props() const {
+    std::lock_guard<std::mutex> lock(m_props_mutex);
+    return m_non_npuw_props;
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::CompiledModel::get_runtime_model() const {
@@ -2449,8 +2926,12 @@ ov::Any ov::npuw::CompiledModel::get_property(const std::string& name) const {
     auto&& configIterator = m_prop_to_opt.find(name);
     if (configIterator != m_prop_to_opt.cend()) {
         return std::get<1>(configIterator->second)(m_cfg);
-    } else if (m_non_npuw_props.count(name)) {
-        return m_non_npuw_props.at(name);
+    }
+    {
+        std::lock_guard<std::mutex> lock(m_props_mutex);
+        if (auto it = m_non_npuw_props.find(name); it != m_non_npuw_props.end()) {
+            return it->second;
+        }
     }
 
     OPENVINO_THROW("Unsupported configuration key: ", name);
@@ -2561,70 +3042,85 @@ void ov::npuw::CompiledModel::implement_properties() {
 
     // 1.
     // OV Public
-    m_prop_to_opt = {{ov::supported_properties.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) -> std::vector<PropertyName>& {
-                           return m_all_supported_props;
-                       }}},
-                     {ov::device::id.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::device::id);
-                       }}},
-                     {ov::enable_profiling.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::enable_profiling);
-                       }}},
-                     {ov::model_name.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) -> std::string& {
-                           return m_name;
-                       }}},
-                     {ov::optimal_number_of_infer_requests.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           return 1u;
-                       }}},
-                     {ov::execution_devices.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           return "NPU";
-                       }}},
-                     {ov::loaded_from_cache.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           return m_loaded_from_cache;
-                       }}},
-                     // OV Public Hints
-                     {ov::hint::performance_mode.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::hint::performance_mode);
-                       }}},
-                     {ov::hint::execution_mode.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::hint::execution_mode);
-                       }}},
-                     {ov::hint::num_requests.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::hint::num_requests);
-                       }}},
-                     {ov::hint::inference_precision.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::hint::inference_precision);
-                       }}},
-                     {ov::hint::enable_cpu_pinning.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::hint::enable_cpu_pinning);
-                       }}},
-                     {ov::hint::model_priority.name(), {ov::PropertyMutability::RO, [&](const ::intel_npu::Config&) {
-                                                            GET_PLUGIN_PROP(ov::hint::model_priority);
-                                                        }}}};
+
+    m_prop_to_opt = {
+        {ov::supported_properties.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) -> std::vector<PropertyName>& {
+              return m_all_supported_props;
+          }}},
+        {ov::device::id.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              GET_PLUGIN_PROP(ov::device::id);
+          }}},
+        {ov::enable_profiling.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              GET_PLUGIN_PROP(ov::enable_profiling);
+          }}},
+        {ov::model_name.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) -> std::string& {
+              return m_name;
+          }}},
+        {ov::optimal_number_of_infer_requests.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              return 1u;
+          }}},
+        {ov::execution_devices.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              return "NPU";
+          }}},
+        {ov::loaded_from_cache.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              return m_loaded_from_cache;
+          }}},
+        // OV Public Hints
+        {ov::hint::performance_mode.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              GET_PLUGIN_PROP(ov::hint::performance_mode);
+          }}},
+        {ov::hint::execution_mode.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              GET_PLUGIN_PROP(ov::hint::execution_mode);
+          }}},
+        {ov::hint::num_requests.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              GET_PLUGIN_PROP(ov::hint::num_requests);
+          }}},
+        {ov::hint::inference_precision.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              GET_PLUGIN_PROP(ov::hint::inference_precision);
+          }}},
+        {ov::hint::enable_cpu_pinning.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              GET_PLUGIN_PROP(ov::hint::enable_cpu_pinning);
+          }}},
+        // clang-format off
+        {ov::hint::model_priority.name(),
+         {ov::PropertyMutability::RW,
+          [&](const ::intel_npu::Config&) -> ov::Any {
+              // Report the priority the submodels actually use (set at compile time or via set_property), falling back to the plugin's default
+              {
+                  std::lock_guard<std::mutex> lock(m_props_mutex);
+                  if (auto it = m_non_npuw_props.find(ov::hint::model_priority.name()); it != m_non_npuw_props.end()) {
+                      return it->second.as<ov::hint::Priority>();
+                  }
+              }
+              GET_PLUGIN_PROP(ov::hint::model_priority);
+          }}}
+        // clang-format on
+    };
+
 #undef GET_PLUGIN_PROP
 
     // 2.

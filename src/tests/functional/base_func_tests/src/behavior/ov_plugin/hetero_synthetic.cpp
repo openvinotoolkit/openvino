@@ -60,9 +60,10 @@ void OVHeteroSyntheticTest::SetUp() {
                 core->register_plugin(pluginParameter._location + OV_BUILD_POSTFIX, pluginParameter._name);
             }
         } catch (ov::Exception& ex) {
-            if (std::string{ex.what()}.find("Device with \"" + pluginParameter._name
-                                             + "\"  is already registered in the OpenVINO Runtime")
-                == std::string::npos) {
+            // A previous test case in this suite already registered this library under this name;
+            // the shared Core keeps it, so skip it here and leave it registered on TearDown.
+            if (std::string{ex.what()}.find("is already registered as device \"" + pluginParameter._name + "\"") ==
+                std::string::npos) {
                 throw ex;
             } else {
                 registred = false;
