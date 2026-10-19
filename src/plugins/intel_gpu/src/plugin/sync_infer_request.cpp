@@ -980,7 +980,7 @@ void SyncInferRequest::allocate_states() {
             m_variables.emplace(vi.first, std::make_shared<VariableState>(vi.second,
                                                                           m_context,
                                                                           m_shape_predictor,
-                                                                          network->get_program()));
+                                                                          network->get_program()->get_tensor_conversion()));
         }
     }
 }

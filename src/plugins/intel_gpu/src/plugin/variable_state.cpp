@@ -6,132 +6,27 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/remote_tensor.hpp"
-#include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
-#include "intel_gpu/graph/program.hpp"
-#include "intel_gpu/graph/state_conversion_executor.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
+#include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
-#include <cstring>
 #include <memory>
 #include <limits>
 #include <utility>
 
 namespace ov::intel_gpu {
 
-namespace {
-
-// Returns false for unsupported inputs; true means conversion was submitted.
-bool convert_and_copy_gpu(const ov::ITensor* src, const cldnn::memory::ptr& dst,
-                        cldnn::stream& stream, const cldnn::layout& src_layout,
-                        const std::shared_ptr<cldnn::program>& program,
-                        cldnn::memory::ptr& src_memory, cldnn::event::ptr& completion,
-                        bool transpose) {
-    if (!program || program->get_engine().runtime_type() != cldnn::runtime_types::ocl ||
-        dst->get_layout().data_padding ||
-        !cldnn::format::is_default_format(src_layout.format) ||
-        src_layout.format != dst->get_layout().format ||
-        src->get_shape() != dst->get_layout().get_shape())
-        return false;
-
-    const cldnn::state_conversion_key key{static_cast<ov::element::Type_t>(src->get_element_type()), dst->get_layout().data_type};
-    auto executor = program->get_state_conversion_executor();
-    if (!executor || !executor->has_kernel(key))
-        return false;
-
-    cldnn::state_conversion_input input;
-    if (!cldnn::state_conversion_executor::prepare_input(src_layout, src->get_strides(), transpose, input))
-        return false;
-    const auto source_span_bytes = input.source_span_bytes;
-
-    auto* dst_engine = dst->get_engine();
-    if (!dst_engine || dst_engine->runtime_type() != cldnn::runtime_types::ocl ||
-        (dst->get_allocation_type() != cldnn::allocation_type::usm_device &&
-         dst->get_allocation_type() != cldnn::allocation_type::cl_mem) ||
-        program->get_engine().get_user_context(cldnn::runtime_types::ocl) !=
-            dst_engine->get_user_context(cldnn::runtime_types::ocl))
-        return false;
-
-    if (!dst_engine->supports_allocation(cldnn::allocation_type::usm_host))
-        return false;
-
-    const void* staging_source = nullptr;
-    cldnn::memory::ptr input_memory;
-    if (const auto* host = dynamic_cast<const USMHostTensor*>(src)) {
-        input_memory = host->get_impl()->get_original_memory();
-        if (!input_memory)
-            return false;
-    } else if (const auto* remote = dynamic_cast<const RemoteTensorImpl*>(src)) {
-        input_memory = remote->get_original_memory();
-        if (!input_memory)
-            return false;
-    } else if (dynamic_cast<const ov::IRemoteTensor*>(src)) {
-        return false;
-    } else {
-        staging_source = src->data();
-        if (staging_source == nullptr)
-            return false;
-    }
-
-    if (input_memory) {
-        auto* src_engine = input_memory->get_engine();
-        if ((input_memory->get_allocation_type() != cldnn::allocation_type::usm_host &&
-             input_memory->get_allocation_type() != cldnn::allocation_type::usm_device &&
-             input_memory->get_allocation_type() != cldnn::allocation_type::cl_mem) ||
-            !src_engine || src_engine->runtime_type() != cldnn::runtime_types::ocl ||
-            src_engine->get_user_context(cldnn::runtime_types::ocl) !=
-                dst_engine->get_user_context(cldnn::runtime_types::ocl))
-            return false;
-    }
-
-    // Preserve row gaps without reading beyond the view's last element.
-    const cldnn::layout span_layout(ov::Shape{source_span_bytes / src->get_element_type().size()},
-                                   src->get_element_type(), cldnn::format::bfyx);
-    src_memory = dst_engine->allocate_memory(span_layout, cldnn::allocation_type::usm_host, false);
-    try {
-        if (!input_memory || input_memory->get_allocation_type() == cldnn::allocation_type::usm_host) {
-            if (input_memory) {
-                OPENVINO_ASSERT(source_span_bytes <= input_memory->size(), "[GPU] State source span exceeds input memory");
-                staging_source = input_memory->buffer_ptr();
-            }
-            // Snapshot host input before returning; GPU conversion reads only staging.
-            std::memcpy(src_memory->buffer_ptr(), staging_source, source_span_bytes);
-            completion = executor->execute(key, src_memory, dst, stream, input);
-        } else {
-            auto copy_event = src_memory->copy_from(stream, *input_memory, 0, 0, source_span_bytes, false);
-            OPENVINO_ASSERT(copy_event, "[GPU] State staging copy did not return an event");
-            completion = executor->execute(key, src_memory, dst, stream, input, {copy_event});
-            copy_event->wait();
-        }
-        OPENVINO_ASSERT(completion, "[GPU] State conversion did not return a completion event");
-    } catch (...) {
-        // Drain submitted work before source or staging memory can be released.
-        try {
-            stream.finish();
-            completion.reset();
-            src_memory.reset();
-        } catch (...) {
-            // Keep staging if GPU completion cannot be confirmed.
-        }
-        throw;
-    }
-    return true;
-}
-
-}  // namespace
-
 VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::Ptr context,
                              std::shared_ptr<cldnn::ShapePredictor> shape_predictor,
-                             std::shared_ptr<cldnn::program> program)
+                             std::shared_ptr<cldnn::tensor_conversion> conversion)
     : VariableStateBase{info.m_id, context}
     , m_layout(info.m_layout)
     , m_user_specified_type(info.m_user_specified_type)
     , m_shape_predictor(shape_predictor)
     , m_prim_inst(info.m_release_variable_inst)
     , m_transpose_required(info.transpose_required)
-    , m_program(std::move(program))
+    , m_conversion(std::move(conversion))
     , m_initial_layout(info.m_layout) {
     update_device_buffer();
 }
@@ -142,17 +37,14 @@ VariableState::~VariableState() {
     } catch (...) {
         try {
             m_context->get_engine().get_service_stream().finish();
+            m_pending.clear_after_completion();
         } catch (...) {
         }
     }
 }
 
 void VariableState::wait_for_gpu_conversion() const {
-    if (!m_conversion_event)
-        return;
-    m_conversion_event->wait();
-    m_conversion_event.reset();
-    m_conversion_source.reset();
+    m_pending.wait();
 }
 
 void VariableState::reset() {
@@ -242,8 +134,8 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     bool gpu_conversion_submitted = false;
     if (state->get_element_type() == get_user_specified_type() &&
         state->get_element_type() != m_layout.data_type) {
-        gpu_conversion_submitted = convert_and_copy_gpu(state._ptr.get(), m_memory, stream, src_layout, m_program,
-                                                       m_conversion_source, m_conversion_event, m_transpose_required);
+        gpu_conversion_submitted = convert_and_copy_async(state._ptr.get(), m_memory, stream, src_layout, m_conversion,
+                                                         m_pending, m_transpose_required);
     }
     if (gpu_conversion_submitted) {
         GPU_DEBUG_INFO << "[state_conversion] GPU state=" << m_name
@@ -253,7 +145,7 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
         set();
         return;
     }
-    m_conversion_source.reset();
+    m_pending.clear_after_completion();
     convert_and_copy(state._ptr.get(), m_memory, stream, src_layout, m_transpose_required);
     set();
 }

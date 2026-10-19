@@ -3,7 +3,7 @@
 //
 
 #include "intel_gpu/graph/program.hpp"
-#include "intel_gpu/graph/state_conversion_executor.hpp"
+#include "intel_gpu/graph/tensor_conversion.hpp"
 
 #include "impls/ocl/kernels_cache.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
@@ -26,7 +26,7 @@
 namespace cldnn {
 namespace {
 
-std::shared_ptr<kernel_string> make_source(state_conversion_key key) {
+std::shared_ptr<kernel_string> make_source(tensor_conversion_key key) {
     auto source = std::make_shared<kernel_string>();
     source->entry_point = "state_convert_" + std::to_string(static_cast<int>(key.first)) + "_" +
                           std::to_string(static_cast<int>(key.second));
@@ -101,15 +101,15 @@ std::shared_ptr<kernel_string> make_source(state_conversion_key key) {
 
 }  // namespace
 
-void state_conversion_executor::set_kernels(const std::vector<state_conversion_key>& keys,
-                                            const std::vector<kernel::ptr>& kernels, const engine& engine) {
+void tensor_conversion::set_kernels(const std::vector<tensor_conversion_key>& keys,
+                                    const std::vector<kernel::ptr>& kernels, const engine& engine) {
     OPENVINO_ASSERT(keys.size() == kernels.size(), "[GPU] State conversion kernel count mismatch");
     OPENVINO_ASSERT(engine.runtime_type() == runtime_types::ocl, "[GPU] State conversion requires OpenCL");
 #ifdef OV_GPU_WITH_OCL_RT
     const auto device = engine.get_device();
     const auto& ocl_device = downcast<ocl::ocl_device>(*device).get_device();
     const auto device_limit = static_cast<size_t>(engine.get_device_info().max_work_group_size);
-    _kernels.clear();
+    std::map<tensor_conversion_key, kernel_info> prepared_kernels;
     for (size_t i = 0; i < keys.size(); ++i) {
         OPENVINO_ASSERT(supports(keys[i]) && kernels[i], "[GPU] Invalid state conversion kernel");
         const auto& handle = downcast<ocl::ocl_kernel>(*kernels[i]).get_handle();
@@ -117,16 +117,45 @@ void state_conversion_executor::set_kernels(const std::vector<state_conversion_k
         const auto kernel_limit = handle.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(ocl_device);
         const auto limit = std::min(device_limit, kernel_limit);
         OPENVINO_ASSERT(limit > 0, "[GPU] Invalid state conversion work-group limit");
-        OPENVINO_ASSERT(_kernels.emplace(keys[i], kernel_info{kernels[i], limit}).second,
+        OPENVINO_ASSERT(prepared_kernels.emplace(keys[i], kernel_info{kernels[i], limit}).second,
                         "[GPU] Duplicate state conversion kernel");
     }
+    _kernels = std::move(prepared_kernels);
+    _context = engine.get_user_context(runtime_types::ocl);
 #else
     OPENVINO_THROW("[GPU] State conversion requires OpenCL");
 #endif
 }
 
-bool state_conversion_executor::prepare_input(const layout& source_layout, const ov::Strides& strides,
-                                               bool transpose, state_conversion_input& input) {
+bool tensor_conversion::compatible_with(const engine& engine) const {
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _context != nullptr && engine.runtime_type() == runtime_types::ocl &&
+           _context == engine.get_user_context(runtime_types::ocl);
+}
+
+bool tensor_conversion::has_kernel(tensor_conversion_key key) const {
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _kernels.find(key) != _kernels.end();
+}
+
+std::vector<tensor_conversion_key> tensor_conversion::get_keys() const {
+    std::lock_guard<std::mutex> lock(_mutex);
+    std::vector<tensor_conversion_key> keys;
+    for (const auto& entry : _kernels)
+        keys.push_back(entry.first);
+    return keys;
+}
+
+std::vector<kernel::ptr> tensor_conversion::get_kernels() const {
+    std::lock_guard<std::mutex> lock(_mutex);
+    std::vector<kernel::ptr> kernels;
+    for (const auto& entry : _kernels)
+        kernels.push_back(entry.second.compiled_kernel);
+    return kernels;
+}
+
+bool tensor_conversion::prepare_input(const layout& source_layout, const ov::Strides& strides,
+                                      bool transpose, tensor_conversion_input& input) {
     const auto shape = source_layout.get_shape();
     if (shape.empty() || shape.size() > 6 || strides.size() != shape.size() ||
         !format::is_default_format(source_layout.format) || (transpose && shape.size() < 2))
@@ -134,7 +163,7 @@ bool state_conversion_executor::prepare_input(const layout& source_layout, const
 
     const auto physical_shape = source_layout.get_padded_dims();
     const auto element_size = data_type_traits::size_of(source_layout.data_type);
-    state_conversion_input prepared;
+    tensor_conversion_input prepared;
     prepared.source_span_bytes = element_size;
     prepared.padded = static_cast<bool>(source_layout.data_padding);
     prepared.transpose = transpose;
@@ -159,9 +188,10 @@ bool state_conversion_executor::prepare_input(const layout& source_layout, const
     return true;
 }
 
-event::ptr state_conversion_executor::execute(state_conversion_key key, memory::cptr src, memory::cptr dst,
-                                              stream& stream, const state_conversion_input& input,
-                                              const std::vector<event::ptr>& dependencies) {
+event::ptr tensor_conversion::execute(tensor_conversion_key key, memory::cptr src, memory::cptr dst,
+                                     stream& stream, const tensor_conversion_input& input,
+                                     const std::vector<event::ptr>& dependencies) {
+    std::lock_guard<std::mutex> lock(_mutex);
     auto it = _kernels.find(key);
     OPENVINO_ASSERT(it != _kernels.end(), "[GPU] State conversion kernel was not prepared");
     const auto count = input.count;
@@ -201,35 +231,31 @@ event::ptr state_conversion_executor::execute(state_conversion_key key, memory::
     args.outputs.push_back(std::move(dst));
     args.scalars = &desc.scalars;
 
-    std::lock_guard<std::mutex> lock(_mutex);
     stream.set_arguments(*it->second.compiled_kernel, desc, args);
     return stream.enqueue_kernel(*it->second.compiled_kernel, desc, args, dependencies, true);
 }
 
-std::shared_ptr<state_conversion_executor> state_conversion_registry::get() const {
-    std::lock_guard<std::mutex> lock(_mutex);
-    return _executor;
-}
-
-void state_conversion_registry::prepare(const engine& engine, kernels_cache& cache,
-                                        const std::vector<state_conversion_key>& requested_keys) {
+void tensor_conversion::prepare(const engine& engine, kernels_cache& cache,
+                                const std::vector<tensor_conversion_key>& requested_keys) {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    std::set<state_conversion_key> unique_keys;
+    std::set<tensor_conversion_key> unique_keys;
     if (engine.runtime_type() == runtime_types::ocl) {
         const auto& device_info = engine.get_device_info();
         for (const auto& key : requested_keys) {
             const bool needs_fp64 = key.first == data_types::f64 || key.second == data_types::f64;
             const bool needs_fp16 = key.first == data_types::f16 || key.second == data_types::f16;
-            if (key.first != key.second && state_conversion_executor::supports(key) &&
+            if (key.first != key.second && tensor_conversion::supports(key) &&
                 (!needs_fp64 || device_info.supports_fp64) && (!needs_fp16 || device_info.supports_fp16))
                 unique_keys.insert(key);
         }
     }
-    std::vector<state_conversion_key> keys(unique_keys.begin(), unique_keys.end());
+    std::vector<tensor_conversion_key> keys(unique_keys.begin(), unique_keys.end());
 
     if (_prepared) {
-        const auto existing_keys = _executor ? _executor->get_keys() : std::vector<state_conversion_key>{};
+        std::vector<tensor_conversion_key> existing_keys;
+        for (const auto& entry : _kernels)
+            existing_keys.push_back(entry.first);
         OPENVINO_ASSERT(keys == existing_keys, "[GPU] State conversion kernels do not match the network");
         return;
     }
@@ -248,30 +274,33 @@ void state_conversion_registry::prepare(const engine& engine, kernels_cache& cac
             OPENVINO_ASSERT(entry.second < kernels.size(), "[GPU] Invalid state conversion kernel index");
             kernels[entry.second] = entry.first;
         }
-        auto executor = std::make_shared<state_conversion_executor>();
-        executor->set_kernels(keys, kernels, engine);
-        _executor = std::move(executor);
+        set_kernels(keys, kernels, engine);
     }
     _prepared = true;
 }
 
-void state_conversion_registry::restore(const engine& engine, const std::vector<state_conversion_key>& keys,
-                                        const std::vector<kernel::ptr>& kernels) {
+void tensor_conversion::restore(const engine& engine, const std::vector<tensor_conversion_key>& keys,
+                                const std::vector<kernel::ptr>& kernels) {
     std::lock_guard<std::mutex> lock(_mutex);
-    if (!keys.empty()) {
-        auto executor = std::make_shared<state_conversion_executor>();
-        executor->set_kernels(keys, kernels, engine);
-        _executor = std::move(executor);
-    }
+    if (!keys.empty())
+        set_kernels(keys, kernels, engine);
     _prepared = true;
 }
 
-std::shared_ptr<state_conversion_executor> program::get_state_conversion_executor() const {
-    return _state_conversions->get();
+std::shared_ptr<tensor_conversion> program::get_tensor_conversion(bool create_if_not_exist) const {
+    auto conversion = std::atomic_load(&_tensor_conversion);
+    if (!conversion && create_if_not_exist) {
+        auto candidate = std::make_shared<tensor_conversion>();
+        if (std::atomic_compare_exchange_strong(&_tensor_conversion, &conversion, candidate))
+            conversion = std::move(candidate);
+    }
+    return conversion;
 }
 
-void program::prepare_state_conversions(const std::vector<state_conversion_key>& requested_keys) {
-    _state_conversions->prepare(_engine, *_kernels_cache, requested_keys);
+void program::prepare_tensor_conversions(const std::vector<tensor_conversion_key>& requested_keys) {
+    if (requested_keys.empty())
+        return;
+    get_tensor_conversion()->prepare(_engine, *_kernels_cache, requested_keys);
 }
 
 }  // namespace cldnn

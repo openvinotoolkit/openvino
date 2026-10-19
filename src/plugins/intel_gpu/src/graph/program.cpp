@@ -22,7 +22,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
-#include "intel_gpu/graph/state_conversion_executor.hpp"
+#include "intel_gpu/graph/tensor_conversion.hpp"
 
 
 #include "allocation_order.hpp"
@@ -162,7 +162,6 @@ program::program(engine& engine_ref,
                  bool is_body_program)
     : _engine(engine_ref),
       _stream(_engine.create_stream(config)),
-      _state_conversions(std::make_unique<state_conversion_registry>()),
       _config(config),
       _task_executor(std::move(task_executor)),
       processing_order(),
@@ -211,7 +210,6 @@ program::program(engine& engine_ref,
                  bool is_internal)
     : _engine(engine_ref),
       _stream(_engine.create_stream(config)),
-      _state_conversions(std::make_unique<state_conversion_registry>()),
       _config(config),
       _task_executor(std::move(task_executor)),
       processing_order(),
@@ -227,7 +225,6 @@ program::program(engine& engine_ref,
 program::program(engine& engine, const ExecutionConfig& config)
     : _engine(engine),
       _stream(_engine.create_stream({})),
-      _state_conversions(std::make_unique<state_conversion_registry>()),
       _config(config),
       processing_order() {
     init_primitives();
@@ -1962,7 +1959,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
                 kernels_cache.add_to_cached_kernels(node->get_selected_impl()->get_kernels());
             }
         }
-        const auto conversion_executor = _state_conversions->get();
+        const auto conversion_executor = get_tensor_conversion(false);
         if (conversion_executor)
             kernels_cache.add_to_cached_kernels(conversion_executor->get_kernels());
         ob << kernels_cache;
@@ -1976,7 +1973,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
             ob << get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(kernels_cache);
         }
 
-        auto keys = conversion_executor ? conversion_executor->get_keys() : std::vector<state_conversion_key>{};
+        auto keys = conversion_executor ? conversion_executor->get_keys() : std::vector<tensor_conversion_key>{};
         ob << keys.size();
         for (const auto& key : keys) {
             ob << static_cast<int32_t>(key.first);
@@ -2184,7 +2181,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
 
         size_t conversion_count;
         ib >> conversion_count;
-        std::vector<state_conversion_key> conversion_keys;
+        std::vector<tensor_conversion_key> conversion_keys;
         conversion_keys.reserve(conversion_count);
         for (size_t i = 0; i < conversion_count; ++i) {
             int32_t src_type, dst_type;
@@ -2199,7 +2196,11 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         conversion_kernels.reserve(conversion_ids.size());
         for (const auto& id : conversion_ids)
             conversion_kernels.push_back(kernels_cache.get_kernel_from_cached_kernels(id));
-        _state_conversions->restore(_engine, conversion_keys, conversion_kernels);
+        if (!conversion_keys.empty()) {
+            get_tensor_conversion()->restore(_engine, conversion_keys, conversion_kernels);
+        } else {
+            std::atomic_store(&_tensor_conversion, std::shared_ptr<tensor_conversion>{});
+        }
     }
 
     size_t optimized_out_size;
