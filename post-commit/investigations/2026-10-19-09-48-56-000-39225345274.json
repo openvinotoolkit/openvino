@@ -1,0 +1,41 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-19-09-48-56-000-39225345274",
+    "timestamp": "2026-10-19T09:48:56Z",
+    "run_id": "39225345274",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39225345274",
+    "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+    "commit_sha": "a2a2ab3918db7fa4a345cf79b9637bb1c0df7c98",
+    "pr_number": "38808",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38808",
+    "author": "wilson-seok",
+    "category": "Network",
+    "title": "LLM accuracy GPU tests fail installing requirements - GitHub 504 cloning openvino.genai.git",
+    "signature": "fatal: unable to access 'https://github.com/<ORG>/<REPO>.git/': The requested URL returned error: 504|Network",
+    "signature_hash": "8788a3eff93ab889",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "LLM accuracy dGPU tests / LLM accuracy GPU tests",
+            "conclusion": "failure",
+            "symptom": "pip install of whowhatbench failed because git clone of openvino.genai.git hit a GitHub 504 Gateway Timeout"
+        }
+    ],
+    "key_errors": [
+        "Collecting whowhatbench@ git+https://github.com/openvinotoolkit/openvino.genai.git#subdirectory=tools/who_what_benchmark",
+        "Running command git clone --filter=blob:none --quiet https://github.com/openvinotoolkit/openvino.genai.git /tmp/pip-install-d7_22exo/whowhatbench_b66534e03df34367b4d45211c0b9660a",
+        "fatal: unable to access 'https://github.com/openvinotoolkit/openvino.genai.git/': The requested URL returned error: 504",
+        "error: subprocess-exited-with-error",
+        "exit code: 128",
+        "##[error]Process completed with exit code 1."
+    ],
+    "root_cause": "The 'Install LLM accuracy test requirements' step runs pip install against tests/llm/requirements.txt, which pulls the whowhatbench package directly via 'git+https://github.com/openvinotoolkit/openvino.genai.git'. During this run, GitHub's HTTPS endpoint returned a transient 504 Gateway Timeout to the git clone request, causing pip's VCS clone subprocess to exit with code 128 and the whole pip install (and the job) to fail. This is unrelated to the PR's actual change (an oneDNN GPU submodule bump) and is a transient external-service outage/timeout on github.com rather than a code or configuration defect.",
+    "reproduction_steps": "Not reliably reproducible locally; it depends on GitHub's availability at the time of the request. To attempt reproduction: run `pip install -r tests/llm/requirements.txt` in the same environment; the failure only manifests if github.com returns a 504 for the git clone of openvino.genai.git during that window.",
+    "recommended_actions": [
+        "Re-run the failed 'LLM accuracy dGPU tests' job; this is a transient GitHub-side 504 and is expected to succeed on retry.",
+        "Consider adding automatic retry/backoff around pip's VCS git clone of openvino.genai.git in tests/llm/requirements.txt installation step (e.g., wrap the pip install command with a retry loop) to reduce exposure to transient GitHub outages.",
+        "Consider vendoring or caching the who_what_benchmark package, or pinning to a release tag resolved via PyPI (if published) instead of a live git+https URL, to reduce dependency on GitHub availability during CI."
+    ],
+    "prevention_strategies": "Wrap network-dependent install steps that clone from git+https URLs with a retry/backoff wrapper (e.g., 3 attempts with exponential backoff) so transient upstream 504/5xx errors from GitHub do not fail the whole job. Monitor for repeated occurrences of this signature to distinguish genuine GitHub outages from a systemic networking/proxy misconfiguration on the runners.",
+    "historical_context": "A related but distinct Network-category pattern was recorded on 2026-10-13 (signature_hash eeae3ce3f5218e80): 'Could not resolve host: github.com' DNS failures during checkout/fetch steps. That is a DNS resolution failure, whereas this occurrence is a 504 Gateway Timeout from github.com itself during a git clone invoked by pip, so they are tracked as separate patterns despite both being transient GitHub connectivity issues."
+}

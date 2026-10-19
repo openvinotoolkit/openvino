@@ -1,6 +1,6 @@
 {
     "schema_version": "1.0",
-    "total": 38,
+    "total": 39,
     "entries": [
         {
             "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -395,6 +395,15 @@
             "category": "Flaky Test",
             "signature_hash": "da5b0923c1cd0777",
             "commit_sha": "a1cc667e1f27aa82045943e0d0292079c8fc61cd"
+        },
+        {
+            "investigation_id": "2026-10-19-09-48-56-000-39225345274",
+            "run_id": "39225345274",
+            "timestamp": "2026-10-19T09:48:56Z",
+            "title": "LLM accuracy GPU tests fail installing requirements - GitHub 504 cloning openvino.genai.git",
+            "category": "Network",
+            "signature_hash": "8788a3eff93ab889",
+            "commit_sha": "a2a2ab3918db7fa4a345cf79b9637bb1c0df7c98"
         }
     ]
 }

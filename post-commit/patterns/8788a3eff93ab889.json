@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "fatal: unable to access 'https://github.com/<ORG>/<REPO>.git/': The requested URL returned error: 504|Network",
+    "signature_hash": "8788a3eff93ab889",
+    "title": "LLM accuracy GPU tests fail installing requirements - GitHub 504 cloning openvino.genai.git",
+    "category": "Network",
+    "count": 1,
+    "first_seen": "2026-10-19T09:48:56Z",
+    "last_seen": "2026-10-19T09:48:56Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/39225345274"
+    ],
+    "affected_commits": [
+        "a2a2ab3918db7fa4a345cf79b9637bb1c0df7c98"
+    ],
+    "recent_timestamps": [
+        "2026-10-19T09:48:56Z"
+    ]
+}
