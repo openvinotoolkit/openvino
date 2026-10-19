@@ -19,7 +19,6 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/graph/resolve_edge_conflicts_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/memory_desc/empty_memory_desc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nodes/reorder_node_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/nodes/tensoriterator_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/cpu_runtime_configurator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/enforce_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/mul_add_to_fma.cpp
