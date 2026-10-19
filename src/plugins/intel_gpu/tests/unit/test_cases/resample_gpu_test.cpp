@@ -2110,6 +2110,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample"}));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample", {origin_format, "resample_ref"}} }));
 
         network net(engine, topo, config);
         net.set_input_data("in", in_mem);
@@ -2131,6 +2132,9 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
 
         ExecutionConfig config_opt = get_test_default_config(engine);
         config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample_opt", "res_to_bfyx"}));
+        if (params.operation_type != resample::InterpolateOp::InterpolateMode::LINEAR_ONNX) {
+            config_opt.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample_opt", {params.in_format, "resample_opt"}} }));
+        }
 
         cldnn::network::ptr net_opt = get_network(engine, topo_opt, config_opt, get_test_stream_ptr(), is_caching_test);
 
