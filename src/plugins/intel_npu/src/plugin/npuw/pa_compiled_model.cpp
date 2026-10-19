@@ -298,9 +298,11 @@ ov::AnyMap ov::npuw::PACompiledModel::make_variant_config(const ov::AnyMap& prop
 
     // A variant is an ordinary NPUW model: it must not select the PA front-end
     // again, and a partitioning chosen for the whole model does not apply to it.
+    // Its tail picks a dynamic number of logits rows, which the NPU compiler
+    // cannot take, so the tail goes straight to the PA device.
     config.erase(std::string(::intel_npu::NPUW_PA::key()));
     config.erase(std::string(::intel_npu::NPUW_PLAN::key()));
-    config.erase(std::string(::intel_npu::NPUW_SUBMODEL_DEVICE::key()));
+    config[std::string(::intel_npu::NPUW_SUBMODEL_DEVICE::key())] = "last:" + pa_device;
     config[ov::intel_npu::use_npuw.name()] = std::string("YES");
     config[std::string(::intel_npu::NPUW_WEIGHTS_BANK::key())] = weights_bank;
     return config;

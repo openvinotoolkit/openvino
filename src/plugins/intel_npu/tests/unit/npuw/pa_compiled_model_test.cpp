@@ -51,6 +51,7 @@ TEST(PAVariantConfig, PartitionsThePAOpsOffNPU) {
     EXPECT_EQ(str(config, "NPUW_ONLINE_AVOID"), "Op:PagedAttentionExtension/NPU");
     EXPECT_EQ(str(config, "NPUW_ONLINE_KEEP_BLOCKS_TAGGED"), "pa");
     EXPECT_EQ(str(config, "NPUW_FOLD"), "YES");
+    EXPECT_EQ(str(config, "NPUW_SUBMODEL_DEVICE"), "last:CPU");
     EXPECT_EQ(str(config, "NPUW_WEIGHTS_BANK"), "bank0");
     EXPECT_EQ(str(config, "NPU_COMPILATION_MODE_PARAMS"),
               "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
@@ -90,7 +91,7 @@ TEST(PAVariantConfig, ForwardsTheCallerPropertiesButNotTheWholeModelChoices) {
 
     EXPECT_EQ(config.count("NPUW_PA"), 0u);
     EXPECT_EQ(config.count("NPUW_PLAN"), 0u);
-    EXPECT_EQ(config.count("NPUW_SUBMODEL_DEVICE"), 0u);
+    EXPECT_EQ(str(config, "NPUW_SUBMODEL_DEVICE"), "last:CPU");
     EXPECT_EQ(str(config, "NPUW_DUMP_SUBS"), "YES");
     EXPECT_EQ(str(config, "KV_CACHE_PRECISION"), "f16");
 }
