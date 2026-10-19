@@ -153,6 +153,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_sliced_head_to_static.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_to_static.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_to_static.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_to_static_gqa.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_to_static_gqa.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/propagate_slice.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/propagate_slice.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/slice_out_embeds.cpp
@@ -170,6 +172,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc/schema_npuw.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_compiled_model.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_dispatch.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_dispatch.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/compiler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/compiler.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/graph.cpp
