@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -18,6 +19,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
@@ -26,15 +28,19 @@
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/scatter_update.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
+#include "ov_ops/rms.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
 
 using namespace ov;
 using ov::op::internal::GroupQueryAttention;
@@ -325,11 +331,15 @@ TEST(GroupQueryAttentionOpValidation, allows_static_multi_token_windowed_cache) 
     EXPECT_NO_THROW(make_gqa_op(1, /*seq*/ 4, 8, /*window*/ 2, /*swc*/ true));
 }
 
-TEST(GroupQueryAttentionOpValidation, rejects_static_batch_greater_than_one) {
-    // The decomposition uses a scalar past length and assumes batch == 1.
-    OV_EXPECT_THROW(make_gqa_op(/*batch*/ 2, 1, 8, /*window*/ -1, /*swc*/ false),
+TEST(GroupQueryAttentionOpValidation, allows_static_batch_greater_than_one) {
+    EXPECT_NO_THROW(make_gqa_op(/*batch*/ 2, 1, 8, /*window*/ -1, /*swc*/ false));
+}
+
+TEST(GroupQueryAttentionOpValidation, rejects_static_batch_greater_than_one_with_windowed_cache) {
+    // The windowed cache's rolling arithmetic is single-batch.
+    OV_EXPECT_THROW(make_gqa_op(/*batch*/ 2, 1, 8, /*window*/ 2, /*swc*/ true),
                     ov::NodeValidationFailure,
-                    testing::HasSubstr("batch_size == 1"));
+                    testing::HasSubstr("sliding_window_cache is only supported for batch_size == 1"));
 }
 
 TEST(GroupQueryAttentionOpValidation, allows_dynamic_sequence_with_windowed_cache) {
@@ -619,4 +629,223 @@ TEST(GroupQueryAttentionValues, bidirectional_mask_has_no_causal_comparison) {
     // on the query row.
     EXPECT_EQ(count_ops_of_type<op::v1::Greater>(model), 0u);
     EXPECT_EQ(count_ops_of_type<op::v1::GreaterEqual>(model), 1u);
+}
+
+namespace {
+// Packed QKV + RoPE with QK-Norm weights (Constants, as ONNX initializers are) at inputs 14/15.
+std::shared_ptr<Model> make_packed_rotary_qk_norm_gqa_model(const element::Type& type) {
+    const auto qkv =
+        std::make_shared<op::v0::Parameter>(type, PartialShape{1, NUM_HEADS + 2 * KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto split_lengths =
+        op::v0::Constant::create(element::i64, Shape{3}, {NUM_HEADS, KV_NUM_HEADS, KV_NUM_HEADS});
+    const auto split = std::make_shared<op::v1::VariadicSplit>(qkv,
+                                                               op::v0::Constant::create(element::i64, Shape{}, {1}),
+                                                               split_lengths);
+    const auto past_k = std::make_shared<op::v0::Parameter>(type, PartialShape{1, KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto past_v = std::make_shared<op::v0::Parameter>(type, PartialShape{1, KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
+    const auto total = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+    const auto cos = std::make_shared<op::v0::Parameter>(type, PartialShape{-1, HEAD_SIZE / 2});
+    const auto sin = std::make_shared<op::v0::Parameter>(type, PartialShape{-1, HEAD_SIZE / 2});
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    const auto q_weight = op::v0::Constant::create(type, Shape{HEAD_SIZE}, {0.5f});
+    const auto k_weight = op::v0::Constant::create(type, Shape{HEAD_SIZE}, {1.5f});
+    const auto gqa = std::make_shared<GroupQueryAttention>(OutputVector{split->output(0),
+                                                                        split->output(1),
+                                                                        split->output(2),
+                                                                        past_k,
+                                                                        past_v,
+                                                                        seqlens,
+                                                                        total,
+                                                                        cos,
+                                                                        sin,
+                                                                        empty,
+                                                                        empty,
+                                                                        empty,
+                                                                        empty,
+                                                                        empty,
+                                                                        q_weight,
+                                                                        k_weight},
+                                                           NUM_HEADS,
+                                                           KV_NUM_HEADS,
+                                                           0.0f,
+                                                           true,
+                                                           false,
+                                                           0,
+                                                           op::internal::GroupQueryAttentionQuantType::NONE,
+                                                           op::internal::GroupQueryAttentionQuantType::NONE,
+                                                           -1,
+                                                           false,
+                                                           false,
+                                                           true,
+                                                           0.0f,
+                                                           1e-5f);
+    ResultVector results;
+    for (size_t i = 0; i < gqa->get_output_size(); ++i)
+        results.push_back(std::make_shared<op::v0::Result>(gqa->output(i)));
+    return std::make_shared<Model>(results, ParameterVector{qkv, past_k, past_v, seqlens, total, cos, sin});
+}
+
+// The QK-Norm chain is emitted in the RMSFusion form, so plugins running RMSFusion after the decomposition get one
+// fused RMS per Q and K (f32 compute; f16/bf16 inputs are upcast once, as ORT does), feeding RoPE rather than SDPA.
+void check_qk_norm_fuses_to_rms(const element::Type& type) {
+    auto model = make_packed_rotary_qk_norm_gqa_model(type);
+    pass::Manager manager;
+    manager.register_pass<pass::GroupQueryAttentionDecomposition>();
+    manager.register_pass<pass::RMSFusion>(false);
+    manager.run_passes(model);
+
+    size_t rms_count = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (const auto rms = as_type_ptr<op::internal::RMS>(op)) {
+            ++rms_count;
+            EXPECT_EQ(rms->get_epsilon(), static_cast<double>(1e-5f));
+            EXPECT_EQ(rms->get_output_element_type(0), element::f32);
+            for (const auto& in : rms->output(0).get_target_inputs()) {
+                const auto consumer = in.get_node();
+                EXPECT_FALSE(is_type<op::v13::ScaledDotProductAttention>(consumer)) << "QK-Norm must precede RoPE";
+                EXPECT_EQ(is_type<op::v0::Convert>(consumer), type != element::f32) << consumer;
+            }
+        }
+    }
+    EXPECT_EQ(rms_count, 2u);
+    EXPECT_EQ(count_ops_of_type<op::v1::ReduceMean>(model), 0u);
+}
+}  // namespace
+
+TEST(GroupQueryAttentionValues, qk_norm_fuses_to_rms_f32) {
+    check_qk_norm_fuses_to_rms(element::f32);
+}
+
+TEST(GroupQueryAttentionValues, qk_norm_fuses_to_rms_f16) {
+    check_qk_norm_fuses_to_rms(element::f16);
+}
+
+namespace {
+std::shared_ptr<Model> make_qk_output_gqa_model(op::internal::GroupQueryAttentionQKOutput qk_output) {
+    const auto f32 = element::f32;
+    const auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, NUM_HEADS, -1, HEAD_SIZE});
+    const auto k = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto v = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto past_k = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto past_v = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
+    const auto total = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+    const auto gqa = std::make_shared<GroupQueryAttention>(OutputVector{q, k, v, past_k, past_v, seqlens, total},
+                                                           NUM_HEADS,
+                                                           KV_NUM_HEADS,
+                                                           0.0f,
+                                                           false,
+                                                           false,
+                                                           0,
+                                                           op::internal::GroupQueryAttentionQuantType::NONE,
+                                                           op::internal::GroupQueryAttentionQuantType::NONE,
+                                                           -1,
+                                                           false,
+                                                           false,
+                                                           true,
+                                                           0.0f,
+                                                           1e-6f,
+                                                           qk_output);
+    ResultVector results;
+    for (size_t i = 0; i < gqa->get_output_size(); ++i)
+        results.push_back(std::make_shared<op::v0::Result>(gqa->output(i)));
+    return std::make_shared<Model>(results, ParameterVector{q, k, v, past_k, past_v, seqlens, total});
+}
+}  // namespace
+
+// qk_output takes the explicit attention chain (one Q*K^T MatMul shared by the attention and the scores output,
+// no SDPA, no KV replication) and exposes the scores sliced to total_sequence_length columns.
+TEST(GroupQueryAttentionValues, qk_output_uses_explicit_attention_scores) {
+    for (const auto mode : {op::internal::GroupQueryAttentionQKOutput::BEFORE_SOFTMAX,
+                            op::internal::GroupQueryAttentionQKOutput::AFTER_SOFTMAX}) {
+        auto model = make_qk_output_gqa_model(mode);
+        decompose(model);
+        EXPECT_EQ(count_ops_of_type<op::v13::ScaledDotProductAttention>(model), 0u);
+        EXPECT_EQ(count_ops_of_type<op::v0::MatMul>(model), 2u);
+        ASSERT_EQ(model->get_results().size(), 4u);
+        const auto scores = model->get_results()[3]->get_input_node_shared_ptr(0);
+        ASSERT_TRUE(is_type<op::v8::Slice>(scores)) << scores;
+        const auto source = scores->get_input_node_shared_ptr(0);
+        if (mode == op::internal::GroupQueryAttentionQKOutput::AFTER_SOFTMAX) {
+            EXPECT_TRUE(is_type<op::v8::Softmax>(source)) << source;
+        } else {
+            EXPECT_TRUE(is_type<op::v1::Select>(source)) << source;
+        }
+    }
+}
+
+namespace {
+// Decomposes a decode GQA with the given batch / past and counts the ops matching the predicate.
+size_t count_decomposed_ops(const Dimension& batch,
+                            const Dimension& past,
+                            const std::function<bool(const std::shared_ptr<ov::Node>&)>& predicate) {
+    const auto gqa = make_gqa_op(batch, 1, past, /*window*/ -1, /*swc*/ false);
+    ResultVector results;
+    for (size_t i = 0; i < gqa->get_output_size(); ++i)
+        results.push_back(std::make_shared<op::v0::Result>(gqa->output(i)));
+    ParameterVector params;
+    for (const auto& in : gqa->input_values())
+        params.push_back(as_type_ptr<op::v0::Parameter>(in.get_node_shared_ptr()));
+    auto model = std::make_shared<Model>(results, params);
+    decompose(model);
+    size_t count = 0;
+    for (const auto& op : model->get_ordered_ops())
+        count += predicate(op) ? 1 : 0;
+    return count;
+}
+
+// The batched cache write: ScatterUpdate over the cache viewed as [B * Nkv * L, D] rows.
+bool is_flat_scatter_update(const std::shared_ptr<ov::Node>& op) {
+    return is_type<op::v3::ScatterUpdate>(op) && op->get_input_partial_shape(0).rank() == 2;
+}
+
+// The single-batch static cache write: ScatterUpdate on the rank-4 cache along the sequence axis.
+bool is_axis_scatter_update(const std::shared_ptr<ov::Node>& op) {
+    return is_type<op::v3::ScatterUpdate>(op) && op->get_input_partial_shape(0).rank() == 4;
+}
+}  // namespace
+
+// A static batch of 1 keeps the scalar-length graph (ScatterUpdate / Slice + Concat, which plugins and the NPU compiler
+// pattern-match); any other batch writes each batch's rows with one flat ScatterUpdate per K/V.
+TEST(GroupQueryAttentionValues, batch_one_keeps_scalar_cache_update) {
+    for (const auto& past : {Dimension(8), Dimension::dynamic()}) {
+        EXPECT_EQ(count_decomposed_ops(1, past, is_flat_scatter_update), 0u) << past;
+    }
+    EXPECT_EQ(count_decomposed_ops(1, 8, is_axis_scatter_update), 2u);
+}
+
+TEST(GroupQueryAttentionValues, batched_cache_update_is_per_batch) {
+    for (const auto& batch : {Dimension(2), Dimension::dynamic()}) {
+        for (const auto& past : {Dimension(8), Dimension::dynamic()}) {
+            EXPECT_EQ(count_decomposed_ops(batch, past, is_flat_scatter_update), 2u) << batch << " " << past;
+            EXPECT_EQ(count_decomposed_ops(batch, past, is_axis_scatter_update), 0u) << batch << " " << past;
+        }
+    }
+}
+
+// A preallocated cache with a dynamic batch is written in place: the decomposed present keeps the op's inferred
+// capacity (no Concat growth).
+TEST(GroupQueryAttentionValues, batched_fixed_capacity_cache_keeps_capacity) {
+    const auto gqa = make_gqa_op(Dimension::dynamic(), 1, 8, /*window*/ -1, /*swc*/ false);
+    const auto inferred_present = gqa->get_output_partial_shape(1);
+    ASSERT_EQ(inferred_present[2], Dimension(8));
+    ResultVector results;
+    for (size_t i = 0; i < gqa->get_output_size(); ++i)
+        results.push_back(std::make_shared<op::v0::Result>(gqa->output(i)));
+    ParameterVector params;
+    for (const auto& in : gqa->input_values())
+        params.push_back(as_type_ptr<op::v0::Parameter>(in.get_node_shared_ptr()));
+    auto model = std::make_shared<Model>(results, params);
+    decompose(model);
+    EXPECT_EQ(model->get_results()[1]->get_input_partial_shape(0), inferred_present);
+    EXPECT_EQ(model->get_results()[2]->get_input_partial_shape(0), inferred_present);
+    // A cache-growth Concat would join rank-4 [B, Nkv, L, D] tensors on the sequence axis (the rank-5 KV-head
+    // replication Concat is unrelated).
+    for (const auto& op : model->get_ordered_ops()) {
+        if (const auto concat = as_type_ptr<op::v0::Concat>(op)) {
+            EXPECT_FALSE(concat->get_output_partial_shape(0).rank() == 4 && concat->get_axis() == 2)
+                << "fixed-capacity cache must not grow by Concat: " << concat;
+        }
+    }
 }

@@ -685,6 +685,9 @@ Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx
 }
 
 Output<Node> trunc_toward_zero(const NodeContext& context, const Output<Node>& x) {
+    if (x.get_element_type().is_static() && x.get_element_type().is_integral_number()) {
+        return x;
+    }
     auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, x));
     auto is_negative = context.mark_node(std::make_shared<v1::Less>(x, zero));
