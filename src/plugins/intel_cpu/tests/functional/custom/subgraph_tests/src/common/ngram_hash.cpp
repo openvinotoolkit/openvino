@@ -31,6 +31,7 @@ struct NGramHashCase {
     std::vector<int64_t> multipliers;
     std::vector<int64_t> heads_per_order;
     int64_t num_engram;
+    std::vector<int64_t> vocab_sizes = {};
 };
 
 const std::vector<int64_t> qwen_multipliers{23703573157769, 20109073645365, 8052911324071, 3000000019};
@@ -46,12 +47,30 @@ const std::vector<NGramHashCase> cases{
     {"DeepSeekV4_1Flash_Bigram", {deepseek_multipliers[0], deepseek_multipliers[1]}, {4}, 8},
     {"DeepSeekV4_1Flash_Trigram", {deepseek_multipliers.begin(), deepseek_multipliers.begin() + 3}, {4, 4}, 8},
     {"DeepSeekV4_1Flash_Fourgram_PerOrderHeads", deepseek_multipliers, {2, 4, 3}, 8},
+    {"Barrett_UnitAndPowerOfTwo",
+     {0, std::numeric_limits<int64_t>::min(), -1, std::numeric_limits<int64_t>::max()},
+     {0, 2, 1},
+     0,
+     {1, 2, 1073741824}},
+    {"Barrett_MaxDivisor",
+     {std::numeric_limits<int64_t>::max(), std::numeric_limits<int64_t>::min()},
+      {2},
+     0,
+      {std::numeric_limits<int32_t>::max(), 1}},
+    {"Barrett_NearPowerOfTwo",
+     {qwen_multipliers.begin(), qwen_multipliers.begin() + 3},
+     {2, 1},
+     0,
+     {536870911, 536870913, 536870923}},
 };
 
 enum class HashInputKind { direct_i32, direct_i64, traced_i64 };
 using NGramHashParams = std::tuple<NGramHashCase, HashInputKind>;
 
 std::vector<int64_t> make_vocab_sizes(const NGramHashCase& config) {
+    if (!config.vocab_sizes.empty()) {
+        return config.vocab_sizes;
+    }
     std::vector<int64_t> vocab;
     for (const auto heads : config.heads_per_order) {
         for (int64_t head = 0; head < heads; ++head) {
@@ -126,6 +145,9 @@ std::shared_ptr<Model> make_traced_model(const NGramHashCase& config, bool refer
     for (size_t back = 1; back < config.multipliers.size(); ++back) {
         mix = std::make_shared<op::v13::BitwiseXor>(mix, term(back));
         const auto heads = static_cast<size_t>(config.heads_per_order[back - 1]);
+        if (heads == 0) {
+            continue;
+        }
         const std::vector<int64_t> sizes(vocab.begin() + head_offset, vocab.begin() + head_offset + heads);
         const std::vector<int64_t> starts(offsets.begin() + head_offset, offsets.begin() + head_offset + heads);
         head_offset += heads;

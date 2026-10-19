@@ -37,9 +37,12 @@ protected:
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
 private:
+    struct JitKernel;
+
     template <typename T>
     void executeImpl();
 
+    std::shared_ptr<JitKernel> m_jit_kernel;
     size_t m_ngram_size = 0;
     std::vector<int64_t> m_heads_per_order;
     std::vector<int64_t> m_multipliers;
