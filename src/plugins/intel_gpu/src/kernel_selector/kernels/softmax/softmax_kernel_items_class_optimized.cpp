@@ -49,8 +49,10 @@ inline static size_t GetItemClassCount(const DataTensor& input, SoftmaxDim dim) 
 ParamsKey SoftmaxKerneItemsClassOptimized::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::byxf);
     k.EnableInputLayout(DataLayout::bfyx);

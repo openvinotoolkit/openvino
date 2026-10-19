@@ -5,12 +5,12 @@ Remote Tensor API of NPU Plugin
 .. meta::
    :description: The Remote Tensor API of NPU plugin in OpenVINO™ supports
                  interoperability with existing native APIs, such as
-                 NT handle, or DMA-BUF System Heap, and provides mechanisms
+                 NT handle, or DMA-BUF file descriptor, and provides mechanisms
                  for mapping files into memory for efficient data access.
 
 The NPU plugin supports memory sharing between OpenVINO and native APIs such as OpenCL, Vulkan, or DirectX 12.
 It implements the ``ov::RemoteContext`` and ``ov::RemoteTensor`` interfaces, providing mechanisms for efficient memory sharing.
-On Windows, the plugin exports an NT handle; on Linux, it uses a DMA-BUF System Heap. You can share this memory by
+On Windows, the plugin exports an NT handle; on Linux, it uses a DMA-BUF file descriptor. You can share this memory by
 passing the pointer as the ``shared_buffer`` member to the ``remote_tensor(..., shared_buffer)`` create function.
 Another option is to import memory by mapping a file into memory or by using a CPU virtual address allocation. These methods
 help avoid memory copy overhead when plugging OpenVINO inference into an existing NPU pipeline.
@@ -95,7 +95,7 @@ For more details, see the code snippets below:
                :language: cpp
                :fragment: [wrap_nt_handle]
 
-         .. tab-item:: DMA-BUF System Heap file descriptor
+         .. tab-item:: DMA-BUF file descriptor
             :sync: dma-buf
 
             .. doxygensnippet:: docs/articles_en/assets/snippets/npu_remote_objects_creation.cpp
@@ -137,9 +137,10 @@ The NPU plugin does not support methods for direct allocation of native handles.
 
    **2. Allocation Lifetime (Critical)**
    The allocation must remain valid **until ALL** of the following have occurred:
-      * All inference requests using this remote tensor have completed execution, **AND**
-      * All inference requests using this remote tensor have been destroyed, **AND**
-      * The remote tensor has been destroyed
+
+   * All inference requests using this remote tensor have completed execution, **AND**
+   * All inference requests using this remote tensor have been destroyed, **AND**
+   * The remote tensor has been destroyed
 
    Failure to maintain the allocation for the entire lifecycle will result in undefined behavior and potential crashes.
 

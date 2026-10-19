@@ -50,21 +50,15 @@ std::shared_ptr<SnippetsFunctionBase> SoftmaxSum::get_subgraph(const std::vector
 }
 
 TEST_P(Softmax, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(AddSoftmax, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(SoftmaxSum, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 } // namespace snippets

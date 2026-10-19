@@ -13,10 +13,10 @@
 #include "cre.hpp"
 #include "intel_npu/common/blob_reader_interface.hpp"
 #include "intel_npu/common/blob_source.hpp"
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/isection_type_evaluator.hpp"
 #include "intel_npu/common/manifest.hpp"
 #include "intel_npu/common/single_section_instance_evaluator.hpp"
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 
 namespace intel_npu {
@@ -41,7 +41,7 @@ public:
     /**
      * @brief Constructs a BlobReader, associating it with the given compiled model source.
      */
-    BlobReader(const FilteredConfig& config);
+    BlobReader(const Config& config);
 
     /**
      * @brief Parses the given compiled model using all section readers registered so far.
@@ -141,7 +141,7 @@ private:
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> m_section_type_evaluators;
     std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> m_section_instance_evaluators;
 
-    FilteredConfig m_config;
+    Config m_config;
     Logger m_logger;
 };
 

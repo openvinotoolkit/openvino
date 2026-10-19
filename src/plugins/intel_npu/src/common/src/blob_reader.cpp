@@ -47,9 +47,7 @@ std::optional<SectionID> get_runtime_requirements_id(const Manifest& manifest) {
 
 namespace intel_npu {
 
-BlobReader::BlobReader(const FilteredConfig& config)
-    : m_config(config),
-      m_logger("BlobReader", config.get<LOG_LEVEL>()) {
+BlobReader::BlobReader(const Config& config) : m_config(config), m_logger("BlobReader", config.get<LOG_LEVEL>()) {
     // Register the core sections
     register_reader(SectionTypeCode::RUNTIME_REQUIREMENTS, RuntimeRequirementsSection::read);
     register_reader(SectionTypeCode::MANIFEST, ManifestSection::read);

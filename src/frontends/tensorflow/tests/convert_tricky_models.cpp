@@ -4,6 +4,7 @@
 
 #include <functional>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "conversion_with_reference.hpp"
 #include "gtest/gtest.h"
@@ -580,6 +581,20 @@ TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphCutIdentity) {
 TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphMMAPCompare) {
     { model = convert_model("metagraph_variables/graph.meta"); }
     { model_ref = convert_model("metagraph_variables/graph.meta", nullptr, {}, {}, {}, {}, {}, true); }
+}
+
+TEST(TensorFlowMetaGraphTest, MetaGraphWithoutVariablesIndex) {
+    // Regression test: loading a MetaGraph (*.meta) that contains RestoreV2 -> AssignVariableOp
+    // nodes but has no variables index (*.index) file next to it must not crash (previously the
+    // variables index was dereferenced while null during load).
+    FrontEndManager fem;
+    auto front_end = fem.load_by_framework(TF_FE);
+    ASSERT_NE(front_end, nullptr);
+    auto model_filename = FrontEndTestUtils::make_model_path(std::string(TEST_TENSORFLOW_MODELS_DIRNAME) +
+                                                             "metagraph_no_index/graph.meta");
+    ov::frontend::InputModel::Ptr input_model;
+    OV_ASSERT_NO_THROW(input_model = front_end->load(model_filename));
+    ASSERT_NE(input_model, nullptr);
 }
 
 TEST_F(FrontEndConversionWithReferenceTestsF, SplitInFunction) {

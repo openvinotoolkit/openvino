@@ -20,7 +20,6 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/add_fake_quantize_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/align_eltwise_input_ranks.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/align_mixed_fp32_fp16_types_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/attention_mask_shape_replacer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/augru_cell_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/batch_to_space_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/binarize_weights.cpp
@@ -236,6 +235,7 @@ set(OP_CONVERSIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/normalize_l2_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/reduce_l1_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/reduce_l2_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/rnn_cell_decomposition_clip_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/scaled_dot_product_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/sdpa_to_paged_attention_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/simplify_ctc_greedy_decoder_seq_len_test.cpp
@@ -249,6 +249,7 @@ set(SMART_RESHAPE_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/broadcast_const_range_replacement.cpp
     ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/lstm_states_broadcast.cpp
     ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/reshape_sinking.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/restore_traced_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/shape_of_const_folding.cpp
     ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/sr_mimicking_sbs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/sr_proposal_scales.cpp

@@ -19,7 +19,6 @@
 #include "io_layouts_section.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
-#include "openvino/runtime/properties.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -41,59 +40,55 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<IDevice>& device,
                              const std::shared_ptr<IGraph>& graph,
                              const std::shared_ptr<BlobWriter>& blobWriter,
-                             const FilteredConfig& config)
+                             const Config& config,
+                             const ov::AnyMap& properties)
     : ICompiledModel(model, plugin, nullptr, nullptr),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _graph(graph),
-      _blobWriter(blobWriter) {
+      _blobWriter(blobWriter),
+      _propertiesManager(
+          std::make_unique<CompiledModelPropertyManager>(config, properties, _device, _graph, _blobWriter, _logger)) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
     OPENVINO_ASSERT(blobWriter);
-
-    // Support for specific properties might depend on the characteristics of the compiled model.
-    // Adjust lower level config availability to influence the supported properties list if needed
-    FilteredConfig localConfig = config;
-
-    OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    _propertiesManager = std::make_unique<CompiledModelPropertyManager>(localConfig, _graph, _blobWriter, _logger);
 
     OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
     _logger.info("The current compiled model is a %s one", to_string(_graph->get_kind()));
 
     // Immediate-init path: when weights load is not deferred, initialize the graph now.
     // The deferred path (CREATE_EXECUTOR off or DEFER_WEIGHTS_LOAD on) is handled in create_infer_request().
-    const FilteredConfig& modelConfig = _propertiesManager->getConfig();
-    if (modelConfig.get<CREATE_EXECUTOR>() && !modelConfig.get<DEFER_WEIGHTS_LOAD>()) {
-        _graph->initialize(modelConfig);
+    if (config.get<CREATE_EXECUTOR>() && !config.get<DEFER_WEIGHTS_LOAD>()) {
+        _graph->initialize(config);
     } else {
         _logger.info("Graph initialize is deferred; weights will be loaded on the first infer request creation.");
     }
-
-    OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
-    std::call_once(_streamExecutorsInitFlag, [this] {
-        const_cast<CompiledModel*>(this)->configure_stream_executors();
-    });
-
     // sanity check
     OPENVINO_ASSERT(_device != nullptr, "No available devices. Failed to create infer request!");
 
-    if (!_propertiesManager->getConfig().get<CREATE_EXECUTOR>() ||
-        _propertiesManager->getConfig().get<DEFER_WEIGHTS_LOAD>()) {
+    const auto localConfig = _propertiesManager->getConfig();
+    if (!localConfig.get<CREATE_EXECUTOR>() || localConfig.get<DEFER_WEIGHTS_LOAD>()) {
         OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to create infer request!");
-        _graph->initialize(_propertiesManager->getConfig());
+        _graph->initialize(localConfig);
     }
 
     OPENVINO_ASSERT(_graph != nullptr && _graph->init_completed(),
                     "Graph is unavailable or failed to initialize. The driver may be missing or too old to run "
                     "inference for this blob.");
 
-    const std::shared_ptr<InferRequest>& inferRequest =
-        _device->createInferRequest(shared_from_this(), _propertiesManager->getConfig());
+    const std::shared_ptr<InferRequest>& inferRequest = _device->createInferRequest(shared_from_this(), localConfig);
+
+    std::call_once(_streamExecutorsInitFlag, [this, &localConfig] {
+        const_cast<CompiledModel*>(this)->configure_stream_executors(
+            localConfig.get<NUM_STREAMS>(),
+            localConfig.get<RUN_INFERENCES_SEQUENTIALLY>(),
+            localConfig.get<SHARED_COMMON_QUEUE>(),
+            localConfig.get<SHARED_COMMON_QUEUE>() ? _graph->get_command_queue_desc().key() : 0);
+    });
 
     return std::make_shared<AsyncInferRequest>(inferRequest,
                                                get_task_executor(),
@@ -162,10 +157,18 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
                 std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr());
 
             // A dummy node is required for constructing and populating the Result node. A Constant one is perhaps the
-            // most fitting choice here.
+            // most fitting choice here. A dimension without an upper bound has no size to allocate, so it is left
+            // empty.
+            ov::Shape constantShape;
+            const auto& partialShape = nodeOutput.get_partial_shape();
+            if (partialShape.rank().is_static()) {
+                for (const ov::Dimension& dimension : partialShape) {
+                    constantShape.push_back(dimension.get_interval().has_upper_bound() ? dimension.get_max_length()
+                                                                                       : 0);
+                }
+            }
             std::shared_ptr<ov::Node> constantDummy =
-                std::make_shared<ov::op::v0::Constant>(nodeOutput.get_element_type(),
-                                                       nodeOutput.get_partial_shape().get_max_shape());
+                std::make_shared<ov::op::v0::Constant>(nodeOutput.get_element_type(), constantShape);
             // Attached to the Result node as output tensor in order to provide the correct tensor names. Additionally,
             // the dummy Constant node could use only static shapes. If the shape is dynamic, this construct can provide
             // the correct shape to the Result node.
@@ -190,23 +193,7 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 }
 
 void CompiledModel::set_property(const ov::AnyMap& properties) {
-    // 1. Set the property via Properties interface
     _propertiesManager->setProperty(properties);
-
-    // 2. Extra hooks
-    if (properties.count(std::string(WORKLOAD_TYPE::key())) != 0) {
-        if (_graph != nullptr) {
-            const auto workloadType = properties.at(ov::workload_type.name()).as<ov::WorkloadType>();
-            _graph->set_workload_type(workloadType);
-        }
-    }
-
-    if (properties.count(std::string(MODEL_PRIORITY::key())) != 0) {
-        if (_graph != nullptr) {
-            const auto modelPriority = properties.at(ov::hint::model_priority.name()).as<ov::hint::Priority>();
-            _graph->set_model_priority(modelPriority);
-        }
-    }
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
@@ -217,29 +204,37 @@ const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {
     return _graph;
 }
 
-const FilteredConfig& CompiledModel::get_config() const {
-    return _propertiesManager->getConfig();
-}
-
 void CompiledModel::release_memory() {
     if (_graph != nullptr) {
         _graph->evict_memory();
     }
 }
 
-void CompiledModel::configure_stream_executors() {
-    const FilteredConfig& config = get_config();
-
+void CompiledModel::configure_stream_executors(ov::streams::Num numStreams,
+                                               bool runInferencesSequentially,
+                                               bool useSharedExecutors,
+                                               uint64_t sharedExecutorsId) {
     // In case of sequential execution of async requests for the same compiled model, the compiled model must use
     // dedicated executors with a single thread to ensure sequential execution of its async requests.
-    if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (runInferencesSequentially) {
+        if (useSharedExecutors) {
+            // In case of sequential execution with shared executors, use the global single-threaded executors
+            // provided by the executor manager, so that async requests of all compiled models belonging to the same
+            // shared group are also executed sequentially relative to each other.
+            set_task_executor(ov::threading::executor_manager()->get_executor(
+                std::string("Intel NPU plugin start inferences executor") + " " + std::to_string(sharedExecutorsId)));
+            _resultExecutor = ov::threading::executor_manager()->get_executor(
+                std::string("Intel NPU plugin wait inferences executor") + " " + std::to_string(sharedExecutorsId));
+
+            return;
+        }
+
         set_task_executor(make_executor("Intel NPU plugin start inferences executor", 1));
         _resultExecutor = make_executor("Intel NPU plugin wait inferences executor", 1);
 
         return;
     }
 
-    const auto numStreams = config.get<NUM_STREAMS>();
     if (numStreams > 0) {
         // Use a single thread for start executors to reduce contention on the shared task queue, while scaling wait
         // executor workers with num_streams to improve result fetch throughput. Callbacks intentionally run on wait
@@ -259,7 +254,7 @@ void CompiledModel::configure_stream_executors() {
         // idle periods (30 s timeout) is derived from the optimal number of parallel infer requests recommended for
         // the current platform in THROUGHPUT mode. The pool can then grow dynamically to match runtime workload.
         const size_t keepWorkers = static_cast<size_t>(
-            utils::getOptimalNumberOfInferRequestsInParallel(config.get<PLATFORM>(),
+            utils::getOptimalNumberOfInferRequestsInParallel(_device->getName(),
                                                              ov::hint::PerformanceMode::THROUGHPUT));
 
         set_task_executor(make_executor("Intel NPU plugin run inferences executor", keepWorkers, true));

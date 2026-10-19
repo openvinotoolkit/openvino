@@ -19,7 +19,7 @@ BlobReaderInterface::BlobReaderInterface(BlobSource& source,
                                          const size_t npu_region_size,
                                          const size_t section_start,
                                          const size_t section_length,
-                                         const std::optional<FilteredConfig>& config)
+                                         const std::optional<Config>& config)
     : m_source(source),
       m_npu_region_start(npu_region_start),
       m_section_start(section_start),
@@ -98,7 +98,7 @@ size_t BlobReaderInterface::get_remaining_section_size() const {
     return m_section_end - m_source.get().tellg();
 }
 
-std::optional<FilteredConfig> BlobReaderInterface::get_config() const {
+std::optional<Config> BlobReaderInterface::get_config() const {
     return m_config;
 }
 

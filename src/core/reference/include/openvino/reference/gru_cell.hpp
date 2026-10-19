@@ -6,6 +6,7 @@
 
 #include <cmath>
 
+#include "openvino/op/util/rnn_cell_base.hpp"
 #include "openvino/reference/add.hpp"
 #include "openvino/reference/clamp.hpp"
 #include "openvino/reference/matmul.hpp"
@@ -119,7 +120,7 @@ void gru_cell(const T* X,
     reference::split(reinterpret_cast<const char*>(B), B_shape, sizeof(T), 0, num_b_splits, pointers_biases.data());
 
     auto clip_activation = [&clip](std::vector<T>& gate, const std::string& activation) {
-        if (clip > 0.f) {
+        if (op::util::classify_rnn_clip(clip) == op::util::RNNClipMode::CLAMP) {
             reference::clamp(gate.data(), gate.data(), static_cast<T>(-clip), static_cast<T>(clip), gate.size());
         }
         if (activation == "relu") {

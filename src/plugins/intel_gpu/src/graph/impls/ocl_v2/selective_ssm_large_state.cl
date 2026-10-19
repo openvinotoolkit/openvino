@@ -4,14 +4,9 @@
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/bf16_utils.cl"
+#include "selective_ssm_type_utils.cl"
 
 #define SSM_MAX_HEAD_DIM_BLOCK 4
-#if INPUT0_IS_FP
-#    define SSM_TO_FLOAT(v) convert_float(v)
-#else
-#    define SSM_TO_FLOAT(v) _convert_as_bfloat16_float(v)
-#endif
 #define SSM_STATE_ITERATION_TYPE size_t
 #define SSM_DT_INDEX(token) GET_DATA_INDEX(INPUT1, b, token, h, 0)
 #define SSM_B_INDEX(token, state_element) GET_DATA_INDEX(INPUT2, b, token, g, state_element)
@@ -69,7 +64,7 @@ KERNEL(selective_ssm_large_state)(
 
     const size_t heads_per_group = num_heads / num_groups;
     const size_t g = h / heads_per_group;
-    const float A_value = SSM_TO_FLOAT(A[GET_DATA_INDEX(INPUT0, h, 0, 0, 0)]);
+    const float A_value = ssm_to_float(A[GET_DATA_INDEX(INPUT0, h, 0, 0, 0)]);
     const int valid_head_dim_block = p_base + (size_t)block <= head_dim
                                          ? block
                                          : (int)(head_dim - p_base);
@@ -82,7 +77,7 @@ KERNEL(selective_ssm_large_state)(
             if (state_element >= state_size)
                 break;
             state_scratch[scratch_base + state_element] =
-                SSM_TO_FLOAT(initial_state[GET_DATA_INDEX(INPUT5, b, h, p, state_element)]);
+                ssm_to_float(initial_state[GET_DATA_INDEX(INPUT5, b, h, p, state_element)]);
         }
     }
 
@@ -106,7 +101,6 @@ KERNEL(selective_ssm_large_state)(
 }
 
 #undef SSM_MAX_HEAD_DIM_BLOCK
-#undef SSM_TO_FLOAT
 #undef SSM_STATE_ITERATION_TYPE
 #undef SSM_DT_INDEX
 #undef SSM_B_INDEX

@@ -3,6 +3,7 @@
 #
 
 set(OV_CORE_TESTS_XML_UTIL_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/constant_writer_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom_ir.cpp
     ${CMAKE_CURRENT_LIST_DIR}/xml_parse_utils_test.cpp
 )

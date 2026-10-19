@@ -26,17 +26,20 @@ static std::vector<format> supported_static_fmts = {
 
 static std::vector<format> supported_dynamic_fmts = {
     format::bfyx,
+    format::byxf,
     format::bfzyx,
 };
 
 static std::vector<ov::element::Type_t> supported_in_types = {
     ov::element::f32,
     ov::element::f16,
+    ov::element::bf16,
 };
 
 static std::vector<ov::element::Type_t> supported_out_types = {
     ov::element::f32,
     ov::element::f16,
+    ov::element::bf16,
     ov::element::i8,
     ov::element::u8,
 };

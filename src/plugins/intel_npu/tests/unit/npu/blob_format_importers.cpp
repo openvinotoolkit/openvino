@@ -56,7 +56,7 @@
 //     BlobFormatImportersTest() : config(std::make_shared<OptionsDesc>()) {}
 
 //     std::unique_ptr<IBlobFormatImporter> importer;
-//     FilteredConfig config;
+//     Config config;
 // };
 
 // // TODO can probably move the backend ptr out of the ctor after adapting the OV format

@@ -182,7 +182,7 @@ protected:
         }
 
         const auto options = std::make_shared<OptionsDesc>();
-        FilteredConfig empty_config(options);
+        Config empty_config(options);
         reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size(), empty_config);
     }
 

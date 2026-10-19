@@ -49,7 +49,7 @@ const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 /**
  * @brief Special case for PERF_COUNT as it requires compiler_type detection in case it is still set to PREFER_PLUGIN
  */
-void update_compiler_type_if_perf_count(FilteredConfig& config,
+void update_compiler_type_if_perf_count(Config& config,
                                         const ov::SoPtr<IEngineBackend>& backend,
                                         const std::string_view device_name) {
     if (config.has<PERF_COUNT>() && config.get<PERF_COUNT>() &&
@@ -58,7 +58,7 @@ void update_compiler_type_if_perf_count(FilteredConfig& config,
         CompilerAdapterFactory factory;
         (void)factory.getCompiler(backend, compilerType, device_name);
 
-        config.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
+        config.update(ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType));
     }
 }
 
@@ -155,7 +155,7 @@ public:
     explicit RawBlobImporter(BlobSource& compiler_main_schedule,
                              const std::shared_ptr<const ov::Model>& original_model,
                              const ov::SoPtr<IEngineBackend>& backend,
-                             const FilteredConfig& config)
+                             const Config& config)
         : IBlobFormatImporter(original_model, backend, config, Logger("RawBlobImporter", config.get<LOG_LEVEL>())) {
         const size_t blob_size = compiler_main_schedule.get_remaining_size();
         OPENVINO_ASSERT(blob_size > 0, EMPTY_BLOB_MESSAGE);
@@ -237,7 +237,7 @@ public:
     explicit BlobFormatV1Importer(BlobSource& npu_formatted_blob,
                                   const std::shared_ptr<const ov::Model>& original_model,
                                   const ov::SoPtr<IEngineBackend>& backend,
-                                  const FilteredConfig& config)
+                                  const Config& config)
         : IBlobFormatImporter(original_model,
                               backend,
                               config,
@@ -432,7 +432,7 @@ public:
                                   const std::shared_ptr<const ov::Model>& original_model,
                                   const ov::SoPtr<IEngineBackend>& backend,
                                   const std::shared_ptr<CompilerOptionSupportHelper>& option_helper,
-                                  const FilteredConfig& config)
+                                  const Config& config)
         : IBlobFormatImporter(original_model, backend, config, Logger("BlobFormatV2Importer", config.get<LOG_LEVEL>())),
           m_blob_reader(config) {
         register_known_sections_and_evaluators(option_helper);
@@ -651,7 +651,7 @@ namespace intel_npu {
 
 IBlobFormatImporter::IBlobFormatImporter(const std::shared_ptr<const ov::Model>& original_model,
                                          const ov::SoPtr<IEngineBackend>& backend,
-                                         const FilteredConfig& config,
+                                         const Config& config,
                                          const Logger& logger)
     : m_backend(backend),
       m_config(config),
@@ -661,7 +661,7 @@ IBlobFormatImporter::IBlobFormatImporter(const std::shared_ptr<const ov::Model>&
 void IBlobFormatImporter::register_compiler_version() {
     std::optional<uint32_t> compiler_version = extract_compiler_version();
     if (compiler_version.has_value()) {
-        m_config.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler_version.value())}});
+        m_config.update(ov::intel_npu::compiler_version.name(), std::to_string(compiler_version.value()));
         m_logger.debug("Imported model was compiled with compiler version: %u.%u",
                        ONEAPI_VERSION_MAJOR(compiler_version.value()),
                        ONEAPI_VERSION_MINOR(compiler_version.value()));
@@ -737,7 +737,7 @@ std::shared_ptr<ov::Model> IBlobFormatImporter::create_dummy_model() const {
                                 layouts.has_value() ? std::make_optional(layouts->second) : std::nullopt);
 }
 
-FilteredConfig IBlobFormatImporter::get_config() const {
+Config IBlobFormatImporter::get_config() const {
     return m_config;
 }
 
@@ -748,7 +748,7 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
                                             const std::shared_ptr<const ov::Model>& original_model,
                                             const ov::SoPtr<IEngineBackend>& backend,
                                             const std::shared_ptr<CompilerOptionSupportHelper>& option_helper,
-                                            const FilteredConfig& config) {
+                                            const Config& config) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "blob_format_importer_factory::create");
     const size_t input_size = npu_formatted_blob.get_remaining_size();
     OPENVINO_ASSERT(input_size > 0, EMPTY_BLOB_MESSAGE);

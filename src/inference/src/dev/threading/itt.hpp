@@ -45,4 +45,3 @@ OV_CC_DOMAINS(tbb_bind);
 #    define TBB_BIND_SCOPE(region)
 #    define TBB_BIND_NUMA_ENABLED
 #endif
-

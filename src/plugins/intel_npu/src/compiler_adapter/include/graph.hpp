@@ -26,7 +26,6 @@ public:
           const GraphDescriptor& graphDesc,
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
-          const FilteredConfig& config,
           const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
           const bool blobIsPersistent = false);
 
@@ -75,9 +74,9 @@ public:
     ~Graph() override;
 
 protected:
-    void initialize_impl(const FilteredConfig& config) override;
+    void initialize_impl(const Config& config) override;
 
-    bool release_blob(const FilteredConfig& config);
+    bool release_blob(const Config& config);
     std::optional<size_t> determine_batch_size();
 
     /**

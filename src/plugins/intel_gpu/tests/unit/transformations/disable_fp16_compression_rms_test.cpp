@@ -7,6 +7,7 @@
 #include <string>
 #include <memory>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include <openvino/core/model.hpp>
 #include <openvino/pass/manager.hpp>
 #include <transformations/utils/utils.hpp>

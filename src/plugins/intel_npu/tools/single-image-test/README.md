@@ -77,6 +77,9 @@ single-image-test.exe: Usage: Release\single-image-test.exe[<options>]
       default: "BGR"
     -compiled_blob (Output compiled network file (compiled result blob))
       type: string default: ""
+    -blob_name_prefix (Optional prefix overriding model-derived blob file
+      naming for auto-generated input/reference/output blobs. Explicit
+      --ref_results paths are not modified.) type: string default: ""
     -confidence_threshold (Confidence threshold for Detection mode. Can be a
       single value or per-layer: 'layer1:0.5;layer2:0.3') type: string
       default: "0.000100"
@@ -107,6 +110,18 @@ single-image-test.exe: Usage: Release\single-image-test.exe[<options>]
       default: ""
     -is_tiny_yolo (Is it Tiny Yolo or not (true or false)?) type: bool
       default: false
+    -l2norm_dequant_scale (Optional. Dequantization scale factor applied to
+      the inference output tensor(s) before the 'l2norm' comparison is
+      performed: dequantized = (quantized - zero_point) * scale. Can be a
+      single global value applied to all outputs, or per-output:
+      'output1:0.00392;output2:0.01'. If not set, dequantization is skipped
+      and outputs are compared as-is. The reference tensor is never
+      modified.) type: string default: ""
+    -l2norm_dequant_zp (Optional. Dequantization zero point used together
+      with --l2norm_dequant_scale for 'l2norm' mode. Can be a single global
+      value or per-output: 'output1:128;output2:0'. Defaults to 0 for any
+      output without an explicit value. Has no effect unless
+      --l2norm_dequant_scale is set.) type: string default: ""
     -l2norm_threshold (Threshold for 'l2norm' mode. Can be a single value or
       per-layer: 'layer1:1.0;layer2:2.0') type: string default: "1.000000"
     -log_level (IE logger level (optional)) type: string default: ""
@@ -226,6 +241,7 @@ For example, to run inference with mobilenet-v2 model on Intel® Core™ Ultra N
         Network file:                             mobilenet-v2.xml
         Input file(s):                            validation-set/224x224/watch.bmp
         Output compiled network file:
+        Blob name prefix override:
         Color format:                             RGB
         Input precision:                          FP16
         Output precision:                         FP16
@@ -304,6 +320,7 @@ For example, to run inference with mobilenet-v2 model on Intel® Core™ Ultra N
         Network file:                             mobilenet-v2.blob
         Input file(s):                            validation-set/224x224/watch.bmp
         Output compiled network file:
+        Blob name prefix override:
         Color format:                             RGB
         Input precision:                          FP16
         Output precision:                         FP16

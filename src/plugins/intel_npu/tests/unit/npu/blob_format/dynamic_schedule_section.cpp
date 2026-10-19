@@ -58,11 +58,12 @@ TEST_F(DynamicScheduleSectionTest, CtorSetsTheRightValue) {
               0);
 
     // Test using an empty schedule too
+    // TODO LLVM was replaced. make sure there is no test redundancy
     section =
         std::make_shared<DynamicScheduleSection>(ov::Tensor(ov::element::Type_t::u8, ov::Shape({0}), (void*)nullptr),
-                                                 BlobType::LLVM);
+                                                 BlobType::BYTECODE);
     ASSERT_EQ(section->get_type(), SectionType(SectionTypeCode::DYNAMIC_SCHEDULE));
-    ASSERT_EQ(section->get_blob_type(), BlobType::LLVM);
+    ASSERT_EQ(section->get_blob_type(), BlobType::BYTECODE);
     ASSERT_EQ(section->get_schedule().get_element_type(), ov::element::Type_t::u8);
     ASSERT_EQ(section->get_schedule().get_shape(), ov::Shape({0}));
     ASSERT_EQ(section->get_schedule().get_byte_size(), 0);
@@ -221,10 +222,11 @@ protected:
         }
 
         const auto options = std::make_shared<OptionsDesc>();
-        FilteredConfig empty_config(options);
+        Config empty_config(options);
         reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size(), empty_config);
     }
 
+    // TODO remove this
     bool is_llvm_blob_type;
     bool is_tensor_source;
     std::string section_content;
@@ -243,7 +245,7 @@ TEST_P(DynamicScheduleSectionReadTest, SuccessfulRead) {
     // Check that the cursor was left at the end of the section. This may be an indicator that the whole section has
     // been read.
     ASSERT_EQ(reader.get_offset_relative_to_current_section(), section_content.size());
-    ASSERT_EQ(casted_section->get_blob_type(), is_llvm_blob_type ? BlobType::LLVM : BlobType::BYTECODE);
+    ASSERT_EQ(casted_section->get_blob_type(), BlobType::BYTECODE);
 
     const std::string parsed_content(casted_section->get_schedule().data<char>(),
                                      casted_section->get_schedule().get_byte_size());

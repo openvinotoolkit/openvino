@@ -7,6 +7,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/selective_ssm.hpp>
+#include <string>
 #include <vector>
 
 #include "selective_ssm_inst.h"
@@ -18,6 +19,8 @@ using namespace ::tests;
 namespace {
 
 constexpr int32_t large_state_size = 32 * 1024 + 1;
+
+enum class expected_ssm_impl { any, jit, fallback };
 
 template <typename T>
 std::vector<T> make_test_values(size_t count, float scale, float shift = 0.f) {
@@ -41,7 +44,13 @@ struct selective_ssm_test_params {
     int32_t iterations = 1;
     bool accumulation_test = false;
     float relative_output_tolerance = 5e-5f;
+    expected_ssm_impl expected_impl = expected_ssm_impl::any;
 };
+
+selective_ssm_test_params expect_impl(selective_ssm_test_params params, expected_ssm_impl expected) {
+    params.expected_impl = expected;
+    return params;
+}
 
 struct selective_ssm_gpu_test : public ::testing::TestWithParam<selective_ssm_test_params> {
     template <typename T>
@@ -182,6 +191,14 @@ struct selective_ssm_gpu_test : public ::testing::TestWithParam<selective_ssm_te
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         auto network = get_network(engine, topo, config, get_test_stream_ptr(), p.caching_test);
+        if (p.expected_impl != expected_ssm_impl::any) {
+            const auto primitive = network->get_primitive("selective_ssm");
+            ASSERT_NE(primitive, nullptr);
+            auto* const impl = primitive->get_impl();
+            ASSERT_NE(impl, nullptr);
+            const bool is_jit = impl->get_kernel_name().find("jit_") != std::string::npos;
+            EXPECT_EQ(is_jit, p.expected_impl == expected_ssm_impl::jit) << "selected implementation: " << impl->get_kernel_name();
+        }
         network->set_input_data("A", A_mem);
         network->set_input_data("dt", dt_mem);
         network->set_input_data("B", B_mem);
@@ -250,13 +267,29 @@ INSTANTIATE_TEST_SUITE_P(smoke_selective_ssm_gpu_test,
                                            selective_ssm_test_params{2, 3, 4, 1, 8, 16, ov::element::f32, false},
                                            selective_ssm_test_params{1, 4, 4, 2, 8, 8, ov::element::f16, false},
                                            selective_ssm_test_params{1, 3, 2, 1, 4, 16, ov::element::bf16, false},
+                                           expect_impl(selective_ssm_test_params{1, 1, 64, 1, 64, 128, ov::element::f32, false}, expected_ssm_impl::jit),
+                                           selective_ssm_test_params{1, 1, 64, 1, 64, 128, ov::element::f16, false},
+                                           selective_ssm_test_params{1, 1, 64, 1, 64, 128, ov::element::bf16, false},
+                                           selective_ssm_test_params{1, 2, 64, 1, 64, 128, ov::element::f16, false},
+                                           selective_ssm_test_params{1, 2, 64, 1, 64, 128, ov::element::bf16, false},
                                            selective_ssm_test_params{1, 8, 64, 1, 64, 128, ov::element::f32, false},
                                            selective_ssm_test_params{1, 8, 64, 1, 64, 128, ov::element::f16, false},
-                                           selective_ssm_test_params{1, 2, 2, 1, 2, 513, ov::element::f32, false},
-                                           selective_ssm_test_params{2, 3, 4, 2, 4, 16, ov::element::f32, true},
+                                           selective_ssm_test_params{1, 16, 64, 1, 64, 128, ov::element::f16, false},
+                                           selective_ssm_test_params{1, 32, 64, 1, 64, 128, ov::element::f32, false},
+                                           selective_ssm_test_params{1, 64, 64, 1, 64, 128, ov::element::f32, false},
+                                           selective_ssm_test_params{1, 2, 2, 1, 4, 256, ov::element::f32, false},
+                                           selective_ssm_test_params{1, 16, 2, 1, 4, 256, ov::element::f32, false},
+                                           selective_ssm_test_params{1, 16, 2, 1, 4, 256, ov::element::f16, false},
+                                           selective_ssm_test_params{1, 8, 2, 1, 4, 256, ov::element::bf16, false},
+                                           selective_ssm_test_params{1, 2, 2, 1, 4, 512, ov::element::f32, false},
+                                           selective_ssm_test_params{1, 2, 2, 1, 4, 512, ov::element::f16, false},
+                                           selective_ssm_test_params{1, 2, 2, 1, 4, 512, ov::element::bf16, false},
+                                           expect_impl(selective_ssm_test_params{1, 2, 2, 1, 2, 513, ov::element::f32, false}, expected_ssm_impl::fallback),
+                                           expect_impl(selective_ssm_test_params{2, 3, 4, 2, 4, 16, ov::element::f32, true}, expected_ssm_impl::fallback),
                                            selective_ssm_test_params{1, 7, 4, 2, 5, 31, ov::element::f16, true},
                                            selective_ssm_test_params{1, 5, 4, 2, 8, 17, ov::element::f32, false, true},
-                                           selective_ssm_test_params{1, 5, 4, 2, 3, 19, ov::element::f32, false, false, true},
+                                           expect_impl(selective_ssm_test_params{1, 5, 4, 2, 3, 19, ov::element::f32, false, false, true},
+                                                       expected_ssm_impl::fallback),
                                            selective_ssm_test_params{2, 0, 4, 2, 3, 17, ov::element::f16, true},
                                            selective_ssm_test_params{1, 0, 2, 1, 4, 9, ov::element::bf16, false},
                                            selective_ssm_test_params{2, 4, 4, 2, 3, 15, ov::element::f32, true, false, false, 3},

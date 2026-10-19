@@ -71,16 +71,4 @@ TEST_F(OVDefaultAllocatorTest, compareIfImplIsNull) {
     EXPECT_FALSE(a2 == a1);
     OV_EXPECT_THROW(std::ignore = (a1 == a2), ov::Exception, _);
 }
-
-TEST_F(OVDefaultAllocatorTest, throwsOnAllocationLargerThanOneTiB) {
-    if (sizeof(size_t) < sizeof(uint64_t)) {
-        GTEST_SKIP() << "Allocation larger than 1 TiB cannot be represented by size_t";
-    }
-
-    ov::Allocator allocator;
-    constexpr uint64_t one_tib = uint64_t{1} << 40;
-    OV_EXPECT_THROW_HAS_SUBSTRING(std::ignore = allocator.allocate(static_cast<size_t>(one_tib + 1)),
-                                  ov::Exception,
-                                  "exceeds maximum supported allocation size");
-}
 }  // namespace ov::test

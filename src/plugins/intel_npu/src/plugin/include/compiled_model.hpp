@@ -12,6 +12,7 @@
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
@@ -35,7 +36,8 @@ public:
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
                   const std::shared_ptr<BlobWriter>& blobWriter,
-                  const FilteredConfig& config);
+                  const Config& config,
+                  const ov::AnyMap& properties);
 
     CompiledModel(const CompiledModel&) = delete;
 
@@ -57,21 +59,23 @@ public:
 
     const std::shared_ptr<IGraph>& get_graph() const override;
 
-    const FilteredConfig& get_config() const override;
-
     void release_memory() override;
 
 private:
     // For special config, stream executors must be set accordingly to ensure correct behavior.
-    void configure_stream_executors();
+    void configure_stream_executors(ov::streams::Num numStreams,
+                                    bool runInferencesSequentially,
+                                    bool useSharedExecutors,
+                                    uint64_t sharedExecutorsId);
 
     Logger _logger;
 
     const std::shared_ptr<IDevice> _device;
+    std::shared_ptr<IGraph> _graph;
+    std::optional<int64_t> _batchSize;
 
     std::unique_ptr<CompiledModelPropertyManager> _propertiesManager;
 
-    std::shared_ptr<IGraph> _graph;
     /**
      * @brief Contains the information required to export the compiled model and provides an API to do so
      */

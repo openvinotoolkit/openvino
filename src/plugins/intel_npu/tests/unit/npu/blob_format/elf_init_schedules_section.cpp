@@ -161,7 +161,7 @@ TEST_F(ELFInitSchedulesSectionTest, ReadingWithoutConfig) {
 TEST_F(ELFInitSchedulesSectionTest, ReadingATooSmallSection) {
     const std::string section_content = "0";
     const auto options = std::make_shared<OptionsDesc>();
-    FilteredConfig empty_config(options);
+    Config empty_config(options);
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
@@ -181,7 +181,7 @@ TEST_F(ELFInitSchedulesSectionTest, ReadNumberOfInitsTooBig) {
     section_content += "dummy";                                             // the content of init schedule 1
 
     const auto options = std::make_shared<OptionsDesc>();
-    FilteredConfig empty_config(options);
+    Config empty_config(options);
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
@@ -201,7 +201,7 @@ TEST_F(ELFInitSchedulesSectionTest, ReadNumberOfInitsTooSmall) {
     section_content += "dummy";                                             // the content of init schedule 1
 
     const auto options = std::make_shared<OptionsDesc>();
-    FilteredConfig empty_config(options);
+    Config empty_config(options);
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
@@ -221,7 +221,7 @@ TEST_F(ELFInitSchedulesSectionTest, ReadInitSizeTooBig) {
     section_content += "dummy";                                             // the content of init schedule 1
 
     const auto options = std::make_shared<OptionsDesc>();
-    FilteredConfig empty_config(options);
+    Config empty_config(options);
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
@@ -243,7 +243,7 @@ TEST_F(ELFInitSchedulesSectionTest, ReadIntegerOverflow) {
     section_content += "dummy";                                             // the content of init schedule 2
 
     const auto options = std::make_shared<OptionsDesc>();
-    FilteredConfig empty_config(options);
+    Config empty_config(options);
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
@@ -264,7 +264,7 @@ TEST_F(ELFInitSchedulesSectionTest, ReadEmptySchedule) {
     section_content += std::string("\x00\x00", 2);                          // padding size
 
     const auto options = std::make_shared<OptionsDesc>();
-    FilteredConfig empty_config(options);
+    Config empty_config(options);
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
@@ -290,7 +290,7 @@ TEST_F(ELFInitSchedulesSectionTest, ReadPaddingTooBig) {
     section_content += "dummy";                                             // the content of init schedule 1
 
     const auto options = std::make_shared<OptionsDesc>();
-    FilteredConfig empty_config(options);
+    Config empty_config(options);
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
@@ -353,7 +353,7 @@ protected:
         }
 
         const auto options = std::make_shared<OptionsDesc>();
-        FilteredConfig empty_config(options);
+        Config empty_config(options);
         reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size(), empty_config);
     }
 

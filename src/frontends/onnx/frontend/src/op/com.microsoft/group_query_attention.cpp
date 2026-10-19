@@ -15,6 +15,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "utils/attention.hpp"
 #include "utils/common.hpp"
@@ -47,6 +48,7 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto scale = node.get_attribute_value<float>("scale", 0.0f);
     const auto do_rotary = node.get_attribute_value<int64_t>("do_rotary", 0);
     const auto rotary_interleaved = node.get_attribute_value<int64_t>("rotary_interleaved", 0);
+    const auto causal = node.get_attribute_value<int64_t>("causal", 1);
     // Quantized KV cache attributes (com.microsoft spec). Default to the unquantized (float KV) behavior.
     const auto kv_cache_bit_width = node.get_attribute_value<int64_t>("kv_cache_bit_width", 0);
     const auto parse_quant_type = [&](const std::string& quant_type_name) {
@@ -69,44 +71,43 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     // matching the ONNX Runtime defaults (local_window_size = -1 disables the window).
     const auto local_window_size = node.get_attribute_value<int64_t>("local_window_size", -1);
     const auto sliding_window_cache = node.get_attribute_value<int64_t>("sliding_window_cache", 0);
-    const auto softcap = node.get_attribute_value<float>("softcap", 0.0f);
+    // ONNX Runtime applies softcap only when it is > 0 (CPU and CUDA); any other value (negative, NaN) disables it.
+    const auto softcap_attr = node.get_attribute_value<float>("softcap", 0.0f);
+    const auto softcap = softcap_attr > 0.0f ? softcap_attr : 0.0f;
     const auto smooth_softmax = node.get_attribute_value<int64_t>("smooth_softmax", 0);
     const auto qk_output = node.get_attribute_value<int64_t>("qk_output", 0);
-
-    // Reject spec inputs whose semantics are not implemented by the OpenVINO decomposition.
-    FRONT_END_OP_CONVERSION_CHECK(
-        !common::is_input_valid(onnx_op_inputs, 14) && !common::is_input_valid(onnx_op_inputs, 15),
-        "GroupQueryAttention: q_norm_weight/k_norm_weight (QK-Norm) inputs are not "
-        "supported.");
+    // QK-Norm (q_norm_weight/k_norm_weight, inputs 14/15) is forwarded as-is; the op validates the pairing.
+    const auto qk_norm_epsilon = node.get_attribute_value<float>("qk_norm_epsilon", 1e-6f);
 
     // Reject spec attributes whose semantics are not implemented by the OpenVINO decomposition.
+    FRONT_END_OP_CONVERSION_CHECK(causal == 0 || causal == 1,
+                                  "GroupQueryAttention: causal must be 0 or 1, got ",
+                                  causal,
+                                  ".");
+    // causal == 0 selects bidirectional attention (no query-relative masking, only the buffer tail beyond
+    // total_sequence_length is masked); ONNX Runtime does not allow combining that with a sliding window.
+    FRONT_END_OP_CONVERSION_CHECK(causal == 1 || local_window_size == -1,
+                                  "GroupQueryAttention: local_window_size requires causal=1, got causal=0 and "
+                                  "local_window_size=",
+                                  local_window_size,
+                                  ".");
     // local_window_size == -1 disables the window; a value >= 1 selects a sliding window. A window of
     // size 0 is an empty attention (every query masks all keys) and is not a valid ONNX Runtime config.
     FRONT_END_OP_CONVERSION_CHECK(local_window_size == -1 || local_window_size >= 1,
                                   "GroupQueryAttention: local_window_size must be -1 (disabled) or >= 1, got ",
                                   local_window_size,
                                   ".");
-    // A windowed KV cache requires a real sliding window (local_window_size > 0), matching the ONNX
-    // Runtime precondition. The staging regime (prompt longer than the buffer) and batch > 1 are not
-    // handled by this decomposition; the decode / fitting-prefill path is.
+    // A windowed KV cache requires a real sliding window (local_window_size > 0), matching the ONNX Runtime
+    // precondition. The windowed cache is single-batch (the op rejects a static batch_size > 1).
+    // Multi-token steps (ORT's "staging" regime) are supported: the decomposition selects the staging vs.
+    // in-place cache-write branch from the runtime past/total length, mirroring ORT's PlanWindowedKvCache,
+    // so a static multi-token shape is not rejected here.
     if (sliding_window_cache != 0) {
         FRONT_END_OP_CONVERSION_CHECK(local_window_size >= 1,
                                       "GroupQueryAttention: sliding_window_cache=1 requires local_window_size >= 1.");
         FRONT_END_OP_CONVERSION_CHECK(
             common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
             "GroupQueryAttention: sliding_window_cache=1 requires past_key and past_value.");
-        // Only single-token decode (sequence_length == 1) is supported for the windowed cache: it always
-        // stays within the window and matches ONNX Runtime exactly. Any multi-token step is the staging
-        // regime (ORT runs it against a temporary larger buffer), which this decomposition does not model
-        // and would otherwise either crash or silently diverge. Reject a static sequence_length > 1.
-        const auto& q_ps = onnx_op_inputs[0].get_partial_shape();
-        if (q_ps.rank().is_static() && q_ps.rank().get_length() == 3 && q_ps[1].is_static()) {
-            FRONT_END_OP_CONVERSION_CHECK(q_ps[1].get_length() == 1,
-                                          "GroupQueryAttention: sliding_window_cache=1 is only supported for "
-                                          "single-token decode (sequence_length == 1), got sequence_length = ",
-                                          q_ps[1].get_length(),
-                                          " (multi-token staging regime is not supported).");
-        }
         // The windowed cache-end arithmetic uses gap = capacity - local_window_size + 1, which must be >= 1;
         // with capacity < local_window_size it would divide by zero (or a negative gap) at inference. The ONNX
         // Runtime precondition is the same: a cache capacity of at least local_window_size. Enforce it here
@@ -122,10 +123,15 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                           ".");
         }
     }
-    FRONT_END_OP_CONVERSION_CHECK(softcap == 0.0f, "GroupQueryAttention: softcap is not supported.");
-    // qk_output (spec: emit the QxK' matrix before/after softmax as a 4th `output_qk` output) is not
-    // produced by this decomposition. Reject a non-default value rather than silently dropping the output.
-    FRONT_END_OP_CONVERSION_CHECK(qk_output == 0, "GroupQueryAttention: qk_output is not supported.");
+    // qk_output: 0 = none, 1 = scores before softmax, 2 = after softmax, emitted as the 4th output `output_qk`.
+    // As in ONNX Runtime, the attribute and the output must be set together.
+    FRONT_END_OP_CONVERSION_CHECK(qk_output >= 0 && qk_output <= 2,
+                                  "GroupQueryAttention: qk_output must be 0, 1 or 2, got ",
+                                  qk_output,
+                                  ".");
+    const bool has_output_qk = node.get_outputs_size() > 3 && !node.get_output_names()[3].get().empty();
+    FRONT_END_OP_CONVERSION_CHECK((qk_output != 0) == has_output_qk,
+                                  "GroupQueryAttention: the output_qk output and qk_output != 0 must be set together.");
 
     if (0 != do_rotary) {
         constexpr size_t cos_cache_index = 7;
@@ -183,6 +189,21 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         FRONT_END_OP_CONVERSION_CHECK(!ov::op::util::is_null(K), "GroupQueryAttention: Expecting K not null.");
         FRONT_END_OP_CONVERSION_CHECK(!ov::op::util::is_null(V), "GroupQueryAttention: Expecting V not null.");
 
+        // "Shared KV" (kv_sequence_length == 0, ORT helper.h): the past buffer already holds the complete KV and
+        // nothing new is appended. Supported when the empty K/V is statically known, so the graph structure is
+        // decided at conversion; the decomposition then attends to the past directly.
+        const auto& k_ps = K.get_partial_shape();
+        const bool shared_kv = k_ps.rank().is_static() && k_ps.rank().get_length() == 3 && k_ps[1].is_static() &&
+                               k_ps[1].get_length() == 0;
+        if (shared_kv) {
+            FRONT_END_OP_CONVERSION_CHECK(
+                common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
+                "GroupQueryAttention: kv_sequence_length == 0 (shared KV) requires past_key and past_value.");
+            FRONT_END_OP_CONVERSION_CHECK(sliding_window_cache == 0,
+                                          "GroupQueryAttention: kv_sequence_length == 0 (shared KV) is not "
+                                          "supported with sliding_window_cache=1.");
+        }
+
         auto num_heads_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_heads});
         auto head_size_node = std::make_shared<v1::Divide>(hidden_size_node, num_heads_node);
         auto q_shape = std::make_shared<v0::Concat>(
@@ -193,22 +214,55 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         Q = std::make_shared<v1::Transpose>(Q, perm);
         ov_op_inputs.push_back(std::move(Q));
 
-        auto kv_num_heads_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {kv_num_heads});
-        auto kv_shape = std::make_shared<v0::Concat>(
-            ov::NodeVector{batch_size_node, current_seqlen_size_node, kv_num_heads_node, head_size_node},
-            0);
+        if (shared_kv) {
+            // [B, 0, kv_num_heads * head_size] -> [B, kv_num_heads, 0, head_size] with a single Reshape: there is no
+            // data to transpose, and the zero sequence dim stays static for the op. K/V remain connected so the
+            // model keeps its key/value inputs.
+            const auto kv_num_heads_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {kv_num_heads});
+            const auto zero_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+            const auto empty_kv_shape = std::make_shared<v0::Concat>(
+                ov::NodeVector{batch_size_node, kv_num_heads_node, zero_node, head_size_node},
+                0);
+            ov_op_inputs.push_back(std::make_shared<v1::Reshape>(K, empty_kv_shape, false));
+            ov_op_inputs.push_back(std::make_shared<v1::Reshape>(V, empty_kv_shape, false));
+        } else {
+            auto kv_num_heads_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {kv_num_heads});
+            // K/V keep their own length: a dynamic kv_sequence_length may differ from Q's at runtime (0 for ORT
+            // shared KV); a static one folds to a constant.
+            const auto kv_seqlen_node = detail::get_dimensions(std::make_shared<v3::ShapeOf>(K), {1});
+            auto kv_shape = std::make_shared<v0::Concat>(
+                ov::NodeVector{batch_size_node, kv_seqlen_node, kv_num_heads_node, head_size_node},
+                0);
 
-        K = std::make_shared<v1::Reshape>(K, kv_shape, false)->output(0);
-        V = std::make_shared<v1::Reshape>(V, kv_shape, false)->output(0);
-        K = std::make_shared<v1::Transpose>(K, perm);
-        V = std::make_shared<v1::Transpose>(V, perm);
-        ov_op_inputs.push_back(std::move(K));
-        ov_op_inputs.push_back(std::move(V));
+            K = std::make_shared<v1::Reshape>(K, kv_shape, false)->output(0);
+            V = std::make_shared<v1::Reshape>(V, kv_shape, false)->output(0);
+            K = std::make_shared<v1::Transpose>(K, perm);
+            V = std::make_shared<v1::Transpose>(V, perm);
+            ov_op_inputs.push_back(std::move(K));
+            ov_op_inputs.push_back(std::move(V));
+        }
     }
 
-    FRONT_END_OP_CONVERSION_CHECK(
-        common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
-        "GroupQueryAttention: past_key (input 3) and past_value (input 4) must be provided as tensors");
+    const bool has_past_key = common::is_input_valid(onnx_op_inputs, 3);
+    const bool has_past_value = common::is_input_valid(onnx_op_inputs, 4);
+    FRONT_END_OP_CONVERSION_CHECK(has_past_key == has_past_value,
+                                  "GroupQueryAttention: past_key (input 3) and past_value (input 4) must be provided "
+                                  "together.");
+    if (!has_past_key) {
+        // Absent past (ONNX spec: optional) is an empty cache. A quantized cache needs a past tensor to carry its
+        // element type into present_key/present_value, so it cannot be inferred from the float K/V.
+        FRONT_END_OP_CONVERSION_CHECK(kv_cache_bit_width == 0,
+                                      "GroupQueryAttention: a quantized KV cache (kv_cache_bit_width != 0) requires "
+                                      "past_key and past_value.");
+        // Zero-length [B, kv_num_heads, 0, head_size] past, sliced from the already transposed K so it carries the
+        // batch/head/head_size dims and element type without extra shape arithmetic.
+        const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        const auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        const auto seq_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+        const auto empty_past = std::make_shared<v8::Slice>(ov_op_inputs[1], zero, zero, one, seq_axis)->output(0);
+        ov_op_inputs.push_back(empty_past);
+        ov_op_inputs.push_back(empty_past);
+    }
     // Process optional inputs: use a zero-sized Constant placeholder for missing optional ONNX inputs.
     // Note: When the ONNX's input index changed, the corresponding index in the GroupQueryAttentionInputs enum must
     // also be updated and  may need mapping the index manually.
@@ -220,18 +274,26 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         }
     }
 
-    return std::make_shared<internal::GroupQueryAttention>(ov_op_inputs,
-                                                           num_heads,
-                                                           kv_num_heads,
-                                                           scale,
-                                                           do_rotary,
-                                                           rotary_interleaved,
-                                                           kv_cache_bit_width,
-                                                           k_quant_type,
-                                                           v_quant_type,
-                                                           local_window_size,
-                                                           sliding_window_cache != 0,
-                                                           smooth_softmax != 0)
+    // smooth_softmax's ONNX schema default is -1, not 0, yet ORT's own CPU/CUDA kernels enable it only when
+    // the value is exactly 1. Comparing == 1 (not != 0) keeps a graph that never set the attribute from
+    // silently getting the smooth-softmax sink path.
+    return std::make_shared<internal::GroupQueryAttention>(
+               ov_op_inputs,
+               num_heads,
+               kv_num_heads,
+               scale,
+               do_rotary,
+               rotary_interleaved,
+               kv_cache_bit_width,
+               k_quant_type,
+               v_quant_type,
+               local_window_size,
+               sliding_window_cache != 0,
+               smooth_softmax == 1,
+               causal != 0,
+               softcap,
+               qk_norm_epsilon,
+               static_cast<internal::GroupQueryAttentionQKOutput>(qk_output))
         ->outputs();
 }
 

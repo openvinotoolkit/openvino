@@ -75,8 +75,15 @@ ov::Output<ov::Node> inject_lora(const ov::Output<ov::Node>& input,
     auto lora_b = make_lora_value(lora, lora.precision, ov::Shape{out_features, rank}, state_prefix + ".MatMul.B");
     auto lora_alpha = make_lora_value(lora, ov::element::f32, ov::Shape{1, rank}, state_prefix + ".MatMul.alpha");
 
+    ov::Output<ov::Node> a_value = lora_a;
+    if (a_value.get_element_type() != input.get_element_type()) {
+        auto a_convert = std::make_shared<ov::opset11::Convert>(a_value, input.get_element_type());
+        a_convert->set_friendly_name(name + "_lora_a_cvt");
+        a_value = a_convert->output(0);
+    }
+
     // input @ A^T -> [batch, seq, rank]
-    auto mm_a = std::make_shared<ov::opset11::MatMul>(input, lora_a, false, true);
+    auto mm_a = std::make_shared<ov::opset11::MatMul>(input, a_value, false, true);
     mm_a->set_friendly_name(name + "_lora_a");
 
     // Multiply by alpha [1, rank], broadcast over batch/seq; alpha is always f32 (set from host)
@@ -89,8 +96,15 @@ ov::Output<ov::Node> inject_lora(const ov::Output<ov::Node>& input,
     auto scaled = std::make_shared<ov::opset11::Multiply>(mm_a, alpha);
     scaled->set_friendly_name(name + "_lora_scale");
 
+    ov::Output<ov::Node> b_value = lora_b;
+    if (b_value.get_element_type() != scaled->get_output_element_type(0)) {
+        auto b_convert = std::make_shared<ov::opset11::Convert>(b_value, scaled->get_output_element_type(0));
+        b_convert->set_friendly_name(name + "_lora_b_cvt");
+        b_value = b_convert->output(0);
+    }
+
     // scaled @ B^T -> [batch, seq, out_features]
-    auto mm_b = std::make_shared<ov::opset11::MatMul>(scaled, lora_b, false, true);
+    auto mm_b = std::make_shared<ov::opset11::MatMul>(scaled, b_value, false, true);
     mm_b->set_friendly_name(name + "_lora_b");
 
     auto lora_add = std::make_shared<ov::opset11::Add>(base, mm_b);
@@ -724,7 +738,8 @@ ov::Output<ov::Node> ModelBuilder::setup_position_ids(LLMConfig& config, const o
             config.rope =
                 PartialRotationRoPE(config.head_dim, config.rotary_dim, config.precision, position_ids_output);
         } else {
-            config.rope = HalfRotationRoPE(config.head_dim, config.precision, position_ids_output);
+            config.rope =
+                HalfRotationRoPE(config.head_dim, config.precision, position_ids_output, {}, config.longrope);
         }
     }
 
@@ -983,7 +998,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_lora_adapter(const LoRAConfig& co
     LoRAInjector lora;
     lora.max_rank = config.lora_rank;
     lora.targets = config.lora_targets;
-    lora.precision = prec;
+    lora.precision = config.lora_precision == ov::element::dynamic ? prec : config.lora_precision;
     lora.stateful = config.lora_stateful;
     lora.sinks = &m_sinks;
 

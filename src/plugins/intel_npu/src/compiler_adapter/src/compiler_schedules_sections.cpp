@@ -30,7 +30,7 @@ constexpr size_t NUMBER_OF_INITS_SIZE = sizeof(uint16_t);
 constexpr size_t MINIMUM_INIT_SCHEDULES_SECTION_SIZE = NUMBER_OF_INITS_SIZE;
 
 std::function<std::string(const std::string&)> get_encryption_callback_from_config(
-    const std::optional<FilteredConfig>& config) {
+    const std::optional<Config>& config) {
     OPENVINO_ASSERT(config.has_value(), "A config object is required to query the encryption callback");
 
     if (config->has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
@@ -357,8 +357,7 @@ DynamicScheduleSection::DynamicScheduleSection(
       m_impl(std::move(main_schedule), encryption_callback, log_level),
       m_blob_type(blob_type),
       m_logger("DynamicScheduleSection", log_level) {
-    OPENVINO_ASSERT(blob_type == BlobType::LLVM || blob_type == BlobType::BYTECODE,
-                    "Invalid blob type for a dynamic compiler schedule");
+    OPENVINO_ASSERT(blob_type == BlobType::BYTECODE, "Invalid blob type for a dynamic compiler schedule");
 }
 
 std::vector<std::shared_ptr<CREToken>> DynamicScheduleSection::get_compatibility_requirements_subexpression(
@@ -396,6 +395,7 @@ std::shared_ptr<ISection> DynamicScheduleSection::read(BlobReaderInterface& blob
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "DynamicScheduleSection::read");
     // TODO more logs
 
+    // TODO do not store/read the blob type anymore
     OPENVINO_ASSERT(blob_reader.get_remaining_section_size() >= sizeof(BlobType), SECTION_TOO_SHORT_MESSAGE);
     BlobType blob_type;
     blob_reader.read_into_buffer(&blob_type, sizeof(blob_type));

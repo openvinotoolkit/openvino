@@ -11,6 +11,7 @@
 #include "llm_compiled_model.hpp"
 #include "llm_infer_base_request.hpp"
 #include "llm_infer_request.hpp"
+#include "llm_longrope_kv.hpp"
 #include "logging.hpp"
 #include "util.hpp"
 
@@ -23,7 +24,7 @@ std::string make_numbered_block_input_name(const std::string& kv_type, const std
 
 // Classify a port name into its KV block role.
 // Returns Key/Value for numbered blocks, Tail for block_tail ports,
-// and Skip for contiguous KV params or unrelated ports.
+// and Skip for contiguous KV params, SWA managed ports, or unrelated ports.
 ov::npuw::BlockParamKind classify_block_param(const std::string& name) {
     using ov::npuw::BlockParamKind;
     namespace uu = ov::npuw::util;
@@ -33,6 +34,9 @@ ov::npuw::BlockParamKind classify_block_param(const std::string& name) {
         return ov::npuw::BlockParamKind::Skip;
     }
     if (uu::isPastKeyValuesKeyContiguous(name).has_value() || uu::isPastKeyValuesValueContiguous(name).has_value()) {
+        return ov::npuw::BlockParamKind::Skip;
+    }
+    if (uu::is_swa_kv_cache_name(name)) {
         return ov::npuw::BlockParamKind::Skip;
     }
     if (name.find("block_tail") != std::string::npos) {
@@ -328,7 +332,10 @@ void LLMBlockKVCacheStrategy::on_reset(uint32_t next_prompt_length) {
             std::find(m_req.m_generate_requests.begin(), m_req.m_generate_requests.end(), m_req.m_kvcache_request);
         if (it != m_req.m_generate_requests.end()) {
             const size_t idx = static_cast<size_t>(std::distance(m_req.m_generate_requests.begin(), it));
-            m_req.m_generate_base_requests[idx]->propagate_params_to_subrequests();
+            // The base request is absent when a test factory builds plain sub-requests.
+            if (m_req.m_generate_base_requests[idx]) {
+                m_req.m_generate_base_requests[idx]->propagate_params_to_subrequests();
+            }
         }
     }
 
@@ -480,6 +487,147 @@ void LLMBlockKVCacheStrategy::on_generate_step_done(uint32_t input_tokens_len) {
                            kvcache_desc.v_tensors_transposed_gen,
                            tokens_before);
     update_generate_bindings(tokens_before, tokens_after, m_req.m_kvcache_request);
+}
+
+// The pool, not the request's ports, is where each cached key exists exactly once: a
+// numbered port is a zero-copy view of a block, the tail port is a copy of one, and a
+// port backing no token holds a dummy tensor shared with every other such port. So the
+// blocks are turned directly and the tail copy is re-issued afterwards.
+void LLMBlockKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                                     const PortsMap& /*in_ports*/,
+                                                     uint32_t num_cached_tokens,
+                                                     bool to_long) {
+    OPENVINO_ASSERT(!m_kv_cache_block_managers.empty() && m_block_size > 0u,
+                    "NPUW: the LongRoPE mode changed but the block KV cache is not initialized.");
+
+    std::vector<ov::npuw::longrope::KeyBlock> blocks;
+    for (const auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+        auto& manager = layer_managers.key_manager;
+        if (!manager) {
+            continue;
+        }
+        const auto allocated = manager->get_allocated_blocks();
+        for (uint32_t first = 0u; first < num_cached_tokens; first += m_block_size) {
+            const uint32_t block_idx = first / m_block_size;
+            OPENVINO_ASSERT(block_idx < allocated.size(),
+                            "NPUW: the LongRoPE mode changed with ",
+                            num_cached_tokens,
+                            " cached tokens, but layer ",
+                            layer_idx,
+                            " holds only ",
+                            allocated.size(),
+                            " key blocks.");
+            const uint32_t block_id = allocated[block_idx];
+            const uint32_t live = std::min(num_cached_tokens - first, m_block_size);
+            OPENVINO_ASSERT(manager->get_block_tokens(block_id) >= live,
+                            "NPUW: key block ",
+                            block_idx,
+                            " of layer ",
+                            layer_idx,
+                            " holds ",
+                            manager->get_block_tokens(block_id),
+                            " tokens where the LongRoPE mode change expects at least ",
+                            live,
+                            ".");
+            blocks.push_back({manager->get_block_tensor(block_id), first, live});
+        }
+    }
+
+    const auto& compiled = m_req.m_npuw_llm_compiled_model;
+    ov::npuw::longrope::rerotate_cached_key_blocks(blocks,
+                                                   compiled->m_longrope_tables,
+                                                   compiled->m_kvcache_desc.dim,
+                                                   num_cached_tokens,
+                                                   m_req.m_first_position_id,
+                                                   to_long);
+    refresh_key_tail_bindings(request);
+}
+
+// Continuing a prefill on the block pool truncates metadata only, since blocks
+// need no KV movement. Every manager in every layer is validated before any of
+// them changes.
+void LLMBlockKVCacheStrategy::continue_prefill(uint32_t keep, uint32_t delta_len) {
+    OPENVINO_ASSERT(!m_kv_cache_block_managers.empty(), "Continued prefill: block managers are not initialized.");
+    OPENVINO_ASSERT(m_block_size > 0u && keep % m_block_size == 0u,
+                    "Continued prefill: keep (",
+                    keep,
+                    ") must be a multiple of the block size (",
+                    m_block_size,
+                    ").");
+    const auto& kvcache_desc = m_req.m_npuw_llm_compiled_model->m_kvcache_desc;
+    OPENVINO_ASSERT(keep + delta_len <= kvcache_desc.max_prompt_size,
+                    "Continued prefill: keep plus delta exceeds the maximum prompt size.");
+
+    const uint32_t keep_blocks = keep / m_block_size;
+
+    // Each retained block must exist and be completely full, since a partially
+    // filled block would make the continuation prefix incoherent.
+    auto validate = [&](uint32_t layer_idx, KVCacheBlockManager* manager, const char* kv_type) {
+        if (!manager) {
+            return;
+        }
+        const auto allocated = manager->get_allocated_blocks();
+        OPENVINO_ASSERT(allocated.size() >= keep_blocks,
+                        "Continued prefill: layer ",
+                        layer_idx,
+                        " ",
+                        kv_type,
+                        " has only ",
+                        allocated.size(),
+                        " allocated blocks, ",
+                        keep_blocks,
+                        " are required.");
+        for (uint32_t i = 0; i < keep_blocks; ++i) {
+            OPENVINO_ASSERT(manager->get_block_tokens(allocated[i]) == m_block_size,
+                            "Continued prefill: retained block ",
+                            i,
+                            " of layer ",
+                            layer_idx,
+                            " ",
+                            kv_type,
+                            " is not full.");
+        }
+    };
+    for (const auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+        validate(layer_idx, layer_managers.key_manager.get(), "key");
+        validate(layer_idx, layer_managers.value_manager.get(), "value");
+    }
+
+    LOG_DEBUG("Continued prefill: truncating block pool to " << keep_blocks << " blocks per layer.");
+
+    // Drop prefill output redirections left over from a previous zero-copy chunk so
+    // the model does not write into a block we are about to release.
+    if (m_zero_copy_last_chunk) {
+        restore_prefill_output_buffers(m_req.m_prefill_request, m_req.m_prefill_out_ports);
+        m_zero_copy_last_chunk = false;
+    }
+
+    // Release every input binding that may reference a suffix block. Retained blocks
+    // are rebound by load_past_kv_blocks_to_prefill() at the next chunk begin, and by
+    // on_generate_kv_init() for the generate phase. Dummies go to all variants because
+    // any of them may have been bound during earlier turns.
+    set_dummy_tensors_to_request(m_req.m_prefill_request, m_prefill_classified_in_ports, m_dummy_tensors);
+    for (const auto& generate_request : m_req.m_generate_requests) {
+        set_dummy_tensors_to_request(generate_request, m_gen_classified_in_ports.at(generate_request), m_dummy_tensors);
+    }
+    for (const auto& base_req : m_req.m_generate_base_requests) {
+        // The base request is absent when a test factory builds plain sub-requests.
+        if (base_req) {
+            base_req->propagate_params_to_subrequests();
+        }
+    }
+
+    // Truncate the managers. Stale bytes beyond the retained prefix are inert once no
+    // metadata or binding exposes them, and on_reset() must not run here because it
+    // would release the retained block tensors back to the allocator.
+    for (auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+        if (layer_managers.key_manager) {
+            layer_managers.key_manager->truncate_allocated(keep_blocks);
+        }
+        if (layer_managers.value_manager) {
+            layer_managers.value_manager->truncate_allocated(keep_blocks);
+        }
+    }
 }
 
 // ============================================================================
@@ -752,6 +900,37 @@ void LLMBlockKVCacheStrategy::update_generate_bindings(uint32_t old_num_tokens,
 // ============================================================================
 // Private: KV copy engine
 // ============================================================================
+
+void LLMBlockKVCacheStrategy::refresh_key_tail_bindings(const std::shared_ptr<ov::IAsyncInferRequest>& request) {
+    const auto helpers_it = m_variant_block_binding_helpers.find(request);
+    if (helpers_it == m_variant_block_binding_helpers.end()) {
+        // The prefill request binds numbered blocks only, and does so at the next chunk
+        // begin, so it reads the turned pool with nothing left to refresh.
+        return;
+    }
+    const uint32_t kv_dim = m_req.m_npuw_llm_compiled_model->m_kvcache_desc.dim;
+    for (const auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+        auto& manager = layer_managers.key_manager;
+        if (!manager) {
+            continue;
+        }
+        const auto& helper = helpers_it->second.at(layer_idx).key_helper;
+        if (!helper.has_tail_input()) {
+            continue;
+        }
+        const auto allocated = manager->get_allocated_blocks();
+        for (size_t block_idx = helper.numbered_input_ports.size(); block_idx < allocated.size(); ++block_idx) {
+            const uint32_t block_id = allocated[block_idx];
+            copy_block_to_tail_input(manager->get_block_tensor(block_id),
+                                     0u,
+                                     manager->get_block_tokens(block_id),
+                                     kv_dim,
+                                     helper.tail_input_port.value(),
+                                     request);
+            LOG_VERB("Refreshed tail key layer_" << layer_idx << " block_" << block_idx << " after a LongRoPE turn");
+        }
+    }
+}
 
 void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                                                      const PortsMap& src_ports,

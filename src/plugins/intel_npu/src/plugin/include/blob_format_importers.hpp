@@ -10,9 +10,9 @@
 #include "compiler_option_support_helper.hpp"
 #include "intel_npu/common/blob_source.hpp"
 #include "intel_npu/common/blob_writer.hpp"
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/npu.hpp"
+#include "intel_npu/config/config.hpp"
 #include "metadata.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -38,7 +38,7 @@ public:
      */
     IBlobFormatImporter(const std::shared_ptr<const ov::Model>& original_model,
                         const ov::SoPtr<IEngineBackend>& backend,
-                        const FilteredConfig& config,
+                        const Config& config,
                         const Logger& logger);
 
     /**
@@ -77,7 +77,7 @@ public:
      */
     virtual std::shared_ptr<BlobWriter> create_blob_writer() = 0;
 
-    FilteredConfig get_config() const;
+    Config get_config() const;
 
     virtual ~IBlobFormatImporter() = default;
 
@@ -86,7 +86,7 @@ protected:
     std::optional<int> m_batch_size;
     ov::SoPtr<IEngineBackend> m_backend;
 
-    FilteredConfig m_config;
+    Config m_config;
     Logger m_logger;
 
 private:
@@ -161,7 +161,7 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
                                             const std::shared_ptr<const ov::Model>& original_model,
                                             const ov::SoPtr<IEngineBackend>& backend,
                                             const std::shared_ptr<CompilerOptionSupportHelper>& option_helper,
-                                            const FilteredConfig& config);
+                                            const Config& config);
 
 }  // namespace blob_format_importer_factory
 

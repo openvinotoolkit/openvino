@@ -220,8 +220,9 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
 
 std::string vector_to_string(const std::vector<float>& vec) {
     std::stringstream result;
-    for (size_t i = 0; i < vec.size(); i++)
+    for (size_t i = 0; i < vec.size(); i++) {
         result << vec.at(i) << ", ";
+    }
     return result.str();
 }
 
@@ -229,8 +230,9 @@ std::vector<float> normalized_aspect_ratio(const std::vector<float>& aspect_rati
     std::set<float> unique_ratios;
     for (auto ratio : aspect_ratio) {
         unique_ratios.insert(static_cast<float>(std::round(ratio * 1e6) / 1e6));
-        if (flip)
+        if (flip) {
             unique_ratios.insert(static_cast<float>(std::round(1 / ratio * 1e6) / 1e6));
+        }
     }
     unique_ratios.insert(1);
     return std::vector<float>(unique_ratios.begin(), unique_ratios.end());
@@ -281,8 +283,9 @@ tensor get_output_shape(ov::Dimension::value_type height, ov::Dimension::value_t
 }  // namespace
 
 void prior_box_node::calc_result() {
-    if (result != nullptr)
+    if (result != nullptr) {
         return;
+    }
 
     auto& argument = *typed_desc();
 
@@ -400,16 +403,17 @@ void prior_box_node::calc_result() {
     result = get_program().get_engine().allocate_memory(get_output_layout());
 
     // perform calculations
-    if (get_output_layout().data_type == data_types::f16)
+    if (get_output_layout().data_type == data_types::f16) {
         calculate_prior_box_output<ov::element_type_traits<data_types::f16>::value_type>(result,
                                                                              get_program().get_stream(),
                                                                              get_input_layout(),
                                                                              *typed_desc());
-    else
+    } else {
         calculate_prior_box_output<ov::element_type_traits<data_types::f32>::value_type>(result,
                                                                              get_program().get_stream(),
                                                                              get_input_layout(),
                                                                              *typed_desc());
+    }
 }
 
 layout prior_box_inst::calc_output_layout(prior_box_node const& node, kernel_impl_params const& impl_param) {

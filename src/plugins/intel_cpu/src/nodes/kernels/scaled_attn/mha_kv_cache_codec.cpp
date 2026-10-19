@@ -343,8 +343,8 @@ struct KVEntryContext {
 
 template <typename Q, typename RecordView>
 struct QKScorer {
-    Q q;
     RecordView record_view;
+    Q q;
     KVEntryContext ctx;
 
     float operator()(const uint8_t* k, int g, size_t t, size_t b_kv) const {
@@ -367,7 +367,7 @@ struct QKScorer {
 };
 
 template <typename Q, typename RecordView>
-QKScorer(Q, RecordView, KVEntryContext) -> QKScorer<Q, RecordView>;
+QKScorer(RecordView, Q, KVEntryContext) -> QKScorer<Q, RecordView>;
 
 // ---------------------------------------------------------------------------
 // VAccumulator — bound V accumulator for Phase 3.
@@ -697,7 +697,7 @@ void mha_kv_cache(PlainTensor& q_input,
                             head_dim,
                             k_scale_zp,
                             [&](auto record_view) {
-                                auto scorer = QKScorer{q, record_view, entry_ctx};
+                                auto scorer = QKScorer{record_view, q, entry_ctx};
                                 score_tokens(kv_base,
                                              stride_batch,
                                              stride_pos,

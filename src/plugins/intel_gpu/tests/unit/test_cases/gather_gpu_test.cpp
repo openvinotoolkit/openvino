@@ -2101,14 +2101,23 @@ TEST(gather_gpu_fp32, 322_axisF) {
     }
 }
 
-TEST(gather_gpu_fp32, dynamic_322_axisF) {
+struct gather_dynamic_axisF_params {
+    format::type input_format;
+    ov::Shape data_shape;
+    ov::Shape indices_shape;
+};
+
+class gather_gpu_fp32_dynamic_axisF : public ::testing::TestWithParam<gather_dynamic_axisF_params> {};
+
+TEST_P(gather_gpu_fp32_dynamic_axisF, basic) {
+    const auto& p = GetParam();
     auto& engine = get_test_engine();
 
-    ov::Shape in1_shape = { 3, 3 };
-    ov::Shape in2_shape = { 2, 2 };
-    auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx};
+    const ov::Shape& in1_shape = p.data_shape;
+    const ov::Shape& in2_shape = p.indices_shape;
+    auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, p.input_format};
     auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::i32, format::bfyx};
-    auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx}); // data
+    auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, p.input_format}); // data
     auto input2 = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::i32, format::bfyx}); // Indexes
 
     int64_t axis = 1;
@@ -2134,6 +2143,7 @@ TEST(gather_gpu_fp32, dynamic_322_axisF) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
+    ASSERT_EQ(output->get_layout().format, p.input_format);
     cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int> expected_results = {1, 0, 2, 1,  11, 10, 12, 11,  21, 20, 22, 21};
@@ -2143,6 +2153,16 @@ TEST(gather_gpu_fp32, dynamic_322_axisF) {
         ASSERT_EQ(expected_results[i], output_ptr[i]) << i;
     }
 }
+
+// For byxf the data buffer is read as x0: f0..f2, x1: f0..f2, x2: f0..f2 and the gathered features stay innermost,
+// so the same buffers and expected results apply to both formats.
+INSTANTIATE_TEST_SUITE_P(gather_gpu_fp32,
+                         gather_gpu_fp32_dynamic_axisF,
+                         ::testing::Values(gather_dynamic_axisF_params{format::bfyx, {3, 3}, {2, 2}},
+                                           gather_dynamic_axisF_params{format::byxf, {1, 3, 1, 3}, {4}}),
+                         [](const ::testing::TestParamInfo<gather_dynamic_axisF_params>& info) {
+                             return format(info.param.input_format).to_string();
+                         });
 
 TEST(gather_gpu_fp32, indice_out_of_bound) {
     auto& engine = get_test_engine();
@@ -2732,6 +2752,44 @@ TEST(gather_gpu_fp32, dynamic_support_scalar_indice_empty_memory) {
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = { 2.f, 5.f, 8.f };
+
+    ASSERT_EQ(expected_results.size(), output_ptr.size());
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_EQ(expected_results[i], output_ptr[i]) << i;
+    }
+}
+
+// f8e4m3 Gather: values are exactly representable, so the gathered (byte-moved) result is exact.
+// Covers the f8 path used by the windowed KV-cache assembly of a quantized GroupQueryAttention.
+TEST(gather_gpu_f8e4m3, d33_axisF) {
+    //  Dictionary : 3x3x1x1
+    //  Indexes : 2x2x1x1
+    //  Axis : 1
+    //  Output : 3x2x2x1
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({ov::PartialShape{3, 3, 1, 1}, data_types::f8e4m3, format::bfyx});  // data
+    auto input2 = engine.allocate_memory({ov::PartialShape{2, 2, 1, 1}, data_types::i32, format::bfyx});     // indexes
+    int64_t axis = 1;
+
+    set_values<ov::float8_e4m3>(input1, {0.f, 1.f, 2.f, 10.f, 11.f, 12.f, 20.f, 21.f, 22.f});
+    set_values(input2, {1, 0, 2, 1});
+
+    topology topology;
+    topology.add(input_layout("InputDictionary", input1->get_layout()));
+    topology.add(input_layout("InputText", input2->get_layout()));
+    topology.add(gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{3, 2, 2, 1}));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("InputDictionary", input1);
+    network.set_input_data("InputText", input2);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("gather").get_memory();
+    cldnn::mem_lock<ov::float8_e4m3, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    std::vector<ov::float8_e4m3> expected_results = {1.f, 0.f, 2.f, 1.f, 11.f, 10.f, 12.f, 11.f, 21.f, 20.f, 22.f, 21.f};
 
     ASSERT_EQ(expected_results.size(), output_ptr.size());
     for (size_t i = 0; i < expected_results.size(); ++i) {
