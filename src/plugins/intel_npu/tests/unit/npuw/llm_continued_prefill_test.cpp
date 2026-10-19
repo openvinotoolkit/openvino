@@ -705,12 +705,12 @@ TEST_F(LLMBlockContinuedPrefillTest, GrantedContinuationTruncatesBlockPoolAndRun
 }
 
 // VLM language models feed the prefill with inputs_embeds and, depending on the
-// family, token_type_ids (Gemma-3), 3-D M-RoPE position ids (Qwen2.5-VL) or
-// M-RoPE plus DeepStack injections (Qwen3-VL). Every caller tensor of a
+// family, token_type_ids (Gemma-3), per_layer_inputs (Gemma-4 E2B/E4B), 3-D M-RoPE
+// position ids (Qwen2.5-VL) or M-RoPE plus DeepStack injections (Qwen3-VL). Every caller tensor of a
 // continued prefill holds only the delta, so the tests below check that the
 // chunks of a continuation stage exactly what the same chunks of a full-history
 // prefill stage.
-enum class VlmInputs { InputsEmbeds, TokenTypeIds, MRoPE, DeepStack };
+enum class VlmInputs { InputsEmbeds, TokenTypeIds, PerLayerInputs, MRoPE, DeepStack };
 
 constexpr size_t kVlmTotal = 104;      // full second-turn history
 constexpr size_t kVlmFirstTurn = 72;   // history prefilled by the first turn
@@ -719,6 +719,8 @@ constexpr size_t kVlmImageBegin = 40;  // image block [40, 80), a 5 x 8 grid
 constexpr size_t kVlmImageEnd = 80;
 constexpr size_t kVlmImageWidth = 8;
 constexpr size_t kVlmDeepstackLayers = 2;
+constexpr size_t kVlmPleLayers = 2;  // per_layer_inputs [1, T, layers, dim]
+constexpr size_t kVlmPleDim = 4;
 
 bool is_vlm_image_token(size_t i) {
     return i >= kVlmImageBegin && i < kVlmImageEnd;
@@ -740,6 +742,22 @@ void add_token_type_ids_input(const std::shared_ptr<ov::Model>& model) {
     probe->output(0).set_names({"token_type_ids_probe"});
     auto result = std::make_shared<ov::op::v0::Result>(probe);
     model->add_parameters({token_type_ids});
+    model->add_results({result});
+    model->validate_nodes_and_infer_types();
+}
+
+// Gemma-4 E2B/E4B style per_layer_inputs, reaching the graph through a probe
+// output like token_type_ids above.
+void add_per_layer_inputs_input(const std::shared_ptr<ov::Model>& model) {
+    auto per_layer_inputs = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::f32,
+        ov::PartialShape{1, -1, static_cast<int64_t>(kVlmPleLayers), static_cast<int64_t>(kVlmPleDim)});
+    per_layer_inputs->output(0).set_names({"per_layer_inputs"});
+    auto zero = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {0.0f});
+    auto probe = std::make_shared<ov::op::v1::Add>(per_layer_inputs, zero);
+    probe->output(0).set_names({"per_layer_inputs_probe"});
+    auto result = std::make_shared<ov::op::v0::Result>(probe);
+    model->add_parameters({per_layer_inputs});
     model->add_results({result});
     model->validate_nodes_and_infer_types();
 }
@@ -793,6 +811,9 @@ std::shared_ptr<ov::Model> build_vlm_test_model(VlmInputs kind) {
     if (kind == VlmInputs::TokenTypeIds) {
         add_token_type_ids_input(model);
     }
+    if (kind == VlmInputs::PerLayerInputs) {
+        add_per_layer_inputs_input(model);
+    }
     if (kind == VlmInputs::DeepStack) {
         add_deepstack_injection(model, cfg.hidden_size);
     }
@@ -818,6 +839,7 @@ struct VlmPrompt {
     ov::Tensor inputs_embeds;     // [1, T, hidden]
     ov::Tensor position_ids;      // [1, T] or M-RoPE [3, 1, T]
     ov::Tensor token_type_ids;    // [1, T]
+    ov::Tensor per_layer_inputs;  // [1, T, layers, dim]
     ov::Tensor visual_pos_masks;  // [1, T]
     ov::Tensor deepstack;         // [layers, image tokens, hidden]
 
@@ -825,6 +847,7 @@ struct VlmPrompt {
         VlmPrompt p;
         p.inputs_embeds = ov::Tensor(ov::element::f32, ov::Shape{1, kVlmTotal, hidden});
         p.token_type_ids = ov::Tensor(ov::element::i64, ov::Shape{1, kVlmTotal});
+        p.per_layer_inputs = ov::Tensor(ov::element::f32, ov::Shape{1, kVlmTotal, kVlmPleLayers, kVlmPleDim});
         p.visual_pos_masks = ov::Tensor(ov::element::boolean, ov::Shape{1, kVlmTotal});
         const size_t image_tokens = kVlmImageEnd - kVlmImageBegin;
         p.deepstack = ov::Tensor(ov::element::f32, ov::Shape{kVlmDeepstackLayers, image_tokens, hidden});
@@ -837,6 +860,9 @@ struct VlmPrompt {
         }
         for (size_t i = 0; i < p.deepstack.get_size(); ++i) {
             p.deepstack.data<float>()[i] = 1e5f + static_cast<float>(i);
+        }
+        for (size_t i = 0; i < p.per_layer_inputs.get_size(); ++i) {
+            p.per_layer_inputs.data<float>()[i] = 2e5f + static_cast<float>(i);
         }
         if (!mrope) {
             p.position_ids = make_i64_iota({1, kVlmTotal}, 0);
@@ -872,6 +898,7 @@ struct VlmPrompt {
         p.inputs_embeds = slice_axis(inputs_embeds, 1, begin, end);
         p.position_ids = slice_axis(position_ids, position_ids.get_shape().size() - 1, begin, end);
         p.token_type_ids = slice_axis(token_type_ids, 1, begin, end);
+        p.per_layer_inputs = slice_axis(per_layer_inputs, 1, begin, end);
         p.visual_pos_masks = slice_axis(visual_pos_masks, 1, begin, end);
         p.deepstack = slice_axis(deepstack, 1, vlm_image_tokens_before(begin), vlm_image_tokens_before(end));
         return p;
@@ -890,7 +917,12 @@ protected:
     // The base fixture asserts that the capability reports support.
     void start_session() {
         m_journal = std::make_shared<PrefillJournal>();
-        init({}, build_vlm_test_model(GetParam()), m_journal);
+        // A per_layer_inputs model turns the SWA KV cache shrink on by default, which
+        // excludes continuous prefill; Gemma-4 runs with it off.
+        const ov::AnyMap props = GetParam() == VlmInputs::PerLayerInputs
+                                     ? ov::AnyMap{{"NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", "NO"}}
+                                     : ov::AnyMap{};
+        init(props, build_vlm_test_model(GetParam()), m_journal);
     }
 
     void set_input(const std::string& name, const ov::Tensor& tensor) {
@@ -905,6 +937,7 @@ protected:
         set_input("attention_mask", make_i64({1, history_len}, 1));
         set_input("position_ids", prompt.position_ids);
         set_input("token_type_ids", prompt.token_type_ids);
+        set_input("per_layer_inputs", prompt.per_layer_inputs);
         set_input("visual_pos_masks", prompt.visual_pos_masks);
         set_input("deepstack_visual_embeds", prompt.deepstack);
         request().infer();
@@ -917,6 +950,8 @@ protected:
         step.position_ids = mrope() ? make_i64({3, 1, 1}, static_cast<int64_t>(live_tokens))
                                     : make_i64({1, 1}, static_cast<int64_t>(live_tokens));
         step.token_type_ids = make_i64({1, 1}, 0);
+        step.per_layer_inputs = ov::Tensor(ov::element::f32, ov::Shape{1, 1, kVlmPleLayers, kVlmPleDim});
+        std::fill_n(step.per_layer_inputs.data<float>(), step.per_layer_inputs.get_size(), 0.f);
         step.visual_pos_masks = ov::Tensor(ov::element::boolean, ov::Shape{1, 1});
         step.visual_pos_masks.data<bool>()[0] = false;
         step.deepstack = ov::Tensor(ov::element::f32, ov::Shape{kVlmDeepstackLayers, 1, hidden});
@@ -936,6 +971,9 @@ protected:
         std::vector<std::string> names{"inputs_embeds", "attention_mask", "position_ids"};
         if (GetParam() == VlmInputs::TokenTypeIds) {
             names.push_back("token_type_ids");
+        }
+        if (GetParam() == VlmInputs::PerLayerInputs) {
+            names.push_back("per_layer_inputs");
         }
         if (GetParam() == VlmInputs::DeepStack) {
             names.push_back("deepstack_visual_embeds");
@@ -994,6 +1032,9 @@ TEST_P(LLMVlmContinuedPrefillTest, FullHistoryInputIsRejectedBeforeTheRepack) {
     case VlmInputs::TokenTypeIds:
         wrong.token_type_ids = full.token_type_ids;
         break;
+    case VlmInputs::PerLayerInputs:
+        wrong.per_layer_inputs = full.per_layer_inputs;
+        break;
     case VlmInputs::DeepStack:
         wrong.deepstack = full.deepstack;
         break;
@@ -1005,22 +1046,48 @@ TEST_P(LLMVlmContinuedPrefillTest, FullHistoryInputIsRejectedBeforeTheRepack) {
     EXPECT_EQ(stored_tokens(), static_cast<int64_t>(kVlmTotal));
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    VlmInputs,
-    LLMVlmContinuedPrefillTest,
-    ::testing::Values(VlmInputs::InputsEmbeds, VlmInputs::TokenTypeIds, VlmInputs::MRoPE, VlmInputs::DeepStack),
-    [](const ::testing::TestParamInfo<VlmInputs>& info) {
-        switch (info.param) {
-        case VlmInputs::InputsEmbeds:
-            return std::string("InputsEmbeds");
-        case VlmInputs::TokenTypeIds:
-            return std::string("TokenTypeIds");
-        case VlmInputs::MRoPE:
-            return std::string("MRoPE");
-        case VlmInputs::DeepStack:
-            return std::string("DeepStack");
-        }
-        return std::string();
-    });
+// M-RoPE ids sliced on the sequence axis but with the wrong axis count are a
+// preflight rejection too: the chunk copy would otherwise stage a partial ROI or
+// fail after the repack.
+TEST_P(LLMVlmContinuedPrefillTest, WrongPositionIdsLayoutIsRejectedBeforeTheRepack) {
+    if (!mrope()) {
+        GTEST_SKIP() << "M-RoPE position ids only";
+    }
+    constexpr size_t kHidden = 64;
+    const auto full = VlmPrompt::full_history(mrope(), kHidden);
+    start_session();
+    prepare_continuation(full, kHidden);
+
+    auto wrong = full.slice(kVlmKeep, kVlmTotal);
+    wrong.position_ids = slice_axis(wrong.position_ids, 0, 0, 2);  // [2, 1, delta]
+    EXPECT_THROW(run_prefill(wrong, kVlmTotal), ov::Exception);
+    EXPECT_EQ(stored_tokens(), static_cast<int64_t>(kVlmKeep));
+
+    run_prefill(full.slice(kVlmKeep, kVlmTotal), kVlmTotal);
+    EXPECT_EQ(stored_tokens(), static_cast<int64_t>(kVlmTotal));
+}
+
+INSTANTIATE_TEST_SUITE_P(VlmInputs,
+                         LLMVlmContinuedPrefillTest,
+                         ::testing::Values(VlmInputs::InputsEmbeds,
+                                           VlmInputs::TokenTypeIds,
+                                           VlmInputs::PerLayerInputs,
+                                           VlmInputs::MRoPE,
+                                           VlmInputs::DeepStack),
+                         [](const ::testing::TestParamInfo<VlmInputs>& info) {
+                             switch (info.param) {
+                             case VlmInputs::InputsEmbeds:
+                                 return std::string("InputsEmbeds");
+                             case VlmInputs::TokenTypeIds:
+                                 return std::string("TokenTypeIds");
+                             case VlmInputs::PerLayerInputs:
+                                 return std::string("PerLayerInputs");
+                             case VlmInputs::MRoPE:
+                                 return std::string("MRoPE");
+                             case VlmInputs::DeepStack:
+                                 return std::string("DeepStack");
+                             }
+                             return std::string();
+                         });
 
 }  // namespace
