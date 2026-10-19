@@ -12,6 +12,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "ov_ops/rms.hpp"
 
 namespace {
 
@@ -41,6 +42,10 @@ std::vector<uint64_t> compute_kv_group_sizes(const ov::PartialShape& data_shape,
 }  // namespace
 
 namespace ov::intel_gpu {
+
+ov::Output<ov::Node> GroupQueryAttentionDecomposition::make_qk_norm(const ov::Output<ov::Node>& input, const ov::Output<ov::Node>& weight, float epsilon) {
+    return register_new_node<ov::op::internal::RMS>(input, weight, epsilon, input.get_element_type());
+}
 
 std::optional<GroupQueryAttentionDecomposition::CompressedKV> GroupQueryAttentionDecomposition::prepare_compressed_kv(
     const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
