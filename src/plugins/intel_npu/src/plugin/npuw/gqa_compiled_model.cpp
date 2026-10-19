@@ -106,6 +106,23 @@ std::optional<size_t> resolve_default_sliding_window_size(const ov::AnyMap& prop
     return gqa_default_sliding_window_len_env_override();
 }
 
+// OPENVINO_NPUW_GQA_SLIDING_HEADROOM env override: extra sliding-window capacity in tokens.
+// Lower priority than NPUW_LLM_SWA_HEADROOM.
+std::optional<size_t> gqa_sliding_window_headroom_env_override() {
+    static const std::optional<size_t> value = parse_positive_size_env_var("OPENVINO_NPUW_GQA_SLIDING_HEADROOM");
+    return value;
+}
+
+// Resolves the sliding-window headroom: NPUW_LLM_SWA_HEADROOM property (if set), else
+// the env override, else nullopt.
+std::optional<size_t> resolve_sliding_window_headroom(const ov::AnyMap& properties) {
+    const uint32_t configured = cfg_get<::intel_npu::NPUW_LLM_SWA_HEADROOM>(properties);
+    if (configured != 0) {
+        return static_cast<size_t>(configured);
+    }
+    return gqa_sliding_window_headroom_env_override();
+}
+
 void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
     for (const auto& [key, value] : rhs) {
         if (auto it = lhs.find(key); it != lhs.end()) {
@@ -317,18 +334,16 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
     std::unordered_map<std::string, size_t> dynamic_kv_cache_axes;
     uint32_t effective_max_context_len = cfg_get<::intel_npu::NPUW_LLM_MAX_CONTEXT_LEN>(properties);
     uint32_t effective_sliding_window_size = 0;
-    const uint32_t effective_sliding_window_headroom = cfg_get<::intel_npu::NPUW_LLM_SWA_HEADROOM>(properties);
+    uint32_t effective_sliding_window_headroom = 0;
     if (has_dynamic_max_seq_len(model)) {
         const size_t max_seq_len = gqa_ctx_len_env_override().value_or(effective_max_context_len);
         effective_max_context_len = static_cast<uint32_t>(max_seq_len);
         compiled_model = model->clone();
         const auto sliding_window_size = resolve_default_sliding_window_size(properties);
         effective_sliding_window_size = static_cast<uint32_t>(sliding_window_size.value_or(0));
+        const auto sliding_window_headroom = resolve_sliding_window_headroom(properties);
+        effective_sliding_window_headroom = static_cast<uint32_t>(sliding_window_headroom.value_or(0));
         // Prefill and generate may share sliding KV buffers, so generate must also fit a prefill chunk.
-        std::optional<size_t> sliding_window_headroom;
-        if (effective_sliding_window_headroom != 0) {
-            sliding_window_headroom = static_cast<size_t>(effective_sliding_window_headroom);
-        }
         ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(max_seq_len, sliding_window_size, sliding_window_headroom);
         reshape_to_static_gqa.run_on_model(compiled_model);
         dynamic_kv_cache_axes = reshape_to_static_gqa.dynamic_kv_cache_axes();

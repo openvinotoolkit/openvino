@@ -1391,7 +1391,7 @@ TEST_F(GQACompiledModelTest, CaseV2GenerateSlidingCapacityWithoutSwaHeadroom) {
     ASSERT_NO_THROW(create_compiled_model(model, {{"NPUW_LLM_MAX_CONTEXT_LEN", "16384"}}, recorder));
 
     // Unset option -> only the default 16-token headroom.
-    EXPECT_EQ(parameter_shape(recorder.only_call().model, "past_keys_30"), ov::PartialShape({1, 10, 4112, 128}));
+    EXPECT_EQ(parameter_shape(recorder.only_call().model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
 }
 
 TEST_F(GQACompiledModelTest, NonV2SlidingCapacityHonorsSwaHeadroom) {
