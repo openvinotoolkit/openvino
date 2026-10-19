@@ -104,6 +104,7 @@ function(ov_download_tbb)
     if(WIN32 AND X86_64)
         # build oneTBB with Visual Studio 2022 (MSVC 14.42)
         # NOTE: if this archive name/version changes, update the TBB direct-download example in docs/dev/static_libraries.md
+        # NOTE: when updating this package, also update vc_mt package in ci.product-configs/conf_dldt.py
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_WIN "oneapi-tbb-2021.13.3-vs2022-win.zip"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"

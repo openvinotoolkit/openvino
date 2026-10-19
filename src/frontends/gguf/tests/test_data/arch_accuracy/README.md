@@ -10,12 +10,13 @@ OpenVINO does not participate in reference generation.
 The 40 decoder fixtures and five embedding fixtures include Muse Glimmer, Qwen3.5 dense/MoE (separate and fused
 expert projections, and F16 Gated-DeltaNet gate/beta projections that disable the frontend's
 projection merges as mixed quantization does in real checkpoints), Gemma4 mixed-head MQA/MoE variants and an E2B/E4B-style Gemma4 with
-per-layer embeddings and shared KV layers (`gemma4-ple`). Reference revisions are:
+per-layer embeddings and shared KV layers that omit unused K/V weights (`gemma4-ple`). Reference revisions are:
 
-| Fixtures | Upstream llama.cpp CPU oracle |
+| Fixtures | llama.cpp CPU oracle |
 |---|---|
-| Decoder/embedding fixtures other than the Mamba cases below | `03fa73cb27f5c251b9528489b18d303b1366aca4` (2026-09-08; includes Muse Glimmer) |
+| Decoder/embedding fixtures other than the Mamba and Prism cases below | Upstream `03fa73cb27f5c251b9528489b18d303b1366aca4` (2026-09-08; includes Muse Glimmer) |
 | `mamba2`, `mamba2-tied`, `nemotron_h` | `476c01efe88aad7880a8132d5d3a415f2ca75139`, recorded when these fixtures were added |
+| `bonsai2-hadamard`, `dspark` | [PrismML-Eng/llama.cpp](https://github.com/PrismML-Eng/llama.cpp/tree/e8fd209c975c80aa7fb36a8423571ff3b1b7e955), `e8fd209c975c80aa7fb36a8423571ff3b1b7e955` |
 
 The cases use distinct nonzero weights and nonuniform norm scales, four query heads,
 grouped-query attention (single KV head for Gemma), and token batches `[1,2,3]`, `[4]`,
@@ -59,6 +60,35 @@ Choose other names from `CASES` in `gen_arch_accuracy.py`. For the Mamba group, 
 against its recorded revision and use `--architectures mamba2 mamba2-tied nemotron_h`.
 Omitting `--architectures` attempts every case with the supplied oracle; use it only for a
 deliberate full reference refresh and review the numerical changes and provenance together.
+
+For the Prism fixtures, use the exact fork revision above. From `src/frontends/gguf/tests`,
+set `LLAMA_SRC` and `LLAMA_BUILD` to separate source and build directories, then run:
+
+```sh
+git clone https://github.com/PrismML-Eng/llama.cpp "$LLAMA_SRC"
+git -C "$LLAMA_SRC" checkout e8fd209c975c80aa7fb36a8423571ff3b1b7e955
+cmake -S "$LLAMA_SRC" -B "$LLAMA_BUILD" -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release -DGGML_OPENVINO=OFF -DGGML_CUDA=OFF -DGGML_NATIVE=OFF \
+    -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_SERVER=OFF \
+    -DLLAMA_BUILD_APP=OFF -DLLAMA_BUILD_TOOLS=OFF
+cmake --build "$LLAMA_BUILD" --target llama --parallel
+c++ -std=c++17 -O2 architecture_oracle.cpp \
+    -I "$LLAMA_SRC/include" -I "$LLAMA_SRC/ggml/include" \
+    -L "$LLAMA_BUILD/bin" -Wl,-rpath,"$LLAMA_BUILD/bin" \
+    -lllama -lggml -lggml-base -o architecture_oracle_prism
+c++ -std=c++17 -O2 dspark_oracle.cpp \
+    -I "$LLAMA_SRC/include" -I "$LLAMA_SRC/ggml/include" -I "$LLAMA_SRC/src" \
+    -L "$LLAMA_BUILD/bin" -Wl,-rpath,"$LLAMA_BUILD/bin" \
+    -lllama -lggml -lggml-base -o dspark_oracle
+PYTHONPATH="$LLAMA_SRC/gguf-py" python3 gen_arch_accuracy.py \
+    --oracle ./architecture_oracle_prism --architectures bonsai2-hadamard
+PYTHONPATH="$LLAMA_SRC/gguf-py" python3 gen_dspark_accuracy.py --oracle ./dspark_oracle
+```
+
+`bonsai2-hadamard.npz` uses the architecture oracle with explicit Hadamard signs and
+Gated-DeltaNet feature ordering. `dspark.npz` uses the DSpark API oracle for noncausal
+draft blocks with log-SNR conditioning; it also stores Markov and confidence projection
+weights for the head checks. The upstream oracle revision does not supply these Prism contracts.
 
 For an additional real-checkpoint check, create `<arch>.gguf` in a separate directory,
 then run `architecture_oracle <arch>.gguf <arch>.bin "The capital of France is"`.
