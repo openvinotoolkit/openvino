@@ -20,6 +20,7 @@
 #include "gtest/gtest.h"
 #include "op_test_utils.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/core/visibility.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/frontend/gguf/tokenizer_metadata.hpp"
@@ -51,6 +52,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "utils.hpp"
 
 using namespace ov_gguf_test;
@@ -890,90 +892,104 @@ TEST_P(GGUFAdaptToGenAISlidingWindow, PreservedByPagedAttention) {
     }
 }
 
-TEST(GGUFAdaptToGenAI, ImageWindowMatchesSDPAAndPagedAttention) {
+class GGUFAdaptToGenAIImageWindow : public testing::TestWithParam<bool> {};
+
+TEST_P(GGUFAdaptToGenAIImageWindow, MatchesSDPAAndPagedAttention) {
+    const bool paged = GetParam();
+#if defined(OPENVINO_ARCH_ARM64)
+    if (paged && !ov::with_cpu_sve())
+        GTEST_SKIP() << "CPU PagedAttention requires SVE on ARM64";
+#elif !defined(OPENVINO_ARCH_X86_64)
+    if (paged)
+        GTEST_SKIP() << "CPU PagedAttention requires x86-64 or ARM64 with SVE";
+#endif
     const size_t hidden = 4;
     const std::vector<int32_t> types{0, 1, 1, 1, 1, 0, 1, 1, 0};
     const auto length = types.size();
     ov::Core core;
-    for (bool paged : {false, true}) {
-        SCOPED_TRACE(paged);
-        auto model = build_attention_gguf_model(16, hidden);
-        auto mask = find_parameter(model, "self_kq_mask");
-        auto swa = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
-        model->add_parameters({swa});
-        mask->output(0).replace(swa->output(0));
-        model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
-        model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{3};
-        AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(model);
-        if (paged)
-            ov::pass::SDPAToPagedAttention(false, false, false).run_on_model(model);
-        auto compiled = core.compile_model(model,
-                                           "CPU",
-                                           ov::hint::inference_precision(ov::element::f32),
-                                           ov::hint::kv_cache_precision(ov::element::f32));
-        auto request = compiled.create_infer_request();
-        for (const auto& input : compiled.inputs()) {
-            const auto name = input.get_any_name();
-            if (name == "inputs_embeds") {
-                ov::Tensor tensor(ov::element::f32, paged ? ov::Shape{length, hidden} : ov::Shape{1, length, hidden});
-                for (size_t i = 0; i < tensor.get_size(); ++i)
-                    tensor.data<float>()[i] = static_cast<float>(i / hidden);
-                request.set_tensor(input, tensor);
-            } else if (name == "token_type_ids" || name == "position_ids") {
-                ov::Tensor tensor(input.get_element_type(),
-                                  input.get_partial_shape().rank() == 1 ? ov::Shape{length} : ov::Shape{1, length});
-                for (size_t i = 0; i < length; ++i) {
-                    const auto value = name == "token_type_ids" ? types[i] : static_cast<int32_t>(i);
-                    if (tensor.get_element_type() == ov::element::i32)
-                        tensor.data<int32_t>()[i] = value;
-                    else
-                        tensor.data<int64_t>()[i] = value;
-                }
-                request.set_tensor(input, tensor);
-            } else if (name == "attention_mask") {
-                ov::Tensor tensor(ov::element::i64, {1, length});
-                std::fill_n(tensor.data<int64_t>(), length, 1);
-                request.set_tensor(input, tensor);
-            } else if (name.find("key_cache.") == 0 || name.find("value_cache.") == 0) {
-                auto shape = input.get_partial_shape();
-                shape[0] = 1;
-                request.set_tensor(input, ov::Tensor(input.get_element_type(), shape.get_shape()));
-            } else {
-                std::vector<int32_t> values;
-                if (name == "beam_idx" || name == "past_lens" || name == "block_indices")
-                    values = {0};
-                else if (name == "subsequence_begins")
-                    values = {0, static_cast<int32_t>(length)};
-                else if (name == "block_indices_begins")
-                    values = {0, 1};
-                else if (name == "max_context_len")
-                    values = {static_cast<int32_t>(length)};
+    auto model = build_attention_gguf_model(16, hidden);
+    auto mask = find_parameter(model, "self_kq_mask");
+    auto swa = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
+    model->add_parameters({swa});
+    mask->output(0).replace(swa->output(0));
+    model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
+    model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{3};
+    AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(model);
+    if (paged)
+        ov::pass::SDPAToPagedAttention(false, false, false).run_on_model(model);
+    auto compiled = core.compile_model(model,
+                                       "CPU",
+                                       ov::hint::inference_precision(ov::element::f32),
+                                       ov::hint::kv_cache_precision(ov::element::f32));
+    auto request = compiled.create_infer_request();
+    for (const auto& input : compiled.inputs()) {
+        const auto name = input.get_any_name();
+        if (name == "inputs_embeds") {
+            ov::Tensor tensor(ov::element::f32, paged ? ov::Shape{length, hidden} : ov::Shape{1, length, hidden});
+            for (size_t i = 0; i < tensor.get_size(); ++i)
+                tensor.data<float>()[i] = static_cast<float>(i / hidden);
+            request.set_tensor(input, tensor);
+        } else if (name == "token_type_ids" || name == "position_ids") {
+            ov::Tensor tensor(input.get_element_type(),
+                              input.get_partial_shape().rank() == 1 ? ov::Shape{length} : ov::Shape{1, length});
+            for (size_t i = 0; i < length; ++i) {
+                const auto value = name == "token_type_ids" ? types[i] : static_cast<int32_t>(i);
+                if (tensor.get_element_type() == ov::element::i32)
+                    tensor.data<int32_t>()[i] = value;
                 else
-                    FAIL() << "Unexpected input: " << name;
-                const auto shape = input.get_partial_shape().rank() == 0 ? ov::Shape{} : ov::Shape{values.size()};
-                ov::Tensor tensor(ov::element::i32, shape);
-                std::copy(values.begin(), values.end(), tensor.data<int32_t>());
-                request.set_tensor(input, tensor);
+                    tensor.data<int64_t>()[i] = value;
             }
-        }
-        request.infer();
-        const auto output = request.get_output_tensor(0);
-        ASSERT_EQ(output.get_size(), length * hidden);
-        for (size_t q = 0; q < length; ++q) {
-            float sum = 0;
-            size_t count = 0;
-            for (size_t k = 0; k < length; ++k) {
-                const bool same_image = types[q] == 1 && types[k] == 1 && ((q <= 4 && k <= 4) || (q >= 6 && k >= 6));
-                if ((k <= q && k + 3 > q) || same_image) {
-                    sum += static_cast<float>(k);
-                    ++count;
-                }
-            }
-            for (size_t h = 0; h < hidden; ++h)
-                EXPECT_NEAR(output.data<const float>()[q * hidden + h], sum / count, 1e-5f);
+            request.set_tensor(input, tensor);
+        } else if (name == "attention_mask") {
+            ov::Tensor tensor(ov::element::i64, {1, length});
+            std::fill_n(tensor.data<int64_t>(), length, 1);
+            request.set_tensor(input, tensor);
+        } else if (name.find("key_cache.") == 0 || name.find("value_cache.") == 0) {
+            auto shape = input.get_partial_shape();
+            shape[0] = 1;
+            request.set_tensor(input, ov::Tensor(input.get_element_type(), shape.get_shape()));
+        } else {
+            std::vector<int32_t> values;
+            if (name == "beam_idx" || name == "past_lens" || name == "block_indices")
+                values = {0};
+            else if (name == "subsequence_begins")
+                values = {0, static_cast<int32_t>(length)};
+            else if (name == "block_indices_begins")
+                values = {0, 1};
+            else if (name == "max_context_len")
+                values = {static_cast<int32_t>(length)};
+            else
+                FAIL() << "Unexpected input: " << name;
+            const auto shape = input.get_partial_shape().rank() == 0 ? ov::Shape{} : ov::Shape{values.size()};
+            ov::Tensor tensor(ov::element::i32, shape);
+            std::copy(values.begin(), values.end(), tensor.data<int32_t>());
+            request.set_tensor(input, tensor);
         }
     }
+    request.infer();
+    const auto output = request.get_output_tensor(0);
+    ASSERT_EQ(output.get_size(), length * hidden);
+    for (size_t q = 0; q < length; ++q) {
+        float sum = 0;
+        size_t count = 0;
+        for (size_t k = 0; k < length; ++k) {
+            const bool same_image = types[q] == 1 && types[k] == 1 && ((q <= 4 && k <= 4) || (q >= 6 && k >= 6));
+            if ((k <= q && k + 3 > q) || same_image) {
+                sum += static_cast<float>(k);
+                ++count;
+            }
+        }
+        for (size_t h = 0; h < hidden; ++h)
+            EXPECT_NEAR(output.data<const float>()[q * hidden + h], sum / count, 1e-5f);
+    }
 }
+
+INSTANTIATE_TEST_SUITE_P(SDPAAndPagedAttention,
+                         GGUFAdaptToGenAIImageWindow,
+                         testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                             return info.param ? "PagedAttention" : "SDPA";
+                         });
 
 INSTANTIATE_TEST_SUITE_P(GGUFAdaptToGenAI,
                          GGUFAdaptToGenAISlidingWindow,
