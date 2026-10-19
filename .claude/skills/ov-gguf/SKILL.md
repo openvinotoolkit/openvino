@@ -22,14 +22,15 @@ converters; builders and validation differ. Registration or conversion alone nev
 |---|---|
 | Is a model supported? | [supported_models.md](../../../src/frontends/gguf/docs/supported_models.md) or [mmproj.md](../../../src/frontends/gguf/docs/mmproj.md#supported-projectors); quote the checkpoint result and limitations, not just the catalog entry |
 | Load a model, make it stateful/GenAI/PA-ready, tokenizer, IR export | [runtime.md](../../../src/frontends/gguf/docs/runtime.md) |
-| Add or port an architecture | [architectures.md](../../../src/frontends/gguf/docs/architectures.md); [extensions.md](../../../src/frontends/gguf/docs/extensions.md) when shipping it as a plugin |
-| Add or replace an mmproj branch | [extensions.md](../../../src/frontends/gguf/docs/extensions.md#extend-mmproj-with-a-projector-component), then the graph contracts in [mmproj.md](../../../src/frontends/gguf/docs/mmproj.md) |
+| Add or port an architecture | [architectures.md](../../../src/frontends/gguf/docs/architectures.md) and the [family contract](references/validation.md#family-contract); [extensions.md](../../../src/frontends/gguf/docs/extensions.md) when shipping it as a plugin |
+| Add or replace an mmproj branch | [extensions.md](../../../src/frontends/gguf/docs/extensions.md#extend-mmproj-with-a-projector-component), then the graph contracts in [mmproj.md](../../../src/frontends/gguf/docs/mmproj.md) and [multimodal contracts](references/validation.md#multimodal-contracts) |
 | Missing ggml operation or `op_case` | [how_to_add_op.md](../../../src/frontends/gguf/docs/how_to_add_op.md) |
 | Wrong numbers | [debugging_accuracy.md](../../../src/frontends/gguf/docs/debugging_accuracy.md) |
-| GenAI/mmproj token, media or PA mismatch | [multimodal integration bisection](../../../src/frontends/gguf/docs/debugging_accuracy.md#multimodal-integration-bisection) |
+| GenAI/mmproj token, media or PA mismatch | [multimodal integration bisection](../../../src/frontends/gguf/docs/debugging_accuracy.md#multimodal-integration-bisection) and [multimodal contracts](references/validation.md#multimodal-contracts) |
 | Unsupported weight type | [quantization.md](../../../src/frontends/gguf/docs/quantization.md); the fix belongs in `src/quant/`, not a builder |
 | Build, run tests, regenerate fixtures | [testing.md](../../../src/frontends/gguf/docs/testing.md) |
 | Run or resume GGUF validation across OpenVINO, GenAI and llama.cpp | [validation.md](references/validation.md); use existing GHA workflows and focused local tests, preserving revisions, coverage and failures |
+| Preflight selected tests, fixtures or an overlay link | [executable checks](references/preflight.md); reject missing cases before a broad batch |
 
 ## Easy to miss
 
@@ -44,15 +45,18 @@ converters; builders and validation differ. Registration or conversion alone nev
   `GGUFArchConversion` skips without generated headers unless `OV_GGUF_REQUIRE_ARCH_FIXTURES=1`
   requires them; generate them with [gen_arch_fixtures.py](../../../src/frontends/gguf/tests/gen_arch_fixtures.py) `--fetch`.
   Check actual selected counts and skips; registration, conversion, decoder numerics and
-  GenAI media/API integration establish different levels of support.
+  GenAI media/API integration establish different levels of support. Enforce required IDs/counts
+  with the [coverage helper](references/preflight.md); zero selected tests are not a pass.
 - **References.** Layout-sensitive expectations come from real ggml CPU via a committed oracle under
   `tests/`, with several heads/tokens and unequal Q/KV dimensions; NumPy or single-head tests can
   share the bug. Do not tighten `expect_near` tolerances from an x86-only run.
 - **Comparisons.** Use full logits or features on identical inputs and token histories, with
   `INFERENCE_PRECISION_HINT=f32`, `DYNAMIC_QUANTIZATION_GROUP_SIZE=0` and the reference's KV precision.
-  Set `OV_GGUF_Q4_K_ZP_F16=1` before the process starts. Report quantized-CPU and represented-F32
-  comparisons separately and keep failed results. `GGML_OPENVINO_*` variables configure only the
-  llama.cpp backend.
+  For strict checkpoint comparisons, set `OV_GGUF_Q4_K_ZP_F16=1` before starting the process.
+  Run the unfiltered frontend unit suite with this variable unset: integer-zero-point tests require
+  the default mode. Keep [scenario environments](references/validation.md#scenario-environments)
+  explicit. Report quantized-CPU and represented-F32 comparisons separately and keep failed results.
+  `GGML_OPENVINO_*` variables configure only the llama.cpp backend.
   Inspect tensor-type inventory rather than checkpoint names. Identical quantized weights do
   not rule out CPU arithmetic differences; exact expansions isolate them but do not waive the
   original parity gate. Shared exported-model layout does not imply identical media geometry.
