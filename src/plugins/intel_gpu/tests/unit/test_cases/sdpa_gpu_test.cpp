@@ -2974,4 +2974,168 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_broadcast_test_params(1, 2, 2, 16, 1, 1024, 64, true, 2),
         sdpa_broadcast_test_params(1, 2, 2, 16, 1, 1024, 64, false, 1)));
 
+// The multi-token sdpa_opt kernel reads keys in blocks of 16 rows, and a head size that is not a multiple of 16
+// as 16-wide chunks plus a leftover. In the last, partial block, the leftover read must skip the rows past the
+// source length: they are past the end of the key buffer, and reading them can fault the GPU. Whether it faults
+// depends on what is mapped after the key, so this checks the result and that the kernel ran.
+//
+// A non-const scalar mask input keeps sdpa_micro out, so sdpa_opt runs on every device. sdpa_opt ignores the mask
+// when is_causal is set. With the lower-right causal mask and seq_q <= seq_kv, the last query sees every key, so the
+// partial key block is computed.
+struct sdpa_opt_key_leftover_params {
+    data_types dt;
+    int num_heads;
+    int seq_q;
+    int seq_kv;
+    int head_size;
+    bool transposed;  // [B, L, H, E] inputs with order {0, 2, 1, 3}, otherwise [B, H, L, E]
+};
+
+class sdpa_opt_key_leftover_test : public ::testing::TestWithParam<sdpa_opt_key_leftover_params> {
+public:
+    static std::string PrintToStringParamName(const testing::TestParamInfo<sdpa_opt_key_leftover_params>& info) {
+        const auto& p = info.param;
+        return std::string(p.dt == data_types::bf16 ? "bf16" : "f16") + "_h" + std::to_string(p.num_heads) + "_q" +
+               std::to_string(p.seq_q) + "_kv" + std::to_string(p.seq_kv) + "_e" + std::to_string(p.head_size) +
+               (p.transposed ? "_blhe" : "_bhle");
+    }
+
+protected:
+    template <typename T>
+    void run() {
+        const auto& p = GetParam();
+        auto& engine = get_test_engine();
+        tests::random_generator rg;
+        rg.set_seed(GET_SUITE_NAME);
+
+        const size_t heads = p.num_heads;
+        const size_t seq_q = p.seq_q;
+        const size_t seq_kv = p.seq_kv;
+        const size_t head_size = p.head_size;
+        auto make_shape = [&](size_t seq) {
+            return p.transposed ? ov::Shape{1, seq, heads, head_size} : ov::Shape{1, heads, seq, head_size};
+        };
+        auto index = [&](size_t seq_len, size_t h, size_t s, size_t e) {
+            return (p.transposed ? s * heads + h : h * seq_len + s) * head_size + e;
+        };
+
+        const layout q_layout(make_shape(seq_q), p.dt, format::bfyx);
+        const layout kv_layout(make_shape(seq_kv), p.dt, format::bfyx);
+        const layout mask_layout({1}, p.dt, format::bfyx);
+
+        const auto q_data = rg.generate_random_1d<T>(q_layout.count(), -1.0f, 1.0f);
+        const auto k_data = rg.generate_random_1d<T>(kv_layout.count(), -1.0f, 1.0f);
+        const auto v_data = rg.generate_random_1d<T>(kv_layout.count(), -1.0f, 1.0f);
+
+        auto q_mem = engine.allocate_memory(q_layout);
+        auto k_mem = engine.allocate_memory(kv_layout);
+        auto v_mem = engine.allocate_memory(kv_layout);
+        auto mask_mem = engine.allocate_memory(mask_layout);
+        set_values(q_mem, q_data);
+        set_values(k_mem, k_data);
+        set_values(v_mem, v_data);
+        set_values(mask_mem, std::vector<T>{T(0.0f)});
+
+        const std::vector<int64_t> order = p.transposed ? std::vector<int64_t>{0, 2, 1, 3} : std::vector<int64_t>{0, 1, 2, 3};
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", kv_layout));
+        topo.add(input_layout("v", kv_layout));
+        topo.add(input_layout("mask", mask_layout));
+        topo.add(scaled_dot_product_attention("sdpa",
+                                              {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
+                                              true,
+                                              -1,
+                                              order,
+                                              order,
+                                              order,
+                                              {0, 1, 2, 3},
+                                              {},
+                                              false,
+                                              /*causal_lower_right=*/true));
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f32));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+        net->set_input_data("q", q_mem);
+        net->set_input_data("k", k_mem);
+        net->set_input_data("v", v_mem);
+        net->set_input_data("mask", mask_mem);
+        auto output = net->execute().at("result").get_memory();
+
+        std::string sdpa_id;
+        for (const auto& info : net->get_primitives_info()) {
+            if (info.type_id == "scaled_dot_product_attention")
+                sdpa_id = info.original_id;
+        }
+        ASSERT_FALSE(sdpa_id.empty()) << "Expected an SDPA primitive";
+        const auto inst = net->get_primitive(sdpa_id);
+        const auto kernels = inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries();
+        ASSERT_NE(kernels.find("sdpa_opt__multi_reg"), std::string::npos) << "Executed kernels: " << kernels;
+
+        const float scale = 1.0f / std::sqrt(static_cast<float>(head_size));
+        std::vector<float> expected(heads * seq_q * head_size, 0.0f);
+        std::vector<float> weights(seq_kv);
+        for (size_t h = 0; h < heads; ++h) {
+            for (size_t i = 0; i < seq_q; ++i) {
+                const size_t visible = i + seq_kv - seq_q + 1;
+                float max_logit = -std::numeric_limits<float>::infinity();
+                for (size_t j = 0; j < visible; ++j) {
+                    float dot = 0.0f;
+                    for (size_t e = 0; e < head_size; ++e) {
+                        dot += static_cast<float>(q_data[index(seq_q, h, i, e)]) * static_cast<float>(k_data[index(seq_kv, h, j, e)]);
+                    }
+                    weights[j] = dot * scale;
+                    max_logit = std::max(max_logit, weights[j]);
+                }
+                float sum = 0.0f;
+                for (size_t j = 0; j < visible; ++j) {
+                    weights[j] = std::exp(weights[j] - max_logit);
+                    sum += weights[j];
+                }
+                auto* out = &expected[(h * seq_q + i) * head_size];
+                for (size_t j = 0; j < visible; ++j) {
+                    for (size_t e = 0; e < head_size; ++e) {
+                        out[e] += weights[j] / sum * static_cast<float>(v_data[index(seq_kv, h, j, e)]);
+                    }
+                }
+            }
+        }
+
+        ASSERT_EQ(output->get_layout().get_shape(), (ov::Shape{1, heads, seq_q, head_size}));
+        cldnn::mem_lock<float, mem_lock_type::read> output_data(output, get_test_stream());
+        ASSERT_EQ(output_data.size(), expected.size());
+        const float tolerance = p.dt == data_types::bf16 ? 1e-2f : 5e-3f;
+        for (size_t i = 0; i < expected.size(); ++i) {
+            ASSERT_NEAR(output_data[i], expected[i], tolerance) << "index " << i;
+        }
+    }
+};
+
+TEST_P(sdpa_opt_key_leftover_test, matches_reference) {
+    if (GetParam().dt == data_types::bf16)
+        run<ov::bfloat16>();
+    else
+        run<ov::float16>();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_sdpa_opt_key_leftover,
+    sdpa_opt_key_leftover_test,
+    ::testing::Values(
+        // [B, L, H, E] as in smoke_ScaledAttnStatic_GPU bf16 [1.8.1.72] with_transpose1: rows 96-99 are the partial block.
+        sdpa_opt_key_leftover_params{data_types::bf16, 8, 1, 100, 72, true},
+        sdpa_opt_key_leftover_params{data_types::f16, 8, 1, 100, 72, true},
+        // One row in the partial block: the leftover read would reach 15 rows of 32 * 72 elements past the key.
+        sdpa_opt_key_leftover_params{data_types::f16, 32, 1, 97, 72, true},
+        sdpa_opt_key_leftover_params{data_types::bf16, 32, 20, 97, 72, true},
+        sdpa_opt_key_leftover_params{data_types::f16, 4, 3, 50, 76, true},
+        // [B, H, L, E]: only the last head reads past the end of the key.
+        sdpa_opt_key_leftover_params{data_types::bf16, 8, 1, 100, 72, false},
+        sdpa_opt_key_leftover_params{data_types::f16, 4, 16, 33, 40, false},
+        // Head size >= 128 loads the full chunks in the calc loop on systolic devices.
+        sdpa_opt_key_leftover_params{data_types::f16, 2, 1, 50, 136, false}),
+    sdpa_opt_key_leftover_test::PrintToStringParamName);
+
 } // namespace
