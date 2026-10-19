@@ -42,6 +42,10 @@ struct LLMVariantSwitchTestAccess {
         return compiled->m_is_block_kv_cache;
     }
 
+    static uint32_t max_generation_token_len(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        return compiled->m_kvcache_desc.max_generation_token_len;
+    }
+
     static void set_num_stored_tokens(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, uint32_t num_tokens) {
         compiled->m_kvcache_desc.num_stored_tokens = num_tokens;
     }
@@ -595,7 +599,7 @@ TEST_F(LLMInferRequestVariantSwitchTest, GenerateBuildsInternalMaskFromStaticCal
 
     ov::npuw::LLMInferRequest req(compiled);
     auto internal_mask = LLMVariantSwitchTestAccess::generate_attention_mask(req);
-    const auto max_generation_len = compiled->m_kvcache_desc.max_generation_token_len;
+    const auto max_generation_len = LLMVariantSwitchTestAccess::max_generation_token_len(compiled);
     ASSERT_GE(internal_mask->get_size(), max_generation_len);
     const size_t dest_past_capacity = internal_mask->get_size() - max_generation_len;
     ASSERT_GT(dest_past_capacity, 3u);
@@ -605,9 +609,10 @@ TEST_F(LLMInferRequestVariantSwitchTest, GenerateBuildsInternalMaskFromStaticCal
     auto position_ids = ov::make_tensor(ov::element::i64, ov::Shape{1, 1});
     position_ids->data<int64_t>()[0] = 3;
     auto static_attention_mask = ov::make_tensor(ov::element::i64, ov::Shape{1, 64});
-    std::fill_n(static_attention_mask->data<int64_t>(), static_attention_mask->get_size(), 1);
-    static_attention_mask->data<int64_t>()[1] = 0;
     ASSERT_GT(static_attention_mask->get_size(), 4u);
+    std::fill_n(static_attention_mask->data<int64_t>(), static_attention_mask->get_size(), 0);
+    std::fill_n(static_attention_mask->data<int64_t>(), 4u, 1);
+    static_attention_mask->data<int64_t>()[1] = 0;
 
     LLMVariantSwitchTestAccess::set_num_stored_tokens(req, 3u);
     LLMVariantSwitchTestAccess::set_total_size(req, 4u);
@@ -626,6 +631,7 @@ TEST_F(LLMInferRequestVariantSwitchTest, GenerateBuildsInternalMaskFromStaticCal
 
     LLMVariantSwitchTestAccess::set_num_stored_tokens(req, 1u);
     LLMVariantSwitchTestAccess::set_total_size(req, 2u);
+    std::fill_n(static_attention_mask->data<int64_t>() + 2u, static_attention_mask->get_size() - 2u, 0);
     LLMVariantSwitchTestAccess::generate(req, input_ids, static_attention_mask, position_ids);
 
     EXPECT_EQ(internal_mask->data<int64_t>()[0], 1);
