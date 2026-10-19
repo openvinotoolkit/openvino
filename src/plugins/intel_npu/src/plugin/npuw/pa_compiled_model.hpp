@@ -19,6 +19,20 @@
 
 namespace ov::npuw {
 
+namespace pa {
+
+// The PA model is token-major: the flat token count sits in dimension 0, where
+// the NPU compiler reads a batch and lowers the trunk into batched layers.
+// Every token-major tensor also carries a singleton dimension ([tokens, 1,
+// hidden] through the FFN, [tokens, heads, 1, head_size] around RoPE), so
+// consuming it and prepending a batch of 1 moves the token count out of the
+// batch position without moving data. This does that around the weight
+// MatMuls and the elementwise arithmetic of a variant with `tokens` > 1, so
+// the NPU gets batch-1 layers. The reshapes are metadata only.
+void relayout_token_major(const std::shared_ptr<ov::Model>& model, std::size_t tokens);
+
+}  // namespace pa
+
 // Front-end for the dynamic PagedAttention model the GenAI CB pipeline
 // deploys. The model is compiled 1:1 on the PA device (CPU) next to its
 // semi-static variants, which NPUW partitions: the repeated blocks fold onto
