@@ -428,6 +428,7 @@ All parameters must be set before calling ``ov::Core::compile_model()`` in order
 - ``ov::hint::performance_mode``
 - ``ov::intel_gpu::disable_winograd_convolution``
 - ``ov::intel_gpu::enable_loop_unrolling``
+- ``ov::intel_gpu::offload_ratio``
 - ``ov::intel_gpu::hint::enable_sdpa_optimization``
 - ``ov::intel_gpu::hint::host_task_priority``
 - ``ov::intel_gpu::hint::queue_priority``
