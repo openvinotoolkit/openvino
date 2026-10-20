@@ -5,10 +5,7 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs one_hot_v2(const NodeContext& node) {
     auto data = node.get_input("X");
     Output<Node> depth;
@@ -25,7 +22,4 @@ NamedOutputs one_hot_v2(const NodeContext& node) {
     auto result = std::make_shared<default_opset::OneHot>(data, depth, on_value, off_value, indices_axis);
     return node.default_single_output_mapping({result}, {"Out"});
 }
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

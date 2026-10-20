@@ -22,9 +22,10 @@
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "openvino/util/pp.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
-#ifdef __linux__
-# include <dlfcn.h>
+#if defined(__linux__) || defined(__APPLE__)
+#    include <dlfcn.h>
 #endif
 
 #if defined(__unix__) && !defined(__ANDROID__)
@@ -89,7 +90,7 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
         (LPCSTR)CustomLayer::LoadFromFile,
         &nModule);
     GetModuleFileName(nModule, mpath, sizeof(mpath));
-#elif __linux__
+#elif defined(__linux__) || defined(__APPLE__)
     Dl_info dl_info;
     dladdr(reinterpret_cast<void *>(CustomLayer::LoadFromFile), &dl_info);
     const char* mpath = dl_info.dli_fname;
@@ -109,6 +110,9 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     CustomLayer::LoadFromFile(config_path, m_custom_layers, true);
     auto custom_layers_config = m_config.get_config_file();
     CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
+
+    // Run symbolic shape propagation because GPU plugin relies on this information. (currently, for binary_mul_inplace)
+    ov::pass::SymbolicPropagation().run_on_model(model);
 
     auto ops = model->get_ordered_ops();
 

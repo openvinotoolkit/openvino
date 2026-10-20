@@ -60,6 +60,7 @@
 #include "scatter_update_inst.h"
 #include "shape_of_inst.h"
 #include "softmax_inst.h"
+#include "stateless_kv_inst.h"
 #include "strided_slice_inst.h"
 #include "swiglu_inst.h"
 #include "utils.hpp"
@@ -70,6 +71,12 @@
 
 namespace cldnn {
 namespace {
+
+bool requires_imad_isv4_padding_initialization(const layout& weights_layout) {
+    return (weights_layout.format == format::os_is_yx_osv16_isv4 ||
+            weights_layout.format == format::g_os_is_yx_osv16_isv4) &&
+           weights_layout.feature() % 4 != 0;
+}
 
 template <typename T>
 bool is_optimized_output_user(const T user) {
@@ -278,9 +285,14 @@ void primitive_inst::check_memory_compatibility(const memory& mem, const layout&
 
 event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, size_t idx) {
     auto& eng = get_network().get_engine();
+    // A dynamic output bound at the same pointer may still change capacity, e.g. a smaller caller view.
+    const auto same_capacity = [&]() {
+        const auto& new_layout = mem_new->get_layout();
+        return new_layout.data_type == _outputs[idx]->get_layout().data_type && new_layout.get_linear_size() == _max_output_layout_count[idx];
+    };
     // skip all the buzz if no action actually required
     event::ptr ev = nullptr;
-    if (_outputs[idx] && eng.is_the_same_buffer(*mem_new, *_outputs[idx])) {
+    if (_outputs[idx] && eng.is_the_same_buffer(*mem_new, *_outputs[idx]) && (!is_dynamic() || same_capacity())) {
         // The remote permute alias is stored only for the primary output owned by this primitive.
         if (idx == 0)
             _remote_permute_output_alias.reset();
@@ -505,7 +517,9 @@ void primitive_inst::update_shape() {
         auto& new_layout = new_layouts[idx];
         auto new_pshape = new_layout.get_partial_shape();
         auto& impl_layout = _impl_params->get_output_layout(idx);
-        if (!get_node().is_type<reshape>() || (!get_node().get_input_layout(0).data_padding.is_dynamic() && !get_node().can_be_optimized())) {
+        if (get_node().is_type<stateless_kv>() && idx == 1) {
+            // stateless_kv updates dedicate padding of output[1] in every iteration, don't accumulate.
+        } else if (!get_node().is_type<reshape>() || (!get_node().get_input_layout(0).data_padding.is_dynamic() && !get_node().can_be_optimized())) {
             auto data_padding = padding::max(impl_layout.data_padding, new_layout.data_padding);
             new_layout.data_padding = padding::max(get_node().get_primitive()->get_output_padding(idx), data_padding);
         }
@@ -523,7 +537,9 @@ void primitive_inst::update_shape() {
     // Update descriptors of fused operations and set output_layout's shape to all fused ops
     // It's legal as long as fused ops don't change the shape
     for (auto& fused_prim : _impl_params->fused_desc) {
-        fused_prim.output_layout.set_partial_shape(_impl_params->get_output_layout().get_partial_shape());
+        for (size_t i = 0; i < fused_prim.output_layouts.size(); ++i) {
+            fused_prim.output_layouts[i].set_partial_shape(_impl_params->get_output_layout(i).get_partial_shape());
+        }
     }
 
     if (get_node().is_type<assign>()) {
@@ -693,12 +709,20 @@ void primitive_inst::clear_output_memory() {
     _remote_permute_output_alias.reset();
 }
 
+void primitive_inst::release_and_clear_output_memory() {
+    if (_mem_allocated && _outputs[0])
+        get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), id(), get_network_id());
+    _mem_allocated = false;
+    clear_output_memory();
+}
+
 void primitive_inst::realloc_intermediates() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_intermediates: " + id()));
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
     // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
 
-    if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr) {
+    const bool has_non_allocated_output = std::any_of(_outputs.begin(), _outputs.end(), [](const auto& output) { return output == nullptr; });
+    if (_impl == nullptr || _outputs.empty() || has_non_allocated_output) {
         return;
     }
 
@@ -740,6 +764,7 @@ void primitive_inst::realloc_intermediates() {
     }
     GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
 }
+
 
 bool primitive_inst::try_bind_remote_permute_output(const layout& actual_layout) {
     const auto& users = get_user_insts();
@@ -800,6 +825,96 @@ bool primitive_inst::try_bind_remote_permute_output(const layout& actual_layout)
     return false;
 }
 
+void primitive_inst::realloc_outputs_for_stateless_kv() {
+    const auto& users = get_user_insts();
+    const auto output_it = std::find_if(users.begin(), users.end(), [](primitive_inst* user) {
+        return user->is_output();
+    });
+    OPENVINO_ASSERT(output_it != users.end(), "[GPU] stateless_kv should directly connect to an output");
+
+    const auto& past_layout = _impl_params->get_input_layout();
+    const auto& mid_layout = _impl_params->get_output_layout(0);     // output to present_kv
+    const auto& target_layout = _impl_params->get_output_layout(1);  // output to sdpa
+
+    auto& result = **output_it;
+    if (result.is_dynamic()) {
+        if (!result._update_shape_done_by_other) {
+            result.update_shape();
+            result._update_shape_done_by_other = true;
+        }
+    }
+    if (!result.output_memory_ptr() || past_layout != mid_layout) {
+        result.set_can_be_optimized(false);
+    }
+    result.realloc_if_needed();
+
+    const auto past_tensor = input_memory_ptr(0);
+    OPENVINO_ASSERT(past_tensor, "[GPU] Input memory is not prepared for stateless_kv node ", id());
+    const auto present_tensor = result.output_memory_ptr();
+    OPENVINO_ASSERT(present_tensor, "[GPU] Output memory of ", result.id(), " is not prepared for stateless_kv node ", id());
+    auto& engine = _network.get_engine();
+    const auto is_same = engine.is_the_same_buffer(*present_tensor, *past_tensor);
+    const auto& present_layout = result._impl_params->get_output_layout();
+    const auto same_placement = [&]() {
+        return past_layout.data_type == mid_layout.data_type && past_layout.format == mid_layout.format &&
+               past_layout.get_pitches() == mid_layout.get_pitches() && past_layout.get_linear_offset() == mid_layout.get_linear_offset();
+    };
+    // The Result buffer may be a caller buffer that is also one of our inputs; check our own restrictions.
+    const auto aliases_restricted_input = [&]() {
+        const auto& deps = dependencies();
+        for (size_t i = 0; i < deps.size() && i < inputs_memory_count(); ++i) {
+            const auto dep_memory = input_memory_ptr(i);
+            if (!dep_memory || !engine.is_the_same_buffer(*present_tensor, *dep_memory))
+                continue;
+            for (const auto* dep = deps[i].first; dep != nullptr;) {
+                if (_runtime_memory_dependencies.contains(static_cast<uint32_t>(dep->get_node().get_unique_id())))
+                    return true;
+                dep = dep->can_be_optimized() && !dep->dependencies().empty() ? dep->dependencies().front().first : nullptr;
+            }
+        }
+        return false;
+    };
+    // Write present into a private buffer when the Result buffer can't hold our output in place:
+    // a different element type or format, a restricted input, or past whose elements would move.
+    const auto use_private_present = present_layout.data_type != mid_layout.data_type || present_layout.format != mid_layout.format ||
+                                     aliases_restricted_input() || (is_same && !same_placement());
+    auto kv_present = present_tensor;
+    auto& private_present = downcast<stateless_kv_inst>(*this).private_present();
+    if (use_private_present) {
+        const bool can_reuse = private_present && private_present->size() >= mid_layout.bytes_count();
+        auto& sp = *get_network().get_shape_predictor();
+        const auto prealloc = sp.predict_preallocation_shape(id(), mid_layout, can_reuse);
+        if (!can_reuse) {
+            auto alloc_layout = mid_layout;
+            if (prealloc.first && sp.can_preallocate(ov::shape_size(prealloc.second) * data_type_traits::size_of(mid_layout.data_type)))
+                alloc_layout = mid_layout.clone_with_other_shape(prealloc.second);
+            if (alloc_layout.bytes_count() < mid_layout.bytes_count())
+                alloc_layout = mid_layout;
+            private_present = engine.allocate_memory(alloc_layout, engine.get_preferred_memory_allocation_type(), false);
+        }
+        kv_present = engine.reinterpret_buffer(*private_present, mid_layout);
+        // The Result stays a real reorder and copies the private present into its own buffer.
+        result.set_can_be_optimized(false);
+    } else {
+        private_present.reset();
+        if (mid_layout == present_layout)
+            result.set_can_be_optimized(true);
+    }
+    GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_tensor->buffer_ptr() << "](" << past_tensor->get_layout().to_short_string() << ") and output["
+                           << present_tensor->buffer_ptr() << "](" << present_tensor->get_layout().to_short_string() << ")(" << result.id()
+                           << ") same:" << is_same << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_layout.to_short_string() << "] -> mid[" << mid_layout.to_short_string() << "]["
+                           << target_layout.to_short_string() << "] -> output[" << present_layout.to_short_string() << "](" << result.id()
+                           << ") opt:" << result.can_be_optimized() << std::endl;
+
+    if (_outputs[0]) {
+        OPENVINO_ASSERT(!_mem_allocated, "stateless_kv should never allocate output[0] for itself");
+    }
+    _outputs[0] = kv_present;
+    _outputs[1] = engine.reinterpret_buffer(*kv_present, target_layout);
+    this->_mem_allocated = false;
+}
+
 void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_outputs: " + id()));
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
@@ -845,7 +960,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         _remote_permute_output_alias.reset();
     }
 
-    if (users.size() == 1 && users.front()->get_node().is_type<reorder>() && users.front()->can_be_optimized()) {
+    // stateless_kv picks both outputs from its Result in realloc_outputs_for_stateless_kv().
+    if (!get_node().is_type<stateless_kv>() && users.size() == 1 && users.front()->get_node().is_type<reorder>() && users.front()->can_be_optimized()) {
         auto* reorder_inst = users.front();
         if (reorder_inst->is_output() && reorder_inst->output_memory_ptr() && get_network().has_output_remote_memory_ptr(reorder_inst->id()) &&
             get_network().get_engine().is_the_same_buffer(get_network().get_output_remote_memory(reorder_inst->id()), reorder_inst->output_memory())) {
@@ -861,6 +977,11 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
 
     // input_layout node is supposed to always use external memory in dynamic case
     if (get_node().is_type<input_layout>()) {
+        return;
+    }
+
+    if (get_node().is_type<stateless_kv>()) {
+        realloc_outputs_for_stateless_kv();
         return;
     }
 
@@ -1058,12 +1179,16 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                 // dynamic quantization is only applied to activation of FC
                 if (get_node().is_type<dynamic_quantize>()) {
                     const auto& desc = get_node().as<dynamic_quantize>().get_primitive();
-                    auto dyn_quan_scale_layout = dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(get_node().as<dynamic_quantize>(),
-                                                                                                                updated_layouts[dep_idx],
-                                                                                                                desc->attrs);
-                    GPU_DEBUG_TRACE_DETAIL << "update layout of dynamic quantize scale parameter layout " << dyn_quan_scale_layout[1].to_short_string()
-                                           << std::endl;
-                    updated_params.output_layouts[1] = dyn_quan_scale_layout[1];
+                    auto dyn_quan_layouts = dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(get_node().as<dynamic_quantize>(),
+                                                                                                            updated_layouts[dep_idx],
+                                                                                                            desc->attrs);
+                    // Scale, zero-point and precomputed-reduction outputs are read with the fake-aligned row count.
+                    for (size_t i = 1; i < dyn_quan_layouts.size() && i < updated_layouts.size(); ++i) {
+                        GPU_DEBUG_TRACE_DETAIL << "update layout of dynamic quantize output[" << i << "] "
+                                               << dyn_quan_layouts[i].to_short_string() << std::endl;
+                        updated_layouts[i] = dyn_quan_layouts[i];
+                        updated_params.output_layouts[i] = dyn_quan_layouts[i];
+                    }
                 }
             }
         }
@@ -1176,6 +1301,25 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     if (get_node().is_type<concatenation>() && can_be_optimized() && _allocation_done_by_other) {
         GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("concat_alloc_by_other");
         return;
+    }
+
+    // binary_mul_inplace lets this FC's dst share the fused eltwise dep buffer (the post-op src1).
+    // A static node binds that alias when its output is allocated; a dynamic node has to bind it here.
+    if (actual_layouts.size() == 1 && get_node().get_preferred_impl_type() == impl_types::onednn) {
+        auto reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(get_node());
+        if (reused_eltwmem_idx != -1) {
+            const auto& eltw_inst = get_network().get_primitive(get_node().get_dependency(reused_eltwmem_idx).id());
+            auto eltw_mem = eltw_inst->output_memory_ptr();
+            if (eltw_mem && eltw_mem->get_mem_tracker() &&
+                eltw_mem->get_mem_tracker()->size() >= updated_layouts[0].get_linear_size() * dt_sizes_in_B[0]) {
+                if (_outputs[0]) {
+                    get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), id(), get_network_id());
+                }
+                _outputs[0] = eltw_mem->get_engine()->reinterpret_buffer(*eltw_mem, updated_layouts[0]);
+                _max_output_layout_count[0] = eltw_mem->get_mem_tracker()->size() / dt_sizes_in_B[0];
+                return;
+            }
+        }
     }
 
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
@@ -1574,6 +1718,10 @@ void primitive_inst::do_runtime_skip_reorder() {
         if (u->get_node().is_type<reorder>()) {
             if (u->get_node().can_be_optimized() && u->get_node().is_runtime_skippable()) {
                 auto out_port_idx = u->get_node().get_dependency_with_port(0).second;
+                if (out_port_idx == 0 && get_node().is_type<stateless_kv>()) {
+                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id() << " ignored since it's stateless_kv's target output" << std::endl;
+                    continue;
+                }
                 // If current node's output_node is not dynamic, the memory is already allocated at build time
                 auto alloc_type = allocation_type::unknown;
                 if (!get_node().is_dynamic_output_layout(out_port_idx) && static_cast<int64_t>(_outputs.size()) > out_port_idx) {
@@ -2220,7 +2368,13 @@ void primitive_inst::set_out_event(event::ptr&& ev) {
     _impl_params->out_event = ev;
 }
 
-void primitive_inst::reset_events() {
+void primitive_inst::reset_out_event() {
+    if (_impl_params->out_event) {
+        _impl_params->out_event->reset();
+    }
+}
+
+void primitive_inst::clear_events() {
     _impl_params->dep_events.clear();
     _impl_params->out_event = nullptr;
 }
@@ -2344,6 +2498,12 @@ void primitive_inst::prepare_primitive() {
             }
         }
 
+        // StatelessKV uses following result's memory, which may change due to SetOutput or other reason.
+        // So call realloc to update memory even if the input shapes haven't been changed
+        if (get_node().is_type<stateless_kv>() && !get_flag(ExecutionFlags::IMPL_CHANGED)) {
+            realloc_if_needed(prev_execution_skipped);
+        }
+
         // Paged Attention may require dispatch data update and internal buffers reallocation
         // even if the input shapes haven't been changed
         if (get_node().is_type<paged_attention>() && !get_flag(ExecutionFlags::IMPL_CHANGED) && _impl->requires_update(*this, *_impl_params)) {
@@ -2440,7 +2600,8 @@ void primitive_inst::prepare_primitive() {
                     // Use marker to ensure proper synchronization for both events and barriers
                     auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
                                                          : std::vector<event::ptr>{};
-                    add_dep_event(output->fill(get_network().get_stream(), dep_events));
+                    // Add dependency event for the output fill operation but do not sync with host
+                    add_dep_event(output->fill(get_network().get_stream(), dep_events, false));
                 }
             }
         }
@@ -2590,6 +2751,15 @@ primitive_inst::primitive_inst(network& network, const program_node& node, bool 
         };
         allocate_memory = _mem_allocated = available_allocate_memory(_impl_params->output_layouts);
     }
+    if (allocate_memory && node.is_type<stateless_kv>()) {
+        allocate_memory = _mem_allocated = false;
+    }
+    if (allocate_memory && node.is_output() && node.is_type<reorder>()) {
+        if (const auto [prev_node, prev_idx] = node.get_dependency_with_port(0); prev_node->is_type<stateless_kv>() && prev_idx == 0) {
+            allocate_memory = _mem_allocated = false;
+        }
+    }
+
 
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
@@ -2604,7 +2774,7 @@ primitive_inst::primitive_inst(network& network, const program_node& node, bool 
             }
         }
 
-        if (auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
+        if (auto reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
             // sum post-op can use the input buffer as the output buffer
             auto& eltw_node = node.get_dependency(reused_eltwmem_idx);
             const auto& eltw_inst = _network.get_primitive(eltw_node.id());
@@ -2650,7 +2820,10 @@ primitive_inst::primitive_inst(network& network, const program_node& node, bool 
 }
 
 memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_t idx, bool reset, bool lockable, bool shareable) {
-    if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr) {
+    const bool has_non_allocated_output = std::any_of(_outputs.begin(), _outputs.end(), [](const auto& output) {
+        return output == nullptr;
+    });
+    if (_impl == nullptr || _outputs.empty() || has_non_allocated_output) {
         return nullptr;
     }
 
@@ -2724,7 +2897,8 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
 }
 
 void primitive_inst::allocate_internal_buffers(bool reset) {
-    if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr) {
+    const bool has_non_allocated_output = std::any_of(_outputs.begin(), _outputs.end(), [](const auto& output) { return output == nullptr; });
+    if (_impl == nullptr || _outputs.empty() || has_non_allocated_output) {
         return;
     }
     const auto& buffer_descs = _impl->get_internal_buffer_descs(*_impl_params);
@@ -2779,15 +2953,17 @@ void primitive_inst::update_weights() {
         auto expected_layout = reorder_kernel_params->get_output_layout().clone_with_other_shape(original_layout.get_partial_shape());
         _impl_params->weights_layout = optional_layout(expected_layout);
 
-        if (_reordered_weights_cache.has(expected_layout) &&
+        auto cached_weights_memory = _reordered_weights_cache.get(expected_layout);
+        if (cached_weights_memory &&
             // WA: for custom format, we need to check traits to know what it really represents
-            (expected_layout.format != cldnn::format::custom ||
-             expected_layout.format.traits() == _reordered_weights_cache.get(expected_layout)->get_layout().format.traits())) {
+            (expected_layout.format != cldnn::format::custom || expected_layout.format.traits() == cached_weights_memory->get_layout().format.traits()) &&
+            (!requires_imad_isv4_padding_initialization(expected_layout) ||
+             !engine.is_the_same_buffer(*cached_weights_memory, *original_weights_memory))) {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
             GPU_DEBUG_TRACE_DETAIL << id() << ": reuse weights for " << expected_layout.to_short_string() << std::endl;
             return;
         }
-        if (original_layout.compatible(expected_layout)) {
+        if (original_layout.compatible(expected_layout) && !requires_imad_isv4_padding_initialization(expected_layout)) {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
             GPU_DEBUG_TRACE_DETAIL << id() << ": reinterpret original weights memory from " << original_layout.to_short_string() << " to "
                                    << expected_layout.to_short_string() << std::endl;
@@ -3166,7 +3342,7 @@ bool primitive_inst::is_valid_fusion() const {
         if (fd.is_type<eltwise>() || fd.is_type<activation>()) {
             fused_eltwise_prims.push_back(fd);
         } else {
-            if (fd.is_type<reorder>() || fd.is_type<quantize>()) {
+            if (fd.is_type<reorder>() || fd.is_type<quantize>() || fd.is_type<dynamic_quantize>()) {
                 continue;
             }
             if (fd.is_type<swiglu>()) {

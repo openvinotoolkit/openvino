@@ -8,11 +8,7 @@
 #include "openvino/op/multiply.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 ov::OutputVector affine(const ov::frontend::onnx::Node& node) {
     // Affine is an obsolete experimental ONNX operation.
     // It takes one input tensor and produces one output tensor where
@@ -32,8 +28,4 @@ ov::OutputVector affine(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("Affine", OPSET_SINCE(1), ai_onnx::opset_1::affine);
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1
