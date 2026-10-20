@@ -9,10 +9,12 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <stdexcept>
 #include <thread>
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 
 namespace ov::test {
 
@@ -106,6 +108,44 @@ TEST_F(ParallelReadStreamBufTest, NonZeroHeaderOffsetSmallData) {
     std::vector<char> got(k_payload_size);
     ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_payload_size)));
     EXPECT_EQ(got, payload);
+}
+
+TEST_F(ParallelReadStreamBufTest, StreamSizeLimitsExposedRegion) {
+    constexpr size_t k_prefix_size = 32;
+    constexpr size_t k_stream_size = 64;
+    constexpr size_t k_trailer_size = 16;
+    std::vector<char> data(k_stream_size + k_trailer_size);
+    fill_pattern(data);
+    ASSERT_NO_FATAL_FAILURE(setup_temp_file(data, k_prefix_size));
+
+    util::ParallelReadStreamBuf buf(m_tmp_path, k_prefix_size, /*threshold=*/1, k_stream_size);
+    std::istream stream(&buf);
+
+    stream.seekg(0, std::ios::end);
+    ASSERT_TRUE(stream.good());
+    EXPECT_EQ(stream.tellg(), std::streampos(k_stream_size));
+    stream.seekg(0, std::ios::beg);
+    ASSERT_TRUE(stream.good());
+
+    std::vector<char> got(data.size(), static_cast<char>(0xFFu));
+    stream.read(got.data(), static_cast<std::streamsize>(got.size()));
+    EXPECT_TRUE(stream.eof());
+    ASSERT_EQ(stream.gcount(), static_cast<std::streamsize>(k_stream_size));
+    EXPECT_EQ(std::vector<char>(got.begin(), got.begin() + k_stream_size),
+              std::vector<char>(data.begin(), data.begin() + k_stream_size));
+    EXPECT_EQ(std::vector<char>(got.begin() + k_stream_size, got.end()),
+              std::vector<char>(k_trailer_size, static_cast<char>(0xFFu)));
+}
+
+TEST_F(ParallelReadStreamBufTest, StreamSizeExceedingRemainingFileThrows) {
+    constexpr size_t k_prefix_size = 32;
+    constexpr size_t k_payload_size = 64;
+    ASSERT_NO_FATAL_FAILURE(setup_temp_file(std::vector<char>(k_payload_size), k_prefix_size));
+
+    OV_EXPECT_THROW(
+        (util::ParallelReadStreamBuf(m_tmp_path, k_prefix_size, /*threshold=*/1, k_payload_size + 1)),
+        std::out_of_range,
+        testing::StrEq("ParallelReadStreamBuf region exceeds file size"));
 }
 
 // 3.  Multiple consecutive reads – each partial read must pick up exactly
