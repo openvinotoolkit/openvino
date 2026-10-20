@@ -62,6 +62,8 @@ std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, con
 // x / max(sqrt(sum(x^2, -1)), eps), matching ggml's l2_norm.
 ov::Output<ov::Node> make_l2_norm(const ov::Output<ov::Node>& x, float eps);
 
+ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::Node> input);
+
 /// \brief Give `out`'s producer and its first output tensor the same name.
 void name_output(const ov::Output<ov::Node>& out, const std::string& name);
 

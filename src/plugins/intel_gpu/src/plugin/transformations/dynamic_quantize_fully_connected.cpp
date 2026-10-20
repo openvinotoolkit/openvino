@@ -70,8 +70,12 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             auto weight_zp_shape = m_fc->get_input_partial_shape(4);
             auto weight_scale_shape = m_fc->get_input_partial_shape(3);
             const bool is_zp_scalar = has_static_wzp && ov::shape_size(m_fc->get_input_shape(4)) == 1;
-            const size_t wei_zp_group_size = is_zp_scalar ? innermost_size : innermost_size / weight_zp_shape[k_axis].get_length();
-            const size_t wei_scale_group_size = innermost_size / weight_scale_shape[k_axis].get_length();
+            const size_t zp_k_axis = weight_zp_shape.size() - (m_fc->get_transpose_b_zp() ? 1 : 2);
+            const size_t scale_k_axis = weight_scale_shape.size() - (m_fc->get_transpose_b_scale() ? 1 : 2);
+            const size_t zp_group_count = is_zp_scalar ? 1 : weight_zp_shape[zp_k_axis].get_length();
+            const size_t scale_group_count = weight_scale_shape[scale_k_axis].get_length();
+            const size_t wei_zp_group_size = zp_group_count == 0 ? 0 : innermost_size / zp_group_count;
+            const size_t wei_scale_group_size = scale_group_count == 0 ? 0 : innermost_size / scale_group_count;
             const size_t required_group_size = std::min(wei_zp_group_size, wei_scale_group_size);
             if (adj_group_size > required_group_size) {
                 GPU_DEBUG_LOG << "Dynamic quantization: adjusting group_size " << adj_group_size
@@ -79,7 +83,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                 adj_group_size = required_group_size;
             }
             const bool is_per_token = adj_group_size == innermost_size;
-            if (required_group_size % adj_group_size == 0 && !is_per_token) {
+            if (adj_group_size > 0 && required_group_size % adj_group_size == 0 && !is_per_token) {
                 config.precomputed_reduction_dt = element::i32; // it supports i32 only now
                 config.precomputed_reduction = true;
             } else {
@@ -147,7 +151,9 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                                                                      optional_a_zp,
                                                                      optional_precomputed_reduction,
                                                                      output_type,
-                                                                     m_fc->get_transpose_b());
+                                                                     m_fc->get_transpose_b(),
+                                                                     m_fc->get_transpose_b_scale(),
+                                                                     m_fc->get_transpose_b_zp());
 
         ov::replace_node(m_fc, new_fc);
 

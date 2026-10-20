@@ -9,6 +9,7 @@
 
 #include "gguf.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
@@ -66,6 +67,10 @@ TypeTraits type_traits(uint32_t type) {
         return {256, 84};
     case GGUF_TYPE_Q2_0:
         return {64, 18};  // f16 scale + 64x 2-bit codes (16 bytes)
+    case GGUF_TYPE_PQ2_0:
+        return {128, 34};
+    case GGUF_TYPE_PTQ1_0:
+        return {128, 28};
     case GGUF_TYPE_Q3_K:
         return {256, 110};
     case GGUF_TYPE_Q4_K:
@@ -112,7 +117,7 @@ std::optional<QuantLayout> quant_layout(uint32_t type) {
     case GGUF_TYPE_Q4_0:
         return QuantLayout{ov::element::i4, 1, ov::element::f16, 32, symmetric};
     case GGUF_TYPE_Q1_0:
-        return QuantLayout{ov::element::i4, 1, ov::element::f16, 128, symmetric};
+        return QuantLayout{ov::element::u1, 1, ov::element::f16, 128, symmetric};
     case GGUF_TYPE_Q3_K:
         return QuantLayout{ov::element::i4, 1, ov::element::f16, 16, symmetric};
     case GGUF_TYPE_Q5_0:
@@ -127,6 +132,9 @@ std::optional<QuantLayout> quant_layout(uint32_t type) {
         return QuantLayout{ov::element::u2, 1, ov::element::f16, 16, asymmetric};
     case GGUF_TYPE_Q2_0:
         return QuantLayout{ov::element::u2, 1, ov::element::f16, 64, asymmetric};
+    case GGUF_TYPE_PQ2_0:
+    case GGUF_TYPE_PTQ1_0:
+        return QuantLayout{ov::element::u2, 1, ov::element::f16, 128, asymmetric};
     case GGUF_TYPE_Q4_1:
     case GGUF_TYPE_Q4_K:
         return QuantLayout{ov::element::u32, 8, ov::element::f16, 32, asymmetric};
@@ -495,6 +503,56 @@ GGUFLoad get_gguf_data(const std::string& file) {
     // Tensor data starts at the next `alignment`-aligned offset after the info section.
     uint64_t data_off = cur.offset() + ov::util::align_padding_size(alignment, cur.offset());
 
+    // Older Prism files used the upstream Q2_0 id for group-128 payloads.
+    std::vector<uint64_t> offsets;
+    for (const auto& ti : infos)
+        offsets.push_back(ti.offset);
+    std::sort(offsets.begin(), offsets.end());
+    OPENVINO_ASSERT(data_off <= fsize && (offsets.empty() || offsets.back() <= fsize - data_off),
+                    "[load_gguf] tensor offset runs past EOF");
+    std::vector<TensorInfo*> ambiguous_q2;
+    bool legacy_g128 = false;
+    for (auto& ti : infos) {
+        if (ti.type != GGUF_TYPE_Q2_0 || ti.dim[0] == 0)
+            continue;
+        const auto next = std::upper_bound(offsets.begin(), offsets.end(), ti.offset);
+        OPENVINO_ASSERT(data_off <= fsize && ti.offset <= fsize - data_off,
+                        "[load_gguf] tensor '",
+                        ti.name,
+                        "' offset runs past EOF");
+        const auto span = (next == offsets.end() ? fsize - data_off : *next) - ti.offset;
+        const auto size_for = [&](uint32_t type) {
+            const auto traits = type_traits(type);
+            uint64_t blocks = ti.dim[0] / traits.items_per_block;
+            for (uint32_t d = 1; d < ti.ndim; ++d) {
+                OPENVINO_ASSERT(ti.dim[d] == 0 || blocks <= std::numeric_limits<uint64_t>::max() / ti.dim[d],
+                                "[load_gguf] tensor '",
+                                ti.name,
+                                "' byte count overflows");
+                blocks *= ti.dim[d];
+            }
+            OPENVINO_ASSERT(blocks <= std::numeric_limits<uint64_t>::max() / traits.bytes_per_block,
+                            "[load_gguf] tensor '",
+                            ti.name,
+                            "' byte count overflows");
+            const auto bytes = blocks * traits.bytes_per_block;
+            return bytes <= span && (bytes == span || ov::util::align_padding_size(alignment, bytes) == span - bytes);
+        };
+        const bool g64 = ti.dim[0] % 64 == 0 && size_for(GGUF_TYPE_Q2_0);
+        const bool g128 = ti.dim[0] % 128 == 0 && size_for(GGUF_TYPE_PQ2_0);
+        OPENVINO_ASSERT(g64 || g128, "[load_gguf] tensor '", ti.name, "' has invalid Q2_0 packing");
+        if (g64 && g128) {
+            ambiguous_q2.push_back(&ti);
+        } else if (g128) {
+            ti.type = GGUF_TYPE_PQ2_0;
+            legacy_g128 = true;
+        }
+    }
+    if (legacy_g128) {
+        for (auto* ti : ambiguous_q2)
+            ti->type = GGUF_TYPE_PQ2_0;
+    }
+
     // Validate file-controlled shapes before allocating repacked tensors.
     auto quant_sizes = [](const TensorInfo& ti, const QuantLayout& ql) -> std::array<size_t, 3> {
         const ov::Shape shape = [&ti]() {
@@ -601,7 +659,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
 
         if (ti.type == GGUF_TYPE_MXFP4) {
             gguf_fill_mxfp4(tensor, weights, scales);
-        } else if (ti.type == GGUF_TYPE_Q2_0) {
+        } else if (ti.type == GGUF_TYPE_Q2_0 || ti.type == GGUF_TYPE_PQ2_0 || ti.type == GGUF_TYPE_PTQ1_0) {
             gguf_fill_q2_0(tensor, weights, scales, zp);
         } else if (layout->asymmetric) {
             gguf_fill_asym(tensor, weights, scales, zp);
@@ -869,6 +927,10 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // 0.0 means no soft-cap.
     config["final_logit_softcapping"] = metadata_to_float_or(metadata, arch + ".final_logit_softcapping", 0.0f);
 
+    for (const auto& [key, value] : metadata) {
+        if (key.compare(0, 15, "prism.hadamard.") == 0)
+            config[key] = value;
+    }
     return config;
 }
 

@@ -13,6 +13,7 @@
 #include "resample_inst.h"
 #include "reshape_inst.h"
 #include "rms_inst.h"
+#include "scaled_dot_product_attention_inst.h"
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
 #include "select_inst.h"
@@ -1619,6 +1620,7 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
     enable_onednn_for<reorder>();
     enable_onednn_for<moe_gemm>();
     enable_onednn_for<grouped_matmul>();
+    enable_onednn_for<scaled_dot_product_attention>();
 }
 
 bool layout_optimizer::has_all_enabled_onednn_impls_optimization_attribute() {
