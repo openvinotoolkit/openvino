@@ -216,6 +216,9 @@ static void run_test_post_scales(ov::element::Type rtPrec, size_t M, size_t N, s
 
 TEST_P(BrgemmKernelTest, simpleGemmTest) {
     const auto& [rtPrec, M, N, K, postScale] = this->GetParam();
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+        GTEST_SKIP() << "BRGEMM requires AVX2 or later.";
+    }
     if (rtPrec == ov::element::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     if (rtPrec == ov::element::f16 && !ov::with_cpu_x86_avx512_core_fp16())

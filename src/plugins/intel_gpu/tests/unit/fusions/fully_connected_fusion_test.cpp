@@ -197,6 +197,9 @@ public:
 #define CASE_FC_U8S8_3D_3 { 2, 3, 1 }, { 2, 3, 15 }, { 15, 1 }, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_U8S8_3D_4 { 1, 512, 1024 }, { 1, 384, 1024 }, { 1024, 1024 }, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 
+#define CASE_FC_S8U8_FP16_1 { 2, 32 }, { 2, 16 }, { 16, 32 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_S8U8_FP16_2 { 2, 32, 3 }, { 2, 32, 16 }, { 16, 3 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx
+
 #define CASE_FC_FP16_1 { 1, 3 }, { 1, 4 }, { 4, 3 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_FP16_2 { 2, 3 }, { 2, 4 }, { 4, 3 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_FP16_3 { 2, 32 }, { 2, 16 }, { 16, 32 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
@@ -1214,6 +1217,77 @@ TEST_P(fc_fp32_activation_relu, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_activation_relu, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ CASE_FC_FP32_1, 2, 3 }
+}));
+
+class fc_fp16_eltwise_prod_mul_inplace_basic : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_fp16_eltwise_prod_mul_inplace_basic, matches_unfused_reference) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        input_layout("extra_mul", get_output_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        fully_connected("fc_prim", input_info("input"), "weights", "", get_output_dim_size(p)),
+        eltwise("mul", {input_info("fc_prim"), input_info("extra_mul")}, eltwise_mode::prod),
+        reorder("reorder_bfyx", input_info("mul"), p.default_format, data_types::f16));
+
+    extra_inputs["extra_mul"] = get_output_layout(p);
+    tolerance = 1e-2f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod_mul_inplace_basic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_2, 3, 4 },
+    fully_connected_test_params{ CASE_FC_FP16_3, 3, 4 },
+    fully_connected_test_params{ CASE_FC_FP16_3D_1, 3, 4 },
+}));
+
+class fc_s8_u8_fp16_eltwise_prod_mul_inplace : public FullyConnectedFusingTestOneDNN {
+public:
+    layout get_output_layout(fully_connected_test_params& p) {
+        return layout{ p.out_shape, p.default_type, p.default_format };
+    }
+};
+
+TEST_P(fc_s8_u8_fp16_eltwise_prod_mul_inplace, matches_unfused_reference) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        input_layout("extra_mul", get_output_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        fully_connected("fc_prim", input_info("input"), "weights", "", data_types::f16, get_output_dim_size(p), get_input_weights_rank(p)),
+        eltwise("mul", {input_info("fc_prim"), input_info("extra_mul")}, eltwise_mode::prod),
+        reorder("reorder_bfyx", input_info("mul"), p.default_format, data_types::f16));
+    extra_inputs["extra_mul"] = get_output_layout(p);
+    tolerance = 1e-2f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_s8_u8_fp16_eltwise_prod_mul_inplace, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_S8U8_FP16_1, 3, 4 },
+    fully_connected_test_params{ CASE_FC_S8U8_FP16_2, 3, 4 },
+}));
+
+class fc_fp16_eltwise_prod_mul_mul_inplace : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_fp16_eltwise_prod_mul_mul_inplace, matches_unfused_reference) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        input_layout("extra_mul1", get_output_layout(p)),
+        input_layout("extra_mul2", get_output_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        fully_connected("fc_prim", input_info("input"), "weights", "", get_output_dim_size(p)),
+        eltwise("mul1", {input_info("fc_prim"), input_info("extra_mul1")}, eltwise_mode::prod),
+        eltwise("mul2", {input_info("mul1"), input_info("extra_mul2")}, eltwise_mode::prod),
+        reorder("reorder_bfyx", input_info("mul2"), p.default_format, data_types::f16));
+
+    extra_inputs["extra_mul1"] = get_output_layout(p);
+    extra_inputs["extra_mul2"] = get_output_layout(p);
+    tolerance = 1e-2f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod_mul_mul_inplace, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_3, 4, 6 },
 }));
 #endif
 
