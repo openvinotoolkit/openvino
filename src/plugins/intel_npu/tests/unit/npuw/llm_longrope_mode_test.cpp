@@ -23,16 +23,20 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <map>
 #include <memory>
 #include <numeric>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "executor.hpp"
+#include "kv_cache_block_manager_test_access.hpp"
 #include "llm_block_kvcache_strategy.hpp"
 #include "llm_compiled_model.hpp"
 #include "llm_infer_request.hpp"
 #include "llm_longrope_kv.hpp"
+#include "llm_prefix_caching.hpp"
 #include "llm_test_helpers.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -285,8 +289,8 @@ public:
         return *m_compiled;
     }
 
-    void prefill(size_t prompt_len, int64_t first_position) {
-        set_inputs(make_i64({1, prompt_len}, 1),
+    void prefill(size_t prompt_len, int64_t first_position, int64_t token = 1) {
+        set_inputs(make_i64({1, prompt_len}, token),
                    make_i64({1, prompt_len}, 1),
                    make_i64_iota({1, prompt_len}, first_position));
         m_request->infer();
@@ -511,12 +515,15 @@ TEST(LLMLongRopeMode, RejectedTransitionLeavesTheCacheAndTheModeAlone) {
 // a dummy tensor shared by every port that currently backs no token.
 class LongRopeBlockCache : public ::testing::Test {
 protected:
+    // The prefill chunk size, which is also the KV block size.
+    static constexpr uint32_t kBlock = 32;
+
     // Block size follows the chunk size. The generate model's past KV is 95 rows, so two
     // numbered blocks cover positions 0..63 and a tail block covers the rest - the prompt
     // and crossing below are picked to populate the tail as well.
     static ov::AnyMap block_props() {
         return {{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
-                {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"},
+                {"NPUW_LLM_PREFILL_CHUNK_SIZE", std::to_string(kBlock)},
                 {"NPUW_LLM_PREFILL_ATTENTION_HINT", "PYRAMID"},
                 {"NPUW_LLM_GENERATE_ATTENTION_HINT", "PYRAMID"},
                 {"NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE", "YES"}};
@@ -679,6 +686,245 @@ TEST_F(LongRopeBlockCache, CrossingTurnsEveryBlockOfThePool) {
         ++tails_checked;
     }
     EXPECT_GT(tails_checked, 0u);
+}
+
+// Prefix caching on top of the block KV cache. A cached block keeps references to the pool's
+// own block tensors instead of copies, so the pool has to treat those tensors as read-only for
+// as long as the cache holds them: never hand them out again as scratch memory, and never
+// rewrite them in place.
+class PrefixCacheBlockKv : public LongRopeBlockCache {
+protected:
+    // A prompt of two full blocks, which is also the whole context of LongRopePipeline.
+    static constexpr size_t kTwoBlocks = 2 * kBlock;
+
+    using Managers = std::unordered_map<uint32_t, ov::npuw::LayerBlockManagers>;
+
+    static ov::AnyMap prefix_props() {
+        auto props = block_props();
+        props["NPUW_LLM_ENABLE_PREFIX_CACHING"] = "YES";
+        return props;
+    }
+
+    static const Managers& managers(ov::npuw::LLMInferRequest& req) {
+        return LLMLongRopeModeTestAccess::block_managers(LLMLongRopeModeTestAccess::block_strategy(req));
+    }
+
+    static std::vector<uint64_t> hashes() {
+        return std::vector<uint64_t>(kBlock, 7u);
+    }
+
+    static std::shared_ptr<ov::npuw::KVBlock> store_block(ov::npuw::LLMInferRequest& req, size_t token_start) {
+        return LLMLongRopeModeTestAccess::block_strategy(req).make_prefix_block(token_start, 0u, kBlock, hashes());
+    }
+
+    static const ov::npuw::PrefixBlockBlockKV& as_pool_block(const std::shared_ptr<ov::npuw::KVBlock>& block) {
+        const auto* pool_block = dynamic_cast<const ov::npuw::PrefixBlockBlockKV*>(block.get());
+        EXPECT_NE(pool_block, nullptr);
+        return *pool_block;
+    }
+
+    // The memory behind the key block at `seq_block_idx` of every layer.
+    static std::map<uint32_t, const void*> key_block_data(ov::npuw::LLMInferRequest& req, size_t seq_block_idx) {
+        std::map<uint32_t, const void*> out;
+        for (const auto& [layer_idx, layer] : managers(req)) {
+            const auto id = layer.key_manager->get_allocated_blocks().at(seq_block_idx);
+            out[layer_idx] = layer.key_manager->get_block_tensor(id)->data();
+        }
+        return out;
+    }
+
+    static size_t allocated_blocks(ov::npuw::LLMInferRequest& req) {
+        size_t total = 0;
+        for (const auto& [layer_idx, layer] : managers(req)) {
+            total += layer.key_manager->get_allocated_blocks().size();
+            total += layer.value_manager->get_allocated_blocks().size();
+        }
+        return total;
+    }
+};
+
+TEST_F(PrefixCacheBlockKv, BlockSizeFollowsThePrefillChunkSize) {
+    LongRopePipeline pipeline(kUnreachableLimit, block_props());
+    EXPECT_EQ(LLMLongRopeModeTestAccess::block_size(LLMLongRopeModeTestAccess::block_strategy(pipeline.request())),
+              kBlock);
+}
+
+TEST_F(PrefixCacheBlockKv, StoredBlockReferencesThePoolTensorsAndSharesThem) {
+    LongRopePipeline pipeline(kUnreachableLimit, block_props());
+    pipeline.prefill(kTwoBlocks, 0);
+
+    const auto block = store_block(pipeline.request(), 0u);
+    ASSERT_NE(block, nullptr);
+    EXPECT_EQ(block->get_token_start(), 0u);
+    const auto& refs = as_pool_block(block).get_layer_refs();
+    ASSERT_EQ(refs.size(), managers(pipeline.request()).size());
+
+    for (const auto& [layer_idx, ref] : refs) {
+        const auto& layer = managers(pipeline.request()).at(layer_idx);
+        ASSERT_EQ(layer.key_manager->get_allocated_blocks().size(), 2u) << "layer " << layer_idx;
+        const auto key_id = layer.key_manager->get_allocated_blocks().at(0);
+        const auto value_id = layer.value_manager->get_allocated_blocks().at(0);
+        EXPECT_EQ(ref.num_tokens, kBlock);
+        // No copy: the cache points at the memory the model wrote into.
+        EXPECT_EQ(ref.key_tensor->data(), layer.key_manager->get_block_tensor(key_id)->data());
+        EXPECT_EQ(ref.value_tensor->data(), layer.value_manager->get_block_tensor(value_id)->data());
+        EXPECT_TRUE(ov::test::npuw::KVCacheBlockManagerTestAccess::is_shared(*layer.key_manager, key_id));
+        EXPECT_TRUE(ov::test::npuw::KVCacheBlockManagerTestAccess::is_shared(*layer.value_manager, value_id));
+        // The second block is not part of this cache block.
+        EXPECT_FALSE(
+            ov::test::npuw::KVCacheBlockManagerTestAccess::is_shared(*layer.key_manager,
+                                                                     layer.key_manager->get_allocated_blocks().at(1)));
+    }
+}
+
+// The cache is an optimization, so a block the pool does not hold completely is skipped
+// rather than failing the prefill. Declining it shares nothing, and the complete block that
+// was cached before stays shared.
+TEST_F(PrefixCacheBlockKv, IncompleteBlockIsDeclinedWhileTheCompleteOneStaysShared) {
+    LongRopePipeline pipeline(kUnreachableLimit, block_props());
+    pipeline.prefill(kBlock + 8, 0);  // one full block and one holding only the last 8 tokens
+
+    const auto& first_layer = managers(pipeline.request()).begin()->second;
+    const auto allocated = first_layer.key_manager->get_allocated_blocks();
+    ASSERT_EQ(allocated.size(), 2u);
+    size_t partial = allocated.size();
+    for (size_t i = 0; i < allocated.size(); ++i) {
+        if (first_layer.key_manager->get_block_tokens(allocated[i]) != kBlock) {
+            partial = i;
+        }
+    }
+    ASSERT_LT(partial, allocated.size()) << "the prompt must leave one block partially filled";
+    const size_t full = 1 - partial;
+
+    ASSERT_NE(store_block(pipeline.request(), full * kBlock), nullptr);
+    EXPECT_EQ(store_block(pipeline.request(), partial * kBlock), nullptr);
+    EXPECT_EQ(store_block(pipeline.request(), allocated.size() * kBlock), nullptr);
+
+    for (const auto& [layer_idx, layer] : managers(pipeline.request())) {
+        for (const auto* manager : {layer.key_manager.get(), layer.value_manager.get()}) {
+            const auto ids = manager->get_allocated_blocks();
+            ASSERT_EQ(ids.size(), 2u);
+            EXPECT_TRUE(ov::test::npuw::KVCacheBlockManagerTestAccess::is_shared(*manager, ids[full]))
+                << "layer " << layer_idx;
+            EXPECT_FALSE(ov::test::npuw::KVCacheBlockManagerTestAccess::is_shared(*manager, ids[partial]))
+                << "layer " << layer_idx;
+        }
+    }
+}
+
+TEST_F(PrefixCacheBlockKv, RestoreInjectsTheCachedTensorsIntoAnEmptyPool) {
+    LongRopePipeline source(kUnreachableLimit, block_props());
+    source.prefill(kTwoBlocks, 0);
+    const auto block = store_block(source.request(), 0u);
+    ASSERT_NE(block, nullptr);
+
+    LongRopePipeline target(kUnreachableLimit, block_props());
+    LLMLongRopeModeTestAccess::block_strategy(target.request()).apply_cached_prefix_blocks({block});
+
+    for (const auto& [layer_idx, ref] : as_pool_block(block).get_layer_refs()) {
+        const auto& layer = managers(target.request()).at(layer_idx);
+        ASSERT_EQ(layer.key_manager->get_allocated_blocks().size(), 1u);
+        ASSERT_EQ(layer.value_manager->get_allocated_blocks().size(), 1u);
+        const auto key_id = layer.key_manager->get_allocated_blocks().front();
+        EXPECT_EQ(layer.key_manager->get_block_tensor(key_id)->data(), ref.key_tensor->data());
+        EXPECT_EQ(layer.key_manager->get_block_tokens(key_id), kBlock);
+        EXPECT_TRUE(ov::test::npuw::KVCacheBlockManagerTestAccess::is_shared(*layer.key_manager, key_id));
+    }
+}
+
+// A restore that cannot be completed must not leave the pool half restored.
+TEST_F(PrefixCacheBlockKv, RejectedRestoreLeavesThePoolUntouched) {
+    LongRopePipeline source(kUnreachableLimit, block_props());
+    source.prefill(kTwoBlocks, 0);
+    const auto block = store_block(source.request(), 0u);
+    ASSERT_NE(block, nullptr);
+
+    LongRopePipeline target(kUnreachableLimit, block_props());
+    auto& strategy = LLMLongRopeModeTestAccess::block_strategy(target.request());
+
+    // The valid block comes first, so a restore that injected as it went would already have
+    // changed the pool when the second block is found to carry no KV.
+    const auto without_kv = std::make_shared<ov::npuw::PrefixBlockBlockKV>(kBlock);
+    EXPECT_THROW(strategy.apply_cached_prefix_blocks({block, without_kv}), ov::Exception);
+    EXPECT_EQ(allocated_blocks(target.request()), 0u);
+
+    // A block another strategy produced is not understood.
+    const auto foreign = std::make_shared<ov::npuw::KVBlock>(kBlock);
+    EXPECT_THROW(strategy.apply_cached_prefix_blocks({foreign}), ov::Exception);
+    EXPECT_EQ(allocated_blocks(target.request()), 0u);
+
+    // The restore has to precede the first prefill chunk.
+    const size_t before = allocated_blocks(source.request());
+    ASSERT_GT(before, 0u);
+    EXPECT_THROW(LLMLongRopeModeTestAccess::block_strategy(source.request()).apply_cached_prefix_blocks({block}),
+                 ov::Exception);
+    EXPECT_EQ(allocated_blocks(source.request()), before);
+}
+
+TEST_F(PrefixCacheBlockKv, RepeatedPromptRestoresTheCachedBlockWithoutCopying) {
+    LongRopePipeline pipeline(kUnreachableLimit, prefix_props());
+    pipeline.prefill(kTwoBlocks, 0);
+    const auto first_run = key_block_data(pipeline.request(), 0);
+
+    pipeline.prefill(kTwoBlocks, 0);
+
+    // The first block comes straight out of the cache; the last chunk is always recomputed.
+    EXPECT_EQ(key_block_data(pipeline.request(), 0), first_run);
+    for (const auto& [layer_idx, layer] : managers(pipeline.request())) {
+        EXPECT_EQ(layer.key_manager->get_allocated_blocks().size(), 2u);
+        EXPECT_TRUE(
+            ov::test::npuw::KVCacheBlockManagerTestAccess::is_shared(*layer.key_manager,
+                                                                     layer.key_manager->get_allocated_blocks().at(0)));
+    }
+}
+
+// The pool keeps blocks warm across conversations, which is only safe for tensors nobody else
+// holds: a different prompt must not write over what the cache still serves.
+TEST_F(PrefixCacheBlockKv, CachedTensorIsNotReusedAsScratchByAnotherPrompt) {
+    LongRopePipeline pipeline(kUnreachableLimit, prefix_props());
+    pipeline.prefill(kTwoBlocks, 0, 1);
+    const auto cached = key_block_data(pipeline.request(), 0);
+
+    pipeline.prefill(kTwoBlocks, 0, 2);
+
+    const auto current = key_block_data(pipeline.request(), 0);
+    for (const auto& [layer_idx, data] : cached) {
+        EXPECT_NE(current.at(layer_idx), data) << "layer " << layer_idx;
+    }
+}
+
+// Re-rotating a key block rewrites it in place, which would corrupt the cached copy of the
+// keys, so the pool turns a private copy instead and rebinds the request to it.
+TEST_F(PrefixCacheBlockKv, LongRopeTurnLeavesTheCachedBlockUntouched) {
+    constexpr size_t kPrompt = kTwoBlocks;
+    constexpr int64_t kLimit = 100;
+
+    LongRopePipeline pipeline(kLimit, block_props());
+    pipeline.prefill(kPrompt, 0);
+    const auto block = store_block(pipeline.request(), 0u);
+    ASSERT_NE(block, nullptr);
+    const auto& refs = as_pool_block(block).get_layer_refs();
+
+    std::map<uint32_t, std::vector<float>> cached_before;
+    for (const auto& [layer_idx, ref] : refs) {
+        cached_before[layer_idx] = to_floats(ref.key_tensor);
+    }
+
+    for (int64_t position = static_cast<int64_t>(kPrompt); position <= kLimit; ++position) {
+        pipeline.generate_step(static_cast<size_t>(position), position);
+    }
+    ASSERT_TRUE(LLMLongRopeModeTestAccess::long_mode(pipeline.request()));
+
+    for (const auto& [layer_idx, ref] : refs) {
+        const auto& layer = managers(pipeline.request()).at(layer_idx);
+        const auto key_id = layer.key_manager->get_allocated_blocks().at(0);
+        const auto pooled = layer.key_manager->get_block_tensor(key_id);
+
+        EXPECT_EQ(to_floats(ref.key_tensor), cached_before.at(layer_idx)) << "cached keys changed, layer " << layer_idx;
+        EXPECT_NE(pooled->data(), ref.key_tensor->data()) << "layer " << layer_idx;
+        EXPECT_NE(to_floats(pooled), cached_before.at(layer_idx)) << "pool keys were not turned, layer " << layer_idx;
+        EXPECT_FALSE(ov::test::npuw::KVCacheBlockManagerTestAccess::is_shared(*layer.key_manager, key_id));
+    }
 }
 
 // A KV layout the rewrite cannot turn is refused when the model is compiled, not at the

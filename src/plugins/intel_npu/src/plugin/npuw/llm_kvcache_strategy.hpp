@@ -6,15 +6,16 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 #include "llm_infer_base_request.hpp"
-#include "llm_prefix_caching.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 
 namespace ov {
 namespace npuw {
 
 class LLMInferRequest;  // forward declaration — strategy always outlived by its owning request
+class KVBlock;          // forward declaration — full definition in llm_prefix_caching.hpp
 
 /**
  * @brief Abstract strategy interface for LLM KV cache management.
@@ -128,6 +129,7 @@ public:
     // Build a cache block for the `block_size` tokens that start at prompt position
     // `block_token_start` and at `out_token_offset` in the current prefill output buffer.
     // Called after the chunk's infer() and before on_prefill_chunk_done().
+    // Returns nullptr when the block cannot be cached; the caller then skips it.
     virtual std::shared_ptr<KVBlock> make_prefix_block(size_t block_token_start,
                                                        size_t out_token_offset,
                                                        size_t block_size,
