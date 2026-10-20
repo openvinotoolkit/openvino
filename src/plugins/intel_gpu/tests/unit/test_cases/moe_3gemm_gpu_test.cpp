@@ -19,6 +19,7 @@
 
 #include "../../common/random_generator.hpp"
 #include "../test_utils/test_utils.h"
+#include "common_test_utils/common_utils.hpp"
 #include "moe_3gemm_test_data.h"
 
 using namespace cldnn;
@@ -612,7 +613,8 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     // (weights, scales, zero points for gate/up/down). One quantization group per row keeps the file
     // layout identical to the device layout.
     std::vector<size_t> weight_bin_offsets;
-    auto weights_path = std::filesystem::temp_directory_path() / "moe_3gemm_otd_weights.bin";
+    // One file per test process: parallel test runners execute these cases at the same time.
+    auto weights_path = std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + "_moe_3gemm_otd_weights.bin");
     // Declared before the network so it runs after the network has closed the file.
     struct remove_file_on_exit {
         std::filesystem::path path;
