@@ -483,7 +483,11 @@ void PrefixCachingHelper::store_blocks(size_t chunk_size,
                                                                      block_start,
                                                                      block_size,
                                                                      token_hashes);
-        OPENVINO_ASSERT(block, "KV cache strategy returned no prefix cache block");
+        if (!block) {
+            LOG_DEBUG("[PrefixCache] The KV cache strategy declined to cache the block at token "
+                      << token_idx - block_size);
+            continue;
+        }
 
         uint64_t prev_block_hash = 0;
         if (block->get_token_start() > 0) {

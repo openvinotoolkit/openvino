@@ -9,33 +9,13 @@
 #include <algorithm>
 #include <set>
 
+#include "kv_cache_block_manager_test_access.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "util.hpp"
 
 using namespace ov::npuw;
-
-namespace ov {
-namespace test {
-namespace npuw {
-
-// Reaches the strategy-only entry points of the block manager.
-struct KVCacheBlockManagerTestAccess {
-    static uint32_t inject(ov::npuw::KVCacheBlockManager& manager, ov::SoPtr<ov::ITensor> tensor, uint32_t tokens) {
-        return manager.allocate_block_with_tensor(std::move(tensor), tokens);
-    }
-    static void share(ov::npuw::KVCacheBlockManager& manager, uint32_t block_id) {
-        manager.mark_block_shared(block_id);
-    }
-    static bool unshare(ov::npuw::KVCacheBlockManager& manager, uint32_t block_id) {
-        return manager.unshare_block(block_id);
-    }
-};
-
-}  // namespace npuw
-}  // namespace test
-}  // namespace ov
 
 namespace {
 
@@ -420,7 +400,7 @@ TEST_F(KVCacheBlockManagerTest, NumFreeBlocks) {
     EXPECT_EQ(manager->num_free_blocks(), 0u);
 }
 
-// Injected tensors are reported in injection order, not block ID order.
+// Injected blocks take the smallest free IDs, so block ID order stays token order.
 TEST_F(KVCacheBlockManagerTest, InjectedBlocksKeepSequenceOrder) {
     auto first = ov::npuw::util::allocMem(elem_type, base_shape, device, nullptr);
     auto second = ov::npuw::util::allocMem(elem_type, base_shape, device, nullptr);
@@ -467,6 +447,24 @@ TEST_F(KVCacheBlockManagerTest, TruncateDropsSharedSuffixTensors) {
     manager->truncate_allocated(1);
 
     EXPECT_EQ(shared_tensor._ptr.use_count(), 1);
+}
+
+TEST_F(KVCacheBlockManagerTest, SharedFlagFollowsTheBlockLifetime) {
+    const auto id = manager->allocate_block().value();
+    EXPECT_FALSE(KVCacheBlockManagerTestAccess::is_shared(*manager, id));
+
+    KVCacheBlockManagerTestAccess::share(*manager, id);
+    EXPECT_TRUE(KVCacheBlockManagerTestAccess::is_shared(*manager, id));
+
+    // A block handed out again after a release is private until it is shared once more.
+    manager->release(max_blocks);
+    ASSERT_EQ(manager->allocate_block().value(), id);
+    EXPECT_FALSE(KVCacheBlockManagerTestAccess::is_shared(*manager, id));
+
+    // An injected tensor is shared from the start.
+    auto cached = ov::npuw::util::allocMem(elem_type, base_shape, device, nullptr);
+    const auto injected_id = KVCacheBlockManagerTestAccess::inject(*manager, cached, block_size);
+    EXPECT_TRUE(KVCacheBlockManagerTestAccess::is_shared(*manager, injected_id));
 }
 
 TEST_F(KVCacheBlockManagerTest, UnshareGivesPrivateCopy) {

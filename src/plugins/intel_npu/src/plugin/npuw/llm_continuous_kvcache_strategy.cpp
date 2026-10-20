@@ -10,6 +10,7 @@
 #include "infer_request_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "llm_longrope_kv.hpp"
+#include "llm_prefix_caching.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "util.hpp"

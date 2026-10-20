@@ -73,7 +73,6 @@ std::optional<uint32_t> KVCacheBlockManager::allocate_block() {
     block.num_tokens = 0;
     block.is_allocated = true;
     block.is_shared = false;
-    allocation_sequence_.push_back(block_id);
 
     LOG_VERB("KVCacheBlockManager: Allocated block " << block_id << " (free blocks remaining: " << num_free_blocks()
                                                      << ")");
@@ -99,7 +98,6 @@ uint32_t KVCacheBlockManager::allocate_block_with_tensor(ov::SoPtr<ov::ITensor> 
     block.num_tokens = num_tokens;
     block.is_allocated = true;
     block.is_shared = true;
-    allocation_sequence_.push_back(block_id);
 
     LOG_VERB("KVCacheBlockManager: Injected cached tensor into block " << block_id << " (" << num_tokens << " tokens)");
     return block_id;
@@ -171,7 +169,21 @@ uint32_t KVCacheBlockManager::get_block_tokens(uint32_t block_id) const {
 }
 
 std::vector<uint32_t> KVCacheBlockManager::get_allocated_blocks() const {
-    return allocation_sequence_;
+    std::vector<uint32_t> allocated;
+    for (uint32_t i = 0; i < blocks_.size(); ++i) {
+        if (blocks_[i].is_allocated) {
+            allocated.push_back(i);
+        }
+    }
+    return allocated;
+}
+
+uint32_t KVCacheBlockManager::num_free_blocks() const {
+    uint32_t free_blocks = 0;
+    for (const auto& block : blocks_) {
+        free_blocks += block.is_allocated ? 0u : 1u;
+    }
+    return free_blocks;
 }
 
 void KVCacheBlockManager::release(uint32_t keep_warm_count) {
@@ -204,8 +216,6 @@ void KVCacheBlockManager::release(uint32_t keep_warm_count) {
         LOG_DEBUG("KVCacheBlockManager: Released " << (warm_seen - keep_warm_count) << " block tensor(s), kept "
                                                    << keep_warm_count << " warm");
     }
-
-    allocation_sequence_.clear();
 }
 
 void KVCacheBlockManager::clear_all() {
@@ -242,8 +252,6 @@ void KVCacheBlockManager::truncate_allocated(uint32_t keep_count) {
             block.is_shared = false;
         }
     }
-
-    allocation_sequence_.resize(keep_count);
 
     LOG_DEBUG("KVCacheBlockManager: truncated to " << keep_count << " blocks, " << (allocated.size() - keep_count)
                                                    << " suffix block(s) freed");

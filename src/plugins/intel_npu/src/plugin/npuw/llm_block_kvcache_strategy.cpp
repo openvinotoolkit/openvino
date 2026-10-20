@@ -12,6 +12,7 @@
 #include "llm_infer_base_request.hpp"
 #include "llm_infer_request.hpp"
 #include "llm_longrope_kv.hpp"
+#include "llm_prefix_caching.hpp"
 #include "logging.hpp"
 #include "util.hpp"
 
@@ -696,6 +697,7 @@ void LLMBlockKVCacheStrategy::apply_cached_prefix_blocks(const std::vector<std::
 
 // Runs after infer() and before on_prefill_chunk_done(). A full, block-aligned chunk always
 // takes the zero-copy path, so the model has already written the block into the pool.
+// Returns nullptr when the pool does not hold the complete block, so it is simply not cached.
 std::shared_ptr<KVBlock> LLMBlockKVCacheStrategy::make_prefix_block(size_t block_token_start,
                                                                     size_t out_token_offset,
                                                                     size_t block_size,
@@ -713,35 +715,59 @@ std::shared_ptr<KVBlock> LLMBlockKVCacheStrategy::make_prefix_block(size_t block
     // Position of the block within the sequence; the pool's physical block_id is looked up from it.
     const size_t seq_block_idx = block_token_start / m_block_size;
 
+    const auto find_full_block = [&](const KVCacheBlockManager* manager) -> std::optional<uint32_t> {
+        const auto allocated = manager->get_allocated_blocks();
+        if (seq_block_idx >= allocated.size() || manager->get_block_tokens(allocated[seq_block_idx]) != m_block_size) {
+            return std::nullopt;
+        }
+        return allocated[seq_block_idx];
+    };
+
+    // Resolve every layer before touching any block, so a declined block marks nothing as shared.
+    struct LayerBlockIds {
+        std::optional<uint32_t> key;
+        std::optional<uint32_t> value;
+    };
+    std::unordered_map<uint32_t, LayerBlockIds> pool_blocks;
+    for (const auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+        LayerBlockIds ids;
+        if (layer_managers.key_manager) {
+            ids.key = find_full_block(layer_managers.key_manager.get());
+            if (!ids.key) {
+                LOG_WARN("Prefix cache store: layer "
+                         << layer_idx << " has no completely written key block at position " << seq_block_idx
+                         << ", not caching it");
+                return nullptr;
+            }
+        }
+        if (layer_managers.value_manager) {
+            ids.value = find_full_block(layer_managers.value_manager.get());
+            if (!ids.value) {
+                LOG_WARN("Prefix cache store: layer "
+                         << layer_idx << " has no completely written value block at position " << seq_block_idx
+                         << ", not caching it");
+                return nullptr;
+            }
+        }
+        pool_blocks.emplace(layer_idx, ids);
+    }
+
     auto block = std::make_shared<PrefixBlockBlockKV>(block_size);
     block->set_token_start(block_token_start);
 
     for (auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+        const auto& ids = pool_blocks.at(layer_idx);
         BlockKVRef ref;
-        auto take_ref = [&](KVCacheBlockManager* manager, ov::SoPtr<ov::ITensor>& dst) {
-            if (!manager) {
-                return;
-            }
-            const auto allocated = manager->get_allocated_blocks();
-            OPENVINO_ASSERT(seq_block_idx < allocated.size(),
-                            "Prefix cache store: layer ",
-                            layer_idx,
-                            " has no block at position ",
-                            seq_block_idx);
-            const uint32_t block_id = allocated[seq_block_idx];
-            OPENVINO_ASSERT(manager->get_block_tokens(block_id) == m_block_size,
-                            "Prefix cache store: block ",
-                            seq_block_idx,
-                            " of layer ",
-                            layer_idx,
-                            " is not completely written.");
-            dst = manager->get_block_tensor(block_id);
-            ref.num_tokens = m_block_size;
-            // The pool must not reuse this tensor as scratch memory in a later conversation.
-            manager->mark_block_shared(block_id);
-        };
-        take_ref(layer_managers.key_manager.get(), ref.key_tensor);
-        take_ref(layer_managers.value_manager.get(), ref.value_tensor);
+        ref.num_tokens = m_block_size;
+        // The pool must not reuse a tensor the cache holds as scratch memory in a later conversation.
+        if (ids.key) {
+            ref.key_tensor = layer_managers.key_manager->get_block_tensor(*ids.key);
+            layer_managers.key_manager->mark_block_shared(*ids.key);
+        }
+        if (ids.value) {
+            ref.value_tensor = layer_managers.value_manager->get_block_tensor(*ids.value);
+            layer_managers.value_manager->mark_block_shared(*ids.value);
+        }
         block->add_layer_ref(layer_idx, std::move(ref));
     }
 

@@ -106,11 +106,10 @@ public:
     uint32_t get_block_tokens(uint32_t block_id) const;
 
     /**
-     * @brief Get all currently allocated block IDs in sequence order
+     * @brief Get all currently allocated block IDs in ascending order
      *
-     * Index i is the block holding tokens [i * block_size, (i + 1) * block_size). The order is the
-     * order in which blocks were made active, which is not necessarily ascending block ID order
-     * once blocks have been restored from the prefix cache.
+     * Blocks are always handed out smallest ID first, so index i is the block holding tokens
+     * [i * block_size, (i + 1) * block_size).
      *
      * @return Vector of block IDs
      */
@@ -171,9 +170,7 @@ public:
     /**
      * @brief Get number of currently free (unallocated) blocks
      */
-    uint32_t num_free_blocks() const {
-        return max_blocks_ - static_cast<uint32_t>(allocation_sequence_.size());
-    }
+    uint32_t num_free_blocks() const;
 
 private:
     friend class LLMBlockKVCacheStrategy;
@@ -184,7 +181,8 @@ private:
      *
      * Used to restore a prefix-cached block. The tensor is marked shared, so release() and
      * truncate_allocated() drop it instead of keeping it warm for reuse.
-     * Must be called in ascending token order; the block is appended to the allocation sequence.
+     * Must be called in ascending token order: blocks are handed out smallest ID first, which is
+     * what keeps block ID order equal to token order.
      *
      * @return ID of the block that now holds the tensor
      */
@@ -221,7 +219,6 @@ private:
     uint32_t block_size_;                  ///< Number of tokens per block
     uint32_t max_blocks_;                  ///< Maximum blocks in pool
     std::vector<Block> blocks_;            ///< All blocks (free + allocated)
-    std::vector<uint32_t> allocation_sequence_;  ///< Allocated block IDs in token order
 
     ov::element::Type element_type_;             ///< Element type for tensors
     ov::Shape block_shape_;                      ///< Shape for block tensors
