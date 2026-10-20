@@ -17,6 +17,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_query_attention.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/transpose.hpp"
@@ -26,6 +27,7 @@ namespace ov::test::intel_gpu {
 namespace {
 
 using QuantType = ov::op::internal::GroupQueryAttentionQuantType;
+using QKOutput = ov::op::internal::GroupQueryAttentionQKOutput;
 
 constexpr int64_t num_heads = 2;
 constexpr int64_t kv_num_heads = 1;
@@ -54,6 +56,7 @@ struct GQAConfig {
     bool head_sink = false;
     bool causal = true;
     float softcap = 0.0f;  // > 0 enables logit soft-capping
+    QKOutput qk_output = QKOutput::NONE;
     ov::PartialShape key_scale_shape{1};
     ov::PartialShape value_scale_shape{1};
 };
@@ -124,7 +127,9 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
                                                                        cfg.sliding_window_cache,
                                                                        cfg.smooth_softmax,
                                                                        cfg.causal,
-                                                                       cfg.softcap);
+                                                                       cfg.softcap,
+                                                                       1e-6f,
+                                                                       cfg.qk_output);
 
     ov::ResultVector results;
     for (size_t output_idx = 0; output_idx < gqa->get_output_size(); ++output_idx) {
@@ -175,6 +180,7 @@ std::shared_ptr<ov::intel_gpu::op::SDPA> decompose_and_get_sdpa(const GQAConfig&
 void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
     const auto model = decompose_gqa_model(cfg);
     const auto parameters = model->get_parameters();
+    const bool need_qk_output = cfg.qk_output != QKOutput::NONE;
     EXPECT_EQ(parameters[3]->get_partial_shape().is_static(), cfg.static_past_cache);
 
     std::shared_ptr<ov::intel_gpu::op::SDPA> sdpa;
@@ -189,9 +195,15 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
         }
     }
 
-    ASSERT_NE(sdpa, nullptr);
-    expect_sdpa_kv_not_broadcast(sdpa);
     ASSERT_EQ(statelesskvs.size(), 2u);
+
+    if (need_qk_output) {
+        ASSERT_EQ(sdpa, nullptr);
+        ASSERT_EQ(model->get_output_size(), 4u);
+    } else {
+        ASSERT_NE(sdpa, nullptr);
+        expect_sdpa_kv_not_broadcast(sdpa);
+    }
 
     std::shared_ptr<ov::intel_gpu::op::StatelessKV> key;
     std::shared_ptr<ov::intel_gpu::op::StatelessKV> value;
@@ -203,8 +215,16 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
             } else if (target.get_node() == sdpa.get()) {
                 return target.get_index();
             }
+            if (need_qk_output && target.get_index() == 1) {
+                if (auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(target.get_node()->shared_from_this())) {
+                    return matmul->get_transpose_b() ? 1 : 2;
+                }
+            }
         }
         for (const auto& target : targets) {
+            if (ov::is_type<ov::op::v0::ShapeOf>(target.get_node())) {
+                continue;
+            }
             for (size_t i = 0; i < target.get_node()->get_output_size(); ++i) {
                 const auto targets_ = target.get_node()->get_output_target_inputs(i);
                 const auto result = self(targets_, self);
@@ -216,8 +236,9 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
         return std::nullopt;
     };
 
+    const size_t kv_output_index = need_qk_output ? 0 : 1;
     for (const auto& stateless_kv : statelesskvs) {
-        const auto sdpa_index = find_sdpa_index(stateless_kv->output(1).get_target_inputs(), find_sdpa_index);
+        const auto sdpa_index = find_sdpa_index(stateless_kv->output(kv_output_index).get_target_inputs(), find_sdpa_index);
         if (sdpa_index == 1) {
             ASSERT_EQ(key, nullptr);
             key = stateless_kv;
@@ -229,7 +250,7 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
         }
     }
 
-    const bool fused_transpose_v = cfg.transpose_v && cfg.should_fuse_transpose_v;
+    const bool fused_transpose_v = cfg.transpose_v && cfg.should_fuse_transpose_v && !need_qk_output;
     const auto present_key_source = model->output(1).get_node()->input_value(0);
     auto present_value_source = model->output(2).get_node()->input_value(0);
     if (cfg.transpose_v && !fused_transpose_v) {
@@ -266,10 +287,12 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
     }
     EXPECT_EQ(key->input_value(2).get_node_shared_ptr(), value->input_value(2).get_node_shared_ptr());
 
-    if (fused_transpose_v) {
-        EXPECT_THAT(sdpa->get_input2_transpose_order(), ::testing::ElementsAre(0, 1, 3, 2));
-    } else {
-        EXPECT_EQ(sdpa->get_input2_transpose_order(), ov::intel_gpu::op::SDPA::default_order(4));
+    if (sdpa) {
+        if (fused_transpose_v) {
+            EXPECT_THAT(sdpa->get_input2_transpose_order(), ::testing::ElementsAre(0, 1, 3, 2));
+        } else {
+            EXPECT_EQ(sdpa->get_input2_transpose_order(), ov::intel_gpu::op::SDPA::default_order(4));
+        }
     }
 }
 
@@ -277,6 +300,16 @@ TEST(GQADecompositionTest, static_input_uses_stateless_kv) {
     GQAConfig cfg;
     cfg.static_past_cache = true;
     expect_stateless_kv_cache_connections(cfg);
+}
+
+TEST(GQADecompositionTest, qk_output_uses_full_stateless_kv) {
+    GQAConfig cfg;
+    cfg.static_past_cache = true;
+    cfg.transpose_v = true;
+    for (const auto qk_output : {QKOutput::BEFORE_SOFTMAX, QKOutput::AFTER_SOFTMAX}) {
+        cfg.qk_output = qk_output;
+        expect_stateless_kv_cache_connections(cfg);
+    }
 }
 
 TEST(GQADecompositionTest, dynamic_input_uses_stateless_kv) {

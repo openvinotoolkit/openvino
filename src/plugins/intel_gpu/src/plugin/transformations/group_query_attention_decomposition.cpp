@@ -137,7 +137,8 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     
     auto& metadata = static_cast<StatelessKVMetadata&>(metadata_);
 
-    const bool use_explicit_attention = node->get_softcap() > 0.0f || node->get_qk_output() != ov::op::internal::GroupQueryAttentionQKOutput::NONE;
+    const bool need_qk_output = node->get_qk_output() != ov::op::internal::GroupQueryAttentionQKOutput::NONE;
+    const bool use_explicit_attention = node->get_softcap() > 0.0f || need_qk_output;
     bool can_fuse_transpose_v = m_sdpa_support_transpose_v && !use_explicit_attention;
     // The explicit attention chain consumes plain (dequantized) K/V, so skip the compressed-KV SDPA form.
     if (!use_explicit_attention) {
@@ -196,8 +197,13 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
 
         outputs.present_key = key_cache->output(0);
         outputs.present_value = value_cache->output(0);
-        outputs.sdpa_key = key_cache->output(1);
-        outputs.sdpa_value = value_cache->output(1);
+        if (need_qk_output) {
+            outputs.sdpa_key = key_cache->output(0);
+            outputs.sdpa_value = value_cache->output(0);
+        } else {
+            outputs.sdpa_key = key_cache->output(1);
+            outputs.sdpa_value = value_cache->output(1);
+        }
         outputs.mask_past_seqlen = past_seqlen;
         outputs.bias_col_offset = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
 
