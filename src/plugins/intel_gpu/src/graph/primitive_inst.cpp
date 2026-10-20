@@ -1533,10 +1533,16 @@ bool primitive_inst::use_async_compilation() {
         _impls_factory->has(impl_types::onednn) && node.get_selected_impl() != nullptr && node.get_selected_impl()->is_dynamic() &&
         node.get_selected_impl()->get_kernel_name().find("concatenation_gpu_simple_ref") != std::string::npos &&
         node.as<concatenation>().get_primitive()->axis == 1) {
-        const auto eligible_layout = [](const layout& l) {
-            const auto& shape = l.get_partial_shape();
-            return l.data_type == data_types::i8 && l.format == format::bfyx && shape.rank().is_static() && shape.size() == 4 &&
-                   shape[1].is_static() && shape[2].is_static() && shape[3].is_static() && !l.data_padding && !l.data_padding.is_dynamic();
+        const auto concat_output_type = node.get_output_layout().data_type;
+        const auto eligible_layout = [concat_output_type](const layout& candidate_layout) {
+            const auto& shape = candidate_layout.get_partial_shape();
+            const bool has_matching_int8_type = (concat_output_type == data_types::i8 || concat_output_type == data_types::u8) &&
+                                               candidate_layout.data_type == concat_output_type;
+            const bool is_planar_bfyx = candidate_layout.format == format::bfyx;
+            const bool has_static_non_batch_dims = shape.rank().is_static() && shape.size() == 4 &&
+                                                   shape[1].is_static() && shape[2].is_static() && shape[3].is_static();
+            const bool has_no_padding = !candidate_layout.data_padding && !candidate_layout.data_padding.is_dynamic();
+            return has_matching_int8_type && is_planar_bfyx && has_static_non_batch_dims && has_no_padding;
         };
         compile_concat_impls = eligible_layout(node.get_output_layout()) && eligible_layout(_impl_params->get_output_layout());
         for (size_t i = 0; i < _impl_params->input_layouts.size() && compile_concat_impls; ++i) {

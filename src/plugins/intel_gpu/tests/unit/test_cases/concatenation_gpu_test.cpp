@@ -289,15 +289,18 @@ TEST(concat_cpu_impl, dynamic_4d_f) {
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-TEST(concat_gpu, dynamic_batch_bfyx_i8_switches_to_static_impl) {
+template <typename T, typename U = T>
+void test_dynamic_batch_bfyx_int8_static_impl() {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         GTEST_SKIP();
 
+    const auto dt = ov::element::from<T>();
+    const auto input1_dt = ov::element::from<U>();
     const ov::PartialShape in_pshape{-1, 16, 4, 8};
-    topology topology(input_layout("input0", layout{in_pshape, data_types::i8, format::bfyx}),
-                      input_layout("input1", layout{in_pshape, data_types::i8, format::bfyx}),
-                      concatenation("concat", {input_info("input0"), input_info("input1")}, 1, data_types::i8));
+    topology topology(input_layout("input0", layout{in_pshape, dt, format::bfyx}),
+                      input_layout("input1", layout{in_pshape, input1_dt, format::bfyx}),
+                      concatenation("concat", {input_info("input0"), input_info("input1")}, 1, dt));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -305,14 +308,22 @@ TEST(concat_gpu, dynamic_batch_bfyx_i8_switches_to_static_impl) {
     auto network = cldnn::network::build_network(engine, topology, config);
 
     auto run = [&](int64_t batch) {
-        const layout in_layout{ov::PartialShape{batch, 16, 4, 8}, data_types::i8, format::bfyx};
+        const layout in_layout{ov::PartialShape{batch, 16, 4, 8}, dt, format::bfyx};
+        const layout input1_layout{ov::PartialShape{batch, 16, 4, 8}, input1_dt, format::bfyx};
         auto input0 = engine.allocate_memory(in_layout);
-        auto input1 = engine.allocate_memory(in_layout);
+        auto input1 = engine.allocate_memory(input1_layout);
         const size_t count = in_layout.count();
-        std::vector<int8_t> data0(count), data1(count);
+        std::vector<T> data0(count);
+        std::vector<U> data1(count);
         for (size_t i = 0; i < count; ++i) {
-            data0[i] = static_cast<int8_t>(i % 100);
-            data1[i] = static_cast<int8_t>(-static_cast<int>(i % 100));
+            data0[i] = static_cast<T>(i % (std::is_unsigned<T>::value ? 256 : 128));
+            if constexpr (!std::is_same<T, U>::value) {
+                data1[i] = static_cast<U>(i % 128);
+            } else if constexpr (std::is_unsigned<U>::value) {
+                data1[i] = static_cast<U>(255 - i % 256);
+            } else {
+                data1[i] = static_cast<U>(-static_cast<int>(i % 128));
+            }
         }
         set_values(input0, data0);
         set_values(input1, data1);
@@ -321,7 +332,7 @@ TEST(concat_gpu, dynamic_batch_bfyx_i8_switches_to_static_impl) {
 
         auto outputs = network->execute();
         auto output = outputs.at("concat").get_memory();
-        cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
         const size_t per_batch = count / static_cast<size_t>(batch);
         for (size_t b = 0; b < static_cast<size_t>(batch); ++b) {
             for (size_t i = 0; i < per_batch; ++i) {
@@ -341,6 +352,18 @@ TEST(concat_gpu, dynamic_batch_bfyx_i8_switches_to_static_impl) {
 
     impl = network->get_primitive("concat")->get_impl();
     ASSERT_NE(impl, nullptr);
+    if constexpr (!std::is_same<T, U>::value) {
+        EXPECT_TRUE(impl->is_dynamic());
+        EXPECT_FALSE(impl->is_onednn());
+        run(1);
+        network->get_program()->get_compilation_context().wait_all();
+        run(1);
+        impl = network->get_primitive("concat")->get_impl();
+        ASSERT_NE(impl, nullptr);
+        EXPECT_TRUE(impl->is_dynamic());
+        EXPECT_FALSE(impl->is_onednn());
+        return;
+    }
     ASSERT_FALSE(impl->is_dynamic());
     EXPECT_TRUE(impl->is_onednn());
 
@@ -361,6 +384,18 @@ TEST(concat_gpu, dynamic_batch_bfyx_i8_switches_to_static_impl) {
     ASSERT_NE(impl, nullptr);
     EXPECT_FALSE(impl->is_dynamic());
     EXPECT_TRUE(impl->is_onednn());
+}
+
+TEST(concat_gpu, dynamic_batch_bfyx_i8_switches_to_static_impl) {
+    test_dynamic_batch_bfyx_int8_static_impl<int8_t>();
+}
+
+TEST(concat_gpu, dynamic_batch_bfyx_u8_switches_to_static_impl) {
+    test_dynamic_batch_bfyx_int8_static_impl<uint8_t>();
+}
+
+TEST(concat_gpu, dynamic_batch_bfyx_mixed_int8_stays_dynamic) {
+    test_dynamic_batch_bfyx_int8_static_impl<uint8_t, int8_t>();
 }
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
