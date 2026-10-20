@@ -36,6 +36,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
@@ -569,6 +570,30 @@ void check_batched_decode(const std::shared_ptr<ov::Model>& model) {
     compare(infer(second, 1, {6, 2}, {1, 1}, {0, 1}, {0}), a, {});
 }
 
+TEST(GGUFMultimodalBackboneAdaptation, Lfm2SupportsBatchesAndBeamReordering) {
+    for (const auto* family : {"lfm2", "lfm2-attention-first", "lfm2moe"}) {
+        SCOPED_TRACE(family);
+        auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
+        const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+        ov::frontend::gguf::FrontEnd frontend;
+        frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+        auto model = frontend.convert(frontend.load(temporary.path));
+        check_batched_decode(model);
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::SDPAToPagedAttention>();
+        ASSERT_NO_THROW(manager.run_passes(model));
+        model->reshape({{"input_ids", {5}}, {"position_ids", {5}}});
+        size_t attention = 0, convolution = 0;
+        for (const auto& node : model->get_ops()) {
+            attention += ov::is_type<ov::op::PagedAttentionExtension>(node);
+            convolution += ov::is_type<ov::op::internal::PagedCausalConv1D>(node);
+        }
+        EXPECT_EQ(attention, 2);
+        EXPECT_EQ(convolution, 2);
+        EXPECT_TRUE(model->get_sinks().empty());
+    }
+}
+
 TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttention) {
     for (const auto* family : {"qwen35",
                                "qwen3next",
@@ -625,8 +650,8 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
 
 // Gemma3/Gemma4 scale token lookups only, as in llama.cpp, so the scale belongs to the embedding
 // model and injected media embeddings reach the decoder unscaled.
-TEST(GGUFMultimodalBackboneAdaptation, GemmaEmbeddingModelOwnsTokenScaling) {
-    for (const auto* family : {"gemma3", "gemma4-mqa", "gemma4-ple"}) {
+TEST(GGUFMultimodalBackboneAdaptation, EmbeddingModelPreservesTokenScaling) {
+    for (const auto* family : {"gemma3", "gemma4-mqa", "gemma4-ple", "lfm2", "lfm2moe"}) {
         SCOPED_TRACE(family);
         auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
         const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
@@ -658,7 +683,7 @@ TEST(GGUFMultimodalBackboneAdaptation, GemmaEmbeddingModelOwnsTokenScaling) {
                 return constant && ov::shape_size(constant->get_shape()) == 1 &&
                        std::abs(constant->cast_vector<float>()[0] - std::sqrt(float(width))) < 1e-4f;
             });
-        EXPECT_TRUE(scaled) << "embedding model does not apply sqrt(n_embd)";
+        EXPECT_EQ(scaled, std::string(family).find("lfm2") != 0);
 
         ov::Core core;
         const auto compile = [&](const std::shared_ptr<ov::Model>& model) {
@@ -804,6 +829,32 @@ TEST(GGUFMultimodalBackboneAdaptation, MakeStatefulFindsCachesBehindReversedGrou
                 ++batch_initialized;
         }
         EXPECT_EQ(batch_initialized, rewritten);
+    }
+}
+
+TEST(GGUFMultimodalBackboneAdaptation, Lfm2RejectsMissingOrInvalidConvolutionCache) {
+    auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/lfm2.npz");
+    const auto& model = ov_gguf_test::npz_array(arrays, "model");
+    const std::string key = "lfm2.shortconv.l_cache";
+    for (const int cache : {-1, 0, 1}) {
+        SCOPED_TRACE(cache);
+        std::vector<uint8_t> bytes(model.data<uint8_t>(), model.data<uint8_t>() + model.num_vals);
+        const auto at = std::search(bytes.begin(), bytes.end(), key.begin(), key.end());
+        ASSERT_NE(at, bytes.end());
+        if (cache < 0) {
+            at[key.size() - 1] = 'X';
+        } else {
+            const auto value = at + key.size() + sizeof(uint32_t);
+            std::fill(value, value + sizeof(uint32_t), 0);
+            *value = static_cast<uint8_t>(cache);
+        }
+        cnpy::NpyArray patched({bytes.size()}, sizeof(uint8_t), false);
+        std::copy(bytes.begin(), bytes.end(), patched.data<uint8_t>());
+        const ov_gguf_test::TemporaryGguf temporary(patched);
+        ov::frontend::gguf::FrontEnd frontend;
+        OV_EXPECT_THROW(frontend.convert(frontend.load(temporary.path)),
+                        ov::Exception,
+                        testing::HasSubstr("shortconv.l_cache"));
     }
 }
 
@@ -1136,7 +1187,9 @@ TEST(GGUFGemma3nAccuracy, PagedAttentionMatchesStatefulSDPAFullLogits) {
 
 TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     const char* override_dir = std::getenv("OV_GGUF_ACCURACY_DATA");
-    const bool mamba = std::string(GetParam()).find("mamba2") == 0 || std::string(GetParam()) == "nemotron_h";
+    const bool mamba = std::string(GetParam()).find("mamba2") == 0 || std::string(GetParam()) == "nemotron_h" ||
+                       std::string(GetParam()).find("lfm2") == 0;
+    const bool lfm2 = std::string(GetParam()).find("lfm2") == 0;
     const auto directory = override_dir ? std::filesystem::path(override_dir)
                                         : std::filesystem::path(ov_gguf_test::test_data_dir()) / "arch_accuracy";
     ASSERT_TRUE(std::filesystem::exists(directory)) << "Missing architecture reference data: " << directory;
@@ -1229,7 +1282,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     fe.add_extension(extension);
     auto model = fe.convert(fe.load(model_path));
     if (mamba) {
-        EXPECT_EQ(model->input("input_ids").get_partial_shape(), (ov::PartialShape{1, -1}));
+        EXPECT_EQ(model->input("input_ids").get_partial_shape(), (ov::PartialShape{lfm2 ? -1 : 1, -1}));
         EXPECT_NO_THROW(model->input("beam_idx"));
     }
     ov::Core core;
@@ -1425,6 +1478,12 @@ INSTANTIATE_TEST_SUITE_P(Architectures,
                                            "dflash-markov",
                                            "dflash-markov-mapped",
                                            "afmoe",
+                                           "lfm2",
+                                           "lfm2-tied",
+                                           "lfm2-swa",
+                                           "lfm2-attention-first",
+                                           "lfm2moe",
+                                           "lfm2moe-all-experts",
                                            "bonsai2-hadamard",
                                            "qwen35-mixed",
                                            "qwen35moe",
@@ -1471,3 +1530,81 @@ INSTANTIATE_TEST_SUITE_P(Architectures,
                              return name;
                          });
 }  // namespace
+
+class GGUFLFM2VocoderAccuracy : public ::testing::TestWithParam<const char*> {};
+
+TEST_P(GGUFLFM2VocoderAccuracy, DepthformerFeedbackAndCodecMatchLiquidReference) {
+    auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/lfm2_speech.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, GetParam()));
+    ov::frontend::gguf::FrontEnd frontend;
+    auto model = frontend.convert(frontend.load(temporary.path));
+    EXPECT_EQ(model->get_rt_info().at("gguf_architecture").as<std::string>(), "lfm2.audio_vocoder");
+    auto request = ov::Core{}
+                       .compile_model(model,
+                                      "CPU",
+                                      ov::hint::inference_precision(ov::element::f32),
+                                      ov::hint::dynamic_quantization_group_size(0))
+                       .create_infer_request();
+    for (const auto& [input, reference] :
+         std::vector<std::pair<std::string, std::string>>{{"audio.hidden_states", "hidden"},
+                                                          {"audio.depth_codes", "depth_codes"},
+                                                          {"audio.codes", "codes"}}) {
+        const auto& array = ov_gguf_test::npz_array(arrays, reference);
+        ov::Tensor tensor(reference == "hidden" ? ov::element::f32 : ov::element::i32, array.shape);
+        std::memcpy(tensor.data(), array.data<char>(), tensor.get_byte_size());
+        request.set_tensor(input, tensor);
+    }
+    request.infer();
+    for (const auto& [output, reference] :
+         std::vector<std::pair<std::string, std::string>>{{"audio.depth_logits", "logits"},
+                                                          {"audio.feedback", "feedback"},
+                                                          {"audio.codec_features", "codec"}}) {
+        const auto actual = request.get_tensor(output);
+        const auto& expected = ov_gguf_test::npz_array(arrays, reference);
+        ASSERT_EQ(actual.get_size(), expected.num_vals) << output;
+        ov_gguf_test::expect_nmse_below(
+            ov_gguf_test::nmse(actual.data<const float>(), expected.data<float>(), actual.get_size()),
+            1e-5);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(ArchitectureNames, GGUFLFM2VocoderAccuracy, ::testing::Values("model", "publisher_model"));
+
+TEST(GGUFLFM2SpeechAccuracy, DetokenizerPreservesAllFramesAcrossSlidingWindow) {
+    auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/lfm2_detokenizer.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>(
+        ov::frontend::gguf::GenAIExtension::InputMode::EMBEDS_TO_LOGITS));
+    auto model = frontend.convert(frontend.load(temporary.path));
+    auto request = ov::Core{}
+                       .compile_model(model,
+                                      "CPU",
+                                      ov::hint::inference_precision(ov::element::f32),
+                                      ov::hint::dynamic_quantization_group_size(0),
+                                      ov::hint::kv_cache_precision(ov::element::f32))
+                       .create_infer_request();
+    const auto& source = ov_gguf_test::npz_array(arrays, "embeds");
+    for (size_t frames : {18, 37, 18}) {
+        SCOPED_TRACE(frames);
+        request.reset_state();
+        ov::Tensor embeds(ov::element::f32, {1, frames, 32}), mask(ov::element::i64, {1, frames}),
+            positions(ov::element::i64, {1, frames}), beam(ov::element::i32, {1});
+        std::memcpy(embeds.data(), source.data<char>(), embeds.get_byte_size());
+        std::fill_n(mask.data<int64_t>(), frames, 1);
+        for (size_t i = 0; i < frames; ++i)
+            positions.data<int64_t>()[i] = i;
+        beam.data<int32_t>()[0] = 0;
+        request.set_tensor("inputs_embeds", embeds);
+        request.set_tensor("attention_mask", mask);
+        request.set_tensor("position_ids", positions);
+        request.set_tensor("beam_idx", beam);
+        request.infer();
+        const auto actual = request.get_tensor("logits");
+        ASSERT_EQ(actual.get_shape(), (ov::Shape{1, frames, 1282}));
+        ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(actual.data<const float>(),
+                                                           ov_gguf_test::npz_array(arrays, "spectral").data<float>(),
+                                                           actual.get_size()),
+                                        1e-5);
+    }
+}

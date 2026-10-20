@@ -427,7 +427,7 @@ Models adapt_mmproj(const std::shared_ptr<ov::Model>& model,
         projector = model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"});
         OPENVINO_ASSERT(projector == "gemma3" || projector == "gemma4v" || projector == "gemma4uv" ||
                             projector == "muse-glimmer" || projector == "qwen3vl_merger" || projector == "gemma3nv" ||
-                            projector == "minicpmv4_7",
+                            projector == "minicpmv4_7" || projector == "lfm2",
                         "[GGUF] no GenAI vision layout for mmproj projector '",
                         projector,
                         "'");

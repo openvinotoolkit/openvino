@@ -68,3 +68,11 @@ for checkpoint tolerance overrides and skipped cases.
 with `qwen3tts_oracle.cpp` against CPU revision `098ce526b546b5a190327c1da82929cee051b9ac`
 (`GGML_OPENVINO=OFF`). The regression checks exact sampled codes/feedback, full logits,
 two streaming chunks and reset of all 38 states at the existing `1e-5` NMSE gate.
+
+`lfm2` and `lfm2_no_norm` use the same pinned oracle revision above and the two-grid
+generator seed 2718. They cover SigLIP, resized positions, spatial unshuffle and the
+optional input LayerNorm at 16x8 and 8x24 pixels, through both native and embedding-adapted IO.
+
+`lfm2a` uses the same pinned llama.cpp CPU oracle, with 49 and 101 feature frames.
+It exercises depthwise subsampling, relative attention shift and temporal convolution.
+The dynamic test returns to the first shape to check request reuse.
