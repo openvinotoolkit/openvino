@@ -13,8 +13,9 @@ namespace ov::op::internal {
 
 /// \brief Paged-cache complete-block plan producer for Qwen Sparse Attention (QSA).
 ///
-/// Consumes externally projected indexer queries/keys (`q_idx`/`k_idx`), applies query
-/// RMSNorm + partial RoPE, appends raw keys and completed-block summaries into
+/// Consumes externally projected indexer queries/keys (`q_idx`/`k_idx`) and the per-token
+/// RoPE coefficients of the main attention (`rope_cos`/`rope_sin`), applies query RMSNorm +
+/// partial RoPE, appends raw keys, completed-block summaries and block-start RoPE rows into
 /// caller-owned paged caches addressed through the shared main-KV page table, and emits
 /// per-query selections containing ONLY complete blocks (`sel_indices`/`sel_count`,
 /// width `block_topk`). The causal tail is not represented here; the paired
@@ -30,8 +31,8 @@ public:
     struct InputIdx {
         static constexpr size_t Q_IDX = 0;                  ///< [tokens, H_iq*D_idx]
         static constexpr size_t K_IDX = 1;                  ///< [tokens, H_ik*D_idx]
-        static constexpr size_t POSITION_IDS = 2;           ///< [tokens]
-        static constexpr size_t ROTARY_COS_SIN = 3;         ///< [max_positions, indexer_rotary_dim], interleaved (cos_j, sin_j)
+        static constexpr size_t ROPE_COS = 2;               ///< [tokens, indexer_rotary_dim/2]
+        static constexpr size_t ROPE_SIN = 3;               ///< [tokens, indexer_rotary_dim/2]
         static constexpr size_t SUMMARY_CACHE = 4;          ///< [N_phys, H_ik, page_size/r, D_idx], writable in place
         static constexpr size_t INDEXER_RAW_K_CACHE = 5;    ///< [N_phys, H_ik, page_size, D_idx], writable in place
         static constexpr size_t Q_NORM_WEIGHT = 6;          ///< [D_idx]
@@ -40,7 +41,7 @@ public:
         static constexpr size_t BLOCK_INDICES_BEGINS = 9;   ///< [num_sequences+1]
         static constexpr size_t SUBSEQUENCE_BEGINS = 10;    ///< [num_sequences+1]
         static constexpr size_t PAST_LENS = 11;             ///< [num_sequences]
-        static constexpr size_t INDEXER_POSITION_CACHE = 12;  ///< [N_phys, page_size/r], writable in place
+        static constexpr size_t INDEXER_ROPE_CACHE = 12;    ///< [N_phys, page_size/r, indexer_rotary_dim], (cos_j, sin_j) interleaved, writable in place
 
         static constexpr size_t COUNT = 13;
     };
@@ -53,7 +54,7 @@ public:
         size_t indexer_head_dim = 0;    ///< D_idx
         size_t page_size = 0;           ///< shared main-KV page size; must be a multiple of compress_ratio
         float eps = 1e-6f;              ///< RMSNorm epsilon
-        float scale = 0.0f;             ///< 1 / sqrt(indexer_head_dim)
+        float scale = 0.0f;             ///< positive score multiplier; 0 selects the default 1 / sqrt(indexer_head_dim)
     };
 
     PagedQSAIndexer() = default;
@@ -69,6 +70,9 @@ public:
 
     /// @brief Attribute constraints that must hold before a lowering may be created.
     static bool validate_config(const Config& config, std::string& reason);
+
+    /// `scale`, or its 1 / sqrt(indexer_head_dim) default when unset (0).
+    static float effective_scale(const Config& config);
 
     /// H_iq, derived from q_idx's static shape (last dim / indexer_head_dim). Never cached.
     size_t get_index_query_heads() const;

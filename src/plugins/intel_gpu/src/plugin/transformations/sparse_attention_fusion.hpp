@@ -22,18 +22,19 @@ inline constexpr const char* in_place_cache_rt_key = "GPU_IN_PLACE_CACHE";
 /// transpose_b)), axis=head) * 1/sqrt(Di)` followed by `TopK(scores, block_topk)`.
 ///
 /// `QSAIndexer`'s cache inputs (`summary_cache`, `indexer_raw_k_cache`,
-/// `indexer_position_cache`) are caller-owned writable tensors with no `ReadValue`/
+/// `indexer_rope_cache`) are caller-owned writable tensors with no `ReadValue`/
 /// `Assign` counterpart in their ABI (see `qsa-indexer.rst`'s in-place state contract).
 /// The only decomposed source pattern this pass can soundly bridge is therefore one
 /// where the indexer's raw-key history is already a `ReadValue`-backed `Variable`: the
 /// pass removes that `ReadValue` (and the `Concat`/mean-pool recomputation it feeds) and
-/// appends brand-new f16/i32 `Parameter`s (tagged with `in_place_cache_rt_key`, dynamic
+/// appends brand-new f16 `Parameter`s (tagged with `in_place_cache_rt_key`, dynamic
 /// capacity) to the model for the three cache tensors. This is a disclosed, user-visible
 /// change to the compiled model's input signature -- callers must bind persistent,
 /// device-visible tensors to these new inputs and reuse the SAME tensor objects across
 /// calls (see `qsa_final_design_implement.md` &sect;2.3's operator-external IndexerCache
 /// manager). `past_lens` is taken from the main K `ReadValue` history length and
-/// `position_ids` from the indices the source graph gathers RoPE rows with. Only causal,
+/// `rope_cos`/`rope_sin` are the rows the source graph gathers from its RoPE table for each
+/// token. Only causal,
 /// default-scale attention (or a mask derived from the indexer's own TopK) is replaced.
 /// The pass bails out -- leaving the original generic graph untouched -- whenever any
 /// required fact cannot be proven.
@@ -54,9 +55,9 @@ public:
 /// `past_lens`) as plain inputs -- continuous-batching graphs never use `ReadValue` for
 /// this -- so those four tensors are reused verbatim for `PagedQSAIndexer`/`SparsePA`
 /// without being recreated. The indexer's own `summary_cache`/`indexer_raw_k_cache`/
-/// `indexer_position_cache` are, like the dense case, modeled as brand-new tagged
+/// `indexer_rope_cache` are, like the dense case, modeled as brand-new tagged
 /// `Parameter`s appended to the model (page geometry from `key_cache`), and
-/// `position_ids` comes from the indices the source graph gathers RoPE rows with.
+/// `rope_cos`/`rope_sin` are the RoPE rows the source graph gathers for each token.
 /// Optional `PagedAttentionExtension` features (sliding window, alibi, sinks, xattention,
 /// cache rotation, adaptive RKV, qq_bias, score/diversity outputs) and integer KV caches
 /// must be provably disabled, otherwise the pass bails out.

@@ -58,7 +58,7 @@ JitConstants make_jit(const std::shared_ptr<const qsa_indexer>& desc, const Runt
     jit.make("QSA_ADDRESS_MODE", 1);
     jit.make("QSA_PREPARE_WG", h_iq + 1);
     jit.add(make_jit_constant("QSA_IDX_NORM_EPS", desc->eps));
-    jit.add(make_jit_constant("QSA_IDX_SCALE", 1.0f / std::sqrt(static_cast<float>(desc->indexer_head_dim))));
+    jit.add(make_jit_constant("QSA_IDX_SCALE", ov::op::internal::QSAIndexer::effective_scale(desc->get_config())));
     return jit;
 }
 
@@ -180,15 +180,15 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::K_IDX});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::Q_NORM_WEIGHT});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::K_NORM_WEIGHT});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::ROTARY_COS_SIN});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::POSITION_IDS});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::ROPE_COS});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::ROPE_SIN});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_LENS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_RAW_K_CACHE});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUMMARY_CACHE});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_POSITION_CACHE});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_ROPE_CACHE});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::INDEXER_Q});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::PREPARE_MAP});
-        for (uint32_t i = 0; i < 4; i++) {
+        for (uint32_t i = 0; i < 5; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
         }
         return args;
@@ -212,6 +212,7 @@ protected:
             push_u32(kd, rtp->seq_len);
             push_u32(kd, rtp->raw_k_stride);
             push_u32(kd, rtp->summary_stride);
+            push_u32(kd, rtp->rope_stride);
         }};
     }
 };
@@ -569,8 +570,10 @@ public:
 
         const auto& raw_shape = params.get_input_layout(QSAIn::INDEXER_RAW_K_CACHE).get_shape();
         const auto& summary_shape = params.get_input_layout(QSAIn::SUMMARY_CACHE).get_shape();
+        const auto& rope_shape = params.get_input_layout(QSAIn::INDEXER_ROPE_CACHE).get_shape();
         rtp->raw_k_stride = raw_shape[2];
         rtp->summary_stride = summary_shape[2];
+        rtp->rope_stride = rope_shape[1];
 
         const auto r = desc->compress_ratio;
         size_t max_blocks = 1;
@@ -647,7 +650,7 @@ bool QSAIndexerCMImplementationManager::validate_impl(const cldnn::program_node&
         return false;
     }
 
-    if (desc->h_sel != 1) {
+    if (desc->h_sel != 1 || desc->indexer_head_dim % 16 != 0) {
         return false;
     }
     // B and L may be dynamic; only the head axes are needed statically.

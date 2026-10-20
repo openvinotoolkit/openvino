@@ -58,7 +58,7 @@ JitConstants make_jit(const std::shared_ptr<const paged_qsa_indexer>& desc, cons
     jit.make("QSA_ADDRESS_MODE", 0);
     jit.make("QSA_PREPARE_WG", h_iq + 1);
     jit.add(make_jit_constant("QSA_IDX_NORM_EPS", desc->eps));
-    jit.add(make_jit_constant("QSA_IDX_SCALE", 1.0f / std::sqrt(static_cast<float>(desc->indexer_head_dim))));
+    jit.add(make_jit_constant("QSA_IDX_SCALE", ov::op::internal::PagedQSAIndexer::effective_scale(desc->get_config())));
     return jit;
 }
 
@@ -185,15 +185,15 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::K_IDX});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::Q_NORM_WEIGHT});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::K_NORM_WEIGHT});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::ROTARY_COS_SIN});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::POSITION_IDS});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::ROPE_COS});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::ROPE_SIN});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_LENS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUBSEQUENCE_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDICES_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_RAW_K_CACHE});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUMMARY_CACHE});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_POSITION_CACHE});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_ROPE_CACHE});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedQSAIndexerInternalBufIdx::INDEXER_Q});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedQSAIndexerInternalBufIdx::PREPARE_MAP});
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
@@ -656,7 +656,7 @@ bool PagedQSAIndexerCMImplementationManager::validate_impl(const cldnn::program_
 
     // v1 capability gate: only a single index-key head (H_ik == 1) and a single
     // selection head (h_sel == 1) are supported by this scalar kernel set.
-    if (desc->h_sel != 1) {
+    if (desc->h_sel != 1 || desc->indexer_head_dim % 16 != 0) {
         return false;
     }
     // The token axis may be dynamic; only the flattened head axis is needed statically.

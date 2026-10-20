@@ -41,6 +41,7 @@ struct QSAIndexerRuntimeParams : public ImplRuntimeParams {
     size_t index_key_heads = 0;
     size_t raw_k_stride = 0;
     size_t summary_stride = 0;
+    size_t rope_stride = 0;     ///< indexer_rope_cache rows per batch element, ceil(S_cap / r)
     std::vector<int32_t> prepare_map;
     std::vector<int32_t> score_tile_map;
 };

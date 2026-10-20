@@ -7,11 +7,11 @@
 // Covered:
 //  - Paged and dense indexer + attention pairs against a CPU reference, both with toy
 //    dims and with the Qwen3.8-Flash-Next shape (config.json): H_iq=4, D_idx=128,
-//    H_ik=1, r=4, budget 2048 tokens (block_topk=512), rotary 32, Hq=24, Hkv=2, Dh=256,
+//    H_ik=1, r=4, budget 2048 tokens (block_topk=512), rotary 64, Hq=24, Hkv=2, Dh=256,
 //    page 16. The GPU's top-k selection is validated against the reference scores with
 //    an fp16 tolerance, and the attention output is then compared using that selection,
 //    so near-tied top-k boundaries cannot make the test flaky.
-//  - Non-sequential (mRoPE-like) position_ids, which exercise indexer_position_cache.
+//  - Non-sequential (mRoPE-like) positions, which exercise indexer_rope_cache.
 //  - Dedicated precision/numerical-stability stress tests: large-magnitude activations,
 //    a single dominant-outlier channel (stresses RMSNorm's sum-of-squares reduction),
 //    and long-context accumulation (many blocks/softmax terms). The CPU reference
@@ -94,13 +94,13 @@ struct split_dims {
     size_t Dv = 16;
 };
 
-/// Qwen3.8-Flash-Next (config.json text_config). rotary = indexer_head_dim *
-/// partial_rotary_factor and block_topk = indexer_budget / r, as in cm_kernel/qsa_config.py.
+/// Qwen3.8-Flash-Next (config.json text_config). The indexer reuses the attention RoPE, so
+/// rotary = head_dim (256) * partial_rotary_factor (0.25); block_topk = indexer_budget / r.
 split_dims qwen38_dims() {
     split_dims d;
     d.Hiq = 4;
     d.Di = 128;
-    d.rotary = 32;
+    d.rotary = 64;
     d.r = 4;
     d.block_topk = 2048 / 4;
     d.page_size = 16;
@@ -243,10 +243,35 @@ std::vector<float> make_rotary_table(size_t max_positions, size_t rotary) {
     return table;
 }
 
+/// The op's per-token `rope_cos`/`rope_sin` rows ([n, rotary/2] each): what the producer
+/// gathers from the interleaved `table` at each token's `positions` entry.
+std::pair<std::vector<float>, std::vector<float>> rope_rows(const std::vector<float>& table, size_t rotary, const std::vector<int32_t>& positions) {
+    const size_t half = rotary / 2;
+    std::vector<float> cos(positions.size() * half), sin(positions.size() * half);
+    for (size_t t = 0; t < positions.size(); t++) {
+        const size_t row = static_cast<size_t>(positions[t]) * rotary;
+        for (size_t j = 0; j < half; j++) {
+            cos[t * half + j] = table[row + 2 * j];
+            sin[t * half + j] = table[row + 2 * j + 1];
+        }
+    }
+    return {cos, sin};
+}
+
+/// `indexer_rope_cache` content: each block slot holds the interleaved (cos_j, sin_j) row
+/// of its first token, i.e. the table row of the slot's recorded position.
+std::vector<float> rope_cache_rows(const std::vector<float>& table, size_t rotary, const std::vector<int32_t>& slot_positions) {
+    std::vector<float> rows(slot_positions.size() * rotary);
+    for (size_t s = 0; s < slot_positions.size(); s++) {
+        std::copy_n(table.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(slot_positions[s]) * rotary), rotary, rows.begin() + static_cast<ptrdiff_t>(s * rotary));
+    }
+    return rows;
+}
+
 /// CPU reference for the split Indexer + Attention pair (H_ik == 1, h_sel == 1,
 /// q_block_size == 1). `positions[p]` is the RoPE position of absolute token p: query
 /// RoPE uses its own position, a block summary uses the position of the block's first
-/// token, which is what indexer_position_cache records.
+/// token, whose row is what indexer_rope_cache records.
 struct split_reference {
     split_dims d;
     size_t past_len = 0;
@@ -573,16 +598,18 @@ void set_paged_inputs(engine& engine, network& net, const paged_inputs& in, Stag
     }
     if (stage != Stage::AttentionOnly) {
         if (dynamic) {
-            net.set_input_data("rotary", make_f16(engine, {I(d.max_positions), I(d.rotary)}, in.rotary));
             net.set_input_data("q_norm", make_f16(engine, {I(d.Di)}, in.q_norm));
             net.set_input_data("k_norm", make_f16(engine, {I(d.Di)}, in.k_norm));
         }
+        const auto [rope_cos, rope_sin] = rope_rows(in.rotary, d.rotary, in.position_ids);
         net.set_input_data("q_idx", make_f16(engine, {q, I(d.Hiq * d.Di)}, in.q_idx));
         net.set_input_data("k_idx", make_f16(engine, {q, I(d.Di)}, in.k_idx));
-        net.set_input_data("position_ids", make_i32(engine, {q}, in.position_ids));
+        net.set_input_data("rope_cos", make_f16(engine, {q, I(d.rotary / 2)}, rope_cos));
+        net.set_input_data("rope_sin", make_f16(engine, {q, I(d.rotary / 2)}, rope_sin));
         net.set_input_data("summary_cache", make_f16(engine, {np, 1, I(in.spp), I(d.Di)}, in.summary_cache));
         net.set_input_data("raw_k_cache", make_f16(engine, {np, 1, I(d.page_size), I(d.Di)}, in.raw_k_cache));
-        net.set_input_data("position_cache", make_i32(engine, {np, I(in.spp)}, in.position_cache));
+        net.set_input_data("rope_cache",
+                           make_f16(engine, {np, I(in.spp), I(d.rotary)}, rope_cache_rows(in.rotary, d.rotary, in.position_cache)));
     }
     if (stage != Stage::IndexerOnly) {
         if (dynamic) {
@@ -624,19 +651,19 @@ std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs&
 
         topo.add(input_layout("q_idx", layout{{q, I(d.Hiq * d.Di)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("k_idx", layout{{q, I(d.Di)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("position_ids", layout{{q}, data_types::i32, format::bfyx}));
-        add_call_tensor(topo, dynamic, "rotary", {-1, I(d.rotary)}, make_f16(engine, {I(d.max_positions), I(d.rotary)}, in.rotary));
+        topo.add(input_layout("rope_cos", layout{{q, I(d.rotary / 2)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("rope_sin", layout{{q, I(d.rotary / 2)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("summary_cache", layout{{np, 1, I(in.spp), I(d.Di)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("raw_k_cache", layout{{np, 1, I(d.page_size), I(d.Di)}, data_types::f16, format::bfyx}));
         add_call_tensor(topo, dynamic, "q_norm", {I(d.Di)}, make_f16(engine, {I(d.Di)}, in.q_norm));
         add_call_tensor(topo, dynamic, "k_norm", {I(d.Di)}, make_f16(engine, {I(d.Di)}, in.k_norm));
-        topo.add(input_layout("position_cache", layout{{np, I(in.spp)}, data_types::i32, format::bfyx}));
+        topo.add(input_layout("rope_cache", layout{{np, I(in.spp), I(d.rotary)}, data_types::f16, format::bfyx}));
         static_assert(PagedIn::COUNT == 13, "keep the test input order in sync with PagedQSAIndexer::InputIdx");
         topo.add(paged_qsa_indexer("indexer",
                                    {input_info("q_idx"),
                                     input_info("k_idx"),
-                                    input_info("position_ids"),
-                                    input_info("rotary"),
+                                    input_info("rope_cos"),
+                                    input_info("rope_sin"),
                                     input_info("summary_cache"),
                                     input_info("raw_k_cache"),
                                     input_info("q_norm"),
@@ -645,7 +672,7 @@ std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs&
                                     input_info("block_indices_begins"),
                                     input_info("subsequence_begins"),
                                     input_info("past_lens"),
-                                    input_info("position_cache")},
+                                    input_info("rope_cache")},
                                    cfg));
     }
 
@@ -708,9 +735,11 @@ struct dense_inputs {
     size_t q_len = 0;
     size_t s_cap = 0;
     size_t summary_cap = 0;
+    size_t rope_cap = 0;  // ceil(s_cap / r): the trailing partial block still needs a row
 
     std::vector<float> q_idx, k_idx, rotary, q_norm, k_norm, raw_k_cache, summary_cache;
     std::vector<float> query_bhld, key_bhsd, value_bhsd;
+    // Producer-side positions; the op sees rope_rows()/rope_cache_rows() built from them.
     std::vector<int32_t> position_ids, position_cache, past_lens;
     selection_plan plan;
 };
@@ -721,6 +750,7 @@ void init_dense_metadata(dense_inputs& in, const split_dims& d, size_t past_len,
     in.q_len = q_len;
     in.s_cap = past_len + q_len;
     in.summary_cap = in.s_cap / d.r;
+    in.rope_cap = (in.s_cap + d.r - 1) / d.r;
     in.past_lens = {static_cast<int32_t>(past_len)};
 }
 
@@ -734,7 +764,7 @@ dense_inputs dense_inputs_from_reference(const split_reference& ref) {
 
     in.raw_k_cache.assign(in.s_cap * d.Di, 0.0f);
     in.summary_cache.assign(in.summary_cap * d.Di, 0.0f);
-    in.position_cache.assign(in.summary_cap, 0);
+    in.position_cache.assign(in.rope_cap, 0);
     std::copy(ref.k_idx_all.begin(), ref.k_idx_all.begin() + past_len * d.Di, in.raw_k_cache.begin());
     for (size_t b = 0; b * d.r < past_len; b++) {
         in.position_cache[b] = ref.positions[b * d.r];
@@ -782,8 +812,8 @@ dense_inputs dense_inputs_synthetic(const split_dims& dims, size_t past_len, siz
     const size_t total = past_len + q_len;
     in.raw_k_cache = lcg_vec(in.s_cap * d.Di, 3);
     in.summary_cache = lcg_vec(in.summary_cap * d.Di, 4);
-    in.position_cache.resize(in.summary_cap);
-    for (size_t b = 0; b < in.summary_cap; b++) {
+    in.position_cache.resize(in.rope_cap);
+    for (size_t b = 0; b < in.rope_cap; b++) {
         in.position_cache[b] = static_cast<int32_t>(b * d.r);
     }
     in.position_ids.resize(q_len);
@@ -807,17 +837,19 @@ void set_dense_inputs(engine& engine, network& net, const dense_inputs& in, Stag
     const auto total = I(in.past_len + in.q_len);
     if (stage != Stage::AttentionOnly) {
         if (dynamic) {
-            net.set_input_data("rotary", make_f16(engine, {I(d.max_positions), I(d.rotary)}, in.rotary));
             net.set_input_data("q_norm", make_f16(engine, {I(d.Di)}, in.q_norm));
             net.set_input_data("k_norm", make_f16(engine, {I(d.Di)}, in.k_norm));
             net.set_input_data("past_lens", make_i32(engine, {B}, in.past_lens));
         }
+        const auto [rope_cos, rope_sin] = rope_rows(in.rotary, d.rotary, in.position_ids);
         net.set_input_data("q_idx", make_f16(engine, {B, q, I(d.Hiq), I(d.Di)}, in.q_idx));
         net.set_input_data("k_idx", make_f16(engine, {B, q, 1, I(d.Di)}, in.k_idx));
-        net.set_input_data("position_ids", make_i32(engine, {B, q}, in.position_ids));
+        net.set_input_data("rope_cos", make_f16(engine, {B, q, I(d.rotary / 2)}, rope_cos));
+        net.set_input_data("rope_sin", make_f16(engine, {B, q, I(d.rotary / 2)}, rope_sin));
         net.set_input_data("summary_cache", make_f16(engine, {B, 1, I(in.summary_cap), I(d.Di)}, in.summary_cache));
         net.set_input_data("raw_k_cache", make_f16(engine, {B, 1, I(in.s_cap), I(d.Di)}, in.raw_k_cache));
-        net.set_input_data("position_cache", make_i32(engine, {B, I(in.summary_cap)}, in.position_cache));
+        net.set_input_data("rope_cache",
+                           make_f16(engine, {B, I(in.rope_cap), I(d.rotary)}, rope_cache_rows(in.rotary, d.rotary, in.position_cache)));
     }
     if (stage != Stage::IndexerOnly) {
         net.set_input_data("query", make_f16(engine, {B, I(d.Hq), q, I(d.Dh)}, in.query_bhld));
@@ -838,6 +870,7 @@ std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs&
     const auto total = dyn(I(in.past_len + in.q_len));
     const auto s_cap = dyn(I(in.s_cap));
     const auto summary_cap = dyn(I(in.summary_cap));
+    const auto rope_cap = dyn(I(in.rope_cap));
     topology topo;
 
     if (stage != Stage::AttentionOnly) {
@@ -852,26 +885,26 @@ std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs&
 
         topo.add(input_layout("q_idx", layout{{B, q, I(d.Hiq), I(d.Di)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("k_idx", layout{{B, q, 1, I(d.Di)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("position_ids", layout{{B, q}, data_types::i32, format::bfyx}));
-        add_call_tensor(topo, dynamic, "rotary", {-1, I(d.rotary)}, make_f16(engine, {I(d.max_positions), I(d.rotary)}, in.rotary));
+        topo.add(input_layout("rope_cos", layout{{B, q, I(d.rotary / 2)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("rope_sin", layout{{B, q, I(d.rotary / 2)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("summary_cache", layout{{B, 1, summary_cap, I(d.Di)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("raw_k_cache", layout{{B, 1, s_cap, I(d.Di)}, data_types::f16, format::bfyx}));
         add_call_tensor(topo, dynamic, "q_norm", {I(d.Di)}, make_f16(engine, {I(d.Di)}, in.q_norm));
         add_call_tensor(topo, dynamic, "k_norm", {I(d.Di)}, make_f16(engine, {I(d.Di)}, in.k_norm));
         add_call_tensor(topo, dynamic, "past_lens", {-1}, make_i32(engine, {I(in.batch)}, in.past_lens));
-        topo.add(input_layout("position_cache", layout{{B, summary_cap}, data_types::i32, format::bfyx}));
+        topo.add(input_layout("rope_cache", layout{{B, rope_cap, I(d.rotary)}, data_types::f16, format::bfyx}));
         static_assert(DenseIdxIn::COUNT == 10, "keep the test input order in sync with QSAIndexer::InputIdx");
         topo.add(qsa_indexer("indexer",
                              {input_info("q_idx"),
                               input_info("k_idx"),
-                              input_info("position_ids"),
-                              input_info("rotary"),
+                              input_info("rope_cos"),
+                              input_info("rope_sin"),
                               input_info("summary_cache"),
                               input_info("raw_k_cache"),
                               input_info("q_norm"),
                               input_info("k_norm"),
                               input_info("past_lens"),
-                              input_info("position_cache")},
+                              input_info("rope_cache")},
                              cfg));
     }
 
@@ -1862,8 +1895,8 @@ std::shared_ptr<ov::op::v0::Parameter> make_param(const ov::PartialShape& shape,
 ov::OutputVector make_paged_indexer_args(const split_dims& d, size_t num_pages, size_t summaries_per_page) {
     return {make_param({-1, I(d.Hiq * d.Di)}),
             make_param({-1, I(d.Di)}),
-            make_param({-1}, ov::element::i32),
-            make_param({I(d.max_positions), I(d.rotary)}),
+            make_param({-1, I(d.rotary / 2)}),
+            make_param({-1, I(d.rotary / 2)}),
             make_param({I(num_pages), 1, I(summaries_per_page), I(d.Di)}),
             make_param({I(num_pages), 1, I(d.page_size), I(d.Di)}),
             make_param({I(d.Di)}),
@@ -1872,20 +1905,20 @@ ov::OutputVector make_paged_indexer_args(const split_dims& d, size_t num_pages, 
             make_param({-1}, ov::element::i32),
             make_param({-1}, ov::element::i32),
             make_param({-1}, ov::element::i32),
-            make_param({I(num_pages), I(summaries_per_page)}, ov::element::i32)};
+            make_param({I(num_pages), I(summaries_per_page), I(d.rotary)})};
 }
 
 ov::OutputVector make_dense_indexer_args(const split_dims& d, size_t h_ik = 1) {
     return {make_param({1, -1, I(d.Hiq), I(d.Di)}),
             make_param({1, -1, I(h_ik), I(d.Di)}),
-            make_param({1, -1}, ov::element::i32),
-            make_param({I(d.max_positions), I(d.rotary)}),
+            make_param({1, -1, I(d.rotary / 2)}),
+            make_param({1, -1, I(d.rotary / 2)}),
             make_param({1, I(h_ik), -1, I(d.Di)}),
             make_param({1, I(h_ik), -1, I(d.Di)}),
             make_param({I(d.Di)}),
             make_param({I(d.Di)}),
             make_param({1}, ov::element::i32),
-            make_param({1, -1}, ov::element::i32)};
+            make_param({1, -1, I(d.rotary)})};
 }
 
 ov::intel_gpu::op::PagedQSAIndexer::Config make_paged_indexer_config(const split_dims& d) {
@@ -1934,6 +1967,16 @@ TEST(qsa_ops_gpu_test, paged_qsa_indexer_config_validation_rejects_illegal_attri
     c = base;
     c.page_size = d.page_size + 1;  // not divisible by compress_ratio
     ASSERT_FALSE(ov::intel_gpu::op::PagedQSAIndexer::validate_config(c, reason));
+
+    c = base;
+    c.scale = -1.0f;
+    ASSERT_FALSE(ov::intel_gpu::op::PagedQSAIndexer::validate_config(c, reason));
+
+    // scale == 0 selects the 1 / sqrt(indexer_head_dim) default.
+    c = base;
+    c.scale = 0.0f;
+    ASSERT_TRUE(ov::intel_gpu::op::PagedQSAIndexer::validate_config(c, reason)) << reason;
+    EXPECT_FLOAT_EQ(ov::intel_gpu::op::PagedQSAIndexer::effective_scale(c), 1.0f / std::sqrt(static_cast<float>(d.Di)));
 }
 
 TEST(qsa_ops_gpu_test, paged_qsa_indexer_output_shapes_and_clone) {
@@ -1962,55 +2005,71 @@ TEST(qsa_ops_gpu_test, paged_qsa_indexer_rejects_wrong_input_count) {
     ASSERT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception);
 }
 
-TEST(qsa_ops_gpu_test, paged_qsa_indexer_rejects_rotary_width_and_position_rank) {
+TEST(qsa_ops_gpu_test, paged_qsa_indexer_rejects_bad_rope_shapes) {
     split_dims d;
     using In = ov::intel_gpu::op::PagedQSAIndexer::InputIdx;
-    auto args = make_paged_indexer_args(d, 8, d.page_size / d.r);
-    args[In::ROTARY_COS_SIN] = make_param({I(d.max_positions), I(2 * d.rotary)});
-    ASSERT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception);
+    const size_t spp = d.page_size / d.r;
+    auto args = make_paged_indexer_args(d, 8, spp);
+    args[In::ROPE_COS] = make_param({-1, I(d.rotary)});  // a full-width row, not rotary/2
+    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope_cos width";
 
-    args = make_paged_indexer_args(d, 8, d.page_size / d.r);
-    args[In::POSITION_IDS] = make_param({1, -1}, ov::element::i32);
-    ASSERT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception);
+    args = make_paged_indexer_args(d, 8, spp);
+    args[In::ROPE_SIN] = make_param({3, I(d.rotary / 2)});
+    args[In::Q_IDX] = make_param({4, I(d.Hiq * d.Di)});
+    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope_sin tokens";
+
+    args = make_paged_indexer_args(d, 8, spp);
+    args[In::INDEXER_ROPE_CACHE] = make_param({8, I(spp), I(d.rotary / 2)});
+    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache row width";
+
+    args = make_paged_indexer_args(d, 8, spp);
+    args[In::INDEXER_ROPE_CACHE] = make_param({9, I(spp), I(d.rotary)});
+    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache num_blocks";
+
+    args = make_paged_indexer_args(d, 8, spp);
+    args[In::INDEXER_ROPE_CACHE] = make_param({8, I(spp), I(d.rotary)}, ov::element::f32);
+    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache type";
 }
 
 TEST(qsa_ops_gpu_test, paged_qsa_indexer_requires_i32_integer_inputs) {
     split_dims d;
     using In = ov::intel_gpu::op::PagedQSAIndexer::InputIdx;
-    for (size_t idx : {In::POSITION_IDS, In::BLOCK_INDICES, In::BLOCK_INDICES_BEGINS, In::SUBSEQUENCE_BEGINS, In::PAST_LENS}) {
+    for (size_t idx : {In::BLOCK_INDICES, In::BLOCK_INDICES_BEGINS, In::SUBSEQUENCE_BEGINS, In::PAST_LENS}) {
         auto args = make_paged_indexer_args(d, 8, d.page_size / d.r);
         args[idx] = make_param({-1}, ov::element::i64);
         EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "input " << idx;
     }
-    auto args = make_paged_indexer_args(d, 8, d.page_size / d.r);
-    args[In::INDEXER_POSITION_CACHE] = make_param({8, I(d.page_size / d.r)}, ov::element::i64);
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception);
 }
 
-TEST(qsa_ops_gpu_test, dense_qsa_indexer_requires_i32_position_ids_shaped_b_l) {
+TEST(qsa_ops_gpu_test, dense_qsa_indexer_validates_rope_inputs_and_past_lens) {
     split_dims d;
     using In = ov::op::internal::QSAIndexer::InputIdx;
     ASSERT_NO_THROW(std::make_shared<ov::op::internal::QSAIndexer>(make_dense_indexer_args(d), make_dense_indexer_config(d)));
 
     auto args = make_dense_indexer_args(d);
-    args[In::POSITION_IDS] = make_param({1, -1}, ov::element::i64);
-    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "i64 position_ids";
+    args[In::ROPE_COS] = make_param({1, -1, I(d.rotary / 2)}, ov::element::f32);
+    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "rope_cos type";
 
     args = make_dense_indexer_args(d);
-    args[In::POSITION_IDS] = make_param({-1}, ov::element::i32);
-    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "rank-1 [L] position_ids";
+    args[In::ROPE_COS] = make_param({-1, I(d.rotary / 2)});
+    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "rank-2 rope_cos";
 
     args = make_dense_indexer_args(d);
-    args[In::POSITION_IDS] = make_param({2, -1}, ov::element::i32);
+    args[In::ROPE_SIN] = make_param({2, -1, I(d.rotary / 2)});
     EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "batch mismatch";
 
     args = make_dense_indexer_args(d);
     args[In::PAST_LENS] = make_param({1}, ov::element::i64);
     EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "i64 past_lens";
 
+    // A static S_cap that is not a multiple of r needs ceil(S_cap / r) rope rows.
     args = make_dense_indexer_args(d);
-    args[In::INDEXER_POSITION_CACHE] = make_param({1, -1}, ov::element::i64);
-    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "i64 position cache";
+    args[In::INDEXER_RAW_K_CACHE] = make_param({1, 1, 10, I(d.Di)});
+    args[In::SUMMARY_CACHE] = make_param({1, 1, 2, I(d.Di)});
+    args[In::INDEXER_ROPE_CACHE] = make_param({1, 3, I(d.rotary)});
+    EXPECT_NO_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)));
+    args[In::INDEXER_ROPE_CACHE] = make_param({1, 2, I(d.rotary)});
+    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "floor-sized rope cache";
 }
 
 ov::intel_gpu::op::SparsePA::Config make_sparse_pa_config(const split_dims& d) {
@@ -2200,8 +2259,6 @@ TEST(qsa_ops_gpu_test, plugin_rejects_unsupported_indexer_heads_and_precision) {
 
     auto make_dense = [&](size_t h_ik, size_t h_sel) {
         auto args = make_dense_indexer_args(d, h_ik);
-        args[DenseIdxIn::ROTARY_COS_SIN] =
-            ov::op::v0::Constant::create(ov::element::f16, ov::Shape{d.max_positions, d.rotary}, std::vector<float>(d.max_positions * d.rotary, 0.0f));
         args[DenseIdxIn::Q_NORM_WEIGHT] = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{d.Di}, std::vector<float>(d.Di, 1.0f));
         args[DenseIdxIn::K_NORM_WEIGHT] = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{d.Di}, std::vector<float>(d.Di, 1.0f));
         auto cfg = make_dense_indexer_config(d);

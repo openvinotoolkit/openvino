@@ -12,16 +12,15 @@
 // `q_idx`/`k_idx`/`indexer_q` of shape [B, L, H, Di] are addressed via the flat token
 // index `t = b * seq_len + l`, which is exactly that tensor's own row order.
 //
-// Summary RoPE uses the REAL recorded position of the block's first logical token, not
-// a synthetic `block_start` count: `position_cache` persists ONE value per QSA block (the
-// `position_ids` of that block's first token), addressed exactly like `summary_cache`
-// (same `summary_stride`). It is written once, when that first token is processed
-// (possibly in an earlier call than the one that completes the block), and read back
-// once the block completes -- correct under non-monotonic/multi-axis (e.g. mRoPE)
-// position schemes. A block completed in the SAME call that wrote its first token reads
-// the staged SLM copy instead of the just-written global entry: a same-work-group
-// global write-then-read round trip needs a global coherence fence and was observed to
-// race (see qsa_indexer_prepare_paged.cm's identical rationale).
+// RoPE never derives an angle from a position: a query is rotated with its own
+// `rope_cos`/`rope_sin` row and a block summary with the row of the block's first logical
+// token. `rope_cache` persists that row once per QSA block, interleaved as (cos_j, sin_j),
+// with its own runtime `rope_stride` = ceil(S_cap / r) rows per batch element (one more
+// than `summary_stride` when S_cap % r != 0). It is written when the first token is
+// processed (possibly in an earlier call than the one that completes the block) and read
+// back once the block completes. A block whose first token belongs to THIS call reads the
+// input row instead of the just-written cache row (see qsa_indexer_prepare_paged.cm's
+// identical rationale).
 //
 // JIT constants: QSA_IDX_QUERY_HEADS, QSA_IDX_HEAD_DIM, QSA_IDX_ROTARY_DIM,
 // QSA_COMPRESS_RATIO, QSA_IDX_NORM_EPS, QSA_PREPARE_WG
@@ -38,21 +37,23 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* q_idx ATTR,                 
                                         const half* k_idx ATTR,                  // [B, L, 1, Di] row-major == [tokens, Di]
                                         const half* q_norm_weight ATTR,          // [Di]
                                         const half* k_norm_weight ATTR,          // [Di]
-                                        const half* rotary ATTR,                 // [max_positions, rotary_dim] (cos,sin) pairs
-                                        const int32_t* position_ids ATTR,        // [B, L] == [tokens]
+                                        const half* rope_cos ATTR,               // [B, L, rotary_dim/2] == [tokens, rotary_dim/2]
+                                        const half* rope_sin ATTR,               // [B, L, rotary_dim/2] == [tokens, rotary_dim/2]
                                         const int32_t* past_lens ATTR,           // [B]
                                         half* raw_k_cache ATTR,                  // [B, 1, S_cap, Di], writable
                                         half* summary_cache ATTR,                // [B, 1, floor(S_cap/r), Di], writable
-                                        int32_t* position_cache ATTR,            // [B, floor(S_cap/r)], writable
+                                        half* rope_cache ATTR,                   // [B, ceil(S_cap/r), rotary_dim], writable
                                         half* indexer_q ATTR,                    // [tokens, Hiq, Di]
                                         const int32_t* prepare_map ATTR,         // [num_wg, 2] = (batch, qsa_block_id)
                                         uint32_t num_wg,
                                         uint32_t seq_len,
                                         uint32_t raw_k_stride,
-                                        uint32_t summary_stride) {
+                                        uint32_t summary_stride,
+                                        uint32_t rope_stride) {
     constexpr uint HIQ = QSA_IDX_QUERY_HEADS;
     constexpr uint DI = QSA_IDX_HEAD_DIM;
     constexpr uint ROT = QSA_IDX_ROTARY_DIM;
+    constexpr uint RH = ROT > 0 ? ROT / 2 : 1;  // coefficients per token row
     constexpr uint R = QSA_COMPRESS_RATIO;
     constexpr uint WG = QSA_PREPARE_WG;
 
@@ -67,11 +68,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* q_idx ATTR,                 
 
     constexpr uint SLM_RAWK_SIZE = R * DI * (uint)sizeof(float);
     constexpr uint SLM_POOL_SIZE = DI * (uint)sizeof(float);
-    constexpr uint SLM_BLOCK_POS_SIZE = 4;  // one staged int32: this block's first-token position
-    cm_slm_init(SLM_RAWK_SIZE + SLM_POOL_SIZE + SLM_BLOCK_POS_SIZE);
+    cm_slm_init(SLM_RAWK_SIZE + SLM_POOL_SIZE);
     auto slm_rawk = cm_slm_alloc(SLM_RAWK_SIZE);
     auto slm_pool = cm_slm_alloc(SLM_POOL_SIZE);
-    auto slm_block_pos = cm_slm_alloc(SLM_BLOCK_POS_SIZE);
 
     const uint batch = (uint)prepare_map[wg * 2 + 0];
     const uint qsa_block = (uint)prepare_map[wg * 2 + 1];
@@ -93,7 +92,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* q_idx ATTR,                 
             qsa_gr::load_hv<DI>(q_h, q_idx, (token_idx * HIQ + tid) * DI);
             vector<float, DI> q = q_h;
             qsa::rms_norm<DI>(q, q_norm_weight, (float)QSA_IDX_NORM_EPS);
-            qsa::apply_partial_rope<DI, ROT>(q, rotary, (uint)position_ids[token_idx]);
+#if QSA_IDX_ROTARY_DIM > 0
+            vector<float, RH> c = qsa::load_half_row<RH>(rope_cos, token_idx * RH);
+            vector<float, RH> s = qsa::load_half_row<RH>(rope_sin, token_idx * RH);
+            qsa::apply_partial_rope<DI, ROT, RH>(q, c, s);
+#endif
             vector<half, DI> q_out = q;
             qsa_gr::store_hv<DI>(indexer_q, (token_idx * HIQ + tid) * DI, q_out);
         } else if (tid == HIQ) {
@@ -103,14 +106,15 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* q_idx ATTR,                 
             const uint dst = qsa_ops::offset_dense(batch, p, raw_k_stride, DI);
             qsa_gr::store_hv<DI>(raw_k_cache, dst, k_h);
 
+#if QSA_IDX_ROTARY_DIM > 0
             if (p == block_start) {
-                // One value per block, not per token: this is the only position ever read
-                // back for this block.
-                const uint block_pos = (uint)position_ids[token_idx];
-                position_cache[batch * summary_stride + qsa_block] = block_pos;
-                vector<uint, 1> staged = block_pos;
-                cm_slm_block_write(slm_block_pos, 0, staged);
+                // One row per block, not per token: this is the only row ever read back.
+                vector<half, ROT> row;
+                row.select<RH, 2>(0) = qsa::load_half_row<RH>(rope_cos, token_idx * RH);
+                row.select<RH, 2>(1) = qsa::load_half_row<RH>(rope_sin, token_idx * RH);
+                qsa::store_half_row<ROT>(rope_cache, (batch * rope_stride + qsa_block) * ROT, row);
             }
+#endif
 
             vector<float, DI> kv = k_h;
             cm_slm_block_write(slm_rawk, ((p - block_start) * DI) * (uint)sizeof(float), kv);
@@ -147,19 +151,21 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* q_idx ATTR,                 
         vector<float, DI> pooled;
         cm_slm_block_read(slm_pool, 0, pooled);
         qsa::rms_norm<DI>(pooled, k_norm_weight, (float)QSA_IDX_NORM_EPS);
-        // Real recorded position of the block's first token, not the synthetic block_start
-        // count -- correct under non-monotonic/multi-axis (mRoPE) position_ids schemes.
-        // block_start >= past_len means THIS call wrote it above; read the staged SLM copy
-        // rather than racing a global write-then-read within the same work-group.
-        uint real_pos;
+#if QSA_IDX_ROTARY_DIM > 0
+        // Coefficients of the block's first token: its input row when THIS call appended it,
+        // otherwise the row an earlier call persisted in rope_cache.
+        vector<float, RH> c, s;
         if (block_start >= past_len) {
-            vector<uint, 1> staged;
-            cm_slm_block_read(slm_block_pos, 0, staged);
-            real_pos = staged[0];
+            const uint first_token = seq_begin + (block_start - past_len);
+            c = qsa::load_half_row<RH>(rope_cos, first_token * RH);
+            s = qsa::load_half_row<RH>(rope_sin, first_token * RH);
         } else {
-            real_pos = (uint)position_cache[batch * summary_stride + qsa_block];
+            vector<float, ROT> row = qsa::load_half_row<ROT>(rope_cache, (batch * rope_stride + qsa_block) * ROT);
+            c = row.select<RH, 2>(0);
+            s = row.select<RH, 2>(1);
         }
-        qsa::apply_partial_rope<DI, ROT>(pooled, rotary, real_pos);
+        qsa::apply_partial_rope<DI, ROT, RH>(pooled, c, s);
+#endif
 
         const uint dst = qsa_ops::offset_dense(batch, qsa_block, summary_stride, DI);
         vector<half, DI> summary_out = pooled;

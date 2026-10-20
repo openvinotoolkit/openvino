@@ -77,28 +77,52 @@ CM_INLINE uint summary_offset(uint physical_page, uint slot_in_page, uint summar
 // So frequency j pairs channel j with channel j + rd/2 - NOT the adjacent
 // channels (2j, 2j+1) that the GPT-J / "interleaved" variant uses.
 //
-// `table` is [max_positions, rotary_dim], storing the rd/2 distinct frequencies as
-// adjacent (cos_j, sin_j) pairs; the duplicated upper half of the transformers
-// cos/sin vectors carries no extra information and is not materialized. Only the
+// `c`/`s` hold the rd/2 distinct coefficients of one token: a row of the op's per-token
+// `rope_cos`/`rope_sin` inputs, or a de-interleaved `indexer_rope_cache` row. Only the
 // first `rotary_dim` channels rotate; the rest pass through unchanged, which is what
-// "partial rotary" means for Qwen3.8 (Di = 128, rotary_dim = 64). mRoPE section
-// handling is folded into the table contents by the host.
+// "partial rotary" means for Qwen3.8 (Di = 128, rotary_dim = 64). Any position scheme
+// (e.g. mRoPE sections) is already folded into the coefficients by their producer.
 // --------------------------------------------------------------------------
-template <int HEAD_DIM, int ROTARY_DIM>
-CM_INLINE void apply_partial_rope(vector_ref<float, HEAD_DIM> v, const half* table ATTR, uint position) {
+template <int HEAD_DIM, int ROTARY_DIM, int HALF>
+CM_INLINE void apply_partial_rope(vector_ref<float, HEAD_DIM> v, vector_ref<float, HALF> c, vector_ref<float, HALF> s) {
     static_assert(ROTARY_DIM % 2 == 0, "rotary dim must be even");
     static_assert(ROTARY_DIM <= HEAD_DIM, "rotary dim must not exceed head dim");
     if constexpr (ROTARY_DIM > 0) {
-        constexpr int HALF = ROTARY_DIM / 2;
-        const uint base = position * (uint)ROTARY_DIM;
+        static_assert(HALF == ROTARY_DIM / 2, "one coefficient per rotated channel pair");
+        vector<float, HALF> x0 = v.template select<HALF, 1>(0);
+        vector<float, HALF> x1 = v.template select<HALF, 1>(HALF);
+        v.template select<HALF, 1>(0) = x0 * c - x1 * s;
+        v.template select<HALF, 1>(HALF) = x1 * c + x0 * s;
+    }
+}
+
+/// `N` consecutive halves at `elem_off`, widened to fp32. One block load when the row is a
+/// whole, dword-aligned number of dwords (callers address rows of `N` elements, so an even
+/// `N` keeps every row dword-aligned); per-element loads otherwise.
+template <int N>
+CM_INLINE vector<float, N> load_half_row(const half* p ATTR, uint elem_off) {
+    vector<half, N> h;
+    if constexpr (N == 4 || N == 8 || N == 16 || N == 32 || N == 64 || N == 128) {
+        h.template format<int>() = cm_ptr_load<int, N / 2>((int*)p, elem_off * (uint)sizeof(half));
+    } else {
 #    pragma unroll
-        for (int j = 0; j < HALF; j++) {
-            const float c = (float)table[base + 2 * j];
-            const float s = (float)table[base + 2 * j + 1];
-            const float x0 = v[j];
-            const float x1 = v[j + HALF];
-            v[j] = x0 * c - x1 * s;
-            v[j + HALF] = x1 * c + x0 * s;
+        for (int j = 0; j < N; j++) {
+            h[j] = p[elem_off + j];
+        }
+    }
+    vector<float, N> out = h;
+    return out;
+}
+
+/// Store counterpart of load_half_row().
+template <int N>
+CM_INLINE void store_half_row(half* p ATTR, uint elem_off, vector_ref<half, N> src) {
+    if constexpr (N == 4 || N == 8 || N == 16 || N == 32 || N == 64 || N == 128) {
+        cm_ptr_store<int, N / 2>((int*)p, elem_off * (uint)sizeof(half), src.template format<int>());
+    } else {
+#    pragma unroll
+        for (int j = 0; j < N; j++) {
+            p[elem_off + j] = src[j];
         }
     }
 }
