@@ -297,10 +297,7 @@ TEST(LLMLongRopeMode, RejectedTransitionLeavesTheCacheAndTheModeAlone) {
     expect_keys_near(crossing.generate_keys(), before, 0.0f);
 
     // The flip is still pending, so a well-formed retry performs it in full.
-    LLMLongRopeModeTestAccess::sync_mode(req,
-                                         LLMLongRopeModeTestAccess::generate_in_ports(req),
-                                         position_ids,
-                                         kCached);
+    LLMLongRopeModeTestAccess::sync_mode(req, LLMLongRopeModeTestAccess::generate_in_ports(req), position_ids, kCached);
     EXPECT_TRUE(LLMLongRopeModeTestAccess::long_mode(req));
     EXPECT_NE(crossing.generate_keys(), before);
 }
@@ -322,18 +319,18 @@ protected:
     // Every live key block of every layer, layer-major and in block order.
     static PooledKeys pooled_keys(ov::npuw::LLMInferRequest& req, uint32_t num_cached) {
         auto& strategy = LLMBlockKvTestAccess::block_strategy(req);
-        const auto& pool = LLMBlockKvTestAccess::block_managers(strategy);
+        const auto& managers = LLMBlockKvTestAccess::block_managers(strategy);
         const uint32_t block_size = LLMBlockKvTestAccess::block_size(strategy);
 
         std::vector<uint32_t> layers;
-        for (const auto& [layer_idx, unused] : pool) {
+        for (const auto& [layer_idx, unused] : managers) {
             layers.push_back(layer_idx);
         }
         std::sort(layers.begin(), layers.end());
 
         PooledKeys out;
         for (const uint32_t layer_idx : layers) {
-            auto* manager = pool.at(layer_idx).key_manager.get();
+            auto* manager = managers.at(layer_idx).key_manager.get();
             EXPECT_NE(manager, nullptr);
             const auto allocated = manager->get_allocated_blocks();
             for (uint32_t first = 0u; first < num_cached; first += block_size) {
@@ -358,8 +355,7 @@ protected:
                                     bool to_long) {
         const auto delta = ov::npuw::longrope::make_mode_delta(tables, 0, num_cached, to_long);
         for (size_t i = 0; i < keys.data.size(); ++i) {
-            auto tensor = ov::get_tensor_impl(
-                ov::Tensor(ov::element::f32, keys.block_shape, keys.data[i].data()));
+            auto tensor = ov::get_tensor_impl(ov::Tensor(ov::element::f32, keys.block_shape, keys.data[i].data()));
             const auto layout = ov::npuw::longrope::check_key_tensor(tensor, seq_dim, keys.live_tokens[i], delta);
             ov::npuw::longrope::rerotate_keys(layout, keys.live_tokens[i], delta, keys.first_token[i]);
         }
@@ -399,10 +395,10 @@ protected:
 // and the tail one, and leaves the tail port - which holds a copy of its block rather than
 // a view of it - agreeing with the block it was copied from.
 TEST_F(LongRopeBlockCache, CrossingTurnsEveryBlockOfThePool) {
-    constexpr size_t kPrompt = 64;    // two full blocks
-    constexpr int64_t kLimit = 100;   // crossed by the generate step at position 100
-    constexpr uint32_t kCached = 100; // rows in the cache when that step re-rotates, three
-                                      // full blocks plus four rows of the tail one
+    constexpr size_t kPrompt = 64;     // two full blocks
+    constexpr int64_t kLimit = 100;    // crossed by the generate step at position 100
+    constexpr uint32_t kCached = 100;  // rows in the cache when that step re-rotates, three
+                                       // full blocks plus four rows of the tail one
 
     LongRopePipeline control(kUnreachableLimit, block_props());
     run(control, kPrompt, kLimit);
