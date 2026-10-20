@@ -175,6 +175,10 @@ lattices. Gemma3n's three-step fixture exceeds the existing `1e-5` NMSE gate
 at the final step (`1.65684e-5`); matching greedy tokens does not establish parity.
 The real Qwen3-ASR quantized decoder also fails its original full-logit parity gate.
 
+A real Llama-Nemotron-Embed-1B-v2 F16 checkpoint at revision
+`effc8deb9688852dbf4ba458301999f7133f8eed` passes the per-token embedding
+comparison against the same pinned llama.cpp CPU oracle on a clean CPU build.
+
 Drafts may omit token embeddings and the output head. Native conversion then exposes
 `gguf.target_token_embedding` and `gguf.target_lm_head` weight inputs; the GenAI integration
 clones the target weight subgraphs before compilation. EAGLE3's reduced-vocabulary `d2t`

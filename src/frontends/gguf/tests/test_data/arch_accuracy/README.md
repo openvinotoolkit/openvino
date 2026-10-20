@@ -7,6 +7,12 @@ Embedding fixtures contain `embeddings` instead of `logits`, and cover causal/bi
 per-token output plus mean, first-token and last-token pooling.
 OpenVINO does not participate in reference generation.
 
+`eagle3-fc-q4_1` and `dflash-fc-q4_1` use packed Q4_1 FC weights with logical
+input width 96. Their integer zero points, binary-exact scales and Q8_0-representable
+hidden features isolate packed-weight geometry from requantization and reference
+activation rounding. Both use CPU revision `098ce526b546b5a190327c1da82929cee051b9ac`
+and the unchanged `1e-5` gate; they do not establish arbitrary quantized-checkpoint parity.
+
 The 40 decoder fixtures and five embedding fixtures include Muse Glimmer, Qwen3.5 dense/MoE (separate and fused
 expert projections, and F16 Gated-DeltaNet gate/beta projections that disable the frontend's
 projection merges as mixed quantization does in real checkpoints), Gemma4 mixed-head MQA/MoE variants and an E2B/E4B-style Gemma4 with

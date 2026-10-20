@@ -17,6 +17,10 @@ feature layers, whole-tensor QK norms, an odd frame count, one-sided clipping bo
 overview separators. Both suites compare the raw encoder and its `AdaptMmprojToGenAI` form
 with normalized MSE below `1e-5`.
 
+`gemma3nv_uir` exercises a MobileNet UIR block with depthwise-start convolution
+and no optional pointwise expansion. It compares native and GenAI-adapted features
+on two inputs against CPU revision `098ce526b546b5a190327c1da82929cee051b9ac`.
+
 The standalone op tests in `test_ops.cpp` read `../mmproj_*.npy`, `../vision_rope_expected.npy`
 and `../multimodal_imrope_expected.npy`: window partition, SAM relative positions,
 vision/interleaved RoPE, antialiased bilinear resize and 2D im2col.
