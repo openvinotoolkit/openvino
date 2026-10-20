@@ -171,6 +171,7 @@ TEST_P(OVPropertiesDefaultSupportedTests, CanSetDefaultValueBackToPlugin) {
     std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = core.get_property(target_device, ov::supported_properties));
     for (auto& supported_property : supported_properties) {
+        // By definition, write-only properties have no readable value to set back
         if (supported_property.get_mutability() == ov::PropertyMutability::WO) {
             continue;
         }
