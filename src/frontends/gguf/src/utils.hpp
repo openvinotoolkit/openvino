@@ -86,6 +86,13 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
 
 ov::Output<ov::Node> process_view_input(const NodeContext& context, int input_index, int slice_len = 0);
 
+// A stateless KV cache in the [1, ctx, n_heads_kv, head_size] layout (the decoder gives caches that qualify this
+// shape, one token per row), as opposed to [1, 1, ctx, n_heads_kv * head_size]. The stateful path uses it too.
+inline bool is_kvcache_4d_shape(const ov::PartialShape& shape) {
+    return shape.rank().is_static() && shape.rank().get_length() == 4 && shape[1].is_dynamic() &&
+           shape[2].is_static() && shape[3].is_static();
+}
+
 namespace op {
 template <typename T>
 OutputVector translate_1to1_match_1_input(const NodeContext& context) {

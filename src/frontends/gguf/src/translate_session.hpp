@@ -4,16 +4,19 @@
 
 #pragma once
 
+#include <map>
+#include <string>
+
 #include "input_model.hpp"
 #include "node_context.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 
 namespace ov::frontend::gguf {
 
-void prepare_graph_inputs(TensorMap& values, GgufDecoder& decoder);
 void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                     std::shared_ptr<TensorMap>& values,
-                    const std::unordered_map<std::string, CreatorFunction>& translators);
+                    const std::unordered_map<std::string, CreatorFunction>& translators,
+                    std::map<std::string, std::string>& storage_aliases);
 
 class TranslateSession {
 public:

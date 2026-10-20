@@ -110,20 +110,17 @@ std::string attention(GraphEmitter& e,
     q = e.add_op("GGML_OP_RESHAPE",
                  p + "Qcur_r",
                  {q},
-                 6,
                  {{"reshape_target", std::vector<int64_t>{0, -1, cfg.n_head, head_size_l}}, {"special_zero", true}});
     if (has_own_kv) {
         k = e.add_op(
             "GGML_OP_RESHAPE",
             p + "Kcur_r",
             {k},
-            6,
             {{"reshape_target", std::vector<int64_t>{0, -1, n_head_kv_l, head_size_l}}, {"special_zero", true}});
         v = e.add_op(
             "GGML_OP_RESHAPE",
             p + "Vcur_r",
             {v},
-            6,
             {{"reshape_target", std::vector<int64_t>{0, -1, n_head_kv_l, head_size_l}}, {"special_zero", true}});
     }
 
@@ -135,7 +132,7 @@ std::string attention(GraphEmitter& e,
     }
     // gemma4: V gets a plain RMSNorm (no multiplicative weight, just normalize).
     if (cfg.has_v_norm && has_own_kv) {
-        v = e.add_op("GGML_OP_RMS_NORM", p + "Vcur_normed", {v}, 0, {{"eps", cfg.rms_eps}});
+        v = e.add_op("GGML_OP_RMS_NORM", p + "Vcur_normed", {v}, {{"eps", cfg.rms_eps}});
     }
 
     // RoPE (NEOX). rope_freqs.weight (per-dim frequency factor) is an optional 3rd input.
@@ -152,13 +149,15 @@ std::string attention(GraphEmitter& e,
                                                    ? std::vector<std::string>{k, "inp_pos", "rope_freqs.weight"}
                                                    : std::vector<std::string>{k, "inp_pos"};
     if (use_rope) {
-        q = e.add_op("GGML_OP_ROPE", p + "Qcur_rope", q_rope_in, cfg.rope_op_case, {{"rope_config", rope_config_l}});
+        q = e.add_op("GGML_OP_ROPE",
+                     p + "Qcur_rope",
+                     q_rope_in,
+                     {{"rope_config", rope_config_l}, {"rope_mode", cfg.rope_mode}});
         if (has_own_kv)
             k = e.add_op("GGML_OP_ROPE",
                          p + "Kcur_rope",
                          k_rope_in,
-                         cfg.rope_op_case,
-                         {{"rope_config", rope_config_l}});
+                         {{"rope_config", rope_config_l}, {"rope_mode", cfg.rope_mode}});
     }
 
     if (cfg.has_qk_norm && !cfg.qk_norm_full && cfg.qk_norm_after_rope) {
@@ -168,22 +167,20 @@ std::string attention(GraphEmitter& e,
     }
 
     if (cfg.attention_temperature_scale != 0.0f) {
-        auto temp = e.add_op("GGML_OP_CPY", p + "temp_pos", {"inp_pos"}, 0, {{"dst_type", f32}});
+        auto temp = e.add_op("GGML_OP_CPY", p + "temp_pos", {"inp_pos"}, {{"dst_type", f32}});
         temp = scale(e, temp, 1.0f / cfg.rope_config.n_ctx_orig, p + "temp_window");
         // Positions are nonnegative: integer conversion implements floor(position / context).
-        temp = e.add_op("GGML_OP_CPY", p + "temp_floor", {temp}, 0, {{"dst_type", ov::element::i32}});
-        temp = e.add_op("GGML_OP_CPY", p + "temp_float", {temp}, 0, {{"dst_type", f32}});
-        temp = e.add_op("GGML_OP_SCALE", p + "temp_offset", {temp}, 0, {{"bias", 1.0f}});
+        temp = e.add_op("GGML_OP_CPY", p + "temp_floor", {temp}, {{"dst_type", ov::element::i32}});
+        temp = e.add_op("GGML_OP_CPY", p + "temp_float", {temp}, {{"dst_type", f32}});
+        temp = e.add_op("GGML_OP_SCALE", p + "temp_offset", {temp}, {{"bias", 1.0f}});
         temp = e.add_op("GGML_OP_LOG", p + "temp_log", {temp});
         temp = e.add_op("GGML_OP_SCALE",
                         p + "temp_scale",
                         {temp},
-                        0,
                         {{"scale", cfg.attention_temperature_scale}, {"bias", 1.0f}});
         temp = e.add_op("GGML_OP_RESHAPE",
                         p + "temp_broadcast",
                         {temp},
-                        6,
                         {{"reshape_target", std::vector<int64_t>{0, -1, 1, 1}}, {"special_zero", true}});
         q = e.add_op("GGML_OP_MUL", p + "Qcur_temp_scaled", {q, temp});
     }
@@ -230,49 +227,46 @@ std::string attention(GraphEmitter& e,
         if (head_size_l < static_cast<int>(anchor_hs)) {
             // Slice the shared cache to this layer's head width.
             const std::vector<int64_t> hs_slice{3, 0, int64_t(head_size_l)};
-            k = e.add_op("GGML_OP_VIEW", p + "k_hslice", {kc}, 3, {{"view_slice", hs_slice}});
-            v = e.add_op("GGML_OP_VIEW", p + "v_hslice", {vc}, 3, {{"view_slice", hs_slice}});
+            k = e.add_op("GGML_OP_VIEW", p + "k_hslice", {kc}, {{"view_slice", hs_slice}});
+            v = e.add_op("GGML_OP_VIEW", p + "v_hslice", {vc}, {{"view_slice", hs_slice}});
         } else {
             k = kc;
             v = vc;
         }
     }
 
-    // NOTE: q/k/v stay in the ggml-natural [1, n_tokens, n_head(_kv), head_size] layout
-    // here. The PERMUTE to [1, n_head, n_tokens, head_size] is done INSIDE the FLASH_ATTN
-    // translator, AFTER the GQA broadcast of K/V. That ordering -- Concat -> GQA tile ->
-    // single Transpose -> SDPA -- is the exact shape the CPU plugin's stateful_sdpa_fusion
-    // matches (its multi-query-bcst sits on the concat output, before one transpose), so
-    // the attention fuses into ScaledDotProductAttentionWithKVCache. Permuting before the
-    // tile (the old order) put the transpose between concat and tile and blocked the fuse.
+    // FLASH_ATTN_EXT takes ggml's operand layout [1, n_head(_kv), n_tokens, head_size], as llama.cpp
+    // builds it: q/k/v are PERMUTEd from [1, n_tokens, n_head(_kv), head_size] first.
+    const auto to_heads_major = [&](const std::string& value, const std::string& name) {
+        return e.add_op("GGML_OP_PERMUTE", name, {value}, {{"perm", std::vector<int64_t>{0, 2, 1, 3}}});
+    };
+    q = to_heads_major(q, p + "q_perm");
+    k = to_heads_major(k, p + "k_perm");
+    v = to_heads_major(v, p + "v_perm");
 
     // FLASH_ATTN_EXT(q, k, v, mask[, sinks]) -> [1, n_tokens, n_head, head_size].
     // gpt-oss: SWA layers use the sliding-window mask; plus a per-head sink logit.
     const std::string mask_name = is_swa_layer ? "self_kq_mask_swa" : "self_kq_mask";
     std::vector<std::string> attn_in = {q, k, v};
-    if (!cfg.embedding_model || cfg.causal_attention)
+    const bool has_mask = !cfg.embedding_model || cfg.causal_attention;
+    if (has_mask)
         attn_in.push_back(mask_name);
     if (cfg.has_sinks) {
         e.add_named_weight(p + "attn_sinks.weight");
         attn_in.push_back(p + "attn_sinks.weight");
     }
-    std::map<std::string, ov::Any> attn_attrs = {{"scale", kq_scale}};
+    std::map<std::string, ov::Any> attn_attrs = {{"scale", kq_scale}, {"has_mask", has_mask}};
     if (cfg.embedding_model)
         attn_attrs["f32_attention"] = true;
     if (cfg.attn_soft_cap != 0.0f) {
         attn_attrs["kq_soft_cap"] = cfg.attn_soft_cap;
     }
-    auto attn = e.add_op("GGML_OP_FLASH_ATTN_EXT",
-                         p + "kqv",
-                         attn_in,
-                         100,  // builder layout: q/k/v are ggml-natural [1, T, n_head, head_size]
-                         std::move(attn_attrs));
+    auto attn = e.add_op("GGML_OP_FLASH_ATTN_EXT", p + "kqv", attn_in, std::move(attn_attrs));
 
     // reshape back to [1, 1, n_tokens, n_head*head_size]
     auto attn_2d = e.add_op("GGML_OP_RESHAPE",
                             p + "kqv_merged",
                             {attn},
-                            6,
                             {{"reshape_target", std::vector<int64_t>{0, 1, -1, q_width}}, {"special_zero", true}});
 
     // muse-glimmer: sigmoid output gate. The gate is a projection of the PRE-attention

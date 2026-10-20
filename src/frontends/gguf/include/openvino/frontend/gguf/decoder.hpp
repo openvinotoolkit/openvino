@@ -33,9 +33,9 @@ struct RopeConfig {
     float attn_factor = 0.0f;
     float beta_fast = 0.0f;
     float beta_slow = 0.0f;
-    // When true, each ROPE op builds its own sin/cos from its per-op config (e.g. gemma4, where
-    // SWA and global layers use different n_dims), so the shared rope_cos/rope_sin table that
-    // TranslateSession::preprocess would otherwise pre-build is skipped.
+    // When true, each ROPE op carries its own config (e.g. gemma4, where SWA and global layers use
+    // different n_dims). Translators share a sin/cos table only between ops with matching configuration
+    // and positions, so this is descriptive.
     bool per_op = false;
     // When true the model uses interleaved M-RoPE (qwen3.5 / qwen3vl): pos carries 4 mrope sections
     // (4*n_tokens ids) and the sin/cos gather differs. The shared-table builder must know this so it
@@ -65,7 +65,7 @@ public:
     // ── Node scope (the bound node; used by the op translators) ──────────────────────────────
 
     // Typed attribute access. The op translators use this to read scalar operation parameters
-    // (e.g. "eps", "scale", "bias", "swapped", "op_case", "output_type", "rope_config") without
+    // (e.g. "eps", "scale", "bias", "swapped", "output_type", "rope_mode", "rope_config") without
     // dereferencing ggml's raw op_params layout.
     ov::Any get_attribute(const std::string& name) const override = 0;
 

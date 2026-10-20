@@ -202,10 +202,6 @@ public:
         m_attributes[name] = ov::Any(value);
         return *this;
     }
-    SingleOpBuilder& op_case(int c) {
-        m_attributes["op_case"] = ov::Any(c);
-        return *this;
-    }
 
     // Build the single-op decoder. A SingleOpDecoder exposes no "rope_config" attribute, so the
     // frontend's InputModel::get_rope_config returns a default (no shared rope table) and the LLM

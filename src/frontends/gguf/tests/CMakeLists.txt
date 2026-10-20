@@ -60,6 +60,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/op/clamp.cpp"
     "${FE_SRC_DIR}/op/concat.cpp"
     "${FE_SRC_DIR}/op/cont.cpp"
+    "${FE_SRC_DIR}/op/conv.cpp"
     "${FE_SRC_DIR}/op/cpy.cpp"
     "${FE_SRC_DIR}/op/cumsum.cpp"
     "${FE_SRC_DIR}/op/diag.cpp"
@@ -78,6 +79,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/op/pad.cpp"
     "${FE_SRC_DIR}/op/permute.cpp"
     "${FE_SRC_DIR}/op/pool_2d.cpp"
+    "${FE_SRC_DIR}/op/reduce.cpp"
     "${FE_SRC_DIR}/op/repeat.cpp"
     "${FE_SRC_DIR}/op/reshape.cpp"
     "${FE_SRC_DIR}/op/rms_norm.cpp"
@@ -98,6 +100,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/op/unary_elu.cpp"
     "${FE_SRC_DIR}/op/unary_gelu.cpp"
     "${FE_SRC_DIR}/op/unary_silu.cpp"
+    "${FE_SRC_DIR}/op/unary_math.cpp"
     "${FE_SRC_DIR}/op/view.cpp"
     "${FE_SRC_DIR}/op/weight.cpp"
 )

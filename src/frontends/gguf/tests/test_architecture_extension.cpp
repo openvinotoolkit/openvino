@@ -335,26 +335,23 @@ public:
             for (auto* value : {&q, &k, &v}) {
                 *value = ctx.node("GGML_OP_RESHAPE",
                                   {*value},
-                                  6,
                                   {{"reshape_target", std::vector<int64_t>{1, n_patches, n_head, head_size}}});
             }
             // Q/K contract over head_size; V contracts over patches.
-            q = ctx.node("GGML_OP_PERMUTE", {q}, 1, {{"perm", std::vector<int64_t>{0, 2, 1, 3}}});
-            k = ctx.node("GGML_OP_PERMUTE", {k}, 1, {{"perm", std::vector<int64_t>{0, 2, 1, 3}}});
-            v = ctx.node("GGML_OP_PERMUTE", {v}, 1, {{"perm", std::vector<int64_t>{0, 2, 3, 1}}});
+            q = ctx.node("GGML_OP_PERMUTE", {q}, {{"perm", std::vector<int64_t>{0, 2, 1, 3}}});
+            k = ctx.node("GGML_OP_PERMUTE", {k}, {{"perm", std::vector<int64_t>{0, 2, 1, 3}}});
+            v = ctx.node("GGML_OP_PERMUTE", {v}, {{"perm", std::vector<int64_t>{0, 2, 3, 1}}});
 
             auto kq = ctx.node("GGML_OP_MUL_MAT", {k, q});
             kq = ctx.node("GGML_OP_SCALE",
                           {kq},
-                          0,
                           {{"scale", 1.0f / std::sqrt(static_cast<float>(head_size))}, {"bias", 0.0f}});
             kq = ctx.node("GGML_OP_SOFT_MAX", {kq});
             auto kqv = ctx.node("GGML_OP_MUL_MAT", {v, kq});
 
-            cur = ctx.node("GGML_OP_PERMUTE", {kqv}, 1, {{"perm", std::vector<int64_t>{0, 2, 1, 3}}});
+            cur = ctx.node("GGML_OP_PERMUTE", {kqv}, {{"perm", std::vector<int64_t>{0, 2, 1, 3}}});
             cur = ctx.node("GGML_OP_RESHAPE",
-                           {ctx.node("GGML_OP_CONT", {cur}, 1)},
-                           6,
+                           {ctx.node("GGML_OP_CONT", {cur})},
                            {{"reshape_target", std::vector<int64_t>{1, 1, n_patches, n_embd}}});
             cur = ctx.node("GGML_OP_MUL_MAT", {tensors.require(p + "attn_out.weight"), cur});
             cur = ctx.node("GGML_OP_ADD", {cur, residual});
@@ -525,7 +522,6 @@ public:
         // The following operation can query the converter's inferred width immediately.
         graph.set_output(graph.node("GGML_OP_RESHAPE",
                                     {expanded},
-                                    6,
                                     {{"reshape_target", std::vector<int64_t>{1, 1, -1, expanded.ne(0)}}}));
         return graph.finish();
     }

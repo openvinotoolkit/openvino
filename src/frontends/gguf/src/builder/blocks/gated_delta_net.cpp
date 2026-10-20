@@ -199,16 +199,14 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
         store_parts(e, p + "ssm_z_beta_alpha", *zba, e.weight_qtype(gate_base));
         e.add_weight(p + "ssm_z_beta_alpha.weight");
         auto zba_out = e.add_op("GGML_OP_MUL_MAT", p + "z_beta_alpha", {p + "ssm_z_beta_alpha.weight", attn_norm});
-        z = e.add_op("GGML_OP_VIEW", p + "z", {zba_out}, 3, {{"view_slice", std::vector<int64_t>{3, 0, value_dim}}});
+        z = e.add_op("GGML_OP_VIEW", p + "z", {zba_out}, {{"view_slice", std::vector<int64_t>{3, 0, value_dim}}});
         beta = e.add_op("GGML_OP_VIEW",
                         p + "beta",
                         {zba_out},
-                        3,
                         {{"view_slice", std::vector<int64_t>{3, value_dim, H_v}}});
         alpha = e.add_op("GGML_OP_VIEW",
                          p + "alpha",
                          {zba_out},
-                         3,
                          {{"view_slice", std::vector<int64_t>{3, value_dim + H_v, H_v}}});
     } else if (ba) {
         e.add_weight(gate_base + ".weight");
@@ -216,8 +214,8 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
         store_parts(e, p + "ssm_beta_alpha", *ba, e.weight_qtype(beta_base));
         e.add_weight(p + "ssm_beta_alpha.weight");
         auto ba_out = e.add_op("GGML_OP_MUL_MAT", p + "beta_alpha", {p + "ssm_beta_alpha.weight", attn_norm});
-        beta = e.add_op("GGML_OP_VIEW", p + "beta", {ba_out}, 3, {{"view_slice", std::vector<int64_t>{3, 0, H_v}}});
-        alpha = e.add_op("GGML_OP_VIEW", p + "alpha", {ba_out}, 3, {{"view_slice", std::vector<int64_t>{3, H_v, H_v}}});
+        beta = e.add_op("GGML_OP_VIEW", p + "beta", {ba_out}, {{"view_slice", std::vector<int64_t>{3, 0, H_v}}});
+        alpha = e.add_op("GGML_OP_VIEW", p + "alpha", {ba_out}, {{"view_slice", std::vector<int64_t>{3, H_v, H_v}}});
     } else {
         e.add_weight(gate_base + ".weight");
         z = e.add_op("GGML_OP_MUL_MAT", p + "z", {gate_base + ".weight", attn_norm});
@@ -232,7 +230,6 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     beta = e.add_op("GGML_OP_RESHAPE",
                     p + "beta_4d",
                     {beta},
-                    6,
                     {{"reshape_target", std::vector<int64_t>{0, -1, H_v, 1}}, {"special_zero", true}});
 
     // g = softplus(ssm_alpha @ x + ssm_dt.bias) * ssm_a   (ggml: -A_log.exp() * softplus)
@@ -244,7 +241,6 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     g = e.add_op("GGML_OP_RESHAPE",
                  p + "gate_4d",
                  {g},
-                 6,
                  {{"reshape_target", std::vector<int64_t>{0, -1, H_v, 1}}, {"special_zero", true}});
 
     // ---- causal depthwise conv over [conv state | this step's tokens] ----
@@ -256,26 +252,25 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
 
     // [1,1,T,conv_dim] -> [1,1,conv_dim,T] so the conv window grows along the last axis.
     auto qkv_t = e.add_op("GGML_OP_TRANSPOSE", p + "qkv_t", {qkv});
-    auto conv_in = e.add_op("GGML_OP_CONCAT", p + "conv_in", {cs, qkv_t}, 0, {{"concat_axis", int{0}}});
+    auto conv_in = e.add_op("GGML_OP_CONCAT", p + "conv_in", {cs, qkv_t}, {{"concat_axis", int{0}}});
 
     // Next step's state is the trailing d_conv-1 columns of this window.
     const std::vector<int64_t> tail_slice{3, -(d_conv - 1), d_conv - 1};
-    auto cs_out = e.add_op("GGML_OP_VIEW", cs + "_out", {conv_in}, 3, {{"view_slice", tail_slice}});
+    auto cs_out = e.add_op("GGML_OP_VIEW", cs + "_out", {conv_in}, {{"view_slice", tail_slice}});
     graph.model_output_names.push_back(cs_out);
     graph.recurrent_states.emplace_back(cs, cs_out);
 
     e.add_named_weight(conv_w);
-    auto conv = e.add_op("GGML_OP_SSM_CONV", p + "conv_out", {conv_in, conv_w}, 0, {{"batch_major", true}});
+    auto conv = e.add_op("GGML_OP_SSM_CONV", p + "conv_out", {conv_in, conv_w}, {{"batch_major", true}});
     conv = e.add_op("GGML_UNARY_OP_SILU", p + "conv_silu", {conv});
 
     // ---- split the conv output into q | k | v; the fused op L2-normalizes q/k ----
     auto slice_heads = [&](const std::string& name, int64_t off, int64_t width, int64_t heads, int64_t dim) {
         const std::vector<int64_t> sl{3, off, width};
-        auto s = e.add_op("GGML_OP_VIEW", p + name + "_s", {conv}, 3, {{"view_slice", sl}});
+        auto s = e.add_op("GGML_OP_VIEW", p + name + "_s", {conv}, {{"view_slice", sl}});
         return e.add_op("GGML_OP_RESHAPE",
                         p + name,
                         {s},
-                        6,
                         {{"reshape_target", std::vector<int64_t>{0, -1, heads, dim}}, {"special_zero", true}});
     };
     auto q = slice_heads("q_conv", 0, key_dim, H_k, S);
@@ -294,7 +289,6 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     auto attn = e.add_op("GGML_OP_GATED_DELTA_NET",
                          p + "gdn",
                          {q, k, v, g, beta, ss},
-                         0,
                          {{"gdn_state_slots", int64_t{1}},
                           {"fuse_qk_l2norm", true},
                           {"qk_l2_norm_eps", cfg.rms_eps},
@@ -310,14 +304,12 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     auto z_4d = e.add_op("GGML_OP_RESHAPE",
                          p + "z_4d",
                          {z},
-                         6,
                          {{"reshape_target", std::vector<int64_t>{0, -1, H_v, head_v}}, {"special_zero", true}});
     auto z_silu = e.add_op("GGML_UNARY_OP_SILU", p + "z_silu", {z_4d});
     out = e.add_op("GGML_OP_MUL", p + "gdn_gated", {out, z_silu});
     out = e.add_op("GGML_OP_RESHAPE",
                    p + "gdn_merged",
                    {out, attn_norm},
-                   0,
                    {{"reshape_target", std::vector<int64_t>{1, 1, -1, value_dim}},
                     {"shape_axes", std::vector<int64_t>{0, 1, 2, -1}}});
 

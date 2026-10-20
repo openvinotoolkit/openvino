@@ -155,7 +155,6 @@ void GgufGraphContext::build_attn_inp_kv(bool swa) {
 
 GgufValue GgufGraphContext::node(const std::string& op_type,
                                  const std::vector<GgufValue>& inputs,
-                                 int op_case,
                                  const std::map<std::string, ov::Any>& attrs) {
     m_impl->check_open();
     std::vector<std::string> names;
@@ -164,7 +163,7 @@ GgufValue GgufGraphContext::node(const std::string& op_type,
         names.push_back(m_impl->value_name(input));
     }
     const auto name = m_impl->fresh(op_type);
-    m_impl->emitter.add_op(op_type, name, names, op_case, attrs);
+    m_impl->emitter.add_op(op_type, name, names, attrs);
     return GgufValue(name, m_impl->emitter.value(name));
 }
 
@@ -179,12 +178,12 @@ void GgufGraphContext::configure_rope(const RopeConfig& config) {
 // Normalization blocks
 
 GgufValue GgufGraphContext::build_norm(const GgufValue& cur, const GgufValue& w, float eps) {
-    auto out = node("GGML_OP_RMS_NORM", {cur}, 0, {{"eps", eps}});
+    auto out = node("GGML_OP_RMS_NORM", {cur}, {{"eps", eps}});
     return w ? node("GGML_OP_MUL", {out, w}) : out;
 }
 
 GgufValue GgufGraphContext::build_norm_ln(const GgufValue& cur, const GgufValue& w, const GgufValue& b, float eps) {
-    auto out = node("GGML_OP_NORM", {cur}, 0, {{"eps", eps}});
+    auto out = node("GGML_OP_NORM", {cur}, {{"eps", eps}});
     if (w) {
         out = node("GGML_OP_MUL", {out, w});
     }
@@ -211,7 +210,7 @@ void GgufGraphContext::set_output(const GgufValue& value, const std::string& nam
     OPENVINO_ASSERT(!name.empty() && !emitter.graph()->values->count(name) && !emitter.has_weight(name),
                     "[GGUF] output name is already used: ",
                     name);
-    emitter.add_op("GGML_OP_CONT", name, {m_impl->value_name(value)}, 1, {{"op_case", 1}});
+    emitter.add_op("GGML_OP_CONT", name, {m_impl->value_name(value)});
     // The copy may be the source tensor itself; keep the names it already exposes.
     emitter.value(name).get_tensor().add_names({name});
     emitter.graph()->model_output_names.push_back(name);

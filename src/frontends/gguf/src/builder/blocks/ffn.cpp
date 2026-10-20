@@ -33,7 +33,7 @@ std::string gated_gate_up(GraphEmitter& e,
     if (has_bias) {
         up = add_bias(e, up, bias_weight_name(up_w), up_name + "_b");
     }
-    return e.add_op(glu_op, glu_name, {gate, up}, 0, {{"swapped", false}});
+    return e.add_op(glu_op, glu_name, {gate, up}, {{"swapped", false}});
 }
 
 }  // namespace
@@ -84,7 +84,7 @@ std::string dense_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::stri
         glu = e.add_op("GGML_OP_SQR", p + "ffn_relu_squared", {relu});
     } else if (fused_ffn) {
         auto up = e.add_op("GGML_OP_MUL_MAT", p + "ffn_up", {p + "ffn_up.weight", ffn_norm});
-        glu = e.add_op("GGML_GLU_OP_SWIGLU", p + "ffn_swiglu", {up}, 0, {{"swapped", false}});
+        glu = e.add_op("GGML_GLU_OP_SWIGLU", p + "ffn_swiglu", {up}, {{"swapped", false}});
     } else {
         glu = swiglu_gate_up(e,
                              p + "ffn_gate.weight",
@@ -112,7 +112,6 @@ std::string moe_ffn(GraphEmitter& e,
         return e.add_op("GGML_OP_RESHAPE",
                         name,
                         {x},
-                        6,
                         {{"reshape_target", std::vector<int64_t>{1, 1, -1, cfg.n_embd}}, {"special_zero", false}});
     };
     const auto ffn_norm = flatten(p + "moe_input", input);
@@ -129,7 +128,7 @@ std::string moe_ffn(GraphEmitter& e,
     if (cfg.moe_sigmoid_gating) {
         probs = e.add_op("GGML_UNARY_OP_SIGMOID", p + "moe_probs", {logits});
     } else if (!cfg.moe_softmax_weight) {
-        probs = e.add_op("GGML_OP_SOFT_MAX", p + "moe_probs", {logits}, 0, {{"softmax_axis", int64_t(-1)}});
+        probs = e.add_op("GGML_OP_SOFT_MAX", p + "moe_probs", {logits}, {{"softmax_axis", int64_t(-1)}});
     }
 
     // top-k expert selection -> indices [1,1,T,K] (i32).
@@ -139,16 +138,15 @@ std::string moe_ffn(GraphEmitter& e,
     auto selected = e.add_op("GGML_OP_TOP_K",
                              p + "moe_topk",
                              {selection_probs},
-                             0,
                              {{"k", int64_t{cfg.n_expert_used}},
                               {"expert_groups", cfg.expert_groups},
                               {"expert_groups_used", cfg.expert_groups_used}});
 
-    // weights = gather probs by selected; op_case 10 returns a per-expert column
-    // [1,T,K,1] (robust to dynamic T). gpt-oss softmaxes over the K (expert) axis.
-    auto weights = e.add_op("GGML_OP_GET_ROWS", p + "moe_w", {probs, selected}, 10);
+    // weights = gather probs by selected as a per-expert column [1,T,K,1] (robust to dynamic T).
+    // gpt-oss softmaxes over the K (expert) axis.
+    auto weights = e.add_op("GGML_OP_GET_ROWS", p + "moe_w", {probs, selected}, {{"gather_row_elements", true}});
     if (cfg.moe_softmax_weight) {
-        weights = e.add_op("GGML_OP_SOFT_MAX", p + "moe_w_sm", {weights}, 0, {{"softmax_axis", int64_t(2)}});
+        weights = e.add_op("GGML_OP_SOFT_MAX", p + "moe_w_sm", {weights}, {{"softmax_axis", int64_t(2)}});
     }
     // Renormalize the selected top-K gating weights to sum to 1 (llama.cpp build_moe_ffn's
     // norm_w path, e.g. qwen3moe/glm4moe/bailingmoe2). On the softmax-before-topk path the
@@ -163,7 +161,6 @@ std::string moe_ffn(GraphEmitter& e,
         w_sum = e.add_op("GGML_OP_CLAMP",
                          p + "moe_w_sum_clamped",
                          {w_sum},
-                         0,
                          {{"clamp_min", 6.1e-5f}, {"clamp_max", std::numeric_limits<float>::max()}});
         weights = e.add_op("GGML_OP_DIV", p + "moe_w_norm", {weights, w_sum});
     }
@@ -189,12 +186,10 @@ std::string moe_ffn(GraphEmitter& e,
         gate = e.add_op("GGML_OP_VIEW",
                         p + "moe_gate",
                         {joint},
-                        3,
                         {{"view_slice", std::vector<int64_t>{3, 0, width / 2}}});
         up = e.add_op("GGML_OP_VIEW",
                       p + "moe_up",
                       {joint},
-                      3,
                       {{"view_slice", std::vector<int64_t>{3, width / 2, width / 2}}});
     } else {
         e.add_weight(p + "ffn_gate_exps.weight");
@@ -212,15 +207,13 @@ std::string moe_ffn(GraphEmitter& e,
     if (cfg.moe_swiglu_oai) {
         act = e.add_op("GGML_GLU_OP_SWIGLU_OAI",
                        p + "moe_act",
-                       {gate, up},
-                       0,  // Attribute names must match the cgraph decoder's (ggml-decoder.cpp), which
+                       {gate, up},  // Attribute names must match the cgraph decoder's (ggml-decoder.cpp), which
                            // is the external contract the shared translators read: glu_alpha/glu_limit.
                        {{"swapped", false}, {"glu_alpha", 1.702f}, {"glu_limit", 7.0f}});
     } else {
         act = e.add_op(cfg.is_geglu ? "GGML_GLU_OP_GEGLU" : "GGML_GLU_OP_SWIGLU",
                        p + "moe_act",
                        {gate, up},
-                       0,
                        {{"swapped", false}});
     }
     auto experts = e.add_op("GGML_OP_MUL_MAT_ID", p + "moe_down", {p + "ffn_down_exps.weight", act, selected});
@@ -235,10 +228,12 @@ std::string moe_ffn(GraphEmitter& e,
             e.add_op("GGML_OP_RESHAPE",
                      p + "moe_scale_row",
                      {p + "ffn_down_exps.scale"},
-                     6,
                      {{"reshape_target", std::vector<int64_t>{1, 1, 1, cfg.n_expert}}, {"special_zero", false}});
         scales =
-            e.add_op("GGML_OP_GET_ROWS", p + "moe_selected_scales", {scales, selected}, 10, {{"shared_row", true}});
+            e.add_op("GGML_OP_GET_ROWS",
+                     p + "moe_selected_scales",
+                     {scales, selected},
+                     {{"gather_row_elements", true}, {"shared_row", true}});
         weights = e.add_op("GGML_OP_MUL", p + "moe_scaled_weights", {weights, scales});
     }
 
@@ -252,7 +247,6 @@ std::string moe_ffn(GraphEmitter& e,
     auto moe_out = e.add_op("GGML_OP_RESHAPE",
                             p + "moe_out",
                             {summed},
-                            6,
                             {{"reshape_target", std::vector<int64_t>{1, 1, -1, cfg.n_embd}}, {"special_zero", false}});
 
     // Shared experts are always active; some checkpoints omit expert_shared_count.
@@ -273,7 +267,6 @@ std::string moe_ffn(GraphEmitter& e,
                 e.add_op("GGML_OP_RESHAPE",
                          p + "shexp_router_weight",
                          {p + "ffn_gate_inp_shexp.weight"},
-                         6,
                          {{"reshape_target", std::vector<int64_t>{1, 1, 1, cfg.n_embd}}, {"special_zero", false}});
             auto gate = e.add_op("GGML_OP_MUL_MAT", p + "shexp_router", {gate_weight, ffn_norm});
             gate = e.add_op("GGML_UNARY_OP_SIGMOID", p + "shexp_router_sigmoid", {gate});
@@ -284,7 +277,6 @@ std::string moe_ffn(GraphEmitter& e,
     return e.add_op("GGML_OP_RESHAPE",
                     p + "moe_output_layout",
                     {moe_out, input},
-                    0,
                     {{"reshape_target", std::vector<int64_t>{1, 1, -1, cfg.n_embd}},
                      {"shape_axes", std::vector<int64_t>{0, 1, 2, -1}}});
 }
@@ -297,7 +289,7 @@ std::string gemma4_moe_ffn(GraphEmitter& e,
     auto dense = geglu_ffn(e, cfg, p, dense_norm);
     dense = rms_norm(e, dense, p + "post_ffw_norm_1.weight", p + "dense_post_norm", cfg.rms_eps);
     auto routed_input = rms_norm(e, input, p + "pre_ffw_norm_2.weight", p + "expert_pre_norm", cfg.rms_eps);
-    auto router = e.add_op("GGML_OP_RMS_NORM", p + "router_norm", {input}, 0, {{"eps", cfg.rms_eps}});
+    auto router = e.add_op("GGML_OP_RMS_NORM", p + "router_norm", {input}, {{"eps", cfg.rms_eps}});
     router = scale(e, router, 1.f / std::sqrt(float(cfg.n_embd)), p + "router_scale");
     e.add_named_weight(p + "ffn_gate_inp.scale");
     router = e.add_op("GGML_OP_MUL", p + "router_weighted", {router, p + "ffn_gate_inp.scale"});

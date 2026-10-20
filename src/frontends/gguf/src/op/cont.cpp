@@ -2,78 +2,63 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstdint>
-#include <memory>
 #include <vector>
 
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/reshape.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
 
+// GGML_OP_CONT materializes its operand in ggml's contiguous layout. The operand is already the logical
+// tensor (any PERMUTE/TRANSPOSE/VIEW was translated by its own op), so CONT only applies the dimension
+// merge/split ggml_cont_* may perform. The decoder describes it as "cont_reshape": the output dims in
+// OpenVINO order with -1 on the runtime (token) axis.
 OutputVector translate_cont(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
-    int op_case = context.get_attribute<int>("op_case", 0);
-    FRONT_END_CHECK_IMPLEMENTED(op_case == 1 || op_case == 2 || op_case == 3, "Unsupported CONT case");
-
-    ov::Output<Node> res;
-
-    if (op_case == 1 || op_case == 2) {
-        // PERMUTE/TRANSPOSE is already materialized as an OV Transpose, but ggml CONT may also
-        // collapse dimensions (attention heads are commonly flattened before the output
-        // projection). Preserve that logical output shape instead of returning the transposed
-        // tensor with an extra head axis.
-        auto input = context.get_input(0);
-        auto tgt = context.get_attribute<std::vector<int64_t>>("cont_reshape", {});
+    auto input = context.get_input(0);
+    auto target = context.get_attribute<std::vector<int64_t>>("cont_reshape", {});
+    if (target.empty()) {
+        // No target means pass-through, which is only valid if the operand already has the CONT's layout: every
+        // dimension static in the operand is unchanged (a runtime axis may have been captured with a value).
         const auto output_shape = context.get_output_shape();
-        // Without output metadata or a target, CONT preserves the input shape.
-        if ((output_shape.rank().is_static() && input.get_partial_shape().same_scheme(output_shape)) ||
-            (output_shape.rank().is_dynamic() && tgt.empty())) {
-            return {input};
+        const auto input_shape = input.get_partial_shape();
+        bool same_layout = output_shape.rank().is_dynamic();
+        if (!same_layout && input_shape.rank().is_static() && input_shape.rank() == output_shape.rank()) {
+            same_layout = true;
+            for (int64_t i = 0; i < input_shape.rank().get_length(); ++i) {
+                same_layout = same_layout &&
+                              (input_shape[i].is_dynamic() || (output_shape[i].is_static() && output_shape[i] == input_shape[i]));
+            }
         }
-        FRONT_END_OP_CONVERSION_CHECK(!tgt.empty(),
-                                      "CONT from a transpose requires a \"cont_reshape\" target: input ",
+        FRONT_END_OP_CONVERSION_CHECK(same_layout,
+                                      "CONT that changes the shape requires a \"cont_reshape\" target: input ",
                                       input.get_partial_shape(),
                                       " != output ",
-                                      context.get_output_shape());
-        res = std::make_shared<ov::op::v1::Reshape>(input,
-                                                    ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt),
-                                                    false);
-    } else {
-        // The input comes from a VIEW. Resolve the view, then reshape to the CONT's own output layout
-        // (ggml_cont can merge/split dims, e.g. qwen3-next's a/b: [tok,8,2,1] -> [8*tok,2,1,1]). The
-        // decoder supplies the reshape target as "cont_reshape" -- the output dims (OV order) with -1 on
-        // the inferred dynamic (token) axis -- so the token count stays dynamic and a 0-token decode step
-        // reshapes correctly. When the output is fully static "cont_reshape" carries no -1 (plain reshape).
-        // The CONT's input is an already-resolved VIEW node (translate_view emitted its Slice/Reshape),
-        // so the view offset/window is already applied -- do NOT re-slice via process_view_input, which
-        // would apply the offset a second time (qwen3-next a/b: offset 2 slices axis3 [2,4) -> clamped
-        // to length 0). Just reshape the resolved input to the CONT's own layout.
-        auto input = context.get_input(0);
-        auto tgt = context.get_attribute<std::vector<int64_t>>("cont_reshape", {});
-        // No target means pass-through, which is only valid if the shape is already the CONT's own.
-        FRONT_END_OP_CONVERSION_CHECK(!tgt.empty() || context.get_output_shape().rank().is_dynamic() ||
-                                          input.get_partial_shape().same_scheme(context.get_output_shape()),
-                                      "CONT from a VIEW requires a \"cont_reshape\" target: input ",
-                                      input.get_partial_shape(),
-                                      " != output ",
-                                      context.get_output_shape());
-        if (!tgt.empty()) {
-            auto tgt_node = ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt);
-            res = std::make_shared<ov::op::v1::Reshape>(input, tgt_node, false);
-            res.get_node_shared_ptr()->set_friendly_name("cont_reshape_" + context.get_name());
-        }
-        if (!res.get_node_shared_ptr()) {
-            // A pass-through CONT must not rename the shared input producer.
-            return {input};
-        }
+                                      output_shape);
+        // A pass-through CONT must not rename the shared input producer.
+        return {input};
     }
-
+    auto pattern = ov::op::v0::Constant::create(ov::element::i64, {target.size()}, target);
+    auto res = std::make_shared<ov::op::v1::Reshape>(input, pattern, false);
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
+}
+
+// GGML_OP_DUP copies its operand into a tensor of the output's type. The copy is CONT's; a differing output type
+// ("dst_type", the output's element type) is a conversion on top of it.
+OutputVector translate_dup(const NodeContext& context) {
+    auto outputs = translate_cont(context);
+    const auto dst_type = context.get_attribute<ov::element::Type>("dst_type", ov::element::dynamic);
+    if (dst_type.is_static() && outputs[0].get_element_type() != dst_type) {
+        auto res = std::make_shared<ov::op::v0::Convert>(outputs[0], dst_type);
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
+    }
+    return outputs;
 }
 
 }  // namespace ov::frontend::gguf::op

@@ -74,7 +74,7 @@ constexpr float NEG_INF = -65504.0f;
 // old approach) misses pe_tok_flat: it would then disagree with the fixed embd/projection branch
 // on which axis holds the leading placeholder, and their eventual sum broadcasts to a spurious
 // [tokens, tokens, ...] shape instead of [tokens, ...]. Axis 1, not 0, because attention's own
-// "merge heads back" reshape (op_case 2 in reshape.cpp) already puts a literal 1 there and infers
+// "merge heads back" reshape ([0, 1, -1, H*S] with special_zero) already puts a literal 1 there and infers
 // axis 2 from whatever is left, so the two must agree on which axis holds the placeholder for
 // their sum (ffn_inp) to broadcast correctly; inserting at axis 1 also leaves the pre-PA layout
 // numerically unchanged (indices' own leading axis is already 1 there), and still gives Q/K/V's
