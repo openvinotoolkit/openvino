@@ -44,13 +44,15 @@ DisableFP16CompForDirectMultiplySinCos::DisableFP16CompForDirectMultiplySinCos()
 
         // MarkSugraphsToKeepInMixedPrecision propagates a mark down through elementwise ops and stops at a Convert
         // or an op outside its propagation list. Without a Convert here, marking Sin/Cos also keeps every consumer
-        // of the tables (the whole rotation and its side inputs) in f32. When compressing to f16, ConvertPrecision
-        // turns this Convert's f32 destination into f16; otherwise it is a no-op Convert and is eliminated.
+        // of the tables (the whole rotation and its side inputs) in f32. When compressing to f16,
+        // AlignMixedFP32FP16Types ends the f32 region with its own f16 Convert in front of this one, which becomes
+        // f16 -> f16 and is removed; otherwise it is a no-op Convert and is eliminated.
         const auto add_f16_boundary = [](const std::shared_ptr<ov::Node>& trig) -> bool {
             std::vector<ov::Input<ov::Node>> consumers;
             for (const auto& input : trig->output(0).get_target_inputs()) {
                 const auto consumer = input.get_node()->shared_from_this();
-                if (!ov::is_type_any_of<ov::op::v0::Result, ov::op::v0::Convert>(consumer) && !ov::is_conversion_disabled(consumer, element::f16))
+                if (!ov::is_type_any_of<ov::op::v0::Result, ov::op::v0::Convert>(consumer) &&
+                    !ov::is_conversion_disabled(consumer, trig->get_output_element_type(0), element::f16))
                     consumers.push_back(input);
             }
             if (consumers.empty())
@@ -76,6 +78,27 @@ DisableFP16CompForDirectMultiplySinCos::DisableFP16CompForDirectMultiplySinCos()
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(sin, "DisableFP16CompForDirectMultiplySinCos");
+    register_matcher(m, callback);
+}
+
+RestoreFP32SinCosForFP32Consumers::RestoreFP32SinCosForFP32Consumers() {
+    using namespace ov::pass::pattern;
+
+    auto trig = wrap_type<ov::op::v0::Sin, ov::op::v0::Cos>(type_matches(element::f32));
+    auto to_f16 = wrap_type<ov::op::v0::Convert>({trig}, type_matches(element::f16));
+    // AlignMixedFP32FP16Types marks the Convert it puts in front of a node kept in f32.
+    auto to_f32 = wrap_type<ov::op::v0::Convert>({to_f16}, [](const ov::Output<ov::Node>& output) {
+        return output.get_element_type() == element::f32 && ov::is_conversion_disabled(output.get_node_shared_ptr(), element::f16);
+    });
+
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto decompressed = pattern_map.at(to_f32);
+        decompressed.replace(pattern_map.at(trig));
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(to_f32, "RestoreFP32SinCosForFP32Consumers");
     register_matcher(m, callback);
 }
 

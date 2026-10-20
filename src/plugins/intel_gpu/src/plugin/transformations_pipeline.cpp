@@ -835,6 +835,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           keep_precision_sensitive_in_fp32_1,
                                                           convert_input_output_precision,
                                                           store_original_precision_as_rt_attribute);
+        manager.register_pass<RestoreFP32SinCosForFP32Consumers>();
 
         // The one_hot primitive takes on/off as compile time values,
         // so OneHot ops fed by a runtime scalar are turned into a boolean mask + Select.
