@@ -13,6 +13,11 @@ include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
 # convert white-space separated string to list
 string(REPLACE " " ";" SYCL_EXTRA_FLAGS "${SYCL_EXTRA_FLAGS}")
 
+# Add the SYCL target flags for the GPU vendor.
+if(GPU_VENDOR STREQUAL "NVIDIA")
+    list(APPEND SYCL_EXTRA_FLAGS -fsycl-targets=nvptx64-nvidia-cuda)
+endif()
+
 if(OV_COMPILER_IS_INTEL_LLVM)
     # For windows we need to disable warning as error option to make FindSYCL.cmake work
     if (WIN32)
@@ -53,11 +58,6 @@ if(OV_COMPILER_IS_CLANG)
                 return 0;
             }
         ")
-
-        # Compile SYCL device code for NVIDIA GPUs.
-        if(GPU_VENDOR STREQUAL "NVIDIA")
-            list(APPEND SYCL_EXTRA_FLAGS -fsycl-targets=nvptx64-nvidia-cuda)
-        endif()
 
         cmake_push_check_state(RESET)
         string(JOIN " " CMAKE_REQUIRED_FLAGS ${FSYCL_OPTION} ${SYCL_EXTRA_FLAGS})
