@@ -169,10 +169,7 @@ ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matche
     auto output_sin = opp::wrap_type<ov::op::v0::Sin>({concat_2});
     auto output_cos = opp::wrap_type<ov::op::v0::Cos>({concat_2});
 
-    init_cb = [=](const auto& matches) {
-        const auto& map_sin = matches.at(output_sin)[0];
-        const auto& map_cos = matches.at(output_cos)[0];
-
+    bind_match = [=](const auto& map_sin, const auto& map_cos) {
         this->matched_position_ids = map_sin.at(position_ids).get_node_shared_ptr();
         this->matched_concat = map_sin.at(concat_1).get_node_shared_ptr();
         this->matched_inv_freq = map_sin.at(inv_freq).get_node_shared_ptr();
@@ -187,11 +184,9 @@ ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matche
 
         LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name()
                                      << " (duplicate_freqs=" << duplicate_freqs << ")");
-
-        return true;
     };
 
-    matcher.register_patterns({output_sin, output_cos}, make_matcher_callback());
+    matcher.register_patterns({output_sin, output_cos}, make_matcher_callback(output_sin, output_cos));
 }
 
 ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matcher("sin-cos-matcher") {
@@ -245,10 +240,7 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
     auto output_sin = opp::wrap_type<ov::op::v0::Sin>({concat_2});
     auto output_cos = opp::wrap_type<ov::op::v0::Cos>({concat_2});
 
-    init_cb = [=](const auto& matches) {
-        const auto& map_sin = matches.at(output_sin)[0];
-        const auto& map_cos = matches.at(output_cos)[0];
-
+    bind_match = [=](const auto& map_sin, const auto& map_cos) {
         this->matched_position_ids = map_sin.at(position_ids).get_node_shared_ptr();
         this->matched_concat = map_sin.at(concat_1).get_node_shared_ptr();
         this->matched_inv_freq = map_sin.at(inv_freq_short).get_node_shared_ptr();
@@ -262,11 +254,9 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
         this->matched_sin = map_sin.at(output_sin).get_node_shared_ptr();
 
         LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name());
-
-        return true;
     };
 
-    matcher.register_patterns({output_sin, output_cos}, make_matcher_callback());
+    matcher.register_patterns({output_sin, output_cos}, make_matcher_callback(output_sin, output_cos));
 }
 
 ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() : matcher("sin-cos-matcher") {
@@ -328,10 +318,7 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
     auto output_sin = opp::wrap_type<ov::op::v0::Sin>({concat_2});
     auto output_cos = opp::wrap_type<ov::op::v0::Cos>({concat_2});
 
-    init_cb = [=](const auto& matches) {
-        const auto& map_sin = matches.at(output_sin)[0];
-        const auto& map_cos = matches.at(output_cos)[0];
-
+    bind_match = [=](const auto& map_sin, const auto& map_cos) {
         this->matched_position_ids = map_sin.at(position_ids).get_node_shared_ptr();
         this->matched_concat = map_sin.at(concat_1).get_node_shared_ptr();
         this->matched_short_factor = map_sin.at(short_factor).get_node_shared_ptr();
@@ -347,11 +334,9 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
         this->matched_sin = map_sin.at(output_sin).get_node_shared_ptr();
 
         LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name());
-
-        return true;
     };
 
-    matcher.register_patterns({output_sin, output_cos}, make_matcher_callback());
+    matcher.register_patterns({output_sin, output_cos}, make_matcher_callback(output_sin, output_cos));
 }
 
 namespace {
