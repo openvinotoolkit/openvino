@@ -161,15 +161,14 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
         const bool is_compressed = is_gate_compressed;
 
         if (is_compressed) {
-            const auto is_zp_supported = [](const ov::Output<ov::Node>& zp) {
-                // Scalar zero point is supported only for u3 in MoE via broadcasting it to scale shape.
-                // Note: other compressed types usually don't have scalar zero points:
-                // NNCF uses signed element type (which doesn't exists for u3) instead in such cases
-                return zp.get_element_type() == ov::element::u3 || ov::shape_size(zp.get_shape()) != 1;
+            const auto is_zp_supported = [](const ov::Output<ov::Node>& zp, const ov::Output<ov::Node>& weights) {
+                // Scalar zero point is supported only for u3 weights in MoE via broadcasting it to scale shape.
+                // Note: other compressed types usually don't have scalar zero points
+                return weights.get_element_type() == ov::element::u3 || ov::shape_size(zp.get_shape()) != 1;
             };
-            if (!is_zp_supported(pm.at(gate_zp_m)) ||
-                !is_zp_supported(pm.at(up_zp_m)) ||
-                !is_zp_supported(pm.at(down_zp_m))) {
+            if (!is_zp_supported(pm.at(gate_zp_m), gate_w) ||
+                !is_zp_supported(pm.at(up_zp_m), up_w) ||
+                !is_zp_supported(pm.at(down_zp_m), down_w)) {
                 return false;
             }
 
@@ -180,9 +179,11 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
                     return zp;
                 }
                 auto result = zp;
-                // Note: OneDNN groupedMM supports only u8 zero points for u3 weights.
-                result = ov::op::util::make_try_fold<v0::Convert>(result, ov::element::u8);
-                ov::copy_runtime_info(zp.get_node_shared_ptr(), result.get_node_shared_ptr());
+                // Note: OneDNN groupedMM has no u3 zero points: convert them to u8 (as for FullyConnectedCompressed)
+                if (zp.get_element_type() == ov::element::u3) {
+                    result = ov::op::util::make_try_fold<v0::Convert>(result, ov::element::u8);
+                    ov::copy_runtime_info(zp.get_node_shared_ptr(), result.get_node_shared_ptr());
+                }
                 // OneDNN currently doesn't support scalar zero points for GroupedMM
                 if (ov::shape_size(zp.get_shape()) == 1) {
                     const auto& scale_shape = scale.get_shape();
