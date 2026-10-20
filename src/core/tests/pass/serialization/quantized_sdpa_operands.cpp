@@ -42,7 +42,7 @@ TEST_F(QuantizedSDPAOperandsSerializationTest, RoundTripKeepsOperandTypes) {
     const auto model = std::make_shared<Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
 
     pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(model);
-    const auto read = readModel(m_out_xml_path, m_out_bin_path);
+    const auto read = readModel(m_out_xml_path.string(), m_out_bin_path.string());
 
     const auto read_sdpa = read->get_results()[0]->input_value(0).get_node_shared_ptr();
     ASSERT_NE(as_type_ptr<op::v13::ScaledDotProductAttention>(read_sdpa), nullptr);
