@@ -14,14 +14,12 @@
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/divide.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/attributes.hpp"
-#include "transformations/rt_info/nonconvertible_divide.hpp"
 
 namespace ov::test {
 
@@ -316,29 +314,6 @@ TEST(RTInfoSerialization, disable_precision_conversion_xml_format) {
         ov::pass::Serialize(model_ss, weights_ss).run_on_model(built_model);
         EXPECT_EQ(ref_ir_xml, model_ss.str());
     }
-}
-
-TEST_F(RTInfoSerializationTest, rt_info_nonconvertible_divide_roundtrip) {
-    std::shared_ptr<ov::Model> model;
-    {
-        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 10});
-        auto divisor = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {41.0f});
-        auto divide = std::make_shared<ov::op::v1::Divide>(data, divisor);
-        ov::disable_divide_conversion(divide);
-        auto result = std::make_shared<ov::op::v0::Result>(divide);
-        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data});
-    }
-
-    ov::pass::Manager m;
-    m.register_pass<ov::pass::Serialize>(m_out_xml_path, m_out_bin_path);
-    m.run_passes(model);
-
-    auto f = getWithIRFrontend(m_out_xml_path, m_out_bin_path);
-    ASSERT_NE(nullptr, f);
-
-    auto divide = f->get_results()[0]->get_input_node_shared_ptr(0);
-    ASSERT_TRUE(ov::is_type<ov::op::v1::Divide>(divide));
-    EXPECT_TRUE(ov::divide_is_nonconvertible(divide));
 }
 
 TEST_F(RTInfoSerializationTest, all_attributes_v10) {

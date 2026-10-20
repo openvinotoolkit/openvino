@@ -27,10 +27,6 @@ public:
 
     NonconvertibleDivide() = default;
 
-    bool visit_attributes(AttributeVisitor& visitor) override {
-        return true;
-    }
-
     bool is_copyable() const override {
         return false;
     }
