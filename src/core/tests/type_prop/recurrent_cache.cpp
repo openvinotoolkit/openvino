@@ -2,15 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "openvino/op/recurrent_cache.hpp"
-#include "openvino/op/parameter.hpp"
+
 #include <gtest/gtest.h>
+
+#include <limits>
+
+#include "openvino/op/parameter.hpp"
 
 namespace {
 ov::OutputVector cache_inputs() {
     using namespace ov;
     OutputVector args;
-    for (const auto &shape : std::vector<PartialShape>{
-             {1, 1, 12, 21}, {1, 1, 1, -1}, {1, 1, 1, -1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 2}}) {
+    for (const auto& shape : std::vector<PartialShape>{{1, 1, 12, 21},
+                                                       {1, 1, 1, -1},
+                                                       {1, 1, 1, -1},
+                                                       {1, 1, 1, 1},
+                                                       {1, 1, 1, 1},
+                                                       {1, 1, 1, 2}}) {
         args.push_back(std::make_shared<op::v0::Parameter>(args.empty() ? element::f32 : element::i32, shape));
     }
     return args;
@@ -42,12 +50,18 @@ TEST(type_prop, recurrent_state_update_validation) {
     EXPECT_EQ(clone->get_value_size(), 7);
     EXPECT_THROW(std::make_shared<op::internal::RecurrentStateUpdate>(args, 0, 7), NodeValidationFailure);
     EXPECT_THROW(std::make_shared<op::internal::RecurrentStateUpdate>(args, 6, 7), NodeValidationFailure);
+    EXPECT_THROW(std::make_shared<op::internal::RecurrentStateUpdate>(args, std::numeric_limits<int64_t>::max(), 7),
+                 NodeValidationFailure);
+    args[2] = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic());
+    EXPECT_THROW(std::make_shared<op::internal::RecurrentStateUpdate>(args), NodeValidationFailure);
     args[2] = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{1, 1, 1, 3});
     EXPECT_THROW(std::make_shared<op::internal::RecurrentStateUpdate>(args), NodeValidationFailure);
 }
 TEST(type_prop, recurrent_cache_validation) {
     using namespace ov;
     auto args = cache_inputs();
+    EXPECT_THROW(std::make_shared<op::internal::RecurrentStateGather>(args, std::numeric_limits<int64_t>::max(), 7),
+                 NodeValidationFailure);
     args[3] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 1, 1, 1});
     EXPECT_THROW(std::make_shared<op::internal::RecurrentStateGather>(args), NodeValidationFailure);
     args = cache_inputs();
@@ -59,4 +73,4 @@ TEST(type_prop, recurrent_cache_validation) {
     EXPECT_THROW(std::make_shared<op::internal::RecurrentConvCache>(args, 3), NodeValidationFailure);
     EXPECT_THROW(std::make_shared<op::internal::RecurrentConvCache>(args, 0), NodeValidationFailure);
 }
-} // namespace
+}  // namespace

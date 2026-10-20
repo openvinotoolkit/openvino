@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <gtest/gtest.h>
+
+#include <algorithm>
 #include <openvino/core/type/float16.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/parameter.hpp>
@@ -9,13 +11,22 @@
 #include <openvino/op/result.hpp>
 #include <openvino/runtime/core.hpp>
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
+#include <openvino/runtime/properties.hpp>
 #include <sstream>
+#include <utility>
+#include <vector>
 
 namespace {
 // Run changing B/T/maps/reset offsets through the same compiled graph and imported blob.
 // Reference deliberately uses a reset copy, followed by gather and ordered row writes.
-void run_cache_case(bool conv, ov::element::Type precision, ov::element::Type indices, bool fixed_shape = false,
-                    bool transpose = false) {
+void run_cache_case(bool conv,
+                    ov::element::Type precision,
+                    ov::element::Type indices,
+                    bool fixed_shape = false,
+                    bool transpose = false,
+                    ov::element::Type cache_precision = ov::element::dynamic) {
+    if (cache_precision == ov::element::dynamic)
+        cache_precision = precision;
     constexpr int S = 12, C = 7, H = 3, F = C * H;
     ov::ParameterVector params;
     ov::OutputVector args;
@@ -24,7 +35,7 @@ void run_cache_case(bool conv, ov::element::Type precision, ov::element::Type in
         params.push_back(param);
         args.push_back(param);
     };
-    add(precision, {1, 1, S, F});
+    add(cache_precision, {1, 1, S, F});
     add(indices, {1, 1, 1, fixed_shape ? 1 : -1});
     add(indices, {1, 1, 1, fixed_shape ? 1 : -1});
     for (int i = 0; i < 2; ++i)
@@ -43,12 +54,13 @@ void run_cache_case(bool conv, ov::element::Type precision, ov::element::Type in
     for (int i = 0; i < 2; ++i)
         results.push_back(std::make_shared<ov::op::v0::Result>(op->output(i)));
     ov::Core core;
-    auto compiled = core.compile_model(std::make_shared<ov::Model>(results, params), "GPU");
+    // Preserve declared F16/F32 types: a global inference hint would mask mixed-precision writes.
+    auto compiled = core.compile_model(std::make_shared<ov::Model>(results, params), "GPU", ov::hint::inference_precision(ov::element::dynamic));
     auto clone = op->clone_with_new_inputs(args);
     ASSERT_EQ(clone->get_output_partial_shape(0), op->get_output_partial_shape(0));
     std::stringstream blob;
     compiled.export_model(blob);
-    auto imported = core.import_model(blob, "GPU");
+    auto imported = core.import_model(blob, "GPU", ov::hint::inference_precision(ov::element::dynamic));
     for (auto model : {compiled, imported}) {
         auto req = model.create_infer_request();
         for (int step = 0; step < (fixed_shape ? 1 : 8); ++step) {
@@ -63,12 +75,17 @@ void run_cache_case(bool conv, ov::element::Type precision, ov::element::Type in
             }
             std::vector<std::pair<int, int>> windows;
             if (conv)
-                for (int k = 0; k < 3; ++k)
+                for (int k = 0; k < (step == 7 ? 0 : 3); ++k)
                     windows.emplace_back(std::max(0, T - 2 + k), 8 - 4 * k);
             std::vector<float> cache(S * F), qkv(B * C * T);
-            auto round = [&](float x) { return precision == ov::element::f16 ? float(ov::float16(x)) : x; };
+            auto round = [&](float x) {
+                return precision == ov::element::f16 ? float(ov::float16(x)) : x;
+            };
+            auto round_cache = [&](float x) {
+                return cache_precision == ov::element::f16 ? float(ov::float16(x)) : x;
+            };
             for (size_t i = 0; i < cache.size(); ++i)
-                cache[i] = round(float(int(i % 89) - 40) / 8);
+                cache[i] = round_cache(float(int(i % 89) - 40) / 7);
             for (size_t i = 0; i < qkv.size(); ++i)
                 qkv[i] = round(float(int(i % 37) - 16) / 8);
             auto cleared = cache;
@@ -84,8 +101,7 @@ void run_cache_case(bool conv, ov::element::Type precision, ov::element::Type in
                 else
                     for (int c = 0; c < C; ++c) {
                         for (int t = 0; t < H + T; ++t)
-                            expected_active[(b * C + c) * (H + T) + t] =
-                                t < H ? cleared[a[b] * F + c * H + t] : qkv[(b * C + c) * T + t - H];
+                            expected_active[(b * C + c) * (H + T) + t] = t < H ? round(cleared[a[b] * F + c * H + t]) : qkv[(b * C + c) * T + t - H];
                     }
             }
             if (transpose) {
@@ -99,19 +115,19 @@ void run_cache_case(bool conv, ov::element::Type precision, ov::element::Type in
                 for (int b = 0; b < B; ++b)
                     for (int c = 0; c < C; ++c)
                         for (int t = 0; t < H; ++t)
-                            expected_cache[(dst + b) * F + c * H + t] =
-                                expected_active[(b * C + c) * (H + T) + start + t];
-            auto data = [&](int index, ov::Shape shape, const std::vector<float> &values) {
-                ov::Tensor tensor(precision, shape);
+                            expected_cache[(dst + b) * F + c * H + t] = round_cache(expected_active[(b * C + c) * (H + T) + start + t]);
+            auto data = [&](int index, ov::Shape shape, const std::vector<float>& values) {
+                const auto type = index == 0 ? cache_precision : precision;
+                ov::Tensor tensor(type, shape);
                 for (size_t i = 0; i < values.size(); ++i) {
-                    if (precision == ov::element::f16)
+                    if (type == ov::element::f16)
                         tensor.data<ov::float16>()[i] = ov::float16(values[i]);
                     else
                         tensor.data<float>()[i] = values[i];
                 }
                 req.set_input_tensor(index, tensor);
             };
-            auto ints = [&](int index, ov::Shape shape, const std::vector<int> &values) {
+            auto ints = [&](int index, ov::Shape shape, const std::vector<int>& values) {
                 ov::Tensor tensor(indices, shape);
                 for (size_t i = 0; i < values.size(); ++i) {
                     if (indices == ov::element::i32)
@@ -144,21 +160,23 @@ void run_cache_case(bool conv, ov::element::Type precision, ov::element::Type in
                 auto actual = req.get_output_tensor(output);
                 ASSERT_EQ(actual.get_size(), expected[output].size());
                 for (size_t i = 0; i < actual.get_size(); ++i) {
-                    const float value =
-                        precision == ov::element::f16 ? float(actual.data<ov::float16>()[i]) : actual.data<float>()[i];
-                    ASSERT_EQ(value, expected[output][i])
-                        << "step=" << step << " output=" << output << " element=" << i;
+                    const float value = actual.get_element_type() == ov::element::f16 ? float(actual.data<ov::float16>()[i]) : actual.data<float>()[i];
+                    ASSERT_EQ(value, expected[output][i]) << "step=" << step << " output=" << output << " element=" << i;
                 }
             }
             // A kernel must never modify its input, even for cyclic reorders.
             auto original = req.get_input_tensor(0);
             for (size_t i = 0; i < cache.size(); ++i) {
-                const float value =
-                    precision == ov::element::f16 ? float(original.data<ov::float16>()[i]) : original.data<float>()[i];
+                const float value = cache_precision == ov::element::f16 ? float(original.data<ov::float16>()[i]) : original.data<float>()[i];
                 ASSERT_EQ(value, cache[i]);
             }
         }
     }
+}
+TEST(RecurrentCacheNative, MixedPrecisionConvolutionWriteback) {
+    for (auto type : {ov::element::f16, ov::element::f32})
+        for (auto indices : {ov::element::i32, ov::element::i64})
+            run_cache_case(true, type, indices, false, false, type == ov::element::f16 ? ov::element::f32 : ov::element::f16);
 }
 TEST(RecurrentCacheNative, GatherNativeMatrixLayout) {
     for (auto type : {ov::element::f16, ov::element::f32})
@@ -172,7 +190,7 @@ TEST(RecurrentCacheNative, DynamicResetReorderSnapshotsAndExport) {
                 for (bool fixed_shape : {false, true})
                     run_cache_case(conv, type, indices, fixed_shape);
 }
-} // namespace
+}  // namespace
 
 TEST(RecurrentCacheNative, RemoteBufferCycles) {
     constexpr size_t S = 4, F = 524288;
@@ -180,12 +198,10 @@ TEST(RecurrentCacheNative, RemoteBufferCycles) {
     auto ids = ov::op::v0::Constant::create(ov::element::i32, {1, 1, 1, 4}, {1, 0, 3, 2});
     auto zero = ov::op::v0::Constant::create(ov::element::i32, {1, 1, 1, 1}, {0});
     auto offsets = ov::op::v0::Constant::create(ov::element::i32, {1, 1, 1, 2}, {0, 0});
-    auto op =
-        std::make_shared<ov::op::internal::RecurrentStateGather>(ov::OutputVector{old, ids, ids, zero, zero, offsets});
+    auto op = std::make_shared<ov::op::internal::RecurrentStateGather>(ov::OutputVector{old, ids, ids, zero, zero, offsets});
     ov::Core core;
     auto context = core.get_default_context("GPU").as<ov::intel_gpu::ocl::ClContext>();
-    auto compiled = core.compile_model(
-        std::make_shared<ov::Model>(ov::OutputVector{op->output(0), op->output(1)}, ov::ParameterVector{old}), context);
+    auto compiled = core.compile_model(std::make_shared<ov::Model>(ov::OutputVector{op->output(0), op->output(1)}, ov::ParameterVector{old}), context);
     auto req = compiled.create_infer_request();
     auto remote = context.create_tensor(ov::element::f32, {1, 1, S, F});
     ov::Tensor host(ov::element::f32, {1, 1, S, F});
@@ -210,31 +226,30 @@ TEST(RecurrentCacheNative, StateUpdateDynamicPlanesAndExport) {
                 auto cache = std::make_shared<ov::op::v0::Parameter>(precision, ov::PartialShape{1, 1, 12, 35});
                 auto states = std::make_shared<ov::op::v0::Parameter>(precision, ov::PartialShape{1, 1, -1, 35});
                 auto control = std::make_shared<ov::op::v0::Parameter>(indices, ov::PartialShape{1, 1, 1, 4});
-                auto op = std::make_shared<ov::op::internal::RecurrentStateUpdate>(
-                    ov::OutputVector{cache, states, control}, transpose ? 5 : 0, transpose ? 7 : 0);
+                auto op =
+                    std::make_shared<ov::op::internal::RecurrentStateUpdate>(ov::OutputVector{cache, states, control}, transpose ? 5 : 0, transpose ? 7 : 0);
                 ov::Core core;
-                auto model = core.compile_model(
-                    std::make_shared<ov::Model>(ov::OutputVector{op}, ov::ParameterVector{cache, states, control}),
-                    "GPU");
-                ASSERT_EQ(op->clone_with_new_inputs({cache, states, control})->get_output_partial_shape(0),
-                          cache->get_partial_shape());
+                auto model = core.compile_model(std::make_shared<ov::Model>(ov::OutputVector{op}, ov::ParameterVector{cache, states, control}),
+                                                "GPU",
+                                                ov::hint::inference_precision(ov::element::dynamic));
+                ASSERT_EQ(op->clone_with_new_inputs({cache, states, control})->get_output_partial_shape(0), cache->get_partial_shape());
                 std::stringstream blob;
                 model.export_model(blob);
-                auto imported = core.import_model(blob, "GPU");
+                auto imported = core.import_model(blob, "GPU", ov::hint::inference_precision(ov::element::dynamic));
                 for (auto compiled : {model, imported}) {
                     auto req = compiled.create_infer_request();
                     for (int step = 0; step < 8; ++step) {
                         const int B = step % 3 + 1, planes = step % 3 + 1, start = step % 2;
-                        const int stride = step % 2 ? B : 1, begin = step % 3;
-                        const int N = B * planes + start;
+                        const int stride = step % 3 == 0 ? 0 : step % 2 ? B : 1, begin = step % 3;
+                        const int N = step == 7 ? start : B * planes + start - step % B;
                         ov::Tensor a(precision, {1, 1, 12, 35}), b(precision, {1, 1, size_t(N), 35});
-                        auto set = [&](ov::Tensor &t, size_t i, float v) {
+                        auto set = [&](ov::Tensor& t, size_t i, float v) {
                             if (precision == ov::element::f16)
                                 t.data<ov::float16>()[i] = ov::float16(v);
                             else
                                 t.data<float>()[i] = v;
                         };
-                        auto get = [&](const ov::Tensor &t, size_t i) {
+                        auto get = [&](const ov::Tensor& t, size_t i) {
                             return precision == ov::element::f16 ? float(t.data<ov::float16>()[i]) : t.data<float>()[i];
                         };
                         std::vector<float> expected(a.get_size());
@@ -246,8 +261,7 @@ TEST(RecurrentCacheNative, StateUpdateDynamicPlanesAndExport) {
                             set(b, i, float(i % 31 + 32));
                         for (int r = 0; r < N - start; ++r)
                             for (int f = 0; f < 35; ++f)
-                                expected[(begin + (r / B) * stride + r % B) * 35 + f] =
-                                    get(b, (start + r) * 35 + (transpose ? (f % 5) * 7 + f / 5 : f));
+                                expected[(begin + (r / B) * stride + r % B) * 35 + f] = get(b, (start + r) * 35 + (transpose ? (f % 5) * 7 + f / 5 : f));
                         ov::Tensor c(indices, {1, 1, 1, 4});
                         const int values[] = {begin, B, stride, start};
                         for (int i = 0; i < 4; ++i) {

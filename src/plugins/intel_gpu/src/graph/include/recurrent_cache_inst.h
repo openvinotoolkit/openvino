@@ -2,37 +2,42 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <string>
+
 #include "intel_gpu/primitives/recurrent_cache.hpp"
 #include "primitive_inst.h"
 
-#include <string>
-
 namespace cldnn {
 
-template <> struct typed_program_node<recurrent_cache> : public typed_program_node_base<recurrent_cache> {
+template <>
+struct typed_program_node<recurrent_cache> : public typed_program_node_base<recurrent_cache> {
     using parent = typed_program_node_base<recurrent_cache>;
 
-  public:
+public:
     using parent::parent;
 
-    program_node &input(size_t index = 0) const { return get_dependency(index); }
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    program_node& input(size_t index = 0) const {
+        return get_dependency(index);
+    }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {};
+    }
 };
 using recurrent_cache_node = typed_program_node<recurrent_cache>;
 
-template <> class typed_primitive_inst<recurrent_cache> : public typed_primitive_inst_base<recurrent_cache> {
+template <>
+class typed_primitive_inst<recurrent_cache> : public typed_primitive_inst_base<recurrent_cache> {
     using parent = typed_primitive_inst_base<recurrent_cache>;
     using parent::parent;
 
-  public:
+public:
     template <typename ShapeType>
-    static std::vector<layout> calc_output_layouts(const recurrent_cache_node & /*node*/,
-                                                   const kernel_impl_params &impl_params);
-    static layout calc_output_layout(const recurrent_cache_node &node, const kernel_impl_params &impl_params);
+    static std::vector<layout> calc_output_layouts(const recurrent_cache_node& /*node*/, const kernel_impl_params& impl_params);
+    static layout calc_output_layout(const recurrent_cache_node& node, const kernel_impl_params& impl_params);
 
-    static std::string to_string(const recurrent_cache_node &node);
-    typed_primitive_inst(network &network, const recurrent_cache_node &node);
+    static std::string to_string(const recurrent_cache_node& node);
+    typed_primitive_inst(network& network, const recurrent_cache_node& node);
 };
 
 using recurrent_cache_inst = typed_primitive_inst<recurrent_cache>;
-} // namespace cldnn
+}  // namespace cldnn

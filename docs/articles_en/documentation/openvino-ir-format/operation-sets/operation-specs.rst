@@ -179,6 +179,9 @@ Operation Specifications
    RDFT-9<operation-specs/signals/rdft-9>
    ReadValue-3 <operation-specs/infrastructure/read-value-3>
    ReadValue-6 <operation-specs/infrastructure/read-value-6>
+   RecurrentConvCache <operation-specs/internal/recurrent-conv-cache>
+   RecurrentStateGather <operation-specs/internal/recurrent-state-gather>
+   RecurrentStateUpdate <operation-specs/internal/recurrent-state-update>
    ReLU-1 <operation-specs/activation/relu-1>
    ReduceL1-4 <operation-specs/reduction/reduce-l1-4>
    ReduceL2-4 <operation-specs/reduction/reduce-l2-4>

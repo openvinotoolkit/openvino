@@ -6,12 +6,11 @@
 #include "recurrent_cache_inst.h"
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(recurrent_cache)
-layout recurrent_cache_inst::calc_output_layout(const recurrent_cache_node &node, const kernel_impl_params &params) {
+layout recurrent_cache_inst::calc_output_layout(const recurrent_cache_node& node, const kernel_impl_params& params) {
     return calc_output_layouts<ov::PartialShape>(node, params)[0];
 }
 template <typename ShapeType>
-std::vector<layout> recurrent_cache_inst::calc_output_layouts(const recurrent_cache_node &,
-                                                              const kernel_impl_params &params) {
+std::vector<layout> recurrent_cache_inst::calc_output_layouts(const recurrent_cache_node&, const kernel_impl_params& params) {
     const auto desc = params.typed_desc<recurrent_cache>();
     const auto cache = params.get_input_layout(0);
     if (desc->history < 0)
@@ -27,13 +26,11 @@ std::vector<layout> recurrent_cache_inst::calc_output_layouts(const recurrent_ca
     }
     return {layout(active, type, format::bfyx), layout(cache.get_partial_shape(), cache.data_type, format::bfyx)};
 }
-template std::vector<layout> recurrent_cache_inst::calc_output_layouts<ov::PartialShape>(const recurrent_cache_node &,
-                                                                                         const kernel_impl_params &);
-std::string recurrent_cache_inst::to_string(const recurrent_cache_node &node) {
+template std::vector<layout> recurrent_cache_inst::calc_output_layouts<ov::PartialShape>(const recurrent_cache_node&, const kernel_impl_params&);
+std::string recurrent_cache_inst::to_string(const recurrent_cache_node& node) {
     std::stringstream ss;
     node.desc_to_json()->dump(ss);
     return ss.str();
 }
-recurrent_cache_inst::typed_primitive_inst(network &network, const recurrent_cache_node &node)
-    : parent(network, node) {}
-} // namespace cldnn
+recurrent_cache_inst::typed_primitive_inst(network& network, const recurrent_cache_node& node) : parent(network, node) {}
+}  // namespace cldnn
