@@ -3092,6 +3092,45 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_last_dim_bcast_unknown_slope_
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_reject_incompatible_static_slope) {
+    ov::frontend::FrontEnd::Ptr frontend;
+    auto input_model = load_model("prelu_1d_last_dim_bcast.onnx", &frontend);
+    input_model->set_partial_shape(input_model->get_place_by_tensor_name("X"), PartialShape{1, 3, 2, 1});
+    // Bidirectional broadcasting would expand the last data dimension from 1 to 3, which ONNX forbids.
+    OV_EXPECT_THROW_HAS_SUBSTRING(frontend->convert(input_model), ov::Exception, "cannot be broadcasted");
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_reject_incompatible_specialized_slope) {
+    auto model = convert_model("prelu_1d_last_dim_bcast_unknown_data_rank.onnx");
+    OV_EXPECT_THROW_HAS_SUBSTRING(model->reshape({{"X", PartialShape{1, 3, 2, 1}}}),
+                                  ov::Exception,
+                                  "cannot be broadcasted");
+
+    model = convert_model("prelu_1d_last_dim_bcast_unknown_slope_rank.onnx");
+    OV_EXPECT_THROW_HAS_SUBSTRING(model->reshape({{"SLOPE", PartialShape{2}}}), ov::Exception, "cannot be broadcasted");
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_reject_incompatible_runtime_data_shape) {
+    auto model = convert_model("prelu_1d_last_dim_bcast_unknown_data_rank.onnx");
+    const Tensor data(element::f32, Shape{1, 3, 2, 1});
+    const Tensor slope(element::f32, Shape{3});
+    TensorVector outputs{Tensor(element::f32, data.get_shape())};
+    // Evaluate without specializing the unknown rank: Broadcast must reject before PRelu can write its output.
+    OV_EXPECT_THROW_HAS_SUBSTRING(model->evaluate(outputs, TensorVector{data, slope}),
+                                  ov::Exception,
+                                  "cannot be broadcasted");
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_reject_incompatible_runtime_slope_shape) {
+    auto model = convert_model("prelu_1d_last_dim_bcast_unknown_slope_rank.onnx");
+    const Tensor data(element::f32, Shape{1, 3, 2, 3});
+    const Tensor slope(element::f32, Shape{2});
+    TensorVector outputs{Tensor(element::f32, data.get_shape())};
+    OV_EXPECT_THROW_HAS_SUBSTRING(model->evaluate(outputs, TensorVector{data, slope}),
+                                  ov::Exception,
+                                  "cannot be broadcasted");
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_channel_bcast_opset6) {
     // Regression test for the legacy PRelu-1/6 broadcasting: a rank-1 slope whose length matches the channel
     // dimension is shared across channels (aligned with axis 1), which is the behavior of OpenVINO's v0::PRelu.
