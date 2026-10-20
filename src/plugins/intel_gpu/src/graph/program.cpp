@@ -1779,6 +1779,12 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network, 1);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+#if defined(OV_GPU_VENDOR_NVIDIA)
+    // oneDNN is the main backend on NVIDIA GPUs, so don't check enable_onednn_for_tests
+    if (get_config().get_queue_type() == QueueTypes::in_order) {
+        lo.add_all_onednn_impls_optimization_attribute();
+    }
+#else
     bool enable_onednn_for_tests = get_config().get_optimize_data() || is_internal_program();
     auto& engine = get_engine();
     if (engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
@@ -1793,6 +1799,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             }
         }
     }
+#endif  // OV_GPU_VENDOR_NVIDIA
 
     // WA: Limit byxf layout to models with few convolutions to avoid excessive reorders (CVS-185041)
     constexpr size_t max_byxf_onednn_conv_count = 5;
