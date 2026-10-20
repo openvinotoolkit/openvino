@@ -58,6 +58,8 @@ struct PagedAttentionKey {
     bool quantKeyByChannel = false;
     bool quantValueByChannel = false;
     bool isSageAttn = false;
+    ov::element::Type queryPrecision = ov::element::dynamic;
+    ov::element::Type probabilityPrecision = ov::element::dynamic;
 
     [[nodiscard]] size_t hash() const;
     bool operator==(const PagedAttentionKey& rhs) const;
@@ -73,6 +75,8 @@ size_t PagedAttentionKey::hash() const {
     seed = hash_combine(seed, quantKeyByChannel);
     seed = hash_combine(seed, quantValueByChannel);
     seed = hash_combine(seed, isSageAttn);
+    seed = hash_combine(seed, queryPrecision.hash());
+    seed = hash_combine(seed, probabilityPrecision.hash());
 
     return seed;
 }
@@ -81,7 +85,8 @@ bool PagedAttentionKey::operator==(const PagedAttentionKey& rhs) const {
     return rtPrecision == rhs.rtPrecision && keyCachePrecision == rhs.keyCachePrecision &&
            valueCachePrecision == rhs.valueCachePrecision && quantKeyByChannel == rhs.quantKeyByChannel &&
            quantValueByChannel == rhs.quantValueByChannel && isSageAttn == rhs.isSageAttn && headSize == rhs.headSize &&
-           numKvHeads == rhs.numKvHeads;
+           numKvHeads == rhs.numKvHeads && queryPrecision == rhs.queryPrecision &&
+           probabilityPrecision == rhs.probabilityPrecision;
 }
 
 PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
@@ -96,6 +101,8 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
     const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op);
     CPU_NODE_ASSERT(pa, "Only PagedAttentionExtension is supported in PagedAttention node.");
     m_write_kv_cache = pa->get_write_kv_cache();
+    m_query_precision = pa->get_query_precision();
+    m_probability_precision = pa->get_probability_precision();
     // Head dimensions are always set by SDPAToPagedAttention transformation (it asserts they
     // are static). They are used as part of the executor cache key so that layers with different
     // head_size (e.g. Gemma4 mixes 256 and 512) get separate executors with correctly-sized
@@ -289,7 +296,9 @@ void PagedAttention::createPrimitive() {
                              m_num_kv_heads,
                              quantKeybyChannel,
                              quantValuebyChannel,
-                             cpuConfig.enableSageAttn};
+                             cpuConfig.enableSageAttn,
+                             m_query_precision,
+                             m_probability_precision};
 
     auto builder = [&]([[maybe_unused]] const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64))
@@ -304,7 +313,9 @@ void PagedAttention::createPrimitive() {
                                     cpuConfig.valueCacheGroupSize,
                                     quantKeybyChannel,
                                     quantValuebyChannel,
-                                    cpuConfig.enableSageAttn};
+                                    cpuConfig.enableSageAttn,
+                                    m_query_precision,
+                                    m_probability_precision};
         return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, params, context->getCpuParallel());
 #else
         return nullptr;
@@ -413,6 +424,13 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
 bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
     try {
+        if (const auto pa = ov::as_type_ptr<const ov::op::PagedAttentionExtension>(op)) {
+            if (none_of(pa->get_query_precision(), ov::element::dynamic, ov::element::f16) ||
+                none_of(pa->get_probability_precision(), ov::element::dynamic, ov::element::f16)) {
+                errorMessage = "PagedAttention supports only dynamic or f16 query and probability precision";
+                return false;
+            }
+        }
         auto vCachePrecision = op->get_input_element_type(PagedAttentionExecutor::ID_VCACHE);
         auto kCachePrecision = op->get_input_element_type(PagedAttentionExecutor::ID_KCACHE);
         if (any_of(vCachePrecision,
@@ -459,6 +477,9 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 }
 
 ov::element::Type PagedAttention::getRuntimePrecision() const {
+    if (m_query_precision != ov::element::dynamic || m_probability_precision != ov::element::dynamic) {
+        return ov::element::f32;
+    }
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
 #if defined(OPENVINO_ARCH_ARM64)
     if (rtPrecision == ov::element::f16) {

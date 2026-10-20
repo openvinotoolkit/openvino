@@ -3,6 +3,8 @@
 //
 
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
+#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/scaled_dot_product_attention_extension.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -553,6 +555,16 @@ bool TransformationsPipeline::fuse_type_to_convert(const std::shared_ptr<ov::Nod
 }
 
 void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
+    for (const auto& node : func->get_ordered_ops()) {
+        if (const auto sdpa = ov::as_type_ptr<ov::op::internal::ScaledDotProductAttentionExtension>(node)) {
+            OPENVINO_ASSERT(sdpa->get_query_precision() == ov::element::dynamic && sdpa->get_probability_precision() == ov::element::dynamic,
+                            "GPU does not support explicit attention rounding precision");
+        }
+        if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
+            OPENVINO_ASSERT(pa->get_query_precision() == ov::element::dynamic && pa->get_probability_precision() == ov::element::dynamic,
+                            "GPU does not support explicit attention rounding precision");
+        }
+    }
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
 

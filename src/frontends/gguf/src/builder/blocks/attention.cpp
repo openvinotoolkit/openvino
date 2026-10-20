@@ -259,6 +259,9 @@ std::string attention(GraphEmitter& e,
     std::map<std::string, ov::Any> attn_attrs = {{"scale", kq_scale}};
     if (cfg.embedding_model)
         attn_attrs["f32_attention"] = true;
+    if (cfg.arch == "gemma3n") {
+        attn_attrs["nonflash_f16_rounding"] = true;
+    }
     if (cfg.attn_soft_cap != 0.0f) {
         attn_attrs["kq_soft_cap"] = cfg.attn_soft_cap;
     }

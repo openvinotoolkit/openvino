@@ -14,6 +14,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
@@ -23,6 +24,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/scaled_dot_product_attention_extension.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -33,6 +35,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/utils/utils.hpp"
 
 using ov::pass::pattern::Matcher;
@@ -68,9 +71,27 @@ ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecom
 
 std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::decompose(
     std::shared_ptr<v13::ScaledDotProductAttention> node) {
-    auto query = node->input_value(0);
-    auto key = node->input_value(1);
-    auto value = node->input_value(2);
+    const auto precision_sdpa = ov::as_type_ptr<ov::op::internal::ScaledDotProductAttentionExtension>(node);
+    const auto explicit_rounding = precision_sdpa && (precision_sdpa->get_query_precision() != element::dynamic ||
+                                                      precision_sdpa->get_probability_precision() != element::dynamic);
+    const auto arithmetic_input = [this, explicit_rounding](const Output<Node>& input) -> Output<Node> {
+        if (explicit_rounding && input.get_element_type() != element::f32 &&
+            input.get_element_type() != element::boolean)
+            return register_new_node<v0::Convert>(input, element::f32);
+        return input;
+    };
+    auto query = arithmetic_input(node->input_value(0));
+    const auto rounded = [this](const Output<Node>& input, const element::Type precision) -> Output<Node> {
+        if (precision == element::dynamic)
+            return input;
+        auto narrow = register_new_node<v0::Convert>(input, precision);
+        ov::disable_conversion(narrow, precision, input.get_element_type());
+        return register_new_node<v0::Convert>(narrow, input.get_element_type());
+    };
+    if (precision_sdpa)
+        query = rounded(query, precision_sdpa->get_query_precision());
+    auto key = arithmetic_input(node->input_value(1));
+    auto value = arithmetic_input(node->input_value(2));
     auto q_shape = register_new_node<v3::ShapeOf>(query, element::i32);
     auto k_shape = register_new_node<v3::ShapeOf>(key, element::i32);
     auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{}, {-1}));
@@ -103,9 +124,9 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         auto sqrt_scale = register_new_node<v0::Sqrt>(scale);
         scale = register_new_node<v1::Divide>(one_f, sqrt_scale);
     } else {
-        scale = node->input_value(4);
+        scale = arithmetic_input(node->input_value(4));
         if (node->get_input_size() == 6) {
-            sink = node->input_value(5);
+            sink = arithmetic_input(node->input_value(5));
             has_sink = true;
         }
     }
@@ -136,7 +157,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         Output<Node> mask;
         Output<Node> atten_mask;
         if (!node->get_causal()) {
-            mask = node->input_value(3);
+            mask = arithmetic_input(node->input_value(3));
 
             // two types of masks are supported. A boolean mask where a value of True indicates that the element should
             // take part in attention. A float mask of the same type as query, key, value that is added to the attention
@@ -185,6 +206,8 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
     }
 
+    if (precision_sdpa)
+        scaled_atten = rounded(scaled_atten, precision_sdpa->get_probability_precision());
     auto result = register_new_node<v0::MatMul>(scaled_atten, value);
     result->set_friendly_name(node->get_friendly_name());
     copy_runtime_info(node, get_new_nodes());

@@ -65,6 +65,8 @@ private:
     bool m_hasScore = false;
     bool m_has_adaptive_rkv_diversity_output = false;
     bool m_write_kv_cache = true;
+    ov::element::Type m_query_precision = ov::element::dynamic;
+    ov::element::Type m_probability_precision = ov::element::dynamic;
 };
 
 }  // namespace ov::intel_cpu::node

@@ -28,6 +28,7 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/scaled_dot_product_attention_extension.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -879,8 +880,12 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         }
         OPENVINO_ASSERT(pa_arguments.size() == 28);
 
-        auto paged_attention =
-            std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments, kv_params.write_kv_cache);
+        const auto precision_sdpa = ov::as_type<ov::op::internal::ScaledDotProductAttentionExtension>(sdpa_node);
+        auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(
+            pa_arguments,
+            kv_params.write_kv_cache,
+            precision_sdpa ? precision_sdpa->get_query_precision() : element::dynamic,
+            precision_sdpa ? precision_sdpa->get_probability_precision() : element::dynamic);
         paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;
         paged_attention->get_rt_info()[K_HEAD_SIZE] = k_head_size;
         paged_attention->get_rt_info()[NUM_V_HEADS] = num_v_heads;

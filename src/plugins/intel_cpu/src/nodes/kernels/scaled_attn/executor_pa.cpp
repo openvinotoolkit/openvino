@@ -645,6 +645,14 @@ struct MHAHelper {
         _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
     }
 
+    void round_probabilities(float* probabilities, size_t count) const {
+        if (_params.probability_precision == ov::element::f16) {
+            for (size_t i = 0; i < count; ++i) {
+                probabilities[i] = static_cast<float>(ov::float16(probabilities[i]));
+            }
+        }
+    }
+
     void resize_temporary_weight_buffer(const size_t& h) {
         // resize temporary buffers, weight.size(3) will be aligned to block_size
         _weight.resize<float>({_nthr, h, _block_size, _new_score_stride});
@@ -1073,6 +1081,7 @@ struct MHAHelper {
                             0,
                             0);
                 }
+                round_probabilities(score, rnd_up(cur_kv_len_ext, _block_size));
             }
 
             // reuse float buffer, need to use float to compute offset
@@ -1276,6 +1285,7 @@ struct MHAHelper {
                             0,
                             0);
                 }
+                round_probabilities(score, rnd_up(cur_kv_len_ext, _block_size));
             }
 
             // reuse float buffer, need to use float to compute offset
@@ -1420,6 +1430,7 @@ struct MHAHelper {
                                 score,
                                 cur_kv_len * sizeof(float));
                 }
+                round_probabilities(score, cur_kv_len);
             }
         }
 
@@ -1644,6 +1655,13 @@ struct MHAHelper {
                 } else {
                     std::memset(dst, 0, cur_kv_len * sizeof(float));
                 }
+            });
+        }
+
+        if (_params.probability_precision == ov::element::f16) {
+            parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
+                const auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
+                round_probabilities(_weight_bhl.ptr<float>(b, h, pq), cur_kv_len);
             });
         }
 
@@ -2094,6 +2112,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
     MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC> _helper;
     MHA<DATA_TYPE, KEY_PREC, VALUE_PREC> _kernel;
     PlainTensor _slot_mapping;
+    PlainTensor _rounded_query;
     std::shared_ptr<CpuParallel> _cpu_parallel;
 #    if defined(OPENVINO_ARCH_X86_64)
     Xattn _xatt;
@@ -2102,11 +2121,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
     // Scratchpads for compute_adaptive_rkv_diversity to avoid per-call allocations.
     std::vector<float> _arkv_evict_keys;
     std::vector<float> _arkv_scratch;
-
-    explicit AttentionExecutor(const CpuParallelPtr& cpu_parallel)
-        : _helper(MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC>(cpu_parallel)),
-          _kernel(_helper),
-          _cpu_parallel(cpu_parallel) {}
 
     explicit AttentionExecutor(const ov::Extensions::Cpu::PagedAttnQuantParams& params,
                                const CpuParallelPtr& cpu_parallel)
@@ -2149,6 +2163,16 @@ struct AttentionExecutor : public PagedAttentionExecutor {
               PlainTensor& qq_bias,
               PlainTensor& qq_bias_begins) {
         q.reset(inputs[ID_Q]);  // [B_token, H * S]
+        if (_helper._params.query_precision == ov::element::f16) {
+            OPENVINO_ASSERT(q.get_precision() == ov::element::f32 && q.m_rank == 2,
+                            "PagedAttention explicit query rounding requires an f32 matrix");
+            _rounded_query.resize<float>(q.shape());
+            parallel_for2d(q.size(0), q.size(1), [&](size_t token, size_t channel) {
+                *_rounded_query.ptr<float>(token, channel) =
+                    static_cast<float>(ov::float16(*q.ptr<float>(token, channel)));
+            });
+            q = _rounded_query;
+        }
         k.reset(inputs[ID_K]);
         v.reset(inputs[ID_V]);
         k_cache.reset(inputs[ID_KCACHE]);                             // [NUM_BLOCKS, H, 32, S]
@@ -2803,6 +2827,31 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                                          const PagedAttnQuantParams& params,
                                                          const CpuParallelPtr& cpu_parallel) {
     std::shared_ptr<PagedAttentionExecutor> executor;
+    OPENVINO_ASSERT(any_of(params.query_precision, ov::element::dynamic, ov::element::f16) &&
+                        any_of(params.probability_precision, ov::element::dynamic, ov::element::f16),
+                    "make_pa_executor: only dynamic or f16 query and probability precision is supported");
+    if (params.query_precision != ov::element::dynamic || params.probability_precision != ov::element::dynamic) {
+        OPENVINO_ASSERT(data_type == ov::element::f32,
+                        "make_pa_executor: explicit query and probability precision requires f32 execution");
+        OPENVINO_ASSERT(!params.is_sage_attn,
+                        "make_pa_executor: explicit query and probability precision is unsupported with SageAttention");
+#if defined(OPENVINO_ARCH_X86_64)
+        const bool cache_supported =
+            (any_of(key_cache_type, ov::element::u8, ov::element::u4) &&
+             any_of(value_cache_type, ov::element::u8, ov::element::u4)) ||
+            (key_cache_type == value_cache_type && any_of(key_cache_type, ov::element::f32, ov::element::f16));
+#elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
+        const bool cache_supported =
+            key_cache_type == value_cache_type && any_of(key_cache_type, ov::element::f32, ov::element::u8);
+#else
+        const bool cache_supported = false;
+#endif
+        OPENVINO_ASSERT(cache_supported,
+                        "make_pa_executor: explicit query and probability precision is unsupported with key cache ",
+                        key_cache_type,
+                        " and value cache ",
+                        value_cache_type);
+    }
     if (params.is_sage_attn) {
         bool s8s8_available = (ov::with_cpu_x86_avx512_core_amx_int8() || ov::with_cpu_x86_avx2_vnni_2());
         OPENVINO_ASSERT(s8s8_available, "make_pa_executor: sage_attn needs amx_int8/vnni2 to support");
@@ -2850,7 +2899,8 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                             " , ",
                             value_cache_type);
             executor =
-                std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::bf16, ov::element::bf16>>(cpu_parallel);
+                std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::bf16, ov::element::bf16>>(params,
+                                                                                                        cpu_parallel);
         }
 #    else
         OPENVINO_THROW("make_pa_executor: bf16 needs avx512+ hardware.");
@@ -2895,7 +2945,8 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                             " , ",
                             value_cache_type);
             executor =
-                std::make_shared<AttentionExecutor<ov::float16, ov::element::f16, ov::element::f16>>(cpu_parallel);
+                std::make_shared<AttentionExecutor<ov::float16, ov::element::f16, ov::element::f16>>(params,
+                                                                                                     cpu_parallel);
         }
 #    else
         OPENVINO_THROW("make_pa_executor: f16 needs avx512+ hardware.");

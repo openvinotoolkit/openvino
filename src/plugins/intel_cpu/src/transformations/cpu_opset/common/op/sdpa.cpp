@@ -30,6 +30,10 @@ std::shared_ptr<ov::Node> ov::intel_cpu::ScaledDotProductAttentionWithKVCache::c
 
 void ov::intel_cpu::ScaledDotProductAttentionWithKVCache::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(ScaledDotProductAttentionWithKVCache_validate_and_infer_types);
+    NODE_VALIDATION_CHECK(this, m_config.query_precision.is_dynamic() || m_config.query_precision == ov::element::f16);
+    NODE_VALIDATION_CHECK(
+        this,
+        m_config.probability_precision.is_dynamic() || m_config.probability_precision == ov::element::f16);
     auto input_num = get_input_size();
     // [B, H, L1, S]
     auto q_ps = get_input_partial_shape(0);
@@ -94,7 +98,11 @@ void ov::intel_cpu::ScaledDotProductAttentionWithKVCache::validate_and_infer_typ
     if (output_logits.rank().is_static() && past_v_ps.rank().is_static()) {
         output_logits[output_logits.size() - 1] = past_v_ps[output_logits.size() - 1];
     }
-    set_output_type(0, get_input_element_type(0), output_logits);
+    set_output_type(0,
+                    m_config.query_precision.is_dynamic() && m_config.probability_precision.is_dynamic()
+                        ? get_input_element_type(0)
+                        : ov::element::f32,
+                    output_logits);
     set_output_type(1, get_input_element_type(input_num - 1), past_k_ps);
     set_output_type(2, get_input_element_type(input_num - 1), past_v_ps);
 }
@@ -107,6 +115,8 @@ bool ov::intel_cpu::ScaledDotProductAttentionWithKVCache::visit_attributes(ov::A
     visitor.on_attribute("is_causal", m_config.is_causal);
     visitor.on_attribute("fuse_concat", m_config.fuse_concat);
     visitor.on_attribute("permute_axes", m_config.permute_axes);
+    visitor.on_attribute("query_precision", m_config.query_precision);
+    visitor.on_attribute("probability_precision", m_config.probability_precision);
     visitor.finish_structure();
     return true;
 }
@@ -124,6 +134,10 @@ std::shared_ptr<ov::Node> ov::intel_cpu::SDPAWithTransposeReshape::clone_with_ne
 
 void ov::intel_cpu::SDPAWithTransposeReshape::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(SDPAWithTransposeReshape_validate_and_infer_types);
+    NODE_VALIDATION_CHECK(this, m_config.query_precision.is_dynamic() || m_config.query_precision == ov::element::f16);
+    NODE_VALIDATION_CHECK(
+        this,
+        m_config.probability_precision.is_dynamic() || m_config.probability_precision == ov::element::f16);
     // [B,L,H*S]
     auto q_ps = get_input_partial_shape(0);
     const auto& output_ps = q_ps;
@@ -139,7 +153,11 @@ void ov::intel_cpu::SDPAWithTransposeReshape::validate_and_infer_types() {
     const auto& order_HS = this->m_config.order_HS;
     NODE_VALIDATION_CHECK(this, order_HS.size() == 2U);
 
-    set_output_type(0, get_input_element_type(0), output_ps);
+    set_output_type(0,
+                    m_config.query_precision.is_dynamic() && m_config.probability_precision.is_dynamic()
+                        ? get_input_element_type(0)
+                        : ov::element::f32,
+                    output_ps);
 }
 
 bool ov::intel_cpu::SDPAWithTransposeReshape::visit_attributes(ov::AttributeVisitor& visitor) {
@@ -149,6 +167,8 @@ bool ov::intel_cpu::SDPAWithTransposeReshape::visit_attributes(ov::AttributeVisi
     visitor.on_attribute("output_BLHxS", m_config.output_BLHxS);
     visitor.on_attribute("permute_axes", m_config.permute_axes);
     visitor.on_attribute("order_HS", m_config.order_HS);
+    visitor.on_attribute("query_precision", m_config.query_precision);
+    visitor.on_attribute("probability_precision", m_config.probability_precision);
     visitor.finish_structure();
     return true;
 }

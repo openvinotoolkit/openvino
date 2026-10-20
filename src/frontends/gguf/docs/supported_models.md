@@ -171,14 +171,15 @@ The new family fixtures use llama.cpp CPU revision `098ce526b546b5a190327c1da829
 AFMoE, Cohere2, Qwen3Next, Qwen3VL dense/MoE, EAGLE3 and DFlash have independent
 small F32 prefill/decode references. DFlash also covers GELU, FC/output scales, post-norms,
 missing V weights, dynamic convolution, reduced-vocabulary scatter, selector and LiLiCorr
-lattices. Gemma3n's three-step fixture exceeds the existing `1e-5` NMSE gate
-at the final step (`1.65684e-5`); matching greedy tokens does not establish parity.
-Its sparse FFN amplifies an upstream attention arithmetic difference. An identical-input
-layer-0 reproducer matches the pinned nonflash CPU oracle bit for bit when both queries
-and softmax probabilities are rounded to F16 before their matrix products. CPU SDPA does
-not reproduce both rounds under F32 inference. A manual attention diagnostic reaches
-`8.54503e-6` at the final step, but removes SDPA and its GenAI PagedAttention conversion
-path. This is an isolated diagnosis; the production fixture remains failing.
+lattices. Gemma3n's original three-step fixture passes the existing `1e-5` NMSE gate
+on x86-64 CPU with F32 inference and F16 KV caches. Its nonflash attention preserves
+F16 query rounding before QK and probability rounding after softmax, with F32 arithmetic
+and output. Its GELU lookup semantics also preserve F16 input and output rounding.
+The serialized attention contract survives CPU SDPA fusion and SDPA-to-PagedAttention
+conversion. Regression tests cover cached decode, multi-token append, mixed requests,
+cache reset and inference after IR serialization. GPU rejects this explicit attention
+rounding contract; GPU arithmetic support remains pending. These fixture results do not
+establish real-checkpoint full-logit parity.
 The real Qwen3-ASR quantized decoder also fails its original full-logit parity gate.
 
 A real Llama-Nemotron-Embed-1B-v2 F16 checkpoint at revision

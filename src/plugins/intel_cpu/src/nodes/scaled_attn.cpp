@@ -33,6 +33,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/scaled_dot_product_attention_extension.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/custom/scaled_attn.hpp"
@@ -88,6 +89,12 @@ using namespace ov::Extensions::Cpu::XARCH;
 using namespace dnnl::impl;
 
 namespace ov::intel_cpu::node {
+
+static void round_to_f16(float* values, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        values[i] = static_cast<float>(ov::float16(values[i]));
+    }
+}
 
 static bool is_quantized_cache(ov::element::Type prec) {
     return prec == ov::element::u8 || prec == ov::element::u4;
@@ -214,6 +221,7 @@ struct MHAKernel {
         }
     }
 
+    bool round_probabilities = false;
     PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
     void set_causal_mask(const PlainTensor& mask, bool _select_nfltmax_at_0) {
@@ -301,6 +309,9 @@ struct MHAKernel {
                 }
                 // softmax
                 softmax(attn_score.data(), ncausal, sink);
+                if (round_probabilities) {
+                    round_to_f16(attn_score.data(), ncausal);
+                }
 
                 // linearly combine value
                 word_vec.assign(head_size_v, 0.0F);
@@ -566,6 +577,9 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                              attn_mask_precision,
                              precision_of<T>::value,
                              sink);
+                if (round_probabilities) {
+                    round_to_f16(score, kv_len);
+                }
             }
             auto* w_ptr = reinterpret_cast<T*>(weight_score.ptr<float>(ithr, 0, 0, 0));
             float* fp32_out_ptr = nullptr;
@@ -615,6 +629,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         });
     }
 
+    bool round_probabilities = false;
     PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
     void set_causal_mask(const PlainTensor& mask, bool _select_nfltmax_at_0) {
@@ -663,6 +678,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
 #ifdef OV_CPU_WITH_ACL
 template <typename T>
 struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
+    bool round_probabilities = false;
     const GraphContext::CPtr context;
     size_t m_block_size;
     ov::element::Type precision;
@@ -1136,6 +1152,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
 #ifdef OV_CPU_WITH_MLAS
 template <>
 struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
+    bool round_probabilities = false;
     const GraphContext::CPtr context;
     size_t m_block_size;
     // buffer to hold qk temp
@@ -1296,6 +1313,9 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
                              ov::element::f32,
                              ov::element::f32,
                              sink);
+                if (round_probabilities) {
+                    round_to_f16(qk + (m - m_start) * qk_m_stride, kv_len);
+                }
             }
             mlas_sgemm("N",
                        "N",
@@ -1397,6 +1417,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
     MHASingleToken kernel_single_token;
     PlainTensor m_attn_w;
     PlainTensor m_attn_score;
+    PlainTensor rounded_query;
 
     size_t m_key_group_size = 0;
     size_t m_value_group_size = 0;
@@ -1444,6 +1465,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         bool fuse_causal_attn = config.config.fuse_causal_attn;
         bool is_causal = config.config.is_causal;
         bool fuse_concat = config.config.fuse_concat;
+        kernel.round_probabilities = config.config.probability_precision == ov::element::f16;
         auto input_num = inputs.size();
         PlainTensor present_key;
         PlainTensor present_value;
@@ -1513,6 +1535,18 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             v_input = v_input.permute(permute_axes);
             present_key = present_key.permute(permute_axes);
             present_value = present_value.permute(permute_axes);
+        }
+        if (config.config.query_precision == ov::element::f16) {
+            OPENVINO_ASSERT(q_input.get_precision() == ov::element::f32);
+            rounded_query.resize<float>(q_input.shape());
+            context->getCpuParallel()
+                ->parallel_for3d(q_input.size(0), q_input.size(1), q_input.size(2), [&](size_t b, size_t h, size_t m) {
+                    auto* dst = rounded_query.ptr<float>(b, h, m);
+                    for (size_t s = 0; s < q_input.size(3); ++s) {
+                        dst[s] = static_cast<float>(ov::float16(q_input.at<float>({b, h, m, s})));
+                    }
+                });
+            q_input = rounded_query;
         }
         B = q_input.size(0);
         L1 = q_input.size(2);
@@ -1605,7 +1639,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             const bool use_new_pipeline = false;
 #else
             static const bool force_legacy = std::getenv("OV_CPU_LEGACY_ATTN") != nullptr;
-            const bool use_new_pipeline = !force_legacy;
+            const bool use_new_pipeline = !force_legacy || !config.config.query_precision.is_dynamic() ||
+                                          !config.config.probability_precision.is_dynamic();
 #endif
             if (use_new_pipeline) {
                 mha_kv_cache(q_input,
@@ -1632,7 +1667,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                              per_thread_head_stride,
                              k_quant_meta_data,
                              v_quant_meta_data,
-                             wht_signs);
+                             wht_signs,
+                             config.config.probability_precision);
             } else {
                 kernel_single_token(q_input,
                                     present_key,
@@ -1897,7 +1933,11 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
                                   : cpuConfig.valueCacheGroupSize;
     m_value_spec.precision = valueCachePrecision;
 
-    if (const auto node = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(op)) {
+    if (const auto node = ov::as_type_ptr<const ov::op::internal::ScaledDotProductAttentionExtension>(op)) {
+        m_config.config.is_causal = node->get_causal();
+        m_config.config.query_precision = node->get_query_precision();
+        m_config.config.probability_precision = node->get_probability_precision();
+    } else if (const auto node = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(op)) {
         m_config.config.is_causal = node->get_causal();
     } else if (const auto node = ov::as_type_ptr<const ScaledDotProductAttentionWithKVCache>(op)) {
         m_config.config = node->get_config();
@@ -2184,6 +2224,27 @@ void ScaledDotProductAttention::execute(const dnnl::stream& strm) {
 bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                      std::string& errorMessage) noexcept {
     try {
+        ScaledDotProductAttentionWithKVCache::Config config;
+        if (const auto extended_sdpa =
+                ov::as_type_ptr<const ov::op::internal::ScaledDotProductAttentionExtension>(op)) {
+            config.query_precision = extended_sdpa->get_query_precision();
+            config.probability_precision = extended_sdpa->get_probability_precision();
+        } else if (const auto cached_sdpa = ov::as_type_ptr<const ScaledDotProductAttentionWithKVCache>(op)) {
+            config = cached_sdpa->get_config();
+        } else if (const auto reshaped_sdpa = ov::as_type_ptr<const SDPAWithTransposeReshape>(op)) {
+            config = reshaped_sdpa->get_config();
+        }
+        if ((!config.query_precision.is_dynamic() && config.query_precision != ov::element::f16) ||
+            (!config.probability_precision.is_dynamic() && config.probability_precision != ov::element::f16)) {
+            errorMessage = "Only dynamic or f16 query and probability precision are supported";
+            return false;
+        }
+#if !defined(OPENVINO_ARCH_X86_64)
+        if (!config.query_precision.is_dynamic() || !config.probability_precision.is_dynamic()) {
+            errorMessage = "Explicit query and probability precision require x86-64 CPU attention kernels";
+            return false;
+        }
+#endif
         auto sdpaWithTransposeReshapeOp = ov::as_type_ptr<const SDPAWithTransposeReshape>(op);
         if (!ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(op) &&
             !ov::as_type_ptr<const ScaledDotProductAttentionWithKVCache>(op) && !sdpaWithTransposeReshapeOp) {
@@ -3033,6 +3094,9 @@ ov::element::Type ScaledDotProductAttention::getValueCachePrecision() {
 }
 
 ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {
+    if (!m_config.config.query_precision.is_dynamic() || !m_config.config.probability_precision.is_dynamic()) {
+        return ov::element::f32;
+    }
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
     // bf16 should be enabled only when platform supports
     if (rtPrecision == ov::element::bf16 && (ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx2_vnni_2())) {

@@ -56,6 +56,11 @@ exposes GenAI's interface. Select the mode in the `GenAIExtension` constructor:
 - The LM head is connected directly to the logits Result with a rank-3 input, so GenAI's
   slice-before-matmul optimization projects only the sampled rows during prefill.
 - Sliding-window masks use the `gguf_swa_window_size` rt_info value when the file records a window length.
+
+Gemma3n uses an internal SDPA extension to preserve its nonflash F16 query and probability
+rounding while computing F32 results. CPU fusion and `SDPAToPagedAttention` retain this
+contract, including IR serialization. This path currently requires x86-64 CPU; GPU rejects
+it until matching arithmetic is implemented.
 - Gated-DeltaNet states (`qwen35`, `qwen35moe`) get a dynamic batch, follow `beam_idx` and mask
   left padding. Mamba 2 and `nemotron_h` states stay at one sequence: greedy, batch-1 decoding only.
   A consumer must reset, not trim, the states listed in `gguf_recurrent_states`.

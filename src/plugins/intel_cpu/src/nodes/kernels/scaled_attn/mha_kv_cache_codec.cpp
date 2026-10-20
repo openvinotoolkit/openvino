@@ -15,6 +15,7 @@
 #include "mha_kv_cache_reduce.hpp"
 #include "nodes/kernels/simd/simd.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "softmax_kernel.hpp"
 
@@ -167,7 +168,8 @@ static void mha_softmax(const PlainTensor& attn_w,
                         size_t kv_len,
                         bool auto_causal,
                         float d_scale,
-                        const CpuParallelPtr& cpu_parallel) {
+                        const CpuParallelPtr& cpu_parallel,
+                        ov::element::Type probability_precision) {
     auto precision = ov::element::f32;
     auto softmax_body = [&](size_t b, size_t h, size_t m) {
         auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
@@ -193,6 +195,12 @@ static void mha_softmax(const PlainTensor& attn_w,
                                    attn_mask_prec,
                                    precision,
                                    sink);
+        if (probability_precision == ov::element::f16) {
+            auto* probabilities = attn_w.ptr<float>(b, h, m);
+            for (size_t n = 0; n < kv_len; ++n) {
+                probabilities[n] = static_cast<float>(ov::float16(probabilities[n]));
+            }
+        }
     };
     if (q_len == 1) {
         cpu_parallel->parallel_for2d(B, num_q_heads, [&](size_t b, size_t h) {
@@ -573,7 +581,9 @@ void mha_kv_cache(PlainTensor& q_input,
                   size_t per_thread_head_stride,
                   const PlainTensor& k_quant_meta_data,
                   const PlainTensor& v_quant_meta_data,
-                  const PlainTensor& wht_signs) {
+                  const PlainTensor& wht_signs,
+                  ov::element::Type probability_precision) {
+    OPENVINO_ASSERT(probability_precision.is_dynamic() || probability_precision == ov::element::f16);
     // ---------------------------------------------------------------------------
     // Setup: dimensions, scratch buffers, precomputed constants.
     // ---------------------------------------------------------------------------
@@ -729,7 +739,8 @@ void mha_kv_cache(PlainTensor& q_input,
                 kv_len,
                 auto_causal,
                 d_scale,
-                cpu_parallel);
+                cpu_parallel,
+                probability_precision);
 
     // ---------------------------------------------------------------------------
     // Phases 3+4: V accumulation + reduce, per query position.

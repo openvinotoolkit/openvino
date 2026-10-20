@@ -11,6 +11,7 @@
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov::intel_cpu {
@@ -34,6 +35,8 @@ public:
         std::vector<size_t> permute_axes;  // not empty means input has transpose. output of permutation is [B,H,L,S]
                                            // e.g. [L,B,H,S] -> permute[1, 2, 0, 3] ->[B, H, L, S]
         std::vector<size_t> order_HS;      // Reshape[B,L,H*S]->B,L,H,S], H,S are fixed value, when input_BLHxS is true.
+        ov::element::Type query_precision = ov::element::dynamic;
+        ov::element::Type probability_precision = ov::element::dynamic;
     };
 
     ScaledDotProductAttentionWithKVCache(const OutputVector& args, Config cfg);

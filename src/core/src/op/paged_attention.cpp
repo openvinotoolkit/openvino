@@ -73,13 +73,27 @@ namespace ov {
 namespace op {
 
 PagedAttentionExtension::PagedAttentionExtension(const ov::OutputVector& args, bool write_kv_cache)
+    : PagedAttentionExtension(args, write_kv_cache, element::dynamic, element::dynamic) {}
+
+PagedAttentionExtension::PagedAttentionExtension(const ov::OutputVector& args,
+                                                 bool write_kv_cache,
+                                                 element::Type query_precision,
+                                                 element::Type probability_precision)
     : ov::op::Op(args),
-      m_write_kv_cache(write_kv_cache) {
+      m_write_kv_cache(write_kv_cache),
+      m_query_precision(query_precision),
+      m_probability_precision(probability_precision) {
     constructor_validate_and_infer_types();
 }
 
 void PagedAttentionExtension::validate_and_infer_types() {
     OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
+
+    for (const auto precision : {m_query_precision, m_probability_precision}) {
+        NODE_VALIDATION_CHECK(this,
+                              precision == element::dynamic || precision == element::f16,
+                              "Attention rounding precision must be dynamic or f16");
+    }
 
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == 28,
@@ -119,9 +133,11 @@ void PagedAttentionExtension::validate_and_infer_types() {
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
-    // Use m_output_type overrides when set, otherwise fall back to query type
+    const auto arithmetic_type = m_query_precision != element::dynamic || m_probability_precision != element::dynamic
+                                     ? element::f32
+                                     : get_input_element_type(0);
     for (int i = 0; i < 3; ++i) {
-        const auto et = m_output_type[i].is_dynamic() ? get_input_element_type(0) : m_output_type[i];
+        const auto et = m_output_type[i].is_dynamic() ? arithmetic_type : m_output_type[i];
         set_output_type(i, et, output_shapes[i]);
     }
 }
@@ -129,11 +145,26 @@ void PagedAttentionExtension::validate_and_infer_types() {
 std::shared_ptr<ov::Node> PagedAttentionExtension::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     OV_OP_SCOPE(PagedAttentionExtension_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<PagedAttentionExtension>(new_args, m_write_kv_cache);
+    auto cloned = std::make_shared<PagedAttentionExtension>(new_args,
+                                                            m_write_kv_cache,
+                                                            m_query_precision,
+                                                            m_probability_precision);
+    cloned->m_output_type = m_output_type;
+    cloned->validate_and_infer_types();
+    return cloned;
 }
 
 bool PagedAttentionExtension::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("write_kv_cache", m_write_kv_cache);
+    visitor.on_attribute("query_precision", m_query_precision);
+    visitor.on_attribute("probability_precision", m_probability_precision);
+    auto& info = get_rt_info();
+    for (const auto* name : {"num_k_heads", "k_head_size", "num_v_heads", "v_head_size"}) {
+        int64_t dimension = info.count(name) ? info.at(name).as<int64_t>() : 0;
+        visitor.on_attribute(name, dimension);
+        if (dimension > 0)
+            info[name] = dimension;
+    }
     return true;
 }
 

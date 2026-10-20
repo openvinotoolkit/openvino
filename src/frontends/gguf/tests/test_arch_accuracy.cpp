@@ -10,6 +10,7 @@
 #include <fstream>
 #include <limits>
 #include <set>
+#include <sstream>
 #include <tuple>
 
 #include "builder/api/metadata_store.hpp"
@@ -36,11 +37,14 @@
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/read_value.hpp"
+#include "openvino/op/scaled_dot_product_attention_extension.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "quant/gguf.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "utils.hpp"
 
 namespace {
@@ -916,6 +920,212 @@ TEST(GGUFEmbeddingAccuracy, RealCheckpointTokenEmbeddingsMatchLlamaCPU) {
     const auto metric = ov_gguf_test::nmse(output.data<const float>(), expected.data(), expected.size());
     RecordProperty("nmse", std::to_string(metric.value()));
     ov_gguf_test::expect_nmse_below(metric, 1e-5);
+}
+
+TEST(GGUFGemma3nAccuracy, PagedAttentionRetainsRoundingAndMatchesCachedLlamaLogits) {
+#if !defined(OPENVINO_ARCH_X86_64)
+    GTEST_SKIP() << "Explicit CPU attention rounding requires x86-64";
+#endif
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma3n.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    const auto& reference = ov_gguf_test::npz_array(arrays, "logits");
+    ASSERT_EQ(reference.shape.size(), 2);
+    ASSERT_EQ(reference.shape[0], 3);
+    const auto vocab = reference.shape[1];
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>(
+        ov::frontend::gguf::GenAIExtension::InputMode::IDS_TO_LOGITS));
+    auto model = frontend.convert(frontend.load(temporary.path));
+    const auto check_contract = [](const std::shared_ptr<ov::Model>& graph, bool paged) {
+        size_t sdpa_count = 0, pa_count = 0;
+        for (const auto& node : graph->get_ops()) {
+            if (const auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(node)) {
+                ++sdpa_count;
+                const auto extended = ov::as_type_ptr<ov::op::internal::ScaledDotProductAttentionExtension>(sdpa);
+                ASSERT_NE(extended, nullptr);
+                EXPECT_EQ(extended->get_query_precision(), ov::element::f16);
+                EXPECT_EQ(extended->get_probability_precision(), ov::element::f16);
+                EXPECT_EQ(extended->get_input_element_type(0), ov::element::f16);
+                EXPECT_EQ(extended->get_output_element_type(0), ov::element::f32);
+            }
+            if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
+                ++pa_count;
+                EXPECT_EQ(pa->get_query_precision(), ov::element::f16);
+                EXPECT_EQ(pa->get_probability_precision(), ov::element::f16);
+            }
+        }
+        EXPECT_EQ(sdpa_count, paged ? 0u : 5u);
+        EXPECT_EQ(pa_count, paged ? 5u : 0u);
+    };
+    const auto roundtrip = [](const std::shared_ptr<ov::Model>& graph, bool paged, ov::Core& fresh_core) {
+        auto clean = graph->clone();
+        const std::string precision_attribute = ov::DisablePrecisionConversion::get_type_info_static();
+        size_t protected_nodes = 0;
+        for (const auto& node : clean->get_ops()) {
+            auto& info = node->get_rt_info();
+            protected_nodes += info.count(ov::DisablePrecisionConversion::get_type_info_static());
+            for (auto it = info.begin(); it != info.end();) {
+                const auto& name = it->first;
+                if (name == precision_attribute || (ov::is_type<ov::op::PagedAttentionExtension>(node) &&
+                                                    (name == "num_k_heads" || name == "k_head_size" ||
+                                                     name == "num_v_heads" || name == "v_head_size")))
+                    ++it;
+                else
+                    it = info.erase(it);
+            }
+        }
+        EXPECT_GT(protected_nodes, 0u);
+        std::stringstream xml, weights;
+        ov::pass::Serialize(xml, weights).run_on_model(clean);
+        const auto bytes = weights.str();
+        ov::Tensor constants(ov::element::u8, {bytes.size()});
+        if (!bytes.empty())
+            std::memcpy(constants.data(), bytes.data(), bytes.size());
+        if (paged)
+            fresh_core.add_extension<ov::op::PagedAttentionExtension>();
+        auto restored = fresh_core.read_model(xml.str(), constants);
+        size_t restored_protected_nodes = 0;
+        for (const auto& node : restored->get_ops())
+            restored_protected_nodes +=
+                node->get_rt_info().count(ov::DisablePrecisionConversion::get_type_info_static());
+        EXPECT_EQ(restored_protected_nodes, protected_nodes);
+        return restored;
+    };
+    ov::Core serialization_core;
+    check_contract(model, false);
+    check_contract(roundtrip(model, false, serialization_core), false);
+    ASSERT_TRUE(ov::pass::SDPAToPagedAttention(false, false, false).run_on_model(model));
+    check_contract(model, true);
+    check_contract(roundtrip(model, true, serialization_core), true);
+
+    ov::Core core;
+    auto compiled = core.compile_model(model,
+                                       "CPU",
+                                       ov::hint::inference_precision(ov::element::f32),
+                                       ov::num_streams(1),
+                                       ov::inference_num_threads(4),
+                                       ov::hint::dynamic_quantization_group_size(0),
+                                       ov::hint::kv_cache_precision(ov::element::f16));
+    const auto reset_caches = [&](ov::InferRequest& request) {
+        size_t cache_count = 0;
+        for (const auto& input : compiled.inputs()) {
+            const auto name = input.get_any_name();
+            if (name.find("key_cache.") != 0 && name.find("value_cache.") != 0)
+                continue;
+            auto shape = input.get_partial_shape();
+            ASSERT_EQ(shape.rank(), 4);
+            ASSERT_EQ(shape[2], 32);
+            ASSERT_EQ(input.get_element_type(), ov::element::f16);
+            shape[0] = 2;
+            ASSERT_TRUE(shape.is_static());
+            ov::Tensor tensor(input.get_element_type(), shape.get_shape());
+            std::memset(tensor.data(), 0, tensor.get_byte_size());
+            request.set_tensor(input, tensor);
+            ++cache_count;
+        }
+        EXPECT_EQ(cache_count, 10u);
+    };
+    const auto infer = [&](ov::InferRequest& request,
+                           const std::vector<std::vector<int64_t>>& tokens,
+                           const std::vector<int32_t>& past,
+                           const std::vector<int32_t>& blocks) {
+        std::vector<int64_t> ids, positions;
+        std::vector<int32_t> begins{0}, block_begins{0};
+        int32_t max_context = 0;
+        for (size_t sequence = 0; sequence < tokens.size(); ++sequence) {
+            ids.insert(ids.end(), tokens[sequence].begin(), tokens[sequence].end());
+            for (size_t i = 0; i < tokens[sequence].size(); ++i)
+                positions.push_back(past[sequence] + static_cast<int64_t>(i));
+            begins.push_back(static_cast<int32_t>(ids.size()));
+            block_begins.push_back(static_cast<int32_t>(sequence + 1));
+            max_context = std::max(max_context, past[sequence] + static_cast<int32_t>(tokens[sequence].size()));
+        }
+        for (const auto& input : compiled.inputs()) {
+            const auto name = input.get_any_name();
+            if (name.find("key_cache.") == 0 || name.find("value_cache.") == 0)
+                continue;
+            if (name == "input_ids" || name == "position_ids") {
+                const auto& values = name == "input_ids" ? ids : positions;
+                ov::Tensor tensor(input.get_element_type(), {values.size()});
+                if (input.get_element_type() == ov::element::i64)
+                    std::copy(values.begin(), values.end(), tensor.data<int64_t>());
+                else
+                    std::copy(values.begin(), values.end(), tensor.data<int32_t>());
+                request.set_tensor(input, tensor);
+                continue;
+            }
+            std::vector<int32_t> values;
+            if (name == "past_lens")
+                values = past;
+            else if (name == "subsequence_begins")
+                values = begins;
+            else if (name == "block_indices")
+                values = blocks;
+            else if (name == "block_indices_begins")
+                values = block_begins;
+            else if (name == "max_context_len")
+                values = {max_context};
+            else
+                OPENVINO_THROW("Unexpected Gemma3n PagedAttention input: ", name);
+            ov::Tensor tensor(ov::element::i32,
+                              input.get_partial_shape().rank() == 0 ? ov::Shape{} : ov::Shape{values.size()});
+            std::copy(values.begin(), values.end(), tensor.data<int32_t>());
+            request.set_tensor(input, tensor);
+        }
+        request.infer();
+        const auto output = request.get_tensor("logits");
+        OPENVINO_ASSERT(output.get_element_type() == ov::element::f32);
+        OPENVINO_ASSERT(output.get_size() == ids.size() * vocab);
+        return std::vector<float>(output.data<const float>(), output.data<const float>() + output.get_size());
+    };
+    const auto check_logits = [&](const std::vector<float>& output, size_t token, size_t step) {
+        ASSERT_GE(output.size(), (token + 1) * vocab);
+        const auto metric =
+            ov_gguf_test::nmse(output.data() + token * vocab, reference.data<float>() + step * vocab, vocab);
+        ASSERT_TRUE(metric.all_finite());
+        ASSERT_GT(metric.reference_norm(), 1e-12);
+        EXPECT_LT(metric.value(), 1e-5) << "step=" << step << ", token=" << token;
+    };
+    const std::vector<std::vector<int64_t>> schedule{{1, 2, 3}, {4}, {5, 6}};
+    auto request = compiled.create_infer_request();
+    const auto run_schedule = [&](ov::InferRequest& current) {
+        int32_t past = 0;
+        for (size_t step = 0; step < schedule.size(); ++step) {
+            SCOPED_TRACE("schedule step=" + std::to_string(step));
+            const auto output = infer(current, {schedule[step]}, {past}, {0});
+            check_logits(output, schedule[step].size() - 1, step);
+            past += static_cast<int32_t>(schedule[step].size());
+        }
+    };
+    reset_caches(request);
+    run_schedule(request);
+    check_logits(infer(request, {schedule.front()}, {0}, {0}), 2, 0);
+    reset_caches(request);
+    run_schedule(request);
+    auto fresh_request = compiled.create_infer_request();
+    reset_caches(fresh_request);
+    run_schedule(fresh_request);
+    reset_caches(request);
+    check_logits(infer(request, {{1, 2, 3}}, {0}, {0}), 2, 0);
+    const auto mixed = infer(request, {{4}, {1, 2, 3}}, {3, 0}, {0, 1});
+    check_logits(mixed, 0, 1);
+    check_logits(mixed, 3, 0);
+    const auto continuation = infer(request, {{5, 6}, {4}}, {4, 3}, {0, 1});
+    check_logits(continuation, 1, 2);
+    check_logits(continuation, 2, 1);
+    ov::Core fresh_core;
+    auto restored = roundtrip(model, true, fresh_core);
+    check_contract(restored, true);
+    compiled = fresh_core.compile_model(restored,
+                                        "CPU",
+                                        ov::hint::inference_precision(ov::element::f32),
+                                        ov::num_streams(1),
+                                        ov::inference_num_threads(4),
+                                        ov::hint::dynamic_quantization_group_size(0),
+                                        ov::hint::kv_cache_precision(ov::element::f16));
+    auto restored_request = compiled.create_infer_request();
+    reset_caches(restored_request);
+    run_schedule(restored_request);
 }
 
 TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {

@@ -12,13 +12,16 @@
 #include <cmath>
 #include <cstring>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <numeric>
 #include <sstream>
+#include <utility>
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "gtest/gtest.h"
 #include "op_test_utils.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
@@ -41,6 +44,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/scaled_dot_product_attention_extension.hpp"
 #include "openvino/op/sink.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -53,6 +57,7 @@
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "utils.hpp"
 
 using namespace ov_gguf_test;
@@ -1157,6 +1162,292 @@ std::shared_ptr<v0::MatMul> find_genai_lm_head(const std::shared_ptr<ov::Model>&
 }
 
 }  // namespace
+
+TEST(GGUFAdaptToGenAI, IndependentAttentionRoundingMatchesF32Decomposition) {
+#if !defined(OPENVINO_ARCH_X86_64)
+    GTEST_SKIP() << "Explicit CPU attention rounding requires x86-64";
+#endif
+    constexpr size_t heads = 2, queries = 3, keys = 5, width = 4, value_width = 3;
+    for (const auto type : {ov::element::f32, ov::element::f16}) {
+        const auto make_input = [&](const ov::Shape& shape, float frequency, float amplitude) {
+            ov::Tensor tensor(type, shape);
+            for (size_t i = 0; i < tensor.get_size(); ++i) {
+                const auto value = amplitude * std::sin(frequency * static_cast<float>(i + 1));
+                if (type == ov::element::f32)
+                    tensor.data<float>()[i] = value;
+                else
+                    tensor.data<ov::float16>()[i] = ov::float16(value);
+            }
+            return tensor;
+        };
+        const auto q = make_input({1, heads, queries, width}, 0.71f, 1.3f);
+        const auto k = make_input({1, heads, keys, width}, 0.39f, 2.1f);
+        const auto v = make_input({1, heads, keys, value_width}, 0.53f, 9.0f);
+        const auto mask = make_input({1, 1, queries, keys}, 0.27f, 0.4f);
+        const auto scale = make_input({}, 0.61f, 0.8f);
+        const auto sink = make_input({1, heads, 1, 1}, 0.83f, 0.7f);
+        const auto read = [type](const ov::Tensor& tensor, size_t i) {
+            return type == ov::element::f32 ? tensor.data<const float>()[i]
+                                            : static_cast<float>(tensor.data<const ov::float16>()[i]);
+        };
+        for (const auto& precision : {std::pair{ov::element::dynamic, ov::element::f16},
+                                      std::pair{ov::element::f16, ov::element::dynamic},
+                                      std::pair{ov::element::f16, ov::element::f16}}) {
+            for (const bool with_sink : {false, true}) {
+                SCOPED_TRACE(::testing::Message() << type << ", q=" << precision.first << ", p=" << precision.second
+                                                  << ", sink=" << with_sink);
+                ov::TensorVector inputs{q, k, v, mask, scale};
+                if (with_sink)
+                    inputs.push_back(sink);
+                ov::ParameterVector parameters;
+                ov::OutputVector arguments;
+                for (const auto& input : inputs) {
+                    auto parameter = std::make_shared<v0::Parameter>(type, input.get_shape());
+                    parameters.push_back(parameter);
+                    arguments.push_back(parameter);
+                }
+                auto attention = std::make_shared<internal::ScaledDotProductAttentionExtension>(arguments,
+                                                                                                false,
+                                                                                                precision.first,
+                                                                                                precision.second);
+                auto model = std::make_shared<ov::Model>(ov::OutputVector{attention}, parameters);
+                auto decomposed = model->clone();
+                ov::pass::Manager manager;
+                manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
+                manager.run_passes(decomposed);
+                size_t matmuls = 0;
+                for (const auto& node : decomposed->get_ops()) {
+                    EXPECT_FALSE(ov::is_type<v13::ScaledDotProductAttention>(node));
+                    if (ov::is_type<v0::MatMul>(node)) {
+                        ++matmuls;
+                        EXPECT_EQ(node->get_input_element_type(0), ov::element::f32);
+                        EXPECT_EQ(node->get_input_element_type(1), ov::element::f32);
+                        EXPECT_EQ(node->get_output_element_type(0), ov::element::f32);
+                    }
+                }
+                EXPECT_EQ(matmuls, 2u);
+                for (const auto& parameter : decomposed->get_parameters())
+                    EXPECT_EQ(parameter->get_element_type(), type);
+                EXPECT_EQ(decomposed->output().get_element_type(), ov::element::f32);
+
+                std::vector<float> expected(heads * queries * value_width, 0.f);
+                for (size_t h = 0; h < heads; ++h) {
+                    for (size_t row = 0; row < queries; ++row) {
+                        std::vector<float> scores(keys);
+                        float maximum = with_sink ? read(sink, h) : -std::numeric_limits<float>::infinity();
+                        for (size_t column = 0; column < keys; ++column) {
+                            float dot = 0.f;
+                            for (size_t d = 0; d < width; ++d) {
+                                float query = read(q, (h * queries + row) * width + d);
+                                if (precision.first == ov::element::f16)
+                                    query = static_cast<float>(ov::float16(query));
+                                dot += query * read(k, (h * keys + column) * width + d);
+                            }
+                            scores[column] = dot * read(scale, 0) + read(mask, row * keys + column);
+                            maximum = std::max(maximum, scores[column]);
+                        }
+                        float denominator = with_sink ? std::exp(read(sink, h) - maximum) : 0.f;
+                        for (auto& score : scores) {
+                            score = std::exp(score - maximum);
+                            denominator += score;
+                        }
+                        for (size_t column = 0; column < keys; ++column) {
+                            float probability = scores[column] / denominator;
+                            if (precision.second == ov::element::f16)
+                                probability = static_cast<float>(ov::float16(probability));
+                            for (size_t d = 0; d < value_width; ++d)
+                                expected[(h * queries + row) * value_width + d] +=
+                                    probability * read(v, (h * keys + column) * value_width + d);
+                        }
+                    }
+                }
+                if (type == ov::element::f32) {
+                    auto dynamic_arguments = arguments;
+                    dynamic_arguments[0] = std::make_shared<v0::Parameter>(type, ov::PartialShape{1, heads, -1, width});
+                    dynamic_arguments[3] = std::make_shared<v0::Parameter>(type, ov::PartialShape{1, 1, -1, keys});
+                    auto dynamic_attention =
+                        std::make_shared<internal::ScaledDotProductAttentionExtension>(dynamic_arguments,
+                                                                                       false,
+                                                                                       precision.first,
+                                                                                       precision.second);
+                    ov::TensorVector resized{ov::Tensor(type, {1})};
+                    ASSERT_TRUE(dynamic_attention->evaluate(resized, inputs));
+                    ASSERT_EQ(resized[0].get_shape(), (ov::Shape{1, heads, queries, value_width}));
+                    for (size_t i = 0; i < expected.size(); ++i)
+                        EXPECT_NEAR(resized[0].data<const float>()[i], expected[i], 2e-5f) << "element=" << i;
+                    auto shorter_inputs = inputs;
+                    ov::Tensor shorter_q(type, {1, heads, 1, width});
+                    for (size_t h = 0; h < heads; ++h)
+                        std::copy_n(q.data<const float>() + h * queries * width,
+                                    width,
+                                    shorter_q.data<float>() + h * width);
+                    ov::Tensor shorter_mask(type, {1, 1, 1, keys});
+                    std::copy_n(mask.data<const float>(), keys, shorter_mask.data<float>());
+                    shorter_inputs[0] = shorter_q;
+                    shorter_inputs[3] = shorter_mask;
+                    ASSERT_TRUE(dynamic_attention->evaluate(resized, shorter_inputs));
+                    ASSERT_EQ(resized[0].get_shape(), (ov::Shape{1, heads, 1, value_width}));
+                    for (size_t h = 0; h < heads; ++h)
+                        for (size_t d = 0; d < value_width; ++d)
+                            EXPECT_NEAR(resized[0].data<const float>()[h * value_width + d],
+                                        expected[h * queries * value_width + d],
+                                        2e-5f);
+                }
+                ov::TensorVector evaluated{ov::Tensor(ov::element::f32, {1, heads, queries, value_width})};
+                ASSERT_TRUE(decomposed->evaluate(evaluated, inputs));
+                for (size_t i = 0; i < expected.size(); ++i)
+                    EXPECT_NEAR(evaluated[0].data<const float>()[i], expected[i], 2e-5f) << "element=" << i;
+                ov::Core core;
+                for (const auto& graph : {model, decomposed}) {
+                    auto request = core.compile_model(graph,
+                                                      "CPU",
+                                                      ov::hint::inference_precision(ov::element::f32),
+                                                      ov::hint::dynamic_quantization_group_size(0))
+                                       .create_infer_request();
+                    for (size_t i = 0; i < inputs.size(); ++i)
+                        request.set_input_tensor(i, inputs[i]);
+                    request.infer();
+                    const auto output = request.get_output_tensor();
+                    ASSERT_EQ(output.get_element_type(), ov::element::f32);
+                    ASSERT_EQ(output.get_size(), expected.size());
+                    for (size_t i = 0; i < expected.size(); ++i)
+                        EXPECT_NEAR(output.data<const float>()[i], expected[i], 2e-4f) << "element=" << i;
+                }
+            }
+        }
+    }
+}
+
+TEST(GGUFAdaptToGenAI, PreservesIndependentAttentionRoundingThroughPagedAttentionAndSerialization) {
+#if !defined(OPENVINO_ARCH_X86_64)
+    GTEST_SKIP() << "Explicit CPU attention rounding requires x86-64";
+#endif
+    for (const auto& precision : {std::pair{ov::element::dynamic, ov::element::f16},
+                                  std::pair{ov::element::f16, ov::element::dynamic},
+                                  std::pair{ov::element::f16, ov::element::f16}}) {
+        auto model = build_attention_gguf_model(16, 4);
+        size_t replaced = 0;
+        for (const auto& node : model->get_ops()) {
+            if (const auto sdpa = ov::as_type_ptr<v13::ScaledDotProductAttention>(node)) {
+                auto extended = std::make_shared<internal::ScaledDotProductAttentionExtension>(sdpa->input_values(),
+                                                                                               sdpa->get_causal(),
+                                                                                               precision.first,
+                                                                                               precision.second);
+                sdpa->output(0).replace(extended->output(0));
+                ++replaced;
+            }
+        }
+        ASSERT_EQ(replaced, 1u);
+        ASSERT_TRUE(AdaptToGenAI().run_on_model(model));
+        model = model->clone();
+        ASSERT_TRUE(ov::pass::SDPAToPagedAttention(false, false, false).run_on_model(model));
+        const auto check_contract = [&](const std::shared_ptr<ov::Model>& graph) {
+            size_t count = 0;
+            for (const auto& node : graph->get_ops()) {
+                EXPECT_FALSE(ov::is_type<v13::ScaledDotProductAttention>(node));
+                if (const auto pa = ov::as_type_ptr<PagedAttentionExtension>(node)) {
+                    ++count;
+                    EXPECT_EQ(pa->get_query_precision(), precision.first);
+                    EXPECT_EQ(pa->get_probability_precision(), precision.second);
+                    EXPECT_TRUE(pa->get_write_kv_cache());
+                }
+            }
+            EXPECT_EQ(count, 1u);
+        };
+        check_contract(model);
+        auto cloned = model->clone();
+        check_contract(cloned);
+        for (const auto& node : cloned->get_ops()) {
+            auto& info = node->get_rt_info();
+            for (auto it = info.begin(); it != info.end();) {
+                const auto& name = it->first;
+                if (ov::is_type<PagedAttentionExtension>(node) &&
+                    (name == "num_k_heads" || name == "k_head_size" || name == "num_v_heads" || name == "v_head_size"))
+                    ++it;
+                else
+                    it = info.erase(it);
+            }
+        }
+        std::stringstream xml, weights;
+        ov::pass::Serialize(xml, weights).run_on_model(cloned);
+        const auto bytes = weights.str();
+        ov::Tensor constants(ov::element::u8, {bytes.size()});
+        if (!bytes.empty())
+            std::memcpy(constants.data(), bytes.data(), bytes.size());
+        ov::Core fresh_core;
+        fresh_core.add_extension<PagedAttentionExtension>();
+        auto restored = fresh_core.read_model(xml.str(), constants);
+        check_contract(restored);
+        auto compiled = fresh_core.compile_model(restored,
+                                                 "CPU",
+                                                 ov::hint::inference_precision(ov::element::f32),
+                                                 ov::hint::kv_cache_precision(ov::element::f32),
+                                                 ov::hint::dynamic_quantization_group_size(0));
+        auto request = compiled.create_infer_request();
+        for (const auto& input : compiled.inputs()) {
+            const auto name = input.get_any_name();
+            if (name.find("key_cache.") == 0 || name.find("value_cache.") == 0) {
+                auto shape = input.get_partial_shape();
+                shape[0] = 1;
+                ov::Tensor cache(input.get_element_type(), shape.get_shape());
+                std::memset(cache.data(), 0, cache.get_byte_size());
+                request.set_tensor(input, cache);
+            }
+        }
+        const auto infer = [&](const std::vector<int64_t>& tokens, int32_t past) {
+            for (const auto& input : compiled.inputs()) {
+                const auto name = input.get_any_name();
+                if (name.find("key_cache.") == 0 || name.find("value_cache.") == 0)
+                    continue;
+                if (name == "input_ids" || name == "position_ids") {
+                    ov::Tensor tensor(input.get_element_type(), {tokens.size()});
+                    for (size_t i = 0; i < tokens.size(); ++i) {
+                        const auto value = name == "input_ids" ? tokens[i] : past + static_cast<int64_t>(i);
+                        if (input.get_element_type() == ov::element::i64)
+                            tensor.data<int64_t>()[i] = value;
+                        else
+                            tensor.data<int32_t>()[i] = static_cast<int32_t>(value);
+                    }
+                    request.set_tensor(input, tensor);
+                    continue;
+                }
+                std::vector<int32_t> values;
+                if (name == "past_lens")
+                    values = {past};
+                else if (name == "subsequence_begins")
+                    values = {0, static_cast<int32_t>(tokens.size())};
+                else if (name == "block_indices" || name == "beam_idx")
+                    values = {0};
+                else if (name == "block_indices_begins")
+                    values = {0, 1};
+                else if (name == "max_context_len")
+                    values = {past + static_cast<int32_t>(tokens.size())};
+                else
+                    OPENVINO_THROW("Unexpected serialized PagedAttention input: ", name);
+                ov::Tensor tensor(ov::element::i32,
+                                  input.get_partial_shape().rank() == 0 ? ov::Shape{} : ov::Shape{values.size()});
+                std::copy(values.begin(), values.end(), tensor.data<int32_t>());
+                request.set_tensor(input, tensor);
+            }
+            request.infer();
+            return request.get_output_tensor();
+        };
+        const auto prefill = infer({1, 2, 4}, 0);
+        ASSERT_EQ(prefill.get_element_type(), ov::element::f32);
+        ASSERT_EQ(prefill.get_size(), 12u);
+        const float third =
+            precision.second == ov::element::f16 ? static_cast<float>(ov::float16(1.f / 3.f)) : 1.f / 3.f;
+        for (size_t i = 0; i < 4; ++i) {
+            EXPECT_NEAR(prefill.data<const float>()[i], 1.f, 1e-5f);
+            EXPECT_NEAR(prefill.data<const float>()[4 + i], 1.5f, 1e-5f);
+            EXPECT_NEAR(prefill.data<const float>()[8 + i], 7.f * third, 1e-5f);
+        }
+        const auto decode = infer({3}, 3);
+        ASSERT_EQ(decode.get_size(), 4u);
+        for (size_t i = 0; i < 4; ++i)
+            EXPECT_NEAR(decode.data<const float>()[i], 2.5f, 1e-5f);
+    }
+}
 
 TEST(GGUFAdaptToGenAI, SurvivesSDPAToPagedAttentionWithRealAttentionBlock) {
     const int64_t vocab = 8;

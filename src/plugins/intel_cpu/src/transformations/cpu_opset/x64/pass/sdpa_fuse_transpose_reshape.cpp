@@ -18,6 +18,7 @@
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/scaled_dot_product_attention_extension.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -170,6 +171,10 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
         // Config
         intel_cpu::SDPAWithTransposeReshape::Config config;
         config.is_causal = sdpa->get_causal();
+        if (const auto extended_sdpa = as_type_ptr<op::internal::ScaledDotProductAttentionExtension>(sdpa)) {
+            config.query_precision = extended_sdpa->get_query_precision();
+            config.probability_precision = extended_sdpa->get_probability_precision();
+        }
         config.fuse_concat = false;
         config.output_BLHxS = true;
 
