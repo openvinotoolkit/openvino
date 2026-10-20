@@ -18,8 +18,8 @@ struct KVCacheBlockManagerTestAccess {
     static void share(ov::npuw::KVCacheBlockManager& manager, uint32_t block_id) {
         manager.mark_block_shared(block_id);
     }
-    static bool unshare(ov::npuw::KVCacheBlockManager& manager, uint32_t block_id) {
-        return manager.unshare_block(block_id);
+    static bool make_private(ov::npuw::KVCacheBlockManager& manager, uint32_t block_id) {
+        return manager.make_block_private(block_id);
     }
     static bool is_shared(const ov::npuw::KVCacheBlockManager& manager, uint32_t block_id) {
         return manager.blocks_.at(block_id).is_shared;

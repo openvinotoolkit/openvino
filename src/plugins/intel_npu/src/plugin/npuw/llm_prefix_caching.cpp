@@ -432,11 +432,12 @@ uint64_t PrefixCachingHelper::restore_blocks(const ov::SoPtr<ov::ITensor>& input
                                              const std::vector<uint64_t>& prompt_hashes) {
     // Find all cached blocks first
     auto cached_blocks = find_cached_blocks(input_ids, prompt_hashes);
+    if (cached_blocks.empty()) {
+        return 0;
+    }
 
     // The strategy owns the KV physical format, so it applies the blocks to its own state
-    if (!cached_blocks.empty()) {
-        m_request.m_kvcache_strategy->apply_cached_prefix_blocks(cached_blocks);
-    }
+    m_request.m_kvcache_strategy->apply_cached_prefix_blocks(cached_blocks);
 
     // Calculate total restored token number
     const uint64_t block_size = m_request.m_npuw_llm_compiled_model->m_prefix_caching_block_size;

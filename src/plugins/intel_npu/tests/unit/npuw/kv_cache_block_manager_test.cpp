@@ -467,18 +467,18 @@ TEST_F(KVCacheBlockManagerTest, SharedFlagFollowsTheBlockLifetime) {
     EXPECT_TRUE(KVCacheBlockManagerTestAccess::is_shared(*manager, injected_id));
 }
 
-TEST_F(KVCacheBlockManagerTest, UnshareGivesPrivateCopy) {
+TEST_F(KVCacheBlockManagerTest, MakePrivateGivesPrivateCopy) {
     const auto id = manager->allocate_block().value();
     auto original = manager->get_block_tensor(id);
     std::fill_n(original->data<ov::float16>(), 8, ov::float16(3.0f));
     manager->update_block_tokens(id, block_size);
 
     // A block that was never shared is left alone.
-    EXPECT_FALSE(KVCacheBlockManagerTestAccess::unshare(*manager, id));
+    EXPECT_FALSE(KVCacheBlockManagerTestAccess::make_private(*manager, id));
     EXPECT_EQ(manager->get_block_tensor(id)->data(), original->data());
 
     KVCacheBlockManagerTestAccess::share(*manager, id);
-    EXPECT_TRUE(KVCacheBlockManagerTestAccess::unshare(*manager, id));
+    EXPECT_TRUE(KVCacheBlockManagerTestAccess::make_private(*manager, id));
 
     auto copy = manager->get_block_tensor(id);
     EXPECT_NE(copy->data(), original->data());
