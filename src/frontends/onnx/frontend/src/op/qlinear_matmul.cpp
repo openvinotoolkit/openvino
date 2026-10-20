@@ -7,21 +7,16 @@
 #include "utils/reshape.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 // Link with an existing translator
-namespace opset_13 {
-namespace detail {
+namespace opset_13::detail {
 extern ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
                                           const ov::Output<ov::Node>& scale,
                                           const std::shared_ptr<ov::Node>& zero_point,
                                           int64_t axis,
                                           const Node& node,
                                           const ov::element::Type& precision = ov::element::dynamic);
-}  // namespace detail
-}  // namespace opset_13
+}  // namespace opset_13::detail
 namespace detail {
 extern ov::OutputVector matmul(const ov::Output<ov::Node>& a, const ov::Output<ov::Node>& b);
 extern std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale,
@@ -63,7 +58,4 @@ ov::OutputVector qlinear_matmul(const ov::frontend::onnx::Node& node) {
 }
 ONNX_OP("QLinearMatMul", OPSET_SINCE(1), ai_onnx::opset_1::qlinear_matmul);
 }  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

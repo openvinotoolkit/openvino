@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "common_test_utils/test_assertions.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
@@ -178,6 +180,36 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND8DynamicBD_2,
                          GatherND8LayerCPUTest,
                          subset_BD2,
                          GatherNDLayerCPUTest::getTestCaseName);
+
+class GatherND8LayerCPUErrorConditionTest : public GatherND8LayerCPUTest {};
+
+TEST_P(GatherND8LayerCPUErrorConditionTest, ThrowsOnOutOfRangeIndices) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    compile_model();
+    // Both CPU and TEMPLATE plugins should throw; a mismatch is a bug.
+    for (const auto& targetStaticShapeVec : targetStaticShapes) {
+        generate_inputs(targetStaticShapeVec);
+        OV_EXPECT_THROW(get_plugin_outputs(), ov::Exception, ::testing::_);
+        OV_EXPECT_THROW(calculate_refs(), ov::Exception, ::testing::_);
+    }
+}
+
+const std::vector<InputShape> inputShapesOutOfRange = {
+    {{4, 4}, {{4, 4}}},
+};
+
+const std::vector<std::pair<Shape, std::vector<int>>> indexesShapesOutOfRange = {
+    std::pair<Shape, std::vector<int>>{{1, 2}, {40, 0}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND8OutOfRangeIndices,
+                         GatherND8LayerCPUErrorConditionTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesOutOfRange),
+                                            ::testing::ValuesIn(indexesShapesOutOfRange),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::ValuesIn(indexesPrecisions),
+                                            ::testing::Values(0)),
+                         GatherND8LayerCPUTest::getTestCaseName);
 
 }  // namespace
 }  // namespace test

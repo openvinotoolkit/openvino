@@ -8,8 +8,7 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/visibility.hpp"
 
-namespace ov {
-namespace frontend {
+namespace ov::frontend {
 
 // Extendable type system which reflects Framework data types
 // Type nestings are built with the help of ov::Any
@@ -93,5 +92,4 @@ public:
     virtual ~DecoderBase();
 };
 
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend

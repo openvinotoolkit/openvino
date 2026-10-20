@@ -4,6 +4,7 @@
 
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/common.cl"
+#include "include/batch_headers/bf16_utils.cl"
 #include "include/batch_headers/int4_utils.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/sub_group_block_write.cl"
@@ -66,15 +67,15 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
     // The innermost dimension is always processed in the loop inside the kernel
     const uint x = 0;
 
-    half grp_max = 0.001h;
-    half max_value = INPUT0_VAL_MIN;
-    half min_value = INPUT0_VAL_MAX;
+    const INPUT0_COMPUTE_TYPE grp_max = TO_INPUT0_COMPUTE_TYPE(0.001f);
+    INPUT0_COMPUTE_TYPE max_value = INPUT0_VAL_MIN;
+    INPUT0_COMPUTE_TYPE min_value = INPUT0_VAL_MAX;
 
-    half val[INNERMOST_DIM_VALUE / SUBGROUP_SIZE];
+    INPUT0_COMPUTE_TYPE val[INNERMOST_DIM_VALUE / SUBGROUP_SIZE];
 
     const uint input_offset = INPUT0_GET_INDEX(b, f, y, x);
     unroll_for (uint i = 0; i < INNERMOST_DIM_VALUE / SUBGROUP_SIZE; i++) {
-        val[i] = INPUT_BLOCK_READ(input, input_offset + i * SUBGROUP_SIZE);
+        val[i] = DECODE_INPUT0_COMPUTE_TYPE(INPUT_BLOCK_READ(input, input_offset + i * SUBGROUP_SIZE));
 #if ASYMMETRIC_QUANTIZATION
         max_value = fmax(max_value, val[i]);
         min_value = fmin(min_value, val[i]);
@@ -136,15 +137,15 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
 
     const uint scale_idx = FUNC_CALL(get_scales_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, y, x);
     if (grouped_indexes == 0 && sglid == 0) {
-        output_scale[scale_idx]     = (OUTPUT1_TYPE)(1.0f / scale_tmp); // dequant scale
+        output_scale[scale_idx]     = TO_OUTPUT1_TYPE(1.0f / scale_tmp); // dequant scale
 #if ASYMMETRIC_QUANTIZATION && !GROUP_SCALES_WITH_ZP
     #if OUTPUT2_IS_FP
-        output_zp[scale_idx] = (OUTPUT2_TYPE)(zp_tmp);
+        output_zp[scale_idx] = TO_OUTPUT2_TYPE(zp_tmp);
     #else
         output_zp[scale_idx] = convert_char_rte(zp_tmp);
     #endif
 #else
-        output_scale[scale_idx + 1] = (OUTPUT1_TYPE)(zp_tmp);           // zero-point (interleaved)
+        output_scale[scale_idx + 1] = TO_OUTPUT1_TYPE(zp_tmp);           // zero-point (interleaved)
 #endif
     }
 
@@ -158,12 +159,12 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
     ACCUMULATOR_TYPE diff_value = max_value == min_value ? (grp_max) : (max_value - min_value);
     ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
     ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
-    OUTPUT1_TYPE scale = (OUTPUT1_TYPE)(scale_tmp);
-    OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(zp_tmp);
+    OUTPUT1_COMPUTE_TYPE scale = TO_OUTPUT1_COMPUTE_TYPE(scale_tmp);
+    OUTPUT1_COMPUTE_TYPE zp = TO_OUTPUT1_COMPUTE_TYPE(zp_tmp);
 
 #else
     max_value = work_group_reduce_max(max_value);
-    OUTPUT1_TYPE scale = 127.0h / max_value;
+    OUTPUT1_COMPUTE_TYPE scale = TO_OUTPUT1_COMPUTE_TYPE(127.0h / max_value);
 #endif
 
     const uint output_offset = OUTPUT_GET_INDEX(b, f, y, x);
@@ -180,20 +181,20 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
 
     if (grouped_indexes == 0 && sglid == 0) {
 #if ASYMMETRIC_QUANTIZATION
-        output_scale[scale_idx] = 1.0h / scale;
+        output_scale[scale_idx] = TO_OUTPUT1_TYPE(1.0h / scale);
 #if GROUP_SCALES_WITH_ZP
-        output_scale[scale_idx + 1] = zp;
+        output_scale[scale_idx + 1] = TO_OUTPUT1_TYPE(zp);
 #else
 
     #if OUTPUT2_IS_FP
-        output_zp[scale_idx] = zp;
+        output_zp[scale_idx] = TO_OUTPUT2_TYPE(zp);
     #else
         output_zp[scale_idx] = convert_char_rte(zp);
     #endif
 
 #endif
 #else
-        output_scale[scale_idx] = 1.0h / scale;
+        output_scale[scale_idx] = TO_OUTPUT1_TYPE(1.0h / scale);
 #endif
     }
 
