@@ -130,6 +130,10 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         std::shared_ptr<ov::Node> fc_input_b = weight_ptr;
         if (weights_are_constant) {
             fc_input_b = reshape_const(weight_ptr);
+            if (fc_input_b->get_output_element_type(0) == ov::element::u2) {
+                fc_input_b = ov::op::util::make_try_fold<ov::op::v0::Convert>(fc_input_b, ov::element::u4);
+                ov::copy_weightless_cache_attr(weight_ptr, fc_input_b);
+            }
         } else if (pattern_map.count(weights_reshape_m)) {
             fc_input_b = pattern_map.at(weights_reshape_m).get_node_shared_ptr();
         }

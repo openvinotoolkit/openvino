@@ -5,6 +5,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 
 #include "openvino/core/model.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/convert.hpp"
@@ -29,6 +30,78 @@ using namespace ov::intel_gpu;
 namespace ov {
 namespace test {
 namespace intel_gpu {
+
+class ConvertFCU2Weights : public TransformationTestsF, public testing::WithParamInterface<ov::element::Type> {};
+
+TEST_P(ConvertFCU2Weights, WidenConstantCodesWithoutChangingDecompression) {
+    const auto precision = GetParam();
+    auto make_model = [&](ov::element::Type weights_type) {
+        auto input = std::make_shared<ov::op::v0::Parameter>(precision, ov::PartialShape{-1, 8});
+        std::vector<uint8_t> codes(32);
+        for (size_t i = 0; i < codes.size(); ++i)
+            codes[i] = i % 4;
+        auto weights = ov::op::v0::Constant::create(weights_type, ov::Shape{4, 2, 4}, codes);
+        auto scales = ov::op::v0::Constant::create(precision,
+                                                ov::Shape{4, 2, 1},
+                                                {0.5f, 0.25f, 0.5f, 0.25f, 0.5f, 0.25f, 0.5f, 0.25f});
+        auto zero_points = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{4, 2, 1}, {1});
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        std::shared_ptr<ov::Node> fc;
+        if (weights_type == ov::element::u2) {
+            auto converted = std::make_shared<ov::op::v0::Convert>(weights, precision);
+            auto zp = std::make_shared<ov::op::v0::Convert>(zero_points, precision);
+            auto centered = std::make_shared<ov::op::v1::Subtract>(converted, zp);
+            auto scaled = std::make_shared<ov::op::v1::Multiply>(centered, scales);
+            auto shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {4, 8});
+            auto reshaped = std::make_shared<ov::op::v1::Reshape>(scaled, shape, false);
+            fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, reshaped, no_bias);
+        } else {
+            weights = std::make_shared<ov::op::v0::Constant>(*weights, ov::Shape{4, 8});
+            scales = std::make_shared<ov::op::v0::Constant>(*scales, ov::Shape{4, 2});
+            zero_points = std::make_shared<ov::op::v0::Constant>(*zero_points, ov::Shape{4, 2});
+            fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weights, no_bias, scales, zero_points);
+        }
+        return std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    };
+    model = make_model(ov::element::u2);
+    model_ref = make_model(ov::element::u4);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+}
+
+TEST(ConvertFCU2Weights, PreservesWeightlessCacheMetadata) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 8});
+    auto weights = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{4, 8}, {2});
+    weights->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+        ov::WeightlessCacheAttribute(8, 128, ov::element::u2);
+    auto converted = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+    auto scales = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4, 1}, {0.5f});
+    auto scaled = std::make_shared<ov::op::v1::Multiply>(converted, scales);
+    auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+    auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, scaled, no_bias);
+    auto graph = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    ov::pass::Manager passes;
+    passes.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    passes.run_passes(graph);
+    const auto compressed = ov::as_type_ptr<ov::intel_gpu::op::FullyConnectedCompressed>(
+        graph->get_results()[0]->get_input_node_shared_ptr(0));
+    ASSERT_NE(compressed, nullptr);
+    const auto packed = compressed->get_input_node_shared_ptr(1);
+    ASSERT_EQ(packed->get_output_element_type(0), ov::element::u4);
+    const auto it = packed->get_rt_info().find(ov::WeightlessCacheAttribute::get_type_info_static());
+    ASSERT_NE(it, packed->get_rt_info().end());
+    const auto& attribute = it->second.as<ov::WeightlessCacheAttribute>();
+    EXPECT_EQ(attribute.original_size, 8);
+    EXPECT_EQ(attribute.bin_offset, 128);
+    EXPECT_EQ(attribute.original_dtype, ov::element::u2);
+}
+
+INSTANTIATE_TEST_SUITE_P(Precisions,
+                         ConvertFCU2Weights,
+                         testing::Values(ov::element::f16, ov::element::f32),
+                         [](const testing::TestParamInfo<ov::element::Type>& info) {
+                             return info.param.get_type_name();
+                         });
 
 TEST_F(TransformationTestsF, ConvertFCToCompressed1) {
     {
