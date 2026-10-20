@@ -21,6 +21,7 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/util/attr_types.hpp"
@@ -98,6 +99,15 @@ void tokenize_broadcast(const std::shared_ptr<ov::Node>& interm_op, ov::NodeVect
         const auto broadcast = input.get_source_output().get_node_shared_ptr();
         // TODO: Can we reuse AppropriateForSubgraph here? Seems like it's huge check for Broadcast
         if (ov::snippets::utils::is_numpy_broadcast(broadcast) && broadcast->get_output_target_inputs(0).size() == 1) {
+            const auto target = broadcast->input_value(1).get_node_shared_ptr();
+            if (!ov::is_type<ov::op::v0::Constant>(target)) {
+                const auto shape_of = ov::as_type_ptr<ov::op::util::ShapeOfBase>(target);
+                const auto inputs = interm_op->input_values();
+                // The other operand must preserve the runtime batch expansion after Broadcast removal.
+                if (!shape_of || std::find(inputs.begin(), inputs.end(), shape_of->input_value(0)) == inputs.end()) {
+                    continue;
+                }
+            }
             broadcast_nodes.push_back(broadcast);
 
             const auto pshape = broadcast->get_input_partial_shape(0);
@@ -125,25 +135,6 @@ void tokenize_broadcast(const std::shared_ptr<ov::Node>& interm_op, ov::NodeVect
 
 bool is_shape_of_consumer(const ov::Input<ov::Node>& input) {
     return ov::is_type<ov::op::util::ShapeOfBase>(input.get_node());
-}
-
-bool is_reachable_from(const std::shared_ptr<ov::Node>& root, const ov::Node* target) {
-    std::set<const ov::Node*> visited;
-    std::vector<std::shared_ptr<ov::Node>> pending{root};
-    while (!pending.empty()) {
-        const auto node = pending.back();
-        pending.pop_back();
-        if (!visited.insert(node.get()).second) {
-            continue;
-        }
-        if (node.get() == target) {
-            return true;
-        }
-        for (const auto& input : node->inputs()) {
-            pending.push_back(input.get_source_output().get_node_shared_ptr());
-        }
-    }
-    return false;
 }
 
 bool has_shape_of_consumer(const std::shared_ptr<ov::Node>& node) {
@@ -324,7 +315,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
 
             ordered_ops.push_back(matmul0);
 
-            if (matmul0->get_output_target_inputs(0).size() == 2) {
+            if (has_shape_of_consumer(matmul0)) {
                 ordered_ops.push_back(get_shape_of_consumer(matmul0));
             }
 
@@ -504,36 +495,22 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
                 return false;
             }
 
-            // Shape branches must end inside the candidate before any graph rewiring.
+            // ShapeOf must become unused when its shape-input consumer is removed.
             for (const auto& op : ordered_ops) {
                 if (!ov::is_type<ov::op::util::ShapeOfBase>(op)) {
                     continue;
                 }
-                std::set<const ov::Node*> visited;
-                ov::NodeVector pending{op};
-                while (!pending.empty()) {
-                    const auto shape_op = pending.back();
-                    pending.pop_back();
-                    if (!visited.insert(shape_op.get()).second) {
-                        continue;
-                    }
-                    for (const auto& output : shape_op->outputs()) {
-                        for (const auto& input : output.get_target_inputs()) {
-                            const auto consumer = input.get_node()->shared_from_this();
-                            if (input.get_index() == 1 &&
-                                (consumer == reshape0 || consumer == reshape1 ||
-                                 (shape_op == op && is_numpy_broadcast(consumer) &&
-                                  std::find(ordered_ops.begin(), ordered_ops.end(), consumer) != ordered_ops.end()))) {
-                                continue;
-                            }
-                            if (!reshape0 || !reshape1 ||
-                                (!is_reachable_from(reshape0->input_value(1).get_node_shared_ptr(), consumer.get()) &&
-                                 !is_reachable_from(reshape1->input_value(1).get_node_shared_ptr(), consumer.get()))) {
-                                return false;
-                            }
-                            pending.push_back(consumer);
-                        }
-                    }
+                const auto& consumers = op->get_output_target_inputs(0);
+                if (consumers.size() != 1) {
+                    return false;
+                }
+                const auto& input = *consumers.begin();
+                const auto consumer = input.get_node()->shared_from_this();
+                if (input.get_index() != 1 ||
+                    (consumer != reshape0 && consumer != reshape1 &&
+                     (!is_numpy_broadcast(consumer) ||
+                      std::find(ordered_ops.begin(), ordered_ops.end(), consumer) == ordered_ops.end()))) {
+                    return false;
                 }
             }
 

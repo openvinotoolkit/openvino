@@ -96,7 +96,7 @@ TEST_F(TransformationTestsF, SoftmaxReshapeElimination_UnknownReductionDimension
     EXPECT_FALSE(snippets::pass::SoftmaxReshapeElimination::eliminate(reshape0, softmax, reshape1));
 }
 
-TEST_F(TransformationTestsF, SoftmaxReshapeElimination_CompatibleRuntimeShape) {
+TEST_F(TransformationTestsF, SoftmaxReshapeElimination_ArbitraryRestoreShape) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, 4});
     const auto prefix = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
     const auto last_dim = op::v0::Constant::create(element::i64, Shape{1}, {4});

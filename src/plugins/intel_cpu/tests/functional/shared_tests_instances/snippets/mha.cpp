@@ -64,6 +64,7 @@ std::vector<std::vector<InputShape>> transposedShape_4D_v3_broadcast() {
 
 std::vector<std::vector<InputShape>> transposedShape_4D_shapeof_broadcast() {
     auto shapes = transposedShape_4D();
+    // ShapeOf(MatMul) fixes the mask target, so the mask cannot expand it and V must match the key length.
     for (auto& inputs : shapes) {
         for (size_t i = 0; i < inputs[2].second.size(); ++i) {
             const auto& query = inputs[0].second[i];
@@ -79,6 +80,15 @@ std::vector<std::vector<InputShape>> transposedShape_4D_shapeof_broadcast() {
             value[1] = key[1];
         }
     }
+    return shapes;
+}
+
+std::vector<std::vector<InputShape>> transposedShape_4D_shapeof_reshape() {
+    auto shapes = transposedShape_4D(true, false);
+    shapes.push_back({{PartialShape{-1, -1, 12, 64}, {{1, 64, 12, 64}, {2, 32, 12, 64}}},
+                      {PartialShape{-1, 128, 12, 64}, {{1, 128, 12, 64}, {2, 128, 12, 64}}},
+                      {PartialShape{-1, 12, -1, 128}, {{1, 12, 64, 128}, {2, 12, 32, 128}}},
+                      {PartialShape{-1, 128, 12, 64}, {{1, 128, 12, 64}, {2, 128, 12, 64}}}});
     return shapes;
 }
 
@@ -181,12 +191,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_ShapeOf_Broadcast,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_ShapeOf_Reshape,
                          MHAWithShapeOfReshape,
-                         ::testing::Combine(::testing::ValuesIn(transposedShape_4D()),
+                         ::testing::Combine(::testing::ValuesIn(transposedShape_4D_shapeof_reshape()),
                                             ::testing::ValuesIn(precision_f32(4)),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::Values(false),
+                                            ::testing::Values(expected_nodes_mha_4d_f32),
                                             ::testing::Values(2),  // decomposed Transpose + MHA
-                                            ::testing::Values(2),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MHAWithShapeOfReshape::getTestCaseName);

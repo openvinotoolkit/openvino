@@ -11,9 +11,6 @@
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "fake_quantize_helper.hpp"
 #include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/opsets/opset1.hpp"
@@ -72,19 +69,10 @@ ov::Output<ov::Node> make_broadcast_shape(const ov::Output<ov::Node>& source, si
 std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> make_reshape_shapes(const ov::Output<ov::Node>& source,
                                                                            size_t rank) {
     const auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(source, ov::element::i64);
-    const auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-    std::vector<int64_t> prefix_indices_data(rank - 1);
-    std::iota(prefix_indices_data.begin(), prefix_indices_data.end(), 0);
-    const auto prefix_indices =
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank - 1}, prefix_indices_data);
-    const auto prefix_shape = std::make_shared<ov::opset1::Gather>(shape_of, prefix_indices, axis);
-    const auto batch = std::make_shared<ov::opset1::ReduceProd>(prefix_shape, axis, true);
-    const auto last_index = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {rank - 1});
-    const auto last_dim = std::make_shared<ov::opset1::Gather>(shape_of, last_index, axis);
-    const auto shape_before_softmax = std::make_shared<ov::opset1::Concat>(ov::OutputVector{batch, last_dim}, 0);
-    const auto shape_after_softmax = shape_of;
-
-    return {shape_before_softmax, shape_after_softmax};
+    const auto last_dim = source.get_partial_shape()[rank - 1].get_length();
+    const auto shape_before_softmax =
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{-1, last_dim});
+    return {shape_before_softmax, shape_of};
 }
 
 }  // namespace
