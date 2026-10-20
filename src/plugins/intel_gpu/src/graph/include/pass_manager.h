@@ -15,6 +15,7 @@
 #include "concatenation_inst.h"
 #include "convolution_inst.h"
 #include "eltwise_inst.h"
+#include "fully_connected_inst.h"
 #include "intel_gpu/graph/program.hpp"
 #include "layout_optimizer.h"
 #include "lora_inst.h"
@@ -37,6 +38,9 @@ public:
 private:
     const std::string name;
 };
+
+// Reorders grouped FC decompression scale/zp for OCL/oneDNN; returns the inserted reorder nodes.
+std::vector<program_node*> reorder_fc_decompression_params_if_needed(fully_connected_node& fc_node, program& p);
 
 class pass_manager {
 public:
