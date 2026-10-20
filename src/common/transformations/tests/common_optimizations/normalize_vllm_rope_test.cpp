@@ -3,12 +3,16 @@
 //
 #include "transformations/common_optimizations/normalize_vllm_rope.hpp"
 
+#include <functional>
+
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/manager.hpp"
@@ -90,14 +94,17 @@ TEST_F(TransformationTestsF, NormalizeVLLMRoPENoMatchOnUnrelatedConcat) {
 }
 
 namespace {
+using View = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&)>;
+
 // vLLM's neox lowering: Concat(x1*cos - x2*sin, x2*cos + x1*sin), with the split, cos/sin shapes and concat axis
-// given by the caller.
+// given by the caller. `view`, if set, is applied to both halves before the multiplies.
 std::shared_ptr<ov::Model> build_vllm_rope(const ov::PartialShape& x_shape,
                                            const ov::PartialShape& cos_shape,
                                            const ov::PartialShape& sin_shape,
                                            const std::vector<int64_t>& split_lengths,
                                            int64_t concat_axis,
-                                           bool lengths_as_input = false) {
+                                           bool lengths_as_input = false,
+                                           const View& view = nullptr) {
     auto x = std::make_shared<ov::opset1::Parameter>(ov::element::f32, x_shape);
     auto cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, cos_shape);
     auto sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, sin_shape);
@@ -112,13 +119,15 @@ std::shared_ptr<ov::Model> build_vllm_rope(const ov::PartialShape& x_shape,
         lengths = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, split_lengths);
     }
     auto split = std::make_shared<ov::op::v1::VariadicSplit>(x, axis, lengths);
-    auto mul_a = std::make_shared<ov::op::v1::Multiply>(split->output(0), cos);
-    auto mul_b = std::make_shared<ov::op::v1::Multiply>(split->output(1), sin);
+    auto x1 = view ? view(split->output(0)) : split->output(0);
+    auto x2 = view ? view(split->output(1)) : split->output(1);
+    auto mul_a = std::make_shared<ov::op::v1::Multiply>(x1, cos);
+    auto mul_b = std::make_shared<ov::op::v1::Multiply>(x2, sin);
     auto neg_one = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.0f});
     auto neg = std::make_shared<ov::op::v1::Multiply>(mul_b, neg_one);
     auto sub_branch = std::make_shared<ov::op::v1::Add>(mul_a, neg);
-    auto mul_c = std::make_shared<ov::op::v1::Multiply>(split->output(1), cos);
-    auto mul_d = std::make_shared<ov::op::v1::Multiply>(split->output(0), sin);
+    auto mul_c = std::make_shared<ov::op::v1::Multiply>(x2, cos);
+    auto mul_d = std::make_shared<ov::op::v1::Multiply>(x1, sin);
     auto add_branch = std::make_shared<ov::op::v1::Add>(mul_c, mul_d);
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{sub_branch, add_branch}, concat_axis);
     return std::make_shared<ov::Model>(concat, params, "model");
@@ -162,5 +171,37 @@ TEST_F(TransformationTestsF, NormalizeVLLMRoPENoMatchOnSinShapeDifferentFromCos)
 TEST_F(TransformationTestsF, NormalizeVLLMRoPENoMatchOnBroadcastCosSin) {
     model =
         build_vllm_rope(ov::PartialShape{5, 4, 8}, ov::PartialShape{5, 1, 1}, ov::PartialShape{5, 1, 1}, {4, 4}, -1);
+    manager.register_pass<ov::pass::NormalizeVLLMRoPE>();
+}
+
+// Halves squeezed to [2, 2] broadcast against cos/sin [2, 2, 2] with the token axis on cos axis 1, while the rewrite
+// x[2, 1, 4] * cat(cos) would put it on axis 0: same output shape, different values, so it must not match.
+TEST_F(TransformationTestsF, NormalizeVLLMRoPENoMatchOnSqueezedSplitOutputs) {
+    auto squeeze = [](const ov::Output<ov::Node>& o) -> ov::Output<ov::Node> {
+        return std::make_shared<ov::op::v0::Squeeze>(o, ov::op::v0::Constant::create(ov::element::i64, {1}, {1}));
+    };
+    model = build_vllm_rope(ov::PartialShape{2, 1, 4},
+                            ov::PartialShape{2, 2, 2},
+                            ov::PartialShape{2, 2, 2},
+                            {2, 2},
+                            -1,
+                            false,
+                            squeeze);
+    manager.register_pass<ov::pass::NormalizeVLLMRoPE>();
+}
+
+// Unsqueezed halves: the rewrite x[3, 4] * cat(cos)[3, 5, 4] would not even broadcast, so the callback must reject it
+// rather than throw.
+TEST_F(TransformationTestsF, NormalizeVLLMRoPENoMatchOnUnsqueezedSplitOutputs) {
+    auto unsqueeze = [](const ov::Output<ov::Node>& o) -> ov::Output<ov::Node> {
+        return std::make_shared<ov::op::v0::Unsqueeze>(o, ov::op::v0::Constant::create(ov::element::i64, {1}, {1}));
+    };
+    model = build_vllm_rope(ov::PartialShape{3, 4},
+                            ov::PartialShape{3, 5, 2},
+                            ov::PartialShape{3, 5, 2},
+                            {2, 2},
+                            -1,
+                            false,
+                            unsqueeze);
     manager.register_pass<ov::pass::NormalizeVLLMRoPE>();
 }

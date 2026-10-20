@@ -8,8 +8,9 @@
 
 Registered via the `vllm.general_plugins` entry point. Patches
 `CPUModelRunner.load_model` to wire `torch.compile(backend="openvino")`, plus
-`reload_weights`/`CPUWorker.update_weights` to rebuild the OV lm_head after a
-post-load weight mutation. No-op unless the user requested the OV backend.
+`reload_weights`/`CPUWorker.finish_weight_update` to recompile the OV model
+and lm_head after a post-load weight mutation. No-op unless the user requested
+the OV backend.
 """
 
 import contextlib
@@ -159,6 +160,44 @@ def _raise_dynamo_cache_limit():
         logger.debug("[OV plugin] dynamo fail_on_recompile_limit_hit enabled")
 
 
+def _compile_ov_forward(model, options) -> None:
+    import torch
+    model.forward = torch.compile(
+        model._ov_eager_forward,
+        backend="openvino",
+        fullgraph=False,
+        dynamic=None,
+        options=options,
+    )
+
+
+def _rebuild_ov_model(runner, model) -> None:
+    """Recompile the OV forward and lm_head after the weights were updated in place.
+
+    AOT freezing baked every weight into the OV model as a constant, and the
+    caches behind it (compiled models, unpacked MoE experts) are keyed by
+    storage address, which an in-place update keeps. Without a rebuild the
+    model would keep serving the old weights.
+    """
+    recompiled = getattr(model, "_ov_eager_forward", None) is not None
+    if recompiled:
+        import torch
+        from openvino.frontend.pytorch.torchdynamo import execute
+        execute.clear_caches()
+        # Dynamo's cached frames still hold the old OV graphs. This resets every
+        # compiled function in the process; the sampler recompiles on first use.
+        torch._dynamo.reset()
+        options = dict(model._ov_compile_options, model_id=next(_next_model_id))
+        _compile_ov_forward(model, options)
+    _install_ov_lm_head(model)
+    if recompiled and hasattr(runner, "warming_up_model"):
+        # As at load: the warmup takes dynamo's first, shape-specialized trace
+        # (it runs eagerly), so OV only compiles the dynamic graph. Otherwise the
+        # first request after the rebuild gets a static OV model of its own
+        # next to the dynamic one, each holding a copy of the weights.
+        runner.warming_up_model()
+
+
 def _patch_cpu_model_runner():
     try:
         from vllm.v1.worker.cpu_model_runner import CPUModelRunner
@@ -261,14 +300,9 @@ def _patch_cpu_model_runner():
         _dynamo_cfg.backed_size_oblivious = True
         # dynamic=None: specializes first, then symbolizes only the dim that
         # varies -- cheaper than dynamic=True (~1.7x steady-state cost).
-        compiled = torch.compile(
-            self.model.forward,
-            backend="openvino",
-            fullgraph=False,
-            dynamic=None,
-            options=options,
-        )
-        self.model.forward = compiled
+        self.model._ov_eager_forward = self.model.forward
+        self.model._ov_compile_options = options
+        _compile_ov_forward(self.model, options)
 
         # lm_head runs outside the compiled forward(); disabling onednn above
         # left it on plain F.linear, so give it back a fast GEMM (see lm_head.py).
@@ -280,10 +314,10 @@ def _patch_cpu_model_runner():
 
 
 def _patch_reload_weights():
-    """Rebuild the OV lm_head after CPUModelRunner.reload_weights.
+    """Rebuild the OV model and lm_head after CPUModelRunner.reload_weights.
 
-    Only lm_head needs this: forward() reads Parameters fresh each call, but
-    build_ov_lm_head baked the old weight into an OV constant at load time.
+    reload_weights copies the new weights into the existing Parameters, but the
+    OV model and lm_head hold them as constants frozen at load time.
     """
     try:
         from vllm.v1.worker.cpu_model_runner import CPUModelRunner
@@ -298,7 +332,7 @@ def _patch_reload_weights():
     def patched_reload_weights(self, *args, **kwargs):
         _orig_reload_weights(self, *args, **kwargs)
         if _ov_active(self):
-            _install_ov_lm_head(self.model)
+            _rebuild_ov_model(self, self.model)
 
     CPUModelRunner.reload_weights = patched_reload_weights
     CPUModelRunner._ov_plugin_reload_patched = True
@@ -306,9 +340,11 @@ def _patch_reload_weights():
 
 
 def _patch_worker_update_weights():
-    """Rebuild the OV lm_head after CPUWorker.update_weights (RLHF weight sync).
+    """Rebuild the OV model and lm_head after an RLHF weight sync on CPUWorker.
 
-    Lives on the worker, not the model runner, so it needs its own patch.
+    Lives on the worker, not the model runner, so it needs its own patch. The
+    rebuild hooks finish_weight_update, which ends the session, rather than
+    update_weights, which runs once per chunk.
     """
     try:
         from vllm.v1.worker.cpu_worker import CPUWorker
@@ -318,17 +354,17 @@ def _patch_worker_update_weights():
     if getattr(CPUWorker, "_ov_plugin_update_patched", False):
         return
 
-    _orig_update_weights = CPUWorker.update_weights
+    _orig_finish_weight_update = CPUWorker.finish_weight_update
 
-    def patched_update_weights(self, *args, **kwargs):
-        _orig_update_weights(self, *args, **kwargs)
+    def patched_finish_weight_update(self, *args, **kwargs):
+        _orig_finish_weight_update(self, *args, **kwargs)
         model_runner = getattr(self, "model_runner", None)
         if model_runner is not None and _ov_active(model_runner):
-            _install_ov_lm_head(model_runner.get_model())
+            _rebuild_ov_model(model_runner, model_runner.get_model())
 
-    CPUWorker.update_weights = patched_update_weights
+    CPUWorker.finish_weight_update = patched_finish_weight_update
     CPUWorker._ov_plugin_update_patched = True
-    logger.debug("[OV plugin] CPUWorker.update_weights patched")
+    logger.debug("[OV plugin] CPUWorker.finish_weight_update patched")
 
 
 def _check_layername():

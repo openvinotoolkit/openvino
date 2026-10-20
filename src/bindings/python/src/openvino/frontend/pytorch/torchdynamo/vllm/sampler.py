@@ -142,6 +142,13 @@ def install():
         if not _is_fastpath_eligible(sampling_metadata):
             return _orig_sample(self, logits, sampling_metadata,
                                 logprobs_mode_override=logprobs_mode_override)
+        # logprobs=0 still returns the sampled token's logprob; processed_*
+        # modes take it from sample()'s second output, which this path leaves None.
+        mode = logprobs_mode_override or self.logprobs_mode
+        if (sampling_metadata.max_num_logprobs is not None
+                and mode in ("processed_logits", "processed_logprobs")):
+            return _orig_sample(self, logits, sampling_metadata,
+                                logprobs_mode_override=logprobs_mode_override)
         # Below ~100k vocab, torch's topk_topp_sampler on CPU beats a round
         # trip through a compiled OV graph. Batches > 1 are untested.
         _min_vocab = int(os.environ.get("OV_FUSED_SAMPLER_MIN_VOCAB", "100000"))
@@ -220,6 +227,8 @@ def install():
 
         exp_noise = torch.empty_like(logits_f32)
         gens = getattr(sampling_metadata, "generators", None) or {}
+        # Snapshot so a fallback below re-draws the same noise vLLM would have.
+        gen_states = {i: g.get_state() for i, g in gens.items()}
         if len(gens) != batch_size:
             exp_noise.exponential_()
         if gens:
@@ -230,6 +239,8 @@ def install():
             sampled = _OV_SAMPLE_COMPILED(logits_f32, temperature, top_k, top_p, exp_noise)
         except Exception as e:
             logger.warning("[OV plugin] Fused sampler call failed, falling back: %s", e)
+            for i, state in gen_states.items():
+                gens[i].set_state(state)
             return _orig_sample(self, logits, sampling_metadata,
                                 logprobs_mode_override=logprobs_mode_override)
 

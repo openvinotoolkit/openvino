@@ -129,9 +129,9 @@ bool CanonicalizeFloatPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
     for (const auto& convert : output_converts) {
         ov::pass::enable_constant_folding(convert);
     }
-    if (!changed) {
-        return false;
-    }
+    // ConvertPrecision returns false even when it retyped the graph, so `changed` only covers the read-through
+    // above: f32 Parameter -> Convert(bf16) -> Relu -> Result has nothing to read through, yet its output is now f32.
+    // Restore the outputs regardless.
     model->validate_nodes_and_infer_types();
 
     // Give every output back its original type; move the tensor names onto
@@ -142,6 +142,7 @@ bool CanonicalizeFloatPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         if (source.get_element_type() == result_types[i] || result_types[i].is_dynamic()) {
             continue;
         }
+        changed = true;
         const auto convert = std::make_shared<v0::Convert>(source, result_types[i]);
         const auto names = source.get_names();
         source.get_tensor().set_names({});
@@ -149,8 +150,10 @@ bool CanonicalizeFloatPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         results[i]->input(0).replace_source_output(convert);
     }
 
-    model->validate_nodes_and_infer_types();
-    return true;
+    if (changed) {
+        model->validate_nodes_and_infer_types();
+    }
+    return changed;
 }
 
 }  // namespace ov::frontend::pytorch::pass

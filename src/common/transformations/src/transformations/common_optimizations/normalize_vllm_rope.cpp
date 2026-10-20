@@ -13,10 +13,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/split.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -95,27 +92,15 @@ NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
         if (!mul_a || !mul_b || !mul_c || !mul_d)
             return false;
 
-        // Trace each multiply's inputs back through view ops to a Split
-        // output, returning it (index intact) and the other side (cos/sin).
-        auto is_any_split = [](const std::shared_ptr<ov::Node>& n) {
-            return std::dynamic_pointer_cast<ov::op::v1::Split>(n) != nullptr ||
-                   std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(n) != nullptr;
-        };
-        auto find_split_source = [&is_any_split](ov::Output<ov::Node> val) -> ov::Output<ov::Node> {
-            while (val.get_node()) {
-                auto node = val.get_node_shared_ptr();
-                if (is_any_split(node))
-                    return val;
-                if (std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(node) ||
-                    std::dynamic_pointer_cast<ov::op::v1::Reshape>(node) ||
-                    std::dynamic_pointer_cast<ov::op::v0::Squeeze>(node)) {
-                    if (node->get_input_size() > 0) {
-                        val = node->input_value(0);
-                        continue;
-                    }
-                }
-                break;
-            }
+        // Find the multiply input that is a direct Split output (index intact) and the other side (cos/sin).
+        // A view between the split and the multiply is not looked through: it changes which axis that half
+        // broadcasts on against cos/sin, and the full-width rewrite can't reproduce that. vLLM feeds the
+        // torch.chunk outputs straight into the multiplies; only cos/sin go through an Unsqueeze.
+        auto find_split_source = [](const ov::Output<ov::Node>& val) -> ov::Output<ov::Node> {
+            const auto node = val.get_node_shared_ptr();
+            if (std::dynamic_pointer_cast<ov::op::v1::Split>(node) ||
+                std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(node))
+                return val;
             return ov::Output<ov::Node>();
         };
         auto classify = [&find_split_source](const std::shared_ptr<ov::op::v1::Multiply>& mul)

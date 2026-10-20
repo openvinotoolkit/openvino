@@ -3554,6 +3554,57 @@ def test_canonicalize_float_precision_keeps_passthrough_outputs():
     assert [o.get_element_type() for o in canonical.outputs] == [Type.bf16] * 3
 
 
+
+class _F32CastToBf16Relu(torch.nn.Module):
+    """f32 input cast to bf16 inside the graph: no narrow Parameter or large Constant to read through."""
+
+    def forward(self, x):
+        return torch.relu(x.to(torch.bfloat16))
+
+
+class _F32CastToBf16SmallWeight(torch.nn.Module):
+    """As above, with a bf16 weight small enough (<= 1024 elements) not to be read through."""
+
+    def __init__(self):
+        super().__init__()
+        self.register_buffer("w", torch.randn(8, 8, dtype=torch.bfloat16))
+
+    def forward(self, x):
+        return x.to(torch.bfloat16) @ self.w
+
+
+class _F32Only(torch.nn.Module):
+    def forward(self, x):
+        return torch.relu(x) + 1.0
+
+
+def _convert_f32_input(module, default_float_type):
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    with torch.no_grad():
+        ep = torch.export.export(module.eval(), (torch.randn(2, 8),))
+    decoder = TorchFXPythonDecoder(ep.module(), default_float_type=default_float_type)
+    fe = FrontEndManager().load_by_framework("pytorch")
+    return fe.convert(fe.load(decoder))
+
+
+@pytest.mark.parametrize("module_cls", [_F32CastToBf16Relu, _F32CastToBf16SmallWeight], ids=["relu", "small_weight"])
+def test_canonicalize_float_precision_restores_outputs_without_narrow_inputs(module_cls):
+    """The outputs get their bf16 type back even when nothing was read through."""
+    ov_model = _convert_f32_input(module_cls(), torch.bfloat16)
+    assert ov_model.inputs[0].get_element_type() == Type.f32
+    assert ov_model.outputs[0].get_element_type() == Type.bf16
+
+
+def test_canonicalize_float_precision_leaves_f32_model_unchanged():
+    """An f32-only model converted with a bf16 default float type comes out the same as without it."""
+    expected = _convert_f32_input(_F32Only(), None)
+    canonical = _convert_f32_input(_F32Only(), torch.bfloat16)
+    def summary(m):
+        return [(op.get_type_name(), op.get_output_element_type(0)) for op in m.get_ordered_ops()]
+    assert summary(canonical) == summary(expected)
+    assert [sorted(o.get_names()) for o in canonical.outputs] == [sorted(o.get_names()) for o in expected.outputs]
+
 class _Bf16Arange(torch.nn.Module):
     def __init__(self):
         super().__init__()

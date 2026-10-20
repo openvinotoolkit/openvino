@@ -21,6 +21,11 @@ _unpacked_cache = weakref.WeakValueDictionary()
 _trace_cache = {}
 
 
+def clear_weight_caches():
+    """Drop the unpacked expert copies: their key is the packed storage address, which in-place reloads keep."""
+    _unpacked_cache.clear()
+
+
 def _unpack_permutation(rows, cols, isa):
     """Source index per packed position of a [rows, cols] expert weight; None if the pack isn't a permutation."""
     import torch

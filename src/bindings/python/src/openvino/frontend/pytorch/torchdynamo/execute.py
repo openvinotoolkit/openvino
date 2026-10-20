@@ -551,9 +551,11 @@ def clear_caches():
     # The vLLM side-channel and fast-infer caches are keyed by id() of the
     # objects just dropped, so they must go too or a recycled id() would
     # hand a new model the old one's bindings.
+    # The unpacked MoE expert copies are keyed by the packed weight's address.
     try:
-        from openvino.frontend.pytorch.torchdynamo.vllm import runtime_hooks, side_channel
+        from openvino.frontend.pytorch.torchdynamo.vllm import fused_moe, runtime_hooks, side_channel
     except ImportError:
         return
     side_channel.clear_caches()
     runtime_hooks.clear_caches()
+    fused_moe.clear_weight_caches()
