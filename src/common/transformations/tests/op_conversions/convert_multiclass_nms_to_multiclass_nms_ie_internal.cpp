@@ -47,6 +47,28 @@ TEST_F(TransformationTestsF, ConvertMulticlassNmsToMulticlassNmsIE) {
     }
 }
 
+TEST(TransformationTests, ConvertMulticlassNmsToMulticlassNmsIE_StaticShape) {
+    auto boxes = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
+    auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
+
+    auto nms = std::make_shared<ov::op::v9::MulticlassNms>(boxes, scores, ov::op::v9::MulticlassNms::Attributes());
+    auto model = std::make_shared<Model>(OutputVector{nms->output(0), nms->output(1), nms->output(2)},
+                                         ParameterVector{boxes, scores});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
+    OV_ASSERT_NO_THROW(manager.run_passes(model));
+
+    auto internal_nms = ov::as_type_ptr<ov::op::internal::MulticlassNmsIEInternal>(
+        model->get_results()[0]->get_input_node_shared_ptr(0));
+    ASSERT_NE(internal_nms, nullptr);
+
+    EXPECT_EQ(internal_nms->get_output_partial_shape(0), (PartialShape{1000, 6}));
+    EXPECT_EQ(internal_nms->get_output_partial_shape(1), (PartialShape{1000, 1}));
+    EXPECT_EQ(internal_nms->get_output_partial_shape(2), (PartialShape{1}));
+}
+
 // Regression test: dynamic-shape inputs must still be converted, and the resulting
 // internal op's output shape must stay dynamic instead of being collapsed to a static
 // upper-bound shape (see get_max_shape() usage removed in validate_and_infer_types()).

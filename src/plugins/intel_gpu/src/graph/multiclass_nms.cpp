@@ -25,15 +25,18 @@ std::vector<layout> multiclass_nms_inst::calc_output_layouts(multiclass_nms_node
     op.set_output_size(desc->output_size());
 
     std::vector<ShapeType> input_shapes;
+    bool static_inputs = true;
     for (size_t i = 0; i < desc->input_size(); i++) {
         input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
+        static_inputs = static_inputs && input_shapes.back().is_static();
     }
 
-    const auto out_shapes = shape_infer(&op, input_shapes, false, true);
+    // Static inputs give the padded output capacity; otherwise keep input-dependent bounds dynamic.
+    const auto out_shapes = shape_infer(&op, input_shapes, static_inputs, true);
 
     std::vector<layout> out_layouts;
     for (size_t i = 0; i < desc->output_size(); i++) {
-        out_layouts.push_back(layout(out_shapes[i].get_max_shape(), desc->output_data_types[i].value(), format::get_default_format(out_shapes[i].size())));
+        out_layouts.push_back(layout(out_shapes[i], desc->output_data_types[i].value(), format::get_default_format(out_shapes[i].size())));
     }
 
     return out_layouts;

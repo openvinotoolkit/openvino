@@ -4,6 +4,8 @@
 
 #include "ov_ops/multiclass_nms_ie_internal.hpp"
 
+#include <algorithm>
+
 #include "../../core/shape_inference/include/multiclass_nms_shape_inference.hpp"
 #include "itt.hpp"
 
@@ -40,8 +42,11 @@ void op::internal::MulticlassNmsIEInternal::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(internal_MulticlassNmsIEInternal_validate_and_infer_types);
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
+    const bool static_output = std::all_of(input_shapes.begin(), input_shapes.end(), [](const PartialShape& shape) {
+        return shape.is_static();
+    });
 
-    const auto output_shapes = shape_infer(this, input_shapes, false, true);
+    const auto output_shapes = shape_infer(this, input_shapes, static_output, true);
 
     validate();
 
