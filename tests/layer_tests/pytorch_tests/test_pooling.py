@@ -349,6 +349,31 @@ class TestPooling(PytorchLayerTest):
         with pytest.raises(RuntimeError, match="Kernel after dilation"):
             compiled((invalid.numpy(),))
 
+    @pytest.mark.parametrize("stride", [2, 3, 4])
+    @pytest.mark.parametrize("is_dynamic_shapes", [False, True])
+    @pytest.mark.parametrize("dtype", [torch.float32, torch.int64])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool_empty_spatial_axis_fails(self, stride, is_dynamic_shapes, dtype,
+                                               ie_device, precision, ir_version):
+        if ie_device != "CPU":
+            pytest.skip("Runtime pooling error is checked on CPU")
+        model, _ = self.create_model("avg_pool1d", kernel_size=3, stride=stride, padding=0, ceil_mode=True)
+        example = torch.ones((1, 1, 3), dtype=dtype)
+        scripted = torch.jit.trace(model, example)
+        empty = example[:, :, :0]
+        with pytest.raises(RuntimeError):
+            scripted(empty)
+
+        if not is_dynamic_shapes:
+            with pytest.raises(RuntimeError, match="Kernel after dilation"):
+                ov.convert_model(scripted, example_input=(example,), input=[ov.PartialShape([1, 1, 0])])
+        else:
+            ov_model = ov.convert_model(scripted, example_input=(example,), input=[ov.PartialShape([1, 1, -1])])
+            compiled = ov.Core().compile_model(ov_model, "CPU")
+            with pytest.raises(RuntimeError, match="Kernel after dilation"):
+                compiled((empty.numpy(),))
+
     @pytest.mark.parametrize("case", ["ones", "cancellation"])
     @pytest.mark.parametrize("is_dynamic_shapes", [False, True])
     @pytest.mark.nightly

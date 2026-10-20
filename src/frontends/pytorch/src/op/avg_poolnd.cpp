@@ -66,13 +66,13 @@ Output<Node> pool_with_short_axes(const NodeContext& context,
         reduced_kernel[axis] = 1;
         reduced_strides[axis] = 1;
         auto pooled = pool_with_short_axes(context,
-                                          reduced,
-                                          reduced_strides,
-                                          pads,
-                                          reduced_kernel,
-                                          exclude_pad,
-                                          rounding_type,
-                                          axis + 1);
+                                           reduced,
+                                           reduced_strides,
+                                           pads,
+                                           reduced_kernel,
+                                           exclude_pad,
+                                           rounding_type,
+                                           axis + 1);
         if (integral) {
             // Defer truncating division until all axes are pooled; never round i64 values through f64.
             auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(short_input));
@@ -94,8 +94,8 @@ Output<Node> pool_with_short_axes(const NodeContext& context,
         }
         if (dim.is_static()) {
             // ceil((length - kernel) / stride) + 1 must be positive for a short axis.
-            if (strides[axis] < kernel[axis] &&
-                dim.get_length() <= static_cast<int64_t>(kernel[axis] - strides[axis])) {
+            if (dim.get_length() == 0 || (strides[axis] < kernel[axis] &&
+                                          dim.get_length() <= static_cast<int64_t>(kernel[axis] - strides[axis]))) {
                 return pool_with_short_axes(context,
                                             input,
                                             strides,
@@ -115,12 +115,13 @@ Output<Node> pool_with_short_axes(const NodeContext& context,
     auto extent = context.mark_node(std::make_shared<v8::Gather>(shape_of, index, zero));
     auto size = context.mark_node(v0::Constant::create(element::i64, Shape{}, {static_cast<int64_t>(kernel[axis])}));
     Output<Node> condition = context.mark_node(std::make_shared<v1::Less>(extent, size));
+    auto min_valid = zero;
     if (strides[axis] < kernel[axis]) {
-        auto min_valid = context.mark_node(
+        min_valid = context.mark_node(
             v0::Constant::create(element::i64, Shape{}, {static_cast<int64_t>(kernel[axis] - strides[axis])}));
-        auto has_window = context.mark_node(std::make_shared<v1::Greater>(extent, min_valid));
-        condition = context.mark_node(std::make_shared<v1::LogicalAnd>(condition, has_window));
     }
+    auto has_window = context.mark_node(std::make_shared<v1::Greater>(extent, min_valid));
+    condition = context.mark_node(std::make_shared<v1::LogicalAnd>(condition, has_window));
 
     // Keep body dimensions dynamic so both branches can be constructed independently.
     const auto body_shape = PartialShape::dynamic(kernel.size() + 2);
