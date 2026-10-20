@@ -134,6 +134,62 @@ void ov::npuw::dump_tensor(const ov::SoPtr<ov::ITensor>& input, const std::strin
     }
 }
 
+std::optional<int64_t> ov::npuw::read_scalar_int_tensor(const ov::SoPtr<ov::ITensor>& tensor) {
+    if (!tensor || ov::shape_size(tensor->get_shape()) == 0) {
+        return std::nullopt;
+    }
+    switch (tensor->get_element_type()) {
+    case ov::element::i32:
+        return static_cast<int64_t>(*tensor->data<int32_t>());
+    case ov::element::i64:
+        return *tensor->data<int64_t>();
+    default:
+        return std::nullopt;
+    }
+}
+
+namespace {
+template <typename T>
+std::string stats_string_typed(const T* data, size_t count) {
+    if (count == 0) {
+        return "<empty>";
+    }
+    double min_value = static_cast<double>(data[0]);
+    double max_value = static_cast<double>(data[0]);
+    size_t non_zero_count = 0;
+    for (size_t i = 0; i < count; ++i) {
+        const double value = static_cast<double>(data[i]);
+        min_value = std::min(min_value, value);
+        max_value = std::max(max_value, value);
+        if (value != 0.0) {
+            ++non_zero_count;
+        }
+    }
+    std::ostringstream out;
+    out << "min=" << min_value << " max=" << max_value << " non_zero=" << non_zero_count << "/" << count;
+    return out.str();
+}
+}  // namespace
+
+std::string ov::npuw::tensor_stats_string(const ov::SoPtr<ov::ITensor>& tensor) {
+    if (!tensor) {
+        return "<null tensor>";
+    }
+    const auto count = ov::shape_size(tensor->get_shape());
+    switch (tensor->get_element_type()) {
+    case ov::element::f32:
+        return stats_string_typed(tensor->data<float>(), count);
+    case ov::element::f16:
+        return stats_string_typed(tensor->data<ov::float16>(), count);
+    case ov::element::i32:
+        return stats_string_typed(tensor->data<int32_t>(), count);
+    case ov::element::i64:
+        return stats_string_typed(tensor->data<int64_t>(), count);
+    default:
+        return "<stats unavailable for element_type " + tensor->get_element_type().get_type_name() + ">";
+    }
+}
+
 static void dump_file_list(const std::string& list_path, const std::vector<std::string>& base_names) {
     std::ofstream list_file(list_path);
 

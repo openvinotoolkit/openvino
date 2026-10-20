@@ -104,6 +104,9 @@ protected:
             jit.make("RotateInterleaved", true);
         } else {
             jit.make("RotateHalf", true);
+            if (desc->config.input_interleaved) {
+                jit.make("INPUT_INTERLEAVED", true);
+            }
             if (get_vec_size(params) == 1) {
                 jit.make("REVERSED_GWS", true);
             }
