@@ -101,6 +101,7 @@ std::vector<TRShape> shape_infer(const DeformableConvolutionBase* op,
         // add to output shape number of batches
         if (data_rank.is_static()) {
             deformable_conv::validate::group_divisible_dimension(op, data_shape[1], names[0]);
+            deformable_conv::validate::deformable_group_divisible_dimension(op, data_shape[1], names[0]);
 
             output_shape.push_back(data_shape[0]);
         } else {

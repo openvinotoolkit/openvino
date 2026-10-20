@@ -762,6 +762,36 @@ TEST(type_prop, deformable_convolution_opset8_invalid_data_batch_channels_dim_wi
     }
 }
 
+TEST(type_prop, deformable_convolution_opset8_invalid_data_batch_channels_dim_with_deformable_group) {
+    const PartialShape data_batch_pshape{1, 3, 5, 5};
+    const PartialShape offsets_pshape{1, 36, 3, 3};
+    const PartialShape filters_pshape{1, 3, 3, 3};
+    const element::Type_t et = element::f32;
+
+    auto data_batch = make_shared<Parameter>(et, data_batch_pshape);
+    auto offsets = make_shared<Parameter>(et, offsets_pshape);
+    auto filters = make_shared<Parameter>(et, filters_pshape);
+
+    try {
+        auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
+                                                                  offsets,
+                                                                  filters,
+                                                                  Strides{1, 1},
+                                                                  CoordinateDiff{0, 0},
+                                                                  CoordinateDiff{0, 0},
+                                                                  Strides{1, 1},
+                                                                  op::PadType::EXPLICIT,
+                                                                  1,
+                                                                  2);
+        FAIL() << "Invalid channels dimension of data batch input not detected";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Input channels dimension (3) must be evenly divisible by the 'deformable group': 2");
+    } catch (...) {
+        FAIL() << "Data batch channel dimension validation check failed for unexpected reason.";
+    }
+}
+
 TEST(type_prop, deformable_convolution_opset8_invalid_filters_channels_dim_with_group) {
     const PartialShape data_batch_pshape{1, 4, 5, 5};
     const PartialShape offsets_pshape{1, 36, 3, 3};

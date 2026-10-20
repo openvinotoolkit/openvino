@@ -29,6 +29,9 @@ inline void validate_deformable_convolution_params(const Shape& in_shape,
     OPENVINO_ASSERT(in_shape[1] % groups == 0,
                     "Input channels of data batch input must be evenly divisible by "
                     "'groups' attribute");
+    OPENVINO_ASSERT(in_shape[1] % deformable_groups == 0,
+                    "Input channels of data batch input must be evenly divisible by "
+                    "'deformable_groups' attribute");
     OPENVINO_ASSERT(f_shape[0] % groups == 0,
                     "Output channels of filters must be evenly divisible by 'groups' "
                     "attribute");

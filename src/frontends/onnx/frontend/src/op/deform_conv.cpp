@@ -76,5 +76,14 @@ ov::OutputVector deform_conv(const ov::frontend::onnx::Node& node) {
     const auto reshaped_bias = reshape::reshape_channel_shaped_node_to_nchw(bias, conv_rank);
     return {std::make_shared<v1::Add>(deformable_conv, reshaped_bias)};
 }
+
+ov::OutputVector deform_conv_before_opset_19(const ov::frontend::onnx::Node&) {
+    FRONT_END_GENERAL_CHECK(false, "DeformConv is only defined starting with ONNX opset 19");
+    return {};
+}
+
+// Keep older ONNX operator sets usable; DeformConv was introduced in opset 19.
+static bool onnx_op_reg_before_opset_19 =
+    ONNX_OP_M("DeformConv", OPSET_RANGE(1, 18), ai_onnx::opset_1::deform_conv_before_opset_19);
 ONNX_OP("DeformConv", OPSET_SINCE(19), ai_onnx::opset_1::deform_conv);
 }  // namespace ov::frontend::onnx::ai_onnx::opset_1
