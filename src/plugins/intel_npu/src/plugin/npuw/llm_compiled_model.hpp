@@ -17,6 +17,7 @@ namespace npuw {
 struct LLMVariantSwitchTestAccess;
 struct LLMTrimKVCacheTestAccess;
 struct LLMContinuedPrefillTestAccess;
+struct LLMLongRopeModeTestAccess;
 struct LLMSwaCacheTestAccess;
 }  // namespace npuw
 }  // namespace test
@@ -97,6 +98,7 @@ protected:
     friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
     friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
+    friend struct ov::test::npuw::LLMLongRopeModeTestAccess;
     friend struct ov::test::npuw::LLMSwaCacheTestAccess;
     friend class EncoderEmbeddingInferRequest;
 

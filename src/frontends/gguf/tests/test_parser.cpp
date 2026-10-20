@@ -4,8 +4,10 @@
 
 #include <array>
 #include <fstream>
+#include <tuple>
 #include <utility>
 
+#include "builder/graph_emitter.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "gguf_writer.hpp"
 #include "op_test_utils.hpp"
@@ -68,6 +70,32 @@ protected:
     std::string m_path;
 };
 
+TEST_F(GGUFParser, Q1_0PreservesBinaryStorageAndScaleValues) {
+    const auto bytes = load_npy<uint8_t>("q1_0_qbytes");
+    const auto reference = load_npy<float>("q1_0_deq");
+    ASSERT_NO_FATAL_FAILURE(write_tensor("token_embd.weight", GGUF_TYPE_Q1_0, 256, 4, bytes));
+    const auto loaded = get_gguf_data(m_path);
+    const auto& arrays = std::get<1>(loaded);
+    const auto& weights = arrays.at("token_embd.weight");
+    const auto& scales = arrays.at("token_embd.scales");
+    ASSERT_EQ(weights.get_element_type(), ov::element::u1);
+    EXPECT_EQ(weights.get_shape(), (ov::Shape{4, 256}));
+    EXPECT_EQ(weights.get_byte_size(), 128);
+    EXPECT_EQ(scales.get_byte_size(), 16);
+    EXPECT_EQ(arrays.count("token_embd.zp"), 0);
+    for (size_t group = 0; group < scales.get_size(); ++group) {
+        uint16_t bits;
+        std::memcpy(&bits, bytes.data() + group * 18, sizeof(bits));
+        EXPECT_EQ(scales.data<ov::float16>()[group].to_bits(), bits);
+    }
+    const auto node = make_weight_node({weights, scales, {}}, GGUF_TYPE_Q1_0);
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+    const auto output = run_on_cpu(model, {});
+    ASSERT_EQ(output.get_size(), reference.size());
+    for (size_t i = 0; i < reference.size(); ++i)
+        EXPECT_FLOAT_EQ(output.data<const float>()[i], reference[i]);
+}
+
 TEST_F(GGUFParser, Q2_0KeepsIntegerZeroPointsForAllWeightNames) {
     const auto bytes = load_npy<uint8_t>("q2_0_qbytes");
     const auto reference = load_npy<float>("q2_0_deq");
@@ -92,6 +120,61 @@ TEST_F(GGUFParser, Q2_0KeepsIntegerZeroPointsForAllWeightNames) {
             EXPECT_FLOAT_EQ(output.data<float>()[i], reference[i]);
         }
     }
+}
+
+TEST_F(GGUFParser, PrismTernaryFormatsMatchGgmlIncludingLegacyGroup128) {
+    for (const auto& [stem, file_type, expected_type] : {std::tuple{"pq2_0", GGUF_TYPE_PQ2_0, GGUF_TYPE_PQ2_0},
+                                                         std::tuple{"ptq1_0", GGUF_TYPE_PTQ1_0, GGUF_TYPE_PTQ1_0},
+                                                         std::tuple{"pq2_0", GGUF_TYPE_Q2_0, GGUF_TYPE_PQ2_0}}) {
+        SCOPED_TRACE(stem);
+        const auto bytes = load_npy<uint8_t>(std::string(stem) + "_qbytes");
+        const auto reference = load_npy<float>(std::string(stem) + "_deq");
+        ASSERT_NO_FATAL_FAILURE(write_tensor("token_embd.weight", file_type, 256, 4, bytes));
+        const auto loaded = get_gguf_data(m_path);
+        const auto& arrays = std::get<1>(loaded);
+        EXPECT_EQ(std::get<2>(loaded).at("token_embd.qtype"), expected_type);
+        EXPECT_EQ(arrays.at("token_embd.scales").get_shape(), (ov::Shape{4, 2}));
+        const auto node = make_weight_node(
+            {arrays.at("token_embd.weight"), arrays.at("token_embd.scales"), arrays.at("token_embd.zp")},
+            expected_type,
+            "token_embd");
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+        const auto output = run_on_cpu(model, {});
+        ASSERT_EQ(output.get_size(), reference.size());
+        for (size_t i = 0; i < reference.size(); ++i)
+            EXPECT_FLOAT_EQ(output.data<const float>()[i], reference[i]);
+    }
+}
+
+TEST(GGUFHadamardMetadata, RejectsInvalidBlocksWidthsAndUnusedWeights) {
+    std::unordered_map<std::string, ov::Tensor> weights{{"output.weight", ov::Tensor(ov::element::f32, {4, 16})},
+                                                        {"token_embd.weight", ov::Tensor(ov::element::f32, {4, 12})}};
+    std::unordered_map<std::string, GgufTensorType> qtypes;
+    const auto scalar = [](uint32_t value) {
+        ov::Tensor tensor(ov::element::u32, {});
+        *tensor.data<uint32_t>() = value;
+        return tensor;
+    };
+    const std::string p = "prism.hadamard.";
+    std::map<std::string, GGUFMetaData> config{{p + "version", scalar(1)},
+                                               {p + "block_size", scalar(8)},
+                                               {p + "transform", std::string("normalized-sylvester-walsh-hadamard")},
+                                               {p + "axis", std::string("input-last-dimension")},
+                                               {p + "sign_mode", std::string("identity")},
+                                               {p + "weight_names", std::vector<std::string>{"output.weight"}}};
+    for (uint32_t block : {0, 3, 8192}) {
+        auto invalid = config;
+        invalid[p + "block_size"] = scalar(block);
+        ov::frontend::gguf::GraphEmitter emitter(weights, qtypes, "qwen35");
+        EXPECT_ANY_THROW(emitter.configure_hadamard(invalid));
+    }
+    auto inverse = config;
+    inverse[p + "inverse_weight_names"] = std::vector<std::string>{"token_embd.weight"};
+    ov::frontend::gguf::GraphEmitter bad_inverse(weights, qtypes, "qwen35");
+    EXPECT_ANY_THROW(bad_inverse.configure_hadamard(inverse));
+    ov::frontend::gguf::GraphEmitter unused(weights, qtypes, "qwen35");
+    ASSERT_NO_THROW(unused.configure_hadamard(config));
+    EXPECT_ANY_THROW(unused.validate_hadamard());
 }
 
 // Q4_K uses an integer zero-point by default and the faithful f16 one under OV_GGUF_Q4_K_ZP_F16,
