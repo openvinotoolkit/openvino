@@ -25,7 +25,6 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
-#include "openvino/op/scaled_dot_product_attention_extension.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
@@ -238,16 +237,7 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
 
         sdpa = attn_out_caps;
     } else if (!has_sinks && has_mask) {
-        if (context.get_attribute<bool>("nonflash_f16_rounding", false)) {
-            sdpa = std::make_shared<ov::op::internal::ScaledDotProductAttentionExtension>(
-                ov::OutputVector{q_t, k_t, v_t, mask_sliced, scale_node},
-                false,
-                ov::element::f16,
-                ov::element::f16);
-        } else {
-            sdpa =
-                std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_t, k_t, v_t, mask_sliced, scale_node, false);
-        }
+        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_t, k_t, v_t, mask_sliced, scale_node, false);
     } else if (!has_sinks) {
         // The maskless SDPA overload has no explicit scale input and applies 1/sqrt(D). Fold the
         // requested ggml scale into Q so the resulting score multiplier is exactly `scale`.

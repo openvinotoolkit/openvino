@@ -31,7 +31,6 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
-#include "openvino/op/scaled_dot_product_attention_extension.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
@@ -153,7 +152,6 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
                 auto* node = child.get_node();
                 return any_of(node->get_type_info(),
                               ov::op::v13::ScaledDotProductAttention::get_type_info_static(),
-                              ov::op::internal::ScaledDotProductAttentionExtension::get_type_info_static(),
                               ov::op::v0::ShapeOf::get_type_info_static(),
                               ov::op::v3::ShapeOf::get_type_info_static(),
                               ov::op::v0::Convert::get_type_info_static(),
@@ -260,11 +258,6 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;
 
         config.is_causal = sdp_node->get_causal();
-        if (const auto extended_sdpa =
-                ov::as_type_ptr<ov::op::internal::ScaledDotProductAttentionExtension>(sdp_node)) {
-            config.query_precision = extended_sdpa->get_query_precision();
-            config.probability_precision = extended_sdpa->get_probability_precision();
-        }
         config.fuse_concat = true;
 
         if (pattern_map.count(order_q) && pattern_map.count(order_k) && pattern_map.count(order_v)) {

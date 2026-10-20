@@ -65,8 +65,6 @@ struct PagedAttnQuantParams {
     bool quant_key_bychannel = false;
     bool quant_value_bychannel = false;
     bool is_sage_attn = false;
-    ov::element::Type query_precision = ov::element::dynamic;
-    ov::element::Type probability_precision = ov::element::dynamic;
 };
 
 struct AttnWorkItem {

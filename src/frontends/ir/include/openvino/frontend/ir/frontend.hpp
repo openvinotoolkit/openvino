@@ -14,7 +14,7 @@ namespace ov::frontend::ir {
 
 class IR_API FrontEnd : public ov::frontend::FrontEnd {
 public:
-    FrontEnd();
+    FrontEnd() = default;
 
     /// \brief Completely convert the remaining, not converted part of a function.
     /// \param partiallyConverted partially converted ov::Model

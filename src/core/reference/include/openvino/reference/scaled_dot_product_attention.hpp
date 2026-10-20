@@ -6,7 +6,6 @@
 #include <cmath>
 
 #include "openvino/core/shape.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "openvino/reference/add.hpp"
 #include "openvino/reference/concat.hpp"
 #include "openvino/reference/matmul.hpp"
@@ -74,21 +73,11 @@ void scaled_dot_product_attention(const T* query,
                                   const Shape& value_shape,
                                   const Shape& mask_shape,
                                   const Shape& sink_shape,
-                                  const Shape& output_shape,
-                                  bool round_query_f16 = false,
-                                  bool round_probability_f16 = false) {
+                                  const Shape& output_shape) {
     static_assert(std::is_same_v<T, TMask> || std::is_same_v<TMask, char>,
                   "T and TMask must be either the same type, or the TMask must be char(ov::element::boolean)");
 
     const T* bias = nullptr;
-    std::vector<T> rounded_query;
-    if (round_query_f16) {
-        rounded_query.resize(shape_size(query_shape));
-        std::transform(query, query + rounded_query.size(), rounded_query.begin(), [](T x) {
-            return static_cast<T>(static_cast<float>(ov::float16(static_cast<float>(x))));
-        });
-        query = rounded_query.data();
-    }
     Shape bias_shape = {};
 
     std::vector<T> attention_mask_data;
@@ -179,10 +168,6 @@ void scaled_dot_product_attention(const T* query,
                                                      gk_softmax_shape,
                                                      sizeof(T));
         qk_data_softmax = std::move(qk_data_sliced);
-    }
-    if (round_probability_f16) {
-        for (auto& x : qk_data_softmax)
-            x = static_cast<T>(static_cast<float>(ov::float16(static_cast<float>(x))));
     }
     ov::reference::matmul<T>(qk_data_softmax.data(), value, output, qk_shape, value_shape, output_shape, false, false);
 }

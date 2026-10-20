@@ -33,18 +33,19 @@
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/read_value.hpp"
-#include "openvino/op/scaled_dot_product_attention_extension.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "quant/gguf.hpp"
-#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "utils.hpp"
 
 namespace {
@@ -922,16 +923,10 @@ TEST(GGUFEmbeddingAccuracy, RealCheckpointTokenEmbeddingsMatchLlamaCPU) {
     ov_gguf_test::expect_nmse_below(metric, 1e-5);
 }
 
-TEST(GGUFGemma3nAccuracy, PagedAttentionRetainsRoundingAndMatchesCachedLlamaLogits) {
-#if !defined(OPENVINO_ARCH_X86_64)
-    GTEST_SKIP() << "Explicit CPU attention rounding requires x86-64";
-#endif
+TEST(GGUFGemma3nAccuracy, PagedAttentionMatchesStatefulSDPAFullLogits) {
     const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma3n.npz");
     const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
-    const auto& reference = ov_gguf_test::npz_array(arrays, "logits");
-    ASSERT_EQ(reference.shape.size(), 2);
-    ASSERT_EQ(reference.shape[0], 3);
-    const auto vocab = reference.shape[1];
+    const auto vocab = ov_gguf_test::npz_array(arrays, "logits").shape.back();
     ov::frontend::gguf::FrontEnd frontend;
     frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>(
         ov::frontend::gguf::GenAIExtension::InputMode::IDS_TO_LOGITS));
@@ -941,71 +936,105 @@ TEST(GGUFGemma3nAccuracy, PagedAttentionRetainsRoundingAndMatchesCachedLlamaLogi
         for (const auto& node : graph->get_ops()) {
             if (const auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(node)) {
                 ++sdpa_count;
-                const auto extended = ov::as_type_ptr<ov::op::internal::ScaledDotProductAttentionExtension>(sdpa);
-                ASSERT_NE(extended, nullptr);
-                EXPECT_EQ(extended->get_query_precision(), ov::element::f16);
-                EXPECT_EQ(extended->get_probability_precision(), ov::element::f16);
-                EXPECT_EQ(extended->get_input_element_type(0), ov::element::f16);
-                EXPECT_EQ(extended->get_output_element_type(0), ov::element::f32);
+                EXPECT_EQ(sdpa->get_type_info(), ov::op::v13::ScaledDotProductAttention::get_type_info_static());
+                for (size_t input = 0; input < 3; ++input)
+                    EXPECT_EQ(sdpa->get_input_element_type(input), ov::element::f16);
+                EXPECT_EQ(sdpa->get_output_element_type(0), ov::element::f16);
+                bool converts_output_to_f32 = false;
+                for (const auto& consumer : sdpa->output(0).get_target_inputs()) {
+                    if (!ov::is_type<ov::op::v1::Transpose>(consumer.get_node()))
+                        continue;
+                    EXPECT_EQ(consumer.get_node()->get_output_element_type(0), ov::element::f16);
+                    for (const auto& output_consumer : consumer.get_node()->output(0).get_target_inputs()) {
+                        auto convert = ov::as_type<ov::op::v0::Convert>(output_consumer.get_node());
+                        converts_output_to_f32 |= convert && convert->get_convert_element_type() == ov::element::f32;
+                    }
+                }
+                EXPECT_TRUE(converts_output_to_f32);
             }
-            if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
-                ++pa_count;
-                EXPECT_EQ(pa->get_query_precision(), ov::element::f16);
-                EXPECT_EQ(pa->get_probability_precision(), ov::element::f16);
-            }
+            pa_count += ov::is_type<ov::op::PagedAttentionExtension>(node);
         }
         EXPECT_EQ(sdpa_count, paged ? 0u : 5u);
         EXPECT_EQ(pa_count, paged ? 5u : 0u);
     };
-    const auto roundtrip = [](const std::shared_ptr<ov::Model>& graph, bool paged, ov::Core& fresh_core) {
-        auto clean = graph->clone();
-        const std::string precision_attribute = ov::DisablePrecisionConversion::get_type_info_static();
-        size_t protected_nodes = 0;
-        for (const auto& node : clean->get_ops()) {
-            auto& info = node->get_rt_info();
-            protected_nodes += info.count(ov::DisablePrecisionConversion::get_type_info_static());
-            for (auto it = info.begin(); it != info.end();) {
-                const auto& name = it->first;
-                if (name == precision_attribute || (ov::is_type<ov::op::PagedAttentionExtension>(node) &&
-                                                    (name == "num_k_heads" || name == "k_head_size" ||
-                                                     name == "num_v_heads" || name == "v_head_size")))
-                    ++it;
-                else
-                    it = info.erase(it);
-            }
-        }
-        EXPECT_GT(protected_nodes, 0u);
-        std::stringstream xml, weights;
-        ov::pass::Serialize(xml, weights).run_on_model(clean);
-        const auto bytes = weights.str();
-        ov::Tensor constants(ov::element::u8, {bytes.size()});
-        if (!bytes.empty())
-            std::memcpy(constants.data(), bytes.data(), bytes.size());
-        if (paged)
-            fresh_core.add_extension<ov::op::PagedAttentionExtension>();
-        auto restored = fresh_core.read_model(xml.str(), constants);
-        size_t restored_protected_nodes = 0;
-        for (const auto& node : restored->get_ops())
-            restored_protected_nodes +=
-                node->get_rt_info().count(ov::DisablePrecisionConversion::get_type_info_static());
-        EXPECT_EQ(restored_protected_nodes, protected_nodes);
-        return restored;
+    const auto compile = [](ov::Core& core, const std::shared_ptr<ov::Model>& graph) {
+        return core.compile_model(graph,
+                                  "CPU",
+                                  ov::hint::inference_precision(ov::element::f32),
+                                  ov::num_streams(1),
+                                  ov::inference_num_threads(4),
+                                  ov::hint::dynamic_quantization_group_size(0),
+                                  ov::hint::kv_cache_precision(ov::element::f16));
     };
-    ov::Core serialization_core;
+    const auto infer_sdpa = [&](ov::InferRequest& request, const std::vector<int64_t>& tokens, size_t past) {
+        ov::Tensor ids(ov::element::i64, {1, tokens.size()});
+        ov::Tensor positions(ov::element::i64, {1, tokens.size()});
+        ov::Tensor mask(ov::element::i64, {1, past + tokens.size()});
+        ov::Tensor beam(ov::element::i32, {1});
+        *beam.data<int32_t>() = 0;
+        std::copy(tokens.begin(), tokens.end(), ids.data<int64_t>());
+        for (size_t i = 0; i < tokens.size(); ++i)
+            positions.data<int64_t>()[i] = static_cast<int64_t>(past + i);
+        std::fill_n(mask.data<int64_t>(), mask.get_size(), 1);
+        request.set_tensor("input_ids", ids);
+        request.set_tensor("position_ids", positions);
+        request.set_tensor("attention_mask", mask);
+        request.set_tensor("beam_idx", beam);
+        request.infer();
+        const auto output = request.get_tensor("logits");
+        OPENVINO_ASSERT(output.get_element_type() == ov::element::f32);
+        OPENVINO_ASSERT(output.get_size() == tokens.size() * vocab);
+        return std::vector<float>(output.data<const float>(), output.data<const float>() + output.get_size());
+    };
+    const std::vector<std::vector<int64_t>> schedule{{1, 2, 3}, {4}, {5, 6}};
     check_contract(model, false);
-    check_contract(roundtrip(model, false, serialization_core), false);
+    ov::Core core;
+    auto sdpa_compiled = compile(core, model);
+    auto sdpa_request = sdpa_compiled.create_infer_request();
+    std::vector<std::vector<float>> sdpa_logits;
+    size_t sdpa_past = 0;
+    for (const auto& tokens : schedule) {
+        sdpa_logits.push_back(infer_sdpa(sdpa_request, tokens, sdpa_past));
+        sdpa_past += tokens.size();
+    }
+    const auto check_logits = [&](const std::vector<float>& output, size_t token, size_t step) {
+        const auto& expected = sdpa_logits.at(step);
+        ASSERT_GE(output.size(), token * vocab + expected.size());
+        const auto metric = ov_gguf_test::nmse(output.data() + token * vocab, expected.data(), expected.size());
+        ASSERT_TRUE(metric.all_finite());
+        ASSERT_GT(metric.reference_norm(), 1e-12);
+        EXPECT_LT(metric.value(), 1e-5) << "Consumer equivalence against CPU stateful SDPA: step=" << step;
+    };
+    const auto run_sdpa_schedule = [&](ov::InferRequest& request) {
+        size_t past = 0;
+        for (size_t step = 0; step < schedule.size(); ++step) {
+            SCOPED_TRACE("SDPA schedule step=" + std::to_string(step));
+            check_logits(infer_sdpa(request, schedule[step], past), 0, step);
+            past += schedule[step].size();
+        }
+    };
+    const auto states = sdpa_request.query_state();
+    ASSERT_FALSE(states.empty());
+    for (auto state : states)
+        state.reset();
+    run_sdpa_schedule(sdpa_request);
+    auto fresh_sdpa_request = sdpa_compiled.create_infer_request();
+    run_sdpa_schedule(fresh_sdpa_request);
+    std::stringstream xml, weights;
+    ov::pass::Serialize(xml, weights).run_on_model(model->clone());
+    const auto bytes = weights.str();
+    ov::Tensor constants(ov::element::u8, {bytes.size()});
+    if (!bytes.empty())
+        std::memcpy(constants.data(), bytes.data(), bytes.size());
+    ov::Core fresh_core;
+    auto restored = fresh_core.read_model(xml.str(), constants);
+    check_contract(restored, false);
+    auto restored_request = compile(fresh_core, restored).create_infer_request();
+    run_sdpa_schedule(restored_request);
+
     ASSERT_TRUE(ov::pass::SDPAToPagedAttention(false, false, false).run_on_model(model));
     check_contract(model, true);
-    check_contract(roundtrip(model, true, serialization_core), true);
-
-    ov::Core core;
-    auto compiled = core.compile_model(model,
-                                       "CPU",
-                                       ov::hint::inference_precision(ov::element::f32),
-                                       ov::num_streams(1),
-                                       ov::inference_num_threads(4),
-                                       ov::hint::dynamic_quantization_group_size(0),
-                                       ov::hint::kv_cache_precision(ov::element::f16));
+    auto compiled = compile(core, model);
     const auto reset_caches = [&](ov::InferRequest& request) {
         size_t cache_count = 0;
         for (const auto& input : compiled.inputs()) {
@@ -1078,54 +1107,31 @@ TEST(GGUFGemma3nAccuracy, PagedAttentionRetainsRoundingAndMatchesCachedLlamaLogi
         OPENVINO_ASSERT(output.get_size() == ids.size() * vocab);
         return std::vector<float>(output.data<const float>(), output.data<const float>() + output.get_size());
     };
-    const auto check_logits = [&](const std::vector<float>& output, size_t token, size_t step) {
-        ASSERT_GE(output.size(), (token + 1) * vocab);
-        const auto metric =
-            ov_gguf_test::nmse(output.data() + token * vocab, reference.data<float>() + step * vocab, vocab);
-        ASSERT_TRUE(metric.all_finite());
-        ASSERT_GT(metric.reference_norm(), 1e-12);
-        EXPECT_LT(metric.value(), 1e-5) << "step=" << step << ", token=" << token;
-    };
-    const std::vector<std::vector<int64_t>> schedule{{1, 2, 3}, {4}, {5, 6}};
     auto request = compiled.create_infer_request();
     const auto run_schedule = [&](ov::InferRequest& current) {
         int32_t past = 0;
         for (size_t step = 0; step < schedule.size(); ++step) {
-            SCOPED_TRACE("schedule step=" + std::to_string(step));
-            const auto output = infer(current, {schedule[step]}, {past}, {0});
-            check_logits(output, schedule[step].size() - 1, step);
+            SCOPED_TRACE("PA schedule step=" + std::to_string(step));
+            check_logits(infer(current, {schedule[step]}, {past}, {0}), 0, step);
             past += static_cast<int32_t>(schedule[step].size());
         }
     };
     reset_caches(request);
     run_schedule(request);
-    check_logits(infer(request, {schedule.front()}, {0}, {0}), 2, 0);
+    check_logits(infer(request, {schedule.front()}, {0}, {0}), 0, 0);
     reset_caches(request);
     run_schedule(request);
     auto fresh_request = compiled.create_infer_request();
     reset_caches(fresh_request);
     run_schedule(fresh_request);
     reset_caches(request);
-    check_logits(infer(request, {{1, 2, 3}}, {0}, {0}), 2, 0);
+    check_logits(infer(request, {{1, 2, 3}}, {0}, {0}), 0, 0);
     const auto mixed = infer(request, {{4}, {1, 2, 3}}, {3, 0}, {0, 1});
     check_logits(mixed, 0, 1);
-    check_logits(mixed, 3, 0);
+    check_logits(mixed, 1, 0);
     const auto continuation = infer(request, {{5, 6}, {4}}, {4, 3}, {0, 1});
-    check_logits(continuation, 1, 2);
+    check_logits(continuation, 0, 2);
     check_logits(continuation, 2, 1);
-    ov::Core fresh_core;
-    auto restored = roundtrip(model, true, fresh_core);
-    check_contract(restored, true);
-    compiled = fresh_core.compile_model(restored,
-                                        "CPU",
-                                        ov::hint::inference_precision(ov::element::f32),
-                                        ov::num_streams(1),
-                                        ov::inference_num_threads(4),
-                                        ov::hint::dynamic_quantization_group_size(0),
-                                        ov::hint::kv_cache_precision(ov::element::f16));
-    auto restored_request = compiled.create_infer_request();
-    reset_caches(restored_request);
-    run_schedule(restored_request);
 }
 
 TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {

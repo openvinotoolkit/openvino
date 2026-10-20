@@ -226,7 +226,6 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/roll.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/round.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/scaled_dot_product_attention.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/op/scaled_dot_product_attention_extension.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/scatter_elements_update.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/scatter_nd_update.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/scatter_update.cpp

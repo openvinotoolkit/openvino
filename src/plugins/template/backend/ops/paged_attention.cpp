@@ -129,9 +129,6 @@ bool evaluate_node<ov::op::PagedAttentionExtension>(std::shared_ptr<ov::Node> no
                                                     ov::TensorVector& outputs,
                                                     const ov::TensorVector& inputs) {
     const auto& pa = std::static_pointer_cast<ov::op::PagedAttentionExtension>(node);
-    OPENVINO_ASSERT(
-        pa->get_query_precision() == ov::element::dynamic && pa->get_probability_precision() == ov::element::dynamic,
-        "Template plugin does not support explicit attention rounding precision");
     auto* cache_manager = ov::reference::paged_attention_cache::get_cache_manager_ptr(pa.get());
     OPENVINO_ASSERT(cache_manager != nullptr, "PagedAttentionExtension: cache manager handle is null");
 

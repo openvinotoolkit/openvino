@@ -56,10 +56,6 @@ public:
     /// 26  qq_bias                                          [total_bias_bytes], u8    optional
     /// 27  qq_bias_begins                                   [B_seq + 1], i32          optional
     explicit PagedAttentionExtension(const ov::OutputVector& args, bool write_kv_cache = true);
-    PagedAttentionExtension(const ov::OutputVector& args,
-                            bool write_kv_cache,
-                            element::Type query_precision,
-                            element::Type probability_precision);
 
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
@@ -72,18 +68,9 @@ public:
         return m_write_kv_cache;
     }
 
-    element::Type get_query_precision() const {
-        return m_query_precision;
-    }
-    element::Type get_probability_precision() const {
-        return m_probability_precision;
-    }
-
 protected:
     std::vector<ov::element::Type> m_output_type = {ov::element::dynamic, ov::element::dynamic, ov::element::dynamic};
     bool m_write_kv_cache = true;
-    element::Type m_query_precision = element::dynamic;
-    element::Type m_probability_precision = element::dynamic;
 };
 
 }  // namespace op

@@ -59,7 +59,6 @@
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf {
@@ -1049,15 +1048,6 @@ std::string DecoderBuilder::build_gemma3n(const std::string& embeddings) {
     const auto linear = [&](const Value& x, const std::string& name) -> Value {
         return std::make_shared<v0::MatMul>(x, weight(name + ".weight"), false, true);
     };
-    const auto gelu = [](const Value& x) -> Value {
-        const auto round = [](const Value& value) -> Value {
-            auto narrow = std::make_shared<v0::Convert>(value, ov::element::f16);
-            ov::disable_conversion(narrow, ov::element::f16, ov::element::f32);
-            return std::make_shared<v0::Convert>(narrow, ov::element::f32);
-        };
-        // ggml's CPU GELU lookup rounds both its index and its table value to F16.
-        return round(std::make_shared<v7::Gelu>(round(x), GeluApproximationMode::TANH));
-    };
     const auto norm = [&](const Value& x, const std::string& name) -> Value {
         return e.value(blocks::rms_norm(e, publish(x, name + ".input"), name + ".weight", name, m_cfg.rms_eps));
     };
@@ -1116,7 +1106,7 @@ std::string DecoderBuilder::build_gemma3n(const std::string& embeddings) {
                                           std::make_shared<v1::Multiply>(deviation, scalar(1.6448533535003662f)))));
         }
         publish(gate, p + "sparse_gate");
-        auto activated_gate = gelu(gate);
+        auto activated_gate = std::make_shared<v7::Gelu>(gate, GeluApproximationMode::TANH);
         auto ffn =
             linear(std::make_shared<v1::Multiply>(activated_gate, linear(ffn_input, p + "ffn_up")), p + "ffn_down");
         auto output = std::make_shared<v1::Add>(norm(ffn, p + "post_ffw_norm"), combined);
@@ -1132,7 +1122,7 @@ std::string DecoderBuilder::build_gemma3n(const std::string& embeddings) {
             std::make_shared<v1::Multiply>(select(corrected, 0), weight(p + "altup_correct_scale.weight"));
         auto injection = linear(corrected_active, p + "inp_gate");
         publish(injection, p + "input_projection");
-        injection = gelu(injection);
+        injection = std::make_shared<v7::Gelu>(injection, GeluApproximationMode::TANH);
         auto per_layer = select(e.value("per_layer_embd"), il);
         injection = norm(linear(std::make_shared<v1::Multiply>(injection, per_layer), p + "proj"), p + "post_norm");
         auto rest = std::make_shared<v8::Gather>(corrected,

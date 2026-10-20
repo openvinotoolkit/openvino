@@ -12,10 +12,8 @@
 
 #include "input_model.hpp"
 #include "openvino/core/any.hpp"
-#include "openvino/core/op_extension.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/common/path_util.hpp"
-#include "openvino/op/scaled_dot_product_attention_extension.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
@@ -27,11 +25,6 @@
 #include "utils.hpp"
 
 namespace ov::frontend::ir {
-
-FrontEnd::FrontEnd() {
-    add_extension(std::make_shared<ov::OpExtension<ov::op::internal::ScaledDotProductAttentionExtension>>());
-}
-
 namespace {
 
 std::shared_ptr<ov::util::WeightsProvider> make_buffer_weights_provider(
