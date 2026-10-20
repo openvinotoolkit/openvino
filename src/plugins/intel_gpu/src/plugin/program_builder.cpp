@@ -311,6 +311,9 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
                                                          attr.original_dtype,
                                                          op.get_output_element_type(0),
                                                          op.get_output_shape(0));
+                if (data_prim->skip_device_transfer()) {
+                    data_prim->cache_info->set_partial_upload(data_prim->get_resident_expert_num());
+                }
             }
         }
     }

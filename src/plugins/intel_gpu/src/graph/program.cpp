@@ -86,6 +86,7 @@
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
 
 #include "intel_gpu/primitives/rnn.hpp"
+#include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 
 // TODO: Remove once we have interface for kernels cache
 #include "impls/ocl/kernels_cache.hpp"
@@ -2070,6 +2071,10 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         ib >> prim;
         if (auto* data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
             data_prim->load_weights(ib, weights_memory, host_buffer_base_ptr);
+        } else if (auto* moe_prim = dynamic_cast<cldnn::moe_3gemm_fused_compressed*>(prim.get())) {
+            if (!weights_path.empty()) {
+                moe_prim->_otd.weights_path = weights_path;
+            }
         }
         get_or_create(prim);
     }
