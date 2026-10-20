@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <limits>
 
+#include "openvino/core/except.hpp"
 #include "openvino/reference/autobroadcast_binop.hpp"
 #include "openvino/reference/mod.hpp"
 
@@ -17,11 +18,13 @@ namespace func {
 
 template <class T, typename std::enable_if<std::is_unsigned<T>::value>::type* = nullptr>
 constexpr T floor_mod(const T x, const T y) {
+    OPENVINO_ASSERT(y != T{0}, "integer modulo by zero");
     return mod(x, y);
 }
 
 template <class T, typename std::enable_if<std::is_signed<T>::value && std::is_integral<T>::value>::type* = nullptr>
 constexpr T floor_mod(const T x, const T y) {
+    OPENVINO_ASSERT(y != T{0}, "integer modulo by zero");
     // Compute the floored remainder with exact integer arithmetic. Going through double (as the
     // floating-point overload does) loses precision for large magnitudes, e.g. values near the
     // int64 limits, so that FloorMod(INT64_MAX, 3) would wrongly yield 0 instead of 1.
@@ -30,7 +33,8 @@ constexpr T floor_mod(const T x, const T y) {
         return T{0};
     }
     const T rem = static_cast<T>(x % y);
-    return (rem != T{0} && ((rem < T{0}) != (y < T{0}))) ? static_cast<T>(rem + y) : rem;
+    // When signs differ, |rem| < |y|, so rem + y stays between y and zero and cannot overflow.
+    return rem != T{0} && rem < T{0} != y < T{0} ? static_cast<T>(rem + y) : rem;
 }
 
 template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>

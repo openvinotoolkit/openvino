@@ -6,9 +6,11 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <limits>
 
 #include "base_reference_test.hpp"
+#include "openvino/core/except.hpp"
 
 using namespace ov;
 using namespace reference_tests;
@@ -72,6 +74,25 @@ private:
         return std::make_shared<Model>(OutputVector{floormod}, ParameterVector{in1, in2});
     }
 };
+
+template <typename T>
+void expectIntegerFloorModByZeroToThrow(const element::Type& type) {
+    const auto lhs = std::make_shared<op::v0::Parameter>(type, Shape{1});
+    const auto rhs = std::make_shared<op::v0::Parameter>(type, Shape{1});
+    const auto floor_mod = std::make_shared<op::v1::FloorMod>(lhs, rhs);
+
+    TensorVector inputs{ov::Tensor(type, Shape{1}), ov::Tensor(type, Shape{1})};
+    inputs[0].data<T>()[0] = T{7};
+    inputs[1].data<T>()[0] = T{0};
+    TensorVector outputs{ov::Tensor(type, Shape{1})};
+
+    EXPECT_THROW(floor_mod->evaluate(outputs, inputs), ov::AssertFailure);
+}
+
+TEST(ReferenceFloorModLayerTest, IntegerZeroDivisorThrows) {
+    expectIntegerFloorModByZeroToThrow<int64_t>(element::i64);
+    expectIntegerFloorModByZeroToThrow<uint64_t>(element::u64);
+}
 
 TEST_P(ReferenceFloorModLayerTest, DivideWithHardcodedRefs) {
     Exec();
