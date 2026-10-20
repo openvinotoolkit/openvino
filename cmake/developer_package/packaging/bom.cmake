@@ -25,6 +25,11 @@
 
 ov_option(ENABLE_BOM_GENERATION "Generate CPack component BOM (bill of materials) files describing installed file layout" ON)
 
+# Keep the generator selected by the user before generator-specific CPack settings
+# can override it (for example, NPM packaging sets TGZ internally).
+set(_OV_BOM_CPACK_GENERATORS "${CPACK_GENERATOR}")
+set(_OV_BOM_ARCHIVE_GENERATORS 7Z TBZ2 TGZ TXZ TZ TZST ZIP)
+
 # remember this file's directory now, since ov_add_bom_targets() below can be called
 # later from a different directory scope (the top-level CMakeLists.txt)
 set(_OV_BOM_SCRIPT_DIR "${CMAKE_CURRENT_LIST_DIR}")
@@ -59,6 +64,28 @@ function(ov_register_bom_components components)
     if(NOT ENABLE_BOM_GENERATION OR NOT components)
         return()
     endif()
+
+    if(NOT _OV_BOM_CPACK_GENERATORS)
+        get_property(message_printed GLOBAL PROPERTY OV_BOM_DISABLED_MESSAGE_PRINTED)
+        if(NOT message_printed)
+            message(STATUS "BOM generation is disabled because CPACK_GENERATOR is not set")
+            set_property(GLOBAL PROPERTY OV_BOM_DISABLED_MESSAGE_PRINTED TRUE)
+        endif()
+        return()
+    endif()
+
+    foreach(generator IN LISTS _OV_BOM_CPACK_GENERATORS)
+        if(NOT generator IN_LIST _OV_BOM_ARCHIVE_GENERATORS)
+            get_property(message_printed GLOBAL PROPERTY OV_BOM_DISABLED_MESSAGE_PRINTED)
+            if(NOT message_printed)
+                message(STATUS
+                    "BOM generation is disabled for CPACK_GENERATOR='${_OV_BOM_CPACK_GENERATORS}'; "
+                    "only archive generators are supported")
+                set_property(GLOBAL PROPERTY OV_BOM_DISABLED_MESSAGE_PRINTED TRUE)
+            endif()
+            return()
+        endif()
+    endforeach()
 
     get_property(registered_components GLOBAL PROPERTY OV_BOM_COMPONENTS)
     list(APPEND registered_components ${components})
