@@ -1,0 +1,43 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-20-09-39-52-459-39398307178",
+    "timestamp": "2026-10-20T09:39:52Z",
+    "run_id": "39398307178",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39398307178",
+    "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+    "commit_sha": "1abe3a481f4174005289654b441de030b7df4242",
+    "pr_number": "38655",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38655",
+    "author": "praasz",
+    "category": "Network",
+    "title": "Upload Test Results fails with ECONNREFUSED artifact upload error after CPU functional tests pass",
+    "signature": "Failed to CreateArtifact: Unable to make request: ECONNREFUSED|Network",
+    "signature_hash": "b6957c2b9e09de1c",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "CPU functional tests / CPU functional tests",
+            "conclusion": "failure",
+            "symptom": "All 71707 smoke tests passed, but the 'Upload Test Results' step failed with ECONNREFUSED while uploading the test-results-functional-cpu artifact."
+        },
+        {
+            "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+            "conclusion": "failure",
+            "symptom": "Aggregate status-check job exited 1 because the upstream CPU functional tests job reported failure."
+        }
+    ],
+    "key_errors": [
+        "2026-10-20T09:35:08.0537737Z ##[error]Failed to CreateArtifact: Unable to make request: ECONNREFUSED\nIf you are using self-hosted runners, please make sure your runner has access to all GitHub endpoints: https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners#communication-between-self-hosted-runners-and-github",
+        "2026-10-20T09:35:05.9404861Z INFO:test_parallel_runner:Run is successful",
+        "2026-10-20T09:35:33.4085372Z ##[error]Process completed with exit code 1."
+    ],
+    "root_cause": "The CPU functional tests themselves completed successfully (71707 smoke tests run, 59859 passed, 0 failures reported by the parallel test runner). The job only failed afterward because the 'Upload Test Results' step (ababushk/upload-artifact action) could not reach the GitHub Actions artifact service, receiving ECONNREFUSED while calling CreateArtifact. This is a transient connectivity issue between the self-hosted ARM64 runner and the GitHub Actions artifact upload endpoint, not a problem with the OpenVINO code or the merged PR #38655 (a GPU plugin CMake refactor unrelated to CPU functional test infrastructure). The downstream overall-status aggregation job then correctly reported failure because one of its upstream jobs failed.",
+    "reproduction_steps": "Not reproducible locally; this is an infrastructure/network connectivity failure between the self-hosted runner and GitHub's artifact upload service, intermittent and runner/network dependent.",
+    "recommended_actions": [
+        "Re-run the failed 'CPU functional tests' job; the underlying test execution already succeeded and only the artifact upload needs to retry.",
+        "Consider wrapping the artifact upload step with a retry/backoff (e.g., using nick-fields/retry or similar) to tolerate transient ECONNREFUSED errors from the artifact service.",
+        "Monitor self-hosted ARM64 runner network health/egress to GitHub Actions service endpoints if this recurs frequently."
+    ],
+    "prevention_strategies": "Add automatic retry logic around artifact upload/download steps on self-hosted runners, since these runners are more prone to transient network blips than GitHub-hosted runners. Track recurrence of 'Failed to CreateArtifact' errors across patterns to decide if a permanent retry wrapper is warranted for this job.",
+    "historical_context": "Similar network-related artifact upload failures have been seen before with different underlying DNS/connection errors: ENOTFOUND (pattern 4e9cf236bf92d555, 1 occurrence) and getaddrinfo EAI_AGAIN (pattern d877f2bb57b833d0, 2 occurrences) during artifact uploads after tests had already passed. This is the first occurrence of the specific ECONNREFUSED variant, suggesting a broader recurring theme of transient network instability affecting the GitHub Actions artifact upload service for this repository's self-hosted runners, rather than isolated incidents."
+}

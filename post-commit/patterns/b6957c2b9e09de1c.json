@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "Failed to CreateArtifact: Unable to make request: ECONNREFUSED|Network",
+    "signature_hash": "b6957c2b9e09de1c",
+    "title": "Upload Test Results fails with ECONNREFUSED artifact upload error after CPU functional tests pass",
+    "category": "Network",
+    "count": 1,
+    "first_seen": "2026-10-20T09:39:52Z",
+    "last_seen": "2026-10-20T09:39:52Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/39398307178"
+    ],
+    "affected_commits": [
+        "1abe3a481f4174005289654b441de030b7df4242"
+    ],
+    "recent_timestamps": [
+        "2026-10-20T09:39:52Z"
+    ]
+}
