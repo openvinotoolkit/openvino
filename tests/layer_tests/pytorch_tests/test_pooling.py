@@ -237,6 +237,41 @@ class TestPooling(PytorchLayerTest):
                    ie_device, precision, ir_version, trace_model=True, freeze_model=False,
                    dynamic_shapes=is_dynamic_shapes)
 
+    @pytest.mark.parametrize("values,kernel,stride", [
+        ([[9007199254740993]], (1, 1), (1, 1)),
+        ([[2**63 - 1, -(2**63 - 1) + 256]], (1, 2), (1, 2)),
+        ([[2**63 - 1, -(2**63 - 1) + 256]], (2, 3), (2, 3)),
+        ([[2**63 - 1, -(2**63 - 1) + 256], [0, 0]], (3, 2), (2, 2)),
+        ([[-3, 0], [0, 0]], (3, 3), (2, 2)),
+    ])
+    @pytest.mark.parametrize("is_dynamic_shapes", [False, True])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool2d_large_i64(self, values, kernel, stride, is_dynamic_shapes,
+                                  ie_device, precision, ir_version):
+        model, _ = self.create_model("avg_pool2d", kernel_size=kernel, stride=stride, padding=0,
+                                     ceil_mode=True)
+        example = torch.tensor([[values]], dtype=torch.int64)
+        scripted = torch.jit.trace(model, example)
+        shape = ov.PartialShape([-1] * 4 if is_dynamic_shapes else list(example.shape))
+        ov_model = ov.convert_model(scripted, example_input=(example,), input=[shape])
+        # Check frontend integer semantics independently of device-specific precision lowering.
+        def check_integer_graph(model):
+            for node in model.get_ordered_ops():
+                assert all(not output.element_type.is_real() for output in node.outputs())
+                assert node.get_type_name() != "ReduceMean"
+                if node.get_type_name() == "If":
+                    check_integer_graph(node.get_then_body())
+                    check_integer_graph(node.get_else_body())
+
+        check_integer_graph(ov_model)
+        assert ov_model.output(0).element_type == ov.Type.i64
+        core = ov.Core()
+        if "TEMPLATE" in core.available_devices:
+            compiled = core.compile_model(ov_model, "TEMPLATE")
+            actual = compiled((example.numpy(),))[compiled.outputs[0]]
+            np.testing.assert_array_equal(actual, scripted(example).numpy())
+
     @pytest.mark.parametrize("op_type,trace_shape,kernel,stride,other_shape", [
         ("avg_pool1d", (1, 1, 7), 32, 32, (1, 1, 64)),
         ("avg_pool1d", (1, 1, 64), 32, 32, (1, 1, 7)),

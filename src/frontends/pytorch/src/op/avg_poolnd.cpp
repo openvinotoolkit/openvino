@@ -8,6 +8,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/if.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -29,8 +31,8 @@ using namespace ov::op;
 
 namespace {
 // PyTorch accepts a kernel larger than an unpadded 1D/2D spatial axis with ceil_mode if
-// that axis produces just one output. AvgPool requires the kernel to fit, so use ReduceMean
-// for that axis only when it is short at runtime. Keep the other axes' fixed windows intact.
+// that axis produces just one output. AvgPool requires the kernel to fit, so reduce that
+// axis only when it is short at runtime. Keep the other axes' fixed windows intact.
 Output<Node> pool_with_short_axes(const NodeContext& context,
                                   const Output<Node>& input,
                                   const Strides& strides,
@@ -49,6 +51,40 @@ Output<Node> pool_with_short_axes(const NodeContext& context,
     if (pads[axis] != 0 || kernel[axis] == 1 || strides[axis] == 1) {
         return pool_with_short_axes(context, input, strides, pads, kernel, exclude_pad, rounding_type, axis + 1);
     }
+
+    const auto pool_short_axis = [&](const Output<Node>& short_input) -> Output<Node> {
+        auto axes = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {static_cast<int64_t>(axis + 2)}));
+        const bool integral = short_input.get_element_type().is_integral();
+        Output<Node> reduced;
+        if (integral) {
+            reduced = context.mark_node(std::make_shared<v1::ReduceSum>(short_input, axes, true));
+        } else {
+            reduced = context.mark_node(std::make_shared<v1::ReduceMean>(short_input, axes, true));
+        }
+        auto reduced_kernel = kernel;
+        auto reduced_strides = strides;
+        reduced_kernel[axis] = 1;
+        reduced_strides[axis] = 1;
+        auto pooled = pool_with_short_axes(context,
+                                          reduced,
+                                          reduced_strides,
+                                          pads,
+                                          reduced_kernel,
+                                          exclude_pad,
+                                          rounding_type,
+                                          axis + 1);
+        if (integral) {
+            // Defer truncating division until all axes are pooled; never round i64 values through f64.
+            auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(short_input));
+            auto index =
+                context.mark_node(v0::Constant::create(element::i64, Shape{}, {static_cast<int64_t>(axis + 2)}));
+            auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
+            auto extent = context.mark_node(std::make_shared<v8::Gather>(shape, index, zero));
+            auto divisor = context.mark_node(std::make_shared<v0::Convert>(extent, short_input.get_element_type()));
+            pooled = context.mark_node(std::make_shared<v1::Divide>(pooled, divisor, false));
+        }
+        return pooled;
+    };
 
     const auto shape = input.get_partial_shape();
     if (shape.rank().is_static()) {
@@ -69,21 +105,7 @@ Output<Node> pool_with_short_axes(const NodeContext& context,
                                             rounding_type,
                                             axis + 1);
             }
-            auto axes =
-                context.mark_node(v0::Constant::create(element::i64, Shape{1}, {static_cast<int64_t>(axis + 2)}));
-            auto reduced = context.mark_node(std::make_shared<v1::ReduceMean>(input, axes, true));
-            auto reduced_kernel = kernel;
-            auto reduced_strides = strides;
-            reduced_kernel[axis] = 1;
-            reduced_strides[axis] = 1;
-            return pool_with_short_axes(context,
-                                        reduced,
-                                        reduced_strides,
-                                        pads,
-                                        reduced_kernel,
-                                        exclude_pad,
-                                        rounding_type,
-                                        axis + 1);
+            return pool_short_axis(input);
         }
     }
 
@@ -104,20 +126,7 @@ Output<Node> pool_with_short_axes(const NodeContext& context,
     const auto body_shape = PartialShape::dynamic(kernel.size() + 2);
     auto short_input = std::make_shared<v0::Parameter>(input.get_element_type(), body_shape);
     auto long_input = std::make_shared<v0::Parameter>(input.get_element_type(), body_shape);
-    auto axes = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {static_cast<int64_t>(axis + 2)}));
-    auto reduced = context.mark_node(std::make_shared<v1::ReduceMean>(short_input, axes, true));
-    auto reduced_kernel = kernel;
-    auto reduced_strides = strides;
-    reduced_kernel[axis] = 1;
-    reduced_strides[axis] = 1;
-    auto short_output = pool_with_short_axes(context,
-                                             reduced,
-                                             reduced_strides,
-                                             pads,
-                                             reduced_kernel,
-                                             exclude_pad,
-                                             rounding_type,
-                                             axis + 1);
+    auto short_output = pool_short_axis(short_input);
     auto long_output =
         pool_with_short_axes(context, long_input, strides, pads, kernel, exclude_pad, rounding_type, axis + 1);
     auto short_result = std::make_shared<v0::Result>(short_output);
@@ -204,10 +213,7 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
     // unpadded axis cannot produce a valid output. Leave those cases on the usual path.
     if (use_short_axis_pooling) {
         auto pool_input = input;
-        if (input_type.is_integral()) {
-            // Keep fractional intermediate averages until every spatial axis has been pooled.
-            pool_input = context.mark_node(std::make_shared<v0::Convert>(input, element::f64));
-        } else if (input_type == element::f16 || input_type == element::bf16) {
+        if (input_type == element::f16 || input_type == element::bf16) {
             // Avoid rounding intermediate averages before the remaining spatial axes are pooled.
             pool_input = context.mark_node(std::make_shared<v0::Convert>(input, element::f32));
         }
