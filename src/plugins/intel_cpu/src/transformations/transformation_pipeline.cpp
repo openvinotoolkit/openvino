@@ -139,12 +139,15 @@
 
 // LPT transformations
 #include "low_precision/add.hpp"
+#include "low_precision/convolution.hpp"
+#include "low_precision/group_convolution.hpp"
 #include "low_precision/convert_subtract_constant.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
+#include "transformations/utils.hpp"
 
 // CPU specific transformations
 #include "transformations/cpu_opset/common/pass/disable_bf16_comp_cumsum_sin_gen.hpp"
@@ -985,6 +988,20 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                    !match_acl_int8_conv_add_multiply_chain(node);
         },
         ConvolutionTransformation);
+    CPU_SET_CALLBACK_X64(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            return is_unsafe_avx2_conv(node);
+        },
+        ConvolutionTransformation,
+        GroupConvolutionTransformation);
+    CPU_SET_CALLBACK_X86(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            return is_unsafe_avx2_conv(node);
+        },
+        ConvolutionTransformation,
+        GroupConvolutionTransformation);
     CPU_SET_CALLBACK_COMMON(
         lptManager,
         [](const_node_ptr& node) -> bool {
