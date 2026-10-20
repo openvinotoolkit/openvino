@@ -4,7 +4,7 @@ QSAIndexer
 ==========
 
 .. meta::
-  :description: Learn about QSAIndexer - the standard, stateful block-level indexer for Qwen Sparse Attention (QSA). It consumes projected raw query and key tokens plus writable full-history raw-key and summary caches, updates them in place, and emits selections containing only complete blocks.
+  :description: Learn about QSAIndexer - the standard, stateful block-level indexer for Qwen Sparse Attention (QSA). It consumes projected raw query and key tokens, per-token RoPE cos/sin, plus writable full-history raw-key, summary and block-start RoPE caches, updates them in place, and emits selections containing only complete blocks.
 
 **Versioned name**: *QSAIndexer*
 
@@ -13,8 +13,9 @@ QSAIndexer
 **Short description**:
 The *QSAIndexer* is the **model-specific plan producer** for Qwen Sparse Attention (QSA) in its
 **standard, non-paged, stateful** form. It consumes externally projected indexer queries and keys, applies query
-RMSNorm/RoPE, appends raw keys, generates summaries for completed blocks, and produces block selections. The
-caller supplies writable raw-key and summary cache tensors; the operation updates both buffers in place and does
+RMSNorm/RoPE (with caller-supplied per-token ``rope_cos``/``rope_sin``), appends raw keys, generates summaries for
+completed blocks, and produces block selections. The
+caller supplies writable raw-key, summary and RoPE cache tensors; the operation updates these buffers in place and does
 not return cache tensors as outputs. This makes it suitable for **single-sequence / fixed-batch**
 SDPA pipelines that do not use a paged KV cache. For continuous batching over a PagedAttention page table, see the separate
 :doc:`PagedQSAIndexer <paged-qsa-indexer>` operation.
@@ -22,8 +23,9 @@ SDPA pipelines that do not use a paged KV cache. For continuous batching over a 
 **State and in-place update contract**
 
 Unlike the paged variant, *QSAIndexer* reads **no page table** and owns no opaque runtime state. Its logical cache
-state consists of two caller-owned writable tensors: ``summary_cache`` stores completed-block summaries, while
-``indexer_raw_k_cache`` stores the full raw-key history. The cache dimensions describe allocated capacity; the
+state consists of three caller-owned writable tensors: ``summary_cache`` stores completed-block summaries,
+``indexer_raw_k_cache`` stores the full raw-key history, and ``indexer_rope_cache`` stores the RoPE coefficients of
+each block's first token. The cache dimensions describe allocated capacity; the
 ``past_lens`` input describes how much of each raw-key cache is valid before the invocation. The caller must
 provide non-aliasing writable buffers and serialize invocations that update the same state. The operation mutates
 the buffers but does not resize them or return replacement caches.
@@ -59,7 +61,7 @@ reduction. The grouping is fully determined by the head counts:
     H_{iq} \bmod H_{ik} = 0, \quad G = H_{iq} / H_{ik}, \quad \mathrm{kv}(h) = \lfloor h / G \rfloor, \quad
     \mathrm{sel}(h) = \lfloor \mathrm{kv}(h) \cdot H_{sel} / H_{ik} \rfloor
 
-    s_{b, sh} = \frac{1}{\sqrt{D_{idx}}} \sum_{\substack{h \in [0, H_{iq}) \\ \mathrm{sel}(h) = sh}}
+    s_{b, sh} = \mathrm{scale} \cdot \sum_{\substack{h \in [0, H_{iq}) \\ \mathrm{sel}(h) = sh}}
         \mathrm{ReLU}\!\left( \langle q_{h}, \bar{k}_{b, \mathrm{kv}(h)} \rangle \right)
 
 where:
@@ -79,10 +81,10 @@ index-key head and the single selection head, so the score is the sum over all f
 
 **State organization**
 
-The logical cache state is stored in two preallocated, in-place updated tensors. Let :math:`S_{cap}` be the raw-key
+The logical cache state is stored in three preallocated, in-place updated tensors. Let :math:`S_{cap}` be the raw-key
 cache capacity:
 
-- ``summary_cache`` ``[B, H_ik, floor(S_cap / r), D_idx]`` stores mean-pooled, RMSNorm'ed, real-position-RoPE'ed
+- ``summary_cache`` ``[B, H_ik, floor(S_cap / r), D_idx]`` stores mean-pooled, RMSNorm'ed, first-token-RoPE'ed
   summaries for complete blocks. For batch element ``b``, entries ``[0, floor(past_lens[b] / r))`` are valid
   before the invocation. Newly completed summaries are written into this same tensor; old valid entries are not
   recomputed during ordinary incremental execution.
@@ -90,12 +92,27 @@ cache capacity:
   indexer keys. For batch element ``b``, entries ``[0, past_lens[b])`` are valid before the invocation. Current
   keys are written at their logical positions ``past_lens[b] + l``. This full-history layout uses :math:`O(S_{cap})`
   storage and permits direct reread/replay of historical raw keys.
+- ``indexer_rope_cache`` ``[B, ceil(S_cap / r), indexer_rotary_dim]`` stores, for each block, the RoPE
+  coefficients of its first logical token as one interleaved row ``(cos_0, sin_0, cos_1, sin_1, ...)``. Its
+  capacity is ``ceil`` rather than ``floor``: when ``S_cap % r != 0``, the trailing partial block still starts
+  inside the raw-key capacity and needs a row. For batch
+  element ``b``, rows ``[0, ceil(past_lens[b] / r))`` are valid before the invocation (this includes a pending
+  block whose first token was appended by an earlier invocation). A row is written once, when its block's first
+  token is appended, and read back once when the block completes.
 
 The caller ensures capacity before invocation and advances ``past_lens`` by ``L`` after a successful call. The
-precondition is ``past_lens[b] + L <= S_cap`` for every batch element; the operation does not resize either cache.
-The **logical position** of query token ``l`` in batch element ``b`` is ``past_lens[b] + l``. Query RoPE uses
-``position_ids``. Summary RoPE uses the **real recorded position** of the block's first logical token, read from
-``indexer_position_cache`` rather than inferred as ``block_id * compress_ratio``. A block is
+precondition is ``past_lens[b] + L <= S_cap`` for every batch element; the operation does not resize any cache.
+Every one of the ``B x L`` query tokens is a real token: there is no padding and no per-row valid length, so each
+batch row appends exactly ``L`` new tokens per invocation (``past_lens`` may still differ between rows). Rows with
+different new-token counts must be issued as separate invocations or use
+:doc:`PagedQSAIndexer <paged-qsa-indexer>`.
+The **logical position** of query token ``l`` in batch element ``b`` is ``past_lens[b] + l``; it drives block
+addressing and causal filtering only, never a RoPE angle. Query token ``(b, l)`` is rotated with
+``(rope_cos[b, l], rope_sin[b, l])``; the summary of block ``j`` is rotated with the coefficients of the token at
+logical position ``j * r`` (its first token), read from ``indexer_rope_cache`` rather than recomputed from
+``j * r``. Because the per-token cos/sin are supplied by the producer (normally the same tensors the main attention
+RoPE consumes), any position scheme -- mRoPE sections, non-monotonic or gapped positions, scaled RoPE variants --
+is reproduced exactly without an op change. A block is
 *completed* once exactly :math:`r` raw keys have been written. The last partially-filled block is not
 summarized and is never included in this operation's selection. The paired sparse-attention consumer derives the
 causal tail directly from each query's logical position and processes its visible token prefix separately.
@@ -108,9 +125,15 @@ head :math:`h`) and block :math:`b` whose per-index-key-head summary key is
 over index-query heads (see the formula above), mapping each query head to its selection head via
 :math:`\mathrm{sel}(h)`. The ReLU is applied *per index-query head before reduction over heads*, matching the
 QSA scoring semantics. The indexer query :math:`q` arrives projected but not normalized
-or rotated. The op applies query RMSNorm (via ``q_norm_weight``) and partial RoPE using ``position_ids``. The pooled
-block key undergoes RMSNorm (via ``k_norm_weight``) and partial RoPE using the rotary-table row at its logical block
-start.
+or rotated. The op applies query RMSNorm (via ``q_norm_weight``) and partial RoPE using the token's own
+``(rope_cos, rope_sin)`` row. The pooled block key undergoes RMSNorm (via ``k_norm_weight``) and partial RoPE
+using its first token's row from ``indexer_rope_cache``. The rotation is NEOX rotate-half over the first
+:math:`R = \mathrm{indexer\_rotary\_dim}` channels, computed in ``fp32``:
+
+.. math::
+
+    x'_j = x_j \cos_j - x_{j + R/2} \sin_j, \quad x'_{j + R/2} = x_{j + R/2} \cos_j + x_j \sin_j,
+    \quad 0 \le j < R/2
 
 The RMSNorm used for the pooled block key is defined as
 
@@ -120,6 +143,17 @@ The RMSNorm used for the pooled block key is defined as
 
 computed in ``fp32`` regardless of the input precision. Qwen's Gemma-style scale :math:`(1 + w)` is folded by the
 model converter into the stored weight :math:`w' = 1 + w`, so the op consumes the already-shifted weight.
+
+**Numerics of the block summary.** The pooled key is accumulated in ``fp32`` and rounded to *T* before RMSNorm,
+matching the reference model (``mean(k.float()).to(k.dtype)``); RMSNorm and RoPE are then evaluated in ``fp32``
+and the result is stored to ``summary_cache`` as *T*. An implementation MAY keep the pooled mean in ``fp32``
+instead of rounding it to *T*; the summaries then differ by at most one rounding of *T*, which can change the
+selection only among blocks whose scores are equal within that error.
+
+**Score scale.** ``scale`` multiplies every score of a query by the same positive constant, so it never changes
+the ranking: in exact arithmetic ``sel_indices`` and ``sel_count`` do not depend on its value. It is kept for
+parity with the reference scoring (``1 / sqrt(indexer_head_dim)``); an implementation MAY omit the
+multiplication.
 
 **Selection, tie-breaking, and top-k**
 
@@ -149,17 +183,27 @@ applies this rule per query and also enforces the token-level causal bound :math
 .. code-block:: py
     :force:
 
-    def qsa_indexer(q_raw, k_raw, position_ids, rotary_cos_sin, summary_cache,
-            indexer_raw_k_cache, past_lens, q_norm_weight, k_norm_weight,
+    def apply_partial_rope(x, cos, sin, rotary_dim):
+      # NEOX rotate-half over the first rotary_dim channels, in fp32; cos/sin: [..., rotary_dim // 2]
+      half = rotary_dim // 2
+      x = x.astype(float32)
+      x1, x2 = x[..., :half].copy(), x[..., half:rotary_dim].copy()
+      x[..., :half] = x1 * cos - x2 * sin
+      x[..., half:rotary_dim] = x2 * cos + x1 * sin
+      return x
+
+    def qsa_indexer(q_raw, k_raw, rope_cos, rope_sin, summary_cache,
+            indexer_raw_k_cache, q_norm_weight, k_norm_weight, past_lens,
+            indexer_rope_cache,
             *, compress_ratio, block_topk, h_sel, indexer_rotary_dim,
             indexer_head_dim, eps, scale):
       # q_raw: [B, L, H_iq, D_idx], external projection output, not normed/RoPE'd
       # k_raw: [B, L, H_ik, D_idx], external projection output, unnormed/unrotated
-      # position_ids: [B, L], query RoPE table indices
-      # rotary_cos_sin: [max_positions, indexer_rotary_dim], interleaved (cos_j, sin_j)
+      # rope_cos, rope_sin: [B, L, indexer_rotary_dim // 2], per-token NEOX coefficients
       # summary_cache: [B, H_ik, floor(S_cap/r), D_idx], writable in place
       # indexer_raw_k_cache: [B, H_ik, S_cap, D_idx], writable in place
       # past_lens: [B], valid raw-key lengths before this invocation
+      # indexer_rope_cache: [B, ceil(S_cap/r), indexer_rotary_dim], interleaved (cos_j, sin_j), writable
       B, L, H_iq, Di = q_raw.shape
       Hik = k_raw.shape[2]
       Hsel, r = h_sel, compress_ratio
@@ -168,10 +212,11 @@ applies this rule per query and also enforces the token-level causal bound :math
       S_cap = indexer_raw_k_cache.shape[2]
       assert H_iq % Hik == 0 and Hsel in (1, Hik) and r >= 1
       assert summary_cache.shape[2] == S_cap // r
+      assert indexer_rope_cache.shape[1] == (S_cap + r - 1) // r
       assert past_lens.shape == (B,)
 
       q = rms_norm(q_raw, q_norm_weight, eps)
-      q = apply_partial_rope(q, rotary_cos_sin[position_ids], indexer_rotary_dim)
+      q = apply_partial_rope(q, rope_cos[:, :, None, :], rope_sin[:, :, None, :], indexer_rotary_dim)
 
       sel_indices = full((B, Hsel, L, Kmax), -1, dtype=int32)
       sel_count = zeros((B, Hsel, L), dtype=int32)
@@ -182,17 +227,17 @@ applies this rule per query and also enforces the token-level causal bound :math
         for l in range(L):
           indexer_raw_k_cache[batch, :, S0 + l, :] = k_raw[batch, l, :, :]
           pos = S0 + l
-          if pos % r == 0:  # this token starts a new block: record its real position once
-            indexer_position_cache[batch, pos // r] = position_ids[batch, l]
+          if pos % r == 0:  # first token of block pos // r: record its RoPE coefficients once
+            indexer_rope_cache[batch, pos // r, 0::2] = rope_cos[batch, l]
+            indexer_rope_cache[batch, pos // r, 1::2] = rope_sin[batch, l]
 
         n_complete_present = (S0 + L) // r
         for b in range(S0 // r, n_complete_present):
           grp = indexer_raw_k_cache[batch, :, b*r:(b+1)*r, :]
-          pooled = mean(grp.astype(float32), axis=1)
+          pooled = mean(grp.astype(float32), axis=1).astype(k_raw.dtype)
           normed = rms_norm(pooled, k_norm_weight, eps)
-          real_pos = indexer_position_cache[batch, b]  # recorded position of the block's first token
-          cs = rotary_cos_sin[real_pos]
-          summary_cache[batch, :, b, :] = apply_partial_rope(normed, cs, indexer_rotary_dim)
+          row = indexer_rope_cache[batch, b]  # coefficients of the block's first token
+          summary_cache[batch, :, b, :] = apply_partial_rope(normed, row[0::2], row[1::2], indexer_rotary_dim)
 
         for l in range(L):
           pos = S0 + l
@@ -240,11 +285,13 @@ applies this rule per query and also enforces the token-level causal bound :math
 * *indexer_rotary_dim*
 
   * **Description**: RoPE dimension used by the indexer (partial rotary). Only the first
-    ``indexer_rotary_dim`` dims of a block summary are rotated; the trailing
-    ``indexer_head_dim - indexer_rotary_dim`` dims are passed through unrotated. Must satisfy
-    ``indexer_rotary_dim <= indexer_head_dim``.
+    ``indexer_rotary_dim`` channels of each query head and block summary are rotated; the trailing
+    ``indexer_head_dim - indexer_rotary_dim`` channels are passed through unrotated. ``rope_cos`` / ``rope_sin``
+    carry ``indexer_rotary_dim / 2`` coefficients per token; an ``indexer_rope_cache`` row carries
+    ``indexer_rotary_dim`` interleaved values.
   * **Type**: ``int``
   * **Required**: *yes*
+  * **Constraints**: even, ``indexer_rotary_dim <= indexer_head_dim``.
 
 * *indexer_head_dim*
 
@@ -261,9 +308,12 @@ applies this rule per query and also enforces the token-level causal bound :math
 
 * *scale*
 
-  * **Description**: Score normalization constant, ``1.0 / sqrt(indexer_head_dim)``.
+  * **Description**: Positive multiplier applied to every block score (see "Score scale"). It does not affect
+    the selection outputs.
   * **Type**: ``float``
-  * **Required**: *yes*
+  * **Default value**: ``1.0 / sqrt(indexer_head_dim)``
+  * **Required**: *no*
+  * **Constraints**: ``scale > 0``.
 
 
 **Inputs**
@@ -278,15 +328,16 @@ applies this rule per query and also enforces the token-level causal bound :math
   greater than one. Keys are appended to the
   full-history raw-K cache and pooled into newly completed-block summaries. **Required.**
 
-* **2**: ``position_ids``
-  A 2D integer tensor with shape ``[B, L]`` containing the rotary-table index for each query token. **Required.**
+* **2**: ``rope_cos``
+  A 3D tensor of type *T* with shape ``[B, L, indexer_rotary_dim / 2]``. ``rope_cos[b, l, j]`` is the cosine of
+  NEOX (rotate-half) frequency ``j`` for query token ``(b, l)``, rotating channels ``j`` and
+  ``j + indexer_rotary_dim / 2``. Intended to be the same per-token cosine tensor consumed by the main attention
+  RoPE; the operation does not recompute angles, so producers should evaluate them in ``fp32`` before any cast
+  to *T*. **Required.**
 
-* **3**: ``rotary_cos_sin``
-  A 2D tensor of type *T* with shape ``[max_positions, indexer_rotary_dim]``. Row ``p`` stores the
-  ``indexer_rotary_dim / 2`` NEOX (rotate-half) frequencies of position ``p`` as interleaved pairs
-  ``(cos_0, sin_0, cos_1, sin_1, ...)``; frequency ``j`` rotates channels ``j`` and ``j + indexer_rotary_dim / 2``.
-  Query rows use ``position_ids``; summary rows use the real recorded position read from
-  ``indexer_position_cache``. **Required.**
+* **3**: ``rope_sin``
+  A 3D tensor of type *T* with shape ``[B, L, indexer_rotary_dim / 2]``; the sine counterpart of ``rope_cos``
+  with the same layout. **Required.**
 
 * **4**: ``summary_cache``
   A writable 4D tensor of type *T* with shape ``[B, H_ik, floor(S_cap / compress_ratio), D_idx]``.
@@ -310,13 +361,13 @@ applies this rule per query and also enforces the token-level causal bound :math
   ``indexer_raw_k_cache`` before this invocation. This input is read-only; the operation does not advance or otherwise
   modify it. The caller advances it by ``L`` only after successful execution. **Required.**
 
-* **9**: ``indexer_position_cache``
-  A writable 2D integer tensor with shape ``[B, floor(S_cap / compress_ratio)]``. One recorded ``position_ids``
-  value per QSA block -- the real position of that block's first logical token. The operation writes
-  ``indexer_position_cache[b, pos // r] = position_ids[b, l]`` once, the first time logical position
-  ``pos = past_lens[b] + l`` is appended (i.e. only when ``pos % r == 0``), and reads it back once the block
-  completes to recover the real RoPE coordinate for that block's summary, regardless of which invocation first
-  wrote it. **Required.**
+* **9**: ``indexer_rope_cache``
+  A writable 3D tensor of type *T* with shape ``[B, ceil(S_cap / compress_ratio), indexer_rotary_dim]``. One row
+  per QSA block holding the RoPE coefficients of that block's first logical token, interleaved as
+  ``(cos_0, sin_0, cos_1, sin_1, ...)``. The operation writes ``row[2j] = rope_cos[b, l, j]`` and
+  ``row[2j + 1] = rope_sin[b, l, j]`` into ``indexer_rope_cache[b, pos // r]`` once, when logical position
+  ``pos = past_lens[b] + l`` is appended with ``pos % r == 0``, and reads it back once the block completes to rotate
+  that block's summary, regardless of which invocation wrote it. **Required.**
 
 
 **Outputs**
@@ -338,14 +389,16 @@ For the QSA configuration ``H_sel = 1``, flattening the batch and query-token ax
 ``sel_indices[T, K]`` and ``sel_count[T]``, with ``K = block_topk``. The explicit ``B`` and ``H_sel`` axes above
 are retained for the generalized batched/multi-selection-head form.
 
-The only outputs are ``sel_indices`` and ``sel_count``. The ``summary_cache`` and ``indexer_raw_k_cache`` inputs
-are mutated in place; no updated cache tensors are returned.
+The only outputs are ``sel_indices`` and ``sel_count``. The ``summary_cache``, ``indexer_raw_k_cache`` and
+``indexer_rope_cache`` inputs are mutated in place; no updated cache tensors are returned.
 
 **In-place state semantics**
 
-* Inputs ``summary_cache`` and ``indexer_raw_k_cache`` MUST refer to writable storage allocated by the caller. The
-  operation reads existing valid entries and writes only new raw keys and newly completed summaries; successful
-  execution does not allocate, reserve, replace, resize, or grow either buffer. Existing valid entries not involved
+* Inputs ``summary_cache``, ``indexer_raw_k_cache`` and ``indexer_rope_cache`` MUST refer to writable storage
+  allocated by the caller. The
+  operation reads existing valid entries and writes only new raw keys, new block-start RoPE rows and newly
+  completed summaries; successful
+  execution does not allocate, reserve, replace, resize, or grow any of these buffers. Existing valid entries not involved
   in the current update remain unchanged.
 * The caller MUST serialize invocations that write the same cache storage. A runtime or graph optimizer MUST
   preserve the operation's side effect and its ordering relative to dependent cache reads/writes; it MUST NOT
@@ -353,8 +406,9 @@ are mutated in place; no updated cache tensors are returned.
 * When the cache inputs are model inputs, the bound tensors MUST be device-visible storage of the exact port
   element type (e.g. a GPU RemoteTensor or USM host tensor); a runtime that would stage them through a host copy
   or precision conversion MUST reject the binding instead of silently dropping the update.
-* Before invocation, ``past_lens[b]`` raw-key entries and the first ``floor(past_lens[b] / r)`` summary entries
-  MUST be valid. On success, the caller advances each logical length by ``L``. Capacity growth, rollback, and
+* Before invocation, ``past_lens[b]`` raw-key entries, the first ``floor(past_lens[b] / r)`` summary entries and the
+  first ``ceil(past_lens[b] / r)`` RoPE-cache rows MUST be valid. On success, the caller advances each logical
+  length by ``L``. Capacity growth, rollback, and
   beam branching are managed by the caller; cache storage used by distinct active branches MUST NOT alias.
 * The caller owns cache allocation and capacity growth, and MUST ensure all shape and capacity preconditions before
   invocation. If an invocation fails after
@@ -363,7 +417,7 @@ are mutated in place; no updated cache tensors are returned.
 **Shape inference and type rules**
 
 * ``T`` is a floating-point type (``float32``, ``float16``, ``bfloat16``).
-* ``T_IND`` is ``int32`` (``position_ids``, ``past_lens`` and ``indexer_position_cache`` included).
+* ``T_IND`` is ``int32`` (``past_lens`` included).
 * ``q_idx`` and ``k_idx`` share the first two dims ``[B, L]``; both last dimensions equal ``indexer_head_dim``.
   ``q_idx`` penultimate dimension is ``H_iq`` and ``k_idx`` penultimate dimension is ``H_ik``, with
   ``H_iq % H_ik == 0`` and ``G = H_iq / H_ik`` index-query heads sharing each index-key head.
@@ -374,11 +428,11 @@ are mutated in place; no updated cache tensors are returned.
 * ``past_lens`` shape equals ``[B]`` and each value satisfies ``0 <= past_lens[b]`` and
   ``past_lens[b] + L <= S_cap``. ``indexer_raw_k_cache[b, :, :past_lens[b], :]`` contains the valid raw-key history;
   ``summary_cache[b, :, :floor(past_lens[b] / compress_ratio), :]`` contains the valid completed summaries.
-* ``position_ids`` shape equals ``[B, L]``; ``rotary_cos_sin`` dim 1 equals ``indexer_rotary_dim`` and covers
-  all query positions and the real recorded positions read from ``indexer_position_cache`` for completed blocks.
-* ``indexer_position_cache`` dim 0 equals ``B`` and dim 1 equals ``floor(S_cap / compress_ratio)`` (shared
-  capacity with ``summary_cache``); it must be writable and stores one position per completed-or-pending block,
-  not a per-token or ring-capacity tensor.
+* ``rope_cos`` and ``rope_sin`` both have shape ``[B, L, indexer_rotary_dim / 2]``, sharing ``[B, L]`` with
+  ``q_idx``. All ``B x L`` tokens are valid new tokens; padding is not supported.
+* ``indexer_rope_cache`` dim 0 equals ``B``, dim 1 equals ``ceil(S_cap / compress_ratio)`` (one more than
+  ``summary_cache`` dim 2 when ``S_cap % compress_ratio != 0``) and dim 2 equals ``indexer_rotary_dim``; it must
+  be writable and stores one row per completed-or-pending block, not a per-token or ring-capacity tensor.
 * ``sel_indices`` last dimension ``K_max`` equals ``block_topk``; ``sel_count[..., sh] <= K_max`` and is at most
   ``min(block_topk, n_complete)`` for each query. The
   valid prefix ``sel_indices[..., sh, :sel_count[..., sh]]`` is **strictly ascending** and contains no ``-1``
@@ -412,7 +466,7 @@ capacity for 16 keys, of which positions ``[0, 9)`` are valid. The history cover
 
    <layer ... type="QSAIndexer">
        <data block_topk="2" h_sel="1" indexer_head_dim="128"
-             indexer_rotary_dim="128" compress_ratio="4" eps="1e-6"
+             indexer_rotary_dim="64" compress_ratio="4" eps="1e-6"
              scale="0.088388"/>
        <input>
            <port id="0">   <!-- q_idx: [B, L, H_iq, D_idx] -->
@@ -421,16 +475,16 @@ capacity for 16 keys, of which positions ``[0, 9)`` are valid. The history cover
            <port id="1">   <!-- k_idx: [B, L, H_ik, D_idx] -->
                <dim>1</dim><dim>1</dim><dim>1</dim><dim>128</dim>
            </port>
-           <port id="2">   <!-- position_ids: [B, L] -->
-               <dim>1</dim><dim>1</dim>
+           <port id="2">   <!-- rope_cos: [B, L, rotary_dim/2] -->
+               <dim>1</dim><dim>1</dim><dim>32</dim>
            </port>
-           <port id="3">   <!-- rotary_cos_sin: [max_positions, rotary_dim] -->
-               <dim>16</dim><dim>256</dim>
+           <port id="3">   <!-- rope_sin: [B, L, rotary_dim/2] -->
+               <dim>1</dim><dim>1</dim><dim>32</dim>
            </port>
-             <port id="4">   <!-- summary_cache: [B, H_ik, floor(S_cap/r), D_idx], writable -->
+           <port id="4">   <!-- summary_cache: [B, H_ik, floor(S_cap/r), D_idx], writable -->
                <dim>1</dim><dim>1</dim><dim>4</dim><dim>128</dim>
            </port>
-             <port id="5">   <!-- indexer_raw_k_cache: [B, H_ik, S_cap, D_idx], writable -->
+           <port id="5">   <!-- indexer_raw_k_cache: [B, H_ik, S_cap, D_idx], writable -->
                <dim>1</dim><dim>1</dim><dim>16</dim><dim>128</dim>
            </port>
            <port id="6">   <!-- q_norm_weight: [D_idx] -->
@@ -439,18 +493,18 @@ capacity for 16 keys, of which positions ``[0, 9)`` are valid. The history cover
            <port id="7">   <!-- k_norm_weight: [D_idx] -->
                <dim>128</dim>
            </port>
-             <port id="8">   <!-- past_lens: [B] -->
+           <port id="8">   <!-- past_lens: [B] -->
                <dim>1</dim>
-             </port>
-             <port id="9">   <!-- indexer_position_cache: [B, floor(S_cap/r)], writable -->
-               <dim>1</dim><dim>4</dim>
-             </port>
+           </port>
+           <port id="9">   <!-- indexer_rope_cache: [B, ceil(S_cap/r), rotary_dim], writable -->
+               <dim>1</dim><dim>4</dim><dim>64</dim>
+           </port>
        </input>
        <output>
-             <port id="10" precision="I32">  <!-- sel_indices: [B, H_sel, L, K_max=block_topk] -->
+           <port id="10" precision="I32">  <!-- sel_indices: [B, H_sel, L, K_max=block_topk] -->
                <dim>1</dim><dim>1</dim><dim>1</dim><dim>2</dim>
            </port>
-             <port id="11" precision="I32">  <!-- sel_count: [B, H_sel, L] -->
+           <port id="11" precision="I32">  <!-- sel_count: [B, H_sel, L] -->
                <dim>1</dim><dim>1</dim><dim>1</dim>
            </port>
        </output>
