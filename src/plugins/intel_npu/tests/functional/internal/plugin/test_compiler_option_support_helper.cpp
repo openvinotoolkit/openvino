@@ -239,7 +239,7 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, ProbesCompilerDirectlyForOpti
 TEST_P(CompilerOptionSupportHelperFunctionalTests, BatchModeSupportMatchesDirectCompilerProbe) {
     const std::string batchModeOption = ov::intel_npu::batch_mode.name();
 
-    ::intel_npu::CompilerAdapterFactory factory;
+    ::intel_npu::CompilerAdapterFactory factory{testVclFunctions()};
     auto adapterCompilerType = compilerType;
     std::unique_ptr<::intel_npu::ICompilerAdapter> compilerAdapter;
     OV_ASSERT_NO_THROW(compilerAdapter = factory.getCompiler(backend, adapterCompilerType, ""));
