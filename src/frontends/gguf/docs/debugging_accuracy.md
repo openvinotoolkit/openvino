@@ -41,6 +41,20 @@ Agreement of the expansions with a discrepancy only in quantized execution impli
 arithmetic; retain the original failed gate. A requantized fixture or a separately downloaded
 F16 checkpoint cannot establish parity for the original model.
 
+For attention, record flash versus nonflash execution and intermediate rounding separately
+from KV storage precision. The pinned llama.cpp nonflash F16-cache path rounds queries
+before QK and softmax probabilities before PV, with F32 outputs. Compare an attention
+subgraph on identical Q/K/V and masks before attributing full-model drift to cache updates.
+Sparse gates followed by normalization can amplify a small attention discrepancy.
+
+Check that diagnostic casts survive compilation. Under CPU F32 inference, an ordinary
+F32-to-F16-to-F32 pair can be removed by precision conversion. Inspect the executed graph
+and observe a known half-rounded tensor; use `ov::disable_conversion` from
+`transformations/rt_info/disable_precision_conversion.hpp` on the narrowing Convert when
+the experiment requires it. A passing manual QK/softmax/PV decomposition does not establish
+a production fix: retain the original gate and verify stateful execution and
+SDPA-to-PagedAttention conversion before changing the frontend's attention path.
+
 ## Localize the failing boundary
 
 1. **Inputs:** align tokenization, prompts, chat templates, masks, positions, and preprocessing.

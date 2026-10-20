@@ -173,6 +173,12 @@ small F32 prefill/decode references. DFlash also covers GELU, FC/output scales, 
 missing V weights, dynamic convolution, reduced-vocabulary scatter, selector and LiLiCorr
 lattices. Gemma3n's three-step fixture exceeds the existing `1e-5` NMSE gate
 at the final step (`1.65684e-5`); matching greedy tokens does not establish parity.
+Its sparse FFN amplifies an upstream attention arithmetic difference. An identical-input
+layer-0 reproducer matches the pinned nonflash CPU oracle bit for bit when both queries
+and softmax probabilities are rounded to F16 before their matrix products. CPU SDPA does
+not reproduce both rounds under F32 inference. A manual attention diagnostic reaches
+`8.54503e-6` at the final step, but removes SDPA and its GenAI PagedAttention conversion
+path. This is an isolated diagnosis; the production fixture remains failing.
 The real Qwen3-ASR quantized decoder also fails its original full-logit parity gate.
 
 A real Llama-Nemotron-Embed-1B-v2 F16 checkpoint at revision
