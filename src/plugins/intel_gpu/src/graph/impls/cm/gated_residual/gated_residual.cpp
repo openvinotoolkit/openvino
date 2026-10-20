@@ -66,12 +66,35 @@ JitConstants make_common_jit(const std::shared_ptr<const gated_residual>& desc) 
 /// gr_write.cm (branch loop moved inside the kernel); 16 is always a valid fallback since
 /// GR_HIDDEN % 16 == 0 is enforced by validate_impl.
 size_t gr_best_tile(size_t width) {
-    for (size_t t : {size_t{64}, size_t{32}, size_t{16}}) {
+    for (size_t t : {size_t{128}, size_t{64}, size_t{32}, size_t{16}}) {
         if (width % t == 0) {
             return t;
         }
     }
     return 16;
+}
+
+/// gr_read.cm work-group size: Xe2+ runs 32 threads per work-group in 256-GRF mode, which
+/// halves the per-row latency of the two GEMVs; older devices keep the proven 16.
+size_t gr_read_wg_size(const cldnn::device_info& info) {
+    return info.arch >= gpu_arch::xe2 ? 32 : gr_wg_size;
+}
+
+/// Token rows per gr_read.cm work-group: every weight chunk is reused for all of them, so as
+/// many as the SLM budget (Rbar f16 + t f32 per row) allows. Decode keeps one row per
+/// work-group - the extra rows are computed anyway and only cost latency there.
+size_t gr_read_rows(const gated_residual& desc, const cldnn::device_info& info, bool decode) {
+    if (decode) {
+        return 1;
+    }
+    const size_t per_row = desc.hc_count * desc.hidden_size * 2 + (desc.lowrank + desc.hc_count + 3) / 4 * 4 * 4;
+    const size_t budget = std::min<size_t>(info.max_local_mem_size, 96 * 1024);
+    for (size_t rb : {size_t{8}, size_t{4}, size_t{2}}) {
+        if (rb * per_row <= budget) {
+            return rb;
+        }
+    }
+    return 1;
 }
 
 size_t largest_divisor_up_to(size_t n, size_t cap) {
@@ -164,7 +187,9 @@ bool can_use_dpas_gr_read(const gated_residual& desc, const cldnn::device_info& 
 // ---------------------------------------------------------------------------
 class GatedResidualReadGenerator : public KernelGenerator {
 public:
-    GatedResidualReadGenerator() : KernelGenerator("gr_read", "_cm") {}
+    explicit GatedResidualReadGenerator(bool decode = false)
+        : KernelGenerator("gr_read", decode ? "_decode_cm" : "_cm"),
+          m_decode(decode) {}
 
 protected:
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
@@ -181,7 +206,8 @@ protected:
         jit.add(make_jit_constant("GR_EPS", desc->epsilon));
         jit.make("GR_NORM_GAIN_PLUS_ONE", desc->norm_gain_plus_one ? 1 : 0);
         jit.make("GR_PRODUCE_WRITE_GATE", desc->produce_write_gate ? 1 : 0);
-        jit.make("GR_WG_SIZE", gr_wg_size);
+        jit.make("GR_WG_SIZE", gr_read_wg_size(params.get_device_info()));
+        jit.make("GR_READ_ROWS", gr_read_rows(*desc, params.get_device_info(), m_decode));
 
         return jit;
     }
@@ -205,13 +231,15 @@ protected:
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
+        return DispatchDataFunc{[decode = m_decode](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
+            const size_t wg = gr_read_wg_size(params.get_device_info());
+            const size_t rows_per_wg = gr_read_rows(*desc, params.get_device_info(), decode);
 
             auto& wgs = kd.params.workGroups;
-            wgs.global = {gr_wg_size, num_rows, 1};
-            wgs.local = {gr_wg_size, 1, 1};
+            wgs.global = {wg, std::max<size_t>(1, (num_rows + rows_per_wg - 1) / rows_per_wg), 1};
+            wgs.local = {wg, 1, 1};
 
             kd.params.scalars.clear();
             scalar_desc s;
@@ -220,6 +248,9 @@ protected:
             kd.params.scalars.push_back(s);
         }};
     }
+
+private:
+    bool m_decode;
 };
 
 // ---------------------------------------------------------------------------
@@ -464,6 +495,7 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::GatedResidualCMImpl)
 
     Stage::Ptr gr_read = make_stage<GatedResidualReadGenerator>();
+    Stage::Ptr gr_read_decode = make_stage<GatedResidualReadGenerator>(true);
     Stage::Ptr gr_write = make_stage<GatedResidualWriteGenerator>();
     Stage::Ptr gr_rbar_dpas = make_stage<GatedResidualRbarDpasGenerator>();
     Stage::Ptr gr_down_proj_dpas = make_stage<GatedResidualDownProjDpasGenerator>();
@@ -491,8 +523,12 @@ public:
                 add_stage(down_stage(gr_down_tier(rows, params.get_device_info())), params);
                 add_stage(up_stage(gr_up_tier(rows)), params);
             }
-        } else {
+        } else if (params.is_dynamic()) {
+            add_stage(gr_read_decode, params);
             add_stage(gr_read, params);
+        } else {
+            const size_t rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
+            add_stage(rows <= gr_decode_rows ? gr_read_decode : gr_read, params);
         }
     }
 
@@ -541,7 +577,12 @@ public:
             record_stage_event("UP_PROJ", ev_up);
             return instance.get_network().get_stream().aggregate_events({ev_rbar, ev_down, ev_up}, true, instance.is_output());
         }
-        auto ev = execute_stage(events, instance, gr_read);
+        const auto& params = *instance.get_impl_params();
+        const auto desc = params.typed_desc<gated_residual>();
+        const size_t rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
+        auto& read = rows <= gr_decode_rows ? gr_read_decode : gr_read;
+        OPENVINO_ASSERT(has_stage(read), "[GPU][CM] gated_residual: read stage for ", rows, " rows was not built");
+        auto ev = execute_stage(events, instance, read);
         record_stage_event("READ", ev);
         return ev;
     }

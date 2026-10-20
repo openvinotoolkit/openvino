@@ -15,6 +15,12 @@
 // W_down GEMM, the branch mix and the (optional) W_inject GEMM. Neither the read
 // gate tensor [B,T,C,D] nor the low-rank tensor is written back to global memory.
 //
+// This is the non-systolic fallback (pre-Xe2 or shapes the dpas pipeline rejects), so it
+// is a pair of GEMVs whose cost is streaming W_down/W_up. One work-group therefore owns
+// GR_READ_ROWS token rows and every weight chunk it loads is reused for all of them;
+// dot products accumulate 16-wide and are reduced once per output, and the write-gate
+// rows are extra outputs of the down projection instead of a serial single-thread tail.
+//
 // JIT constants:
 //   GR_BRANCHES            C, branch count (first version: 4)
 //   GR_HIDDEN              D, per-branch channel count (multiple of 16)
@@ -22,19 +28,18 @@
 //   GR_EPS                 RMSNorm epsilon
 //   GR_NORM_GAIN_PLUS_ONE  1 when the checkpoint stores w and the gain is (1 + w)
 //   GR_PRODUCE_WRITE_GATE  1 when W_inject is present and S is emitted
-//   GR_WG_SIZE             threads per token row
+//   GR_WG_SIZE             threads per work-group
+//   GR_READ_ROWS           token rows per work-group
 //
 // Dispatch:
-//   gws = [GR_WG_SIZE, num_rows, 1]
-//   lws = [GR_WG_SIZE, 1, 1]        // one work-group owns one token row
+//   gws = [GR_WG_SIZE, ceil(num_rows / GR_READ_ROWS), 1]
+//   lws = [GR_WG_SIZE, 1, 1]
 
 #include "qsa_gr_common.hpp"
 
 #ifndef ATTR
 #define ATTR [[type("svmptr_t")]]
 #endif
-
-#define GR_TOTAL (GR_BRANCHES * GR_HIDDEN)
 
 extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* residual ATTR,      // [num_rows, C*D]
                                         const half* norm_weight ATTR,   // [C*D]
@@ -51,148 +56,209 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* residual ATTR,      // [num_
     constexpr uint C = GR_BRANCHES;
     constexpr uint D = GR_HIDDEN;
     constexpr uint L = GR_LOWRANK;
-    constexpr uint CD = GR_TOTAL;
+    constexpr uint CD = C * D;
     constexpr uint WG = GR_WG_SIZE;
+    constexpr uint RB = GR_READ_ROWS;
+    constexpr uint NOUT = L + (GR_PRODUCE_WRITE_GATE ? C : 0);  // down-projection outputs
+    constexpr uint NJ = 4;                                      // outputs per thread pass
+    constexpr uint TSTRIDE = (NOUT + NJ - 1) / NJ * NJ;         // floats per t row in SLM
+    // Chunk widths (halfs) of the K loops; SLM block messages stay <= 128 bytes.
+    constexpr uint KD = (D % 64 == 0) ? 64 : ((D % 32 == 0) ? 32 : 16);
+    constexpr uint KC = (CD % 64 == 0) ? 64 : ((CD % 32 == 0) ? 32 : 16);
+    constexpr uint KL = (L % 64 == 0) ? 64 : ((L % 32 == 0) ? 32 : 16);
 
     static_assert(D % 16 == 0, "GR_HIDDEN must be a multiple of 16");
     static_assert(L % 16 == 0, "GR_LOWRANK must be a multiple of 16");
     static_assert(C > 0 && C <= 4, "first version supports C in [1, 4]");
+    static_assert(RB >= 1 && RB <= 8, "GR_READ_ROWS must be in [1, 8]");
 
-    const uint row = cm_group_id(1);
-    if (row >= num_rows) {
+    const uint row0 = cm_group_id(1) * RB;
+    if (row0 >= num_rows) {
         return;
     }
+    const uint nrows = cm_min<uint>(RB, num_rows - row0);
     const uint tid = cm_local_id(0);
-    const uint row_base = row * CD;
 
-    constexpr uint SLM_RBAR_SIZE = CD * (uint)sizeof(half);
-    constexpr uint SLM_T_SIZE = L * (uint)sizeof(float);
-    constexpr uint SLM_PART_SIZE = WG * 4 * (uint)sizeof(float);
-
-    cm_slm_init(SLM_RBAR_SIZE + SLM_T_SIZE + SLM_PART_SIZE);
+    constexpr uint SLM_RBAR_SIZE = RB * CD * (uint)sizeof(half);
+    constexpr uint SLM_T_SIZE = RB * TSTRIDE * (uint)sizeof(float);
+    cm_slm_init(SLM_RBAR_SIZE + SLM_T_SIZE);
     auto slm_rbar = cm_slm_alloc(SLM_RBAR_SIZE);
     auto slm_t = cm_slm_alloc(SLM_T_SIZE);
-    auto slm_part = cm_slm_alloc(SLM_PART_SIZE);
 
     // ------------------------------------------------------------------
-    // Phase 1a: branch-wise FP32 sum of squares.
+    // Phase 1: Rbar = rms_norm(R_c) * gain into SLM, one thread per (row, branch).
     // Each branch is normalized independently over its own D channels; this is
     // NOT a single RMSNorm over the concatenated C*D vector.
-    // ------------------------------------------------------------------
-    vector<float, 4> partial = 0.0f;
-    for (uint c = 0; c < C; c++) {
-        float acc = 0.0f;
-        for (uint d = tid * 16; d < D; d += WG * 16) {
-            vector<float, 16> rf = qsa_gr::load_h16(residual, row_base + c * D + d);
-            acc += cm_sum<float>(rf * rf);
-        }
-        partial[c] = acc;
-    }
-    cm_slm_block_write(slm_part, tid * 4 * (uint)sizeof(float), partial);
-    cm_fence(CM_LOCAL_BARRIER);
-    cm_barrier();
-
-    vector<float, WG * 4> all_partials;
-    cm_slm_block_read(slm_part, 0, all_partials);
-    vector<float, 4> sumsq = 0.0f;
-    for (uint t = 0; t < WG; t++) {
-        sumsq += all_partials.select<4, 1>(t * 4);
-    }
-    const vector<float, 4> inv_rms = cm_rsqrt(sumsq * (1.0f / (float)D) + (float)GR_EPS);
-
-    // ------------------------------------------------------------------
-    // Phase 1b: materialize Rbar = rms_norm(R_c) * gain in SLM.
     // gain = (1 + w) when GR_NORM_GAIN_PLUS_ONE, otherwise the weight is already folded.
     // ------------------------------------------------------------------
-    for (uint idx = tid * 16; idx < CD; idx += WG * 16) {
-        const uint c = idx / D;  // safe: D % 16 == 0 and idx % 16 == 0
-        vector<float, 16> r = qsa_gr::load_h16(residual, row_base + idx);
-        vector<float, 16> gain = qsa_gr::load_h16(norm_weight, idx);
+    for (uint p = tid; p < RB * C; p += WG) {
+        const uint r = p / C;
+        const uint c = p % C;
+        if (r >= nrows) {
+            continue;
+        }
+        const uint gbase = (row0 + r) * CD + c * D;
+        const uint sbase = (r * CD + c * D) * (uint)sizeof(half);
+        vector<float, 16> sq = 0.0f;
+        for (uint d = 0; d < D; d += KD) {
+            vector<half, KD> x;
+            qsa_gr::load_hv<KD>(x, residual, gbase + d);
+#pragma unroll
+            for (uint s = 0; s < KD; s += 16) {
+                vector<float, 16> f = x.select<16, 1>(s);
+                sq += f * f;
+            }
+            cm_slm_block_write(slm_rbar, sbase + d * (uint)sizeof(half), x);
+        }
+        const float inv_rms = cm_rsqrt(cm_sum<float>(sq) * (1.0f / (float)D) + (float)GR_EPS);
+        for (uint d = 0; d < D; d += KD) {
+            vector<half, KD> x;
+            vector<half, KD> g;
+            cm_slm_block_read(slm_rbar, sbase + d * (uint)sizeof(half), x);
+            qsa_gr::load_hv<KD>(g, norm_weight, c * D + d);
+#pragma unroll
+            for (uint s = 0; s < KD; s += 16) {
+                vector<float, 16> gain = g.select<16, 1>(s);
 #if GR_NORM_GAIN_PLUS_ONE
-        gain = gain + 1.0f;
+                gain = gain + 1.0f;
 #endif
-        vector<half, 16> rbar = r * inv_rms[c] * gain;
-        cm_slm_block_write(slm_rbar, idx * (uint)sizeof(half), rbar);
+                vector<float, 16> f = x.select<16, 1>(s);
+                x.select<16, 1>(s) = f * inv_rms * gain;
+            }
+            cm_slm_block_write(slm_rbar, sbase + d * (uint)sizeof(half), x);
+        }
     }
     cm_fence(CM_LOCAL_BARRIER);
     cm_barrier();
 
     // ------------------------------------------------------------------
-    // Phase 2: low-rank down projection, 1/C scaling and SiLU.
-    //   t[l] = SiLU( (W_down[l,:] . Rbar) / C )
+    // Phase 2: low-rank down projection (+ write-gate rows), NJ outputs x RB rows per pass.
+    //   t[l] = SiLU( (W_down[l,:] . Rbar) / C ),   S[c] logits = W_inject[c,:] . Rbar
     // The 1/C here is model semantics, not a foldable constant.
     // ------------------------------------------------------------------
-    for (uint l0 = tid * 16; l0 < L; l0 += WG * 16) {
-        vector<float, 16> logits = 0.0f;
+    for (uint l0 = tid * NJ; l0 < NOUT; l0 += WG * NJ) {
+        matrix<float, NJ * RB, 16> acc = 0.0f;
+        for (uint k = 0; k < CD; k += KC) {
+            matrix<float, RB, KC> rv;
 #pragma unroll
-        for (uint j = 0; j < 16; j++) {
-            const uint w_row = (l0 + j) * CD;
-            float acc = 0.0f;
-            for (uint k = 0; k < CD; k += 16) {
-                vector<float, 16> wv = qsa_gr::load_h16(w_down, w_row + k);
-                vector<half, 16> rv;
-                cm_slm_block_read(slm_rbar, k * (uint)sizeof(half), rv);
-                acc += cm_sum<float>(wv * vector<float, 16>(rv));
+            for (uint r = 0; r < RB; r++) {
+                vector<half, KC> rh;
+                cm_slm_block_read(slm_rbar, (r * CD + k) * (uint)sizeof(half), rh);
+                rv.row(r) = rh;
             }
-            logits[j] = acc;
+#pragma unroll
+            for (uint j = 0; j < NJ; j++) {
+                const uint l = cm_min<uint>(l0 + j, NOUT - 1);
+                vector<half, KC> w;
+#if GR_PRODUCE_WRITE_GATE
+                if (l >= L) {
+                    qsa_gr::load_hv<KC>(w, w_inject, (l - L) * CD + k);
+                } else
+#endif
+                {
+                    qsa_gr::load_hv<KC>(w, w_down, l * CD + k);
+                }
+                vector<float, KC> wf = w;
+#pragma unroll
+                for (uint r = 0; r < RB; r++) {
+#pragma unroll
+                    for (uint s = 0; s < KC; s += 16) {
+                        acc.row(j * RB + r) += wf.select<16, 1>(s) * rv.row(r).select<16, 1>(s);
+                    }
+                }
+            }
         }
-        logits = logits * (1.0f / (float)C);
-        const vector<float, 16> act = logits * qsa_gr::sigmoid<16>(logits);  // SiLU
-        cm_slm_block_write(slm_t, l0 * (uint)sizeof(float), act);
+#pragma unroll
+        for (uint r = 0; r < RB; r++) {
+            vector<float, NJ> logits;
+#pragma unroll
+            for (uint j = 0; j < NJ; j++) {
+                logits[j] = cm_sum<float>(acc.row(j * RB + r)) * (1.0f / (float)C);
+            }
+            vector<float, NJ> act = logits * qsa_gr::sigmoid<NJ>(logits);  // SiLU
+#if GR_PRODUCE_WRITE_GATE
+            // Write-gate range is (0, 2) - it must not be clamped to (0, 1).
+            const vector<float, NJ> wgate = 2.0f * qsa_gr::sigmoid<NJ>(logits);
+#pragma unroll
+            for (uint j = 0; j < NJ; j++) {
+                if (l0 + j >= L) {
+                    act[j] = wgate[j];
+                }
+            }
+#endif
+            cm_slm_block_write(slm_t, (r * TSTRIDE + l0) * (uint)sizeof(float), act);
+        }
     }
     cm_fence(CM_LOCAL_BARRIER);
     cm_barrier();
 
-    vector<float, L> tvec;
-    cm_slm_block_read(slm_t, 0, tvec);
+#if GR_PRODUCE_WRITE_GATE
+    static_assert(C == 4, "packed write-gate store expects C == 4");
+    if (tid < nrows) {
+        vector<float, 4> s;
+        cm_slm_block_read(slm_t, (tid * TSTRIDE + L) * (uint)sizeof(float), s);
+        vector<half, 4> gate_out = s;
+        cm_ptr_store<int, 2>((int*)write_gate, (row0 + tid) * C * (uint)sizeof(half), gate_out.format<int>());
+    }
+#endif
 
     // ------------------------------------------------------------------
     // Phase 3: per-(branch, channel) sigmoid read gate and branch reduce mean.
     //   G[c,d]   = sigmoid(W_up[c*D+d,:] . t)
     //   mixed[d] = (1/C) * sum_c G[c,d] * Rbar[c,d]
+    // t is held in registers as half (RB x L) - the same precision the dpas path stores.
+    // Rows past num_rows are computed on stale SLM and simply not stored: guarding them
+    // inside the unrolled loops measured ~40% slower.
     // ------------------------------------------------------------------
-    for (uint d0 = tid * 16; d0 < D; d0 += WG * 16) {
-        vector<float, 16> acc = 0.0f;
-        for (uint c = 0; c < C; c++) {
-            vector<float, 16> logits = 0.0f;
+    matrix<half, RB, L> th;
 #pragma unroll
-            for (uint j = 0; j < 16; j++) {
-                const uint w_row = (c * D + d0 + j) * L;
-                float s = 0.0f;
-                for (uint k = 0; k < L; k += 16) {
-                    vector<float, 16> wv = qsa_gr::load_h16(w_up, w_row + k);
-                    s += cm_sum<float>(wv * tvec.select<16, 1>(k));
-                }
-                logits[j] = s;
-            }
-            const vector<float, 16> gate = qsa_gr::sigmoid<16>(logits);
-            vector<half, 16> rbar;
-            cm_slm_block_read(slm_rbar, (c * D + d0) * (uint)sizeof(half), rbar);
-            acc += gate * vector<float, 16>(rbar);
+    for (uint r = 0; r < RB; r++) {
+#pragma unroll
+        for (uint k = 0; k < L; k += 16) {
+            vector<float, 16> tf;
+            cm_slm_block_read(slm_t, (r * TSTRIDE + k) * (uint)sizeof(float), tf);
+            th.row(r).select<16, 1>(k) = tf;
         }
-        vector<half, 16> out = acc * (1.0f / (float)C);
-        qsa_gr::store_h16(mixed, row * D + d0, out);
     }
 
-#if GR_PRODUCE_WRITE_GATE
-    // ------------------------------------------------------------------
-    // Phase 4: per-branch scalar write gate, produced from the SAME Rbar that
-    // the READ stage used. Range is (0, 2) - it must not be clamped to (0, 1).
-    // ------------------------------------------------------------------
-    static_assert(C == 4, "packed write-gate store expects C == 4");
-    if (tid == 0) {
-        vector<half, 4> gate_out = 0.0f;
+    for (uint d0 = tid * 16; d0 < D; d0 += WG * 16) {
+        matrix<float, RB, 16> mix = 0.0f;
         for (uint c = 0; c < C; c++) {
-            float acc = 0.0f;
-            for (uint k = 0; k < CD; k += 16) {
-                vector<float, 16> wv = qsa_gr::load_h16(w_inject, c * CD + k);
-                vector<half, 16> rv;
-                cm_slm_block_read(slm_rbar, k * (uint)sizeof(half), rv);
-                acc += cm_sum<float>(wv * vector<float, 16>(rv));
+            matrix<float, RB, 16> logits;
+#pragma unroll
+            for (uint j = 0; j < 16; j++) {
+                matrix<float, RB, 16> acc = 0.0f;
+                const uint w_row = (c * D + d0 + j) * L;
+                for (uint k = 0; k < L; k += KL) {
+                    vector<half, KL> w;
+                    qsa_gr::load_hv<KL>(w, w_up, w_row + k);
+                    vector<float, KL> wf = w;
+#pragma unroll
+                    for (uint r = 0; r < RB; r++) {
+#pragma unroll
+                        for (uint s = 0; s < KL; s += 16) {
+                            acc.row(r) += wf.select<16, 1>(s) * vector<float, 16>(th.row(r).select<16, 1>(k + s));
+                        }
+                    }
+                }
+#pragma unroll
+                for (uint r = 0; r < RB; r++) {
+                    logits(r, j) = cm_sum<float>(acc.row(r));
+                }
             }
-            gate_out[c] = (half)(2.0f * qsa_gr::sigmoid_scalar(acc * (1.0f / (float)C)));
+#pragma unroll
+            for (uint r = 0; r < RB; r++) {
+                vector<half, 16> rbar;
+                cm_slm_block_read(slm_rbar, (r * CD + c * D + d0) * (uint)sizeof(half), rbar);
+                mix.row(r) += qsa_gr::sigmoid<16>(logits.row(r)) * vector<float, 16>(rbar);
+            }
         }
-        cm_ptr_store<int, 2>((int*)write_gate, row * C * (uint)sizeof(half), gate_out.format<int>());
+#pragma unroll
+        for (uint r = 0; r < RB; r++) {
+            if (r < nrows) {
+                vector<half, 16> out = mix.row(r) * (1.0f / (float)C);
+                qsa_gr::store_h16(mixed, (row0 + r) * D + d0, out);
+            }
+        }
     }
-#endif
 }

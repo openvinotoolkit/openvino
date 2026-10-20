@@ -16,7 +16,7 @@
 // each read from DRAM exactly ONCE per thread (the original per-branch dispatch
 // re-read the same Y[row, d0:d0+TILE] and re-derived the same gate pair once per
 // branch, for no reason). GR_WRITE_TILE (a multiple of 16, chosen by the generator as
-// the widest of {64,32,16} that evenly divides GR_HIDDEN) also cuts thread count by
+// the widest of {128,64,32,16} that evenly divides GR_HIDDEN) also cuts thread count by
 // widening the per-thread slice, which matters at small D (dispatch-overhead bound).
 //
 // JIT constants:
