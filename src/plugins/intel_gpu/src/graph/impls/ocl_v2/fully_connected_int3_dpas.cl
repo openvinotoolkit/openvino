@@ -220,6 +220,10 @@ KERNEL(quantize_input)(
 // The weight scales of a group pair are adjacent when the scale is [N, groups]
 // with one scale per quantization group.
 #define V2_SCALE_VEC (WEI_SCALE_G_PITCH == 1 && WEI_SCALE_GROUP_SIZE == GROUP_SIZE)
+// With f16 scales [groups, N] and 16-byte aligned rows, the 32 weight scales of a group are one subgroup block read,
+// which takes no per-lane address math.
+#define V2_SCALE_BLOCK (V2_SMALL_GRF && V2_NB == 2 && WEI_SCALE_F16 && WEI_SCALE_N_PITCH == 1 && \
+                        WEI_SCALE_G_PITCH % 8 == 0)
 #endif
 #if !USE_DPAS && !K_LANES && (GROUPS_K % SG_K) != 0
 #   error "fully_connected_int3_dpas.cl - SG_K must divide GROUPS_K"
@@ -344,6 +348,8 @@ KERNEL(fc)(
     // is computed, and only waited on afterwards, so its latency hides behind the
     // DPAS. A buffer is rewritten two iterations after it was read, and passing
     // the wait of the iteration in between proves every subgroup is done with it.
+    // With V2_SMALL_GRF (the 128-GRF build, which runs twice the threads per EU), the activations are read per
+    // chunk pair instead of per group, which keeps the kernel within the smaller register file.
     const uint lane = get_sub_group_local_id();
     const uint sg   = (uint)get_local_id(1);
     const uint nbw  = (uint)get_group_id(0);
@@ -356,6 +362,12 @@ KERNEL(fc)(
     unroll_for (uint j = 0; j < V2_NB; ++j)
         unroll_for (uint t = 0; t < TILE_M; ++t)
             acc_f[j][t] = 0.0f;
+#if V2_SMALL_GRF
+    // The first DPAS of a group reads its initial accumulator from here instead of a copy per accumulator. The
+    // (always zero) lane-dependent term keeps the compiler from holding it as a uniform value, which it would expand
+    // into a full register block before every one of those DPAS.
+    const int8 acc_init = (int8)((V2_ACC_BIAS ? 0x4B400000 : 0) + (int)((rows >> 31) & lane));
+#endif
 
 #define V2_CPR (V2_GPI * CHUNKS_PER_GROUP)
     // The decoded granule is stored to the [granule][column] slot the DPAS reads: granule (group gi, chunk cc,
@@ -426,6 +438,14 @@ KERNEL(fc)(
             // r * 16 + lane are adjacent in quan_var, and so are the weight scales
             // with V2_SCALE_VEC.
             if (gi % 2 == 0) {
+#if V2_SCALE_BLOCK
+                const __global ushort* bsp = (const __global ushort*)decompression_scale + WEI_SCALE_OFFSET + nbw * V2_NB * SIMD;
+                const ushort2 bs0 = intel_sub_group_block_read_us2(bsp + (g * GROUP_SIZE / WEI_SCALE_GROUP_SIZE) * WEI_SCALE_G_PITCH);
+                const ushort2 bs1 =
+                    intel_sub_group_block_read_us2(bsp + ((g + 1) * GROUP_SIZE / WEI_SCALE_GROUP_SIZE) * WEI_SCALE_G_PITCH);
+                bs_pair[0] = (float2)(as_half(bs0.s0), as_half(bs1.s0));
+                bs_pair[1] = (float2)(as_half(bs0.s1), as_half(bs1.s1));
+#else
                 unroll_for (uint j = 0; j < V2_NB; ++j) {
                     const uint n = (nbw * V2_NB + j) * SIMD + lane;
 #if V2_SCALE_VEC
@@ -434,6 +454,7 @@ KERNEL(fc)(
                     bs_pair[j] = (float2)(WEI_SCALE(n, g * GROUP_SIZE), WEI_SCALE(n, (g + 1) * GROUP_SIZE));
 #endif
                 }
+#endif
                 unroll_for (uint r = 0; r < V2_RB; ++r) {
                     const uint row = min(m0 + r * 16 + lane, batch_size - 1);
                     sv_pair[r] = vload4(0, quan_var + (row * var_pitch + g) * 2);
@@ -455,21 +476,33 @@ KERNEL(fc)(
 #endif
             }
 
+#if !V2_SMALL_GRF
             ushort a_all[CHUNKS_PER_GROUP / 2][TILE_M * 2];
             unroll_for (uint h = 0; h < CHUNKS_PER_GROUP / 2; ++h)
                 V2_A_READ((__global void*)quantized_input, IFM_SIZE, batch_size, TILE_IN_B_PITCH,
                           (int2)(g * GROUP_SIZE + h * 2 * K_CHUNK, m0), a_all[h]);
+#endif
 
             int8 acc[M_BLOCKS][V2_NB];
+#if !V2_SMALL_GRF
             unroll_for (uint mb = 0; mb < M_BLOCKS; ++mb)
                 unroll_for (uint j = 0; j < V2_NB; ++j)
                     acc[mb][j] = (int8)(V2_ACC_BIAS ? 0x4B400000 : 0);
+#endif
 
             // The next chunk's weights are read from SLM before the current DPAS.
             int4 w_next[V2_NB];
             unroll_for (uint j = 0; j < V2_NB; ++j)
                 w_next[j] = wshare[buf][(gi * CHUNKS_PER_GROUP) * V2_NB + j][lane];
             unroll_for (uint h = 0; h < CHUNKS_PER_GROUP / 2; ++h) {
+#if V2_SMALL_GRF
+                ushort a_h[TILE_M * 2];
+                V2_A_READ((__global void*)quantized_input, IFM_SIZE, batch_size, TILE_IN_B_PITCH,
+                          (int2)(g * GROUP_SIZE + h * 2 * K_CHUNK, m0), a_h);
+#   define V2_A_ELEM(i_) a_h[i_]
+#else
+#   define V2_A_ELEM(i_) a_all[h][i_]
+#endif
                 unroll_for (uint c = 0; c < 2; ++c) {
                     const uint cc = h * 2 + c;
                     int4 w[V2_NB];
@@ -482,28 +515,50 @@ KERNEL(fc)(
                     unroll_for (uint mb = 0; mb < M_BLOCKS; ++mb) {
                         short8 a;
                         unroll_for (uint t = 0; t < 8; ++t)
-                            a[t] = as_short(a_all[h][c * TILE_M + mb * 8 + t]);
+                            a[t] = as_short(V2_A_ELEM(c * TILE_M + mb * 8 + t));
                         unroll_for (uint j = 0; j < V2_NB; ++j)
+#if V2_SMALL_GRF
+                            acc[mb][j] = intel_sub_group_i8_i4_matrix_mad_k32(a, w[j], cc == 0 ? acc_init : acc[mb][j]);
+#else
                             acc[mb][j] = intel_sub_group_i8_i4_matrix_mad_k32(a, w[j], acc[mb][j]);
+#endif
                     }
                 }
             }
 
+#if V2_ACC_BIAS
+#   define V2_ACC_F(x) as_float(x)
+#else
+#   define V2_ACC_F(x) ((float)(x))
+#endif
             unroll_for (uint mb = 0; mb < M_BLOCKS; ++mb) {
+#if V2_SMALL_GRF
+                // All first fma of an 8-row block come before the second ones, so the second fma does not wait
+                // right behind the fma it depends on.
+                float part[8][V2_NB];
+                unroll_for (uint t = 0; t < 8; ++t) {
+                    const uint r = mb * 8 + t;
+                    const float as  = sub_group_broadcast(sv[r / 16].x, r % 16);
+                    const float azs = sub_group_broadcast(sv[r / 16].y, r % 16);
+                    unroll_for (uint j = 0; j < V2_NB; ++j)
+                        part[t][j] = fma(V2_ACC_F(acc[mb][j][t]), as, -azs);
+                }
+                unroll_for (uint t = 0; t < 8; ++t)
+                    unroll_for (uint j = 0; j < V2_NB; ++j)
+                        acc_f[j][mb * 8 + t] = fma(part[t][j], bs[j], acc_f[j][mb * 8 + t]);
+#else
                 unroll_for (uint t = 0; t < 8; ++t) {
                     const uint r = mb * 8 + t;
                     const float as  = sub_group_broadcast(sv[r / 16].x, r % 16);
                     const float azs = sub_group_broadcast(sv[r / 16].y, r % 16);
                     unroll_for (uint j = 0; j < V2_NB; ++j) {
-#if V2_ACC_BIAS
-                        const float part = fma(as_float(acc[mb][j][t]), as, -azs);
-#else
-                        const float part = fma((float)acc[mb][j][t], as, -azs);
-#endif
+                        const float part = fma(V2_ACC_F(acc[mb][j][t]), as, -azs);
                         acc_f[j][r] = fma(part, bs[j], acc_f[j][r]);
                     }
                 }
+#endif
             }
+#undef V2_ACC_F
         }
 
         if (it + 1 < V2_ITERS_K)
@@ -521,6 +576,7 @@ KERNEL(fc)(
 #undef V2_UNIT_K
 #endif
 #undef V2_CPR
+#undef V2_A_ELEM
 
     // All rows of a column block are finished before any is stored: the fused-op
     // inputs may alias the output as far as the compiler knows, so a store would
@@ -860,6 +916,7 @@ KERNEL(fc)(
 #undef V2_WEI_ZP
 #undef V2_ACC_BIAS
 #undef V2_SCALE_VEC
+#undef V2_SCALE_BLOCK
 #undef V2_B2D
 #endif
 

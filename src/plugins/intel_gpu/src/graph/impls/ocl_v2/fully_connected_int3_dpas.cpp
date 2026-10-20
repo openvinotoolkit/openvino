@@ -289,8 +289,8 @@ bool supports_v2(const Int3FcInfo& info, gpu_arch arch) {
     return info.ifm >= 64;
 }
 
-bool is_valid_v2_sg_m(const Int3FcInfo& info, size_t sg_m) {
-    const size_t gran_per_group = (info.group_size / k_chunk) * v2_nb;
+bool is_valid_v2_sg_m(const Int3FcInfo& info, size_t sg_m, size_t nb) {
+    const size_t gran_per_group = (info.group_size / k_chunk) * nb;
     const size_t groups_k = info.ifm / info.group_size;
     const size_t groups_per_iter = (sg_m > 2 * gran_per_group) ? sg_m / gran_per_group : 2;
     return ((groups_per_iter * gran_per_group) % sg_m) == 0 && (groups_per_iter % 2) == 0 && (groups_k % groups_per_iter) == 0;
@@ -304,14 +304,24 @@ GemmConfig get_v2_config(size_t sg_m) {
     return GemmConfig{true, true, v2_tile_m, sg_m, v2_nb};
 }
 
+// The v2 tile with half the column blocks, which fits the 128-GRF register file.
+GemmConfig get_v2_small_grf_config(size_t sg_m) {
+    return GemmConfig{true, true, v2_tile_m, sg_m, v2_nb / 2};
+}
+
+bool is_small_grf_v2(const GemmConfig& cfg) {
+    return cfg.v2 && cfg.nb != v2_nb;
+}
+
 // Scalar path with tile_m rows per subgroup, which decodes each weight granule once for all of them.
 GemmConfig get_scalar_config(size_t tile_m) {
     return GemmConfig{false, false, tile_m, 1, 1};
 }
 
 // DPAS variant for a row count: tile_m 8 up to 8 rows, 16 up to 16 rows, otherwise v2 (sg_m 8 from 96 rows, 16 from
-// 192) if supported, else v1 32-row tiles with sg_m from get_dense_sg_m.
-GemmConfig get_dpas_config(const Int3FcInfo& info, gpu_arch arch, size_t rows) {
+// 192) if supported, else v1 32-row tiles with sg_m from get_dense_sg_m. With small_grf_v2, v2 takes the 16 x 32
+// tile in 128 GRFs.
+GemmConfig get_dpas_config(const Int3FcInfo& info, gpu_arch arch, size_t rows, bool small_grf_v2 = false) {
     if (rows <= 8) {
         return get_v1_config(8, 1);
     }
@@ -320,8 +330,9 @@ GemmConfig get_dpas_config(const Int3FcInfo& info, gpu_arch arch, size_t rows) {
     }
     if (rows >= v2_min_rows_sg8 && supports_v2(info, arch)) {
         const size_t sg_m = (rows >= v2_min_rows_sg16) ? 16 : 8;
-        if (is_valid_v2_sg_m(info, sg_m)) {
-            return get_v2_config(sg_m);
+        const auto cfg = small_grf_v2 ? get_v2_small_grf_config(sg_m) : get_v2_config(sg_m);
+        if (is_valid_v2_sg_m(info, sg_m, cfg.nb)) {
+            return cfg;
         }
     }
     for (size_t sg_m = get_dense_sg_m(rows); sg_m > 1; sg_m /= 2) {
@@ -442,6 +453,7 @@ protected:
         jit.make("WEI_SCALE_N_PITCH", info.scale_n_pitch);
         jit.make("WEI_SCALE_G_PITCH", info.scale_g_pitch);
         jit.make("WEI_SCALE_GROUP_SIZE", info.scale_group_size);
+        jit.make("WEI_SCALE_F16", params.get_input_layout(scale_idx).data_type == ov::element::f16);
 
         jit.make("DECOMPRESSION_ZP_TERM", info.has_zp);
         jit.make("DECOMPRESSION_ZP_SCALAR", info.scalar_zp);
@@ -465,6 +477,7 @@ protected:
         jit.make("USE_DPAS", m_cfg.dpas);
         jit.make("DPAS_V2", m_cfg.v2);
         jit.make("V2_NB", m_cfg.nb);
+        jit.make("V2_SMALL_GRF", is_small_grf_v2(m_cfg));
         jit.make("TILE_M", m_cfg.tile_m);
         jit.make("SG_M", m_cfg.sg_m);
         jit.make("SG_K", get_sg_k(info, m_cfg));
@@ -519,7 +532,7 @@ protected:
 
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
         auto options = KernelGenerator::get_build_options(params);
-        if (m_cfg.v2) {
+        if (m_cfg.v2 && !is_small_grf_v2(m_cfg)) {
             options += " -cl-intel-256-GRF-per-thread";
         }
         return options;
@@ -561,7 +574,21 @@ private:
 };
 
 // GEMM variants, indexed like FullyConnectedInt3DpasImpl::gemms.
-enum class GemmVariant : uint8_t { scalar, v1_t8, v1_t16, v1_t32_sg1, v1_t32_sg2, v1_t32_sg4, v1_t32_sg8, v2_sg8, v2_sg16, scalar_t8, scalar_t16 };
+enum class GemmVariant : uint8_t {
+    scalar,
+    v1_t8,
+    v1_t16,
+    v1_t32_sg1,
+    v1_t32_sg2,
+    v1_t32_sg4,
+    v1_t32_sg8,
+    v2_sg8,
+    v2_sg16,
+    v2_small_grf_sg8,
+    v2_small_grf_sg16,
+    scalar_t8,
+    scalar_t16
+};
 
 // The DPAS variants use the SIMD16 forms of the matrix builtins, which IGC lowers only from Xe-HPC on. On Xe-HPG
 // (DG2) they compile without error to code that has no dpas at all, so those devices run the scalar variants.
@@ -569,15 +596,18 @@ bool supports_simd16_dpas(gpu_arch arch) {
     return arch >= gpu_arch::xe_hpc;
 }
 
-GemmVariant get_gemm_variant(const Int3FcInfo& info, gpu_arch arch, size_t rows) {
+GemmVariant get_gemm_variant(const Int3FcInfo& info, gpu_arch arch, size_t rows, bool small_grf_v2 = false) {
     if (rows < dpas_min_rows) {
         return GemmVariant::scalar;
     }
     if (!supports_simd16_dpas(arch)) {
         return rows <= 8 ? GemmVariant::scalar_t8 : GemmVariant::scalar_t16;
     }
-    const auto cfg = get_dpas_config(info, arch, rows);
+    const auto cfg = get_dpas_config(info, arch, rows, small_grf_v2);
     if (cfg.v2) {
+        if (is_small_grf_v2(cfg)) {
+            return cfg.sg_m == 16 ? GemmVariant::v2_small_grf_sg16 : GemmVariant::v2_small_grf_sg8;
+        }
         return cfg.sg_m == 16 ? GemmVariant::v2_sg16 : GemmVariant::v2_sg8;
     }
     if (cfg.tile_m == 8) {
@@ -598,6 +628,13 @@ GemmVariant get_gemm_variant(const Int3FcInfo& info, gpu_arch arch, size_t rows)
     }
 }
 
+// On large Xe2 dGPUs (B570: 144 EUs) the 128-GRF v2 tile is ~12% faster than the 256-GRF one on the Qwen3-8B
+// shapes at 96 to 2048 rows: twice the threads per EU hide the per-group scaling behind other threads' DPAS. It is
+// tuned on BMG only, so smaller devices keep the 256-GRF tile.
+bool use_small_grf_v2(const RuntimeParams& params) {
+    return params.get_device_info().execution_units_count >= 128;
+}
+
 class FullyConnectedInt3DpasImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::FullyConnectedInt3DpasImpl)
@@ -608,7 +645,7 @@ public:
     // compiled for exactly one row, so a single-row static impl of a dynamic model can reuse it. Every static impl of
     // a dynamic model reuses its quantizer.
     Stage::Ptr quantize = make_stage<Int3FcQuantize>();
-    std::array<Stage::Ptr, 11> gemms = {make_stage<Int3FcGemm>("scalar", GemmConfig{}),
+    std::array<Stage::Ptr, 13> gemms = {make_stage<Int3FcGemm>("scalar", GemmConfig{}),
                                         make_stage<Int3FcGemm>("v1_t8", get_v1_config(8, 1)),
                                         make_stage<Int3FcGemm>("v1_t16", get_v1_config(16, 1)),
                                         make_stage<Int3FcGemm>("v1_t32_sg1", get_v1_config(32, 1)),
@@ -617,6 +654,8 @@ public:
                                         make_stage<Int3FcGemm>("v1_t32_sg8", get_v1_config(32, 8)),
                                         make_stage<Int3FcGemm>("v2_sg8", get_v2_config(8)),
                                         make_stage<Int3FcGemm>("v2_sg16", get_v2_config(16)),
+                                        make_stage<Int3FcGemm>("v2_sg8_grf128", get_v2_small_grf_config(8)),
+                                        make_stage<Int3FcGemm>("v2_sg16_grf128", get_v2_small_grf_config(16)),
                                         make_stage<Int3FcGemm>("scalar_t8", get_scalar_config(8)),
                                         make_stage<Int3FcGemm>("scalar_t16", get_scalar_config(16))};
 
@@ -624,20 +663,21 @@ public:
     FullyConnectedInt3DpasImpl(const program_node& node, const RuntimeParams& params) : FullyConnectedInt3DpasImpl() {
         const auto info = get_int3_fc_info(params);
         const auto arch = params.get_device_info().arch;
+        const bool small_grf_v2 = use_small_grf_v2(params);
 
         if (params.is_dynamic()) {
             add_stage(quantize, params);
             add_stage(gemms[static_cast<size_t>(GemmVariant::scalar)], make_single_row_params(params));
             // get_gemm_variant is constant over each of these row counts' ranges
             for (size_t rows : {size_t{8}, size_t{16}, size_t{17}, size_t{48}, v2_min_rows_sg8, v2_min_rows_sg16, size_t{384}}) {
-                add_gemm_stage(get_gemm_variant(info, arch, rows), params);
+                add_gemm_stage(get_gemm_variant(info, arch, rows, small_grf_v2), params);
             }
         } else {
             // A static impl of a dynamic model takes the shape-agnostic quantizer from the dynamic impl, and a
             // single-row one its GEMV too, so decode never compiles at runtime.
             const size_t rows = get_rows(params.get_input_layout(0));
             const auto* dynamic_impl = get_compiled_dynamic_impl(node);
-            auto& gemm = gemms[static_cast<size_t>(get_gemm_variant(info, arch, rows))];
+            auto& gemm = gemms[static_cast<size_t>(get_gemm_variant(info, arch, rows, small_grf_v2))];
             if (dynamic_impl != nullptr) {
                 reuse_stage(quantize, *dynamic_impl);
             } else {
@@ -692,9 +732,11 @@ public:
         }
         const size_t rows = get_rows(impl_params.get_input_layout(0));
         // The single-row GEMV is compiled for exactly one row, so an empty input takes a shape-agnostic variant.
-        const auto variant =
-            rows == 1 ? GemmVariant::scalar
-                      : get_gemm_variant(get_int3_fc_info(impl_params, m_rt_params.get()), impl_params.get_device_info().arch, std::max(rows, dpas_min_rows));
+        const auto variant = rows == 1 ? GemmVariant::scalar
+                                       : get_gemm_variant(get_int3_fc_info(impl_params, m_rt_params.get()),
+                                                          impl_params.get_device_info().arch,
+                                                          std::max(rows, dpas_min_rows),
+                                                          use_small_grf_v2(impl_params));
         const size_t gemm_idx = get_stage_idx(gemms[static_cast<size_t>(variant)]);
         OPENVINO_ASSERT(is_activated(gemm_idx), "[GPU] ", kernel_name, ": GEMM variant ", static_cast<size_t>(variant), " is not compiled");
         return {quantize_idx, gemm_idx};
