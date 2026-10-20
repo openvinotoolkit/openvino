@@ -8,6 +8,7 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include <algorithm>
 #include <memory>
 #include <cmath>
 
@@ -82,6 +83,25 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                 const bool is_zp_compressed = one_of(decompression_zp_dt, {ov::element::Type_t::i4, ov::element::Type_t::u4,
                                                     ov::element::Type_t::u8, ov::element::Type_t::i8});
                 if (!is_wei_compressed || !is_zp_compressed) {
+                    LOG_AND_RETURN_FALSE(node);
+                }
+            }
+
+            // u2 has no OCL fallback, so an unsupported scale group_size must be rejected here
+            // (selection time) rather than left to crash the runtime OPENVINO_ASSERT in fully_connected_onednn.cpp.
+            if (wei_dt == data_types::u2 && fc_prim->decompression_scale.is_valid()) {
+                auto weights_layout = fc_node.weights().get_output_layout(false);
+                auto weight_shape = weights_layout.get_partial_shape();
+                int64_t weight_rank = std::count_if(weight_shape.begin(), weight_shape.end(), [](ov::Dimension d) { return d.get_length() > 1; });
+                weight_rank = std::max<int64_t>(2, weight_rank);
+                const auto ifm_dim_idx = fc_prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
+                const auto ifm = weights_layout.get_dim(ifm_dim_idx);
+                const auto decompression_scale_idx = fc_prim->bias.is_valid() ? 3 : 2;
+                const auto scale_layout = fc_node.get_input_layout(decompression_scale_idx);
+                const auto scale_ifm_dim_idx = get_ifm_dim_idx(scale_layout, fc_prim->transpose_b_scale, weight_rank);
+                const auto ngroups = scale_layout.get_dim(scale_ifm_dim_idx);
+                const auto group_size = ngroups != 0 ? static_cast<int64_t>(ifm) / ngroups : ifm;
+                if (group_size != 1 && ngroups != 1 && group_size % 16 != 0) {
                     LOG_AND_RETURN_FALSE(node);
                 }
             }

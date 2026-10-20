@@ -6,6 +6,7 @@
 
 #include <oneapi/dnnl/dnnl_debug.h>
 
+#include <algorithm>
 #include <numeric>
 
 namespace cldnn {
@@ -117,6 +118,21 @@ dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l) {
     default:
         OPENVINO_THROW("[GPU] Unsupported conversion from " + l.to_short_string() + " to onednn format_tag");
     }
+}
+
+int64_t get_ifm_dim_idx(const layout& param_layout, bool transpose_b_param, size_t weights_rank) {
+    const auto& pshape = param_layout.get_partial_shape();
+    const auto rank = static_cast<int64_t>(pshape.size());
+    // 1D [N] holds only OC; point past it so get_dim() hits the padded 1 (one IFM group).
+    if (rank <= 1)
+        return rank;
+    const auto logical_rank = std::min<int64_t>(rank, std::max<int64_t>(2, static_cast<int64_t>(weights_rank)));
+    // Extra dims are either legacy trailing padding (all 1) or leading broadcast dims.
+    const bool trailing_padded = std::all_of(pshape.begin() + logical_rank, pshape.end(), [](const ov::Dimension& d) {
+        return d.is_static() && d.get_length() == 1;
+    });
+    const int64_t base = trailing_padded ? 0 : rank - logical_rank;
+    return std::max<int64_t>(0, base + (transpose_b_param ? logical_rank - 1 : logical_rank - 2));
 }
 
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target) {

@@ -33,6 +33,11 @@ cldnn::format convert_data_format(dnnl::memory::format_tag fmt);
 dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l);
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target);
 
+// Group (IFM) axis is last for [N, groups] (transpose_b) and second-to-last for [groups, N].
+// Shared between implementation-selection (validate_impl) and primitive creation, so both agree
+// on which axis holds the per-group scale/zero-point count.
+int64_t get_ifm_dim_idx(const layout& param_layout, bool transpose_b_param, size_t weights_rank);
+
 dnnl::memory::desc layout_to_memory_desc(
     const cldnn::layout& l,
     dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef);

@@ -5852,6 +5852,53 @@ TEST(fully_connected_gpu, compressed_u2_weights_zp_immad) {
     EXPECT_NEAR(static_cast<float>(output_ptr[1]), 2.0f, 1e-2f);
 }
 
+// Regression test for the CI crash in smoke_MatMulCompressedWeights_corner_cases_basic
+// (weights_shape=[16,32], group_size=4, u2, no zero point). u2 has no OCL fallback, so oneDNN's
+// "group_size % 16 == 0" requirement must be rejected at implementation-selection time (compile),
+// not left to crash the runtime assert during inference. With the fix, a different implementation
+// (decompressing the constant u2 weights ahead of time) handles this case instead.
+TEST(fully_connected_gpu, compressed_u2_weights_unaligned_group_size) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    const int32_t batch_num = 4, ifm_num = 16, ofm_num = 32, group_size = 4;
+    const int32_t num_groups = ifm_num / group_size;
+
+    auto input_ps = ov::PartialShape{ batch_num, ifm_num };
+    auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u2, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {ofm_num, num_groups}, data_types::f16, format::bfyx });
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    set_values(input_mem, rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f));
+    std::vector<uint8_t> packed_weights(ofm_num * ifm_num / 4);
+    for (auto& b : packed_weights)
+        b = static_cast<uint8_t>(rg.generate_random_1d<uint8_t>(1, 0, 4)[0]);
+    set_values(weights_mem, packed_weights);
+    set_values(scale_mem, rg.generate_random_1d<ov::float16>(ofm_num * num_groups, 0.5f, 2.0f));
+
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, 2, 2);
+
+    topology topology;
+    topology.add(input_layout("input", input_mem->get_layout()));
+    topology.add(data("weights", weights_mem));
+    topology.add(data("scale", scale_mem));
+    topology.add(fc_prim);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    // Before the fix this crashed the process with ov::AssertFailure during execute().
+    // After the fix, construction and execution both complete normally.
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), size_t(batch_num * ofm_num));
+}
+
 // Test weight zp for INT8 ASYM
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128_large_input_1025) {
     this->test_comp_weight_scale_zp(true, 1025, 1792, 4608, 128, 128, 1, WzpMode::AsymmetricScalar, WeightMode::Bit8, TargetDevice::SkipDgpu);

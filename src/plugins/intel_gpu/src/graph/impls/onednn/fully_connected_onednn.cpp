@@ -23,22 +23,6 @@ struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
     static constexpr int COMMON = 0;
     static constexpr int PER_OC = 2;
 
-    // Group (IFM) axis is last for [N, groups] (transpose_b) and second-to-last for [groups, N].
-    static int64_t get_ifm_dim_idx(const layout& param_layout, bool transpose_b_param, size_t weights_rank) {
-        const auto& pshape = param_layout.get_partial_shape();
-        const auto rank = static_cast<int64_t>(pshape.size());
-        // 1D [N] holds only OC; point past it so get_dim() hits the padded 1 (one IFM group).
-        if (rank <= 1)
-            return rank;
-        const auto logical_rank = std::min<int64_t>(rank, std::max<int64_t>(2, static_cast<int64_t>(weights_rank)));
-        // Extra dims are either legacy trailing padding (all 1) or leading broadcast dims.
-        const bool trailing_padded = std::all_of(pshape.begin() + logical_rank, pshape.end(), [](const ov::Dimension& d) {
-            return d.is_static() && d.get_length() == 1;
-        });
-        const int64_t base = trailing_padded ? 0 : rank - logical_rank;
-        return std::max<int64_t>(0, base + (transpose_b_param ? logical_rank - 1 : logical_rank - 2));
-    }
-
     // Grouped mask for per-group scale/zp. [G, 1] (or [1, G] when transposed) carries one value per group
     // that is broadcast over all output channels, so the OC bit must be dropped from the mask.
     static int get_grouped_mask(const layout& param_layout, bool transpose_b_param, size_t weights_rank, int grouped, int per_oc) {
