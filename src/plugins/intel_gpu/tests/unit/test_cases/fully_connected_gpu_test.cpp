@@ -6506,8 +6506,8 @@ INSTANTIATE_TEST_SUITE_P(fully_connected_bf_tiled_dyn_b_accuracy,
                              // With post-op eltwise
                              std::make_tuple(16L, 256L, 1024L, true)));
 
-// Parameterized test fixture for UINT2 fully connected kernel across various matrix dimensions
-class fully_connected_gpu_u2_validation : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, bool>> {
+// Common parameterized fixture for sub-byte (UINT2, UINT3) fully connected kernel tests across various matrix dimensions
+class fully_connected_gpu_sub_byte_validation : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, bool>> {
 public:
     static std::string GetTestCaseName(const testing::TestParamInfo<std::tuple<int, int, int, int, int, bool>>& obj) {
         int batch = std::get<0>(obj.param);
@@ -6524,6 +6524,8 @@ public:
         return name;
     }
 };
+
+class fully_connected_gpu_u2_validation : public fully_connected_gpu_sub_byte_validation {};
 
 // Validates UINT2 decompression correctness across multiple sizes using random data vs inline CPU-computed reference
 TEST_P(fully_connected_gpu_u2_validation, various_sizes) {
@@ -7008,8 +7010,7 @@ TEST(fully_connected_gpu_ternocl_int2_dynamic, non_ternary_zero_point_falls_back
     ASSERT_NE(net->get_primitive("fc_prim")->get_impl()->get_kernel_name(), "ternocl_int2");
 }
 
-// Parameterized test fixture for UINT3 fully connected kernel across various matrix dimensions
-class fully_connected_gpu_u3_validation : public fully_connected_gpu_u2_validation {};
+class fully_connected_gpu_u3_validation : public fully_connected_gpu_sub_byte_validation {};
 
 // Validates UINT3 decompression correctness in the reference kernel. u3 is a tightly packed LSB-first bit stream,
 // so values straddle byte boundaries and rows are not byte-aligned when ifm_num * 3 is not a multiple of 8
