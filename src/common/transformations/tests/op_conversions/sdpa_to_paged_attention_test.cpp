@@ -20,6 +20,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/einsum.hpp"
@@ -707,8 +708,8 @@ static std::shared_ptr<Node> wrap_fake_convert(const std::shared_ptr<Node>& inpu
     return makeOP<v13::FakeConvert>({input, scale, shift}, {{"destination_type", "f8e4m3"}});
 }
 
-// An i8 KV cache built the same way as the f32 one above, so the quantized layer matches the
-// StateManagementPattern exactly as a convertible layer does.
+// An i8 KV cache built the same way as the f32 one above, so the i8 layer matches the
+// StateManagementPattern like the f32 one.
 static CacheInfo gen_i8_cache(const std::shared_ptr<Node>& input_ids,
                               const std::shared_ptr<Node>& beam_idx,
                               const std::string& name,
@@ -737,12 +738,10 @@ static KVNodes gen_i8_KV(const CacheInfo& cache, const Output<Node>& proj, int n
     return KVNodes{concat, assign};
 }
 
-// Two attention layers: the first converts cleanly, the second carries a quantized K/V that
-// PagedAttentionExtension has no operand to describe. Rejecting from inside the matcher callback
-// left the first layer already rewritten, handing the caller a half-converted model. The rejection
-// now happens before any layer is touched, so both SDPAs survive and no PagedAttentionExtension
-// is built.
-TEST(SDPAToPAQuantizedKVTest, RejectedBeforeAnyLayerIsConverted) {
+// Two attention layers, the second with an i8 K/V cache. SDPA defines an integer key or value as
+// converted to the query's type, so both layers convert and the second PagedAttentionExtension
+// takes its key and value through a ConvertLike from i8.
+TEST(SDPAToPAQuantizedKVTest, IntegerKeyValueConvertedLikeQuery) {
     auto beam_idx = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "beam_idx");
     auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{DYN, DYN}, "position_ids");
     auto attention_mask = ov::test::utils::make_param(element::i64, PartialShape{DYN, DYN}, "attention_mask");
@@ -767,8 +766,6 @@ TEST(SDPAToPAQuantizedKVTest, RejectedBeforeAnyLayerIsConverted) {
     auto v_cache1 = gen_i8_cache(input_ids, beam_idx, "V_cache.1", 12, 64);
     auto past_len1 = Opt125mSDPA::gen_past_len(k_cache1.past_gathered);
     auto total_len1 = Opt125mSDPA::gen_total_len(past_len1, cur_len);
-    // The quantized layer consumes the first layer's output, so the rewrite reaches the
-    // convertible layer first -- the ordering that produced the half-converted model.
     auto layer1_in = makeOP<v1::Transpose>({sdpa0, {0, 2, 1, 3}});
     layer1_in = makeOP<v1::Reshape>({layer1_in, {0, 0, 768}}, {special_zero_true});
     auto Q1 = Opt125mSDPA::gen_Q(Opt125mSDPA::gen_proj(layer1_in));
@@ -783,14 +780,28 @@ TEST(SDPAToPAQuantizedKVTest, RejectedBeforeAnyLayerIsConverted) {
 
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::SDPAToPagedAttention>();
-    EXPECT_THROW(manager.run_passes(model), ov::Exception);
+    manager.run_passes(model);
 
-    size_t paged = 0, sdpa = 0;
+    size_t sdpa = 0;
+    std::vector<std::string> kv_feeds;
     for (const auto& op : model->get_ordered_ops()) {
-        paged += ov::as_type_ptr<ov::op::PagedAttentionExtension>(op) ? 1 : 0;
         sdpa += ov::as_type_ptr<v13::ScaledDotProductAttention>(op) ? 1 : 0;
+        if (!ov::as_type_ptr<ov::op::PagedAttentionExtension>(op))
+            continue;
+        for (size_t i : {1, 2}) {
+            const auto producer = op->get_input_node_shared_ptr(i);
+            const bool like_pa_query =
+                ov::as_type_ptr<v1::ConvertLike>(producer) && producer->input_value(1) == op->input_value(0);
+            kv_feeds.push_back(std::string(producer->get_type_name()) + " " +
+                               producer->get_input_element_type(0).get_type_name() + " -> " +
+                               op->get_input_element_type(i).get_type_name() + (like_pa_query ? " like query" : ""));
+        }
     }
-    EXPECT_EQ(std::make_pair(paged, sdpa), std::make_pair(size_t{0}, size_t{2}));
+    const std::vector<std::string> expected{"Reshape f32 -> f32",
+                                            "Reshape f32 -> f32",
+                                            "ConvertLike i8 -> f32 like query",
+                                            "ConvertLike i8 -> f32 like query"};
+    EXPECT_EQ(std::make_pair(sdpa, kv_feeds), std::make_pair(size_t{0}, expected));
 }
 
 TEST_F(TransformationTestsF, SDPAToPA_Opt125m_General) {
