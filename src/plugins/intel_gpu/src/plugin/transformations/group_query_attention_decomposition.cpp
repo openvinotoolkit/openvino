@@ -16,6 +16,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
+#include "ov_ops/rms.hpp"
 
 namespace {
 
@@ -116,6 +117,10 @@ std::unique_ptr<ov::pass::GroupQueryAttentionDecomposition::KVCacheMetadata> Gro
     return std::make_unique<StatelessKVMetadata>();
 }
 
+ov::Output<ov::Node> GroupQueryAttentionDecomposition::make_qk_norm(const ov::Output<ov::Node>& input, const ov::Output<ov::Node>& weight, float epsilon) {
+    return register_new_node<ov::op::internal::RMS>(input, weight, epsilon, input.get_element_type());
+}
+
 GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecomposition::construct_kvcache(
     const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
     const ov::Output<ov::Node>& past_key,
@@ -132,10 +137,10 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     
     auto& metadata = static_cast<StatelessKVMetadata&>(metadata_);
 
-    const auto is_softcap = node->get_softcap() > 0.0f;
-    bool can_fuse_transpose_v = m_sdpa_support_transpose_v && !is_softcap;
-    // The explicit softcap attention chain consumes plain (dequantized) K/V, so skip the compressed-KV SDPA form.
-    if (!is_softcap) {
+    const bool use_explicit_attention = node->get_softcap() > 0.0f || node->get_qk_output() != ov::op::internal::GroupQueryAttentionQKOutput::NONE;
+    bool can_fuse_transpose_v = m_sdpa_support_transpose_v && !use_explicit_attention;
+    // The explicit attention chain consumes plain (dequantized) K/V, so skip the compressed-KV SDPA form.
+    if (!use_explicit_attention) {
         // covers ExpandBroadcastReshapeSDPAFusion, gpu sdpa supports broadcast natively
         metadata.should_broadcast_kv = false; 
         if (node->is_kv_quantized()) {
@@ -167,7 +172,7 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
 
         std::shared_ptr<v1::Transpose> past_value_transpose;
         std::shared_ptr<v1::Transpose> present_value_transpose;
-        // softcap hard-coded layout so don't fuse
+        // explicit attention hard-coded layout so don't fuse
         if (can_fuse_transpose_v) {
             past_value_transpose = find_value_transpose(node->input_value(4));
             if (node->output(2).get_target_inputs().size() == 1) {
