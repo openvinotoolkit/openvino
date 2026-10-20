@@ -399,9 +399,7 @@ RoPEFusionPreprocess::RoPEFusionPreprocess() {
 
     // Pattern for input to be sliced (for models with combined QKV projection). Axis 3 must
     // be static so a negative Slice/StridedSlice bound can be resolved against its extent.
-    auto input_to_slice = pattern::any_input(pattern::rank_equals(4) && [](const Output<Node>& output) {
-        return output.get_partial_shape()[3].is_static();
-    });
+    auto input_to_slice = pattern::any_input(pattern::rank_equals(4) && pattern::has_static_dim(3));
     // Pattern for input to be transposed (for models that transpose before RoPE)
     auto input_to_trans = pattern::any_input(pattern::rank_equals(4));
 
