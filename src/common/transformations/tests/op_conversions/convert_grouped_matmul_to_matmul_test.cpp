@@ -14,7 +14,6 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
@@ -41,22 +40,19 @@ ov::Output<ov::Node> ref_2dx3d_decomposition(const ov::Output<ov::Node>& mat_a,
                                              const ov::Output<ov::Node>& mat_b,
                                              const ov::Output<ov::Node>& offsets,
                                              int64_t num_groups) {
-    ov::Output<ov::Node> offsets_i32 = offsets;
-    if (offsets.get_element_type() != i32) {
-        offsets_i32 = std::make_shared<v0::Convert>(offsets, i32);
-    }
+    const auto offsets_et = offsets.get_element_type();
 
     auto axis_scalar = v0::Constant::create(i32, ov::Shape{}, {0});
     auto axis_1d = v0::Constant::create(i32, ov::Shape{1}, {0});
 
-    ov::Output<ov::Node> split_lengths = offsets_i32;
+    ov::Output<ov::Node> split_lengths = offsets;
     if (num_groups > 1) {
-        auto zero = v0::Constant::create(i32, ov::Shape{1}, {0});
+        auto zero = v0::Constant::create(offsets_et, ov::Shape{1}, {0});
         auto head_stop = v0::Constant::create(i32, ov::Shape{1}, {num_groups - 1});
         auto step = v0::Constant::create(i32, ov::Shape{1}, {1});
-        auto offsets_head = std::make_shared<v8::Slice>(offsets_i32, zero, head_stop, step, axis_1d);
+        auto offsets_head = std::make_shared<v8::Slice>(offsets, zero, head_stop, step, axis_1d);
         auto shifted = std::make_shared<v0::Concat>(ov::OutputVector{zero, offsets_head}, 0);
-        split_lengths = std::make_shared<v1::Subtract>(offsets_i32, shifted);
+        split_lengths = std::make_shared<v1::Subtract>(offsets, shifted);
     }
 
     auto a_split = std::make_shared<v1::VariadicSplit>(mat_a, axis_scalar, split_lengths);
@@ -94,7 +90,7 @@ TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_3Dx3D) {
     }
 }
 
-// 2Dx3D with i32 offsets: no Convert is inserted
+// 2Dx3D with i32 offsets
 TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_2Dx3D_i32Offsets) {
     constexpr size_t T = 6, K = 8, G = 2, N = 16;
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -117,7 +113,7 @@ TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_2Dx3D_i32Offsets) {
     }
 }
 
-// 2Dx3D with i64 offsets: a Convert to the i32 index type is inserted
+// 2Dx3D with i64 offsets: kept as i64, no index-type Convert is inserted
 TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_2Dx3D_i64Offsets) {
     constexpr size_t T = 6, K = 8, G = 2, N = 16;
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);

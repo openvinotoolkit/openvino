@@ -15,7 +15,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/slice.hpp"
@@ -95,12 +94,9 @@ ConvertGroupedMatMul2Dx3DToMatMul::ConvertGroupedMatMul2Dx3DToMatMul() {
 
         NodeRegistry rg;
 
-        const auto offsets_in = gmm->input_value(2);
-        const auto offsets_et = offsets_in.get_element_type();
-        ov::Output<ov::Node> offsets_i32 = offsets_in;
-        if (offsets_et == ov::element::i64) {
-            offsets_i32 = rg.make<v0::Convert>(offsets_in, i32);
-        } else if (offsets_et != i32) {
+        const auto offsets = gmm->input_value(2);
+        const auto offsets_et = offsets.get_element_type();
+        if (!offsets_et.is_integral_number()) {
             return false;
         }
 
@@ -108,14 +104,15 @@ ConvertGroupedMatMul2Dx3DToMatMul::ConvertGroupedMatMul2Dx3DToMatMul() {
         auto axis_1d = rg.make<v0::Constant>(i32, ov::Shape{1}, 0);
 
         // offsets are cumulative ends, so per-group row counts are offsets - [0, offsets[:-1]].
-        ov::Output<ov::Node> split_lengths = offsets_i32;
+        ov::Output<ov::Node> split_lengths = offsets;
         if (num_groups > 1) {
-            auto zero = rg.make<v0::Constant>(i32, ov::Shape{1}, 0);
+            // Only Concat requires a matching type; Slice and VariadicSplit take any integral one.
+            auto zero = rg.make<v0::Constant>(offsets_et, ov::Shape{1}, 0);
             auto head_stop = rg.make<v0::Constant>(i32, ov::Shape{1}, num_groups - 1);
             auto step = rg.make<v0::Constant>(i32, ov::Shape{1}, 1);
-            auto offsets_head = rg.make<v8::Slice>(offsets_i32, zero, head_stop, step, axis_1d);
+            auto offsets_head = rg.make<v8::Slice>(offsets, zero, head_stop, step, axis_1d);
             auto shifted = rg.make<v0::Concat>(ov::OutputVector{zero, offsets_head}, 0);
-            split_lengths = rg.make<v1::Subtract>(offsets_i32, shifted);
+            split_lengths = rg.make<v1::Subtract>(offsets, shifted);
         }
 
         auto a_split = rg.make<v1::VariadicSplit>(mat_a, axis_scalar, split_lengths);  // G x [Mg, K]
