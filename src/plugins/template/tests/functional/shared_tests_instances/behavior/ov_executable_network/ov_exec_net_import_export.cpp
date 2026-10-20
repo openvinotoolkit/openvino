@@ -20,7 +20,7 @@ const std::vector<ov::element::Type_t> netPrecisions = {
     ov::element::f32,
 };
 const std::vector<ov::AnyMap> configs = {
-    {},
+    {ov::template_plugin::export_hsm_format(true)},
     {ov::template_plugin::export_hsm_format(false)},
 };
 
@@ -39,7 +39,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVCompiledModelHsmBlobTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
-                                            ::testing::Values(ov::AnyMap{})),
+                                            ::testing::Values(ov::AnyMap{
+                                                ov::template_plugin::export_hsm_format(true)})),
                          OVCompiledModelHsmBlobTest::getTestCaseName);
 
 }  // namespace

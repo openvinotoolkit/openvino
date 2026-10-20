@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "attach_cache_manager_to_paged_attention.hpp"
-#include "hsm_codecs.hpp"
+#include "hsm_common.hpp"
 #include "hsm_reader_handler.hpp"
 #include "itt.hpp"
 #include "openvino/op/ops.hpp"
@@ -36,8 +36,15 @@ static constexpr const char* wait_executor_name = "TemplateWaitExecutor";
 static constexpr const char* stream_executor_name = "TemplateStreamsExecutor";
 static constexpr const char* template_exclusive_executor = "TemplateExecutor";
 
-namespace hsm = ov::runtime::hsm;
 using ov::template_plugin::Plugin, ov::template_plugin::Configuration, ov::template_plugin::HsmReaderHandler;
+
+// Properties that affect the compiled model; they form the cache ID and are persisted in the HSM blob.
+std::vector<ov::PropertyName> caching_properties() {
+    return {ov::device::architecture,
+            ov::hint::performance_mode,
+            ov::hint::execution_mode,
+            ov::hint::inference_precision};
+}
 
 uint64_t get_blob_data_size(std::istream& model) {
     uint64_t size = 0;
@@ -116,12 +123,10 @@ std::pair<std::shared_ptr<ov::Model>, Configuration> read_hsm_blob(
     const std::shared_ptr<ov::ICore>& core,
     std::string_view runtime_requirements,
     const Configuration& default_cfg,
-    const hsm::Reader& reader,
+    const ov::runtime::hsm::Reader& reader,
     const ov::AnyMap& properties,
     ov::Tensor properties_weights_hint,
     std::shared_ptr<ov::AlignedBuffer> source_blob = {}) {
-    namespace codec = ov::template_plugin::hsm_codec;
-
     HsmReaderHandler handler;
     handler.source_blob = source_blob;
     reader.read_sections({&handler});
@@ -137,7 +142,7 @@ std::pair<std::shared_ptr<ov::Model>, Configuration> read_hsm_blob(
 
     auto config = Configuration{properties, Configuration{handler.compiled_options, default_cfg, false}};
 
-    const bool weightless = handler.blob_info->flags & codec::BlobInfo::weightless;
+    const bool weightless = handler.blob_info->flags & ov::template_plugin::hsm::BlobInfo::weightless;
     auto weights = handler.weights;
     if (!weights) {
         weights = to_aligned_buffer(properties_weights_hint);
@@ -515,7 +520,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
     } else if (ov::device::type == name) {
         return decltype(ov::device::type)::value_type{ov::device::Type::INTEGRATED};
     } else if (ov::internal::caching_properties == name) {
-        return decltype(ov::internal::caching_properties)::value_type{ov::device::architecture};
+        return decltype(ov::internal::caching_properties)::value_type{caching_properties()};
     } else if (ov::device::capabilities == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32 and EXPORT_IMPORT
         return decltype(ov::device::capabilities)::value_type{ov::device::capability::FP32,

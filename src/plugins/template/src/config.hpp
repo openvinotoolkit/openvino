@@ -57,8 +57,8 @@ struct Configuration {
     std::filesystem::path weights_path{};
     AnyMap compiled_model_runtime_properties{};
     CacheMode cache_mode{CacheMode::OPTIMIZE_SPEED};
-    // HSM writer stashed pending common codecs - default legacy until it returns; property stays settable.
-    bool export_hsm_format = false;
+    // Transition switch: false selects the legacy blob layout; removed together with it.
+    bool export_hsm_format = true;
 };
 // ! [configuration:header]
 

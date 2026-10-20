@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <optional>
 #include <sstream>
 
 #include "behavior/compiled_model/import_export.hpp"
@@ -28,6 +29,8 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/util/file_util.hpp"
 #include "template/properties.hpp"
 
 namespace ov::test {
@@ -181,6 +184,47 @@ protected:
         std::filesystem::remove(generated_blob_path);
     }
 
+    // Exports in HSM format; @p config selects e.g. the weightless mode.
+    std::string export_hsm(ov::AnyMap config = {}) {
+        config.emplace(ov::template_plugin::export_hsm_format(true));
+        auto compiled = core.compile_model(model, device, config);
+        return export_blob(compiled);
+    }
+
+    // Saves the weights embedded in @p blob to a file that can be used as ov::weights_path.
+    std::string save_weights(const std::string& blob) {
+        std::stringstream stream(blob);
+        const auto reader = hsm::Reader::open(stream);
+        OPENVINO_ASSERT(reader, "Not an HSM blob");
+        const auto weights = reader->section(template_device_id, hsm::weights);
+        OPENVINO_ASSERT(weights, "No weights section");
+        const auto bytes = weights->to_bytes();
+        OPENVINO_ASSERT(bytes, "Cannot read the weights section");
+
+        weights_file = ov::test::utils::generateTestFilePrefix() + "_hsm_weights.bin";
+        std::ofstream(weights_file, std::ios::binary)
+            .write(reinterpret_cast<const char*>(bytes->data()), static_cast<std::streamsize>(bytes->size()));
+        return weights_file.string();
+    }
+
+    void check_cache_format(bool hsm_format) {
+        const std::filesystem::path cache_path = "template_hsm_cache_" + utils::generateTestFilePrefix();
+        // Plugin-level: Core reads the format from the plugin, not from the compile config, to decide on the header.
+        core.set_property(device, ov::template_plugin::export_hsm_format(hsm_format));
+
+        core.compile_model(model, device, ov::cache_path(cache_path));
+        auto cached = core.compile_model(model, device, ov::cache_path(cache_path));
+
+        EXPECT_TRUE(cached.get_property(ov::loaded_from_cache));
+        utils::compare(reference, infer(cached));
+        const auto blobs = utils::listFilesWithExt(ov::util::path_to_string(cache_path), "blob");
+        ASSERT_EQ(blobs.size(), 1u);
+        EXPECT_EQ(behavior::is_hsm(read_file(blobs.front())), hsm_format);
+
+        utils::removeFilesWithExt(ov::util::path_to_string(cache_path), "blob");
+        utils::removeDir(ov::util::path_to_string(cache_path));
+    }
+
     void SetUp() override {
         core = utils::create_core(device);
         model = make_model();
@@ -188,11 +232,18 @@ protected:
         reference = infer(reference_compiled);
     }
 
+    void TearDown() override {
+        if (ov::util::file_exists(weights_file)) {
+            std::filesystem::remove(weights_file);
+        }
+    }
+
     static inline std::filesystem::path generated_blob_path;
 
     ov::Core core;
     std::shared_ptr<ov::Model> model;
     ov::Tensor reference;
+    std::filesystem::path weights_file;
 };
 
 TEST_F(TemplateHsmBlobTest, weights_path_hint_restores_model_when_weights_section_is_omitted) {
@@ -311,5 +362,119 @@ TEST_F(TemplateHsmBlobTest, generated_blob_is_imported_from_file_via_tensor) {
     auto imported = core.import_model(blob_tensor, device);
 
     utils::compare(reference, infer(imported));
+}
+
+TEST_F(TemplateHsmBlobTest, import_restores_compiled_options) {
+    std::stringstream stream(export_hsm({ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}));
+
+    auto imported = core.import_model(stream, device);
+
+    EXPECT_EQ(imported.get_property(ov::hint::performance_mode), ov::hint::PerformanceMode::THROUGHPUT);
+    utils::compare(reference, infer(imported));
+}
+
+TEST_F(TemplateHsmBlobTest, compiled_options_hold_the_cache_relevant_properties) {
+    // A non-default value, so a persisted option can be told apart from the plugin default.
+    std::stringstream stream(export_hsm({ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}));
+    const auto reader = hsm::Reader::open(stream);
+    ASSERT_TRUE(reader);
+    const auto section = reader->section(template_device_id, hsm::compiled_options);
+    ASSERT_TRUE(section);
+    const auto bytes = section->to_bytes();
+    ASSERT_TRUE(bytes);
+    // The section is `key=value` text, one option per line.
+    const std::string options(reinterpret_cast<const char*>(bytes->data()), bytes->size());
+
+    // Every property the plugin reports as cache-relevant is stored.
+    for (const auto& name : core.get_property(device, ov::internal::caching_properties)) {
+        EXPECT_NE(options.find(name + "="), std::string::npos) << name;
+    }
+    // The stored value is the one used for compilation, not the default.
+    EXPECT_NE(options.find(std::string(ov::hint::performance_mode.name()) + "=THROUGHPUT"), std::string::npos)
+        << options;
+}
+
+TEST_F(TemplateHsmBlobTest, model_id_is_stable_for_a_compiled_model) {
+    auto compiled = core.compile_model(model, device, {ov::template_plugin::export_hsm_format(true)});
+    const auto model_id = [&] {
+        std::stringstream stream(export_blob(compiled));
+        const auto reader = hsm::Reader::open(stream);
+        OPENVINO_ASSERT(reader, "Not an HSM blob");
+        const auto bytes = reader->section(hsm::any_device_id, hsm::model_id)->to_bytes();
+        OPENVINO_ASSERT(bytes, "Cannot read the model id section");
+        return std::string(reinterpret_cast<const char*>(bytes->data()), bytes->size());
+    };
+
+    EXPECT_EQ(model_id(), model_id());
+}
+
+TEST_F(TemplateHsmBlobTest, exported_blob_has_all_sections) {
+    std::stringstream stream(export_hsm());
+    const auto reader = hsm::Reader::open(stream);
+    ASSERT_TRUE(reader);
+
+    EXPECT_EQ(reader->entries().size(), 6u);
+    EXPECT_EQ(reader->count(hsm::any_device_id, hsm::model_id), 1u);
+    EXPECT_EQ(reader->count(hsm::any_device_id, hsm::runtime_requirements), 1u);
+    EXPECT_EQ(reader->count(template_device_id, hsm::model), 1u);
+    EXPECT_EQ(reader->count(template_device_id, hsm::weights), 1u);
+    EXPECT_EQ(reader->count(template_device_id, hsm::compiled_options), 1u);
+    EXPECT_EQ(reader->count(template_device_id, blob_info_tag.id()), 1u);
+}
+
+TEST_F(TemplateHsmBlobTest, weights_section_starts_on_a_page_boundary) {
+    std::stringstream stream(export_hsm());
+    const auto reader = hsm::Reader::open(stream);
+    ASSERT_TRUE(reader);
+
+    const auto& entries = reader->entries();
+    const auto weights = std::find_if(entries.begin(), entries.end(), [](const hsm::ManifestEntry& entry) {
+        return entry.device == template_device_id && entry.tag.id() == hsm::weights;
+    });
+
+    ASSERT_NE(weights, entries.end());
+    EXPECT_EQ(weights->offset % 4096, 0u);
+}
+
+TEST_F(TemplateHsmBlobTest, cache_mode_optimize_size_omits_weights_section) {
+    std::stringstream stream(export_hsm({ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE)}));
+    const auto reader = hsm::Reader::open(stream);
+    ASSERT_TRUE(reader);
+
+    EXPECT_EQ(reader->count(template_device_id, hsm::model), 1u);
+    EXPECT_EQ(reader->count(template_device_id, hsm::weights), 0u);
+}
+
+TEST_F(TemplateHsmBlobTest, weightless_blob_is_imported_with_weights_path_hint) {
+    const auto weights_path = save_weights(export_hsm());
+    std::stringstream stream(export_hsm({ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE)}));
+
+    auto imported = core.import_model(stream, device, {ov::weights_path(weights_path)});
+
+    utils::compare(reference, infer(imported));
+}
+
+TEST_F(TemplateHsmBlobTest, weightless_blob_restores_weights_path_from_compiled_options) {
+    const auto weights_path = save_weights(export_hsm());
+    std::stringstream stream(
+        export_hsm({ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE), ov::weights_path(weights_path)}));
+
+    auto imported = core.import_model(stream, device);
+
+    utils::compare(reference, infer(imported));
+}
+
+TEST_F(TemplateHsmBlobTest, weightless_blob_without_weights_is_rejected) {
+    std::stringstream stream(export_hsm({ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE)}));
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(core.import_model(stream, device), ov::Exception, "missing mandatory weights");
+}
+
+TEST_F(TemplateHsmBlobTest, cache_uses_hsm_format_selected_at_plugin_level) {
+    check_cache_format(true);
+}
+
+TEST_F(TemplateHsmBlobTest, cache_uses_legacy_format_selected_at_plugin_level) {
+    check_cache_format(false);
 }
 }  // namespace ov::test

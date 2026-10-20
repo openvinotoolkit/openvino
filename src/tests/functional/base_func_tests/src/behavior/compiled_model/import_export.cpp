@@ -886,8 +886,8 @@ void OVCompiledModelHsmBlobTest::SetUp() {
 
 void OVCompiledModelHsmBlobTest::TearDown() {
     if (!cache_path.empty()) {
-        ov::test::utils::removeFilesWithExt(cache_path.string(), "blob");
-        ov::test::utils::removeDir(cache_path.string());
+        ov::test::utils::removeFilesWithExt(ov::util::path_to_string(cache_path), "blob");
+        ov::test::utils::removeDir(ov::util::path_to_string(cache_path));
     }
     APIBaseTest::TearDown();
 }
@@ -895,7 +895,7 @@ void OVCompiledModelHsmBlobTest::TearDown() {
 ov::CompiledModel OVCompiledModelHsmBlobTest::compile(bool with_cache) {
     auto config = configuration;
     if (with_cache) {
-        config.emplace(ov::cache_dir(cache_path.string()));
+        config.emplace(ov::cache_path(cache_path));
     }
     return core.compile_model(model, target_device, config);
 }
@@ -907,14 +907,14 @@ std::string OVCompiledModelHsmBlobTest::export_blob(ov::CompiledModel compiled) 
 }
 
 std::string OVCompiledModelHsmBlobTest::read_cache_blob() const {
-    const auto blobs = ov::test::utils::listFilesWithExt(cache_path.string(), "blob");
+    const auto blobs = ov::test::utils::listFilesWithExt(ov::util::path_to_string(cache_path), "blob");
     OPENVINO_ASSERT(blobs.size() == 1, "Expected exactly one cache blob, got ", blobs.size());
     std::ifstream file(blobs.front(), std::ios::binary);
     return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
 }
 
 void OVCompiledModelHsmBlobTest::write_cache_blob(const std::string& blob) const {
-    const auto blobs = ov::test::utils::listFilesWithExt(cache_path.string(), "blob");
+    const auto blobs = ov::test::utils::listFilesWithExt(ov::util::path_to_string(cache_path), "blob");
     ASSERT_EQ(blobs.size(), 1u) << "Expected exactly one cache blob";
     // Cache files may be created read-only, so replace the file instead of overwriting it.
     std::filesystem::remove(blobs.front());
@@ -978,6 +978,18 @@ TEST_P(OVCompiledModelHsmBlobTest, newer_minor_version_is_imported) {
     auto imported = core.import_model(stream, target_device, configuration);
 
     expect_same_inference(imported);
+}
+
+TEST_P(OVCompiledModelHsmBlobTest, exported_blob_is_a_valid_container_of_the_current_version) {
+    const auto exported = export_blob(compile(false));
+    const auto data = reinterpret_cast<const std::byte*>(exported.data());
+
+    EXPECT_TRUE(hsm::ContainerView(data, exported.size()).validate());
+    EXPECT_TRUE(hsm::Reader::open(data, exported.size()));
+    const auto& header = hsm::Header::view(exported.data());
+    EXPECT_EQ(header.version_major, hsm::FormatVersion::major);
+    EXPECT_EQ(header.version_minor, hsm::FormatVersion::minor);
+    EXPECT_EQ(header.container_size, exported.size());
 }
 
 TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkNoThrowWithHsmFormat) {

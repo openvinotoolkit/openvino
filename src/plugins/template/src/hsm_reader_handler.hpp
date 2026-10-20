@@ -13,30 +13,30 @@
 #include <optional>
 #include <string>
 
-#include "hsm_codecs.hpp"
+#include "hsm_common.hpp"
+#include "openvino/core/any.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov::template_plugin {
 
-class HsmReaderHandler final : public ov::runtime::hsm::ISectionReaderHandler {
+class HsmReaderHandler final : public runtime::hsm::ISectionReaderHandler {
 public:
-    bool handle_section(const ov::runtime::hsm::ManifestEntry& entry,
-                        const ov::runtime::hsm::Section& section) override;
+    bool handle_section(const runtime::hsm::ManifestEntry& entry, const runtime::hsm::Section& section) override;
 
     void check_mandatory_sections() const;
 
-    std::shared_ptr<ov::AlignedBuffer> source_blob; // Set before read_sections() when importing ov::Tensor
+    std::shared_ptr<ov::AlignedBuffer> source_blob;  // Set before read_sections() when importing ov::Tensor
     std::optional<uint64_t> model_id;
     std::optional<std::string> runtime_requirements;
     std::shared_ptr<ov::AlignedBuffer> model;
     std::shared_ptr<ov::AlignedBuffer> weights;
-    std::optional<hsm_codec::BlobInfo> blob_info;
+    std::optional<hsm::BlobInfo> blob_info;
     ov::AnyMap compiled_options;
 
 private:
-    using Decoder = void (*)(HsmReaderHandler&, const ov::runtime::hsm::Section&);
+    using Decoder = void (*)(HsmReaderHandler&, const runtime::hsm::Section&);
     static const std::map<uint32_t, Decoder> s_decoders;
 };
 
