@@ -47,11 +47,11 @@ std::tuple<std::shared_ptr<ov::Model>, size_t> makeModelWithWeights(size_t elem_
 std::vector<std::shared_ptr<ov::op::v0::Constant>> collectConstants(ov::Model& model) {
     std::vector<std::shared_ptr<ov::op::v0::Constant>> constant_to_share;
     for (const auto& op : model.get_ops()) {
-        auto shared_weight_candidate = std::dynamic_pointer_cast<ov::op::v0::Constant>(op);
-        if (!shared_weight_candidate) {
+        auto weight_sharing_constant_candidate = std::dynamic_pointer_cast<ov::op::v0::Constant>(op);
+        if (!weight_sharing_constant_candidate) {
             continue;
         }
-        constant_to_share.push_back(shared_weight_candidate);
+        constant_to_share.push_back(weight_sharing_constant_candidate);
     }
     return constant_to_share;
 }
@@ -82,14 +82,16 @@ std::tuple<std::shared_ptr<ov::weight_sharing::Context>, std::shared_ptr<::ov::S
     ov::weight_sharing::set_weight_source(*shared_ctx_ptr, source_buffer);
     for (const auto& constant : constants) {
         auto const_descriptor = ::ov::create_base_descriptor(source_id, constant_id, source_buffer);
-        auto constant_shared_buffer = std::make_shared<::ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(source_buffer->get_ptr<char>() + constant_id,
-                                                                                                               constant->get_byte_size(),
-                                                                                                               source_buffer,
-                                                                                                               const_descriptor);
+        auto weight_sharing_constant_buffer_view =
+            std::make_shared<::ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(source_buffer->get_ptr<char>() + constant_id,
+                                                                                     constant->get_byte_size(),
+                                                                                     source_buffer,
+                                                                                     const_descriptor);
         constant_id += ov::util::align_size_up(constant->get_byte_size(), alignment) + skew_constant_alignment;
-        auto shared_constant = std::make_shared<ov::op::v0::Constant>(constant->get_element_type(), constant->get_shape(), constant_shared_buffer);
+        auto shared_constant =
+            std::make_shared<ov::op::v0::Constant>(constant->get_element_type(), constant->get_shape(), weight_sharing_constant_buffer_view);
         shared_constant->set_friendly_name(constant->get_friendly_name());
-        std::memcpy(constant_shared_buffer->get_ptr(), constant->get_data_ptr(), constant->get_byte_size());
+        std::memcpy(weight_sharing_constant_buffer_view->get_ptr(), constant->get_data_ptr(), constant->get_byte_size());
 
         ov::replace_node(constant, shared_constant);
 
