@@ -300,7 +300,9 @@ weights with NMSE `3.81e-10` and `2.35e-9`. This is represented-F32 reference pa
 LFM2.5 Audio's separate vocoder GGUF is a standalone speech-component architecture,
 `lfm2.audio_vocoder`, with `depthformer_n_layer`/`depthformer_n_embd` metadata. The
 publisher's `general.architecture` string, `this model cannot be used as LLM, use it
-via --model-vocoder in TTS examples`, remains supported for existing files. It exposes
+via --model-vocoder in TTS examples`, is normalized to `lfm2.audio_vocoder` during
+loading for compatibility. Only the canonical name appears in the architecture catalog.
+It exposes
 `audio.depth_logits`, summed `audio.feedback`, averaged `audio.codec_features`, and
 `audio.istft_window`. Its `lfm2` detokenizer uses a 1282-channel `dense_2` spectral
 head and preserves all frames, including after GenAI adaptation. Pinned publisher

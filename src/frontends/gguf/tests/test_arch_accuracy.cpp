@@ -1133,6 +1133,7 @@ TEST_P(GGUFLFM2VocoderAccuracy, DepthformerFeedbackAndCodecMatchLiquidReference)
     const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, GetParam()));
     ov::frontend::gguf::FrontEnd frontend;
     auto model = frontend.convert(frontend.load(temporary.path));
+    EXPECT_EQ(model->get_rt_info().at("gguf_architecture").as<std::string>(), "lfm2.audio_vocoder");
     auto request = ov::Core{}
                        .compile_model(model,
                                       "CPU",
