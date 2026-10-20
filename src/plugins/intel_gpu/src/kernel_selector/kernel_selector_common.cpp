@@ -7,7 +7,7 @@
 #include <sstream>
 #include <string>
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 #include "micro_utils.hpp"
 #endif
 
@@ -614,7 +614,7 @@ void clKernelData::save(cldnn::BinaryOutputBuffer& ob) const {
     }
 
     ob << params.layerID;
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     ob << micro_kernels.size();
     for (const auto& microkernel : micro_kernels) {
         microkernel->save(ob);
@@ -648,7 +648,7 @@ void clKernelData::load(cldnn::BinaryInputBuffer& ib) {
 
     ib >> params.layerID;
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     size_t n_microkernels;
     ib >> n_microkernels;
     micro_kernels.clear();

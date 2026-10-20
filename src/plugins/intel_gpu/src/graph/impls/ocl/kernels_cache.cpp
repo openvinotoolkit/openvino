@@ -44,7 +44,7 @@
 #include <malloc.h>
 #endif
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 #ifndef NOMINMAX
 # define NOMINMAX
 #endif
@@ -332,16 +332,16 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
             dump_file << "\n*/\n";
         }
         if (batch.has_microkernels) {
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
             OPENVINO_ASSERT(batch.kernels_counter == 1 && kernels.size() == 1);
             std::vector<uint8_t> binary = kernels[0]->get_binary();
             kernels.clear();
             // Update binary and rebuild kernel
             gemmstone::microkernel::fuse(binary, combined_source.c_str());
             _builder->build_kernels(binary.data(), binary.size(), KernelFormat::NATIVE_BIN, "", kernels);
-#else  // ENABLE_ONEDNN_FOR_GPU
+#else  // OV_GPU_WITH_ONEDNN_MICROKERNELS
             OPENVINO_THROW("[GPU] Can't compile kernel w/ microkernels as onednn is not available");
-#endif  // ENABLE_ONEDNN_FOR_GPU
+#endif  // OV_GPU_WITH_ONEDNN_MICROKERNELS
         }
         if (is_cache_enabled()) {
                 // If kernels caching is enabled, then we save compiled bucket to binary file with name ${code_hash_value}.cl_cache

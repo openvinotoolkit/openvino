@@ -19,7 +19,7 @@
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 namespace ov::intel_gpu::ocl {
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 class SDPAMicroGenerator : public SDPABase {
 public:
     explicit SDPAMicroGenerator(bool prefill, bool gqa_single_token = false)

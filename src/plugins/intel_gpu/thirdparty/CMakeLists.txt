@@ -254,6 +254,11 @@ if(ENABLE_ONEDNN_FOR_GPU)
             list(APPEND LIB_DEFINITIONS NGEN_LINK_OPENCL)
         endif()
 
+        # gemmstone microkernels are built into oneDNN for Intel GPUs only
+        if(GPU_VENDOR STREQUAL "INTEL")
+            list(APPEND LIB_DEFINITIONS OV_GPU_WITH_ONEDNN_MICROKERNELS)
+        endif()
+
         add_library(onednn_gpu_tgt${SUFFIX} INTERFACE)
         set_target_properties(onednn_gpu_tgt${SUFFIX} PROPERTIES
             INTERFACE_LINK_LIBRARIES "$<BUILD_INTERFACE:${onednn_lib_path};$<LINK_ONLY:${GPU_DEP_LIBS}>>"
