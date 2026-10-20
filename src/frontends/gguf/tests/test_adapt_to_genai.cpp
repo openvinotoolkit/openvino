@@ -208,6 +208,41 @@ TEST(GGUFAdaptToGenAI, RewritesIOContract) {
     EXPECT_EQ(m.model->get_results()[0]->get_output_partial_shape(0).rank().get_length(), 3);
 }
 
+TEST(GGUFAdaptToGenAI, EmbeddingLookupRetainsBorrowedWeightParameter) {
+    auto m = build_minimal_gguf_model();
+    std::shared_ptr<v8::Gather> lookup;
+    for (const auto& node : m.model->get_ops()) {
+        if (auto gather = ov::as_type_ptr<v8::Gather>(node)) {
+            if (ov::as_type_ptr<v0::Constant>(gather->get_input_node_shared_ptr(0))) {
+                lookup = gather;
+                break;
+            }
+        }
+    }
+    ASSERT_NE(lookup, nullptr);
+    auto table = ov::test::utils::make_param(ov::element::f32, {4, 2}, "gguf.target_token_embedding");
+    lookup->input(0).replace_source_output(table);
+    m.model->add_parameters({table});
+    AdaptToGenAI adapter(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+    ASSERT_TRUE(adapter.run_on_model(m.model));
+    auto extracted = adapter.get_embedding_model();
+    ASSERT_NE(extracted, nullptr);
+    ASSERT_NO_THROW(extracted->validate_nodes_and_infer_types());
+    EXPECT_NE(find_parameter(extracted, "gguf.target_token_embedding"), nullptr);
+    ov::Core core;
+    auto request = core.compile_model(extracted, "CPU").create_infer_request();
+    ov::Tensor ids(ov::element::i64, {1, 2});
+    ids.data<int64_t>()[0] = 1;
+    ids.data<int64_t>()[1] = 3;
+    request.set_tensor("input_ids", ids);
+    request.set_tensor("gguf.target_token_embedding", make_f32_tensor({4, 2}, {0, 1, 2, 3, 4, 5, 6, 7}));
+    request.infer();
+    const auto result = request.get_tensor("inputs_embeds");
+    ASSERT_EQ(result.get_shape(), (ov::Shape{1, 2, 2}));
+    EXPECT_EQ(std::vector<float>(result.data<float>(), result.data<float>() + result.get_size()),
+              (std::vector<float>{2, 3, 6, 7}));
+}
+
 TEST(GGUFAdaptToGenAI, AcceptsPrunedTokenCountInput) {
     auto m = build_minimal_gguf_model();
     auto count = find_parameter(m.model, "token_len_per_seq");

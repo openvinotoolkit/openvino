@@ -28,9 +28,15 @@ CASES = {
     "cohere2": {"layer_norm": True, "swa": True, "layers": 4, "tied": True},
     "gemma3n": {},
     "eagle3": {"layers": 1},
+    "eagle3-fc-q4_1": {"architecture": "eagle3", "layers": 1,
+                       "quantized": {"fc.weight": gguf.GGMLQuantizationType.Q4_1},
+                       "q4_1_fc_exact": True, "q8_hidden_exact": True},
     "eagle3-mapped": {"architecture": "eagle3", "layers": 1, "output_vocab": 16, "norm_before_fc": True,
                       "norm_before_residual": True, "d2t": True},
     "dflash": {"layers": 2, "qk": True},
+    "dflash-fc-q4_1": {"architecture": "dflash", "layers": 2, "qk": True,
+                       "quantized": {"fc.weight": gguf.GGMLQuantizationType.Q4_1},
+                       "q4_1_fc_exact": True, "q8_hidden_exact": True},
     "dflash-post": {"architecture": "dflash", "layers": 2, "qk": True, "post": True,
                      "layer_scale": True, "fc_scale": True, "value_scale": 1.5, "hidden_act": "gelu_pytorch_tanh"},
     "dflash-shared": {"architecture": "dflash", "layers": 2, "qk": True, "shared_v": True},
@@ -89,13 +95,22 @@ CASES = {
 }
 
 
-def tensor_writer(writer, rng, f16=()):
+def tensor_writer(writer, rng, f16=(), quantized=None, exact_q4_1=False):
     """Uniform random F32 tensors; norm weights are centered at 1. Names containing an `f16`
     entry are stored as F16."""
+    quantized = quantized or {}
+
     def tensor(name, shape, norm=False):
         values = rng.uniform(-1, 1, shape).astype(np.float32)
         values = 1 + values * .3 if norm else values * .2
-        writer.add_tensor(name, values.astype(np.float16) if any(s in name for s in f16) else values)
+        if exact_q4_1 and name == "fc.weight":
+            codes = (np.arange(shape[0])[:, None] * 5 + np.arange(shape[1])[None, :] * 7) % 16
+            values = -1.0 + codes.astype(np.float32) * np.float32(0.125)
+        quantization = quantized.get(name)
+        if quantization is not None:
+            writer.add_tensor(name, gguf.quants.quantize(values, quantization), raw_dtype=quantization)
+        else:
+            writer.add_tensor(name, values.astype(np.float16) if any(s in name for s in f16) else values)
     return tensor
 
 
@@ -457,7 +472,8 @@ def write_model(path, arch, opts):
         if arch == "ernie4_5-moe":
             w.add_interleave_moe_layer_step(2)
     rng = np.random.default_rng(20260907)
-    tensor = tensor_writer(w, rng)
+    tensor = tensor_writer(w, rng, quantized=opts.get("quantized"),
+                           exact_q4_1=opts.get("q4_1_fc_exact", False))
 
     tensor("token_embd.weight", (vocab, d))
     tensor("output_norm.weight", (d,), True)
@@ -615,7 +631,15 @@ def main():
             if CASES[arch].get("selector"):
                 extra["selector"] = np.array([1], dtype=np.int32)
             if CASES[arch].get("architecture", arch) in ("eagle3", "dflash"):
-                features = np.random.default_rng(20261021).uniform(-.2, .2, (9 if CASES[arch].get("lilicorr") else 6, 96)).astype(np.float32)
+                feature_shape = (9 if CASES[arch].get("lilicorr") else 6, 96)
+                if CASES[arch].get("q8_hidden_exact"):
+                    codes = (np.arange(feature_shape[0])[:, None] * 47 + np.arange(feature_shape[1])[None, :] * 73) % 255 - 127
+                    for block in range(0, feature_shape[1], 32):
+                        codes[:, block] = 127
+                        codes[:, block + 1] = -127
+                    features = codes.astype(np.float32) * np.float32(1 / 512)
+                else:
+                    features = np.random.default_rng(20261021).uniform(-.2, .2, feature_shape).astype(np.float32)
                 features.tofile(model.with_suffix(".features"))
                 command += ["--dflash" if CASES[arch].get("architecture", arch) == "dflash" else "--draft", str(model.with_suffix(".features"))]
                 extra["hidden_states"] = features

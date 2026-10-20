@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <unordered_set>
 #include <vector>
 
 #include "openvino/core/graph_util.hpp"
@@ -314,14 +315,26 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         const auto width = embedding->get_output_partial_shape(0)[3].get_length();
         // Clone each lookup graph before rewiring the language model. Constants retain shared buffers.
         const auto extract = [&](const ov::Output<ov::Node>& lookup, const std::string& name, bool pad_media) {
-            auto extracted = make_shared<ov::Model>(ov::OutputVector{lookup}, ov::ParameterVector{inp_tokens})->clone();
+            ov::ParameterVector parameters;
+            std::unordered_set<const ov::Node*> visited;
+            const auto collect = [&](const auto& self, const std::shared_ptr<ov::Node>& node) -> void {
+                if (!visited.insert(node.get()).second)
+                    return;
+                if (auto parameter = ov::as_type_ptr<v0::Parameter>(node))
+                    parameters.push_back(parameter);
+                for (const auto& input : node->input_values())
+                    self(self, input.get_node_shared_ptr());
+            };
+            collect(collect, lookup.get_node_shared_ptr());
+            auto extracted = make_shared<ov::Model>(ov::OutputVector{lookup}, parameters)->clone();
             extracted->get_rt_info() = model->get_rt_info();
             auto ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
             name_output(ids, "input_ids");
             auto lookup_ids = pad_media ? pad_media_placeholders(*model, ids) : ids->output(0);
             auto ids4 = make_shared<v0::Unsqueeze>(make_shared<v0::Convert>(lookup_ids, ov::element::i32),
                                                    v0::Constant::create(ov::element::i64, {2}, {0, 1}));
-            auto old_ids = extracted->get_parameters().front();
+            auto old_ids = find_parameter(extracted, "inp_tokens");
+            OPENVINO_ASSERT(old_ids, "[GGUF] extracted embedding lookup requires token IDs");
             old_ids->output(0).replace(ids4->output(0));
             extracted->remove_parameter(old_ids);
             extracted->add_parameters({ids});

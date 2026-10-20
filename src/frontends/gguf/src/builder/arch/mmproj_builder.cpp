@@ -586,7 +586,8 @@ private:
             bool found = false;
             for (int block = 0;; ++block) {
                 const auto p = "v.blk." + std::to_string(stage) + "." + std::to_string(block) + ".";
-                if (!has(p + "conv_exp") && !has(p + "pw_exp.conv") && !has(p + "attn.query.proj"))
+                if (!has(p + "conv_exp") && !has(p + "dw_start.conv") && !has(p + "pw_exp.conv") &&
+                    !has(p + "attn.query.proj"))
                     break;
                 found = true;
                 const auto residual = x;
@@ -616,7 +617,8 @@ private:
                 } else {
                     if (has(p + "dw_start.conv"))
                         x = spatial_norm(conv(x, p + "dw_start.conv", 1, true), p + "dw_start.bn");
-                    x = activate(spatial_norm(conv(x, p + "pw_exp.conv", 1), p + "pw_exp.bn"));
+                    if (has(p + "pw_exp.conv"))
+                        x = activate(spatial_norm(conv(x, p + "pw_exp.conv", 1), p + "pw_exp.bn"));
                     if (has(p + "dw_mid.conv"))
                         x = activate(spatial_norm(conv(x, p + "dw_mid.conv", stride, true), p + "dw_mid.bn"));
                     if (has(p + "pw_proj.conv"))

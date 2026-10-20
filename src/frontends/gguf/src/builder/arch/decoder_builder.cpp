@@ -913,9 +913,9 @@ std::string DecoderBuilder::build_dflash_conv(const std::string& hidden,
 }
 
 std::string DecoderBuilder::build_dflash(const std::string& embeddings) {
-    const auto width = m_emit.weights().at("fc.weight").get_shape().back();
-    m_emit.add_input("hidden_states", f32, {1, 1, -1, static_cast<int64_t>(width)});
     m_emit.add_weight("fc.weight");
+    const auto width = m_emit.value("fc.weight").get_partial_shape().rbegin()->get_length();
+    m_emit.add_input("hidden_states", f32, {1, 1, -1, width});
     auto context = m_emit.add_op("GGML_OP_MUL_MAT", "dflash.fc", {"fc.weight", "hidden_states"});
     if (m_emit.has_weight("fc.scale")) {
         m_emit.add_named_weight("fc.scale");
@@ -993,12 +993,12 @@ std::string DecoderBuilder::build_dflash(const std::string& embeddings) {
 std::string DecoderBuilder::build_eagle3(const std::string& embeddings) {
     using namespace ov::op;
     OPENVINO_ASSERT(m_cfg.n_layer == 1, "[GGUF] Eagle3 requires one decoder layer");
-    const auto feature_width = m_emit.weights().at("fc.weight").get_shape().back();
-    auto features = m_emit.add_input("hidden_states", f32, {1, 1, -1, static_cast<int64_t>(feature_width)});
+    m_emit.add_weight("fc.weight");
+    const auto feature_width = m_emit.value("fc.weight").get_partial_shape().rbegin()->get_length();
+    auto features = m_emit.add_input("hidden_states", f32, {1, 1, -1, feature_width});
     std::string hidden = "hidden_states";
     if (m_cfg.draft_norm_before_fc)
         hidden = blocks::rms_norm(m_emit, hidden, "enc.output_norm.weight", "eagle3.encoder_norm", m_cfg.rms_eps);
-    m_emit.add_weight("fc.weight");
     hidden = m_emit.add_op("GGML_OP_MUL_MAT", "eagle3.fc", {"fc.weight", hidden});
     const std::string p = "blk.0.";
     auto normalized_embedding =

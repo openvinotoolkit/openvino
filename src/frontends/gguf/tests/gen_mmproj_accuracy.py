@@ -28,7 +28,8 @@ SINGLE_GRID = ("gemma3", "gemma3_fused", "gemma3_legacy", "idefics3", "janus_pro
 REGRIDDED = ("qwen2.5vl_merger_grids", "resampler_grids")
 TWO_GRID = ("muse-glimmer", "pixtral", "pixtral_merge", "phi4", "gemma4v", "gemma4uv", "gemma4uv_low_contrast",
             "gemma4ua", "gemma4v_one_sided", "minicpmv4_6", "minicpmv4_7", "minicpmv4_7_4x", "qwen3a", "qwen3tts_spkenc", "gemma3nv", "gemma4a", "deepseekocr", "deepseekocr2",
-            "deepseekocr_resize", "deepseekocr_overview", "deepseekocr2_overview", "gemma3nv_attention", *REGRIDDED)
+            "deepseekocr_resize", "deepseekocr_overview", "deepseekocr2_overview", "gemma3nv_attention",
+            "gemma3nv_uir", *REGRIDDED)
 
 
 def write_single_grid_model(path, projector, projection_width=6):
@@ -275,7 +276,7 @@ def single_grid_width(projector):
     return 128 if projector.startswith("resampler") else 12 if projector == "qwen3vl_merger" else 6
 
 
-VARIANTS = ("_resize", "_overview", "_one_sided", "_low_contrast", "_4x")
+VARIANTS = ("_resize", "_overview", "_one_sided", "_low_contrast", "_4x", "_uir")
 # mmproj_ops_oracle output file -> test_data .npy name.
 OPS_EXPECTATIONS = {
     "window_input": "mmproj_window_input", "windows": "mmproj_windows", "restored": "mmproj_restored",
@@ -338,6 +339,7 @@ def write_grid_model(path, family):
     if attention_fixture:
         family = "gemma3nv"
     family, variants = split_variants(family, *VARIANTS)
+    uir = "_uir" in variants
     one_sided = "_one_sided" in variants
     low_contrast = "_low_contrast" in variants
     audio = family in {"gemma4ua", "gemma4a", "qwen3a"}
@@ -370,10 +372,17 @@ def write_grid_model(path, family):
                 norm(p + "bn1", width, False)
                 norm(p + "bn2", width, False)
             else:
-                tensor(p + "pw_exp.conv.weight", (width, width, 1, 1))
+                if uir and stage == 1:
+                    w.add_tensor(p + "dw_start.conv.weight",
+                                 t.rng.normal(0, t.std, (width, 1, 3, 3)).astype(np.float16))
+                    norm(p + "dw_start.bn", width, False)
+                else:
+                    tensor(p + "pw_exp.conv.weight", (width, width, 1, 1))
                 w.add_tensor(p + "dw_mid.conv.weight", t.rng.normal(0, t.std, (width, 1, 3, 3)).astype(np.float16))
                 tensor(p + "pw_proj.conv.weight", (width, width, 1, 1))
-                for name in ("pw_exp.bn", "dw_mid.bn", "pw_proj.bn"):
+                norms = ("dw_mid.bn", "pw_proj.bn") if uir and stage == 1 else (
+                    "pw_exp.bn", "dw_mid.bn", "pw_proj.bn")
+                for name in norms:
                     norm(p + name, width, False)
         if attention_fixture:
             p = "v.blk.3.1."
@@ -692,6 +701,7 @@ def two_grid_fixture(oracle, family):
             sizes = {
                 "deepseekocr2": [(768, 768), (1024, 1024)],
                 "gemma3nv": [(256, 256), (256, 256)],
+                "gemma3nv_uir": [(256, 256), (256, 256)],
                 "gemma3nv_attention": [(256, 256), (256, 256)],
                 "deepseekocr2_overview": [(768, 768), (1024, 1024)],
                 "deepseekocr_resize": [(128, 128), (512, 512)],
