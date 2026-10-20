@@ -3028,6 +3028,7 @@ void primitive_inst::update_weights() {
             reorder_inst->set_impl(reorder_impl->clone());
 
             cache.add(*reorder_kernel_params, reorder_impl->clone());
+            get_network().get_program()->add_static_impl_type(reorder_kernel_params->desc->type);
         }
 
         auto& stream = get_network().get_stream();
@@ -3537,31 +3538,45 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     auto& prog = *inst.get_network().get_program();
     auto& kernels_cache = prog.get_kernels_cache();
 
-    // Update param if fake_alignment is available
-    auto updated_params = inst.get_fake_aligned_params_if_possible(inst.get_node(), params);
-    // Change weights layout of `updated_params` to original one to have valid information
-    // in _impl->_weights_reorder_params about required weights format after impl selection
-    if (inst.get_node().is_type<fully_connected>() || inst.get_node().is_type<convolution>() || inst.get_node().is_type<deconvolution>()) {
-        const auto weights_idx = inst.get_node().get_primitive()->input.size();
-        const auto original_weights_memory = inst.dep_memory_ptr(weights_idx);
-        updated_params.weights_layout = optional_layout(original_weights_memory->get_layout());
-    }
+    // Static impl lookup/compilation params: fake-aligned if available, weights with the original layout, no dynamic pad masks
+    auto get_updated_params = [&inst, &params]() {
+        // Update param if fake_alignment is available
+        auto updated_params = inst.get_fake_aligned_params_if_possible(inst.get_node(), params);
+        // Change weights layout of `updated_params` to original one to have valid information
+        // in _impl->_weights_reorder_params about required weights format after impl selection
+        if (inst.get_node().is_type<fully_connected>() || inst.get_node().is_type<convolution>() || inst.get_node().is_type<deconvolution>()) {
+            const auto weights_idx = inst.get_node().get_primitive()->input.size();
+            const auto original_weights_memory = inst.dep_memory_ptr(weights_idx);
+            updated_params.weights_layout = optional_layout(original_weights_memory->get_layout());
+        }
 
-    for (auto& i : updated_params.input_layouts) {
-        i.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
-    }
-    for (auto& o : updated_params.output_layouts) {
-        o.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
-    }
+        for (auto& i : updated_params.input_layouts) {
+            i.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
+        }
+        for (auto& o : updated_params.output_layouts) {
+            o.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
+        }
+        return updated_params;
+    };
+
+    // Only types that were ever added to the static impls cache can hit it; the others (e.g. primitives that run a
+    // shape-agnostic impl) skip the lookup, and the params copy too unless an async compilation task needs it.
+    const bool lookup_static_impl = prog.has_static_impl_type(node->type());
+    const bool compile_async = use_async_compilation && ((inst.get_impl() && inst.get_impl()->is_dynamic()) || inst.get_flag(ExecutionFlags::SHAPE_CHANGED));
+    const bool has_updated_params = lookup_static_impl || compile_async;
+    // Both branches are prvalues, so nothing is copied (kernel_impl_params has no move constructor); the default one is cheap.
+    auto updated_params = has_updated_params ? get_updated_params() : kernel_impl_params();
 
     // 1. If we have static impl in the cache - use it
-    auto cached_impl = m_static_impls_cache.get(updated_params);
-    if (cached_impl) {
-        return cached_impl->clone();
+    if (lookup_static_impl) {
+        auto cached_impl = m_static_impls_cache.get(updated_params);
+        if (cached_impl) {
+            return cached_impl->clone();
+        }
     }
 
     // 2. If async compilation is enabled and dynamic impl exists or shape changed - try to compile asynchronously
-    if (use_async_compilation && ((inst.get_impl() && inst.get_impl()->is_dynamic()) || inst.get_flag(ExecutionFlags::SHAPE_CHANGED))) {
+    if (compile_async) {
         auto& compilation_context = prog.get_compilation_context();
         compilation_context.push_task(updated_params, [&inst, &compilation_context, updated_params, find_impl]() {
             if (compilation_context.is_stopped()) {
@@ -3585,6 +3600,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
             }
             if (impl) {
                 cache.add(updated_params, std::move(impl));
+                _program.add_static_impl_type(updated_params.desc->type);
             }
         });
     }
@@ -3616,6 +3632,9 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     }
 
     // 6. Finally, if no impl found so far, we just enforce static impl compilation
+    if (!has_updated_params) {
+        updated_params = get_updated_params();
+    }
     auto static_impl = find_impl(node, updated_params, shape_types::static_shape);
     if (!static_impl) {
         auto stringify_layouts = [](const std::vector<layout>& layouts) {
@@ -3652,6 +3671,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
         auto kernels = kernels_cache.compile(updated_params, static_impl->get_kernels_source());
         static_impl->set_kernels(std::move(kernels));
         m_static_impls_cache.add(updated_params, static_impl->clone());
+        prog.add_static_impl_type(node->type());
     }
 
     return static_impl;
