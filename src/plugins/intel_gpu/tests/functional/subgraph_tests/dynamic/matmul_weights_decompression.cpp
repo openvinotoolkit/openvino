@@ -601,9 +601,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_input_4d,
                          MatmulWeightsDecompression::get_test_case_name);
 
 // Compressed FC (Qwen3-8B q_proj prefill shape) followed by a Transpose, which runs as a separate OCL kernel
-// reading the oneDNN gemm output on the same in-order queue without a host wait. With gemm C stored as L1WB_L3WB
-// on Xe2 (oneDNN 9d4b74c62d) a tail of the output channels is still in the non-coherent L1 and the Transpose reads
-// stale data. Needs a static shape and a non-oneDNN consumer: a oneDNN consumer or host read-back does not expose it.
+// reading the oneDNN gemm output on the same in-order queue without a host wait. A tail of the output channels can
+// still be in the non-coherent L1 and the Transpose reads stale data.
+// Needs a static shape and a non-oneDNN consumer: a oneDNN consumer or host read-back does not expose it.
 class MatmulWeightsDecompressionWithConsumer : public MatmulWeightsDecompression {
 protected:
     void SetUp() override {
