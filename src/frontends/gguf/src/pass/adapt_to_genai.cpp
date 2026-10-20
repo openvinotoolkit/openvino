@@ -232,6 +232,9 @@ ov::Output<ov::Node> pad_media_placeholders(const ov::Model& model, const ov::Ou
 bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     using namespace ov::op;
 
+    if (find_parameter(model, "dspark_ctx_feat"))
+        return false;
+
     for (const auto& output : model->outputs()) {
         if (output.get_names().count("embeddings"))
             return false;

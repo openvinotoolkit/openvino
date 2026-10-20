@@ -39,18 +39,31 @@ protected:
                                                 const ov::Output<ov::Node>& scale,
                                                 const ov::Output<ov::Node>& sink,
                                                 bool is_causal,
-                                                const std::optional<CompressedKV>& compressed_kv);
-    // Explicit attention for softcap > 0 (SDPA cannot soft-cap the logits):
-    // softmax(softcap * tanh(scale * Q * K^T / softcap) + mask [, sink]) * V. key/value keep kv_num_heads heads;
-    // query heads are grouped onto them by MatMul broadcasting, so the KV cache is never replicated.
-    std::shared_ptr<ov::Node> make_softcap_attention(const ov::Output<ov::Node>& query,
-                                                     const ov::Output<ov::Node>& key,
-                                                     const ov::Output<ov::Node>& value,
-                                                     const ov::Output<ov::Node>& mask,
-                                                     const ov::Output<ov::Node>& scale,
-                                                     const ov::Output<ov::Node>& sink,
-                                                     float softcap,
-                                                     int64_t kv_num_heads);
+                                                int64_t local_window_size = -1,
+                                                const std::optional<CompressedKV>& compressed_kv = std::nullopt);
+    // Explicit attention for softcap > 0 or a qk_output request (SDPA can neither soft-cap nor expose the scores):
+    // softmax(cap(scale * Q * K^T) + mask [, sink]) * V, cap(x) = softcap * tanh(x / softcap) or x when softcap is 0.
+    // key/value keep kv_num_heads heads; query heads are grouped onto them by MatMul broadcasting, so the KV cache is
+    // never replicated. Returns {attention [B, N, S, D]} plus, when qk_output is set, the [B, N, S, L] scores taken
+    // from the same chain: the logits with masked positions zeroed (BEFORE_SOFTMAX) or the probabilities (AFTER).
+    // unbiased_mask is the mask without attention_bias, used to find the masked positions.
+    ov::OutputVector make_explicit_attention(const ov::Output<ov::Node>& query,
+                                             const ov::Output<ov::Node>& key,
+                                             const ov::Output<ov::Node>& value,
+                                             const ov::Output<ov::Node>& mask,
+                                             const ov::Output<ov::Node>& unbiased_mask,
+                                             const ov::Output<ov::Node>& scale,
+                                             const ov::Output<ov::Node>& sink,
+                                             float softcap,
+                                             int64_t kv_num_heads,
+                                             ov::op::internal::GroupQueryAttentionQKOutput qk_output);
+
+    // QK-Norm: per-head RMSNorm over head_size, x * rsqrt(mean(x^2) + epsilon) * weight, computed in f32 like
+    // ONNX Runtime and cast back to the input type. The base emits the primitive chain RMSFusion recognizes;
+    // plugins that fuse RMS before this pass can return their fused op directly.
+    virtual ov::Output<ov::Node> make_qk_norm(const ov::Output<ov::Node>& input,
+                                              const ov::Output<ov::Node>& weight,
+                                              float epsilon);
 
     virtual std::optional<CompressedKV> prepare_compressed_kv(
         const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
@@ -92,6 +105,26 @@ protected:
                                                           bool sliding_window_cache,
                                                           float scale,
                                                           bool has_sink);
+    // Additive [B, 1, S, kv_len] mask for a batch with per-batch lengths (batch not statically 1). total and past
+    // are [B, 1, 1] (total = seqlens_k + 1, past = causal offset of the first query). Keys at or beyond a batch's
+    // total are masked (right-padded prompts), then the causal / sliding-window rules apply per batch, matching
+    // ONNX Runtime's per-batch visible length. attention_bias [B or 1, N or 1, S, >= kv_len] is added on top.
+    std::shared_ptr<ov::Node> make_batched_attention_mask(const ov::Output<ov::Node>& curr_seqlen_scalar,
+                                                          const ov::Output<ov::Node>& kv_len_scalar,
+                                                          const ov::Output<ov::Node>& kv_len_1d,
+                                                          const ov::Output<ov::Node>& past,
+                                                          const ov::Output<ov::Node>& total,
+                                                          const ov::element::Type& compute_type,
+                                                          bool causal,
+                                                          int64_t local_window_size,
+                                                          const ov::Output<ov::Node>& external_bias);
+    // attention_bias aligned to the mask's key columns: [num_heads, S, kv_len] from key col_offset (single batch) or
+    // [B or 1, N or 1, S, kv_len] (batched), zero-padded past the bias width.
+    std::shared_ptr<ov::Node> align_attention_bias(const ov::Output<ov::Node>& bias,
+                                                   const ov::Output<ov::Node>& col_offset,
+                                                   const ov::Output<ov::Node>& kv_len_1d,
+                                                   const ov::element::Type& compute_type,
+                                                   bool batched);
     // Reshape a flat KV-cache dequant scale so it broadcasts against a [B, kv_num_heads, S, head_size] tensor:
     // PER_CHANNEL -> [1, kv_num_heads, 1, head_size]; PER_TENSOR -> [1, 1, 1, 1].
     std::shared_ptr<ov::Node> make_kv_scale(const ov::Output<ov::Node>& scale,
