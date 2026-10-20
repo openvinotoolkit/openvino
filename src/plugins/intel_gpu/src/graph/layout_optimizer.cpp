@@ -1099,6 +1099,7 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
         }
         return true;
     };
+    // node.is_dynamic() also holds for a static batch with dynamic height/width, whose batch does not change at runtime.
     const bool dynamic_batch_byxf =
         rank == 4 && input_layout.data_type == data_types::f16 && output_layout.get_partial_shape()[0].is_dynamic() && byxf_compatible_neighbors();
 
