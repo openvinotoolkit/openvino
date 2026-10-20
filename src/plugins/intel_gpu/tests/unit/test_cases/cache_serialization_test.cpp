@@ -381,17 +381,19 @@ TEST(cache_serialization, load_weights_rejects_data_size_exceeding_layout) {
 
 TEST(cache_serialization, otd_partial_allocation_uses_weightless_metadata) {
     auto& engine = get_test_engine();
-    const layout full_layout({1, 1, 1, 64}, data_types::u8, format::bfyx);
+    const layout full_layout({4, 1, 1, 16}, data_types::u8, format::bfyx);
     const layout resident_layout({1, 1, 1, 16}, data_types::u8, format::bfyx);
     auto resident_memory = engine.allocate_memory(resident_layout, true);
     auto partial_memory = engine.reinterpret_buffer(*resident_memory, full_layout);
 
-    data partial_data("partial", partial_memory, true);
+    const uint32_t resident_expert_num = static_cast<uint32_t>(resident_layout.get_shape()[0]);
+    data partial_data("partial", partial_memory, true, resident_expert_num);
     partial_data.cache_info->set_constant_info(0,
                                                 full_layout.bytes_count(),
                                                 ov::element::u8,
                                                 ov::element::u8,
                                                 full_layout.get_shape());
+    partial_data.cache_info->set_partial_upload(resident_expert_num);
 
     auto full_memory = engine.allocate_memory(full_layout, true);
     data plain_data("plain", full_memory);
@@ -408,4 +410,22 @@ TEST(cache_serialization, otd_partial_allocation_uses_weightless_metadata) {
     // OTD exposes the full Constant layout while allocating only resident slots.
     // Weightless caching must serialize metadata instead of reading that full layout.
     EXPECT_LT(serialized_size(partial_data), serialized_size(plain_data));
+
+    membuf mem_buf;
+    std::ostream out_mem(&mem_buf);
+    BinaryOutputBuffer ob(out_mem);
+    ob.set_stream(get_test_stream_ptr().get());
+    partial_data.save(ob);
+
+    std::istream in_mem(&mem_buf);
+    BinaryInputBuffer ib(in_mem, engine);
+    data loaded_data;
+    loaded_data.load(ib);
+    loaded_data.load_weights(ib, nullptr, nullptr);
+
+    EXPECT_TRUE(loaded_data.skip_device_transfer());
+    EXPECT_EQ(loaded_data.mem->get_layout(), full_layout);
+    EXPECT_EQ(loaded_data.get_resident_expert_num(), resident_expert_num);
+    ASSERT_NE(loaded_data.mem->get_mem_tracker(), nullptr);
+    EXPECT_EQ(loaded_data.mem->get_mem_tracker()->size(), resident_memory->size());
 }
