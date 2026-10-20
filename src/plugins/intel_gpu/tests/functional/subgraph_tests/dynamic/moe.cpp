@@ -109,7 +109,7 @@ protected:
 
         if (pattern_type == MoePatternType::GEMM3) {
             function = ov::test::initMoE3GeMMSubgraph(shape_params,
-                                                      ov::element::f32,  // data_precision
+                                                      model_precision,   // data_precision
                                                       wp,                // weights_precision
                                                       uwd,               // use_weight_decompression
                                                       dp,                // decompression_precision
@@ -127,7 +127,7 @@ protected:
             ASSERT_TRUE(pes == false) << "2-GEMM pattern doesn't support per-expert scale";
             ASSERT_TRUE(lnm == false) << "2-GEMM pattern doesn't support layernorm multiply";
             function = ov::test::initMoE2GeMMSubgraph(shape_params,
-                                                      ov::element::f32,  // data_precision
+                                                      model_precision,   // data_precision
                                                       wp,                // weights_precision
                                                       uwd,               // use_weight_decompression
                                                       dp,                // decompression_precision
@@ -205,6 +205,9 @@ protected:
         }
     }
 
+    // Element type of the model activations, can be changed by derived fixtures before SetUp()
+    ov::element::Type model_precision = ov::element::f32;
+
 private:
     static void set_disable_moe_fusion() {
 #ifdef _WIN32
@@ -224,6 +227,64 @@ private:
 };
 
 TEST_P(MoECompressedFusionTest, Inference) {
+    run();
+}
+
+// GatherMatmul and fused MoE kernels support only f16 activations, so the MoE pipeline must be applied
+// only if the activations are f16 after ConvertPrecision, regardless of OV_GPU_MOE_DISABLE_FUSION.
+// Note: with dynamic inference precision, the model precision is kept.
+class MoECompressedPrecisionTest : public MoECompressedFusionTest {
+protected:
+    MoECompressedPrecisionTest(ov::element::Type model_prc, ov::element::Type infer_prc) : infer_prc(infer_prc) {
+        model_precision = model_prc;
+    }
+
+    void SetUp() override {
+        MoECompressedFusionTest::SetUp();
+        inType = outType = model_precision;
+        configuration[ov::hint::inference_precision.name()] = infer_prc.get_type_name();
+    }
+
+    void validate() override {
+        const auto activations_prc = infer_prc == ov::element::dynamic ? model_precision : infer_prc;
+        if (activations_prc == ov::element::f16) {
+            MoECompressedFusionTest::validate();
+            return;
+        }
+        ov::test::SubgraphBaseTest::validate();
+        for (const auto& type : {"gather_matmul", "moe_3gemm_fused_compressed", "moe_gemm", "moe_router_fused"}) {
+            ov::test::CheckNumberOfNodesWithType(compiledModel, type, 0);
+        }
+    }
+
+private:
+    ov::element::Type infer_prc;
+};
+
+class MoECompressedF32Test : public MoECompressedPrecisionTest {
+public:
+    MoECompressedF32Test() : MoECompressedPrecisionTest(ov::element::f32, ov::element::f32) {}
+};
+
+class MoECompressedDynamicPrecisionF32ModelTest : public MoECompressedPrecisionTest {
+public:
+    MoECompressedDynamicPrecisionF32ModelTest() : MoECompressedPrecisionTest(ov::element::f32, ov::element::dynamic) {}
+};
+
+class MoECompressedDynamicPrecisionF16ModelTest : public MoECompressedPrecisionTest {
+public:
+    MoECompressedDynamicPrecisionF16ModelTest() : MoECompressedPrecisionTest(ov::element::f16, ov::element::dynamic) {}
+};
+
+TEST_P(MoECompressedF32Test, Inference) {
+    run();
+}
+
+TEST_P(MoECompressedDynamicPrecisionF32ModelTest, Inference) {
+    run();
+}
+
+TEST_P(MoECompressedDynamicPrecisionF16ModelTest, Inference) {
     run();
 }
 
@@ -356,6 +417,38 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmGatherMatmul,
                                             ::testing::Values(false),   // use_layernorm_multiply
                                             ::testing::Values(true)),   // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
+
+const auto moe_precision_test_params = ::testing::Combine(::testing::Values(moe_params_smoke[1]),
+                                                          ::testing::Values(MoePatternType::GEMM3, MoePatternType::GEMM2),
+                                                          ::testing::Values(MoERoutingType::SOFTMAX),
+                                                          ::testing::Values(ov::element::u4),   // weights_precision
+                                                          ::testing::Values(ov::element::f16),  // decompression_precision
+                                                          ::testing::Values(ov::element::f16),  // scale_precision
+                                                          ::testing::Values(ov::test::utils::DecompressionType::full),
+                                                          ::testing::Values(ov::test::utils::DecompressionType::full),
+                                                          ::testing::Values(true),  // reshape_on_decompression
+                                                          ::testing::Values(128),
+                                                          ::testing::Values(size_t{0}),   // gate_idx
+                                                          ::testing::Values(true, false),  // force_gather_matmul
+                                                          ::testing::Values(MoEActivationType::SWISH),
+                                                          ::testing::Values(false),   // use_per_expert_scale
+                                                          ::testing::Values(false),   // use_layernorm_multiply
+                                                          ::testing::Values(true));  // use_weight_decompression
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoECompressedF32,
+                         MoECompressedF32Test,
+                         moe_precision_test_params,
+                         MoECompressedF32Test::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoECompressedDynamicPrecisionF32Model,
+                         MoECompressedDynamicPrecisionF32ModelTest,
+                         moe_precision_test_params,
+                         MoECompressedDynamicPrecisionF32ModelTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoECompressedDynamicPrecisionF16Model,
+                         MoECompressedDynamicPrecisionF16ModelTest,
+                         moe_precision_test_params,
+                         MoECompressedDynamicPrecisionF16ModelTest::getTestCaseName);
 
 // Gemma-4 style: Gelu activation + SOFTMAX routing with a per-expert scale table (Const[N] → Gather(topk_idx) → Multiply).
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed,
