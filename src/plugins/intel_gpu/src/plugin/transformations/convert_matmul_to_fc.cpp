@@ -325,7 +325,12 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
 
         // Create FullyConnected
         const bool transpose_b = is_small_matmul;
-        auto fc = std::make_shared<op::FullyConnected>(fc_input_a, fc_input_b, no_bias, matmul->get_output_element_type(0), transpose_b);
+        auto fc = std::make_shared<op::FullyConnected>(fc_input_a,
+                                                       fc_input_b,
+                                                       no_bias,
+                                                       matmul->get_output_element_type(0),
+                                                       transpose_b,
+                                                       op::fc_default_weights_layout(transpose_b));
         fc->set_friendly_name(matmul->get_friendly_name());
         new_ops.push_back(fc);
         ov::copy_runtime_info(matmul, new_ops);
