@@ -176,7 +176,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
             const auto prepare_zero_point = [](const ov::Output<ov::Node>& zp,
                                                const ov::Output<ov::Node>& scale,
                                                const ov::Output<ov::Node>& weights) {
-                if (weights.get_element_type() != ov::element::u3) {
+                if (weights.get_element_type() != ov::element::u3 || zp.get_element_type() == ov::element::dynamic) {
                     return zp;
                 }
                 auto result = zp;
