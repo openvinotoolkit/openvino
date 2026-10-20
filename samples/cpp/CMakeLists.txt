@@ -105,35 +105,7 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
     set (CMAKE_CXX_EXTENSIONS OFF)
     set (CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
-
-# ###################################
-
-# standalone copy of cmake/developer_package/compile_flags/cxx_standard.cmake: this file is
-# installed and built outside the main tree (no sibling cmake/ dir), so it can't include() it
-if(CMAKE_CXX_STANDARD GREATER_EQUAL 20)
-    if(NOT DEFINED CMAKE_CXX_SCAN_FOR_MODULES)
-        set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
-    endif()
-
-    set(_ov_samples_cxx20_floor_GNU 10)
-    set(_ov_samples_cxx20_floor_Clang 14)
-    set(_ov_samples_cxx20_floor_AppleClang 14)
-    set(_ov_samples_cxx20_floor_MSVC 19.30)
-    set(_ov_samples_cxx20_floor_IntelLLVM 2024.2)
-
-    if(DEFINED _ov_samples_cxx20_floor_${CMAKE_CXX_COMPILER_ID} AND
-        CMAKE_CXX_COMPILER_VERSION VERSION_LESS _ov_samples_cxx20_floor_${CMAKE_CXX_COMPILER_ID})
-        message(FATAL_ERROR
-            "CMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD} requires ${CMAKE_CXX_COMPILER_ID} >= "
-            "${_ov_samples_cxx20_floor_${CMAKE_CXX_COMPILER_ID}}, but found ${CMAKE_CXX_COMPILER_VERSION}.")
-    endif()
-
-    unset(_ov_samples_cxx20_floor_GNU)
-    unset(_ov_samples_cxx20_floor_Clang)
-    unset(_ov_samples_cxx20_floor_AppleClang)
-    unset(_ov_samples_cxx20_floor_MSVC)
-    unset(_ov_samples_cxx20_floor_IntelLLVM)
-endif()
+####################################
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
     # gflags is used only in C++ samples
