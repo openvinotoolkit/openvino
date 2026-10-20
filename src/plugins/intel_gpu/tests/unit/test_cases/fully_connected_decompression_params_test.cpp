@@ -18,11 +18,7 @@
 
 namespace {
 
-// Grouped decompression scale / zero point Constants of compressed fully connected layers are uploaded directly in the
-// layout the implementations read when every user of the Constant is such a layer. Here one scale (and one zero point)
-// Constant is shared by two compressed fully connected layers, and optionally the scale is also read by a Multiply, which
-// must see it unchanged. Sub-byte zero points and [groups, N] parameters keep the plain layout. Every output is checked
-// against a host reference.
+// Scale/ZP shared by two FullyConnectedCompressed (optionally the scale also by a Multiply), checked against a host reference.
 using DecompressionParamsTestParams = std::tuple<ov::element::Type,  // activations and scale
                                                  ov::element::Type,  // weights
                                                  ov::element::Type,  // zero point (dynamic: none)
@@ -73,7 +69,7 @@ std::vector<float> random_values(size_t count, float lo, float hi, ov::element::
 }
 
 TEST_P(fully_connected_decompression_params, shared_constants) {
-    // copies, not structured bindings: the lambdas below capture them
+    // Not structured bindings: captured by the lambdas below
     const ov::element::Type act = std::get<0>(GetParam()), wei = std::get<1>(GetParam()), zp_type = std::get<2>(GetParam());
     const bool n_major = std::get<3>(GetParam()), other_user = std::get<4>(GetParam());
     const bool with_zp = zp_type != ov::element::dynamic;
