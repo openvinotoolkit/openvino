@@ -33,7 +33,8 @@ protected:
                       uint64_t cols,
                       uint64_t rows,
                       const std::vector<uint8_t>& data = {},
-                      const std::string& architecture = {}) {
+                      const std::string& architecture = {},
+                      uint64_t experts = 0) {
         std::ofstream out(m_path, std::ios::binary);
         ASSERT_TRUE(out);
         const auto put = [&out](auto value) {
@@ -53,9 +54,11 @@ protected:
         }
         put(uint64_t{name.size()});
         out.write(name.data(), name.size());
-        put(uint32_t{2});
+        put(uint32_t{experts ? 3u : 2u});
         put(cols);
         put(rows);
+        if (experts)
+            put(experts);
         put(static_cast<uint32_t>(type));
         put(uint64_t{0});  // tensor offset
         while (static_cast<size_t>(out.tellp()) % 32 != 0) {
@@ -69,6 +72,31 @@ protected:
 
     std::string m_path;
 };
+
+TEST_F(GGUFParser, NemotronQuantizedExpertsPreserveF32Scales) {
+    for (const auto& [stem, type] : std::vector<std::pair<std::string, GgufTensorType>>{{"iq2_xxs", GGUF_TYPE_IQ2_XXS},
+                                                                                        {"nvfp4", GGUF_TYPE_NVFP4}}) {
+        SCOPED_TRACE(stem);
+        const auto bytes = load_npy<uint8_t>(stem + "_qbytes");
+        const auto reference = load_npy<float>(stem + "_deq");
+        for (uint64_t experts : {0u, 2u}) {
+            const std::string name = experts ? "blk.1.ffn_down_exps" : "token_embd";
+            ASSERT_NO_FATAL_FAILURE(
+                write_tensor(name + ".weight", type, 256, experts ? 2 : 4, bytes, "nemotron_h_moe", experts));
+            const auto loaded = get_gguf_data(m_path);
+            const auto& arrays = std::get<1>(loaded);
+            ASSERT_EQ(arrays.at(name + ".scales").get_element_type(), ov::element::f32);
+            const auto node =
+                make_weight_node({arrays.at(name + ".weight"), arrays.at(name + ".scales"), {}}, type, name);
+            const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+            const auto output = run_on_cpu(model, {});
+            EXPECT_EQ(output.get_shape(), experts ? (ov::Shape{2, 2, 256}) : (ov::Shape{4, 256}));
+            ASSERT_EQ(output.get_size(), reference.size());
+            for (size_t i = 0; i < reference.size(); ++i)
+                EXPECT_FLOAT_EQ(output.data<const float>()[i], reference[i]);
+        }
+    }
+}
 
 TEST_F(GGUFParser, Q1_0PreservesBinaryStorageAndScaleValues) {
     const auto bytes = load_npy<uint8_t>("q1_0_qbytes");

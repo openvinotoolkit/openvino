@@ -115,10 +115,22 @@ std::string moe_ffn(GraphEmitter& e,
                         6,
                         {{"reshape_target", std::vector<int64_t>{1, 1, -1, cfg.n_embd}}, {"special_zero", false}});
     };
-    const auto ffn_norm = flatten(p + "moe_input", input);
-    // --- router: logits [1,1,T,E] = gate_inp · x ---
+    const auto original = flatten(p + "moe_input", input);
+    auto ffn_norm = original;
+    OPENVINO_ASSERT(e.has_weight(p + "ffn_latent_down.weight") == e.has_weight(p + "ffn_latent_up.weight"),
+                    "[GGUF] latent expert projections must include both down and up weights");
+    if (e.has_weight(p + "ffn_latent_down.weight")) {
+        e.add_weight(p + "ffn_latent_down.weight");
+        ffn_norm = e.add_op("GGML_OP_MUL_MAT", p + "moe_latent_input", {p + "ffn_latent_down.weight", original});
+    }
+    const auto output_width =
+        e.has_weight(p + "ffn_latent_up.weight") ? e.value(ffn_norm).get_partial_shape()[3].get_length() : cfg.n_embd;
     e.add_weight(p + "ffn_gate_inp.weight");
-    auto router = router_input.empty() ? ffn_norm : flatten(p + "moe_router_input", router_input);
+    const auto expert_count = e.weight_rows(p + "ffn_gate_inp.weight");
+    OPENVINO_ASSERT(cfg.n_expert_used > 0 && cfg.n_expert_used <= expert_count,
+                    "[GGUF] selected expert count must be positive and no larger than the layer's expert count");
+    // --- router: logits [1,1,T,E] = gate_inp · x ---
+    auto router = router_input.empty() ? original : flatten(p + "moe_router_input", router_input);
     auto logits = e.add_op("GGML_OP_MUL_MAT", p + "moe_logits", {p + "ffn_gate_inp.weight", router});
     if (cfg.has_moe_gate_bias) {
         logits = add_bias(e, logits, p + "ffn_gate_inp.bias", p + "moe_logits_b");
@@ -180,7 +192,10 @@ std::string moe_ffn(GraphEmitter& e,
     e.add_weight(p + "ffn_down_exps.weight");
     const bool eb = cfg.has_moe_expert_bias;
     std::string gate, up;
-    if (e.has_weight(p + "ffn_gate_up_exps.weight")) {
+    if (cfg.relu_squared_ffn) {
+        e.add_weight(p + "ffn_up_exps.weight");
+        up = e.add_op("GGML_OP_MUL_MAT_ID", p + "moe_up", {p + "ffn_up_exps.weight", ffn_norm, selected});
+    } else if (e.has_weight(p + "ffn_gate_up_exps.weight")) {
         e.add_weight(p + "ffn_gate_up_exps.weight");
         auto joint =
             e.add_op("GGML_OP_MUL_MAT_ID", p + "moe_gate_up", {p + "ffn_gate_up_exps.weight", ffn_norm, selected});
@@ -209,7 +224,10 @@ std::string moe_ffn(GraphEmitter& e,
         gate = e.add_op("GGML_OP_ADD_ID", p + "moe_gate_b", {gate, p + "ffn_gate_exps.bias", selected});
     }
     std::string act;
-    if (cfg.moe_swiglu_oai) {
+    if (cfg.relu_squared_ffn) {
+        const auto relu = e.add_op("GGML_UNARY_OP_RELU", p + "moe_relu", {up});
+        act = e.add_op("GGML_OP_SQR", p + "moe_act", {relu});
+    } else if (cfg.moe_swiglu_oai) {
         act = e.add_op("GGML_GLU_OP_SWIGLU_OAI",
                        p + "moe_act",
                        {gate, up},
@@ -236,7 +254,7 @@ std::string moe_ffn(GraphEmitter& e,
                      p + "moe_scale_row",
                      {p + "ffn_down_exps.scale"},
                      6,
-                     {{"reshape_target", std::vector<int64_t>{1, 1, 1, cfg.n_expert}}, {"special_zero", false}});
+                     {{"reshape_target", std::vector<int64_t>{1, 1, 1, expert_count}}, {"special_zero", false}});
         scales =
             e.add_op("GGML_OP_GET_ROWS", p + "moe_selected_scales", {scales, selected}, 10, {{"shared_row", true}});
         weights = e.add_op("GGML_OP_MUL", p + "moe_scaled_weights", {weights, scales});
@@ -249,22 +267,35 @@ std::string moe_ffn(GraphEmitter& e,
     auto weighted = e.add_op("GGML_OP_MUL", p + "moe_weighted", {experts, weights});
     auto tr = e.add_op("GGML_OP_TRANSPOSE", p + "moe_tr", {weighted});
     auto summed = e.add_op("GGML_OP_SUM_ROWS", p + "moe_sum", {tr});
-    auto moe_out = e.add_op("GGML_OP_RESHAPE",
-                            p + "moe_out",
-                            {summed},
-                            6,
-                            {{"reshape_target", std::vector<int64_t>{1, 1, -1, cfg.n_embd}}, {"special_zero", false}});
+    auto moe_out =
+        e.add_op("GGML_OP_RESHAPE",
+                 p + "moe_out",
+                 {summed},
+                 6,
+                 {{"reshape_target", std::vector<int64_t>{1, 1, -1, output_width}}, {"special_zero", false}});
+    if (e.has_weight(p + "ffn_latent_up.weight")) {
+        e.add_weight(p + "ffn_latent_up.weight");
+        moe_out = e.add_op("GGML_OP_MUL_MAT", p + "moe_latent_output", {p + "ffn_latent_up.weight", moe_out});
+    }
 
     // Shared experts are always active; some checkpoints omit expert_shared_count.
-    if (e.has_weight(p + "ffn_gate_shexp.weight")) {
-        auto s_act = swiglu_gate_up(e,
-                                    p + "ffn_gate_shexp.weight",
-                                    p + "ffn_up_shexp.weight",
-                                    ffn_norm,
-                                    p + "shexp_gate",
-                                    p + "shexp_up",
-                                    p + "shexp_act",
-                                    /*has_bias=*/false);
+    if (e.has_weight(p + "ffn_up_shexp.weight")) {
+        std::string s_act;
+        if (cfg.relu_squared_ffn) {
+            e.add_weight(p + "ffn_up_shexp.weight");
+            auto up = e.add_op("GGML_OP_MUL_MAT", p + "shexp_up", {p + "ffn_up_shexp.weight", original});
+            auto relu = e.add_op("GGML_UNARY_OP_RELU", p + "shexp_relu", {up});
+            s_act = e.add_op("GGML_OP_SQR", p + "shexp_act", {relu});
+        } else {
+            s_act = swiglu_gate_up(e,
+                                   p + "ffn_gate_shexp.weight",
+                                   p + "ffn_up_shexp.weight",
+                                   original,
+                                   p + "shexp_gate",
+                                   p + "shexp_up",
+                                   p + "shexp_act",
+                                   /*has_bias=*/false);
+        }
         e.add_weight(p + "ffn_down_shexp.weight");
         auto s_down = e.add_op("GGML_OP_MUL_MAT", p + "shexp_out", {p + "ffn_down_shexp.weight", s_act});
         if (e.has_weight(p + "ffn_gate_inp_shexp.weight")) {

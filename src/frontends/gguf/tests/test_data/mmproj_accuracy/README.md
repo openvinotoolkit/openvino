@@ -58,3 +58,5 @@ shared by the generator and the model hub tests.
 See [testing](../../../docs/testing.md#real-checkpoints) for pytest commands, dependencies,
 oracle caches, and local-file lists, and [coverage limits](../../../docs/mmproj.md#validation-coverage)
 for checkpoint tolerance overrides and skipped cases.
+
+The `nemotron_omni` fixture uses llama.cpp CPU `23f7aabc16c72f6f707dba227251c35d7bd1ed96`. It includes square/rectangular image grids, distinct temporal frame pairs and repeated odd frames, with prefix registers, bilinear position interpolation and spatial merge. `GGUF_ORACLE_VIDEO=1` selects the single-frame video padding path in the oracle.

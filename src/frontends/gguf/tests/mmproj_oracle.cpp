@@ -52,6 +52,7 @@ int main(int argc, char** argv) {
     std::vector<float> output(size_t(clip_n_output_tokens(context, &input)) * clip_n_mmproj_embd(context));
     clip_image_f32_batch batch;
     batch.is_audio = audio;
+    batch.is_video = std::getenv("GGUF_ORACLE_VIDEO") != nullptr;
     batch.entries.push_back(input);
     if (argc == 8) {
         std::ifstream second(argv[7], std::ios::binary);

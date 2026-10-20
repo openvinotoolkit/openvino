@@ -701,7 +701,7 @@ TEST_P(GGUFMMProjDynamicAccuracy, ReusesCompiledModelAcrossGrids) {
                 request.set_tensor(name, tensor(key, input.get_element_type()));
             }
             request.infer();
-            const auto output = request.get_output_tensor();
+            const auto output = request.get_output_tensor(0);
             const auto& expected = array(std::to_string(step) + ".embeddings");
             auto shape = expected.shape;
             if (adapt)
@@ -717,7 +717,8 @@ TEST_P(GGUFMMProjDynamicAccuracy, ReusesCompiledModelAcrossGrids) {
 
 INSTANTIATE_TEST_SUITE_P(Reference,
                          GGUFMMProjDynamicAccuracy,
-                         ::testing::Values("muse-glimmer",
+                         ::testing::Values("nemotron_omni",
+                                           "muse-glimmer",
                                            "qwen2.5vl_merger_grids",
                                            "resampler_grids",
                                            "pixtral",
@@ -800,7 +801,7 @@ TEST_P(GGUFMMProjGenAIVisionLayout, MatchesSourceGraph) {
     ASSERT_TRUE(adapter.run_on_model(adapted));
     const auto& models = adapter.get_vision_models();
     const auto projector = model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"});
-    ASSERT_EQ(models.size(), projector == "qwen3vl_merger" ? 3u : 1u);
+    ASSERT_EQ(models.size(), projector == "qwen3vl_merger" ? 3u : projector == "nemotron_omni" ? 2u : 1u);
     EXPECT_EQ(models.at(projector == "qwen3vl_merger" ? "vision_embeddings_merger" : "vision_embeddings"), adapted);
     const auto patch = size_t(metadata("vision.patch_size"));
     const bool steps = std::any_of(arrays.begin(), arrays.end(), [](const auto& entry) {
@@ -817,7 +818,7 @@ TEST_P(GGUFMMProjGenAIVisionLayout, MatchesSourceGraph) {
             return image.data<const float>()[((frame * 3 + channel) * height + row) * width + col];
         };
         std::vector<ov::Tensor> actual;
-        if (projector == "gemma3") {
+        if (projector == "gemma3" || projector == "nemotron_omni") {
             actual = infer(models.at("vision_embeddings"), {{"pixel_values", image}});
         } else if (projector == "gemma4v" || projector == "gemma4uv") {
             const size_t padded = count + 3, dim = patch * patch * 3;
@@ -939,8 +940,42 @@ TEST_P(GGUFMMProjGenAIVisionLayout, MatchesSourceGraph) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    Reference,
-    GGUFMMProjGenAIVisionLayout,
-    ::testing::Values("gemma3", "gemma4v", "gemma4v_one_sided", "gemma4uv", "muse-glimmer", "qwen3vl_merger"));
+class GGUFNemotronVideoAccuracy : public GGUFMMProjGenAIVisionLayout {};
+
+TEST_P(GGUFNemotronVideoAccuracy, TemporalPairsAndOddPaddingMatchLlamaCpp) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    auto adapted = model->clone();
+    Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+    ASSERT_TRUE(adapter.run_on_model(adapted));
+    const auto video = adapter.get_vision_models().at("vision_embeddings_video");
+    auto request = compile(video);
+    ASSERT_EQ(video->inputs().size(), 1);
+    ASSERT_EQ(video->outputs().size(), 1);
+    for (const std::string step : {"0.", "1.", "0."}) {
+        for (const std::string kind : {"", "padded_"}) {
+            request.set_tensor("video_pixel_values", tensor(step + kind + "video_pixel_values", ov::element::f32));
+            request.infer();
+            const auto output = request.get_output_tensor();
+            const auto& expected = array(step + kind + "video_embeddings");
+            auto shape = expected.shape;
+            shape.erase(shape.begin());
+            ASSERT_EQ(output.get_shape(), shape);
+            ov_gguf_test::expect_nmse_below(
+                ov_gguf_test::nmse(output.data<const float>(), expected.data<float>(), output.get_size()),
+                1e-5);
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(Reference, GGUFNemotronVideoAccuracy, ::testing::Values("nemotron_omni"));
+
+INSTANTIATE_TEST_SUITE_P(Reference,
+                         GGUFMMProjGenAIVisionLayout,
+                         ::testing::Values("nemotron_omni",
+                                           "gemma3",
+                                           "gemma4v",
+                                           "gemma4v_one_sided",
+                                           "gemma4uv",
+                                           "muse-glimmer",
+                                           "qwen3vl_merger"));
 }  // namespace

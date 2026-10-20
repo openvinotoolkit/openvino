@@ -90,6 +90,8 @@ struct DecoderConfig {
     // ---- MoE / scalar metadata ----
     int n_expert = 0;
     int n_expert_used = 0;
+    std::vector<uint32_t> n_expert_used_per_layer;
+    std::vector<int> moe_layers;
     int n_dense_lead = 0;
     int moe_layer_step = 1;
     bool moe_sigmoid_gating = false;
@@ -142,6 +144,7 @@ struct DecoderConfig {
 
     // KV head count for layer `il` (some archs, e.g. Deci-style, vary head_count_kv per layer).
     int layer_n_head_kv(int il) const;
+    int layer_n_expert_used(int il) const;
 
     // Attention (softmax) scale for layer `il`. An explicit metadata scale wins; otherwise use
     // 1/sqrt(layer_head_size(il)) so SWA and global layers each get the head-size-correct scale.

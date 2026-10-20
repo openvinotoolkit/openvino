@@ -356,6 +356,27 @@ Models adapt_mmproj(const std::shared_ptr<ov::Model>& model,
     if (layout == Layout::VISION_ENCODERS)
         OPENVINO_ASSERT(modality == Modality::VISION, "[GGUF] VISION_ENCODERS layout requires vision modality");
     const std::string prefix = modality == Modality::VISION ? "vision." : "audio.";
+    auto live_original = std::make_shared<std::unordered_set<const ov::Node*>>();
+    SnapshotLiveParameters(live_original).run_on_model(model);
+    std::shared_ptr<ov::Model> video_model;
+    if (layout == Layout::VISION_ENCODERS) {
+        for (const auto& result : model->get_results()) {
+            if (result->input_value(0).get_names().count("vision.video_embeddings")) {
+                video_model = model->clone();
+                auto live = std::make_shared<std::unordered_set<const ov::Node*>>();
+                SnapshotLiveParameters(live).run_on_model(video_model);
+                const auto results = video_model->get_results();
+                for (const auto& candidate : results) {
+                    if (candidate->input_value(0).get_names().count("vision.video_embeddings"))
+                        candidate->input_value(0).get_tensor().set_names({"vision.embeddings"});
+                    else
+                        video_model->remove_result(candidate);
+                }
+                PruneParametersOrphanedSince(live).run_on_model(video_model);
+                adapt_mmproj(video_model, modality, Layout::EMBEDDINGS);
+            }
+        }
+    }
     std::shared_ptr<ov::op::v0::Result> selected;
     for (const auto& result : model->get_results()) {
         if (result->input_value(0).get_names().count(prefix + "embeddings"))
@@ -366,13 +387,14 @@ Models adapt_mmproj(const std::shared_ptr<ov::Model>& model,
     if (layout == Layout::VISION_ENCODERS) {
         projector = model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"});
         OPENVINO_ASSERT(projector == "gemma3" || projector == "gemma4v" || projector == "gemma4uv" ||
-                            projector == "muse-glimmer" || projector == "qwen3vl_merger",
+                            projector == "muse-glimmer" || projector == "qwen3vl_merger" ||
+                            projector == "nemotron_omni",
                         "[GGUF] no GenAI vision layout for mmproj projector '",
                         projector,
                         "'");
     }
     auto live_before = std::make_shared<std::unordered_set<const ov::Node*>>();
-    SnapshotLiveParameters(live_before).run_on_model(model);
+    *live_before = *live_original;
     const auto results = model->get_results();
     for (const auto& result : results)
         model->remove_result(result);
@@ -416,6 +438,8 @@ Models adapt_mmproj(const std::shared_ptr<ov::Model>& model,
             vision_models = {{"vision_embeddings", model}};
         }
     }
+    if (video_model)
+        vision_models["vision_embeddings_video"] = video_model;
     return vision_models;
 }
 }  // namespace

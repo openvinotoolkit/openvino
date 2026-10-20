@@ -26,6 +26,9 @@ CASES = {
     "qwen35-mixed": {"architecture": "qwen35", "f16": ("attn_gate", "blk.2.ssm_beta")},
     "bonsai2-hadamard": {"architecture": "qwen35", "hadamard": True},
     "nemotron_h": {},
+    "nemotron_h_moe": {"architecture": "nemotron_h_moe", "moe": True},
+    "nemotron_h_moe-latent": {"architecture": "nemotron_h_moe", "moe": True, "latent": 16},
+    "nemotron_h_moe-puzzle": {"architecture": "nemotron_h_moe", "moe": True, "latent": 16, "puzzle": True},
     "mamba2": {}, "mamba2-tied": {"architecture": "mamba2", "tied": True},
     "llama": {},
     "llama-embed": {"embedding_output": True, "tied": True},
@@ -77,18 +80,40 @@ def tensor_writer(writer, rng, f16=()):
 
 def write_mamba2_model(path, opts, arch="mamba2"):
     w = gguf.GGUFWriter(path, arch)
-    hybrid = arch == "nemotron_h"
+    hybrid = arch in ("nemotron_h", "nemotron_h_moe")
+    moe = opts.get("moe", False)
+    puzzle = opts.get("puzzle", False)
+    layers = 6 if puzzle else 4 if hybrid else 2
     d, inner, heads, groups, state, kernel, vocab = 32, 64, 4, 2, 8, 4, 32
     w.add_context_length(128)
     w.add_embedding_length(d)
-    w.add_block_count(4 if hybrid else 2)
+    w.add_block_count(layers)
     w.add_head_count(4 if hybrid else 0)
     if hybrid:
-        w.add_head_count_kv([0, 2, 0, 0])
-        w.add_feed_forward_length([0, 0, 48, 0])
+        w.add_head_count_kv([0, 2, 0, 0, 0, 0] if puzzle else [0, 2, 0, 0])
+        w.add_feed_forward_length([0, 0, 48, 0, 40, 0] if puzzle else [0, 0, 48, 0])
         w.add_key_length(8)
         w.add_value_length(8)
-    w.add_layer_norm_rms_eps(1e-5)
+    if moe:
+        w.add_layer_norm_eps(1e-5)
+    if opts.get("latent"):
+        pass
+    else:
+        w.add_layer_norm_rms_eps(1e-5)
+    if moe:
+        w.add_expert_count(4)
+        if puzzle:
+            w.add_array(arch + ".expert_used_count", [0, 0, 2, 0, 1, 0])
+            w.add_array(arch + ".expert_feed_forward_length", [0, 0, 48, 0, 40, 0])
+        else:
+            w.add_expert_used_count(2)
+            w.add_uint32(arch + ".expert_feed_forward_length", 48)
+        w.add_uint32(arch + ".expert_shared_feed_forward_length", 24)
+        w.add_uint32(arch + ".expert_shared_count", 1)
+        w.add_bool(arch + ".expert_weights_norm", True)
+        w.add_float32(arch + ".expert_weights_scale", 2.5)
+        if opts.get("latent"):
+            w.add_uint32(arch + ".moe_latent_size", opts["latent"])
     w.add_vocab_size(vocab)
     w.add_tokenizer_model("none")
     for key, value in {"inner_size": inner, "time_step_rank": heads, "group_count": groups,
@@ -104,7 +129,7 @@ def write_mamba2_model(path, opts, arch="mamba2"):
     if not opts.get("tied"):
         tensor("output.weight", (vocab, d))
     conv_dim = inner + 2 * groups * state
-    for layer in range(4 if hybrid else 2):
+    for layer in range(layers):
         p = f"blk.{layer}."
         tensor(p + "attn_norm.weight", (d,), True)
         if hybrid and layer == 1:
@@ -114,13 +139,29 @@ def write_mamba2_model(path, opts, arch="mamba2"):
             tensor(p + "attn_output.weight", (d, 32))
             tensor(p + "attn_output.bias", (d,))
             continue
-        if hybrid and layer == 2:
+        if hybrid and (layer == 2 or (puzzle and layer == 4)):
+            if moe:
+                experts = 3 if layer == 4 else 4
+                hidden = 40 if layer == 4 else 48
+                width = opts.get("latent", d)
+                tensor(p + "ffn_gate_inp.weight", (experts, d))
+                tensor(p + "exp_probs_b.bias", (experts,))
+                tensor(p + "ffn_up_exps.weight", (experts, hidden, width))
+                tensor(p + "ffn_down_exps.weight", (experts, width, hidden))
+                tensor(p + "ffn_up_shexp.weight", (24, d))
+                tensor(p + "ffn_down_shexp.weight", (d, 24))
+                if opts.get("latent"):
+                    tensor(p + "ffn_latent_down.weight", (width, d))
+                    tensor(p + "ffn_latent_up.weight", (d, width))
+                continue
             tensor(p + "ffn_up.weight", (48, d))
             tensor(p + "ffn_up.bias", (48,))
             tensor(p + "ffn_down.weight", (d, 48))
             tensor(p + "ffn_down.bias", (d,))
             continue
         tensor(p + "ssm_in.weight", (inner + conv_dim + heads, d))
+        if puzzle:
+            w.add_tensor(p + "ssm_in.scale", np.array([.3 + .1 * layer], dtype=np.float32))
         tensor(p + "ssm_conv1d.weight", (conv_dim, kernel))
         tensor(p + "ssm_conv1d.bias", (conv_dim,))
         tensor(p + "ssm_dt.bias", (heads,))
@@ -128,6 +169,8 @@ def write_mamba2_model(path, opts, arch="mamba2"):
         tensor(p + "ssm_d", (heads, 1))
         tensor(p + "ssm_norm.weight", (groups, inner // groups), True)
         tensor(p + "ssm_out.weight", (d, inner))
+        if puzzle:
+            w.add_tensor(p + "ssm_out.scale", np.array([1.7 - .1 * layer], dtype=np.float32))
     finish(w)
 
 
@@ -295,7 +338,7 @@ def write_model(path, arch, opts):
         return write_gemma4_model(path, opts)
     if arch in ("qwen35", "qwen35moe"):
         return write_qwen35_model(path, arch, opts.get("fused_experts", False), opts.get("f16", ()), opts.get("hadamard", False))
-    if arch in ("mamba2", "nemotron_h"):
+    if arch in ("mamba2", "nemotron_h", "nemotron_h_moe"):
         return write_mamba2_model(path, opts, arch)
     w = gguf.GGUFWriter(path, arch)
     d, heads, head, ff, vocab = opts.get("embedding", 32), 4, 8, 48, 32

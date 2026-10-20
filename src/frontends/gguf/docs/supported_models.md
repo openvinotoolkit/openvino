@@ -47,6 +47,7 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 | `mistral3` | Dense, NORMAL RoPE, attention temperature | Devstral Small 2 24B; Ministral-3-3B-Instruct-2512 Q4_K_M | 13/13; 13/13 |
 | `muse-glimmer` | RoPE on SWA layers, attention output gate, pre/post norms | Muse-Glimmer-30B Q4_0 | 13/13 |
 | `nemotron_h` | Hybrid Mamba 2 / attention / ReLU² FFN; one-sequence greedy decoding | Nemotron-H-8B-Reasoning-128K Q4_K_M | 12/13 |
+| `nemotron_h_moe` | Nemotron 3.5 Lightning, Bolt and Super VL; hybrid Mamba 2 / NoPE attention / ReLU² MoE, optional latent projections and per-layer expert counts | Independent small Lightning, latent and Bolt Puzzle fixtures | Small-fixture full-logit NMSE < 1e-5; Lightning 13/13 choices, Bolt 12/13, Super 13/13 (see checkpoint limits) |
 | `olmoe` | Full-width QK-norm, MoE | — | |
 | `phi3` | Fused QKV | — | |
 | `plamo3` | Fused QKV and gate/up, bare post-norms, SWA | plamo-3-nict-2b-base Q4_K_M | 12/13 |
@@ -81,9 +82,9 @@ Bailing grouped routing; see the [fixture README](../tests/test_data/arch_accura
 ### Runtime limitations
 
 - **Recurrent states:** Gated-DeltaNet states support batching and beams through `AdaptToGenAI`;
-  Mamba 2 and `nemotron_h` support one sequence with greedy decoding and resettable caches, without
-  GenAI paged integration; beam search and prefix-cache reuse are untested. Mamba 1 and
-  `nemotron_h_moe` are not supported. See [runtime.md](runtime.md#stateful-and-genai-conversion).
+  Mamba 2, `nemotron_h` and `nemotron_h_moe` support one sequence with greedy decoding and resettable caches, without
+  GenAI paged integration; beam search and prefix-cache reuse are untested.
+  Mamba 1 is not supported. See [runtime.md](runtime.md#stateful-and-genai-conversion).
 - **Multimodal:** a tested language backbone does not cover its vision or audio encoders,
   preprocessing or application pipeline.
 - **Quantization and memory:** see [quantization.md](quantization.md).
@@ -155,3 +156,32 @@ endpoints to 1000 and 0, independent of the bounds. Both bounds must still be pr
 finite and strictly ordered, as required by the model's conditioning metadata.
 Hidden-correction checkpoints and generic GenAI decoder adaptation are not supported.
 Draft blocks up to 4096 tokens are supported.
+
+## Nemotron 3.5 checkpoint validation
+
+The `nemotron_h_moe` builder covers Lightning, Bolt and Super VL decoder trunks. NextN draft
+layers are excluded. Bolt supports variable per-layer expert counts, widths and top-k,
+latent expert projections, and SSM projection scales. Native IQ2_XXS and NVFP4 weights are
+supported. Use the paired `nemotron_omni` projector for Bolt and Super VL.
+
+Pinned llama.cpp CPU `23f7aabc16c72f6f707dba227251c35d7bd1ed96` comparisons use F32 inference,
+`DYNAMIC_QUANTIZATION_GROUP_SIZE=0`, F16 KV cache and `OV_GGUF_Q4_K_ZP_F16=1`:
+
+| Checkpoint | Teacher-forced choices | Full-logit NMSE | Result |
+| --- | --- | --- | --- |
+| Unsloth Lightning UD-Q4_K_M, revision `f2d3fe3694501008786e81e5f20360cbf715496a` | 13/13 | 0.00115–0.01301 | Token gate passes; strict `1e-5` logit gate fails |
+| NVIDIA Bolt 24GB, revision `e0fecb69cb3e5e4c5e8a056fa2aec98c78e91246` | 12/13 | All 13 below `1e-5` | First-choice and 90% token gate pass |
+| ggml-org Super VL Q4_0, revision `3c91ad1be60865386af92e8147dafb32470b097d` | 13/13 | About `4e-6`–`6.7e-5` | Token gate passes; strict `1e-5` logit gate fails |
+
+Checkpoint names do not specify every tensor type. This Lightning artifact contains
+Q5_0/Q5_1/Q8_0/BF16 tensors; Bolt contains IQ2_XXS/NVFP4/Q8_0. CPU kernels and quantized
+reference arithmetic differ. Three independent F32 fixtures establish graph semantics,
+including prefill, cached decode and reset. Quantized failures remain separate from them.
+CPU Bolt compilation peaked at approximately 121 GiB resident memory with additional swap;
+the 24GB checkpoint name describes compressed file storage.
+
+Real Bolt image generation passes eight GenAI media/API checks, including reversed images, odd-frame video, chat history and cancellation/reset. An identical-history five-step image replay matches all five reference choices, but strict full-logit parity passes only three steps (NMSE `2.85e-6`–`1.92e-4`); original image-feature NMSE is `1.99e-5`. These failed quantitative gates remain limitations.
+
+The pinned Super VL Q4_0/Q8_0 pair also passes the same eight real GenAI image/video/chat/cancellation API scenarios. Its identical-history five-step image replay matches all five choices, but none passes the strict full-logit gate (NMSE `2.23e-5`–`0.05098`); original image-feature NMSE is `0.003374`. Both pairs use the native 512×512 image path (256 visual tokens), temporal video pairing and the GGUF chat template. Successful API and short token checks do not establish broad model quality or strict checkpoint parity.
+
+A Super decoder diagnostic using the exact original CPU image features still matches five choices but passes none of the five strict logit comparisons (maximum NMSE `0.06581`). The projector feature difference is therefore not the sole cause; quantized decoder parity remains unresolved.

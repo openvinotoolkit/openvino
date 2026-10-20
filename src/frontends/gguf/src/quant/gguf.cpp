@@ -93,6 +93,10 @@ TypeTraits type_traits(uint32_t type) {
         return {1, 8};
     case GGUF_TYPE_BF16:
         return {1, 2};
+    case GGUF_TYPE_IQ2_XXS:
+        return {256, 66};
+    case GGUF_TYPE_NVFP4:
+        return {64, 36};
     case GGUF_TYPE_MXFP4:
         return {32, 17};  // 1-byte E8M0 scale + 16 bytes (32x 4-bit)
     default:
@@ -125,6 +129,10 @@ std::optional<QuantLayout> quant_layout(uint32_t type) {
         return QuantLayout{ov::element::i8, 1, ov::element::f16, 32, symmetric};
     case GGUF_TYPE_Q6_K:
         return QuantLayout{ov::element::i8, 1, ov::element::f16, 16, symmetric};
+    case GGUF_TYPE_IQ2_XXS:
+        return QuantLayout{ov::element::i8, 1, ov::element::f32, 32, symmetric};
+    case GGUF_TYPE_NVFP4:
+        return QuantLayout{ov::element::i8, 1, ov::element::f32, 16, symmetric};
     case GGUF_TYPE_Q8_K:
         // 256 i8 weights + an f32 (not f16) scale + 16 i16 bsums, which the dequant ignores.
         return QuantLayout{ov::element::i8, 1, ov::element::f32, 256, symmetric};
@@ -724,9 +732,11 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     config["max_position_embeddings"] = metadata_to_int_or(metadata, arch + ".context_length", 2048);
     config["pooling_type"] = metadata_to_int_or(metadata, arch + ".pooling_type", 0);
     config["causal_attention"] = metadata_to_bool_or(metadata, arch + ".attention.causal", true) ? 1 : 0;
+    const bool nemotron = arch == "nemotron_h" || arch == "nemotron_h_moe";
+    const auto rms_key = arch + ".attention.layer_norm_rms_epsilon";
     config["rms_norm_eps"] = metadata_to_float(
         metadata,
-        arch + (arch == "jais2" ? ".attention.layer_norm_epsilon" : ".attention.layer_norm_rms_epsilon"));
+        (arch == "jais2" || (nemotron && !metadata.count(rms_key))) ? arch + ".attention.layer_norm_epsilon" : rms_key);
     config["rope_freq_base"] = metadata_to_float_or(metadata, arch + ".rope.freq_base", 10000.0f);
     // Advisory: the dominant quant type of the file. Purely informational -- every weight carries
     // its own type in the tensor info, which is what the dequant path uses. Optional because
@@ -779,8 +789,36 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
 
     // Mixture-of-experts config (0 when dense).
     config["expert_count"] = metadata_to_int_or(metadata, arch + ".expert_count", 0);
-    config["expert_used_count"] = metadata_to_int_or(metadata, arch + ".expert_used_count", 0);
-    config["expert_feed_forward_length"] = metadata_to_int_or(metadata, arch + ".expert_feed_forward_length", 0);
+    for (const auto& suffix : {"expert_used_count", "expert_feed_forward_length"}) {
+        const auto key = arch + "." + suffix;
+        if (metadata.count(key)) {
+            auto tensor = std::get<ov::Tensor>(metadata.at(key));
+            OPENVINO_ASSERT(
+                (tensor.get_element_type() == ov::element::u32 || tensor.get_element_type() == ov::element::i32) &&
+                    tensor.get_size() > 0,
+                "[GGUF] invalid integer metadata array: ",
+                key);
+            if (tensor.get_element_type() == ov::element::i32) {
+                ov::Tensor normalized(ov::element::u32, tensor.get_shape());
+                for (size_t index = 0; index < tensor.get_size(); ++index) {
+                    const auto value = tensor.data<const int32_t>()[index];
+                    OPENVINO_ASSERT(value >= 0, "[GGUF] negative per-layer metadata value: ", key);
+                    normalized.data<uint32_t>()[index] = uint32_t(value);
+                }
+                tensor = normalized;
+            }
+            if (tensor.get_size() > 1) {
+                OPENVINO_ASSERT(tensor.get_size() == size_t(std::get<int>(config["layer_num"])),
+                                "[GGUF] per-layer metadata length does not match block_count: ",
+                                key);
+                config[std::string(suffix) + "_per_layer"] = tensor;
+            }
+            const auto* values = tensor.data<const uint32_t>();
+            config[suffix] = int(*std::max_element(values, values + tensor.get_size()));
+        } else {
+            config[suffix] = 0;
+        }
+    }
     // Hybrid MoE: first N layers are dense, remainder use MoE routing.
     // Mirrors llama.cpp hparams.n_layer_dense_lead (deepseek2-ocr, ernie4_5-moe, glm4moe).
     config["n_layer_dense_lead"] = metadata_to_int_or(metadata, arch + ".leading_dense_block_count", 0);
