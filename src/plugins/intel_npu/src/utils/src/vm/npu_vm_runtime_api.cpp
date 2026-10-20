@@ -12,15 +12,14 @@
 namespace intel_npu {
 
 namespace {
-constexpr std::string_view MLIR_RUNTIME_NAME = "openvino_intel_npu_mlir_runtime";
 constexpr std::string_view VM_RUNTIME_NAME = "openvino_intel_npu_vm_runtime";
 
-std::string g_libName{MLIR_RUNTIME_NAME};
+std::string g_libName{VM_RUNTIME_NAME};
 bool g_instanceCreated{false};
 }  // namespace
 
 NPUVMRuntimeApi::NPUVMRuntimeApi(std::string_view libName) {
-    const std::string_view baseName = libName.empty() ? MLIR_RUNTIME_NAME : libName;
+    const std::string_view baseName = libName.empty() ? VM_RUNTIME_NAME : libName;
     try {
         auto libPath =
             ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), std::string(baseName) + OV_BUILD_POSTFIX);
@@ -51,13 +50,16 @@ NPUVMRuntimeApi::NPUVMRuntimeApi(std::string_view libName) {
 void NPUVMRuntimeApi::initializeFromBlob(const void* data, size_t size) {
     const size_t headerSize = std::min(size, size_t{20});
     const std::string_view header(static_cast<const char*>(data), headerSize);
-    const std::string_view libName =
-        (header.find("NPUByte\x00") != std::string_view::npos) ? VM_RUNTIME_NAME : MLIR_RUNTIME_NAME;
-    initialize(libName);
+
+    if (header.find("NPUByte\x00") == std::string_view::npos) {
+        OPENVINO_THROW("Non-NPUByte blob detected");
+    }
+
+    initialize(VM_RUNTIME_NAME);
 }
 
 void NPUVMRuntimeApi::initialize(std::string_view libName) {
-    const std::string resolvedName{libName.empty() ? MLIR_RUNTIME_NAME : libName};
+    const std::string resolvedName{libName.empty() ? VM_RUNTIME_NAME : libName};
     if (g_instanceCreated) {
         if (g_libName != resolvedName) {
             OPENVINO_THROW("NPUVMRuntimeApi is already initialized with '",

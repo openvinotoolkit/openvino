@@ -14,11 +14,13 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/is_nan.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/prelu.hpp"
+#include "openvino/op/util/binary_elementwise_bitwise.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/op/broadcastload.hpp"
@@ -85,6 +87,7 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
     SHAPE_INFER_PREDEFINED(op::Store, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(op::Fill, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(ov::op::v0::Parameter, PassThroughShapeInfer),
+    SHAPE_INFER_PREDEFINED(ov::op::v13::BitwiseNot, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(ov::op::v10::IsFinite, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(ov::op::v10::IsInf, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(ov::op::v10::IsNaN, PassThroughShapeInfer),
@@ -141,7 +144,8 @@ std::shared_ptr<IShapeInferSnippets> make_shape_inference(const std::shared_ptr<
     }
     if (ov::is_type_any_of<ov::op::util::BinaryElementwiseArithmetic,
                            ov::op::util::BinaryElementwiseComparison,
-                           ov::op::util::BinaryElementwiseLogical>(op)) {
+                           ov::op::util::BinaryElementwiseLogical,
+                           ov::op::util::BinaryElementwiseBitwise>(op)) {
         return std::make_shared<NumpyBroadcastShapeInfer>();
     }
     OPENVINO_THROW("Operation type " + std::string(op->get_type_info().name) +

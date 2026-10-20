@@ -23,7 +23,7 @@ void rebind_onednn_reuse_optimized_dst_if_needed(primitive_inst& inst) {
 
     auto& engine = inst.get_network().get_engine();
     for (auto* user_inst : inst.get_user_insts()) {
-        auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(user_inst->get_node());
+        auto reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(user_inst->get_node());
         if (reused_eltwmem_idx < 0) {
             continue;
         }
