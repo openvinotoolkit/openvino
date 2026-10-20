@@ -550,6 +550,9 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
     // Grouped scale/zp of non-transposed weights [K, N] are [K / G, N], so they already have the [groups, N] physical layout.
     if (!fc_prim->compressed_weights || !fc_prim->weights_transposed)
         return;
+    // The reorder below assumes NK / KN weight ranks.
+    if (fc_prim->weights_layout == ov::intel_gpu::op::FcWeightsLayout::GNK)
+        return;
 
     auto reorder_bfyx = [&](size_t dep_id, cldnn::format format) {
         auto& dep = fc_node.get_dependency(dep_id);

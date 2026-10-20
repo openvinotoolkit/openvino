@@ -40,6 +40,10 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
         auto out_dt = out_layout.data_type;
         auto fc_prim = fc_node.get_primitive();
 
+        if (fc_prim->weights_layout == ov::intel_gpu::op::FcWeightsLayout::GNK) {
+            LOG_AND_RETURN_FALSE(node);
+        }
+
         if (one_of(data_types::i64, {in0_dt, wei_dt})) {
             LOG_AND_RETURN_FALSE(node);
         }
