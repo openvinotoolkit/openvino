@@ -26,7 +26,7 @@
 namespace intel_npu {
 
 PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                             ov::SoPtr<IVCLCompiler> compiler)
+                                             std::shared_ptr<IVCLCompiler> compiler)
     : _zeroInitStruct(zeroInitStruct),
       _compiler(std::move(compiler)),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
@@ -59,11 +59,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("compile end");
 
     const auto& compilationMode = config.get<COMPILATION_MODE>();
-    const bool isHostCompile = compilationMode.find("HostCompile") != std::string::npos;
-    const BlobType blobType =
-        isHostCompile ? (compilationMode.find("HostCompile_Interpreter") != std::string::npos ? BlobType::BYTECODE
-                                                                                              : BlobType::LLVM)
-                      : BlobType::ELF;
+    const bool isHostCompile = compilationMode.find("HostCompile_Interpreter") != std::string::npos;
+    const BlobType blobType = isHostCompile ? BlobType::BYTECODE : BlobType::ELF;
+
     if (blobType != BlobType::ELF) {
         _logger.debug("HostCompile mode is detected from NPU_COMPILATION_MODE, use internal function to get metadata!");
         NPUVMRuntimeApi::initializeFromBlob(tensor.data(), tensor.get_byte_size());
