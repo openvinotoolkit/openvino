@@ -89,22 +89,33 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* residual ATTR,      // [num_
     for (uint p = tid; p < C * (TM / 4); p += WG) {
         const uint c = p / (TM / 4);
         const uint r0 = (p % (TM / 4)) * 4;
+        // Rows past num_rows re-read the last row (always valid) and are zeroed below.
+        vector<uint, 4> off;
+#pragma unroll
+        for (uint r = 0; r < 4; r++) {
+            off[r] = cm_min<uint>(t0 + r0 + r, num_rows - 1) * CD + c * D;
+        }
+        matrix<float, 4, 16> sq = 0.0f;
+        for (uint d = 0; d < D; d += KD) {
+            matrix<half, 4, KD> x;
+#pragma unroll
+            for (uint r = 0; r < 4; r++) {
+                qsa_gr::load_hv<KD>(x.row(r), residual, off[r] + d);
+            }
+#pragma unroll
+            for (uint r = 0; r < 4; r++) {
+#pragma unroll
+                for (uint s = 0; s < KD; s += 16) {
+                    vector<float, 16> f = x.row(r).select<16, 1>(s);
+                    sq.row(r) += f * f;
+                }
+            }
+        }
         vector<float, 4> inv = 0.0f;
 #pragma unroll
         for (uint r = 0; r < 4; r++) {
-            const uint row = t0 + r0 + r;
-            if (row < num_rows) {
-                vector<float, 16> sq = 0.0f;
-                for (uint d = 0; d < D; d += KD) {
-                    vector<half, KD> x;
-                    qsa_gr::load_hv<KD>(x, residual, row * CD + c * D + d);
-#pragma unroll
-                    for (uint s = 0; s < KD; s += 16) {
-                        vector<float, 16> f = x.select<16, 1>(s);
-                        sq += f * f;
-                    }
-                }
-                inv[r] = cm_rsqrt(cm_sum<float>(sq) * (1.0f / (float)D) + (float)GR_EPS);
+            if (t0 + r0 + r < num_rows) {
+                inv[r] = cm_rsqrt(cm_sum<float>(sq.row(r)) * (1.0f / (float)D) + (float)GR_EPS);
             }
         }
         cm_slm_block_write(slm_inv, (c * TM + r0) * (uint)sizeof(float), inv);
