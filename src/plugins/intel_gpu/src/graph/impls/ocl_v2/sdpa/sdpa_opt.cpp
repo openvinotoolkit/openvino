@@ -28,24 +28,17 @@ namespace ov::intel_gpu::ocl {
 
 namespace {
 
-// Decode with grouped-query heads stacked as query rows has a few rows per KV head (3-4 on common models). The single-token
-// kernel splits the keys into partitions, so it stays parallel on long contexts, but it reads the keys once per row:
-// from 8 rows on it was slower than the multi-token kernels.
+// Decode with grouped-query heads stacked as query rows has 3-4 rows per KV head on common models.
+// Single-token kernel reads the keys once per row (Arc B390, 4K keys: +0.3% at 6 rows, -9% at 8, -26% at 16).
 constexpr int64_t max_single_token_rows = 4;
 
-int64_t target_rows(const RuntimeParams& params) {
-    auto desc = params.typed_desc<scaled_dot_product_attention>();
-    const auto target_seq_len = extract_dim(get_transposed_channel(ChannelName::Y, desc->input_q_transpose_order), params.input_layouts[0]);
-    return target_seq_len.is_static() ? target_seq_len.get_length() : -1;
-}
-
 bool use_multi_token_stage(const RuntimeParams& params) {
-    return target_rows(params) > max_single_token_rows;
+    return get_target_seq_len(params) > max_single_token_rows;
 }
 
-// The micro single-token kernel has no key partitions: it is used for one query row only.
+// Micro single-token kernel has no key partitions, so it is used for one query row only.
 bool single_query_row(const RuntimeParams& params) {
-    return target_rows(params) <= 1;
+    return get_target_seq_len(params) <= 1;
 }
 
 }  // namespace
@@ -155,10 +148,10 @@ public:
     [[nodiscard]] event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         const auto& params = *instance.get_impl_params();
         auto new_params = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
-        bool is_prefill = use_multi_token_stage(new_params);
-        const bool use_multi_tokens = is_prefill || unaligned_head_size(new_params);
+        const bool multi_token_rows = use_multi_token_stage(new_params);
+        const bool use_multi_tokens = multi_token_rows || unaligned_head_size(new_params);
         bool is_indirect = need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance));
-        GPU_DEBUG_TRACE_DETAIL << "execute indirect = " << is_indirect << ", prefill = " << is_prefill << "\n";
+        GPU_DEBUG_TRACE_DETAIL << "execute indirect = " << is_indirect << ", multi_token_rows = " << multi_token_rows << "\n";
         update_rt_params(instance);
 
         kernel_dump_info.clear_entries();
@@ -206,9 +199,9 @@ public:
         const auto head_size = get_head_size(params_canonicalization.get_input_layout(0), extended_input_q_transpose_order);
 
         const auto num_of_partitions = get_partitions_num(params_canonicalization, SDPAStage::SINGLE_TOKEN);
-        const auto is_prefill = use_multi_token_stage(params_canonicalization);
-        const size_t buf_elements_count = (num_of_partitions == 1 || is_prefill) ? 1 : params.output_layouts[0].count() / head_size * num_of_partitions;
-        const size_t tmp_out_elements_count = (num_of_partitions == 1 || is_prefill) ? 2 : params.output_layouts[0].count() * num_of_partitions;
+        const auto multi_token_rows = use_multi_token_stage(params_canonicalization);
+        const size_t buf_elements_count = (num_of_partitions == 1 || multi_token_rows) ? 1 : params.output_layouts[0].count() / head_size * num_of_partitions;
+        const size_t tmp_out_elements_count = (num_of_partitions == 1 || multi_token_rows) ? 2 : params.output_layouts[0].count() * num_of_partitions;
 
         internal_buffers.emplace_back(buf_elements_count, ov::element::f32);
         internal_buffers.emplace_back(buf_elements_count, ov::element::f32);
