@@ -132,6 +132,14 @@ void check_converted_values(const cldnn::memory::ptr& memory,
     }
 }
 
+// Isolate this overload call to avoid an MSVC 19.42 C1001 in the fallback test.
+void convert_host_tensor(const ov::ITensor* source,
+                         const cldnn::memory::ptr& destination,
+                         cldnn::stream& stream,
+                         const cldnn::layout& source_layout) {
+    ov::intel_gpu::convert_and_copy(source, destination, stream, source_layout, false);
+}
+
 template <typename Src, typename Dst>
 void check_async_values(const std::shared_ptr<tensor_conversion>& conversion,
                         const std::shared_ptr<ov::ITensor>& source,
@@ -423,7 +431,7 @@ TEST(convert_and_copy_gpu_test, async_util_unsupported_input_leaves_pending_empt
     EXPECT_EQ(pending.staging, nullptr);
     EXPECT_EQ(pending.done, nullptr);
 
-    ASSERT_NO_THROW(convert_and_copy(source.get(), dst, stream, src_layout));
+    ASSERT_NO_THROW(convert_host_tensor(source.get(), dst, stream, src_layout));
     check_converted_values<float, ov::float16>(dst, values, stream);
 
     auto prepared_network = make_state_network(shape, ov::element::f32, ov::element::f16);
@@ -444,7 +452,7 @@ TEST(convert_and_copy_gpu_test, async_util_unsupported_input_leaves_pending_empt
                                             conversion, pending));
         EXPECT_EQ(pending.staging, nullptr);
         EXPECT_EQ(pending.done, nullptr);
-        ASSERT_NO_THROW(convert_and_copy(unsupported_source.get(), destination, stream, unsupported_layout));
+        ASSERT_NO_THROW(convert_host_tensor(unsupported_source.get(), destination, stream, unsupported_layout));
         if (key.second == data_types::f32)
             check_converted_values<float, float>(destination, values, stream);
         else
@@ -457,7 +465,7 @@ TEST(convert_and_copy_gpu_test, async_util_unsupported_input_leaves_pending_empt
     EXPECT_EQ(pending.staging, nullptr);
     EXPECT_EQ(pending.done, nullptr);
     try {
-        convert_and_copy(remote.get(), dst, stream, src_layout);
+        convert_host_tensor(remote.get(), dst, stream, src_layout);
         FAIL() << "Expected an inaccessible remote source error";
     } catch (const ov::Exception& e) {
         EXPECT_NE(std::string(e.what()).find("CPU conversion cannot access a remote source tensor"), std::string::npos);

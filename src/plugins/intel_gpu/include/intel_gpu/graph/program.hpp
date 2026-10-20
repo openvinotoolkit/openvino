@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <mutex>
 #include <map>
 #include <utility>
 #include <set>
@@ -310,6 +311,7 @@ private:
     // TODO: Consider moving it to engine
     std::unique_ptr<kernels_cache> _kernels_cache;
     mutable std::shared_ptr<tensor_conversion> _tensor_conversion;
+    mutable std::mutex _tensor_conversion_mutex;
     ExecutionConfig _config;
     std::shared_ptr<ov::threading::IStreamsExecutor> _task_executor = nullptr;
     std::list<program_node*> inputs;

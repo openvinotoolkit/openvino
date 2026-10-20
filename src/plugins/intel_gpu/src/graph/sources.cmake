@@ -382,6 +382,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/stft.cpp
     ${CMAKE_CURRENT_LIST_DIR}/strided_slice.cpp
     ${CMAKE_CURRENT_LIST_DIR}/swiglu.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tensor_conversion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tile.cpp
     ${CMAKE_CURRENT_LIST_DIR}/topology.cpp
     ${CMAKE_CURRENT_LIST_DIR}/unique.cpp
