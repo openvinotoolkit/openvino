@@ -908,7 +908,7 @@ public:
         // If unique experts exceed resident capacity, returns nullopt → caller falls back.
         auto lease = _weight_provider->try_acquire_simultaneous(raw_topk_ids, stream);
         if (!lease) {
-            GPU_DEBUG_TRACE_DETAIL << "exec_prefill_grouped_gemm OTD: unique experts exceed resident_slots=" << resident_slot_count()
+            GPU_DEBUG_TRACE_DETAIL << "exec_grouped_gemm_cpu_mask_gen OTD: unique experts exceed resident_slots=" << resident_slot_count()
                                    << ", falling back to per-expert onednn loop" << std::endl;
             if (auto* perf = moe_otd::get_perf_counters()) {
                 perf->grouped_fallbacks.fetch_add(1, std::memory_order_relaxed);
@@ -2386,11 +2386,11 @@ public:
     //
     // Note: "total" = token_num * max_topk, sorted by expert assignment.
     //
-    cldnn::event::ptr exec_prefill_grouped_gemm(const std::vector<cldnn::event::ptr>& events,
-                                                cldnn::stream& stream,
-                                                typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                                scratch_buffers& scratch) {
-        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("moe_3gemm_swiglu_opt_impl::exec_prefill_grouped_gemm"));
+    cldnn::event::ptr exec_grouped_gemm_cpu_mask_gen(const std::vector<cldnn::event::ptr>& events,
+                                                     cldnn::stream& stream,
+                                                     typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                                     scratch_buffers& scratch) {
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("moe_3gemm_swiglu_opt_impl::exec_grouped_gemm_cpu_mask_gen"));
 
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         const auto& config = cur_moe->_config;
@@ -2482,7 +2482,7 @@ public:
             max_tokens_per_expert = *std::max_element(tokens_lens_per_expert_cpu.begin(), tokens_lens_per_expert_cpu.begin() + num_actually_used_experts);
         }
 
-        GPU_DEBUG_TRACE_DETAIL << "\nexec_prefill_grouped_gemm: token_num=" << token_num << ", total_gathered_tokens=" << total_gathered_tokens
+        GPU_DEBUG_TRACE_DETAIL << "\nexec_grouped_gemm_cpu_mask_gen: token_num=" << token_num << ", total_gathered_tokens=" << total_gathered_tokens
                                << ", max_tokens_per_expert=" << max_tokens_per_expert << ", num_actually_used_experts=" << num_actually_used_experts
                                << std::endl;
 
@@ -2492,16 +2492,16 @@ public:
         intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS]
             ->copy_from(stream, grouped_offsets_cpu.data(), 0, 0, grouped_offsets_cpu.size() * sizeof(grouped_offsets_cpu[0]), true);
 
-        return exec_grouped_gemm(ret_event, stream, instance, scratch, max_tokens_per_expert);
+        return exec_grouped_gemm_core(ret_event, stream, instance, scratch, max_tokens_per_expert);
     }
 
     // Steps 2-6 of the grouped GEMM path. Expects the gather token list, the grouped end-offsets and row_lut
-    // in the internal buffers, written by the CPU (exec_prefill_grouped_gemm) or GPU (exec_grouped_gemm_gpu_mask_gen) mask gen.
-    cldnn::event::ptr exec_grouped_gemm(cldnn::event::ptr ret_event,
-                                        cldnn::stream& stream,
-                                        typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                        scratch_buffers& scratch,
-                                        int max_tokens_per_expert) {
+    // in the internal buffers, written by the CPU (exec_grouped_gemm_cpu_mask_gen) or GPU (exec_grouped_gemm_gpu_mask_gen) mask gen.
+    cldnn::event::ptr exec_grouped_gemm_core(cldnn::event::ptr ret_event,
+                                             cldnn::stream& stream,
+                                             typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                             scratch_buffers& scratch,
+                                             int max_tokens_per_expert) {
         const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
         auto& dnn_stream = stream.get_onednn_stream();
 
@@ -2643,7 +2643,7 @@ public:
 
     // Grouped GEMM with GPU mask gen, used for single-token decode. The GPU mask gen writes the gather token list,
     // the grouped end-offsets and row_lut straight into the internal buffers, so unlike the host mask gen of
-    // exec_prefill_grouped_gemm there is no host round-trip.
+    // exec_grouped_gemm_cpu_mask_gen there is no host round-trip.
     cldnn::event::ptr exec_grouped_gemm_gpu_mask_gen(const std::vector<cldnn::event::ptr>& events,
                                                      cldnn::stream& stream,
                                                      typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
@@ -2678,7 +2678,7 @@ public:
                                        false,
                                        {static_cast<int>(token_num)});
         // The top-k experts of a token are distinct, so an expert gets at most one row per token
-        return exec_grouped_gemm(ret_event, stream, instance, scratch, static_cast<int>(token_num));
+        return exec_grouped_gemm_core(ret_event, stream, instance, scratch, static_cast<int>(token_num));
     }
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
@@ -2755,7 +2755,7 @@ public:
         } else if (impl == MoeGemmImpl::grouped_gemm) {
             // Same grouped GEMM either way: only the routing metadata comes from the GPU (1 token) or from the host mask gen
             ret_env = grouped_gpu_mask_gen ? exec_grouped_gemm_gpu_mask_gen(events, stream, instance, scratch)
-                                           : exec_prefill_grouped_gemm(events, stream, instance, scratch);
+                                           : exec_grouped_gemm_cpu_mask_gen(events, stream, instance, scratch);
             // In OTD mode the grouped_gemm path interleaves OCL kernels with OneDNN
             // grouped matmul on the same in-order queue. The framework's event-based
             // scheduling may proceed to subsequent graph nodes before scatter_reduce
@@ -2777,7 +2777,7 @@ public:
             if (impl == MoeGemmImpl::grouped_gemm && ret_env) {
                 // ensure grouped GEMM fully completes before executing shared expert, which relies on its output being ready;
                 // For grouped_gemm path, scatter_reduce (OCL) is preceded by multiple OCL <--> OneDNN
-                // transitions inside exec_prefill_grouped_gemm. The implicit ordering between
+                // transitions inside exec_grouped_gemm_cpu_mask_gen. The implicit ordering between
                 // the OCL queue and OneDNN's stream cannot be relied upon across this many
                 // back-and-forth submissions, so the shared expert's down_proj sum post-op
                 // (which reads+writes final_hidden_states) can race with scatter_reduce.
