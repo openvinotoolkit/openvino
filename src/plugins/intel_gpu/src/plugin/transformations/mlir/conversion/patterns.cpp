@@ -96,7 +96,15 @@ RMSPattern::RMSPattern()
                       }
                       // The converter computes the mean over the last dimension, so it must be static.
                       const auto& shape = output.get_partial_shape();
-                      if (shape[shape.rank().get_length() - 1].is_dynamic()) {
+                      const auto rank = shape.rank().get_length();
+                      if (rank == 0) {
+                          return false;
+                      }
+                      auto axis = node->get_axis();
+                      if (axis < 0) {
+                          axis += rank;
+                      }
+                      if (axis != rank - 1 || shape[rank - 1].is_dynamic()) {
                           return false;
                       }
                       // Mixed input/output precision (RMS output_type attribute) is not supported
