@@ -13,6 +13,7 @@
 #include "resample_inst.h"
 #include "reshape_inst.h"
 #include "rms_inst.h"
+#include "scaled_dot_product_attention_inst.h"
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
 #include "select_inst.h"
@@ -208,7 +209,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         for (auto& fused_op : next.get_fused_primitives()) {
             if (fused_op.is_type<eltwise>()) {
                 auto out_layout = next.get_output_layout();
-                auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(next, fused_op);
+                auto add_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(next, fused_op);
                 if (add_type == add_fusing_type::sum && prev.get_output_layout().format != out_layout.format)
                     return false;
             }
@@ -1619,6 +1620,7 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
     enable_onednn_for<reorder>();
     enable_onednn_for<moe_gemm>();
     enable_onednn_for<grouped_matmul>();
+    enable_onednn_for<scaled_dot_product_attention>();
 }
 
 bool layout_optimizer::has_all_enabled_onednn_impls_optimization_attribute() {
