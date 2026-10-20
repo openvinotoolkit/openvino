@@ -1032,6 +1032,28 @@ INSTANTIATE_TEST_SUITE_P(softmax_gpu_formats_test_bf16_3d,
                                  ),
                          PrintToStringParamName());
 
+TEST(softmax_gpu_byxf_f32, normalize_f_dynamic) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ov::PartialShape{2, 2, 1, 1}, data_types::f32, format::byxf});
+    set_values(input, {1.f, 2.f, 3.f, 4.f});
+
+    topology topology(input_layout("input", {ov::PartialShape::dynamic(4), data_types::f32, format::byxf}),
+                      softmax("softmax", input_info("input"), 1));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    ASSERT_TRUE(network.get_primitive("softmax")->get_impl()->is_dynamic());
+    auto output = network.execute().at("softmax").get_memory();
+    ASSERT_EQ(output->get_layout().format, format::byxf);
+    mem_lock<float, mem_lock_type::read> result(output, get_test_stream());
+    for (size_t b = 0; b < 2; ++b) {
+        ASSERT_NEAR(result[b * 2], 1.f / (1.f + std::exp(1.f)), 1e-5f);
+        ASSERT_NEAR(result[b * 2 + 1], 1.f / (1.f + std::exp(-1.f)), 1e-5f);
+    }
+}
+
 TEST(softmax_gpu_bfyx_f32, normalize_f_dynamic) {
     auto& engine = get_test_engine();
 

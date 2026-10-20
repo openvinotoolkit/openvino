@@ -15,8 +15,8 @@ namespace {
 // Loads the compiler-in-plugin, translating any failure into the aborting message callers expect.
 // Composing the compiler here, rather than inside PluginCompilerAdapter, keeps the adapter free of
 // any knowledge of how a compiler is obtained.
-ov::SoPtr<IVCLCompiler> makePluginCompiler(const std::shared_ptr<IDevice>& device,
-                                           const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
+std::shared_ptr<IVCLCompiler> makePluginCompiler(const std::shared_ptr<IDevice>& device,
+                                                 const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
     try {
         return makeVCLCompiler(
             device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
