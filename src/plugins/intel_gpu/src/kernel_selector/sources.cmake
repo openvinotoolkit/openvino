@@ -931,6 +931,7 @@ set(GPU_KERNEL_SELECTOR_CL_KERNELS
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/mvn_gpu_ref_within_channels.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/non_max_suppression_gpu_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/normalize_gpu_across_spatial_ref.cl
+    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/normalize_gpu_across_x.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/normalize_gpu_within_spatial_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/one_hot_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/permute_bfzyx_to_bfyxz.cl

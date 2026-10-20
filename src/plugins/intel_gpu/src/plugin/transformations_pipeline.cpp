@@ -1328,6 +1328,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             [](const_node_ptr &node) -> bool {
             // Condition to filter out axes such as [0, 1, 2] which is not supported currently.
             const auto norm = ov::as_type_ptr<const ov::op::v0::NormalizeL2>(node);
+            if (ov::intel_gpu::normalize_l2_supports_across_x(*norm)) {
+                return true;
+            }
             const auto inputRank = norm->get_input_partial_shape(0).size();
             auto axesNode = ov::as_type_ptr<const ov::op::v0::Constant>(norm->get_input_node_shared_ptr(1));
             const auto axes = axesNode->cast_vector<size_t>();

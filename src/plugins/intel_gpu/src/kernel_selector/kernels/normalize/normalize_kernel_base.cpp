@@ -18,6 +18,9 @@ JitConstants NormalizeKernelBase::GetJitConstants(const normalize_params& np) co
         MakeJitConstant(toString(np.normMode), ""),
         MakeJitConstant("THRESHOLD", 0.0001f),
     });
+    if (np.normMode == NormalizeMode::ACROSS_X) {
+        jit.AddConstant(MakeJitConstant("LOCAL_SIZE", 64));
+    }
 
     auto activation_dt = GetActivationType(np);
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
@@ -34,7 +37,11 @@ NormalizeKernelBase::DispatchData NormalizeKernelBase::SetDefault(const normaliz
     const auto& output = params.outputs[0];
 
     DispatchData dispatchData;
-    if (params.normMode == NormalizeMode::WITHIN_SPATIAL) {
+    if (params.normMode == NormalizeMode::ACROSS_X) {
+        dispatchData.gws = {64, output.Y().v, output.Batch().v * output.Feature().v};
+        dispatchData.lws = {64, 1, 1};
+        return dispatchData;
+    } else if (params.normMode == NormalizeMode::WITHIN_SPATIAL) {
         dispatchData.gws = {output.X().v, output.Y().v, output.Batch().v};
     } else {
         dispatchData.gws = {output.Batch().v, 1, 1};
@@ -82,6 +89,9 @@ bool NormalizeKernelBase::Validate(const Params& params) const {
 }
 
 Datatype NormalizeKernelBase::GetActivationType(const normalize_params& params) const {
+    if (params.normMode == NormalizeMode::ACROSS_X) {
+        return Datatype::F32;
+    }
     if (params.outputs[0].GetDType() == Datatype::F16) {
         return Datatype::F16;
     }
