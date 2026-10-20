@@ -40,10 +40,13 @@ public:
      * @param header_offset  Initial file position (absolute offset from the start
      *                       of the file; the stream starts reading from here).
      * @param threshold      Minimum read size to trigger parallel I/O.
+     * @param stream_size    Maximum exposed length; must fit in the remaining file.
+     *                       The default size_t(-1) exposes the file from header_offset to EOF.
      */
     explicit ParallelReadStreamBuf(const std::filesystem::path& path,
                                    std::streamoff header_offset = 0,
-                                   size_t threshold = default_parallel_io_threshold);
+                                   size_t threshold = default_parallel_io_threshold,
+                                   size_t stream_size = static_cast<size_t>(-1));
 
     ~ParallelReadStreamBuf() override;
 
@@ -65,7 +68,7 @@ public:
      * start of the region to collapse thousands of small ib >> ... small-reads
      * into a single bulk parallel pread.
      *
-     * @param size  Number of bytes to preload. Clamped to remaining file size.
+     * @param size  Number of bytes to preload. Clamped to the remaining exposed region.
      * @return true if the prefetch read succeeded (buffer is now valid), false
      *         otherwise (buffer is left empty; reads fall back to file I/O).
      */
@@ -87,9 +90,9 @@ private:
     std::filesystem::path m_path;
     FileHandle m_handle;  ///< platform file handle
 
-    std::streamoff m_file_offset = 0;    ///< absolute file offset of next byte to read
-    std::streamoff m_header_offset = 0;  ///< absolute file offset of logical stream start
-    std::streamoff m_file_size = 0;
+    std::streamoff m_file_offset = 0;      ///< absolute file offset of next byte to read
+    std::streamoff m_header_offset = 0;    ///< absolute file offset of logical stream start
+    std::streamoff m_read_end_offset = 0;  ///< absolute end of the exposed file region
     size_t m_threshold = default_parallel_io_threshold;
     std::unique_ptr<char_type[]> m_underflow_buf;  ///< lazily allocated buffer for underflow()
 
