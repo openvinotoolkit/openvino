@@ -6,6 +6,7 @@ set(TESTS_ROOT_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/const_folding_prior_box.cpp
     ${CMAKE_CURRENT_LIST_DIR}/hash_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/make_stateful_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/moe_compressed_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/prelu_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/resolve_names_collisions.cpp

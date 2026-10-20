@@ -5,6 +5,7 @@
 #pragma once
 
 #include <fstream>
+#include <optional>
 
 #include "openvino/core/log_util.hpp"
 #include "openvino/openvino.hpp"
@@ -38,6 +39,15 @@ void dump_input_list(const std::string& base_name, const std::vector<std::string
 void dump_output_list(const std::string& base_name, const std::vector<std::string>& base_output_names);
 
 void dump_failure(const std::shared_ptr<ov::Model>& model, const std::string& device, const char* extra);
+
+// Reads a scalar (or single-element) integer tensor's value, regardless of whether it
+// was stored as i32 or i64. Returns nullopt for empty or non-integer tensors.
+std::optional<int64_t> read_scalar_int_tensor(const ov::SoPtr<ov::ITensor>& tensor);
+
+// Formats a one-line "min=.. max=.. non_zero=../.." summary of a numeric tensor's
+// content (fp16/fp32/int32/int64), for compact diagnostic logging. Returns a
+// placeholder string for empty or unsupported element types.
+std::string tensor_stats_string(const ov::SoPtr<ov::ITensor>& tensor);
 }  // namespace npuw
 }  // namespace ov
 
