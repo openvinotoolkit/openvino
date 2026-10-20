@@ -59,7 +59,9 @@ public:
     explicit jit_selective_ssm_kernel(const jit_selective_ssm_compile_params& jcp) : JitKernel(jit_name(), jcp, isa) {}
 
 private:
-    using Vmm = std::conditional_t<(isa & dnnl::impl::cpu::x64::zmm_bit) != 0, Xbyak::Zmm, Xbyak::Ymm>;
+    using Vmm = std::conditional_t<(static_cast<unsigned>(isa) & static_cast<unsigned>(dnnl::impl::cpu::x64::zmm_bit)) != 0,
+                                   Xbyak::Zmm,
+                                   Xbyak::Ymm>;
 
     static constexpr size_t vector_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::vlen / sizeof(float);
     static constexpr size_t max_row_tile = 4;
@@ -123,7 +125,7 @@ private:
     // The first bank follows the state registers; the second follows the conversion-emitter auxiliaries.
     // AVX2 has only 16 registers and keeps a single bank to leave room for state, scales and projections.
     static Vmm accumulator_vmm(size_t row, size_t vector = 0) {
-        if constexpr ((isa & dnnl::impl::cpu::x64::zmm_bit) != 0) {
+        if constexpr ((static_cast<unsigned>(isa) & static_cast<unsigned>(dnnl::impl::cpu::x64::zmm_bit)) != 0) {
             if (vector % 2 != 0) {
                 return Vmm(second_accumulator_vmm_base + row);
             }
