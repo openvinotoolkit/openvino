@@ -9,6 +9,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/behavior/memory_dyn_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/model_cache.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/properties.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/behavior/weight_context.cpp
     ${CMAKE_CURRENT_LIST_DIR}/concurrency/gpu_concurrency_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/concurrency/gpu_reservation_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom_op/custom_op.cpp
