@@ -120,7 +120,10 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     // The imported view may not own the underlying storage; though the actual backing buffer is not kept alive by the
     // weight-sharing context, the source buffer track held on the plugin side. That means each consumer must retain
     // a strong reference to the source buffer for as long as the imported constant may still be used.
-    // We register it in ProgramBuilder::m_shared_weight_sources so the buffer remains valid while the graph is alive.
+    // ProgramBuilder registers each source buffer as a strong reference in its internal storage,
+    // ensuring the buffer remains valid for the lifetime of the graph. Once the graph was created,
+    // the instance of CompiledModel takes on the ownership of the buffer.
+    // This ensures the validity of the buffer during the lifetime of the compiled model.
     std::shared_ptr<ov::AlignedBuffer> shared_weight_buffer;
     if (p.get_weight_sharing_ctx()) {
         // It's assumed that the constant is a shared constant with cross-device visibility if the model has
