@@ -4,6 +4,8 @@
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/fetch_data.cl"
 
+// These modes fuse llama.cpp Qwen3.5 cache_r/cache_s maintenance. Runtime maps preserve
+// slot reset/reorder and ordered MTP snapshot writes while source-cache reads stay immutable.
 #if HISTORY < 0
 KERNEL(recurrent_cache_ref)
 (OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* cache,

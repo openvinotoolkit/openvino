@@ -7,6 +7,10 @@
 namespace ov::op::internal {
 /// \brief Reset and gather recurrent matrix-state rows without modifying the source cache.
 ///
+/// Introduced for Qwen3.5 (GGML qwen35/qwen35moe) in the llama.cpp OpenVINO backend.
+/// Prepares the cache_s matrix-state input for GatedDeltaNet while preserving llama-server
+/// slot reset/reorder semantics, including speculative MTP verification and rollback.
+///
 /// Inputs, in order:
 /// 0. cache: f16/f32 [1,1,S,F], where S is the slot count and F the flattened state size.
 /// 1. active_rows: i32/i64 [1,1,1,B], selecting B source rows for the recurrent computation.
@@ -48,6 +52,9 @@ private:
 };
 /// \brief Write recurrent final states or snapshot planes into a prepared full cache.
 ///
+/// Introduced for Qwen3.5 in the llama.cpp OpenVINO backend. Writes GatedDeltaNet
+/// final states or MTP verification snapshots back to llama.cpp's cache_s slot layout.
+///
 /// Inputs: cache f16/f32 [1,1,S,F], states f16/f32 [1,1,N,F], and i32/i64 control [1,1,1,4].
 /// Control is (destination_begin, sequence_count, snapshot_stride, source_begin).
 /// Source row source_begin+r writes destination_begin+(r/sequence_count)*snapshot_stride
@@ -78,6 +85,10 @@ private:
     int64_t m_key_size = 0, m_value_size = 0;
 };
 /// \brief Prepare convolution history and write ordered history windows into recurrent cache.
+///
+/// Introduced for Qwen3.5 in the llama.cpp OpenVINO backend. Fuses cache_r history
+/// reset/reorder, SSM convolution-input preparation, and token-prefix history snapshots
+/// used by llama-server multi-slot execution and speculative MTP rollback.
 ///
 /// Inputs 0-5 have the RecurrentStateGather contract. Input 6 is f16/f32 QKV [1,B,C,T],
 /// and input 7 is i32/i64 windows [1,1,K,2]. Positive history H is required; F=C*H.

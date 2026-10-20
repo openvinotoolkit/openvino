@@ -10,11 +10,15 @@ RecurrentConvCache
 **Short description**: Combine reset/gather/reorder, convolution-history
 concatenation, and ordered snapshot window writes in one cache operation.
 
-These internal operations fuse recurrent-cache data movement used by hybrid
-language models with convolution history and matrix state. They do not perform
-attention or convolution arithmetic. Runtime row maps support concurrent sequences,
-slot reuse/reset, and speculative-decoding snapshots without requiring a special
-single-sequence path. Native implementations are provided by the Intel GPU plugin.
+These internal operations were introduced to support Qwen3.5 in the llama.cpp
+OpenVINO backend, including the GGML ``qwen35`` and ``qwen35moe`` architectures
+used by Qwen3.5 and Qwen3.6 models. They fuse llama.cpp's recurrent-cache data
+movement for convolution history (``cache_r``) and GatedDeltaNet matrix state
+(``cache_s``). Runtime row maps preserve ``llama-server`` multi-slot reset/reorder
+semantics, and token-prefix snapshots support speculative MTP verification and
+rollback. The operations do not perform attention or convolution arithmetic.
+Native implementations are provided by the Intel GPU plugin; their contracts
+are expressed through tensors and runtime metadata rather than model names.
 
 All inputs have rank four. Floating-point inputs support ``f16`` and ``f32``;
 metadata inputs support ``i32`` and ``i64`` independently. ``S`` is the cache slot
@@ -26,6 +30,10 @@ The operation does not modify its input cache. Its GPU kernel reads immutable
 source allocations, so arbitrary row-map cycles and repeated sources are safe.
 The plugin can stage a caller's shared remote input/output tensor to preserve this
 contract; kernel input/output allocations themselves must be distinct.
+
+In the llama.cpp integration, this op maintains ``cache_r``. Output 0 feeds
+SSM convolution, and output 1 stores convolution-history windows for subsequent
+decode calls or rollback to an accepted MTP token prefix.
 
 **Attributes**
 

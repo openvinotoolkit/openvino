@@ -4,6 +4,8 @@
 #pragma once
 #include "primitive.hpp"
 namespace cldnn {
+// Shared GPU implementation for the recurrent cache_r/cache_s operations introduced
+// for Qwen3.5 in llama.cpp's OpenVINO backend (multi-slot inference and MTP rollback).
 // history == 0 selects gather, positive history selects convolution cache, negative selects update.
 struct recurrent_cache : public primitive_base<recurrent_cache> {
     CLDNN_DECLARE_PRIMITIVE(recurrent_cache)
