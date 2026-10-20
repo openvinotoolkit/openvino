@@ -545,13 +545,12 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
     return true;
 }
 
-// oneDNN's default mode subtracts an integer zero point before scaling. A floating-point zero point (e.g. GGUF Q4_K) needs
-// static_sbzp, which subtracts it after scaling: w = scale * q - zp * scale. Store zp * scale once and mark the primitive
-// (the OpenCL kernels don't support it). Only for what oneDNN implements: integer weights, f16 / bf16 activations, and
-// grouped scale and zero point of the activations' type and shape.
+// Floating-point zero points (e.g. GGUF Q4_K) use oneDNN's static_sbzp: w = scale * q - zp * scale.
+// Store zp * scale and flag the FC; the OpenCL kernels don't support it.
 static void use_zero_point_after_scale(fully_connected_node& fc_node, program& p) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto fc_prim = fc_node.get_primitive();
+    // static_sbzp needs f16 / bf16 activations (dynamic quantization already skips floating-point zero points)
     if (!fc_prim->compressed_weights || !fc_prim->decompression_scale.is_valid() || !fc_prim->decompression_zero_point.is_valid() ||
         fc_prim->decompression_zero_point_after_scale || fc_prim->dynamic_quantized_activation)
         return;
@@ -578,8 +577,7 @@ static void use_zero_point_after_scale(fully_connected_node& fc_node, program& p
         scale_layout.data_padding || zp_layout.data_padding)
         return;
 
-    // 2D weights [N, K] and 2D scale / zero point of the same orientation: [N, groups] (transpose_b) or [groups, N], grouped
-    // along K with at least two groups (the same rule as the oneDNN implementation's group size)
+    // 2D weights; [N, groups] or [groups, N] scale and zero point with at least two groups along K
     const auto& weights_shape = fc_node.get_input_layout(1).get_partial_shape();
     auto weights_rank = std::count_if(weights_shape.begin(), weights_shape.end(), [](ov::Dimension d) {
         return d.get_length() > 1;
@@ -595,9 +593,7 @@ static void use_zero_point_after_scale(fully_connected_node& fc_node, program& p
     if (groups < 2 || rows * groups != zp_layout.count())
         return;
 
-    // [N, groups] zero points are reordered to fbyx ([groups][N]) by optimize_weights_decompression_parameters: write
-    // zp * scale in fbyx directly, which avoids an extra copy of the zero points while the program is built.
-    // [groups, N] zero points are already in that order and are not reordered: keep their layout.
+    // Write [N, groups] in fbyx, the layout the later reorder would produce, to avoid another copy
     auto out_layout = zp_layout;
     if (n_major)
         out_layout.format = format::fbyx;
