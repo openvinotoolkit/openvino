@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
-#include <unordered_map>
 
 #include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -36,8 +35,8 @@ private:
     class InnerProduct;
     using InnerProductPtr = std::shared_ptr<InnerProduct>;
 
-    // The GEMM for an input of the given number of rows, created on first use from m_gemmKey.
-    [[nodiscard]] InnerProductPtr getGemm(size_t rows);
+    // The GEMM for an input of the given number of rows, from m_gemmKey through the runtime cache.
+    [[nodiscard]] InnerProductPtr createGemm(size_t rows) const;
 
     ExecutorContext::CPtr m_context;
 
@@ -46,10 +45,9 @@ private:
     MemoryPtr m_zpMemory;
 
     InnerProductPtr m_gemvImpl;
-    // GEMM primitives keyed by row count, so each gather index (expert) runs a GEMM sized to the rows
-    // routed to it instead of the full input length. The key holds everything but the row count.
-    std::shared_ptr<InnerProductKey> m_gemmKey;
-    std::unordered_map<size_t, InnerProductPtr> m_gemmBySize;
+    // Key of the GEMMs run for M > 1 in AMX bf16 mode, each sized to the rows routed to its gather index
+    // instead of the full input length. createGemm() sets the row count.
+    std::shared_ptr<const InnerProductKey> m_gemmKey;
 
     MemoryPtr m_tmpInpBuffer;
     MemoryDescPtr m_tmpInputDesc;

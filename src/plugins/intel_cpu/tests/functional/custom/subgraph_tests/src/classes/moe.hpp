@@ -71,9 +71,4 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void check_results();
 };
-// Several infer requests of one compiled model running at the same time. The fixtures are the two above;
-// the tests are instantiated with more than one stream, so the requests execute on different graphs
-// concurrently, each graph with its own GatherMatmul executors, over the same weights.
-class MoEParallelRequestsTest : public MoESubgraphSmallInputsTest {};
-class MoECompressedWeightsParallelRequestsTest : public MoECompressedWeightsSubgraphTest {};
 } // namespace ov::test

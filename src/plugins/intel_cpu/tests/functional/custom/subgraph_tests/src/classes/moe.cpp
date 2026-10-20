@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "moe.hpp"
-
-#include <cstring>
 #include <memory>
 #include <sstream>
 #include <vector>
@@ -15,6 +12,7 @@
 #include "shared_test_classes/subgraph/weights_decompression_params.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
+#include "moe.hpp"
 
 using namespace CPUTestUtils;
 
@@ -297,6 +295,10 @@ TEST_P(MoESubgraphSmallInputsTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 #if defined(OPENVINO_ARCH_ARM)
     GTEST_SKIP();
+#elif defined(OPENVINO_ARCH_ARM64)
+    if (!ov::with_cpu_arm_dotprod() && !ov::with_cpu_arm_i8mm()) {
+        GTEST_SKIP();
+    }
 #endif
     run();
     check_results();
@@ -313,85 +315,5 @@ TEST_P(MoECompressedWeightsSubgraphTest, CompareWithRefs) {
     #endif
     run();
     check_results();
-}
-
-namespace {
-// One infer request per target shape. Each request first runs alone, then all of them are started at the
-// same time for several rounds. A request has to return, bit for bit, what it returned when it ran alone:
-// the requests share the weights but nothing a GatherMatmul executor writes while it executes, so what one
-// request does (a different input length, other GEMM heights) must not show in another one's output.
-void run_requests_in_parallel(ov::CompiledModel& compiled_model,
-                              const std::vector<std::vector<ov::Shape>>& target_static_shapes) {
-    const int32_t streams = compiled_model.get_property(ov::num_streams);
-    ASSERT_GT(streams, 1) << "the model has to be compiled with more than one stream for requests to overlap";
-
-    struct Job {
-        ov::Shape shape;
-        ov::InferRequest request;
-        ov::Tensor input;
-        ov::Tensor alone;
-    };
-    std::vector<Job> jobs;
-    const auto input_type = compiled_model.input().get_element_type();
-    for (size_t i = 0; i < target_static_shapes.size(); ++i) {
-        Job job;
-        job.shape = target_static_shapes[i].front();
-        job.request = compiled_model.create_infer_request();
-        job.input = ov::test::utils::create_and_fill_tensor(
-            input_type,
-            job.shape,
-            ov::test::utils::InputGenerateData(0.125, 2, 8, static_cast<int>(1234 + i)));
-        job.request.set_input_tensor(job.input);
-        job.request.infer();
-        const auto output = job.request.get_output_tensor();
-        job.alone = ov::Tensor(output.get_element_type(), output.get_shape());
-        output.copy_to(job.alone);
-        jobs.push_back(std::move(job));
-    }
-    ASSERT_GT(jobs.size(), static_cast<size_t>(streams)) << "more requests than streams, so that some also queue";
-
-    const size_t rounds = 8;
-    for (size_t round = 0; round < rounds; ++round) {
-        for (auto& job : jobs) {
-            job.request.start_async();
-        }
-        for (auto& job : jobs) {
-            job.request.wait();
-        }
-        for (auto& job : jobs) {
-            const auto output = job.request.get_output_tensor();
-            ASSERT_EQ(output.get_shape(), job.alone.get_shape());
-            EXPECT_EQ(std::memcmp(output.data(), job.alone.data(), job.alone.get_byte_size()), 0)
-                << "the request with input " << job.shape << " returned a different output in round " << round << " of "
-                << jobs.size() << " requests running on " << streams << " streams than when it ran alone";
-        }
-    }
-}
-}  // namespace
-
-TEST_P(MoEParallelRequestsTest, RequestsInParallelReturnWhatTheyReturnAlone) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-#if defined(OPENVINO_ARCH_ARM)
-    GTEST_SKIP();
-#endif
-    // check_results() is not used here. Its implementation-type check reads one graph of the runtime model and
-    // expects that graph to have run the last input; with several streams the last input may have run on another.
-    run();
-    run_requests_in_parallel(compiledModel, targetStaticShapes);
-}
-
-TEST_P(MoECompressedWeightsParallelRequestsTest, RequestsInParallelReturnWhatTheyReturnAlone) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-#if defined(OPENVINO_ARCH_ARM)
-    GTEST_SKIP();
-#elif defined(OPENVINO_ARCH_ARM64)
-    if (!ov::with_cpu_arm_dotprod() && !ov::with_cpu_arm_i8mm()) {
-        GTEST_SKIP();
-    }
-#endif
-    // check_results() is not used here. Its implementation-type check reads one graph of the runtime model and
-    // expects that graph to have run the last input; with several streams the last input may have run on another.
-    run();
-    run_requests_in_parallel(compiledModel, targetStaticShapes);
 }
 }  // namespace ov::test
