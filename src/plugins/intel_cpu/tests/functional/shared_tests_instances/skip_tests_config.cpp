@@ -484,7 +484,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Quantized models unsupported
             std::regex(R"(.*Quantized.*)"),
             std::regex(R"(.*smoke_Snippets_ExplicitTransposeMatMul.*)"),
-            std::regex(R"(.*smoke_Snippets_Dyn(?!MatMult).*Mat.*)"),
             std::regex(R"(.*smoke_Snippets_FullyConnected.*)"),
             std::regex(R"(.*smoke_Snippets_MHA(INT8|Quant|FQ).*)"),
             std::regex(R"(.*smoke_Snippets_MLP.*)"),
@@ -516,6 +515,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)"),
             // Compressed weights are not supported
             std::regex(R"(smoke_MatMulSharedCompressedWeights.*)"),
+            std::regex(R"(smoke_MatMulGroupedWeightsDecompressionBRGEMM.*)"),
             std::regex(R"(smoke_Model_Distribution_MatMulSharedCompressedWeights.*)"),
             std::regex(R"(smoke_MatmulAndGatherSharedWeightsDecompression.*)"),
             // Issue: 170863

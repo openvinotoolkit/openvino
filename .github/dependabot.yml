@@ -27,6 +27,27 @@ updates:
         patterns:
           - "*"
 
+  # Documentation dependencies
+  - package-ecosystem: pip
+    directory: "/docs/"
+    schedule:
+      interval: "weekly"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 10
+    assignees:
+      - "whitneyfoster"
+      - "michalzx"
+    versioning-strategy: increase-if-necessary
+    groups:
+      pip-docs:
+        patterns:
+          - "*"
+        # Excluded from grouped updates due to CVS-190367.
+        exclude-patterns:
+          - "sphinx-sitemap"
+          - "pydata-sphinx-theme"
+
   # Python API, Frontends
   - package-ecosystem: pip
     directory: "/src/bindings/python/"
