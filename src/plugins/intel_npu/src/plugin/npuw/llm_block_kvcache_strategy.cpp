@@ -431,20 +431,20 @@ void LLMBlockKVCacheStrategy::on_generate_kv_init() {
         if (allocated_blocks.empty()) {
             return;
         }
-        for (size_t block_idx = 0; block_idx < allocated_blocks.size(); ++block_idx) {
-            const uint32_t block_id = allocated_blocks[block_idx];
+        for (size_t seq_block_idx = 0; seq_block_idx < allocated_blocks.size(); ++seq_block_idx) {
+            const uint32_t block_id = allocated_blocks[seq_block_idx];
             const auto block_tensor = manager->get_block_tensor(block_id);
-            if (helper.should_treat_as_tail(static_cast<uint32_t>(block_idx))) {
+            if (helper.should_treat_as_tail(static_cast<uint32_t>(seq_block_idx))) {
                 copy_block_to_tail_input(block_tensor,
                                          0u,
                                          manager->get_block_tokens(block_id),
                                          kv_dim,
                                          helper.tail_input_port.value(),
                                          m_req.m_kvcache_request);
-                LOG_VERB("Bound tail " << kv_type_name << " layer_" << layer_idx << " block_" << block_idx);
-            } else if (block_idx < helper.numbered_input_ports.size()) {
-                m_req.m_kvcache_request->set_tensor(helper.numbered_input_ports[block_idx], block_tensor);
-                LOG_VERB("Bound numbered " << kv_type_name << " layer_" << layer_idx << " block_" << block_idx);
+                LOG_VERB("Bound tail " << kv_type_name << " layer_" << layer_idx << " block_" << seq_block_idx);
+            } else if (seq_block_idx < helper.numbered_input_ports.size()) {
+                m_req.m_kvcache_request->set_tensor(helper.numbered_input_ports[seq_block_idx], block_tensor);
+                LOG_VERB("Bound numbered " << kv_type_name << " layer_" << layer_idx << " block_" << seq_block_idx);
             }
         }
     };
@@ -501,6 +501,9 @@ void LLMBlockKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<ov::I
                     "NPUW: the LongRoPE mode changed but the block KV cache is not initialized.");
 
     std::vector<ov::npuw::longrope::KeyBlock> blocks;
+    // A block the prefix cache also holds must keep its keys, so it gets a private copy first.
+    // The request still points at the old tensor and has to be rebound afterwards.
+    bool rebind_needed = false;
     for (const auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
         auto& manager = layer_managers.key_manager;
         if (!manager) {
@@ -508,8 +511,8 @@ void LLMBlockKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<ov::I
         }
         const auto allocated = manager->get_allocated_blocks();
         for (uint32_t first = 0u; first < num_cached_tokens; first += m_block_size) {
-            const uint32_t block_idx = first / m_block_size;
-            OPENVINO_ASSERT(block_idx < allocated.size(),
+            const uint32_t seq_block_idx = first / m_block_size;
+            OPENVINO_ASSERT(seq_block_idx < allocated.size(),
                             "NPUW: the LongRoPE mode changed with ",
                             num_cached_tokens,
                             " cached tokens, but layer ",
@@ -517,11 +520,11 @@ void LLMBlockKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<ov::I
                             " holds only ",
                             allocated.size(),
                             " key blocks.");
-            const uint32_t block_id = allocated[block_idx];
+            const uint32_t block_id = allocated[seq_block_idx];
             const uint32_t live = std::min(num_cached_tokens - first, m_block_size);
             OPENVINO_ASSERT(manager->get_block_tokens(block_id) >= live,
                             "NPUW: key block ",
-                            block_idx,
+                            seq_block_idx,
                             " of layer ",
                             layer_idx,
                             " holds ",
@@ -529,6 +532,7 @@ void LLMBlockKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<ov::I
                             " tokens where the LongRoPE mode change expects at least ",
                             live,
                             ".");
+            rebind_needed |= manager->unshare_block(block_id);
             blocks.push_back({manager->get_block_tensor(block_id), first, live});
         }
     }
@@ -540,7 +544,12 @@ void LLMBlockKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<ov::I
                                                    num_cached_tokens,
                                                    m_req.m_first_position_id,
                                                    to_long);
-    refresh_key_tail_bindings(request);
+    if (rebind_needed && request == m_req.m_kvcache_request) {
+        // Rebinding also re-copies every tail, so a separate refresh would be redundant.
+        on_generate_kv_init();
+    } else {
+        refresh_key_tail_bindings(request);
+    }
 }
 
 // Continuing a prefill on the block pool truncates metadata only, since blocks
@@ -631,6 +640,116 @@ void LLMBlockKVCacheStrategy::continue_prefill(uint32_t keep, uint32_t delta_len
 }
 
 // ============================================================================
+// Prefix caching
+// ============================================================================
+
+void LLMBlockKVCacheStrategy::apply_cached_prefix_blocks(const std::vector<std::shared_ptr<KVBlock>>& blocks) {
+    OPENVINO_ASSERT(!m_kv_cache_block_managers.empty(), "Prefix cache restore: block managers are not initialized.");
+
+    // Validate everything before touching the pool, so a failure leaves it unchanged.
+    std::vector<const PrefixBlockBlockKV*> prefix_blocks;
+    prefix_blocks.reserve(blocks.size());
+    for (const auto& kv_block : blocks) {
+        const auto* prefix_block = dynamic_cast<const PrefixBlockBlockKV*>(kv_block.get());
+        OPENVINO_ASSERT(prefix_block, "Prefix cache restore: a cached block was not produced by the block KV cache.");
+        prefix_blocks.push_back(prefix_block);
+    }
+    for (const auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+        for (const auto* manager : {layer_managers.key_manager.get(), layer_managers.value_manager.get()}) {
+            if (!manager) {
+                continue;
+            }
+            OPENVINO_ASSERT(manager->get_allocated_blocks().empty(),
+                            "Prefix cache restore: layer ",
+                            layer_idx,
+                            " already holds blocks; the restore must precede the first prefill chunk.");
+            OPENVINO_ASSERT(manager->num_free_blocks() >= prefix_blocks.size(),
+                            "Prefix cache restore: not enough free blocks for ",
+                            prefix_blocks.size(),
+                            " cached blocks.");
+        }
+        for (const auto* prefix_block : prefix_blocks) {
+            const auto ref_it = prefix_block->get_layer_refs().find(layer_idx);
+            OPENVINO_ASSERT(ref_it != prefix_block->get_layer_refs().end() &&
+                                (!layer_managers.key_manager || ref_it->second.key_tensor) &&
+                                (!layer_managers.value_manager || ref_it->second.value_tensor),
+                            "Prefix cache restore: a cached block has no KV for layer ",
+                            layer_idx);
+        }
+    }
+
+    // Ascending token order: each injection appends to the layer's allocation sequence, which
+    // is what binds the block to its numbered port.
+    for (const auto* prefix_block : prefix_blocks) {
+        for (auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+            const auto& ref = prefix_block->get_layer_refs().at(layer_idx);
+            if (layer_managers.key_manager) {
+                layer_managers.key_manager->allocate_block_with_tensor(ref.key_tensor, ref.num_tokens);
+            }
+            if (layer_managers.value_manager) {
+                layer_managers.value_manager->allocate_block_with_tensor(ref.value_tensor, ref.num_tokens);
+            }
+        }
+    }
+    LOG_DEBUG("Prefix cache restore: injected " << prefix_blocks.size() << " cached blocks per layer.");
+}
+
+// Runs after infer() and before on_prefill_chunk_done(). A full, block-aligned chunk always
+// takes the zero-copy path, so the model has already written the block into the pool.
+std::shared_ptr<KVBlock> LLMBlockKVCacheStrategy::make_prefix_block(size_t block_token_start,
+                                                                    size_t out_token_offset,
+                                                                    size_t block_size,
+                                                                    const std::vector<uint64_t>& token_hashes) {
+    OPENVINO_ASSERT(out_token_offset == 0u,
+                    "Prefix cache store: block KV caches only full chunks, got output offset ",
+                    out_token_offset);
+    OPENVINO_ASSERT(block_size == m_block_size && block_token_start % m_block_size == 0u,
+                    "Prefix cache store: block (start=",
+                    block_token_start,
+                    ", size=",
+                    block_size,
+                    ") does not match the KV block size ",
+                    m_block_size);
+    // Position of the block within the sequence; the pool's physical block_id is looked up from it.
+    const size_t seq_block_idx = block_token_start / m_block_size;
+
+    auto block = std::make_shared<PrefixBlockBlockKV>(block_size);
+    block->set_token_start(block_token_start);
+
+    for (auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+        BlockKVRef ref;
+        auto take_ref = [&](KVCacheBlockManager* manager, ov::SoPtr<ov::ITensor>& dst) {
+            if (!manager) {
+                return;
+            }
+            const auto allocated = manager->get_allocated_blocks();
+            OPENVINO_ASSERT(seq_block_idx < allocated.size(),
+                            "Prefix cache store: layer ",
+                            layer_idx,
+                            " has no block at position ",
+                            seq_block_idx);
+            const uint32_t block_id = allocated[seq_block_idx];
+            OPENVINO_ASSERT(manager->get_block_tokens(block_id) == m_block_size,
+                            "Prefix cache store: block ",
+                            seq_block_idx,
+                            " of layer ",
+                            layer_idx,
+                            " is not completely written.");
+            dst = manager->get_block_tensor(block_id);
+            ref.num_tokens = m_block_size;
+            // The pool must not reuse this tensor as scratch memory in a later conversation.
+            manager->mark_block_shared(block_id);
+        };
+        take_ref(layer_managers.key_manager.get(), ref.key_tensor);
+        take_ref(layer_managers.value_manager.get(), ref.value_tensor);
+        block->add_layer_ref(layer_idx, std::move(ref));
+    }
+
+    block->add_block(token_hashes, {});
+    return block;
+}
+
+// ============================================================================
 // Private: prefill path primitives
 // ============================================================================
 
@@ -648,13 +767,13 @@ void LLMBlockKVCacheStrategy::load_past_kv_blocks_to_prefill(
                 return;
             }
             auto allocated_blocks = manager->get_allocated_blocks();
-            for (size_t block_idx = 0; block_idx < allocated_blocks.size(); ++block_idx) {
-                std::string input_name = make_numbered_block_input_name(kv_type, layer_idx_str, block_idx);
+            for (size_t seq_block_idx = 0; seq_block_idx < allocated_blocks.size(); ++seq_block_idx) {
+                std::string input_name = make_numbered_block_input_name(kv_type, layer_idx_str, seq_block_idx);
                 auto port_it = prefill_in_ports.find(input_name);
                 if (port_it != prefill_in_ports.end()) {
                     prefill_request->set_tensor(port_it->second,
-                                                manager->get_block_tensor(allocated_blocks[block_idx]));
-                    LOG_VERB("Bound " << kv_type << " block layer " << layer_idx_str << " block_" << block_idx);
+                                                manager->get_block_tensor(allocated_blocks[seq_block_idx]));
+                    LOG_VERB("Bound " << kv_type << " block layer " << layer_idx_str << " block_" << seq_block_idx);
                 }
             }
         };
@@ -919,15 +1038,17 @@ void LLMBlockKVCacheStrategy::refresh_key_tail_bindings(const std::shared_ptr<ov
             continue;
         }
         const auto allocated = manager->get_allocated_blocks();
-        for (size_t block_idx = helper.numbered_input_ports.size(); block_idx < allocated.size(); ++block_idx) {
-            const uint32_t block_id = allocated[block_idx];
+        for (size_t seq_block_idx = helper.numbered_input_ports.size(); seq_block_idx < allocated.size();
+             ++seq_block_idx) {
+            const uint32_t block_id = allocated[seq_block_idx];
             copy_block_to_tail_input(manager->get_block_tensor(block_id),
                                      0u,
                                      manager->get_block_tokens(block_id),
                                      kv_dim,
                                      helper.tail_input_port.value(),
                                      request);
-            LOG_VERB("Refreshed tail key layer_" << layer_idx << " block_" << block_idx << " after a LongRoPE turn");
+            LOG_VERB("Refreshed tail key layer_" << layer_idx << " block_" << seq_block_idx
+                                                 << " after a LongRoPE turn");
         }
     }
 }
@@ -987,11 +1108,11 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
         // The first block may be partially filled: start writing at (start_pos % block_size).
         // Every subsequent block is written from position 0 up to min(remaining, block_size).
         uint32_t tokens_written = 0;
-        for (uint32_t block_idx = start_block_idx; block_idx <= end_block_idx; ++block_idx) {
-            const uint32_t block_id = allocated_blocks[block_idx];
+        for (uint32_t seq_block_idx = start_block_idx; seq_block_idx <= end_block_idx; ++seq_block_idx) {
+            const uint32_t block_id = allocated_blocks[seq_block_idx];
             const auto block_tensor = block_manager->get_block_tensor(block_id);
-            const uint32_t write_start = (block_idx == start_block_idx) ? (start_pos % m_block_size) : 0u;
-            const uint32_t write_end = std::min(end_pos - block_idx * m_block_size, m_block_size);
+            const uint32_t write_start = (seq_block_idx == start_block_idx) ? (start_pos % m_block_size) : 0u;
+            const uint32_t write_end = std::min(end_pos - seq_block_idx * m_block_size, m_block_size);
             const uint32_t count = write_end - write_start;
             const auto dst_slice = uu::make_tensor_slice(block_tensor, kv_dim, write_start, write_end);
             const auto src_slice = uu::make_tensor_slice(src_to_copy, kv_dim, tokens_written, tokens_written + count);
