@@ -314,19 +314,27 @@ class TestPooling(PytorchLayerTest):
         with pytest.raises(RuntimeError, match="Kernel after dilation"):
             compiled((invalid.numpy(),))
 
+    @pytest.mark.parametrize("case", ["ones", "cancellation"])
+    @pytest.mark.parametrize("is_dynamic_shapes", [False, True])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_avg_pool_oversized_fp16(self, ie_device, precision, ir_version):
+    def test_avg_pool_oversized_fp16(self, case, is_dynamic_shapes, ie_device, precision, ir_version):
         if ie_device != "CPU":
-            pytest.skip("FP16 overflow regression is checked on CPU")
+            pytest.skip("FP16 precision regressions are checked on CPU")
 
-        model, _ = self.create_model("avg_pool2d", kernel_size=(4096, 4096), stride=(4096, 4096),
+        if case == "ones":
+            kernel, stride = (4096, 4096), (4096, 4096)
+            example = torch.ones((1, 1, 7, 7), dtype=torch.float16)
+        else:
+            kernel, stride = (3, 2), (2, 2)
+            example = torch.tensor([[[[10000, -10000, 10000, -10000], [1, 1, 1, 1]]]], dtype=torch.float16)
+        model, _ = self.create_model("avg_pool2d", kernel_size=kernel, stride=stride,
                                      padding=0, ceil_mode=True)
-        example = torch.ones((1, 1, 7, 7), dtype=torch.float16)
         scripted = torch.jit.trace(model, example)
+        shape = ov.PartialShape([-1] * example.ndim if is_dynamic_shapes else list(example.shape))
         ov_model = ov.convert_model(scripted, example_input=(example,),
-                                    input=[ov.PartialShape([-1] * example.ndim)])
-        compiled = ov.Core().compile_model(ov_model, "CPU")
+                                    input=[shape])
+        compiled = ov.Core().compile_model(ov_model, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
         actual = compiled((example.numpy(),))[compiled.outputs[0]]
         np.testing.assert_allclose(actual, scripted(example).numpy(), rtol=1e-3, atol=1e-3)
         assert actual.dtype == np.float16

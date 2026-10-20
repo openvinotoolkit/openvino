@@ -207,9 +207,12 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
         if (input_type.is_integral()) {
             // Keep fractional intermediate averages until every spatial axis has been pooled.
             pool_input = context.mark_node(std::make_shared<v0::Convert>(input, element::f64));
+        } else if (input_type == element::f16 || input_type == element::bf16) {
+            // Avoid rounding intermediate averages before the remaining spatial axes are pooled.
+            pool_input = context.mark_node(std::make_shared<v0::Convert>(input, element::f32));
         }
         res = pool_with_short_axes(context, pool_input, strides, pads, kernel, !count_include_pad, rounding_type, 0);
-        if (input_type.is_integral()) {
+        if (pool_input.get_element_type() != input_type) {
             res = context.mark_node(std::make_shared<v0::Convert>(res, input_type));
         }
     } else {
