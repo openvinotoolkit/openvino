@@ -7,20 +7,327 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rtti.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/op/topk.hpp"
 #include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ::testing;
 using namespace std;
 using namespace ov;
 using namespace ov::pass;
+
+inline std::shared_ptr<Model> get_model();
+
+namespace {
+class RootFilterPass : public MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("RootFilterPass");
+    RootFilterPass(const std::shared_ptr<pattern::Matcher>& matcher,
+                   const matcher_pass_callback& callback,
+                   bool filter = true,
+                   bool static_only = false) {
+        register_matcher(matcher, callback);
+        if (!filter)
+            set_property(PassProperty::MATCHER_ROOT_TYPE_FILTER, false);
+        if (static_only)
+            set_property(PassProperty::REQUIRE_STATIC_SHAPE, true);
+    }
+};
+
+class PermissiveMatcher : public pattern::Matcher {
+public:
+    using pattern::Matcher::Matcher;
+    bool match_value(const Output<Node>& pattern_value, const Output<Node>& graph_value) override {
+        get_pattern_value_map()[pattern_value.get_node_shared_ptr()] = graph_value;
+        return true;
+    }
+};
+
+class PermissiveRelu : public op::v0::Relu {
+public:
+    using op::v0::Relu::Relu;
+    bool match_value(pattern::Matcher*, const Output<Node>&, const Output<Node>&) override {
+        return true;
+    }
+};
+
+class PermissiveWrapType : public pattern::op::WrapType {
+public:
+    PermissiveWrapType() : WrapType(std::vector<NodeTypeInfo>{op::v0::Relu::get_type_info_static()}) {}
+    bool match_value(pattern::Matcher*, const Output<Node>&, const Output<Node>&) override {
+        return true;
+    }
+};
+
+class DerivedRelu : public op::v0::Relu {
+public:
+    OPENVINO_RTTI("RootFilterDerivedRelu", "test", op::v0::Relu);
+    using op::v0::Relu::Relu;
+};
+
+void add_unknown_root(const std::shared_ptr<GraphRewrite>& rewrite) {
+    rewrite->add_matcher(
+        std::make_shared<MatcherPass>(std::make_shared<pattern::Matcher>(pattern::any_input()), [](pattern::Matcher&) {
+            return false;
+        }));
+}
+
+std::shared_ptr<pattern::Matcher> make_or_matcher() {
+    return std::make_shared<pattern::Matcher>(std::make_shared<pattern::op::Or>(
+        OutputVector{pattern::wrap_type<op::v0::Relu>(), pattern::wrap_type<op::v0::Tanh>()}));
+}
+}  // namespace
+
+TEST(GraphRewriteRootFilter, RejectClearsMatcherStateAndNewNodes) {
+    const auto model = get_model();
+    const auto matcher = make_or_matcher();
+    auto rewrite = std::make_shared<GraphRewrite>();
+    auto pass = std::make_shared<RootFilterPass>(matcher, [](pattern::Matcher&) {
+        ADD_FAILURE() << "No Relu or Tanh exists in the model";
+        return false;
+    });
+    rewrite->add_matcher(pass);
+    add_unknown_root(rewrite);
+    const auto stale = std::make_shared<op::v0::Relu>(model->get_parameters().front());
+    ASSERT_TRUE(matcher->match(stale->output(0)));
+    pass->register_new_node(stale);
+    ASSERT_FALSE(rewrite->run_on_model(model));
+    EXPECT_TRUE(matcher->get_pattern_value_map().empty());
+    EXPECT_TRUE(matcher->get_pattern_value_maps().empty());
+    EXPECT_TRUE(matcher->get_matched_values().empty());
+    EXPECT_TRUE(matcher->get_symbols().empty());
+    EXPECT_TRUE(pass->get_new_nodes().empty());
+}
+
+TEST(GraphRewriteRootFilter, CustomHandlerAndMatcherKeepLegacyExecution) {
+    const auto model = get_model();
+    auto rewrite = std::make_shared<GraphRewrite>();
+    size_t handlers = 0;
+    size_t callbacks = 0;
+    auto root = pattern::wrap_type<op::v0::Relu>();
+    rewrite->add_matcher(std::make_shared<MatcherPass>("custom",
+                                                       std::make_shared<pattern::Matcher>(root),
+                                                       [&](const std::shared_ptr<Node>&) {
+                                                           ++handlers;
+                                                           return false;
+                                                       }));
+    rewrite->add_matcher(
+        std::make_shared<RootFilterPass>(std::make_shared<PermissiveMatcher>(root), [&](pattern::Matcher&) {
+            ++callbacks;
+            return false;
+        }));
+    add_unknown_root(rewrite);
+    ASSERT_FALSE(rewrite->run_on_model(model));
+    EXPECT_EQ(handlers, model->get_ordered_ops().size());
+    EXPECT_EQ(callbacks, model->get_ordered_ops().size());
+}
+
+TEST(GraphRewriteRootFilter, CustomOperationAndPatternKeepLegacyExecution) {
+    const auto model = get_model();
+    auto rewrite = std::make_shared<GraphRewrite>();
+    for (const auto& root : NodeVector{std::make_shared<PermissiveRelu>(pattern::any_input()),
+                                       std::make_shared<PermissiveWrapType>(),
+                                       std::make_shared<pattern::op::Or>(
+                                           OutputVector{pattern::wrap_type<op::v0::Relu>(), pattern::any_input()})}) {
+        size_t callbacks = 0;
+        rewrite = std::make_shared<GraphRewrite>();
+        rewrite->add_matcher(
+            std::make_shared<RootFilterPass>(std::make_shared<pattern::Matcher>(root), [&](pattern::Matcher&) {
+                ++callbacks;
+                return false;
+            }));
+        add_unknown_root(rewrite);
+        ASSERT_FALSE(rewrite->run_on_model(model));
+        EXPECT_EQ(callbacks, model->get_ordered_ops().size());
+    }
+}
+
+TEST(GraphRewriteRootFilter, OrBranchAndRegistrationOrderMatchUnfilteredExecution) {
+    for (const bool backward : {false, true}) {
+        std::vector<std::string> reference;
+        for (const bool filter : {false, true}) {
+            const auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2});
+            const auto relu = std::make_shared<DerivedRelu>(data);
+            const auto tanh = std::make_shared<op::v0::Tanh>(relu);
+            const auto model = std::make_shared<Model>(OutputVector{tanh}, ParameterVector{data});
+            std::shared_ptr<GraphRewrite> rewrite =
+                backward ? std::make_shared<BackwardGraphRewrite>() : std::make_shared<GraphRewrite>();
+            const auto first = pattern::wrap_type<op::v0::Relu, op::v0::Tanh>();
+            const auto second = pattern::wrap_type<op::v0::Relu, op::v0::Tanh>();
+            const auto matcher =
+                std::make_shared<pattern::Matcher>(std::make_shared<pattern::op::Or>(OutputVector{first, second}));
+            std::vector<std::string> order;
+            rewrite->add_matcher(std::make_shared<RootFilterPass>(
+                matcher,
+                [&](pattern::Matcher& m) {
+                    EXPECT_EQ(m.get_pattern_value_map().count(first), 1);
+                    EXPECT_EQ(m.get_pattern_value_map().count(second), 0);
+                    order.push_back("first:" + std::string(m.get_match_root()->get_type_name()));
+                    return false;
+                },
+                filter));
+            rewrite->add_matcher(std::make_shared<RootFilterPass>(
+                make_or_matcher(),
+                [&](pattern::Matcher& m) {
+                    order.push_back("second:" + std::string(m.get_match_root()->get_type_name()));
+                    return false;
+                },
+                filter));
+            add_unknown_root(rewrite);
+            ASSERT_FALSE(rewrite->run_on_model(model));
+            ASSERT_EQ(order.size(), 4);
+            if (!filter)
+                reference = order;
+            else
+                EXPECT_EQ(order, reference);
+        }
+    }
+}
+
+TEST(GraphRewriteRootFilter, PatternMutationFallsBackConservatively) {
+    const auto model = get_model();
+    auto rewrite = std::make_shared<GraphRewrite>();
+    const auto root = std::make_shared<pattern::op::Or>(OutputVector{pattern::wrap_type<op::v0::Relu>()});
+    const auto matcher = std::make_shared<pattern::Matcher>(root);
+    size_t callbacks = 0;
+    rewrite->add_matcher(std::make_shared<RootFilterPass>(matcher, [&](pattern::Matcher&) {
+        ++callbacks;
+        return false;
+    }));
+    root->input(0).replace_source_output(pattern::any_input()->output(0));
+    ASSERT_FALSE(rewrite->run_on_model(model));
+    EXPECT_EQ(callbacks, model->get_ordered_ops().size());
+}
+
+TEST(GraphRewriteRootFilter, AnyOutputPreservesMultiOutputMatching) {
+    for (const bool filter : {false, true}) {
+        const auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4});
+        const auto k = op::v0::Constant::create(element::i32, Shape{}, {2});
+        const auto topk = std::make_shared<op::v1::TopK>(data, k, 0, "max", "value");
+        const auto model =
+            std::make_shared<Model>(OutputVector{topk->output(0), topk->output(1)}, ParameterVector{data});
+        const auto pattern_topk = std::make_shared<op::v1::TopK>(pattern::any_input(), k, 0, "max", "value");
+        const auto matcher = std::make_shared<pattern::Matcher>(pattern_topk);
+        auto rewrite = std::make_shared<GraphRewrite>();
+        size_t callbacks = 0;
+        rewrite->add_matcher(std::make_shared<RootFilterPass>(
+            matcher,
+            [&](pattern::Matcher& m) {
+                ++callbacks;
+                EXPECT_EQ(m.get_match_root(), topk);
+                return false;
+            },
+            filter));
+        add_unknown_root(rewrite);
+        ASSERT_FALSE(rewrite->run_on_model(model));
+        EXPECT_EQ(callbacks, 1);
+    }
+}
+
+TEST(GraphRewriteRootFilter, CommutativeOperandOrderMatchesUnfilteredExecution) {
+    for (const bool filter : {false, true}) {
+        const auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2});
+        const auto constant = op::v0::Constant::create(element::f32, Shape{2}, {1, 2});
+        const auto add = std::make_shared<op::v1::Add>(constant, data);
+        const auto model = std::make_shared<Model>(OutputVector{add}, ParameterVector{data});
+        const auto constant_pattern = pattern::wrap_type<op::v0::Constant>();
+        const auto data_pattern = pattern::wrap_type<op::v0::Parameter>();
+        const auto add_pattern = pattern::wrap_type<op::v1::Add>({data_pattern, constant_pattern});
+        auto rewrite = std::make_shared<GraphRewrite>();
+        size_t callbacks = 0;
+        rewrite->add_matcher(std::make_shared<RootFilterPass>(
+            std::make_shared<pattern::Matcher>(add_pattern),
+            [&](pattern::Matcher& m) {
+                ++callbacks;
+                EXPECT_EQ(m.get_pattern_value_map().at(data_pattern).get_node_shared_ptr(), data);
+                EXPECT_EQ(m.get_pattern_value_map().at(constant_pattern).get_node_shared_ptr(), constant);
+                return false;
+            },
+            filter));
+        add_unknown_root(rewrite);
+        ASSERT_FALSE(rewrite->run_on_model(model));
+        EXPECT_EQ(callbacks, 1);
+    }
+}
+
+TEST(GraphRewriteRootFilter, NewNodesAreProcessedBeforeRemainingModelNodes) {
+    for (const bool filter : {false, true}) {
+        const auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2});
+        const auto relu = std::make_shared<op::v0::Relu>(data);
+        const auto model = std::make_shared<Model>(OutputVector{relu}, ParameterVector{data});
+        auto rewrite = std::make_shared<GraphRewrite>();
+        std::vector<std::string> order;
+        auto pass = std::make_shared<RootFilterPass>(
+            make_or_matcher(),
+            [&](pattern::Matcher& m) {
+                order.emplace_back(m.get_match_root()->get_type_name());
+                return false;
+            },
+            filter);
+        std::shared_ptr<RootFilterPass> replace;
+        replace = std::make_shared<RootFilterPass>(
+            std::make_shared<pattern::Matcher>(pattern::wrap_type<op::v0::Relu>()),
+            [&](pattern::Matcher& m) {
+                auto tanh = replace->register_new_node<op::v0::Tanh>(m.get_match_root()->input_value(0));
+                replace_node(m.get_match_root(), tanh);
+                return true;
+            },
+            filter);
+        rewrite->add_matcher(replace);
+        rewrite->add_matcher(pass);
+        add_unknown_root(rewrite);
+        ASSERT_TRUE(rewrite->run_on_model(model));
+        EXPECT_EQ(order, std::vector<std::string>{"Tanh"});
+        EXPECT_TRUE(replace->get_new_nodes().empty());
+        EXPECT_EQ(count_ops_of_type<op::v0::Relu>(model), 0);
+        EXPECT_EQ(count_ops_of_type<op::v0::Tanh>(model), 1);
+    }
+}
+
+TEST(GraphRewriteRootFilter, DisabledAndStaticOnlyPassesKeepTheirGuards) {
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1});
+    const auto relu = std::make_shared<op::v0::Relu>(data);
+    const auto model = std::make_shared<Model>(OutputVector{relu}, ParameterVector{data});
+    auto rewrite = std::make_shared<GraphRewrite>();
+    rewrite->add_matcher(std::make_shared<RootFilterPass>(
+        make_or_matcher(),
+        [](pattern::Matcher&) {
+            ADD_FAILURE() << "Static-only pass must not run on a dynamic model";
+            return false;
+        },
+        true,
+        true));
+    add_unknown_root(rewrite);
+    ASSERT_FALSE(rewrite->run_on_model(model));
+    rewrite->get_pass_config()->disable<RootFilterPass>();
+    ASSERT_FALSE(rewrite->run_on_model(model));
+}
+
+TEST(GraphRewriteRootFilter, DeepOrFallsBackWithoutUnboundedFilterRecursion) {
+    const auto model = get_model();
+    std::shared_ptr<Node> root = pattern::any_input();
+    for (size_t i = 0; i < 20; ++i)
+        root = std::make_shared<pattern::op::Or>(OutputVector{root});
+    auto rewrite = std::make_shared<GraphRewrite>();
+    size_t callbacks = 0;
+    rewrite->add_matcher(
+        std::make_shared<RootFilterPass>(std::make_shared<pattern::Matcher>(root), [&](pattern::Matcher&) {
+            ++callbacks;
+            return false;
+        }));
+    ASSERT_FALSE(rewrite->run_on_model(model));
+    EXPECT_EQ(callbacks, model->get_ordered_ops().size());
+}
 
 class TestPass : public ov::pass::MatcherPass {
 public:

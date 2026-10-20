@@ -31,6 +31,8 @@ enum class PassProperty : uint32_t {
     REQUIRE_STATIC_SHAPE = 0x1,
     // Pass transformation will change the function's dynamic state
     CHANGE_DYNAMIC_STATE = 1 << 1,
+    // Internal: the handler uses an ordinary pattern::Matcher.
+    MATCHER_ROOT_TYPE_FILTER = 1 << 2,
 };
 
 using PassPropertyMask = ov::EnumMask<PassProperty>;

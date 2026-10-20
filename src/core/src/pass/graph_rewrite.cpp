@@ -9,6 +9,7 @@
 #include <iostream>
 #include <regex>
 #include <string>
+#include <typeinfo>
 #include <unordered_set>
 #include <vector>
 
@@ -16,9 +17,46 @@
 #include "openvino/core/log_util.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/backward_graph_rewrite.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
+
+namespace {
+// Unknown semantics (including changed patterns) always keep the legacy path.
+bool root_type_may_match(const ov::Node& root, const ov::DiscreteTypeInfo& type, size_t depth = 0) {
+    if (depth == 16)
+        return true;
+    if (typeid(root) == typeid(ov::pass::pattern::op::WrapType)) {
+        const auto& types = static_cast<const ov::pass::pattern::op::WrapType&>(root).get_wrapped_types();
+        return std::any_of(types.begin(), types.end(), [&](const ov::NodeTypeInfo& wrapped) {
+            return type.is_castable(wrapped);
+        });
+    }
+    if (typeid(root) == typeid(ov::pass::pattern::op::Or)) {
+        for (size_t i = 0; i < root.get_input_size(); ++i) {
+            if (root_type_may_match(*root.input_value(i).get_node(), type, depth + 1))
+                return true;
+        }
+        return false;
+    }
+    // Ordinary/custom ops can override matching; AnyOutput calls match_node.
+    return true;
+}
+
+std::shared_ptr<ov::Node> indexed_root(const std::shared_ptr<ov::pass::MatcherPass>& pass) {
+    const auto matcher = pass->get_matcher();
+    if (!matcher)
+        return {};
+    auto root = matcher->get_pattern_value().get_node_shared_ptr();
+    if (ov::as_type_ptr<ov::pass::pattern::op::AnyOutput>(root))
+        root = root->input_value(0).get_node_shared_ptr();
+    if (std::dynamic_pointer_cast<ov::pass::pattern::op::Pattern>(root) &&
+        !ov::as_type_ptr<ov::pass::pattern::op::WrapType>(root))
+        return {};
+    return root;
+}
+}  // namespace
 
 /* GraphRewrite algorithm:
  * GraphRewrite processes an input graph in an topological order(i.e. args before users)
@@ -101,39 +139,20 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
     bool rewritten = false;
     const auto& pass_config = get_pass_config();
 
-    // Check that all Matchers in MatcherPasses has type bases root node
-    bool all_roots_has_type = true;
+    // Preflight without building an index that the mixed path would never use.
+    const bool all_roots_has_type = std::all_of(m_matchers.begin(), m_matchers.end(), [&](const auto& pass) {
+        return pass_config->is_disabled(pass->get_type_info()) || indexed_root(pass) != nullptr;
+    });
     std::unordered_map<NodeTypeInfo, std::vector<size_t>> type_to_matcher;
-    for (size_t matcher_index = 0; matcher_index < m_matchers.size(); ++matcher_index) {
+    for (size_t matcher_index = 0; all_roots_has_type && matcher_index < m_matchers.size(); ++matcher_index) {
         // Skip passes that are disabled
         if (pass_config->is_disabled(m_matchers[matcher_index]->get_type_info()))
             continue;
 
-        auto matcher = m_matchers[matcher_index]->get_matcher();
-        if (!matcher) {
-            all_roots_has_type = false;
-            break;
-        }
-
-        auto root = matcher->get_pattern_value().get_node_shared_ptr();
-        // pattern::op::AnyOutput operation automatically appends for multi output operations inside
-        // Matcher and to gen actual root node we need to take it's parent.
-        if (auto any_type = ov::as_type_ptr<pattern::op::AnyOutput>(root)) {
-            root = any_type->input_value(0).get_node_shared_ptr();
-        }
-
-        // if root is an operation from opset or has pattern::op::WrapType type then we can extract
-        // it's type
-        // and use it in unordered_map as key for fast MatcherPass search. Otherwise type is unknown
-        // and default algorithm is used.
-        if (auto p = std::dynamic_pointer_cast<pattern::op::Pattern>(root)) {
-            if (auto any_type = ov::as_type_ptr<ov::pass::pattern::op::WrapType>(p)) {
-                for (const auto& root_type_info : any_type->get_wrapped_types()) {
-                    type_to_matcher[root_type_info].push_back(matcher_index);
-                }
-            } else {
-                all_roots_has_type = false;
-                break;
+        const auto root = indexed_root(m_matchers[matcher_index]);
+        if (auto wrap_type = ov::as_type_ptr<pattern::op::WrapType>(root)) {
+            for (const auto& root_type_info : wrap_type->get_wrapped_types()) {
+                type_to_matcher[root_type_info].push_back(matcher_index);
             }
         } else {
             type_to_matcher[root->get_type_info()].push_back(matcher_index);
@@ -155,6 +174,15 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
                            "optimization till the shapes are fully "
                            "materialized");
             return false;
+        }
+
+        if (!all_roots_has_type && m_pass->get_property(PassProperty::MATCHER_ROOT_TYPE_FILTER)) {
+            const auto matcher = m_pass->get_matcher();
+            if (!root_type_may_match(*matcher->get_pattern_value().get_node(), node->get_type_info())) {
+                m_pass->clear_new_nodes();
+                matcher->clear_state();
+                return false;
+            }
         }
 
         // Apply MatcherPass. In case if it returns true no other MatcherPasses will apply
@@ -282,6 +310,7 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
     set_name(m->get_name());
     set_property(property, true);
     m_matcher = m;
+    set_property(PassProperty::MATCHER_ROOT_TYPE_FILTER, typeid(*m) == typeid(pattern::Matcher));
     m_handler = [m, callback](const std::shared_ptr<Node>& node) -> bool {
         OPENVINO_LOG_GRAPH_REWRITE1(m, node);
         if (m->match(node->output(0))) {
