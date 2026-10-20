@@ -20,6 +20,15 @@ class TestGetCommandLineArguments(unittest.TestCase):
         self.assertEqual(get_command_line_arguments(['benchmark_app', '-m=/data/exp=1/model.xml']),
                          [('-m', '/data/exp=1/model.xml')])
 
+    def test_separate_value_containing_equals_is_a_value(self):
+        # a value that is not an option must not be split, even though it contains '='
+        self.assertEqual(get_command_line_arguments(['benchmark_app', '-m', '/data/exp=1/model.xml', '-niter', '10']),
+                         [('-m', '/data/exp=1/model.xml'), ('-niter', '10')])
+
+    def test_separate_config_value_containing_equals(self):
+        self.assertEqual(get_command_line_arguments(['benchmark_app', '-load_config', 'CPU:{NUM_STREAMS=4}']),
+                         [('-load_config', 'CPU:{NUM_STREAMS=4}')])
+
     def test_empty_argument_is_not_fatal(self):
         # an unset shell variable expands to an empty argument
         self.assertEqual(get_command_line_arguments(['benchmark_app', '-m', 'model.xml', '-i', '']),
