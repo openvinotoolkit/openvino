@@ -835,6 +835,7 @@ public:
         auto& engine = get_test_engine();
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
         const primitive_id producer_predicate_id = "producer_predicate";
         const primitive_id consumer_predicate_id = "consumer_predicate";
