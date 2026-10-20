@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 43,
+  "total": 44,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -442,6 +442,17 @@
       "category": "Infrastructure",
       "signature_hash": "a5c3320815892838",
       "commit_sha": "b03c0018961c1eadb6c21e5c988600a7630aae95"
+    },
+    {
+      "investigation_id": "2026-10-20-21-22-20-000-39487871718",
+      "run_id": "39487871718",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39487871718",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-10-20T21:22:20Z",
+      "title": "iGPU func tests fail en masse - no supported GPU devices found on runner",
+      "category": "Infrastructure",
+      "signature_hash": "a5c3320815892838",
+      "commit_sha": "9d735b1726ecbee4152d8982b8981b83d42827c2"
     }
   ]
 }

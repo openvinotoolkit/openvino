@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-20-21-22-20-000-39487871718",
+  "timestamp": "2026-10-20T21:22:20Z",
+  "run_id": "39487871718",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39487871718",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "9d735b1726ecbee4152d8982b8981b83d42827c2",
+  "pr_number": "38591",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38591",
+  "author": "aobolensk",
+  "category": "Infrastructure",
+  "title": "iGPU func tests fail en masse - no supported GPU devices found on runner",
+  "signature": "Check '!m_device_map.empty()' failed: [GPU] Can't get <PROPERTY> property as no supported devices found or an error happened during devices query|Infrastructure",
+  "signature_hash": "a5c3320815892838",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "iGPU Tests (func) / GPU",
+      "conclusion": "failure",
+      "symptom": "clinfo reports 'Number of platforms 0' at job start; every GPU func test fails immediately at plugin construction before any test-specific logic runs"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because the iGPU func test job failed"
+    }
+  ],
+  "key_errors": [
+    "2026-10-20T20:33:31.6974581Z Number of platforms                               0",
+    "C++ exception with description \"Exception from src/inference/src/cpp/core.cpp:272:\nException from src/inference/src/dev/plugin.cpp:112:\nCheck '!m_device_map.empty()' failed at src/plugins/intel_gpu/src/plugin/plugin.cpp:593:\n[GPU] Can't get DEVICE_TYPE property as no supported devices found or an error happened during devices query.\n[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\" thrown in the test body.",
+    "[  FAILED  ] TensorTest.smoke_dynamicOutputCallerOwnedUsmHostGrowthBeyondCapacityIsSafe"
+  ],
+  "root_cause": "The OpenCL runtime on the iGPU self-hosted runner reported 'Number of platforms 0' via `clinfo` before any test executed, meaning the Intel GPU driver/OpenCL ICD stack did not expose any compute devices to the container at job start (despite the container being created with `--device /dev/dri/renderD128:/dev/dri/renderD128`). Every GPU-dependent test in ov_gpu_func_tests therefore failed identically at OpenVINO GPU plugin construction time (the '!m_device_map.empty()' check in plugin.cpp:593), well before reaching any test-specific logic. The triggering commit (#38591) only touches RV64 Snippets Mod codegen for negative inputs and does not touch GPU plugin device enumeration or driver/runner setup, so this is not a code regression. This is the 4th recorded occurrence of the identical signature on this runner pool within the same day (previously at 09:11, 10:26, and 19:35 UTC), strongly indicating a persistent/recurring GPU driver or runner-provisioning problem on the iGPU self-hosted runner pool rather than a one-off blip.",
+  "reproduction_steps": "Not reproducible from the commit diff; the failure is runner-environment-specific. To diagnose: SSH into the affected iGPU self-hosted runner, confirm `/dev/dri/renderD128` is present and accessible to the container's group IDs, then run `clinfo` inside the same container image (openvinogithubactions.azurecr.io/ov_test/ubuntu_22_04_x64_igpu) and check whether 'Number of platforms' is 0; if so, reinstall/reload the Intel GPU (NEO compute-runtime) OpenCL driver stack and compute-runtime kernel module on that host, then verify `clinfo` reports at least 1 platform before re-enabling the runner.",
+  "recommended_actions": [
+    "Escalate to CI infrastructure owners: the iGPU self-hosted runner pool has now failed with identical 'Number of platforms 0' / zero GPU devices symptom 4 times in one day - likely a flaky/degraded runner host or driver crash loop.",
+    "Add a pre-flight health check step (e.g., `clinfo` assertion for platforms > 0) at the start of the iGPU func test job that fails fast with a clear 'runner GPU unavailable' message instead of letting 32927 tests fail individually.",
+    "Consider auto-cordoning/retiring an iGPU runner host after N consecutive 'no platforms' failures until manually re-provisioned.",
+    "Verify the Intel GPU driver/NEO compute-runtime version pinned in the ov_test/ubuntu_22_04_x64_igpu container image is compatible with the current host kernel/driver stack."
+  ],
+  "prevention_strategies": "Add a runner health-check (clinfo/device enumeration) as a required pre-step for all iGPU jobs so driver/runner failures are caught and reported in seconds rather than after a 40+ minute full-suite run; monitor the iGPU runner pool for recurring zero-platform events and proactively replace/reprovision hosts that exhibit this pattern more than once.",
+    "historical_context": "Identical signature recorded 3 prior times earlier the same day (runs 39387885502 at 09:11 UTC, 39398307308 at 10:26 UTC, and 39472332829 at 19:35 UTC), all on the same iGPU runner pool with the same 'Number of platforms 0' symptom and the same '!m_device_map.empty()' assertion. None were attributable to the respective triggering commits, consistent with an unresolved runner/driver infrastructure issue."
+}

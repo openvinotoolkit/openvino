@@ -4,20 +4,23 @@
   "signature_hash": "a5c3320815892838",
   "title": "iGPU func tests fail en masse - no supported GPU devices found on runner",
   "category": "Infrastructure",
-  "count": 3,
+  "count": 4,
   "first_seen": "2026-10-20T09:11:02Z",
-  "last_seen": "2026-10-20T19:35:22Z",
+  "last_seen": "2026-10-20T21:22:20Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/39487871718",
     "https://github.com/openvinotoolkit/openvino/actions/runs/39472332829",
     "https://github.com/openvinotoolkit/openvino/actions/runs/39398307308",
     "https://github.com/openvinotoolkit/openvino/actions/runs/39387885502"
   ],
   "affected_commits": [
+    "9d735b1726ecbee4152d8982b8981b83d42827c2",
     "b03c0018961c1eadb6c21e5c988600a7630aae95",
     "1abe3a481f4174005289654b441de030b7df4242",
     "521ffc4d5a7de9fe8f678bd3effa810248259547"
   ],
   "recent_timestamps": [
+    "2026-10-20T21:22:20Z",
     "2026-10-20T19:35:22Z",
     "2026-10-20T10:26:11Z",
     "2026-10-20T09:11:02Z"
