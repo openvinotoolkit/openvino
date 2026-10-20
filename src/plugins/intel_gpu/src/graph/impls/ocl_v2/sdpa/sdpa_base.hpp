@@ -52,6 +52,10 @@ struct sdpa_configuration {
     bool has_score_aggregation = false;
     bool has_rotated_blocks = false;
 
+    // Sliding-window attention size in tokens: 0 = disabled (matches kernel guards `SLIDING_WINDOW_SIZE != 0`),
+    // > 0 = window size. GQA's -1 "disabled" sentinel is normalized to 0 at the SDPA op boundary.
+    int64_t sliding_window = 0;
+
     int64_t input_num;
 };
 
@@ -66,6 +70,9 @@ struct SDPABase : public KernelGenerator {
                                                      const std::vector<int64_t>& input_v_transpose_order);
 
     static bool is_int4_kv_cache(const kernel_impl_params& params);
+    // Returns {k_head_size, v_head_size} as used by SDPA-family OCL kernels; shared by SDPA and
+    // PagedAttention to avoid re-deriving (and potentially diverging) this pair per call site.
+    static std::pair<int64_t, int64_t> get_effective_head_sizes(const kernel_impl_params& params);
     static bool requires_shape_canonicalization(const kernel_impl_params& impl_params);
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params);
 

@@ -22,6 +22,7 @@ protected:
                                         const ov::Output<ov::Node>& scale,
                                         const ov::Output<ov::Node>& sink,
                                         bool is_causal,
+                                        int64_t local_window_size,
                                         const std::optional<CompressedKV>& compressed_kv) override;
     std::shared_ptr<ov::Node> make_attention_mask(const ov::Output<ov::Node>& curr_seqlen_scalar,
                                                   const ov::Output<ov::Node>& kv_len_scalar,
@@ -35,6 +36,8 @@ protected:
                                                   bool sliding_window_cache,
                                                   float scale,
                                                   bool has_sink) override;
+    // RMSFusion runs before this pass on GPU, so QK-Norm is emitted as the fused RMS op directly.
+    ov::Output<ov::Node> make_qk_norm(const ov::Output<ov::Node>& input, const ov::Output<ov::Node>& weight, float epsilon) override;
     std::optional<CompressedKV> prepare_compressed_kv(
         const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
         const ov::Output<ov::Node>& key,
