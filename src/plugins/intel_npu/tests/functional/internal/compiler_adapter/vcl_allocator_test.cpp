@@ -37,7 +37,6 @@ protected:
     std::string targetDevice;
     std::shared_ptr<ov::Model> model;
     std::shared_ptr<::intel_npu::vcl_allocator_2> allocator;
-    std::shared_ptr<const ::intel_npu::VCLLoader> loader;
     std::shared_ptr<const ::intel_npu::VCLFunctionTable> functions;
 
     void SetUp() override {
@@ -46,10 +45,7 @@ protected:
         allocator = std::make_shared<::intel_npu::vcl_allocator_2>();
 
         try {
-            std::string ov_lib_dir = ov::test::utils::getOpenvinoLibDirectory();
-            // Own the loader for the duration of the test: there is no process-wide instance.
-            loader = std::make_shared<const ::intel_npu::VCLLoader>(ov_lib_dir);
-            functions = loader->sharedFunctions();
+            functions = ::intel_npu::VCLLoaderHolder().functions();
         } catch (const std::exception&) {
             GTEST_SKIP() << "Couldn't load compiler library";
         }

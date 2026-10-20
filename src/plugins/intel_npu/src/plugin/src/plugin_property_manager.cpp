@@ -104,12 +104,12 @@ namespace intel_npu {
 PluginPropertyManager::PluginPropertyManager(const std::shared_ptr<OptionsDesc>& options,
                                              const ov::SoPtr<IEngineBackend>& backend,
                                              const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
-                                             VCLFunctionTableProvider vclFunctions,
+                                             const VCLFunctionTableProvider& vclFunctions,
                                              Logger& logger)
     : _config(options),
       _backend(backend),
       _compilerOptionSupportHelper(optionSupportHelper),
-      _vclFunctions(std::move(vclFunctions)),
+      _vclFunctions(vclFunctions),
       _logger(logger) {
     if (_backend == nullptr) {
         _logger.info("No backend is available. Backend/device-dependent properties will be unavailable.");

@@ -12,9 +12,9 @@ namespace {
 
 using CompilerType = ov::intel_npu::CompilerType;
 
-// None of the cases below reach the compiler-in-plugin branch of the factory: they are answered
-// from the cache, rejected before any lookup, or exercise the driver path without a device. So the
-// provider must never be invoked, and throwing is how that is enforced rather than assumed.
+// No case below reaches the compiler-in-plugin branch of the factory. Each is answered from the
+// cache, rejected before any lookup, or uses the driver path without a device. The provider throws
+// so that any call to it fails the test.
 ::intel_npu::VCLFunctionTableProvider noVclLibrary() {
     return []() -> std::shared_ptr<const ::intel_npu::VCLFunctionTable> {
         OPENVINO_THROW("The VCL function table provider must not be invoked by this test");

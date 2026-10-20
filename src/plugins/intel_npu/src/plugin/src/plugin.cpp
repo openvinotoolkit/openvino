@@ -181,8 +181,7 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
     Logger::global().setLevel(config->get<LOG_LEVEL>());
     _logger.setLevel(config->get<LOG_LEVEL>());
 
-    // Owns the compiler library for this plugin's lifetime; nothing is loaded until first use.
-    _vclLoader = std::make_shared<VCLLoaderHolder>(ov::util::path_to_string(ov::util::get_ov_lib_path()));
+    _vclLoaderHolder = std::make_shared<VCLLoaderHolder>();
 
     OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::NPUPlugin, "Plugin::Plugin", "GetBackend");
     // backend registry shall be created after configs are updated

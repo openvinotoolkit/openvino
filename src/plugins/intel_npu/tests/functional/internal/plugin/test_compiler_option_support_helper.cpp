@@ -12,6 +12,7 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
+#include "common/vcl_test_utils.hpp"
 #include "compiler_option_support_helper.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
@@ -21,18 +22,6 @@
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "zero_backend.hpp"
-
-namespace {
-// These tests run against a real driver and a real compiler library, so the provider loads one.
-// Process-scoped for the test binary, which is what the plugin does per plugin instance.
-::intel_npu::VCLFunctionTableProvider testVclFunctions() {
-    static auto holder =
-        std::make_shared<::intel_npu::VCLLoaderHolder>(ov::test::utils::getOpenvinoLibDirectory());
-    return [] {
-        return holder->functions();
-    };
-}
-}  // namespace
 
 namespace ov {
 namespace test {
@@ -81,8 +70,9 @@ protected:
 
         compilerType = GetParam();
         backend = ov::SoPtr<::intel_npu::IEngineBackend>(std::make_shared<::intel_npu::ZeroEngineBackend>());
-        helper =
-            std::make_unique<::intel_npu::CompilerOptionSupportHelper>(backend, ::intel_npu::CompilerAdapterFactory{testVclFunctions()});
+        helper = std::make_unique<::intel_npu::CompilerOptionSupportHelper>(
+            backend,
+            ::intel_npu::CompilerAdapterFactory{testVclFunctions()});
     }
 
     void TearDown() override {
@@ -345,8 +335,9 @@ protected:
         OVPluginTestBase::SetUp();
 
         backend = ov::SoPtr<::intel_npu::IEngineBackend>(std::make_shared<::intel_npu::ZeroEngineBackend>());
-        helper =
-            std::make_unique<::intel_npu::CompilerOptionSupportHelper>(backend, ::intel_npu::CompilerAdapterFactory{testVclFunctions()});
+        helper = std::make_unique<::intel_npu::CompilerOptionSupportHelper>(
+            backend,
+            ::intel_npu::CompilerAdapterFactory{testVclFunctions()});
     }
 
     void TearDown() override {

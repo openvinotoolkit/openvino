@@ -23,11 +23,10 @@ namespace intel_npu {
 class CompilerAdapterFactory final {
 public:
     /**
-     * @param vclFunctions How to obtain the VCL entry points, supplied by whoever owns the loader.
-     *        Invoked only on the compiler-in-plugin branch, so the driver-compiler path and the
-     *        "platform is driver-only" short-circuit never load the library.
+     * @param vclFunctions Supplies the VCL entry points. It is called only when a compiler-in-plugin
+     *        gets built, so the driver compiler path never loads the library.
      */
-    explicit CompilerAdapterFactory(VCLFunctionTableProvider vclFunctions);
+    explicit CompilerAdapterFactory(const VCLFunctionTableProvider& vclFunctions);
 
     std::unique_ptr<ICompilerAdapter> getCompiler(
         const ov::SoPtr<IEngineBackend>& engineBackend,
@@ -56,8 +55,8 @@ private:
         ABSENT = 2,
     };
 
-    // Process-wide on purpose: copies of this factory - CompilerOptionSupportHelper holds one by
-    // value - share one answer about whether the compiler-in-plugin could be loaded.
+    // Process-wide on purpose: every copy of this factory (CompilerOptionSupportHelper holds one by value)
+    // must give the same answer on whether the compiler-in-plugin can be loaded.
     inline static std::atomic<PluginCompilerPresence> _pluginCompilerPresence{PluginCompilerPresence::UNKNOWN};
 
     VCLFunctionTableProvider _vclFunctions;

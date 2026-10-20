@@ -18,6 +18,7 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
+#include "common/vcl_test_utils.hpp"
 #include "compiler_option_support_helper.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
@@ -35,18 +36,6 @@
 #include "plugin_property_manager.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "zero_backend.hpp"
-
-namespace {
-// These tests run against a real driver and a real compiler library, so the provider loads one.
-// Process-scoped for the test binary, which is what the plugin does per plugin instance.
-::intel_npu::VCLFunctionTableProvider testVclFunctions() {
-    static auto holder =
-        std::make_shared<::intel_npu::VCLLoaderHolder>(ov::test::utils::getOpenvinoLibDirectory());
-    return [] {
-        return holder->functions();
-    };
-}
-}  // namespace
 
 using ::testing::AllOf;
 using ::testing::HasSubstr;
@@ -171,7 +160,8 @@ public:
         propertiesManager = std::make_unique<PluginPropertyManager>(
             options,
             backend,
-            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, CompilerAdapterFactory{testVclFunctions()}),
+            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend,
+                                                                       CompilerAdapterFactory{testVclFunctions()}),
             testVclFunctions(),
             ::intel_npu::Logger::global());
     }
@@ -698,7 +688,9 @@ TEST_P(CompatibilityCheckTests, CheckUnsupportedConfigWithGetMergedConfigAndUnkn
     auto localPropertiesManager = std::make_unique<::intel_npu::PluginPropertyManager>(
         localOptions,
         backend,
-        std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, ::intel_npu::CompilerAdapterFactory{testVclFunctions()}),
+        std::make_shared<::intel_npu::CompilerOptionSupportHelper>(
+            backend,
+            ::intel_npu::CompilerAdapterFactory{testVclFunctions()}),
         testVclFunctions(),
         ::intel_npu::Logger::global());
 

@@ -17,7 +17,7 @@ class ParserFactory final {
 public:
     std::unique_ptr<IParser> getParser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStructs,
                                        bool perfCountEnabled,
-                                       const VCLFunctionTableProvider& vclFunctions = nullptr) const;
+                                       const VCLFunctionTableProvider& vclFunctions) const;
 };
 
 }  // namespace intel_npu

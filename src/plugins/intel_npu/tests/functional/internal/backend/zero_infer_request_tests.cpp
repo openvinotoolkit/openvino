@@ -205,16 +205,13 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
                                                   ov::test::utils::getDeviceNameID(ov::test::utils::getDeviceName()));
 
     std::shared_ptr<::intel_npu::ICompilerAdapter> compiler;
-    std::shared_ptr<const ::intel_npu::VCLLoader> vclLoader;
     try {
         if (npu_config->get<::intel_npu::COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER) {
             compiler = std::make_shared<::intel_npu::DriverCompilerAdapter>(zeroInitStruct);
         } else {
-            vclLoader = std::make_shared<const ::intel_npu::VCLLoader>(
-                ov::test::utils::getOpenvinoLibDirectory());
             compiler = std::make_shared<::intel_npu::PluginCompilerAdapter>(
                 zeroInitStruct,
-                std::make_shared<::intel_npu::VCLCompilerImpl>(vclLoader->sharedFunctions()));
+                std::make_shared<::intel_npu::VCLCompilerImpl>(::intel_npu::VCLLoaderHolder().functions()));
         }
     } catch (...) {
         GTEST_SKIP() << "Couldn't load compiler library";

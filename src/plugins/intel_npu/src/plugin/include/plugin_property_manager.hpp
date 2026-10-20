@@ -30,7 +30,7 @@ public:
     PluginPropertyManager(const std::shared_ptr<OptionsDesc>& options,
                           const ov::SoPtr<IEngineBackend>& backend,
                           const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
-                          VCLFunctionTableProvider vclFunctions,
+                          const VCLFunctionTableProvider& vclFunctions,
                           Logger& logger);
 
     PluginPropertyManager& operator=(const PluginPropertyManager& other) = delete;
@@ -62,7 +62,7 @@ private:
 
     ov::SoPtr<IEngineBackend> _backend;
     std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;
-    // Only used to build the compiler adapters the compiler-dependent properties need.
+    // Builds the compiler adapters that the compiler dependent properties query.
     VCLFunctionTableProvider _vclFunctions;
     Logger& _logger;
 

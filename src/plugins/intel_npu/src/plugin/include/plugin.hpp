@@ -70,14 +70,14 @@ private:
     std::shared_ptr<ov::ICompiledModel> import_model(BlobSource& blobSource, ov::AnyMap& properties) const;
 
     /**
-     * @brief How anything downstream obtains the VCL entry points.
+     * @brief Returns a provider of the VCL entry points for the components that need them.
      *
-     * Captures the holder rather than `this`, so a provider handed to a long-lived collaborator
-     * cannot outlive what it reads. The library loads on the first call and is released when this
-     * plugin is destroyed - or later, if a compiler or decoder still holds the table.
+     * The provider captures the loader holder, not `this`, so it stays valid when a longer lived
+     * component keeps it. The library loads on the first call and unloads after the plugin and
+     * every compiler or decoder using the entry points are gone.
      */
     VCLFunctionTableProvider vcl_functions() const {
-        return [holder = _vclLoader] {
+        return [holder = _vclLoaderHolder] {
             return holder->functions();
         };
     }
@@ -88,9 +88,8 @@ private:
     //  Appropriate checks are needed in plugin/metrics/properties when actions depend on a backend.
     ov::SoPtr<IEngineBackend> _backend;
 
-    // Owns the VCL compiler library for this plugin's lifetime. Loaded lazily, so a driver-only
-    // flow never pays for it.
-    std::shared_ptr<VCLLoaderHolder> _vclLoader;
+    // Loads the VCL compiler library on first use, so the driver compiler path never pays for it.
+    std::shared_ptr<VCLLoaderHolder> _vclLoaderHolder;
 
     mutable Logger _logger;
     std::unique_ptr<PluginPropertyManager> _propertiesManager;

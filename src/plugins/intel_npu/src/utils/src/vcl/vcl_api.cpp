@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <mutex>
 #include <stdexcept>
-#include <utility>
 
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -46,14 +45,15 @@ VCLLoader::VCLLoader(const std::string& library_dir) : _logger("VCLLoader", Logg
 #undef vcl_symbol_statement
 }
 
-VCLLoaderHolder::VCLLoaderHolder(std::string library_dir) : _library_dir(std::move(library_dir)) {}
+VCLLoaderHolder::VCLLoaderHolder(const std::string& library_dir) : _library_dir(library_dir) {}
 
 std::shared_ptr<const VCLFunctionTable> VCLLoaderHolder::functions() const {
     std::lock_guard<std::mutex> lock(_mutex);
     if (_loader == nullptr) {
-        OPENVINO_ASSERT(!_library_dir.empty(), "Cannot load the VCL compiler library: no library directory was given");
-        // Deliberately not cached on failure: see the note on the class.
-        _loader = std::make_shared<const VCLLoader>(_library_dir);
+        const auto library_dir = _library_dir ? *_library_dir : ov::util::path_to_string(ov::util::get_ov_lib_path());
+        OPENVINO_ASSERT(!library_dir.empty(), "Cannot load the VCL compiler library: no library directory was given");
+        // The constructor is private, so make_shared is not an option here.
+        _loader = std::shared_ptr<const VCLLoader>(new VCLLoader(library_dir));
     }
     return _loader->sharedFunctions();
 }

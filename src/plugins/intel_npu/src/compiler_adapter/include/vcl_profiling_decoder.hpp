@@ -32,13 +32,4 @@ private:
     Logger _logger;
 };
 
-/**
- * @brief Builds a profiling decoder over the given VCL entry points.
- *
- * @note Obtaining the entry points is the expensive part, because it may load the library;
- *       constructing the decoder is just storing a pointer. Callers that may not need profiling at
- *       all should therefore decide before resolving a table to pass here.
- */
-std::shared_ptr<IProfilingDecoder> makeVCLProfilingDecoder(std::shared_ptr<const VCLFunctionTable> functions);
-
 }  // namespace intel_npu
