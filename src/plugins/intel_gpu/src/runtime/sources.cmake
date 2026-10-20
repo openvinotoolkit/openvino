@@ -132,6 +132,8 @@ set(GPU_RUNTIME_SYCL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_memory.hpp
     ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_stream.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_stream.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_user_event.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_user_event.hpp
     ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_wrapper.hpp
     ${CMAKE_CURRENT_LIST_DIR}/sycl/intel/sycl_kernel_builder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sycl/intel/sycl_kernel_builder.hpp
