@@ -396,9 +396,12 @@ void GroupQueryAttention::validate_and_infer_types() {
     // The KV cache (past_key/past_value, input 3/4) may be quantized. present_key/present_value inherit the
     // cache element type so a quantized (i8/u8/f8e4m3) cache round-trips from past to present, matching the ONNX spec.
     NODE_VALIDATION_CHECK(this,
-                          has_past || (!m_sliding_window_cache && !is_shared_kv()),
-                          "GroupQueryAttention requires past_key and past_value for a windowed or shared "
+                          !m_sliding_window_cache || has_past || has_past_layout,
+                          "GroupQueryAttention requires past_key and past_value with a known layout for a windowed "
                           "KV cache");
+    NODE_VALIDATION_CHECK(this,
+                          !is_shared_kv() || has_past,
+                          "GroupQueryAttention requires non-empty past_key and past_value for shared KV");
     NODE_VALIDATION_CHECK(this,
                           has_past_layout || !is_kv_quantized(),
                           "GroupQueryAttention with a quantized KV cache and no past requires a typed rank-4 empty "
@@ -460,8 +463,9 @@ void GroupQueryAttention::validate_and_infer_types() {
     // A zero-capacity past (absent/empty cache) cannot be written in place either, so present grows by the step.
     // Shared KV (statically empty key, kv_sequence_length == 0) appends nothing: present is the past as is.
     // A key/value of dynamic length cannot be written in place, so present grows by its own length.
+    const bool empty_past = output_kv_len.is_static() && output_kv_len.get_length() == 0;
     const bool dynamic_kv_len = key_ps.rank().is_static() && key_ps[2].is_dynamic();
-    if (!m_sliding_window_cache && !is_shared_kv() && !has_fixed_kv_capacity()) {
+    if ((!m_sliding_window_cache || empty_past) && !is_shared_kv() && !has_fixed_kv_capacity()) {
         output_kv_len += dynamic_kv_len ? key_ps[2] : sequence_len;
     }
 

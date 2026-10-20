@@ -538,6 +538,21 @@ TEST(type_prop, group_query_attention_shared_kv_present_is_past) {
     EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, -1, 8}));
 }
 
+TEST(type_prop, group_query_attention_shared_kv_requires_non_empty_past) {
+    auto args = make_valid_gqa_args();
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::KEY)] =
+        std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::VALUE)] =
+        std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    const auto empty_past = op::v0::Constant::create(element::f32, Shape{1, 2, 0, 8}, {});
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_KEY)] = empty_past;
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_VALUE)] = empty_past;
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("non-empty past_key and past_value for shared KV"));
+}
+
 TEST(type_prop, group_query_attention_regular_kv_is_not_shared) {
     const auto op =
         std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(), 6, 2, 1.0f, false, false);

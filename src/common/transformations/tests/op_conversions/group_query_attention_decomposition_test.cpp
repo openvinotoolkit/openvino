@@ -248,9 +248,19 @@ class GroupQueryAttentionDecompositionTest : public testing::TestWithParam<GqaPa
 TEST_P(GroupQueryAttentionDecompositionTest, decomposes_to_sdpa) {
     const auto& p = GetParam();
     auto model = make_gqa_model(p);
+    const auto present_key_shape_before = model->get_output_partial_shape(1);
+    const auto present_value_shape_before = model->get_output_partial_shape(2);
     pass::Manager manager;
     manager.register_pass<pass::GroupQueryAttentionDecomposition>();
     manager.run_passes(model);
+
+    if (p.name == "empty_past_windowed_cache") {
+        const auto expected_shape = PartialShape{1, KV_NUM_HEADS, 1, HEAD_SIZE};
+        EXPECT_EQ(present_key_shape_before, expected_shape);
+        EXPECT_EQ(present_value_shape_before, expected_shape);
+        EXPECT_EQ(model->get_output_partial_shape(1), present_key_shape_before);
+        EXPECT_EQ(model->get_output_partial_shape(2), present_value_shape_before);
+    }
 
     // The internal op is always replaced by exactly one ScaledDotProductAttention.
     EXPECT_EQ(count_ops_of_type<GroupQueryAttention>(model), 0u);
