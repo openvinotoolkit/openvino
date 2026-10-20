@@ -624,7 +624,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.emplace_back(std::regex(R"(smoke_ExportImportTest/ExportOptimalNumStreams.OptimalNumStreams/.*)"));
             // by calc abs_threshold with expected value
             patterns.emplace_back(std::regex(R"(.*smoke_GatherCompressedWeights_basic/GatherWeightsDecompression.CompareWithRefs.*INFERENCE_PRECISION_HINT.*bf16.*)"));
-            patterns.emplace_back(std::regex(R"(.*smoke_Interaction/IntertactionCPUTest.CompareWithRefs.*Prc=i32.*)"));
             patterns.emplace_back(std::regex(R"(.*smoke_MatMulCompressedWeights_(amx|sym_amx|corner_cases_amx)/MatmulWeightsDecompression.CompareWithRefs.*INFERENCE_PRECISION_HINT.*bf16.*)"));
             patterns.emplace_back(std::regex(R"(.*smoke_Snippets_EnforcePrecision_bf16/EnforcePrecisionTest.*)"));
             patterns.emplace_back(std::regex(R"(.*smoke_Snippets_MHABF16_4D/MHA.CompareWithRefImpl/.*\[1.58.16.34\]_IS\[1\]=\[1.58.16.34\]_IS\[2\]=\[1.1.1.58\]_IS\[3\]=\[1.58.16.34\].*)"));
@@ -640,6 +639,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
         }
 
         if (!ov::with_cpu_x86_avx512_core_amx() && ov::with_cpu_x86_avx512_core_fp16() && ov::with_cpu_x86_bfloat16()) {
+            // AVX10.2-class machines can expose fp16+bf16 without AMX support being enabled in the current CPU mask;
+            // keep these known failing snippets skips limited to that path instead of matching broader AMX-disabled CPUs.
             // Issue: 195918: TODO: filter out failing tests on NVL
             patterns.emplace_back(std::regex(R"(smoke_Snippets_MatMult/TransposeMatMul\.CompareWithRefImpl/IS\[0\]=\[\]_\(\[1\.49\.2\.23\]\)_IS\[1\]=\[\]_\(\[2\.2\.23\.39\]\)_Pos=0_T\[0\]=f16_T\[1\]=f16_MatMul_#N=1_#S=1_targetDevice=CPU)"));
             patterns.emplace_back(std::regex(R"(smoke_Snippets_MatMult/TransposeMatMul\.CompareWithRefImpl/IS\[0\]=\[\]_\(\[2\.1\.49\.13\]\)_IS\[1\]=\[\]_\(\[1\.13\.3\.39\]\)_Pos=1_T\[0\]=f16_T\[1\]=f16_MatMul_#N=1_#S=1_targetDevice=CPU)"));
