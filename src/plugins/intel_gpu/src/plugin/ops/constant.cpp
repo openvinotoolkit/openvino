@@ -105,7 +105,7 @@ struct ConstProperties {
 // prepare_quantization reorders exactly these to fbyx.
 static bool is_grouped_fc_decompression_param(const ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Constant>& op) {
     const auto& shape = op->get_shape();
-    // Sub-byte zp (u4 / i4) packs two values per byte and keeps the plain layout
+    // One group ([N, 1]) has the same order in both layouts and isn't reordered; sub-byte zp (u4 / i4) keeps the plain layout
     if (!p.use_new_shape_infer() || shape.size() != 2 || shape[1] < 2 || op->get_output_element_type(0).bitwidth() < 8)
         return false;
     const auto users = op->get_output_target_inputs(0);
@@ -117,6 +117,7 @@ static bool is_grouped_fc_decompression_param(const ProgramBuilder& p, const std
             return false;
         if (!(user.get_index() == 3 ? fc->get_transpose_b_scale() : fc->get_transpose_b_zp()))
             return false;
+        // One value per output channel: broadcast params ([1, groups]) keep the existing reorder
         const auto& w_shape = fc->get_input_partial_shape(1);
         if (w_shape.rank().is_dynamic() || w_shape.size() != 2 || w_shape[0].is_dynamic() || static_cast<size_t>(w_shape[0].get_length()) != shape[0])
             return false;
