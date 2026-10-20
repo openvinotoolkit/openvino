@@ -1270,6 +1270,9 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     }
 
     int32_t tmp_prealloc_count = get_prealloc_iter_num();
+    // Small buffers are kept: when the shape alternates (e.g. LLM prefill <-> decode), reallocating them on every switch
+    // costs more host time than the memory it frees.
+    const size_t reclaim_min_size = get_config().get_output_reclaim_min_size();
     // If we allocated too large memory, reclaim the memory.
     for (size_t i = 0; i < updated_layouts.size(); ++i) {
         bool reclaim = false;
@@ -1286,7 +1289,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         } else {
             required_buffer_size = (updated_layouts[i].get_linear_size());
         }
-        if (required_buffer_size * 10 < _max_output_layout_count[i]) {
+        const bool small_buffer = !get_node().is_type<kv_cache>() && _max_output_layout_count[i] * dt_sizes_in_B[i] <= reclaim_min_size;
+        if (required_buffer_size * 10 < _max_output_layout_count[i] && !small_buffer) {
             reclaim = true;
         }
         if (reclaim) {
