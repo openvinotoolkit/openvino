@@ -156,7 +156,6 @@ std::string encode_compiled_options(const ov::AnyMap& options) {
 class HsmWriterHandler::BytesEncoder final : public runtime::hsm::ISectionEncoder {
     static constexpr auto max_size = util::min_page_alignment;  // one page
 public:
-
     explicit BytesEncoder(std::string bytes) : m_bytes(std::move(bytes)) {
         OPENVINO_ASSERT(m_bytes.size() <= max_size, "TEMPLATE: HSM section too large to buffer: ", m_bytes.size());
     }
