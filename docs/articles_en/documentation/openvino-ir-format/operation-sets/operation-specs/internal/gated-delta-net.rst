@@ -15,6 +15,15 @@ GatedDeltaNet
 **Short description**: *GatedDeltaNet* represents a linear recurrent sequence model
 that combines the delta rule memory update with a gating mechanism.
 
+The optional snapshot mode was introduced for Qwen3.5 in the llama.cpp OpenVINO
+backend, including the GGML ``qwen35`` and ``qwen35moe`` architectures used by
+Qwen3.5 and Qwen3.6 models. During speculative MTP decoding, the target model
+verifies a batch containing draft tokens. llama.cpp must restore the recurrent
+matrix cache (``cache_s``) to the accepted token prefix when a draft is rejected;
+the ordinary final-state output alone cannot provide that earlier state.
+``snapshot_count`` exposes these prefix states without recomputing the recurrence.
+Its default value of one preserves the existing final-state behavior.
+
 **Detailed description**: *GatedDeltaNet* implements the recurrence from the paper
 `arXiv:2412.06464 <https://arxiv.org/abs/2412.06464>`__. It processes a sequence of
 query, key, and value vectors using the delta rule to update a hidden state matrix,
@@ -166,8 +175,8 @@ computation:
 
 **Snapshot mode and plugin support**
 
-Snapshot mode supports speculative-decoding rollback without reevaluating the
-recurrent prefix. The GPU kernel leaves the input state unchanged and writes
+Snapshot mode supports llama.cpp Qwen3.5 speculative MTP rollback without
+reevaluating the recurrent prefix. The GPU kernel leaves the input state unchanged and writes
 newest-first states into output 1. The graph therefore has exactly two outputs
 in both modes. For example, ``K=3`` and ``seq_len=2`` produce the states after
 tokens 1 and 0 in entries 0 and 1; entry 2 is invalid.

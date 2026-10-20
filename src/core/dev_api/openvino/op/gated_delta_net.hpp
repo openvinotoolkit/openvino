@@ -8,6 +8,11 @@
 namespace ov::op::internal {
 /// \note GatedDeltaNet op class is under development and subject to change
 ///
+/// Snapshot mode was added for Qwen3.5 (GGML qwen35/qwen35moe) in the llama.cpp
+/// OpenVINO backend. MTP verification needs token-prefix recurrent states so llama.cpp
+/// can restore cache_s after rejecting draft tokens without recomputing the recurrence.
+/// snapshot_count=1 retains the existing final-state contract.
+///
 /// \brief Operator performing Gated Delta Net computation
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API GatedDeltaNet : public ov::op::Op {

@@ -136,6 +136,7 @@ KERNEL(gated_delta_net_ref)
 #if OUTPUT_STATE
  __global OUTPUT1_TYPE* output_state,
 #endif
+// llama.cpp Qwen3.5 MTP verification consumes these token-prefix states for cache_s rollback.
 #if OUTPUT_SNAPSHOTS
  __global OUTPUT1_TYPE* snapshots,
 #endif
