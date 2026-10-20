@@ -945,7 +945,6 @@ public:
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        using ov::test::utils::DecompressionType;
         const auto& [precision, zp_shape, expect_fusion] = GetParam();
         const MoeCompression input_compression{precision, zp_shape, precision};
 
@@ -953,7 +952,7 @@ protected:
         manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
         if (expect_fusion) {
             const auto output_zp_type = precision == ov::element::u3 ? ov::element::u8 : precision;
-            const MoeCompression output_compression{precision, DecompressionType::full, output_zp_type};
+            const MoeCompression output_compression{precision, zp_shape, output_zp_type};
             model_ref = build_3gemm_bgm_to_moe_reference_model(
                 ov::op::internal::MOE::Activation_type::SWIGLU, true, false, output_compression);
         }
@@ -991,6 +990,6 @@ TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_compressed_u3_w
     using ov::test::utils::DecompressionType;
     model = build_3gemm_bgm_model(AT::SWIGLU, true, false, {{ov::element::u3, DecompressionType::scalar, ov::element::i8}});
     manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
-    model_ref = build_3gemm_bgm_to_moe_reference_model(AT::SWIGLU, true, false, {{ov::element::u3, DecompressionType::full, ov::element::i8}});
+    model_ref = build_3gemm_bgm_to_moe_reference_model(AT::SWIGLU, true, false, {{ov::element::u3, DecompressionType::scalar, ov::element::i8}});
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
