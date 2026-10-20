@@ -167,19 +167,8 @@ size_t Reader::read_sections(const std::vector<ISectionReaderHandler*>& handlers
     size_t handled = 0;
     for (const auto& entry : m_manifest) {
         const auto section = make_section(entry);
-        std::optional<std::vector<std::byte>> owned;  // only materialized when a zero-copy view isn't possible
-        ov::util::MemoryView view;
-        if (const auto direct = section.view()) {
-            view = *direct;
-        } else {
-            owned = section.to_bytes();
-            if (!owned) {
-                continue;
-            }
-            view = {owned->data(), owned->size()};
-        }
         for (const auto& handler : handlers) {
-            if (handler != nullptr && handler->handle_section(entry, view)) {
+            if (handler != nullptr && handler->handle_section(entry, section)) {
                 ++handled;
                 break;
             }
