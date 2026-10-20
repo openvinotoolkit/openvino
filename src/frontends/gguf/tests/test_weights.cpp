@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "op_test_utils.hpp"
+#include "openvino/op/constant.hpp"
 #include "quant/weights.hpp"
 
 using namespace ov_gguf_test;
@@ -88,10 +89,53 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                                            WeightCase{"q5_k", "Q5_K", kTolRequant},
                                            WeightCase{"q6_k", "Q6_K", kTolRequant},
                                            WeightCase{"q2_0", "Q2_0", kTolFaithful},
-                                           WeightCase{"q1_0", "Q1_0", kTolFaithful}),
+                                           WeightCase{"q1_0", "Q1_0", kTolFaithful},
+                                           WeightCase{"pq2_0", "PQ2_0", 0.f},
+                                           WeightCase{"ptq1_0", "PTQ1_0", 0.f}),
                          [](const ::testing::TestParamInfo<WeightCase>& i) {
                              return std::string(i.param.stem);
                          });
+
+TEST(GGUFWeight, Q1_0KeepsBinaryCodesForAllWeightNames) {
+    const auto bytes = load_npy<uint8_t>("q1_0_qbytes");
+    const auto reference = load_npy<float>("q1_0_deq");
+    for (const std::string name : {"blk.0.attn_q.weight", "token_embd.weight", "output.weight"}) {
+        SCOPED_TRACE(name);
+        const auto node = make_weight_node(bytes_to_u8_tensor(bytes), "Q1_0", {kRows, kCols}, name);
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+        size_t binary_bytes = 0;
+        for (const auto& op : model->get_ordered_ops()) {
+            if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op)) {
+                EXPECT_NE(constant->get_element_type(), ov::element::i4);
+                EXPECT_NE(constant->get_element_type(), ov::element::i8);
+                if (constant->get_element_type() == ov::element::u1)
+                    binary_bytes += constant->get_byte_size();
+            }
+        }
+        EXPECT_EQ(binary_bytes, kRows * kCols / 8);
+        const auto output = run_on_cpu(model, {});
+        ASSERT_EQ(output.get_size(), reference.size());
+        for (size_t i = 0; i < reference.size(); ++i)
+            EXPECT_FLOAT_EQ(output.data<const float>()[i], reference[i]);
+    }
+}
+
+TEST(GGUFWeight, Q1_0PreservesFiniteScaleRange) {
+    const std::vector<ov::float16> scales{65504.f, -65504.f, 0.f, ov::float16::from_bits(1)};
+    std::vector<uint8_t> bytes(scales.size() * 18);
+    for (size_t group = 0; group < scales.size(); ++group) {
+        const auto bits = scales[group].to_bits();
+        std::memcpy(bytes.data() + group * 18, &bits, sizeof(bits));
+        std::fill_n(bytes.data() + group * 18 + 2, 16, 0x55);
+    }
+    const auto node = make_weight_node(bytes_to_u8_tensor(bytes), "Q1_0", {1, scales.size() * 128});
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+    const auto output = run_on_cpu(model, {});
+    for (size_t i = 0; i < output.get_size(); ++i) {
+        const float scale = static_cast<float>(scales[i / 128]);
+        EXPECT_FLOAT_EQ(output.data<const float>()[i], i % 2 == 0 ? scale : -scale);
+    }
+}
 
 // token_embd / output are requantized to channel-wise Q8_0_C, and that path reads the zero-point
 // as f16 -- Q2_0 used to hard-code u8 here, which threw for every ternary model.
@@ -287,6 +331,7 @@ TEST(GGUFFusedQkvWeight, PreservesScalesForMxfp4AndQ8K) {
     };
 
     check(ov::frontend::gguf::GGUF_TYPE_MXFP4, ov::element::f4e2m1, ov::element::f8e8m0, 8);
+    check(ov::frontend::gguf::GGUF_TYPE_Q1_0, ov::element::u1, ov::element::f16, 2);
     check(ov::frontend::gguf::GGUF_TYPE_Q8_K, ov::element::i8, ov::element::f32, 1);
 }
 
