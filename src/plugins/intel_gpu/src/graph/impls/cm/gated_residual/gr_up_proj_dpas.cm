@@ -1,0 +1,136 @@
+// Copyright (C) 2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// GR DPAS pipeline, stage 3/3: low-rank up projection fused with the branch mix.
+//
+//   G[token, c, d]  = sigmoid( T[token,:] . W_up[c*D+d, :] )
+//   mixed[token, d] = (1/C) * sum_c G[token, c, d] * Rbar[token, c, d]
+//
+// One thread owns GR_UP_TM tokens x 16 channels d of ALL C branches, so the read gate
+// never leaves registers: no [tokens, C*D] gate scratch round trip and no separate
+// combine dispatch. Token-major dpas (A = T rows, B = W_up rows through a transposed
+// d32 load) gives dst[token][d], which matches the Rbar 2D block loaded for the mix.
+//
+// GR_UP_KSPLIT > 1 (few tokens / decode): KSPLIT threads of a work-group split the L
+// reduction, partial gate logits are summed through SLM and thread 0 runs the mix.
+//
+// JIT constants: GR_BRANCHES, GR_HIDDEN, GR_LOWRANK, GR_UP_TM, GR_UP_KSPLIT.
+// Dispatch (NX = GR_HIDDEN/16, NY = ceil(num_tokens/GR_UP_TM)):
+//   KSPLIT == 1: gws = [NX, NY, 1],          lws = [any divisor of NX, any divisor of NY, 1]
+//   KSPLIT >  1: gws = [NX * KSPLIT, NY, 1], lws = [KSPLIT, 1, 1]
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+#include "qsa_gr_common.hpp"
+#include "qsa_dpas_common.hpp"
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* t_in ATTR,   // [tokens, L]
+                                        const half* w_up ATTR,   // [C*D, L]
+                                        const half* rbar ATTR,   // [tokens, C*D]
+                                        half* mixed ATTR,        // [tokens, D]
+                                        uint32_t num_tokens) {
+    constexpr uint C = GR_BRANCHES;
+    constexpr uint D = GR_HIDDEN;
+    constexpr uint CD = C * D;
+    constexpr uint L = GR_LOWRANK;
+    constexpr uint TM = GR_UP_TM;
+    constexpr uint MT = TM / 8;
+    constexpr uint TML = TM < 32 ? TM : 32;
+    constexpr uint NL = TM / TML;
+    constexpr uint KS = 2 * QSA_REG_K;
+    constexpr uint TILE = 8 * QSA_REG_N;
+    constexpr uint KSPLIT = GR_UP_KSPLIT;
+    constexpr uint K_PER_THREAD = L / KSPLIT;
+    static_assert(QSA_REG_N == 16, "GR DPAS requires 512-bit GRFs (Xe2+)");
+    static_assert(D % QSA_REG_N == 0, "GR_HIDDEN must be a multiple of 16");
+    static_assert(CD % 32 == 0, "C*D must be a multiple of 32 (64B Rbar surface)");
+    static_assert(L % KS == 0, "GR_LOWRANK must be a multiple of 32");
+    static_assert(L % KSPLIT == 0 && K_PER_THREAD % KS == 0, "GR_UP_KSPLIT must split L into multiples of 32");
+    static_assert(TM % 8 == 0 && TM % TML == 0, "GR_UP_TM must be a multiple of 8 (and of 32 above 32)");
+
+#if GR_UP_KSPLIT > 1
+    constexpr uint TILE_BYTES = TILE * (uint)sizeof(float);
+    cm_slm_init(KSPLIT * C * MT * TILE_BYTES);
+    auto slm = cm_slm_alloc(KSPLIT * C * MT * TILE_BYTES);
+    const uint kid = cm_local_id(0);
+    const uint d0 = cm_group_id(0) * QSA_REG_N;
+#else
+    const uint kid = 0;
+    const uint d0 = cm_global_id(0) * QSA_REG_N;
+#endif
+    const uint t0 = cm_global_id(1) * TM;
+    if (d0 >= D || t0 >= num_tokens) {
+        return;
+    }
+
+    constexpr uint t_bytes = L * (uint)sizeof(half);
+    constexpr uint cd_bytes = CD * (uint)sizeof(half);
+    lsc::block_2d_desc<half, 2, TML, QSA_REG_K> desc_a(const_cast<half*>(t_in), num_tokens - 1, t_bytes - 1, t_bytes - 1, 0, 0);
+    lsc::block_2d_desc<uint, 1, QSA_REG_N, QSA_REG_K / 2> desc_b(reinterpret_cast<uint*>(const_cast<half*>(w_up)),
+                                                                 CD - 1,
+                                                                 t_bytes - 1,
+                                                                 t_bytes - 1,
+                                                                 0,
+                                                                 0);
+
+    matrix<float, C * MT, TILE> acc = 0.0f;
+    const uint k_begin = kid * K_PER_THREAD;
+    qsa_dpas::token_gemm<TML, NL, MT, C>(acc, desc_a, t0, desc_b, d0, D, k_begin, k_begin + K_PER_THREAD);
+
+#if GR_UP_KSPLIT > 1
+#pragma unroll
+    for (uint i = 0; i < C * MT; ++i) {
+#pragma unroll
+        for (uint q = 0; q < 2; ++q) {
+            cm_slm_block_write(slm, (kid * C * MT + i) * TILE_BYTES + q * TILE_BYTES / 2, acc.row(i).select<TILE / 2, 1>(q * TILE / 2));
+        }
+    }
+    cm_fence(CM_LOCAL_BARRIER);
+    cm_barrier();
+    if (kid != 0) {
+        return;
+    }
+    for (uint s = 1; s < KSPLIT; ++s) {
+#pragma unroll
+        for (uint i = 0; i < C * MT; ++i) {
+            vector<float, TILE> part;
+#pragma unroll
+            for (uint q = 0; q < 2; ++q) {
+                cm_slm_block_read(slm, (s * C * MT + i) * TILE_BYTES + q * TILE_BYTES / 2, part.select<TILE / 2, 1>(q * TILE / 2));
+            }
+            acc.row(i) += part;
+        }
+    }
+#endif
+
+    lsc::block_2d_desc<half, 1, TML, QSA_REG_N> desc_r(const_cast<half*>(rbar), num_tokens - 1, cd_bytes - 1, cd_bytes - 1, 0, 0);
+    matrix<float, MT, TILE> mix = 0.0f;
+#pragma unroll
+    for (uint c = 0; c < C; ++c) {
+        matrix<half, NL, TML * QSA_REG_N> r;
+        desc_r.set_block_x(c * D + d0);
+#pragma unroll
+        for (uint i = 0; i < NL; ++i) {
+            cm_load<lsc::Normal>(r.row(i), desc_r.set_block_y(t0 + i * TML));
+        }
+#pragma unroll
+        for (uint m = 0; m < MT; ++m) {
+            vector<float, TILE> rv = r.row((m * 8) / TML).select<TILE, 1>(((m * 8) % TML) * QSA_REG_N);
+            mix.row(m) += qsa_gr::sigmoid<TILE>(acc.row(c * MT + m)) * rv;
+        }
+    }
+
+#pragma unroll
+    for (uint m = 0; m < MT; ++m) {
+        vector<half, TILE> o = mix.row(m) * (1.0f / (float)C);
+#pragma unroll
+        for (uint r = 0; r < 8; ++r) {
+            const uint tok = t0 + m * 8 + r;
+            if (tok < num_tokens) {
+                cm_ptr_store<int, QSA_REG_N / 2>((int*)mixed, (tok * D + d0) * (uint)sizeof(half), o.select<QSA_REG_N, 1>(r * QSA_REG_N).format<int>());
+            }
+        }
+    }
+}

@@ -103,6 +103,7 @@
 #include "plugin/transformations/fold_activation_transpose.hpp"
 #include "plugin/transformations/fuse_avg_down.hpp"
 #include "plugin/transformations/fuse_gated_mlp.hpp"
+#include "plugin/transformations/qsa_gr_fusion.hpp"
 #include "plugin/transformations/fuse_atan2_decomposed.hpp"
 #include "plugin/transformations/fuse_grouped_depth_to_space.hpp"
 #include "plugin/transformations/fuse_moe_router.hpp"
@@ -1649,6 +1650,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::FuseGatedMLP>();
         }
         manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
+        // Keeps the original generic graph whenever the pattern cannot be proven safe to replace.
+        manager.register_pass<ov::intel_gpu::GatedResidualFusion>();
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
 
