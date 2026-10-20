@@ -19,6 +19,7 @@ using ov::intel_gpu::ocl::moe::ResidentExpertWeightProvider;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <algorithm>
+#    include <array>
 #    include <chrono>
 #    include <cstdint>
 #    include <fstream>
@@ -592,6 +593,15 @@ dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& di
 // Handles sub-byte types (u4/i4) that pack two elements per byte.
 static int64_t get_bytes_count(int64_t element_count, const cldnn::layout& layout) {
     return static_cast<int64_t>(ov::element::Type(layout.data_type).bitwidth()) * element_count / 8;
+}
+
+// A single zero point shared by all the experts, as a OneDNN host scalar
+static dnnl::memory make_host_scalar_zp(const memory::ptr& zp_mem, cldnn::stream& stream) {
+    const auto dt = zp_mem->get_layout().data_type;
+    OPENVINO_ASSERT(one_of(dt, {data_types::u8, data_types::i8}), "moe_3gemm: unsupported host scalar zero point type ", dt);
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock(zp_mem, stream);
+    const auto md = dnnl::memory::desc::host_scalar(convert_data_type(dt));
+    return dt == data_types::u8 ? dnnl::memory(md, lock[0]) : dnnl::memory(md, static_cast<int8_t>(lock[0]));
 }
 
 class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
@@ -1212,6 +1222,8 @@ public:
                     // zp shape: [ic / ic_group_size, oc], type: u4/i8
                     // Skip ZP memory allocation for symmetric quantization (has_zp=false) to save memory
                     if (cur_moe->_config.has_zp) {
+                        OPENVINO_ASSERT(moe_fusion_wei_addr.zp[i]->get_layout().count() != 1,
+                                        "moe_3gemm GEMM ", i, ": a zero point shared by all the experts is supported by the grouped GEMM only");
                         int64_t zp_offset = j * get_bytes_count(static_cast<int64_t>(dnnl_weights[i].ic) * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size,
                                                                 moe_fusion_wei_addr.zp[i]->get_layout());
                         dnnl_weights[i].zp = convert2dnnl(moe_fusion_wei_addr.zp[i],
@@ -2068,6 +2080,8 @@ public:
     };
     using grouped_kernel_lru = LruCache<int, std::shared_ptr<grouped_onednn_kernel>>;
     grouped_kernel_lru _grouped_kernels{128};
+    // Gate/up/down zero points shared by all the experts, passed to the grouped GEMM as host scalars (empty otherwise)
+    std::array<dnnl::memory, 3> _grouped_zp_host_scalars;
     onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
         // OTD: all slots have identical shape → cache by n_token only.
         // Non-OTD: cache by (n_token, expert_no) since each expert has fixed weight handles.
@@ -2191,6 +2205,16 @@ public:
         // All the zero points share one dtype, which may differ from the weight dtype (u3 weights have u8 zp)
         const auto zp_dt = has_zp ? convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_0))->get_layout().data_type)
                                   : dnnl::memory::data_type::undef;
+        // The zero points are constants, so a shared one is read to the host only once
+        if (has_zp) {
+            const std::array<MOE3GemmInputIndex, 3> zp_inputs{MOE3GemmInputIndex::ZP_0, MOE3GemmInputIndex::ZP_1, MOE3GemmInputIndex::ZP_2};
+            for (size_t i = 0; i < zp_inputs.size(); i++) {
+                const auto& zp_mem = instance.input_memory_ptr(static_cast<size_t>(zp_inputs[i]));
+                if (!_grouped_zp_host_scalars[i] && zp_mem->get_layout().count() == 1) {
+                    _grouped_zp_host_scalars[i] = make_host_scalar_zp(zp_mem, instance.get_network().get_stream());
+                }
+            }
+        }
 
         int K_gu = _hidden_size;        // K for gate / up
         int N_gu = _intermediate_size;  // N for gate / up
@@ -2199,23 +2223,27 @@ public:
 
         // Helper: create one grouped matmul prim-desc [total_tokens, K]*W[E,K,N]->[total_tokens,N]
         // Weights layout in memory is [E, N, K] (stored transposed), expressed as acb over dims {E,K,N}.
-        auto make_pd = [&](int K, int N, int group_size, dnnl::memory::data_type w_dt) {
+        auto make_pd = [&](int K, int N, int group_size, dnnl::memory::data_type w_dt, size_t gemm_idx) {
             dnnl::primitive_attr attr;
             attr.set_fpmath_mode(dnnl::fpmath_mode::f16, true);
 
             bool has_k_groups = (group_size < K);
+            const bool zp_host_scalar = static_cast<bool>(_grouped_zp_host_scalars[gemm_idx]);
             if (has_k_groups) {
                 // per-expert(0) x per-K-group(1) x per-N-channel(2)
                 attr.set_scales(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {group_size, 1}, dnnl::memory::data_type::f16);
-                if (has_zp) {
+                if (has_zp && !zp_host_scalar) {
                     attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {group_size, 1}, zp_dt);
                 }
             } else {
                 // per-expert(0) x per-N-channel(2), no K-grouping
                 attr.set_scales(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, dnnl::memory::data_type::f16);
-                if (has_zp) {
+                if (has_zp && !zp_host_scalar) {
                     attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, zp_dt);
                 }
+            }
+            if (zp_host_scalar) {
+                attr.set_host_zero_point(DNNL_ARG_WEIGHTS, zp_dt);
             }
 
             // Grouped src/dst: tokens are grouped by expert along axis-0
@@ -2239,21 +2267,21 @@ public:
         auto gk = std::make_shared<grouped_onednn_kernel>();
         gk->has_zp = has_zp;
 
-        gk->gate_pd = make_pd(K_gu, N_gu, _gate_up_group_size, gw_dt);
+        gk->gate_pd = make_pd(K_gu, N_gu, _gate_up_group_size, gw_dt, 0);
         gk->gate_prim = dnnl::matmul(gk->gate_pd);
         gk->gate_scale_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, dnnl::memory::data_type::f16);
         if (has_zp) {
             gk->gate_zp_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, zp_dt);
         }
 
-        gk->up_pd = make_pd(K_gu, N_gu, _gate_up_group_size, uw_dt);
+        gk->up_pd = make_pd(K_gu, N_gu, _gate_up_group_size, uw_dt, 1);
         gk->up_prim = dnnl::matmul(gk->up_pd);
         gk->up_scale_md = gk->gate_scale_md;
         if (has_zp) {
             gk->up_zp_md = gk->gate_zp_md;
         }
 
-        gk->down_pd = make_pd(K_d, N_d, _down_group_size, dw_dt);
+        gk->down_pd = make_pd(K_d, N_d, _down_group_size, dw_dt, 2);
         gk->down_prim = dnnl::matmul(gk->down_pd);
         gk->down_scale_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, dnnl::memory::data_type::f16);
         if (has_zp) {
@@ -2553,6 +2581,10 @@ public:
         // recompiling the primitive.
         auto hint_md = dnnl::memory::desc::host_scalar(dnnl::memory::data_type::s32);
         dnnl::memory hint_mem(hint_md, static_cast<int32_t>(max_tokens_per_expert));
+        auto zp_arg = [&](size_t gemm_idx, const dnnl::memory::desc& zp_md) {
+            const auto& host_scalar = _grouped_zp_host_scalars[gemm_idx];
+            return host_scalar ? host_scalar : scratch.moe_fusion_wei_addr.zp[gemm_idx]->get_onednn_memory(zp_md);
+        };
 
         // gate GEMM: [total, hidden] * W_gate[E,hidden,inter] -> [total, inter]
         {
@@ -2567,7 +2599,7 @@ public:
                                                        {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
                                                        {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[0]->get_onednn_memory(gk.gate_zp_md)});
+                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_arg(0, gk.gate_zp_md)});
             }
             gk.gate_prim.execute(dnn_stream, args);
         }
@@ -2585,7 +2617,7 @@ public:
                                                        {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
                                                        {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[1]->get_onednn_memory(gk.up_zp_md)});
+                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_arg(1, gk.up_zp_md)});
             }
             gk.up_prim.execute(dnn_stream, args);
         }
@@ -2618,7 +2650,7 @@ public:
                                                        {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
                                                        {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[2]->get_onednn_memory(gk.down_zp_md)});
+                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_arg(2, gk.down_zp_md)});
             }
             gk.down_prim.execute(dnn_stream, args);
         }
