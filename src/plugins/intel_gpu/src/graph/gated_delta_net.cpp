@@ -49,9 +49,7 @@ std::vector<layout> gated_delta_net_inst::calc_output_layouts(const gated_delta_
     std::vector<layout> output_layouts;
     output_layouts.emplace_back(output_shapes[0], value_layout.data_type, value_layout.format);
     if (num_outputs >= 2) {
-        output_layouts.emplace_back(output_shapes[1],
-                                    state_layout.data_type,
-                                    desc->snapshot_count > 1 ? format(format::bfzyx) : state_layout.format);
+        output_layouts.emplace_back(output_shapes[1], state_layout.data_type, desc->snapshot_count > 1 ? format(format::bfzyx) : state_layout.format);
     }
     return output_layouts;
 }

@@ -28,7 +28,11 @@ std::shared_ptr<op::internal::GatedDeltaNet> make_gdn(const element::Type& et,
     auto beta_p = std::make_shared<op::v0::Parameter>(et, beta);
 
     return std::make_shared<op::internal::GatedDeltaNet>(
-        OutputVector{query, key, value, recurrent_state, gate_p, beta_p}, false, 1e-6f, 1e-6f, snapshot_count);
+        OutputVector{query, key, value, recurrent_state, gate_p, beta_p},
+        false,
+        1e-6f,
+        1e-6f,
+        snapshot_count);
 }
 
 }  // namespace

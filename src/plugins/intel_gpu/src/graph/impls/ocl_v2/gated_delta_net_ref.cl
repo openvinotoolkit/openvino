@@ -126,8 +126,7 @@ inline void FUNC(prepare_qk)(__global INPUT0_TYPE* q, __global INPUT1_TYPE* k, i
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(gated_delta_net_ref)
-(OPTIONAL_SHAPE_INFO_ARG
- __global INPUT0_TYPE* q,
+(OPTIONAL_SHAPE_INFO_ARG __global INPUT0_TYPE* q,
  __global INPUT1_TYPE* k,
  __global INPUT2_TYPE* v,
  __global INPUT3_TYPE* initial_state,
@@ -347,7 +346,7 @@ KERNEL(gated_delta_net_ref)
     }
 
 #if !OUTPUT_SNAPSHOTS
-#if (K_HEAD_DIM == 128 && (V_HEAD_DIM % V_BLOCK_SIZE == 0))
+#    if (K_HEAD_DIM == 128 && (V_HEAD_DIM % V_BLOCK_SIZE == 0))
 // 4. WRITE BACK STATE BLOCK
 #    pragma unroll
     for (int row_chunk = 0; row_chunk < K_CHUNKS; row_chunk++) {

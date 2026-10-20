@@ -527,16 +527,25 @@ TEST(TransformationTests, FuseL2NormIntoGDN_PreservesSnapshots) {
     auto beta = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 4});
     auto normalize = [](const ov::Output<ov::Node>& input, float epsilon) {
         auto squared = std::make_shared<ov::op::v1::Multiply>(input, input);
-        auto sum = std::make_shared<ov::op::v1::ReduceSum>(
-            squared, ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}), true);
-        auto denominator = std::make_shared<ov::op::v0::Sqrt>(std::make_shared<ov::op::v1::Add>(
-            sum, ov::op::v0::Constant::create(ov::element::f32, {}, {epsilon})));
-        auto inverse = std::make_shared<ov::op::v1::Divide>(
-            ov::op::v0::Constant::create(ov::element::f32, {}, {1.f}), denominator);
+        auto sum = std::make_shared<ov::op::v1::ReduceSum>(squared,
+                                                           ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}),
+                                                           true);
+        auto denominator = std::make_shared<ov::op::v0::Sqrt>(
+            std::make_shared<ov::op::v1::Add>(sum, ov::op::v0::Constant::create(ov::element::f32, {}, {epsilon})));
+        auto inverse = std::make_shared<ov::op::v1::Divide>(ov::op::v0::Constant::create(ov::element::f32, {}, {1.f}),
+                                                            denominator);
         return std::make_shared<ov::op::v1::Multiply>(input, inverse);
     };
-    auto original = std::make_shared<ov::op::internal::GatedDeltaNet>(
-        normalize(q, 1e-5f), normalize(k, 1e-4f), v, state, gate, beta, false, 1e-6f, 1e-6f, 3);
+    auto original = std::make_shared<ov::op::internal::GatedDeltaNet>(normalize(q, 1e-5f),
+                                                                      normalize(k, 1e-4f),
+                                                                      v,
+                                                                      state,
+                                                                      gate,
+                                                                      beta,
+                                                                      false,
+                                                                      1e-6f,
+                                                                      1e-6f,
+                                                                      3);
     auto model = std::make_shared<ov::Model>(original->outputs(), ov::ParameterVector{q, k, v, state, gate, beta});
 
     ov::pass::Manager manager;

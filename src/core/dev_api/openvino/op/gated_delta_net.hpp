@@ -27,7 +27,7 @@ public:
     /// \param q_l2_norm_eps Epsilon used for query L2-normalization when fusion is enabled.
     /// \param k_l2_norm_eps Epsilon used for key L2-normalization when fusion is enabled.
     /// \param snapshot_count Number of newest-first states. Output 1 is the final state when K = 1;
-    ///        when K > 1 it is [K, B, H_v, D_k, D_v], where entry i is the state after token T-i.
+    ///        when K > 1 it is [K, B, H_v, D_k, D_v], where entry i is the state after token T-1-i (zero-based).
     ///        Entry 0 is the final state; only min(K, token_count) entries are valid. The initial
     ///        state before processing token 0 is not included.
     GatedDeltaNet(const Output<Node>& query,
@@ -48,7 +48,7 @@ public:
     /// \param q_l2_norm_eps Epsilon used for query L2-normalization when fusion is enabled.
     /// \param k_l2_norm_eps Epsilon used for key L2-normalization when fusion is enabled.
     /// \param snapshot_count Number of newest-first states. Output 1 is the final state when K = 1;
-    ///        when K > 1 it is [K, B, H_v, D_k, D_v], where entry i is the state after token T-i.
+    ///        when K > 1 it is [K, B, H_v, D_k, D_v], where entry i is the state after token T-1-i (zero-based).
     ///        Entry 0 is the final state; only min(K, token_count) entries are valid. The initial
     ///        state before processing token 0 is not included.
     GatedDeltaNet(const ov::OutputVector& args,

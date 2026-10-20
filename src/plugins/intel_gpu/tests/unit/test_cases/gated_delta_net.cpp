@@ -28,7 +28,14 @@ struct gated_delta_net_test_params {
     bool is_caching_test;
     int64_t snapshot_count;
 
-    gated_delta_net_test_params(int batch, int t, int num_heads, int value_num_heads, int head_size, ov::element::Type precision, bool is_caching_test = false, int64_t snapshot_count = 1)
+    gated_delta_net_test_params(int batch,
+                                int t,
+                                int num_heads,
+                                int value_num_heads,
+                                int head_size,
+                                ov::element::Type precision,
+                                bool is_caching_test = false,
+                                int64_t snapshot_count = 1)
         : batch(batch),
           t(t),
           num_heads(num_heads),
@@ -197,14 +204,14 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         return topo;
     }
 
-    std::tuple<cldnn::memory::ptr, cldnn::network::ptr> run_network(topology& topo,
-                                                                    cldnn::memory::ptr q_mem,
-                                                                    cldnn::memory::ptr k_mem,
-                                                                    cldnn::memory::ptr v_mem,
-                                                                    cldnn::memory::ptr state_mem,
-                                                                    cldnn::memory::ptr g_mem,
-                                                                    cldnn::memory::ptr beta_mem,
-                                                                    const bool is_caching_test) {
+    std::tuple<cldnn::memory::ptr, cldnn::memory::ptr, cldnn::network::ptr> run_network(topology& topo,
+                                                                                        cldnn::memory::ptr q_mem,
+                                                                                        cldnn::memory::ptr k_mem,
+                                                                                        cldnn::memory::ptr v_mem,
+                                                                                        cldnn::memory::ptr state_mem,
+                                                                                        cldnn::memory::ptr g_mem,
+                                                                                        cldnn::memory::ptr beta_mem,
+                                                                                        const bool is_caching_test) {
         auto& engine = get_test_engine();
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -221,7 +228,8 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
 
         auto outputs = net->execute();
         auto output = outputs.at("output").get_memory();
-        return {output, net};
+        auto snapshots = GetParam().snapshot_count > 1 ? outputs.at("snapshots").get_memory() : nullptr;
+        return {output, snapshots, net};
     }
 
     template <typename T>
@@ -273,11 +281,18 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         load_input(g_mem, 4, input_g);
         load_input(beta_mem, 5, input_beta);
         // execute networks
-        auto [mem_opt_ptr, net_opt_ptr] = run_network(opt_topo, q_mem, k_mem, v_mem, state_mem, g_mem, beta_mem, is_caching_test);
+        auto [mem_opt_ptr, snapshot_mem, net_opt_ptr] = run_network(opt_topo, q_mem, k_mem, v_mem, state_mem, g_mem, beta_mem, is_caching_test);
         std::vector<T> ref_output(batch * t * v_num_heads * head_size);
         const auto initial_state = input_state;
         std::vector<T> ref_snapshots(size_t(p.snapshot_count) * input_state.size());
-        run_reference<T>(input_q, input_k, input_v, input_g, input_beta, 1 / sqrt(this->K), input_state, ref_output,
+        run_reference<T>(input_q,
+                         input_k,
+                         input_v,
+                         input_g,
+                         input_beta,
+                         1 / sqrt(this->K),
+                         input_state,
+                         ref_output,
                          p.snapshot_count > 1 ? &ref_snapshots : nullptr);
         // validate results
         if (mem_opt_ptr) {
@@ -297,8 +312,8 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
             }
         }
         if (p.snapshot_count > 1) {
-            auto outputs = net_opt_ptr->execute();
-            auto snapshots = outputs.at("snapshots").get_memory();
+            ASSERT_NE(snapshot_mem, nullptr);
+            auto snapshots = snapshot_mem;
             cldnn::mem_lock<T, mem_lock_type::read> snapshot_data(snapshots, get_test_stream());
             ASSERT_EQ(snapshots->count(), ref_snapshots.size());
             for (size_t i = 0; i < input_state.size(); ++i) {

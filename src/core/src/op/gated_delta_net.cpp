@@ -118,7 +118,8 @@ bool GatedDeltaNet::visit_attributes(AttributeVisitor& visitor) {
 }
 
 std::shared_ptr<ov::Node> GatedDeltaNet::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    auto cloned = std::make_shared<GatedDeltaNet>(new_args, m_fuse_qk_l2norm, m_q_l2_norm_eps, m_k_l2_norm_eps, m_snapshot_count);
+    auto cloned =
+        std::make_shared<GatedDeltaNet>(new_args, m_fuse_qk_l2norm, m_q_l2_norm_eps, m_k_l2_norm_eps, m_snapshot_count);
     return cloned;
 }
 
