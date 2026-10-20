@@ -2199,7 +2199,8 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         if (!conversion_keys.empty()) {
             get_tensor_conversion()->restore(_engine, conversion_keys, conversion_kernels);
         } else {
-            std::atomic_store(&_tensor_conversion, std::shared_ptr<tensor_conversion>{});
+            std::lock_guard<std::mutex> lock(_tensor_conversion_mutex);
+            _tensor_conversion.reset();
         }
     }
 

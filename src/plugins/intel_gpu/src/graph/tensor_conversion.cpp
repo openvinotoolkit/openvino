@@ -288,13 +288,10 @@ void tensor_conversion::restore(const engine& engine, const std::vector<tensor_c
 }
 
 std::shared_ptr<tensor_conversion> program::get_tensor_conversion(bool create_if_not_exist) const {
-    auto conversion = std::atomic_load(&_tensor_conversion);
-    if (!conversion && create_if_not_exist) {
-        auto candidate = std::make_shared<tensor_conversion>();
-        if (std::atomic_compare_exchange_strong(&_tensor_conversion, &conversion, candidate))
-            conversion = std::move(candidate);
-    }
-    return conversion;
+    std::lock_guard<std::mutex> lock(_tensor_conversion_mutex);
+    if (!_tensor_conversion && create_if_not_exist)
+        _tensor_conversion = std::make_shared<tensor_conversion>();
+    return _tensor_conversion;
 }
 
 void program::prepare_tensor_conversions(const std::vector<tensor_conversion_key>& requested_keys) {
