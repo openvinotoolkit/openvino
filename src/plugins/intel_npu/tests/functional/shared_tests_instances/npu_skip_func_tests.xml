@@ -340,6 +340,8 @@ Example:
             <filter>.*CompileModelWithCacheEncryptionTest.*</filter>
         </filters>
     </skip_config>
+
+    <skip_config>
         <message>UD12 driver does not support CACHE_ENCRYPTION_CALLBACKS on MTL</message>
         <enable_rules>
             <device>3720</device>
