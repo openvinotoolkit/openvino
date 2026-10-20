@@ -86,6 +86,11 @@ std::vector<ErfInvParams> generateErfInvFloatParams() {
                      IN_ET,
                      std::vector<T>{T(0.7f), T(-0.7f), T(0.9f), T(-0.9f)},
                      std::vector<T>{T(0.73286909f), T(-0.73286909f), T(1.16308725f), T(-1.16308725f)}),
+        // High domain (w >= 5, |x| >= 0.9966): ±0.999, ±0.9999
+        ErfInvParams(ov::PartialShape{4},
+                     IN_ET,
+                     std::vector<T>{T(0.999f), T(-0.999f), T(0.9999f), T(-0.9999f)},
+                     std::vector<T>{T(2.32675376f), T(-2.32675376f), T(2.75106397f), T(-2.75106397f)}),
         // Boundary: x=±1 → ±inf
         ErfInvParams(
             ov::PartialShape{2},
@@ -109,6 +114,14 @@ std::vector<ErfInvParams> generateErfInvF64Params() {
                                          -0.4769362762044699,
                                          1.1630871536766741,
                                          -1.1630871536766741}),
+        // High domain (w >= 5, |x| >= 0.9966): ±0.999, ±0.9999
+        ErfInvParams(ov::PartialShape{4},
+                     ov::element::f64,
+                     std::vector<double>{0.999, -0.999, 0.9999, -0.9999},
+                     std::vector<double>{2.3267537568654619,
+                                         -2.3267537568654619,
+                                         2.7510639731551110,
+                                         -2.7510639731551110}),
         ErfInvParams(
             ov::PartialShape{2},
             ov::element::f64,

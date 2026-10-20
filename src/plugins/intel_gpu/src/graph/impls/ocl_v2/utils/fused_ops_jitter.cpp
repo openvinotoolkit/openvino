@@ -1078,7 +1078,7 @@ JitConstants make_activation_jit_constants(const std::string& suffix,
                                      cf("-0.00367342844"),
                                      cf("0.00573950773"),
                                      cf("-0.0076224613"),
-                                     cf("-0.00943887047"),
+                                     cf("0.00943887047"),
                                      cf("1.00167406"),
                                      cf("2.83297682")});
         const JitTerm poly = x * ternary(w.lt(cf("5.0")), p_lo, p_hi);

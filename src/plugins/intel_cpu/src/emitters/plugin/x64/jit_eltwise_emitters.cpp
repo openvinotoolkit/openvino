@@ -2542,7 +2542,7 @@ void jit_erfinv_emitter::register_table_entries() {
     push_arg_entry_of("e2_c5", 0xbb70bde7, true);  // -0.00367342844
     push_arg_entry_of("e2_c4", 0x3bbc127b, true);  //  0.00573950773
     push_arg_entry_of("e2_c3", 0xbbf9c5d7, true);  // -0.0076224613
-    push_arg_entry_of("e2_c2", 0xbc1aa57e, true);  // -0.00943887047
+    push_arg_entry_of("e2_c2", 0x3c1aa57e, true);  //  0.00943887047
     push_arg_entry_of("e2_c1", 0x3f8036db, true);  //  1.00167406
     push_arg_entry_of("e2_c0", 0x40354f7e, true);  //  2.83297682
 }
