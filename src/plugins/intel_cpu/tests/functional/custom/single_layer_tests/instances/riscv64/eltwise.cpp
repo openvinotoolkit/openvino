@@ -3,7 +3,6 @@
 //
 
 #include "custom/single_layer_tests/classes/eltwise.hpp"
-#include "internal_properties.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
@@ -38,12 +37,6 @@ const std::vector<ElementType>& modNetTypes() {
         ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)
             ? std::vector<ElementType>{ElementType::i32, ElementType::f32}
             : std::vector<ElementType>{};
-    return netTypes;
-}
-
-const std::vector<ElementType>& modSnippetsNetTypes() {
-    static const std::vector<ElementType> netTypes =
-        modNetTypes().empty() ? std::vector<ElementType>{} : std::vector<ElementType>{ElementType::f32};
     return netTypes;
 }
 
@@ -115,7 +108,7 @@ auto makeModParams(const std::vector<ElementType>& netTypes, bool enforceSnippet
 }
 
 const auto modParams = makeModParams(modNetTypes(), false);
-const auto modSnippetsParams = makeModParams(modSnippetsNetTypes(), true);
+const auto modSnippetsParams = makeModParams(modNetTypes(), true);
 
 TEST_P(EltwiseModNegativeCPUTest, CompareWithRefs) {
     run();
