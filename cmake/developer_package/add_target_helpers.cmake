@@ -2,9 +2,21 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-function(ov_regex_escape out_var value)
-    string(REGEX REPLACE "([][+.*?()^$|\\\\])" "\\\\\\1" escaped "${value}")
-    set(${out_var} "${escaped}" PARENT_SCOPE)
+function(ov_filter_paths_from_files files filter_out_paths filtered_files)
+    set(result)
+    foreach(file IN LISTS files)
+        set(excluded FALSE)
+        foreach(filter_out_path IN LISTS filter_out_paths)
+            cmake_path(IS_PREFIX filter_out_path "${file}" NORMALIZE excluded)
+            if(excluded)
+                break()
+            endif()
+        endforeach()
+        if(NOT excluded)
+            list(APPEND result "${file}")
+        endif()
+    endforeach()
+    set(${filtered_files} "${result}" PARENT_SCOPE)
 endfunction()
 
 #[[
@@ -135,11 +147,8 @@ function(ov_add_target)
         file(GLOB_RECURSE sources ${sourceSearch})
 
         # remove unnecessary directories
-        foreach(excludedDir IN LISTS ARG_EXCLUDED_SOURCE_PATHS)
-            ov_regex_escape(excludedDirRegex "${excludedDir}")
-            list(FILTER includes EXCLUDE REGEX "^${excludedDirRegex}")
-            list(FILTER sources EXCLUDE REGEX "^${excludedDirRegex}")
-        endforeach()
+        ov_filter_paths_from_files("${includes}" "${ARG_EXCLUDED_SOURCE_PATHS}" includes)
+        ov_filter_paths_from_files("${sources}" "${ARG_EXCLUDED_SOURCE_PATHS}" sources)
 
         source_group("include" FILES ${includes})
         source_group("src"     FILES ${sources})
