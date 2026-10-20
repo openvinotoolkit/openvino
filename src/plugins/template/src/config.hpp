@@ -57,6 +57,8 @@ struct Configuration {
     std::filesystem::path weights_path{};
     AnyMap compiled_model_runtime_properties{};
     CacheMode cache_mode{CacheMode::OPTIMIZE_SPEED};
+    // HSM writer stashed pending common codecs - default legacy until it returns; property stays settable.
+    bool export_hsm_format = false;
 };
 // ! [configuration:header]
 
