@@ -429,10 +429,12 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     // Smaller values have no kernel branch and would silently produce wrong results.
     {
         const size_t sg = (info.arch >= gpu_arch::xe2) ? 32u : 16u;
-        const size_t fake_gs = std::min(gate_up_group_size, size_t{128});
+        // Mirrors FAKE_GROUP_SIZE in moe_3gemm_swiglu_mlp.cl, which also takes the down group size;
+        // checking gate/up alone let a smaller down group through to a branch that does not exist.
+        const size_t fake_gs = std::min({gate_up_group_size, down_group_size, size_t{128}});
         OPENVINO_ASSERT(fake_gs >= 2 * sg,
                         "MoE GEMV kernel does not support group_size=",
-                        gate_up_group_size,
+                        fake_gs,
                         " on this hardware (SUBGROUP_SIZE=",
                         sg,
                         "). Minimum supported group_size is ",
@@ -474,6 +476,22 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
         jit.make("MOE_SCALE_DT", "half");  // not use
         jit.make("MOE_ZP_DT", "half");     // not use
     }
+
+    // Per-GEMM weight dtype codes: gate, up and down may differ under NNCF mixed precision, and
+    // each is decoded with its own. Codes mirror WEIGHT_COMPRESSEION_DT: 0=u4/i4, 1=u8/i8, 2=f16.
+    const auto moe_weight_code = [](ov::element::Type dt) -> int {
+        if (dt == ov::element::u4 || dt == ov::element::i4)
+            return 0;
+        if (dt == ov::element::f16)
+            return 2;
+        return 1;  // u8/i8 (byte) path
+    };
+    const auto gate_wdt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
+    const auto up_wdt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1)).data_type;
+    const auto down_wdt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2)).data_type;
+    jit.make("GATE_WEIGHT_DT", moe_weight_code(gate_wdt));
+    jit.make("UP_WEIGHT_DT", moe_weight_code(up_wdt));
+    jit.make("DOWN_WEIGHT_DT", moe_weight_code(down_wdt));
 }
 
 class MoE3GemmSwigluMLPGateUp : public KernelGenerator {
