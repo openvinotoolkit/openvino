@@ -176,6 +176,19 @@ TEST_F(PrefixCacheBlockKv, RepeatedPromptRestoresTheCachedBlockWithoutCopying) {
         EXPECT_EQ(layer.key_manager->get_allocated_blocks().size(), 2u);
         EXPECT_TRUE(KVCacheBlockManagerTestAccess::is_shared(*layer.key_manager,
                                                              layer.key_manager->get_allocated_blocks().at(0)));
+
+        // The fake ignores its inputs, so check the binding: the recomputed chunk has to read
+        // the restored block rather than a dummy.
+        const std::string prefix = "past_key_values." + std::to_string(layer_idx);
+        const auto key_tensor = layer.key_manager->get_block_tensor(layer.key_manager->get_allocated_blocks().at(0));
+        const auto value_tensor =
+            layer.value_manager->get_block_tensor(layer.value_manager->get_allocated_blocks().at(0));
+        EXPECT_EQ(LLMBlockKvTestAccess::prefill_past(pipeline.request(), prefix + ".key_block_0")->data(),
+                  key_tensor->data())
+            << "layer " << layer_idx;
+        EXPECT_EQ(LLMBlockKvTestAccess::prefill_past(pipeline.request(), prefix + ".value_block_0")->data(),
+                  value_tensor->data())
+            << "layer " << layer_idx;
     }
 }
 

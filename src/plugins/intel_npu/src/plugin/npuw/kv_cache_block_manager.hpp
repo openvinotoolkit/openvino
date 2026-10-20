@@ -204,7 +204,7 @@ private:
      *
      * @return true if the tensor was replaced, so any binding to the old tensor is stale
      */
-    bool unshare_block(uint32_t block_id);
+    bool make_block_private(uint32_t block_id);
 
     /**
      * @brief Represents a single block of KV cache memory
@@ -216,9 +216,9 @@ private:
         bool is_shared = false;         ///< True when the tensor is also referenced by the prefix cache
     };
 
-    uint32_t block_size_;                  ///< Number of tokens per block
-    uint32_t max_blocks_;                  ///< Maximum blocks in pool
-    std::vector<Block> blocks_;            ///< All blocks (free + allocated)
+    uint32_t block_size_;        ///< Number of tokens per block
+    uint32_t max_blocks_;        ///< Maximum blocks in pool
+    std::vector<Block> blocks_;  ///< All blocks (free + allocated)
 
     ov::element::Type element_type_;             ///< Element type for tensors
     ov::Shape block_shape_;                      ///< Shape for block tensors

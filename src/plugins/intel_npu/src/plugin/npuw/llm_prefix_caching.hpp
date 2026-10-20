@@ -112,7 +112,7 @@ private:
 
 /// NPU-resident KV tensors of one layer for one cached block.
 struct BlockKVRef {
-    ov::SoPtr<ov::ITensor> key_tensor;  // This copy keeps the NPU memory alive after the pool drops its own
+    ov::SoPtr<ov::ITensor> key_tensor;  // Shared reference: keeps the NPU memory alive after the pool drops its own
     ov::SoPtr<ov::ITensor> value_tensor;
     uint32_t num_tokens = 0;
 };

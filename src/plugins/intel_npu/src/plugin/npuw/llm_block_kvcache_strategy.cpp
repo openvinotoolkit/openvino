@@ -432,20 +432,20 @@ void LLMBlockKVCacheStrategy::on_generate_kv_init() {
         if (allocated_blocks.empty()) {
             return;
         }
-        for (size_t seq_block_idx = 0; seq_block_idx < allocated_blocks.size(); ++seq_block_idx) {
-            const uint32_t block_id = allocated_blocks[seq_block_idx];
+        for (size_t block_idx = 0; block_idx < allocated_blocks.size(); ++block_idx) {
+            const uint32_t block_id = allocated_blocks[block_idx];
             const auto block_tensor = manager->get_block_tensor(block_id);
-            if (helper.should_treat_as_tail(static_cast<uint32_t>(seq_block_idx))) {
+            if (helper.should_treat_as_tail(static_cast<uint32_t>(block_idx))) {
                 copy_block_to_tail_input(block_tensor,
                                          0u,
                                          manager->get_block_tokens(block_id),
                                          kv_dim,
                                          helper.tail_input_port.value(),
                                          m_req.m_kvcache_request);
-                LOG_VERB("Bound tail " << kv_type_name << " layer_" << layer_idx << " block_" << seq_block_idx);
-            } else if (seq_block_idx < helper.numbered_input_ports.size()) {
-                m_req.m_kvcache_request->set_tensor(helper.numbered_input_ports[seq_block_idx], block_tensor);
-                LOG_VERB("Bound numbered " << kv_type_name << " layer_" << layer_idx << " block_" << seq_block_idx);
+                LOG_VERB("Bound tail " << kv_type_name << " layer_" << layer_idx << " block_" << block_idx);
+            } else if (block_idx < helper.numbered_input_ports.size()) {
+                m_req.m_kvcache_request->set_tensor(helper.numbered_input_ports[block_idx], block_tensor);
+                LOG_VERB("Bound numbered " << kv_type_name << " layer_" << layer_idx << " block_" << block_idx);
             }
         }
     };
@@ -512,8 +512,8 @@ void LLMBlockKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<ov::I
         }
         const auto allocated = manager->get_allocated_blocks();
         for (uint32_t first = 0u; first < num_cached_tokens; first += m_block_size) {
-            const uint32_t seq_block_idx = first / m_block_size;
-            OPENVINO_ASSERT(seq_block_idx < allocated.size(),
+            const uint32_t block_idx = first / m_block_size;
+            OPENVINO_ASSERT(block_idx < allocated.size(),
                             "NPUW: the LongRoPE mode changed with ",
                             num_cached_tokens,
                             " cached tokens, but layer ",
@@ -521,11 +521,11 @@ void LLMBlockKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<ov::I
                             " holds only ",
                             allocated.size(),
                             " key blocks.");
-            const uint32_t block_id = allocated[seq_block_idx];
+            const uint32_t block_id = allocated[block_idx];
             const uint32_t live = std::min(num_cached_tokens - first, m_block_size);
             OPENVINO_ASSERT(manager->get_block_tokens(block_id) >= live,
                             "NPUW: key block ",
-                            seq_block_idx,
+                            block_idx,
                             " of layer ",
                             layer_idx,
                             " holds ",
@@ -533,7 +533,7 @@ void LLMBlockKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<ov::I
                             " tokens where the LongRoPE mode change expects at least ",
                             live,
                             ".");
-            rebind_needed |= manager->unshare_block(block_id);
+            rebind_needed |= manager->make_block_private(block_id);
             blocks.push_back({manager->get_block_tensor(block_id), first, live});
         }
     }
@@ -713,14 +713,14 @@ std::shared_ptr<KVBlock> LLMBlockKVCacheStrategy::make_prefix_block(size_t block
                     ") does not match the KV block size ",
                     m_block_size);
     // Position of the block within the sequence; the pool's physical block_id is looked up from it.
-    const size_t seq_block_idx = block_token_start / m_block_size;
+    const size_t block_idx = block_token_start / m_block_size;
 
     const auto find_full_block = [&](const KVCacheBlockManager* manager) -> std::optional<uint32_t> {
         const auto allocated = manager->get_allocated_blocks();
-        if (seq_block_idx >= allocated.size() || manager->get_block_tokens(allocated[seq_block_idx]) != m_block_size) {
+        if (block_idx >= allocated.size() || manager->get_block_tokens(allocated[block_idx]) != m_block_size) {
             return std::nullopt;
         }
-        return allocated[seq_block_idx];
+        return allocated[block_idx];
     };
 
     // Resolve every layer before touching any block, so a declined block marks nothing as shared.
@@ -735,7 +735,7 @@ std::shared_ptr<KVBlock> LLMBlockKVCacheStrategy::make_prefix_block(size_t block
             ids.key = find_full_block(layer_managers.key_manager.get());
             if (!ids.key) {
                 LOG_WARN("Prefix cache store: layer "
-                         << layer_idx << " has no completely written key block at position " << seq_block_idx
+                         << layer_idx << " has no completely written key block at position " << block_idx
                          << ", not caching it");
                 return nullptr;
             }
@@ -744,7 +744,7 @@ std::shared_ptr<KVBlock> LLMBlockKVCacheStrategy::make_prefix_block(size_t block
             ids.value = find_full_block(layer_managers.value_manager.get());
             if (!ids.value) {
                 LOG_WARN("Prefix cache store: layer "
-                         << layer_idx << " has no completely written value block at position " << seq_block_idx
+                         << layer_idx << " has no completely written value block at position " << block_idx
                          << ", not caching it");
                 return nullptr;
             }
@@ -793,13 +793,13 @@ void LLMBlockKVCacheStrategy::load_past_kv_blocks_to_prefill(
                 return;
             }
             auto allocated_blocks = manager->get_allocated_blocks();
-            for (size_t seq_block_idx = 0; seq_block_idx < allocated_blocks.size(); ++seq_block_idx) {
-                std::string input_name = make_numbered_block_input_name(kv_type, layer_idx_str, seq_block_idx);
+            for (size_t block_idx = 0; block_idx < allocated_blocks.size(); ++block_idx) {
+                std::string input_name = make_numbered_block_input_name(kv_type, layer_idx_str, block_idx);
                 auto port_it = prefill_in_ports.find(input_name);
                 if (port_it != prefill_in_ports.end()) {
                     prefill_request->set_tensor(port_it->second,
-                                                manager->get_block_tensor(allocated_blocks[seq_block_idx]));
-                    LOG_VERB("Bound " << kv_type << " block layer " << layer_idx_str << " block_" << seq_block_idx);
+                                                manager->get_block_tensor(allocated_blocks[block_idx]));
+                    LOG_VERB("Bound " << kv_type << " block layer " << layer_idx_str << " block_" << block_idx);
                 }
             }
         };
@@ -1064,17 +1064,15 @@ void LLMBlockKVCacheStrategy::refresh_key_tail_bindings(const std::shared_ptr<ov
             continue;
         }
         const auto allocated = manager->get_allocated_blocks();
-        for (size_t seq_block_idx = helper.numbered_input_ports.size(); seq_block_idx < allocated.size();
-             ++seq_block_idx) {
-            const uint32_t block_id = allocated[seq_block_idx];
+        for (size_t block_idx = helper.numbered_input_ports.size(); block_idx < allocated.size(); ++block_idx) {
+            const uint32_t block_id = allocated[block_idx];
             copy_block_to_tail_input(manager->get_block_tensor(block_id),
                                      0u,
                                      manager->get_block_tokens(block_id),
                                      kv_dim,
                                      helper.tail_input_port.value(),
                                      request);
-            LOG_VERB("Refreshed tail key layer_" << layer_idx << " block_" << seq_block_idx
-                                                 << " after a LongRoPE turn");
+            LOG_VERB("Refreshed tail key layer_" << layer_idx << " block_" << block_idx << " after a LongRoPE turn");
         }
     }
 }
@@ -1132,17 +1130,19 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
         allocated_blocks = block_manager->get_allocated_blocks();
         // Rare: normal decoding only appends past the prompt, never into a cached block. It takes a
         // generate step rewound into the prompt (stored-tokens state or position_ids set back).
-        rebind_needed |= make_blocks_writable(*block_manager, start_block_idx, end_block_idx);
+        for (uint32_t block_idx = start_block_idx; block_idx <= end_block_idx; ++block_idx) {
+            rebind_needed |= block_manager->make_block_private(allocated_blocks[block_idx]);
+        }
 
         // Write tokens across blocks.
         // The first block may be partially filled: start writing at (start_pos % block_size).
         // Every subsequent block is written from position 0 up to min(remaining, block_size).
         uint32_t tokens_written = 0;
-        for (uint32_t seq_block_idx = start_block_idx; seq_block_idx <= end_block_idx; ++seq_block_idx) {
-            const uint32_t block_id = allocated_blocks[seq_block_idx];
+        for (uint32_t block_idx = start_block_idx; block_idx <= end_block_idx; ++block_idx) {
+            const uint32_t block_id = allocated_blocks[block_idx];
             const auto block_tensor = block_manager->get_block_tensor(block_id);
-            const uint32_t write_start = (seq_block_idx == start_block_idx) ? (start_pos % m_block_size) : 0u;
-            const uint32_t write_end = std::min(end_pos - seq_block_idx * m_block_size, m_block_size);
+            const uint32_t write_start = (block_idx == start_block_idx) ? (start_pos % m_block_size) : 0u;
+            const uint32_t write_end = std::min(end_pos - block_idx * m_block_size, m_block_size);
             const uint32_t count = write_end - write_start;
             const auto dst_slice = uu::make_tensor_slice(block_tensor, kv_dim, write_start, write_end);
             const auto src_slice = uu::make_tensor_slice(src_to_copy, kv_dim, tokens_written, tokens_written + count);
@@ -1157,17 +1157,6 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
     if (rebind_needed && request == m_req.m_kvcache_request) {
         on_generate_kv_init();
     }
-}
-
-bool LLMBlockKVCacheStrategy::make_blocks_writable(KVCacheBlockManager& manager,
-                                                   uint32_t first_block_idx,
-                                                   uint32_t last_block_idx) {
-    const auto allocated = manager.get_allocated_blocks();
-    bool replaced = false;
-    for (uint32_t idx = first_block_idx; idx <= last_block_idx && idx < allocated.size(); ++idx) {
-        replaced |= manager.unshare_block(allocated[idx]);
-    }
-    return replaced;
 }
 
 // ============================================================================

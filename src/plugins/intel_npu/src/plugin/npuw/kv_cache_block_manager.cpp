@@ -109,10 +109,10 @@ void KVCacheBlockManager::mark_block_shared(uint32_t block_id) {
     blocks_[block_id].is_shared = true;
 }
 
-bool KVCacheBlockManager::unshare_block(uint32_t block_id) {
+bool KVCacheBlockManager::make_block_private(uint32_t block_id) {
     validate_block_id(block_id);
     auto& block = blocks_[block_id];
-    OPENVINO_ASSERT(block.is_allocated, "KVCacheBlockManager: cannot unshare free block ", block_id);
+    OPENVINO_ASSERT(block.is_allocated, "KVCacheBlockManager: cannot make free block ", block_id, " private");
     if (!block.is_shared) {
         return false;
     }
