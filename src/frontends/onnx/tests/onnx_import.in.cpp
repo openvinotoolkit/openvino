@@ -33,7 +33,9 @@
 #include "gtest/gtest.h"
 #include "onnx_utils.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/softmax.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx::tests;
@@ -1068,6 +1070,15 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_1) {
     test_case.run(4);
 }
 
+// axis=2 is the last dimension of the rank-3 input: the flatten/unflatten Reshape pair
+// around Softmax is a no-op here, so it must be skipped (same optimization as opset 11/12).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_2_no_reshape) {
+    auto model = convert_model("softmax_axis_2.onnx");
+
+    EXPECT_EQ(count_ops_of_type<op::v1::Reshape>(model), 0);
+    EXPECT_EQ(count_ops_of_type<op::v8::Softmax>(model), 1);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_1_opset11) {
     // ONNX Softmax opset 11 (same semantics as opset 1-10) flattens the input to 2-D
     // [prod(d0..d_axis-1), prod(d_axis..d_rank-1)], applies softmax on the second axis and
@@ -1217,6 +1228,37 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_negative_1_opset13) {
     // clang-format on
 
     test_case.run(6);
+}
+
+// opset 11/12 Softmax normally flattens to 2-D around a plain Softmax (2 Reshape nodes).
+// When the (normalized) axis is already the last dimension, that flatten/unflatten is a no-op,
+// so the translator should skip it and emit a plain Softmax directly (no Reshape at all).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_negative_1_opset11_no_reshape) {
+    auto model = convert_model("softmax_axis_negative_1_opset11.onnx");
+
+    EXPECT_EQ(count_ops_of_type<op::v1::Reshape>(model), 0);
+    EXPECT_EQ(count_ops_of_type<op::v8::Softmax>(model), 1);
+}
+
+// axis=2 on a rank-4 input is NOT the last dimension, so the flatten/unflatten Reshape pair
+// around Softmax must still be present (this is the actual opset 11/12 spec behavior fixed by #37979).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_2_opset11_keeps_reshape) {
+    auto model = convert_model("softmax_axis_2_opset11.onnx");
+
+    EXPECT_EQ(count_ops_of_type<op::v1::Reshape>(model), 2);
+    EXPECT_EQ(count_ops_of_type<op::v8::Softmax>(model), 1);
+}
+
+// Opsets 1-10 allow axis == rank (flattening boundary past the last dimension): for a rank-1
+// input with axis omitted (defaults to 1, which equals the rank), this coerces to a [N, 1]
+// matrix, so every row has a single element and softmax trivially produces all ones.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_1D_no_axis) {
+    auto model = convert_model("softmax_1D_no_axis.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f});
+    test_case.add_expected_output<float>(Shape{3}, {1.0f, 1.0f, 1.0f});
+    test_case.run();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_sub) {
