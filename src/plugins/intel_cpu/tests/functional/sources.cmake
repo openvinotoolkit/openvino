@@ -276,6 +276,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
 )
 
 set(CPU_FUNC_TESTS_X64_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/selective_ssm_jit.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/activation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/col2im.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/conversion.cpp
@@ -644,6 +645,7 @@ set(CPU_FUNC_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/utils/convolution_params.hpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/cpu_test_utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/cpu_test_utils.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/utils/ssm_reference.hpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/filter_cpu_info.hpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/fusing_test_utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/fusing_test_utils.hpp
