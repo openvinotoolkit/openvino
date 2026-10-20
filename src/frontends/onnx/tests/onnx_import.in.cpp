@@ -33,9 +33,11 @@
 #include "gtest/gtest.h"
 #include "onnx_utils.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/prelu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/pass/constant_folding.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx::tests;
@@ -3125,6 +3127,68 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_reject_incompatible_runtime_slop
     auto model = convert_model("prelu_1d_last_dim_bcast_unknown_slope_rank.onnx");
     const Tensor data(element::f32, Shape{1, 3, 2, 3});
     const Tensor slope(element::f32, Shape{2});
+    TensorVector outputs{Tensor(element::f32, data.get_shape())};
+    OV_EXPECT_THROW_HAS_SUBSTRING(model->evaluate(outputs, TensorVector{data, slope}),
+                                  ov::Exception,
+                                  "cannot be broadcasted");
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_compact_channel_constant) {
+    auto model = convert_model("prelu_compact_channel_constant.onnx");
+    ov::pass::ConstantFolding().run_on_model(model);
+    const auto prelu = ov::as_type_ptr<op::v0::PRelu>(model->get_results().at(0)->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(prelu, nullptr);
+    const auto constant = ov::as_type_ptr<op::v0::Constant>(prelu->get_input_node_shared_ptr(1));
+    ASSERT_NE(constant, nullptr);
+    EXPECT_EQ(constant->get_shape(), (Shape{64, 1, 1}));
+    EXPECT_EQ(constant->get_byte_size(), 64 * sizeof(float));
+
+    // The large activation shape above must not produce a large folded slope. Infer a smaller equivalent case.
+    model->reshape({{"X", PartialShape{1, 64, 2, 2}}});
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(std::vector<float>(256, -2.f));
+    test_case.add_expected_output<float>(std::vector<float>(256, -1.f));
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_compact_channel_runtime_slope) {
+    ov::frontend::FrontEnd::Ptr frontend;
+    auto input_model = load_model("prelu_1d_last_dim_bcast.onnx", &frontend);
+    input_model->set_partial_shape(input_model->get_place_by_tensor_name("X"), PartialShape{1, 3, 2, 3});
+    input_model->set_partial_shape(input_model->get_place_by_tensor_name("SLOPE"), PartialShape{3, 1, 1});
+    auto model = frontend->convert(input_model);
+    const auto prelu = ov::as_type_ptr<op::v0::PRelu>(model->get_results().at(0)->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(prelu, nullptr);
+    EXPECT_EQ(prelu->get_input_shape(1), (Shape{3, 1, 1}));
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(std::vector<float>(18, -2.f));
+    test_case.add_input<float>(std::vector<float>(3, 0.5f));
+    test_case.add_expected_output<float>(std::vector<float>(18, -1.f));
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_singleton_constant) {
+    // Also instantiated for IE_GPU: its rank-1 lowering requires a single-element Constant slope.
+    auto model = convert_model("prelu_1d_singleton_constant.onnx");
+    ov::pass::ConstantFolding().run_on_model(model);
+    const auto prelu = ov::as_type_ptr<op::v0::PRelu>(model->get_results().at(0)->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(prelu, nullptr);
+    const auto constant = ov::as_type_ptr<op::v0::Constant>(prelu->get_input_node_shared_ptr(1));
+    ASSERT_NE(constant, nullptr);
+    EXPECT_EQ(constant->get_shape(), (Shape{1}));
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(std::vector<float>(24, -2.f));
+    test_case.add_expected_output<float>(std::vector<float>(24, -1.f));
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_reject_incompatible_runtime_dimension) {
+    ov::frontend::FrontEnd::Ptr frontend;
+    auto input_model = load_model("prelu_1d_last_dim_bcast.onnx", &frontend);
+    input_model->set_partial_shape(input_model->get_place_by_tensor_name("X"), PartialShape{1, 3, 2, -1});
+    auto model = frontend->convert(input_model);
+    const Tensor data(element::f32, Shape{1, 3, 2, 1});
+    const Tensor slope(element::f32, Shape{3});
     TensorVector outputs{Tensor(element::f32, data.get_shape())};
     OV_EXPECT_THROW_HAS_SUBSTRING(model->evaluate(outputs, TensorVector{data, slope}),
                                   ov::Exception,
