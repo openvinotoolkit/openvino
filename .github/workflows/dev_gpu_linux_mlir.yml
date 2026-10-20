@@ -207,9 +207,6 @@ jobs:
           git -C "${GC_REPO}" checkout FETCH_HEAD
           echo "Graph Compiler $ref at $(git -C "${GC_REPO}" rev-parse HEAD)"
 
-      - name: System info
-        uses: ./openvino/.github/actions/system_info
-
       - name: Compute LLVM cache key
         id: cache_keys
         working-directory: ${{ env.GC_REPO }}
@@ -280,6 +277,8 @@ jobs:
             -DENABLE_OV_TF_FRONTEND=OFF -DENABLE_OV_TF_LITE_FRONTEND=OFF \
             -DENABLE_OV_PYTORCH_FRONTEND=OFF -DENABLE_OV_JAX_FRONTEND=OFF \
             -DENABLE_PYTHON=OFF -DENABLE_SAMPLES=OFF \
+            -DENABLE_STRICT_DEPENDENCIES=OFF \
+            -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
           cmake --build "${BUILD_DIR}" --parallel "${CMAKE_BUILD_PARALLEL_LEVEL}" -- --quiet
 
