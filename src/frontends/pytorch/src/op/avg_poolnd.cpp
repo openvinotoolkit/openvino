@@ -174,6 +174,19 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
     } else {
         pads = context.const_input<Shape>(3);  // pytorch supports only symmetric padding
     }
+    if (pads.empty()) {
+        pads.resize(kernel.size(), 0);
+    }
+    // The short-axis helper indexes these attributes before AvgPool can validate them.
+    PYTORCH_OP_CONVERSION_CHECK(kernel.size() == static_cast<size_t>(dims),
+                                "Expected kernel size to match the number of spatial dimensions: ",
+                                dims);
+    PYTORCH_OP_CONVERSION_CHECK(strides.size() == kernel.size(),
+                                "Expected strides size to match kernel size: ",
+                                kernel.size());
+    PYTORCH_OP_CONVERSION_CHECK(pads.size() == kernel.size(),
+                                "Expected padding size to match kernel size: ",
+                                kernel.size());
     ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR;
     if (!(context.input_is_none(4))) {
         rounding_type = context.const_input<bool>(4) ? ov::op::RoundingType::CEIL_TORCH : ov::op::RoundingType::FLOOR;

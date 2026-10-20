@@ -187,6 +187,44 @@ class TestPooling(PytorchLayerTest):
                                        ceil_mode=True, count_include_pad=count_include_pad),
                    ie_device, precision, ir_version, trace_model=True, freeze_model=False)
 
+    @pytest.mark.parametrize("kernel,stride,padding,error", [
+        ([2], [2, 2], [0, 0], "Expected kernel size"),
+        ([2, 2, 2], [2, 2], [0, 0], "Expected kernel size"),
+        ([2, 2], [2], [0, 0], "Expected strides size"),
+        ([2, 2], [2, 2, 2], [0, 0], "Expected strides size"),
+        ([2, 2], [2, 2], [0], "Expected padding size"),
+        ([2, 2], [2, 2], [0, 0, 0], "Expected padding size"),
+    ])
+    @pytest.mark.parametrize("is_dynamic_shapes", [False, True])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool2d_invalid_attribute_lengths(self, kernel, stride, padding, error, is_dynamic_shapes,
+                                                  ie_device, precision, ir_version):
+        model, _ = self.create_model("avg_pool2d", kernel_size=kernel, stride=stride, padding=padding,
+                                     ceil_mode=True)
+        # Script without executing: tracing would reject the malformed attributes in PyTorch first.
+        scripted = torch.jit.script(model)
+        shape = ov.PartialShape([-1] * 4 if is_dynamic_shapes else [1, 1, 4, 4])
+        with pytest.raises(ov.frontend.OpConversionFailure, match=error):
+            ov.convert_model(scripted, input=[shape])
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool2d_empty_padding(self, ie_device, precision, ir_version):
+        class aten_avg_pool2d_empty_padding(torch.nn.Module):
+            def forward(self, x):
+                return torch.nn.functional.avg_pool2d(x, [2, 2], [2, 2],
+                                                      torch.jit.annotate(list[int], []), True)
+
+        scripted = torch.jit.script(aten_avg_pool2d_empty_padding())
+        ov_model = ov.convert_model(scripted, input=[ov.PartialShape([-1] * 4)])
+        compiled = ov.Core().compile_model(ov_model, ie_device)
+        data = torch.arange(16, dtype=torch.float32).reshape(1, 1, 4, 4)
+        # Empty padding retains OpenVINO's existing zero-padding default.
+        expected = torch.nn.functional.avg_pool2d(data, [2, 2], [2, 2], 0, True).numpy()
+        actual = compiled((data.numpy(),))[compiled.outputs[0]]
+        np.testing.assert_allclose(actual, expected, rtol=1e-4, atol=1e-4)
+
     @pytest.mark.parametrize("is_dynamic_shapes", [False, True])
     @pytest.mark.nightly
     @pytest.mark.precommit
