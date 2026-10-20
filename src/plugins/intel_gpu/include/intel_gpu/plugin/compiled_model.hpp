@@ -119,10 +119,10 @@ private:
     // Whenever the plugin is a consumer or the producer of
     // weight-sharing context, the source buffer track held on the plugin side. That means each consumer must retain
     // a strong reference to the source buffer for as long as the imported constant may still be used.
-    // m_shared_weight_sources holds strong references to the source buffers to ensure they remain valid even if the original weight-sharing producer is
-    // destroyed.
+    // m_weight_sharing_source_buffers holds strong references to the source buffers, ensuring they remain valid even if
+    // the original weight-sharing producer is destroyed.
     ov::internal::WeightSharingCtxPtr m_weight_sharing_context;
-    std::set<std::shared_ptr<ov::AlignedBuffer>> m_shared_weight_sources;
+    std::set<std::shared_ptr<ov::AlignedBuffer>> m_weight_sharing_source_buffers;
 };
 
 }  // namespace ov::intel_gpu

@@ -150,9 +150,9 @@ public:
     std::shared_ptr<ov::Model> get_model() const { return m_model; }
 
     ov::internal::WeightSharingCtxPtr get_weight_sharing_ctx() const { return m_weight_sharing_ctx; }
-    void register_shared_weight_source(std::shared_ptr<ov::AlignedBuffer> source);
-    std::set<std::shared_ptr<ov::AlignedBuffer>> get_shared_weight_sources() const {
-        return m_shared_weight_sources;
+    void register_weight_sharing_source_buffer(std::shared_ptr<ov::AlignedBuffer> source);
+    std::set<std::shared_ptr<ov::AlignedBuffer>> get_weight_sharing_source_buffers() const {
+        return m_weight_sharing_source_buffers;
     }
 private:
     static factories_map_t factories_map;
@@ -172,7 +172,7 @@ private:
 
     bool m_is_inner_program = false;
     ov::internal::WeightSharingCtxPtr m_weight_sharing_ctx;
-    std::set<std::shared_ptr<ov::AlignedBuffer>> m_shared_weight_sources;
+    std::set<std::shared_ptr<ov::AlignedBuffer>> m_weight_sharing_source_buffers;
 
     void EnableQueryMode() { queryMode = true; }
     void DisableQueryMode() { queryMode = false; }

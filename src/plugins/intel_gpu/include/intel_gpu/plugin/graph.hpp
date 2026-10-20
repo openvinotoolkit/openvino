@@ -78,8 +78,8 @@ public:
 
     bool use_external_queue() const;
 
-    std::set<std::shared_ptr<ov::AlignedBuffer>> get_shared_weight_sources() const {
-        return m_shared_weight_sources;
+    std::set<std::shared_ptr<ov::AlignedBuffer>> get_weight_sharing_source_buffers() const {
+        return m_weight_sharing_source_buffers;
     }
 
     std::vector<HostTimeProfilingEntry> host_exec_times;
@@ -101,7 +101,7 @@ private:
     std::vector<cldnn::primitive_id> profilingIDs;
 
     std::map<size_t, cldnn::layout> m_input_layouts;
-    std::set<std::shared_ptr<ov::AlignedBuffer>> m_shared_weight_sources;
+    std::set<std::shared_ptr<ov::AlignedBuffer>> m_weight_sharing_source_buffers;
 
     void build(std::shared_ptr<cldnn::program> program);
     std::shared_ptr<ov::Model> get_runtime_model(std::vector<cldnn::primitive_info>& pi, bool filter_const_primitives = true);

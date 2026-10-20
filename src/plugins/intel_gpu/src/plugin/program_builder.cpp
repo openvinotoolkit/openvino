@@ -360,8 +360,8 @@ int64_t ProgramBuilder::get_result_index(const ov::Output<const ov::Node>& value
     return m_model->get_result_index(value);
 }
 
-void ProgramBuilder::register_shared_weight_source(std::shared_ptr<ov::AlignedBuffer> source) {
-    m_shared_weight_sources.insert(source);
+void ProgramBuilder::register_weight_sharing_source_buffer(std::shared_ptr<ov::AlignedBuffer> source) {
+    m_weight_sharing_source_buffers.insert(source);
 }
 
 void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size_t> valid_inputs_count) {

@@ -94,7 +94,7 @@ Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& con
     profilingIDs = program_builder->profiling_ids;
     perfMap = program_builder->perfMap;
     m_input_layouts = program_builder->get_input_layouts();
-    m_shared_weight_sources = program_builder->get_shared_weight_sources();
+    m_weight_sharing_source_buffers = program_builder->get_weight_sharing_source_buffers();
 }
 
 Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)

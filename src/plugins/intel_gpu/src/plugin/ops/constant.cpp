@@ -124,19 +124,21 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     // ensuring the buffer remains valid for the lifetime of the graph. Once the graph was created,
     // the instance of CompiledModel takes on the ownership of the buffer.
     // This ensures the validity of the buffer during the lifetime of the compiled model.
-    std::shared_ptr<ov::AlignedBuffer> shared_weight_buffer;
+    std::shared_ptr<ov::AlignedBuffer> weight_sharing_constant_buffer_view;
     if (p.get_weight_sharing_ctx()) {
         // It's assumed that the constant is a shared constant with cross-device visibility if the model has
         // a weight sharing context and a valid source buffer and a constant id is registered in the weight sharing context.
         auto constant_source_id = weight_sharing::Extension::get_constant_source_id(*op);
         auto source_buffer = weight_sharing::Extension::get_constant_source_buffer(*op);
         if (source_buffer) {
-            p.register_shared_weight_source(source_buffer);
+            p.register_weight_sharing_source_buffer(source_buffer);
             auto constant_id = weight_sharing::Extension::get_constant_id(*op);
-            shared_weight_buffer = weight_sharing::get_buffer(*p.get_weight_sharing_ctx(), constant_source_id, constant_id);
+            weight_sharing_constant_buffer_view =
+                weight_sharing::get_buffer(*p.get_weight_sharing_ctx(), constant_source_id, constant_id);
         }
     }
-    const auto cache_key = std::make_tuple(data, const_shape, op->get_output_element_type(0), shared_weight_buffer != nullptr);
+    const auto cache_key =
+        std::make_tuple(data, const_shape, op->get_output_element_type(0), weight_sharing_constant_buffer_view != nullptr);
 
     auto bufIter = p.blobMemCache.find(cache_key);
 
@@ -146,19 +148,20 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
         cldnn::memory::ptr mem = nullptr;
-        if (shared_weight_buffer) {
-            mem =  p.get_engine().create_hostbuffer(shared_weight_buffer->get_ptr(),
-                                        ov::util::align_size_up(shared_weight_buffer->size(), ov::util::get_system_page_size()),
-                                        cldnn::allocation_type::cl_mem,
-                                        constLayout);
+        if (weight_sharing_constant_buffer_view) {
+            mem = p.get_engine().create_hostbuffer(
+                weight_sharing_constant_buffer_view->get_ptr(),
+                ov::util::align_size_up(weight_sharing_constant_buffer_view->size(), ov::util::get_system_page_size()),
+                cldnn::allocation_type::cl_mem,
+                constLayout);
             p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
             p.blobMemCache[cache_key] = initialconstPrimID;
             constPrimID = initialconstPrimID;
             GPU_DEBUG_LOG << "[" << initialconstPrimID << ": import shared constant] imported shared constant: source ID: "
                           << weight_sharing::Extension::get_constant_source_id(*op)
                           << ", constant ID: " << weight_sharing::Extension::get_constant_id(*op)
-                          << ", ptr: " << static_cast<void*>(shared_weight_buffer->get_ptr())
-                          << ", size: " << shared_weight_buffer->size()
+                          << ", ptr: " << static_cast<void*>(weight_sharing_constant_buffer_view->get_ptr())
+                          << ", size: " << weight_sharing_constant_buffer_view->size()
                           << ", layout: " << constLayout.to_short_string() << std::endl;
             return;
         }
