@@ -2084,6 +2084,16 @@ public:
         dnnl::memory::desc up_zp_md;
         dnnl::memory::desc down_zp_md;
         bool has_zp = false;
+        // DNNL_ARG_HINT_MAX_GROUP_SIZE host scalar, its value is updated in place before each execute
+        dnnl::memory hint_mem;
+        // Execute args of one GEMM. Building them costs several dnnl::memory objects (each one queries the USM
+        // pointer type) per execute, so they are reused while all the buffer addresses they wrap stay the same:
+        // src, dst, grouped offsets, weights, scales, zero points.
+        struct exec_args {
+            std::array<const void*, 6> key{};
+            std::unordered_map<int, dnnl::memory> args;
+        };
+        std::array<exec_args, 3> args;  // gate, up, down
     };
     using grouped_kernel_lru = LruCache<int, std::shared_ptr<grouped_onednn_kernel>>;
     grouped_kernel_lru _grouped_kernels{128};
@@ -2294,6 +2304,7 @@ public:
         if (has_zp) {
             gk->down_zp_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, zp_dt);
         }
+        gk->hint_mem = dnnl::memory(dnnl::memory::desc::host_scalar(dnnl::memory::data_type::s32), int32_t{0});
 
         _grouped_kernels.add(key, gk);
         return *_grouped_kernels.get(key);
@@ -2586,48 +2597,46 @@ public:
         // Passed as DNNL_ARG_HINT_MAX_GROUP_SIZE to each grouped matmul execute(),
         // allowing the kernel to reduce per-expert workgroup dispatch without
         // recompiling the primitive.
-        auto hint_md = dnnl::memory::desc::host_scalar(dnnl::memory::data_type::s32);
-        dnnl::memory hint_mem(hint_md, static_cast<int32_t>(max_tokens_per_expert));
-        auto zp_arg = [&](size_t gemm_idx, const dnnl::memory::desc& zp_md) {
-            const auto& host_scalar = _grouped_zp_host_scalars[gemm_idx];
-            return host_scalar ? host_scalar : scratch.moe_fusion_wei_addr.zp[gemm_idx]->get_onednn_memory(zp_md);
+        // The value is read on the host at execute(), so updating it in place does not affect GEMMs already submitted.
+        gk.hint_mem.set_host_scalar_value(static_cast<int32_t>(max_tokens_per_expert));
+        const auto& wei = scratch.moe_fusion_wei_addr;
+
+        // One grouped GEMM [total, K] * W[E,K,N] -> [total, N]. The execute args are rebuilt only when a wrapped buffer
+        // address changes, which for decode happens only on the first call.
+        auto exec_gemm = [&](size_t gemm_idx,
+                             dnnl::matmul& prim,
+                             const dnnl::matmul::primitive_desc& pd,
+                             const memory::ptr& src,
+                             const memory::ptr& dst,
+                             const dnnl::memory::desc& scale_md,
+                             const dnnl::memory::desc& zp_md) {
+            const auto& host_zp = _grouped_zp_host_scalars[gemm_idx];
+            const bool device_zp = gk.has_zp && !host_zp;
+            auto& cache = gk.args[gemm_idx];
+            const std::array<const void*, 6> key{src->buffer_ptr(),
+                                                 dst->buffer_ptr(),
+                                                 row_offsets->buffer_ptr(),
+                                                 wei.weight[gemm_idx]->buffer_ptr(),
+                                                 wei.scale[gemm_idx]->buffer_ptr(),
+                                                 device_zp ? wei.zp[gemm_idx]->buffer_ptr() : nullptr};
+            if (cache.args.empty() || cache.key != key) {
+                cache.args = {{DNNL_ARG_SRC, src->get_onednn_grouped_memory(pd.src_desc(), *row_offsets)},
+                              {DNNL_ARG_WEIGHTS, wei.weight[gemm_idx]->get_onednn_memory(pd.weights_desc())},
+                              {DNNL_ARG_DST, dst->get_onednn_grouped_memory(pd.dst_desc(), *row_offsets)},
+                              {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, wei.scale[gemm_idx]->get_onednn_memory(scale_md)},
+                              {DNNL_ARG_HINT_MAX_GROUP_SIZE, gk.hint_mem}};
+                if (gk.has_zp) {
+                    cache.args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, device_zp ? wei.zp[gemm_idx]->get_onednn_memory(zp_md) : host_zp});
+                }
+                cache.key = key;
+            }
+            prim.execute(dnn_stream, cache.args);
         };
 
         // gate GEMM: [total, hidden] * W_gate[E,hidden,inter] -> [total, inter]
-        {
-            auto src_mem = scratch.x->get_onednn_grouped_memory(gk.gate_pd.src_desc(), *row_offsets);
-            auto dst_mem = scratch.gate->get_onednn_grouped_memory(gk.gate_pd.dst_desc(), *row_offsets);
-            auto w_mem = scratch.moe_fusion_wei_addr.weight[0]->get_onednn_memory(gk.gate_pd.weights_desc());
-            auto scale_mem = scratch.moe_fusion_wei_addr.scale[0]->get_onednn_memory(gk.gate_scale_md);
-
-            std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
-                                                       {DNNL_ARG_WEIGHTS, w_mem},
-                                                       {DNNL_ARG_DST, dst_mem},
-                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
-                                                       {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
-            if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_arg(0, gk.gate_zp_md)});
-            }
-            gk.gate_prim.execute(dnn_stream, args);
-        }
-
+        exec_gemm(0, gk.gate_prim, gk.gate_pd, scratch.x, scratch.gate, gk.gate_scale_md, gk.gate_zp_md);
         // up GEMM: [total, hidden] * W_up[E,hidden,inter] -> [total, inter]
-        {
-            auto src_mem = scratch.x->get_onednn_grouped_memory(gk.up_pd.src_desc(), *row_offsets);
-            auto dst_mem = scratch.up->get_onednn_grouped_memory(gk.up_pd.dst_desc(), *row_offsets);
-            auto w_mem = scratch.moe_fusion_wei_addr.weight[1]->get_onednn_memory(gk.up_pd.weights_desc());
-            auto scale_mem = scratch.moe_fusion_wei_addr.scale[1]->get_onednn_memory(gk.up_scale_md);
-
-            std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
-                                                       {DNNL_ARG_WEIGHTS, w_mem},
-                                                       {DNNL_ARG_DST, dst_mem},
-                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
-                                                       {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
-            if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_arg(1, gk.up_zp_md)});
-            }
-            gk.up_prim.execute(dnn_stream, args);
-        }
+        exec_gemm(1, gk.up_prim, gk.up_pd, scratch.x, scratch.up, gk.up_scale_md, gk.up_zp_md);
 
         // Step 4: SiLU(gate) * up -> scratch.gate  (OCL prefill_swiglu kernel, compiled with ONEDNN_GROUPED_GEMM_USED)
         // gate and up GEMMs are submitted to the same OCL queue as the OCL kernels;
@@ -2645,22 +2654,7 @@ public:
         }
 
         // down GEMM: [total, inter] * W_down[E,inter,hidden] -> [total, hidden]
-        {
-            auto src_mem = scratch.gate->get_onednn_grouped_memory(gk.down_pd.src_desc(), *row_offsets);
-            auto dst_mem = scratch.y->get_onednn_grouped_memory(gk.down_pd.dst_desc(), *row_offsets);
-            auto w_mem = scratch.moe_fusion_wei_addr.weight[2]->get_onednn_memory(gk.down_pd.weights_desc());
-            auto scale_mem = scratch.moe_fusion_wei_addr.scale[2]->get_onednn_memory(gk.down_scale_md);
-
-            std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
-                                                       {DNNL_ARG_WEIGHTS, w_mem},
-                                                       {DNNL_ARG_DST, dst_mem},
-                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
-                                                       {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
-            if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_arg(2, gk.down_zp_md)});
-            }
-            gk.down_prim.execute(dnn_stream, args);
-        }
+        exec_gemm(2, gk.down_prim, gk.down_pd, scratch.gate, scratch.y, gk.down_scale_md, gk.down_zp_md);
 
         // Ensure all grouped GEMMs complete before scatter_reduce (OTD sync)
         on_after_grouped_gemm(stream);
