@@ -29,8 +29,9 @@ _trace_cache = {}
 
 
 def clear_weight_caches():
-    """Drop the unpacked expert copies: their key is the packed storage address, which in-place reloads keep."""
+    """Drop the unpacked expert copies and halves: they are keyed by the packed address, which in-place reloads keep."""
     _unpacked_cache.clear()
+    _half_cache.clear()
 
 
 def _unpack_permutation(rows, cols, isa):
