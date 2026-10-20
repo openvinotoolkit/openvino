@@ -30,6 +30,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/util/read_value_base.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -40,6 +41,7 @@
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::has_static_rank;
 using ov::pass::pattern::has_static_shape;
+using ov::pass::pattern::optional;
 using ov::pass::pattern::rank_equals;
 using ov::pass::pattern::wrap_type;
 
@@ -47,26 +49,23 @@ namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
 
-namespace {
-
-ov::PartialShape make_conv_state_table_shape(const ov::PartialShape& past_state_shape) {
-    if (past_state_shape.rank().is_static() && past_state_shape.rank().get_length() == 3) {
-        return ov::PartialShape{ov::Dimension::dynamic(), past_state_shape[1], past_state_shape[2]};
-    }
-    return ov::PartialShape::dynamic(3);
-}
-
-}  // namespace
-
 namespace ov::pass {
 
-PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaParams& pa_params,
-                                                 std::unordered_set<std::string>& var_ids_to_remove) {
-    MATCHER_SCOPE(PagedCausalConv1DFusion);
+class PagedCausalConv1DFusionMatcher : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PagedCausalConv1DFusionMatcher");
+    PagedCausalConv1DFusionMatcher(ov::pass::paged_attention::PaParams& pa_params,
+                                   std::unordered_set<std::string>& var_ids_to_remove,
+                                   size_t& layer_index);
+};
+
+PagedCausalConv1DFusionMatcher::PagedCausalConv1DFusionMatcher(ov::pass::paged_attention::PaParams& pa_params,
+                                                               std::unordered_set<std::string>& var_ids_to_remove,
+                                                               size_t& layer_index) {
+    MATCHER_SCOPE(PagedCausalConv1DFusionMatcher);
 
     auto p_read_value = wrap_type<ov::op::util::ReadValueBase>(has_static_rank() && rank_equals(3));
-    auto p_past_via_gather =
-        ov::pass::pattern::optional<ov::op::util::GatherBase>({p_read_value, any_input(), any_input()});
+    auto p_past_via_gather = optional<ov::op::util::GatherBase>({p_read_value, any_input(), any_input()});
     auto p_token_input = any_input(rank_equals(3));
     auto p_concat_past_first = wrap_type<v0::Concat>({p_past_via_gather, p_token_input}, {{"axis", -1}});
     auto p_concat_token_first = wrap_type<v0::Concat>({p_token_input, p_past_via_gather}, {{"axis", -1}});
@@ -76,22 +75,21 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
     auto p_group_conv = wrap_type<v1::GroupConvolution>({p_state_concat, p_weight_input});
 
     auto p_bias_input = any_input(has_static_shape());
-    auto p_add_bias = ov::pass::pattern::optional<v1::Add>({p_group_conv, p_bias_input});
+    auto p_add_bias = optional<v1::Add>({p_group_conv, p_bias_input});
+    auto p_slice_out = optional<v8::Slice>({p_add_bias, any_input(), any_input(), any_input(), any_input()});
 
-    auto p_slice_out = wrap_type<v8::Slice>({p_add_bias, any_input(), any_input(), any_input(), any_input()});
-
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove, &layer_index](
                                              ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
 
         const auto& pm = m.get_pattern_value_map();
+        const bool with_output_slice = pm.count(p_slice_out) != 0;
 
         const auto group_conv_node = ov::as_type_ptr<v1::GroupConvolution>(pm.at(p_group_conv).get_node_shared_ptr());
         const auto weight_node = pm.at(p_weight_input).get_node_shared_ptr();
         const auto cache_rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pm.at(p_read_value).get_node_shared_ptr());
-        const auto slice_out = pm.at(p_slice_out).get_node_shared_ptr();
         const auto past_state = pm.count(p_past_via_gather) ? pm.at(p_past_via_gather).get_node_shared_ptr() : cache_rv;
         auto token_input = pm.at(p_token_input).get_node_shared_ptr();
 
@@ -104,9 +102,17 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
 
         const size_t dilation = group_conv_node->get_dilations()[0];
         const size_t causal_window = (kernel_size - 1) * dilation + 1;
+        // A full-window history produces one extra output, removed by the output Slice.
+        // The history-only form (e.g. PLE) already produces one output per current token.
+        const size_t history_length = with_output_slice ? causal_window : causal_window - 1;
 
         const auto& state_pshape = past_state->get_output_partial_shape(0);
-        if (!state_pshape[1].compatible(hidden_size) || !state_pshape[2].compatible(causal_window)) {
+        // Without output trimming, history must precede the tokens and have an exact length.
+        // TODO: remove the case where first goes present then past (it pobably doesn't exist in real life)
+        if (!with_output_slice && (!pm.count(p_concat_past_first) || state_pshape[2].is_dynamic())) {
+            return false;
+        }
+        if (!state_pshape[1].compatible(hidden_size) || !state_pshape[2].compatible(history_length)) {
             return false;
         }
 
@@ -159,9 +165,13 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
         pa_params.add("la.past_lens", ov::element::i32, ov::PartialShape{-1});
         pa_params.add("la.cache_interval", ov::element::i32, ov::PartialShape{-1});
 
-        const auto conv_state_table = pa_params.add("conv_state_table." + std::to_string(m_layer_index++),
+        // The paged kernel shifts before inserting the current token and always stores
+        // the full window, even when the source graph only stores window - 1 inputs.
+        const auto conv_state_table = pa_params.add("conv_state_table." + std::to_string(layer_index++),
                                                     ov::element::dynamic,
-                                                    make_conv_state_table_shape(cache_rv->get_output_partial_shape(0)));
+                                                    ov::PartialShape{ov::Dimension::dynamic(),
+                                                                     static_cast<int64_t>(hidden_size),
+                                                                     static_cast<int64_t>(causal_window)});
 
         enable_keep_const_precision(conv_state_table);
         var_ids_to_remove.insert(cache_rv->get_variable_id());
@@ -193,7 +203,7 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
                                  unsqueeze};
 
         ov::copy_runtime_info(m.get_matched_nodes(), new_nodes);
-        ov::replace_node(slice_out, unsqueeze);
+        ov::replace_node(m.get_match_root(), unsqueeze);
         return true;
     };
 
@@ -202,3 +212,8 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
 }
 
 }  // namespace ov::pass
+
+ov::pass::PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaParams& pa_params,
+                                                           std::unordered_set<std::string>& var_ids_to_remove) {
+    add_matcher<PagedCausalConv1DFusionMatcher>(pa_params, var_ids_to_remove, m_layer_index);
+}

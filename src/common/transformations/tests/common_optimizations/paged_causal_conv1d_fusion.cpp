@@ -8,6 +8,7 @@
 
 #include <cstdlib>
 #include <string>
+#include <tuple>
 #include <unordered_set>
 
 #include "common_test_utils/node_builders/constant.hpp"
@@ -17,12 +18,14 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
@@ -449,7 +452,10 @@ std::shared_ptr<v8::Slice> make_last_n_slice(const ov::Output<ov::Node>& data, s
 }
 
 // past[B, H, state_len] ++ tokens[B, H, T] -> GroupConv(dilation) -> keep last T outputs.
-std::shared_ptr<ov::Model> build_dilated_conv_model(size_t state_len, size_t dilation) {
+std::shared_ptr<ov::Model> build_dilated_conv_model(size_t state_len,
+                                                    size_t dilation,
+                                                    bool with_output_slice = true,
+                                                    bool with_bias = false) {
     auto past_state_param = std::make_shared<v0::Parameter>(element::f32, Shape{2, hidden_size, state_len});
     auto read_value = std::make_shared<ov::op::v3::ReadValue>(past_state_param->output(0), "past_cache");
     read_value->get_output_tensor(0).set_names({"cache_params.past.conv.0"});
@@ -466,7 +472,14 @@ std::shared_ptr<ov::Model> build_dilated_conv_model(size_t state_len, size_t dil
                                                              CoordinateDiff{0},
                                                              CoordinateDiff{0},
                                                              Strides{dilation});
-    auto conv_out = make_last_n_slice(group_conv, seq_len);
+    std::shared_ptr<ov::Node> conv_out = group_conv;
+    if (with_bias) {
+        auto bias = v0::Constant::create(element::f32, Shape{1, hidden_size, 1}, {0.25f, -0.5f, 1.0f});
+        conv_out = std::make_shared<v1::Add>(conv_out, bias);
+    }
+    if (with_output_slice) {
+        conv_out = make_last_n_slice(conv_out, seq_len);
+    }
 
     auto present_res = std::make_shared<v0::Result>(make_last_n_slice(state_concat, state_len));
     present_res->get_output_tensor(0).set_names({"cache_params.present.conv.0"});
@@ -475,7 +488,9 @@ std::shared_ptr<ov::Model> build_dilated_conv_model(size_t state_len, size_t dil
     return std::make_shared<ov::Model>(ResultVector{conv_res, present_res}, ParameterVector{token, past_state_param});
 }
 
-std::shared_ptr<ov::Model> build_dilated_conv_fused_reference(size_t state_len, size_t dilation) {
+std::shared_ptr<ov::Model> build_dilated_conv_fused_reference(size_t state_len,
+                                                              size_t dilation,
+                                                              bool with_bias = false) {
     using ov::test::utils::make_param;
     auto past_state_param = std::make_shared<v0::Parameter>(element::f32, Shape{2, hidden_size, state_len});
     auto read_value = std::make_shared<ov::op::v3::ReadValue>(past_state_param->output(0), "past_cache");
@@ -501,7 +516,12 @@ std::shared_ptr<ov::Model> build_dilated_conv_fused_reference(size_t state_len, 
         Shape{3},
         std::vector<int64_t>{static_cast<int64_t>(hidden_size), 1, static_cast<int64_t>(kernel_size)});
     auto weight_reshaped = std::make_shared<v1::Reshape>(weights, pa_weight_shape, false);
-    auto bias = v0::Constant::create(element::f32, Shape{0}, std::vector<float>{});
+    std::shared_ptr<ov::Node> bias = v0::Constant::create(element::f32, Shape{0}, std::vector<float>{});
+    if (with_bias) {
+        auto bias_input = v0::Constant::create(element::f32, Shape{1, hidden_size, 1}, {0.25f, -0.5f, 1.0f});
+        auto bias_shape = v0::Constant::create(element::i64, Shape{1}, {-1});
+        bias = std::make_shared<v1::Reshape>(bias_input, bias_shape, false);
+    }
 
     auto subsequence_begins = make_param(element::i32, PartialShape{-1}, "subsequence_begins");
     auto block_indices = make_param(element::i32, PartialShape{-1}, "la.block_indices");
@@ -509,10 +529,10 @@ std::shared_ptr<ov::Model> build_dilated_conv_fused_reference(size_t state_len, 
     auto past_lens = make_param(element::i32, PartialShape{-1}, "la.past_lens");
     auto cache_interval = make_param(element::i32, PartialShape{-1}, "la.cache_interval");
 
-    auto conv_state_table =
-        make_param(element::dynamic,
-                   PartialShape{-1, static_cast<int64_t>(hidden_size), static_cast<int64_t>(state_len)},
-                   "conv_state_table.0");
+    auto conv_state_table = make_param(
+        element::dynamic,
+        PartialShape{-1, static_cast<int64_t>(hidden_size), static_cast<int64_t>((kernel_size - 1) * dilation + 1)},
+        "conv_state_table.0");
 
     auto paged_conv = std::make_shared<ov::op::internal::PagedCausalConv1D>(input_embeds,
                                                                             conv_state_table,
@@ -716,9 +736,37 @@ TEST_F(PagedCausalConv1DFusionTest, FusesDilatedConvWithCausalWindowState) {
 
 // Dilated conv whose state is only K long does not match the paged state layout and must stay untouched.
 TEST_F(PagedCausalConv1DFusionTest, DoesNotFuseDilatedConvWhenStateIsKernelSize) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+
     constexpr size_t dilation = 3;
 
     model = build_dilated_conv_model(kernel_size, dilation);
     run_paged_causal_conv1d_fusion(model);
     model_ref = build_dilated_conv_model(kernel_size, dilation);
+}
+
+TEST_F(PagedCausalConv1DFusionTest, FusesPLEWithHistoryOnlyAndNoOutputSlice) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+
+    // PLE saves nine past inputs; the paged operation requires a ten-entry window.
+    constexpr size_t dilation = 3;
+    constexpr size_t history_length = (kernel_size - 1) * dilation;
+
+    model = build_dilated_conv_model(history_length, dilation, /*with_output_slice=*/false);
+    run_paged_causal_conv1d_fusion(model);
+    model_ref = build_dilated_conv_fused_reference(history_length, dilation);
+}
+
+TEST_F(PagedCausalConv1DFusionTest, FusesPLEWithBiasAndNoOutputSlice) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+
+    constexpr size_t dilation = 3;
+    constexpr size_t history_length = (kernel_size - 1) * dilation;
+
+    model = build_dilated_conv_model(history_length, dilation, /*with_output_slice=*/false, /*with_bias=*/true);
+    run_paged_causal_conv1d_fusion(model);
+    model_ref = build_dilated_conv_fused_reference(history_length, dilation, /*with_bias=*/true);
 }
