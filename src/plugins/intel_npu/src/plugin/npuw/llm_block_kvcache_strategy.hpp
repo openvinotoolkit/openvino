@@ -188,6 +188,11 @@ private:
                                   uint32_t new_num_tokens,
                                   const std::shared_ptr<ov::IAsyncInferRequest>& kvcache_request);
 
+    // Give the allocated blocks at sequence positions [first_block_idx, last_block_idx] a private
+    // tensor wherever the prefix cache also holds it, so a write cannot reach cached KV.
+    // Returns true if a tensor was replaced; ports bound to the old one are then stale.
+    bool make_blocks_writable(KVCacheBlockManager& manager, uint32_t first_block_idx, uint32_t last_block_idx);
+
     // Re-issue the key tail copies of one generate variant. Unlike the numbered blocks,
     // which the request reads straight out of the pool, the tail port holds a copy that
     // an in-place rewrite of the pool would otherwise leave behind. A no-op for the

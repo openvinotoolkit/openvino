@@ -1087,6 +1087,7 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
     namespace uu = ov::npuw::util;
     auto& kvcache_desc = m_req.m_npuw_llm_compiled_model->m_kvcache_desc;
     auto& compiled = request->get_compiled_model();
+    bool rebind_needed = false;
 
     for (std::size_t i = LLMInferBaseRequest::layer_ids::kStartOutputKVCacheLayers; i < compiled->outputs().size();
          ++i) {
@@ -1129,6 +1130,9 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
                             "Failed to allocate block for KV cache — pool exhausted");
         }
         allocated_blocks = block_manager->get_allocated_blocks();
+        // Rare: normal decoding only appends past the prompt, never into a cached block. It takes a
+        // generate step rewound into the prompt (stored-tokens state or position_ids set back).
+        rebind_needed |= make_blocks_writable(*block_manager, start_block_idx, end_block_idx);
 
         // Write tokens across blocks.
         // The first block may be partially filled: start writing at (start_pos % block_size).
@@ -1148,6 +1152,22 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
         }
         OPENVINO_ASSERT(tokens_written == num_tokens, "Mismatch: wrote ", tokens_written, " but expected ", num_tokens);
     }
+
+    // The prefill ports are rebound at the start of every chunk; the generate ports are not.
+    if (rebind_needed && request == m_req.m_kvcache_request) {
+        on_generate_kv_init();
+    }
+}
+
+bool LLMBlockKVCacheStrategy::make_blocks_writable(KVCacheBlockManager& manager,
+                                                   uint32_t first_block_idx,
+                                                   uint32_t last_block_idx) {
+    const auto allocated = manager.get_allocated_blocks();
+    bool replaced = false;
+    for (uint32_t idx = first_block_idx; idx <= last_block_idx && idx < allocated.size(); ++idx) {
+        replaced |= manager.unshare_block(allocated[idx]);
+    }
+    return replaced;
 }
 
 // ============================================================================
