@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -941,10 +942,18 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         }
     }
 
-    // Update param if fake_alignment is available
-    auto updated_params = get_fake_aligned_params_if_possible(get_node(), *_impl_params);
+    // Update param if fake_alignment is available. Only fully_connected has a fake alignment (the other types' params would
+    // be a plain copy), so the other nodes copy just the output layouts and build full params only if they allocate.
+    const bool use_fake_aligned_params = get_node().is_type<fully_connected>();
+    // Both branches are prvalues, so nothing is copied (kernel_impl_params has no move constructor); the default one is cheap.
+    auto fake_aligned_params = use_fake_aligned_params ? get_fake_aligned_params_if_possible(get_node(), *_impl_params) : kernel_impl_params();
+    std::vector<layout> output_layouts_copy;
+    if (!use_fake_aligned_params) {
+        output_layouts_copy = _impl_params->output_layouts;
+    }
+    auto& updated_output_layouts = use_fake_aligned_params ? fake_aligned_params.output_layouts : output_layouts_copy;
 
-    const auto& actual_layouts = updated_params.output_layouts;
+    const auto& actual_layouts = updated_output_layouts;
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
 
     if (try_bind_remote_permute_output(actual_layouts[0])) {
@@ -1191,7 +1200,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                         GPU_DEBUG_TRACE_DETAIL << "update layout of dynamic quantize output[" << i << "] "
                                                << dyn_quan_layouts[i].to_short_string() << std::endl;
                         updated_layouts[i] = dyn_quan_layouts[i];
-                        updated_params.output_layouts[i] = dyn_quan_layouts[i];
+                        updated_output_layouts[i] = dyn_quan_layouts[i];
                     }
                 }
             }
@@ -1330,6 +1339,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         }
     }
 
+    // allocate_output() params of the nodes that don't use fake_aligned_params, built on the first allocation
+    std::optional<kernel_impl_params> alloc_params;
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
         bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_linear_size() <= _max_output_layout_count[i]);
         std::pair<bool, ov::Shape> prealloc_info;
@@ -1344,10 +1355,10 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], can_reuse_buffer, i, tmp_prealloc_count);
         }
         if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * (dt_sizes_in_B[i]))) {
-            updated_params.output_layouts[i] = updated_layouts[i].clone_with_other_shape(prealloc_info.second);
+            updated_output_layouts[i] = updated_layouts[i].clone_with_other_shape(prealloc_info.second);
         }
-        if (updated_params.output_layouts[i].get_linear_size() < updated_layouts[i].get_linear_size()) {
-            updated_params.output_layouts[i] = updated_layouts[i];
+        if (updated_output_layouts[i].get_linear_size() < updated_layouts[i].get_linear_size()) {
+            updated_output_layouts[i] = updated_layouts[i];
         }
 
         // Check for external output memory block (zero-copy dynamic output path).
@@ -1356,7 +1367,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         if (is_output()) {
             auto* ext_block = get_network().get_output_memory_block(id());
             if (ext_block) {
-                ext_block->resize(updated_params.output_layouts[i]);
+                ext_block->resize(updated_output_layouts[i]);
                 _outputs[i] = get_network().get_engine().reinterpret_buffer(*ext_block->memory(), actual_layouts[i]);
                 _max_output_layout_count[i] = ext_block->memory()->get_mem_tracker()->size() / cldnn::data_type_traits::size_of(actual_layouts[i].data_type);
                 GPU_DEBUG_TRACE_DETAIL << id() << ": ext output memory block for output[" << i << "] - " << actual_layouts[i].get_linear_size() << "/"
@@ -1391,10 +1402,16 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. " << std::endl;
             GPU_DEBUG_TRACE_DETAIL << " outputs[" << i << "] " << get_node().id() << " Current buffer_size=" << _max_output_layout_count[i]
                                    << " Requested buffer_size=" << updated_layouts[i].get_linear_size() << std::endl;
+            if (!use_fake_aligned_params) {
+                if (!alloc_params) {
+                    alloc_params = *_impl_params;
+                }
+                alloc_params->output_layouts = updated_output_layouts;
+            }
             _outputs[i] = allocate_output(get_network().get_engine(),
                                           get_network().get_memory_pool(),
                                           *_node,
-                                          updated_params,
+                                          use_fake_aligned_params ? fake_aligned_params : *alloc_params,
                                           _runtime_memory_dependencies,
                                           get_network_id(),
                                           get_network().is_internal(),
@@ -1403,7 +1420,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                                           is_output_buffer(this, true),
                                           output_memory_ptr(i).get(),
                                           true);
-            _max_output_layout_count[i] = updated_params.output_layouts[i].get_linear_size();
+            _max_output_layout_count[i] = updated_output_layouts[i].get_linear_size();
             set_flag(ExecutionFlags::MEMORY_CHANGED);
             GPU_DEBUG_CODE(std::string memalloc_info);
             GPU_DEBUG_CODE(memalloc_info +=
