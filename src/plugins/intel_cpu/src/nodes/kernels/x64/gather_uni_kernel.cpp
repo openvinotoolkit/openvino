@@ -689,7 +689,7 @@ void jitUniGatherKernel<isa>::calcSrcShiftShortBlock(Vmm* vAuxPool, bool shiftFi
                 } else {
                     Xbyak::Label lBeforeAxStep;
                     Xbyak::Label lBeforeAxStepEnd;
-                    add(rSpecIdxAndAfterAxIterB, idxElPerVec * jcp.dataTypeSize);
+                    add(rSpecIdxAndAfterAxIterB, idxElPerVec * static_cast<uint32_t>(jcp.dataTypeSize));
                     cmp(rSpecIdxAndAfterAxIterB, rSpecIdxAndAfterAxSizeB);
                     jl(lBeforeAxStep, T_NEAR);
                     sub(rSpecIdxAndAfterAxIterB, rSpecIdxAndAfterAxSizeB);
@@ -730,7 +730,7 @@ void jitUniGatherKernel<isa>::calcSrcShiftShortBlock(Vmm* vAuxPool, bool shiftFi
                 vpshufd(vmmSrcBeforeAxisSumB, vmmSrcBeforeAxisSumB, 0xFF);
 
                 Xbyak::Label lBeforeAxStepEnd1;
-                add(rSpecIdxAndAfterAxIterB, idxElPerVec * jcp.dataTypeSize);
+                add(rSpecIdxAndAfterAxIterB, idxElPerVec * static_cast<uint32_t>(jcp.dataTypeSize));
                 cmp(rSpecIdxAndAfterAxIterB, rSpecIdxAndAfterAxSizeB);
                 jl(lBeforeAxStepEnd1, T_NEAR);
                 sub(rSpecIdxAndAfterAxIterB, rSpecIdxAndAfterAxSizeB);
@@ -1052,7 +1052,7 @@ void jitUniGatherKernel<isa>::tail(bool isShortIdx, bool shiftFirst, bool blocke
     auto& kAuxMask1 = masksContainer[vAux1.getIdx()];
     Xbyak::Label lEnd;
 
-    const int secondStepCycles = 4 / jcp.dataTypeSize;
+    const auto secondStepCycles = static_cast<int>(4 / jcp.dataTypeSize);
     for (int p = 0; p < secondStepCycles; p++) {
         cmp(regWorkAmount, 0);
         jle(lEnd, T_NEAR);

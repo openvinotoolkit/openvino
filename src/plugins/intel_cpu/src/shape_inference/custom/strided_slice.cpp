@@ -64,14 +64,15 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
         if ((cur_idx >= begin_size) || (shapeIn[in_idx] == 0)) {
             return shapeIn[in_idx];
         }
-        int32_t begin = 0;
-        int32_t end = 0;
+        const auto input_dim = static_cast<int64_t>(shapeIn[in_idx]);
+        int64_t begin = 0;
+        int64_t end = 0;
         if (stridePtr[cur_idx] < 0) {
-            begin = m_begin_mask_set.count(cur_idx) ? shapeIn[in_idx] : beginPtr[cur_idx];
-            end = m_end_mask_set.count(cur_idx) ? (-1 - shapeIn[in_idx]) : endPtr[cur_idx];
+            begin = m_begin_mask_set.count(cur_idx) ? input_dim : beginPtr[cur_idx];
+            end = m_end_mask_set.count(cur_idx) ? (-1 - input_dim) : endPtr[cur_idx];
         } else {
             begin = m_begin_mask_set.count(cur_idx) ? 0 : beginPtr[cur_idx];
-            end = m_end_mask_set.count(cur_idx) ? shapeIn[in_idx] : endPtr[cur_idx];
+            end = m_end_mask_set.count(cur_idx) ? input_dim : endPtr[cur_idx];
         }
         return ov::op::slice::get_sliced_value(shapeIn[in_idx], begin, end, stridePtr[cur_idx]);
     };

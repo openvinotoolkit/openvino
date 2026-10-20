@@ -12,6 +12,7 @@
 #include "test_utils.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/utils.hpp"
+#include "intel_gpu/primitives/data.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -301,4 +302,110 @@ TEST(cache_serialization, moe_prefill_flags_all_true_round_trip) {
     ASSERT_EQ(loaded.use_micro_gemm_prefill, true);
     ASSERT_EQ(loaded.use_gpu_mask_gen_prefill, true);
     ASSERT_EQ(loaded.use_grouped_gemm_prefill, true);
+}
+
+// --------------------------------------------------------------------------
+// data::load_weights — data_size / output_layout cross-validation
+// --------------------------------------------------------------------------
+// Regression test for a heap buffer overflow in data::load_weights.
+//
+// output_layout (which sizes the destination buffer) and data_size (how many
+// bytes are read into that buffer) are deserialized independently from the
+// cache blob. A corrupted/malicious blob can declare a data_size far larger
+// than the layout, and on the host-accessible path the bytes are read straight
+// into a buffer allocated solely from output_layout
+// (ib >> make_data(mem->buffer_ptr(), data_size)), overflowing it.
+namespace {
+// Build a blob in exactly the byte order that data::load_weights expects, with
+// a data_size that lies about how much payload follows the layout.
+membuf make_oversized_data_blob(const layout& output_layout, size_t malicious_data_size, allocation_type alloc_type) {
+    membuf mem_buf;
+    std::ostream out_mem(&mem_buf);
+    BinaryOutputBuffer ob(out_mem);
+
+    ob << output_layout;
+    ob << make_data(&alloc_type, sizeof(alloc_type));
+    ob << make_data(&malicious_data_size, sizeof(size_t));
+
+    bool weightless_caching = false;  // take the plain (non-weightless) path
+    ob << weightless_caching;
+
+    // Mirror the reader's alignment padding so stream offsets stay in sync.
+    if (get_test_engine().can_use_host_usm_zero_copy() && !ob.is_encrypted()) {
+        if (const auto pad = ov::util::align_padding_size(get_test_engine().get_device_info().sub_buffer_base_alignment.value_or(0), ob.get_offset());
+            pad > 0) {
+            std::vector<uint8_t> zeros(pad, 0);
+            ob << make_data(zeros.data(), zeros.size());
+        }
+    }
+
+    // Actually provide malicious_data_size bytes of payload so the vulnerable
+    // read() copies all of them into the (much smaller) destination buffer.
+    std::vector<uint8_t> payload(malicious_data_size, 0xAA);
+    ob << make_data(payload.data(), payload.size());
+
+    return mem_buf;
+}
+}  // namespace
+
+TEST(cache_serialization, load_weights_rejects_data_size_exceeding_layout) {
+    auto& engine = get_test_engine();
+
+    // Pick a host-accessible allocation type the test device actually supports,
+    // otherwise load_weights would take the device-copy path / fail to allocate.
+    allocation_type alloc_type = allocation_type::usm_host;
+    if (!engine.supports_allocation(allocation_type::usm_host)) {
+        if (engine.supports_allocation(allocation_type::usm_shared)) {
+            alloc_type = allocation_type::usm_shared;
+        } else {
+            GTEST_SKIP() << "Test device does not support host-accessible USM allocation";
+        }
+    }
+
+    // Victim buffer: 4 bytes. Attacker claims 64 KB of weight data.
+    layout small_layout({1, 1, 1, 4}, data_types::u8, format::bfyx);
+    const size_t malicious_data_size = 64 * 1024;
+    ASSERT_GT(malicious_data_size, small_layout.bytes_count());
+
+    membuf mem_buf = make_oversized_data_blob(small_layout, malicious_data_size, alloc_type);
+
+    std::istream in_mem(&mem_buf);
+    BinaryInputBuffer ib(in_mem, engine);
+
+    cldnn::data data_prim;
+    // weights_memory / model_tensor_base are null: non-weightless, non-zero-copy
+    // path, so mem is allocated from output_layout and the oversized read would
+    // overflow it. The cross-check must reject the blob first.
+    ASSERT_THROW(data_prim.load_weights(ib, /*weights_memory=*/nullptr, /*model_tensor_base=*/nullptr), ov::AssertFailure);
+}
+
+TEST(cache_serialization, otd_partial_allocation_uses_weightless_metadata) {
+    auto& engine = get_test_engine();
+    const layout full_layout({1, 1, 1, 64}, data_types::u8, format::bfyx);
+    const layout resident_layout({1, 1, 1, 16}, data_types::u8, format::bfyx);
+    auto resident_memory = engine.allocate_memory(resident_layout, true);
+    auto partial_memory = engine.reinterpret_buffer(*resident_memory, full_layout);
+
+    data partial_data("partial", partial_memory, true);
+    partial_data.cache_info->set_constant_info(0,
+                                                full_layout.bytes_count(),
+                                                ov::element::u8,
+                                                ov::element::u8,
+                                                full_layout.get_shape());
+
+    auto full_memory = engine.allocate_memory(full_layout, true);
+    data plain_data("plain", full_memory);
+
+    const auto serialized_size = [](const data& data_prim) {
+        membuf mem_buf;
+        std::ostream out_mem(&mem_buf);
+        BinaryOutputBuffer ob(out_mem);
+        ob.set_stream(get_test_stream_ptr().get());
+        data_prim.save(ob);
+        return static_cast<size_t>(std::distance(mem_buf.begin(), mem_buf.end()));
+    };
+
+    // OTD exposes the full Constant layout while allocating only resident slots.
+    // Weightless caching must serialize metadata instead of reading that full layout.
+    EXPECT_LT(serialized_size(partial_data), serialized_size(plain_data));
 }

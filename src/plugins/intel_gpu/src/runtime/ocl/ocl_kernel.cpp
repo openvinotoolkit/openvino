@@ -24,8 +24,9 @@ std::vector<uint8_t> ocl_kernel::get_binary() const {
     }
 
     // Binary is not available for the device.
-    if (binary_size == 0)
+    if (binary_size == 0) {
         throw std::runtime_error("get_binary: Binary size is zero");
+    }
 
     // Get program binary.
     std::vector<uint8_t> binary(binary_size);
@@ -43,7 +44,7 @@ std::string ocl_kernel::get_build_log() const {
     auto log = program.getBuildInfo<CL_PROGRAM_BUILD_LOG>();
     // Assume program was build for only 1 device
     // Return first log
-    if (log.size() > 0) {
+    if (!log.empty()) {
         return log[0].second;
     }
     OPENVINO_THROW("[GPU] Failed to retrieve kernel build log");

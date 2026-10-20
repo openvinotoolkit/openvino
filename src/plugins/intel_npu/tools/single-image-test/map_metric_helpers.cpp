@@ -188,7 +188,8 @@ static std::vector<Detection> parseTwoTensorDetections(const ov::Tensor& pred_bo
             exp_sum += std::exp(logit - max_logit);
         }
 
-        float confidence = 1.0f / exp_sum;
+        // exp_sum is 0 only when there are no classes; guard against div-by-zero.
+        float confidence = exp_sum > 0.0f ? 1.0f / exp_sum : 0.0f;
 
         if (confidence > confidence_threshold && best_class >= 0) {
             detections.emplace_back(x_min, y_min, x_max, y_max, confidence, best_class);

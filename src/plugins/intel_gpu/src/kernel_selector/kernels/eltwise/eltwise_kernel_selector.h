@@ -16,7 +16,7 @@ public:
 
     eltwise_kernel_selector();
 
-    virtual ~eltwise_kernel_selector() {}
+    ~eltwise_kernel_selector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

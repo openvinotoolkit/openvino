@@ -324,6 +324,10 @@ file located in the path specified with ``-report_folder``. The application also
 saves executable graph information to an XML file, located in a folder
 specified with the ``-exec_graph_path`` parameter.
 
+When the measured average latency is below 1 ms, the console latency block is
+printed in microseconds for readability. CSV and JSON reports keep the existing
+millisecond-based values and field names.
+
 .. _all-configuration-options-python-benchmark:
 
 All configuration options

@@ -1,0 +1,218 @@
+node {
+  name: "x"
+  op: "Placeholder"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        dim {
+          size: 2
+        }
+      }
+    }
+  }
+}
+node {
+  name: "Const"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_BOOL
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_BOOL
+        tensor_shape {
+        }
+        bool_val: true
+      }
+    }
+  }
+}
+node {
+  name: "Switch"
+  op: "Switch"
+  input: "x"
+  input: "Const"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+node {
+  name: "Const_1"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_BOOL
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_BOOL
+        tensor_shape {
+        }
+        bool_val: true
+      }
+    }
+  }
+}
+node {
+  name: "Switch_1"
+  op: "Switch"
+  input: "Const_1"
+  input: "Const_1"
+  attr {
+    key: "T"
+    value {
+      type: DT_BOOL
+    }
+  }
+  attr {
+    key: "_has_manual_control_dependencies"
+    value {
+      b: true
+    }
+  }
+}
+node {
+  name: "Const_2"
+  op: "Const"
+  input: "^Switch_1"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_FLOAT
+        tensor_shape {
+        }
+        float_val: 5.0
+      }
+    }
+  }
+}
+node {
+  name: "Const_3"
+  op: "Const"
+  input: "^Switch_1"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_FLOAT
+        tensor_shape {
+        }
+        float_val: 2.0
+      }
+    }
+  }
+}
+node {
+  name: "AddV2"
+  op: "AddV2"
+  input: "Switch"
+  input: "Const_3"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+node {
+  name: "Sub"
+  op: "Sub"
+  input: "Switch:1"
+  input: "Const_2"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+node {
+  name: "Merge"
+  op: "Merge"
+  input: "AddV2"
+  input: "Sub"
+  attr {
+    key: "N"
+    value {
+      i: 2
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+node {
+  name: "Const_4"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_FLOAT
+        tensor_shape {
+        }
+        float_val: 1.0
+      }
+    }
+  }
+}
+node {
+  name: "AddV2_1"
+  op: "AddV2"
+  input: "Merge"
+  input: "Const_4"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+node {
+  name: "init"
+  op: "NoOp"
+}
+versions {
+  producer: 2288
+}

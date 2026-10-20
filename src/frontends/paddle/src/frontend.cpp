@@ -48,9 +48,7 @@ using namespace ov::frontend::paddle::op::default_opset;
 using namespace ov;
 using namespace ov::frontend;
 
-namespace ov {
-namespace frontend {
-namespace paddle {
+namespace ov::frontend::paddle {
 namespace {
 
 NamedOutputs make_ng_node(const std::map<paddle::TensorName, Output<Node>>& nodes,
@@ -561,9 +559,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.run_passes(model);
 }
 
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle
 
 PADDLE_FRONTEND_C_API FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
@@ -579,7 +575,7 @@ PADDLE_FRONTEND_C_API void* get_front_end_data() {
 #ifndef OPENVINO_DEBUG_ENABLE
     // disable protobuf logging
 #    ifdef OV_PROTOBUF_ABSL_IS_USED
-    absl::SetGlobalVLogLevel(0);
+    absl::SetMinLogLevel(absl::LogSeverityAtLeast::kInfinity);
 #    else
     google::protobuf::SetLogHandler(nullptr);
 #    endif

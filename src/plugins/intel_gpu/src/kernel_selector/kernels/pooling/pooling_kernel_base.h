@@ -49,7 +49,7 @@ struct pooling_params : public base_params {
 class PoolingKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~PoolingKernelBase() {}
+    ~PoolingKernelBase() override = default;
 
     struct DispatchData : public CommonDispatchData {
         bool needsBoundary;

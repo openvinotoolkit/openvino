@@ -1,7 +1,7 @@
 The debug and troubleshooting can be performed using various debug capabilities activated via environment variables.
 
 # Reference
-Read `src/plugins/intel_cpu/docs/debug_capabilities/README.md` — use the "When to use" guidance to match the observed problem to the right capability.
+Read [src/plugins/intel_cpu/docs/debug_capabilities/README.md](../../../../src/plugins/intel_cpu/docs/debug_capabilities/README.md) — use the "When to use" guidance to match the observed problem to the right capability.
 
 # Steps
 1. Read the debug capabilities README

@@ -4,8 +4,12 @@
 
 #pragma once
 
+#include <limits>
+#include <type_traits>
+
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
@@ -52,6 +56,12 @@ OPENVINO_API std::shared_ptr<op::v0::Constant> constantfold_subgraph(const Outpu
 /// \param source  Node output used to get its tensor data as constant.
 /// \return Shared pointer to constant data or nullptr.
 OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_from_source(const Output<Node>& source);
+
+/// \brief Checks whether the source is a Constant with shape {0}.
+///
+/// \param source  Node output to check.
+/// \return        True if source is Constant and has shape {0}, otherwise false.
+OPENVINO_API bool is_empty_constant_tensor(const Output<Node>& source);
 
 /// \brief Make scalar tensor which stores maximum value of ov::element::Type.
 /// \param et  Element type to get its maximum.
@@ -222,6 +232,35 @@ OPENVINO_API AxisVector try_get_normalized_axis_vector(const Tensor& tensor, con
 /// \param node    Node use for detailed error message.
 /// \return        Normalized AxisSet.
 OPENVINO_API AxisSet try_get_normalized_axis_set(const Tensor& tensor, const Rank& rank, const Node& node);
+
+/// \brief Narrows an integral value to another (usually smaller and/or differently signed)
+/// integral type, asserting that no information is lost in the conversion.
+///
+/// Use this instead of a bare static_cast whenever a size/count value (or any integral value) needs
+/// to be narrowed to another integral type to avoid a silent overflow / underflow.
+///
+/// \tparam To    Target integral type to cast to.
+/// \tparam From  Source type of `value`.
+/// \param value  Value to be narrowed to `To`.
+/// \return       `value` casted to `To`.
+template <typename To, typename From>
+To narrow_cast(From value) {
+    static_assert(std::is_integral_v<To> && std::is_integral_v<From>, "narrow_cast supports only integral types");
+
+    if constexpr (std::is_signed_v<From> && std::is_unsigned_v<To>) {
+        OPENVINO_ASSERT(value >= 0, "Value is negative and cannot be narrowed to an unsigned type");
+        OPENVINO_ASSERT(static_cast<std::make_unsigned_t<From>>(value) <= std::numeric_limits<To>::max(),
+                        "Value exceeds the maximum representable value of the target type");
+    } else if constexpr (std::is_unsigned_v<From> && std::is_signed_v<To>) {
+        OPENVINO_ASSERT(value <= static_cast<From>(std::numeric_limits<To>::max()),
+                        "Value exceeds the maximum representable value of the target type");
+    } else {
+        OPENVINO_ASSERT(value >= static_cast<From>(std::numeric_limits<To>::min()) &&
+                            value <= static_cast<From>(std::numeric_limits<To>::max()),
+                        "Value is out of the representable range of the target type");
+    }
+    return static_cast<To>(value);
+}
 
 }  // namespace util
 }  // namespace ov

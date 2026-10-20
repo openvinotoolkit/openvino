@@ -100,15 +100,11 @@ std::shared_ptr<SnippetsFunctionBase> MLPSeqQuantized::get_subgraph(size_t num_h
 }
 
 TEST_P(MLPSeq, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MLPSeqQuantized, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 }  // namespace snippets

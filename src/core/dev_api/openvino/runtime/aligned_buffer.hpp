@@ -83,7 +83,6 @@ protected:
 
     static void invoke_hint_prefetch(const AlignedBuffer& buffer);
 
-    char* m_allocated_buffer;
     char* m_aligned_buffer;
     size_t m_byte_size;
 };

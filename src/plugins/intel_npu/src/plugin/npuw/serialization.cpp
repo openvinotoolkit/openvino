@@ -12,6 +12,7 @@
 #include "logging.hpp"
 #include "moe_transformations/moe_transformation.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/version.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/convert.hpp"
@@ -80,27 +81,82 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::Attention::Par
     stream & var.idx & var.dim;
 }
 
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguous& var) {
+    stream & var.original_query_length & var.full_context_size & var._context_lengths & var._attention_infos &
+        var.global_mask_idx & var._data_left_aligned;
+}
+
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlock& var) {
+    stream & var.original_query_length & var.full_context_size & var._context_lengths & var._attention_infos &
+        var.past_key_block_global_param_indices & var.past_value_block_global_param_indices & var.global_mask_idx &
+        var._data_left_aligned;
+}
+
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttention& var) {
-    stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos;
+    // Output only — dynamic_cast dispatch; input path handled by make_pyramid_from_stream.
+    if (auto* c = dynamic_cast<ov::npuw::compiled::PyramidAttentionContiguous*>(&var)) {
+        serialize(stream, *c);
+    } else if (auto* b = dynamic_cast<ov::npuw::compiled::PyramidAttentionBlock*>(&var)) {
+        serialize(stream, *b);
+    }
 }
 
-void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo& var) {
-    stream & var.params & var.mask_idx & var.query_size & var.context_length;
+std::shared_ptr<ov::npuw::compiled::PyramidAttention> ov::npuw::orc::make_pyramid_from_stream(Stream& stream,
+                                                                                              uint8_t tag) {
+    if (tag == 0u) {
+        auto obj = std::make_shared<ov::npuw::compiled::PyramidAttentionContiguous>();
+        serialize(stream, *obj);
+        return obj;
+    } else {
+        NPUW_ASSERT(tag == 1u && "Unknown PyramidAttention serialization tag");
+        auto obj = std::make_shared<ov::npuw::compiled::PyramidAttentionBlock>();
+        serialize(stream, *obj);
+        // Rebuild the O(1) membership sets — not serialized directly, derived from the
+        // (serialized) ordered global block index vectors.
+        obj->_key_block_global_set = std::unordered_set<size_t>(obj->past_key_block_global_param_indices.begin(),
+                                                                obj->past_key_block_global_param_indices.end());
+        obj->_value_block_global_set = std::unordered_set<size_t>(obj->past_value_block_global_param_indices.begin(),
+                                                                  obj->past_value_block_global_param_indices.end());
+        return obj;
+    }
 }
 
-void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo::Param& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo& var) {
+    stream & var.params & var.mask_idx_local & var.compiled_query_size & var.context_length;
+}
+
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo::Param& var) {
     stream & var.idx & var.dim;
+}
+
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlockInfo& var) {
+    stream & var.mask_idx_local & var.compiled_query_size & var.context_length & var.param_port_map &
+        var.past_key_block_port_set & var.past_value_block_port_set;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAttention& var) {
     auto& info = var._sdpa_attention_info;
     stream & info._query_size & info._context_size & info._k_seq_dim & info._v_seq_dim & info._sdpa_indices.query &
-        info._sdpa_indices.past_key & info._sdpa_indices.past_value & info._sdpa_indices.present_key &
+        info._sdpa_indices.past_key_blocks & info._sdpa_indices.past_value_blocks & info._sdpa_indices.present_key &
         info._sdpa_indices.present_value & info._sdpa_indices.attention_mask & info._tile_input_indices.q &
         info._tile_input_indices.k & info._tile_input_indices.v & info._tile_input_indices.mask &
         info._tile_input_indices.acc & info._tile_input_indices.max & info._tile_input_indices.d &
-        info._tile_output_indices.acc & info._tile_output_indices.max & info._tile_output_indices.d & var._tile_size &
-        var._can_use_tensor_view;
+        info._tile_output_indices.acc & info._tile_output_indices.max & info._tile_output_indices.d &
+        var._past_tile_size & var._final_tile_size & var._can_use_tensor_view;
+    if (stream.input()) {
+        // Port indices are model-specific but must fit in a sane range; SIZE_MAX indicates a corrupted blob.
+        constexpr std::size_t kMaxPortIndex = static_cast<std::size_t>(std::numeric_limits<uint16_t>::max());
+        OPENVINO_ASSERT(
+            info._tile_input_indices.q <= kMaxPortIndex && info._tile_input_indices.k <= kMaxPortIndex &&
+                info._tile_input_indices.v <= kMaxPortIndex && info._tile_input_indices.mask <= kMaxPortIndex &&
+                info._tile_input_indices.acc <= kMaxPortIndex && info._tile_input_indices.max <= kMaxPortIndex &&
+                info._tile_input_indices.d <= kMaxPortIndex,
+            "HFA tile input index out of range in deserialized blob");
+        OPENVINO_ASSERT(info._tile_output_indices.acc <= kMaxPortIndex &&
+                            info._tile_output_indices.max <= kMaxPortIndex &&
+                            info._tile_output_indices.d <= kMaxPortIndex,
+                        "HFA tile output index out of range in deserialized blob");
+    }
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::MoEExperts& var) {
@@ -328,7 +384,12 @@ void ov::npuw::orc::serialize_weightless(Stream& stream,
             serialize(stream, offset);
             ov::Tensor t(type, shape);
 
+            OPENVINO_ASSERT(byte_size == t.get_byte_size(), "[NPU] ORC weight byte_size does not match tensor shape");
+
             if (ctx.weights) {
+                const auto wsz = ctx.weights->size();
+                OPENVINO_ASSERT(offset <= wsz && byte_size <= wsz - offset,
+                                "[NPU] ORC weight offset/size out of range");
                 if (ctx.bf16_consts.find({offset, byte_size}) != ctx.bf16_consts.end()) {
                     NPUW_ASSERT(type == ov::element::f16);
                     // Read original bf16 weight
@@ -359,5 +420,54 @@ void ov::npuw::orc::serialize_weightless(Stream& stream,
             serialize(stream, t);
             var.push_back(t);
         }
+    }
+}
+
+void ov::npuw::s11n::write_header(std::ostream& stream, const IndicatorType& model_indicator) {
+    write(stream, NPUW_SERIALIZATION_INDICATOR);
+    write(stream, model_indicator);
+    write(stream, OPENVINO_VERSION_MAJOR);
+    write(stream, OPENVINO_VERSION_MINOR);
+    write(stream, OPENVINO_VERSION_PATCH);
+    write(stream, std::string(NPUW_SERIALIZATION_VERSION));
+}
+
+void ov::npuw::s11n::read_and_check_header(std::istream& stream,
+                                           const IndicatorType& expected,
+                                           const std::string& what) {
+    IndicatorType serialization_indicator;
+    read(stream, serialization_indicator);
+    OPENVINO_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR, "This blob wasn't serialized via NPUW!");
+
+    IndicatorType model_indicator;
+    read(stream, model_indicator);
+    OPENVINO_ASSERT(model_indicator == expected, "This blob wasn't serialized via ", what, "!");
+
+    int vmajor = 0, vminor = 0, vpatch = 0;
+    std::string s11n_version;
+    read(stream, vmajor);
+    read(stream, vminor);
+    read(stream, vpatch);
+    read(stream, s11n_version);
+
+    if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
+        s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
+        OPENVINO_THROW("This blob was serialized with a different OV version!",
+                       "\nSerialized by OV ",
+                       vmajor,
+                       '.',
+                       vminor,
+                       '.',
+                       vpatch,
+                       "\nCurrent OV version ",
+                       OPENVINO_VERSION_MAJOR,
+                       '.',
+                       OPENVINO_VERSION_MINOR,
+                       '.',
+                       OPENVINO_VERSION_PATCH,
+                       "\nNPUW serialized by version ",
+                       s11n_version,
+                       "\nNPUW current serialization version ",
+                       NPUW_SERIALIZATION_VERSION);
     }
 }

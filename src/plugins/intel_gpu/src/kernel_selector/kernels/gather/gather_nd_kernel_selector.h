@@ -16,7 +16,7 @@ public:
 
     gather_nd_kernel_selector();
 
-    virtual ~gather_nd_kernel_selector() {}
+    ~gather_nd_kernel_selector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

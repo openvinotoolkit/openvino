@@ -7,6 +7,7 @@
 #include <memory_desc/cpu_memory_desc_utils.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
@@ -33,8 +34,9 @@ namespace ov::intel_cpu {
 VectorDims TileBroadcastCommon::calculateDenseStrides(const VectorDims& dims) {
     VectorDims strides(dims.size(), 1);
 
-    for (int i = strides.size() - 2; i >= 0; i--) {
-        strides[i] = strides[i + 1] * dims[i + 1];
+    for (auto i = static_cast<int64_t>(strides.size()) - 2; i >= 0; --i) {
+        const auto index = static_cast<size_t>(i);
+        strides[index] = strides[index + 1] * dims[index + 1];
     }
 
     return strides;
@@ -296,7 +298,7 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory,
         // TODO: 109204
         // cpu_convert have to be used here because its implementation faster than cpu_memcpy
         // in the case when copySize exceeds L2 cache size
-        cpu_convert(srcData, dstData, prc, prc, optimizedParams.copySize / prc.size());
+        cpu_parallel_convert(srcData, dstData, prc, prc, optimizedParams.copySize / prc.size());
     } else if (optimizedParams.srcStrides[5] == 0) {
         if (optimizedParams.dstStrides[0] == optimizedParams.dims[5] * optimizedParams.dstStrides[5]) {
             size_t data_size = optimizedParams.dstStrides[5];
@@ -316,7 +318,7 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory,
                 optimizedParams.dims[2],
                 optimizedParams.dims[3],
                 optimizedParams.dims[4],
-                [&](int i0, int i1, int i2, int i3, int i4) {
+                [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
                     const auto* srcData2 =
                         srcData + (i0 * optimizedParams.srcStrides[0] + i1 * optimizedParams.srcStrides[1] +
                                    i2 * optimizedParams.srcStrides[2] + i3 * optimizedParams.srcStrides[3] +
@@ -339,7 +341,7 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory,
             optimizedParams.dims[2],
             optimizedParams.dims[3],
             optimizedParams.dims[4],
-            [&](int i0, int i1, int i2, int i3, int i4) {
+            [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
                 const auto* srcData2 =
                     srcData + (i0 * optimizedParams.srcStrides[0] + i1 * optimizedParams.srcStrides[1] +
                                i2 * optimizedParams.srcStrides[2] + i3 * optimizedParams.srcStrides[3] +

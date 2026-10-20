@@ -6,9 +6,10 @@
 
 #include <numeric>
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/math_util.hpp"
 
 namespace ov {
 namespace reference {
@@ -95,6 +96,14 @@ static void scatter_update(const char* input_data,
         const size_t indices_idx =
             std::inner_product(indices_cord.begin(), indices_cord.end(), indices_in_strides.begin(), uint64_t(0));
         int64_t slice_index = indices[indices_idx];
+        const auto axis_size = data_shape[axis];
+        OPENVINO_ASSERT(slice_index >= 0 && static_cast<uint64_t>(slice_index) < axis_size,
+                        "ScatterUpdate indices value ",
+                        slice_index,
+                        " is out of bounds for axis ",
+                        axis,
+                        " of size ",
+                        axis_size);
 
         Coordinate out_start_corner(data_shape.size(), 0);
         Coordinate out_end_corner(data_shape);

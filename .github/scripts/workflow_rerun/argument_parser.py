@@ -24,6 +24,13 @@ def get_arguments() -> argparse.Namespace:
                         required=False,
                         help='.json file with the errors to look for in logs',
                         default=Path(__file__).resolve().parent.joinpath('errors_to_look_for.json'))
+    parser.add_argument('--patterns-dir',
+                        type=Path,
+                        required=False,
+                        help='Directory with CI Doctor MQ pattern .json files (fetched from the '
+                             'memory/ci-doctor-mq branch). Their "rerun_search_string" values are '
+                             'used as additional errors to look for in logs',
+                        default=None)
     parser.add_argument('--dry-run',
                         required=False,
                         action='store_true',

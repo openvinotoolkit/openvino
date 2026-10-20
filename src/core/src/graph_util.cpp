@@ -65,6 +65,23 @@ void clone_ov_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
     }
 }
 
+bool has_result_consumers(const ov::Output<ov::Node>& port) {
+    const auto& consumers = port.get_target_inputs();
+    return std::any_of(consumers.cbegin(), consumers.cend(), [](const ov::Input<ov::Node>& consumer) {
+        return ov::is_type<ov::op::v0::Result>(consumer.get_node());
+    });
+}
+
+bool can_output_be_replaced(const ov::Output<ov::Node>& output, const ov::Output<ov::Node>& replacement) {
+    if (has_result_consumers(output)) {
+        if (output.get_node()->get_output_size() != 1 || replacement.get_node()->get_output_size() != 1 ||
+            ov::is_type<ov::op::v0::Parameter>(replacement.get_node()) || has_result_consumers(replacement)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 }  // namespace
 
 namespace ov {
@@ -268,18 +285,11 @@ bool replace_output_update_name(Output<Node> output, const Output<Node>& replace
     //    and has exactly one output port
     // In all other cases output name will be lost or changed, so we don't perform the replacement
 
-    auto has_result_consumers = [](const Output<Node>& port) {
-        const auto& consumers = port.get_target_inputs();
-        return std::any_of(consumers.cbegin(), consumers.cend(), [](const Input<Node>& consumer) {
-            return ov::is_type<op::v0::Result>(consumer.get_node());
-        });
-    };
+    if (!can_output_be_replaced(output, replacement)) {
+        return false;
+    }
 
     if (has_result_consumers(output)) {
-        if (output.get_node()->get_output_size() != 1 || replacement.get_node()->get_output_size() != 1 ||
-            is_type<ov::op::v0::Parameter>(replacement.get_node()) || has_result_consumers(replacement)) {
-            return false;
-        }
         replacement.get_node()->set_friendly_name(output.get_node()->get_friendly_name());
     }
 
@@ -287,6 +297,29 @@ bool replace_output_update_name(Output<Node> output, const Output<Node>& replace
 
     copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},
                       replacement.get_node_shared_ptr());
+    return true;
+}
+
+bool replace_outputs_update_name(OutputVector outputs, const OutputVector& replacements) {
+    if (outputs.size() != replacements.size()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        if (!can_output_be_replaced(outputs[i], replacements[i])) {
+            return false;
+        }
+    }
+
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        bool replaced = replace_output_update_name(outputs[i], replacements[i]);
+        OPENVINO_ASSERT(replaced,
+                        "Failed to replace output ",
+                        i,
+                        " of node ",
+                        outputs[i].get_node()->get_friendly_name());
+    }
+
     return true;
 }
 

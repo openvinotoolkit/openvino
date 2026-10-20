@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -7,6 +6,7 @@
 
 #include "scenario/inference.hpp"
 #include "utils/error.hpp"
+#include "utils/utils.hpp"
 
 #include <opencv2/gapi/infer/onnx.hpp>  // onnx::Params
 #include <opencv2/gapi/infer/ov.hpp>    // ov::Params
@@ -31,9 +31,13 @@ static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const OpenVIN
         network->cfgEnsureNamedTensors();
 
         if (std::holds_alternative<int>(params.output_precision)) {
-            network->cfgOutputTensorPrecision(std::get<int>(params.output_precision));
+            network->cfgOutputTensorPrecision(utils::toPhysicalDepth(std::get<int>(params.output_precision)));
         } else if (std::holds_alternative<AttrMap<int>>(params.output_precision)) {
-            network->cfgOutputTensorPrecision(std::get<AttrMap<int>>(params.output_precision));
+            auto precision_map = std::get<AttrMap<int>>(params.output_precision);
+            for (auto& [name, prec] : precision_map) {
+                prec = utils::toPhysicalDepth(prec);
+            }
+            network->cfgOutputTensorPrecision(std::move(precision_map));
         }
 
         if (params.clamp_outputs) {

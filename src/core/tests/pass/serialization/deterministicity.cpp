@@ -12,7 +12,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/pass/serialize.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/container_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
 

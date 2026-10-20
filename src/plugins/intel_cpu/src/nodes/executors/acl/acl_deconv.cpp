@@ -21,6 +21,7 @@
 #include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/acl/acl_utils.hpp"
+#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/deconv.hpp"
 #include "nodes/executors/executor.hpp"
 #include "openvino/core/parallel.hpp"
@@ -234,6 +235,7 @@ void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src,
 bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
                                                  const std::vector<MemoryDescPtr>& srcDescs,
                                                  const std::vector<MemoryDescPtr>& dstDescs) {
+    VERIFY(aclSupported({srcDescs[0], dstDescs[0]}), UNSUPPORTED_ACL_COMMON_PRECONDITION);
     if (srcDescs[0]->getShape().getDims().size() != 4 || dstDescs[0]->getShape().getDims().size() != 4 ||
         srcDescs[1]->getShape().getDims().size() != 4) {
         DEBUG_LOG("AclDeconvExecutor only supports 4D tensors:",

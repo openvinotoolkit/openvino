@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "dnnl_scratch_pad.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -21,6 +20,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #include "utils/debug_capabilities.h"
@@ -568,9 +568,9 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
 
     if (rtPrecision == ov::element::f32) {
         // fallback to supported precision if possible
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16)) {
+        if (ov::with_cpu_x86_avx512_core_amx_fp16()) {
             rtPrecision = ov::element::f16;
-        } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+        } else if (ov::with_cpu_x86_avx512_core_amx()) {
             rtPrecision = ov::element::bf16;
         }
     }

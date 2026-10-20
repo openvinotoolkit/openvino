@@ -23,14 +23,14 @@
 namespace ov::intel_cpu::node {
 
 struct jit_bin_conv_params {
-    int mb;
-    int ngroups;
-    int ic, oc, ic_padded;
-    int ih, iw, oh, ow;
-    int l_pad, t_pad, b_pad;
-    int kh, kw;
-    int stride_h, stride_w;
-    int dilate_h, dilate_w;
+    size_t mb;
+    size_t ngroups;
+    size_t ic, oc, ic_padded;
+    size_t ih, iw, oh, ow;
+    size_t l_pad, t_pad, b_pad;
+    size_t kh, kw;
+    size_t stride_h, stride_w;
+    size_t dilate_h, dilate_w;
     bool with_sum;
     bool with_dw_conv;
     bool with_binarization;
@@ -38,16 +38,16 @@ struct jit_bin_conv_params {
     float pad_value;
     bool exclude_pad;
 
-    int nb_ic, ic_block;
-    int nb_oc, oc_block;
-    int nb_oc_blocking;
-    int ur_w, ur_w_tail;
-    int typesize_in, typesize_out;
+    size_t nb_ic, ic_block;
+    size_t nb_oc, oc_block;
+    size_t nb_oc_blocking;
+    size_t ur_w, ur_w_tail;
+    size_t typesize_in, typesize_out;
     dnnl::memory::data_type dst_dt;
 };
 
 struct jit_dw_conv_params {
-    int kh;
+    size_t kh;
 };
 
 struct jit_bin_conv_call_args {

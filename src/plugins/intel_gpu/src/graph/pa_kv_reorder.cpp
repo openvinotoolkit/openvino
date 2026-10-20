@@ -40,7 +40,6 @@ pa_kv_reorder_inst::typed_primitive_inst(network& network, const pa_kv_reorder_n
 void pa_kv_reorder_inst::on_execute() {}
 
 void pa_kv_reorder_inst::update_output_memory() {
-    return;
 }
 
 }  // namespace cldnn

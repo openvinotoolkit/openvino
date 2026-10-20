@@ -13,6 +13,7 @@
 #include "cpu_memory.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "nodes/kernels/scaled_attn/cache_spec.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -123,8 +124,7 @@ public:
     VariableStateKVcache(const std::string& name,
                          MemoryDescPtr external_desc,
                          BlockedMemoryDescPtr dense_internal_desc,
-                         bool quant_by_channel,
-                         size_t group_size = 0);
+                         ov::Extensions::Cpu::CacheSpec spec);
 
     // ov::IVariableState
     ov::SoPtr<ov::ITensor> get_state() const override;
@@ -162,6 +162,10 @@ public:
         m_scale_zp = t;
     }
 
+    const ov::Extensions::Cpu::CacheSpec& get_spec() const {
+        return m_spec;
+    }
+
 private:
     // ov::intel_cpu::VariableStateBase
     void set_state_impl(const ov::SoPtr<ov::ITensor>& state) override;
@@ -178,8 +182,7 @@ private:
 
     // for u8 kv cache: [B, H, L, 2], 0 for scale, 1 for zp
     PlainTensor m_scale_zp;
-    bool m_quant_by_channel = false;
-    size_t m_group_size = 0;
+    ov::Extensions::Cpu::CacheSpec m_spec;
 };
 
 using MemStatePtr = std::shared_ptr<IVariableState>;

@@ -2,16 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <transformations/cpu_opset/common/pass/move_fc_reshape_to_weights.hpp>
+#include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
 #include <openvino/core/model.hpp>
-#include "openvino/opsets/opset1_decl.hpp"
-#include "ov_ops/fully_connected.hpp"
+#include <string>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -20,9 +17,10 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "ov_ops/fully_connected.hpp"
 
 using namespace testing;
-using namespace ov::intel_cpu;
 
 enum class ZeroPointType : uint8_t { NO_ZP, ZP_WEIGHTS_PRC, ZP_DECOMPRESSION_PRC };
 inline std::ostream& operator<<(std::ostream& os, ZeroPointType type) {
@@ -131,7 +129,7 @@ protected:
         ref_weights_shape.erase(ref_weights_shape.begin());
         model = initModel(input_shapes.first, input_shapes.second, add_transpose, zp_type, zp_shape, true);
         model_ref = initModel(input_shapes.first, ref_weights_shape, add_transpose, zp_type, zp_shape, false);
-        manager.register_pass<MoveFCReshapeToWeights>();
+        manager.register_pass<ov::pass::MoveFCReshapeToWeights<ov::op::internal::FullyConnected>>();
     }
 };
 

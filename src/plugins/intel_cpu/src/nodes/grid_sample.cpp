@@ -20,6 +20,7 @@ using namespace ov::intel_cpu::node;
 #    include <cstddef>
 #    include <cstdint>
 #    include <functional>
+#    include <limits>
 #    include <numeric>
 #    include <oneapi/dnnl/dnnl_common.hpp>
 
@@ -227,8 +228,8 @@ void GridSample::prepareParams() {
 
         p.batchNum = srcDataShape[0];
         p.channelsNum = srcDataShape[1];
-        p.srcHeightF[0] = srcDataShape[2];
-        p.srcWidthF[0] = srcDataShape[3];
+        p.srcHeightF[0] = static_cast<float>(srcDataShape[2]);
+        p.srcWidthF[0] = static_cast<float>(srcDataShape[3]);
 
         p.gridStartB = dstStart * 2 * gridTypeSize;
         p.dstStartB = dstStart * dataTypeSize;
@@ -240,16 +241,24 @@ void GridSample::prepareParams() {
 
         p.srcChannelStepB = srcDataShape[2] * srcDataShape[3] * dataTypeSize;
         p.dstChannelStepB = dstShape[2] * dstShape[3] * dataTypeSize;
-        p.dataTypeSize[0] = dataTypeSize;
+        CPU_NODE_ASSERT(dataTypeSize <= static_cast<uint64_t>(std::numeric_limits<int32_t>::max()),
+                        "has unsupported data element size for packed JIT offsets.");
+        p.dataTypeSize[0] = static_cast<int>(dataTypeSize);
 
         p.srcHeightSub1F[0] = p.srcHeightF[0] - 1.F;
         p.srcWidthSub1F[0] = p.srcWidthF[0] - 1.F;
         p.srcHeightMul2F[0] = p.srcHeightF[0] * 2.F;
         p.srcWidthMul2F[0] = p.srcWidthF[0] * 2.F;
         if (interpolationMode == GridSampleInterpolationMode::BICUBIC && srcDataShape[3] >= 4) {
-            p.srcWidthB[0] = (srcDataShape[3] - 3) * dataTypeSize;
+            const auto srcWidthB = (srcDataShape[3] - 3) * dataTypeSize;
+            CPU_NODE_ASSERT(srcWidthB <= static_cast<uint64_t>(std::numeric_limits<int32_t>::max()),
+                            "has unsupported source width stride for packed JIT offsets.");
+            p.srcWidthB[0] = static_cast<int>(srcWidthB);
         } else {
-            p.srcWidthB[0] = srcDataShape[3] * dataTypeSize;
+            const auto srcWidthB = srcDataShape[3] * dataTypeSize;
+            CPU_NODE_ASSERT(srcWidthB <= static_cast<uint64_t>(std::numeric_limits<int32_t>::max()),
+                            "has unsupported source width stride for packed JIT offsets.");
+            p.srcWidthB[0] = static_cast<int>(srcWidthB);
         }
         if (alignCorners) {
             p.srcHeightMul2Sub1F[0] = p.srcHeightF[0] == 1.F ? 1.F : p.srcHeightSub1F[0] * 2.F;

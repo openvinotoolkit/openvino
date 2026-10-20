@@ -266,6 +266,13 @@ static inline auto build_subgraph(const std::shared_ptr<ov::Node>& node,
                                   const std::string& name = "") -> std::shared_ptr<Subgraph> {
     auto subgraph = std::make_shared<Subgraph>(inputs, body);
     copy_runtime_info(node, subgraph);
+    // copy_runtime_info drops the non-copyable DisablePrecisionConversion; propagate it by rt_info key
+    // (snippets cannot depend on transformations) so precision markup survives tokenization.
+    for (const auto& item : node->get_rt_info()) {
+        if (item.first.rfind("DisablePrecisionConversion", 0) == 0) {
+            subgraph->get_rt_info()[item.first] = item.second;
+        }
+    }
     subgraph->set_friendly_name(name.empty() ? node->get_friendly_name() : name);
     return subgraph;
 }

@@ -33,6 +33,17 @@
 namespace cldnn {
 namespace ocl {
 
+inline void validate_f4e2m1_packed_output(const layout& output_layout, const char* primitive_name) {
+    if (output_layout.data_type != ov::element::f4e2m1 || output_layout.is_dynamic()) {
+        return;
+    }
+
+    OPENVINO_ASSERT(output_layout.get_linear_size() % 8 == 0,
+                    "[GPU] ", primitive_name, ": f4e2m1 output size must be a multiple of 8 elements "
+                    "(32-bit atomic write granularity), but got: ",
+                    output_layout.get_linear_size());
+}
+
 /*
 Base class for all GPU implementation of specified primitive type.
 For example, all gpu convolution implementations should derive from typed_primitive_impl_ocl<convolution>.
@@ -90,9 +101,9 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     static std::unique_ptr<primitive_impl> create(const typed_program_node<PType>& arg, const kernel_impl_params& impl_param) {
         // concat buffer fusing for dynamic shape is adaptively applied at runtime. So we need to build dynamic impl at build time.
         if (impl_param.can_be_optimized() &&
-            !((impl_param.is_type<concatenation>() ||
-               impl_param.is_type<crop>() ||
-               impl_param.runtime_skippable()) && impl_param.is_dynamic())) {
+            ((!impl_param.is_type<concatenation>() &&
+               !impl_param.is_type<crop>() &&
+               !impl_param.runtime_skippable()) || !impl_param.is_dynamic())) {
             return std::make_unique<ImplType>(kernel_selector::kernel_data{});
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
@@ -179,8 +190,9 @@ protected:
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
-        if (_kernel_data.internalBuffers.empty())
+        if (_kernel_data.internalBuffers.empty()) {
             return {};
+        }
 
         std::vector<BufferDescriptor> internal_buffers;
         auto dtype = from_data_type(_kernel_data.internalBufferDataType);
@@ -227,8 +239,9 @@ protected:
         stream& stream = instance.get_network().get_stream();
 
         for (size_t k = 0; k < _kernels.size(); ++k) {
-            if (_kernel_data.kernels[k].skip_execution)
+            if (_kernel_data.kernels[k].skip_execution) {
                 continue;
+            }
 
             stream.set_arguments(*_kernels[k], _kernel_data.kernels[k].params, args);
         }
@@ -248,8 +261,9 @@ protected:
                                                                         "[GPU] KernelData count: ", _kernel_data.kernels.size(), "\n",
                                                                         "[GPU] Likely some issue with empty tensor handling happened");
         for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
-            if (_kernel_data.kernels[kd_idx].skip_execution)
+            if (_kernel_data.kernels[kd_idx].skip_execution) {
                 continue;
+            }
             // If any user of the prim's users is CPU implementation or network's output, set prim as a output event (event won't be nullptr)
             bool needs_completion_event = instance.needs_completion_event();
 
@@ -277,8 +291,9 @@ protected:
             kernel_dump_info.add_entry_point(_kernels[kd_idx]->get_id());
         }
 
-        if ((all_events.size() == 0) && (tmp_events.size() > 0))
+        if ((all_events.empty()) && (!tmp_events.empty())) {
             return stream.aggregate_events(tmp_events);
+        }
 
         bool group_events = (all_events.size() > 1);
         return stream.aggregate_events(all_events, group_events);
@@ -299,8 +314,9 @@ protected:
     }
 
     void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
-        if (is_cpu())
+        if (is_cpu()) {
             return;
+        }
         OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
         _kernels.clear();

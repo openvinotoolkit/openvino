@@ -200,7 +200,7 @@ void EltwiseLayerCPUTest::SetUp() {
     init_input_shapes(shapes);
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
     updateSelectedType(
-        getPrimitiveType(eltwiseType, netType, shapes),
+        getPrimitiveType(netType, shapes),
         netType,
         configuration);
     // selectedType = makeSelectedTypeStr(getPrimitiveType(), netType);
@@ -245,27 +245,7 @@ void EltwiseLayerCPUTest::SetUp() {
                     shape,
                     (netType == element::i32) || (netType == element::u32) ||
                     (netType == element::i8) || (netType == element::u8));
-                if ((netType == ElementType::i8) || (netType == ElementType::u8)) {
-                    auto data_ptr = reinterpret_cast<uint8_t*>(data_tensor.data());
-                    std::vector<uint8_t> data(data_ptr, data_ptr + ov::shape_size(shape));
-                    secondaryInput = ov::op::v0::Constant::create(netType, shape, data);
-                } else if ((netType == ElementType::i16) || (netType == ElementType::u16)) {
-                    auto data_ptr = reinterpret_cast<uint16_t*>(data_tensor.data());
-                    std::vector<uint16_t> data(data_ptr, data_ptr + ov::shape_size(shape));
-                    secondaryInput = ov::op::v0::Constant::create(netType, shape, data);
-                } else if ((netType == ElementType::i32) || (netType == ElementType::u32)) {
-                    auto data_ptr = reinterpret_cast<uint32_t*>(data_tensor.data());
-                    std::vector<uint32_t> data(data_ptr, data_ptr + ov::shape_size(shape));
-                    secondaryInput = ov::op::v0::Constant::create(netType, shape, data);
-                } else if (netType == ElementType::f16) {
-                    auto data_ptr = reinterpret_cast<ov::float16*>(data_tensor.data());
-                    std::vector<ov::float16> data(data_ptr, data_ptr + ov::shape_size(shape));
-                    secondaryInput = ov::op::v0::Constant::create(netType, shape, data);
-                } else {
-                    auto data_ptr = reinterpret_cast<float*>(data_tensor.data());
-                    std::vector<float> data(data_ptr, data_ptr + ov::shape_size(shape));
-                    secondaryInput = ov::op::v0::Constant::create(netType, shape, data);
-                }
+                secondaryInput = std::make_shared<ov::op::v0::Constant>(data_tensor);
                 break;
             }
             default: {
@@ -277,30 +257,29 @@ void EltwiseLayerCPUTest::SetUp() {
     function = create_ov_model(netType, parameters, eltwise, "Eltwise");
 }
 
-std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& eltwise_type,
-                                                  const ov::element::Type_t& element_type,
+std::string EltwiseLayerCPUTest::getPrimitiveType(const ov::element::Type_t& element_type,
                                                   const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
 #if defined(OV_CPU_WITH_ACL)
 #if defined(OPENVINO_ARCH_ARM64)
-    if ((eltwise_type == utils::EltwiseTypes::ADD) ||
-       (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
-       (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
-       (eltwise_type == utils::EltwiseTypes::DIVIDE) ||
-       (eltwise_type == utils::EltwiseTypes::FLOOR_MOD) ||
-       (eltwise_type == utils::EltwiseTypes::MOD) ||
-       (eltwise_type == utils::EltwiseTypes::POWER) ||
-       (eltwise_type == utils::EltwiseTypes::SQUARED_DIFF)) {
+    if ((eltwiseType == utils::EltwiseTypes::ADD) ||
+       (eltwiseType == utils::EltwiseTypes::MULTIPLY) ||
+       (eltwiseType == utils::EltwiseTypes::SUBTRACT) ||
+       (eltwiseType == utils::EltwiseTypes::DIVIDE) ||
+       (eltwiseType == utils::EltwiseTypes::FLOOR_MOD) ||
+       (eltwiseType == utils::EltwiseTypes::MOD) ||
+       (eltwiseType == utils::EltwiseTypes::POWER) ||
+       (eltwiseType == utils::EltwiseTypes::SQUARED_DIFF)) {
         return "jit";
     }
 #endif
-    if (eltwise_type == utils::EltwiseTypes::BITWISE_AND ||
-        eltwise_type == utils::EltwiseTypes::BITWISE_OR ||
-        eltwise_type == utils::EltwiseTypes::BITWISE_XOR ||
-        eltwise_type == utils::EltwiseTypes::BITWISE_NOT) {
+    if (eltwiseType == utils::EltwiseTypes::BITWISE_AND ||
+        eltwiseType == utils::EltwiseTypes::BITWISE_OR ||
+        eltwiseType == utils::EltwiseTypes::BITWISE_XOR ||
+        eltwiseType == utils::EltwiseTypes::BITWISE_NOT) {
         return "ref";
     }
-    if (eltwise_type == utils::EltwiseTypes::FLOOR_MOD ||
-        eltwise_type == utils::EltwiseTypes::MOD) {
+    if (eltwiseType == utils::EltwiseTypes::FLOOR_MOD ||
+        eltwiseType == utils::EltwiseTypes::MOD) {
         return "ref";
     } else {
         return "acl";
@@ -309,11 +288,11 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
 
 #if defined(OPENVINO_ARCH_RISCV64)
     if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
-        if ((eltwise_type == utils::EltwiseTypes::ADD) ||
-            (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
-            (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
-            (eltwise_type == utils::EltwiseTypes::DIVIDE) ||
-            (eltwise_type == utils::EltwiseTypes::POWER) ||
+        if ((eltwiseType == utils::EltwiseTypes::ADD) ||
+            (eltwiseType == utils::EltwiseTypes::SUBTRACT) ||
+            (eltwiseType == utils::EltwiseTypes::MULTIPLY) ||
+            (eltwiseType == utils::EltwiseTypes::DIVIDE) ||
+            (eltwiseType == utils::EltwiseTypes::POWER) ||
             (eltwiseType == utils::EltwiseTypes::MOD) ||
             (eltwiseType == utils::EltwiseTypes::FLOOR_MOD) ||
             (eltwiseType == utils::EltwiseTypes::SQUARED_DIFF)) {

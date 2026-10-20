@@ -7,9 +7,19 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <limits>
+#include <memory>
+#include <optional>
 #include <string>
+#include <system_error>
 
 namespace ov::util {
+
+/** @brief One mebibyte (1024 * 1024 bytes). */
+inline constexpr size_t one_mib = 1024 * 1024;
+
+/** @brief Minimum guaranteed page alignment on all supported platforms (x86, ARM, RISC-V). */
+inline constexpr size_t min_page_alignment = 4096;
 
 /**
  * @brief Rounds @p size up to the nearest multiple of @p alignment.
@@ -20,6 +30,19 @@ namespace ov::util {
  */
 constexpr size_t align_size_up(size_t size, size_t alignment) noexcept {
     return (size + alignment - 1) & ~(alignment - 1);
+}
+
+/**
+ * @brief Rounds @p size up to the nearest multiple of @p alignment, detecting overflow.
+ *
+ * @param size       Value to round up.
+ * @param alignment  Alignment boundary. Must be a power of two and greater than zero.
+ * @return Smallest value >= @p size that is a multiple of @p alignment, or `std::nullopt` if it does not fit in size_t.
+ */
+constexpr std::optional<size_t> align_size_up_overflow(size_t size, size_t alignment) noexcept {
+    return (size > std::numeric_limits<size_t>::max() - (alignment - 1))
+               ? std::nullopt
+               : std::optional<size_t>{align_size_up(size, alignment)};
 }
 
 /**
@@ -62,8 +85,8 @@ constexpr AlignedRegion align_region(uintptr_t base, size_t raw_len, size_t alig
  *
  *
  * @param size       Number of bytes to allocate. Must be greater than zero.
- * @param alignment  Desired alignment in bytes. Must be a power of two.
- *                   Passing `0` applies no specific alignment constraint (`alignof(std::max_align_t)` is used).
+ * @param alignment  Desired alignment in bytes. Must be `0` or a power of two.
+ *                   If it is less than `alignof(std::max_align_t)`, `alignof(std::max_align_t)` is used.
  * @return Pointer to the allocated memory, or `nullptr` on failure.
  */
 void* aligned_alloc(size_t size, size_t alignment) noexcept;
@@ -76,40 +99,125 @@ void* aligned_alloc(size_t size, size_t alignment) noexcept;
 void aligned_free(void* ptr) noexcept;
 
 /**
- * @brief Reserves a block of memory of the specified size without actually allocating physical memory.
- * The reserved memory block is not accessible until acquire_buffer() is called on it. The reserved memory block should
- * be released with release_buffer() when it is no longer needed.
- * @param size [in] Size of the memory block to reserve in bytes. Must be greater than 0.
- * @param error [out] Optional Error message in case of failure, empty otherwise.
- * @return Pointer to the reserved memory block, or nullptr if the reservation fail.
+ * @brief Reserves virtual address space of the given size without backing it with physical memory.
+ * The region is inaccessible until vm_commit() is called. Release with vm_release() when no longer needed.
+ * @param size  Size in bytes to reserve. Must be greater than 0.
+ * @param ec    Set to the OS error code on failure, cleared on success.
+ * @return Pointer to the reserved region, or nullptr on failure.
  */
-void* reserve_buffer(size_t size, std::string* error = nullptr) noexcept;
+void* vm_reserve(size_t size, std::error_code& ec) noexcept;
 
 /**
- * @brief Acquires the reserved memory block, making it accessible for read/write operations.
- * @param reserved_buffer [in] Pointer to the reserved memory block to acquire.
- * @param size [in] Size of the memory block to acquire in bytes. Must be greater than 0.
- * @param error [out] Optional Error message in case of failure, empty otherwise.
- * @note The reserved memory block should be successfully acquired before it can be used.
+ * @brief Commits a previously reserved region, making it readable and writable.
+ * @param ptr   Pointer returned by vm_reserve().
+ * @param size  Size in bytes to commit. Must be greater than 0.
+ * @param ec    Set to the OS error code on failure, cleared on success.
  */
-void acquire_buffer(void* reserved_buffer, size_t size, std::string* error = nullptr) noexcept;
+void vm_commit(void* ptr, size_t size, std::error_code& ec) noexcept;
 
 /**
- * @brief Evicts the acquired memory block, making it inaccessible and allowing the system to free physical memory.
- * @param reserved_buffer [in] Pointer to the reserved memory block to evict.
- * @param size [in] Size of the memory block to evict in bytes. Must be greater than 0.
- * @param error [out] Optional Error message in case of failure, empty otherwise.
- * @note After eviction, the reserved memory block can be acquired again with acquire_buffer().
+ * @brief Decommits a committed region: revokes access and returns physical pages to the OS.
+ * The virtual address range remains reserved and can be committed again with vm_commit().
+ * @param ptr   Pointer returned by vm_reserve(). Must not be nullptr.
+ * @param size  Size in bytes to decommit. Must be greater than 0.
+ * @pre  ptr != nullptr && size > 0; violated preconditions are a programming error (assert fires in debug).
  */
-void evict_buffer(void* reserved_buffer, size_t size, std::string* error = nullptr) noexcept;
+void vm_decommit(void* ptr, size_t size) noexcept;
 
 /**
- * @brief Releases the reserved memory block, freeing any associated resources. After this call, the reserved memory
- * block is no longer valid and should not be used.
- * @param reserved_buffer [in] Pointer to the reserved memory block to release.
- * @param size [in] Size of the memory block to release in bytes. Must be greater than 0.
- * @param error [out] Optional Error message in case of failure, empty otherwise.
+ * @brief Releases the reserved virtual address range. Can be called without a prior vm_decommit().
+ * After this call the pointer is invalid and must not be used.
+ * @param ptr   Pointer returned by vm_reserve(). Must not be nullptr.
+ * @param size  Size in bytes originally passed to vm_reserve(). Must be greater than 0.
+ * @pre  ptr != nullptr && size > 0; violated preconditions are a programming error (assert fires in debug).
  */
-void release_buffer(void* reserved_buffer, size_t size, std::string* error = nullptr) noexcept;
+void vm_release(void* ptr, size_t size) noexcept;
+
+/**
+ * @brief Queryable facts about a memory buffer's allocation, set once at construction/mapping time.
+ */
+struct MemoryProperties {
+    size_t offset = 0;  //!< Offset of this buffer within the allocation identified by IBuffer::get_id().
+};
+
+/** @brief Read-only, non-owning view (pointer + size) of a buffer's contents. */
+class MemoryView {
+public:
+    constexpr MemoryView() noexcept = default;
+    constexpr MemoryView(const std::byte* data, size_t size) noexcept : m_data{data}, m_size{size} {}
+
+    constexpr const std::byte* data() const noexcept {
+        return m_data;
+    }
+    constexpr size_t size() const noexcept {
+        return m_size;
+    }
+    constexpr const std::byte* begin() const noexcept {
+        return data();
+    }
+    constexpr const std::byte* end() const noexcept {
+        return data() + size();
+    }
+
+private:
+    const std::byte* m_data = nullptr;
+    size_t m_size = 0;
+};
+
+/**
+ * @brief Capability: hints for managing a buffer's physical-memory residency.
+ */
+class IMemoryHints {
+public:
+    virtual ~IMemoryHints() = default;
+
+    /** @brief Hint to release the underlying memory if possible (e.g. unmaps/decommits). */
+    virtual void hint_evict() noexcept = 0;
+    /** @brief Hint to fetch the data to memory. */
+    virtual void hint_prefetch() noexcept = 0;
+};
+
+/**
+ * @brief Common, read-only access to a contiguous block of memory plus its properties.
+ */
+class IBuffer : public IMemoryHints {
+public:
+    virtual ~IBuffer() = default;
+
+    virtual const std::byte* data() const noexcept = 0;
+    virtual size_t size() const noexcept = 0;
+    virtual const MemoryProperties& get_properties() const noexcept = 0;
+
+    /** @brief Typed reinterpretation of data(), e.g. data_as<char>() for APIs needing pointer arithmetic. */
+    template <typename T>
+    const T* data_as() const noexcept {
+        return reinterpret_cast<const T*>(data());
+    }
+
+    /** @brief Read-only view for bulk reads/copies (e.g. memcpy, std::copy); not virtual, built on data()/size(). */
+    MemoryView view() const noexcept {
+        return {data(), size()};
+    }
+
+    /** @brief Buffer ID, Default: no id. */
+    virtual std::optional<uint64_t> get_id() const noexcept {
+        return std::nullopt;
+    }
+};
+
+/**
+ * @brief Extends IBuffer with mutable access.
+ */
+class IMutableBuffer : public IBuffer {
+public:
+    using IBuffer::data;
+    using IBuffer::data_as;
+    virtual std::byte* data() noexcept = 0;
+
+    template <typename T>
+    T* data_as() noexcept {
+        return reinterpret_cast<T*>(data());
+    }
+};
 
 }  // namespace ov::util

@@ -48,11 +48,9 @@ public:
     bool support_allocation_type(allocation_type type) const { return find_in_caps(type); }
 
     static bool is_usm_type(allocation_type type) {
-        if (type == allocation_type::usm_host ||
+        return type == allocation_type::usm_host ||
             type == allocation_type::usm_shared ||
-            type == allocation_type::usm_device)
-            return true;
-        return false;
+            type == allocation_type::usm_device;
     }
 
     void remove_usm_caps() {
@@ -110,7 +108,7 @@ using shared_surface = uint32_t;
 /// @brief Low-level API handles required for using cldnn memory objects in external API calls.
 struct shared_mem_params {
     shared_mem_type mem_type;     ///< shared buffer type
-    shared_handle context;        ///< OpenCL context for external operations
+    shared_handle context;        ///< OpenCL or Level Zero context for external operations
     shared_handle user_device;    ///< DX/VA device for external operations
     shared_handle mem;            ///< memory object handle
 #ifdef _WIN32

@@ -4,7 +4,6 @@
 
 #include "snippets/lowered/expression_factory.hpp"
 
-#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <vector>
@@ -78,12 +77,9 @@ void ExpressionFactory::create_expression_outputs(const ExpressionPtr& expr) {
 void ExpressionFactory::init_expression_inputs(const ExpressionPtr& expr, const std::vector<PortConnectorPtr>& inputs) {
     for (size_t i = 0; i < inputs.size(); ++i) {
         const auto& input = inputs[i];
-        const auto consumers = input->get_consumers();
-        const auto found = std::find_if(consumers.begin(), consumers.end(), [&](const ExpressionPort& desc) {
-            return desc.get_index() == i && desc.get_expr() == expr;
-        });
-        if (found == consumers.end()) {
-            input->add_consumer(expr->get_input_port(i));
+        const auto input_port = expr->get_input_port(i);
+        if (!input->found_consumer(input_port)) {
+            input->add_consumer(input_port);
         }
     }
     expr->m_input_port_connectors = inputs;

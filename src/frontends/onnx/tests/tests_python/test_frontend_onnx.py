@@ -105,7 +105,9 @@ def create_onnx_model_with_custom_attributes():
         attribute_list_str=np.array(["a", "b", "c"], dtype=str),
         attribute_list_f32=np.array([1, 2, 3], dtype=float),
         attribute_list_f64=np.array([1, 2, 3], dtype=np.float64),
-        attribute_list_bool=[True, False, True],
+        # ONNX >= 1.22 make_attribute rejects Python bools in an INTS field; store as ints
+        # explicitly (ONNX represents bool attributes as ints on the wire regardless).
+        attribute_list_bool=[1, 0, 1],
         attribute_list_type=np.array([onnx.TensorProto.INT32, onnx.TensorProto.FLOAT]),
     )
     const_tensor = onnx.helper.make_tensor(
@@ -880,7 +882,8 @@ def test_load_bytesio_model():
     model_from_fe = fe.load(model_stream)
     assert model_from_fe
     converted_model = fe.convert(model_from_fe)
-    assert converted_model.friendly_name == "graph"
+    expected_name = "onnx_Frontend_IR" if _is_graph_iterator_enabled() else "graph"
+    assert converted_model.friendly_name == expected_name
 
     core = Core()
     model = core.read_model(model_stream)

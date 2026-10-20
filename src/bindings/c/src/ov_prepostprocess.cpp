@@ -336,6 +336,31 @@ ov_status_e ov_preprocess_input_tensor_info_set_color_format(
     return ov_preprocess_input_tensor_info_set_color_format_with_subname(preprocess_input_tensor_info, colorFormat, 0);
 }
 
+ov_status_e ov_preprocess_input_tensor_info_set_color_format_with_subnames(
+    ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+    const ov_color_format_e colorFormat,
+    const size_t sub_names_size,
+    const char** sub_names) {
+    if (!preprocess_input_tensor_info) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    if (sub_names_size > 0 && !sub_names) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        std::vector<std::string> names = {};
+        for (size_t i = 0; i < sub_names_size; i++) {
+            if (!sub_names[i]) {
+                return ov_status_e::INVALID_C_PARAM;
+            }
+            names.emplace_back(sub_names[i]);
+        }
+        preprocess_input_tensor_info->object->set_color_format(GET_OV_COLOR_FARMAT(colorFormat), names);
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
 ov_status_e ov_preprocess_input_tensor_info_set_spatial_static_shape(
     ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
     const size_t input_height,

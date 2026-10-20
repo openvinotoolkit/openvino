@@ -74,6 +74,25 @@ void attach_runtime_behavior(v1::subgraphs::CompiledPipeline& compiled_pipeline,
     spec.factory = make_runtime_factory();
     spec.handles_function_prologue = handles_function_prologue;
     compiled_pipeline.runtime_behavior = std::move(spec);
+
+    // Looked up when called: at compile time this runs before the extra models are compiled
+    compiled_pipeline.for_each_extra_compiled_model = [role](const v1::subgraphs::Context& context,
+                                                             const v1::subgraphs::CompiledModelVisitor& visit) {
+        switch (role) {
+        case BehaviorRole::EXPERTS:
+            if (const auto* experts = get_compiled_experts(context)) {
+                for (const auto& [chunk_size, cm] : experts->_compiled_models) {
+                    visit(cm);
+                }
+            }
+            break;
+        case BehaviorRole::DOWNSTREAM:
+            if (const auto* downstream = get_compiled_downstream(context)) {
+                visit(downstream->_compiled_model);
+            }
+            break;
+        }
+    };
 }
 
 namespace {
@@ -90,25 +109,31 @@ const T* get_compiled_state(const ov::npuw::v1::subgraphs::Context& context) {
     return state == nullptr ? nullptr : state->get();
 }
 
-std::shared_ptr<ov::Model> find_router_model(ov::npuw::v1::subgraphs::Context& ctx) {
+static std::optional<size_t> find_moe_k_value(ov::npuw::v1::subgraphs::Context& ctx) {
     auto* callbacks = ctx.get_if<ov::npuw::v1::subgraphs::PartitioningCallbacks>();
-    if (callbacks == nullptr || !callbacks->find_tagged_model) {
-        return nullptr;
+    if (callbacks == nullptr || !callbacks->find_node_with_rt_info) {
+        return std::nullopt;
     }
-    return callbacks->find_tagged_model(ov::npuw::patterns::moe::ROUTER_TAG);
+    auto node = callbacks->find_node_with_rt_info(ov::npuw::patterns::moe::RT_INFO_MOE_K);
+    if (!node) {
+        return std::nullopt;
+    }
+    return node->get_rt_info().at(ov::npuw::patterns::moe::RT_INFO_MOE_K).as<size_t>();
 }
 
 void transform_experts(ov::npuw::Function& function,
                        ov::npuw::v1::subgraphs::Context& ctx,
                        const std::size_t moe_chunk_size) {
-    auto router_model = find_router_model(ctx);
-    if (!router_model) {
-        return;
-    }
-    auto experts = ov::npuw::function::MoEExperts::from(function._model, router_model, moe_chunk_size);
-    if (experts.has_value()) {
-        ctx.put<ov::npuw::function::MoEExperts>(std::move(experts.value()));
-    }
+    auto k_value = find_moe_k_value(ctx);
+    OPENVINO_ASSERT(k_value.has_value(),
+                    "NPUW sparse expert partition is missing its top-k metadata. "
+                    "Refusing to execute an expert partition densely.");
+    auto experts = ov::npuw::function::MoEExperts::from(function._model, k_value.value(), moe_chunk_size);
+    OPENVINO_ASSERT(experts.has_value(),
+                    "NPUW could not lower the isolated expert partition to sparse execution: ",
+                    function._model->get_friendly_name(),
+                    ". Check the expert weight layout and export representation.");
+    ctx.put<ov::npuw::function::MoEExperts>(std::move(experts.value()));
 }
 
 void compile_transformed_expert_models(const CompiledExpertsState& runtime_experts,
@@ -153,11 +178,12 @@ void configure_expert_compile(ov::npuw::v1::subgraphs::CompiledPipeline& compile
 }
 
 void transform_downstream(ov::npuw::Function& function, ov::npuw::v1::subgraphs::Context& ctx) {
-    auto router_model = find_router_model(ctx);
-    if (!router_model) {
+    auto k_value = find_moe_k_value(ctx);
+    if (!k_value.has_value()) {
+        LOG_WARN("MoE K value not found in context; skipping downstream transformation");
         return;
     }
-    auto downstream = ov::npuw::function::create_moe_downstream(function._model, router_model);
+    auto downstream = ov::npuw::function::create_moe_downstream(function._model, k_value.value());
     if (downstream.has_value()) {
         ctx.put<ov::npuw::function::MoEDownstream>(std::move(downstream.value()));
     }
@@ -336,12 +362,10 @@ std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_pattern
     ov::npuw::v1::subgraphs::PatternRegistry& registry,
     const std::size_t moe_chunk_size) {
     std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> registrations;
-    registrations.reserve(3);
-
-    registrations.emplace_back(registry.on<ov::npuw::patterns::moe::GPTOSSRouter>().scoped());
+    registrations.reserve(8);
 
     registrations.emplace_back(
-        registry.on<ov::npuw::patterns::moe::GPTOSSExpert>()
+        registry.on<ov::npuw::patterns::moe::BatchedExpert>()
             .at_partition([moe_chunk_size](ov::npuw::Function& function, ov::npuw::v1::subgraphs::Context& ctx) {
                 transform_experts(function, ctx, moe_chunk_size);
             })
@@ -350,6 +374,17 @@ std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_pattern
                 configure_expert_compile(compiled_pipeline, compiled_context);
             })
             .scoped());
+
+    registrations.emplace_back(registry.on<ov::npuw::patterns::moe::GPTOSSRouter>().scoped());
+    registrations.emplace_back(registry.on<ov::npuw::patterns::moe::Qwen3Router>().scoped());
+    registrations.emplace_back(registry.on<ov::npuw::patterns::moe::Gemma4Router>().scoped());
+
+    // Keep explicit legacy matcher names, but attach the expert-tag pipeline
+    // only once. Registering identical callbacks for each matcher transforms
+    // the same function repeatedly, even when only one topology matched.
+    registrations.emplace_back(registry.on<ov::npuw::patterns::moe::GPTOSSExpert>().scoped());
+    registrations.emplace_back(registry.on<ov::npuw::patterns::moe::Qwen3Expert>().scoped());
+    registrations.emplace_back(registry.on<ov::npuw::patterns::moe::Gemma4Expert>().scoped());
 
     ov::npuw::v1::subgraphs::PatternRegistration downstream_registration;
     downstream_registration.partition_stage = [](ov::npuw::Function& function, ov::npuw::v1::subgraphs::Context& ctx) {

@@ -31,6 +31,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/util/log.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"

@@ -12,6 +12,7 @@
 #include "sycl/sycl_memory.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "primitive_sycl_base.h"
+#include "mem_adapter.hpp"
 #include "registry/implementation_map.hpp"
 
 #include <memory>
@@ -216,37 +217,10 @@ struct GeOp : public EltwiseOpBase<GeOp> {
 };
 
 template <typename InPtrType, typename OutPtrType, typename OpFunc>
-inline void eltwise_kernel(::sycl::item<1> index, InPtrType in0, InPtrType in1, OutPtrType out, size_t in1_stride, OpFunc op) {
+inline void eltwise_kernel(size_t index, InPtrType in0, InPtrType in1, OutPtrType out, size_t in1_stride, OpFunc op) {
     auto val0 = in0[index];
     auto val1 = in1[index * in1_stride];
     out[index] = op(val0, val1);
-}
-
-// for sycl::buffer
-template<typename DType, int Dim, typename Allocator, typename OpFunc>
-::sycl::event run_eltwise(::sycl::queue& queue, std::vector<::sycl::event> const& events,
-                          ::sycl::buffer<DType, Dim, Allocator>& in0,
-                          ::sycl::buffer<DType, Dim, Allocator>& in1,
-                          ::sycl::buffer<DType, Dim, Allocator>& out,
-                          const ov::Shape& in0_shape, const ov::Shape& in1_shape, const ov::Shape& out_shape,
-                          OpFunc op) {
-    auto num_elements = ov::shape_size(out_shape);
-    size_t in1_stride = ov::shape_size(in1_shape) > 1 ? 1 : 0;
-
-    return queue.submit([&](::sycl::handler& cgh) {
-        cgh.depends_on(events);
-
-        auto in0_acc = in0.template get_access<::sycl::access::mode::read>(cgh);
-        auto in1_acc = in1.template get_access<::sycl::access::mode::read>(cgh);
-        auto out_acc = out.template get_access<::sycl::access::mode::write>(cgh);
-
-        cgh.parallel_for(::sycl::range<1>(num_elements), [=](::sycl::item<1> index) {
-            auto in0_ptr = in0_acc.template get_multi_ptr<::sycl::access::decorated::yes>();
-            auto in1_ptr = in1_acc.template get_multi_ptr<::sycl::access::decorated::yes>();
-            auto out_ptr = out_acc.template get_multi_ptr<::sycl::access::decorated::yes>();
-            eltwise_kernel(index, in0_ptr, in1_ptr, out_ptr, in1_stride, op);
-        });
-    });
 }
 
 /**
@@ -292,6 +266,49 @@ EltwiseOperator get_eltwise_operator(cldnn::eltwise_mode mode) {
             return GeOp{};
         default:
             OPENVINO_THROW("Unsupported eltwise mode: ", static_cast<int>(mode));
+    }
+}
+
+template<typename MemAdapter>
+::sycl::event run_eltwise(::sycl::queue& queue, const std::vector<::sycl::event>& events,
+                          const cldnn::memory::ptr& input0, const cldnn::memory::ptr& input1,
+                          const cldnn::memory::ptr& output,
+                          const ov::Shape& in0_shape, const ov::Shape& in1_shape, const ov::Shape& out_shape,
+                          const EltwiseOperator& op) {
+    auto res_in0 = MemAdapter::from_memory(input0);
+    auto res_in1 = MemAdapter::from_memory(input1);
+    auto res_out = MemAdapter::from_memory(output);
+    size_t num_elements = ov::shape_size(out_shape);
+    size_t in1_stride = ov::shape_size(in1_shape) > 1 ? 1 : 0;
+
+    return std::visit([&](auto&& operation) {
+        return queue.submit([&](::sycl::handler& cgh) {
+            cgh.depends_on(events);
+
+            auto in0 = res_in0.bind_read(cgh);
+            auto in1 = res_in1.bind_read(cgh);
+            auto out = res_out.bind_write(cgh);
+
+            cgh.parallel_for(::sycl::range<1>(num_elements), [=](::sycl::item<1> index) {
+                eltwise_kernel(index[0], in0, in1, out, in1_stride, operation);
+            });
+        });
+    }, op);
+}
+
+template<template<typename> class MemAdapter>
+::sycl::event run_eltwise(ov::element::Type_t dtype,
+                          ::sycl::queue& queue, const std::vector<::sycl::event>& events,
+                          const cldnn::memory::ptr& input0, const cldnn::memory::ptr& input1,
+                          const cldnn::memory::ptr& output,
+                          const ov::Shape& in0_shape, const ov::Shape& in1_shape, const ov::Shape& out_shape,
+                          const EltwiseOperator& op) {
+    if (dtype == ov::element::f32) {
+        return run_eltwise<MemAdapter<float>>(queue, events, input0, input1, output, in0_shape, in1_shape, out_shape, op);
+    } else if (dtype == ov::element::f16) {
+        return run_eltwise<MemAdapter<::sycl::half>>(queue, events, input0, input1, output, in0_shape, in1_shape, out_shape, op);
+    } else {
+        OPENVINO_THROW("No instance for given types found: ", dtype);
     }
 }
 
@@ -343,31 +360,30 @@ struct eltwise_sycl : typed_primitive_sycl_impl<eltwise> {
             }
         }
 
+        const auto in0_alloc_type = input0->get_allocation_type();
+        const auto in1_alloc_type = input1->get_allocation_type();
+        const auto out_alloc_type = output->get_allocation_type();
 
-        if (out_t == ov::element::f32) {
-            OPENVINO_ASSERT(input0->get_allocation_type() == cldnn::allocation_type::sycl_buffer);
-            auto buf_in0 = std::dynamic_pointer_cast<sycl::gpu_buffer>(input0)->get_buffer().reinterpret<float>();
-            auto buf_in1 = std::dynamic_pointer_cast<sycl::gpu_buffer>(input1)->get_buffer().reinterpret<float>();
-            auto buf_out = std::dynamic_pointer_cast<sycl::gpu_buffer>(output)->get_buffer().reinterpret<float>();
+        const bool all_sycl_buffer = cldnn::everyone_is(cldnn::allocation_type::sycl_buffer, in0_alloc_type, in1_alloc_type, out_alloc_type);
+        const bool all_usm = memory_capabilities::is_usm_type(in0_alloc_type) &&
+                             memory_capabilities::is_usm_type(in1_alloc_type) &&
+                             memory_capabilities::is_usm_type(out_alloc_type);
 
-            auto op = get_eltwise_operator(desc->mode);
-            auto ev = std::visit([&](auto&& operation) {
-                return run_eltwise(sycl_queue, sycl_events, buf_in0, buf_in1, buf_out, in0_shape, in1_shape, out_shape, operation);
-            }, op);
+        auto op = get_eltwise_operator(desc->mode);
+
+        if (all_sycl_buffer) {
+            auto ev = run_eltwise<cldnn::sycl::BufferAdapter>(out_t, sycl_queue, sycl_events,
+                                                     input0, input1, output,
+                                                     in0_shape, in1_shape, out_shape, op);
             return stream.create_base_event(ev);
-        } else if (out_t == ov::element::f16) {
-            OPENVINO_ASSERT(input0->get_allocation_type() == cldnn::allocation_type::sycl_buffer);
-            auto buf_in0 = std::dynamic_pointer_cast<sycl::gpu_buffer>(input0)->get_buffer().reinterpret<::sycl::half>();
-            auto buf_in1 = std::dynamic_pointer_cast<sycl::gpu_buffer>(input1)->get_buffer().reinterpret<::sycl::half>();
-            auto buf_out = std::dynamic_pointer_cast<sycl::gpu_buffer>(output)->get_buffer().reinterpret<::sycl::half>();
-
-            auto op = get_eltwise_operator(desc->mode);
-            auto ev = std::visit([&](auto&& operation) {
-                return run_eltwise(sycl_queue, sycl_events, buf_in0, buf_in1, buf_out, in0_shape, in1_shape, out_shape, operation);
-            }, op);
+        } else if (all_usm) {
+            auto ev = run_eltwise<cldnn::sycl::UsmAdapter>(out_t, sycl_queue, sycl_events,
+                                                  input0, input1, output,
+                                                  in0_shape, in1_shape, out_shape, op);
             return stream.create_base_event(ev);
         } else {
-            OPENVINO_THROW("No instance for given types found: ", out_t);
+            OPENVINO_THROW("Eltwise SYCL requires all inputs/outputs to be either sycl_buffer or USM. "
+                           "Got in0=", in0_alloc_type, ", in1=", in1_alloc_type, ", out=", out_alloc_type);
         }
     }
 

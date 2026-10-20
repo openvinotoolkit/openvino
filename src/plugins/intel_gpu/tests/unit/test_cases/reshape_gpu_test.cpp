@@ -33,14 +33,16 @@ void verify_int(const int32_t& output_value, const int32_t& value) {
 
 template <class ElemType>
 void generic_reshape_test(format fmt, tensor const& input_size, tensor const& reshape_size,
-    bool /* in_place */, padding const& input_padd = padding(),
-    padding const& output_padd = padding(), bool is_caching_test = false) {
+    bool /* in_place */, padding const& input_pad = padding(),
+    padding const& output_pad = padding(), bool is_caching_test = false) {
     auto& engine = get_test_engine();
 
     //allocate input memory
     auto data_type = data_types::f32;
     if (std::is_same<ElemType, ov::float16>::value)
         data_type = data_types::f16;
+    else if (std::is_same<ElemType, ov::bfloat16>::value)
+        data_type = data_types::bf16;
     else if (std::is_same<ElemType, int8_t>::value)
         data_type = data_types::i8;
     else if (std::is_same<ElemType, int32_t>::value)
@@ -65,14 +67,14 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
     std::string reshape_input = "input";
 
     tpl.add(input_layout("input", input->get_layout()));
-    if (input_padd) {
+    if (input_pad) {
         auto padded_input_layout = input->get_layout();
-        padded_input_layout.data_padding = input_padd;
+        padded_input_layout.data_padding = input_pad;
         tpl.add(reorder("reorder", input_info("input"), padded_input_layout));
         reshape_input = "reorder";
     }
     auto reshape_prim = reshape("reshape", reshape_input, reshape_size, cldnn::reshape::reshape_mode::base);
-    reshape_prim.output_paddings = {output_padd};
+    reshape_prim.output_paddings = {output_pad};
     tpl.add(reshape_prim);
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -94,8 +96,8 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
     auto output_fmt = output->get_layout().format;
     auto default_fmt = format::get_default_format(output_fmt.dimension(), format::is_weights_format(output_fmt), format::is_grouped(output_fmt));
     std::vector<tensor::value_type> lower_sizes, upper_sizes;
-    lower_sizes.assign(output_padd._lower_size.begin(), output_padd._lower_size.begin() + output_fmt.dimension());
-    upper_sizes.assign(output_padd._upper_size.begin(), output_padd._upper_size.begin() + output_fmt.dimension());
+    lower_sizes.assign(output_pad._lower_size.begin(), output_pad._lower_size.begin() + output_fmt.dimension());
+    upper_sizes.assign(output_pad._upper_size.begin(), output_pad._upper_size.begin() + output_fmt.dimension());
     ASSERT_TRUE(tensor(default_fmt, output->get_layout().get_padded_dims()) ==
         reshape_size.add(tensor(default_fmt, lower_sizes, 0)).add(tensor(default_fmt, upper_sizes, 0)));
 
@@ -125,7 +127,7 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
                     for (int d4 = 0; d4 < sizes[3]; ++d4) {
                         auto& output_value = *output_itr;
                         ++output_itr;
-                        if (data_type == data_types::f16 || data_type == data_types::f32)
+                        if (data_type == data_types::f16 || data_type == data_types::f32 || data_type == data_types::bf16)
                             verify_float(static_cast<float>(output_value), static_cast<float>((ElemType)value));
                         else
                             verify_int(static_cast<int32_t>(output_value), static_cast<int32_t>(value));
@@ -154,6 +156,14 @@ TEST(reshape_gpu_f32, basic_2dim_in_place) {
 
 TEST(reshape_gpu_f16, basic_2dim_in_place) {
     generic_reshape_test<ov::float16>(
+        format::bfyx,
+        tensor(1, 1, 2, 2),
+        tensor(1, 1, 1, 4),
+        true);
+}
+
+TEST(reshape_gpu_bf16, basic_2dim_in_place) {
+    generic_reshape_test<ov::bfloat16>(
         format::bfyx,
         tensor(1, 1, 2, 2),
         tensor(1, 1, 1, 4),
@@ -200,6 +210,14 @@ TEST(reshape_gpu_f16, basic_4dim_in_place) {
         true);
 }
 
+TEST(reshape_gpu_bf16, basic_4dim_in_place) {
+    generic_reshape_test<ov::bfloat16>(
+        format::yxfb,
+        tensor(9, 9, 2, 4),
+        tensor(3, 4, 27, 2),
+        true);
+}
+
 TEST(reshape_gpu_i32, basic_4dim_in_place) {
     generic_reshape_test<int32_t>(
         format::yxfb,
@@ -216,7 +234,7 @@ TEST(reshape_gpu_i64, basic_4dim_in_place) {
         true);
 }
 
-TEST(reshpape_gpu_f32, basic_2dim_output_padd) {
+TEST(reshape_gpu_f32, basic_2dim_output_pad) {
     generic_reshape_test<float>(
         format::byxf,
         tensor(1, 1, 4, 2),
@@ -226,7 +244,7 @@ TEST(reshpape_gpu_f32, basic_2dim_output_padd) {
         padding(std::vector<ov::Dimension::value_type>{0, 0, 1, 1}));
 }
 
-TEST(reshape_gpu_f16, basic_2dim_output_padd) {
+TEST(reshape_gpu_f16, basic_2dim_output_pad) {
     generic_reshape_test<ov::float16>(
         format::byxf,
         tensor(1, 1, 3, 4),
@@ -236,7 +254,17 @@ TEST(reshape_gpu_f16, basic_2dim_output_padd) {
         padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}));
 }
 
-TEST(reshape_gpu_i8, basic_2dim_output_padd) {
+TEST(reshape_gpu_bf16, basic_2dim_output_pad) {
+    generic_reshape_test<ov::bfloat16>(
+        format::byxf,
+        tensor(1, 1, 3, 4),
+        tensor(1, 1, 2, 6),
+        false,
+        padding(),
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}));
+}
+
+TEST(reshape_gpu_i8, basic_2dim_output_pad) {
     generic_reshape_test<int8_t>(
         format::byxf,
         tensor(1, 1, 3, 4),
@@ -246,7 +274,7 @@ TEST(reshape_gpu_i8, basic_2dim_output_padd) {
         padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}));
 }
 
-TEST(reshape_gpu_i32, basic_2dim_output_padd) {
+TEST(reshape_gpu_i32, basic_2dim_output_pad) {
     generic_reshape_test<int32_t>(
         format::byxf,
         tensor(1, 1, 3, 4),
@@ -256,7 +284,7 @@ TEST(reshape_gpu_i32, basic_2dim_output_padd) {
         padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}));
 }
 
-TEST(reshape_gpu_i64, basic_2dim_output_padd) {
+TEST(reshape_gpu_i64, basic_2dim_output_pad) {
     generic_reshape_test<int64_t>(
         format::byxf,
         tensor(1, 1, 3, 4),
@@ -266,7 +294,7 @@ TEST(reshape_gpu_i64, basic_2dim_output_padd) {
         padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}));
 }
 
-TEST(reshape_gpu_f32, basic_2dim_input_padd) {
+TEST(reshape_gpu_f32, basic_2dim_input_pad) {
     generic_reshape_test<float>(
         format::fyxb,
         tensor(1, 1, 2, 5),
@@ -275,7 +303,7 @@ TEST(reshape_gpu_f32, basic_2dim_input_padd) {
         padding({0, 0, 3, 2}, {0, 0, 1, 4}));
 }
 
-TEST(reshape_gpu_f16, basic_2dim_input_padd) {
+TEST(reshape_gpu_f16, basic_2dim_input_pad) {
     generic_reshape_test<ov::float16>(
         format::fyxb,
         tensor(1, 1, 3, 3),
@@ -284,7 +312,16 @@ TEST(reshape_gpu_f16, basic_2dim_input_padd) {
         padding({0, 0, 4, 1}, {0, 0, 2, 3}));
 }
 
-TEST(reshape_gpu_i8, basic_2dim_input_padd) {
+TEST(reshape_gpu_bf16, basic_2dim_input_pad) {
+    generic_reshape_test<ov::bfloat16>(
+        format::fyxb,
+        tensor(1, 1, 3, 3),
+        tensor(1, 1, 1, 9),
+        false,
+        padding({0, 0, 4, 1}, {0, 0, 2, 3}));
+}
+
+TEST(reshape_gpu_i8, basic_2dim_input_pad) {
     generic_reshape_test<int8_t>(
         format::fyxb,
         tensor(1, 1, 3, 3),
@@ -293,7 +330,7 @@ TEST(reshape_gpu_i8, basic_2dim_input_padd) {
         padding({0, 0, 4, 1}, {0, 0, 2, 3}));
 }
 
-TEST(reshape_gpu_i32, basic_2dim_input_padd) {
+TEST(reshape_gpu_i32, basic_2dim_input_pad) {
     generic_reshape_test<int32_t>(
         format::fyxb,
         tensor(1, 1, 3, 3),
@@ -302,7 +339,7 @@ TEST(reshape_gpu_i32, basic_2dim_input_padd) {
         padding({0, 0, 4, 1}, {0, 0, 2, 3}));
 }
 
-TEST(reshape_gpu_i64, basic_2dim_input_padd) {
+TEST(reshape_gpu_i64, basic_2dim_input_pad) {
     generic_reshape_test<int64_t>(
         format::fyxb,
         tensor(1, 1, 3, 3),
@@ -311,7 +348,7 @@ TEST(reshape_gpu_i64, basic_2dim_input_padd) {
         padding({0, 0, 4, 1}, {0, 0, 2, 3}));
 }
 
-TEST(reshape_gpu_f32, basic_2dim_input_output_padd) {
+TEST(reshape_gpu_f32, basic_2dim_input_output_pad) {
     generic_reshape_test<float>(
         format::byxf,
         tensor(1, 1, 5, 7),
@@ -321,7 +358,7 @@ TEST(reshape_gpu_f32, basic_2dim_input_output_padd) {
         padding({0, 0, 0, 0}, {0, 0, 3, 0}));
 }
 
-TEST(reshape_gpu_f16, basic_2dim_input_output_padd) {
+TEST(reshape_gpu_f16, basic_2dim_input_output_pad) {
     generic_reshape_test<ov::float16>(
         format::byxf,
         tensor(1, 1, 6, 6),
@@ -331,7 +368,17 @@ TEST(reshape_gpu_f16, basic_2dim_input_output_padd) {
         padding({0, 0, 2, 1}, {0, 0, 1, 2}));
 }
 
-TEST(reshape_gpu_i8, basic_2dim_input_output_padd) {
+TEST(reshape_gpu_bf16, basic_2dim_input_output_pad) {
+    generic_reshape_test<ov::bfloat16>(
+        format::byxf,
+        tensor(1, 1, 6, 6),
+        tensor(1, 1, 3, 12),
+        false,
+        padding({0, 0, 1, 1}, {0, 0, 0, 0}),
+        padding({0, 0, 2, 1}, {0, 0, 1, 2}));
+}
+
+TEST(reshape_gpu_i8, basic_2dim_input_output_pad) {
     generic_reshape_test<int8_t>(
         format::byxf,
         tensor(1, 1, 5, 7),
@@ -341,7 +388,7 @@ TEST(reshape_gpu_i8, basic_2dim_input_output_padd) {
         padding({0, 0, 0, 0}, {0, 0, 3, 0}));
 }
 
-TEST(reshape_gpu_i32, basic_2dim_input_output_padd) {
+TEST(reshape_gpu_i32, basic_2dim_input_output_pad) {
     generic_reshape_test<int32_t>(
         format::byxf,
         tensor(1, 1, 5, 7),
@@ -351,7 +398,7 @@ TEST(reshape_gpu_i32, basic_2dim_input_output_padd) {
         padding({0, 0, 0, 0}, {0, 0, 3, 0}));
 }
 
-TEST(reshape_gpu_i64, basic_2dim_input_output_padd) {
+TEST(reshape_gpu_i64, basic_2dim_input_output_pad) {
     generic_reshape_test<int64_t>(
         format::byxf,
         tensor(1, 1, 5, 7),
@@ -361,7 +408,7 @@ TEST(reshape_gpu_i64, basic_2dim_input_output_padd) {
         padding({0, 0, 0, 0}, {0, 0, 3, 0}));
 }
 
-TEST(reshpape_gpu_f32, basic_4dim_output_padd) {
+TEST(reshape_gpu_f32, basic_4dim_output_pad) {
     generic_reshape_test<float>(
         format::bfyx,
         tensor(2, 5, 7, 3),
@@ -371,7 +418,7 @@ TEST(reshpape_gpu_f32, basic_4dim_output_padd) {
         padding({1, 0, 0, 1}, {0, 2, 3, 0}));
 }
 
-TEST(reshape_gpu_f16, basic_4dim_output_padd) {
+TEST(reshape_gpu_f16, basic_4dim_output_pad) {
     generic_reshape_test<ov::float16>(
         format::bfyx,
         tensor(5, 4, 2, 2),
@@ -381,7 +428,17 @@ TEST(reshape_gpu_f16, basic_4dim_output_padd) {
         padding({0, 2, 0, 1}, {0, 2, 3, 0}));
 }
 
-TEST(reshape_gpu_f32, basic_4dim_input_padd) {
+TEST(reshape_gpu_bf16, basic_4dim_output_pad) {
+    generic_reshape_test<ov::bfloat16>(
+        format::bfyx,
+        tensor(5, 4, 2, 2),
+        tensor(40, 2, 1, 1),
+        false,
+        padding(),
+        padding({0, 2, 0, 1}, {0, 2, 3, 0}));
+}
+
+TEST(reshape_gpu_f32, basic_4dim_input_pad) {
     generic_reshape_test<float>(
         format::yxfb,
         tensor(8, 128, 3, 3),
@@ -390,7 +447,7 @@ TEST(reshape_gpu_f32, basic_4dim_input_padd) {
         padding({0, 1, 3, 3}, {0, 1, 1, 1}));
 }
 
-TEST(reshape_gpu_f16, basic_4dim_input_padd) {
+TEST(reshape_gpu_f16, basic_4dim_input_pad) {
     generic_reshape_test<ov::float16>(
         format::yxfb,
         tensor(2, 32, 8, 8),
@@ -399,7 +456,16 @@ TEST(reshape_gpu_f16, basic_4dim_input_padd) {
         padding({2, 2, 1, 0}, {1, 2, 2, 0}));
 }
 
-TEST(reshape_gpu_f32, basic_4dim_input_output_padd) {
+TEST(reshape_gpu_bf16, basic_4dim_input_pad) {
+    generic_reshape_test<ov::bfloat16>(
+        format::yxfb,
+        tensor(2, 32, 8, 8),
+        tensor(8, 128, 1, 4),
+        false,
+        padding({2, 2, 1, 0}, {1, 2, 2, 0}));
+}
+
+TEST(reshape_gpu_f32, basic_4dim_input_output_pad) {
     generic_reshape_test<float>(
         format::fyxb,
         tensor(8, 1024, 25, 25),
@@ -409,8 +475,18 @@ TEST(reshape_gpu_f32, basic_4dim_input_output_padd) {
         padding({1, 2, 3, 4}, {0, 4, 1, 1}));
 }
 
-TEST(reshape_gpu_f16, basic_4dim_input_output_padd) {
+TEST(reshape_gpu_f16, basic_4dim_input_output_pad) {
     generic_reshape_test<ov::float16>(
+        format::byxf,
+        tensor(32, 3, 227, 227),
+        tensor(8, 12, 227, 227),
+        false,
+        padding({0, 1, 4, 4}, {0, 1, 1, 1}),
+        padding({0, 29, 29, 0}, {0, 0, 0, 0}));
+}
+
+TEST(reshape_gpu_bf16, basic_4dim_input_output_pad) {
+    generic_reshape_test<ov::bfloat16>(
         format::byxf,
         tensor(32, 3, 227, 227),
         tensor(8, 12, 227, 227),
@@ -551,8 +627,8 @@ void test_calc_output_support_shape(bool is_caching_test) {
     //  for example, a default input  layout of [1,  1,  157, 1024] with bfyx
     //  is compatible with the output layout of [157,1,  1024] with bfyx.
     //  but if the format is updated by some pass to i.e, ybfx.
-    //  the layout becames incompatible.
-    //  thus the primitie will refuse to update shape when running calc_output_layouts.
+    //  the layout becomes incompatible.
+    //  thus the primitive will refuse to update shape when running calc_output_layouts.
     //
     //  This situation is observed in RNNT model, whose format is updated by ov::pass::reorder_input.
     //  The incompatible caused by refuse update will be fixed by the following passes.
@@ -916,31 +992,31 @@ TEST(reshape_gpu_f32, basic_runtime_static_shape) {
     }
 }
 
-TEST(reshape_gpu_f32, basic_runtime_dynamic_shape) {
-    // input:  bfwzyx, (3, 3, 2, 2, 1, 1)
-    // reshape: (1, 1, 2, 2, 3, 3), pad (0, 0, 0, 0, 0, 1)
+struct reshape_runtime_dynamic_shape_params {
+    format::type input_format;
+    ov::PartialShape input_shape;
+    std::vector<float> input;
+    std::vector<float> expected_output;
+};
 
+class reshape_gpu_f32_runtime_dynamic_shape : public ::testing::TestWithParam<reshape_runtime_dynamic_shape_params> {};
+
+TEST_P(reshape_gpu_f32_runtime_dynamic_shape, basic) {
+    // input:  bfwzyx, (3, 3, 2, 2, 1, 1) or byxf, (1, 2, 2, 2)
+    // reshape: flatten to 1D, output values in bfyx order
+
+    const auto& p = GetParam();
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory(layout{ov::PartialShape{3, 3, 2, 2, 1, 1}, data_types::f32, format::bfwzyx});
+    auto input = engine.allocate_memory(layout{p.input_shape, data_types::f32, p.input_format});
 
     topology topology;
-    topology.add(input_layout("input", layout{ov::PartialShape::dynamic(6), data_types::f32, format::bfwzyx }));
+    topology.add(input_layout("input", layout{ov::PartialShape::dynamic(p.input_shape.size()), data_types::f32, p.input_format }));
     topology.add(shape_of("shape_of_input", input_info("input"), data_types::i32));
     topology.add(reduce("reduced_shape", input_info("shape_of_input"), reduce_mode::prod, {0}, true));
     topology.add(reshape("reshape", input_info("input"), input_info("reduced_shape"), false, ov::PartialShape::dynamic(1)));
 
-    // clang-format off
-    std::vector<float> input_data = {
-        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
-        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
-        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
-        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
-    };
-
-    // clang-format on
-
-    set_values(input, input_data);
+    set_values(input, p.input);
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -958,12 +1034,39 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape) {
     ASSERT_EQ(output->get_layout().format, format::bfyx);
 
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
-    ASSERT_EQ(output_ptr.size(), input_data.size());
+    ASSERT_EQ(output_ptr.size(), p.expected_output.size());
 
-    for (size_t i = 0; i < input_data.size(); i++) {
-        ASSERT_TRUE(are_equal(input_data[i], output_ptr[i]));
+    for (size_t i = 0; i < p.expected_output.size(); i++) {
+        ASSERT_TRUE(are_equal(p.expected_output[i], output_ptr[i]));
     }
 }
+
+// clang-format off
+static const std::vector<float> reshape_runtime_dynamic_shape_bfwzyx_data = {
+    1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+    1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+    1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+    1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+};
+// clang-format on
+
+INSTANTIATE_TEST_SUITE_P(reshape_gpu_f32,
+                         reshape_gpu_f32_runtime_dynamic_shape,
+                         ::testing::Values(
+                             reshape_runtime_dynamic_shape_params{format::bfwzyx, ov::PartialShape{3, 3, 2, 2, 1, 1},
+                                                                  reshape_runtime_dynamic_shape_bfwzyx_data,
+                                                                  reshape_runtime_dynamic_shape_bfwzyx_data},
+                             reshape_runtime_dynamic_shape_params{format::byxf, ov::PartialShape{1, 2, 2, 2},
+                                                                  {
+                                                                      1.f, 5.f,
+                                                                      2.f, 6.f,
+                                                                      3.f, 7.f,
+                                                                      4.f, 8.f,
+                                                                  },
+                                                                  {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f}}),
+                         [](const ::testing::TestParamInfo<reshape_runtime_dynamic_shape_params>& info) {
+                             return format(info.param.input_format).to_string();
+                         });
 
 TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const) {
     // input:  bfwzyx, (3, 3, 2, 2, 1, 1)
@@ -1224,7 +1327,55 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_activation_fusion) {
     }
 }
 
-TEST(reshape_gpu_f32, reshape_reorder_trucation_mode)
+TEST(reshape_gpu_bf16, basic_runtime_dynamic_shape_activation_fusion) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory(layout{ov::PartialShape{3, 3, 2, 2, 1, 1}, data_types::f32, format::bfwzyx});
+
+    topology topology;
+    topology.add(input_layout("input", layout{ov::PartialShape::dynamic(6), data_types::f32, format::bfwzyx }));
+    topology.add(reorder("input_reorder", input_info("input"), format::bfwzyx, data_types::bf16));
+    topology.add(shape_of("shape_of_input", input_info("input"), data_types::i32));
+    topology.add(reduce("reduced_shape", input_info("shape_of_input"), reduce_mode::prod, {0}, true));
+    topology.add(reshape("reshape", input_info("input_reorder"), input_info("reduced_shape"), false, ov::PartialShape::dynamic(1)));
+    topology.add(activation("activation", input_info("reshape"), activation_func::pow, {2.0f, 0.0f}));
+    topology.add(reorder("output_reorder", input_info("activation"), format::bfyx, data_types::f32));
+
+    std::vector<float> input_data = {
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+    };
+
+    set_values(input, input_data);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output_reorder");
+
+    auto output = outputs.at("output_reorder").get_memory();
+
+    ASSERT_TRUE(network.get_primitive("reshape")->can_be_optimized());
+
+    ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
+    ASSERT_EQ(output->get_layout().format, format::bfyx);
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), input_data.size());
+
+    for (size_t i = 0; i < input_data.size(); i++) {
+        ASSERT_TRUE(are_equal(input_data[i] * input_data[i], output_ptr[i]));
+    }
+}
+
+TEST(reshape_gpu_f32, reshape_reorder_truncation_mode)
 {
     auto& engine = get_test_engine();
     const int b = 1;
@@ -1270,7 +1421,7 @@ TEST(reshape_gpu_f32, reshape_reorder_trucation_mode)
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input_mem);
 
-    EXPECT_NO_THROW(network.get_primitive_info("reorder_i32")); // To check whether the reoder node is not moved in front of reshape
+    EXPECT_NO_THROW(network.get_primitive_info("reorder_i32")); // To check whether the reorder node is not moved in front of reshape
 
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -1300,6 +1451,17 @@ TEST(reshape_gpu_f32, basic_2dim_in_place_cached) {
 
 TEST(reshape_gpu_f16, basic_2dim_in_place_cached) {
     generic_reshape_test<ov::float16>(
+        format::bfyx,
+        tensor(1, 1, 2, 2),
+        tensor(1, 1, 1, 4),
+        true,
+        padding(),
+        padding(),
+        true);
+}
+
+TEST(reshape_gpu_bf16, basic_2dim_in_place_cached) {
+    generic_reshape_test<ov::bfloat16>(
         format::bfyx,
         tensor(1, 1, 2, 2),
         tensor(1, 1, 1, 4),
@@ -1364,6 +1526,17 @@ TEST(reshape_gpu_f16, basic_4dim_in_place_cached) {
         true);
 }
 
+TEST(reshape_gpu_bf16, basic_4dim_in_place_cached) {
+    generic_reshape_test<ov::bfloat16>(
+        format::yxfb,
+        tensor(9, 9, 2, 4),
+        tensor(3, 4, 27, 2),
+        true,
+        padding(),
+        padding(),
+        true);
+}
+
 TEST(reshape_gpu_i32, basic_4dim_in_place_cached) {
     generic_reshape_test<int32_t>(
         format::yxfb,
@@ -1386,7 +1559,7 @@ TEST(reshape_gpu_i64, basic_4dim_in_place_cached) {
         true);
 }
 
-TEST(reshpape_gpu_f32, basic_2dim_output_padd_cached) {
+TEST(reshape_gpu_f32, basic_2dim_output_pad_cached) {
     generic_reshape_test<float>(
         format::byxf,
         tensor(1, 1, 4, 2),
@@ -1397,7 +1570,7 @@ TEST(reshpape_gpu_f32, basic_2dim_output_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_f16, basic_2dim_output_padd_cached) {
+TEST(reshape_gpu_f16, basic_2dim_output_pad_cached) {
     generic_reshape_test<ov::float16>(
         format::byxf,
         tensor(1, 1, 3, 4),
@@ -1408,7 +1581,18 @@ TEST(reshape_gpu_f16, basic_2dim_output_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_i8, basic_2dim_output_padd_cached) {
+TEST(reshape_gpu_bf16, basic_2dim_output_pad_cached) {
+    generic_reshape_test<ov::bfloat16>(
+        format::byxf,
+        tensor(1, 1, 3, 4),
+        tensor(1, 1, 2, 6),
+        false,
+        padding(),
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}),
+        true);
+}
+
+TEST(reshape_gpu_i8, basic_2dim_output_pad_cached) {
     generic_reshape_test<int8_t>(
         format::byxf,
         tensor(1, 1, 3, 4),
@@ -1419,7 +1603,7 @@ TEST(reshape_gpu_i8, basic_2dim_output_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_i32, basic_2dim_output_padd_cached) {
+TEST(reshape_gpu_i32, basic_2dim_output_pad_cached) {
     generic_reshape_test<int32_t>(
         format::byxf,
         tensor(1, 1, 3, 4),
@@ -1430,7 +1614,7 @@ TEST(reshape_gpu_i32, basic_2dim_output_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_i64, basic_2dim_output_padd_cached) {
+TEST(reshape_gpu_i64, basic_2dim_output_pad_cached) {
     generic_reshape_test<int64_t>(
         format::byxf,
         tensor(1, 1, 3, 4),
@@ -1441,7 +1625,7 @@ TEST(reshape_gpu_i64, basic_2dim_output_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_f32, basic_2dim_input_padd_cached) {
+TEST(reshape_gpu_f32, basic_2dim_input_pad_cached) {
     generic_reshape_test<float>(
         format::fyxb,
         tensor(1, 1, 2, 5),
@@ -1452,7 +1636,7 @@ TEST(reshape_gpu_f32, basic_2dim_input_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_f16, basic_2dim_input_padd_cached) {
+TEST(reshape_gpu_f16, basic_2dim_input_pad_cached) {
     generic_reshape_test<ov::float16>(
         format::fyxb,
         tensor(1, 1, 3, 3),
@@ -1463,7 +1647,18 @@ TEST(reshape_gpu_f16, basic_2dim_input_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_i8, basic_2dim_input_padd_cached) {
+TEST(reshape_gpu_bf16, basic_2dim_input_pad_cached) {
+    generic_reshape_test<ov::bfloat16>(
+        format::fyxb,
+        tensor(1, 1, 3, 3),
+        tensor(1, 1, 1, 9),
+        false,
+        padding({0, 0, 4, 1}, {0, 0, 2, 3}),
+        padding(),
+        true);
+}
+
+TEST(reshape_gpu_i8, basic_2dim_input_pad_cached) {
     generic_reshape_test<int8_t>(
         format::fyxb,
         tensor(1, 1, 3, 3),
@@ -1474,7 +1669,7 @@ TEST(reshape_gpu_i8, basic_2dim_input_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_i32, basic_2dim_input_padd_cached) {
+TEST(reshape_gpu_i32, basic_2dim_input_pad_cached) {
     generic_reshape_test<int32_t>(
         format::fyxb,
         tensor(1, 1, 3, 3),
@@ -1485,7 +1680,7 @@ TEST(reshape_gpu_i32, basic_2dim_input_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_i64, basic_2dim_input_padd_cached) {
+TEST(reshape_gpu_i64, basic_2dim_input_pad_cached) {
     generic_reshape_test<int64_t>(
         format::fyxb,
         tensor(1, 1, 3, 3),
@@ -1496,7 +1691,7 @@ TEST(reshape_gpu_i64, basic_2dim_input_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_f32, basic_2dim_input_output_padd_cached) {
+TEST(reshape_gpu_f32, basic_2dim_input_output_pad_cached) {
     generic_reshape_test<float>(
         format::byxf,
         tensor(1, 1, 5, 7),
@@ -1507,7 +1702,7 @@ TEST(reshape_gpu_f32, basic_2dim_input_output_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_f16, basic_2dim_input_output_padd_cached) {
+TEST(reshape_gpu_f16, basic_2dim_input_output_pad_cached) {
     generic_reshape_test<ov::float16>(
         format::byxf,
         tensor(1, 1, 6, 6),
@@ -1518,7 +1713,18 @@ TEST(reshape_gpu_f16, basic_2dim_input_output_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_i8, basic_2dim_input_output_padd_cached) {
+TEST(reshape_gpu_bf16, basic_2dim_input_output_pad_cached) {
+    generic_reshape_test<ov::bfloat16>(
+        format::byxf,
+        tensor(1, 1, 6, 6),
+        tensor(1, 1, 3, 12),
+        false,
+        padding({0, 0, 1, 1}, {0, 0, 0, 0}),
+        padding({0, 0, 2, 1}, {0, 0, 1, 2}),
+        true);
+}
+
+TEST(reshape_gpu_i8, basic_2dim_input_output_pad_cached) {
     generic_reshape_test<int8_t>(
         format::byxf,
         tensor(1, 1, 5, 7),
@@ -1529,7 +1735,7 @@ TEST(reshape_gpu_i8, basic_2dim_input_output_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_i32, basic_2dim_input_output_padd_cached) {
+TEST(reshape_gpu_i32, basic_2dim_input_output_pad_cached) {
     generic_reshape_test<int32_t>(
         format::byxf,
         tensor(1, 1, 5, 7),
@@ -1540,7 +1746,7 @@ TEST(reshape_gpu_i32, basic_2dim_input_output_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_i64, basic_2dim_input_output_padd_cached) {
+TEST(reshape_gpu_i64, basic_2dim_input_output_pad_cached) {
     generic_reshape_test<int64_t>(
         format::byxf,
         tensor(1, 1, 5, 7),
@@ -1551,7 +1757,7 @@ TEST(reshape_gpu_i64, basic_2dim_input_output_padd_cached) {
         true);
 }
 
-TEST(reshpape_gpu_f32, basic_4dim_output_padd_cached) {
+TEST(reshape_gpu_f32, basic_4dim_output_pad_cached) {
     generic_reshape_test<float>(
         format::bfyx,
         tensor(2, 5, 7, 3),
@@ -1562,7 +1768,7 @@ TEST(reshpape_gpu_f32, basic_4dim_output_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_f16, basic_4dim_output_padd_cached) {
+TEST(reshape_gpu_f16, basic_4dim_output_pad_cached) {
     generic_reshape_test<ov::float16>(
         format::bfyx,
         tensor(5, 4, 2, 2),
@@ -1573,7 +1779,18 @@ TEST(reshape_gpu_f16, basic_4dim_output_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_f32, basic_4dim_input_padd_cached) {
+TEST(reshape_gpu_bf16, basic_4dim_output_pad_cached) {
+    generic_reshape_test<ov::bfloat16>(
+        format::bfyx,
+        tensor(5, 4, 2, 2),
+        tensor(40, 2, 1, 1),
+        false,
+        padding(),
+        padding({0, 2, 0, 1}, {0, 2, 3, 0}),
+        true);
+}
+
+TEST(reshape_gpu_f32, basic_4dim_input_pad_cached) {
     generic_reshape_test<float>(
         format::yxfb,
         tensor(8, 128, 3, 3),
@@ -1584,7 +1801,7 @@ TEST(reshape_gpu_f32, basic_4dim_input_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_f16, basic_4dim_input_padd_cached) {
+TEST(reshape_gpu_f16, basic_4dim_input_pad_cached) {
     generic_reshape_test<ov::float16>(
         format::yxfb,
         tensor(2, 32, 8, 8),
@@ -1595,7 +1812,18 @@ TEST(reshape_gpu_f16, basic_4dim_input_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_f32, basic_4dim_input_output_padd_cached) {
+TEST(reshape_gpu_bf16, basic_4dim_input_pad_cached) {
+    generic_reshape_test<ov::bfloat16>(
+        format::yxfb,
+        tensor(2, 32, 8, 8),
+        tensor(8, 128, 1, 4),
+        false,
+        padding({2, 2, 1, 0}, {1, 2, 2, 0}),
+        padding(),
+        true);
+}
+
+TEST(reshape_gpu_f32, basic_4dim_input_output_pad_cached) {
     generic_reshape_test<float>(
         format::fyxb,
         tensor(8, 1024, 25, 25),
@@ -1606,8 +1834,19 @@ TEST(reshape_gpu_f32, basic_4dim_input_output_padd_cached) {
         true);
 }
 
-TEST(reshape_gpu_f16, basic_4dim_input_output_padd_cached) {
+TEST(reshape_gpu_f16, basic_4dim_input_output_pad_cached) {
     generic_reshape_test<ov::float16>(
+        format::byxf,
+        tensor(32, 3, 227, 227),
+        tensor(8, 12, 227, 227),
+        false,
+        padding({0, 1, 4, 4}, {0, 1, 1, 1}),
+        padding({0, 29, 29, 0}, {0, 0, 0, 0}),
+        true);
+}
+
+TEST(reshape_gpu_bf16, basic_4dim_input_output_pad_cached) {
+    generic_reshape_test<ov::bfloat16>(
         format::byxf,
         tensor(32, 3, 227, 227),
         tensor(8, 12, 227, 227),

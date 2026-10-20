@@ -58,7 +58,7 @@ TEST(type_prop, unsqueeze_positive_axis_gt_ouput_rank) {
 TEST(type_prop, unsqueeze_negative_axis_gt_ouput_rank) {
     constexpr int64_t bad_axis = -7;
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 1, 4, 1, 8});
-    auto axes_node = make_shared<ov::op::v0::Constant>(element::u64, Shape{1}, bad_axis);
+    auto axes_node = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, bad_axis);
 
     try {
         auto unsqueeze = make_shared<op::v0::Unsqueeze>(param, axes_node);

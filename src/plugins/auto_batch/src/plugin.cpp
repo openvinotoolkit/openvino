@@ -11,7 +11,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/container_util.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -114,6 +114,9 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 
 static const ov::Version version = {CI_BUILD_NUMBER, "openvino_auto_batch_plugin"};
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
+
+// This plugin does not participate in device-name dispatch; export the probe as a stub.
+OV_DEFINE_PLUGIN_ENUMERATE_STUB()
 
 Plugin::Plugin() {
     set_device_name("BATCH");

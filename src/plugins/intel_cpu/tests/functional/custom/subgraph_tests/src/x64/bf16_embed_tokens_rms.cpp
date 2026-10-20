@@ -46,10 +46,9 @@ public:
                                                    -1 /*disable group quantization*/,
                                                    ov::element::u8 /*data prc*/,
                                                    ov::element::f32 /*output prc*/,
-                                                   true /*add_subtract*/,
-                                                   false /*add reshape*/,
-                                                   false /*per tensor zp*/,
-                                                   false /*per tensor scale*/);
+                                                   utils::DecompressionType::full /*multiply*/,
+                                                   utils::DecompressionType::full /*subtract*/,
+                                                   false /*add reshape*/);
 
         auto gather_axis = utils::make_constant(ov::element::i32, {1}, std::vector<int>{0});
 

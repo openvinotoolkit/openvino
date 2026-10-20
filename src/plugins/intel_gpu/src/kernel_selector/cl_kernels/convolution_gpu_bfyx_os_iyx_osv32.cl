@@ -44,6 +44,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv32)(
     const uint batch_idx = (fm / SUB_GROUP_SIZE) % OUTPUT_BATCH_NUM;
     const uint fmg = (fm / SUB_GROUP_SIZE) / OUTPUT_BATCH_NUM;
     const uint feature_idx = fmg * OSV_SIZE + lid;
+    const uint input0_physical_len = INPUT0_OFFSET_WITH_PADDING + INPUT0_BATCH_PITCH * INPUT0_BATCH_NUM;
 
     UNIT_TYPE in[IN_BLOCK_ARRAY_SIZE];
     CALC_UNIT_TYPE out[OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT];
@@ -66,8 +67,9 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv32)(
         for(uint in_block_pos = 0; in_block_pos < IN_BLOCK_ARRAY_SIZE * SUB_GROUP_SIZE; in_block_pos += SUB_GROUP_SIZE) {
             // Horizontal position in input block after read.
             const uint in_block_next_x_pos = in_block_pos % IN_BLOCK_WIDTH + SUB_GROUP_SIZE;
-
-            in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH];
+            uint idx = tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH;
+            idx = min(idx, input0_physical_len - 1);
+            in[in_block_pos / SUB_GROUP_SIZE] = input[idx];
 
             // If we have row break, move to the next row.
             if (in_block_next_x_pos == IN_BLOCK_WIDTH)
@@ -80,7 +82,9 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv32)(
             const uint in_block_next_x_pos = in_block_pos % IN_BLOCK_WIDTH + SUB_GROUP_SIZE;
 
             if (in_block_next_x_pos <= IN_BLOCK_WIDTH) { //
-                in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH];
+                uint idx = tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH;
+                idx = min(idx, input0_physical_len - 1);
+                in[in_block_pos / SUB_GROUP_SIZE] = input[idx];
 
                 // If we have row break, move to the next row.
                 if (in_block_next_x_pos == IN_BLOCK_WIDTH)
@@ -91,12 +95,18 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv32)(
                 // Position in sub-group on which new row need to be read.
                 const uint sg_br_pos = IN_BLOCK_WIDTH - in_block_pos % IN_BLOCK_WIDTH;
 
-                if (lid < sg_br_pos)
-                    in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH];
+                if (lid < sg_br_pos) {
+                    uint idx = tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH;
+                    idx = min(idx, input0_physical_len - 1);
+                    in[in_block_pos / SUB_GROUP_SIZE] = input[idx];
+                }
                 // We have row break inside sub-group. Need to move to next line.
                 tmp_in_addr += INPUT0_Y_PITCH;
-                if (lid >= sg_br_pos)
-                    in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr - (sg_br_pos * INPUT0_X_PITCH)];
+                if (lid >= sg_br_pos) {
+                    uint idx = tmp_in_addr - (sg_br_pos * INPUT0_X_PITCH);
+                    idx = min(idx, input0_physical_len - 1);
+                    in[in_block_pos / SUB_GROUP_SIZE] = input[idx];
+                }
 
                 // If we have another row break, move to the next row.
                 if (in_block_next_x_pos == 2 * IN_BLOCK_WIDTH)

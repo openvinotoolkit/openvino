@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "base_reference_test.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 #include "openvino/op/parameter.hpp"
 
@@ -558,6 +559,12 @@ std::vector<ScatterUpdate3Params> generateScatterUpdateNegativeAxisParams() {
     }
     return combinedParams;
 }
+
+class ReferenceScatterUpdate6LayerNegativeTest : public ReferenceScatterUpdate6LayerTest {};
+
+TEST_P(ReferenceScatterUpdate6LayerNegativeTest, CompareWithHardcodedRefs) {
+    OV_EXPECT_THROW(Exec(), ov::Exception, testing::HasSubstr("is out of bounds for axis"));
+}
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate_With_Hardcoded_Refs,
@@ -569,4 +576,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate_Negative_Axis_With_Hardcoded_Refs,
                          ReferenceScatterUpdate6LayerTest,
                          ::testing::ValuesIn(generateScatterUpdateNegativeAxisParams()),
                          ReferenceScatterUpdate6LayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_ScatterUpdate_out_of_range_index_throws,
+    ReferenceScatterUpdate6LayerNegativeTest,
+    ::testing::Values(
+        Builder{}
+            .data({{3, 3}, ov::element::f32, std::vector<float>{0, 0, 0, 0, 0, 0, 0, 0, 0}})
+            .indices({{1, 2},
+                      ov::element::Type_t::i64,
+                      std::vector<int64_t>{1, static_cast<int64_t>(std::numeric_limits<int64_t>::max())}})
+            .updates({{1, 2, 3}, ov::element::f32, std::vector<float>{1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}})
+            .axis({{1}, ov::element::i64, std::vector<int64_t>{0}})
+            .expected({{3, 3}, ov::element::f32, std::vector<float>{0, 0, 0, 0, 0, 0, 0, 0, 0}})),
+    ReferenceScatterUpdate6LayerNegativeTest::getTestCaseName);
+
 }  // namespace reference_tests

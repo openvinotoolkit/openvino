@@ -2,26 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/op/roi_pooling.hpp"
-#include "openvino/op/psroi_pooling.hpp"
-#include "openvino/op/deformable_psroi_pooling.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/roi_pooling.hpp"
+#include "openvino/op/deformable_psroi_pooling.hpp"
+#include "openvino/op/psroi_pooling.hpp"
 
 namespace ov::intel_gpu {
 
 static cldnn::pooling_mode GetPoolingMode(std::string method) {
-    if (method == "bilinear")
+    if (method == "bilinear") {
         return cldnn::pooling_mode::bilinear;
-    else if (method == "max")
+    }
+    if (method == "max") {
         return cldnn::pooling_mode::max;
-    else if (method == "average")
+    }
+    if (method == "average") {
         return cldnn::pooling_mode::average;
-    else
-        return cldnn::pooling_mode::deformable_bilinear;
+    }
+    return cldnn::pooling_mode::deformable_bilinear;
 }
 
 static void CreateDeformablePSROIPoolingOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::DeformablePSROIPooling>& op) {
@@ -32,7 +33,7 @@ static void CreateDeformablePSROIPoolingOp(ProgramBuilder& p, const std::shared_
     cldnn::pooling_mode mode = GetPoolingMode(op->get_mode());
     float trans_std = op->get_trans_std();
     int part_size = static_cast<int>(op->get_part_size());
-    bool no_trans = op->get_input_size() == 2 ? true : false;
+    bool no_trans = op->get_input_size() == 2;
 
     // temporary workaround due to incorrect usage of group_size in the nGraph operation for the DeformablePSROIPooling
     int pooled_width = static_cast<int>(op->get_group_size());

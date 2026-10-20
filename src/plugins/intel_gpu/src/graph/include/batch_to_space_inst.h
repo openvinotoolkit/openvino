@@ -35,11 +35,7 @@ public:
 
     bool need_reset_output_memory() const override {
         const auto desc = _impl_params->typed_desc<batch_to_space>();
-        if (desc->shape_constant) {
-            return true;
-        }
-
-        return false;
+        return desc->shape_constant != 0;
     }
 
     typed_primitive_inst(network& network, batch_to_space_node const& desc);

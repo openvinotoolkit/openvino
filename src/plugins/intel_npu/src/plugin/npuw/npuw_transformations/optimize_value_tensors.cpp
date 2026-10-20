@@ -75,6 +75,78 @@ protected:
     }
 };
 
+class TransposeDirectValueTensorsPrefill : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeDirectValueTensorsPrefill");
+    explicit TransposeDirectValueTensorsPrefill(TransposeValueTensors::Context::Ref ctx) {
+        auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
+        auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
+        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, transpose});
+
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
+            const auto& node_to_output = m.get_pattern_value_map();
+            const auto matched_transpose =
+                ov::as_type_ptr<ov::op::v1::Transpose>(node_to_output.at(transpose).get_node_shared_ptr());
+            const auto matched_matmul =
+                ov::as_type_ptr<ov::op::v0::MatMul>(node_to_output.at(matmul).get_node_shared_ptr());
+
+            if (matched_transpose == nullptr || matched_matmul == nullptr) {
+                return false;
+            }
+
+            const auto shape = matched_transpose->get_output_partial_shape(0);
+            if (shape.rank().is_dynamic() || shape.rank().get_length() != 4) {
+                return false;
+            }
+
+            const auto order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
+            matched_transpose->set_argument(1, order);
+            matched_matmul->set_transpose_b(true);
+            ctx.get().bTransposed = true;
+            LOG_DEBUG("vtensors transposed: Whisper cross-attention prefill pattern");
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeDirectValueTensorsPrefill"),
+                         std::move(callback));
+    }
+};
+
+class TransposeDirectValueTensorsGenerate : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeDirectValueTensorsGenerate");
+    explicit TransposeDirectValueTensorsGenerate(TransposeValueTensors::Context::Ref ctx) {
+        auto param = opp::wrap_type<ov::op::v0::Parameter>();
+        auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
+        auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
+        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, convert});
+
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
+            const auto& node_to_output = m.get_pattern_value_map();
+            const auto matched_param =
+                ov::as_type_ptr<ov::op::v0::Parameter>(node_to_output.at(param).get_node_shared_ptr());
+            const auto matched_matmul =
+                ov::as_type_ptr<ov::op::v0::MatMul>(node_to_output.at(matmul).get_node_shared_ptr());
+
+            if (matched_param == nullptr || matched_matmul == nullptr) {
+                return false;
+            }
+
+            auto shape = matched_param->get_partial_shape();
+            if (shape.rank().is_dynamic() || shape.rank().get_length() != 4) {
+                return false;
+            }
+
+            std::swap(shape[2], shape[3]);
+            matched_param->set_partial_shape(shape);
+            matched_matmul->set_transpose_b(true);
+            ctx.get().bTransposed = true;
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeDirectValueTensorsGenerate"),
+                         std::move(callback));
+    }
+};
+
 // MHA (Multi-Head Attention) pattern for value tensor concatenation
 class TransposeValueTensors_MHA : public TransposeValueTensors {
 public:
@@ -127,7 +199,10 @@ public:
 private:
     void register_matcher_gqa(Context::Ref ctx) {
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
-        auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
+        // MQA: aten::transpose on a dim-1 axis (num_kv_heads==1) is optimized by the
+        // frontend into a Reshape instead of a real Transpose, so match both.
+        auto transpose =
+            opp::wrap_type<ov::op::v1::Transpose, ov::op::v1::Reshape>({opp::any_input(), opp::any_input()});
         auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
         auto concat = opp::wrap_type<ov::op::v0::Concat>({convert, transpose});
 
@@ -155,6 +230,38 @@ private:
             auto matched_node_unsqueeze_axes = node_to_output.at(unsqueeze_axes).get_node_shared_ptr();
             auto matched_node_broadcast = node_to_output.at(broadcast).get_node_shared_ptr();
             auto matched_node_reshape = node_to_output.at(reshape).get_node_shared_ptr();
+
+            // MQA: Replace it with a
+            // real Transpose so that transpose_matmul_b can set the permutation order
+            // uniformly.  The placeholder order {0,2,1,3} will be overwritten to
+            // {0,2,3,1} by transpose_matmul_b.
+            if (ov::is_type<ov::op::v1::Reshape>(matched_node_transpose)) {
+                // Only accept a Reshape that is semantically a genuine MQA fake-transpose:
+                //   [B, Snew, 1, D] → [B, 1, Snew, D]
+                // i.e. 4D→4D, axes 1 and 2 are swapped, and the swapped-out dim equals 1
+                // (num_kv_heads==1).  Any other Reshape (e.g. 3D→4D in negative tests)
+                // must be rejected so the matcher does not fire.
+                const auto& in_shape = matched_node_transpose->input_value(0).get_partial_shape();
+                const auto& out_shape = matched_node_transpose->get_output_partial_shape(0);
+                const bool is_mqa_fake_transpose =
+                    in_shape.rank().is_static() && in_shape.rank().get_length() == 4 && out_shape.rank().is_static() &&
+                    out_shape.rank().get_length() == 4 && in_shape[0].compatible(out_shape[0]) &&  // B unchanged
+                    in_shape[3].compatible(out_shape[3]) &&                                        // D unchanged
+                    in_shape[1].compatible(out_shape[2]) &&                    // Snew swapped to dim 2
+                    in_shape[2].compatible(out_shape[1]) &&                    // kv_heads swapped to dim 1
+                    in_shape[2].is_static() && in_shape[2].get_length() == 1;  // kv_heads==1
+                if (!is_mqa_fake_transpose) {
+                    return false;
+                }
+                LOG_DEBUG("GQA: matched 'transpose' is a Reshape (num_kv_heads==1); replacing with Transpose");
+                auto data_input = matched_node_transpose->input_value(0);
+                auto placeholder_order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3});
+                auto new_transpose = std::make_shared<ov::op::v1::Transpose>(data_input, placeholder_order);
+                new_transpose->set_friendly_name(matched_node_transpose->get_friendly_name());
+                ov::copy_runtime_info(matched_node_transpose, new_transpose);
+                ov::replace_node(matched_node_transpose, new_transpose);
+                matched_node_transpose = new_transpose;
+            }
 
             auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_param);
             auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(matched_node_concat);
@@ -335,6 +442,13 @@ bool ov::npuw::util::OptimizeValueTensors::run_on_model(const std::shared_ptr<ov
     TransposeValueTensors::Context ctx;
     rewr.add_matcher<TransposeValueTensors_MHA>(std::ref(ctx));
     rewr.add_matcher<TransposeValueTensors_GQA>(std::ref(ctx));
+    if (m_is_whisper) {
+        if (m_is_prefill) {
+            rewr.add_matcher<TransposeDirectValueTensorsPrefill>(std::ref(ctx));
+        } else {
+            rewr.add_matcher<TransposeDirectValueTensorsGenerate>(std::ref(ctx));
+        }
+    }
 
     rewr.run_on_model(model);
 

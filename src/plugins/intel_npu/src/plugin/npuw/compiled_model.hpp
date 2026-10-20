@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <mutex>
 #include <optional>
 
 #include "attention.hpp"
@@ -38,6 +39,14 @@ public:
     static std::shared_ptr<ov::npuw::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
                                                             const std::shared_ptr<const ov::IPlugin>& plugin,
                                                             const ov::AnyMap& properties);
+    // True when the stream holds an NPUW blob: a partitioned ORC container or an
+    // indicator-headed blob. The stream position is left where it was.
+    static bool is_npuw_blob(std::istream& stream);
+    // Imports any NPUW blob, routing it to the matching implementation's
+    // import_model(). The import counterpart of create().
+    static std::shared_ptr<ov::npuw::ICompiledModel> import_model(std::istream& stream,
+                                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                                  const ov::AnyMap& properties);
     ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin);
 };
 
@@ -71,6 +80,7 @@ public:
 
 // Forward declarations
 class InferRequest;
+struct CompiledModelDescTestAccessor;
 
 namespace v1::subgraphs {
 class Context;
@@ -109,6 +119,7 @@ public:
     static std::shared_ptr<CompiledModel> import_model(std::istream& stream,
                                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                                        const ov::AnyMap& properties);
+    static void validate_import_routing_tables(const std::shared_ptr<CompiledModel>& compiled);
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
     void set_property(const ov::AnyMap& properties) override;
@@ -135,6 +146,7 @@ public:
 
 private:
     // FIXME: This class has many friends..
+    friend struct CompiledModelDescTestAccessor;
     friend class IBaseInferRequest;
     friend class JustInferRequest;
     friend class UnfoldInferRequest;
@@ -143,6 +155,7 @@ private:
     friend class LLMCompiledModel;
     friend class LLMInferRequest;
     friend class moe::MoEExecutor;
+    friend class CompiledModelDescSerializationAccess;
 
     bool compile_for_success(std::size_t id, const std::vector<std::string>& devices);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
@@ -234,6 +247,16 @@ private:
 
     DeviceProperties m_meta_devices;
 
+    // set_property() updates m_meta_devices and m_non_npuw_props at runtime, while failsafe
+    // fallback compilation, infer request creation, get_property() and export may read them
+    // concurrently. m_props_mutex guards both maps and is held only for short map accesses, never
+    // while calling into the submodels: failsafe calls back into compile_submodel() under its own
+    // lock, so the lock order is m_set_property_mutex -> failsafe lock -> m_props_mutex.
+    mutable std::mutex m_props_mutex;
+    // Serializes set_property() calls so the submodels and the configs end up with the same values
+    std::mutex m_set_property_mutex;
+    ov::AnyMap non_npuw_props() const;
+
     DevList m_dev_list;
 
     struct execution_stats {
@@ -319,6 +342,51 @@ private:
     ov::npuw::s11n::WeightsContext m_import_weights_ctx;
 
     std::shared_future<void> m_eval_future;
+
+    static void validate_submodels(const std::vector<CompiledModelDesc>& submodels);
 };
+
+struct CompiledModelDescTestAccessor {
+    using SubmodelDesc = CompiledModel::CompiledModelDesc;
+    using SubmodelVec = std::vector<CompiledModel::CompiledModelDesc>;
+
+    static SubmodelDesc make() {
+        return {};
+    }
+    static auto& compiled_model(SubmodelDesc& desc) {
+        return desc.compiled_model;
+    }
+    static auto& host_gather(SubmodelDesc& desc) {
+        return desc.host_gather;
+    }
+    static auto& quant_unpack_gather(SubmodelDesc& desc) {
+        return desc.quant_unpack_gather;
+    }
+    static auto& param_base(SubmodelDesc& desc) {
+        return desc.param_base;
+    }
+    static auto& closure(SubmodelDesc& desc) {
+        return desc.closure;
+    }
+    static void validate_submodels(const SubmodelVec& submodels) {
+        CompiledModel::validate_submodels(submodels);
+    }
+};
+
+// Validates that submodel routing indices are in bounds. Runs on both export and import.
+// Throws ov::Exception when an index would cause an out-of-bounds vector access
+// in bind_global_params / unpack_closure at inference time.
+// has_compiled_model: true when a compiled_model was loaded (enables input-bounds checks).
+// skip_param_base_bound_check: true when a runtime behavior (e.g. HostFlashAttention) owns the
+// function prologue and substitutes its own, differently-shaped compiled model, making the
+// generic param_base/closure_size vs n_model_inputs invariant inapplicable.
+void validate_submodel_indices(const Subgraph::Gather& host_gather,
+                               const Subgraph::QuantUnpackGather& quant_unpack_gather,
+                               std::size_t param_base,
+                               std::size_t closure_size,
+                               bool has_compiled_model,
+                               std::size_t n_model_inputs,
+                               bool skip_param_base_bound_check = false);
+
 }  // namespace npuw
 }  // namespace ov

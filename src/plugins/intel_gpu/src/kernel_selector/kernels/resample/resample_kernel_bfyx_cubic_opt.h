@@ -11,7 +11,7 @@ class ResampleKernelBfyxCubicOpt : public ResampleKernelBase {
 public:
     using Parent = ResampleKernelBase;
     ResampleKernelBfyxCubicOpt() : ResampleKernelBase("resample_bfyx_cubic_opt") {}
-    virtual ~ResampleKernelBfyxCubicOpt() = default;
+    ~ResampleKernelBfyxCubicOpt() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
@@ -19,7 +19,7 @@ public:
 
 protected:
     bool Validate(const Params& p) const override;
-    JitConstants GetJitConstants(const resample_params& params) const override;
+    JitConstants GetJitConstants(const resample_params& params, bool legacy_scale = false) const override;
     DispatchData SetDefault(const resample_params& arg) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,

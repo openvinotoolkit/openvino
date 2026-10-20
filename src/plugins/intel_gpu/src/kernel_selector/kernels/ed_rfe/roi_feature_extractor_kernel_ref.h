@@ -22,7 +22,7 @@ struct experimental_detectron_roi_feature_extractor_params : public base_params 
 class ExperimentalDetectronROIFeatureExtractorRef : public KernelBaseOpenCL {
 public:
     ExperimentalDetectronROIFeatureExtractorRef() : KernelBaseOpenCL("experimental_detectron_roi_feature_extractor_ref") {}
-    ~ExperimentalDetectronROIFeatureExtractorRef() = default;
+    ~ExperimentalDetectronROIFeatureExtractorRef() override = default;
 
     using DispatchData = CommonDispatchData;
 

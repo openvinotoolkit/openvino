@@ -85,13 +85,13 @@ pip install -q transformers requests
 
 ### Step 1 — Probe
 
-Invoke `skills/analyze-and-convert/probe-model.md`.
+Invoke [`skills/analyze-and-convert/probe-model.md`](skills/analyze-and-convert/probe-model.md).
 
 Produces: `model_profile.json`
 
 ### Step 2 — Convert
 
-Invoke `skills/analyze-and-convert/try-conversion.md`.
+Invoke [`skills/analyze-and-convert/try-conversion.md`](skills/analyze-and-convert/try-conversion.md).
 
 Strategy selection is guided by `model_profile.json`:
 - If `optimum_supported == false` → still attempt with git-HEAD (optimum may have
@@ -107,7 +107,7 @@ Produces: `conversion_attempts.json`, `ov_model_*/` (if any success)
 
 Skip this step only if conversion succeeded **and** inference check passed.
 
-Invoke `skills/analyze-and-convert/classify-failure.md`.
+Invoke [`skills/analyze-and-convert/classify-failure.md`](skills/analyze-and-convert/classify-failure.md).
 
 Produces: `routing_signals.json`, `error_excerpts.json`
 
@@ -115,7 +115,7 @@ Produces: `routing_signals.json`, `error_excerpts.json`
 
 Always execute, regardless of outcome.
 
-Invoke `skills/analyze-and-convert/build-report.md`.
+Invoke [`skills/analyze-and-convert/build-report.md`](skills/analyze-and-convert/build-report.md).
 
 Produces: `conversion_report.md`, saves to `agent-results/`, emits `agent-complete` marker.
 

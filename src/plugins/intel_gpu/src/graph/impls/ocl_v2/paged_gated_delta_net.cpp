@@ -26,7 +26,6 @@ size_t get_subgroup_size(gpu_arch arch) {
     case gpu_arch::xe_hp:
     case gpu_arch::xe_hpg:
         return 8;
-    case gpu_arch::xe_hpc:
     case gpu_arch::xe2:
     case gpu_arch::xe3:
     default:
@@ -142,8 +141,9 @@ protected:
             const auto& v_layout = params.input_layouts[paged_gated_delta_net::VALUE];
             auto read_pitch = [](const cldnn::layout& layout, size_t idx) -> int32_t {
                 const auto& pitches = layout.get_pitches();
-                if (idx < pitches.size())
+                if (idx < pitches.size()) {
                     return static_cast<int32_t>(pitches[idx]);
+                }
                 return 1;
             };
 
@@ -241,5 +241,6 @@ std::unique_ptr<primitive_impl> PagedGatedDeltaNetOpt::create_impl(const program
 
 }  // namespace ov::intel_gpu::ocl
 
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::paged_gated_delta_net)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::PagedGatedDeltaNetRefImpl)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::PagedGatedDeltaNetOptImpl)

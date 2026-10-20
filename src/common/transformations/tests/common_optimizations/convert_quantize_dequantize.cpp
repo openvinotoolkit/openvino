@@ -34,23 +34,25 @@ std::shared_ptr<Model> create_q_dq_function(const Shape& data_shape,
                                             std::vector<T> zero_point_values, /*const bool zero_point_in_f32,*/
                                             const Shape& scale_shape,
                                             std::vector<float> scale_values,
-                                            size_t levels) {
-    auto data = std::make_shared<opset1::Parameter>(element::f32, data_shape);
-    auto input_low = opset1::Constant::create(element::f32, Shape{}, {in_low});
-    auto input_high = opset1::Constant::create(element::f32, Shape{}, {in_high});
-    auto output_low = opset1::Constant::create(element::f32, Shape{}, {out_low});
-    auto output_high = opset1::Constant::create(element::f32, Shape{}, {out_high});
+                                            size_t levels,
+                                            element::Type data_type,
+                                            element::Type fq_type) {
+    auto data = std::make_shared<opset1::Parameter>(data_type, data_shape);
+    auto input_low = opset1::Constant::create(data_type, Shape{}, {in_low});
+    auto input_high = opset1::Constant::create(data_type, Shape{}, {in_high});
+    auto output_low = opset1::Constant::create(fq_type, Shape{}, {out_low});
+    auto output_high = opset1::Constant::create(fq_type, Shape{}, {out_high});
     auto fq = std::make_shared<opset1::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels);
     auto convert1 = std::make_shared<opset1::Convert>(fq, ov::element::from<LowPrecision>());
-    auto convert2 = std::make_shared<opset1::Convert>(convert1, element::f32);
+    auto convert2 = std::make_shared<opset1::Convert>(convert1, fq_type);
     const std::shared_ptr<Node> zero_point =
-        ov::element::from<T>() == element::f32
+        ov::element::from<T>() == fq_type
             ? opset1::Constant::create(ov::element::from<T>(), zero_point_shape, zero_point_values)
             : std::dynamic_pointer_cast<Node>(std::make_shared<opset1::Convert>(
                   opset1::Constant::create(ov::element::from<T>(), zero_point_shape, zero_point_values),
-                  element::f32));
+                  fq_type));
     auto sub = std::make_shared<opset1::Subtract>(convert2, zero_point);
-    auto scale = opset1::Constant::create(element::f32, scale_shape, scale_values);
+    auto scale = opset1::Constant::create(fq_type, scale_shape, scale_values);
     auto mul = std::make_shared<opset1::Multiply>(sub, scale);
 
     return std::make_shared<Model>(OutputVector{mul}, ParameterVector{data});
@@ -66,7 +68,9 @@ void positive_test(const Shape& data_shape,
                    std::vector<T> zero_point_values,
                    const Shape& scale_shape,
                    std::vector<float> scale_values,
-                   size_t levels) {
+                   size_t levels,
+                   element::Type data_type,
+                   element::Type fq_type) {
     std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     {
         f = create_q_dq_function<LowPrecision>(data_shape,
@@ -78,7 +82,9 @@ void positive_test(const Shape& data_shape,
                                                zero_point_values,
                                                scale_shape,
                                                scale_values,
-                                               levels);
+                                               levels,
+                                               data_type,
+                                               fq_type);
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -90,15 +96,20 @@ void positive_test(const Shape& data_shape,
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, data_shape);
-        auto input_low = opset1::Constant::create(element::f32, Shape{}, {in_low});
-        auto input_high = opset1::Constant::create(element::f32, Shape{}, {in_high});
+        auto data = std::make_shared<opset1::Parameter>(data_type, data_shape);
+        auto input_low = opset1::Constant::create(data_type, Shape{}, {in_low});
+        auto input_high = opset1::Constant::create(data_type, Shape{}, {in_high});
         auto output_low =
-            opset1::Constant::create(element::f32, Shape{}, {(out_low - zero_point_values[0]) * scale_values[0]});
+            opset1::Constant::create(fq_type, Shape{}, {(out_low - zero_point_values[0]) * scale_values[0]});
         auto output_high =
-            opset1::Constant::create(element::f32, Shape{}, {(out_high - zero_point_values[0]) * scale_values[0]});
+            opset1::Constant::create(fq_type, Shape{}, {(out_high - zero_point_values[0]) * scale_values[0]});
         auto fq = std::make_shared<opset1::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels);
-        f_ref = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
+        if (data_type == fq_type) {
+            f_ref = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
+        } else {
+            auto convert_out = std::make_shared<opset1::Convert>(fq, fq_type);
+            f_ref = std::make_shared<Model>(OutputVector{convert_out}, ParameterVector{data});
+        }
     }
 
     auto res = compare_functions(f, f_ref);
@@ -127,7 +138,9 @@ TEST(TransformationTests, ConvertQuantizeDequantizeINT8WithINT8ZeroPoint) {
                           zero_point_values,
                           scale_shape,
                           scale_values,
-                          levels);
+                          levels,
+                          element::f32,
+                          element::f32);
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeINT8WithFP32ZeroPoint) {
@@ -152,7 +165,9 @@ TEST(TransformationTests, ConvertQuantizeDequantizeINT8WithFP32ZeroPoint) {
                           zero_point_values,
                           scale_shape,
                           scale_values,
-                          levels);
+                          levels,
+                          element::f32,
+                          element::f32);
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeUINT8WithUINT8ZeroPoint) {
@@ -177,7 +192,9 @@ TEST(TransformationTests, ConvertQuantizeDequantizeUINT8WithUINT8ZeroPoint) {
                            zero_point_values,
                            scale_shape,
                            scale_values,
-                           levels);
+                           levels,
+                           element::f32,
+                           element::f32);
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeUINT8WithFP32ZeroPoint) {
@@ -202,7 +219,36 @@ TEST(TransformationTests, ConvertQuantizeDequantizeUINT8WithFP32ZeroPoint) {
                            zero_point_values,
                            scale_shape,
                            scale_values,
-                           levels);
+                           levels,
+                           element::f32,
+                           element::f32);
+}
+
+TEST(TransformationTests, ConvertQuantizeDequantizeINT8WithINT8ZeroPointMixedFP16) {
+    std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
+    Shape data_shape{3, 1, 2};
+    float in_low = 0;
+    float in_high = 5;
+    float out_low = -128;
+    float out_high = 127;
+    Shape zero_point_shape{};
+    std::vector<int8_t> zero_point_values{2};
+    Shape scale_shape{};
+    std::vector<float> scale_values{3};
+    size_t levels = 256;
+
+    positive_test<int8_t>(data_shape,
+                          in_low,
+                          in_high,
+                          out_low,
+                          out_high,
+                          zero_point_shape,
+                          zero_point_values,
+                          scale_shape,
+                          scale_values,
+                          levels,
+                          element::f16,
+                          element::f32);
 }
 
 template <typename LowPrecision, typename T>
@@ -215,7 +261,9 @@ void negative_test(const Shape& data_shape,
                    std::vector<T> zero_point_values,
                    const Shape& scale_shape,
                    std::vector<float> scale_values,
-                   size_t levels) {
+                   size_t levels,
+                   element::Type data_type,
+                   element::Type fq_type) {
     std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     {
         f = create_q_dq_function<LowPrecision>(data_shape,
@@ -227,7 +275,9 @@ void negative_test(const Shape& data_shape,
                                                zero_point_values,
                                                scale_shape,
                                                scale_values,
-                                               levels);
+                                               levels,
+                                               data_type,
+                                               fq_type);
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertQuantizeDequantize>();
@@ -246,7 +296,9 @@ void negative_test(const Shape& data_shape,
                                                    zero_point_values,
                                                    scale_shape,
                                                    scale_values,
-                                                   levels);
+                                                   levels,
+                                                   data_type,
+                                                   fq_type);
     }
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
@@ -274,7 +326,9 @@ TEST(TransformationTests, ConvertQuantizeDequantizeZeroPointNotBroadcastableWith
                           zero_point_values,
                           scale_shape,
                           scale_values,
-                          levels);
+                          levels,
+                          element::f32,
+                          element::f32);
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeZeroPointNotBroadcastableWithFP32ZeroPoint) {
@@ -299,7 +353,9 @@ TEST(TransformationTests, ConvertQuantizeDequantizeZeroPointNotBroadcastableWith
                           zero_point_values,
                           scale_shape,
                           scale_values,
-                          levels);
+                          levels,
+                          element::f32,
+                          element::f32);
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeScaleNotBroadcastableWithINT8ZeroPoint) {
@@ -324,7 +380,9 @@ TEST(TransformationTests, ConvertQuantizeDequantizeScaleNotBroadcastableWithINT8
                           zero_point_values,
                           scale_shape,
                           scale_values,
-                          levels);
+                          levels,
+                          element::f32,
+                          element::f32);
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeScaleNotBroadcastableWithFP32ZeroPoint) {
@@ -349,7 +407,9 @@ TEST(TransformationTests, ConvertQuantizeDequantizeScaleNotBroadcastableWithFP32
                           zero_point_values,
                           scale_shape,
                           scale_values,
-                          levels);
+                          levels,
+                          element::f32,
+                          element::f32);
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeInvalidLevelsWithINT8ZeroPoint) {
@@ -374,7 +434,9 @@ TEST(TransformationTests, ConvertQuantizeDequantizeInvalidLevelsWithINT8ZeroPoin
                           zero_point_values,
                           scale_shape,
                           scale_values,
-                          levels);
+                          levels,
+                          element::f32,
+                          element::f32);
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeInvalidLevelsWithFP32ZeroPoint) {
@@ -399,7 +461,9 @@ TEST(TransformationTests, ConvertQuantizeDequantizeInvalidLevelsWithFP32ZeroPoin
                           zero_point_values,
                           scale_shape,
                           scale_values,
-                          levels);
+                          levels,
+                          element::f32,
+                          element::f32);
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeInvalidOutLowOutHighWithUINT8ZeroPoint) {
@@ -425,7 +489,9 @@ TEST(TransformationTests, ConvertQuantizeDequantizeInvalidOutLowOutHighWithUINT8
                            zero_point_values,
                            scale_shape,
                            scale_values,
-                           levels);
+                           levels,
+                           element::f32,
+                           element::f32);
 }
 
 TEST(TransformationTests, ConvertQuantizeDequantizeInvalidOutLowOutHighWithFP32ZeroPoint) {
@@ -451,5 +517,7 @@ TEST(TransformationTests, ConvertQuantizeDequantizeInvalidOutLowOutHighWithFP32Z
                            zero_point_values,
                            scale_shape,
                            scale_values,
-                           levels);
+                           levels,
+                           element::f32,
+                           element::f32);
 }

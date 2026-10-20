@@ -20,9 +20,9 @@ Napi::Function CompiledModelWrap::get_class(Napi::Env env) {
                        "CompiledModel",
                        {InstanceMethod("createInferRequest", &CompiledModelWrap::create_infer_request),
                         InstanceMethod("input", &CompiledModelWrap::get_input),
-                        InstanceAccessor<&CompiledModelWrap::get_inputs>("inputs"),
+                        InstanceAccessor("inputs", &CompiledModelWrap::get_inputs, nullptr),
                         InstanceMethod("output", &CompiledModelWrap::get_output),
-                        InstanceAccessor<&CompiledModelWrap::get_outputs>("outputs"),
+                        InstanceAccessor("outputs", &CompiledModelWrap::get_outputs, nullptr),
                         InstanceMethod("exportModelSync", &CompiledModelWrap::export_model),
                         InstanceMethod("setProperty", &CompiledModelWrap::set_property),
                         InstanceMethod("getProperty", &CompiledModelWrap::get_property)});

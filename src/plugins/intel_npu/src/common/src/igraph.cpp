@@ -28,7 +28,7 @@ std::optional<std::string_view> IGraph::get_compatibility_descriptor() const {
     OPENVINO_THROW("get_compatibility_descriptor not implemented");
 }
 
-void IGraph::initialize(const FilteredConfig& config) {
+void IGraph::initialize(const Config& config) {
     std::lock_guard<std::mutex> lock(_initialize_mutex);
 
     if (_init_completed.load(std::memory_order_acquire)) {
@@ -38,7 +38,7 @@ void IGraph::initialize(const FilteredConfig& config) {
     initialize_impl(config);
 }
 
-void IGraph::initialize_impl(const FilteredConfig&) {
+void IGraph::initialize_impl(const Config&) {
     OPENVINO_THROW("initialize_impl not implemented");
 }
 
@@ -46,8 +46,16 @@ const NetworkMetadata& IGraph::get_metadata() const {
     OPENVINO_THROW("get_metadata not implemented");
 }
 
-ze_graph_handle_t IGraph::get_handle() const {
+void* IGraph::get_handle() const {
     OPENVINO_THROW("get_handle not implemented");
+}
+
+GraphKind IGraph::get_kind() const {
+    return GraphKind::Weightful;
+}
+
+BlobType IGraph::get_blob_type() const {
+    return BlobType::ELF;
 }
 
 void IGraph::update_network_name(std::string_view) {

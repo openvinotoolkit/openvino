@@ -3,17 +3,21 @@
 //
 #pragma once
 
-#include <xbyak/xbyak.h>
-
 #include <cstddef>
 #include <cstdint>
 #include <openvino/core/type/element_type.hpp>
 #include <utility>
 #include <vector>
 
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_memory.h"
+#include "openvino/core/visibility.hpp"
 #include "utils/plain_tensor.hpp"
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include "cpu/x64/jit_generator.hpp"
+#endif  // OPENVINO_ARCH_X86_64
 
 namespace ov::Extensions::Cpu {
 

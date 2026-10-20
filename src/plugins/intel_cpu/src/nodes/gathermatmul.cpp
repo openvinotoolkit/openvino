@@ -16,6 +16,12 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
+#if defined(OPENVINO_ARCH_ARM64)
+#    include <cstdint>
+#    include <limits>
+
+#    include "utils/arm_isa_support.h"
+#endif
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
@@ -130,6 +136,31 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
         return false;
     }
     return true;
+#elif defined(OPENVINO_ARCH_ARM64)
+    try {
+        std::string errorMessage;
+        if (!isSupportedOperation(op, errorMessage)) {
+            return false;
+        }
+        if (!hasArmISASupport(ArmISA::DOTPROD) && !hasArmISASupport(ArmISA::I8MM)) {
+            return false;
+        }
+        if (config.fcDynamicQuantizationGroupSize != std::numeric_limits<uint64_t>::max()) {
+            return false;
+        }
+        // supports only symmetric quantization, only scales should be present.
+        if (op->get_input_size() > WEIGHT_SCALES &&
+            op->input(WEIGHT_SCALES).get_element_type() == ov::element::dynamic) {
+            return false;
+        }
+        if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
+            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::dynamic) {
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
 #else
     return false;
 #endif
@@ -139,6 +170,8 @@ ov::element::TypeVector GatherMatmul::getSupportedCompressedWeightsTypes([[maybe
     using ov::element::Type_t;
 #ifdef OPENVINO_ARCH_X86_64
     return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4};
+#elif defined(OPENVINO_ARCH_ARM64)
+    return {Type_t::i8, Type_t::i4};
 #else
     return {};
 #endif

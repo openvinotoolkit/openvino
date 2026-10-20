@@ -10,15 +10,16 @@ namespace ov::intel_gpu::op {
 FullyConnected::FullyConnected(const ov::Output<Node>& A,
                                const ov::Output<Node>& B,
                                const ov::Output<Node>& bias,
-                               const ov::element::Type output_type)
-    : Op({A, B, bias}), m_output_type(output_type) {
+                               const ov::element::Type output_type,
+                               const bool transpose_b)
+    : Op({A, B, bias}), m_output_type(output_type), m_transpose_b(transpose_b) {
     validate_and_infer_types();
 }
 
 std::shared_ptr<ov::Node> FullyConnected::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
 
-    return std::make_shared<FullyConnected>(new_args.at(0), new_args.at(1), new_args.at(2), m_output_type);
+    return std::make_shared<FullyConnected>(new_args.at(0), new_args.at(1), new_args.at(2), m_output_type, m_transpose_b);
 }
 
 void FullyConnected::validate_and_infer_types() {
@@ -31,7 +32,7 @@ void FullyConnected::validate_and_infer_types() {
 
     ov::op::v0::MatMul op;
     op.set_transpose_a(false);
-    op.set_transpose_b(true);
+    op.set_transpose_b(m_transpose_b);
 
     auto out_shapes = ov::op::v0::shape_infer(&op, std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)});
 
@@ -41,6 +42,7 @@ void FullyConnected::validate_and_infer_types() {
 
 bool FullyConnected::visit_attributes(ov::AttributeVisitor &visitor) {
     visitor.on_attribute("output_type", m_output_type);
+    visitor.on_attribute("transpose_b", m_transpose_b);
     return true;
 }
 

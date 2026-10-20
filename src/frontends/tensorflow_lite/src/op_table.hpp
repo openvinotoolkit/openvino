@@ -14,10 +14,7 @@
 #include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
-namespace op {
+namespace ov::frontend::tensorflow_lite::op {
 using CreatorFunction = std::function<OutputVector(const ov::frontend::tensorflow_lite::NodeContext&)>;
 
 std::map<std::string, CreatorFunction> get_supported_ops();
@@ -41,6 +38,7 @@ TFL_OP_CONVERTER(quantize);
 TFL_OP_CONVERTER(reshape);
 TFL_OP_CONVERTER(rfft2d);
 TFL_OP_CONVERTER(softmax);
+TFL_OP_CONVERTER(stablehlo_composite);
 TFL_OP_CONVERTER(transpose_conv);
 TFL_OP_CONVERTER(unique);
 TFL_OP_CONVERTER(while_op);
@@ -54,7 +52,7 @@ OutputVector translate_reduce_op(const ov::frontend::tensorflow_lite::NodeContex
 template <typename OV_TYPE>
 OutputVector translate_unary(const ov::frontend::tensorflow_lite::NodeContext& node) {
     auto inputs = node.get_inputs();
-    ov::frontend::tensorflow_lite::dequantize_inputs(inputs);
+    ov::frontend::tensorflow_lite::dequantize_inputs(inputs, node.get_decoder());
     auto context = ov::frontend::tensorflow_lite::NodeContext(node.get_decoder(), inputs);
     return ov::frontend::tensorflow::op::translate_unary_op<OV_TYPE>(context);
 }
@@ -62,12 +60,9 @@ OutputVector translate_unary(const ov::frontend::tensorflow_lite::NodeContext& n
 template <typename OV_TYPE>
 OutputVector translate_binary(const ov::frontend::tensorflow_lite::NodeContext& node) {
     auto inputs = node.get_inputs();
-    ov::frontend::tensorflow_lite::dequantize_inputs(inputs);
+    ov::frontend::tensorflow_lite::dequantize_inputs(inputs, node.get_decoder());
     auto context = ov::frontend::tensorflow_lite::NodeContext(node.get_decoder(), inputs);
     return ov::frontend::tensorflow::op::translate_binary_op<OV_TYPE>(context);
 }
 
-}  // namespace op
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite::op

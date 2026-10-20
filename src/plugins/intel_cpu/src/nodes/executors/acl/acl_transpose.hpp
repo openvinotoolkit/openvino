@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "acl_utils.hpp"
 #include "arm_compute/runtime/NEON/functions/NEPermute.h"
 #include "arm_compute/runtime/Tensor.h"
 #include "nodes/executors/transpose.hpp"
@@ -34,6 +35,10 @@ public:
     [[nodiscard]] bool isSupported([[maybe_unused]] const TransposeParams& transposeParams,
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override {
+        if (!aclSupported({srcDescs[0], dstDescs[0]})) {
+            DEBUG_LOG("ACL common preconditions are not met");
+            return false;
+        }
         if ((srcDescs[0]->hasLayoutType(LayoutType::ncsp) || dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
             (srcDescs[0]->hasLayoutType(LayoutType::nspc) || dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
             DEBUG_LOG("NEPermute does not support layout:",

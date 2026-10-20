@@ -14,6 +14,7 @@
 
 #include "llm_test_helpers.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/pass/stateful_to_stateless.hpp"
 
 namespace {
 using ov::test::npuw::CompileCall;
@@ -227,6 +228,132 @@ TEST_F(LLMCompiledModelGraphOptionsTest, GeneratePyramidBuildsTwoStaticGenerateV
     EXPECT_EQ(generate_attention_mask_shapes.size(), 2u);
     EXPECT_THAT(generate_attention_mask_shapes,
                 ::testing::UnorderedElementsAre(ov::Shape({1, 1152}), ov::Shape({1, 2176})));
+}
+
+TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillIsOnForChunkedPrefill) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // Nothing asks for it: an eligible chunked model turns continuous prefill on
+    // and the option reports the effective state.
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}},
+                                         recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
+}
+
+TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillCanBeTurnedOff) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "NO"},
+                                                      {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                                                      {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
+}
+
+TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillReportsOffForStaticPrefill) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // Whole (STATIC) prefill has no continuation path, so even an explicit YES
+    // is reported as NO.
+    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"},
+                                                      {"NPUW_LLM_PREFILL_HINT", "STATIC"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
+}
+
+TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillReportsOffWithPrefixCaching) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // The hash prefix cache cannot process delta-only inputs. It is requested
+    // explicitly, so it wins and continuous prefill is reported as NO.
+    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_ENABLE_PREFIX_CACHING", "YES"},
+                                                      {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                                                      {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
+}
+
+TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillReportsOffWithShrunkSlidingWindow) {
+    // A window-shrunk KV cache has no continuation path. The same model with the
+    // full KV cache keeps continuous prefill on.
+    const auto compile_swa_model = [this](const std::string& shrink) {
+        RecordingFactory recorder;
+        auto props = base_props();
+        merge_props(props,
+                    {{"NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", shrink},
+                     {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                     {"NPUW_LLM_PREFILL_CHUNK_SIZE", "8"}});
+        return std::make_unique<ov::npuw::LLMCompiledModel>(ov::test::npuw::build_sliding_window_test_model(32, 1),
+                                                            m_plugin,
+                                                            props,
+                                                            recorder.make_factory());
+    };
+
+    std::unique_ptr<ov::npuw::LLMCompiledModel> full;
+    ASSERT_NO_THROW(full = compile_swa_model("NO"));
+    EXPECT_TRUE(full->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
+
+    std::unique_ptr<ov::npuw::LLMCompiledModel> shrunk;
+    ASSERT_NO_THROW(shrunk = compile_swa_model("YES"));
+    EXPECT_FALSE(shrunk->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
+}
+
+TEST(HybridModelBuilderTest, HybridLinearAttnModelBuilds) {
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = ov::test::npuw::build_hybrid_llm_test_model());
+    ASSERT_NE(model, nullptr);
+
+    // Hybrid model must have sinks (conv + SSM + KV cache state assigns)
+    EXPECT_GT(model->get_sinks().size(), 0u);
+
+    // Validate the model is well-formed
+    EXPECT_TRUE(model->get_results().size() > 0u);
+}
+
+// LFM2-style gated short conv: conv state only (no SSM), key/value on attention layers.
+// StatefulToStateless is the pass NPUW actually runs to consume cache_params.* states.
+TEST(HybridModelBuilderTest, LFM2ModelConvertsToStateless) {
+    auto model = ov::test::npuw::build_lfm2_llm_test_model();
+    ASSERT_NE(model, nullptr);
+
+    // 2 short-conv layers x conv + 2 attn layers x (key + value) = 6 states.
+    ASSERT_EQ(model->get_sinks().size(), 6u);
+    ASSERT_EQ(model->get_variables().size(), 6u);
+
+    ASSERT_NO_THROW(ov::pass::StatefulToStateless().run_on_model(model));
+
+    auto has_input = [&](const std::string& n) {
+        for (const auto& p : model->inputs())
+            if (p.get_names().count(n))
+                return true;
+        return false;
+    };
+    auto has_output = [&](const std::string& n) {
+        for (const auto& r : model->outputs())
+            if (r.get_names().count(n))
+                return true;
+        return false;
+    };
+
+    for (size_t lin = 0; lin < 2; ++lin) {
+        const auto idx = std::to_string(lin);
+        EXPECT_TRUE(has_input("cache_params.past.conv." + idx));
+        EXPECT_TRUE(has_output("cache_params.present.conv." + idx));
+    }
+    for (size_t att = 0; att < 2; ++att) {
+        const auto idx = std::to_string(att);
+        EXPECT_TRUE(has_input("past_key_values." + idx + ".key"));
+        EXPECT_TRUE(has_output("present." + idx + ".key"));
+    }
 }
 
 }  // namespace

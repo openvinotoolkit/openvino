@@ -25,7 +25,7 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -115,6 +115,7 @@ attach_mvn_impl::attach_mvn_impl() {
     auto dyn_types = {
         data_types::f32,
         data_types::f16,
+        data_types::bf16,
         data_types::i8,
         data_types::u8,
         data_types::i32
@@ -138,40 +139,49 @@ attach_mvn_impl::attach_mvn_impl() {
     implementation_map<mvn>::add(impl_types::ocl, typed_primitive_impl_ocl<mvn>::create<mvn_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::bf16, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
 
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
+        std::make_tuple(data_types::bf16, format::yxfb),
 
         std::make_tuple(data_types::f32, format::byxf),
         std::make_tuple(data_types::f16, format::byxf),
+        std::make_tuple(data_types::bf16, format::byxf),
 
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),
+        std::make_tuple(data_types::bf16, format::bfzyx),
         std::make_tuple(data_types::u8, format::bfzyx),
         std::make_tuple(data_types::i8, format::bfzyx),
 
         std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::bf16, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
 
         std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
+        std::make_tuple(data_types::bf16, format::bs_fs_zyx_bsv16_fsv16),
 
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::bf16, format::b_fs_yx_fsv32),
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
         std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
 
         std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
         std::make_tuple(data_types::f16, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::bf16, format::b_fs_zyx_fsv32),
         std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
         std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
 
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::bf16, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
 
@@ -179,8 +189,10 @@ attach_mvn_impl::attach_mvn_impl() {
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::bf16, format::bs_fs_yx_bsv32_fsv32),
 
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::bf16, format::bs_fs_yx_bsv32_fsv16),
     });
 }
 

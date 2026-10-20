@@ -38,7 +38,8 @@ KERNEL(gather_elements_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint f = dim2 % OUTPUT_FEATURE_NUM;
     const uint b = dim2 / OUTPUT_FEATURE_NUM;
 
-    const uint out_idx = GET_OUTPUT_INDEX(INPUT1, ORDER);
+    const uint indices_idx = GET_OUTPUT_INDEX(INPUT1, ORDER);
+    const uint out_idx = GET_OUTPUT_INDEX(OUTPUT, ORDER);
     LOAD_AND_HANDLE_NEGATIVE_INDICES;
     const uint input_idx = GET_OUTPUT_INDEX(INPUT0, DATA_INDEX_ORDER);
 

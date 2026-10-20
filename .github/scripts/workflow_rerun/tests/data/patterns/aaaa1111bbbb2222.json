@@ -1,0 +1,18 @@
+{
+    "schema_version": "1.0",
+    "signature": "label empty or too long|Flaky Test",
+    "signature_hash": "aaaa1111bbbb2222",
+    "title": "Sample transient failure used for rerunner pattern tests",
+    "category": "Flaky Test",
+    "count": 2,
+    "first_seen": "2026-07-01T10:00:00Z",
+    "last_seen": "2026-07-13T10:00:00Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/29268143021"
+    ],
+    "affected_prs": [],
+    "recent_timestamps": [
+        "2026-07-13T10:00:00Z"
+    ],
+    "rerun_search_string": "label empty or too long"
+}

@@ -6,10 +6,7 @@
 #include "openvino/frontend/paddle/visibility.hpp"
 #include "openvino/opsets/opset6.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs hard_swish(const NodeContext& node) {
     auto data = node.get_input("X");
     if (node.has_attribute("threshold")) {
@@ -29,7 +26,4 @@ NamedOutputs hard_swish(const NodeContext& node) {
     return node.default_single_output_mapping({std::make_shared<ov::opset6::HSwish>(data)}, {"Out"});
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

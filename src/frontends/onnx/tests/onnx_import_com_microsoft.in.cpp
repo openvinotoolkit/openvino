@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cmath>
 #include <vector>
 
 // clang-format off
@@ -17,6 +18,7 @@
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
 #include "onnx_utils.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx::tests;
@@ -139,6 +141,59 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_be
     test_case.add_input<float>(input);
     test_case.add_input<float>(skip);
     test_case.add_expected_output<float>(expected);
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_input_skip_bias_sum) {
+    const auto model = convert_model("com.microsoft/skip_layer_normalization_with_input_skip_bias_sum.onnx");
+
+    std::vector<float> input = {
+        0.54881352f, 0.71518934f, 0.60276335f, 0.54488319f, 0.42365479f, 0.64589411f, 0.43758720f, 0.89177299f,
+        0.96366274f, 0.38344151f, 0.79172504f, 0.52889490f, 0.56804454f, 0.92559665f, 0.07103606f, 0.08712930f,
+        0.02021840f, 0.83261985f, 0.77815676f, 0.87001216f, 0.97861832f, 0.79915857f, 0.46147937f, 0.78052920f,
+    };
+    std::vector<float> skip = {
+        0.11827443f, 0.63992101f, 0.14335328f, 0.94466889f, 0.52184832f, 0.41466194f, 0.26455560f, 0.77423370f,
+        0.45615032f, 0.56843394f, 0.01878980f, 0.61763549f, 0.61209571f, 0.61693400f, 0.94374806f, 0.68182027f,
+        0.35950789f, 0.43703195f, 0.69763118f, 0.06022547f, 0.66676670f, 0.67063785f, 0.21038257f, 0.12892629f,
+    };
+    std::vector<float> expected_out = {
+        -0.19721794f, -0.42944565f, 0.18620640f, 0.61282152f,  -0.11097327f, -0.59518522f, 0.13393641f,  0.66901535f,
+        0.04256713f,  -0.71902490f, 0.23107991f, 0.17300847f,  -0.04390603f, -0.31109563f, 0.51021838f,  -0.66914201f,
+        -0.20009395f, -0.43313017f, 0.67281967f, -0.01712347f, 0.09767530f,  -0.43024653f, -0.01836969f, -0.29238200f,
+    };
+    // mean = ReduceMean(input + skip + bias, axis=-1, keepdims=1)
+    std::vector<float> expected_mean = {
+        1.00196671f,
+        1.03105211f,
+        1.01968336f,
+        1.06410110f,
+        0.95135093f,
+        1.11162472f,
+    };
+    // inv_std_var = 1 / sqrt(ReduceMean((sum - mean)^2, axis=-1, keepdims=1) + eps)
+    std::vector<float> expected_inv_std_var = {
+        3.14212680f,
+        2.63410830f,
+        3.40978694f,
+        5.66779423f,
+        2.02757072f,
+        3.61555910f,
+    };
+    // input_skip_bias_sum = input + skip + bias, feeds the `skip` input of a subsequent
+    // SkipLayerNormalization node when several layers are chained together
+    std::vector<float> expected_input_skip_bias_sum = {
+        0.59708798f, 0.95511043f, 0.96611667f, 1.48955202f, 0.87550312f, 0.66055608f, 0.92214286f, 1.66600668f,
+        1.34981298f, 0.55187547f, 1.03051484f, 1.14653039f, 1.11014020f, 1.14253068f, 1.23478413f, 0.76894957f,
+        0.30972630f, 0.86965179f, 1.69578791f, 0.93023765f, 1.57538497f, 1.06979644f, 0.89186192f, 0.90945548f,
+    };
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(input);
+    test_case.add_input<float>(skip);
+    test_case.add_expected_output<float>(expected_out);
+    test_case.add_expected_output<float>(expected_mean);
+    test_case.add_expected_output<float>(expected_inv_std_var);
+    test_case.add_expected_output<float>(expected_input_skip_bias_sum);
     test_case.run_with_tolerance_as_fp();
 }
 
@@ -2409,6 +2464,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x32_zp) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_zp_size_mismatch) {
+    // An undersized packed uint8 zero_points (1 byte where 6 are needed) must be rejected before the
+    // Constant copy reads past it.
+    try {
+        convert_model("com.microsoft/matmulnbits_zp_size_mismatch.onnx");
+        FAIL() << "ONNX Importer did not reject an undersized packed zero_points";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("packed uint8 zero_points is too small"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_no_zp_block_size) {
     const auto model = convert_model("com.microsoft/matmulnbits_no_zp_block_size.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
@@ -2423,6 +2491,219 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_no_zp_block_size) 
         Shape{1, 10},
         {403.8f, 404.5f, 413.0f, 403.5f, 418.8f, 415.2f, 407.1f, 420.4f, 415.1f, 398.5f});
     test_case.run_with_tolerance_as_fp(0.1f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_group_idx) {
+    // g_idx (group_idx) reorders which block/scale each K-element uses instead of the usual
+    // floor(k / block_size) assignment. K=32, block_size=16 -> 2 groups: group0 has raw quantized
+    // value 138 (dequant 10 with default 8-bit zp=128) and scale 1.0; group1 has raw value 148
+    // (dequant 20) and scale 2.0. g_idx swaps the group assignment of the two halves of K (first
+    // 16 elements use group1, last 16 use group0), so every dequantized element becomes
+    // 10*2.0 = 20*1.0 = 20. With A all-ones, the matmul reduces to sum(20 for 32 elements) = 640.
+    // If g_idx were ignored (falling back to sequential grouping) the result would instead be
+    // 16*10 + 16*40 = 800, so this test fails loudly on a regression.
+    const auto model = convert_model("com.microsoft/matmulnbits_group_idx.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(std::vector<float>(32, 1.f));
+    test_case.add_expected_output<float>(Shape{1, 1}, {640.f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_group_idx_k_boundary_full) {
+    // K=17 is not block-aligned (block_size=16 -> n_blocks_per_col=2, k_padded=32). group_idx here
+    // is sized exactly K=17, exercising the "trim B to K before gather" branch. k0..8 (9 elems, raw
+    // block0 dequant=10) use group1 (scale=2.0) => 20; k9..15 (7 elems, raw block0) use group0
+    // (scale=1.0) => 10; k16 (1 elem, raw block1 dequant=20) uses group0 => 20.
+    // Expected sum = 9*20 + 7*10 + 1*20 = 270.
+    const auto model = convert_model("com.microsoft/matmulnbits_group_idx_k_boundary_full.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(std::vector<float>(17, 1.f));
+    test_case.add_expected_output<float>(Shape{1, 1}, {270.f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_group_idx_k_boundary_padded) {
+    // Same K=17 scenario as the _full variant above, but group_idx is sized block-padded K=32
+    // instead (trailing 15 entries are discarded by the post-gather Slice), exercising the other
+    // Slice branch. Must produce the identical result: 270.
+    const auto model = convert_model("com.microsoft/matmulnbits_group_idx_k_boundary_padded.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(std::vector<float>(17, 1.f));
+    test_case.add_expected_output<float>(Shape{1, 1}, {270.f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_group_idx_explicit_zp) {
+    // Same group_idx swap as onnx_com_microsoft_matmulnbits_group_idx, but with explicit non-default
+    // same-type-as-A zero_points (group0 zp=100, group1 zp=140), exercising the zero_points Gather
+    // branch that group_idx dequantization was missing test coverage for. k0..15 (raw block0=138)
+    // use group1 (scale2.0, zp140) => (138-140)*2=-4; k16..31 (raw block1=148) use group0 (scale1.0,
+    // zp100) => (148-100)*1=48. Expected sum = 16*-4 + 16*48 = 704.
+    const auto model = convert_model("com.microsoft/matmulnbits_group_idx_explicit_zp.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(std::vector<float>(32, 1.f));
+    test_case.add_expected_output<float>(Shape{1, 1}, {704.f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_bf16) {
+    // bfloat16 A/scales/zero_points/output (spec parity: T1/T3 allow bfloat16). Values are chosen
+    // to be exactly representable in bf16 so the comparison can be bit-exact.
+    const auto model = convert_model("com.microsoft/matmulnbits_bf16.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<ov::bfloat16>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<ov::bfloat16>(Shape{1, 1}, {80.f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_reordered_4bit_zp_sametype) {
+    // B/scales/zero_points stored with n_blocks_per_col as the outermost axis instead of N (some
+    // exporters produce this layout). zero_points here has the same float type as A (unpacked).
+    const auto model = convert_model("com.microsoft/matmulnbits_reordered_4bit_zp_sametype.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(
+        {0.7347556352615356f,   0.6849520802497864f,   0.4440719187259674f,   -1.7594507932662964f,
+         1.9110771417617798f,   -0.24419349431991577f, 0.1303800791501999f,   -1.9874708652496338f,
+         -0.9949315786361694f,  1.4339617490768433f,   -0.2988066077232361f,  0.9432759881019592f,
+         1.6881728172302246f,   -1.3861032724380493f,  1.9690369367599487f,   -1.2706729173660278f,
+         1.7604515552520752f,   -1.6524677276611328f,  -0.12715713679790497f, 1.3159568309783936f,
+         -0.8757909536361694f,  1.4763660430908203f,   1.9056663513183594f,   1.3668546676635742f,
+         -0.20450559258460999f, -0.5179662704467773f,  -0.06932225078344345f, -1.631273865699768f,
+         -1.093267560005188f,   0.1462649405002594f,   0.932926595211029f,    -0.204356849193573f,
+         -0.7779968976974487f,  1.7894383668899536f,   1.0041353702545166f,   -0.11180616170167923f,
+         -0.1708964854478836f,  0.9853512048721313f,   1.4215995073318481f,   -0.8259937763214111f,
+         0.9332579970359802f,   1.2353228330612183f,   1.5483479499816895f,   -1.9006671905517578f,
+         0.0501977913081646f,   0.45114272832870483f,  -0.8786041736602783f,  -0.1914730966091156f,
+         0.12488435953855515f,  1.9545382261276245f,   -1.9760873317718506f});
+    test_case.add_expected_output<float>(
+        Shape{3, 3},
+        {10.503861f, -17.093567f, -12.628984f, 4.87547f, -2.9147573f, 0.59264785f, -37.1062f, -11.870137f, 33.450912f});
+    test_case.run_with_tolerance_as_fp(0.01f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_reordered_2bit_zp_u8_unaligned) {
+    // Same reordered layout, but zero_points is u8-packed and N=5 is not a multiple of 8/bits (4),
+    // exercising the alignment/padding handling in the reordered zero_points decode path.
+    const auto model = convert_model("com.microsoft/matmulnbits_reordered_2bit_zp_u8_unaligned.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(
+        {0.9393449425697327f,   0.4145110547542572f,    0.589850127696991f,    0.7279549837112427f,
+         1.4777202606201172f,   -1.3813774585723877f,   0.1258975863456726f,   -1.0826631784439087f,
+         -1.9321128129959106f,  -1.0586965084075928f,   1.461916208267212f,    0.005173746030777693f,
+         1.9516717195510864f,   -1.2592782974243164f,   1.4825961589813232f,   1.077378511428833f,
+         -0.23132336139678955f, 1.1484136581420898f,    -0.5731927156448364f,  1.9730037450790405f,
+         1.3979188203811646f,   -1.730517864227295f,    1.8215359449386597f,   1.7163277864456177f,
+         -0.8812527060508728f,  -0.9456503987312317f,   -0.15320809185504913f, -0.9671792984008789f,
+         0.1935875564813614f,   0.39854925870895386f,   -1.9233468770980835f,  -1.9077321290969849f,
+         1.3272274732589722f,   0.4214099943637848f,    1.8763823509216309f,   1.6511989831924438f,
+         1.7225196361541748f,   -0.28912463784217834f,  -0.3920738399028778f,  -0.5792192220687866f,
+         -0.273803174495697f,   0.1868472695350647f,    1.0479730367660522f,   1.9404098987579346f,
+         0.7529048323631287f,   0.7264688014984131f,    -1.4465574026107788f,  -0.2037639170885086f,
+         -1.4193133115768433f,  -0.008727134205400944f, 0.007322024088352919f, 0.7359938025474548f,
+         0.9065641164779663f,   0.8828064799308777f,    -1.2883601188659668f,  0.6907457709312439f,
+         -0.07793418318033218f, -1.8899110555648804f,   0.63033127784729f,     1.6184509992599487f,
+         1.5314438343048096f,   0.7897061705589294f,    -0.6204106211662292f,  -1.2984071969985962f,
+         1.6256135702133179f,   -0.6808561682701111f,   0.24426232278347015f,  -0.8946446776390076f,
+         1.7736856937408447f,   1.3145933151245117f,    -0.5624397397041321f,  1.7904421091079712f,
+         0.3683362305164337f,   0.4287474453449249f,    1.4206398725509644f,   1.0034373998641968f,
+         1.491148591041565f,    0.5930879712104797f,    0.9532124400138855f,   -1.0964913368225098f,
+         -0.1217593178153038f,  0.08213547617197037f,   -1.1704884767532349f,  -0.6563259959220886f,
+         -1.2647346258163452f,  1.878732681274414f,     -1.5235087871551514f,  1.5251582860946655f,
+         -1.5020241737365723f,  -0.6345223188400269f,   0.7475405335426331f,   -0.43893158435821533f,
+         -1.2588474750518799f,  -0.5142114758491516f,   -1.7941802740097046f,  1.4452804327011108f,
+         -0.6751466393470764f,  1.0655535459518433f,    -1.4772944450378418f,  0.37860652804374695f,
+         -1.3910104036331177f,  1.7929937839508057f,    -0.052088662981987f,   -0.5905745029449463f,
+         -0.8256439566612244f,  1.431290864944458f,     -0.18851439654827118f, -1.530277132987976f,
+         0.24108967185020447f,  -1.2554590702056885f,   1.7233737707138062f,   1.9318631887435913f,
+         -0.9324491024017334f,  1.7086201906204224f,    1.9475188255310059f,   -0.7954144477844238f,
+         -0.46198606491088867f, 0.13581307232379913f,   0.7248129844665527f,   0.8592182993888855f,
+         -0.22978226840496063f, -1.146733045578003f,    1.7974395751953125f,   -0.4036639630794525f,
+         1.11644446849823f,     1.7458794116973877f,    -0.6327758431434631f,  -0.24722008407115936f,
+         -0.9954797625541687f,  -1.3521196842193604f,   -0.9339923858642578f,  -1.452980399131775f,
+         -0.3077758848667145f,  0.7100892066955566f,    0.5511314868927002f,   -0.16431310772895813f,
+         1.313930869102478f,    0.16474290192127228f,   -1.4019960165023804f,  -0.8142822980880737f,
+         -0.39374247193336487f, -0.6187075972557068f,   -1.1146999597549438f,  -1.4532122611999512f,
+         1.2026331424713135f,   -0.42690524458885193f,  -0.6195151209831238f,  -0.14084164798259735f,
+         -0.04786252602934837f, 0.49286434054374695f,   -1.8038541078567505f,  -1.3971035480499268f,
+         1.3772882223129272f,   -1.6693127155303955f,   -0.13855737447738647f, 1.4163470268249512f,
+         -1.8417116403579712f,  0.3077119290828705f,    -0.09587756544351578f, -0.5739620327949524f});
+    test_case.add_expected_output<float>(Shape{5, 5}, {-2.6197639f, -4.3346739f, -6.653666f,  6.835f,      -2.144124f,
+                                                       -12.131384f, 5.7502222f,  -2.7676144f, 7.0302262f,  -5.0682445f,
+                                                       -0.9029713f, -1.2090427f, -3.225337f,  11.410535f,  -3.2802541f,
+                                                       -5.6829667f, 2.9211998f,  -5.965548f,  -3.7119355f, 4.0489678f,
+                                                       9.8185177f,  0.42868173f, 6.5680284f,  1.1895915f,  4.6801758f});
+    test_case.run_with_tolerance_as_fp(0.01f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_reordered_8bit_zp_u8packed) {
+    // Same reordered layout, bits=8: exercises the reordered b_dim0/b_dim1 selection for the 8-bit
+    // switch case, plus the u8-packed zero_points path with num_per_byte==1 (no sub-byte packing).
+    const auto model = convert_model("com.microsoft/matmulnbits_reordered_8bit_zp_u8packed.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(
+        {0.011297237128019333f, 0.2639770209789276f,   1.9155173301696777f,   -1.046911597251892f,
+         1.007254719734192f,    1.077770471572876f,    -1.2379648685455322f,  -1.654956579208374f,
+         1.0455840826034546f,   -1.0971945524215698f,  0.26531603932380676f,  0.9556319117546082f,
+         0.6515865921974182f,   -1.575122594833374f,   1.7557649612426758f,   0.301928848028183f,
+         -0.3901387155056f,     -1.2708162069320679f,  -1.9457541704177856f,  -0.4780287742614746f,
+         0.07643675804138184f,  -1.1953157186508179f,  0.9984717965126038f,   1.2307238578796387f,
+         1.769924283027649f,    -0.9672298431396484f,  -1.114872932434082f,   -1.7504851818084717f,
+         1.8185904026031494f,   -1.3669118881225586f,  -1.4827699661254883f,  0.7502116560935974f,
+         0.6779801845550537f,   -0.7912059426307678f,  -0.5691749453544617f,  1.3446134328842163f,
+         1.9378172159194946f,   1.4788663387298584f,   -1.1805678606033325f,  -1.0565876960754395f,
+         -1.6502262353897095f,  -1.6139888763427734f,  1.0596168041229248f,   1.436097502708435f,
+         -1.6684778928756714f,  -0.8003507256507874f,  -1.2739101648330688f,  1.948478102684021f,
+         -0.8803635835647583f,  1.680298089981079f,    1.6412568092346191f,   1.744085431098938f,
+         1.653067946434021f,    0.671858549118042f,    0.7395996451377869f,   -1.6411906480789185f,
+         1.1794357299804688f,   -0.7903971076011658f,  -1.4694697856903076f,  -1.6090750694274902f,
+         -1.9016247987747192f,  0.8935728073120117f,   -0.7256792187690735f,  -1.4603513479232788f,
+         1.1751266717910767f,   -0.8280715346336365f,  -0.4045090973377228f,  -0.38028696179389954f,
+         0.3611117899417877f,   0.7514155507087708f,   -0.4639444649219513f,  -0.979056715965271f,
+         0.02295805513858795f,  -0.38554301857948303f, 1.355053186416626f,    -1.2538501024246216f,
+         -0.8159182071685791f,  -1.9413402080535889f,  -1.5417163372039795f,  -0.3452632427215576f,
+         0.10185366123914719f,  -0.21680419147014618f, -1.4182894229888916f,  1.698769450187683f,
+         -1.2998188734054565f,  1.3773936033248901f,   -1.6097759008407593f,  -1.8518799543380737f,
+         1.555879831314087f,    0.6866942048072815f,   -0.11544779688119888f, -1.4777882099151611f,
+         -1.1849554777145386f,  1.5360894203186035f,   0.6722585558891296f,   1.9999690055847168f,
+         -0.8912732601165771f,  -1.7976980209350586f,  -0.20894251763820648f, 1.0874147415161133f,
+         0.33108022809028625f,  0.6654966473579407f,   0.47423359751701355f,  -1.4408575296401978f,
+         -1.2941867113113403f,  -1.631998062133789f,   0.7517695426940918f,   -1.2158950567245483f,
+         1.4113619327545166f,   0.4747319519519806f,   -1.2311383485794067f,  1.9999244213104248f,
+         -1.2012220621109009f,  -0.9066212177276611f,  0.8633500337600708f,   1.6727581024169922f,
+         1.8064895868301392f,   0.4027697741985321f,   -1.9474372863769531f,  -1.0875697135925293f,
+         0.40542346239089966f,  -1.775869607925415f,   0.7418099045753479f,   1.4230223894119263f,
+         1.140905499458313f,    -1.8906694650650024f,  -0.674405038356781f,   -1.9228813648223877f});
+    test_case.add_expected_output<float>(Shape{4, 4},
+                                         {356.887939453125f,
+                                          -621.6118774414062f,
+                                          78.72721099853516f,
+                                          109.37584686279297f,
+                                          -480.3854675292969f,
+                                          -10.916654586791992f,
+                                          7.0790696144104f,
+                                          613.084228515625f,
+                                          8.069732666015625f,
+                                          389.91632080078125f,
+                                          -31.405590057373047f,
+                                          231.06405639648438f,
+                                          -134.7124786376953f,
+                                          13.741459846496582f,
+                                          150.95919799804688f,
+                                          515.7687377929688f});
+    test_case.run_with_tolerance_as_fp(0.01f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_quickgelu) {
@@ -2541,6 +2822,77 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_matmul_null_b
     test_case.add_input<float>(Shape{3}, b_scale);
 
     test_case.add_expected_output<float>(Shape{3, 3}, expected);
+
+    test_case.run_with_tolerance_as_fp(0.0055f);
+}
+
+// Shared inputs used by both DynamicQuantizeLSTM tests.
+// Expected values are from ONNX Runtime (ORT uses dynamic activation quantization with integer
+// matmuls; our translator uses weight-only dequantization, so results differ by ~1.5e-3).
+static const std::vector<float> dql_input_X{0.25f, -0.5f, 1.0f, 1.5f, 0.75f, -1.25f};
+static const std::vector<float> dql_input_B{0.1f,
+                                            -0.2f,
+                                            0.05f,
+                                            0.3f,
+                                            -0.4f,
+                                            0.2f,
+                                            0.15f,
+                                            -0.25f,
+                                            -0.05f,
+                                            0.12f,
+                                            -0.18f,
+                                            0.22f,
+                                            -0.08f,
+                                            0.09f,
+                                            -0.11f,
+                                            0.07f};
+static const std::vector<int32_t> dql_input_sequence_lens{2};
+static const std::vector<float> dql_input_initial_h{0.2f, -0.1f};
+static const std::vector<float> dql_input_initial_c{0.05f, 0.15f};
+static const std::vector<float> dql_expected_Y{0.11440717f, -0.06565752f, -0.00265372f, -0.20275351f};
+static const std::vector<float> dql_expected_Y_h{-0.00265372f, -0.20275351f};
+static const std::vector<float> dql_expected_Y_c{-0.00976340f, -0.24270093f};
+
+// W/R/scale are runtime inputs: align_dequant_param uses Unsqueeze nodes (LPT does not fire).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_lstm_runtime_inputs) {
+    const auto model = convert_model("com.microsoft/dynamic_quantize_lstm.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{2, 1, 3}, dql_input_X);
+    test_case.add_input<int8_t>(Shape{1, 3, 8}, {12, -7, 5,  9, -11, 3, 4,  -6, 8,  13,  -9, 2,
+                                                 7,  -5, 10, 1, -4,  6, 14, -8, 12, -10, 11, -3});
+    test_case.add_input<int8_t>(Shape{1, 2, 8}, {5, -3, 4, 7, -6, 2, 1, -4, 9, 8, -5, 3, 6, -7, 10, -2});
+    test_case.add_input<float>(Shape{1, 16}, dql_input_B);
+    test_case.add_input<int32_t>(Shape{1}, dql_input_sequence_lens);
+    test_case.add_input<float>(Shape{1, 1, 2}, dql_input_initial_h);
+    test_case.add_input<float>(Shape{1, 1, 2}, dql_input_initial_c);
+    test_case.add_input<float>(Shape{1}, {0.05f});
+    test_case.add_input<int8_t>(Shape{1}, {1});
+    test_case.add_input<float>(Shape{1}, {0.04f});
+    test_case.add_input<int8_t>(Shape{1}, {-2});
+
+    test_case.add_expected_output<float>(Shape{2, 1, 1, 2}, dql_expected_Y);
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, dql_expected_Y_h);
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, dql_expected_Y_c);
+
+    test_case.run_with_tolerance_as_fp(0.0055f);
+}
+
+// W/R/scale are graph Constants: align_dequant_param reshapes the Constant directly (no graph
+// node inserted), MarkDequantization matches, and the CPU quantized kernel fires.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_lstm_const_weights) {
+    const auto model = convert_model("com.microsoft/dynamic_quantize_lstm_const_weights.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{2, 1, 3}, dql_input_X);
+    test_case.add_input<float>(Shape{1, 16}, dql_input_B);
+    test_case.add_input<int32_t>(Shape{1}, dql_input_sequence_lens);
+    test_case.add_input<float>(Shape{1, 1, 2}, dql_input_initial_h);
+    test_case.add_input<float>(Shape{1, 1, 2}, dql_input_initial_c);
+
+    test_case.add_expected_output<float>(Shape{2, 1, 1, 2}, dql_expected_Y);
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, dql_expected_Y_h);
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, dql_expected_Y_c);
 
     test_case.run_with_tolerance_as_fp(0.0055f);
 }
@@ -3082,6 +3434,87 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary) {
     test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_key);
     test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_value);
     test_case.run_with_tolerance_as_fp();
+}
+
+// Right-padded first prompt (sequence_length == total_sequence_length = 2, seqlens_k = 0): as in ONNX Runtime the
+// prompt starts at position 0 and the padded query row 1 only sees the one valid key, so no row is fully masked.
+// Expected values: ORT CPU.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_right_padded_first_prompt) {
+    const auto model = convert_model("com.microsoft/gqa_rotary.onnx");
+
+    std::vector<float> query = {
+        -0.026000f, -0.055600f, 0.520900f,  -0.628400f, 0.372700f,  -0.855500f, -0.102900f, -0.117300f, 0.564100f,
+        -0.006300f, -0.306600f, 0.686800f,  0.805500f,  -0.344600f, 0.346000f,  -0.224100f, 0.081200f,  0.128600f,
+        -0.637700f, 0.032000f,  -0.530900f, -0.494700f, -0.228900f, -0.992100f, -0.738200f, 0.115900f,  0.322100f,
+        0.426100f,  -0.232000f, 0.348600f,  0.783900f,  0.589300f,  -0.692000f, -0.873700f, 0.201400f,  0.622200f,
+        -0.011900f, 0.476300f,  0.122500f,  0.112000f,  0.148300f,  0.110400f,  -0.211700f, 0.922800f,  0.460100f,
+        -0.279000f, -0.142600f, -0.520600f, 0.240200f,  -0.713700f, -0.166600f, 0.373700f,  0.280100f,  0.286900f,
+        -0.590400f, 0.382300f,  -0.067200f, 0.662300f,  -0.138200f, 0.839800f,  0.207600f,  0.373800f,  -0.196300f,
+        -0.203200f, -0.192900f, 0.500500f,  -0.223800f, -0.058000f, 0.584500f,  0.257800f,  -0.128900f, 0.142500f,
+        -0.702300f, -0.754500f, 0.217200f,  1.377500f,  1.005400f,  1.259900f,  0.285200f,  -0.263300f, 0.534100f,
+        -0.597300f, -1.429800f, 0.212100f,  0.516800f,  0.352600f,  0.775100f,  0.382700f,  0.173200f,  -0.526900f,
+        -0.064700f, -0.590700f, -0.184400f, 0.951400f,  0.105100f,  0.188400f,  -0.347000f, 1.301400f,  -0.991600f,
+        -0.463400f, 0.472900f,  -0.375300f, -0.397100f, 0.254200f,  0.374200f,  0.341300f,  -0.428100f, 0.376600f,
+        -0.604900f, -0.458800f, -0.498400f, 0.163800f,  -0.176100f, -0.475900f, 0.015700f,  -0.511700f, -0.252400f,
+        -0.156000f, -0.283900f, -0.503100f, -0.624000f, 0.549300f,  -1.033800f, 0.148900f,  -0.402500f, -0.353900f,
+        -0.891500f, -0.015300f};
+    std::vector<float> past_key = {};
+    std::vector<float> past_value = {};
+    std::vector<int> seqlens_k = {0};  // total 1 of a 2-token first prompt: query row 1 is padding
+    std::vector<int> total_sequence_length = {2};
+    std::vector<float> cos_cache = {0.809800f,
+                                    0.337700f,
+                                    0.195600f,
+                                    0.342000f,
+                                    0.672800f,
+                                    0.283100f,
+                                    0.265700f,
+                                    0.881100f,
+                                    0.539100f,
+                                    0.743800f,
+                                    0.897800f,
+                                    0.274000f,
+                                    0.533400f,
+                                    0.133200f,
+                                    0.961900f,
+                                    0.812500f};
+    std::vector<float> sin_cache = {0.651400f,
+                                    0.202300f,
+                                    0.970800f,
+                                    0.035500f,
+                                    0.423200f,
+                                    0.944400f,
+                                    0.319200f,
+                                    0.776900f,
+                                    0.975100f,
+                                    0.701900f,
+                                    0.302500f,
+                                    0.968700f,
+                                    0.395700f,
+                                    0.951300f,
+                                    0.129400f,
+                                    0.937100f};
+
+    std::vector<float> expected_output = {
+        0.240200f,  -0.713700f, -0.166600f, 0.373700f, 0.280100f, 0.286900f, -0.590400f, 0.382300f,
+        -0.067200f, 0.662300f,  -0.138200f, 0.839800f, 0.207600f, 0.373800f, -0.196300f, -0.203200f,
+        0.240200f,  -0.713700f, -0.166600f, 0.373700f, 0.280100f, 0.286900f, -0.590400f, 0.382300f,
+        -0.067200f, 0.662300f,  -0.138200f, 0.839800f, 0.207600f, 0.373800f, -0.196300f, -0.203200f,
+        0.240200f,  -0.713700f, -0.166600f, 0.373700f, 0.280100f, 0.286900f, -0.590400f, 0.382300f,
+        -0.067200f, 0.662300f,  -0.138200f, 0.839800f, 0.207600f, 0.373800f, -0.196300f, -0.203200f,
+        0.240200f,  -0.713700f, -0.166600f, 0.373700f, 0.280100f, 0.286900f, -0.590400f, 0.382300f,
+        -0.067200f, 0.662300f,  -0.138200f, 0.839800f, 0.207600f, 0.373800f, -0.196300f, -0.203200f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 2, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_input<float>(Shape{2, 8}, cos_cache);
+    test_case.add_input<float>(Shape{2, 8}, sin_cache);
+    test_case.add_expected_output<float>(Shape{1, 2, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp(1e-3f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary_fp16) {
@@ -4210,17 +4643,3475 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_static_rotary) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_per_channel) {
+    const auto model = convert_model("com.microsoft/gqa_i8kv_per_channel.onnx");
+
+    // num_heads=2, kv_num_heads=1, head_size=8, current=1, past=2 (dynamic past_sequence_length). Non-rotary.
+    // KV cache is int8 with per-channel dequant scales embedded as initializers (k_scale/v_scale). The dynamic
+    // past shape exercises the Slice+Concat KV-cache assembly (present grows to past+current = 3).
+    // query [1, 1, 32]
+    std::vector<float> query = {
+        0.3054000f,  0.0820000f,  -0.4166000f, -0.3312000f, -0.4215000f, -0.0355000f, 0.0633000f,  -0.7157000f,
+        0.4254000f,  0.0148000f,  -0.0655000f, -0.1313000f, 0.6356000f,  -0.0755000f, -0.0727000f, 0.2872000f,
+        -0.0003000f, 0.3129000f,  0.0348000f,  0.0265000f,  0.4802000f,  -0.0247000f, -0.3604000f, -0.5037000f,
+        0.0227000f,  -0.3865000f, 0.2994000f,  0.1113000f,  -0.1243000f, -0.2616000f, -0.0292000f, 0.2368000f};
+    // past_key [1, 1, 2, 8]
+    std::vector<int8_t> past_key = {24, -23, 17, -27, 25, -22, 17, 18, 12, 13, 9, -18, 24, -4, -5, 0};
+    // past_value [1, 1, 2, 8]
+    std::vector<int8_t> past_value = {22, -5, -18, -28, -23, 9, 15, -26, 26, -20, -14, -25, 12, -2, -7, -19};
+    std::vector<int> seqlens_k = {2};
+    std::vector<int> total_sequence_length = {3};
+    // expected_output [1, 1, 16]
+    std::vector<float> expected_output = {1.01103735f,
+                                          -0.632150471f,
+                                          -0.295739084f,
+                                          -0.919733584f,
+                                          -0.0973050594f,
+                                          0.0105678858f,
+                                          0.0251368713f,
+                                          -0.373427451f,
+                                          1.18633878f,
+                                          -0.625254869f,
+                                          -0.420571089f,
+                                          -1.13011706f,
+                                          -0.141064093f,
+                                          0.0992611125f,
+                                          0.0627523884f,
+                                          -0.506907046f};
+    // expected_present_key [1, 1, 3, 8]
+    std::vector<int8_t> expected_present_key = {24, -23, 17, -27, 25, -22, 17, 18, 12, 13, 9,  -18,
+                                                24, -4,  -5, 0,   0,  5,   1,  1,  12, -1, -7, -11};
+    // expected_present_value [1, 1, 3, 8]
+    std::vector<int8_t> expected_present_value = {22, -5, -18, -28, -23, 9,  15, -26, 26, -20, -14, -25,
+                                                  12, -2, -7,  -19, 0,   -6, 7,  2,   -6, -4,  -1,  7};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<int8_t>(Shape{1, 1, 2, 8}, past_key);
+    test_case.add_input<int8_t>(Shape{1, 1, 2, 8}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 16}, expected_output);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 3, 8}, expected_present_key);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 3, 8}, expected_present_value);
+    // Mixed float output + int8 present KV: run() compares floats by ULP tolerance and int8 exactly. The
+    // present KV cache is checked bit-exact; the float output uses a relaxed ULP tolerance because a couple of
+    // near-zero attention outputs differ across backends (CPU vs TEMPLATE) by a few low mantissa bits.
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_per_tensor) {
+    const auto model = convert_model("com.microsoft/gqa_i8kv_per_tensor.onnx");
+
+    // Same tiny dynamic-past config as gqa_i8kv_per_channel but with a single per-tensor scale for K and V.
+    // query [1, 1, 32]
+    std::vector<float> query = {
+        -0.0954000f, -0.5184000f, 0.4668000f,  0.5252000f,  0.6202000f,  -0.4286000f, 0.3644000f,  0.2827000f,
+        -0.2593000f, -0.1152000f, 0.2258000f,  -0.1652000f, -0.6331000f, -0.0576000f, -0.3862000f, -0.1533000f,
+        -0.0389000f, -0.0381000f, -0.2434000f, 0.7596000f,  -0.0479000f, -0.0554000f, -0.5949000f, 0.2861000f,
+        -0.3534000f, 0.5613000f,  0.2467000f,  -0.1424000f, 0.0029000f,  -0.8551000f, 0.0904000f,  0.4609000f};
+    // past_key [1, 1, 2, 8]
+    std::vector<int8_t> past_key = {15, -24, 10, 25, 25, -30, 6, 20, 25, -16, -8, 1, 12, 0, 9, 28};
+    // past_value [1, 1, 2, 8]
+    std::vector<int8_t> past_value = {-21, 16, 0, 4, -6, -1, -19, 18, 10, -30, 4, 22, -26, 12, 28, -17};
+    std::vector<int> seqlens_k = {2};
+    std::vector<int> total_sequence_length = {3};
+    // expected_output [1, 1, 16]
+    std::vector<float> expected_output = {-0.823096991f,
+                                          0.329842567f,
+                                          0.0983065218f,
+                                          0.488791496f,
+                                          -0.656279087f,
+                                          0.0225083288f,
+                                          -0.406664789f,
+                                          0.604365826f,
+                                          -0.358047426f,
+                                          0.000576359977f,
+                                          0.202674463f,
+                                          0.408363998f,
+                                          -0.582195282f,
+                                          -0.188379109f,
+                                          0.200814918f,
+                                          0.241229594f};
+    // expected_present_key [1, 1, 3, 8]
+    std::vector<int8_t> expected_present_key = {15, -24, 10, 25, 25, -30, 6,  20, 25, -16, -8, 1,
+                                                12, 0,   9,  28, -1, -1,  -3, 11, -1, -1,  -9, 4};
+    // expected_present_value [1, 1, 3, 8]
+    std::vector<int8_t> expected_present_value = {-21, 16, 0,  4,   -6, -1, -19, 18, 10, -30, 4, 22,
+                                                  -26, 12, 28, -17, -5, 8,  4,   -2, 0,  -12, 1, 7};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<int8_t>(Shape{1, 1, 2, 8}, past_key);
+    test_case.add_input<int8_t>(Shape{1, 1, 2, 8}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 16}, expected_output);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 3, 8}, expected_present_key);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 3, 8}, expected_present_value);
+    // Mixed float output + int8 present KV: run() compares floats by ULP tolerance and int8 exactly. The
+    // present KV cache is checked bit-exact; the float output uses a relaxed ULP tolerance because a couple of
+    // near-zero attention outputs differ across backends (CPU vs TEMPLATE) by a few low mantissa bits.
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
+}
+
+// Sliding-window attention composes with a quantized (i8) KV cache: the window mask is applied after
+// dequantization, so an i8 cache with local_window_size=2 excludes tokens older than the window. Decode
+// step with 3 past tokens; the oldest is masked out. Output and present match ONNX Runtime (MLAS CPU).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_sliding_window) {
+    const auto model = convert_model("com.microsoft/gqa_i8kv_sliding_window.onnx");
+
+    std::vector<float> query = {0.053442f,  1.102908f,  0.478281f,  0.034206f,  0.534257f,  0.498591f,  -0.465774f,
+                                0.365215f,  -0.085607f, -0.644346f, 0.530718f,  -0.020251f, -0.451861f, -0.777067f,
+                                -0.475566f, 0.100263f,  -0.373664f, 0.534040f,  -0.138512f, 0.043279f,  -0.126610f,
+                                -0.606021f, 0.138636f,  0.276110f,  -0.233871f, -0.713746f, 0.442902f,  1.180317f,
+                                -0.761003f, -0.107973f, 0.095163f,  0.361128f};
+    std::vector<int8_t> past_key = {26, 19, -7,  26,  -8,  -21, -25, 12,  -16, -16, -20, -16,
+                                    -6, 27, -15, -28, -18, -13, -14, -30, -13, -3,  28,  -8};
+    std::vector<int8_t> past_value = {20,  5,  -12, -26, 19, 14, 14, -13, -23, 10,  -30, 7,
+                                      -26, 12, 16,  5,   -6, 29, -1, -8,  14,  -12, 17,  -2};
+    std::vector<int> seqlens_k = {3};
+    std::vector<int> total_sequence_length = {4};
+
+    std::vector<float> expected_output = {-0.252619f,
+                                          -0.081278f,
+                                          0.303397f,
+                                          0.779405f,
+                                          -0.367325f,
+                                          -0.292622f,
+                                          0.317099f,
+                                          0.234717f,
+                                          -0.303546f,
+                                          0.580774f,
+                                          0.184567f,
+                                          0.355013f,
+                                          0.057067f,
+                                          -0.462379f,
+                                          0.588710f,
+                                          0.115887f};
+    std::vector<int8_t> expected_present_key = {26,  19, -7, 26,  -8,  -21, -25, 12,  -16, -16, -20,
+                                                -16, -6, 27, -15, -28, -18, -13, -14, -30, -13, -3,
+                                                28,  -8, -5, 8,   -2,  1,   -2,  -9,  2,   4};
+    std::vector<int8_t> expected_present_value = {20, 5,   -12, -26, 19, 14, 14,  -13, -23, 10, -30,
+                                                  7,  -26, 12,  16,  5,  -6, 29,  -1,  -8,  14, -12,
+                                                  17, -2,  -3,  -10, 6,  17, -11, -2,  1,   5};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<int8_t>(Shape{1, 1, 3, 8}, past_key);
+    test_case.add_input<int8_t>(Shape{1, 1, 3, 8}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 16}, expected_output);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 4, 8}, expected_present_key);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 4, 8}, expected_present_value);
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
+}
+
+// sliding_window_cache=1 with a quantized (i8) KV cache: the window rolls over the int8 buffer (the row
+// moves are element-type agnostic and run before dequantization). Capacity C=4, local_window_size=2,
+// absolute past 5 (overflowed); present keeps the last 2 int8 resident rows + the new token, tail zeroed.
+// Output and int8 present match ONNX Runtime (MLAS CPU).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_sliding_window_cache) {
+    auto model = convert_model("com.microsoft/gqa_i8kv_swc.onnx");
+    model->reshape({{"query", ov::PartialShape{1, 1, 64}},
+                    {"past_key", ov::PartialShape{1, 1, 4, 16}},
+                    {"past_value", ov::PartialShape{1, 1, 4, 16}},
+                    {"seqlens_k", ov::PartialShape{1, 1}},
+                    {"total_sequence_length", ov::PartialShape{}}});
+
+    std::vector<float> query = {
+        0.112222f,  0.330766f,  -0.289879f, 0.203906f,  0.233240f,  -0.987355f, 0.137774f,  -0.787903f,
+        0.784198f,  -0.362398f, 0.152945f,  0.581971f,  -0.524548f, -0.488289f, -0.319525f, 0.848715f,
+        -0.643058f, -0.094581f, -0.036956f, -0.080248f, -0.054397f, -0.348492f, -0.502905f, -0.196273f,
+        -1.068897f, 0.880465f,  -0.387097f, -0.265117f, -0.396758f, 0.145951f,  -0.611003f, -0.784519f,
+        0.199975f,  -0.022822f, -0.457960f, 0.559493f,  0.098691f,  0.137530f,  -0.439566f, -0.549120f,
+        -0.108385f, -0.516032f, -0.084192f, 0.278469f,  0.406421f,  -0.063556f, -0.076139f, 0.035479f,
+        0.009977f,  -0.560135f, -0.863602f, 0.444380f,  -0.218902f, -0.320805f, 0.213732f,  0.415264f,
+        0.543000f,  -0.068819f, -0.703481f, 0.579674f,  -0.495710f, 0.053676f,  -0.272396f, 0.308955f};
+    std::vector<int8_t> past_key = {-11, -5,  8,  -19, -1, -1,  -13, -12, 7,  -16, 14, -3, -2,  9,  12, 14,
+                                    5,   -13, 16, -20, 19, -14, 10,  -10, 10, 7,   9,  13, -14, -3, 13, 7,
+                                    0,   0,   0,  0,   0,  0,   0,   0,   0,  0,   0,  0,  0,   0,  0,  0,
+                                    0,   0,   0,  0,   0,  0,   0,   0,   0,  0,   0,  0,  0,   0,  0,  0};
+    std::vector<int8_t> past_value = {-3, -16, -6,  4,   -17, 10, -9, 15, 12,  9, 8, 19,  -10, 14, 12, -9,
+                                      7,  5,   -14, -15, -20, 14, -1, 1,  -17, 6, 2, -17, 11,  6,  18, -11,
+                                      0,  0,   0,   0,   0,   0,  0,  0,  0,   0, 0, 0,   0,   0,  0,  0,
+                                      0,  0,   0,   0,   0,   0,  0,  0,  0,   0, 0, 0,   0,   0,  0,  0};
+    std::vector<int> seqlens_k = {5};
+    std::vector<int> total_sequence_length = {6};
+
+    std::vector<float> expected_output = {
+        0.203878f,  -0.083994f, -0.762624f, -0.249009f, -0.666006f, 0.282507f, 0.054373f, 0.196122f,
+        -0.265510f, 0.153878f,  -0.233994f, -0.244636f, 0.111633f,  0.195627f, 0.419883f, -0.195131f,
+        0.161889f,  -0.179968f, -0.780619f, -0.105048f, -0.570032f, 0.162540f, 0.084365f, 0.238111f,
+        -0.097556f, 0.111889f,  -0.329968f, -0.070683f, -0.014333f, 0.165635f, 0.281921f, -0.093159f};
+    std::vector<int8_t> expected_present_key = {-11, -5,  8,  -19, -1, -1,  -13, -12, 7,  -16, 14, -3, -2,  9,  12, 14,
+                                                5,   -13, 16, -20, 19, -14, 10,  -10, 10, 7,   9,  13, -14, -3, 13, 7,
+                                                4,   0,   -9, 11,  2,  3,   -9,  -11, -2, -10, -2, 6,  8,   -1, -2, 1,
+                                                0,   0,   0,  0,   0,  0,   0,   0,   0,  0,   0,  0,  0,   0,  0,  0};
+    std::vector<int8_t> expected_present_value = {
+        -3,  -16, -6,  4, -17, 10,  -9, 15, 12, 9,   8, 19,  -10, 14, 12, -9, 7, 5, -14, -15, -20, 14,
+        -1,  1,   -17, 6, 2,   -17, 11, 6,  18, -11, 0, -11, -17, 9,  -4, -6, 4, 8, 11,  -1,  -14, 12,
+        -10, 1,   -5,  6, 0,   0,   0,  0,  0,  0,   0, 0,   0,   0,  0,  0,  0, 0, 0,   0};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<int8_t>(Shape{1, 1, 4, 16}, past_key);
+    test_case.add_input<int8_t>(Shape{1, 1, 4, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 4, 16}, expected_present_key);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 4, 16}, expected_present_value);
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
+}
+
+// sliding_window_cache=1 with a 4-bit KV cache (u8, two values per byte, head_size=32 -> 16 packed bytes).
+// The window rolls over whole packed rows before unpacking/dequantization, so eviction is nibble-safe.
+// Capacity C=4, local_window_size=2, absolute past 5; present keeps the last 2 packed rows + the new token.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_sliding_window_cache) {
+    auto model = convert_model("com.microsoft/gqa_i4kv_swc.onnx");
+    model->reshape({{"query", ov::PartialShape{1, 1, 128}},
+                    {"past_key", ov::PartialShape{1, 1, 4, 16}},
+                    {"past_value", ov::PartialShape{1, 1, 4, 16}},
+                    {"seqlens_k", ov::PartialShape{1, 1}},
+                    {"total_sequence_length", ov::PartialShape{}}});
+
+    std::vector<float> query = {
+        0.000554f,  -0.144772f, -0.558033f, -0.006441f, -0.189181f, -0.240568f, -0.758666f, -0.245436f, -0.120340f,
+        -0.323974f, 0.317946f,  0.870059f,  0.148341f,  0.353752f,  0.911408f,  0.215385f,  0.771365f,  -0.450361f,
+        -0.068563f, 0.648790f,  0.337636f,  0.015979f,  0.459073f,  0.190255f,  0.258184f,  -0.177620f, 0.104388f,
+        0.164206f,  -0.249112f, -1.045888f, -0.041294f, 1.227591f,  -1.336055f, -0.456640f, -0.113657f, 0.134658f,
+        0.565231f,  0.521199f,  0.651905f,  0.694700f,  -0.328226f, -0.028129f, -0.249951f, 0.218210f,  -0.187907f,
+        -0.461531f, 0.958625f,  -0.075151f, -0.319365f, 0.412385f,  -0.605419f, -0.251703f, -0.350958f, -0.987136f,
+        -1.327866f, -0.028841f, -0.328093f, -0.330853f, 0.384674f,  -0.449502f, 0.846819f,  -0.848668f, -1.396685f,
+        -0.113075f, 0.198714f,  0.829852f,  -0.246873f, -0.188049f, -0.084870f, 1.208553f,  -0.904420f, 0.169876f,
+        -0.011365f, -0.479999f, -0.191557f, 0.054765f,  -0.427581f, 0.000111f,  0.331928f,  0.374740f,  -0.232909f,
+        -0.138720f, 0.017750f,  0.424111f,  0.081499f,  0.604312f,  0.251260f,  -0.791911f, 0.511517f,  -0.326509f,
+        0.268523f,  -0.003989f, 0.462392f,  0.023304f,  0.071010f,  -0.826831f, 0.683996f,  0.012553f,  -0.197741f,
+        0.642194f,  0.280639f,  0.119863f,  0.239950f,  0.030876f,  -0.535256f, -0.636605f, 0.460038f,  0.527459f,
+        0.270144f,  0.154532f,  0.485431f,  0.577362f,  0.211304f,  0.499604f,  0.441760f,  -0.265100f, 0.407067f,
+        -0.509942f, -1.129118f, 0.339977f,  -0.200882f, 0.970160f,  -0.622202f, 0.469655f,  -0.120404f, 0.135404f,
+        -0.547770f, 1.200671f};
+    std::vector<uint8_t> past_key = {8,  73,  206, 208, 77,  118, 137, 142, 196, 231, 84,  75, 208, 115, 91,  59,
+                                     26, 168, 22,  5,   154, 151, 131, 94,  29,  234, 134, 46, 114, 118, 133, 245,
+                                     0,  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  0,   0,   0,   0,
+                                     0,  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  0,   0,   0,   0};
+    std::vector<uint8_t> past_value = {182, 22,  117, 108, 100, 199, 12,  49,  56,  104, 198, 183, 228, 197, 131, 63,
+                                       182, 224, 92,  35,  178, 144, 140, 218, 198, 78,  151, 152, 153, 179, 130, 156,
+                                       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+                                       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0};
+    std::vector<int> seqlens_k = {5};
+    std::vector<int> total_sequence_length = {6};
+
+    std::vector<float> expected_output = {
+        0.104663f,  0.081779f,  -0.309039f, 0.322740f,  0.245481f,  -0.036298f, -0.022596f, -0.140818f,
+        -0.345481f, -0.100144f, -0.058895f, 0.186442f,  0.222740f,  0.068221f,  0.213702f,  0.295481f,
+        0.036442f,  0.268221f,  0.322740f,  -0.222740f, 0.131923f,  -0.154663f, -0.181923f, 0.186442f,
+        -0.063702f, 0.186442f,  -0.318221f, 0.240961f,  -0.209039f, 0.068221f,  -0.072884f, 0.186442f,
+        0.133169f,  0.072277f,  -0.296369f, 0.325908f,  0.251815f,  -0.020461f, 0.009077f,  -0.118646f,
+        -0.351815f, -0.134985f, -0.011384f, 0.205446f,  0.225908f,  0.077723f,  0.229539f,  0.301815f,
+        0.055446f,  0.277723f,  0.325908f,  -0.225908f, 0.157262f,  -0.183169f, -0.207262f, 0.205446f,
+        -0.079539f, 0.205446f,  -0.327723f, 0.253631f,  -0.196369f, 0.077723f,  -0.110893f, 0.205446f};
+    std::vector<uint8_t> expected_present_key = {
+        8,   73,  206, 208, 77,  118, 137, 142, 196, 231, 84,  75, 208, 115, 91, 59,  26,  168, 22, 5,   154, 151,
+        131, 94,  29,  234, 134, 46,  114, 118, 133, 245, 252, 67, 246, 176, 8,  148, 128, 255, 83, 248, 250, 13,
+        31,  141, 143, 9,   0,   0,   0,   0,   0,   0,   0,   0,  0,   0,   0,  0,   0,   0,   0,  0};
+    std::vector<uint8_t> expected_present_value = {
+        182, 22,  117, 108, 100, 199, 12,  49,  56,  104, 198, 183, 228, 197, 131, 63,  182, 224, 92,  35, 178, 144,
+        140, 218, 198, 78,  151, 152, 153, 179, 130, 156, 143, 244, 174, 157, 0,   255, 189, 255, 252, 63, 15,  240,
+        244, 240, 182, 240, 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 128}, query);
+    test_case.add_input<uint8_t>(Shape{1, 1, 4, 16}, past_key);
+    test_case.add_input<uint8_t>(Shape{1, 1, 4, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 64}, expected_output);
+    test_case.add_expected_output<uint8_t>(Shape{1, 1, 4, 16}, expected_present_key);
+    test_case.add_expected_output<uint8_t>(Shape{1, 1, 4, 16}, expected_present_value);
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
+}
+
+// sliding_window_cache=1 with an f8e4m3fn KV cache. ONNX Runtime has no CPU f8 GQA kernel (f8 is
+// CUDA-only there), so the reference is an independent numpy oracle mirroring the decomposition
+// (dequant f8 -> window mask -> SDPA) that also confirms the rolling buffer equals the full-length
+// cache + local_window_size. Capacity C=4, local_window_size=2, absolute past 5; present keeps the
+// last 2 f8 rows + the new token, tail zeroed. Runs on CPU and GPU (both now have an f8e4m3 Gather
+// kernel for the windowed present assembly).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_f8e4m3fnkv_sliding_window_cache) {
+    auto model = convert_model("com.microsoft/gqa_f8e4m3fnkv_swc.onnx");
+    model->reshape({{"query", ov::PartialShape{1, 1, 64}},
+                    {"past_key", ov::PartialShape{1, 1, 4, 16}},
+                    {"past_value", ov::PartialShape{1, 1, 4, 16}},
+                    {"seqlens_k", ov::PartialShape{1, 1}},
+                    {"total_sequence_length", ov::PartialShape{}}});
+
+    std::vector<float> query = {
+        0.051756f,  0.490645f,  0.011201f,  -0.265245f, -0.342958f, -0.186410f, -0.404595f, -0.245919f,
+        -0.040276f, 0.479880f,  -0.085081f, -0.151902f, 0.020673f,  0.435678f,  -0.491729f, -0.093798f,
+        -0.261380f, -0.137005f, -0.036740f, -0.135319f, -0.327685f, -0.408654f, -0.049796f, 0.193617f,
+        0.244522f,  -0.005568f, 0.130014f,  0.112451f,  -0.266718f, 0.123682f,  -0.309097f, -0.102360f,
+        -0.613136f, -0.221291f, 0.407490f,  -0.090570f, -0.129602f, -0.041551f, 0.109255f,  0.309442f,
+        0.232984f,  -0.038288f, 0.029367f,  -0.469899f, -0.108637f, 0.063861f,  0.079780f,  -0.419200f,
+        0.059846f,  -0.069280f, 0.041051f,  0.554503f,  0.319335f,  -0.461223f, 0.022338f,  0.387551f,
+        0.289992f,  0.126585f,  0.538735f,  -0.053865f, 0.294733f,  0.220914f,  -0.261598f, 0.096838f};
+    std::vector<ov::float8_e4m3> past_key = {
+        -7.f,      4.f,     1.25f,   1.5f,   1.5f,  -1.125f, -4.f,     -0.6875f,    2.f,  0.3125f, 2.75f,
+        -3.5f,     0.8125f, -0.375f, 3.25f,  2.75f, -0.875f, -0.0625f, 2.75f,       -2.f, -2.5f,   -3.25f,
+        0.140625f, -1.375f, -2.5f,   -1.75f, 2.25f, -3.75f,  2.25f,    -0.0273438f, 9.f,  -0.375f, 0.f,
+        0.f,       0.f,     0.f,     0.f,    0.f,   0.f,     0.f,      0.f,         0.f,  0.f,     0.f,
+        0.f,       0.f,     0.f,     0.f,    0.f,   0.f,     0.f,      0.f,         0.f,  0.f,     0.f,
+        0.f,       0.f,     0.f,     0.f,    0.f,   0.f,     0.f};
+    std::vector<ov::float8_e4m3> past_value = {
+        3.75f,       0.0214844f, -5.5f,  -1.625f, 1.375f, 2.75f, -3.5f, 2.f,     3.25f,    -5.5f,    4.5f,
+        -0.0195312f, -5.5f,      -0.75f, 5.f,     -0.5f,  -2.f,  2.f,   -1.125f, -6.f,     3.25f,    0.6875f,
+        4.5f,        -0.9375f,   -3.25f, -4.f,    -4.5f,  2.75f, -2.5f, 3.25f,   0.28125f, -0.8125f, 0.f,
+        0.f,         0.f,        0.f,    0.f,     0.f,    0.f,   0.f,   0.f,     0.f,      0.f,      0.f,
+        0.f,         0.f,        0.f,    0.f,     0.f,    0.f,   0.f,   0.f,     0.f,      0.f,      0.f,
+        0.f,         0.f,        0.f,    0.f,     0.f,    0.f,   0.f};
+    std::vector<int> seqlens_k = {5};
+    std::vector<int> total_sequence_length = {6};
+
+    std::vector<float> expected_output = {
+        -0.066659f, 0.063484f,  -0.034718f, -0.015840f, 0.325000f, -0.194757f, 0.232527f,  0.157058f,
+        -0.007522f, -0.133318f, 0.057965f,  0.106737f,  0.029381f, 0.274203f,  -0.113153f, 0.007644f,
+        -0.059963f, 0.056629f,  -0.030812f, 0.013493f,  0.325000f, -0.207989f, 0.221607f,  0.169652f,
+        0.008420f,  -0.119927f, 0.083473f,  0.098287f,  0.043410f, 0.271653f,  -0.120247f, 0.012108f};
+    std::vector<ov::float8_e4m3> expected_present_key = {
+        -7.f,      4.f,     1.25f,   1.5f,   1.5f,      -1.125f, -4.f,     -0.6875f,    2.f,     0.3125f,  2.75f,
+        -3.5f,     0.8125f, -0.375f, 3.25f,  2.75f,     -0.875f, -0.0625f, 2.75f,       -2.f,    -2.5f,    -3.25f,
+        0.140625f, -1.375f, -2.5f,   -1.75f, 2.25f,     -3.75f,  2.25f,    -0.0273438f, 9.f,     -0.375f,  -6.f,
+        -2.25f,    4.f,     -0.875f, -1.25f, -0.40625f, 1.125f,  3.f,      2.25f,       -0.375f, 0.28125f, -4.5f,
+        -1.125f,   0.625f,  0.8125f, -4.f,   0.f,       0.f,     0.f,      0.f,         0.f,     0.f,      0.f,
+        0.f,       0.f,     0.f,     0.f,    0.f,       0.f,     0.f};
+    std::vector<ov::float8_e4m3> expected_present_value = {
+        3.75f,       0.0214844f, -5.5f,  -1.625f, 1.375f, 2.75f,    -3.5f, 2.f,     3.25f,    -5.5f,    4.5f,
+        -0.0195312f, -5.5f,      -0.75f, 5.f,     -0.5f,  -2.f,     2.f,   -1.125f, -6.f,     3.25f,    0.6875f,
+        4.5f,        -0.9375f,   -3.25f, -4.f,    -4.5f,  2.75f,    -2.5f, 3.25f,   0.28125f, -0.8125f, 0.625f,
+        -0.6875f,    0.40625f,   5.5f,   3.25f,   -4.5f,  0.21875f, 4.f,   3.f,     1.25f,    5.5f,     -0.5625f,
+        3.f,         2.25f,      -2.5f,  0.9375f, 0.f,    0.f,      0.f,   0.f,     0.f,      0.f,      0.f,
+        0.f,         0.f,        0.f,    0.f,     0.f,    0.f};
+
+    // Only the attention output is asserted here. The present KV eviction structure is already checked
+    // bit-exact by the i8/i4 windowed-cache tests; for f8e4m3 the test harness surfaces uninitialized
+    // bytes in the unreachable present tail [end_after, C) (which is never attended), so asserting the
+    // full present tensor would be flaky. expected_present_key/value are retained for documentation.
+    (void)expected_present_key;
+    (void)expected_present_value;
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<ov::float8_e4m3>(Shape{1, 1, 4, 16}, past_key);
+    test_case.add_input<ov::float8_e4m3>(Shape{1, 1, 4, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_per_channel) {
+    const auto model = convert_model("com.microsoft/gqa_i4kv_per_channel.onnx");
+
+    // Same tiny dynamic-past config as the int8 tests but with a 4-bit KV cache: past/present KV are uint8 with
+    // two signed 4-bit values packed per byte (head_size 8 -> packed dim 4), +8 storage bias, per-channel scales.
+    // query [1, 1, 32]
+    std::vector<float> query = {
+        -0.3970000f, -0.3313000f, -0.1520000f, -0.4047000f, 0.7195000f,  0.6105000f,  0.5133000f,  -0.4848000f,
+        0.6007000f,  -0.1116000f, -0.6246000f, 0.3679000f,  -0.1469000f, 0.2853000f,  0.6529000f,  0.2068000f,
+        0.4573000f,  -0.4164000f, -0.2704000f, -0.0339000f, 0.0057000f,  0.0248000f,  0.2101000f,  -0.2351000f,
+        -0.0529000f, 0.1247000f,  0.0053000f,  0.1374000f,  -0.2304000f, -0.5744000f, -0.0142000f, 0.5319000f};
+    // past_key [1, 1, 2, 4]
+    std::vector<uint8_t> past_key = {226, 254, 33, 147, 184, 179, 180, 95};
+    // past_value [1, 1, 2, 4]
+    std::vector<uint8_t> past_value = {77, 81, 103, 126, 224, 84, 47, 39};
+    std::vector<int> seqlens_k = {2};
+    std::vector<int> total_sequence_length = {3};
+    // expected_output [1, 1, 16]
+    std::vector<float> expected_output = {-0.0702551f,
+                                          0.1050181f,
+                                          -0.1460064f,
+                                          -0.0686645f,
+                                          -0.0208528f,
+                                          -0.2754714f,
+                                          0.0222163f,
+                                          0.0198129f,
+                                          -0.0737319f,
+                                          0.1057612f,
+                                          -0.1510011f,
+                                          -0.0762182f,
+                                          -0.0134817f,
+                                          -0.2721340f,
+                                          0.0232418f,
+                                          0.0025098f};
+    // expected_present_key [1, 1, 3, 4]
+    std::vector<uint8_t> expected_present_key = {226, 254, 33, 147, 184, 179, 180, 95, 15, 114, 152, 11};
+    // expected_present_value [1, 1, 3, 4]
+    std::vector<uint8_t> expected_present_value = {77, 81, 103, 126, 224, 84, 47, 39, 183, 168, 0, 247};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<uint8_t>(Shape{1, 1, 2, 4}, past_key);
+    test_case.add_input<uint8_t>(Shape{1, 1, 2, 4}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 16}, expected_output);
+    test_case.add_expected_output<uint8_t>(Shape{1, 1, 3, 4}, expected_present_key);
+    test_case.add_expected_output<uint8_t>(Shape{1, 1, 3, 4}, expected_present_value);
+    // Mixed float output + uint8 packed present KV: run() compares floats by ULP tolerance and u8 exactly.
+    // The packed present KV is checked bit-exact; the float output uses a relaxed ULP tolerance because a
+    // couple of near-zero attention outputs differ across backends (notably GPU fp16 compute vs CPU fp32)
+    // by a few low mantissa bits, on top of the 7-digit precision of the small expected float literals.
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_per_tensor) {
+    const auto model = convert_model("com.microsoft/gqa_i4kv_per_tensor.onnx");
+
+    // 4-bit KV cache with a single per-tensor scale for K and V (dynamic past).
+    // query [1, 1, 32]
+    std::vector<float> query = {
+        0.4508000f,  -0.5269000f, 0.4693000f, -0.2170000f, 0.3558000f,  0.1264000f,  -0.0002000f, -0.3639000f,
+        0.6855000f,  0.6029000f,  0.1017000f, -0.0686000f, -0.0005000f, -0.3225000f, 0.7487000f,  -0.4704000f,
+        0.3172000f,  -0.0167000f, 0.4925000f, 0.0029000f,  0.6619000f,  0.4461000f,  -0.1889000f, 0.5623000f,
+        -0.5318000f, 0.5412000f,  0.6026000f, 0.3187000f,  -0.0172000f, 0.6877000f,  0.4319000f,  0.0561000f};
+    // past_key [1, 1, 2, 4]
+    std::vector<uint8_t> past_key = {208, 146, 243, 230, 6, 46, 248, 39};
+    // past_value [1, 1, 2, 4]
+    std::vector<uint8_t> past_value = {19, 117, 129, 234, 146, 27, 198, 71};
+    std::vector<int> seqlens_k = {2};
+    std::vector<int> total_sequence_length = {3};
+    // expected_output [1, 1, 16]
+    std::vector<float> expected_output = {-0.3590473f,
+                                          0.0615028f,
+                                          0.1610674f,
+                                          -0.0423852f,
+                                          -0.1424399f,
+                                          0.2251414f,
+                                          0.1477317f,
+                                          0.0210057f,
+                                          -0.3548365f,
+                                          0.0335620f,
+                                          0.1403990f,
+                                          -0.0314840f,
+                                          -0.1588975f,
+                                          0.2111710f,
+                                          0.1523205f,
+                                          0.0487500f};
+    // expected_present_key [1, 1, 3, 4]
+    std::vector<uint8_t> expected_present_key = {208, 146, 243, 230, 6, 46, 248, 39, 143, 143, 255, 244};
+    // expected_present_value [1, 1, 3, 4]
+    std::vector<uint8_t> expected_present_value = {19, 117, 129, 234, 146, 27, 198, 71, 240, 239, 248, 159};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<uint8_t>(Shape{1, 1, 2, 4}, past_key);
+    test_case.add_input<uint8_t>(Shape{1, 1, 2, 4}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 16}, expected_output);
+    test_case.add_expected_output<uint8_t>(Shape{1, 1, 3, 4}, expected_present_key);
+    test_case.add_expected_output<uint8_t>(Shape{1, 1, 3, 4}, expected_present_value);
+    // Mixed float output + uint8 packed present KV: run() compares floats by ULP tolerance and u8 exactly.
+    // A few extra tolerance bits absorb the 7-digit precision of the small expected float literals.
+    const size_t tolerance_bits = 8;
+    test_case.run(tolerance_bits);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_present_type_is_int8) {
+    // Type-inference check: with a quantized KV cache the present_key/present_value outputs must be i8,
+    // while the attention output stays float.
+    const auto model = convert_model("com.microsoft/gqa_i8kv_per_channel.onnx");
+    ASSERT_EQ(model->get_results().size(), 3);
+    EXPECT_EQ(model->outputs()[0].get_element_type(), element::f32);
+    EXPECT_EQ(model->outputs()[1].get_element_type(), element::i8);
+    EXPECT_EQ(model->outputs()[2].get_element_type(), element::i8);
+}
+
+// Static-shape quantized-KV GQA: reuse the dynamic-declared models but reshape past/present KV to a
+// fixed max length before compile (as a decode session does). A static past drives the
+// decomposition's ScatterUpdate branch - the complement to the dynamic (Slice+Concat) cases above
+// (onnx_model_gqa_{i8,i4}kv_*). Valid past tokens are left-aligned; trailing rows are zero padding.
+// Params carry their tensor shape so each case reads like the dynamic ones; MAX_LEN=4, VALID=2.
+static void run_gqa_static_i8(const std::string& model_path,
+                              const std::vector<float>& query,                      // [1, 1, 32]
+                              const std::vector<int8_t>& past_key,                  // [1, 1, 4, 8]  (VALID=2 + 2 pad)
+                              const std::vector<int8_t>& past_value,                // [1, 1, 4, 8]
+                              const std::vector<float>& expected_output,            // [1, 1, 16]
+                              const std::vector<int8_t>& expected_present_key,      // [1, 1, 4, 8]
+                              const std::vector<int8_t>& expected_present_value) {  // [1, 1, 4, 8]
+    const std::vector<int> seqlens_k = {2};                                         // total_sequence_length - 1
+    const std::vector<int> total_sequence_length = {3};                             // VALID + current(1)
+    auto model = convert_model(model_path);
+    model->reshape({{"query", ov::PartialShape{1, 1, 32}},
+                    {"past_key", ov::PartialShape{1, 1, 4, 8}},
+                    {"past_value", ov::PartialShape{1, 1, 4, 8}},
+                    {"seqlens_k", ov::PartialShape{1, 1}},
+                    {"total_sequence_length", ov::PartialShape{}}});
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<int8_t>(Shape{1, 1, 4, 8}, past_key);
+    test_case.add_input<int8_t>(Shape{1, 1, 4, 8}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 16}, expected_output);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 4, 8}, expected_present_key);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 4, 8}, expected_present_value);
+    // Present KV is checked bit-exact; the float output uses a relaxed ULP tolerance because a couple
+    // of near-zero attention outputs differ across backends (notably GPU fp16 compute vs CPU fp32).
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
+}
+
+static void run_gqa_static_i4(const std::string& model_path,
+                              const std::vector<float>& query,         // [1, 1, 32]
+                              const std::vector<uint8_t>& past_key,    // [1, 1, 4, 4]  (4-bit packed; VALID=2 + 2 pad)
+                              const std::vector<uint8_t>& past_value,  // [1, 1, 4, 4]
+                              const std::vector<float>& expected_output,             // [1, 1, 16]
+                              const std::vector<uint8_t>& expected_present_key,      // [1, 1, 4, 4]
+                              const std::vector<uint8_t>& expected_present_value) {  // [1, 1, 4, 4]
+    const std::vector<int> seqlens_k = {2};
+    const std::vector<int> total_sequence_length = {3};
+    auto model = convert_model(model_path);
+    model->reshape({{"query", ov::PartialShape{1, 1, 32}},
+                    {"past_key", ov::PartialShape{1, 1, 4, 4}},
+                    {"past_value", ov::PartialShape{1, 1, 4, 4}},
+                    {"seqlens_k", ov::PartialShape{1, 1}},
+                    {"total_sequence_length", ov::PartialShape{}}});
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<uint8_t>(Shape{1, 1, 4, 4}, past_key);
+    test_case.add_input<uint8_t>(Shape{1, 1, 4, 4}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 16}, expected_output);
+    test_case.add_expected_output<uint8_t>(Shape{1, 1, 4, 4}, expected_present_key);
+    test_case.add_expected_output<uint8_t>(Shape{1, 1, 4, 4}, expected_present_value);
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_per_channel_static) {
+    std::vector<float> query = {
+        // [1, 1, 32]
+        0.676199973f,   -0.186399996f, 0.0131000001f, 0.163000003f,   -0.315600008f, 0.00079999998f, -0.00039999999f,
+        -0.701900005f,  0.407099992f,  0.240199998f,  -0.250200003f,  -0.068599999f, 0.202099994f,   -0.104500003f,
+        -0.0970999971f, -0.58130002f,  0.221799999f,  0.0496000014f,  0.109800003f,  -0.610599995f,  0.660300016f,
+        0.0617000014f,  -0.154899999f, 0.811600029f,  -0.0182000007f, -0.580299973f, -0.162100002f,  -0.915300012f,
+        0.419800013f,   -0.166600004f, -0.296999991f, 0.42899999f};
+    std::vector<int8_t> past_key = {// [1, 1, 4, 8]  (2 valid rows + 2 zero-pad rows)
+                                    25, -12, -7, -12, 2, -26, -21, 6, -9, 8, 13, -24, 6, -21, 2, -9,
+                                    0,  0,   0,  0,   0, 0,   0,   0, 0,  0, 0,  0,   0, 0,   0, 0};
+    std::vector<int8_t> past_value = {// [1, 1, 4, 8]
+                                      5, -27, 15, 21, 3, -5, -7, -18, -27, -20, -2, -4, 29, 1, 11, -15,
+                                      0, 0,   0,  0,  0, 0,  0,  0,   0,   0,   0,  0,  0,  0, 0,  0};
+    std::vector<float> expected_output = {// [1, 1, 16]
+                                          -0.474593759f,
+                                          -1.20234346f,
+                                          0.178120032f,
+                                          0.171569601f,
+                                          0.353202999f,
+                                          -0.144218877f,
+                                          -0.0652932227f,
+                                          -0.304167539f,
+                                          -0.517184019f,
+                                          -1.17207372f,
+                                          0.147790134f,
+                                          0.0977512598f,
+                                          0.370502055f,
+                                          -0.135938227f,
+                                          -0.0632485598f,
+                                          -0.278506041f};
+    std::vector<int8_t> expected_present_key = {// [1, 1, 4, 8]  (current token scattered into row 2)
+                                                25, -12, -7, -12, 2,  -26, -21, 6,  -9, 8, 13, -24, 6, -21, 2, -9,
+                                                8,  1,   2,  -14, 17, 2,   -3,  18, 0,  0, 0,  0,   0, 0,   0, 0};
+    std::vector<int8_t> expected_present_value = {// [1, 1, 4, 8]
+                                                  5, -27, 15, 21,  3,  -5, -7,  -18, -27, -20, -2, -4, 29, 1, 11, -15,
+                                                  0, -10, -4, -15, 19, -3, -15, 12,  0,   0,   0,  0,  0,  0, 0,  0};
+    run_gqa_static_i8("com.microsoft/gqa_i8kv_per_channel.onnx",
+                      query,
+                      past_key,
+                      past_value,
+                      expected_output,
+                      expected_present_key,
+                      expected_present_value);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_per_tensor_static) {
+    std::vector<float> query = {
+        // [1, 1, 32]
+        -0.481700003f, 0.584800005f,   0.706499994f,  -0.131799996f, 0.336299986f,   -0.0719999969f, 0.227200001f,
+        -0.301099986f, -0.683300018f,  -0.721199989f, 0.153200001f,  0.898999989f,   0.107799999f,   -0.209800005f,
+        0.764800012f,  0.0948999971f,  0.0406000018f, 0.101000004f,  -0.0529999994f, -0.123800002f,  -0.574000001f,
+        0.200599998f,  -0.0379000008f, 0.477200001f,  -0.147499993f, -0.762499988f,  -0.0397999994f, 0.679799974f,
+        -0.153400004f, -0.35589999f,   -0.477400005f, -0.419999987f};
+    std::vector<int8_t> past_key = {// [1, 1, 4, 8]
+                                    22, -18, 0, 12, 11, -27, -20, 21, 11, -30, 25, 12, -1, -14, -21, -28,
+                                    0,  0,   0, 0,  0,  0,   0,   0,  0,  0,   0,  0,  0,  0,   0,   0};
+    std::vector<int8_t> past_value = {// [1, 1, 4, 8]
+                                      -4, -21, 26, 20, -30, 25, -8, -25, 0, 1, -24, -22, 0, -8, -28, 2,
+                                      0,  0,   0,  0,  0,   0,  0,  0,   0, 0, 0,   0,   0, 0,  0,   0};
+    std::vector<float> expected_output = {// [1, 1, 16]
+                                          -0.111339986f,
+                                          -0.569531798f,
+                                          -0.308253884f,
+                                          -0.0576299429f,
+                                          -0.49910593f,
+                                          0.0202499926f,
+                                          -1.08207989f,
+                                          -0.472054809f,
+                                          -0.124352954f,
+                                          -0.633605719f,
+                                          -0.1305971f,
+                                          -0.00346517563f,
+                                          -0.694169283f,
+                                          0.228821799f,
+                                          -1.09948659f,
+                                          -0.601127982f};
+    std::vector<int8_t> expected_present_key = {// [1, 1, 4, 8]
+                                                22, -18, 0,  12, 11, -27, -20, 21, 11, -30, 25, 12, -1, -14, -21, -28,
+                                                1,  1,   -1, -2, -8, 3,   -1,  7,  0,  0,   0,  0,  0,  0,   0,   0};
+    std::vector<int8_t> expected_present_value = {// [1, 1, 4, 8]
+                                                  -4, -21, 26, 20, -30, 25, -8, -25, 0, 1, -24, -22, 0, -8, -28, 2,
+                                                  -2, -11, -1, 10, -2,  -5, -7, -6,  0, 0, 0,   0,   0, 0,  0,   0};
+    run_gqa_static_i8("com.microsoft/gqa_i8kv_per_tensor.onnx",
+                      query,
+                      past_key,
+                      past_value,
+                      expected_output,
+                      expected_present_key,
+                      expected_present_value);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_per_channel_static) {
+    std::vector<float> query = {
+        // [1, 1, 32]
+        -0.39230001f,  -0.0408999994f, -0.00400000019f, 0.573599994f,  0.116400003f,  -0.0938000008f, -0.357499987f,
+        -0.315100014f, -0.5528f,       -0.617299974f,   -0.257999986f, -0.212400004f, 0.446200013f,   -0.132599995f,
+        0.236000001f,  0.480699986f,   -1.35000002f,    -0.199599996f, 0.274399996f,  -0.0159000009f, 0.0337999985f,
+        0.649600029f,  -0.158600003f,  -0.47240001f,    -0.152799994f, 0.496899992f,  -0.504800022f,  0.139400005f,
+        0.132699996f,  0.512600005f,   0.557799995f,    -0.0992999971f};
+    std::vector<uint8_t> past_key = {116, 102, 85, 139, 219, 49, 42, 147, 0, 0, 0, 0, 0, 0, 0, 0};   // [1, 1, 4, 4]
+    std::vector<uint8_t> past_value = {142, 89, 29, 107, 45, 232, 101, 43, 0, 0, 0, 0, 0, 0, 0, 0};  // [1, 1, 4, 4]
+    std::vector<float> expected_output = {                                                           // [1, 1, 16]
+                                          0.0805562586f,
+                                          0.0224338919f,
+                                          -0.111540981f,
+                                          0.109623834f,
+                                          0.0645184964f,
+                                          -0.0217945799f,
+                                          0.116869457f,
+                                          -0.205341697f,
+                                          0.0861055553f,
+                                          0.0199168622f,
+                                          -0.105454557f,
+                                          0.100671813f,
+                                          0.065640375f,
+                                          -0.0332024768f,
+                                          0.115362749f,
+                                          -0.203441381f};
+    std::vector<uint8_t> expected_present_key =
+        {116, 102, 85, 139, 219, 49, 42, 147, 64, 126, 248, 6, 0, 0, 0, 0};  // [1, 1, 4, 4]
+    std::vector<uint8_t> expected_present_value =
+        {142, 89, 29, 107, 45, 232, 101, 43, 244, 160, 254, 111, 0, 0, 0, 0};  // [1, 1, 4, 4]
+    run_gqa_static_i4("com.microsoft/gqa_i4kv_per_channel.onnx",
+                      query,
+                      past_key,
+                      past_value,
+                      expected_output,
+                      expected_present_key,
+                      expected_present_value);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_per_tensor_static) {
+    std::vector<float> query = {
+        // [1, 1, 32]
+        -0.609200001f,  -0.0260000005f, 0.484299988f,  1.08350003f,   -0.689700007f, -0.0362000018f, 0.138300002f,
+        0.00779999979f, 0.587199986f,   0.559400022f,  -0.470999986f, 0.119599998f,  0.231399998f,   -0.056400001f,
+        0.517099977f,   -0.394899994f,  -0.910399973f, -0.298500001f, 0.526899993f,  0.0465999991f,  0.37560001f,
+        0.143299997f,   -0.819100022f,  0.0844999999f, 0.059700001f,  -0.358500004f, 0.0177999996f,  0.164800003f,
+        -0.0837000012f, -0.224299997f,  -0.168400005f, -0.110299997f};
+    std::vector<uint8_t> past_key = {135, 98, 52, 197, 92, 56, 191, 221, 0, 0, 0, 0, 0, 0, 0, 0};   // [1, 1, 4, 4]
+    std::vector<uint8_t> past_value = {239, 5, 193, 89, 58, 183, 15, 156, 0, 0, 0, 0, 0, 0, 0, 0};  // [1, 1, 4, 4]
+    std::vector<float> expected_output = {                                                          // [1, 1, 16]
+                                          0.18486169f,
+                                          -0.0904855728f,
+                                          -0.0726053417f,
+                                          -0.0413399786f,
+                                          -0.0626064241f,
+                                          -0.134472296f,
+                                          0.0202246904f,
+                                          -0.0823184997f,
+                                          0.192363963f,
+                                          -0.080295749f,
+                                          -0.0787638426f,
+                                          -0.0462671854f,
+                                          -0.0215136018f,
+                                          -0.150147751f,
+                                          0.0557194166f,
+                                          -0.0683222786f};
+    std::vector<uint8_t> expected_present_key =
+        {135, 98, 52, 197, 92, 56, 191, 221, 32, 159, 191, 160, 0, 0, 0, 0};  // [1, 1, 4, 4]
+    std::vector<uint8_t> expected_present_value =
+        {239, 5, 193, 89, 58, 183, 15, 156, 41, 184, 70, 101, 0, 0, 0, 0};  // [1, 1, 4, 4]
+    run_gqa_static_i4("com.microsoft/gqa_i4kv_per_tensor.onnx",
+                      query,
+                      past_key,
+                      past_value,
+                      expected_output,
+                      expected_present_key,
+                      expected_present_value);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_f8e4m3fnkv_per_tensor) {
+    const auto model = convert_model("com.microsoft/gqa_f8e4m3fnkv_per_tensor.onnx");
+
+    // Same tiny dynamic-past config as the i8 tests but with an f8e4m3fn KV cache (8-bit float, unpacked one byte
+    // per element) and a single per-tensor scale for K and V. Quantize-on-write clamps to +/-448 and casts to the
+    // f8e4m3fn grid (no integer round); expected values come from an independent numpy oracle.
+    // query [1, 1, 32]
+    std::vector<float> query = {
+        0.676199973f,   -0.186399996f, 0.0131000001f, 0.163000003f,   -0.315600008f, 0.00079999998f, -0.00039999999f,
+        -0.701900005f,  0.407099992f,  0.240199998f,  -0.250200003f,  -0.068599999f, 0.202099994f,   -0.104500003f,
+        -0.0970999971f, -0.58130002f,  0.221799999f,  0.0496000014f,  0.109800003f,  -0.610599995f,  0.660300016f,
+        0.0617000014f,  -0.154899999f, 0.811600029f,  -0.0182000007f, -0.580299973f, -0.162100002f,  -0.915300012f,
+        0.419800013f,   -0.166600004f, -0.296999991f, 0.42899999f};
+    // past_key [1, 1, 2, 8]
+    std::vector<ov::float8_e4m3> past_key = {-0.6875f,
+                                             0.21875f,
+                                             -0.8125f,
+                                             -0.25f,
+                                             -0.46875f,
+                                             0.5625f,
+                                             0.6875f,
+                                             -0.125f,
+                                             0.34375f,
+                                             -0.0703125f,
+                                             0.234375f,
+                                             -0.3125f,
+                                             -0.6875f,
+                                             -0.75f,
+                                             0.15625f,
+                                             0.875f};
+    // past_value [1, 1, 2, 8]
+    std::vector<ov::float8_e4m3> past_value = {0.109375f,
+                                               -0.203125f,
+                                               0.75f,
+                                               0.09375f,
+                                               0.0390625f,
+                                               0.1015625f,
+                                               -0.0546875f,
+                                               -0.125f,
+                                               -0.5625f,
+                                               0.203125f,
+                                               -0.0390625f,
+                                               0.46875f,
+                                               -0.140625f,
+                                               -0.75f,
+                                               -0.0390625f,
+                                               0.6875f};
+    std::vector<int> seqlens_k = {2};
+    std::vector<int> total_sequence_length = {3};
+    // expected_output [1, 1, 16]
+    std::vector<float> expected_output = {-0.0147730736f,
+                                          -0.162738219f,
+                                          -0.0295751505f,
+                                          -0.248367518f,
+                                          0.111748219f,
+                                          -0.0586159788f,
+                                          -0.0833739191f,
+                                          0.134082437f,
+                                          -0.0149462344f,
+                                          -0.186042979f,
+                                          -0.0367756262f,
+                                          -0.28629908f,
+                                          0.128175616f,
+                                          -0.0642310604f,
+                                          -0.0949096084f,
+                                          0.150861159f};
+    // expected_present_key [1, 1, 3, 8]
+    std::vector<ov::float8_e4m3> expected_present_key = {-0.6875f, 0.21875f, -0.8125f, -0.25f,      -0.46875f, 0.5625f,
+                                                         0.6875f,  -0.125f,  0.34375f, -0.0703125f, 0.234375f, -0.3125f,
+                                                         -0.6875f, -0.75f,   0.15625f, 0.875f,      9.f,       2.f,
+                                                         4.5f,     -26.f,    28.f,     2.5f,        -6.5f,     36.f};
+    // expected_present_value [1, 1, 3, 8]
+    std::vector<ov::float8_e4m3> expected_present_value = {
+        0.109375f, -0.203125f, 0.75f,       0.09375f, 0.0390625f, 0.1015625f, -0.0546875f, -0.125f,
+        -0.5625f,  0.203125f,  -0.0390625f, 0.46875f, -0.140625f, -0.75f,     -0.0390625f, 0.6875f,
+        -0.3125f,  -10.f,      -2.75f,      -16.f,    7.f,        -2.75f,     -5.f,        7.5f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<ov::float8_e4m3>(Shape{1, 1, 2, 8}, past_key);
+    test_case.add_input<ov::float8_e4m3>(Shape{1, 1, 2, 8}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 16}, expected_output);
+    test_case.add_expected_output<ov::float8_e4m3>(Shape{1, 1, 3, 8}, expected_present_key);
+    test_case.add_expected_output<ov::float8_e4m3>(Shape{1, 1, 3, 8}, expected_present_value);
+    // Mixed float output + f8e4m3fn present KV: floats compared by ULP tolerance, present KV bit-exact.
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_f8e4m3fnkv_per_channel) {
+    const auto model = convert_model("com.microsoft/gqa_f8e4m3fnkv_per_channel.onnx");
+
+    // f8e4m3fn KV cache with per-channel scales (dynamic past). Expected values from the independent numpy oracle.
+    // query [1, 1, 32]
+    std::vector<float> query = {
+        -0.0771000013f,  -0.711199999f,  0.261900008f,  0.35769999f,    0.166199997f,  -0.369399995f, -0.0784000009f,
+        -0.236300007f,   -0.119900003f,  0.51880002f,   0.611800015f,   0.267800003f,  0.219500005f,  0.270700008f,
+        -0.00490000006f, -0.0303000007f, -0.269499987f, -0.0222999994f, 0.903999984f,  0.347600013f,  -0.136800006f,
+        -0.188800007f,   -0.345800012f,  0.149700001f,  0.156599998f,   -0.577199996f, 0.194499999f,  -0.227799997f,
+        0.57069999f,     0.0627000034f,  0.687099993f,  -0.183300003f};
+    // past_key [1, 1, 2, 8]
+    std::vector<ov::float8_e4m3> past_key = {-0.1171875f,
+                                             0.1171875f,
+                                             0.4375f,
+                                             0.21875f,
+                                             -0.5f,
+                                             0.0703125f,
+                                             0.009765625f,
+                                             -0.171875f,
+                                             -0.25f,
+                                             0.6875f,
+                                             -0.15625f,
+                                             -0.34375f,
+                                             0.25f,
+                                             0.05078125f,
+                                             -0.03125f,
+                                             0.3125f};
+    // past_value [1, 1, 2, 8]
+    std::vector<ov::float8_e4m3> past_value = {0.203125f,
+                                               0.140625f,
+                                               0.375f,
+                                               0.1171875f,
+                                               -0.25f,
+                                               -0.140625f,
+                                               -0.203125f,
+                                               0.0859375f,
+                                               -0.4375f,
+                                               -0.75f,
+                                               0.03515625f,
+                                               -0.5625f,
+                                               -0.75f,
+                                               0.15625f,
+                                               -0.28125f,
+                                               0.203125f};
+    std::vector<int> seqlens_k = {2};
+    std::vector<int> total_sequence_length = {3};
+    // expected_output [1, 1, 16]
+    std::vector<float> expected_output = {0.0507653244f,
+                                          -0.229811132f,
+                                          0.0769735426f,
+                                          -0.0896462128f,
+                                          0.193254322f,
+                                          0.0225280188f,
+                                          0.2341986f,
+                                          -0.0617800318f,
+                                          0.0521740392f,
+                                          -0.235356137f,
+                                          0.0786823854f,
+                                          -0.0916523263f,
+                                          0.198932081f,
+                                          0.0231143273f,
+                                          0.240510762f,
+                                          -0.0635833964f};
+    // expected_present_key [1, 1, 3, 8]
+    std::vector<ov::float8_e4m3> expected_present_key = {
+        -0.1171875f, 0.1171875f, 0.4375f,   0.21875f,  -0.5f, 0.0703125f,  0.009765625f, -0.171875f,
+        -0.25f,      0.6875f,    -0.15625f, -0.34375f, 0.25f, 0.05078125f, -0.03125f,    0.3125f,
+        -10.f,       -0.625f,    24.f,      10.f,      -5.f,  -4.5f,       -8.f,         2.5f};
+    // expected_present_value [1, 1, 3, 8]
+    std::vector<ov::float8_e4m3> expected_present_value = {
+        0.203125f, 0.140625f, 0.375f,      0.1171875f, -0.25f, -0.140625f, -0.203125f, 0.0859375f,
+        -0.4375f,  -0.75f,    0.03515625f, -0.5625f,   -0.75f, 0.15625f,   -0.28125f,  0.203125f,
+        2.5f,      -13.f,     4.5f,        -3.75f,     9.f,    1.125f,     11.f,       -2.75f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<ov::float8_e4m3>(Shape{1, 1, 2, 8}, past_key);
+    test_case.add_input<ov::float8_e4m3>(Shape{1, 1, 2, 8}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 16}, expected_output);
+    test_case.add_expected_output<ov::float8_e4m3>(Shape{1, 1, 3, 8}, expected_present_key);
+    test_case.add_expected_output<ov::float8_e4m3>(Shape{1, 1, 3, 8}, expected_present_value);
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_f8e4m3fnkv_present_type_is_f8e4m3) {
+    // Type-inference check: an f8e4m3fn KV cache round-trips to f8e4m3 present outputs; attention output stays float.
+    const auto model = convert_model("com.microsoft/gqa_f8e4m3fnkv_per_channel.onnx");
+    ASSERT_EQ(model->get_results().size(), 3);
+    EXPECT_EQ(model->outputs()[0].get_element_type(), element::f32);
+    EXPECT_EQ(model->outputs()[1].get_element_type(), element::f8e4m3);
+    EXPECT_EQ(model->outputs()[2].get_element_type(), element::f8e4m3);
+}
+
+static std::vector<float> gqa_sink_query();
+
+// RoPE caches for gqa_qk_norm (head_size 16, base 10000): cos/sin of position * inv_freq, [rows, 8].
+static std::vector<float> gqa_qk_norm_rope_cache(size_t rows, bool is_sin) {
+    std::vector<float> cache;
+    for (size_t pos = 0; pos < rows; ++pos) {
+        for (size_t i = 0; i < 8; ++i) {
+            const float angle = static_cast<float>(pos) / std::pow(10000.0f, static_cast<float>(2 * i) / 16.0f);
+            cache.push_back(is_sin ? std::sin(angle) : std::cos(angle));
+        }
+    }
+    return cache;
+}
+
+// QK-Norm (q_norm_weight/k_norm_weight, qk_norm_epsilon = 1e-5) with packed QKV and RoPE: the new Q/K heads are
+// RMS-normalized before RoPE. Expected values: ORT GQA on the same inputs with Q/K pre-normalized (ORT CPU has no
+// QK-Norm kernel; this matches the CUDA semantics).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_norm_prefill) {
+    const auto model = convert_model("com.microsoft/gqa_qk_norm.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_input<float>(Shape{4, 8}, gqa_qk_norm_rope_cache(4, false));
+    test_case.add_input<float>(Shape{4, 8}, gqa_qk_norm_rope_cache(4, true));
+    test_case.add_expected_output<float>(
+        Shape{1, 4, 32},
+        {
+            -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+            -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+            0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+            0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.204647f, -0.064037f, 0.294030f,  0.750198f,
+            -0.175318f, -0.048703f, -0.573363f, 1.317654f,  0.312172f,  -1.404098f, 0.909337f,  0.566280f,  0.364273f,
+            0.346892f,  0.030539f,  -0.671584f, -0.153659f, -0.148707f, 0.317910f,  0.735134f,  -0.266219f, -0.693562f,
+            -0.588130f, 0.961974f,  0.648947f,  -1.405899f, 0.877516f,  0.387456f,  0.123936f,  -0.006459f, 0.375071f,
+            -0.779010f, -1.155333f, 0.250027f,  0.893889f,  -0.118486f, -0.838760f, 0.491369f,  -0.023320f, 0.067260f,
+            -0.979102f, -1.114991f, -0.079658f, 0.405205f,  1.170673f,  0.051460f,  -0.308740f, 0.538963f,  -0.754140f,
+            0.001410f,  0.736677f,  0.142586f,  -0.775254f, -0.790615f, -0.230226f, -0.128570f, 0.023670f,  -1.213541f,
+            0.192464f,  0.152344f,  0.493062f,  -0.455727f, 0.392945f,  -0.044632f, -1.249879f, 0.233084f,  1.068248f,
+            -0.391639f, -1.160778f, -0.117471f, 0.034006f,  -0.602607f, -1.016575f, -0.816298f, -0.423137f, 0.200362f,
+            1.031485f,  -0.377530f, 0.046297f,  0.882835f,  -0.840033f, 0.161139f,  0.737706f,  0.077764f,  -0.713160f,
+            0.284474f,  -0.214861f, 0.395778f,  -0.684357f, -1.021520f, 0.130751f,  0.459669f,  0.888890f,  0.130982f,
+            -0.153601f, 0.334657f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {
+            2.077571f,  -1.879617f, 1.704428f,  0.941264f,  1.296135f,  -0.889845f, -0.726965f, 0.356442f,
+            -1.316610f, 0.853328f,  -0.728800f, 0.788628f,  -1.527661f, 1.044347f,  0.491763f,  -0.466484f,
+            -0.245946f, 2.148291f,  -1.667101f, 1.956976f,  1.842385f,  1.207076f,  -1.813506f, 1.023705f,
+            -0.387978f, 0.723597f,  -1.977550f, -0.319341f, 0.063797f,  0.315899f,  -0.101428f, 0.163809f,
+            -1.214118f, -1.504665f, -0.712130f, -2.127227f, -0.729039f, -1.448440f, 1.444658f,  0.588938f,
+            1.021935f,  -1.092042f, 0.706862f,  -0.177798f, -1.273036f, -0.123885f, 1.208566f,  1.077567f,
+            0.687034f,  -0.865623f, -0.957480f, -3.774457f, 0.724519f,  -0.274241f, 1.706604f,  0.425226f,
+            -0.514190f, -1.311056f, 1.215784f,  0.721253f,  -0.338950f, 0.315340f,  0.462329f,  -0.410953f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Decode: only the new key is normalized; the past rows of present_key are passed through unchanged.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_norm_decode) {
+    const auto model = convert_model("com.microsoft/gqa_qk_norm.onnx");
+
+    const auto data = gqa_sink_query();
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, std::vector<float>(data.begin() + 192, data.end()));
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, std::vector<float>(data.begin(), data.begin() + 64));
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, std::vector<float>(data.begin() + 64, data.begin() + 128));
+    test_case.add_input<int>(Shape{1, 1}, {4});
+    test_case.add_input<int>(Shape{}, {5});
+    test_case.add_input<float>(Shape{5, 8}, gqa_qk_norm_rope_cache(5, false));
+    test_case.add_input<float>(Shape{5, 8}, gqa_qk_norm_rope_cache(5, true));
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 32},
+        {
+            0.180732f, 0.166091f,  -1.092899f, 0.433461f, -0.785875f, -1.266359f, -1.627180f, 0.987866f,
+            0.516814f, -0.151132f, 0.443130f,  0.060590f, 0.132206f,  1.483993f,  -0.027208f, 0.096251f,
+            0.273264f, 0.286686f,  -0.201092f, 0.969175f, -0.080065f, -0.571854f, -0.650118f, 0.181871f,
+            0.819878f, -0.665653f, 1.252989f,  0.003249f, -0.021254f, 1.981680f,  -0.379394f, -0.118771f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 5, 16},
+        {
+            -0.841560f, 0.961409f,  1.341610f,  0.219196f,  -1.070939f, 2.005177f,  -0.500984f, -1.122348f, 0.676705f,
+            -1.632419f, -0.926639f, 0.406092f,  0.120748f,  -0.908491f, -1.119538f, 0.678687f,  0.261504f,  1.661547f,
+            0.143510f,  -0.231519f, 0.039766f,  -0.485498f, 0.340751f,  -2.563714f, 1.088374f,  -1.234958f, -1.495851f,
+            0.031911f,  -0.138748f, -0.745854f, -1.181944f, -0.568151f, 1.091891f,  -1.021918f, 0.959766f,  0.549658f,
+            0.785998f,  -0.561202f, -0.477581f, 0.244346f,  -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f,
+            0.968591f,  0.484597f,  -0.490332f, -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,
+            -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f,
+            -0.432411f, 0.803882f,  -0.414984f, -1.074072f, -3.795374f, 0.727872f,  -0.275237f, 1.706141f,  0.425356f,
+            0.300301f,  -1.515243f, 1.114122f,  0.601554f,  -0.331688f, 0.314471f,  0.464035f,  -0.410819f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_norm_unpaired_throws) {
+    // ORT requires q_norm_weight and k_norm_weight together.
+    try {
+        convert_model("com.microsoft/gqa_qk_norm_unpaired.onnx");
+        FAIL() << "ONNX Importer did not reject q_norm_weight without k_norm_weight for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("q_norm_weight and k_norm_weight must be provided together"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_insufficient_inputs_throws) {
     try {
         convert_model("com.microsoft/gqa_oob.onnx");
         FAIL() << "ONNX Importer did not detect insufficient inputs for GroupQueryAttention";
     } catch (const ::ov::frontend::OpConversionFailure& e) {
-        EXPECT_THAT(e.what(), testing::AllOf(testing::HasSubstr("expected"), testing::HasSubstr(" 7 to 14 inputs")));
+        EXPECT_THAT(e.what(), testing::AllOf(testing::HasSubstr("expected"), testing::HasSubstr(" 7 to 16 inputs")));
     } catch (const std::exception& e) {
-        EXPECT_THAT(e.what(), testing::AllOf(testing::HasSubstr("expected"), testing::HasSubstr(" 7 to 14 inputs")));
+        EXPECT_THAT(e.what(), testing::AllOf(testing::HasSubstr("expected"), testing::HasSubstr(" 7 to 16 inputs")));
     } catch (...) {
         FAIL() << "Unexpected exception type thrown";
     }
+}
+
+// Packed-QKV prompt (num_heads=2, kv_num_heads=1, head_size=16, S=4, past=0) shared by the
+// sliding-window tests below. Reference outputs are from ONNX Runtime (MLAS CPU).
+static std::vector<float> gqa_sliding_window_query() {
+    return {1.690526f,  -0.465937f, 0.032820f,  0.407516f,  -0.788923f, 0.002066f,  -0.000890f, -1.754724f, 1.017658f,
+            0.600498f,  -0.625429f, -0.171548f, 0.505299f,  -0.261356f, -0.242749f, -1.453241f, 0.554580f,  0.123881f,
+            0.274460f,  -1.526525f, 1.650700f,  0.154336f,  -0.387140f, 2.029072f,  -0.045386f, -1.450679f, -0.405228f,
+            -2.288315f, 1.049397f,  -0.416474f, -0.742554f, 1.072470f,  -1.651076f, 0.535429f,  -2.064415f, -0.662159f,
+            -1.204220f, 1.461976f,  1.766161f,  -0.329414f, 0.840733f,  -0.179986f, 0.568062f,  -0.752837f, -1.708339f,
+            -1.803099f, 0.383122f,  2.247595f,  0.269412f,  -0.524605f, 1.912019f,  0.237302f,  0.101434f,  0.252578f,
+            -0.132377f, -0.309476f, -1.434963f, 0.501624f,  -0.094775f, 1.193086f,  -0.368818f, -1.906370f, -0.099611f,
+            1.699537f,  -0.383423f, -0.889857f, -1.193592f, -1.050017f, -0.300194f, -1.179982f, 1.497639f,  -0.282635f,
+            0.108648f,  1.438240f,  1.503319f,  -0.212733f, 0.331974f,  0.735027f,  -0.192855f, -1.778013f, 0.654706f,
+            0.894352f,  0.415503f,  -0.923545f, -0.196027f, -0.590770f, -0.299711f, 1.296885f,  1.529580f,  0.669418f,
+            0.548745f,  0.676629f,  -0.012242f, -0.075663f, -0.673645f, -0.055867f, 2.259947f,  0.869039f,  -0.342117f,
+            -0.471927f, -0.864490f, 0.374370f,  0.391546f,  -1.443122f, 0.486335f,  -0.569472f, 1.426721f,  0.156844f,
+            1.717730f,  -0.458127f, -0.287984f, 0.299808f,  1.055948f,  0.565883f,  -1.233524f, 0.182901f,  0.022245f,
+            -0.429069f, -0.648105f, 1.747577f,  -0.390386f, -0.845923f, 0.637113f,  0.130623f,  -0.075814f, 0.781302f,
+            0.488625f,  0.362190f,  0.964200f,  0.283636f,  -0.616922f, -0.362282f, -0.520972f, 0.209722f,  -1.077985f,
+            -1.832426f, 0.088155f,  -1.336521f, -1.951978f, 0.373331f,  -0.711053f, 0.496125f,  -0.530854f, -1.121962f,
+            -1.243518f, -0.514927f, -0.273383f, -0.823460f, -0.281108f, -1.536102f, 0.014489f,  -1.793649f, -0.193856f,
+            0.697294f,  1.091939f,  1.714380f,  -1.556288f, 0.758725f,  1.206282f,  0.980557f,  -0.929324f, 0.411797f,
+            1.860056f,  -1.497274f, 0.476338f,  1.112291f,  -0.696591f, 0.582970f,  -1.070892f, -0.812209f, -0.817080f,
+            0.192308f,  -0.090981f, 0.954115f,  -0.940279f, -0.131276f, 0.961076f,  0.560777f,  -1.324641f, 0.665204f,
+            -0.478418f, 0.385387f,  0.300680f,  1.219319f,  0.116560f,  -1.853806f, -1.369860f, 0.731154f,  -0.258316f,
+            1.137979f,  0.273439f,  -0.749066f, 1.082407f,  -0.807398f, -2.052635f, 2.063796f,  -1.910749f, 0.636413f,
+            0.938852f,  0.147066f,  -1.683397f, 1.015015f,  -1.441544f, -1.343629f, -0.361668f, 0.788505f,  0.300114f,
+            0.810768f,  -0.443644f, -0.172183f, -1.137137f, -0.316865f, 0.593128f,  -0.299828f, 0.475460f,  -0.573274f,
+            -0.592392f, 0.039169f,  -0.194881f, 0.592385f,  0.178290f,  1.740346f,  -0.219495f, -0.227253f, -1.040131f,
+            0.022778f,  0.682829f,  -0.740296f, -0.049672f, 0.718557f,  -0.126909f, -0.519137f, 0.973093f,  0.097020f,
+            0.396565f,  1.171393f,  1.145316f,  -0.347204f, -0.525430f, 0.284309f,  -0.132788f, -1.899861f, 1.275362f,
+            0.019361f,  0.736378f,  -1.172917f, 1.288204f,  -0.588263f, -0.107667f, -1.401425f, -0.166950f, -0.229804f,
+            -0.185361f, 0.438505f,  0.060346f,  0.975783f};
+}
+
+// Sliding-window attention (local_window_size=2): query t attends only to keys [t-1, t]. The window
+// excludes older keys, so this differs from pure causal attention for queries with more than two tokens
+// of history. Output matches the ONNX Runtime (MLAS CPU) reference.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window) {
+    const auto model = convert_model("com.microsoft/gqa_sliding_window.onnx");
+
+    std::vector<float> expected_output = {
+        0.269412f,  -0.524605f, 1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f,
+        0.501624f,  -0.094775f, 1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.269412f,  -0.524605f,
+        1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f, 0.501624f,  -0.094775f,
+        1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.740432f,  0.128438f,  0.028298f,  0.204723f,
+        0.054011f,  -0.155629f, -0.441223f, 0.922398f,  -0.809414f, -0.305360f, 0.343519f,  0.556826f,  -0.193352f,
+        -0.296847f, 0.252657f,  0.898662f,  0.830354f,  0.253109f,  -0.331320f, 0.198504f,  0.044958f,  -0.233559f,
+        -0.500184f, 1.157573f,  -0.689992f, -0.459420f, 0.427193f,  0.435358f,  -0.159853f, 0.010424f,  0.319908f,
+        0.745768f,  1.007791f,  0.563291f,  -1.279775f, 0.427717f,  -0.231890f, -0.015653f, -0.166504f, 1.479434f,
+        -0.133062f, -1.357522f, -0.381622f, 0.435451f,  -0.168452f, 0.962350f,  0.379397f,  -0.201881f, 1.010270f,
+        0.563424f,  -1.277395f, 0.415119f,  -0.218813f, -0.036927f, -0.191286f, 1.493233f,  -0.146303f, -1.331196f,
+        -0.329199f, 0.419765f,  -0.163685f, 0.953034f,  0.385018f,  -0.172855f, 0.501894f,  -0.472149f, -0.233213f,
+        0.394092f,  0.031529f,  -0.268758f, 0.715223f,  0.460533f,  0.022434f,  -1.663906f, -0.864902f, 0.327764f,
+        -0.227691f, 0.844354f,  0.183987f,  -0.025009f, 0.491418f,  -0.495716f, -0.208311f, 0.387906f,  0.043164f,
+        -0.283682f, 0.724681f,  0.443220f,  0.020286f,  -1.659573f, -0.853381f, 0.318560f,  -0.226992f, 0.837655f,
+        0.181946f,  -0.008489f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sliding_window_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// A window >= the total KV length masks nothing extra, so the result must equal pure causal attention.
+// Guards against a window band that over-masks.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_equals_causal_when_large) {
+    const auto model = convert_model("com.microsoft/gqa_non_rotary_7_inputs.onnx");  // local_window_size = -1
+
+    std::vector<float> expected_output_causal = {
+        0.269412f,  -0.524605f, 1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f,
+        0.501624f,  -0.094775f, 1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.269412f,  -0.524605f,
+        1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f, 0.501624f,  -0.094775f,
+        1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.740432f,  0.128438f,  0.028298f,  0.204723f,
+        0.054011f,  -0.155629f, -0.441223f, 0.922398f,  -0.809414f, -0.305360f, 0.343519f,  0.556826f,  -0.193352f,
+        -0.296847f, 0.252657f,  0.898662f,  0.830354f,  0.253109f,  -0.331320f, 0.198504f,  0.044958f,  -0.233559f,
+        -0.500184f, 1.157573f,  -0.689992f, -0.459420f, 0.427193f,  0.435358f,  -0.159853f, 0.010424f,  0.319908f,
+        0.745768f,  0.930948f,  0.450073f,  -0.947602f, 0.407900f,  -0.197201f, 0.012262f,  -0.162952f, 1.293261f,
+        -0.268552f, -1.164039f, -0.351769f, 0.514299f,  -0.189304f, 0.663800f,  0.329546f,  -0.003998f, 0.460770f,
+        -0.243575f, 1.088217f,  0.283231f,  0.018717f,  0.177801f,  -0.147593f, 0.156150f,  -1.102112f, 0.028220f,
+        -0.155325f, 0.993343f,  -0.315834f, -1.167807f, 0.025565f,  1.215912f,  0.413673f,  -0.342667f, 1.253691f,
+        0.238900f,  0.083796f,  0.106136f,  -0.160001f, 0.078662f,  -1.166456f, 0.136124f,  -0.026596f, 0.961300f,
+        -0.311427f, -1.282412f, 0.015627f,  1.365237f,  0.573372f,  -0.273704f, -0.057114f, 0.317745f,  0.048871f,
+        -0.221080f, 0.281314f,  0.590687f,  -0.321818f, -1.107932f, -0.402041f, 0.431164f,  -0.219438f, 0.346153f,
+        0.198345f,  0.369227f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sliding_window_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output_causal);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// causal=0 (bidirectional): every query attends to all valid keys, not just k <= q. Output matches
+// ONNX Runtime (MLAS CPU, causal=0) run against the same query/cache split.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_causal_bidirectional) {
+    const auto model = convert_model("com.microsoft/gqa_causal_bidirectional.onnx");
+
+    std::vector<float> expected_output = {
+        0.835323f,  0.141426f,  -0.716575f, 0.183820f,  0.110312f,  -0.472860f, -0.283830f, 1.274872f,  -0.368640f,
+        -0.920300f, 0.384538f,  0.151699f,  -0.114322f, 0.627885f,  0.386892f,  0.460673f,  0.775386f,  0.170116f,
+        -0.647210f, 0.477085f,  -0.209098f, 0.088937f,  0.219232f,  0.918672f,  -0.165271f, -1.380370f, -0.805253f,
+        0.599758f,  -0.238036f, 0.647694f,  0.236465f,  -0.114835f, 0.522801f,  -0.384009f, 0.249278f,  0.194326f,
+        0.192918f,  -0.384589f, 0.091830f,  0.538561f,  -0.539031f, -0.736515f, 0.056842f,  0.358661f,  -0.196808f,
+        0.026687f,  0.202320f,  0.776961f,  0.529779f,  -0.415570f, 0.008920f,  0.234566f,  0.171438f,  -0.424543f,
+        0.274885f,  0.576314f,  -0.324155f, -1.069859f, -0.148582f, 0.270502f,  -0.189003f, 0.390507f,  0.221920f,
+        0.513277f,  0.758482f,  0.069074f,  -0.587188f, 0.344906f,  -0.045838f, -0.179893f, 0.072326f,  0.988206f,
+        -0.242467f, -1.202527f, -0.321804f, 0.393656f,  -0.188665f, 0.627272f,  0.285900f,  0.154855f,  0.310463f,
+        -0.662996f, 1.135608f,  0.216411f,  0.200450f,  -0.164241f, 0.215993f,  -0.032357f, -0.850289f, -0.333808f,
+        -0.158269f, 0.683606f,  -0.282794f, -0.761042f, 0.034373f,  1.155105f,  0.413673f,  -0.342667f, 1.253691f,
+        0.238900f,  0.083796f,  0.106136f,  -0.160001f, 0.078662f,  -1.166455f, 0.136124f,  -0.026595f, 0.961300f,
+        -0.311426f, -1.282412f, 0.015627f,  1.365237f,  0.573372f,  -0.273704f, -0.057114f, 0.317745f,  0.048871f,
+        -0.221081f, 0.281314f,  0.590687f,  -0.321818f, -1.107932f, -0.402041f, 0.431164f,  -0.219438f, 0.346153f,
+        0.198345f,  0.369227f};
+
+    std::vector<float> expected_present_key = {
+        -1.651076f, 0.535429f,  -2.064415f, -0.662159f, -1.204220f, 1.461976f,  1.766161f,  -0.329414f,
+        0.840733f,  -0.179986f, 0.568062f,  -0.752837f, -1.708339f, -1.803099f, 0.383122f,  2.247595f,
+        2.259947f,  0.869039f,  -0.342117f, -0.471927f, -0.864490f, 0.374370f,  0.391546f,  -1.443122f,
+        0.486335f,  -0.569472f, 1.426721f,  0.156844f,  1.717730f,  -0.458127f, -0.287984f, 0.299808f,
+        -0.929324f, 0.411797f,  1.860056f,  -1.497274f, 0.476338f,  1.112291f,  -0.696591f, 0.582970f,
+        -1.070892f, -0.812209f, -0.817080f, 0.192308f,  -0.090981f, 0.954115f,  -0.940279f, -0.131276f,
+        -1.040131f, 0.022778f,  0.682829f,  -0.740296f, -0.049672f, 0.718557f,  -0.126909f, -0.519137f,
+        0.973093f,  0.097020f,  0.396565f,  1.171393f,  1.145316f,  -0.347204f, -0.525430f, 0.284309f};
+
+    std::vector<float> expected_present_value = {
+        0.269412f,  -0.524605f, 1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f,
+        -1.434963f, 0.501624f,  -0.094775f, 1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,
+        1.055948f,  0.565883f,  -1.233524f, 0.182901f,  0.022245f,  -0.429069f, -0.648105f, 1.747577f,
+        -0.390386f, -0.845923f, 0.637113f,  0.130623f,  -0.075814f, 0.781302f,  0.488625f,  0.362190f,
+        0.961076f,  0.560777f,  -1.324641f, 0.665204f,  -0.478418f, 0.385387f,  0.300680f,  1.219319f,
+        0.116560f,  -1.853806f, -1.369860f, 0.731154f,  -0.258316f, 1.137979f,  0.273439f,  -0.749066f,
+        -0.132788f, -1.899861f, 1.275362f,  0.019361f,  0.736378f,  -1.172917f, 1.288204f,  -0.588263f,
+        -0.107667f, -1.401425f, -0.166950f, -0.229804f, -0.185361f, 0.438505f,  0.060346f,  0.975783f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sliding_window_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Partial RoPE (GPT-NeoX/Phi-style): rotary_dim (2 * cos_cache.shape[-1] = 16) is smaller than
+// head_size (32). Only the leading 16 channels of Q/K are rotated; the trailing 16 pass through
+// unchanged. Single decode token (seqlens_k=0, total_sequence_length=1) makes "output"/"present_value"
+// insensitive to the rotation (softmax over one key is always 1.0), so present_key is what actually
+// exercises the fix: its first half is the RoPE-rotated K, its second half is K's untouched tail.
+// Expected values from real ONNX Runtime 1.30.0 CPUExecutionProvider (same native MLAS core).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_partial_rotary) {
+    const auto model = convert_model("com.microsoft/gqa_partial_rotary.onnx");
+
+    std::vector<float> query = {
+        0.304700f,  -1.040000f, 0.750500f,  0.940600f,  -1.951000f, -1.302200f, 0.127800f,  -0.316200f, -0.016800f,
+        -0.853000f, 0.879400f,  0.777800f,  0.066000f,  1.127200f,  0.467500f,  -0.859300f, 0.368800f,  -0.958900f,
+        0.878500f,  -0.049900f, -0.184900f, -0.680900f, 1.222500f,  -0.154500f, -0.428300f, -0.352100f, 0.532300f,
+        0.365400f,  0.412700f,  0.430800f,  2.141600f,  -0.406400f, -0.512200f, -0.813800f, 0.616000f,  1.129000f,
+        -0.113900f, -0.840200f, -0.824500f, 0.650600f,  0.743300f,  0.543200f,  -0.665500f, 0.232200f,  0.116700f,
+        0.218700f,  0.871400f,  0.223600f,  0.678900f,  0.067600f,  0.289100f,  0.631300f,  -1.457200f, -0.319700f,
+        -0.470400f, -0.638900f, -0.275100f, 1.494900f,  -0.865800f, 0.968300f,  -1.682900f, -0.334900f, 0.162800f,
+        0.586200f,  0.711200f,  0.793300f,  -0.348700f, -0.462400f, 0.858000f,  -0.191300f, -1.275700f, -1.133300f,
+        -0.919500f, 0.497200f,  0.142400f,  0.690500f,  -0.427300f, 0.158500f,  0.625600f,  -0.309300f, 0.456800f,
+        -0.661900f, -0.363100f, -0.381700f, -1.195800f, 0.487000f,  -0.469400f, 0.012500f,  0.480700f,  0.446500f,
+        0.665400f,  -0.098500f, -0.423300f, -0.079700f, -1.687300f, -1.447100f, -1.322700f, -0.997200f, 0.399800f,
+        -0.905500f, -0.378200f, 1.299200f,  -0.356300f, 0.737500f,  -0.933600f, -0.205400f, -0.950000f, -0.339000f,
+        0.840300f,  -1.727300f, 0.434400f,  0.237700f,  -0.594100f, -1.446100f, 0.072100f,  -0.529500f, 0.232700f,
+        0.021900f,  1.601800f,  -0.239400f, -1.023500f, 0.179300f,  0.220000f,  1.359200f,  0.835100f,  0.356900f,
+        1.463300f,  -1.188800f,
+    };
+    std::vector<float> cos_cache =
+        {-0.658800f, 0.850200f, 0.162100f, -0.306300f, 0.181800f, -0.954400f, 0.917100f, -0.035400f};
+    std::vector<float> sin_cache =
+        {0.565500f, -0.834500f, -0.026700f, -0.018600f, 0.875700f, 0.143500f, -0.053000f, -0.466000f};
+
+    std::vector<float> expected_output = {
+        -1.322700f, -0.997200f, 0.399800f,  -0.905500f, -0.378200f, 1.299200f,  -0.356300f, 0.737500f,
+        -0.933600f, -0.205400f, -0.950000f, -0.339000f, 0.840300f,  -1.727300f, 0.434400f,  0.237700f,
+        -0.594100f, -1.446100f, 0.072100f,  -0.529500f, 0.232700f,  0.021900f,  1.601800f,  -0.239400f,
+        -1.023500f, 0.179300f,  0.220000f,  1.359200f,  0.835100f,  0.356900f,  1.463300f,  -1.188800f,
+        -1.322700f, -0.997200f, 0.399800f,  -0.905500f, -0.378200f, 1.299200f,  -0.356300f, 0.737500f,
+        -0.933600f, -0.205400f, -0.950000f, -0.339000f, 0.840300f,  -1.727300f, 0.434400f,  0.237700f,
+        -0.594100f, -1.446100f, 0.072100f,  -0.529500f, 0.232700f,  0.021900f,  1.601800f,  -0.239400f,
+        -1.023500f, 0.179300f,  0.220000f,  1.359200f,  0.835100f,  0.356900f,  1.463300f,  -1.188800f,
+    };
+
+    std::vector<float> expected_present_key = {
+        0.051439f, 1.089377f,  -0.052722f, 0.154476f,  0.530171f,  0.159832f,  -1.136788f, -0.104015f,
+        1.007950f, -0.239289f, 0.032393f,  -0.202900f, 0.673667f,  -0.178724f, 0.641350f,  0.539067f,
+        0.456800f, -0.661900f, -0.363100f, -0.381700f, -1.195800f, 0.487000f,  -0.469400f, 0.012500f,
+        0.480700f, 0.446500f,  0.665400f,  -0.098500f, -0.423300f, -0.079700f, -1.687300f, -1.447100f,
+    };
+
+    std::vector<float> expected_present_value = {
+        -1.322700f, -0.997200f, 0.399800f,  -0.905500f, -0.378200f, 1.299200f,  -0.356300f, 0.737500f,
+        -0.933600f, -0.205400f, -0.950000f, -0.339000f, 0.840300f,  -1.727300f, 0.434400f,  0.237700f,
+        -0.594100f, -1.446100f, 0.072100f,  -0.529500f, 0.232700f,  0.021900f,  1.601800f,  -0.239400f,
+        -1.023500f, 0.179300f,  0.220000f,  1.359200f,  0.835100f,  0.356900f,  1.463300f,  -1.188800f,
+    };
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 128}, query);
+    test_case.add_input<float>(Shape{1, 1, 0, 32}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 32}, {});
+    test_case.add_input<int>(Shape{1, 1}, {0});
+    test_case.add_input<int>(Shape{}, {1});
+    test_case.add_input<float>(Shape{1, 8}, cos_cache);
+    test_case.add_input<float>(Shape{1, 8}, sin_cache);
+    test_case.add_expected_output<float>(Shape{1, 1, 64}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 32}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 32}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// ONNX Runtime rejects local_window_size >= 1 together with causal=0 (gqa_attention_base.h:101); the FE
+// must mirror that precondition rather than silently combining a sliding window with bidirectional attention.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_causal_window_conflict_throws) {
+    try {
+        convert_model("com.microsoft/gqa_causal_window_conflict.onnx");
+        FAIL() << "ONNX Importer did not reject local_window_size with causal=0 for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("causal"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
+// "Shared KV" (kv_sequence_length == 0, statically empty key/value): past already holds the complete KV and
+// nothing is appended. Decode step with total = 5 inside a capacity-6 past: the stale tail row must be ignored.
+// present beyond `total` is unspecified (ORT leaves it as scratch), so only the attention output is checked.
+// Reference: ORT CPU EP.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_shared_kv) {
+    const auto model = convert_model("com.microsoft/gqa_shared_kv.onnx");
+
+    std::vector<float> query = {-0.642130f, 0.279826f,  -0.065463f, -0.258999f, -0.290165f, 0.581036f,  0.810288f,
+                                -0.645294f, 0.305570f,  -0.403394f, 0.933924f,  0.839700f,  0.271742f,  0.505464f,
+                                0.030307f,  0.651791f,  -0.103239f, -0.322375f, -0.444202f, -0.547334f, 0.051634f,
+                                -0.138176f, 0.326361f,  -0.974319f, -0.104596f, -0.269638f, -0.609205f, 0.189732f,
+                                -0.129374f, -0.400017f, -0.581168f, 0.749248f};
+    std::vector<float> past_key = {
+        0.594925f,  0.213419f,  -0.309799f, 0.893640f,  0.126755f,  -0.134475f, 0.800899f,  -0.361316f, 0.391990f,
+        -0.372359f, -0.476894f, 0.401682f,  -0.544216f, -0.013779f, 0.160057f,  -0.622187f, 0.462481f,  0.096966f,
+        0.243007f,  -0.255711f, -0.159613f, -0.010341f, -0.060058f, 0.351278f,  0.154355f,  -0.167459f, -0.996395f,
+        0.588062f,  0.038768f,  -0.346911f, -0.000090f, -0.813108f, 0.809408f,  0.979472f,  -0.882530f, -0.283538f,
+        0.460129f,  -0.371524f, 0.134100f,  -0.166858f, 0.548424f,  0.916929f,  0.776791f,  0.241871f,  -0.679451f,
+        0.894124f,  -0.952735f, -0.404581f, -0.436773f, 0.343652f,  -0.025274f, -0.814223f, -0.974284f, 0.208631f,
+        -0.017033f, 0.202764f,  0.128048f,  0.780918f,  0.836794f,  -0.623486f, 0.884242f,  0.575453f,  0.278053f,
+        0.319215f,  0.092120f,  0.834527f,  -0.533474f, 0.198632f,  0.628486f,  -0.730477f, 0.231017f,  -0.194333f,
+        0.532073f,  -0.864571f, 0.213629f,  0.714157f,  0.256696f,  -0.357325f, 0.311592f,  -0.323694f, 0.337186f,
+        -0.743311f, -0.440017f, -0.934563f, -0.832181f, 0.109539f,  -0.536604f, 0.032165f,  0.319139f,  0.762372f,
+        -0.289878f, -0.362642f, -0.372667f, -0.764301f, 0.326367f,  0.639309f};
+    std::vector<float> past_value = {
+        -0.053990f, 0.116595f,  0.916960f,  0.397830f,  0.490070f,  0.778997f,  -0.568419f, 0.300332f,  0.434789f,
+        0.684456f,  -0.312429f, 0.377589f,  0.208801f,  -0.181278f, -0.796628f, -0.293903f, 0.926969f,  -0.566953f,
+        -0.772724f, -0.264641f, -0.798038f, -0.465602f, 0.828912f,  -0.362436f, 0.171779f,  -0.522510f, 0.335960f,
+        -0.744687f, 0.579619f,  -0.154108f, -0.632679f, 0.516499f,  0.108565f,  -0.123710f, -0.518748f, 0.562732f,
+        -0.269430f, -0.913819f, 0.930739f,  -0.939070f, -0.759062f, -0.068375f, -0.584290f, -0.329730f, 0.135130f,
+        0.915684f,  0.872624f,  -0.852208f, 0.706627f,  -0.664353f, 0.622866f,  -0.407306f, 0.435669f,  0.437586f,
+        0.701103f,  0.959252f,  -0.449038f, 0.256617f,  0.478522f,  -0.840741f, 0.325923f,  -0.356969f, -0.677062f,
+        0.098943f,  -0.076233f, 0.154160f,  0.283835f,  -0.002662f, 0.810301f,  -0.644172f, -0.422417f, -0.287557f,
+        0.548764f,  0.304196f,  -0.587155f, 0.488884f,  0.543074f,  0.540483f,  -0.843254f, -0.575722f, 0.790770f,
+        0.758864f,  -0.588855f, 0.102751f,  -0.474633f, -0.167430f, -0.958110f, -0.436480f, -0.458638f, 0.838261f,
+        0.175940f,  -0.644967f, -0.144871f, -0.014128f, 0.274720f,  0.064896f};
+    std::vector<float> expected_output = {
+        0.302928f,  -0.220744f, 0.189428f,  0.040332f,  0.230696f, -0.135914f, 0.288579f,  0.009537f,
+        -0.054404f, 0.177805f,  -0.134685f, -0.211563f, 0.347523f, 0.161091f,  -0.414124f, -0.263170f,
+        0.298691f,  -0.190490f, 0.104269f,  0.074724f,  0.139148f, -0.173134f, 0.251199f,  -0.097291f,
+        0.026974f,  0.137121f,  -0.162768f, -0.166412f, 0.362417f, 0.167309f,  -0.427226f, -0.234208f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<float>(Shape{1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 6, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 6, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, {4});
+    test_case.add_input<int>(Shape{}, {5});
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+namespace {
+std::vector<float> gqa_shared_kv_dynamic_cos() {
+    return {1.000000f,  1.000000f,  1.000000f, 1.000000f, 1.000000f, 1.000000f, 1.000000f, 1.000000f,
+            0.540302f,  0.950415f,  0.995004f, 0.999500f, 0.999950f, 0.999995f, 1.000000f, 1.000000f,
+            -0.416147f, 0.806578f,  0.980067f, 0.998001f, 0.999800f, 0.999980f, 0.999998f, 1.000000f,
+            -0.989992f, 0.582754f,  0.955336f, 0.995503f, 0.999550f, 0.999955f, 0.999996f, 1.000000f,
+            -0.653644f, 0.301137f,  0.921061f, 0.992011f, 0.999200f, 0.999920f, 0.999992f, 0.999999f,
+            0.283662f,  -0.010342f, 0.877583f, 0.987526f, 0.998750f, 0.999875f, 0.999988f, 0.999999f,
+            0.960170f,  -0.320796f, 0.825336f, 0.982054f, 0.998201f, 0.999820f, 0.999982f, 0.999998f,
+            0.753902f,  -0.599438f, 0.764842f, 0.975600f, 0.997551f, 0.999755f, 0.999976f, 0.999998f};
+}
+std::vector<float> gqa_shared_kv_dynamic_sin() {
+    return {0.000000f,  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f,
+            0.841471f,  0.310984f, 0.099833f, 0.031618f, 0.010000f, 0.003162f, 0.001000f, 0.000316f,
+            0.909297f,  0.591127f, 0.198669f, 0.063203f, 0.019999f, 0.006325f, 0.002000f, 0.000632f,
+            0.141120f,  0.812649f, 0.295520f, 0.094726f, 0.029996f, 0.009487f, 0.003000f, 0.000949f,
+            -0.756802f, 0.953581f, 0.389418f, 0.126154f, 0.039989f, 0.012649f, 0.004000f, 0.001265f,
+            -0.958924f, 0.999947f, 0.479426f, 0.157456f, 0.049979f, 0.015811f, 0.005000f, 0.001581f,
+            -0.279416f, 0.947148f, 0.564642f, 0.188600f, 0.059964f, 0.018973f, 0.006000f, 0.001897f,
+            0.656987f,  0.800422f, 0.644218f, 0.219556f, 0.069943f, 0.022134f, 0.007000f, 0.002214f};
+}
+}  // namespace
+
+// Dynamic kv_sequence_length resolving to 0 at runtime (ORT shared KV): the same graph must attend to the first
+// `total` past rows with RoPE on Q only. Prompt S = total = 3 over a capacity-3 past. Reference: ORT CPU EP.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_shared_kv_dynamic_empty_kv) {
+    const auto model = convert_model("com.microsoft/gqa_shared_kv_dynamic.onnx");
+
+    std::vector<float> query = {
+        0.250191f,  0.794428f,  0.551371f,  -0.549586f, -0.399667f, 0.747107f,  -0.989469f, 0.642457f,  0.594139f,
+        -0.064130f, -0.393935f, -0.443149f, -0.490261f, -0.109847f, 0.009097f,  0.106995f,  0.991001f,  0.585324f,
+        0.244358f,  0.977920f,  -0.569383f, -0.679576f, 0.225079f,  -0.912116f, -0.928639f, 0.029778f,  -0.067588f,
+        0.834336f,  0.258453f,  0.028235f,  -0.006253f, -0.504970f, -0.976412f, -0.615196f, 0.384064f,  -0.598787f,
+        -0.260927f, -0.992532f, 0.660095f,  -0.691078f, -0.464801f, 0.760664f,  0.019582f,  0.694300f,  0.279434f,
+        0.483542f,  -0.817009f, 0.082288f,  0.015544f,  0.742679f,  -0.277472f, 0.196368f,  -0.881497f, -0.224736f,
+        -0.353927f, -0.699601f, 0.632676f,  -0.241108f, 0.957496f,  0.179983f,  0.210113f,  0.275993f,  0.352900f,
+        -0.698424f, -0.119373f, -0.520872f, -0.195003f, -0.806592f, 0.935656f,  -0.569992f, 0.343530f,  -0.399160f,
+        0.748154f,  0.324429f,  -0.736768f, 0.690149f,  0.889896f,  0.807834f,  0.139438f,  -0.709080f, -0.615073f,
+        0.855811f,  0.104653f,  -0.638895f, 0.768114f,  0.283143f,  0.139389f,  -0.247424f, -0.178089f, -0.521022f,
+        -0.923885f, 0.752438f,  -0.064540f, 0.095270f,  -0.355673f, 0.502650f};
+    std::vector<float> past_key = {-0.949606f, -0.255629f, -0.939299f, -0.754216f, 0.934296f,  0.315521f,  -0.143560f,
+                                   0.047480f,  0.745618f,  -0.311579f, 0.180582f,  0.367369f,  -0.289172f, 0.038197f,
+                                   0.530495f,  0.818359f,  -0.697875f, 0.866839f,  -0.989642f, 0.505955f,  0.621054f,
+                                   -0.726472f, -0.162193f, 0.630513f,  -0.971458f, 0.256924f,  0.586047f,  0.026007f,
+                                   0.451699f,  -0.547153f, -0.602958f, -0.273746f, -0.641188f, -0.307877f, 0.896248f,
+                                   0.146665f,  -0.319864f, -0.456951f, 0.904079f,  -0.111044f, 0.960790f,  0.031045f,
+                                   0.042332f,  0.793081f,  0.485535f,  0.161306f,  -0.146701f, 0.756376f};
+    std::vector<float> past_value = {-0.176708f, 0.845519f,  -0.862569f, -0.140006f, 0.039030f,  0.901876f,  -0.498002f,
+                                     0.612078f,  0.352942f,  0.434172f,  0.259244f,  0.943121f,  -0.334637f, -0.203449f,
+                                     -0.594176f, -0.898592f, -0.574184f, 0.830929f,  0.680338f,  -0.775189f, 0.207558f,
+                                     -0.041607f, 0.189370f,  0.318550f,  -0.386681f, 0.922702f,  -0.068320f, 0.256202f,
+                                     0.270452f,  -0.632221f, -0.876269f, -0.176966f, 0.528060f,  0.630444f,  0.459978f,
+                                     -0.773590f, 0.826710f,  0.604073f,  0.755383f,  0.046608f,  0.831271f,  -0.906696f,
+                                     -0.939422f, -0.959569f, -0.494463f, -0.502860f, -0.624993f, 0.134112f};
+    std::vector<float> expected_output = {
+        -0.176708f, 0.845519f,  -0.862569f, -0.140006f, 0.039030f,  0.901876f,  -0.498002f, 0.612078f,  0.352942f,
+        0.434172f,  0.259244f,  0.943121f,  -0.334637f, -0.203449f, -0.594176f, -0.898592f, -0.176708f, 0.845519f,
+        -0.862569f, -0.140006f, 0.039030f,  0.901876f,  -0.498002f, 0.612078f,  0.352942f,  0.434172f,  0.259244f,
+        0.943121f,  -0.334637f, -0.203449f, -0.594176f, -0.898592f, -0.415692f, 0.836747f,  0.065111f,  -0.521913f,
+        0.140358f,  0.334602f,  -0.084716f, 0.435593f,  -0.091760f, 0.727903f,  0.062295f,  0.530108f,  0.029176f,
+        -0.461250f, -0.763786f, -0.464711f, -0.404273f, 0.837166f,  0.020785f,  -0.503665f, 0.135517f,  0.361708f,
+        -0.104464f, 0.444026f,  -0.070511f, 0.713868f,  0.071705f,  0.549842f,  0.011792f,  -0.448932f, -0.755682f,
+        -0.485443f, -0.053633f, 0.767928f,  0.042653f,  -0.543037f, 0.357100f,  0.522449f,  0.131617f,  0.332908f,
+        0.298058f,  0.121153f,  -0.245731f, 0.092368f,  -0.210847f, -0.431794f, -0.687780f, -0.334085f, -0.085877f,
+        0.772962f,  0.063104f,  -0.549157f, 0.342737f,  0.496760f,  0.123591f,  0.337115f,  0.259554f,  0.173030f,
+        -0.226390f, 0.117163f,  -0.185320f, -0.439235f, -0.696963f, -0.335206f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 3, 32}, query);
+    test_case.add_input<float>(Shape{1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 3, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 3, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, {2});
+    test_case.add_input<int>(Shape{}, {3});
+    test_case.add_input<float>(Shape{8, 8}, gqa_shared_kv_dynamic_cos());
+    test_case.add_input<float>(Shape{8, 8}, gqa_shared_kv_dynamic_sin());
+    test_case.add_expected_output<float>(Shape{1, 3, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 16}, past_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 16}, past_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Same dynamic-kv_sequence_length graph on a regular decode step (one new K/V token appended, RoPE on Q and K):
+// the shared-KV support must not change the normal path. Reference: ORT CPU EP.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_shared_kv_dynamic_regular_decode) {
+    const auto model = convert_model("com.microsoft/gqa_shared_kv_dynamic.onnx");
+
+    std::vector<float> query = {-0.922028f, 0.180776f,  -0.667978f, 0.355747f,  -0.957849f, -0.378860f, 0.876683f,
+                                0.076793f,  0.623175f,  0.316052f,  0.221502f,  -0.617495f, 0.148789f,  -0.920627f,
+                                0.603329f,  0.920142f,  0.708018f,  -0.898581f, -0.322680f, -0.363994f, -0.774566f,
+                                0.253224f,  0.594916f,  -0.372557f, 0.725618f,  0.594254f,  -0.741724f, 0.533718f,
+                                0.765241f,  -0.605435f, 0.147282f,  0.277500f};
+    std::vector<float> key = {0.218669f,
+                              -0.807509f,
+                              0.322383f,
+                              0.263909f,
+                              0.647771f,
+                              0.607025f,
+                              -0.345664f,
+                              0.444095f,
+                              0.734547f,
+                              0.785896f,
+                              -0.676975f,
+                              -0.946595f,
+                              0.301615f,
+                              -0.570647f,
+                              0.127419f,
+                              0.889609f};
+    std::vector<float> value = {-0.241361f,
+                                -0.494451f,
+                                -0.086980f,
+                                0.314488f,
+                                -0.797802f,
+                                -0.238830f,
+                                -0.732558f,
+                                0.324892f,
+                                0.661105f,
+                                -0.246292f,
+                                -0.256552f,
+                                0.079043f,
+                                -0.569884f,
+                                -0.505181f,
+                                -0.340295f,
+                                -0.085149f};
+    std::vector<float> past_key = {-0.836937f, 0.505464f,  0.158109f,  -0.400612f, -0.844907f, 0.526362f,  -0.737842f,
+                                   -0.733587f, -0.738632f, -0.837475f, 0.812785f,  -0.461511f, -0.387179f, 0.665589f,
+                                   0.239847f,  -0.625713f, -0.130373f, 0.767845f,  -0.249252f, 0.421763f,  -0.806385f,
+                                   0.454650f,  0.552947f,  0.651534f,  0.348402f,  -0.258534f, -0.871576f, 0.037552f,
+                                   0.514920f,  -0.618324f, -0.467526f, 0.072240f,  0.496663f,  0.793173f,  -0.748517f,
+                                   -0.631460f, 0.599074f,  0.289043f,  0.441946f,  0.993542f,  0.878360f,  0.686050f,
+                                   0.554232f,  -0.209962f, 0.282458f,  -0.631109f, 0.518989f,  0.515381f};
+    std::vector<float> past_value = {0.442590f,  -0.110402f, -0.243639f, -0.160458f, -0.933322f, 0.688640f,  0.084740f,
+                                     -0.224963f, 0.096058f,  0.443280f,  -0.237078f, 0.661281f,  0.838927f,  -0.225135f,
+                                     -0.724368f, 0.520747f,  0.985898f,  -0.704024f, 0.425351f,  0.650647f,  0.841144f,
+                                     -0.753237f, -0.816380f, 0.975743f,  -0.766487f, -0.646385f, 0.149906f,  -0.107454f,
+                                     0.500784f,  -0.618886f, 0.828856f,  -0.565610f, 0.538222f,  -0.864793f, -0.053195f,
+                                     -0.934883f, -0.372379f, -0.375539f, 0.439497f,  -0.089965f, -0.886451f, 0.990723f,
+                                     0.777399f,  0.832648f,  -0.506849f, -0.211779f, -0.545641f, -0.750187f};
+    std::vector<float> expected_output = {
+        0.444137f,  -0.613558f, 0.050316f, -0.029264f, -0.212586f, -0.301050f, -0.291404f, 0.313122f,
+        -0.297063f, 0.104865f,  0.175111f, 0.332029f,  -0.045064f, -0.411240f, -0.115589f, -0.340863f,
+        0.386999f,  -0.523759f, 0.039026f, 0.144328f,  -0.271743f, -0.210145f, -0.420910f, 0.346345f,
+        -0.105470f, -0.050137f, 0.010535f, 0.251543f,  0.073484f,  -0.438810f, -0.096597f, -0.187833f};
+    std::vector<float> expected_present_key = {
+        -0.836937f, 0.505464f,  0.158109f,  -0.400612f, -0.844907f, 0.526362f,  -0.737842f, -0.733587f,
+        -0.738632f, -0.837475f, 0.812785f,  -0.461511f, -0.387179f, 0.665589f,  0.239847f,  -0.625713f,
+        -0.130373f, 0.767845f,  -0.249252f, 0.421763f,  -0.806385f, 0.454650f,  0.552947f,  0.651534f,
+        0.348402f,  -0.258534f, -0.871576f, 0.037552f,  0.514920f,  -0.618324f, -0.467526f, 0.072240f,
+        0.496663f,  0.793173f,  -0.748517f, -0.631460f, 0.599074f,  0.289043f,  0.441946f,  0.993542f,
+        0.878360f,  0.686050f,  0.554232f,  -0.209962f, 0.282458f,  -0.631109f, 0.518989f,  0.515381f,
+        -0.320140f, -1.109237f, 0.508044f,  0.352389f,  0.638432f,  0.612411f,  -0.346045f, 0.443251f,
+        -0.696337f, -0.198237f, -0.551468f, -0.917339f, 0.320910f,  -0.564862f, 0.126382f,  0.890030f};
+    std::vector<float> expected_present_value = {
+        0.442590f,  -0.110402f, -0.243639f, -0.160458f, -0.933322f, 0.688640f,  0.084740f,  -0.224963f,
+        0.096058f,  0.443280f,  -0.237078f, 0.661281f,  0.838927f,  -0.225135f, -0.724368f, 0.520747f,
+        0.985898f,  -0.704024f, 0.425351f,  0.650647f,  0.841144f,  -0.753237f, -0.816380f, 0.975743f,
+        -0.766487f, -0.646385f, 0.149906f,  -0.107454f, 0.500784f,  -0.618886f, 0.828856f,  -0.565610f,
+        0.538222f,  -0.864793f, -0.053195f, -0.934883f, -0.372379f, -0.375539f, 0.439497f,  -0.089965f,
+        -0.886451f, 0.990723f,  0.777399f,  0.832648f,  -0.506849f, -0.211779f, -0.545641f, -0.750187f,
+        -0.241361f, -0.494451f, -0.086980f, 0.314488f,  -0.797802f, -0.238830f, -0.732558f, 0.324892f,
+        0.661105f,  -0.246292f, -0.256552f, 0.079043f,  -0.569884f, -0.505181f, -0.340295f, -0.085149f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<float>(Shape{1, 1, 16}, key);
+    test_case.add_input<float>(Shape{1, 1, 16}, value);
+    test_case.add_input<float>(Shape{1, 1, 3, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 3, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_input<float>(Shape{8, 8}, gqa_shared_kv_dynamic_cos());
+    test_case.add_input<float>(Shape{8, 8}, gqa_shared_kv_dynamic_sin());
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Shared KV prompt step (S = total = 3) with RoPE: only Q is rotated (the past keys were rotated when they were
+// appended) and present equals the past. Reference: ORT CPU EP.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_shared_kv_rotary) {
+    const auto model = convert_model("com.microsoft/gqa_shared_kv_rotary.onnx");
+
+    std::vector<float> query = {
+        -0.158015f, -0.378414f, 0.149999f,  0.951664f,  0.105974f,  0.774024f,  -0.969455f, -0.593805f, 0.729536f,
+        0.138946f,  -0.024884f, -0.262391f, -0.409469f, 0.357660f,  -0.268530f, -0.129531f, 0.553697f,  0.892366f,
+        0.987314f,  -0.030170f, -0.723662f, -0.950153f, -0.010687f, -0.847290f, -0.764574f, -0.530322f, 0.983986f,
+        -0.675543f, -0.779736f, 0.831848f,  0.244139f,  0.479801f,  -0.290533f, 0.867665f,  0.952201f,  0.116911f,
+        0.973681f,  0.011589f,  -0.120519f, 0.570868f,  0.288495f,  -0.598939f, 0.029879f,  -0.967081f, 0.751320f,
+        0.084892f,  -0.907626f, 0.875518f,  0.998873f,  0.474611f,  -0.137353f, 0.182839f,  -0.979536f, -0.783101f,
+        -0.338001f, -0.177463f, 0.511898f,  -0.658540f, -0.767791f, 0.394928f,  0.776064f,  0.759335f,  0.483832f,
+        0.967135f,  0.044184f,  0.548938f,  -0.165645f, -0.293489f, 0.821644f,  -0.138586f, 0.492942f,  -0.005955f,
+        -0.775574f, -0.746248f, 0.020245f,  0.415356f,  0.484968f,  -0.328606f, -0.981579f, 0.066713f,  -0.620866f,
+        -0.359760f, 0.132898f,  -0.216334f, -0.081997f, -0.899082f, -0.633969f, 0.683791f,  0.023763f,  0.770235f,
+        0.714602f,  -0.613660f, -0.200806f, 0.051557f,  -0.804970f, -0.829288f};
+    std::vector<float> past_key = {0.682973f,  0.653427f,  -0.233421f, 0.413169f,  0.035866f,  0.495307f,  -0.369630f,
+                                   -0.051928f, 0.785913f,  0.633288f,  -0.380072f, 0.763542f,  -0.202562f, 0.364760f,
+                                   0.423021f,  -0.196630f, 0.654188f,  -0.069297f, 0.921377f,  0.873398f,  0.800531f,
+                                   0.816707f,  -0.705907f, 0.296668f,  0.482229f,  0.057518f,  0.058442f,  -0.597138f,
+                                   -0.678427f, 0.566269f,  -0.700789f, 0.456394f,  -0.845863f, -0.175496f, -0.951977f,
+                                   0.320745f,  -0.414168f, -0.064600f, -0.427103f, 0.031549f,  0.315294f,  -0.666173f,
+                                   0.554098f,  0.565031f,  0.884331f,  -0.238610f, 0.746263f,  -0.812629f};
+    std::vector<float> past_value = {0.987813f,  -0.575585f, -0.252302f, -0.812993f, 0.670283f,  -0.028134f, 0.924803f,
+                                     -0.710769f, 0.783644f,  -0.280908f, -0.527419f, 0.314246f,  -0.939623f, 0.050939f,
+                                     -0.052790f, -0.902990f, -0.131636f, -0.390162f, -0.502704f, 0.860587f,  0.196594f,
+                                     -0.691685f, 0.514263f,  -0.260867f, 0.197701f,  -0.240130f, 0.277092f,  0.363874f,
+                                     -0.432931f, 0.662115f,  0.236261f,  0.210537f,  -0.563988f, -0.492075f, -0.209246f,
+                                     -0.932255f, -0.890538f, 0.325364f,  -0.367043f, 0.440489f,  -0.850347f, 0.480262f,
+                                     -0.571642f, 0.739103f,  0.813064f,  0.378627f,  -0.211427f, -0.948704f};
+    std::vector<float> cos_cache = {
+        1.000000f,  1.000000f,  1.000000f, 1.000000f, 1.000000f, 1.000000f, 1.000000f, 1.000000f,
+        0.540302f,  0.950415f,  0.995004f, 0.999500f, 0.999950f, 0.999995f, 1.000000f, 1.000000f,
+        -0.416147f, 0.806578f,  0.980067f, 0.998001f, 0.999800f, 0.999980f, 0.999998f, 1.000000f,
+        -0.989992f, 0.582754f,  0.955336f, 0.995503f, 0.999550f, 0.999955f, 0.999996f, 1.000000f,
+        -0.653644f, 0.301137f,  0.921061f, 0.992011f, 0.999200f, 0.999920f, 0.999992f, 0.999999f,
+        0.283662f,  -0.010342f, 0.877583f, 0.987526f, 0.998750f, 0.999875f, 0.999988f, 0.999999f,
+        0.960170f,  -0.320796f, 0.825336f, 0.982054f, 0.998201f, 0.999820f, 0.999982f, 0.999998f,
+        0.753902f,  -0.599438f, 0.764842f, 0.975600f, 0.997551f, 0.999755f, 0.999976f, 0.999998f};
+    std::vector<float> sin_cache = {
+        0.000000f,  0.000000f, 0.000000f,  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.841471f,  0.310984f,
+        0.099833f,  0.031618f, 0.010000f,  0.003162f, 0.001000f, 0.000316f, 0.909297f, 0.591127f, 0.198669f,  0.063203f,
+        0.019999f,  0.006325f, 0.002000f,  0.000632f, 0.141120f, 0.812649f, 0.295520f, 0.094726f, 0.029996f,  0.009487f,
+        0.003000f,  0.000949f, -0.756802f, 0.953581f, 0.389418f, 0.126154f, 0.039989f, 0.012649f, 0.004000f,  0.001265f,
+        -0.958924f, 0.999947f, 0.479426f,  0.157456f, 0.049979f, 0.015811f, 0.005000f, 0.001581f, -0.279416f, 0.947148f,
+        0.564642f,  0.188600f, 0.059964f,  0.018973f, 0.006000f, 0.001897f, 0.656987f, 0.800422f, 0.644218f,  0.219556f,
+        0.069943f,  0.022134f, 0.007000f,  0.002214f};
+    std::vector<float> expected_output = {
+        0.987813f,  -0.575585f, -0.252302f, -0.812993f, 0.670283f,  -0.028134f, 0.924803f,  -0.710769f, 0.783644f,
+        -0.280908f, -0.527419f, 0.314246f,  -0.939623f, 0.050939f,  -0.052790f, -0.902990f, 0.987813f,  -0.575585f,
+        -0.252302f, -0.812993f, 0.670283f,  -0.028134f, 0.924803f,  -0.710769f, 0.783644f,  -0.280908f, -0.527419f,
+        0.314246f,  -0.939623f, 0.050939f,  -0.052790f, -0.902990f, 0.156831f,  -0.437943f, -0.438179f, 0.429329f,
+        0.318657f,  -0.520697f, 0.620053f,  -0.376800f, 0.348690f,  -0.250638f, 0.069781f,  0.351086f,  -0.563498f,
+        0.504623f,  0.161777f,  -0.076403f, 0.597357f,  -0.510911f, -0.339640f, -0.229261f, 0.505064f,  -0.259576f,
+        0.781610f,  -0.553846f, 0.579271f,  -0.266685f, -0.246811f, 0.331556f,  -0.762893f, 0.264113f,  0.048029f,
+        -0.514600f, 0.179632f,  -0.487374f, -0.330426f, -0.246512f, 0.090416f,  -0.172172f, 0.438261f,  -0.247154f,
+        0.144425f,  -0.066078f, -0.251656f, 0.443754f,  -0.297486f, 0.355486f,  0.008732f,  -0.517228f, -0.011548f,
+        -0.470421f, -0.340108f, -0.167512f, -0.067144f, -0.177531f, 0.306870f,  -0.125587f, -0.025316f, 0.000631f,
+        -0.212568f, 0.482419f,  -0.121901f, 0.415812f,  0.010672f,  -0.461813f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 3, 32}, query);
+    test_case.add_input<float>(Shape{1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 3, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 3, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, {2});
+    test_case.add_input<int>(Shape{}, {3});
+    test_case.add_input<float>(Shape{8, 8}, cos_cache);
+    test_case.add_input<float>(Shape{8, 8}, sin_cache);
+    test_case.add_expected_output<float>(Shape{1, 3, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 16}, past_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 16}, past_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// External attention_bias (input 10) combined with a sliding window: the window band must be added on
+// top of the caller-supplied bias. Exercises the additive-band branch of make_attention_mask. Output
+// matches ONNX Runtime (MLAS CPU).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_with_bias) {
+    const auto model = convert_model("com.microsoft/gqa_bias_window.onnx");
+
+    std::vector<float> query = {
+        0.000554f,  -0.144772f, -0.558033f, -0.006441f, -0.189181f, -0.240568f, -0.758666f, -0.245436f, -0.120340f,
+        -0.323974f, 0.317946f,  0.870059f,  0.148341f,  0.353752f,  0.911408f,  0.215385f,  0.771365f,  -0.450361f,
+        -0.068563f, 0.648790f,  0.337636f,  0.015979f,  0.459073f,  0.190255f,  0.258184f,  -0.177620f, 0.104388f,
+        0.164206f,  -0.249112f, -1.045888f, -0.041294f, 1.227591f,  -1.336055f, -0.456640f, -0.113657f, 0.134658f,
+        0.565231f,  0.521199f,  0.651905f,  0.694700f,  -0.328226f, -0.028129f, -0.249951f, 0.218210f,  -0.187907f,
+        -0.461531f, 0.958625f,  -0.075151f, -0.319365f, 0.412385f,  -0.605419f, -0.251703f, -0.350958f, -0.987136f,
+        -1.327866f, -0.028841f, -0.328093f, -0.330853f, 0.384674f,  -0.449502f, 0.846819f,  -0.848668f, -1.396685f,
+        -0.113075f, 0.198714f,  0.829852f,  -0.246873f, -0.188049f, -0.084870f, 1.208553f,  -0.904420f, 0.169876f,
+        -0.011365f, -0.479999f, -0.191557f, 0.054765f,  -0.427581f, 0.000111f,  0.331928f,  0.374740f,  -0.232909f,
+        -0.138720f, 0.017750f,  0.424111f,  0.081499f,  0.604312f,  0.251260f,  -0.791911f, 0.511517f,  -0.326509f,
+        0.268523f,  -0.003989f, 0.462392f,  0.023304f,  0.071010f,  -0.826831f, 0.683996f,  0.012553f,  -0.197741f,
+        0.642194f,  0.280639f,  0.119863f,  0.239950f,  0.030876f,  -0.535256f, -0.636605f, 0.460038f,  0.527459f,
+        0.270144f,  0.154532f,  0.485431f,  0.577362f,  0.211304f,  0.499604f,  0.441760f,  -0.265100f, 0.407067f,
+        -0.509942f, -1.129118f, 0.339977f,  -0.200882f, 0.970160f,  -0.622202f, 0.469655f,  -0.120404f, 0.135404f,
+        -0.547770f, 1.200671f,  -0.139955f, 1.015400f,  -0.040970f, -0.609313f, -0.403435f, 0.659021f,  -0.289319f,
+        0.041026f,  0.697955f,  0.540940f,  -0.508280f, -0.145999f, 0.779679f,  -0.273150f, 0.480295f,  0.105605f,
+        -0.622686f, 0.152273f,  -0.299190f, 0.061533f,  -0.395418f, 0.321947f,  -0.029825f, 0.456623f,  -0.545289f,
+        -0.087425f, 0.532640f,  0.618615f,  0.509898f,  0.430344f,  -0.366217f, 0.220112f,  0.323032f,  0.130956f,
+        0.353608f,  -0.218326f, 0.396910f,  -0.130277f, -0.419830f, -0.739854f, 0.553697f,  -0.598377f, -0.513615f,
+        -0.785564f, 1.021488f,  0.944992f,  -0.399331f, -0.912394f, -0.388027f, -0.323798f, -0.243667f, 0.187632f,
+        -0.518003f, -0.066962f, 0.192439f,  0.177198f,  0.171319f,  -0.298650f, -0.094274f, 0.350162f,  -0.662812f,
+        0.468514f,  -0.225345f, 0.465565f,  -0.902716f, 0.215199f,  -0.283647f, 0.534978f,  -0.060505f, -0.516402f,
+        0.417640f,  -0.425960f, -0.592471f, -0.515376f, -0.457443f, -0.412104f, -0.368665f, 0.428782f,  0.473594f,
+        0.598486f,  0.949042f,  0.262395f,  -0.070290f, -0.645741f, -0.237259f, -0.003033f, 0.654099f,  -0.325780f,
+        0.801315f,  0.782264f,  -0.129032f, -0.179611f, 0.004897f,  -0.394965f, -0.551900f, -0.281885f, 0.240674f,
+        -1.142026f, 0.346634f,  0.812257f,  0.615116f,  0.824552f,  -0.742966f, -0.538446f, 0.792290f,  0.194030f,
+        0.637737f,  0.105485f,  0.309918f,  -0.501148f, -0.266306f, 0.468014f,  0.089627f,  -0.018504f, 0.421330f,
+        -0.406638f, -0.836469f, -0.425276f, -0.140858f, 0.759966f,  -0.479597f, 0.362695f,  0.277714f,  0.414875f,
+        0.734429f,  -0.001911f, 0.528743f,  -0.491832f};
+    std::vector<float> attention_bias = {
+        0.759753f,  0.256105f, -0.765091f, -1.565530f, -0.086442f, -0.124809f, 1.551494f,  1.577087f,
+        -0.704462f, 0.702711f, -0.086941f, -0.106728f, -0.910777f, -0.191972f, 0.259847f,  -0.434802f,
+        0.468223f,  0.085088f, 1.228160f,  0.557398f,  0.329636f,  0.110972f,  -0.262650f, 0.674063f,
+        -0.391547f, 0.528287f, -0.024502f, 0.118841f,  1.411949f,  0.520236f,  0.542479f,  -0.272567f};
+    std::vector<float> expected_output = {
+        -0.319365f, 0.412385f,  -0.605419f, -0.251703f, -0.350958f, -0.987136f, -1.327866f, -0.028841f, -0.328093f,
+        -0.330853f, 0.384674f,  -0.449502f, 0.846819f,  -0.848668f, -1.396685f, -0.113075f, -0.319365f, 0.412385f,
+        -0.605419f, -0.251703f, -0.350958f, -0.987136f, -1.327866f, -0.028841f, -0.328093f, -0.330853f, 0.384674f,
+        -0.449502f, 0.846819f,  -0.848668f, -1.396685f, -0.113075f, -0.039829f, 0.458329f,  -0.053807f, -0.258760f,
+        0.048340f,  -0.735769f, -1.223174f, 0.165438f,  -0.261084f, 0.354469f,  -0.145709f, 0.034673f,  0.337324f,
+        -0.330298f, -0.949510f, 0.578955f,  -0.090442f, 0.450010f,  -0.153681f, -0.257482f, -0.023956f, -0.781281f,
+        -1.242129f, 0.130262f,  -0.273216f, 0.230386f,  -0.049678f, -0.052991f, 0.429572f,  -0.424153f, -1.030475f,
+        0.453657f,  -0.040685f, 0.153404f,  0.153571f,  -0.074748f, 0.018120f,  -0.323690f, -0.573467f, 0.271537f,
+        -0.044390f, 0.436687f,  -0.400234f, 0.419414f,  -0.348460f, 0.275460f,  -0.412206f, 0.891595f,  0.045772f,
+        0.272184f,  0.252448f,  -0.140057f, 0.151567f,  -0.387593f, -0.764110f, 0.295019f,  -0.098082f, 0.619720f,
+        -0.476391f, 0.436652f,  -0.270215f, 0.227407f,  -0.458717f, 0.997638f,  -0.261066f, -0.242651f, -0.066910f,
+        0.029674f,  -0.602652f, -0.162202f, 0.103849f,  0.332099f,  -0.001695f, -0.122864f, 0.004601f,  0.367363f,
+        -0.291423f, 0.343475f,  -0.024907f, 0.211087f,  -0.261002f, -0.242610f, -0.066822f, 0.029595f,  -0.602694f,
+        -0.162250f, 0.103804f,  0.332176f,  -0.001782f, -0.122776f, 0.004650f,  0.367372f,  -0.291238f, 0.343412f,
+        -0.024807f, 0.210960f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_input<float>(Shape{1, 2, 4, 4}, attention_bias);
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// f32 ORT reference of gqa_sliding_window.onnx on gqa_sliding_window_query().
+static std::vector<float> gqa_sliding_window_expected_output() {
+    return {0.269412f,  -0.524605f, 1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f,
+            0.501624f,  -0.094775f, 1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.269412f,  -0.524605f,
+            1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f, 0.501624f,  -0.094775f,
+            1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.740432f,  0.128438f,  0.028298f,  0.204723f,
+            0.054011f,  -0.155629f, -0.441223f, 0.922398f,  -0.809414f, -0.305360f, 0.343519f,  0.556826f,  -0.193352f,
+            -0.296847f, 0.252657f,  0.898662f,  0.830354f,  0.253109f,  -0.331320f, 0.198504f,  0.044958f,  -0.233559f,
+            -0.500184f, 1.157573f,  -0.689992f, -0.459420f, 0.427193f,  0.435358f,  -0.159853f, 0.010424f,  0.319908f,
+            0.745768f,  1.007791f,  0.563291f,  -1.279775f, 0.427717f,  -0.231890f, -0.015653f, -0.166504f, 1.479434f,
+            -0.133062f, -1.357522f, -0.381622f, 0.435451f,  -0.168452f, 0.962350f,  0.379397f,  -0.201881f, 1.010270f,
+            0.563424f,  -1.277395f, 0.415119f,  -0.218813f, -0.036927f, -0.191286f, 1.493233f,  -0.146303f, -1.331196f,
+            -0.329199f, 0.419765f,  -0.163685f, 0.953034f,  0.385018f,  -0.172855f, 0.501894f,  -0.472149f, -0.233213f,
+            0.394092f,  0.031529f,  -0.268758f, 0.715223f,  0.460533f,  0.022434f,  -1.663906f, -0.864902f, 0.327764f,
+            -0.227691f, 0.844354f,  0.183987f,  -0.025009f, 0.491418f,  -0.495716f, -0.208311f, 0.387906f,  0.043164f,
+            -0.283682f, 0.724681f,  0.443220f,  0.020286f,  -1.659573f, -0.853381f, 0.318560f,  -0.226992f, 0.837655f,
+            0.181946f,  -0.008489f};
+}
+
+// f16 sliding window: exercises the f16 finite-lowest() masked path (no NaN on masked positions).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_fp16) {
+    ov::frontend::FrontEnd::Ptr front_end;
+    auto input_model = load_model("com.microsoft/gqa_sliding_window.onnx", &front_end);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("query"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_key"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_value"), ov::element::f16);
+    const auto model = front_end->convert(input_model);
+
+    using f16 = ov::float16;
+    std::vector<f16> query;
+    for (float x : gqa_sliding_window_query())
+        query.emplace_back(x);
+
+    const auto expected_output_f32 = gqa_sliding_window_expected_output();
+    std::vector<f16> expected_output;
+    for (float x : expected_output_f32)
+        expected_output.emplace_back(x);
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<f16>(Shape{1, 4, 64}, query);
+    test_case.add_input<f16>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<f16>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<f16>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp(0.02f);
+}
+
+// bf16 activations and KV cache (ONNX spec type T includes bfloat16): exercises the bf16 finite-lowest()
+// masked path.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_bf16) {
+    ov::frontend::FrontEnd::Ptr front_end;
+    auto input_model = load_model("com.microsoft/gqa_sliding_window.onnx", &front_end);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("query"), ov::element::bf16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_key"), ov::element::bf16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_value"), ov::element::bf16);
+    auto model = front_end->convert(input_model);
+    // The attention runs in bf16; read the output back as f32 for the absolute-tolerance comparison (the bf16
+    // comparison is bit-relative and too strict for values near zero).
+    ov::preprocess::PrePostProcessor ppp(model);
+    ppp.output("output").tensor().set_element_type(ov::element::f32);
+    model = ppp.build();
+
+    using bf16 = ov::bfloat16;
+    std::vector<bf16> query;
+    for (float x : gqa_sliding_window_query())
+        query.emplace_back(x);
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<bf16>(Shape{1, 4, 64}, query);
+    test_case.add_input<bf16>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<bf16>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, gqa_sliding_window_expected_output());
+    test_case.run_with_tolerance_as_fp(0.05f);
+}
+
+// qk_output != 0 without the output_qk output (or vice versa) is rejected, as in ONNX Runtime.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_without_output_throws) {
+    try {
+        convert_model("com.microsoft/gqa_qk_output.onnx");
+        FAIL() << "ONNX Importer did not reject qk_output without output_qk for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("qk_output"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
+// A windowed cache needs a capacity of at least local_window_size (the cache-end arithmetic uses
+// gap = capacity - local_window_size + 1); a statically-known smaller capacity is rejected up front.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_small_capacity_unsupported_throws) {
+    try {
+        convert_model("com.microsoft/gqa_swc_small_capacity.onnx");
+        FAIL() << "ONNX Importer did not reject a too-small windowed cache capacity for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("capacity"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
+// Packed-QKV prompt (num_heads=2, kv_num_heads=1, head_size=16, S=4, past=0) shared by the
+// smooth-softmax / head-sink tests. Reference outputs are from ONNX Runtime (MLAS CPU).
+static std::vector<float> gqa_sink_query() {
+    return {-0.841560f, 0.961409f,  1.341610f,  0.219196f,  -1.070939f, 2.005177f,  -0.500984f, -1.122348f, 0.676705f,
+            -1.632419f, -0.926639f, 0.406092f,  0.120748f,  -0.908491f, -1.119538f, 0.678687f,  0.261504f,  1.661547f,
+            0.143510f,  -0.231519f, 0.039766f,  -0.485498f, 0.340751f,  -2.563714f, 1.088374f,  -1.234958f, -1.495851f,
+            0.031911f,  -0.138748f, -0.745854f, -1.181944f, -0.568151f, 1.091891f,  -1.021918f, 0.959766f,  0.549658f,
+            0.785998f,  -0.561202f, -0.477581f, 0.244346f,  -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f,
+            0.968591f,  0.484597f,  -0.490332f, -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,
+            -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f,
+            -0.432411f, 0.436726f,  0.310293f,  -0.039303f, 1.158923f,  0.004950f,  -0.418189f, -0.366611f, -0.163320f,
+            1.017935f,  -0.789237f, 1.944939f,  -0.027737f, -0.018879f, 2.909682f,  -0.789053f, -0.097781f, 0.108064f,
+            0.102853f,  -1.462710f, 0.208772f,  -1.066994f, -1.588492f, -2.039299f, 1.347027f,  0.414454f,  0.003080f,
+            0.054512f,  0.078857f,  0.196108f,  1.127173f,  0.176119f,  0.119609f,  -0.226219f, 1.154819f,  -0.979413f,
+            1.064772f,  1.047214f,  0.713923f,  -1.116430f, 0.657610f,  -0.001792f, 0.013813f,  -1.330579f, -0.296302f,
+            0.037239f,  0.271217f,  -0.091982f, 0.161023f,  -0.093429f, -0.248725f, 0.346120f,  0.717340f,  -0.373598f,
+            -1.455318f, -0.605575f, 0.541818f,  1.046772f,  -1.408027f, 0.839928f,  0.176214f,  -0.159969f, -0.423865f,
+            0.782059f,  -0.905910f, 0.121858f,  -0.186204f, 0.521079f,  -0.078320f, -0.813372f, 0.896154f,  0.998463f,
+            -0.007512f, -0.264747f, -0.109279f, 0.660887f,  1.517640f,  -0.090469f, -0.166065f, -0.280879f, -0.549630f,
+            -0.233574f, -0.005912f, -1.893519f, 1.408677f,  -1.074038f, 0.191361f,  -0.343940f, -1.354283f, 0.986371f,
+            -1.325445f, 0.026918f,  -0.258281f, -1.124630f, -1.394380f, 0.316257f,  0.129337f,  0.954208f,  -1.279339f,
+            -0.397333f, -1.577390f, -0.578984f, -1.156784f, 1.203218f,  0.511575f,  0.615649f,  0.008202f,  0.832399f,
+            -0.045157f, -1.394901f, -0.134668f, 1.503749f,  1.433073f,  -1.817968f, 0.375994f,  1.388801f,  -0.808444f,
+            -1.474496f, 0.023879f,  0.380251f,  -1.383532f, -1.512560f, -0.894703f, -0.885275f, 0.036063f,  1.462681f,
+            -0.660346f, -0.098059f, 1.324486f,  0.058498f,  -1.449158f, -2.043329f, 0.006219f,  -0.378941f, -0.473675f,
+            0.228863f,  -2.272386f, -0.872725f, 0.016349f,  -0.645995f, -0.957919f, -1.375511f, -0.793446f, -0.461686f,
+            0.684437f,  -0.579369f, -1.583204f, 3.032897f,  0.056690f,  -1.636424f, -0.308033f, -0.860494f, 0.653427f,
+            0.215226f,  -0.708250f, -0.978691f, -0.468090f, -0.135356f, 0.015189f,  -0.035300f, 1.495406f,  -0.541828f,
+            -1.169002f, -0.428368f, -2.950616f, 0.593047f,  -0.234292f, 1.536813f,  0.398880f,  0.404500f,  -0.062291f,
+            1.559615f,  1.222434f,  -0.432531f, 0.403857f,  0.617080f,  -0.592210f, 0.450232f,  -0.054978f, 0.507649f,
+            0.001170f,  -1.102470f, -0.817775f, -1.086352f, 0.921146f,  -0.763100f, 1.176417f,  -0.134350f, 0.695815f,
+            -0.398245f, 0.285846f,  0.884178f,  1.390027f};
+}
+
+// smooth_softmax adds an extra zero logit to the softmax denominator (via SDPA's sink input).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_smooth_softmax) {
+    const auto model = convert_model("com.microsoft/gqa_smooth_softmax.onnx");
+
+    std::vector<float> expected_output = {
+        -0.066832f, 0.026146f,  0.050594f,  0.164627f,  0.005685f,  0.291349f,  -0.113531f, 0.443120f,  -0.091925f,
+        -0.294095f, 0.205892f,  0.202581f,  0.188915f,  0.238117f,  -0.154712f, -0.090830f, -0.091050f, 0.035620f,
+        0.068928f,  0.224282f,  0.007745f,  0.396922f,  -0.154671f, 0.603689f,  -0.125235f, -0.400664f, 0.280499f,
+        0.275988f,  0.257371f,  0.324402f,  -0.210773f, -0.123743f, -0.154430f, -0.023029f, 0.197463f,  0.522916f,
+        -0.098468f, 0.128400f,  -0.393050f, 1.001214f,  0.131363f,  -0.971170f, 0.637251f,  0.436813f,  0.312489f,
+        0.328870f,  -0.065475f, -0.437726f, -0.132778f, -0.087372f, 0.235008f,  0.564999f,  -0.175038f, -0.330794f,
+        -0.443787f, 0.842442f,  0.391330f,  -1.071134f, 0.678677f,  0.350226f,  0.168228f,  0.103512f,  0.180179f,
+        -0.560856f, -0.651118f, 0.120385f,  0.528997f,  0.070166f,  -0.479622f, 0.242258f,  -0.114741f, 0.264405f,
+        -0.460406f, -0.844036f, 0.118900f,  0.313681f,  0.684516f,  0.083215f,  -0.153250f, 0.165789f,  -0.599560f,
+        0.031511f,  0.557997f,  0.092654f,  -0.569416f, -0.399728f, -0.156696f, -0.022890f, -0.104287f, -0.902667f,
+        0.132187f,  0.160992f,  0.454091f,  -0.248436f, 0.190414f,  0.022414f,  -0.786668f, 0.144045f,  0.739694f,
+        -0.131420f, -0.809990f, -0.044710f, -0.133304f, -0.070781f, -0.685376f, -0.637607f, -0.134253f, 0.279480f,
+        0.703895f,  -0.116000f, 0.043954f,  0.558611f,  -0.692927f, 0.144982f,  0.606432f,  0.049698f,  -0.586273f,
+        0.309816f,  -0.174315f, 0.352760f,  -0.623803f, -0.802655f, 0.090798f,  0.397685f,  0.754286f,  0.148288f,
+        -0.162450f, 0.319562f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// ONNX Runtime's GroupQueryAttention schema declares smooth_softmax's default as -1 (contrib_defs/bert_defs.cc),
+// but both its CPU and CUDA kernels only enable the sink path on an exact 1 (gqa_attention_base.h,
+// GetAttrOrDefault<int64_t>("smooth_softmax", 0) == 1) - -1 is treated identically to absent/0, i.e. disabled.
+// A graph that never set the attribute explicitly can still end up with -1 baked in (e.g. schema-default
+// materialization during export), so this must decompose the same as the plain (non-sink) path, not the
+// sink path onnx_model_gqa_smooth_softmax exercises above.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_smooth_softmax_negative_one_is_disabled) {
+    const auto model = convert_model("com.microsoft/gqa_smooth_softmax_sentinel.onnx");
+
+    std::vector<float> expected_output = {
+        -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+        -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+        0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+        0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.223169f, -0.033279f, 0.285355f,  0.755670f,
+        -0.142297f, 0.185552f,  -0.567998f, 1.446860f,  0.189834f,  -1.403443f, 0.920896f,  0.631242f,  0.451579f,
+        0.475252f,  -0.094618f, -0.632560f, -0.174186f, -0.114620f, 0.308297f,  0.741198f,  -0.229624f, -0.433955f,
+        -0.582185f, 1.105163f,  0.513368f,  -1.405174f, 0.890326f,  0.459447f,  0.220691f,  0.135793f,  0.236369f,
+        -0.735763f, -0.916030f, 0.169364f,  0.744224f,  0.098714f,  -0.674760f, 0.340823f,  -0.161425f, 0.371981f,
+        -0.647726f, -1.187438f, 0.167276f,  0.441306f,  0.963017f,  0.117072f,  -0.215601f, 0.233242f,  -0.800164f,
+        0.042054f,  0.744694f,  0.123655f,  -0.759933f, -0.533470f, -0.209123f, -0.030549f, -0.139180f, -1.204685f,
+        0.176414f,  0.214857f,  0.606022f,  -0.331558f, 0.254124f,  0.029913f,  -0.939657f, 0.172058f,  0.883547f,
+        -0.156979f, -0.967515f, -0.053405f, -0.159229f, -0.084546f, -0.818667f, -0.761607f, -0.160362f, 0.333833f,
+        0.840787f,  -0.138559f, 0.052502f,  0.667249f,  -0.849203f, 0.177679f,  0.743201f,  0.060907f,  -0.718495f,
+        0.379690f,  -0.213628f, 0.432319f,  -0.764489f, -0.983679f, 0.111276f,  0.487376f,  0.924402f,  0.181732f,
+        -0.199088f, 0.391633f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// head_sink provides a per-head logit added to the softmax denominator (via SDPA's sink input).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_head_sink) {
+    const auto model = convert_model("com.microsoft/gqa_head_sink.onnx");
+
+    std::vector<float> head_sink = {-1.088381f, -1.689387f};
+    std::vector<float> expected_output = {
+        -0.140381f, 0.054919f,  0.106273f,  0.345799f,  0.011941f,  0.611977f,  -0.238472f, 0.930771f,  -0.193089f,
+        -0.617746f, 0.432475f,  0.425520f,  0.396816f,  0.500164f,  -0.324971f, -0.190788f, -0.217839f, 0.085223f,
+        0.164912f,  0.536602f,  0.018530f,  0.949650f,  -0.370055f, 1.444346f,  -0.299630f, -0.958602f, 0.671104f,
+        0.660310f,  0.615768f,  0.776142f,  -0.504282f, -0.296060f, -0.194077f, -0.028941f, 0.248158f,  0.657164f,
+        -0.123748f, 0.161364f,  -0.493957f, 1.258255f,  0.165088f,  -1.220498f, 0.800852f,  0.548956f,  0.392714f,
+        0.413301f,  -0.082284f, -0.550103f, -0.164702f, -0.108380f, 0.291512f,  0.700844f,  -0.217123f, -0.410328f,
+        -0.550489f, 1.044994f,  0.485419f,  -1.328671f, 0.841854f,  0.434433f,  0.208676f,  0.128400f,  0.223500f,
+        -0.695705f, -0.805645f, 0.148955f,  0.654543f,  0.086818f,  -0.593449f, 0.299752f,  -0.141973f, 0.327156f,
+        -0.569672f, -1.044348f, 0.147118f,  0.388126f,  0.846970f,  0.102964f,  -0.189620f, 0.205135f,  -0.753609f,
+        0.039607f,  0.701367f,  0.116461f,  -0.715720f, -0.502433f, -0.196956f, -0.028772f, -0.131082f, -1.134595f,
+        0.166150f,  0.202356f,  0.570763f,  -0.312268f, 0.239339f,  0.028173f,  -0.881899f, 0.161482f,  0.829238f,
+        -0.147329f, -0.908045f, -0.050123f, -0.149442f, -0.079349f, -0.768346f, -0.714794f, -0.150506f, 0.313313f,
+        0.789106f,  -0.130043f, 0.049275f,  0.626235f,  -0.815256f, 0.170577f,  0.713491f,  0.058472f,  -0.689773f,
+        0.364511f,  -0.205088f, 0.415036f,  -0.733929f, -0.944356f, 0.106827f,  0.467892f,  0.887448f,  0.174467f,
+        -0.191129f, 0.375977f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_input<float>(Shape{2}, head_sink);
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+static std::vector<float> gqa_sink_query_causal_output();
+
+// Two batches with per-batch seqlens_k (dynamic batch). Identical batches give the single-batch result twice.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_dynamic_batch_two) {
+    const auto model = convert_model("com.microsoft/gqa_absent_past.onnx");
+    const auto one_batch = gqa_sink_query();
+    std::vector<float> query = one_batch;
+    query.insert(query.end(), one_batch.begin(), one_batch.end());
+    const auto one_batch_output = gqa_sink_query_causal_output();
+    std::vector<float> expected_output = one_batch_output;
+    expected_output.insert(expected_output.end(), one_batch_output.begin(), one_batch_output.end());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 4, 64}, query);
+    test_case.add_input<int>(Shape{2, 1}, {3, 3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{2, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Batch 0 is gqa_sink_query(), batch 1 the same values reversed, so the two batches differ.
+static std::vector<float> gqa_batch_query() {
+    const auto one_batch = gqa_sink_query();
+    std::vector<float> query = one_batch;
+    query.insert(query.end(), one_batch.rbegin(), one_batch.rend());
+    return query;
+}
+
+// Rows [begin, end) of each batch's 256-value block of gqa_batch_query().
+static std::vector<float> gqa_batch_slice(size_t begin, size_t end) {
+    const auto query = gqa_batch_query();
+    std::vector<float> out;
+    for (size_t b = 0; b < 2; ++b)
+        out.insert(out.end(), query.begin() + b * 256 + begin, query.begin() + b * 256 + end);
+    return out;
+}
+
+// Batched first prompt with right padding (packed QKV + RoPE): batch 1 has 2 valid tokens of 4 (seqlens_k = [3, 1]),
+// so its keys beyond total are masked. Expected values: ORT CPU.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_batch_prefill_padded) {
+    const auto model = convert_model("com.microsoft/gqa_batch_prefill_padded.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 4, 64}, gqa_batch_query());
+    test_case.add_input<float>(Shape{2, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{2, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{2, 1}, {3, 1});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(
+        Shape{2, 4, 32},
+        {
+            -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+            -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+            0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+            0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.204225f, -0.064736f, 0.294227f,  0.750073f,
+            -0.176069f, -0.054030f, -0.573485f, 1.314715f,  0.314954f,  -1.404113f, 0.909074f,  0.564803f,  0.362288f,
+            0.343973f,  0.033385f,  -0.672472f, -0.171401f, -0.119244f, 0.309601f,  0.740376f,  -0.234588f, -0.469172f,
+            -0.582992f, 1.085739f,  0.531761f,  -1.405272f, 0.888589f,  0.449681f,  0.207565f,  0.116495f,  0.255185f,
+            -0.741630f, -0.963257f, 0.173465f,  0.783527f,  0.045106f,  -0.729164f, 0.263220f,  -0.131603f, 0.238185f,
+            -0.666511f, -1.170753f, 0.103757f,  0.401518f,  0.969658f,  0.039795f,  -0.177121f, 0.286171f,  -0.716121f,
+            0.012358f,  0.693261f,  0.198694f,  -0.704885f, -0.598752f, -0.257329f, 0.067952f,  -0.017410f, -1.229852f,
+            0.261428f,  0.223759f,  0.529122f,  -0.315954f, 0.293409f,  -0.078312f, -1.044812f, 0.183356f,  0.966553f,
+            -0.269185f, -1.078582f, -0.198356f, -0.093013f, -0.360055f, -0.865445f, -0.734332f, -0.292378f, 0.253248f,
+            0.864749f,  -0.293848f, 0.122062f,  0.777257f,  -0.835625f, 0.173636f,  0.741337f,  0.060219f,  -0.723884f,
+            0.354747f,  -0.222320f, 0.429784f,  -0.757146f, -0.963333f, 0.108504f,  0.485644f,  0.906676f,  0.175392f,
+            -0.181552f, 0.398569f,  0.684437f,  -0.461686f, -0.793446f, -1.375511f, -0.957919f, -0.645995f, 0.016349f,
+            -0.872725f, -2.272386f, 0.228863f,  -0.473675f, -0.378941f, 0.006219f,  -2.043329f, -1.449158f, 0.058498f,
+            0.684437f,  -0.461686f, -0.793446f, -1.375511f, -0.957919f, -0.645995f, 0.016349f,  -0.872725f, -2.272386f,
+            0.228863f,  -0.473675f, -0.378941f, 0.006219f,  -2.043329f, -1.449158f, 0.058498f,  0.620419f,  -0.452307f,
+            -0.760900f, -1.308849f, -0.829499f, -0.578200f, 0.009832f,  -0.841186f, -2.154895f, 0.268786f,  -0.402615f,
+            -0.401477f, 0.001834f,  -1.910300f, -1.383642f, 0.061785f,  0.104048f,  -0.376651f, -0.498385f, -0.771148f,
+            0.206352f,  -0.031360f, -0.042735f, -0.586789f, -1.207202f, 0.590811f,  0.170564f,  -0.583257f, -0.033540f,
+            -0.837272f, -0.855183f, 0.088297f,  -0.135093f, -0.341614f, -0.376809f, -0.522129f, 0.686072f,  0.221891f,
+            -0.067079f, -0.468974f, -0.768308f, 0.739946f,  0.436013f,  -0.667442f, -0.049922f, -0.340334f, -0.610444f,
+            0.100575f,  -0.378639f, -0.305931f, -0.252994f, -0.268523f, 1.174629f,  0.479807f,  -0.091872f, -0.348988f,
+            -0.321331f, 0.891828f,  0.706352f,  -0.753178f, -0.066606f, 0.165757f,  -0.361198f, 0.113079f,  -0.127944f,
+            -0.342662f, -0.380444f, -0.529574f, 0.671730f,  0.214319f,  -0.066351f, -0.472496f, -0.781430f, 0.735487f,
+            0.428077f,  -0.664925f, -0.049433f, -0.355191f, -0.617761f, 0.100208f,  0.462462f,  -0.429164f, -0.680597f,
+            -1.144367f, -0.512634f, -0.410923f, -0.006248f, -0.763367f, -1.864998f, 0.367293f,  -0.227280f, -0.457083f,
+            -0.008987f, -1.582063f, -1.221987f, 0.069895f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 4, 16},
+        {
+            1.091891f,  -1.021918f, 0.959766f,  0.549658f,  0.785998f,  -0.561202f, -0.477581f, 0.244346f,  -0.943581f,
+            0.640680f,  -0.574544f, 0.654430f,  -1.338133f, 0.968591f,  0.484597f,  -0.490332f, -0.120719f, 1.093262f,
+            -0.841684f, 1.073608f,  1.046789f,  0.713062f,  -1.116338f, 0.657559f,  -0.191325f, 0.372258f,  -1.421710f,
+            -0.262488f, 0.047709f,  0.273473f,  -0.093098f, 0.161231f,  -0.956899f, -1.036736f, -0.554785f, -1.571382f,
+            -0.550972f, -1.155909f, 1.200208f,  0.510669f,  0.611458f,  -0.749636f, 0.736869f,  -0.144763f, -1.406201f,
+            -0.141981f, 1.506152f,  1.433396f,  0.479323f,  -0.630619f, -0.870133f, -3.053144f, 0.605754f,  -0.238113f,
+            1.534955f,  0.399442f,  -0.476915f, -0.986289f, 1.363366f,  0.937437f,  -0.414548f, 0.401616f,  0.621688f,
+            -0.591831f, 1.495406f,  -0.035300f, 0.015189f,  -0.135356f, -0.468090f, -0.978691f, -0.708250f, 0.215226f,
+            0.653427f,  -0.860494f, -0.308033f, -1.636424f, 0.056690f,  3.032897f,  -1.583204f, -0.579369f, 1.209471f,
+            0.407535f,  -1.406518f, -1.090109f, -0.272355f, 0.032906f,  -1.325438f, 0.986445f,  -0.622889f, -0.228535f,
+            0.051199f,  -1.109059f, 1.406024f,  -1.893424f, -0.007237f, -0.233262f, -1.274623f, 1.347539f,  1.420289f,
+            0.263154f,  0.074666f,  0.063762f,  0.002874f,  0.414386f,  -0.451801f, -1.540746f, -1.332893f, -1.052466f,
+            0.210307f,  -1.462336f, 0.102859f,  0.108326f,  0.924257f,  -0.965693f, -0.569067f, -0.141891f, 0.038841f,
+            -1.497145f, -1.239937f, 1.088125f,  2.457880f,  -0.761932f, -0.684229f, 0.026444f,  -0.230458f, 0.129313f,
+            1.657835f,  0.262536f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 4, 16},
+        {
+            -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+            -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.093429f, -0.248725f,
+            0.346120f,  0.717340f,  -0.373598f, -1.455318f, -0.605575f, 0.541818f,  1.046772f,  -1.408027f, 0.839928f,
+            0.176214f,  -0.159969f, -0.423865f, 0.782059f,  -0.905910f, -1.817968f, 0.375994f,  1.388801f,  -0.808444f,
+            -1.474496f, 0.023879f,  0.380251f,  -1.383532f, -1.512560f, -0.894703f, -0.885275f, 0.036063f,  1.462681f,
+            -0.660346f, -0.098059f, 1.324486f,  0.450232f,  -0.054978f, 0.507649f,  0.001170f,  -1.102470f, -0.817775f,
+            -1.086352f, 0.921146f,  -0.763100f, 1.176417f,  -0.134350f, 0.695815f,  -0.398245f, 0.285846f,  0.884178f,
+            1.390027f,  0.684437f,  -0.461686f, -0.793446f, -1.375511f, -0.957919f, -0.645995f, 0.016349f,  -0.872725f,
+            -2.272386f, 0.228863f,  -0.473675f, -0.378941f, 0.006219f,  -2.043329f, -1.449158f, 0.058498f,  -0.549630f,
+            -0.280879f, -0.166065f, -0.090469f, 1.517640f,  0.660887f,  -0.109279f, -0.264747f, -0.007512f, 0.998463f,
+            0.896154f,  -0.813372f, -0.078320f, 0.521079f,  -0.186204f, 0.121858f,  -0.097781f, -0.789053f, 2.909682f,
+            -0.018879f, -0.027737f, 1.944939f,  -0.789237f, 1.017935f,  -0.163320f, -0.366611f, -0.418189f, 0.004950f,
+            1.158923f,  -0.039303f, 0.310293f,  0.436726f,  0.678687f,  -1.119538f, -0.908491f, 0.120748f,  0.406092f,
+            -0.926639f, -1.632419f, 0.676705f,  -1.122348f, -0.500984f, 2.005177f,  -1.070939f, 0.219196f,  1.341610f,
+            0.961409f,  -0.841560f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Batched decode on a growing cache: batch 0 has 4 past rows, batch 1 has 2, so the new key lands at a different
+// row (and RoPE position) per batch. ORT leaves present rows beyond a batch's total uninitialized, so only the
+// attention output is compared.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_batch_decode) {
+    const auto model = convert_model("com.microsoft/gqa_batch_decode.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 1, 64}, gqa_batch_slice(192, 256));
+    test_case.add_input<float>(Shape{2, 1, 4, 16}, gqa_batch_slice(0, 64));
+    test_case.add_input<float>(Shape{2, 1, 4, 16}, gqa_batch_slice(64, 128));
+    test_case.add_input<int>(Shape{2, 1}, {4, 2});
+    test_case.add_input<int>(Shape{}, {5});
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 32},
+        {
+            0.176497f,  0.161230f,  -1.075928f, 0.409903f,  -0.800631f, -1.267084f, -1.639485f, 1.012060f,
+            0.473925f,  -0.109233f, 0.382190f,  0.075848f,  0.121989f,  1.403060f,  0.016952f,  0.126485f,
+            0.257404f,  0.259461f,  -0.154608f, 0.963659f,  -0.086425f, -0.607048f, -0.630661f, 0.186691f,
+            0.834736f,  -0.709746f, 1.247476f,  0.012993f,  -0.031949f, 1.867099f,  -0.324260f, -0.159897f,
+            1.281354f,  0.702141f,  -0.383030f, -0.499280f, 0.049238f,  0.150824f,  -0.470997f, 0.149589f,
+            -0.188584f, 0.731173f,  -0.358463f, -0.862522f, -1.101834f, 0.296172f,  -0.530359f, 0.030393f,
+            1.281471f,  0.176691f,  -0.560869f, 0.634239f,  0.056155f,  -0.477965f, -0.757145f, -0.768361f,
+            -0.901344f, 0.483304f,  -0.047305f, -1.216693f, -0.882895f, 0.955613f,  0.041793f,  -1.049077f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Batched decode on a preallocated static buffer (capacity 8, local_window_size 3): each batch's new key is written
+// in place at its own row and the window is applied per batch.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_batch_static_cache) {
+    const auto model = convert_model("com.microsoft/gqa_batch_static_cache.onnx");
+
+    // Zero-initialized capacity-8 buffers holding [4, 2] valid past rows (rows beyond total are unspecified in ORT).
+    auto past_key = gqa_batch_slice(0, 128), past_value = gqa_batch_slice(128, 256);
+    for (auto* past : {&past_key, &past_value}) {
+        std::fill(past->begin() + 4 * 16, past->begin() + 128, 0.0f);
+        std::fill(past->begin() + 128 + 2 * 16, past->end(), 0.0f);
+    }
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 1, 64}, gqa_batch_slice(192, 256));
+    test_case.add_input<float>(Shape{2, 1, 8, 16}, past_key);
+    test_case.add_input<float>(Shape{2, 1, 8, 16}, past_value);
+    test_case.add_input<int>(Shape{2, 1}, {4, 2});
+    test_case.add_input<int>(Shape{}, {5});
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 32},
+        {
+            0.414526f,  -0.433350f, 0.279494f,  -0.611678f, -0.957887f, -0.856399f, -0.170699f, 0.570335f,
+            -0.361204f, 0.588092f,  0.126809f,  0.382532f,  -0.567969f, 0.055696f,  1.005675f,  1.398716f,
+            -0.767085f, -0.165474f, 0.765775f,  -0.965882f, -1.168630f, -0.412102f, 0.492835f,  -0.594868f,
+            -0.798208f, -0.428286f, -0.295116f, 0.072938f,  0.423881f,  -0.412985f, 0.478563f,  1.363478f,
+            0.009636f,  -0.069890f, -0.083617f, 0.007201f,  -0.071903f, -0.776515f, -0.582491f, 0.347511f,
+            0.331062f,  -0.898135f, 0.446455f,  0.371435f,  0.844189f,  -0.290696f, 0.807988f,  -0.300425f,
+            -0.480749f, 0.369244f,  -0.309064f, -0.082685f, 0.087527f,  0.130781f,  -1.091197f, 0.755863f,
+            0.391654f,  -0.716847f, -0.565373f, -0.107579f, 0.747363f,  0.134815f,  0.217088f,  -0.205244f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 8, 16},
+        {
+            -0.841560f, 0.961409f,  1.341610f,  0.219196f,  -1.070939f, 2.005177f,  -0.500984f, -1.122348f, 0.676705f,
+            -1.632419f, -0.926639f, 0.406092f,  0.120748f,  -0.908491f, -1.119538f, 0.678687f,  0.261504f,  1.661547f,
+            0.143510f,  -0.231519f, 0.039766f,  -0.485498f, 0.340751f,  -2.563714f, 1.088374f,  -1.234958f, -1.495851f,
+            0.031911f,  -0.138748f, -0.745854f, -1.181944f, -0.568151f, 1.091891f,  -1.021918f, 0.959766f,  0.549658f,
+            0.785998f,  -0.561202f, -0.477581f, 0.244346f,  -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f,
+            0.968591f,  0.484597f,  -0.490332f, -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,
+            -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f,
+            -0.432411f, 0.660289f,  -0.292631f, -1.001896f, -3.081257f, 0.609869f,  -0.239382f, 1.534332f,  0.399629f,
+            0.145658f,  -1.133496f, 1.269686f,  0.840435f,  -0.408469f, 0.400861f,  0.623222f,  -0.591705f, 0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  1.390027f,  0.884178f,  0.285846f,  -0.398245f, 0.695815f,  -0.134350f, 1.176417f,
+            -0.763100f, 0.921146f,  -1.086352f, -0.817775f, -1.102470f, 0.001170f,  0.507649f,  -0.054978f, 0.450232f,
+            -0.592210f, 0.617080f,  0.403857f,  -0.432531f, 1.222434f,  1.559615f,  -0.062291f, 0.404500f,  0.398880f,
+            1.536813f,  -0.234292f, 0.593047f,  -2.950616f, -0.428368f, -1.169002f, -0.541828f, 2.567613f,  -1.154758f,
+            -0.634533f, -0.140984f, 0.036535f,  -1.496729f, -1.238279f, 1.088208f,  0.550263f,  -0.423837f, -0.623999f,
+            0.030917f,  -0.230835f, 0.134047f,  1.659074f,  0.262192f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 8, 16},
+        {
+            0.121858f,  -0.186204f, 0.521079f,  -0.078320f, -0.813372f, 0.896154f,  0.998463f,  -0.007512f, -0.264747f,
+            -0.109279f, 0.660887f,  1.517640f,  -0.090469f, -0.166065f, -0.280879f, -0.549630f, -0.233574f, -0.005912f,
+            -1.893519f, 1.408677f,  -1.074038f, 0.191361f,  -0.343940f, -1.354283f, 0.986371f,  -1.325445f, 0.026918f,
+            -0.258281f, -1.124630f, -1.394380f, 0.316257f,  0.129337f,  0.954208f,  -1.279339f, -0.397333f, -1.577390f,
+            -0.578984f, -1.156784f, 1.203218f,  0.511575f,  0.615649f,  0.008202f,  0.832399f,  -0.045157f, -1.394901f,
+            -0.134668f, 1.503749f,  1.433073f,  -1.817968f, 0.375994f,  1.388801f,  -0.808444f, -1.474496f, 0.023879f,
+            0.380251f,  -1.383532f, -1.512560f, -0.894703f, -0.885275f, 0.036063f,  1.462681f,  -0.660346f, -0.098059f,
+            1.324486f,  0.450232f,  -0.054978f, 0.507649f,  0.001170f,  -1.102470f, -0.817775f, -1.086352f, 0.921146f,
+            -0.763100f, 1.176417f,  -0.134350f, 0.695815f,  -0.398245f, 0.285846f,  0.884178f,  1.390027f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  -0.905910f, 0.782059f,  -0.423865f, -0.159969f, 0.176214f,  0.839928f,  -1.408027f,
+            1.046772f,  0.541818f,  -0.605575f, -1.455318f, -0.373598f, 0.717340f,  0.346120f,  -0.248725f, -0.093429f,
+            0.161023f,  -0.091982f, 0.271217f,  0.037239f,  -0.296302f, -1.330579f, 0.013813f,  -0.001792f, 0.657610f,
+            -1.116430f, 0.713923f,  1.047214f,  1.064772f,  -0.979413f, 1.154819f,  -0.226219f, 0.678687f,  -1.119538f,
+            -0.908491f, 0.120748f,  0.406092f,  -0.926639f, -1.632419f, 0.676705f,  -1.122348f, -0.500984f, 2.005177f,
+            -1.070939f, 0.219196f,  1.341610f,  0.961409f,  -0.841560f, 0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Same preallocated cache with a dynamic batch dimension: the fixed capacity (8) is still written in place, so present
+// keeps the capacity the op infers.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_batch_static_cache_dynamic_batch) {
+    const auto model = convert_model("com.microsoft/gqa_batch_static_cache_dynamic_batch.onnx");
+    EXPECT_EQ(model->output("present_key").get_partial_shape(), (PartialShape{Dimension::dynamic(), 1, 8, 16}));
+
+    auto past_key = gqa_batch_slice(0, 128), past_value = gqa_batch_slice(128, 256);
+    for (auto* past : {&past_key, &past_value}) {
+        std::fill(past->begin() + 4 * 16, past->begin() + 128, 0.0f);
+        std::fill(past->begin() + 128 + 2 * 16, past->end(), 0.0f);
+    }
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 1, 64}, gqa_batch_slice(192, 256));
+    test_case.add_input<float>(Shape{2, 1, 8, 16}, past_key);
+    test_case.add_input<float>(Shape{2, 1, 8, 16}, past_value);
+    test_case.add_input<int>(Shape{2, 1}, {4, 2});
+    test_case.add_input<int>(Shape{}, {5});
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 32},
+        {
+            0.414526f,  -0.433350f, 0.279494f,  -0.611678f, -0.957887f, -0.856399f, -0.170699f, 0.570335f,
+            -0.361204f, 0.588092f,  0.126809f,  0.382532f,  -0.567969f, 0.055696f,  1.005675f,  1.398716f,
+            -0.767085f, -0.165474f, 0.765775f,  -0.965882f, -1.168630f, -0.412102f, 0.492835f,  -0.594868f,
+            -0.798208f, -0.428286f, -0.295116f, 0.072938f,  0.423881f,  -0.412985f, 0.478563f,  1.363478f,
+            0.009636f,  -0.069890f, -0.083617f, 0.007201f,  -0.071903f, -0.776515f, -0.582491f, 0.347511f,
+            0.331062f,  -0.898135f, 0.446455f,  0.371435f,  0.844189f,  -0.290696f, 0.807988f,  -0.300425f,
+            -0.480749f, 0.369244f,  -0.309064f, -0.082685f, 0.087527f,  0.130781f,  -1.091197f, 0.755863f,
+            0.391654f,  -0.716847f, -0.565373f, -0.107579f, 0.747363f,  0.134815f,  0.217088f,  -0.205244f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 8, 16},
+        {
+            -0.841560f, 0.961409f,  1.341610f,  0.219196f,  -1.070939f, 2.005177f,  -0.500984f, -1.122348f, 0.676705f,
+            -1.632419f, -0.926639f, 0.406092f,  0.120748f,  -0.908491f, -1.119538f, 0.678687f,  0.261504f,  1.661547f,
+            0.143510f,  -0.231519f, 0.039766f,  -0.485498f, 0.340751f,  -2.563714f, 1.088374f,  -1.234958f, -1.495851f,
+            0.031911f,  -0.138748f, -0.745854f, -1.181944f, -0.568151f, 1.091891f,  -1.021918f, 0.959766f,  0.549658f,
+            0.785998f,  -0.561202f, -0.477581f, 0.244346f,  -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f,
+            0.968591f,  0.484597f,  -0.490332f, -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,
+            -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f,
+            -0.432411f, 0.660289f,  -0.292631f, -1.001896f, -3.081257f, 0.609869f,  -0.239382f, 1.534332f,  0.399629f,
+            0.145658f,  -1.133496f, 1.269686f,  0.840435f,  -0.408469f, 0.400861f,  0.623222f,  -0.591705f, 0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  1.390027f,  0.884178f,  0.285846f,  -0.398245f, 0.695815f,  -0.134350f, 1.176417f,
+            -0.763100f, 0.921146f,  -1.086352f, -0.817775f, -1.102470f, 0.001170f,  0.507649f,  -0.054978f, 0.450232f,
+            -0.592210f, 0.617080f,  0.403857f,  -0.432531f, 1.222434f,  1.559615f,  -0.062291f, 0.404500f,  0.398880f,
+            1.536813f,  -0.234292f, 0.593047f,  -2.950616f, -0.428368f, -1.169002f, -0.541828f, 2.567613f,  -1.154758f,
+            -0.634533f, -0.140984f, 0.036535f,  -1.496729f, -1.238279f, 1.088208f,  0.550263f,  -0.423837f, -0.623999f,
+            0.030917f,  -0.230835f, 0.134047f,  1.659074f,  0.262192f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 8, 16},
+        {
+            0.121858f,  -0.186204f, 0.521079f,  -0.078320f, -0.813372f, 0.896154f,  0.998463f,  -0.007512f, -0.264747f,
+            -0.109279f, 0.660887f,  1.517640f,  -0.090469f, -0.166065f, -0.280879f, -0.549630f, -0.233574f, -0.005912f,
+            -1.893519f, 1.408677f,  -1.074038f, 0.191361f,  -0.343940f, -1.354283f, 0.986371f,  -1.325445f, 0.026918f,
+            -0.258281f, -1.124630f, -1.394380f, 0.316257f,  0.129337f,  0.954208f,  -1.279339f, -0.397333f, -1.577390f,
+            -0.578984f, -1.156784f, 1.203218f,  0.511575f,  0.615649f,  0.008202f,  0.832399f,  -0.045157f, -1.394901f,
+            -0.134668f, 1.503749f,  1.433073f,  -1.817968f, 0.375994f,  1.388801f,  -0.808444f, -1.474496f, 0.023879f,
+            0.380251f,  -1.383532f, -1.512560f, -0.894703f, -0.885275f, 0.036063f,  1.462681f,  -0.660346f, -0.098059f,
+            1.324486f,  0.450232f,  -0.054978f, 0.507649f,  0.001170f,  -1.102470f, -0.817775f, -1.086352f, 0.921146f,
+            -0.763100f, 1.176417f,  -0.134350f, 0.695815f,  -0.398245f, 0.285846f,  0.884178f,  1.390027f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  -0.905910f, 0.782059f,  -0.423865f, -0.159969f, 0.176214f,  0.839928f,  -1.408027f,
+            1.046772f,  0.541818f,  -0.605575f, -1.455318f, -0.373598f, 0.717340f,  0.346120f,  -0.248725f, -0.093429f,
+            0.161023f,  -0.091982f, 0.271217f,  0.037239f,  -0.296302f, -1.330579f, 0.013813f,  -0.001792f, 0.657610f,
+            -1.116430f, 0.713923f,  1.047214f,  1.064772f,  -0.979413f, 1.154819f,  -0.226219f, 0.678687f,  -1.119538f,
+            -0.908491f, 0.120748f,  0.406092f,  -0.926639f, -1.632419f, 0.676705f,  -1.122348f, -0.500984f, 2.005177f,
+            -1.070939f, 0.219196f,  1.341610f,  0.961409f,  -0.841560f, 0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Plain causal GQA attention of gqa_sink_query() over an empty cache (no softcap/sink). Reference: ORT CPU EP.
+static std::vector<float> gqa_sink_query_causal_output() {
+    return {-0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+            -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+            0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+            0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.223169f, -0.033279f, 0.285355f,  0.755670f,
+            -0.142297f, 0.185552f,  -0.567998f, 1.446860f,  0.189833f,  -1.403443f, 0.920896f,  0.631242f,  0.451579f,
+            0.475252f,  -0.094618f, -0.632560f, -0.174186f, -0.114620f, 0.308297f,  0.741198f,  -0.229624f, -0.433955f,
+            -0.582185f, 1.105164f,  0.513368f,  -1.405174f, 0.890326f,  0.459447f,  0.220691f,  0.135793f,  0.236369f,
+            -0.735763f, -0.916030f, 0.169364f,  0.744224f,  0.098714f,  -0.674760f, 0.340823f,  -0.161425f, 0.371981f,
+            -0.647726f, -1.187438f, 0.167276f,  0.441306f,  0.963017f,  0.117072f,  -0.215601f, 0.233242f,  -0.800164f,
+            0.042054f,  0.744694f,  0.123655f,  -0.759933f, -0.533471f, -0.209123f, -0.030549f, -0.139180f, -1.204685f,
+            0.176414f,  0.214857f,  0.606022f,  -0.331558f, 0.254124f,  0.029913f,  -0.939657f, 0.172058f,  0.883547f,
+            -0.156979f, -0.967515f, -0.053405f, -0.159229f, -0.084546f, -0.818667f, -0.761608f, -0.160362f, 0.333833f,
+            0.840787f,  -0.138559f, 0.052502f,  0.667249f,  -0.849203f, 0.177679f,  0.743201f,  0.060907f,  -0.718495f,
+            0.379690f,  -0.213628f, 0.432319f,  -0.764489f, -0.983679f, 0.111276f,  0.487376f,  0.924402f,  0.181732f,
+            -0.199088f, 0.391633f};
+}
+
+// past_key/past_value are optional in the spec: an absent past is an empty cache, so present holds just the
+// current K/V and attention is plain causal over the current tokens. Reference: ORT CPU EP.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_absent_past) {
+    const auto model = convert_model("com.microsoft/gqa_absent_past.onnx");
+
+    const auto expected_output = gqa_sink_query_causal_output();
+    std::vector<float> expected_present_key = {
+        1.091891f,  -1.021918f, 0.959766f,  0.549658f,  0.785998f,  -0.561202f, -0.477581f, 0.244346f,
+        -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f, 0.968591f,  0.484597f,  -0.490332f,
+        -0.226219f, 1.154819f,  -0.979413f, 1.064772f,  1.047214f,  0.713923f,  -1.116430f, 0.657610f,
+        -0.001792f, 0.013813f,  -1.330579f, -0.296302f, 0.037239f,  0.271217f,  -0.091982f, 0.161023f,
+        0.954208f,  -1.279339f, -0.397333f, -1.577390f, -0.578984f, -1.156784f, 1.203218f,  0.511575f,
+        0.615649f,  0.008202f,  0.832399f,  -0.045157f, -1.394901f, -0.134668f, 1.503749f,  1.433073f,
+        -0.541828f, -1.169002f, -0.428368f, -2.950616f, 0.593047f,  -0.234292f, 1.536813f,  0.398880f,
+        0.404500f,  -0.062291f, 1.559615f,  1.222434f,  -0.432531f, 0.403857f,  0.617080f,  -0.592210f};
+    std::vector<float> expected_present_value = {
+        -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,
+        -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f,
+        -0.093429f, -0.248725f, 0.346120f,  0.717340f,  -0.373598f, -1.455318f, -0.605575f, 0.541818f,
+        1.046772f,  -1.408027f, 0.839928f,  0.176214f,  -0.159969f, -0.423865f, 0.782059f,  -0.905910f,
+        -1.817968f, 0.375994f,  1.388801f,  -0.808444f, -1.474496f, 0.023879f,  0.380251f,  -1.383532f,
+        -1.512560f, -0.894703f, -0.885275f, 0.036063f,  1.462681f,  -0.660346f, -0.098059f, 1.324486f,
+        0.450232f,  -0.054978f, 0.507649f,  0.001170f,  -1.102470f, -0.817775f, -1.086352f, 0.921146f,
+        -0.763100f, 1.176417f,  -0.134350f, 0.695815f,  -0.398245f, 0.285846f,  0.884178f,  1.390027f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// A quantized KV cache needs a past tensor to carry its element type into present_key/present_value.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_absent_past_quantized_unsupported_throws) {
+    try {
+        convert_model("com.microsoft/gqa_absent_past_quantized_unsupported.onnx");
+        FAIL() << "ONNX Importer did not reject an absent past with a quantized KV cache for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("requires past_key and past_value"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_key_only_unsupported_throws) {
+    try {
+        convert_model("com.microsoft/gqa_past_key_only_unsupported.onnx");
+        FAIL() << "ONNX Importer did not reject past_key without past_value for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("must be provided together"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
+// ORT rejects shared KV (kv_sequence_length == 0) combined with a windowed KV cache.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_shared_kv_sliding_window_cache_unsupported_throws) {
+    try {
+        convert_model("com.microsoft/gqa_shared_kv_sliding_window_cache_unsupported.onnx");
+        FAIL() << "ONNX Importer did not reject shared KV with sliding_window_cache=1 for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("is not supported with sliding_window_cache=1"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
+// ORT applies softcap only when it is > 0: a negative value disables it (plain attention).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_softcap_negative_is_disabled) {
+    const auto model = convert_model("com.microsoft/gqa_softcap_negative.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, gqa_sink_query_causal_output());
+    test_case.run_with_tolerance_as_fp();
+}
+
+// softcap (Gemma-style logit capping): scores become softcap * tanh(score / softcap) after scaling and before
+// the mask/softmax. softcap = 0.1 saturates tanh for these scores, so the capping is clearly visible. Reference:
+// ORT CPU EP.
+// f32 ORT reference of gqa_softcap.onnx (softcap = 0.1) on gqa_sink_query() over an empty cache.
+static std::vector<float> gqa_softcap_expected_output() {
+    return {-0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+            -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+            0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+            0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.214008f, -0.048492f, 0.289645f,  0.752963f,
+            -0.158629f, 0.069689f,  -0.570651f, 1.382954f,  0.250342f,  -1.403767f, 0.915178f,  0.599112f,  0.408398f,
+            0.411765f,  -0.032716f, -0.651861f, -0.205174f, -0.063162f, 0.293783f,  0.750353f,  -0.174379f, -0.042039f,
+            -0.573210f, 1.321330f,  0.308692f,  -1.404079f, 0.909665f,  0.568129f,  0.366757f,  0.350544f,  0.026978f,
+            -0.670474f, -0.776449f, 0.098592f,  0.676533f,  0.203838f,  -0.623341f, 0.037592f,  -0.236826f, 0.401858f,
+            -0.360870f, -1.224903f, 0.281626f,  0.396794f,  0.772960f,  0.026209f,  -0.047133f, 0.040054f,  -0.767864f,
+            0.080564f,  0.683670f,  0.197873f,  -0.645680f, -0.105235f, -0.238494f, 0.318463f,  -0.289288f, -1.224444f,
+            0.271549f,  0.356260f,  0.721533f,  -0.053816f, 0.029024f,  0.019603f,  -0.511998f, 0.067603f,  0.651326f,
+            0.137345f,  -0.751427f, -0.166503f, -0.421785f, 0.484596f,  -0.473074f, -0.662645f, 0.162629f,  0.457485f,
+            0.512893f,  0.069955f,  0.170599f,  0.376285f,  -0.506949f, 0.069228f,  0.640191f,  0.154932f,  -0.730161f,
+            -0.123757f, -0.424875f, 0.528880f,  -0.472289f, -0.683008f, 0.184905f,  0.471328f,  0.523721f,  0.099038f,
+            0.145600f,  0.354213f};
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_softcap) {
+    const auto model = convert_model("com.microsoft/gqa_softcap.onnx");
+
+    const auto expected_output = gqa_softcap_expected_output();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// qk_output = 1: scaled logits + attention_bias before softmax; causal and window (2) masked positions read 0.
+// Expected values: ONNX Runtime CPU.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_before_softmax) {
+    const auto model = convert_model("com.microsoft/gqa_qk_output_before_softmax.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(
+        Shape{1, 4, 32},
+        {
+            -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+            -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+            0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+            0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.209262f, -0.056373f, 0.291868f,  0.751561f,
+            -0.167090f, 0.009668f,  -0.572026f, 1.349849f,  0.281688f,  -1.403935f, 0.912217f,  0.582467f,  0.386028f,
+            0.378876f,  -0.000647f, -0.661860f, -0.254206f, 0.018261f,  0.270818f,  0.764839f,  -0.086963f, 0.578093f,
+            -0.559009f, 1.663371f,  -0.015170f, -1.402347f, 0.940265f,  0.740097f,  0.597879f,  0.690346f,  -0.304343f,
+            -0.567167f, -1.416333f, 0.230501f,  1.145967f,  -0.453098f, -1.218103f, -0.320617f, 0.150658f,  -0.935129f,
+            -0.916507f, -1.014253f, -0.483485f, 0.068703f,  1.084775f,  -0.605271f, 0.106915f,  0.805040f,  -0.972802f,
+            0.069830f,  0.877801f,  -0.060684f, -0.934965f, -0.701049f, -0.102885f, -0.439952f, -0.258276f, -1.146274f,
+            -0.039783f, 0.104749f,  0.667449f,  -0.544451f, 0.333271f,  0.231408f,  -1.204600f, 0.259450f,  1.150519f,
+            -0.589508f, -1.373893f, -0.203722f, -0.016349f, -0.760299f, -1.309891f, -0.334629f, -0.682209f, 0.214474f,
+            0.959448f,  -0.404476f, 0.167558f,  1.342210f,  -1.356797f, 0.288369f,  1.209645f,  -0.643833f, -1.398856f,
+            -0.147246f, 0.082061f,  -0.914944f, -1.360180f, -0.473603f, -0.732597f, 0.170204f,  1.084317f,  -0.467966f,
+            0.101650f,  1.337812f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {
+            1.091891f,  -1.021918f, 0.959766f,  0.549658f,  0.785998f,  -0.561202f, -0.477581f, 0.244346f,
+            -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f, 0.968591f,  0.484597f,  -0.490332f,
+            -0.226219f, 1.154819f,  -0.979413f, 1.064772f,  1.047214f,  0.713923f,  -1.116430f, 0.657610f,
+            -0.001792f, 0.013813f,  -1.330579f, -0.296302f, 0.037239f,  0.271217f,  -0.091982f, 0.161023f,
+            0.954208f,  -1.279339f, -0.397333f, -1.577390f, -0.578984f, -1.156784f, 1.203218f,  0.511575f,
+            0.615649f,  0.008202f,  0.832399f,  -0.045157f, -1.394901f, -0.134668f, 1.503749f,  1.433073f,
+            -0.541828f, -1.169002f, -0.428368f, -2.950616f, 0.593047f,  -0.234292f, 1.536813f,  0.398880f,
+            0.404500f,  -0.062291f, 1.559615f,  1.222434f,  -0.432531f, 0.403857f,  0.617080f,  -0.592210f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {
+            -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,
+            -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f,
+            -0.093429f, -0.248725f, 0.346120f,  0.717340f,  -0.373598f, -1.455318f, -0.605575f, 0.541818f,
+            1.046772f,  -1.408027f, 0.839928f,  0.176214f,  -0.159969f, -0.423865f, 0.782059f,  -0.905910f,
+            -1.817968f, 0.375994f,  1.388801f,  -0.808444f, -1.474496f, 0.023879f,  0.380251f,  -1.383532f,
+            -1.512560f, -0.894703f, -0.885275f, 0.036063f,  1.462681f,  -0.660346f, -0.098059f, 1.324486f,
+            0.450232f,  -0.054978f, 0.507649f,  0.001170f,  -1.102470f, -0.817775f, -1.086352f, 0.921146f,
+            -0.763100f, 1.176417f,  -0.134350f, 0.695815f,  -0.398245f, 0.285846f,  0.884178f,  1.390027f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 4, 4},
+        {
+            -2.074594f, 0.000000f,  0.000000f, 0.000000f, 0.510045f, 0.448357f,  0.000000f, 0.000000f,
+            0.000000f,  -1.152285f, 0.039756f, 0.000000f, 0.000000f, 0.000000f,  0.218147f, -0.774342f,
+            -1.164054f, 0.000000f,  0.000000f, 0.000000f, 0.891725f, -0.030046f, 0.000000f, 0.000000f,
+            0.000000f,  0.624511f,  0.664187f, 0.000000f, 0.000000f, 0.000000f,  0.347677f, -1.017994f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+// qk_output = 1 with an attention_bias holding -3e38 on one visible and one out-of-window key: the visible one is
+// reported as logit + bias, the out-of-window one as 0, as in ORT (masked positions come from the bias-free mask).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_before_softmax_neg_bias) {
+    const auto model = convert_model("com.microsoft/gqa_qk_output_before_softmax_neg_bias.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(
+        Shape{1, 4, 32},
+        {
+            -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+            -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+            0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+            0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.209262f, -0.056373f, 0.291868f,  0.751561f,
+            -0.167090f, 0.009668f,  -0.572026f, 1.349849f,  0.281688f,  -1.403935f, 0.912217f,  0.582467f,  0.386028f,
+            0.378876f,  -0.000647f, -0.661860f, -0.254206f, 0.018261f,  0.270818f,  0.764839f,  -0.086963f, 0.578093f,
+            -0.559009f, 1.663371f,  -0.015170f, -1.402347f, 0.940265f,  0.740097f,  0.597879f,  0.690346f,  -0.304343f,
+            -0.567167f, -1.416333f, 0.230501f,  1.145967f,  -0.453098f, -1.218103f, -0.320617f, 0.150658f,  -0.935129f,
+            -0.916507f, -1.014253f, -0.483485f, 0.068703f,  1.084775f,  -0.605271f, 0.106915f,  0.805040f,  -0.093429f,
+            -0.248725f, 0.346120f,  0.717340f,  -0.373598f, -1.455318f, -0.605575f, 0.541818f,  1.046772f,  -1.408027f,
+            0.839928f,  0.176214f,  -0.159969f, -0.423865f, 0.782059f,  -0.905910f, -1.204600f, 0.259450f,  1.150519f,
+            -0.589508f, -1.373893f, -0.203722f, -0.016349f, -0.760299f, -1.309891f, -0.334629f, -0.682209f, 0.214474f,
+            0.959448f,  -0.404476f, 0.167558f,  1.342210f,  -1.356797f, 0.288369f,  1.209645f,  -0.643833f, -1.398856f,
+            -0.147246f, 0.082061f,  -0.914944f, -1.360180f, -0.473603f, -0.732597f, 0.170204f,  1.084317f,  -0.467966f,
+            0.101650f,  1.337812f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {
+            1.091891f,  -1.021918f, 0.959766f,  0.549658f,  0.785998f,  -0.561202f, -0.477581f, 0.244346f,
+            -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f, 0.968591f,  0.484597f,  -0.490332f,
+            -0.226219f, 1.154819f,  -0.979413f, 1.064772f,  1.047214f,  0.713923f,  -1.116430f, 0.657610f,
+            -0.001792f, 0.013813f,  -1.330579f, -0.296302f, 0.037239f,  0.271217f,  -0.091982f, 0.161023f,
+            0.954208f,  -1.279339f, -0.397333f, -1.577390f, -0.578984f, -1.156784f, 1.203218f,  0.511575f,
+            0.615649f,  0.008202f,  0.832399f,  -0.045157f, -1.394901f, -0.134668f, 1.503749f,  1.433073f,
+            -0.541828f, -1.169002f, -0.428368f, -2.950616f, 0.593047f,  -0.234292f, 1.536813f,  0.398880f,
+            0.404500f,  -0.062291f, 1.559615f,  1.222434f,  -0.432531f, 0.403857f,  0.617080f,  -0.592210f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {
+            -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,
+            -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f,
+            -0.093429f, -0.248725f, 0.346120f,  0.717340f,  -0.373598f, -1.455318f, -0.605575f, 0.541818f,
+            1.046772f,  -1.408027f, 0.839928f,  0.176214f,  -0.159969f, -0.423865f, 0.782059f,  -0.905910f,
+            -1.817968f, 0.375994f,  1.388801f,  -0.808444f, -1.474496f, 0.023879f,  0.380251f,  -1.383532f,
+            -1.512560f, -0.894703f, -0.885275f, 0.036063f,  1.462681f,  -0.660346f, -0.098059f, 1.324486f,
+            0.450232f,  -0.054978f, 0.507649f,  0.001170f,  -1.102470f, -0.817775f, -1.086352f, 0.921146f,
+            -0.763100f, 1.176417f,  -0.134350f, 0.695815f,  -0.398245f, 0.285846f,  0.884178f,  1.390027f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 4, 4},
+        {
+            -2.074594f, 0.000000f,  0.000000f, 0.000000f, 0.510045f, 0.448357f,  0.000000f, 0.000000f,
+            0.000000f,  -1.152285f, 0.039756f, 0.000000f, 0.000000f, 0.000000f,  0.218147f, -0.774342f,
+            -1.164054f, 0.000000f,  0.000000f, 0.000000f, 0.891725f, -0.030046f, 0.000000f, 0.000000f,
+            0.000000f,  0.624511f,  -3e+38f,   0.000000f, 0.000000f, 0.000000f,  0.347677f, -1.017994f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+// qk_output = 2: probabilities after softcap and head_sink renormalization (sink column not emitted).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_after_softmax) {
+    const auto model = convert_model("com.microsoft/gqa_qk_output_after_softmax.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(
+        Shape{1, 4, 32},
+        {
+            -0.159478f, 0.062391f,  0.120731f,  0.392842f,  0.013566f,  0.695231f,  -0.270914f, 1.057394f,  -0.219357f,
+            -0.701785f, 0.491310f,  0.483408f,  0.450799f,  0.568207f,  -0.369181f, -0.216743f, -0.072252f, 0.028266f,
+            0.054697f,  0.177978f,  0.006146f,  0.314976f,  -0.122738f, 0.479054f,  -0.099380f, -0.317945f, 0.222589f,
+            0.219009f,  0.204235f,  0.257427f,  -0.167258f, -0.098196f, -0.174354f, -0.027666f, 0.224546f,  0.593224f,
+            -0.113400f, 0.134085f,  -0.446367f, 1.129927f,  0.155175f,  -1.102283f, 0.722688f,  0.492542f,  0.350326f,
+            0.366877f,  -0.068090f, -0.498747f, -0.105900f, -0.050938f, 0.169338f,  0.418610f,  -0.114531f, -0.141426f,
+            -0.324585f, 0.677011f,  0.234877f,  -0.788792f, 0.505011f,  0.286362f,  0.162042f,  0.132289f,  0.078097f,
+            -0.396133f, -0.692266f, 0.110394f,  0.580308f,  0.121418f,  -0.530093f, 0.159004f,  -0.160985f, 0.314506f,
+            -0.415873f, -0.982554f, 0.180885f,  0.342207f,  0.710706f,  0.059665f,  -0.109749f, 0.114737f,  -0.465036f,
+            0.033284f,  0.426486f,  0.098667f,  -0.421382f, -0.211440f, -0.136247f, 0.080105f,  -0.114512f, -0.728426f,
+            0.136441f,  0.166442f,  0.388081f,  -0.124545f, 0.095733f,  0.007842f,  -0.623679f, 0.103972f,  0.659629f,
+            0.006331f,  -0.734335f, -0.072149f, -0.259656f, 0.209979f,  -0.558327f, -0.631471f, 0.019062f,  0.355666f,
+            0.592014f,  -0.009176f, 0.084373f,  0.438321f,  -0.472317f, 0.089116f,  0.469275f,  0.064900f,  -0.485942f,
+            0.114330f,  -0.202309f, 0.315352f,  -0.433908f, -0.569111f, 0.092302f,  0.322165f,  0.506522f,  0.099116f,
+            -0.036655f, 0.256701f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {
+            1.091891f,  -1.021918f, 0.959766f,  0.549658f,  0.785998f,  -0.561202f, -0.477581f, 0.244346f,
+            -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f, 0.968591f,  0.484597f,  -0.490332f,
+            -0.226219f, 1.154819f,  -0.979413f, 1.064772f,  1.047214f,  0.713923f,  -1.116430f, 0.657610f,
+            -0.001792f, 0.013813f,  -1.330579f, -0.296302f, 0.037239f,  0.271217f,  -0.091982f, 0.161023f,
+            0.954208f,  -1.279339f, -0.397333f, -1.577390f, -0.578984f, -1.156784f, 1.203218f,  0.511575f,
+            0.615649f,  0.008202f,  0.832399f,  -0.045157f, -1.394901f, -0.134668f, 1.503749f,  1.433073f,
+            -0.541828f, -1.169002f, -0.428368f, -2.950616f, 0.593047f,  -0.234292f, 1.536813f,  0.398880f,
+            0.404500f,  -0.062291f, 1.559615f,  1.222434f,  -0.432531f, 0.403857f,  0.617080f,  -0.592210f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {
+            -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,
+            -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f,
+            -0.093429f, -0.248725f, 0.346120f,  0.717340f,  -0.373598f, -1.455318f, -0.605575f, 0.541818f,
+            1.046772f,  -1.408027f, 0.839928f,  0.176214f,  -0.159969f, -0.423865f, 0.782059f,  -0.905910f,
+            -1.817968f, 0.375994f,  1.388801f,  -0.808444f, -1.474496f, 0.023879f,  0.380251f,  -1.383532f,
+            -1.512560f, -0.894703f, -0.885275f, 0.036063f,  1.462681f,  -0.660346f, -0.098059f, 1.324486f,
+            0.450232f,  -0.054978f, 0.507649f,  0.001170f,  -1.102470f, -0.817775f, -1.086352f, 0.921146f,
+            -0.763100f, 1.176417f,  -0.134350f, 0.695815f,  -0.398245f, 0.285846f,  0.884178f,  1.390027f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 4, 4},
+        {
+            0.501244f, 0.000000f, 0.000000f, 0.000000f, 0.449307f, 0.336084f, 0.000000f, 0.000000f,
+            0.308301f, 0.189777f, 0.317082f, 0.000000f, 0.208664f, 0.162241f, 0.338649f, 0.163298f,
+            0.227089f, 0.000000f, 0.000000f, 0.000000f, 0.237766f, 0.323785f, 0.000000f, 0.000000f,
+            0.116741f, 0.260192f, 0.221997f, 0.000000f, 0.237749f, 0.097726f, 0.237058f, 0.096443f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+namespace {
+// Preallocated cache (capacity 8) decode with seqlens_k = 4: output_qk has total_sequence_length columns (ORT), while
+// seqlens_k alone drives the attention and the cache update.
+void run_gqa_qk_output_static_cache(int total, const std::vector<float>& expected_qk) {
+    const auto model = convert_model("com.microsoft/gqa_qk_output_static_cache.onnx");
+
+    // Zero-initialized buffer holding 4 past rows; rows beyond total are unspecified in ORT.
+    const auto data = gqa_sink_query();
+    std::vector<float> past_key(data.begin(), data.begin() + 64), past_value(data.begin() + 128, data.begin() + 192);
+    past_key.resize(128, 0.0f);
+    past_value.resize(128, 0.0f);
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, std::vector<float>(data.begin() + 192, data.end()));
+    test_case.add_input<float>(Shape{1, 1, 8, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 8, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, {4});
+    test_case.add_input<int>(Shape{}, {total});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 32},
+        {
+            0.094738f,  -0.258927f, -0.917125f, 0.443725f,  -0.960666f, -0.096329f, 0.024586f, -0.527302f,
+            0.470633f,  -0.572888f, 0.219602f,  0.154630f,  -0.891648f, -0.760925f, 0.519642f, 0.463938f,
+            0.020994f,  -0.306558f, 0.323556f,  -0.373009f, -0.879975f, 0.287862f,  0.804064f, -0.127611f,
+            -0.207956f, -0.208519f, 0.427498f,  0.897348f,  -0.206569f, -0.275854f, 0.160090f, 0.182464f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 8, 16},
+        {
+            -0.841560f, 0.961409f,  1.341610f,  0.219196f,  -1.070939f, 2.005177f,  -0.500984f, -1.122348f, 0.676705f,
+            -1.632419f, -0.926639f, 0.406092f,  0.120748f,  -0.908491f, -1.119538f, 0.678687f,  0.261504f,  1.661547f,
+            0.143510f,  -0.231519f, 0.039766f,  -0.485498f, 0.340751f,  -2.563714f, 1.088374f,  -1.234958f, -1.495851f,
+            0.031911f,  -0.138748f, -0.745854f, -1.181944f, -0.568151f, 1.091891f,  -1.021918f, 0.959766f,  0.549658f,
+            0.785998f,  -0.561202f, -0.477581f, 0.244346f,  -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f,
+            0.968591f,  0.484597f,  -0.490332f, -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,
+            -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f,
+            -0.432411f, -0.541828f, -1.169002f, -0.428368f, -2.950616f, 0.593047f,  -0.234292f, 1.536813f,  0.398880f,
+            0.404500f,  -0.062291f, 1.559615f,  1.222434f,  -0.432531f, 0.403857f,  0.617080f,  -0.592210f, 0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 8, 16},
+        {
+            0.121858f,  -0.186204f, 0.521079f,  -0.078320f, -0.813372f, 0.896154f,  0.998463f,  -0.007512f, -0.264747f,
+            -0.109279f, 0.660887f,  1.517640f,  -0.090469f, -0.166065f, -0.280879f, -0.549630f, -0.233574f, -0.005912f,
+            -1.893519f, 1.408677f,  -1.074038f, 0.191361f,  -0.343940f, -1.354283f, 0.986371f,  -1.325445f, 0.026918f,
+            -0.258281f, -1.124630f, -1.394380f, 0.316257f,  0.129337f,  0.954208f,  -1.279339f, -0.397333f, -1.577390f,
+            -0.578984f, -1.156784f, 1.203218f,  0.511575f,  0.615649f,  0.008202f,  0.832399f,  -0.045157f, -1.394901f,
+            -0.134668f, 1.503749f,  1.433073f,  -1.817968f, 0.375994f,  1.388801f,  -0.808444f, -1.474496f, 0.023879f,
+            0.380251f,  -1.383532f, -1.512560f, -0.894703f, -0.885275f, 0.036063f,  1.462681f,  -0.660346f, -0.098059f,
+            1.324486f,  0.450232f,  -0.054978f, 0.507649f,  0.001170f,  -1.102470f, -0.817775f, -1.086352f, 0.921146f,
+            -0.763100f, 1.176417f,  -0.134350f, 0.695815f,  -0.398245f, 0.285846f,  0.884178f,  1.390027f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,
+        });
+    test_case.add_expected_output<float>(Shape{1, 2, 1, static_cast<size_t>(total)}, expected_qk);
+    test_case.run_with_tolerance_as_fp();
+}
+}  // namespace
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_static_cache) {
+    run_gqa_qk_output_static_cache(5,
+                                   {-0.290551f,
+                                    1.084145f,
+                                    -0.004623f,
+                                    -2.390336f,
+                                    -0.274342f,
+                                    1.730582f,
+                                    -0.621596f,
+                                    0.607299f,
+                                    0.223935f,
+                                    -1.017994f});
+}
+
+// total_sequence_length (4) below seqlens_k + 1 (5): output_qk keeps 4 columns, the attention still sees 5 keys.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_static_cache_total_below_seqlens) {
+    run_gqa_qk_output_static_cache(
+        4,
+        {-0.290551f, 1.084145f, -0.004623f, -2.390336f, 1.730582f, -0.621596f, 0.607299f, 0.223935f});
+}
+
+// softcap in f16: the capped chain runs in reduced precision, incl. the finite-lowest() mask clamp.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_softcap_fp16) {
+    ov::frontend::FrontEnd::Ptr front_end;
+    auto input_model = load_model("com.microsoft/gqa_softcap.onnx", &front_end);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("query"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_key"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_value"), ov::element::f16);
+    const auto model = front_end->convert(input_model);
+
+    using f16 = ov::float16;
+    std::vector<f16> query;
+    for (float x : gqa_sink_query())
+        query.emplace_back(x);
+    std::vector<f16> expected_output;
+    for (float x : gqa_softcap_expected_output())
+        expected_output.emplace_back(x);
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<f16>(Shape{1, 4, 64}, query);
+    test_case.add_input<f16>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<f16>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<f16>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp(0.02f);
+}
+
+// softcap with an external attention_bias: ORT caps the scaled scores first and adds the bias afterwards
+// (gqa_attention_base.h). The bias is larger than the cap, so the opposite order would be clearly off.
+// Reference: ORT CPU EP.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_softcap_bias) {
+    const auto model = convert_model("com.microsoft/gqa_softcap_bias.onnx");
+
+    std::vector<float> attention_bias = {
+        -0.222858f, -0.000433f, 0.060899f,  -0.282787f, -0.211244f, 0.256927f,  -0.257748f, -0.222136f,
+        0.268997f,  0.073130f,  -0.078604f, 0.006834f,  0.097706f,  -0.134815f, -0.217219f, 0.172824f,
+        0.102216f,  0.007429f,  0.190042f,  0.029445f,  0.288548f,  -0.177294f, 0.032238f,  -0.009825f,
+        -0.088035f, 0.054957f,  -0.158819f, 0.181322f,  0.220400f,  -0.222744f, -0.019756f, -0.133713f};
+    std::vector<float> expected_output = {
+        -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+        -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+        0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+        0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.187873f, -0.091891f, 0.301886f,  0.745242f,
+        -0.205222f, -0.260847f, -0.578221f, 1.200643f,  0.422964f,  -1.404690f, 0.898868f,  0.507451f,  0.285208f,
+        0.230647f,  0.143882f,  -0.706925f, -0.230915f, -0.020416f, 0.281727f,  0.757958f,  -0.128486f, 0.283525f,
+        -0.565755f, 1.500898f,  0.138667f,  -1.403170f, 0.925730f,  0.658410f,  0.488094f,  0.528937f,  -0.146963f,
+        -0.616239f, -0.693024f, 0.087067f,  0.610641f,  0.294644f,  -0.535219f, 0.135808f,  -0.288577f, 0.611529f,
+        -0.310803f, -1.253513f, 0.388476f,  0.455249f,  0.748791f,  0.139420f,  -0.094513f, -0.056127f, -0.707495f,
+        0.056177f,  0.649251f,  0.248996f,  -0.611838f, -0.179881f, -0.272457f, 0.370167f,  -0.189764f, -1.241905f,
+        0.328791f,  0.354206f,  0.657414f,  -0.059245f, 0.071950f,  -0.060053f, -0.403506f, 0.055786f,  0.601837f,
+        0.184203f,  -0.717069f, -0.126667f, -0.493839f, 0.649894f,  -0.471827f, -0.565606f, 0.209731f,  0.513408f,
+        0.449519f,  0.163227f,  0.175107f,  0.384689f,  -0.532929f, 0.089328f,  0.625893f,  0.182083f,  -0.679826f,
+        0.059217f,  -0.410128f, 0.635827f,  -0.524990f, -0.751003f, 0.224549f,  0.514496f,  0.601670f,  0.192492f,
+        0.036533f,  0.322791f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_input<float>(Shape{1, 2, 4, 4}, attention_bias);
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// softcap combined with a per-head head_sink: the sink logit joins the softmax after capping.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_softcap_head_sink) {
+    const auto model = convert_model("com.microsoft/gqa_softcap_head_sink.onnx");
+
+    std::vector<float> head_sink = {-1.088381f, -1.689387f};
+    std::vector<float> expected_output = {
+        -0.231868f, 0.090711f,  0.175533f,  0.571161f,  0.019723f,  1.010810f,  -0.393887f, 1.537365f,  -0.318927f,
+        -1.020339f, 0.714325f,  0.702836f,  0.655426f,  0.826127f,  -0.536759f, -0.315127f, -0.264246f, 0.103378f,
+        0.200043f,  0.650915f,  0.022477f,  1.151955f,  -0.448888f, 1.752036f,  -0.363461f, -1.162814f, 0.814070f,
+        0.800977f,  0.746946f,  0.941484f,  -0.611709f, -0.359130f, -0.183908f, -0.041672f, 0.248907f,  0.647060f,
+        -0.136318f, 0.059888f,  -0.490390f, 1.188443f,  0.215132f,  -1.206328f, 0.786460f,  0.514847f,  0.350957f,
+        0.353851f,  -0.028114f, -0.560178f, -0.189275f, -0.058268f, 0.271019f,  0.692211f,  -0.160867f, -0.038781f,
+        -0.528794f, 1.218945f,  0.284772f,  -1.295282f, 0.839179f,  0.524107f,  0.338338f,  0.323381f,  0.024888f,
+        -0.618522f, -0.697014f, 0.088505f,  0.607319f,  0.182984f,  -0.559570f, 0.033746f,  -0.212598f, 0.360746f,
+        -0.323951f, -1.099588f, 0.252814f,  0.356200f,  0.693882f,  0.023528f,  -0.042311f, 0.035957f,  -0.724795f,
+        0.076045f,  0.645323f,  0.186775f,  -0.609464f, -0.099332f, -0.225117f, 0.300601f,  -0.273062f, -1.155765f,
+        0.256318f,  0.336277f,  0.681063f,  -0.050798f, 0.027396f,  0.018503f,  -0.471413f, 0.062244f,  0.599696f,
+        0.126458f,  -0.691863f, -0.153304f, -0.388351f, 0.446183f,  -0.435574f, -0.610118f, 0.149738f,  0.421221f,
+        0.472237f,  0.064410f,  0.157076f,  0.346458f,  -0.484688f, 0.066188f,  0.612079f,  0.148128f,  -0.698099f,
+        -0.118323f, -0.406218f, 0.505656f,  -0.451550f, -0.653016f, 0.176786f,  0.450631f,  0.500723f,  0.094689f,
+        0.139206f,  0.338659f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_input<float>(Shape{2}, head_sink);
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// sliding_window_cache=1: the KV buffer is window-sized (capacity C=4, local_window_size=2, gap=3) and
+// rolls with front eviction. Decode step with absolute past length 5 (overflowed): the input buffer holds
+// the 2 resident rows (end_before), attention runs over them plus the new token, and present keeps the last
+// 2 resident rows + the new token left-aligned with the tail zeroed (end_after=3). Matches ONNX Runtime.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache) {
+    auto model = convert_model("com.microsoft/gqa_sliding_window_cache.onnx");
+    model->reshape({{"query", ov::PartialShape{1, 1, 64}},
+                    {"past_key", ov::PartialShape{1, 1, 4, 16}},
+                    {"past_value", ov::PartialShape{1, 1, 4, 16}},
+                    {"seqlens_k", ov::PartialShape{1, 1}},
+                    {"total_sequence_length", ov::PartialShape{}}});
+
+    std::vector<float> query = {
+        -0.735874f, -0.860153f, -0.923282f, 0.238453f,  -0.583216f, 0.674326f,  0.023700f,  0.221119f,
+        -0.839989f, -0.124535f, 1.044066f,  -0.172601f, 1.523960f,  -0.556156f, 0.423401f,  -0.321324f,
+        -1.359149f, 0.233465f,  1.546571f,  -0.414667f, -1.790209f, -0.292157f, -0.331039f, 0.809957f,
+        -1.130349f, -0.387018f, -0.073094f, -0.191489f, 0.069849f,  -0.941902f, -0.729284f, -0.155633f,
+        2.163578f,  -0.055617f, -1.175500f, -0.556433f, 0.617155f,  1.107772f,  0.112114f,  0.891698f,
+        -0.892795f, -1.264323f, 0.640429f,  -0.380060f, -0.246679f, -0.118568f, -0.541902f, -0.903899f,
+        -0.205618f, 0.289614f,  -0.111383f, -1.222770f, 0.287026f,  0.438055f,  0.603653f,  0.627203f,
+        2.061791f,  -1.072247f, -0.289376f, 1.120785f,  -0.089408f, -1.327292f, 0.458311f,  1.344336f};
+    std::vector<float> past_key = {
+        -1.387921f, -0.739079f, -0.674372f, -1.688228f, -0.168603f, 1.053749f,  -0.046248f, 1.199975f,
+        0.095706f,  -0.056690f, 0.564222f,  -0.349066f, -2.315065f, 0.948924f,  2.147583f,  2.244165f,
+        3.425434f,  -0.300379f, 0.794135f,  -0.965835f, -0.574064f, -0.650951f, 0.971878f,  -0.150697f,
+        -1.235808f, -0.747965f, -1.754603f, -1.466020f, 1.176691f,  -0.579464f, -0.517768f, 1.277583f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+    std::vector<float> past_value = {
+        0.431894f,  -0.475653f, -2.148285f, -0.407908f, -1.343020f, 0.256841f, -0.614940f, 0.181786f,
+        -0.850677f, -1.106171f, -0.026706f, -0.513905f, -1.197044f, 0.850652f, 0.976646f,  -0.035457f,
+        -0.515761f, -0.999195f, 0.033045f,  -0.162934f, 1.611816f,  0.766684f, -1.595301f, -0.933998f,
+        0.522999f,  -1.332224f, 1.326387f,  -1.008162f, -1.858583f, 0.826427f, 0.301143f,  1.238006f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f, 0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f, 0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f, 0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f, 0.000000f,  0.000000f};
+    std::vector<int> seqlens_k = {5};
+    std::vector<int> total_sequence_length = {6};
+
+    std::vector<float> expected_output = {
+        -0.293837f, -0.076981f, -0.070301f, -0.921306f, 0.663855f,  0.531532f,  -0.021828f, 0.183128f,
+        1.624090f,  -1.146196f, 0.170219f,  0.515217f,  -0.592640f, -0.714678f, 0.413605f,  1.314091f,
+        -0.427834f, -0.633808f, -0.007901f, -0.463406f, 1.236228f,  0.673515f,  -0.971881f, -0.491386f,
+        0.959258f,  -1.258518f, 0.868306f,  -0.404590f, -1.357009f, 0.215832f,  0.345701f,  1.268151f};
+    std::vector<float> expected_present_key = {
+        -1.387921f, -0.739079f, -0.674372f, -1.688228f, -0.168603f, 1.053749f,  -0.046248f, 1.199975f,
+        0.095706f,  -0.056690f, 0.564222f,  -0.349066f, -2.315065f, 0.948924f,  2.147583f,  2.244165f,
+        3.425434f,  -0.300379f, 0.794135f,  -0.965835f, -0.574064f, -0.650951f, 0.971878f,  -0.150697f,
+        -1.235808f, -0.747965f, -1.754603f, -1.466020f, 1.176691f,  -0.579464f, -0.517768f, 1.277583f,
+        2.163578f,  -0.055617f, -1.175500f, -0.556433f, 0.617155f,  1.107772f,  0.112114f,  0.891698f,
+        -0.892795f, -1.264323f, 0.640429f,  -0.380060f, -0.246679f, -0.118568f, -0.541902f, -0.903899f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+    std::vector<float> expected_present_value = {
+        0.431894f,  -0.475653f, -2.148285f, -0.407908f, -1.343020f, 0.256841f,  -0.614940f, 0.181786f,
+        -0.850677f, -1.106171f, -0.026706f, -0.513905f, -1.197044f, 0.850652f,  0.976646f,  -0.035457f,
+        -0.515761f, -0.999195f, 0.033045f,  -0.162934f, 1.611816f,  0.766684f,  -1.595301f, -0.933998f,
+        0.522999f,  -1.332224f, 1.326387f,  -1.008162f, -1.858583f, 0.826427f,  0.301143f,  1.238006f,
+        -0.205618f, 0.289614f,  -0.111383f, -1.222770f, 0.287026f,  0.438055f,  0.603653f,  0.627203f,
+        2.061791f,  -1.072247f, -0.289376f, 1.120785f,  -0.089408f, -1.327292f, 0.458311f,  1.344336f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Windowed cache, multi-token step that overflows the window (the "staging" regime): C=4, W=2, prefill S=6,
+// so end_after=3 and the in-place kept=end_after-S=-3 is invalid. Dynamic query seqlen routes into the
+// staging branch (a static S>1 is rejected at import). Reference is a NumPy port of the ORT windowed attention.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_staging) {
+    auto model = convert_model("com.microsoft/gqa_sliding_window_cache.onnx");
+    // Query seqlen stays dynamic (static S>1 is rejected); the concrete S=6 is supplied at inference.
+    model->reshape({{"query", ov::PartialShape{1, -1, 64}},
+                    {"past_key", ov::PartialShape{1, 1, 4, 16}},
+                    {"past_value", ov::PartialShape{1, 1, 4, 16}},
+                    {"seqlens_k", ov::PartialShape{1, 1}},
+                    {"total_sequence_length", ov::PartialShape{}}});
+
+    std::vector<float> qkv = {
+        1.690526f,  -0.465937f, 0.032820f,  0.407516f,  -0.788923f, 0.002066f,  -0.000890f, -1.754724f, 1.017658f,
+        0.600498f,  -0.625429f, -0.171548f, 0.505299f,  -0.261356f, -0.242749f, -1.453241f, 0.554580f,  0.123881f,
+        0.274460f,  -1.526525f, 1.650700f,  0.154336f,  -0.387140f, 2.029072f,  -0.045386f, -1.450679f, -0.405228f,
+        -2.288315f, 1.049397f,  -0.416474f, -0.742554f, 1.072470f,  -1.651076f, 0.535429f,  -2.064415f, -0.662159f,
+        -1.204220f, 1.461976f,  1.766161f,  -0.329414f, 0.840733f,  -0.179986f, 0.568062f,  -0.752837f, -1.708339f,
+        -1.803099f, 0.383122f,  2.247595f,  0.269412f,  -0.524605f, 1.912019f,  0.237302f,  0.101434f,  0.252578f,
+        -0.132377f, -0.309476f, -1.434963f, 0.501624f,  -0.094775f, 1.193086f,  -0.368818f, -1.906370f, -0.099611f,
+        1.699537f,  -0.383423f, -0.889857f, -1.193592f, -1.050017f, -0.300194f, -1.179982f, 1.497639f,  -0.282635f,
+        0.108648f,  1.438240f,  1.503319f,  -0.212733f, 0.331974f,  0.735027f,  -0.192855f, -1.778013f, 0.654706f,
+        0.894352f,  0.415503f,  -0.923545f, -0.196027f, -0.590770f, -0.299711f, 1.296885f,  1.529580f,  0.669418f,
+        0.548745f,  0.676629f,  -0.012242f, -0.075663f, -0.673645f, -0.055867f, 2.259947f,  0.869039f,  -0.342117f,
+        -0.471927f, -0.864490f, 0.374370f,  0.391546f,  -1.443122f, 0.486335f,  -0.569472f, 1.426721f,  0.156844f,
+        1.717730f,  -0.458127f, -0.287984f, 0.299808f,  1.055948f,  0.565883f,  -1.233524f, 0.182901f,  0.022245f,
+        -0.429069f, -0.648105f, 1.747577f,  -0.390386f, -0.845923f, 0.637113f,  0.130623f,  -0.075814f, 0.781302f,
+        0.488625f,  0.362190f,  0.964200f,  0.283636f,  -0.616922f, -0.362282f, -0.520972f, 0.209722f,  -1.077985f,
+        -1.832426f, 0.088155f,  -1.336521f, -1.951978f, 0.373331f,  -0.711053f, 0.496125f,  -0.530854f, -1.121962f,
+        -1.243518f, -0.514927f, -0.273383f, -0.823460f, -0.281108f, -1.536102f, 0.014489f,  -1.793649f, -0.193856f,
+        0.697294f,  1.091939f,  1.714380f,  -1.556288f, 0.758725f,  1.206282f,  0.980557f,  -0.929324f, 0.411797f,
+        1.860056f,  -1.497274f, 0.476338f,  1.112291f,  -0.696591f, 0.582970f,  -1.070892f, -0.812209f, -0.817080f,
+        0.192308f,  -0.090981f, 0.954115f,  -0.940279f, -0.131276f, 0.961076f,  0.560777f,  -1.324641f, 0.665204f,
+        -0.478418f, 0.385387f,  0.300680f,  1.219319f,  0.116560f,  -1.853806f, -1.369860f, 0.731154f,  -0.258316f,
+        1.137979f,  0.273439f,  -0.749066f, 1.082407f,  -0.807398f, -2.052635f, 2.063796f,  -1.910749f, 0.636413f,
+        0.938852f,  0.147066f,  -1.683397f, 1.015015f,  -1.441544f, -1.343629f, -0.361668f, 0.788505f,  0.300114f,
+        0.810768f,  -0.443644f, -0.172183f, -1.137137f, -0.316865f, 0.593128f,  -0.299828f, 0.475460f,  -0.573274f,
+        -0.592392f, 0.039169f,  -0.194881f, 0.592385f,  0.178290f,  1.740346f,  -0.219495f, -0.227253f, -1.040131f,
+        0.022778f,  0.682829f,  -0.740296f, -0.049672f, 0.718557f,  -0.126909f, -0.519137f, 0.973093f,  0.097020f,
+        0.396565f,  1.171393f,  1.145316f,  -0.347204f, -0.525430f, 0.284309f,  -0.132788f, -1.899861f, 1.275362f,
+        0.019361f,  0.736378f,  -1.172917f, 1.288204f,  -0.588263f, -0.107667f, -1.401425f, -0.166950f, -0.229804f,
+        -0.185361f, 0.438505f,  0.060346f,  0.975783f,  -0.468158f, -0.996016f, -0.019106f, 0.628368f,  1.244642f,
+        0.813921f,  -1.765441f, 0.377058f,  1.460372f,  0.062576f,  -0.516042f, 0.309161f,  -0.503242f, 0.639113f,
+        -0.012994f, 1.393000f,  0.499503f,  -0.723885f, 0.604631f,  0.936012f,  -0.568456f, -0.425794f, -2.305183f,
+        0.903406f,  -0.587754f, -2.122350f, -1.768772f, -0.222950f, 0.760660f,  -0.089065f, 0.471778f,  -1.101500f,
+        -1.341366f, 0.885721f,  0.492144f,  -0.030509f, 1.282093f,  -0.951190f, -0.420266f, 1.026371f,  1.837794f,
+        0.008426f,  1.679519f,  -0.602511f, 0.329750f,  -0.173824f, -1.588248f, 0.257973f,  0.932750f,  -0.148267f,
+        -0.070455f, 1.392927f,  -1.249714f, -1.497588f, -0.654039f, -1.196623f, 1.346289f,  0.309689f,  -0.864093f,
+        -0.614479f, 2.861067f,  -0.610090f, -0.762025f, 0.304307f,  0.638252f,  0.221682f,  -0.908626f, -1.159187f,
+        0.596141f,  -0.054190f, -1.641433f, 1.171001f,  0.775329f,  -0.240954f, -0.260264f, 0.231460f,  -0.687009f,
+        -1.348312f, 0.322518f,  -1.439087f, 0.390727f,  -1.441208f, -0.099209f, -0.135645f, 1.782629f,  -1.064383f,
+        -1.414946f, -0.646177f, -1.123732f, -0.589762f, 0.420801f,  0.771977f,  1.659561f,  -0.736674f, 2.638539f,
+        1.982185f,  -0.203527f, -2.291420f, -0.083112f, 0.072508f,  -2.299249f, 0.073832f,  -0.200154f, -0.785711f,
+        0.626629f,  1.005348f,  -0.486177f, 0.229480f,  -0.654792f, -0.786606f, 0.079497f,  0.523422f,  -0.563293f,
+        -2.213670f, 0.585785f,  -1.596558f, 0.121999f,  1.779026f,  -0.016830f, -1.189750f, -1.461179f, 1.170462f,
+        -0.016948f, 0.539738f,  0.926302f,  -0.049002f, -0.308604f, -0.947348f};
+    std::vector<int> seqlens_k = {5};
+    std::vector<int> total_sequence_length = {6};
+    std::vector<float> expected_output = {
+        0.269412f,  -0.524605f, 1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f,
+        0.501624f,  -0.094775f, 1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.269412f,  -0.524605f,
+        1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f, 0.501624f,  -0.094775f,
+        1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.740432f,  0.128438f,  0.028298f,  0.204723f,
+        0.054011f,  -0.155629f, -0.441223f, 0.922398f,  -0.809414f, -0.305360f, 0.343519f,  0.556826f,  -0.193351f,
+        -0.296847f, 0.252657f,  0.898662f,  0.830354f,  0.253109f,  -0.331320f, 0.198504f,  0.044958f,  -0.233559f,
+        -0.500184f, 1.157573f,  -0.689992f, -0.459419f, 0.427193f,  0.435358f,  -0.159853f, 0.010424f,  0.319908f,
+        0.745768f,  1.007792f,  0.563291f,  -1.279775f, 0.427717f,  -0.231890f, -0.015653f, -0.166504f, 1.479434f,
+        -0.133062f, -1.357522f, -0.381622f, 0.435451f,  -0.168452f, 0.962350f,  0.379397f,  -0.201881f, 1.010270f,
+        0.563424f,  -1.277395f, 0.415119f,  -0.218813f, -0.036927f, -0.191286f, 1.493233f,  -0.146303f, -1.331196f,
+        -0.329199f, 0.419765f,  -0.163685f, 0.953034f,  0.385018f,  -0.172855f, 0.501894f,  -0.472149f, -0.233212f,
+        0.394092f,  0.031529f,  -0.268758f, 0.715223f,  0.460533f,  0.022434f,  -1.663905f, -0.864902f, 0.327763f,
+        -0.227691f, 0.844354f,  0.183987f,  -0.025009f, 0.491418f,  -0.495716f, -0.208311f, 0.387906f,  0.043164f,
+        -0.283682f, 0.724681f,  0.443220f,  0.020286f,  -1.659573f, -0.853381f, 0.318560f,  -0.226992f, 0.837655f,
+        0.181946f,  -0.008489f, 0.509958f,  -0.843278f, 0.463548f,  0.847913f,  -0.461657f, -1.368763f, 0.116619f,
+        -0.955233f, 0.769377f,  -0.369260f, -0.587475f, -0.461845f, 1.652282f,  -0.194021f, -0.435718f, 0.570740f,
+        0.301122f,  -1.186575f, 0.727317f,  0.578706f,  -0.072400f, -1.305130f, 0.497282f,  -0.836000f, 0.484414f,
+        -0.704623f, -0.450841f, -0.386452f, 1.055209f,  0.011495f,  -0.274541f, 0.702344f,  0.453858f,  -0.809414f,
+        0.139611f,  0.435976f,  -0.810620f, -0.448725f, -0.450065f, -1.194423f, 0.447602f,  0.585227f,  -0.592917f,
+        -0.245007f, 2.241738f,  -0.430483f, -0.616882f, -0.096355f, -0.058475f, -1.516730f, 0.364346f,  -0.587800f,
+        -0.340865f, 0.673381f,  -0.231846f, -1.192069f, -0.513840f, 0.880007f,  -0.302805f, 0.150265f,  1.579160f,
+        -0.238333f, -0.461604f, -0.524995f};
+    std::vector<float> expected_present_key = {
+        -1.040131f, 0.022778f,  0.682829f,  -0.740296f, -0.049672f, 0.718557f,  -0.126909f, -0.519137f,
+        0.973093f,  0.097020f,  0.396565f,  1.171393f,  1.145316f,  -0.347204f, -0.525430f, 0.284309f,
+        -1.341366f, 0.885721f,  0.492144f,  -0.030509f, 1.282093f,  -0.951190f, -0.420266f, 1.026371f,
+        1.837794f,  0.008426f,  1.679519f,  -0.602511f, 0.329750f,  -0.173824f, -1.588248f, 0.257973f,
+        -0.203527f, -2.291420f, -0.083112f, 0.072508f,  -2.299249f, 0.073832f,  -0.200154f, -0.785711f,
+        0.626629f,  1.005348f,  -0.486177f, 0.229480f,  -0.654792f, -0.786606f, 0.079497f,  0.523422f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+    std::vector<float> expected_present_value = {
+        -0.132788f, -1.899861f, 1.275362f,  0.019361f,  0.736378f,  -1.172917f, 1.288204f,  -0.588263f,
+        -0.107667f, -1.401425f, -0.166950f, -0.229804f, -0.185361f, 0.438505f,  0.060346f,  0.975783f,
+        0.932750f,  -0.148267f, -0.070455f, 1.392927f,  -1.249714f, -1.497588f, -0.654039f, -1.196623f,
+        1.346289f,  0.309689f,  -0.864093f, -0.614479f, 2.861067f,  -0.610090f, -0.762025f, 0.304307f,
+        -0.563293f, -2.213670f, 0.585785f,  -1.596558f, 0.121999f,  1.779026f,  -0.016830f, -1.189750f,
+        -1.461179f, 1.170462f,  -0.016948f, 0.539738f,  0.926302f,  -0.049002f, -0.308604f, -0.947348f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 6, 64}, qkv);
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, std::vector<float>(64, 0.0f));
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, std::vector<float>(64, 0.0f));
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 6, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Same S=6 / C=4 / W=2 crossing-eviction step as onnx_model_gqa_sliding_window_cache_staging above, but with
+// query's sequence_length declared as a static ONNX dim_value (6) instead of a dynamic dim_param, exercising
+// the FE conversion-time path directly. The decomposition picks the staging vs. in-place branch from the
+// runtime past/total length, not static-ness of S, so results must be byte-identical to the dynamic version.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_static_staging) {
+    auto model = convert_model("com.microsoft/gqa_sliding_window_cache_static_staging.onnx");
+    model->reshape({{"past_key", ov::PartialShape{1, 1, 4, 16}},
+                    {"past_value", ov::PartialShape{1, 1, 4, 16}},
+                    {"seqlens_k", ov::PartialShape{1, 1}},
+                    {"total_sequence_length", ov::PartialShape{}}});
+
+    std::vector<float> qkv = {
+        1.690526f,  -0.465937f, 0.032820f,  0.407516f,  -0.788923f, 0.002066f,  -0.000890f, -1.754724f, 1.017658f,
+        0.600498f,  -0.625429f, -0.171548f, 0.505299f,  -0.261356f, -0.242749f, -1.453241f, 0.554580f,  0.123881f,
+        0.274460f,  -1.526525f, 1.650700f,  0.154336f,  -0.387140f, 2.029072f,  -0.045386f, -1.450679f, -0.405228f,
+        -2.288315f, 1.049397f,  -0.416474f, -0.742554f, 1.072470f,  -1.651076f, 0.535429f,  -2.064415f, -0.662159f,
+        -1.204220f, 1.461976f,  1.766161f,  -0.329414f, 0.840733f,  -0.179986f, 0.568062f,  -0.752837f, -1.708339f,
+        -1.803099f, 0.383122f,  2.247595f,  0.269412f,  -0.524605f, 1.912019f,  0.237302f,  0.101434f,  0.252578f,
+        -0.132377f, -0.309476f, -1.434963f, 0.501624f,  -0.094775f, 1.193086f,  -0.368818f, -1.906370f, -0.099611f,
+        1.699537f,  -0.383423f, -0.889857f, -1.193592f, -1.050017f, -0.300194f, -1.179982f, 1.497639f,  -0.282635f,
+        0.108648f,  1.438240f,  1.503319f,  -0.212733f, 0.331974f,  0.735027f,  -0.192855f, -1.778013f, 0.654706f,
+        0.894352f,  0.415503f,  -0.923545f, -0.196027f, -0.590770f, -0.299711f, 1.296885f,  1.529580f,  0.669418f,
+        0.548745f,  0.676629f,  -0.012242f, -0.075663f, -0.673645f, -0.055867f, 2.259947f,  0.869039f,  -0.342117f,
+        -0.471927f, -0.864490f, 0.374370f,  0.391546f,  -1.443122f, 0.486335f,  -0.569472f, 1.426721f,  0.156844f,
+        1.717730f,  -0.458127f, -0.287984f, 0.299808f,  1.055948f,  0.565883f,  -1.233524f, 0.182901f,  0.022245f,
+        -0.429069f, -0.648105f, 1.747577f,  -0.390386f, -0.845923f, 0.637113f,  0.130623f,  -0.075814f, 0.781302f,
+        0.488625f,  0.362190f,  0.964200f,  0.283636f,  -0.616922f, -0.362282f, -0.520972f, 0.209722f,  -1.077985f,
+        -1.832426f, 0.088155f,  -1.336521f, -1.951978f, 0.373331f,  -0.711053f, 0.496125f,  -0.530854f, -1.121962f,
+        -1.243518f, -0.514927f, -0.273383f, -0.823460f, -0.281108f, -1.536102f, 0.014489f,  -1.793649f, -0.193856f,
+        0.697294f,  1.091939f,  1.714380f,  -1.556288f, 0.758725f,  1.206282f,  0.980557f,  -0.929324f, 0.411797f,
+        1.860056f,  -1.497274f, 0.476338f,  1.112291f,  -0.696591f, 0.582970f,  -1.070892f, -0.812209f, -0.817080f,
+        0.192308f,  -0.090981f, 0.954115f,  -0.940279f, -0.131276f, 0.961076f,  0.560777f,  -1.324641f, 0.665204f,
+        -0.478418f, 0.385387f,  0.300680f,  1.219319f,  0.116560f,  -1.853806f, -1.369860f, 0.731154f,  -0.258316f,
+        1.137979f,  0.273439f,  -0.749066f, 1.082407f,  -0.807398f, -2.052635f, 2.063796f,  -1.910749f, 0.636413f,
+        0.938852f,  0.147066f,  -1.683397f, 1.015015f,  -1.441544f, -1.343629f, -0.361668f, 0.788505f,  0.300114f,
+        0.810768f,  -0.443644f, -0.172183f, -1.137137f, -0.316865f, 0.593128f,  -0.299828f, 0.475460f,  -0.573274f,
+        -0.592392f, 0.039169f,  -0.194881f, 0.592385f,  0.178290f,  1.740346f,  -0.219495f, -0.227253f, -1.040131f,
+        0.022778f,  0.682829f,  -0.740296f, -0.049672f, 0.718557f,  -0.126909f, -0.519137f, 0.973093f,  0.097020f,
+        0.396565f,  1.171393f,  1.145316f,  -0.347204f, -0.525430f, 0.284309f,  -0.132788f, -1.899861f, 1.275362f,
+        0.019361f,  0.736378f,  -1.172917f, 1.288204f,  -0.588263f, -0.107667f, -1.401425f, -0.166950f, -0.229804f,
+        -0.185361f, 0.438505f,  0.060346f,  0.975783f,  -0.468158f, -0.996016f, -0.019106f, 0.628368f,  1.244642f,
+        0.813921f,  -1.765441f, 0.377058f,  1.460372f,  0.062576f,  -0.516042f, 0.309161f,  -0.503242f, 0.639113f,
+        -0.012994f, 1.393000f,  0.499503f,  -0.723885f, 0.604631f,  0.936012f,  -0.568456f, -0.425794f, -2.305183f,
+        0.903406f,  -0.587754f, -2.122350f, -1.768772f, -0.222950f, 0.760660f,  -0.089065f, 0.471778f,  -1.101500f,
+        -1.341366f, 0.885721f,  0.492144f,  -0.030509f, 1.282093f,  -0.951190f, -0.420266f, 1.026371f,  1.837794f,
+        0.008426f,  1.679519f,  -0.602511f, 0.329750f,  -0.173824f, -1.588248f, 0.257973f,  0.932750f,  -0.148267f,
+        -0.070455f, 1.392927f,  -1.249714f, -1.497588f, -0.654039f, -1.196623f, 1.346289f,  0.309689f,  -0.864093f,
+        -0.614479f, 2.861067f,  -0.610090f, -0.762025f, 0.304307f,  0.638252f,  0.221682f,  -0.908626f, -1.159187f,
+        0.596141f,  -0.054190f, -1.641433f, 1.171001f,  0.775329f,  -0.240954f, -0.260264f, 0.231460f,  -0.687009f,
+        -1.348312f, 0.322518f,  -1.439087f, 0.390727f,  -1.441208f, -0.099209f, -0.135645f, 1.782629f,  -1.064383f,
+        -1.414946f, -0.646177f, -1.123732f, -0.589762f, 0.420801f,  0.771977f,  1.659561f,  -0.736674f, 2.638539f,
+        1.982185f,  -0.203527f, -2.291420f, -0.083112f, 0.072508f,  -2.299249f, 0.073832f,  -0.200154f, -0.785711f,
+        0.626629f,  1.005348f,  -0.486177f, 0.229480f,  -0.654792f, -0.786606f, 0.079497f,  0.523422f,  -0.563293f,
+        -2.213670f, 0.585785f,  -1.596558f, 0.121999f,  1.779026f,  -0.016830f, -1.189750f, -1.461179f, 1.170462f,
+        -0.016948f, 0.539738f,  0.926302f,  -0.049002f, -0.308604f, -0.947348f};
+    std::vector<int> seqlens_k = {5};
+    std::vector<int> total_sequence_length = {6};
+    std::vector<float> expected_output = {
+        0.269412f,  -0.524605f, 1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f,
+        0.501624f,  -0.094775f, 1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.269412f,  -0.524605f,
+        1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f, 0.501624f,  -0.094775f,
+        1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.740432f,  0.128438f,  0.028298f,  0.204723f,
+        0.054011f,  -0.155629f, -0.441223f, 0.922398f,  -0.809414f, -0.305360f, 0.343519f,  0.556826f,  -0.193351f,
+        -0.296847f, 0.252657f,  0.898662f,  0.830354f,  0.253109f,  -0.331320f, 0.198504f,  0.044958f,  -0.233559f,
+        -0.500184f, 1.157573f,  -0.689992f, -0.459419f, 0.427193f,  0.435358f,  -0.159853f, 0.010424f,  0.319908f,
+        0.745768f,  1.007792f,  0.563291f,  -1.279775f, 0.427717f,  -0.231890f, -0.015653f, -0.166504f, 1.479434f,
+        -0.133062f, -1.357522f, -0.381622f, 0.435451f,  -0.168452f, 0.962350f,  0.379397f,  -0.201881f, 1.010270f,
+        0.563424f,  -1.277395f, 0.415119f,  -0.218813f, -0.036927f, -0.191286f, 1.493233f,  -0.146303f, -1.331196f,
+        -0.329199f, 0.419765f,  -0.163685f, 0.953034f,  0.385018f,  -0.172855f, 0.501894f,  -0.472149f, -0.233212f,
+        0.394092f,  0.031529f,  -0.268758f, 0.715223f,  0.460533f,  0.022434f,  -1.663905f, -0.864902f, 0.327763f,
+        -0.227691f, 0.844354f,  0.183987f,  -0.025009f, 0.491418f,  -0.495716f, -0.208311f, 0.387906f,  0.043164f,
+        -0.283682f, 0.724681f,  0.443220f,  0.020286f,  -1.659573f, -0.853381f, 0.318560f,  -0.226992f, 0.837655f,
+        0.181946f,  -0.008489f, 0.509958f,  -0.843278f, 0.463548f,  0.847913f,  -0.461657f, -1.368763f, 0.116619f,
+        -0.955233f, 0.769377f,  -0.369260f, -0.587475f, -0.461845f, 1.652282f,  -0.194021f, -0.435718f, 0.570740f,
+        0.301122f,  -1.186575f, 0.727317f,  0.578706f,  -0.072400f, -1.305130f, 0.497282f,  -0.836000f, 0.484414f,
+        -0.704623f, -0.450841f, -0.386452f, 1.055209f,  0.011495f,  -0.274541f, 0.702344f,  0.453858f,  -0.809414f,
+        0.139611f,  0.435976f,  -0.810620f, -0.448725f, -0.450065f, -1.194423f, 0.447602f,  0.585227f,  -0.592917f,
+        -0.245007f, 2.241738f,  -0.430483f, -0.616882f, -0.096355f, -0.058475f, -1.516730f, 0.364346f,  -0.587800f,
+        -0.340865f, 0.673381f,  -0.231846f, -1.192069f, -0.513840f, 0.880007f,  -0.302805f, 0.150265f,  1.579160f,
+        -0.238333f, -0.461604f, -0.524995f};
+    std::vector<float> expected_present_key = {
+        -1.040131f, 0.022778f,  0.682829f,  -0.740296f, -0.049672f, 0.718557f,  -0.126909f, -0.519137f,
+        0.973093f,  0.097020f,  0.396565f,  1.171393f,  1.145316f,  -0.347204f, -0.525430f, 0.284309f,
+        -1.341366f, 0.885721f,  0.492144f,  -0.030509f, 1.282093f,  -0.951190f, -0.420266f, 1.026371f,
+        1.837794f,  0.008426f,  1.679519f,  -0.602511f, 0.329750f,  -0.173824f, -1.588248f, 0.257973f,
+        -0.203527f, -2.291420f, -0.083112f, 0.072508f,  -2.299249f, 0.073832f,  -0.200154f, -0.785711f,
+        0.626629f,  1.005348f,  -0.486177f, 0.229480f,  -0.654792f, -0.786606f, 0.079497f,  0.523422f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+    std::vector<float> expected_present_value = {
+        -0.132788f, -1.899861f, 1.275362f,  0.019361f,  0.736378f,  -1.172917f, 1.288204f,  -0.588263f,
+        -0.107667f, -1.401425f, -0.166950f, -0.229804f, -0.185361f, 0.438505f,  0.060346f,  0.975783f,
+        0.932750f,  -0.148267f, -0.070455f, 1.392927f,  -1.249714f, -1.497588f, -0.654039f, -1.196623f,
+        1.346289f,  0.309689f,  -0.864093f, -0.614479f, 2.861067f,  -0.610090f, -0.762025f, 0.304307f,
+        -0.563293f, -2.213670f, 0.585785f,  -1.596558f, 0.121999f,  1.779026f,  -0.016830f, -1.189750f,
+        -1.461179f, 1.170462f,  -0.016948f, 0.539738f,  0.926302f,  -0.049002f, -0.308604f, -0.947348f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 6, 64}, qkv);
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, std::vector<float>(64, 0.0f));
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, std::vector<float>(64, 0.0f));
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 6, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Staging with a QUANTIZED (int8) KV cache: the multi-token staging path Slices/Concats the quantized cache,
+// dequantizes for attention, and writes a quantized tail back into the capacity-C present cache. Same S=6 /
+// C=4 / W=2 crossing-eviction step as above; verifies the quant round-trip is preserved through staging.
+// Reference from a NumPy port of the ORT windowed attention with matching symmetric i8 quant (scale 0.05).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_staging_i8) {
+    auto model = convert_model("com.microsoft/gqa_i8kv_swc.onnx");
+    model->reshape({{"query", ov::PartialShape{1, -1, 64}},
+                    {"past_key", ov::PartialShape{1, 1, 4, 16}},
+                    {"past_value", ov::PartialShape{1, 1, 4, 16}},
+                    {"seqlens_k", ov::PartialShape{1, 1}},
+                    {"total_sequence_length", ov::PartialShape{}}});
+
+    std::vector<float> qkv = {
+        1.749455f,  -0.286073f, -0.484565f, -2.653319f, -0.008285f, -0.319631f, -0.536629f, 0.315403f,  0.421051f,
+        -1.065603f, -0.886240f, -0.475733f, 0.689682f,  0.561192f,  -1.305549f, -1.119475f, 0.736837f,  1.574634f,
+        -0.031075f, -0.683447f, 1.095630f,  -0.309577f, 0.725752f,  1.549072f,  0.630080f,  0.073493f,  0.732271f,
+        -0.642575f, -0.178093f, -0.573955f, -0.204375f, -0.486495f, -0.185775f, -0.380536f, 0.088978f,  0.063672f,
+        0.296347f,  1.402771f,  -1.546863f, 1.295619f,  -0.237250f, -1.232346f, -0.172420f, 0.091838f,  1.067558f,
+        -1.061634f, 0.217348f,  0.117820f,  -1.684111f, -1.185755f, 0.600102f,  0.695567f,  1.087711f,  0.533822f,
+        0.395212f,  0.122868f,  1.209102f,  -0.843066f, -0.141894f, 0.385354f,  -1.577494f, 1.310944f,  -0.792865f,
+        -0.071749f, 2.156674f,  -0.829437f, -0.529372f, 1.561704f,  -1.080194f, -0.432058f, 0.516084f,  0.455393f,
+        0.593686f,  0.370506f,  1.345378f,  1.015942f,  0.595278f,  -0.682802f, -0.713560f, -1.908290f, 0.687312f,
+        -1.823010f, 0.879114f,  1.846365f,  -1.061654f, -0.684485f, -0.476214f, 0.830310f,  -0.863353f, -0.130541f,
+        -0.523088f, -0.251277f, 1.291275f,  -0.964205f, 0.071760f,  0.271606f,  0.858667f,  -1.264074f, 1.114870f,
+        0.434777f,  0.874273f,  0.071652f,  -1.639052f, -0.647303f, 0.817770f,  0.036795f,  -0.048703f, 1.791531f,
+        2.201856f,  -0.037067f, 1.932905f,  -1.993572f, -2.049057f, 0.867055f,  -0.261961f, 0.578971f,  0.516552f,
+        -0.089404f, 0.682130f,  0.150722f,  -1.532143f, 0.218869f,  0.185663f,  1.832777f,  -1.128894f, 0.016997f,
+        -0.424429f, -0.132910f, 1.659205f,  0.378641f,  -0.464566f, 0.153841f,  0.766161f,  -0.994028f, -0.264342f,
+        1.542209f,  0.856152f,  -0.044803f, -0.477489f, -0.154066f, -1.551080f, 0.943036f,  0.341153f,  0.138273f,
+        -1.297423f, -0.714962f, 0.514480f,  0.257716f,  -0.496730f, 0.505022f,  0.938783f,  -0.675020f, -0.530858f,
+        -0.869862f, -1.155264f, 0.796672f,  0.510028f,  0.338714f,  -1.172120f, -1.045968f, -0.067669f, -0.413210f,
+        0.120083f,  -0.698972f, 0.654025f,  1.799480f,  1.546606f,  1.609874f,  0.071020f,  0.921575f,  -0.376830f,
+        0.919983f,  -0.378423f, -0.488975f, -0.644394f, 0.699141f,  0.275407f,  0.186325f,  -1.139806f, 0.141805f,
+        -1.440719f, 1.476513f,  -0.131553f, 0.194429f,  -0.105149f, -1.583963f, -1.371774f, -0.028318f, 1.492471f,
+        -1.115237f, -0.705414f, -0.047233f, -1.687281f, -1.697342f, -0.411454f, -0.045275f, -0.391173f, 1.534222f,
+        -0.164193f, 0.360367f,  1.598050f,  1.703722f,  -1.589520f, -0.377247f, 1.162506f,  -1.378859f, -0.923996f,
+        -1.297513f, -1.361934f, -1.134185f, 0.176843f,  1.268926f,  1.528023f,  0.011888f,  -1.970572f, -0.056633f,
+        -0.339202f, 0.352321f,  -0.128413f, -1.796113f, 0.413283f,  -2.067835f, -0.690111f, 0.311751f,  0.350367f,
+        1.571348f,  -2.362414f, 0.339984f,  0.689380f,  -0.327214f, 0.638032f,  -1.101999f, 0.657028f,  0.538215f,
+        -0.981630f, -0.666640f, -0.189824f, -0.656085f, 1.044397f,  0.175167f,  1.314733f,  1.175250f,  0.060847f,
+        -0.193105f, -0.946656f, -0.804611f, -0.801191f, 0.347851f,  -0.883666f, 0.078658f,  0.192589f,  -0.496234f,
+        -0.186225f, 1.445370f,  1.611982f,  -0.782633f, -0.194613f, -0.372132f, -0.275767f, 1.535138f,  0.686455f,
+        1.259916f,  1.776879f,  -0.440313f, -0.187207f, 0.040407f,  1.026037f,  -0.090998f, 0.645786f,  1.168309f,
+        1.163230f,  0.446679f,  -0.788715f, -1.554102f, 1.121633f,  0.456600f,  -0.937476f, -0.505076f, -0.448801f,
+        -1.674949f, 0.251546f,  -0.787039f, -0.294407f, 0.739701f,  -0.095636f, 0.543053f,  0.422385f,  0.031669f,
+        0.048831f,  1.861613f,  -0.170676f, 1.627672f,  -0.914001f, 0.729401f,  0.170905f,  -0.729254f, -2.647465f,
+        1.594925f,  -1.155204f, -0.963054f, 0.129630f,  0.057139f,  0.278796f,  -0.254078f, -1.499616f, 0.867013f,
+        -0.904687f, 0.223290f,  0.574441f,  1.182225f,  -0.217903f, -0.305439f, -0.233312f, -1.848585f, -0.754816f,
+        -1.004384f, -1.149863f, 0.167693f,  -0.311488f, 1.596265f,  1.488959f,  -1.882449f, 0.122579f,  -1.001164f,
+        0.556191f,  0.158120f,  0.930517f,  0.310833f,  0.761207f,  -0.298571f, -2.508093f, -1.185083f, -0.854932f,
+        -0.490150f, -1.012162f, 1.633181f,  -0.168156f, 1.296051f,  -0.338273f, 1.654269f,  -1.200277f, 0.599661f,
+        -1.329964f, 0.442058f,  1.586704f,  -1.633995f, -0.871978f, 0.245245f,  -0.185928f, -1.369044f, 1.156689f,
+        0.052315f,  1.293551f,  0.318622f,  -1.153398f, -0.481242f, 1.382099f,  -1.385858f, -0.465797f, 0.600625f,
+        1.015026f,  0.827361f,  -1.474203f, 2.086378f,  -0.164668f, 0.012236f,  -0.003009f, -0.231951f, -0.967098f,
+        -0.326960f, 1.322342f,  -1.362146f, -2.432254f, 0.534973f,  0.337659f,  0.727863f,  1.727190f,  -0.725291f,
+        0.177162f,  0.502569f,  1.231624f,  1.025923f,  -0.843009f, -1.377504f};
+    std::vector<int> seqlens_k = {5};
+    std::vector<int> total_sequence_length = {6};
+    // k_scale / v_scale (0.05) are baked into the model as constants, so they are not runtime inputs.
+    std::vector<float> expected_output = {
+        -1.700000f, -1.200000f, 0.600000f,  0.700000f,  1.100000f,  0.550000f,  0.400000f,  0.100000f,  1.200000f,
+        -0.850000f, -0.150000f, 0.400000f,  -1.600000f, 1.300000f,  -0.800000f, -0.050000f, -1.700000f, -1.200000f,
+        0.600000f,  0.700000f,  1.100000f,  0.550000f,  0.400000f,  0.100000f,  1.200000f,  -0.850000f, -0.150000f,
+        0.400000f,  -1.600000f, 1.300000f,  -0.800000f, -0.050000f, -2.006801f, 0.596976f,  -0.145088f, 0.612343f,
+        0.574056f,  -0.019773f, 0.662972f,  0.143829f,  -1.210577f, 0.070402f,  0.156801f,  1.671032f,  -1.205542f,
+        0.160454f,  -0.449371f, -0.137657f, -1.900580f, -0.025173f, 0.112877f,  0.642691f,  0.756148f,  0.177494f,
+        0.571926f,  0.128654f,  -0.375988f, -0.248259f, 0.050580f,  1.230975f,  -1.342111f, 0.554988f,  -0.570765f,
+        -0.107309f, -0.510285f, 0.424121f,  -0.839678f, 0.305161f,  -0.777636f, 0.948317f,  0.143082f,  0.182760f,
+        -0.599963f, -0.979356f, -0.815557f, 0.605124f,  0.586274f,  -0.720718f, -0.596559f, -0.084480f, -0.829703f,
+        0.512471f,  -0.717348f, 0.366326f,  -0.512587f, 0.730841f,  0.258616f,  0.175964f,  -0.797051f, -0.734696f,
+        -0.604877f, 0.863377f,  0.226080f,  -0.571203f, -0.555783f, -0.098072f, 0.491960f,  0.391960f,  -0.919648f,
+        0.082814f,  -1.354020f, 1.058492f,  -0.274774f, 0.228794f,  -0.253568f, -1.273668f, -1.052462f, -0.136382f,
+        1.173668f,  -0.610502f, -0.258492f, -0.193970f, 0.905748f,  0.805748f,  -0.423102f, -0.062012f, -1.147126f,
+        0.106780f,  -0.543736f, 0.290862f,  -0.584598f, -0.570229f, -0.411091f, -0.322587f, 0.470229f,  0.444657f,
+        0.693220f,  -0.504311f, -0.288682f, 1.001415f,  -0.489017f, 0.026955f,  -0.098920f, 0.334773f,  -0.459568f,
+        -0.018801f, -0.531199f, -1.006404f, -0.339017f, -0.783693f, -0.739017f, 0.712397f,  0.521965f,  0.561728f,
+        -0.375566f, 0.990554f,  -0.518496f, 0.039367f,  -0.052375f, 0.396833f,  -0.440950f, -0.038971f, -0.511029f,
+        -1.066912f, -0.368496f, -0.799208f, -0.768496f, 0.672059f,  0.463009f,  0.636199f,  -1.010885f, -0.217159f,
+        1.056458f,  -1.178414f, -2.117897f, 0.621956f,  0.289114f,  0.633764f,  1.528598f,  -0.871771f, 0.094834f,
+        0.333949f,  0.984318f,  0.950369f,  -0.789115f, -1.067897f, -1.234925f, 0.271654f,  0.160301f,  -0.547030f,
+        -0.895864f, 0.886729f,  0.065075f,  0.206053f,  0.713910f,  -1.319850f, -0.292143f, -0.277068f, 0.006692f,
+        0.583759f,  -0.565075f, 0.154136f};
+    std::vector<int8_t> expected_present_key = {7,  31, -47, 7,   14,  -7,  13, -22, 13,  11, -20, -13, -4, -13, 21, 4,
+                                                1,  37, -3,  33,  -18, 15,  3,  -15, -53, 32, -23, -19, 3,  1,   6,  -5,
+                                                26, 6,  -23, -10, 28,  -28, -9, 12,  20,  17, -29, 42,  -3, 0,   0,  -5,
+                                                0,  0,  0,   0,   0,   0,   0,  0,   0,   0,  0,   0,   0,  0,   0,  0};
+    std::vector<int8_t> expected_present_value = {
+        26, 24, 1,   -4,  -19, -16, -16, 7, -18, 2,  4,   -10, -4, 29,  32,  -16, -30, 17, -18, 4,   11, 24,
+        -4, -6, -5,  -37, -15, -20, -23, 3, -6,  32, -19, -7,  26, -27, -49, 11,  7,   15, 35,  -15, 4,  10,
+        25, 21, -17, -28, 0,   0,   0,   0, 0,   0,  0,   0,   0,  0,   0,   0,   0,   0,  0,   0};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 6, 64}, qkv);
+    test_case.add_input<int8_t>(Shape{1, 1, 4, 16}, std::vector<int8_t>(64, 0));
+    test_case.add_input<int8_t>(Shape{1, 1, 4, 16}, std::vector<int8_t>(64, 0));
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 6, 32}, expected_output);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 4, 16}, expected_present_key);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 4, 16}, expected_present_value);
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
+}
+
+// attention_bias combined with a windowed (rolling) cache. The bias is indexed by absolute key position, so
+// after an eviction the cache's first slot is no longer absolute key 0; the decomposition slices the bias
+// starting at that offset (P - resident_rows) instead of 0. Here P=5, capacity 4, window 2: the cache has
+// evicted, resident=2, so the bias column offset is 3 (nonzero) - the case that would misalign without the
+// fix. Reference from a NumPy port of the ORT windowed attention with the bias added on top of the mask.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_bias) {
+    auto model = convert_model("com.microsoft/gqa_swc_bias.onnx");
+    model->reshape({{"query", ov::PartialShape{1, -1, 64}},
+                    {"past_key", ov::PartialShape{1, 1, 4, 16}},
+                    {"past_value", ov::PartialShape{1, 1, 4, 16}},
+                    {"seqlens_k", ov::PartialShape{1, 1}},
+                    {"total_sequence_length", ov::PartialShape{}},
+                    {"attention_bias", ov::PartialShape{1, 2, -1, -1}}});
+
+    std::vector<float> qkv = {
+        -0.409918f, -1.472616f, -1.272063f, 0.536432f,  0.701476f,  -0.468557f, 0.508012f,  -0.153110f,
+        -0.920361f, 0.364511f,  -1.325552f, -0.401779f, -0.697116f, -1.366054f, 0.795789f,  -2.259170f,
+        -0.034037f, -0.913857f, -0.232962f, -0.927766f, -0.217008f, -1.340842f, 0.428897f,  0.963498f,
+        0.024545f,  0.111579f,  1.492562f,  -1.483122f, -0.587747f, 0.780439f,  -0.654738f, 0.681858f,
+        0.336452f,  0.014522f,  -0.641391f, 0.440100f,  -1.277443f, -0.945281f, -0.522749f, -0.606303f,
+        -2.191509f, 0.813540f,  0.596884f,  -0.794280f, 0.517118f,  -0.437389f, 0.025289f,  -1.413691f,
+        -0.098377f, 0.822830f,  0.628987f,  0.257416f,  0.135166f,  -0.125530f, 0.350659f,  0.315962f,
+        -0.736148f, 0.765591f,  -0.530937f, -1.320579f, -0.407804f, -0.335911f, -0.406144f, 0.181796f};
+    std::vector<float> past_key = {
+        -1.406867f, 0.247150f,  -1.581185f, -1.019367f, 1.168421f,  -1.228651f, -0.035981f, -2.808661f,
+        1.618512f,  0.399450f,  -0.343382f, 0.209713f,  0.330807f,  -0.155474f, 0.082239f,  0.957242f,
+        0.787296f,  0.250248f,  -0.956235f, 0.920882f,  -0.354050f, -2.109005f, -1.141260f, -1.386253f,
+        -0.816221f, -1.845551f, 1.523713f,  1.646624f,  0.236272f,  -2.033496f, -0.046030f, -0.168550f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+    std::vector<float> past_value = {
+        -0.796679f, 1.255151f,  -0.058188f, 0.347999f,  -0.740478f, 1.820294f,  0.032699f,  -1.397444f,
+        -0.897249f, 2.013965f,  0.260828f,  -0.099959f, -0.753026f, 0.097706f,  1.265982f,  0.044265f,
+        -0.229361f, -0.088520f, -0.451322f, 0.237621f,  1.547558f,  -1.348029f, -1.001390f, -0.126055f,
+        -0.274731f, -0.897663f, 1.686015f,  -1.545314f, -0.245275f, -0.168508f, -2.393932f, -0.265495f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+    std::vector<float> attention_bias = {-0.601093f,
+                                         0.266510f,
+                                         0.943412f,
+                                         -1.137517f,
+                                         0.574652f,
+                                         -1.967467f,
+                                         -0.829262f,
+                                         -0.167970f,
+                                         -1.489794f,
+                                         -0.718190f,
+                                         0.337246f,
+                                         -0.547388f};
+    std::vector<int> seqlens_k = {5};
+    std::vector<int> total_sequence_length = {6};
+    std::vector<float> expected_output = {
+        -0.207152f, 0.065999f,  -0.268156f, 0.240977f,  1.308087f,  -1.140754f, -0.772150f, -0.051111f,
+        -0.352964f, -0.615658f, 1.310130f,  -1.507210f, -0.272832f, -0.196891f, -2.056902f, -0.189657f,
+        -0.168720f, 0.333403f,  0.048823f,  0.246786f,  0.893670f,  -0.782055f, -0.375439f, 0.078584f,
+        -0.488351f, -0.127635f, 0.659644f,  -1.441269f, -0.320520f, -0.246009f, -1.473656f, -0.058415f};
+    std::vector<float> expected_present_key = {
+        -1.406867f, 0.247150f,  -1.581185f, -1.019367f, 1.168421f,  -1.228651f, -0.035981f, -2.808661f,
+        1.618512f,  0.399450f,  -0.343382f, 0.209713f,  0.330807f,  -0.155474f, 0.082239f,  0.957242f,
+        0.787296f,  0.250248f,  -0.956235f, 0.920882f,  -0.354050f, -2.109005f, -1.141260f, -1.386253f,
+        -0.816221f, -1.845551f, 1.523713f,  1.646624f,  0.236272f,  -2.033496f, -0.046030f, -0.168550f,
+        0.336452f,  0.014522f,  -0.641391f, 0.440100f,  -1.277443f, -0.945281f, -0.522749f, -0.606303f,
+        -2.191509f, 0.813540f,  0.596884f,  -0.794280f, 0.517118f,  -0.437389f, 0.025289f,  -1.413691f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+    std::vector<float> expected_present_value = {
+        -0.796679f, 1.255151f,  -0.058188f, 0.347999f,  -0.740478f, 1.820294f,  0.032699f,  -1.397444f,
+        -0.897249f, 2.013965f,  0.260828f,  -0.099959f, -0.753026f, 0.097706f,  1.265982f,  0.044265f,
+        -0.229361f, -0.088520f, -0.451322f, 0.237621f,  1.547558f,  -1.348029f, -1.001390f, -0.126055f,
+        -0.274731f, -0.897663f, 1.686015f,  -1.545314f, -0.245275f, -0.168508f, -2.393932f, -0.265495f,
+        -0.098377f, 0.822830f,  0.628987f,  0.257416f,  0.135166f,  -0.125530f, 0.350659f,  0.315962f,
+        -0.736148f, 0.765591f,  -0.530937f, -1.320579f, -0.407804f, -0.335911f, -0.406144f, 0.181796f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, qkv);
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_input<float>(Shape{1, 2, 1, 6}, attention_bias);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Same decode step as onnx_model_gqa_sliding_window_cache_bias (P=5, capacity 4, window 2, bias column
+// offset 3), but with a STATICALLY-known sequence_length == 1, so the decomposition takes the in-place
+// Gather + ScatterUpdate ("static_single_token") branch instead of staging: there K = present is the full
+// capacity-C buffer (kv_len == C == 4), narrower than the bias's total_sequence_length == 6 once the window
+// has evicted (end_after == kept + 1 == 3 < C), so the bias slice must be zero-padded up to C for the mask
+// Add to broadcast. Expects the identical result as the dynamic-shape decode test above.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_bias_static) {
+    auto model = convert_model("com.microsoft/gqa_swc_bias.onnx");
+    model->reshape({{"query", ov::PartialShape{1, 1, 64}},
+                    {"past_key", ov::PartialShape{1, 1, 4, 16}},
+                    {"past_value", ov::PartialShape{1, 1, 4, 16}},
+                    {"seqlens_k", ov::PartialShape{1, 1}},
+                    {"total_sequence_length", ov::PartialShape{}},
+                    {"attention_bias", ov::PartialShape{1, 2, -1, -1}}});
+
+    std::vector<float> qkv = {
+        -0.409918f, -1.472616f, -1.272063f, 0.536432f,  0.701476f,  -0.468557f, 0.508012f,  -0.153110f,
+        -0.920361f, 0.364511f,  -1.325552f, -0.401779f, -0.697116f, -1.366054f, 0.795789f,  -2.259170f,
+        -0.034037f, -0.913857f, -0.232962f, -0.927766f, -0.217008f, -1.340842f, 0.428897f,  0.963498f,
+        0.024545f,  0.111579f,  1.492562f,  -1.483122f, -0.587747f, 0.780439f,  -0.654738f, 0.681858f,
+        0.336452f,  0.014522f,  -0.641391f, 0.440100f,  -1.277443f, -0.945281f, -0.522749f, -0.606303f,
+        -2.191509f, 0.813540f,  0.596884f,  -0.794280f, 0.517118f,  -0.437389f, 0.025289f,  -1.413691f,
+        -0.098377f, 0.822830f,  0.628987f,  0.257416f,  0.135166f,  -0.125530f, 0.350659f,  0.315962f,
+        -0.736148f, 0.765591f,  -0.530937f, -1.320579f, -0.407804f, -0.335911f, -0.406144f, 0.181796f};
+    std::vector<float> past_key = {
+        -1.406867f, 0.247150f,  -1.581185f, -1.019367f, 1.168421f,  -1.228651f, -0.035981f, -2.808661f,
+        1.618512f,  0.399450f,  -0.343382f, 0.209713f,  0.330807f,  -0.155474f, 0.082239f,  0.957242f,
+        0.787296f,  0.250248f,  -0.956235f, 0.920882f,  -0.354050f, -2.109005f, -1.141260f, -1.386253f,
+        -0.816221f, -1.845551f, 1.523713f,  1.646624f,  0.236272f,  -2.033496f, -0.046030f, -0.168550f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+    std::vector<float> past_value = {
+        -0.796679f, 1.255151f,  -0.058188f, 0.347999f,  -0.740478f, 1.820294f,  0.032699f,  -1.397444f,
+        -0.897249f, 2.013965f,  0.260828f,  -0.099959f, -0.753026f, 0.097706f,  1.265982f,  0.044265f,
+        -0.229361f, -0.088520f, -0.451322f, 0.237621f,  1.547558f,  -1.348029f, -1.001390f, -0.126055f,
+        -0.274731f, -0.897663f, 1.686015f,  -1.545314f, -0.245275f, -0.168508f, -2.393932f, -0.265495f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+    std::vector<float> attention_bias = {-0.601093f,
+                                         0.266510f,
+                                         0.943412f,
+                                         -1.137517f,
+                                         0.574652f,
+                                         -1.967467f,
+                                         -0.829262f,
+                                         -0.167970f,
+                                         -1.489794f,
+                                         -0.718190f,
+                                         0.337246f,
+                                         -0.547388f};
+    std::vector<int> seqlens_k = {5};
+    std::vector<int> total_sequence_length = {6};
+    std::vector<float> expected_output = {
+        -0.207152f, 0.065999f,  -0.268156f, 0.240977f,  1.308087f,  -1.140754f, -0.772150f, -0.051111f,
+        -0.352964f, -0.615658f, 1.310130f,  -1.507210f, -0.272832f, -0.196891f, -2.056902f, -0.189657f,
+        -0.168720f, 0.333403f,  0.048823f,  0.246786f,  0.893670f,  -0.782055f, -0.375439f, 0.078584f,
+        -0.488351f, -0.127635f, 0.659644f,  -1.441269f, -0.320520f, -0.246009f, -1.473656f, -0.058415f};
+    std::vector<float> expected_present_key = {
+        -1.406867f, 0.247150f,  -1.581185f, -1.019367f, 1.168421f,  -1.228651f, -0.035981f, -2.808661f,
+        1.618512f,  0.399450f,  -0.343382f, 0.209713f,  0.330807f,  -0.155474f, 0.082239f,  0.957242f,
+        0.787296f,  0.250248f,  -0.956235f, 0.920882f,  -0.354050f, -2.109005f, -1.141260f, -1.386253f,
+        -0.816221f, -1.845551f, 1.523713f,  1.646624f,  0.236272f,  -2.033496f, -0.046030f, -0.168550f,
+        0.336452f,  0.014522f,  -0.641391f, 0.440100f,  -1.277443f, -0.945281f, -0.522749f, -0.606303f,
+        -2.191509f, 0.813540f,  0.596884f,  -0.794280f, 0.517118f,  -0.437389f, 0.025289f,  -1.413691f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+    std::vector<float> expected_present_value = {
+        -0.796679f, 1.255151f,  -0.058188f, 0.347999f,  -0.740478f, 1.820294f,  0.032699f,  -1.397444f,
+        -0.897249f, 2.013965f,  0.260828f,  -0.099959f, -0.753026f, 0.097706f,  1.265982f,  0.044265f,
+        -0.229361f, -0.088520f, -0.451322f, 0.237621f,  1.547558f,  -1.348029f, -1.001390f, -0.126055f,
+        -0.274731f, -0.897663f, 1.686015f,  -1.545314f, -0.245275f, -0.168508f, -2.393932f, -0.265495f,
+        -0.098377f, 0.822830f,  0.628987f,  0.257416f,  0.135166f,  -0.125530f, 0.350659f,  0.315962f,
+        -0.736148f, 0.765591f,  -0.530937f, -1.320579f, -0.407804f, -0.335911f, -0.406144f, 0.181796f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, qkv);
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_input<float>(Shape{1, 2, 1, 6}, attention_bias);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// attention_bias combined with a windowed cache on the STAGING path (multi-token S>1 crossing an eviction):
+// P=6, S=4, capacity 4, window 2 -> the temp buffer's first slot is absolute key P - end_before = 3, so the
+// bias is sliced from offset 3. Covers the bias-alignment offset on the staging branch (distinct from the
+// decode branch above). Reference from a NumPy port of the ORT windowed attention.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_bias_staging) {
+    auto model = convert_model("com.microsoft/gqa_swc_bias.onnx");
+    model->reshape({{"query", ov::PartialShape{1, -1, 64}},
+                    {"past_key", ov::PartialShape{1, 1, 4, 16}},
+                    {"past_value", ov::PartialShape{1, 1, 4, 16}},
+                    {"seqlens_k", ov::PartialShape{1, 1}},
+                    {"total_sequence_length", ov::PartialShape{}},
+                    {"attention_bias", ov::PartialShape{1, 2, -1, -1}}});
+
+    std::vector<float> qkv = {
+        -0.486485f, -1.366074f, -0.827624f, -1.912363f, -0.675647f, 0.111408f,  0.039693f,  -0.450589f, 0.830578f,
+        1.492920f,  1.686253f,  -0.145818f, -0.530317f, -1.757925f, -0.988357f, -1.189996f, -1.214076f, 0.124122f,
+        -0.930728f, -0.031955f, 0.432541f,  0.966241f,  -1.044942f, -0.495520f, -2.049144f, -0.916248f, -0.566076f,
+        -0.077410f, -0.478084f, 1.655438f,  0.380329f,  -0.296207f, -1.010425f, 1.047035f,  2.042479f,  0.865483f,
+        0.038754f,  -0.837175f, -0.584412f, 0.758022f,  -2.190637f, -0.917688f, -0.533643f, -0.782283f, 0.313478f,
+        1.055259f,  2.102450f,  0.024991f,  -0.241403f, 1.694861f,  2.282523f,  0.014883f,  -0.025074f, -0.907285f,
+        0.052391f,  -1.238488f, 1.273911f,  1.808182f,  0.412766f,  1.361477f,  -1.581593f, -2.339996f, 0.074131f,
+        -1.153621f, 1.233748f,  0.813166f,  1.035376f,  0.515232f,  -0.932443f, 0.992500f,  -0.438433f, 1.060100f,
+        -0.164504f, 1.620999f,  0.278074f,  0.390223f,  1.179879f,  1.104278f,  1.413069f,  0.914022f,  -0.981984f,
+        -0.251359f, -1.074136f, 1.411553f,  -0.145020f, 0.293953f,  2.421137f,  0.392098f,  0.094121f,  1.209647f,
+        -0.044807f, -0.733001f, 1.921279f,  0.539110f,  -0.330238f, 2.959560f,  0.154643f,  -0.463025f, 1.631903f,
+        -0.654560f, -1.057799f, -0.446748f, -1.878049f, 2.190732f,  1.288372f,  1.154883f,  -0.058002f, -0.977240f,
+        -2.310220f, 1.492676f,  0.741532f,  -0.283710f, -1.139987f, -0.662367f, 1.393267f,  -2.054913f, -0.456117f,
+        -0.341610f, -0.267504f, 1.036825f,  1.312432f,  -2.143512f, -0.150249f, -0.516764f, 1.069530f,  -1.015877f,
+        -1.214894f, -0.442070f, 0.569213f,  -0.034797f, 0.110478f,  -0.515576f, -1.390312f, 0.636172f,  0.128422f,
+        2.252176f,  0.013046f,  -0.399900f, 0.754231f,  0.965758f,  0.718388f,  1.070281f,  -0.089620f, 0.684876f,
+        0.974295f,  -0.755205f, 0.528393f,  1.353756f,  -0.289599f, 2.321317f,  -1.831752f, 1.924411f,  0.594023f,
+        -0.449802f, 0.988036f,  0.762291f,  0.824733f,  -0.081399f, -1.412503f, 0.517064f,  0.889099f,  0.328056f,
+        -0.535501f, 0.492083f,  1.602389f,  0.687306f,  -1.093815f, -0.377336f, -0.853125f, -0.626139f, -1.010293f,
+        -0.568984f, 0.423152f,  -1.237429f, 0.998053f,  0.712787f,  -0.589565f, -0.025369f, 0.574812f,  0.013867f,
+        0.921282f,  -0.787115f, 0.460164f,  1.373154f,  1.128919f,  1.115542f,  1.108974f,  0.180456f,  1.097990f,
+        0.117759f,  1.152816f,  0.878320f,  -0.902405f, 0.524433f,  0.985958f,  0.097736f,  -0.892453f, -0.124147f,
+        -0.941871f, -0.961399f, -0.260343f, 0.806380f,  0.296295f,  1.327999f,  -1.563106f, 1.493021f,  0.307519f,
+        -0.329855f, -1.792256f, 0.378034f,  1.169096f,  -0.542895f, 0.598547f,  -1.864402f, -0.352759f, -1.415826f,
+        -0.665928f, 2.125170f,  -0.628551f, -0.358526f, -0.289936f, 0.584664f,  -0.853929f, 1.297743f,  1.007548f,
+        -1.032559f, -0.182488f, 0.285388f,  -0.623866f, 1.862309f,  1.930198f,  1.363216f,  0.477612f,  0.031919f,
+        -2.235668f, -0.847743f, -0.597399f, -1.103707f, 0.851495f,  -0.928250f, -0.848908f, -1.606730f, 2.789572f,
+        -0.260165f, -0.251519f, -0.594999f, 1.459957f,  0.775788f,  -1.322805f, -0.912741f, -0.760956f, -1.363549f,
+        -0.297371f, 0.371664f,  -1.285090f, -0.051090f};
+    std::vector<float> past_key = {
+        0.025110f,  0.453326f,  0.368571f,  -2.226671f, -1.608651f, 0.866568f,  -1.296364f, -0.112256f,
+        0.882213f,  1.319417f,  -0.796174f, 0.442392f,  -0.280480f, -0.390983f, 0.301318f,  0.836023f,
+        0.541446f,  -0.344429f, -1.048065f, 0.676605f,  -0.139174f, 2.128932f,  0.473723f,  -0.687603f,
+        -0.750592f, 0.679855f,  -0.582609f, 0.013909f,  0.280223f,  0.043101f,  -0.576991f, -1.526780f,
+        0.867305f,  -1.681595f, 0.360911f,  -1.838883f, 1.343957f,  -0.317509f, -0.888883f, 0.014445f,
+        0.275144f,  1.741265f,  -0.776246f, -0.427750f, 0.109009f,  0.065366f,  -1.880476f, 0.099263f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+    std::vector<float> past_value = {
+        0.820556f,  0.945078f,  -0.326395f, 1.644162f,  -0.507397f, -0.509650f, -0.148912f, -2.730036f,
+        0.119030f,  -0.353935f, 0.103943f,  -0.469243f, 0.263213f,  -1.516672f, -1.922279f, -0.914232f,
+        0.404878f,  -0.307223f, 0.105157f,  -0.854879f, 1.346943f,  0.723382f,  -0.760686f, 1.077300f,
+        2.466428f,  0.705990f,  -0.507182f, -0.174080f, 0.209968f,  0.327497f,  -1.787450f, 0.694037f,
+        -1.652328f, 0.474680f,  -0.336627f, -0.243205f, 0.162347f,  0.292144f,  0.226772f,  -1.101726f,
+        1.810318f,  0.970257f,  0.485383f,  -0.744883f, 0.951639f,  0.209387f,  0.646428f,  -0.273225f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+    std::vector<float> attention_bias = {
+        0.509627f,  0.026062f,  0.686756f,  1.430206f,  -1.587500f, -0.645389f, 0.716139f,  -0.770732f, -1.027049f,
+        -0.580396f, 0.369978f,  -1.927067f, -0.797819f, 2.249848f,  1.098907f,  -1.083371f, 0.157183f,  -0.015306f,
+        -0.883854f, -0.487722f, -0.582474f, 0.733536f,  0.106787f,  -0.175922f, 1.730025f,  0.840159f,  1.193228f,
+        -0.592747f, 0.047643f,  0.685119f,  -1.545730f, -0.562627f, 1.019213f,  -0.397672f, 0.443493f,  -1.968752f,
+        -0.675069f, 0.028601f,  -0.257657f, -0.433136f, 0.372439f,  0.129498f,  -0.020495f, 1.063633f,  0.619459f,
+        -1.075035f, -0.630628f, 0.440535f,  0.607967f,  1.529490f,  0.134271f,  1.059538f,  1.693514f,  0.934152f,
+        -0.057197f, 1.231740f,  -2.206901f, -0.723228f, 1.272427f,  0.639399f,  0.146687f,  0.646752f,  0.589542f,
+        0.680400f,  -1.153398f, 1.058987f,  -1.475308f, -0.132099f, -0.701077f, 0.362980f,  -2.415459f, 0.705139f,
+        0.867342f,  -0.089465f, 0.782455f,  0.223228f,  -1.199170f, 0.523194f,  -0.397766f, 0.347625f};
+    std::vector<int> seqlens_k = {9};
+    std::vector<int> total_sequence_length = {10};
+    std::vector<float> expected_output = {
+        -1.617309f, 0.504965f,  -0.271621f, -0.236800f, 0.157695f,  0.262374f,  0.222444f,  -1.105121f, 1.797005f,
+        0.991054f,  0.483580f,  -0.692603f, 0.888765f,  0.146112f,  0.632224f,  -0.295076f, -0.317681f, 1.628895f,
+        2.140925f,  0.000930f,  -0.014942f, -0.842441f, 0.061819f,  -1.231094f, 1.302911f,  1.762882f,  0.416692f,
+        1.247602f,  -1.444639f, -2.202169f, 0.105071f,  -1.106024f, -0.681310f, 0.540867f,  1.847183f,  -0.998397f,
+        -0.236094f, -0.630356f, -0.104215f, -0.124596f, 1.292769f,  -0.126391f, 0.137139f,  0.441974f,  -0.283722f,
+        -1.691767f, -0.556918f, -0.805277f, -0.626877f, 0.683658f,  1.901050f,  -0.873017f, -0.209983f, -0.664622f,
+        -0.084837f, -0.262425f, 1.290436f,  0.112986f,  0.171244f,  0.555750f,  -0.444315f, -1.771976f, -0.478834f,
+        -0.848380f, -1.049000f, -0.557069f, 1.257974f,  -1.712937f, -0.228428f, -0.415254f, -0.147218f, 1.092422f,
+        1.282097f,  -1.604780f, 0.057905f,  -0.401511f, 1.074234f,  -0.828483f, -0.823504f, -0.223805f, -1.011064f,
+        -0.513165f, 1.201563f,  -1.570350f, -0.133494f, -0.445959f, -0.097065f, 1.115602f,  1.269449f,  -1.380156f,
+        0.144694f,  -0.353457f, 1.076196f,  -0.750350f, -0.660314f, -0.132800f, -0.685458f, -0.610082f, 1.393727f,
+        -0.087457f, 0.487635f,  -0.716080f, 0.829841f,  1.152276f,  0.222386f,  0.365578f,  0.417561f,  -0.390445f,
+        0.582050f,  0.211641f,  0.251392f,  0.534667f,  -0.652858f, -0.411302f, 1.115327f,  -0.053011f, 0.635059f,
+        -0.740229f, 0.704165f,  1.227366f,  0.530572f,  0.620537f,  0.652615f,  -0.196361f, 0.757450f,  0.179725f,
+        0.557842f,  0.651496f};
+    std::vector<float> expected_present_key = {
+        -1.010425f, 1.047035f,  2.042479f,  0.865483f,  0.038754f,  -0.837175f, -0.584412f, 0.758022f,
+        -2.190637f, -0.917688f, -0.533643f, -0.782283f, 0.313478f,  1.055259f,  2.102450f,  0.024991f,
+        0.154643f,  -0.463025f, 1.631903f,  -0.654560f, -1.057799f, -0.446748f, -1.878049f, 2.190732f,
+        1.288372f,  1.154883f,  -0.058002f, -0.977240f, -2.310220f, 1.492676f,  0.741532f,  -0.283710f,
+        0.889099f,  0.328056f,  -0.535501f, 0.492083f,  1.602389f,  0.687306f,  -1.093815f, -0.377336f,
+        -0.853125f, -0.626139f, -1.010293f, -0.568984f, 0.423152f,  -1.237429f, 0.998053f,  0.712787f,
+        1.007548f,  -1.032559f, -0.182488f, 0.285388f,  -0.623866f, 1.862309f,  1.930198f,  1.363216f,
+        0.477612f,  0.031919f,  -2.235668f, -0.847743f, -0.597399f, -1.103707f, 0.851495f,  -0.928250f};
+    std::vector<float> expected_present_value = {
+        -0.241403f, 1.694861f,  2.282523f,  0.014883f,  -0.025074f, -0.907285f, 0.052391f,  -1.238488f,
+        1.273911f,  1.808182f,  0.412766f,  1.361477f,  -1.581593f, -2.339996f, 0.074131f,  -1.153621f,
+        -1.139987f, -0.662367f, 1.393267f,  -2.054913f, -0.456117f, -0.341610f, -0.267504f, 1.036825f,
+        1.312432f,  -2.143512f, -0.150249f, -0.516764f, 1.069530f,  -1.015877f, -1.214894f, -0.442070f,
+        -0.589565f, -0.025369f, 0.574812f,  0.013867f,  0.921282f,  -0.787115f, 0.460164f,  1.373154f,
+        1.128919f,  1.115542f,  1.108974f,  0.180456f,  1.097990f,  0.117759f,  1.152816f,  0.878320f,
+        -0.848908f, -1.606730f, 2.789572f,  -0.260165f, -0.251519f, -0.594999f, 1.459957f,  0.775788f,
+        -1.322805f, -0.912741f, -0.760956f, -1.363549f, -0.297371f, 0.371664f,  -1.285090f, -0.051090f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, qkv);
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_input<float>(Shape{1, 2, 4, 10}, attention_bias);
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_reducemean_i8) {
@@ -4731,4 +8622,176 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_src_shorter_than_
     test_case.add_expected_output<int64_t>(Shape{6}, {1, 2, 3, 4, 5, 6});
     test_case.add_expected_output<int64_t>(Shape{}, {-1});
     test_case.run();
+}
+
+// GatherBlockQuantized: block-quantized embedding lookup (com.microsoft).
+// All models use V=2, H=32, block_size=16 (nb=2), gather_axis=0, quantize_axis=1, indices=[1,0].
+// Expected values are hand-derived from output = (data - zero_point) * scale, then gathered.
+namespace {
+// Helper: build a [2, 32] expected output where row r is [blockA(x16), blockB(x16)].
+std::vector<float> gbq_expected(float r0a, float r0b, float r1a, float r1b) {
+    std::vector<float> out;
+    out.reserve(64);
+    for (int i = 0; i < 16; ++i)
+        out.push_back(r0a);
+    for (int i = 0; i < 16; ++i)
+        out.push_back(r0b);
+    for (int i = 0; i < 16; ++i)
+        out.push_back(r1a);
+    for (int i = 0; i < 16; ++i)
+        out.push_back(r1b);
+    return out;
+}
+}  // namespace
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_int4) {
+    // data row0 = 16x(2), 16x(-1); row1 = 16x(1), 16x(3). scales row0=[0.5,4.0], row1=[2.0,0.25]. no zp.
+    // gather [1,0] -> out[0]=row1, out[1]=row0.
+    const auto model = convert_model("com.microsoft/gather_block_quantized_int4.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // out[0]=row1: (1-0)*2.0=2.0, (3-0)*0.25=0.75 ; out[1]=row0: (2-0)*0.5=1.0, (-1-0)*4.0=-4.0
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(2.0f, 0.75f, 1.0f, -4.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_uint4) {
+    // data row0 = 16x(2), 16x(15); row1 = 16x(1), 16x(3). int64 indices. no zp.
+    const auto model = convert_model("com.microsoft/gather_block_quantized_uint4.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int64_t>(Shape{2}, {1, 0});
+    // out[0]=row1: 1*2.0=2.0, 3*0.25=0.75 ; out[1]=row0: 2*0.5=1.0, 15*4.0=60.0
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(2.0f, 0.75f, 1.0f, 60.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_int4_zp) {
+    // Same data/scales as int4 case. zero_points row0=[1,2], row1=[0,1].
+    const auto model = convert_model("com.microsoft/gather_block_quantized_int4_zp.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // out[0]=row1: (1-0)*2.0=2.0, (3-1)*0.25=0.5 ; out[1]=row0: (2-1)*0.5=0.5, (-1-2)*4.0=-12.0
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(2.0f, 0.5f, 0.5f, -12.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_int4_f16) {
+    // Same as int4 case but scales are float16; output is float16.
+    const auto model = convert_model("com.microsoft/gather_block_quantized_int4_f16.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    const auto expected_f32 = gbq_expected(2.0f, 0.75f, 1.0f, -4.0f);
+    test_case.add_expected_output<ov::float16>(Shape{2, 32},
+                                               std::vector<ov::float16>(expected_f32.begin(), expected_f32.end()));
+
+    test_case.run_with_tolerance_as_fp(0.01f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_uint8) {
+    // uint8, bits=8, default zero_point=128. data row0=16x(130),16x(124); row1=16x(128),16x(136).
+    const auto model = convert_model("com.microsoft/gather_block_quantized_uint8.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // out[0]=row1: (128-128)*2.0=0.0, (136-128)*0.25=2.0 ; out[1]=row0: (130-128)*0.5=1.0, (124-128)*4.0=-16.0
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(0.0f, 2.0f, 1.0f, -16.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_uint8_bits4) {
+    // uint8 data holding 2 int4 values per byte (bits=4), default zero_point=8. Logical H=32, block=16.
+    // Unpacked row0 = 16x(9), 16x(7); row1 = 16x(10), 16x(6). scales row0=[0.5,2.0], row1=[1.0,4.0].
+    const auto model = convert_model("com.microsoft/gather_block_quantized_uint8_bits4.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // out[0]=row1: (10-8)*1.0=2.0, (6-8)*4.0=-8.0 ; out[1]=row0: (9-8)*0.5=0.5, (7-8)*2.0=-2.0
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(2.0f, -8.0f, 0.5f, -2.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_uint8_bits2) {
+    // uint8 data holding 4 2-bit values per byte (bits=2), default zero_point=2. Logical H=32, block=16.
+    // Unpacked row0 = 16x(3), 16x(1); row1 = 16x(2), 16x(0). scales row0=[0.5,2.0], row1=[1.0,4.0].
+    const auto model = convert_model("com.microsoft/gather_block_quantized_uint8_bits2.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // out[0]=row1: (2-2)*1.0=0.0, (0-2)*4.0=-8.0 ; out[1]=row0: (3-2)*0.5=0.5, (1-2)*2.0=-2.0
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(0.0f, -8.0f, 0.5f, -2.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_uint8_bits4_zp) {
+    // uint8 bits=4 with packed zero_points (2 per byte along the quantize axis). Same data/scales as bits4.
+    // zero_points row0=[1,2], row1=[3,0].
+    const auto model = convert_model("com.microsoft/gather_block_quantized_uint8_bits4_zp.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // out[0]=row1: (10-3)*1.0=7.0, (6-0)*4.0=24.0 ; out[1]=row0: (9-1)*0.5=4.0, (7-2)*2.0=10.0
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(7.0f, 24.0f, 4.0f, 10.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_neg_axis) {
+    // Same as int4 case but quantize_axis=-1 (normalizes to 1); verifies negative-axis handling.
+    const auto model = convert_model("com.microsoft/gather_block_quantized_neg_axis.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    test_case.add_expected_output<float>(Shape{2, 32}, gbq_expected(2.0f, 0.75f, 1.0f, -4.0f));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_bf16) {
+    // Same int4 data/scales as the base case, but scales (and output) are bfloat16.
+    const auto model = convert_model("com.microsoft/gather_block_quantized_bf16.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int32_t>(Shape{2}, {1, 0});
+    // Expected values (2.0, 0.75, 1.0, -4.0) are all exactly representable in bfloat16, so compare bit-exact.
+    const auto expected_f32 = gbq_expected(2.0f, 0.75f, 1.0f, -4.0f);
+    test_case.add_expected_output<ov::bfloat16>(Shape{2, 32},
+                                                std::vector<ov::bfloat16>(expected_f32.begin(), expected_f32.end()));
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_indices_2d) {
+    // Rank-2 indices [2,2] -> output rank q + (r-1) = 2 + 1 = 3, shape [2,2,32]. int64 indices.
+    // indices = [[1,0],[0,1]]; row1 = [2.0 x16, 0.75 x16], row0 = [1.0 x16, -4.0 x16].
+    const auto model = convert_model("com.microsoft/gather_block_quantized_indices_2d.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<int64_t>(Shape{2, 2}, {1, 0, 0, 1});
+    const auto r1 = gbq_expected(2.0f, 0.75f, 1.0f, -4.0f);  // one gathered row pair, reused per index
+    std::vector<float> expected;
+    const std::vector<float> row1(r1.begin(), r1.begin() + 32);
+    const std::vector<float> row0(r1.begin() + 32, r1.end());
+    for (const auto* row : {&row1, &row0, &row0, &row1}) {  // [1,0,0,1] -> row1,row0,row0,row1
+        expected.insert(expected.end(), row->begin(), row->end());
+    }
+    test_case.add_expected_output<float>(Shape{2, 2, 32}, expected);
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_quantize_axis_not_last) {
+    // quantize_axis is not the last dimension (quantize_axis=0, gather_axis=1). This must be rejected:
+    // the compressed-gather fusion reconstructs the table by merging the trailing dims, which is only
+    // valid when the quantized axis is last, so importing a non-last quantize_axis is disallowed.
+    EXPECT_THROW(convert_model("com.microsoft/gather_block_quantized_quantize_axis_not_last.onnx"), ov::Exception);
 }

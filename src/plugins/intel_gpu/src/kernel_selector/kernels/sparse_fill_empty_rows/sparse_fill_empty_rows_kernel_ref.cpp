@@ -91,10 +91,7 @@ float SparseFillEmptyRowsKernelRef::GetKernelsPriority(const Params &params) con
 }
 
 bool SparseFillEmptyRowsKernelRef::Validate(const Params& p) const {
-    if (p.GetType() != KernelType::SPARSE_FILL_EMPTY_ROWS) {
-        return false;
-    }
-    return true;
+    return p.GetType() == KernelType::SPARSE_FILL_EMPTY_ROWS;
 }
 
 JitConstants SparseFillEmptyRowsKernelRef::GetJitConstants(const sparse_fill_empty_rows_params& params) const {

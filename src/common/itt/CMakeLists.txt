@@ -4,9 +4,16 @@
 
 set(TARGET_NAME openvino_itt)
 
-file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.hpp" "include/*.hpp")
+add_library(${TARGET_NAME} STATIC)
 
-add_library(${TARGET_NAME} STATIC ${SOURCES})
+target_sources(${TARGET_NAME}
+    PRIVATE
+    # Sources
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/itt.cpp
+    # Headers
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/openvino/function_name.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/openvino/itt.hpp
+)
 
 add_library(openvino::itt ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME itt)

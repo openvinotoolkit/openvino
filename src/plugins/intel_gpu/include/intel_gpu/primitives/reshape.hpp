@@ -47,7 +47,6 @@ struct reshape : public primitive_base<reshape> {
             const ov::PartialShape& output_partial_shape,
             reshape_mode mode = reshape_mode::base)
         : primitive_base(id, {input, pattern_id})
-        , output_shape(tensor())
         , special_zero(special_zero)
         , output_pattern({})
         , output_partial_shape(output_partial_shape)
@@ -61,7 +60,6 @@ struct reshape : public primitive_base<reshape> {
             const ov::PartialShape& output_partial_shape,
             reshape_mode mode = reshape_mode::base)
         : primitive_base(id, {input})
-        , output_shape(tensor())
         , special_zero(special_zero)
         , output_pattern(output_pattern)
         , output_partial_shape(output_partial_shape)
@@ -79,8 +77,9 @@ struct reshape : public primitive_base<reshape> {
     reshape_mode mode = reshape_mode::base;
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const reshape>(rhs);
 

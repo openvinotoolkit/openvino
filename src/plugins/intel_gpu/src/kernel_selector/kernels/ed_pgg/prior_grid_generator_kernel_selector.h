@@ -16,7 +16,7 @@ public:
 
     experimental_detectron_prior_grid_generator_kernel_selector();
 
-    virtual ~experimental_detectron_prior_grid_generator_kernel_selector() {}
+    ~experimental_detectron_prior_grid_generator_kernel_selector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

@@ -42,11 +42,7 @@ struct MoeScatterReductionOpt : public MoeScatterReductionBase {
             return false;
         }
 
-        if (!one_of(in0_layout.data_type, supported_types) || !one_of(out_layout.data_type, supported_types)) {
-            return false;
-        }
-
-        return true;
+        return one_of(in0_layout.data_type, supported_types) && one_of(out_layout.data_type, supported_types);
     }
     static constexpr size_t block_size = 4;
 };

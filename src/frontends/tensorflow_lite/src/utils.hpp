@@ -10,9 +10,7 @@
 #include "place.hpp"
 #include "schema_generated.h"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
+namespace ov::frontend::tensorflow_lite {
 
 class TensorLitePlace;
 
@@ -21,7 +19,8 @@ ov::PartialShape get_ov_shape(const flatbuffers::Vector<int32_t>* tf_shape,
                               const flatbuffers::Vector<int32_t>* tf_shape_sig);
 std::shared_ptr<QuantizationInfo> get_quantization(const tflite::QuantizationParameters* tf_quantization);
 void apply_quantization(ov::Output<ov::Node>& output, ov::element::Type type);
-void dequantize_inputs(OutputVector& deq_inputs);
+void dequantize_inputs(OutputVector& deq_inputs,
+                       const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderBase>& decoder = nullptr);
 std::shared_ptr<SparsityInfo> get_sparsity(const flatbuffers::Vector<int32_t>* tf_shape,
                                            const tflite::SparsityParameters* tf_sparsity,
                                            const ov::element::Type target_type,
@@ -31,6 +30,4 @@ std::shared_ptr<SparsityInfo> get_sparsity(const flatbuffers::Vector<int32_t>* t
 template <typename T>
 OutputVector get_indexed_outputs(const T& outputs);
 
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite

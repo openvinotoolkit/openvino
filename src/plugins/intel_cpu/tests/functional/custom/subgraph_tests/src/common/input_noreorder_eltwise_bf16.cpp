@@ -53,6 +53,10 @@ protected:
              Output[BF16]
 */
 TEST_F(InputNoReorderEltwiseBF16, smoke_CompareWithRefs) {
+    if (!ov::with_cpu_x86_bfloat16() && !ov::with_cpu_x86_avx512_core_amx_bf16()) {
+        GTEST_SKIP() << "Skipping test, platform doesn't support precision bf16";
+    }
+
     run();
 
     CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);

@@ -14,7 +14,7 @@ public:
 
     PoolingKernel_bsv16_fsv16() : PoolingKernelBase("pooling_gpu_bsv16_fsv16") {}
 
-    virtual ~PoolingKernel_bsv16_fsv16() {}
+    ~PoolingKernel_bsv16_fsv16() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

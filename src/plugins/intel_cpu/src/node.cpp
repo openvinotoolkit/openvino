@@ -79,7 +79,8 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
       engine(context->getEngine()),
       name(op->get_friendly_name()),
       typeStr(op->get_type_name()),
-      type(TypeFromName(op->get_type_name())) {
+      type(TypeFromName(op->get_type_name())),
+      executeTaskId(openvino::itt::handle(this->name)) {
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto& shape = op->get_input_partial_shape(i);
         OPENVINO_ASSERT(!shape.rank().is_dynamic(),
@@ -190,6 +191,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
     if (is_conversion_disabled(op, element::f16)) {
         keepOriginalPrecision = true;
     }
+    disableBF16Conversion = is_conversion_disabled(op, element::f32, element::bf16);
 }
 
 Node::Node(const std::string& type,
@@ -209,7 +211,8 @@ Node::Node(const std::string& type,
       engine(ctx->getEngine()),
       name(std::move(name)),
       typeStr(type),
-      type(TypeFromName(type)) {
+      type(TypeFromName(type)),
+      executeTaskId(openvino::itt::handle(this->name)) {
     parentEdges.reserve(inputShapes.size());
     childEdges.reserve(outputShapes.size());
 }
@@ -823,7 +826,8 @@ void Node::updateDynamicParams() {
 }
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
-    OV_ITT_SCOPED_TASK_BASE(itt::domains::ov_op_cpu_details, getName());
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::ov_op_cpu_details, executeTaskId);
+
     if (isDynamicNode()) {
         executeDynamic(strm, numaId);
     } else {
@@ -1703,11 +1707,11 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
         auto constBlob = constInputNode->getMemoryPtr();
         const auto elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         buffer.resize(elementsCount);
-        cpu_convert(constBlob->getData(),
-                    buffer.data(),
-                    DnnlExtensionUtils::DataTypeToElementType(constBlob->getDataType()),
-                    ov::element::f32,
-                    elementsCount);
+        cpu_parallel_convert(constBlob->getData(),
+                             buffer.data(),
+                             DnnlExtensionUtils::DataTypeToElementType(constBlob->getDataType()),
+                             ov::element::f32,
+                             elementsCount);
     };
 
     const auto constPort = getParentEdgeAt(0)->getParent().get() == parentNode ? 1 : 0;
@@ -1722,8 +1726,8 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
     } else if (any_of(getAlgorithm(), Algorithm::EltwisePowerStatic)) {
         const auto* const power = dynamic_cast<const Eltwise*>(this);
         OPENVINO_ASSERT(power, "Cannot cast ", getName(), " to Eltwise");
-        scales.push_back(power->getBeta());
-        shifts.push_back(power->getGamma());
+        scales.push_back(static_cast<float>(power->getBeta()));
+        shifts.push_back(static_cast<float>(power->getGamma()));
     } else {
         OPENVINO_THROW("Can't fill scale and shifts for node: ", getName(), " with type: ", NameFromType(getType()));
     }

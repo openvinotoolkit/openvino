@@ -55,6 +55,7 @@ class OVDict(collections.abc.Mapping):
         
     """
     __abstractmethods__: typing.ClassVar[frozenset]  # value = frozenset()
+    __slots__: typing.ClassVar[tuple] = ('_dict', '_names', '__weakref__')
     _abc_impl: typing.ClassVar[_abc._abc_data]  # value = <_abc._abc_data object>
     @staticmethod
     def _OVDict__getitem_impl(*args, **kwargs) -> numpy.ndarray:
@@ -72,7 +73,7 @@ class OVDict(collections.abc.Mapping):
         """
     def __getitem__(self, key: typing.Union[openvino._pyopenvino.ConstOutput, int, str]) -> numpy.ndarray:
         ...
-    def __init__(self, _dict: dict[openvino._pyopenvino.ConstOutput, numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]]) -> None:
+    def __init__(self, _dict: dict[openvino._pyopenvino.ConstOutput, numpy.ndarray]) -> None:
         ...
     def __iter__(self) -> collections.abc.Iterator:
         ...
@@ -80,7 +81,7 @@ class OVDict(collections.abc.Mapping):
         ...
     def __repr__(self) -> str:
         ...
-    def items(self) -> collections.abc.ItemsView[openvino._pyopenvino.ConstOutput, numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]]:
+    def items(self) -> collections.abc.ItemsView[openvino._pyopenvino.ConstOutput, numpy.ndarray]:
         ...
     def keys(self) -> collections.abc.KeysView[openvino._pyopenvino.ConstOutput]:
         ...
@@ -91,7 +92,7 @@ class OVDict(collections.abc.Mapping):
                 Insert empty set if key has no name.
                 
         """
-    def to_dict(self) -> dict[openvino._pyopenvino.ConstOutput, numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]]:
+    def to_dict(self) -> dict[openvino._pyopenvino.ConstOutput, numpy.ndarray]:
         """
         Return underlaying native dictionary.
         
@@ -103,7 +104,7 @@ class OVDict(collections.abc.Mapping):
         """
         Convert values of this dictionary to a tuple.
         """
-    def values(self) -> collections.abc.ValuesView[numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]]:
+    def values(self) -> collections.abc.ValuesView[numpy.ndarray]:
         ...
 class _InferRequestWrapper(openvino._pyopenvino.InferRequest):
     """

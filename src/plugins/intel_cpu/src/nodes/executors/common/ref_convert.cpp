@@ -32,12 +32,12 @@ void CommonConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::
     assert(src.size() == 1);
     assert(dst.size() == 1);
 
-    cpu_convert(src[0]->getData(),
-                dst[0]->getData(),
-                commonConvertParams.srcPrc,
-                commonConvertParams.origPrc,
-                commonConvertParams.dstPrc,
-                commonConvertParams.size);
+    cpu_parallel_convert(src[0]->getData(),
+                         dst[0]->getData(),
+                         commonConvertParams.srcPrc,
+                         commonConvertParams.origPrc,
+                         commonConvertParams.dstPrc,
+                         commonConvertParams.size);
 }
 
 }  // namespace ov::intel_cpu

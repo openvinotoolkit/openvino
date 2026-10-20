@@ -2,3 +2,7 @@
 ONNXLoadTest/FrontEndLoadFromTest.testLoadFromTwoFiles/onnx
 ONNXLoadTest/FrontEndLoadFromTest.testLoadFromTwoStreams/onnx
 
+# QuantizeLinear with the f4e2m1 destination type (ONNX opset 23) fails in
+# ov::op::v13::FakeConvert, which supports f8e4m3 and f8e5m2 only
+ONNXFeFloatTypes.quantize_dequantize_linear_float4e2m1
+ONNXFeFloatTypes.quantize_linear_float4e2m1_zero_point

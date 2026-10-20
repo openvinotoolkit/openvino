@@ -99,8 +99,9 @@ public:
         auto input_layout = instance.dependencies()[0].first->get_impl_params()->get_output_layout(instance.dependencies()[0].second);
         auto input_shape = input_layout.get_shape();
         size_t token_num = input_shape[0];
-        if (input_shape.size() >= 3)
+        if (input_shape.size() >= 3) {
             token_num = input_shape[0] * input_shape[1];
+        }
         size_t lws_size = config.num_expert;
 
         // Select routing stage and build inputs
@@ -151,3 +152,6 @@ std::unique_ptr<primitive_impl> MoeRouterFusedOpt::create_impl(const program_nod
 }
 
 }  // namespace ov::intel_gpu::ocl
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_router_fused)
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::MoeRouterFusedImpl)

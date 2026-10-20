@@ -142,22 +142,24 @@ TEST_F(KVCacheBlockManagerTest, TokenCountValidation) {
         << "Setting tokens beyond capacity should throw exception";
 }
 
-// Test 6: Memory Reuse After Clear
-TEST_F(KVCacheBlockManagerTest, MemoryReuseAfterClear) {
-    // Allocate a block and record its tensor pointer
+// Test 6: Tensor Valid After Clear
+// clear_all() drops all SoPtr tensors (releases device memory back to the allocator).
+// Re-allocation must produce a fresh valid tensor; the address is not guaranteed to be reused.
+TEST_F(KVCacheBlockManagerTest, TensorValidAfterClear) {
     auto block_id = manager->allocate_block();
     ASSERT_TRUE(block_id.has_value());
-    auto tensor_before = manager->get_block_tensor(block_id.value());
-    ASSERT_NE(tensor_before, nullptr);
-    void* ptr_before = tensor_before->data();
+    ASSERT_NE(manager->get_block_tensor(block_id.value()), nullptr);
 
-    // Clear and re-allocate — should reuse the same underlying memory
+    // clear_all() releases tensor memory; block state is reset
     manager->clear_all();
+    EXPECT_TRUE(manager->get_allocated_blocks().empty());
+
+    // Re-allocate: a new tensor must be allocated on demand
     auto block_id2 = manager->allocate_block();
     ASSERT_TRUE(block_id2.has_value());
     auto tensor_after = manager->get_block_tensor(block_id2.value());
-    ASSERT_NE(tensor_after, nullptr);
-    EXPECT_EQ(tensor_after->data(), ptr_before) << "Should reuse the same memory buffer after clear";
+    ASSERT_NE(tensor_after, nullptr) << "Fresh tensor must be valid after clear + re-allocate";
+    EXPECT_EQ(manager->get_block_tokens(block_id2.value()), 0u) << "Token count must be reset to 0";
 }
 
 // Test 7: Allocation and Token State Consistency
@@ -246,6 +248,82 @@ TEST_F(KVCacheBlockManagerTest, InvalidBlockID) {
         << "Updating invalid block ID should throw";
 }
 
+// Truncation for continuous prefill keeps the leading blocks and frees the suffix.
+TEST_F(KVCacheBlockManagerTest, TruncateAllocatedKeepsPrefix) {
+    std::vector<uint32_t> ids;
+    for (int i = 0; i < 5; ++i) {
+        auto id = manager->allocate_block();
+        ASSERT_TRUE(id.has_value());
+        manager->update_block_tokens(id.value(), block_size);
+        ids.push_back(id.value());
+    }
+
+    manager->truncate_allocated(2);
+
+    auto allocated = manager->get_allocated_blocks();
+    ASSERT_EQ(allocated.size(), 2u);
+    EXPECT_EQ(allocated[0], ids[0]);
+    EXPECT_EQ(allocated[1], ids[1]);
+    // Retained blocks keep their token counts and tensors.
+    EXPECT_EQ(manager->get_block_tokens(ids[0]), block_size);
+    EXPECT_EQ(manager->get_block_tokens(ids[1]), block_size);
+    EXPECT_NE(manager->get_block_tensor(ids[0]), nullptr);
+    EXPECT_EQ(manager->num_free_blocks(), max_blocks - 2);
+}
+
+TEST_F(KVCacheBlockManagerTest, TruncateAllocatedPreservesAppendOrder) {
+    std::vector<uint32_t> ids;
+    for (int i = 0; i < 4; ++i) {
+        auto id = manager->allocate_block();
+        ASSERT_TRUE(id.has_value());
+        ids.push_back(id.value());
+    }
+
+    manager->truncate_allocated(1);
+
+    // Freed suffix IDs come back in ascending order so logical append order holds.
+    auto first = manager->allocate_block();
+    auto second = manager->allocate_block();
+    ASSERT_TRUE(first.has_value() && second.has_value());
+    EXPECT_EQ(first.value(), ids[1]);
+    EXPECT_EQ(second.value(), ids[2]);
+    // Reacquired blocks start empty.
+    EXPECT_EQ(manager->get_block_tokens(first.value()), 0u);
+}
+
+TEST_F(KVCacheBlockManagerTest, TruncateAllocatedKeepsSuffixTensorsWarm) {
+    std::vector<uint32_t> ids;
+    std::vector<void*> data_before;
+    for (int i = 0; i < 3; ++i) {
+        auto id = manager->allocate_block();
+        ASSERT_TRUE(id.has_value());
+        ids.push_back(id.value());
+        data_before.push_back(manager->get_block_tensor(id.value())->data());
+    }
+
+    manager->truncate_allocated(1);
+
+    // Retained prefix keeps its tensor untouched.
+    EXPECT_EQ(manager->get_block_tensor(ids[0])->data(), data_before[0]);
+
+    // Suffix tensors are kept warm, so reacquiring those IDs must not re-allocate.
+    // Without this the first prefill chunk of a continuation pays allocation latency.
+    for (size_t i = 1; i < ids.size(); ++i) {
+        auto reacquired = manager->allocate_block();
+        ASSERT_TRUE(reacquired.has_value());
+        EXPECT_EQ(reacquired.value(), ids[i]);
+        EXPECT_EQ(manager->get_block_tensor(reacquired.value())->data(), data_before[i]);
+    }
+}
+
+TEST_F(KVCacheBlockManagerTest, TruncateAllocatedRejectsOverKeep) {
+    ASSERT_TRUE(manager->allocate_block().has_value());
+    EXPECT_THROW(manager->truncate_allocated(2), ov::Exception);
+    // Truncating to the full allocated count is a no-op.
+    manager->truncate_allocated(1);
+    EXPECT_EQ(manager->get_allocated_blocks().size(), 1u);
+}
+
 // Test 11: Get Tensor After Clear (memory kept, state reset)
 TEST_F(KVCacheBlockManagerTest, GetTensorAfterClear) {
     auto block_id = manager->allocate_block();
@@ -261,6 +339,60 @@ TEST_F(KVCacheBlockManagerTest, GetTensorAfterClear) {
     ASSERT_TRUE(block_id2.has_value());
     auto tensor2 = manager->get_block_tensor(block_id2.value());
     EXPECT_NE(tensor2, nullptr) << "Tensor should still be valid after clear + re-allocate";
+}
+
+// Test 12: Invalid Constructor Parameters
+TEST_F(KVCacheBlockManagerTest, InvalidConstructorParams) {
+    const ov::Shape valid_shape{1, 32, 512, 128};
+
+    // block_size = 0 must throw
+    EXPECT_THROW(KVCacheBlockManager(0u, 8u, valid_shape, ov::element::f16, "CPU", nullptr), ov::Exception)
+        << "block_size=0 must throw";
+
+    // max_blocks = 0 must throw
+    EXPECT_THROW(KVCacheBlockManager(512u, 0u, valid_shape, ov::element::f16, "CPU", nullptr), ov::Exception)
+        << "max_blocks=0 must throw";
+
+    // Shape with no dimension equal to block_size must throw
+    const ov::Shape bad_shape{1, 32, 256, 128};  // neither dim[2]=256 nor dim[3]=128 equals 512
+    EXPECT_THROW(KVCacheBlockManager(512u, 8u, bad_shape, ov::element::f16, "CPU", nullptr), ov::Exception)
+        << "Shape not containing block_size must throw";
+}
+
+// Test 13: update_block_tokens on a Freed Block
+TEST_F(KVCacheBlockManagerTest, UpdateTokensOnFreeBlock) {
+    auto block_id = manager->allocate_block();
+    ASSERT_TRUE(block_id.has_value());
+    manager->update_block_tokens(block_id.value(), 100);
+
+    // clear_all() marks block as free
+    manager->clear_all();
+
+    // Updating a free (is_allocated=false) block must throw
+    EXPECT_THROW(manager->update_block_tokens(block_id.value(), 100), ov::Exception)
+        << "update_block_tokens on a freed block must throw";
+}
+
+// Test 14: num_free_blocks Accuracy
+TEST_F(KVCacheBlockManagerTest, NumFreeBlocks) {
+    // Initially all blocks are free
+    EXPECT_EQ(manager->num_free_blocks(), max_blocks);
+
+    // Each allocation reduces the free count by 1
+    manager->allocate_block();
+    manager->allocate_block();
+    manager->allocate_block();
+    EXPECT_EQ(manager->num_free_blocks(), max_blocks - 3u);
+
+    // clear_all() restores all blocks to free
+    manager->clear_all();
+    EXPECT_EQ(manager->num_free_blocks(), max_blocks);
+
+    // Exhaust the pool: free count must reach 0
+    for (uint32_t i = 0; i < max_blocks; ++i) {
+        manager->allocate_block();
+    }
+    EXPECT_EQ(manager->num_free_blocks(), 0u);
 }
 
 }  // namespace

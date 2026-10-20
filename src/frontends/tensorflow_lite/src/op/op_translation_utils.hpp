@@ -16,10 +16,7 @@
 #include "openvino/opsets/opset8.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
-namespace op {
+namespace ov::frontend::tensorflow_lite::op {
 
 void set_output_names(const ov::frontend::tensorflow_lite::NodeContext& node, OutputVector& outputs);
 
@@ -51,7 +48,7 @@ template <typename OV_TYPE>
 OutputVector translate_binary_op_with_activation(const ov::frontend::tensorflow_lite::NodeContext& node) {
     auto fused_activation_function = node.get_attribute<std::string>("fused_activation_function");
     auto inputs = node.get_inputs();
-    ov::frontend::tensorflow_lite::dequantize_inputs(inputs);
+    ov::frontend::tensorflow_lite::dequantize_inputs(inputs, node.get_decoder());
     auto context = ov::frontend::tensorflow_lite::NodeContext(node.get_decoder(), inputs);
     auto output = ov::frontend::tensorflow::op::translate_binary_op<OV_TYPE>(context);
     output[0].get_node()->set_friendly_name("");
@@ -73,7 +70,7 @@ template OutputVector translate_binary_op_with_activation<opset10::Divide>(
 template <typename OV_TYPE>
 OutputVector translate_reduce_op(const ov::frontend::tensorflow_lite::NodeContext& node) {
     auto inputs = node.get_inputs();
-    ov::frontend::tensorflow_lite::dequantize_inputs(inputs);
+    ov::frontend::tensorflow_lite::dequantize_inputs(inputs, node.get_decoder());
     auto context = ov::frontend::tensorflow_lite::NodeContext(node.get_decoder(), inputs);
     auto outputs = ov::frontend::tensorflow::op::translate_direct_reduce_op<OV_TYPE>(context);
     del_output_names(outputs);
@@ -90,7 +87,4 @@ template OutputVector translate_reduce_op<opset8::ReduceMin>(const ov::frontend:
 template OutputVector translate_reduce_op<opset8::ReduceProd>(const ov::frontend::tensorflow_lite::NodeContext& node);
 template OutputVector translate_reduce_op<opset8::ReduceSum>(const ov::frontend::tensorflow_lite::NodeContext& node);
 
-}  // namespace op
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite::op

@@ -114,7 +114,7 @@ std::optional<CacheReorderPath> parse_cache_reorder_path(const std::shared_ptr<o
     CacheReorderPath path;
     path.scatter = scatter;
     path.gather = gather;
-    path.cache = cache;
+    path.cache = std::move(cache);
     path.block_indices = scatter->input_value(1);
     path.block_update_indices = gather->input_value(1);
     path.is_key = role_and_index->first;
@@ -163,7 +163,7 @@ std::vector<std::shared_ptr<ov::op::v0::Concat>> get_joint_concat_consumers(
         }
 
         if (all_consumers_are_results) {
-            concats.push_back(concat);
+            concats.push_back(std::move(concat));
         }
     }
 

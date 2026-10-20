@@ -8,6 +8,7 @@
 
 #include "intel_gpu/runtime/layout.hpp"
 #include "lstm_seq_inst.h"
+#include "openvino/op/util/rnn_cell_base.hpp"
 #include "registry/implementation_manager.hpp"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
@@ -55,7 +56,8 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
 
         const auto& lstm_node = node.as<lstm_seq>();
         const auto& lstm_prim = lstm_node.get_primitive();
-        if (lstm_prim->clip > 0.0f) {
+        // Only a finite positive clip requests clipping and is unsupported; invalid values are ignored as no-clip.
+        if (ov::op::util::classify_rnn_clip(lstm_prim->clip) == ov::op::util::RNNClipMode::CLAMP) {
             return false;
         }
 

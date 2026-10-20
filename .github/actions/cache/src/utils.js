@@ -1,6 +1,6 @@
-const core = require('@actions/core');
-const fs = require('fs');
-const path = require('path');
+import * as core from '@actions/core';
+import fs from 'fs';
+import path from 'path';
 
 async function getSortedCacheFiles(cachePath, key = '', recursive = false) {
   if (!(await checkFileExists(cachePath))) {
@@ -64,7 +64,7 @@ async function checkFileExists(filePath) {
   }
 }
 
-module.exports = {
+export {
   getSortedCacheFiles,
   humanReadableFileSize,
   calculateTotalSize,

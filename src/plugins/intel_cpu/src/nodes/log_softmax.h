@@ -30,7 +30,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    int axis;
+    int64_t axis;
     size_t reducedAxisSize = 0;
     size_t reducedAxisStride = 1;
     size_t axisStep = 1;

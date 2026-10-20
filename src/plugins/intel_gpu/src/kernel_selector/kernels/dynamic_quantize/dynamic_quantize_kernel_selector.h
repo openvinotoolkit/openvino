@@ -16,7 +16,7 @@ public:
 
     dynamic_quantize_kernel_selector();
 
-    virtual ~dynamic_quantize_kernel_selector() {}
+    ~dynamic_quantize_kernel_selector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

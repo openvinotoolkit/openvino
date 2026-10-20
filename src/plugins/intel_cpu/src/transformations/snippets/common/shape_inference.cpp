@@ -72,9 +72,4 @@ ShapeInferPtr CPUShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov
     return {};
 }
 
-#if !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_ARM64)
-const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::specific_ops_registry =
-    detail::make_common_cpu_shape_infer_registry();
-#endif
-
 }  // namespace ov::snippets

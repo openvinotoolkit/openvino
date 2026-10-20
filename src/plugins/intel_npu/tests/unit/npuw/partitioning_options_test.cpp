@@ -10,6 +10,7 @@
 #include <fstream>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 
 #include "attention.hpp"
@@ -65,6 +66,20 @@ std::shared_ptr<ov::Model> build_unary_chain_model() {
     result->set_friendly_name("res");
 
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
+}
+
+void set_output_bound(const std::shared_ptr<ov::Model>& model, const std::string& node_name) {
+    const auto ops = model->get_ordered_ops();
+    const auto node_it = std::find_if(ops.begin(), ops.end(),
+                                      [&](const std::shared_ptr<ov::Node>& node) {
+                                          return node->get_friendly_name() == node_name;
+                                      });
+    OPENVINO_ASSERT(node_it != ops.end(), "Node not found: ", node_name);
+
+    auto output = (*node_it)->output(0);
+    ov::Tensor bound(output.get_element_type(), output.get_shape());
+    output.get_tensor().set_lower_value(bound);
+    output.get_tensor().set_upper_value(bound);
 }
 
 std::shared_ptr<ov::Model> build_static_llm_model(const int64_t query_len, const int64_t past_len) {
@@ -218,6 +233,50 @@ std::shared_ptr<ov::Model> build_abc_attn_model(std::size_t repetitions = 30) {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
 }
 
+// Build a chain with exactly two Relu and two Sigmoid ops, but only ONE
+// Relu -> Sigmoid adjacency. The unary filler ops are all distinct types so they
+// never form repeating families of their own, and the chain is long enough to stay
+// above NPUW_ONLINE_MIN_SIZE (which is clamped to 10 groups).
+std::shared_ptr<ov::Model> build_single_pair_model() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 32});
+    input->set_friendly_name("input");
+
+    std::shared_ptr<ov::Node> prev = input;
+    const auto chain = [&](const std::shared_ptr<ov::Node>& node, const std::string& name) {
+        node->set_friendly_name(name);
+        prev = node;
+    };
+
+    chain(std::make_shared<ov::op::v0::Relu>(prev), "relu_0");
+    chain(std::make_shared<ov::op::v0::Sigmoid>(prev), "sigmoid_0");
+    chain(std::make_shared<ov::op::v0::Abs>(prev), "abs_0");
+    chain(std::make_shared<ov::op::v0::Ceiling>(prev), "ceil_0");
+    chain(std::make_shared<ov::op::v0::Floor>(prev), "floor_0");
+    chain(std::make_shared<ov::op::v0::Sqrt>(prev), "sqrt_0");
+    chain(std::make_shared<ov::op::v0::Exp>(prev), "exp_0");
+    chain(std::make_shared<ov::op::v0::Log>(prev), "log_0");
+    chain(std::make_shared<ov::op::v0::Sin>(prev), "sin_0");
+    chain(std::make_shared<ov::op::v0::Cos>(prev), "cos_0");
+    chain(std::make_shared<ov::op::v0::Negative>(prev), "neg_0");
+    chain(std::make_shared<ov::op::v0::Relu>(prev), "relu_1");
+    chain(std::make_shared<ov::op::v0::Tanh>(prev), "tanh_0");
+    chain(std::make_shared<ov::op::v0::Sigmoid>(prev), "sigmoid_1");
+
+    auto result = std::make_shared<ov::op::v0::Result>(prev);
+    result->set_friendly_name("output");
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
+}
+
+// Partition boundaries as an order-independent set of layer sets, so the assertions
+// don't depend on the (unspecified) group or intra-group layer ordering.
+std::set<std::set<std::string>> partition_boundaries(const ov::npuw::Ensemble& ens) {
+    std::set<std::set<std::string>> boundaries;
+    for (const auto& group : ens.groups) {
+        boundaries.emplace(group.all_layers.begin(), group.all_layers.end());
+    }
+    return boundaries;
+}
+
 TEST(PartitioningOptionsTest, PipelineNoneMergesUnaryModelIntoSingleGroup) {
     auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "NONE"}});
     auto ens = ov::npuw::online::buildPartitioning(build_unary_chain_model(), cfg);
@@ -351,6 +410,34 @@ TEST(PartitioningOptionsTest, FuncallForAllPromotesUnaryGroupsToFunctions) {
     }));
 }
 
+TEST(PartitioningOptionsTest, OptimizedOutForcedFunctionsAreNotMaterialized) {
+    auto model = build_unary_chain_model();
+    // The isolated Sin group feeds the Concat through a statically bound tensor,
+    // so identifySubgraphs() must optimize that group out.
+    set_output_bound(model, "n4");
+    set_output_bound(model, "n6");
+
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"},
+                         {"NPUW_ONLINE_ISOLATE", "Op:Sin/compute"},
+                         {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                         {"NPUW_FOLD", "YES"}});
+    const auto partitioning = ov::npuw::getPartitioning(model, cfg);
+
+    std::size_t optimized_out_count = 0;
+    for (const auto& subgraph : partitioning.subgraphs) {
+        if (!subgraph._optimized_out) {
+            continue;
+        }
+
+        ++optimized_out_count;
+        EXPECT_FALSE(subgraph._repeated_id.empty());
+        EXPECT_TRUE(subgraph._funcall.empty());
+        EXPECT_EQ(partitioning.functions.count(subgraph._repeated_id), 0u);
+    }
+
+    EXPECT_GT(optimized_out_count, 0u);
+}
+
 TEST(PartitioningOptionsTest, FoldCreatesFunctionCallsForRepeatedBlocks) {
     auto cfg = make_cfg({{"NPUW_FOLD", "YES"}, {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"}});
     auto partitioning = ov::npuw::getPartitioning(build_repeated_model(10), cfg);
@@ -464,6 +551,116 @@ TEST(PartitioningOptionsTest, FoldOnlyWithIsolatedTagsProducesExpectedSubgraphCo
                                            return !sg._funcall.empty();
                                        });
     EXPECT_EQ(folded, N);
+}
+
+TEST(PartitioningOptionsTest, OnlyAttnIsolatedFamiliesIgnoreKeepBlockSizeThreshold) {
+    // With KEEP_BLOCK_SIZE=2 and KEEP_BLOCK_TAG=attn, only the attn-tagged
+    // single-node repeated family bypasses the size threshold. Non-attn
+    // isolated single-node families are left unfrozen and fuse into adjacent remnants.
+    constexpr std::size_t N = 30;
+    auto ext_cfg = abc_attn_base_cfg;
+    ext_cfg["NPUW_ONLINE_KEEP_BLOCK_SIZE"] = "2";
+    ext_cfg["NPUW_ONLINE_KEEP_BLOCKS_TAGGED"] = "attn";
+    auto cfg = make_cfg(ext_cfg);
+    auto partitioning = ov::npuw::getPartitioning(build_abc_attn_model(N), cfg);
+
+    EXPECT_EQ(partitioning.subgraphs.size(), 2u * N);
+
+    std::size_t folded = std::count_if(partitioning.subgraphs.begin(),
+                                       partitioning.subgraphs.end(),
+                                       [](const ov::npuw::Subgraph& sg) {
+                                           return !sg._funcall.empty();
+                                       });
+    EXPECT_EQ(folded, N);
+}
+
+// Same three op families, but all of them share one isolate tag, so producer and
+// consumer families can actually be merged into a single repeating block.
+static const ::intel_npu::Config::ConfigMap attn_only_base_cfg = {
+    {"NPUW_ONLINE_PIPELINE", "REP"},
+    {"NPUW_ONLINE_ISOLATE", "Op:Relu/attn,Op:Sigmoid/attn,Op:Tanh/attn"},
+    {"NPUW_ONLINE_KEEP_BLOCKS", "5"},
+    {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "1"},
+};
+
+TEST(PartitioningOptionsTest, KeepBlocksTaggedMergesFewerOccurrencesThanKeepBlocks) {
+    // 4 repetitions produce only 3 mergeable producer/consumer pairs - less than
+    // KEEP_BLOCKS=5. Without NPUW_ONLINE_KEEP_BLOCKS_TAGGED the count floor rejects
+    // the merge and the model stays at one group per op.
+    constexpr std::size_t N = 4;
+    auto model = build_abc_attn_model(N);
+
+    auto plain_cfg = make_cfg(attn_only_base_cfg);
+    auto plain_ens = ov::npuw::online::buildPartitioning(model, plain_cfg);
+
+    EXPECT_TRUE(plain_ens.repeated.empty());
+    EXPECT_EQ(partition_boundaries(plain_ens),
+              (std::set<std::set<std::string>>{{"relu_0", "sigmoid_0"},
+                                               {"relu_1", "tanh_0"},
+                                               {"sigmoid_1"},
+                                               {"tanh_1"},
+                                               {"relu_2"},
+                                               {"sigmoid_2"},
+                                               {"tanh_2"},
+                                               {"relu_3"},
+                                               {"sigmoid_3"},
+                                               {"tanh_3"}}));
+
+    auto tagged_map = attn_only_base_cfg;
+    tagged_map["NPUW_ONLINE_KEEP_BLOCKS_TAGGED"] = "attn";
+    auto tagged_cfg = make_cfg(tagged_map);
+    auto tagged_ens = ov::npuw::online::buildPartitioning(model, tagged_cfg);
+
+    // With the tag, the floor is bypassed and the 3 pairs are coalesced into a
+    // repeating block of 3 layers, leaving only the chain head and tail behind.
+    EXPECT_EQ(partition_boundaries(tagged_ens),
+              (std::set<std::set<std::string>>{{"relu_0"},
+                                               {"sigmoid_0"},
+                                               {"relu_1", "sigmoid_1", "tanh_0"},
+                                               {"relu_2", "sigmoid_2", "tanh_1"},
+                                               {"relu_3", "sigmoid_3", "tanh_2"},
+                                               {"tanh_3"}}));
+
+    // matches[i] is the set of instances of the i-th layer of the block, so a
+    // 3-layer block repeated 3 times is expected here.
+    const auto three_layer_block =
+        std::find_if(tagged_ens.repeated.begin(), tagged_ens.repeated.end(), [](const auto& rep) {
+            return rep.second.matches.size() == 3u;
+        });
+    ASSERT_NE(three_layer_block, tagged_ens.repeated.end());
+    EXPECT_EQ(three_layer_block->second.matches.front().size(), 3u);
+}
+
+TEST(PartitioningOptionsTest, KeepBlocksTaggedDoesNotCoalesceSingleOccurrencePairs) {
+    // Only relu_0 -> sigmoid_0 is a mergeable pair here; relu_1 and sigmoid_1 are
+    // separated by tanh_0. Merging that lone pair would split both two-instance
+    // families and leave degenerate one-instance repeated blocks, so the
+    // "at least two instances" guard stays in force even for a keep tag.
+    auto model = build_single_pair_model();
+
+    auto tagged_map = attn_only_base_cfg;
+    tagged_map["NPUW_ONLINE_KEEP_BLOCKS_TAGGED"] = "attn";
+    auto tagged_cfg = make_cfg(tagged_map);
+    auto tagged_ens = ov::npuw::online::buildPartitioning(model, tagged_cfg);
+
+    EXPECT_EQ(partition_boundaries(tagged_ens),
+              (std::set<std::set<std::string>>{{"relu_0"},
+                                               {"sigmoid_0"},
+                                               {"abs_0", "ceil_0"},
+                                               {"floor_0", "sqrt_0"},
+                                               {"exp_0", "log_0"},
+                                               {"sin_0", "cos_0"},
+                                               {"neg_0"},
+                                               {"relu_1"},
+                                               {"tanh_0"},
+                                               {"sigmoid_1"}}));
+
+    // The two tagged families are kept as-is: single-layer blocks with two instances each.
+    EXPECT_EQ(tagged_ens.repeated.size(), 2u);
+    for (const auto& rep : tagged_ens.repeated) {
+        EXPECT_EQ(rep.second.matches.size(), 1u);
+        EXPECT_EQ(rep.second.matches.front().size(), 2u);
+    }
 }
 
 TEST(PartitioningOptionsTest, FuseUnfoldedMergesNonFoldOnlyRepeatedBlocks) {

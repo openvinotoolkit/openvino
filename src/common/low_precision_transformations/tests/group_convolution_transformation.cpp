@@ -77,7 +77,6 @@ public:
                                                                      testValues.actual.dequantizationOnWeights,
                                                                      ov::element::f32,
                                                                      {},
-                                                                     ov::element::f32,
                                                                      testValues.addReshape);
 
         SimpleLowPrecisionTransformer transform;
@@ -103,7 +102,6 @@ public:
                                                                      testValues.expected.dequantizationOnWeights,
                                                                      testValues.expected.precisionAfterOperation,
                                                                      testValues.expected.dequantizationAfter,
-                                                                     testValues.expected.precisionAfterDequantization,
                                                                      testValues.addReshape);
     }
 

@@ -71,7 +71,7 @@ public:
         return cfg;
     }
 
-    static void init_microkernels(const kernel_impl_params& params, micro::Package& gemm_moe, MoE3GemmMicroKernelType type) noexcept;
+    static void init_microkernels(const kernel_impl_params& params, micro::Package& gemm_moe, MoE3GemmMicroKernelType type);
     MoE3GemmMicroKernelType m_type;
     int m_wei_idx;
     int m_scale_idx;
@@ -96,7 +96,7 @@ public:
     };
 
     struct GemmCacheKeyHash {
-        size_t operator()(const GemmCacheKey& k) const noexcept {
+        size_t operator()(const GemmCacheKey& k) const {
             size_t h = 0;
 
             auto hash_combine = [](size_t& seed, size_t v) {

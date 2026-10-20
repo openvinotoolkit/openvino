@@ -21,13 +21,16 @@ public:
     explicit wait_for_events_impl(const program_node& /*node*/)
         : primitive_impl("wait_for_events") { }
 
-    wait_for_events_impl() : primitive_impl() {}
+    wait_for_events_impl() = default;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::common::wait_for_events_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return std::make_unique<wait_for_events_impl>(*this);
     }
+
+    // execute() only aggregates input events and enqueues no GPU commands
+    bool supports_replay() const override { return true; }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
     void set_arguments(primitive_inst& /*instance*/) override {}

@@ -548,10 +548,7 @@ void InputModel::reshape_model_inputs(std::shared_ptr<Model>& model) {
     }
 }
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace unify {
+namespace ov::frontend::onnx::unify {
 
 class InputModel::InputModelONNXImpl {
 public:
@@ -565,15 +562,38 @@ public:
                        const ov::frontend::InputModel& input_model,
                        unify::InputModel::Ptr parent_model);
 
+    // The caller supplies an iterator already positioned at its first decoder. Rewind only
+    // after this InputModel has consumed it in an earlier walk.
+    GraphIterator::Ptr get_graph_iterator_for_walk() {
+        if (m_iterator_walked) {
+            m_graph_iterator->reset();
+        }
+        m_iterator_walked = true;
+        return m_graph_iterator;
+    }
+
+    bool is_loaded() const {
+        return m_loaded;
+    }
+
+    // Whether constant data may be wrapped zero-copy (vs. deep-copied). The single-pass converter
+    // needs this because it materializes Constants directly, bypassing the Place graph that would
+    // otherwise carry the flag.
+    bool is_const_data_reusable() const {
+        return m_reuse_const_data;
+    }
+
     std::vector<ov::frontend::Place::Ptr> get_inputs() const;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const;
     ov::frontend::Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const;
 
     /////  Searching for places  /////
     std::vector<std::shared_ptr<OpPlace>>& get_op_places() {
+        ensure_loaded();
         return m_op_places;
     }
     std::map<std::string, std::shared_ptr<TensorONNXPlace>>& get_tensor_places() {
+        ensure_loaded();
         return m_tensor_places;
     }
 
@@ -596,7 +616,7 @@ public:
                           const std::vector<ov::frontend::Place::Ptr>& outputs);
 
     std::map<std::string, std::string> get_metadata() const {
-        return m_metadata;
+        return m_loaded ? m_metadata : m_graph_iterator->get_metadata();
     }
 
     std::shared_ptr<TelemetryExtension> get_telemetry_extension() const {
@@ -622,7 +642,16 @@ public:
 private:
     void load_model();
     void clean_up();
+    // Builds the Place graph on first access when construction deferred it.
+    void ensure_loaded() {
+        if (!m_loaded) {
+            load_model();
+            m_loaded = true;
+        }
+    }
 
+    bool m_loaded = false;
+    bool m_iterator_walked = false;
     std::vector<std::shared_ptr<OpPlace>> m_op_places;
     std::map<std::string, std::shared_ptr<OpPlace>> m_op_places_map;
     std::map<std::string, std::shared_ptr<TensorONNXPlace>> m_tensor_places;
@@ -673,6 +702,14 @@ std::shared_ptr<ov::frontend::onnx::TensorONNXPlace> decode_tensor_place(
 }  // namespace
 
 void InputModel::InputModelONNXImpl::load_model() {
+    // A previous walk may have stopped partway through after an exception.
+    m_op_places.clear();
+    m_op_places_map.clear();
+    m_tensor_places.clear();
+    m_inputs.clear();
+    m_outputs.clear();
+    m_metadata.clear();
+    get_graph_iterator_for_walk();
     std::map<std::string, uint64_t> op_statistics;  // for telemetry
 
     // Track output indices separately from TensorPlace (handles duplicate output names correctly)
@@ -689,7 +726,8 @@ void InputModel::InputModelONNXImpl::load_model() {
             tensor_place->set_input_index(tensor_decoder->get_input_idx());
             tensor_place->set_output_index(output_idx);
 
-            const bool has_data = tensor_place->get_data() != nullptr || tensor_place->get_data_location() != nullptr;
+            const bool has_data = tensor_place->get_data() != nullptr || tensor_place->get_data_location() != nullptr ||
+                                  !tensor_place->get_data_any().empty();
             // Skip constants that are not graph outputs — they don't contribute to the model graph.
             if (has_data && output_idx < 0)
                 continue;
@@ -868,7 +906,9 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
         m_mmap_cache = nullptr;
         m_stream_cache = std::make_shared<std::map<std::filesystem::path, std::shared_ptr<std::ifstream>>>();
     }
-    load_model();
+    // The single-pass converter translates straight from the GraphIterator decoders and never reads
+    // the Place graph, so building it at construction is pure overhead. The Place graph is always
+    // deferred; any Place-graph accessor (editor API, decode, fallback convert) lazily builds it.
 }
 
 InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
@@ -888,13 +928,16 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
         m_model_dir = parent_model->_impl->m_model_dir;
     }
     load_model();
+    m_loaded = true;
 }
 
 std::vector<ov::frontend::Place::Ptr> InputModel::InputModelONNXImpl::get_inputs() const {
+    const_cast<InputModelONNXImpl*>(this)->ensure_loaded();
     return m_inputs;
 }
 
 std::vector<ov::frontend::Place::Ptr> InputModel::InputModelONNXImpl::get_outputs() const {
+    const_cast<InputModelONNXImpl*>(this)->ensure_loaded();
     return m_outputs;
 }
 
@@ -906,6 +949,7 @@ std::shared_ptr<TensorPlace> castToTensorPlace(const ov::frontend::Place::Ptr& p
 }
 
 ov::frontend::Place::Ptr InputModel::InputModelONNXImpl::get_place_by_tensor_name(const std::string& tensorName) const {
+    const_cast<InputModelONNXImpl*>(this)->ensure_loaded();
     if (m_tensor_places.find(tensorName) != m_tensor_places.end())
         return castToTensorPlace(m_tensor_places.at(tensorName));
     else
@@ -1011,6 +1055,18 @@ InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                        const bool reuse_const_data)
     : _impl{std::make_shared<InputModelONNXImpl>(graph_iterator, *this, telemetry, enable_mmap, reuse_const_data)} {}
 
+ov::frontend::onnx::GraphIterator::Ptr InputModel::get_graph_iterator_for_walk() {
+    return _impl->get_graph_iterator_for_walk();
+}
+
+bool InputModel::is_loaded() const {
+    return _impl->is_loaded();
+}
+
+bool InputModel::is_const_data_reusable() const {
+    return _impl->is_const_data_reusable();
+}
+
 InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                        ov::frontend::onnx::unify::InputModel::Ptr parent_model)
     : _impl{std::make_shared<InputModelONNXImpl>(graph_iterator, *this, parent_model)} {}
@@ -1108,7 +1164,4 @@ std::filesystem::path InputModel::get_model_dir() const {
     return _impl->get_model_dir();
 }
 
-}  // namespace unify
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::unify

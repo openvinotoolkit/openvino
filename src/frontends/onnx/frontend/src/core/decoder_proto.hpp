@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+
 #include <onnx/onnx_pb.h>
 
 #include "graph_iterator_proto.hpp"
@@ -21,9 +22,7 @@ using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ::ONNX_NAMESPACE::ValueInfoProto;
 using ::ONNX_NAMESPACE::Version;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* tensor_info,
                                                             const ValueInfoProto* value_info,
@@ -179,6 +178,4 @@ public:
     }
 };
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

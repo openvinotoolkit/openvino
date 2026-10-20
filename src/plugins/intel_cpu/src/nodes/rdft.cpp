@@ -38,10 +38,10 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "openvino/core/parallel.hpp"
-#endif
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
+#endif
 
 namespace ov::intel_cpu::node {
 

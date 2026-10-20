@@ -46,7 +46,7 @@ private:
     const int INPUT_PROBS{1};
 
     const int OUTPUT_ROIS{0};
-    int max_rois_num_;
+    size_t max_rois_num_;
 };
 
 }  // namespace ov::intel_cpu::node

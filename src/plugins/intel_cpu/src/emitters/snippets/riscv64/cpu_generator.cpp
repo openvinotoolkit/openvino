@@ -17,11 +17,13 @@
 #include "emitters/plugin/riscv64/jit_eltwise_emitters.hpp"
 #include "emitters/snippets/common/emitter_factory.hpp"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "jit_brgemm_emitter.hpp"
 #include "jit_fill_emitter.hpp"
 #include "jit_horizon_emitter.hpp"
 #include "jit_kernel_emitter.hpp"
 #include "jit_loop_emitters.hpp"
 #include "jit_memory_emitters.hpp"
+#include "jit_reg_spill_emitters.hpp"
 #include "jit_snippets_emitters.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -90,6 +92,7 @@
 #include "snippets/op/loop.hpp"
 #include "snippets/op/powerstatic.hpp"
 #include "snippets/op/rank_normalization.hpp"
+#include "snippets/op/reg_spill.hpp"
 #include "snippets/op/reorder.hpp"
 #include "snippets/op/reshape.hpp"
 #include "snippets/op/result.hpp"
@@ -97,9 +100,11 @@
 #include "snippets/op/store.hpp"
 #include "snippets/op/vector_buffer.hpp"
 #include "snippets/target_machine.hpp"
+#include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/snippets/common/op/load_convert.hpp"
 #include "transformations/snippets/common/op/store_convert.hpp"
+#include "transformations/snippets/riscv64/op/brgemm_cpu.hpp"
 #include "utils.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
@@ -115,37 +120,6 @@
 #    include "emitters/snippets/riscv64/verbose.hpp"
 #    include "snippets/op/perf_count.hpp"
 #endif
-
-#define CREATE_GELU_V7_EMITTER(e_type_erf, e_type_tanh)                                           \
-    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-         const auto& n = expr->get_node();                                                        \
-         const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                                 \
-         if (gelu == nullptr) {                                                                   \
-             OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                    \
-         }                                                                                        \
-         const auto approximationMode = gelu->get_approximation_mode();                           \
-         if (approximationMode == ov::op::GeluApproximationMode::ERF) {                           \
-             return std::make_shared<e_type_erf>(h.get(), isa, n);                                \
-         }                                                                                        \
-         if (approximationMode == ov::op::GeluApproximationMode::TANH) {                          \
-             return std::make_shared<e_type_tanh>(h.get(), isa, n);                               \
-         }                                                                                        \
-         OPENVINO_THROW("Unsupported Gelu approximation mode");                                   \
-     },                                                                                           \
-     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<ov::element::Type>> {         \
-         const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                                 \
-         if (gelu == nullptr) {                                                                   \
-             OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                    \
-         }                                                                                        \
-         const auto approximationMode = gelu->get_approximation_mode();                           \
-         if (approximationMode == ov::op::GeluApproximationMode::ERF) {                           \
-             return e_type_erf::get_supported_precisions(n);                                      \
-         }                                                                                        \
-         if (approximationMode == ov::op::GeluApproximationMode::TANH) {                          \
-             return e_type_tanh::get_supported_precisions(n);                                     \
-         }                                                                                        \
-         OPENVINO_THROW("Unsupported Gelu approximation mode");                                   \
-     }}
 
 #define CREATE_ROUND_V5_EMITTER(e_type_from_zero, e_type_even)                                    \
     {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
@@ -200,6 +174,7 @@ static bool is_store_emitter(const intel_cpu::riscv64::jit_emitter* emitter) {
 static bool is_segfault_detector_emitter(const intel_cpu::riscv64::jit_emitter* emitter) {
     bool ret = false;
     ret = is_load_emitter(emitter) || is_store_emitter(emitter) ||
+          (dynamic_cast<const intel_cpu::riscv64::jit_brgemm_emitter*>(emitter) != nullptr) ||
           (dynamic_cast<const intel_cpu::riscv64::jit_kernel_emitter*>(emitter) != nullptr);
     return ret;
 }
@@ -263,7 +238,14 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
 #endif
         return emitter;
     };
-    const auto emitter_factory = ov::intel_cpu::EmitterFactory{get_host, isa, wrap_snippets_emitter};
+    const auto configurator = std::dynamic_pointer_cast<CPURuntimeConfigurator>(get_runtime_configurator());
+    OPENVINO_ASSERT(configurator, "Expected CPURuntimeConfigurator in CPUTargetMachine");
+    const auto get_kernel_table = [this]() {
+        return std::dynamic_pointer_cast<CPURuntimeConfigurator>(get_runtime_configurator())
+            ->get_kernel_executor_table();
+    };
+    const auto emitter_factory =
+        ov::intel_cpu::EmitterFactory{get_host, isa, wrap_snippets_emitter, get_kernel_table, compiled_kernel_cache};
 
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
@@ -305,9 +287,14 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     jitters[ov::snippets::op::HorizonMax::get_type_info_static()] = emitter_factory.from_expr<jit_horizon_emitter>();
     jitters[ov::snippets::op::HorizonSum::get_type_info_static()] = emitter_factory.from_expr<jit_horizon_emitter>();
 
+    jitters[intel_cpu::BrgemmCPU::get_type_info_static()] = emitter_factory.from_expr_cached<jit_brgemm_emitter>();
+
     // loop control
     jitters[snippets::op::LoopBegin::get_type_info_static()] = emitter_factory.from_expr<jit_loop_begin_emitter>();
     jitters[snippets::op::LoopEnd::get_type_info_static()] = emitter_factory.from_expr<jit_loop_end_emitter>();
+    jitters[snippets::op::RegSpillBegin::get_type_info_static()] =
+        emitter_factory.from_expr<jit_reg_spill_begin_emitter>();
+    jitters[snippets::op::RegSpillEnd::get_type_info_static()] = emitter_factory.from_expr<jit_reg_spill_end_emitter>();
 
     // service kernel entry points
     jitters[snippets::op::KernelStatic::get_type_info_static()] =
@@ -381,6 +368,7 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     jitters[ov::op::v0::Sigmoid::get_type_info_static()] = emitter_factory.from_node<jit_sigmoid_emitter>();
     jitters[ov::op::v9::SoftSign::get_type_info_static()] = emitter_factory.from_node<jit_softsign_emitter>();
     jitters[ov::op::v0::Sqrt::get_type_info_static()] = emitter_factory.from_node<jit_sqrt_emitter>();
+    jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = emitter_factory.from_node<jit_swish_emitter>();
     jitters[ov::op::v0::Tanh::get_type_info_static()] = emitter_factory.from_node<jit_tanh_emitter>();
 }
 
@@ -467,7 +455,7 @@ CPUGenerator::CPUGenerator(ov::intel_cpu::riscv64::cpu_isa_t isa_, ov::intel_cpu
 CPUGenerator::CPUGenerator(const std::shared_ptr<CPUTargetMachine>& target) : Generator(target) {}
 
 std::shared_ptr<ov::snippets::Generator> CPUGenerator::clone() const {
-    const auto& cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target);
+    const auto& cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target->clone());
     OPENVINO_ASSERT(cpu_target_machine,
                     "Failed to clone CPUGenerator: the instance contains incompatible TargetMachine type");
     return std::make_shared<CPUGenerator>(cpu_target_machine);
@@ -475,14 +463,18 @@ std::shared_ptr<ov::snippets::Generator> CPUGenerator::clone() const {
 
 ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
     const auto op = out.get_node_shared_ptr();
-    if (ov::is_type<intel_cpu::FusedMulAdd>(op)) {
+
+    if (ov::is_type<intel_cpu::BrgemmCPU>(op)) {
+        return ov::snippets::RegType::gpr;
+    }
+    if (ov::is_type_any_of<intel_cpu::FusedMulAdd, intel_cpu::SwishNode>(op)) {
         return ov::snippets::RegType::vec;
     }
     return ov::snippets::RegType::undefined;
 }
 
-bool CPUGenerator::uses_precompiled_kernel([[maybe_unused]] const std::shared_ptr<snippets::Emitter>& e) const {
-    bool need = false;
+bool CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {
+    bool need = std::dynamic_pointer_cast<jit_brgemm_emitter>(e) != nullptr;
 #ifdef SNIPPETS_DEBUG_CAPS
     const auto cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target);
     need = need || (cpu_target_machine && cpu_target_machine->debug_config.enable_segfault_detector) ||

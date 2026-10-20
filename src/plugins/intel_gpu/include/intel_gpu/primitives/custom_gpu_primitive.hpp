@@ -125,7 +125,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
           kernel_arguments(kernel_arguments),
           build_options(build_options),
           output_layouts(output_layouts),
-          gws(gws.size() ? gws : std::vector<size_t>{output_layouts[0].count()}),
+          gws(!gws.empty() ? gws : std::vector<size_t>{output_layouts[0].count()}),
           lws(lws),
           kernels_code(kernels_code),
           op(op),
@@ -158,7 +158,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, kernel_entry_point);
-        for (auto& args : kernel_arguments) {
+        for (const auto& args : kernel_arguments) {
             seed = hash_combine(seed, args.index);
             seed = hash_combine(seed, args.type);
             seed = hash_combine(seed, args.size_expr);
@@ -171,30 +171,33 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const custom_gpu_primitive>(rhs);
 
-        if (kernel_entry_point != rhs_casted.kernel_entry_point)
+        if (kernel_entry_point != rhs_casted.kernel_entry_point) {
             return false;
+        }
 
-        if (build_options != rhs_casted.build_options)
+        if (build_options != rhs_casted.build_options) {
             return false;
+        }
 
-        if (kernel_arguments != rhs_casted.kernel_arguments)
+        if (kernel_arguments != rhs_casted.kernel_arguments) {
             return false;
+        }
 
-        if (kernels_code != rhs_casted.kernels_code)
+        if (kernels_code != rhs_casted.kernels_code) {
             return false;
+        }
 
-        if (gws != rhs_casted.gws)
+        if (gws != rhs_casted.gws) {
             return false;
+        }
 
-        if (lws != rhs_casted.lws)
-            return false;
-
-        return true;
+        return lws == rhs_casted.lws;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

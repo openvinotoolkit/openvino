@@ -43,6 +43,34 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
 
+/// One unary operation: HSigmoid
+/// Tokenized simply by starting subgraph.
+//    in1
+//  HSigmoid
+//   Result
+class HSigmoidFunction : public SnippetsFunctionBase {
+public:
+    explicit HSigmoidFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
+/// One unary operation: SoftSign
+/// Tokenized simply by starting subgraph.
+//    in1
+//  SoftSign
+//   Result
+class SoftSignFunction : public SnippetsFunctionBase {
+public:
+    explicit SoftSignFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
 /// Two unary operations: Exp + Power(x, -1) (aka Reciprocal)
 /// Tokenized simply by starting subgraph.
 //    in1

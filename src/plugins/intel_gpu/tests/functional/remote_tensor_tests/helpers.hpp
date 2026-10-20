@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
@@ -15,7 +16,17 @@
 # include "openvino/runtime/intel_gpu/ocl/dx.hpp"
 #elif defined ENABLE_LIBVA
 # include "openvino/runtime/intel_gpu/ocl/va.hpp"
+# ifdef ENABLE_LIBVA_DRM
+#  include <fcntl.h>
+#  include <unistd.h>
+#  include <va/va_drm.h>
+# endif
 #endif
+#include "openvino/core/model.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 
 namespace {
@@ -186,3 +197,153 @@ struct OpenCL {
         return ret_val;
     }
 };
+
+#if !defined(_WIN32) && defined(ENABLE_LIBVA) && defined(ENABLE_LIBVA_DRM)
+// Minimal VA-API environment for GPU interop tests: opens a DRM render node and initializes a
+// VADisplay on top of it
+struct VADevice {
+    VADevice() {
+        for (int node_index = 128; node_index < 136; node_index++) {
+            const auto node = "/dev/dri/renderD" + std::to_string(node_index);
+            _drm_fd = open(node.c_str(), O_RDWR);
+            if (_drm_fd < 0)
+                continue;
+
+            VADisplay display = vaGetDisplayDRM(_drm_fd);
+            int major_version = 0;
+            int minor_version = 0;
+            if (display != nullptr && vaInitialize(display, &major_version, &minor_version) == VA_STATUS_SUCCESS) {
+                _display = display;
+                break;
+            }
+
+            close(_drm_fd);
+            _drm_fd = -1;
+        }
+    }
+
+    VADevice(const VADevice&) = delete;
+    VADevice& operator=(const VADevice&) = delete;
+
+    ~VADevice() {
+        if (_display != nullptr)
+            vaTerminate(_display);
+        if (_drm_fd >= 0)
+            close(_drm_fd);
+    }
+
+    bool is_valid() const {
+        return _display != nullptr;
+    }
+
+    VADisplay get() const {
+        return _display;
+    }
+
+    // Allocates an NV12 surface
+    VASurfaceID create_nv12_surface(size_t width, size_t height) const {
+        VASurfaceAttrib attrib{};
+        attrib.type = VASurfaceAttribPixelFormat;
+        attrib.flags = VA_SURFACE_ATTRIB_SETTABLE;
+        attrib.value.type = VAGenericValueTypeInteger;
+        attrib.value.value.i = VA_FOURCC_NV12;
+
+        VASurfaceID surface = VA_INVALID_SURFACE;
+        const auto status = vaCreateSurfaces(_display,
+                                             VA_RT_FORMAT_YUV420,
+                                             static_cast<unsigned int>(width),
+                                             static_cast<unsigned int>(height),
+                                             &surface,
+                                             1,
+                                             &attrib,
+                                             1);
+        return status == VA_STATUS_SUCCESS ? surface : VA_INVALID_SURFACE;
+    }
+
+    bool fill_nv12_surface(VASurfaceID surface,
+                           size_t width,
+                           size_t height,
+                           uint8_t y_value,
+                           uint8_t u_value,
+                           uint8_t v_value) const {
+        if (vaSyncSurface(_display, surface) != VA_STATUS_SUCCESS)
+            return false;
+
+        VAImageFormat format{};
+        format.fourcc = VA_FOURCC_NV12;
+        format.byte_order = VA_LSB_FIRST;
+        format.bits_per_pixel = 12;
+
+        VAImage image{};
+        if (vaCreateImage(_display,
+                          &format,
+                          static_cast<int>(width),
+                          static_cast<int>(height),
+                          &image) != VA_STATUS_SUCCESS) {
+            return false;
+        }
+
+        void* data = nullptr;
+        if (vaMapBuffer(_display, image.buf, &data) != VA_STATUS_SUCCESS) {
+            vaDestroyImage(_display, image.image_id);
+            return false;
+        }
+
+        const bool valid_image = image.num_planes >= 2 && image.format.fourcc == VA_FOURCC_NV12;
+        if (valid_image) {
+            auto* base = static_cast<uint8_t*>(data);
+            for (size_t row = 0; row < height; ++row)
+                std::fill_n(base + image.offsets[0] + row * image.pitches[0], width, y_value);
+
+            for (size_t row = 0; row < height / 2; ++row) {
+                auto* uv_row = base + image.offsets[1] + row * image.pitches[1];
+                for (size_t column = 0; column < width; column += 2) {
+                    uv_row[column] = u_value;
+                    uv_row[column + 1] = v_value;
+                }
+            }
+        }
+
+        const auto unmap_status = vaUnmapBuffer(_display, image.buf);
+        auto put_status = VA_STATUS_ERROR_OPERATION_FAILED;
+        if (unmap_status == VA_STATUS_SUCCESS) {
+            put_status = vaPutImage(_display,
+                                    surface,
+                                    image.image_id,
+                                    0,
+                                    0,
+                                    static_cast<unsigned int>(width),
+                                    static_cast<unsigned int>(height),
+                                    0,
+                                    0,
+                                    static_cast<unsigned int>(width),
+                                    static_cast<unsigned int>(height));
+        }
+        const auto destroy_status = vaDestroyImage(_display, image.image_id);
+        const auto sync_status = vaSyncSurface(_display, surface);
+        return valid_image && unmap_status == VA_STATUS_SUCCESS && put_status == VA_STATUS_SUCCESS &&
+               destroy_status == VA_STATUS_SUCCESS && sync_status == VA_STATUS_SUCCESS;
+    }
+
+    // Releases the surface and invalidates the passed id
+    void destroy_surface(VASurfaceID& surface) const {
+        if (surface == VA_INVALID_SURFACE)
+            return;
+
+        vaDestroySurfaces(_display, &surface, 1);
+        surface = VA_INVALID_SURFACE;
+    }
+
+private:
+    int _drm_fd = -1;
+    VADisplay _display = nullptr;
+};
+#endif  // !_WIN32 && ENABLE_LIBVA && ENABLE_LIBVA_DRM
+
+inline std::shared_ptr<ov::Model> make_copy_model(const ov::Shape& shape) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+    auto zero = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {0.0f});
+    auto add = std::make_shared<ov::op::v1::Add>(param, zero);
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+}

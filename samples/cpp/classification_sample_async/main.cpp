@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 
 #include <condition_variable>
+#include <exception>
 #include <fstream>
 #include <map>
 #include <memory>

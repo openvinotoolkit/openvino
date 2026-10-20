@@ -1372,6 +1372,60 @@ TEST(select_gpu_f32, select_basic_mask_f16) {
     }
 }
 
+TEST(select_gpu_f32, select_basic_mask_bf16) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::bf16, format::yxfb,{ 2, 2, 2, 2 } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(input_layout("mask", mask->get_layout()));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
+
+    set_values(input, {
+        1.f,   0.f, 5.f, 1.5f,
+        2.f,   0.f, 6.f, 5.2f,
+        3.f,  0.5f, 7.f, 12.f,
+        4.f, -0.5f, 8.f,  8.f
+    });
+
+    set_values(input2, {
+        0.5f,   2.5f,  0.5f,  2.5f,
+        5.f,   7.f,    2.f,   4.f,
+        15.f,  17.f,    8.f,  10.f,
+        -2.f,  6.5f,  -0.5f, -2.5f });
+
+    set_values<uint16_t>(mask, {
+        0,   0,  0,  0,
+        1,   1,  1,  1,
+        0,   1,  0,  1,
+        1,   0,  1,  0 });
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("input", input);
+    network.set_input_data("input2", input2);
+    network.set_input_data("mask", mask);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("select").get_memory();
+
+    float answers[16] = { 0.5f,  2.5f,   0.5f,  2.5f,
+        2.f,   0.f,    6.f,   5.2f,
+        15.f,   0.5f,   8.f,  12.f,
+        4.f,   6.5f,   8.f,  -2.5f };
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 16; i++)
+    {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
 TEST(select_gpu_f32, select_basic_mask_i8) {
     auto& engine = get_test_engine();
 
@@ -1832,6 +1886,212 @@ TEST(select_gpu_f16, select_basic_mask_u8_1x1x2x2) {
     }
 }
 
+// select_gpu_bf16
+template <typename T>
+void test_bf16_select_basic_1x1x2x2(bool is_caching_test) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::bf16, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::bf16, format::yxfb,{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::bf16, format::yxfb,{ 1, 1, 2, 2 } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(input_layout("mask", mask->get_layout()));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
+
+    set_values<T>(input, {
+        1,   0,
+        2,   0
+    });
+
+    set_values<T>(input2, {
+        0,   2,
+        5,   7
+    });
+
+    set_values<T>(mask, {
+        0,   0,
+        1,   1
+    });
+
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+
+    network->set_input_data("input", input);
+    network->set_input_data("input2", input2);
+    network->set_input_data("mask", mask);
+    auto outputs = network->execute();
+
+    auto output = outputs.at("select").get_memory();
+
+    T answers[4] = {
+        0,  2,
+        2,   0
+    };
+
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 4; i++)
+    {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+TEST(select_gpu_bf16, select_basic_1x1x2x2) {
+    test_bf16_select_basic_1x1x2x2<ov::bfloat16>(false);
+}
+
+TEST(select_gpu_bf16, select_basic_mask_f32_1x1x2x2) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::bf16, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::bf16, format::yxfb,{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(input_layout("mask", mask->get_layout()));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
+
+    set_values<uint16_t>(input, {
+        1,   0,
+        2,   0
+    });
+
+    set_values<uint16_t>(input2, {
+        0,   2,
+        5,   7
+    });
+
+    set_values<float>(mask, {
+        0.f,   0.f,
+        1.5f,   0.4f
+    });
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("input", input);
+    network.set_input_data("input2", input2);
+    network.set_input_data("mask", mask);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("select").get_memory();
+
+    uint16_t answers[4] = {
+        0,  2,
+        2,   0
+    };
+
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 4; i++)
+    {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+TEST(select_gpu_bf16, select_basic_mask_i8_1x1x2x2) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::bf16, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::bf16, format::yxfb,{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::i8, format::yxfb,{ 1, 1, 2, 2 } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(input_layout("mask", mask->get_layout()));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
+
+    set_values<uint16_t>(input, {
+        1,   0,
+        2,   0
+    });
+
+    set_values<uint16_t>(input2, {
+        0,   2,
+        5,   7
+    });
+
+    set_values<char>(mask, {
+        0,   0,
+        1,   1
+    });
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("input", input);
+    network.set_input_data("input2", input2);
+    network.set_input_data("mask", mask);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("select").get_memory();
+
+    uint16_t answers[4] = {
+        0,  2,
+        2,   0
+    };
+
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 4; i++)
+    {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+TEST(select_gpu_bf16, select_basic_mask_u8_1x1x2x2) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::bf16, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::bf16, format::yxfb,{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::u8, format::yxfb,{ 1, 1, 2, 2 } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(input_layout("mask", mask->get_layout()));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
+
+    set_values<uint16_t>(input, {
+        1,   0,
+        2,   0
+    });
+
+    set_values<uint16_t>(input2, {
+        0,   2,
+        5,   7
+    });
+
+    set_values<unsigned char>(mask, {
+        0,   0,
+        128,   255
+    });
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("input", input);
+    network.set_input_data("input2", input2);
+    network.set_input_data("mask", mask);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("select").get_memory();
+
+    uint16_t answers[4] = {
+        0,  2,
+        2,   0
+    };
+
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 4; i++)
+    {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
 // select_gpu_i8
 template <typename T>
 void test_i8_select_basic_1x1x2x2(bool is_caching_test) {
@@ -1944,6 +2204,56 @@ TEST(select_gpu_i8, select_basic_mask_f16_1x1x2x2) {
     auto input = engine.allocate_memory({ data_types::i8, format::yxfb,{ 1, 1, 2, 2 } });
     auto input2 = engine.allocate_memory({ data_types::i8, format::yxfb,{ 1, 1, 2, 2 } });
     auto mask = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(input_layout("mask", mask->get_layout()));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
+
+    set_values<char>(input, {
+        1,   0,
+        2,   0
+    });
+
+    set_values<char>(input2, {
+        0,   2,
+        5,   7
+    });
+
+    set_values<uint16_t>(mask, {
+        0,   0,
+        3,   5
+    });
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("input", input);
+    network.set_input_data("input2", input2);
+    network.set_input_data("mask", mask);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("select").get_memory();
+
+    int answers[4] = {
+        0,  2,
+        2,  0
+    };
+
+    cldnn::mem_lock<char, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 4; i++)
+    {
+        ASSERT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
+TEST(select_gpu_i8, select_basic_mask_bf16_1x1x2x2) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::i8, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::i8, format::yxfb,{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::bf16, format::yxfb,{ 1, 1, 2, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -2194,6 +2504,56 @@ TEST(select_gpu_u8, select_basic_mask_f16_1x1x2x2) {
     }
 }
 
+TEST(select_gpu_u8, select_basic_mask_bf16_1x1x2x2) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::u8, format::yxfb,{ 1, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::u8, format::yxfb,{ 1, 1, 2, 2 } });
+    auto mask = engine.allocate_memory({ data_types::bf16, format::yxfb,{ 1, 1, 2, 2 } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(input_layout("mask", mask->get_layout()));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
+
+    set_values<unsigned char>(input, {
+        128,   0,
+        255,   0
+    });
+
+    set_values<unsigned char>(input2, {
+        0,   255,
+        205,   128
+    });
+
+    set_values<uint16_t>(mask, {
+        0,   0,
+        1,   1
+    });
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("input", input);
+    network.set_input_data("input2", input2);
+    network.set_input_data("mask", mask);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("select").get_memory();
+
+    unsigned char answers[4] = {
+        0,  255,
+        255,  0
+    };
+
+    cldnn::mem_lock<unsigned char, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 4; i++)
+    {
+        ASSERT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
 TEST(select_gpu_u8, select_basic_mask_i8_1x1x2x2) {
     auto& engine = get_test_engine();
 
@@ -2356,20 +2716,28 @@ TEST(select_gpu_f32, select_different_formats) {
     }
 }
 
-TEST(select_gpu_f32, dynamic) {
+struct select_dynamic_params {
+    format::type input_format;
+    std::vector<float> expected_output;
+};
+
+class select_gpu_f32_dynamic : public ::testing::TestWithParam<select_dynamic_params> {};
+
+TEST_P(select_gpu_f32_dynamic, basic) {
+    const auto& p = GetParam();
     auto& engine = get_test_engine();
 
     ov::PartialShape in1_shape  = { 2, 2, 2, 2 };
     ov::PartialShape in2_shape  = { 2, 2, 2, 2 };
     ov::PartialShape mask_shape = { 2, 2, 2, 1 };
 
-    layout input1_layout { ov::PartialShape::dynamic(in1_shape.size()),  data_types::f32, format::bfyx };
-    layout input2_layout { ov::PartialShape::dynamic(in2_shape.size()),  data_types::f32, format::bfyx };
-    layout mask_layout   { ov::PartialShape::dynamic(mask_shape.size()), data_types::f32, format::bfyx };
+    layout input1_layout { ov::PartialShape::dynamic(in1_shape.size()),  data_types::f32, p.input_format };
+    layout input2_layout { ov::PartialShape::dynamic(in2_shape.size()),  data_types::f32, p.input_format };
+    layout mask_layout   { ov::PartialShape::dynamic(mask_shape.size()), data_types::f32, p.input_format };
 
-    auto input1 = engine.allocate_memory({ in1_shape,  data_types::f32, format::bfyx });
-    auto input2 = engine.allocate_memory({ in2_shape,  data_types::f32, format::bfyx });
-    auto mask   = engine.allocate_memory({ mask_shape, data_types::f32, format::bfyx });
+    auto input1 = engine.allocate_memory({ in1_shape,  data_types::f32, p.input_format });
+    auto input2 = engine.allocate_memory({ in2_shape,  data_types::f32, p.input_format });
+    auto mask   = engine.allocate_memory({ mask_shape, data_types::f32, p.input_format });
 
     set_values(input1, {
         1.f,  0.f,
@@ -2435,27 +2803,50 @@ TEST(select_gpu_f32, dynamic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("select").get_memory();
-
-    float answers[16] = {
-        0.5f,  2.5f,
-        1.5f,  3.f,
-
-        2.f,   0.f,
-        6.f,   5.2f,
-
-        15.f,  17.f,
-        7.f,   12.f,
-
-        4.f,   -0.5f,
-        -0.5f, -2.5f
-    };
+    // byxf input is propagated to the output so no reorder is needed after select
+    ASSERT_EQ(output->get_layout().format, p.input_format);
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), p.expected_output.size());
 
-    for (int i = 0; i < 16; i++) {
-        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    for (size_t i = 0; i < p.expected_output.size(); i++) {
+        ASSERT_TRUE(are_equal(p.expected_output[i], output_ptr[i]));
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(select_gpu_f32,
+                         select_gpu_f32_dynamic,
+                         ::testing::Values(
+                             select_dynamic_params{format::bfyx, {
+                                 0.5f,  2.5f,
+                                 1.5f,  3.f,
+
+                                 2.f,   0.f,
+                                 6.f,   5.2f,
+
+                                 15.f,  17.f,
+                                 7.f,   12.f,
+
+                                 4.f,   -0.5f,
+                                 -0.5f, -2.5f
+                             }},
+                             // inputs are the same buffers interpreted in byxf order, output is byxf (physical order)
+                             select_dynamic_params{format::byxf, {
+                                 0.5f,  2.5f,
+                                 1.5f,  3.f,
+
+                                 2.f,   0.f,
+                                 6.f,   5.2f,
+
+                                 15.f,  0.5f,
+                                 8.f,   12.f,
+
+                                 4.f,   6.5f,
+                                 8.f,   -2.5f
+                             }}),
+                         [](const ::testing::TestParamInfo<select_dynamic_params>& info) {
+                             return format(info.param.input_format).to_string();
+                         });
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST(select_gpu_f32, select_basic_cached) {
@@ -2464,6 +2855,10 @@ TEST(select_gpu_f32, select_basic_cached) {
 
 TEST(select_gpu_f16, select_basic_1x1x2x2_cached) {
     test_f16_select_basic_1x1x2x2<uint16_t>(true);
+}
+
+TEST(select_gpu_bf16, select_basic_1x1x2x2_cached) {
+    test_bf16_select_basic_1x1x2x2<ov::bfloat16>(true);
 }
 
 TEST(select_gpu_i8, select_basic_1x1x2x2_cached) {

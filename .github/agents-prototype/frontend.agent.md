@@ -59,12 +59,12 @@ Read only the skill file relevant to the current framework and task:
 
 | Task | Framework | Skill file |
 |---|---|---|
-| Implement a new op translator | PyTorch | `.github/agents-prototype/skills/add-fe-op/pytorch.md` |
-| Implement a new op translator | ONNX | `.github/agents-prototype/skills/add-fe-op/onnx.md` |
-| Implement a new op translator | TF / other | `.github/agents-prototype/skills/add-fe-op/SKILL.md` |
-| Investigate conversion failure | PyTorch | `.github/agents-prototype/skills/conversion-issues/pytorch.md` |
-| Investigate conversion failure | ONNX | `.github/agents-prototype/skills/conversion-issues/onnx.md` |
-| Investigate (generic / dispatch) | Any | `.github/agents-prototype/skills/conversion-issues/SKILL.md` |
+| Implement a new op translator | PyTorch | [`skills/add-fe-op/pytorch.md`](skills/add-fe-op/pytorch.md) |
+| Implement a new op translator | ONNX | [`skills/add-fe-op/onnx.md`](skills/add-fe-op/onnx.md) |
+| Implement a new op translator | TF / other | [`skills/add-fe-op/SKILL.md`](skills/add-fe-op/SKILL.md) |
+| Investigate conversion failure | PyTorch | [`skills/conversion-issues/pytorch.md`](skills/conversion-issues/pytorch.md) |
+| Investigate conversion failure | ONNX | [`skills/conversion-issues/onnx.md`](skills/conversion-issues/onnx.md) |
+| Investigate (generic / dispatch) | Any | [`skills/conversion-issues/SKILL.md`](skills/conversion-issues/SKILL.md) |
 
 ---
 

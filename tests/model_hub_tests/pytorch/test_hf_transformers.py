@@ -437,6 +437,10 @@ class TestTransformersModel(TestTorchConvertModel):
                     example = dict(input_ids=encoded_input["input_ids"],
                                    token_type_ids=encoded_input["token_type_ids"],
                                    attention_mask=encoded_input["attention_mask"])
+                elif 'image-classification' in mi.tags:
+                    image_processor = AutoImageProcessor.from_pretrained(model_cached)
+                    encoded_input = image_processor(images=self.image, return_tensors="pt")
+                    example = dict(encoded_input)
                 else:
                     text = "Replace me by any text you'd like."
                     if auto_processor is not None and "Tokenizer" not in auto_processor:

@@ -5,18 +5,27 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "compiled_model.hpp"
+#include "executor.hpp"
 #include "llm_compiled_model.hpp"
 #include "model_builder.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/fake_convert.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
 #include "serialization.hpp"
 #include "weights_bank.hpp"
 
@@ -37,6 +46,21 @@ inline Config make_test_model_config() {
 inline std::shared_ptr<ov::Model> build_llm_test_model() {
     ModelBuilder mb;
     return mb.build_llm(make_test_model_config());
+}
+
+/// Phi-style LongRoPE LLM: the RoPE inverse frequencies are picked from
+/// max(position_ids) + 1 <= context_limit, so extract_longrope_context_limit() finds the
+/// limit and RopeCache rewrites the chain into the host-fed npuw_lr_cos / npuw_lr_sin
+/// model inputs. Compile it with NPUW_LLM_CACHE_ROPE=YES to get that rewrite.
+inline std::shared_ptr<ov::Model> build_longrope_llm_test_model(int64_t context_limit) {
+    auto cfg = make_test_model_config();
+    for (size_t i = 0; i < cfg.head_dim / 2; ++i) {
+        cfg.longrope.inv_freq_short.push_back(1.0f / std::pow(3.0f, static_cast<float>(i)));
+        cfg.longrope.inv_freq_long.push_back(0.6f / std::pow(3.4f, static_cast<float>(i)));
+    }
+    cfg.longrope.context_limit = context_limit;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
 }
 
 /// Build an LLM test model configured so that Attention::from() can unambiguously
@@ -69,8 +93,7 @@ inline std::shared_ptr<ov::Model> build_dynamic_attention_llm_model() {
     for (const auto& input : model->inputs()) {
         const auto& name = input.get_any_name();
         const auto& pshape = input.get_partial_shape();
-        if (name.find("input_ids") != std::string::npos ||
-            name.find("token_type_ids") != std::string::npos) {
+        if (name.find("input_ids") != std::string::npos || name.find("token_type_ids") != std::string::npos) {
             new_shapes[name] = ov::PartialShape{1, kSeq};
         } else if (name.find("attention_mask") != std::string::npos) {
             new_shapes[name] = ov::PartialShape{1, kSeq + kPast};
@@ -100,6 +123,22 @@ inline std::shared_ptr<ov::Model> build_llm_gqa_test_model() {
     return mb.build_llm(make_test_model_config_gqa());
 }
 
+/// Minimal Qwen3-style reranker: a GQA causal decoder with RMSNorm and per-head
+/// Q/K normalization, stateful KV cache and an LM head (logits output). Matches the
+/// I/O signature of Qwen3-Reranker (input_ids/attention_mask/position_ids + beam_idx),
+/// which is what the batched scoring element fans out over.
+inline LLMConfig make_test_model_config_reranker() {
+    auto cfg = make_test_model_config_gqa();
+    cfg.norm = RMSNorm(cfg.hidden_size, cfg.precision);
+    cfg.qk_norm = RMSNorm(cfg.head_dim, cfg.precision);
+    return cfg;
+}
+
+inline std::shared_ptr<ov::Model> build_reranker_test_model() {
+    ModelBuilder mb;
+    return mb.build_llm(make_test_model_config_reranker());
+}
+
 inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(const ov::element::Type fake_convert_type) {
     auto model = build_llm_test_model();
     auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
@@ -113,8 +152,7 @@ inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(cons
         auto inject_fake_convert = [&](size_t input_idx, const std::string& suffix) {
             auto fake_convert_1 =
                 std::make_shared<ov::op::v13::FakeConvert>(sdpa->input_value(input_idx), scale, fake_convert_type);
-            auto fake_convert_2 =
-                std::make_shared<ov::op::v13::FakeConvert>(fake_convert_1, scale, fake_convert_type);
+            auto fake_convert_2 = std::make_shared<ov::op::v13::FakeConvert>(fake_convert_1, scale, fake_convert_type);
             fake_convert_1->set_friendly_name(sdpa->get_friendly_name() + "/" + suffix + "_1");
             fake_convert_2->set_friendly_name(sdpa->get_friendly_name() + "/" + suffix + "_2");
             sdpa->input(input_idx).replace_source_output(fake_convert_2);
@@ -126,6 +164,43 @@ inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(cons
 
     model->validate_nodes_and_infer_types();
     return model;
+}
+
+/// Hybrid LLM: alternating linear-attention / full-attention layers.
+/// 4 layers → layers 0,2 linear; layers 1,3 full attention.
+/// Attention layers are Qwen3.5-style: output-gated, partial RoPE.
+inline std::shared_ptr<ov::Model> build_hybrid_llm_test_model() {
+    auto cfg = make_test_model_config();
+    cfg.num_layers = 4;
+    cfg.attn_output_gate = true;
+    cfg.rotary_dim = cfg.head_dim / 4;
+    cfg.is_linear_layer = make_mamba_schedule(1);
+    auto mixer = std::make_shared<GatedDeltaNetMixer>();
+    mixer->hidden_size = cfg.hidden_size;
+    mixer->precision = cfg.precision;
+    mixer->weight_fn = cfg.weight;
+    mixer->num_heads = cfg.num_heads;
+    mixer->key_head_dim = cfg.head_dim;
+    mixer->value_head_dim = cfg.head_dim;
+    cfg.linear_mixer = mixer;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
+/// LFM2-style hybrid: gated short-conv mixer layers interleaved with full attention.
+/// 4 layers → layers 0,2 short-conv; layers 1,3 full attention.
+inline std::shared_ptr<ov::Model> build_lfm2_llm_test_model() {
+    auto cfg = make_test_model_config();
+    cfg.num_layers = 4;
+    cfg.is_linear_layer = make_mamba_schedule(1);
+    auto mixer = std::make_shared<ShortConvMixer>();
+    mixer->hidden_size = cfg.hidden_size;
+    mixer->precision = cfg.precision;
+    mixer->weight_fn = cfg.weight;
+    mixer->conv_dim = cfg.hidden_size;
+    cfg.linear_mixer = mixer;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
 }
 
 inline std::shared_ptr<ov::Model> build_whisper_decoder_test_model() {
@@ -155,6 +230,108 @@ inline std::shared_ptr<ov::Model> build_moe_llm_test_model() {
     return mb.build_llm(cfg);
 }
 
+/// Qwen3-style MoE: separate gate/up expert MatMuls (SwiGLU) and a Softmax->TopK router
+/// with ReduceSum->Divide renormalization, matching NPUW's Qwen3Expert + Qwen3Router
+/// patterns (real Qwen3-30B-A3B). Contrast build_moe_llm_test_model, which emits the
+/// GPT-OSS topology (fused gate_up, TopK->Softmax router). Stateful (KV cache) like the
+/// real model; consumers that need static shapes run StatefulToStateless + reshape, the
+/// same way production prepares an LLM.
+inline std::shared_ptr<ov::Model> build_qwen3_moe_llm_test_model() {
+    ModelBuilder mb;
+    auto cfg = make_test_model_config();
+    cfg.num_experts = 8;
+    cfg.num_experts_per_tok = 2;
+    cfg.moe_factory = make_qwen3_moe_ffn;
+    return mb.build_llm(cfg);
+}
+
+/// Gemma4 26B A4B MoE model: inputs_embeds + token_type_ids + Gemma4-style MoE FFN
+/// (separate gate/up MatMuls with GeLU activation, Softmax->TopK router with
+/// ReduceSum->Divide renormalization plus per-expert learned scale Gather and an extra
+/// Slice before scatter, matching NPUW's Gemma4Expert + Gemma4Router patterns) + dangling
+/// per_layer_inputs (proj_dim=0) matching the real Gemma4-26B-A4B input structure.
+/// per_layer_inputs is a graph parameter with shape [1,-1,0,0]: it exists by name so the
+/// compilation pipeline can find it, but carries no data (proj_dim=0).
+inline std::shared_ptr<ov::Model> build_gemma4_moe_llm_test_model() {
+    auto cfg = make_test_model_config();
+    cfg.use_inputs_embeds = true;
+    cfg.use_token_type_ids = true;
+    cfg.num_experts = 8;
+    cfg.num_experts_per_tok = 2;
+    cfg.moe_factory = make_gemma4_moe_ffn;
+    ModelBuilder mb;
+    auto model = mb.build_llm(cfg);
+
+    // Append a dangling per_layer_inputs with zero proj_dim (MoE unused-PLE pattern).
+    // add_parameters() registers the node in the existing model graph without requiring
+    // a corresponding Result, matching how reshape_to_static handles unused PLE inputs.
+    auto ple = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, 0, 0});
+    ple->output(0).set_names({"per_layer_inputs"});
+    model->add_parameters({ple});
+    return model;
+}
+
+/// Real stateful LLM (like build_llm_test_model) plus a *consumed* per_layer_inputs
+/// parameter (non-zero, dynamic proj_dim), used to probe LLMCompiledModel's
+/// is_per_layer_inputs_model auto-enable path (Gemma-4 E2B/E4B cross-group KV sharing).
+/// A minimal standalone graph without beam_idx/KV-cache state fails
+/// StatefulToStateless (which LLMCompiledModel always runs), so this builds on the same
+/// base topology as the other test models and appends the probe input via a dedicated
+/// Add + Result, matching how build_gemma4_moe_llm_test_model appends its dangling PLE.
+inline std::shared_ptr<ov::Model> build_per_layer_inputs_probe_model() {
+    ModelBuilder mb;
+    auto model = mb.build_llm(make_test_model_config());
+
+    auto per_layer_inputs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, -1, -1});
+    per_layer_inputs->output(0).set_names({"per_layer_inputs"});
+    auto sibling = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {0.0f});
+    auto add = std::make_shared<ov::op::v1::Add>(per_layer_inputs, sibling);
+    add->output(0).set_names({"per_layer_inputs_probe_output"});
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    result->set_friendly_name("per_layer_inputs_probe_output");
+
+    model->add_parameters({per_layer_inputs});
+    model->add_results({result});
+    return model;
+}
+
+inline std::shared_ptr<ov::Model> build_sliding_window_test_model(size_t window_size = 512,
+                                                                  size_t sliding_to_full_ratio = 0,
+                                                                  const SlidingMaskFn& sliding_mask_fn = {},
+                                                                  size_t num_layers = 2) {
+    auto cfg = make_test_model_config();
+    cfg.num_layers = num_layers;
+    cfg.sliding_window_size = window_size;
+    cfg.sliding_to_full_ratio = sliding_to_full_ratio;
+    cfg.sliding_mask_fn = sliding_mask_fn;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
+inline std::shared_ptr<ov::Model> build_lora_adapter_test_model() {
+    ModelBuilder mb;
+    return mb.build_lora_adapter(make_test_model_config<LoRAConfig>());
+}
+
+inline std::shared_ptr<ov::Model> build_lora_llm_test_model() {
+    auto cfg = make_test_model_config();
+    cfg.lora_rank = 8;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
+inline std::shared_ptr<ov::Model> build_token_type_ids_test_model(size_t window_size = 512,
+                                                                  size_t sliding_to_full_ratio = 1,
+                                                                  const SlidingMaskFn& sliding_mask_fn = {}) {
+    auto cfg = make_test_model_config();
+    cfg.sliding_window_size = window_size;
+    cfg.sliding_to_full_ratio = sliding_to_full_ratio;
+    cfg.sliding_mask_fn = sliding_mask_fn;
+    cfg.use_inputs_embeds = true;
+    cfg.use_token_type_ids = true;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
 
 class NullPlugin : public ov::IPlugin {
 public:
@@ -198,30 +375,60 @@ public:
     }
 };
 
+class MockSubCompiledModel;
+
+// Minimal working sub-request used by MockSubCompiledModel. Allocates a backing
+// tensor for every input/output port so a real LLMInferRequest can be built on
+// top of models compiled through RecordingFactory and exercise runtime paths
+// (e.g. copy_kvcache) without a real device.
+class MockSubInferRequest final : public ov::ISyncInferRequest {
+public:
+    explicit MockSubInferRequest(std::shared_ptr<const MockSubCompiledModel> compiled_model);
+
+    void infer() override;
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override {
+        return ov::ISyncInferRequest::get_tensor(port);
+    }
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override {
+        ov::ISyncInferRequest::set_tensor(port, tensor);
+    }
+    void check_tensors() const override {}
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
+        return {};
+    }
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
+        return {};
+    }
+};
+
 class MockSubCompiledModel : public ov::npuw::ICompiledModel_v0 {
 public:
     MockSubCompiledModel(const std::shared_ptr<ov::Model>& model,
                          const std::shared_ptr<const ov::IPlugin>& plugin,
                          const ov::AnyMap&)
-        : ov::npuw::ICompiledModel_v0(model, plugin) {}
+        : ov::npuw::ICompiledModel_v0(model, plugin),
+          m_model(model) {}
 
     void export_model(std::ostream&) const override {}
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
-        return {};
+        return m_model;
     }
     void set_property(const ov::AnyMap&) override {}
     ov::Any get_property(const std::string&) const override {
         return {};
     }
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
-        return {};
+        auto self = std::static_pointer_cast<const MockSubCompiledModel>(shared_from_this());
+        return std::make_shared<MockSubInferRequest>(std::move(self));
     }
     std::shared_ptr<ov::npuw::IBaseInferRequest> create_base_infer_request() const override {
         return {};
     }
     std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
         std::shared_ptr<ov::npuw::IBaseInferRequest>) const override {
-        return {};
+        return std::make_shared<ov::IAsyncInferRequest>(create_sync_infer_request(),
+                                                        ::intel_npu::make_executor("mock_sub_task", 1),
+                                                        ::intel_npu::make_executor("mock_sub_callback", 1));
     }
     std::string submodel_device(std::size_t) const override {
         return "CPU";
@@ -236,11 +443,34 @@ public:
     void finalize_weights_bank() override {}
     void reconstruct_closure() override {}
     void serialize(std::ostream&, const ov::npuw::s11n::CompiledContext&) const override {}
+
+private:
+    std::shared_ptr<ov::Model> m_model;
 };
 
+inline MockSubInferRequest::MockSubInferRequest(std::shared_ptr<const MockSubCompiledModel> compiled_model)
+    : ov::ISyncInferRequest(std::move(compiled_model)) {
+    for (const auto& input : get_compiled_model()->inputs()) {
+        ov::ISyncInferRequest::set_tensor(input,
+                                          ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
+    }
+    for (const auto& output : get_compiled_model()->outputs()) {
+        ov::ISyncInferRequest::set_tensor(
+            output,
+            ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
+    }
+}
+
+inline void MockSubInferRequest::infer() {
+    for (const auto& output : get_compiled_model()->outputs()) {
+        auto tensor = ov::ISyncInferRequest::get_tensor(output);
+        std::memset(tensor->data(), 0, tensor->get_byte_size());
+    }
+}
+
 struct CompileCall {
-    std::string                friendly_name;
-    ov::AnyMap                 props;
+    std::string friendly_name;
+    ov::AnyMap props;
     std::shared_ptr<ov::Model> model;
 };
 

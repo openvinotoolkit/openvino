@@ -2,28 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/primitives/permute.hpp"
-#include "test_utils.h"
-#include "random_generator.hpp"
+#include <memory>
 
-#include "intel_gpu/runtime/engine.hpp"
-
-#include "intel_gpu/graph/network.hpp"
-#include "intel_gpu/graph/program.hpp"
+#include "convolution_inst.h"
 #include "data_inst.h"
+#include "depth_to_space_inst.h"
 #include "eltwise_inst.h"
-#include "reduce_inst.h"
-#include "reshape_inst.h"
 #include "fully_connected_inst.h"
 #include "gemm_inst.h"
-#include "convolution_inst.h"
-#include "depth_to_space_inst.h"
+#include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/permute.hpp"
+#include "intel_gpu/primitives/scatter_update.hpp"
+#include "intel_gpu/runtime/engine.hpp"
 #include "pass_manager.h"
-#include "to_string_utils.h"
-
 #include "program_wrapper.h"
-
-#include <memory>
+#include "random_generator.hpp"
+#include "reduce_inst.h"
+#include "reshape_inst.h"
+#include "test_utils.h"
+#include "to_string_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -48,6 +47,70 @@ TEST(prepare_primitive_fusing, fuse_activation_to_fc_dyn) {
 
     ASSERT_NE(prog, nullptr);
     ASSERT_FALSE(has_node_with_type<activation>(*prog));
+}
+
+// fp8 concatenation/scatter_update take a byte-copy kernel path that cannot run fused ops, so
+// prepare_primitive_fusing must not fuse an activation into an f8e4m3 scatter_update (unlike a
+// regular f16 cache, where the activation is fused).
+TEST(prepare_primitive_fusing, dont_fuse_activation_into_fp8_scatter_update) {
+    auto& engine = get_test_engine();
+
+    auto activation_survives_fusing = [&](data_types kv_dt) -> bool {
+        auto indices = engine.allocate_memory({ov::PartialShape{2}, data_types::f32, format::bfyx});
+        auto updates = engine.allocate_memory({ov::PartialShape{2, 4}, kv_dt, format::bfyx});
+        auto in_layout = layout{ov::PartialShape{4, 4}, kv_dt, format::bfyx};
+
+        topology topology;
+        topology.add(input_layout("input", in_layout));
+        topology.add(data("indices", indices));
+        topology.add(data("updates", updates));
+        topology.add(scatter_update("scatter", input_info("input"), input_info("indices"), input_info("updates"), 0));
+        topology.add(activation("act", input_info("scatter"), activation_func::abs));
+        topology.add(reorder("reorder", input_info("act"), format::bfyx, data_types::f32));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        auto prog = program::build_program(engine, topology, config, false, true);
+
+        program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+        return has_node(*prog, "act");
+    };
+
+    // Control: a regular f16 KV cache fuses the activation into scatter_update (node is removed).
+    ASSERT_FALSE(activation_survives_fusing(data_types::f16));
+    // fp8 scatter_update byte-copies; fusion is blocked so the activation stays a separate node.
+    ASSERT_TRUE(activation_survives_fusing(data_types::f8e4m3));
+}
+
+// Same byte-copy concern for concatenation: activation must not be fused into an f8e4m3 concat.
+TEST(prepare_primitive_fusing, dont_fuse_activation_into_fp8_concatenation) {
+    auto& engine = get_test_engine();
+
+    auto activation_survives_fusing = [&](data_types kv_dt) -> bool {
+        auto in0_layout = layout{ov::PartialShape{1, 2, 4}, kv_dt, format::bfyx};
+        auto in1_layout = layout{ov::PartialShape{1, 2, 4}, kv_dt, format::bfyx};
+
+        topology topology;
+        topology.add(input_layout("in0", in0_layout));
+        topology.add(input_layout("in1", in1_layout));
+        topology.add(concatenation("concat", {input_info("in0"), input_info("in1")}, 1));
+        topology.add(activation("act", input_info("concat"), activation_func::abs));
+        topology.add(reorder("reorder", input_info("act"), format::bfyx, data_types::f32));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        auto prog = program::build_program(engine, topology, config, false, true);
+
+        program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+        return has_node(*prog, "act");
+    };
+
+    // Control: a regular f16 concat fuses the activation (node is removed).
+    ASSERT_FALSE(activation_survives_fusing(data_types::f16));
+    // fp8 concat byte-copies; fusion is blocked so the activation stays a separate node.
+    ASSERT_TRUE(activation_survives_fusing(data_types::f8e4m3));
 }
 
 TEST(prepare_primitive_fusing, dont_fuse_incompatible_eltwise) {

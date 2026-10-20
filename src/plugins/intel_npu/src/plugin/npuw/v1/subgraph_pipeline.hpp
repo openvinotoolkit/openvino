@@ -121,6 +121,9 @@ struct CompiledPipeline;
 struct InferContext;
 struct PartitioningCallbacks {
     std::function<std::shared_ptr<ov::Model>(const std::string&)> find_tagged_model;
+    // Find the first node carrying the given rt_info key, searching across all
+    // registered function models.  Returns nullptr when the key is not found.
+    std::function<std::shared_ptr<ov::Node>(const std::string&)> find_node_with_rt_info;
 };
 
 struct CompileContext {
@@ -160,6 +163,11 @@ public:
 
 using RuntimeBehaviorFactory = std::function<ISubgraphBehavior::Ptr(const Context&)>;
 using CompileExecutor = std::function<void(CompileContext&)>;
+using CompiledModelVisitor = std::function<void(const ov::SoPtr<ov::ICompiledModel>&)>;
+// Visits the extra device-level compiled models a pipeline owns besides the subgraph's own
+// compiled model (e.g. pyramid attention levels, HFA tiles, MoE experts), looked up in the
+// given pipeline context. Some of them may be the subgraph's own compiled model, reused.
+using ExtraCompiledModelsVisitor = std::function<void(const Context&, const CompiledModelVisitor&)>;
 
 struct RuntimeBehaviorSpec {
     Registration registration;
@@ -173,6 +181,7 @@ struct CompiledPipeline {
     Context context;
     CompileExecutor compile_executor;
     std::optional<RuntimeBehaviorSpec> runtime_behavior;
+    ExtraCompiledModelsVisitor for_each_extra_compiled_model;
     bool is_function_call = false;
     std::optional<std::size_t> function_body_subgraph_idx;
 };

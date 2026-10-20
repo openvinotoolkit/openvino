@@ -2,13 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// OV_CONFIG_RELEASE_OPTION:
+//      Options exposed via the public API in all build types.
+//      Must be properly documented and aligned with OpenVINO Runtime stakeholders.
+// OV_CONFIG_RELEASE_INTERNAL_OPTION:
+//      Available in all build types, but not settable via the public API.
+//      Not intended as production options for customers, as API stability is not guaranteed.
+//      If a customer requires one of these options in a production scenario,
+//      it should be promoted to RELEASE_OPTION. May be used for development or troubleshooting purposes.
+// OV_CONFIG_DEBUG_OPTION:
+//      Options available only in builds with `ENABLE_DEBUG_CAPS` enabled.
+//      Intended for OpenVINO development and troubleshooting features.
+// OV_CONFIG_DEBUG_GLOBAL_OPTION:
+//      Same as OV_CONFIG_DEBUG_OPTION, but applied globally to all models.
+
 // Namespace, property name, default value, [validator], description
 OV_CONFIG_RELEASE_OPTION(ov, enable_profiling, false, "Enable profiling for the plugin")
 OV_CONFIG_RELEASE_OPTION(ov::device, id, "0", "ID of the current device")
 OV_CONFIG_RELEASE_OPTION(ov, cache_dir, "", "Directory where model cache can be stored. Caching is disabled if empty")
 OV_CONFIG_RELEASE_OPTION(ov, num_streams, 1, "Number of streams to be used for inference")
 OV_CONFIG_RELEASE_OPTION(ov, compilation_num_threads, std::max(1, static_cast<int>(std::thread::hardware_concurrency())), "Max number of CPU threads used for model compilation for the stages that supports parallelism")
-OV_CONFIG_RELEASE_OPTION(ov::hint, inference_precision, ov::element::f16, "Model floating-point inference precision. Supported values: { f16, f32, dynamic }", [](ov::element::Type t) { return t == ov::element::f16 || t == ov::element::f32 || t == ov::element::dynamic; })
+OV_CONFIG_RELEASE_OPTION(ov::hint, inference_precision, ov::element::f16, "Model floating-point inference precision. Supported values: { f16, f32, bf16, dynamic }", [](ov::element::Type t) { return t == ov::element::f16 || t == ov::element::f32 || t == ov::element::bf16 || t == ov::element::dynamic; })
 OV_CONFIG_RELEASE_OPTION(ov::hint, model_priority, ov::hint::Priority::MEDIUM, "High-level hint that defines the priority of the model. It may impact number of threads used for model compilation and inference as well as device queue settings")
 OV_CONFIG_RELEASE_OPTION(ov::hint, performance_mode, ov::hint::PerformanceMode::LATENCY, "High-level hint that defines target model inference mode. It may impact number of streams, auto batching, etc")
 OV_CONFIG_RELEASE_OPTION(ov::hint, execution_mode, ov::hint::ExecutionMode::PERFORMANCE, "High-level hint that defines the most important metric for the model. Performance mode allows unsafe optimizations that may reduce the model accuracy")
@@ -31,7 +45,7 @@ OV_CONFIG_RELEASE_OPTION(ov, cache_encryption_callbacks, ov::EncryptionCallbacks
 OV_CONFIG_RELEASE_OPTION(ov::hint, dynamic_quantization_group_size, 0, "Dynamic quantization group size")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, dynamic_quantization_group_size_max, UINT64_MAX, "Maximum dynamic quantization group size. When group_size is set as a higher value than this number, dynamic quantization will be turned off")
 OV_CONFIG_RELEASE_OPTION(ov::hint, kv_cache_precision, ov::element::dynamic, "")
-OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_kernels_reuse, false, "")
+OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_kernels_reuse, false, "Enables kernel reuse across implementations to reduce memory footprint.")
 OV_CONFIG_RELEASE_OPTION(ov, weights_path, "", "Path to the model weights file used for weightless caching")
 OV_CONFIG_RELEASE_OPTION(ov::hint, activations_scale_factor, -1.0f, "Scalar floating point value that is used for runtime activation tensor scaling with fp16 inference precision")
 OV_CONFIG_RELEASE_OPTION(ov::internal, enable_lp_transformations, false, "Enable/Disable Low precision transformations set")
@@ -40,8 +54,10 @@ OV_CONFIG_RELEASE_OPTION(ov::hint, model, nullptr, "Shared pointer to the ov::Mo
 OV_CONFIG_RELEASE_OPTION(ov::internal, key_cache_quant_mode, ov::internal::CacheQuantMode::BY_CHANNEL, "AUTO or BY_CHANNEL or BY_TOKEN")
 OV_CONFIG_RELEASE_OPTION(ov::internal, value_cache_quant_mode, ov::internal::CacheQuantMode::BY_TOKEN, "AUTO or BY_CHANNEL or BY_TOKEN")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, mem_pool_util_threshold, 0.5, "Minimum utilization threshold (0.0~1.0) for reusable memory in the pool")
+OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, offload_ratio, 0, "Percentage (0-100) of model weights to offload to disk. Currently supported for MoE experts only.", [](size_t v) { return v <= 100; })
 OV_CONFIG_RELEASE_OPTION(ov, enable_weightless, false, "Enable/Disable weightless blob")
 
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_zero_copy_cache_load, false, "Enable/Disable zero-copy mode for model cache blob load")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, shape_predictor_settings, {10, 16 * 1024, 2, 1.1f}, "Preallocation settings")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, queue_type, QueueTypes::out_of_order, "Type of the queue that must be used for model execution. May be in-order or out-of-order")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, optimize_data, false, "Enable/Disable data flow optimizations for cldnn::program")
@@ -52,6 +68,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, force_implementations, ImplForc
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, partial_build_program, false, "Early exit from model compilation process which allows faster execution graph dumping")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_new_shape_infer, false, "Switch between new and old shape inference flow. Shall be removed soon")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, use_onednn, false, "Enable/Disable onednn for usage for particular model/platform")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_sdpa_micro, true, "Enable oneDNN-derived SDPA micro kernel. When disabled, fall back to the OCL sdpa_opt kernel")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, use_cm, true, "Enable/Disable CM for usage for particular model/platform")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, max_kernels_per_batch, 8, "Controls how many kernels we combine into batch for more efficient ocl compilation")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, impls_cache_capacity, 300, "Controls capacity of LRU implementations cache that is created for each program object for dynamic models")
@@ -62,18 +79,29 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_precompute
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_bypass_xattn, true, "Allow bypass xattn execution if threshold >= 1.0.")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, weightless_attr, nullptr, "Used to configure ov::WeightlessCacheAttribute for constants that are not loaded from a .bin file. This typically applies to non-IR inputs (e.g., ORT)")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, pa_mixed_route_mode, std::string("split"), "Mixed route mode for CM paged attention. Supported values: multi, split")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_use_micro_gemm_prefill, true, "MoE 3GEMM: use micro-kernel GEMM for the prefill path. Requires Xe2+ and 4-bit weights; overridden when grouped GEMM is enabled")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_use_gpu_mask_gen_prefill, false, "MoE 3GEMM: generate routing masks on GPU instead of CPU for the micro-kernel prefill path")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_use_grouped_gemm_prefill, true, "MoE 3GEMM: use a single OneDNN grouped matmul per GEMM layer for the prefill path. Takes priority over micro-kernel GEMM")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_batched_gemv_threshold, 32, "MoE 3-GEMM: token count (<=) that selects the batched GEMV decode path instead of the prefill path")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_disable_fusion, false, "Disable fusion of MoE subgraph to composite MoE operation")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, record_replay, false, "Enable level-zero command list through record and replay for static models")
 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose, 0, "Enable logging for debugging purposes. The higher value the more verbose output. 0 - Disabled, 4 - Maximum verbosity")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose_color, true, "Enable coloring for verbose logs")
+OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, enable_mlir, false, "Enable/Disable MLIR/Graph-Compiler execution for supported subgraphs. Requires ENABLE_MLIR_FOR_GPU=ON at build time [EXPERIMENTAL, NOT PRODUCTION-READY]")
+OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, mlir_debug, false, "Enable verbose logging of the MLIR/Graph-Compiler pipeline")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, disable_usm, false, "Disable USM memory allocations and use only cl_mem")
+OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, finish_after_enqueue, false, "Diagnostic: call finish() after each kernel enqueue so async errors like CL_OUT_OF_RESOURCES surface at the exact failing kernel/layer")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, usm_policy, 0, "0: default, 1: use usm_host, 2: do not use usm_host")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, dump_batch_limit, std::numeric_limits<int32_t>::max(), "Max number of batch elements to dump")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, dump_profiling_data_per_iter, false, "Save profiling data w/o per-iteration aggregation")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, log_to_file, "", "Save verbose log to specified file")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, debug_config, "", "Path to debug config in json format")
 
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, use_onednn_sdpa, false, "Use oneDNN SDPA primitive implementation for debugging. PA is not supported")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_onednn_post_ops_opt, false, "Disable optimization pass for onednn post-ops")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, mlir_patterns, "", "Overrides the subgraph patterns compiled through MLIR/Graph-Compiler: \"name1=Type1,Type2;name2=Type3,Type4\". Empty keeps the built-in default set, \"*\" matches every supported operation")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_profiling_data_path, "", "Save csv file with per-stage and per-primitive profiling data to specified folder")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, average_counters, "", "Save csv file with per-primitive averaged execution time. Output format matches benchmark_app --report_type average_counters and OV_CPU_AVERAGE_COUNTERS")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_graphs_path, "", "Save intermediate graph representations during model compilation pipeline to specified folder")
@@ -89,19 +117,22 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_src_after_exec, false, "Enable source
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, host_time_profiling, 0, "Measure and print host time spent from the beginning of the infer until all host work is done and plugin is ready to block thread on the final clFinish() call")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_async_compilation, false, "Disable feature that allows to asynchronously prepare static-shaped implementations for the primitives with shape-agnostic kernels selected during compilation")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_runtime_buffer_fusing, false, "Disable runtime inplace optimizations for operations like concat and crop")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_post_ops_fusions, 0, "Disable fusions of operations as post-ops/fused-ops. Detailed debugging is possible by entering specific numbers. 1 specifies to disable all fusions of post-ops. 2-8 specifies to enable only single fusion sub-module from fuse_reorder() to optimize_fused_opt(). 11-13 specifies to enable only single fusion sub-module in fuse_simple_primitives.")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_post_ops_fusions, 0, "Disable fusions of operations as post-ops/fused-ops. Detailed debugging is possible by entering specific numbers. 1 specifies to disable all fusions of post-ops. 2-8 specifies to enable only single fusion sub-module from fuse_reorder() to optimize_fused_opt(). 11-14 specifies to enable only single fusion sub-module in fuse_simple_primitives.")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_horizontal_fc_fusion, false, "Disable pass which merges QKV projections into single MatMul")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fc_swiglu_fusion, false, "Disable pass which merges FC and SwiGLU ops")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_gated_mlp_fusion, true, "Disable pass which fuses FC+SwiGLU to GatedMLP")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fake_alignment, false, "Disable fake alignment feature which tries to keep gpu friendly memory alignment for arbitrary tensor shapes")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_moe_opt, false, "Disable mixture of expert optimization")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_memory_reuse, false, "Disable memory reuse for activation tensors")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_runtime_skip_reorder, false, "Disable skip reorder optimization applied in runtime")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, load_dump_raw_binary, std::vector<std::string>{}, "List of layers to load raw binary")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dry_run_path, "", "Enables mode which partially compiles a model and stores runtime model into specified directory")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, validate_output_buffer, false, "Validate output buffers of all layers which have fp16 data-type to find 'inf' and 'nan' value.")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, validate_output_buffer, 0, "Validate output buffers of all layers which have fp16 data-type to find 'inf' and 'nan' value. If set to 2, an exception will be thrown on detection.")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dynamic_quantization_bisect, std::numeric_limits<int64_t>::max(), "Apply dynamic quantization only up to this count")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dynamic_quantization_single, -1, "Apply dynamic quantization only to this index")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, network_marker, false, "Insert named OpenCL marker kernels at network execution start/finish for CLIntercept tracing")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, list_layers, false, "Print layers list")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, print_input_data_shapes, false, "print input data shapes")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, pa_integrity_check, false, "Enable in-kernel SDPA micro-GEMM integrity checks (per-row K^T*Q and V*S reference comparisons)")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, micro_sdpa_workgroup_config, std::vector<int>{}, "Override SDPA micro-kernel workgroup config: 4 ints [wg_m_kq wg_n_kq wg_m_vs wg_n_vs]")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, micro_sdpa_disable_prefetch, 0, "Disable SDPA micro-kernel prefetches (Xe-HPC+). Bitmask: 1 - attn mask, 2 - K, 4 - V, 7 - all")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, record_replay_dynamic, false, "Enable level-zero command list through record and replay for all (static and dynamic) models. Feature is work in progress and may produce incorrect results.")

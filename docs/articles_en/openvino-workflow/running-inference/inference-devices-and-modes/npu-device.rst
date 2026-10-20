@@ -21,11 +21,6 @@ for more streamlined resource management.
 
 NPU Plugin is now available through all relevant OpenVINO distribution channels.
 
-| **Supported Platforms:**
-|   Host: Intel® Core™ Ultra series
-|   NPU device: NPU 3720
-|   OS: Ubuntu* 22.04 64-bit (with Linux kernel 6.6+), MS Windows* 11 64-bit (22H2, 23H2)
-
 NPU Plugin needs an NPU Driver to be installed on the system to execute a model.
 Follow the instructions below to install the latest NPU drivers:
 
@@ -170,6 +165,8 @@ The NPU device is currently supported by AUTO inference modes
          ov::range_for_streams
          ov::num_streams
          ov::execution_devices
+         ov::runtime_requirements
+         ov::compatibility_check
          ov::device::architecture
          ov::device::capabilities
          ov::device::full_name
@@ -377,6 +374,32 @@ or
    }, nullptr}));
 
    compiled_model.export_model(custom_encrypted_blob_stream);
+
+**ov::runtime_requirements**
+
+This property returns a plugin-specific requirements string from a compiled model.
+
+.. code-block::
+
+   auto requirements = compiled_model.get_property(ov::runtime_requirements);
+
+.. note::
+
+   Particular models might not support the ``ov::runtime_requirements`` property. For example,
+   models compiled with a driver (compiler-in-driver) that does not support Level Zero
+   version 1.16, or models compiled with ``ENABLE_WEIGHTLESS=true``, which is only a
+   preview feature for now. Before reading the property, the application is recommended
+   to check whether it is present in the list of supported properties for that model.
+   Reading an unsupported property will throw.
+
+**ov::compatibility_check**
+
+This property can be queried with a requirements string to check whether
+the described model is compatible with the current runtime.
+
+.. code-block::
+
+   auto compat = core.get_property("NPU", ov::compatibility_check, {{ov::runtime_requirements.name(), requirements}});
 
 Limitations
 #############################

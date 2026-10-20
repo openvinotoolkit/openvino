@@ -64,6 +64,10 @@ endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     ov_add_compiler_flags(-fno-gnu-unique)
+    # Disable -Warray-bounds for GCC 15 and later due to false positive in the compiler.
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15.0)
+        ov_add_compiler_flags(-Wno-array-bounds)
+    endif()
 endif()
 
 if(CMAKE_COMPILE_WARNING_AS_ERROR)

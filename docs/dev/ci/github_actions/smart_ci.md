@@ -69,13 +69,14 @@ affected_components={
 Once the Smart CI job is finished, validation jobs start. Based on the output from Smart CI,
 some jobs can be skipped entirely, while in other jobs only specific steps are skipped.
 This is done via GitHub Actions [conditions](https://docs.github.com/en/actions/using-jobs/using-conditions-to-control-job-execution).
-For example, the following job, called TensorFlow_Hub_Models_Tests, will be executed only if the PR
-is related to the "TF_FE" component and requires running the "test" scope for it:
+For example, the following job is executed only if the PR is related to the TensorFlow or
+TensorFlow Lite frontend and requires running the `test` scope:
 ```yaml
-TensorFlow_Hub_Models_Tests:
-  needs: [Build, Smart_CI]
+TensorFlow_Models_Tests_Precommit:
+  needs: [Docker, Build, Smart_CI, Openvino_tokenizers]
   ...
-  if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
+  if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
+      fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
   steps:
     - ...
 ```
@@ -192,8 +193,8 @@ corresponding components.
 ### Adding Validation for a Component
 If you want to add a new validation job to test your new component or choose an existing one, go to the
 desired workflow in [.github/workflows](../../../../.github/workflows). The main ones include
-[ubuntu_22.yml](../../../../.github/workflows/ubuntu_22.yml), [windows.yml](../../../../.github/workflows/windows.yml) and
-[mac.yml](../../../../.github/workflows/mac.yml). If Smart CI is enabled for the pipeline, you will find the Smart_CI job
+[ubuntu_22.yml](../../../../.github/workflows/ubuntu_22.yml), [windows_vs2022_release.yml](../../../../.github/workflows/windows_vs2022_release.yml) and
+[mac_arm64.yml](../../../../.github/workflows/mac_arm64.yml). If Smart CI is enabled for the pipeline, you will find the Smart_CI job
 in the beginning of the workflow:
 ```yaml
 jobs:

@@ -11,7 +11,7 @@
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/space_to_batch.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/math_util.hpp"
 
 using namespace std;
 using namespace testing;

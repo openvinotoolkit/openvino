@@ -18,14 +18,13 @@ std::vector<layout> experimental_detectron_prior_grid_generator_inst::calc_outpu
     if (desc->flatten) {
         int64_t flattened_dim = desc->featmap_width * desc->featmap_height * data_layout.get_partial_shape()[0].get_length();
         return { layout(ov::PartialShape{flattened_dim, 4}, data_layout.data_type, format::bfyx) };
-    } else {
-        return { layout(ov::PartialShape{static_cast<int64_t>(desc->featmap_height),
-                                         static_cast<int64_t>(desc->featmap_width),
-                                         static_cast<int64_t>(data_layout.get_partial_shape()[0].get_length()),
-                                         4},
-                       data_layout.data_type,
-                       format::bfyx) };
     }
+    return {layout(ov::PartialShape{static_cast<int64_t>(desc->featmap_height),
+                                    static_cast<int64_t>(desc->featmap_width),
+                                    static_cast<int64_t>(data_layout.get_partial_shape()[0].get_length()),
+                                    4},
+                   data_layout.data_type,
+                   format::bfyx)};
 }
 template std::vector<layout>
 experimental_detectron_prior_grid_generator_inst::calc_output_layouts<ov::PartialShape>(
@@ -39,14 +38,10 @@ layout experimental_detectron_prior_grid_generator_inst::calc_output_layout(
         return layout(data_layout.data_type,
                       format::bfyx,
                       {static_cast<int>(desc->featmap_width * desc->featmap_height * data_layout.batch()), 4, 1, 1});
-    } else {
-        return layout(data_layout.data_type,
-                      format::bfyx,
-                      {static_cast<int>(desc->featmap_height),
-                       static_cast<int>(desc->featmap_width),
-                       4,
-                       static_cast<int>(data_layout.batch())});
     }
+    return layout(data_layout.data_type,
+                  format::bfyx,
+                  {static_cast<int>(desc->featmap_height), static_cast<int>(desc->featmap_width), 4, static_cast<int>(data_layout.batch())});
 }
 
 std::string experimental_detectron_prior_grid_generator_inst::to_string(

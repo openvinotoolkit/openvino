@@ -18,13 +18,16 @@
 namespace intel_npu {
 
 namespace test_constants {
+inline constexpr ze_api_version_t TARGET_ZE_API_VERSION = ZE_API_VERSION_1_18;
 inline constexpr uint32_t TARGET_ZE_DRIVER_NPU_EXT_VERSION = ZE_DRIVER_NPU_EXT_VERSION_1_0;
-inline constexpr uint32_t TARGET_ZE_GRAPH_NPU_EXT_VERSION = ZE_GRAPH_EXT_VERSION_1_17;
+inline constexpr uint32_t TARGET_ZE_GRAPH_NPU_EXT_VERSION = ZE_GRAPH_EXT_VERSION_1_19;
 inline constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION = ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_1;
 inline constexpr uint32_t TARGET_ZE_PROFILING_NPU_EXT_VERSION = ZE_PROFILING_DATA_EXT_VERSION_1_0;
 inline constexpr uint32_t TARGET_ZE_CONTEXT_NPU_EXT_VERSION = ZE_CONTEXT_NPU_EXT_VERSION_1_0;
 inline constexpr uint32_t TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION = ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_1;
 inline constexpr uint32_t TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION = ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION_1_0;
+inline constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION =
+    ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION_1_0;
 }  // namespace test_constants
 
 struct ZeroInitStructsMock {
@@ -37,7 +40,10 @@ public:
         uint32_t zeContextNpuExtVersion = intel_npu::test_constants::TARGET_ZE_CONTEXT_NPU_EXT_VERSION,
         uint32_t zeMutableCommandListExtVersion = intel_npu::test_constants::TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION,
         uint32_t zeExternalMemMapSysMemExtVersion =
-            intel_npu::test_constants::TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION);
+            intel_npu::test_constants::TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION,
+        uint32_t zeCommandQueueSetPriorityExtVersion =
+            intel_npu::test_constants::TARGET_ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION,
+        ze_api_version_t zeApiVersion = intel_npu::test_constants::TARGET_ZE_API_VERSION);
 
     ~ZeroInitStructsMock();
 
@@ -48,7 +54,7 @@ public:
     static void destroyContextForInstance(std::shared_ptr<ZeroInitStructsMock>& instance);
 
 private:
-    void initNpuDriver();
+    void initNpuDriver(const ze_api_version_t zeApiVersion);
     void getExtensionFunctionAddress(const std::string& name, const uint32_t version, void** function_address);
     void destroyContextLocked();
 
@@ -76,6 +82,7 @@ private:
 
     bool _external_memory_standard_allocation_supported = false;
     bool _external_memory_fd_win32_supported = false;
+    bool _command_queue_set_priority_supported = false;
 
     uint32_t _context_options = 0;
 

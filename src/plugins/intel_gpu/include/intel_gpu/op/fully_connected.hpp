@@ -18,7 +18,8 @@ public:
     FullyConnected(const ov::Output<Node>& A,
                    const ov::Output<Node>& B,
                    const ov::Output<Node>& bias,
-                   const ov::element::Type output_type = ov::element::dynamic);
+                   const ov::element::Type output_type = ov::element::dynamic,
+                   const bool transpose_b = true);
 
     bool visit_attributes(ov::AttributeVisitor &visitor) override;
 
@@ -28,8 +29,11 @@ public:
 
     ov::element::Type get_output_type() const { return m_output_type; }
 
+    bool get_transpose_b() const { return m_transpose_b; }
+
 protected:
     ov::element::Type m_output_type;
+    bool m_transpose_b = true;
 };
 
 }   // namespace ov::intel_gpu::op

@@ -4,16 +4,19 @@
 
 #include "partitioning.hpp"
 
+#include <limits>
 #include <memory>
 #include <set>
 
 #include "../logging.hpp"
+#include "../npuw_transformations/detect_causal_mask.hpp"
 #include "../util.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "online/compiler.hpp"
 #include "online/utils/utils.hpp"  // getMetaDesc
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -22,7 +25,6 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
-#include "patterns/moe.hpp"
 #include "patterns/opt.hpp"
 #include "traits.hpp"
 
@@ -927,6 +929,12 @@ std::vector<std::string> Partitioner::initFunctionPipeline(FunctionPipelineType 
     // Collect all groups of function call(s) and process them in groups
     std::map<std::string, int> idx;
     for (auto&& part_sg : P.subgraphs) {
+        // An output-less partition is already marked as optimized out by identifySubgraphs().
+        // Do not turn it into a function call.
+        if (part_sg._optimized_out) {
+            LOG_VERB("Skipping optimized-out subgraph in function pipeline");
+            continue;
+        }
         if (!part_sg._repeated_id.empty() &&
             (selected_repeated_ids.empty() || selected_repeated_ids.count(part_sg._repeated_id) > 0)) {
             auto pfix = "__" + std::to_string(idx[part_sg._repeated_id]++);
@@ -1420,7 +1428,7 @@ void Partitioner::saveTinyConstants(const std::string& func_name) {
                 LOG_DEBUG("[KEEP] " << node->get_friendly_name() << "/" << shape
                                     << ": It is safe to keep this bank in function");
                 func_group.consts_to_keep.insert(std::static_pointer_cast<CT>(node));
-            } else {
+            } else if (ov::op::util::is_constant(node)) {
                 LOG_DEBUG("[CUT ] " << node->get_friendly_name() << "/" << shape
                                     << ": This const op will be cut-off from the function");
             }
@@ -1446,6 +1454,8 @@ void Partitioner::saveScaleFactors(const std::string& func_name) {
     rewr.add_matcher<ov::npuw::patterns::SymmZP::CWAI1>(std::ref(to_keep));
     rewr.add_matcher<ov::npuw::patterns::SymmZP::CWAI2>(std::ref(to_keep));
     rewr.add_matcher<ov::npuw::patterns::SymmZP::CWAI3>(std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::AsymmZP::CWAI>(std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::RMSNorm::CWAI>(std::ref(to_keep));
     rewr.run_on_model(model_group.front());
 
     for (auto&& const_to_keep : to_keep) {
@@ -1531,11 +1541,6 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         }
         return false;
     };
-    // Helper to check if a constant is MoE Gather indices (marked by GatherTo2DGather pass)
-    auto is_moe_gather_const = [](const CTPtr& const_node) -> bool {
-        const auto& rt_info = const_node->get_rt_info();
-        return rt_info.count("npuw_moe_gather_indices") > 0;
-    };
 
     auto check_and_mark = [&](const ov::npuw::RepeatedBlock::MatchedLayers& bank) {
         std::unordered_set<CTPtr> instances;
@@ -1549,13 +1554,17 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         LOG_BLOCK();
 
         bool is_tiny = ov::npuw::partitioning::traits::is_tiny_shape(proto_shape);
-        bool is_moe_gather = is_moe_gather_const(proto_node);
-        if (!is_tiny && !is_moe_gather) {
-            LOG_DEBUG("[CUT ] Not tiny shape and not MoE Gather indices - will be cut-off from the function");
+        if (!is_tiny) {
+            LOG_DEBUG("[CUT ] Not tiny shape - will be cut-off from the function");
             return;
         }
 
+        bool empty_constant = ov::util::is_empty_constant_tensor(proto_node);
+
         bool all_identical = std::all_of(instances.begin(), instances.end(), [&](const CTPtr& other_node) -> bool {
+            if (empty_constant) {
+                return ov::util::is_empty_constant_tensor(other_node);
+            }
             return (other_node->output(0).get_shape() == proto_node->output(0).get_shape()) &&
                    values_are_the_same(proto_node, other_node);
         });
@@ -1565,11 +1574,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             return;
         }
 
-        if (is_moe_gather) {
-            LOG_DEBUG("[KEEP] MoE Gather indices constant - identical across all repeats");
-        } else {
-            LOG_DEBUG("[KEEP] Tiny shape constant - safe to keep in function");
-        }
+        LOG_DEBUG("[KEEP] Tiny shape constant - safe to keep in function");
         for (auto&& const_node : instances) {
             func_group.consts_to_keep.insert(const_node);
         }
@@ -1614,7 +1619,8 @@ void Partitioner::saveTailDictConstants(const std::string& func_name) {
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     std::vector<CPtr> to_keep;
 
-    ov::npuw::patterns::opt::Context ctx;
+    // Before closure extraction, every Parameter is a function input.
+    ov::npuw::patterns::opt::Context ctx(model_group.front(), model_group.front()->get_parameters().size());
     ctx.mm_gate = cfg.get<::intel_npu::NPUW_MM_GATED>();
 
     ov::pass::GraphRewrite rewr;
@@ -2090,8 +2096,52 @@ void Partitioner::attention(const std::string& func_name) {
     // Try HFA (Host Flash Attention)
     if (attn_mode == "HFA") {
         LOG_DEBUG("Attempting HostFlashAttention based on config");
-        f._host_flash_attention =
-            ov::npuw::function::HostFlashAttention::from(f._model, cfg.get<::intel_npu::NPUW_ATTN_HFA_FUSED>());
+
+        // Consistency check: HostFlashAttention::from() inspects a single representative
+        // instance (f._model) of this repeated "attn" function to decide whether the
+        // compiled tile model can structurally drop the mask input. That decision is only
+        // valid if all funcall instances sharing this function have the same mask kind --
+        // otherwise it's a correctness bug (e.g. a Causal representative stripping a mask
+        // a SlidingWindow instance still needs), not just a missed optimization. This is a
+        // defensive backstop, not the primary separation mechanism: distinct mask kinds
+        // normally yield structurally distinct subgraphs, so partitioning already tends to
+        // keep them in separate functions. If a mix is still found here, disable
+        // mask-skipping for the whole function (safe: only forgoes an optimization).
+        //
+        // NPUW_SDPA_MASK_RT_KEY encodes mask kind + (for sliding window) window size in
+        // one int64_t, so raw-value comparison also catches differing window sizes.
+        std::optional<int64_t> common_mask_value;
+        bool mask_kind_consistent = true;
+        for (const auto& mdl : all_functions.at(func_name).mdls) {
+            const auto pattern_nodes = ov::npuw::util::find_sdpa_pattern_nodes(mdl);
+            if (!pattern_nodes.add_node) {
+                continue;
+            }
+
+            int64_t mask_value = std::numeric_limits<int64_t>::min();
+            const auto& rt_info = pattern_nodes.add_node->get_rt_info();
+            if (auto it = rt_info.find(ov::npuw::NPUW_SDPA_MASK_RT_KEY); it != rt_info.end()) {
+                mask_value = it->second.as<int64_t>();
+            }
+            if (!common_mask_value) {
+                common_mask_value = mask_value;
+            } else if (*common_mask_value != mask_value) {
+                LOG_WARN("NPUW: mixed mask types (e.g. sliding-window + global/causal attention, or different "
+                         "sliding window sizes) detected across funcall instances sharing the same repeated 'attn' "
+                         "function '"
+                         << func_name
+                         << "'. The mask-skipping optimization's compile-time decision is based on a single "
+                            "representative instance, which would be unsafe here -- disabling mask skipping for "
+                            "this function.");
+                mask_kind_consistent = false;
+                break;
+            }
+        }
+
+        f._host_flash_attention = ov::npuw::function::HostFlashAttention::from(
+            f._model,
+            cfg.get<::intel_npu::NPUW_ATTN_HFA_FUSED>(),
+            mask_kind_consistent && cfg.get<::intel_npu::NPUW_ATTN_HFA_MASK_SKIPPING>());
         if (f._host_flash_attention) {
             LOG_VERB("Done - HFA (Host Flash Attention)");
             return;
@@ -2109,6 +2159,7 @@ void Partitioner::optimize(const std::string& func_name) {
     auto do_permute = [&](ov::npuw::patterns::opt::Context& ctx) {
         for (auto&& p : ctx.closures_to_permute) {
             auto param_idx = f._model->get_parameter_index(p.first);
+            NPUW_ASSERT(param_idx >= static_cast<int64_t>(f._param_offset));
             auto closure_idx = param_idx - f._param_offset;
             ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
@@ -2119,7 +2170,7 @@ void Partitioner::optimize(const std::string& func_name) {
     auto do_cvtf16 = [&](ov::npuw::patterns::opt::Context& ctx) {
         for (auto&& p : ctx.closures_to_f16) {
             auto param_idx = f._model->get_parameter_index(p);
-            NPUW_ASSERT(param_idx != -1);
+            NPUW_ASSERT(param_idx >= static_cast<int64_t>(f._param_offset));
             auto closure_idx = param_idx - f._param_offset;
             ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
@@ -2130,13 +2181,14 @@ void Partitioner::optimize(const std::string& func_name) {
 
     // Regardless of DQ setting, run this first
     {
-        ov::npuw::patterns::opt::Context ctx;
+        ov::npuw::patterns::opt::Context ctx(f._model, f._param_offset);
         ctx.is_spatial = f._spatial.has_value();
         ctx.pmm_dims = cfg.get<::intel_npu::NPUW_PMM>();
 
         // Run Head/Tail passes
         ov::pass::GraphRewrite rewr;
         if (cfg.get<::intel_npu::NPUW_HOST_GATHER>() && !part_ctx.use_host_gather_quant) {
+            rewr.add_matcher<ov::npuw::patterns::opt::ConvertDQVocab>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatheru>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherGQi>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWu>(std::ref(ctx));
@@ -2184,6 +2236,7 @@ void Partitioner::optimize(const std::string& func_name) {
             std::vector<std::size_t> to_concat_idx;
             for (auto&& p_to_concat : params_to_concat) {
                 auto p_to_concat_idx = f._model->get_parameter_index(p_to_concat);
+                NPUW_ASSERT(p_to_concat_idx >= static_cast<int64_t>(f._param_offset));
                 to_remove.push_back(p_to_concat);
                 to_concat_idx.push_back(p_to_concat_idx - f._param_offset);
                 to_remove_idx.insert(p_to_concat_idx);
@@ -2210,6 +2263,7 @@ void Partitioner::optimize(const std::string& func_name) {
         for (auto&& p : ctx.params_to_nf4_gather) {
             const auto& tensor_to_gather = p.second;
             auto w_idx = f._model->get_parameter_index(tensor_to_gather.w);
+            NPUW_ASSERT(w_idx >= static_cast<int64_t>(f._param_offset));
 
             // Need to add a new parameter right away, since it's going to be processed by the unpack below
             f._model->add_parameters({p.first});
@@ -2237,6 +2291,9 @@ void Partitioner::optimize(const std::string& func_name) {
             auto w_idx = f._model->get_parameter_index(tensor_to_unpack.w);
             auto z_idx = f._model->get_parameter_index(tensor_to_unpack.z);
             auto s_idx = f._model->get_parameter_index(tensor_to_unpack.s);
+            NPUW_ASSERT(w_idx >= static_cast<int64_t>(f._param_offset));
+            NPUW_ASSERT(s_idx >= static_cast<int64_t>(f._param_offset));
+            NPUW_ASSERT(z_idx == -1 || z_idx >= static_cast<int64_t>(f._param_offset));
 
             new_params.push_back(p.first);
             to_remove.push_back(tensor_to_unpack.w);
@@ -2268,6 +2325,27 @@ void Partitioner::optimize(const std::string& func_name) {
 
         // Convert parameters to f16 where required
         do_cvtf16(ctx);
+
+        // Add lazy Sub128 parameters while retaining the original sources when they are still shared.
+        for (const auto& shifted_and_source : ctx.closures_to_subtract_128) {
+            const auto& shifted_param = shifted_and_source.first;
+            const auto& source_param = shifted_and_source.second;
+            const auto source_idx = f._model->get_parameter_index(source_param);
+            NPUW_ASSERT(source_idx >= static_cast<int64_t>(f._param_offset));
+
+            new_params.push_back(shifted_param);
+            const auto source_closure_idx = source_idx - f._param_offset;
+            ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+                auto& funcall = func_group.refs[f_idx].get();
+                funcall._lazy_closure.push_back(funcall._lazy_closure[source_closure_idx].subtract_128());
+                funcall._closure.emplace_back();
+                funcall._is_lazy_unpack.push_back(false);
+            });
+
+            if (source_param->output(0).get_target_inputs().empty() && to_remove_idx.insert(source_idx).second) {
+                to_remove.push_back(source_param);
+            }
+        }
 
         // Host-side gather, pt 1. Add new parameters first
         if (ctx.params_to_gather) {
@@ -2397,7 +2475,7 @@ void Partitioner::optimize(const std::string& func_name) {
     LOG_BLOCK();
 
     // Run "dynamic quantization"
-    ov::npuw::patterns::opt::Context ctx;
+    ov::npuw::patterns::opt::Context ctx(f._model, f._param_offset);
     ctx.is_spatial = f._spatial.has_value();
     ctx.mm_dq_full = cfg.get<::intel_npu::NPUW_DQ_FULL>();
 
@@ -2738,25 +2816,46 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
             // Pass 2: run deferred partition-stage transformations after all functions are registered.
             // Partitioning stays generic here: it only exposes shared lookup helpers through the
             // pipeline context and then runs the registered callbacks.
+            std::unordered_map<std::string, std::shared_ptr<ov::Node>> rt_info_node_cache;
             for (auto&& func_group : all_functions) {
                 LOG_INFO("FOLD Pass 2: Partition-stage pipeline for " << func_group << "...");
                 LOG_BLOCK();
                 auto& function = P.functions.at(func_group);
                 if (function._pipeline.partition_stage) {
-                    function._pipeline.context.put<ov::npuw::v1::subgraphs::PartitioningCallbacks>(
-                        {[&P, &part_ctx = effective_ctx](const std::string& tag) -> std::shared_ptr<ov::Model> {
-                            auto cached = part_ctx.tagged_models.find(tag);
-                            if (cached != part_ctx.tagged_models.end()) {
-                                return cached->second;
+                    auto find_tagged_model =
+                        [&P, &part_ctx = effective_ctx](const std::string& tag) -> std::shared_ptr<ov::Model> {
+                        auto cached = part_ctx.tagged_models.find(tag);
+                        if (cached != part_ctx.tagged_models.end()) {
+                            return cached->second;
+                        }
+                        for (const auto& [name, candidate] : P.functions) {
+                            if (candidate.gettag() == tag) {
+                                part_ctx.tagged_models.emplace(tag, candidate._model);
+                                return candidate._model;
                             }
-                            for (const auto& [name, candidate] : P.functions) {
-                                if (candidate.gettag() == tag) {
-                                    part_ctx.tagged_models.emplace(tag, candidate._model);
-                                    return candidate._model;
+                        }
+                        return nullptr;
+                    };
+
+                    auto find_node_with_rt_info =
+                        [&P, &cache = rt_info_node_cache](const std::string& key) -> std::shared_ptr<ov::Node> {
+                        auto cached = cache.find(key);
+                        if (cached != cache.end()) {
+                            return cached->second;
+                        }
+                        for (const auto& [name, func] : P.functions) {
+                            for (const auto& node : func._model->get_ordered_ops()) {
+                                if (node->get_rt_info().count(key) > 0) {
+                                    cache.emplace(key, node);
+                                    return node;
                                 }
                             }
-                            return nullptr;
-                        }});
+                        }
+                        return nullptr;
+                    };
+
+                    function._pipeline.context.put<ov::npuw::v1::subgraphs::PartitioningCallbacks>(
+                        {std::move(find_tagged_model), std::move(find_node_with_rt_info)});
                     function._pipeline.partition_stage(function, function._pipeline.context);
                     // The callback captures partitioning state by reference, so keep it scoped to this
                     // immediate partition-stage invocation and remove it before the context outlives us.

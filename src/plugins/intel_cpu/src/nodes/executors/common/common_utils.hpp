@@ -74,6 +74,17 @@ inline void multiplyAndBroadcastScales(std::vector<float>& dstScales,
     }
 }
 
+inline void foldFakeQuantizeOutputShift(std::vector<float>& fqInputShift,
+                                        const std::vector<float>& fqOutputScale,
+                                        const std::vector<float>& fqOutputShift) {
+    if (fqOutputScale.size() == 1 && fqOutputScale[0] == 1.0F && fqOutputShift.size() == 1 &&
+        fqOutputShift[0] == std::trunc(fqOutputShift[0])) {
+        for (auto& v : fqInputShift) {
+            v += fqOutputShift[0];
+        }
+    }
+}
+
 [[maybe_unused]] static std::vector<float> getDeQuantizedScales(const MemoryArgs& memory) {
     if (memory.find(ARG_DST_DEQ_SCALE) == memory.end()) {
         return {};

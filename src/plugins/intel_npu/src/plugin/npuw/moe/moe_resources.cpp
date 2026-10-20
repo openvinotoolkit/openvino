@@ -5,6 +5,7 @@
 #include "moe_resources.hpp"
 
 #include <algorithm>
+#include <cstring>
 
 #include "../logging.hpp"
 #include "openvino/core/except.hpp"
@@ -42,10 +43,12 @@ void MoEResources::initialize_expert_iterative_mode(
         }
 
         try {
-            auto infer_request = compiled_model->create_infer_request();
-            chunk_infer_requests[chunk_size] = std::move(infer_request);
+            // Create 2 requests per chunk_size for double-buffering:
+            // slot 0 and slot 1 alternate so Unpack+Gather can overlap with NPU inference.
+            chunk_infer_requests[chunk_size][0] = compiled_model->create_infer_request();
+            chunk_infer_requests[chunk_size][1] = compiled_model->create_infer_request();
             sorted_chunk_sizes.push_back(chunk_size);
-            LOG_DEBUG("  Created chunk infer request for chunk_size=" << chunk_size);
+            LOG_DEBUG("  Created 2 chunk infer requests (double-buffer) for chunk_size=" << chunk_size);
         } catch (const std::exception& ex) {
             OPENVINO_THROW("MoE chunk infer request creation failed for chunk_size=", chunk_size, ": ", ex.what());
         }
@@ -88,6 +91,7 @@ void MoEResources::initialize_expert_iterative_mode(
     auto output_element_type = first_model->outputs()[0].get_element_type();
 
     expert_output_accumulator = allocator(output_element_type, buffer_shape, device);
+    std::memset(expert_output_accumulator->data(), 0, expert_output_accumulator->get_byte_size());
 
     LOG_DEBUG("Allocated iterative mode output buffer: shape=" << buffer_shape << ", type=" << output_element_type
                                                                << ", device=" << device);

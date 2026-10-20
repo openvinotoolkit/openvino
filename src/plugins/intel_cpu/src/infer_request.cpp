@@ -5,6 +5,7 @@
 #include "infer_request.h"
 
 #include <cstddef>
+#include <cstring>
 #include <exception>
 #include <functional>
 #include <map>
@@ -27,7 +28,6 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "node.h"
-#include "nodes/common/cpu_convert.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
@@ -503,6 +503,12 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
             }
 
             tensor = ov::make_tensor(port.get_element_type(), tensor_shape);
+            // zero-initialize so an infer() call without set_tensor() never exposes bytes left over from a
+            // previously freed tensor of the same size/allocator size-class (std::string tensors already
+            // self-initialize to empty strings via placement-new, so they don't need this)
+            if (port.get_element_type() != element::string && tensor->get_byte_size() > 0) {
+                std::memset(tensor->data(), 0, tensor->get_byte_size());
+            }
             ov::ISyncInferRequest::set_tensor(port, tensor);
 
             if (!isDynamic) {

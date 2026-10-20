@@ -16,7 +16,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/pass/runtime_optimizer.hpp"
+#include "transformations/snippets/common/pass/lowered/external_repacking_adjuster.hpp"
 
 namespace ov::intel_cpu::pass {
 
@@ -25,25 +25,30 @@ namespace ov::intel_cpu::pass {
  * @brief A runtime optimizer that creates the memory descs for BRGEMM inputs which require external repacking.
  * The generated memory descs are stored in the CPU runtime config.
  */
-class BrgemmExternalRepackingAdjuster : public ov::snippets::lowered::pass::RuntimeOptimizer {
+class BrgemmExternalRepackingAdjuster : public ov::intel_cpu::pass::ExternalRepackingAdjusterBase {
 public:
-    OPENVINO_RTTI("BrgemmExternalRepackingAdjuster", "", RuntimeOptimizer)
+    OPENVINO_RTTI("BrgemmExternalRepackingAdjuster", "", ExternalRepackingAdjusterBase)
     BrgemmExternalRepackingAdjuster() = default;
     BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                     const CPURuntimeConfigurator* configurator);
-
-    bool run(const snippets::lowered::LinearIR& linear_ir) override;
-    bool applicable() const override {
-        return !m_repacked_inputs.empty();
-    }
 
 private:
     using RepackExecutorPtr = std::shared_ptr<BrgemmCopyBKernelExecutor>;
     struct RepackedInputConfig {
         BrgemmCopyBKernelConfig kernel_config;
         RepackExecutorPtr executor = nullptr;
-        bool needs_runtime_repacking = false;
     };
+
+    size_t update_runtime_repacking_data_size(const snippets::lowered::LinearIR& linear_ir,
+                                              const CPURuntimeConfig& cpu_config,
+                                              size_t idx) override;
+    void update_runtime_repacking_input(const snippets::lowered::LinearIR& linear_ir,
+                                        CPURuntimeConfig& cpu_config,
+                                        size_t idx,
+                                        bool is_impl_parallel) override;
+    void update_compile_time_repacked_input(const snippets::lowered::LinearIR& linear_ir,
+                                            CPURuntimeConfig& cpu_config,
+                                            size_t idx) override;
 
     static CpuBlockedMemoryDescPtr get_desc(const ov::snippets::VectorDims& planar_shape,
                                             const ov::element::Type& prc,
@@ -63,7 +68,7 @@ private:
                                              const ov::intel_cpu::MultiCacheWeakPtr& cache);
 
     static const size_t brgemm_kernel_rank;
-    std::unordered_map<size_t, RepackedInputConfig> m_repacked_inputs;
+    std::unordered_map<size_t, RepackedInputConfig> m_repacked_input_configs;
 };
 
 }  // namespace ov::intel_cpu::pass

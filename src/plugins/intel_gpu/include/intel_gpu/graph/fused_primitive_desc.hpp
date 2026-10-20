@@ -50,16 +50,19 @@ struct fused_primitive_desc {
     template<typename T>
     std::shared_ptr<T> get_typed_fuse_params() const {
         auto p = std::dynamic_pointer_cast<T>(f_param);
-        if (!p)
+        if (!p) {
             throw std::runtime_error("Invalid dynamic cast of fused parameters!");
+        }
         return p;
     }
 
     bool operator==(const fused_primitive_desc& rhs) const {
-        if (total_num_deps != rhs.total_num_deps)
+        if (total_num_deps != rhs.total_num_deps) {
             return false;
-        if (outer_dep_start_idx != rhs.outer_dep_start_idx)
+        }
+        if (outer_dep_start_idx != rhs.outer_dep_start_idx) {
             return false;
+        }
 
         return *desc == *rhs.desc;
     }
@@ -68,11 +71,26 @@ struct fused_primitive_desc {
 
     bool has_outer_dep() const { return outer_dep_start_idx >= 0; }
 
+    const layout& get_output_layout() const {
+        OPENVINO_ASSERT(output_layouts.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
+        return output_layouts[0];
+    }
+
+    void set_output_layout(layout& new_layout, size_t idx = 0) {
+        OPENVINO_ASSERT(idx < output_layouts.size(),
+                        "Invalid index : index is ",
+                        std::to_string(idx),
+                        " but output_layouts length is ",
+	                    std::to_string(output_layouts.size()));
+        new_layout.data_padding = output_layouts[idx].data_padding;
+        output_layouts[idx] = new_layout;
+    }
+
     std::shared_ptr<const primitive> desc;
     std::shared_ptr<NodeFuseParams> f_param;
 
     layout input_layout;
-    layout output_layout;
+    std::vector<layout> output_layouts;
 
     struct InputDescriptor {
         InputDescriptor(FusedInputType type, size_t idx, ov::element::Type_t element_type) : m_type(type), m_idx(idx), m_element_type(element_type) {};
@@ -114,6 +132,7 @@ enum class onednn_post_op_type : uint32_t {
     eltwise_round,
     eltwise_hardsigmoid,
     binary_mul,
+    binary_mul_inplace,
     binary_add,
     binary_sub,
     binary_max,
@@ -138,6 +157,7 @@ static inline std::ostream& operator<< (std::ostream& os, onednn_post_op_type& t
         case onednn_post_op_type::eltwise_round: os << "eltwise_round"; break;
         case onednn_post_op_type::eltwise_hardsigmoid: os << "eltwise_hardsigmoid"; break;
         case onednn_post_op_type::binary_mul: os << "binary_mul"; break;
+        case onednn_post_op_type::binary_mul_inplace: os << "binary_mul_inplace"; break;
         case onednn_post_op_type::binary_add: os << "binary_add"; break;
         case onednn_post_op_type::binary_sub: os << "binary_sub"; break;
         case onednn_post_op_type::binary_max: os << "binary_max"; break;

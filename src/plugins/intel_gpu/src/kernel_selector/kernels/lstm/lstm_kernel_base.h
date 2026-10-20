@@ -55,7 +55,7 @@ struct lstm_params : public base_params {
 class LSTMKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~LSTMKernelBase() {}
+    ~LSTMKernelBase() override = default;
 
     struct DispatchData : public CommonDispatchData {};
 
@@ -64,11 +64,7 @@ protected:
     KernelsData GetCommonKernelsData(const Params& params) const;
 
     bool Validate(const Params& p) const override {
-        if (p.GetType() != KernelType::LSTM_SEQ_CELL) {
-            return false;
-        }
-
-        return true;
+        return p.GetType() == KernelType::LSTM_SEQ_CELL;
     }
 };
 }  // namespace kernel_selector

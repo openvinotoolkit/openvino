@@ -6,6 +6,8 @@
 #include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"
 #include "pooling_inst.h"
+#include "fully_connected_inst.h"
+#include "transformations/symbolic_transformations/utils.hpp"
 #include <algorithm>
 #include <utility>
 #include <vector>
@@ -50,8 +52,8 @@ void program_helpers::reshape_deconvolution_weights(const std::vector<float> &de
     const int kernel_sz = kernel_width + pad_zero_x;
 
     auto get_row_index = [](int index, const int kernel_sz)->int {
-        bool isRowEven = (index / (kernel_sz)) % 2 == 0 ? true : false;
-        bool isColEven = (index % 2) == 0 ? true : false;
+        bool isRowEven = (index / (kernel_sz)) % 2 == 0;
+        bool isColEven = (index % 2) == 0;
         int kernel_num = isRowEven ? (isColEven ? 0 : 1) : isColEven ? 2 : 3;
         return kernel_num;
     };
@@ -73,19 +75,16 @@ void program_helpers::reshape_deconvolution_weights(const std::vector<float> &de
     }
 }
 
-bool onednn_add_fusing_helpers::is_full_tensor(const layout& l) {
-    if (l.spatial(0) > 1 || l.spatial(1) > 1 || (l.get_spatial_rank() == 3 && l.spatial(2) > 1)
-        || l.batch() > 1) {
-        return true;
-    }
-    return false;
+static bool is_full_tensor(const layout& l) {
+    return l.spatial(0) > 1 || l.spatial(1) > 1 || (l.get_spatial_rank() == 3 && l.spatial(2) > 1)
+        || l.batch() > 1;
 }
 
-void onednn_add_fusing_helpers::for_eltwise(
+void onednn_eltwise_fusing_helpers::for_eltwise(
     const program_node& node, eltwise_mode mode,
     std::function<void(const program_node& p_node,
                     const fused_primitive_desc& desc)> func) {
-    for (auto& fo : node.get_fused_primitives()) {
+    for (const auto& fo : node.get_fused_primitives()) {
         if (fo.is_type<eltwise>() && fo.typed_desc<eltwise>()->mode == mode) {
             func(node, fo);
         }
@@ -110,19 +109,47 @@ static bool is_direct_ancestor(const program_node& child, const program_node& ta
     if (target.get_users().size() != 2)
         return false;
 
-    // Limit the iteration depth to 5 for performance reason
-    auto iter = &child;
-    for (int i = 0; i < 5; i++) {
+    // The walk follows dependency(0) only, so this bounds the length of the single-input chain
+    // between the two nodes; the equality test precedes the hop, so a bound of N reaches a target
+    // at most N - 1 hops away.
+    //
+    // An attention residual sits 6 hops up. Walking dependency(0) from the projection that carries
+    // the post-op, on a graph dump of a multi-head attention block:
+    //
+    //     0  the output projection            <- carries the fused eltwise sum
+    //     1  reshape                          <- heads folded back into the feature axis
+    //     2  the attention op
+    //     3  reshape                          <- feature axis split into heads
+    //     4  the QKV matmul
+    //     5  the norm
+    //     6  the block input                  <- the residual root, two users
+    //
+    // 7 is therefore the smallest bound that reaches it, and the bound is kept at that minimum
+    // deliberately. Note the two reshapes: it is easy to count this chain as 4 hops from the
+    // operator list alone and conclude a bound of 5 or 6 is enough, and both leave every
+    // attention residual demoted.
+    //
+    // Raising it beyond the minimum is not a compile-time cost -- the walk is a bounded pointer
+    // chase. It is a trade. What the result decides is add_fusing_type::sum versus binary_add, and
+    // both are post-ops on the same onednn primitive: sum lets onednn accumulate into the added
+    // tensor's buffer, at the price of disabling implicit concat on that predecessor
+    // (prepare_buffer_fusing), inhibiting reorder elimination in two passes (layout_optimizer and
+    // remove_redundant_reorders) and blocking buffer sharing (basic_memory_dependencies). So a
+    // longer chain should only be admitted against a workload that is measured to want it.
+    static constexpr int max_ancestor_walk_depth = 7;
+
+    const auto* iter = &child;
+    for (int i = 0; i < max_ancestor_walk_depth; i++) {
         if (iter == &target)
             return true;
-        if (iter->get_dependencies().size() == 0)
+        if (iter->get_dependencies().empty())
             break;
         iter = &iter->get_dependency(0);
     }
     return false;
 }
 
-add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
+add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
     const program_node& p_node, const fused_primitive_desc& desc) {
     if (!desc.is_type<eltwise>()) {
         return add_fusing_type::not_supported;
@@ -149,9 +176,10 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
             && !dep_node.is_constant()
             && !p_node.is_type<pooling>()
             && !p_node.is_output()
-            && !(dep_node.is_type<input_layout>())) {
+            && (!dep_node.is_type<input_layout>() || dep_node.get_users().size() <= 1)) {
             return add_fusing_type::sum;
-        } else if (p_layout.get_tensor() == d_layout.get_tensor()) {
+        }
+        if (p_layout.get_tensor() == d_layout.get_tensor()) {
             return add_fusing_type::binary_per_tensor;
         }
     }
@@ -159,13 +187,49 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
     return add_fusing_type::binary_per_oc;
 }
 
-int32_t onednn_add_fusing_helpers::get_reused_eltwmem_idx(const program_node& node) {
+// binary_mul_inplace: oneDNN matmul post-op whose src1 may alias dst. Unlike sum the alias is
+// optional (plain binary_mul otherwise), so this only checks the buffers are interchangeable:
+// FC only, dynamic via ov::Symbol, exact layout match, single user.
+bool onednn_eltwise_fusing_helpers::can_use_mul_inplace(const program_node& p_node, const fused_primitive_desc& desc) {
+    if (!desc.is_type<eltwise>() || desc.typed_desc<eltwise>()->mode != eltwise_mode::prod || !desc.has_outer_dep()
+        || !p_node.is_type<fully_connected>()) {
+        return false;
+    }
+
+    auto& dep_node = p_node.get_dependency(desc.outer_dep_start_idx);
+    auto p_layout = p_node.get_output_layout();
+    auto d_layout = dep_node.get_output_layout();
+
+    if (p_layout.is_dynamic() || d_layout.is_dynamic()) {
+        if (p_layout.data_type != d_layout.data_type || p_layout.format != d_layout.format
+            || p_layout.data_padding != d_layout.data_padding) {
+            return false;
+        }
+        const auto& p_pshape = p_layout.get_partial_shape();
+        const auto& d_pshape = d_layout.get_partial_shape();
+        if (p_pshape.rank().is_dynamic() || d_pshape.rank().is_dynamic() || p_pshape.size() != d_pshape.size()) {
+            return false;
+        }
+        for (size_t i = 0; i < p_pshape.size(); ++i) {
+            if (!ov::symbol::util::dims_are_equal(p_pshape[i], d_pshape[i])) {
+                return false;
+            }
+        }
+    } else if (p_layout != d_layout || !is_full_tensor(p_layout)) {
+        return false;
+    }
+
+    return dep_node.get_users().size() == 1 && !dep_node.is_constant() && !p_node.is_output();
+}
+
+int32_t onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(const program_node& node) {
     if (node.get_preferred_impl_type() == impl_types::onednn) {
-        for (auto& fused_op : node.get_fused_primitives()) {
+        for (const auto& fused_op : node.get_fused_primitives()) {
             if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
-                // If it is first sum, reuse the buffer
-                auto fusing_type = get_add_fusing_type(node, fused_op);
-                if (fusing_type != add_fusing_type::sum)
+                auto mode = fused_op.typed_desc<eltwise>()->mode;
+                bool reuse_eligible = (mode == eltwise_mode::sum && get_add_fusing_type(node, fused_op) == add_fusing_type::sum) ||
+                                      (mode == eltwise_mode::prod && can_use_mul_inplace(node, fused_op));
+                if (!reuse_eligible)
                     continue;
                 if (!fused_op.has_outer_dep())
                     continue;

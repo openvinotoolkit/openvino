@@ -1,8 +1,5 @@
-const { waitForChecks } = require('../src/index');
-const core = require('@actions/core');
-
-// Mock the core module
-jest.mock('@actions/core');
+import { jest, describe, beforeEach, test, expect } from '@jest/globals';
+import { waitForChecks } from '../src/index.js';
 
 describe('Wait for Check Completion Action', () => {
     beforeEach(() => {
@@ -12,18 +9,15 @@ describe('Wait for Check Completion Action', () => {
     describe('waitForChecks', () => {
         test('should wait for single check in array', async () => {
             const mockOctokit = {
+                paginate: jest.fn().mockResolvedValue([{
+                    name: 'test-check',
+                    status: 'completed',
+                    conclusion: 'success',
+                    started_at: new Date().toISOString()
+                }]),
                 rest: {
                     checks: {
-                        listForRef: jest.fn().mockResolvedValue({
-                            data: {
-                                check_runs: [{
-                                    name: 'test-check',
-                                    status: 'completed',
-                                    conclusion: 'success',
-                                    started_at: new Date().toISOString()
-                                }]
-                            }
-                        })
+                        listForRef: jest.fn()
                     }
                 }
             };
@@ -40,36 +34,36 @@ describe('Wait for Check Completion Action', () => {
 
             expect(results['test-check'].status).toBe('completed');
             expect(results['test-check'].conclusion).toBe('success');
-            expect(mockOctokit.rest.checks.listForRef).toHaveBeenCalledWith({
-                owner: 'owner',
-                repo: 'repo',
-                ref: 'sha123',
-                per_page: 100
-            });
+            expect(mockOctokit.paginate).toHaveBeenCalledWith(
+                mockOctokit.rest.checks.listForRef,
+                {
+                    owner: 'owner',
+                    repo: 'repo',
+                    ref: 'sha123',
+                    per_page: 100
+                }
+            );
         });
 
         test('should wait for multiple checks to complete successfully', async () => {
             const mockOctokit = {
+                paginate: jest.fn().mockResolvedValue([
+                    {
+                        name: 'test-check-1',
+                        status: 'completed',
+                        conclusion: 'success',
+                        started_at: new Date().toISOString()
+                    },
+                    {
+                        name: 'test-check-2',
+                        status: 'completed',
+                        conclusion: 'success',
+                        started_at: new Date().toISOString()
+                    }
+                ]),
                 rest: {
                     checks: {
-                        listForRef: jest.fn().mockResolvedValue({
-                            data: {
-                                check_runs: [
-                                    {
-                                        name: 'test-check-1',
-                                        status: 'completed',
-                                        conclusion: 'success',
-                                        started_at: new Date().toISOString()
-                                    },
-                                    {
-                                        name: 'test-check-2',
-                                        status: 'completed',
-                                        conclusion: 'success',
-                                        started_at: new Date().toISOString()
-                                    }
-                                ]
-                            }
-                        })
+                        listForRef: jest.fn()
                     }
                 }
             };
@@ -88,61 +82,56 @@ describe('Wait for Check Completion Action', () => {
             expect(results['test-check-1'].conclusion).toBe('success');
             expect(results['test-check-2'].status).toBe('completed');
             expect(results['test-check-2'].conclusion).toBe('success');
-            expect(mockOctokit.rest.checks.listForRef).toHaveBeenCalledWith({
-                owner: 'owner',
-                repo: 'repo',
-                ref: 'sha123',
-                per_page: 100
-            });
+            expect(mockOctokit.paginate).toHaveBeenCalledWith(
+                mockOctokit.rest.checks.listForRef,
+                {
+                    owner: 'owner',
+                    repo: 'repo',
+                    ref: 'sha123',
+                    per_page: 100
+                }
+            );
         });
 
         test('should handle multiple checks with mixed progress states', async () => {
             let callCount = 0;
             const mockOctokit = {
+                paginate: jest.fn().mockImplementation(() => {
+                    callCount++;
+                    if (callCount === 1) {
+                        return Promise.resolve([
+                            {
+                                name: 'test-check-1',
+                                status: 'completed',
+                                conclusion: 'success',
+                                started_at: new Date().toISOString()
+                            },
+                            {
+                                name: 'test-check-2',
+                                status: 'in_progress',
+                                conclusion: null,
+                                started_at: new Date().toISOString()
+                            }
+                        ]);
+                    }
+                    return Promise.resolve([
+                        {
+                            name: 'test-check-1',
+                            status: 'completed',
+                            conclusion: 'success',
+                            started_at: new Date().toISOString()
+                        },
+                        {
+                            name: 'test-check-2',
+                            status: 'completed',
+                            conclusion: 'success',
+                            started_at: new Date().toISOString()
+                        }
+                    ]);
+                }),
                 rest: {
                     checks: {
-                        listForRef: jest.fn().mockImplementation(() => {
-                            callCount++;
-                            if (callCount === 1) {
-                                return Promise.resolve({
-                                    data: {
-                                        check_runs: [
-                                            {
-                                                name: 'test-check-1',
-                                                status: 'completed',
-                                                conclusion: 'success',
-                                                started_at: new Date().toISOString()
-                                            },
-                                            {
-                                                name: 'test-check-2',
-                                                status: 'in_progress',
-                                                conclusion: null,
-                                                started_at: new Date().toISOString()
-                                            }
-                                        ]
-                                    }
-                                });
-                            } else {
-                                return Promise.resolve({
-                                    data: {
-                                        check_runs: [
-                                            {
-                                                name: 'test-check-1',
-                                                status: 'completed',
-                                                conclusion: 'success',
-                                                started_at: new Date().toISOString()
-                                            },
-                                            {
-                                                name: 'test-check-2',
-                                                status: 'completed',
-                                                conclusion: 'success',
-                                                started_at: new Date().toISOString()
-                                            }
-                                        ]
-                                    }
-                                });
-                            }
-                        })
+                        listForRef: jest.fn()
                     }
                 }
             };
@@ -161,31 +150,28 @@ describe('Wait for Check Completion Action', () => {
             expect(results['test-check-1'].conclusion).toBe('success');
             expect(results['test-check-2'].status).toBe('completed');
             expect(results['test-check-2'].conclusion).toBe('success');
-            expect(mockOctokit.rest.checks.listForRef).toHaveBeenCalledTimes(2);
+            expect(mockOctokit.paginate).toHaveBeenCalledTimes(2);
         });
 
         test('should timeout when some checks do not complete', async () => {
             const mockOctokit = {
+                paginate: jest.fn().mockResolvedValue([
+                    {
+                        name: 'test-check-1',
+                        status: 'completed',
+                        conclusion: 'success',
+                        started_at: new Date().toISOString()
+                    },
+                    {
+                        name: 'test-check-2',
+                        status: 'in_progress',
+                        conclusion: null,
+                        started_at: new Date().toISOString()
+                    }
+                ]),
                 rest: {
                     checks: {
-                        listForRef: jest.fn().mockResolvedValue({
-                            data: {
-                                check_runs: [
-                                    {
-                                        name: 'test-check-1',
-                                        status: 'completed',
-                                        conclusion: 'success',
-                                        started_at: new Date().toISOString()
-                                    },
-                                    {
-                                        name: 'test-check-2',
-                                        status: 'in_progress',
-                                        conclusion: null,
-                                        started_at: new Date().toISOString()
-                                    }
-                                ]
-                            }
-                        })
+                        listForRef: jest.fn()
                     }
                 }
             };

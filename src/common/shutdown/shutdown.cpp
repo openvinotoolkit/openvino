@@ -12,8 +12,8 @@ class ShutdownRegistry {
 private:
     std::vector<std::function<void()>> m_callbacks;
     ShutdownRegistry() = default;
-public:
 
+public:
     static ShutdownRegistry& get() {
         static ShutdownRegistry instance;
         return instance;

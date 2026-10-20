@@ -64,5 +64,11 @@ void transpose_4bit(const uint8_t* data,
                     const std::vector<int64_t>& axes_order,
                     const Shape& out_shape);
 
+void transpose_2bit(const uint8_t* data,
+                    uint8_t* out,
+                    const Shape& data_shape,
+                    const std::vector<int64_t>& axes_order,
+                    const Shape& out_shape);
+
 }  // namespace reference
 }  // namespace ov

@@ -14,6 +14,8 @@
 #include <variant>
 #include <vector>
 
+#include "blob_source.hpp"
+#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/version.hpp"
@@ -24,44 +26,37 @@ class MetadataBase {
 public:
     MetadataBase(uint32_t version, uint64_t blobDataSize);
 
-    using uninitialized_source = void*;
-    using Source = std::
-        variant<uninitialized_source, std::reference_wrapper<std::istream>, std::reference_wrapper<const ov::Tensor>>;
+    using Source =
+        std::variant<std::monostate, std::reference_wrapper<std::istream>, std::reference_wrapper<const ov::Tensor>>;
 
     /**
-     * @brief Reads metadata from a stream.
+     * @brief Reads metadata from a blob source.
+     * @details The last position of the data cursor is checked after reading.
      */
-    void read(std::istream& tensor);
-
-    /**
-     * @brief Reads metadata from a ov::Tensor.
-     */
-    void read(const ov::Tensor& tensor);
+    void read(BlobSource& source);
 
     /**
      * @brief Populates this object from a pre-parsed human-readable metadata attribute map.
-     */
-    void read_as_text(std::map<std::string, std::string, std::less<>> attrs);
-
-    virtual void read() = 0;
-
-    /**
+     *
+     * @param textAttrs Parsed key-value attributes from the human-readable metadata string.
      * @note Layouts and encryption are intentionally omitted from the human-readable compatibility
      * string. They are internal implementation details that don't affect cross-version compatibility and would only add
      * noise for consumers.
      * Compiler version is already contained within the compiler requirements field.
      *
      */
-    virtual void read_as_text() = 0;
+    virtual void read_as_text(const std::map<std::string, std::string, std::less<>>& textAttrs) = 0;
 
     /**
-     * @brief Writes metadata to a stream.
+     * @brief Writes metadata to a stream. The footer (blob size & magic) is included.
      */
-    virtual void write(std::ostream& stream) = 0;
+    void write(std::ostream& stream);
 
     virtual void write_as_text(std::ostream& stream) = 0;
 
-    virtual uint64_t get_blob_size() const;
+    virtual uint64_t get_compiler_payload_size() const;
+
+    virtual uint64_t get_main_schedule_size() const;
 
     /**
      * @returns The sizes of the init schedules. Populated only if "weights separation" has been enabled.
@@ -83,9 +78,9 @@ public:
 
     virtual std::optional<std::string_view> get_compatibility_descriptor() const;
 
-    virtual ~MetadataBase() = default;
+    virtual std::optional<BlobType> get_blob_type() const;
 
-    static std::streampos getFileSize(std::istream& stream);
+    virtual ~MetadataBase() = default;
 
     /**
      * @brief Returns a uint32_t value which represents two uint16_t values concatenated.
@@ -117,40 +112,18 @@ public:
 
 protected:
     /**
-     * @brief Reads data from the source containing the binary metadata. The implementation depends on the type of
-     * source.
+     * @brief Reads metadata from a blob source. The last position of the data cursor is not checked after reading.
      */
-    void read_data_from_source(char* destination, const size_t size);
+    virtual void read_unchecked(BlobSource& source) = 0;
 
     /**
-     * @brief Adds the size of the binary object and the magic string to the end of the stream.
-     * @details This should be called after the "write" method in order to conclude writing the metadata into the given
-     * stream.
-     * @note This operation was detached from "write" since "write" writes at the beginning of the stream, while this
-     * method writes at the end. This change allows better extension of class hierarchy.
+     * @brief Writes metadata to a stream. The footer (blob size & magic) is omitted.
      */
-    void append_blob_size_and_magic(std::ostream& stream);
+    virtual void write_without_footer(std::ostream& stream) = 0;
 
     uint32_t _version;
-    uint64_t _blobDataSize;
+    uint64_t _compilerPayloadSize;
     Logger _logger;
-
-    /**
-     * @brief Parsed key-value attributes from the human-readable metadata string.
-     */
-    std::map<std::string, std::string, std::less<>> _textAttrs;
-
-    /**
-     * @brief Where the metadata is read from. The type can be a stream, an OpenVINO tensor or "uninitialized_source".
-     * @details Stored as attribute in order to avoid repeatedly passing the same arguments to some methods.
-     * "uninitialized_source" (void*) is the default type assigned upon creation.
-     */
-    Source _source;
-
-    /**
-     * @brief Used only when the source buffer is an OV tensor for managing the read coursor.
-     */
-    size_t _cursorOffset = 0;
 };
 
 /**
@@ -188,11 +161,12 @@ constexpr uint32_t METADATA_VERSION_2_3{MetadataBase::make_version(2, 3)};
 constexpr uint32_t METADATA_VERSION_2_4{MetadataBase::make_version(2, 4)};
 constexpr uint32_t METADATA_VERSION_2_5{MetadataBase::make_version(2, 5)};
 constexpr uint32_t METADATA_VERSION_2_6{MetadataBase::make_version(2, 6)};
+constexpr uint32_t METADATA_VERSION_2_7{MetadataBase::make_version(2, 7)};
 
 /**
  * @brief Current metadata version.
  */
-constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_6};
+constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_7};
 
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
@@ -219,14 +193,9 @@ public:
     ~OpenvinoVersion() = default;
 
     /**
-     * @brief Reads version data from a stream.
+     * @brief Reads version data from a blob source.
      */
-    void read(std::istream& istream);
-
-    /**
-     * @brief Reads version data from a ov::Tensor.
-     */
-    void read(const ov::Tensor& tensor);
+    void read(BlobSource& source);
 
     /**
      * @brief Writes version data to a stream.
@@ -267,9 +236,12 @@ class Metadata<METADATA_VERSION_2_0> : public MetadataBase {
 public:
     Metadata(uint64_t blobSize, const std::optional<OpenvinoVersion>& ovVersion = std::nullopt);
 
-    void read() override;
+    void read_as_text(const std::map<std::string, std::string, std::less<>>& textAttrs) override;
 
-    void read_as_text() override;
+    void write_as_text(std::ostream& stream) override;
+
+protected:
+    void read_unchecked(BlobSource& source) override;
 
     /**
      * @attention It's a must to first write metadata version in any metadata specialization.
@@ -278,11 +250,8 @@ public:
      * This is the quickest way to handle many incompatible blob cases without needing to traverse the whole NPU
      * metadata section.
      */
-    void write(std::ostream& stream) override;
+    void write_without_footer(std::ostream& stream) override;
 
-    void write_as_text(std::ostream& stream) override;
-
-protected:
     OpenvinoVersion _ovVersion;
 };
 
@@ -298,23 +267,24 @@ public:
              const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
              const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt);
 
+    void read_as_text(const std::map<std::string, std::string, std::less<>>& textAttrs) override;
+
+    void write_as_text(std::ostream& stream) override;
+
+    std::optional<std::vector<uint64_t>> get_init_sizes() const override;
+
+protected:
     /**
      * @details The number of init schedules, along with the size of each init binary object are read in addition to the
      * information provided by the previous metadata versions.
      */
-    void read() override;
-
-    void read_as_text() override;
+    void read_unchecked(BlobSource& source) override;
 
     /**
      * @details The number of init schedules, along with the size of each init binary object are written in addition to
      * the information registered by the previous metadata versions.
      */
-    void write(std::ostream& stream) override;
-
-    void write_as_text(std::ostream& stream) override;
-
-    std::optional<std::vector<uint64_t>> get_init_sizes() const override;
+    void write_without_footer(std::ostream& stream) override;
 
 private:
     std::optional<std::vector<uint64_t>> _initSizes;
@@ -332,15 +302,16 @@ public:
              const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
              const std::optional<int64_t>& batchSize = std::nullopt);
 
-    void read() override;
-
-    void read_as_text() override;
-
-    void write(std::ostream& stream) override;
+    void read_as_text(const std::map<std::string, std::string, std::less<>>& textAttrs) override;
 
     void write_as_text(std::ostream& stream) override;
 
     std::optional<int64_t> get_batch_size() const override;
+
+protected:
+    void read_unchecked(BlobSource& source) override;
+
+    void write_without_footer(std::ostream& stream) override;
 
 private:
     std::optional<int64_t> _batchSize;
@@ -360,13 +331,14 @@ public:
              const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
              const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt);
 
-    void read() override;
-
-    void write(std::ostream& stream) override;
-
     std::optional<std::vector<ov::Layout>> get_input_layouts() const override;
 
     std::optional<std::vector<ov::Layout>> get_output_layouts() const override;
+
+protected:
+    void read_unchecked(BlobSource& source) override;
+
+    void write_without_footer(std::ostream& stream) override;
 
 private:
     std::optional<std::vector<ov::Layout>> _inputLayouts;
@@ -387,11 +359,12 @@ public:
              const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt,
              const std::optional<uint32_t>& compilerVersion = std::nullopt);
 
-    void read() override;
-
-    void write(std::ostream& stream) override;
-
     std::optional<uint32_t> get_compiler_version() const override;
+
+protected:
+    void read_unchecked(BlobSource& source) override;
+
+    void write_without_footer(std::ostream& stream) override;
 
 private:
     std::optional<uint32_t> _compilerVersion;
@@ -413,11 +386,12 @@ public:
              const std::optional<uint32_t>& compilerVersion = std::nullopt,
              const std::optional<uint64_t>& blobSizeAfterEncryption = std::nullopt);
 
-    void read() override;
-
-    void write(std::ostream& stream) override;
-
     std::optional<bool> is_encrypted_blob() const override;
+
+protected:
+    void read_unchecked(BlobSource& source) override;
+
+    void write_without_footer(std::ostream& stream) override;
 
 private:
     std::optional<bool> _isEncryptedBlob;
@@ -439,18 +413,47 @@ public:
              const std::optional<uint64_t>& blobSizeAfterEncryption = std::nullopt,
              const std::optional<std::string_view> compatibilityDescriptor = std::nullopt);
 
-    void read() override;
-
-    void read_as_text() override;
-
-    void write(std::ostream& stream) override;
+    void read_as_text(const std::map<std::string, std::string, std::less<>>& textAttrs) override;
 
     void write_as_text(std::ostream& stream) override;
 
     std::optional<std::string_view> get_compatibility_descriptor() const override;
 
+protected:
+    void read_unchecked(BlobSource& source) override;
+
+    void write_without_footer(std::ostream& stream) override;
+
 private:
     std::optional<std::string> _compatibilityDescriptor;
+};
+
+/**
+ * @brief Stores the format of the compiled blob.
+ */
+template <>
+class Metadata<METADATA_VERSION_2_7> : public Metadata<METADATA_VERSION_2_6> {
+public:
+    Metadata(uint64_t blobSize,
+             const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
+             const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
+             const std::optional<int64_t> batchSize = std::nullopt,
+             const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
+             const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt,
+             const std::optional<uint32_t> compilerVersion = std::nullopt,
+             const std::optional<uint64_t>& blobSizeAfterEncryption = std::nullopt,
+             const std::optional<std::string_view> compatibilityDescriptor = std::nullopt,
+             BlobType blobType = BlobType::ELF);
+
+    std::optional<BlobType> get_blob_type() const override;
+
+protected:
+    void read_unchecked(BlobSource& source) override;
+
+    void write_without_footer(std::ostream& stream) override;
+
+private:
+    BlobType _blobType;
 };
 
 /**
@@ -462,7 +465,7 @@ private:
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize);
 
 /**
- * @brief Reads metadata from a blob (istream).
+ * @brief Reads metadata from a blob source.
  *
  * @return If the blob is versioned and its major version is supported, returns an unique pointer to the read
  * MetadataBase object; otherwise, returns 'nullptr'.
@@ -470,15 +473,7 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
  * @note The read of metadata can be disabled if the "OV_NPU_IMPORT_RAW_BLOB" environment variable is set to
  * 'YES'.
  */
-std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream);
-
-/**
- * @brief Reads metadata from a blob (ov::Tensor).
- *
- * @return If the blob is versioned and its major version is supported, returns an unique pointer to the read
- * MetadataBase object; otherwise, returns 'nullptr'.
- */
-std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor);
+std::unique_ptr<MetadataBase> read_metadata_from(BlobSource& source);
 
 std::unique_ptr<MetadataBase> read_as_text(std::string_view input);
 

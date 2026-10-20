@@ -2,19 +2,26 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "openvino_intel_gpu_graph")
+set(TARGET_NAME "openvino_intel_gpu_graph${OV_GPU_SUFFIX}")
+if(NOT DEFINED OV_GPU_RT)
+    # Reachable only if this directory is added outside ov_gpu_build_stack(), which always sets a
+    # single runtime; COMBINED names two, so a stack built from it would belong to neither.
+    if(GPU_RT_TYPE STREQUAL "COMBINED")
+        message(FATAL_ERROR "OV_GPU_RT must be set to a single runtime before adding this directory; got COMBINED")
+    endif()
+    set(OV_GPU_RT "${GPU_RT_TYPE}")
+endif()
 
-file(GLOB SUBDIRS "${CMAKE_CURRENT_SOURCE_DIR}/impls/*")
+if(ENABLE_CM_FOR_GPU)
+    add_compile_definitions(ENABLE_CM_FOR_GPU)
+endif()
+
+include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
 
 find_host_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-foreach(SUBDIR IN LISTS SUBDIRS)
-    if(IS_DIRECTORY ${SUBDIR})
-        get_filename_component(SUBDIR_NAME ${SUBDIR} NAME)
-        list(APPEND AVAILABLE_IMPL_TYPES ${SUBDIR_NAME})
-        list(APPEND EXCLUDE_PATHS ${SUBDIR})
-    endif()
-endforeach()
+# Backend implementations under impls/; add new backend directory names here.
+set(AVAILABLE_IMPL_TYPES common cpu ocl ocl_v2 onednn cm sycl)
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set(COMMON_COMPILE_OPTIONS $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os -Wno-suggest-override>>)
@@ -29,15 +36,15 @@ set(COMMON_INCLUDE_DIRS $<BUILD_INTERFACE:${MAIN_DIR}/src>
 )
 
 set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
-                          openvino_intel_gpu_kernels # for cl_kernel_data_serializer
-                          openvino_intel_gpu_runtime
+                          openvino_intel_gpu_kernels${OV_GPU_SUFFIX} # for cl_kernel_data_serializer
+                          openvino_intel_gpu_runtime${OV_GPU_SUFFIX}
                           openvino::itt
                           openvino::runtime::dev
                           openvino::runtime
                           OpenCL::OpenCL # Onednn needs OCL headers even when running Level Zero
 )
 
-if(GPU_RT_TYPE STREQUAL "ZE")
+if(OV_GPU_RT STREQUAL "ZE")
     # Onednn needs ZE headers
     list(APPEND COMMON_LINK_LIBRARIES openvino::zero_loader)
 endif()
@@ -52,11 +59,16 @@ macro(ov_gpu_add_backend_target)
         NAME
     )
     set(multiValueArgs
+        SOURCES                       # Explicit backend source file list (passed through to ov_add_target)
         INCLUDES                      # Extra include directories
         LINK_LIBRARIES                # Link libraries (in form of target name or file name)
         BYPASS                        # All other args that must be passed as is to ov_add_target call
     )
     cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs}" "${multiValueArgs}" ${ARGN} )
+
+    if(NOT ARG_SOURCES)
+        message(SEND_ERROR "ov_gpu_add_backend_target(${ARG_NAME}): SOURCES is required, no glob fallback is provided")
+    endif()
 
     set(TARGET_INCLUDES ${COMMON_INCLUDE_DIRS} ${ARG_INCLUDES})
     set(TARGET_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ${ARG_LINK_LIBRARIES})
@@ -69,7 +81,7 @@ macro(ov_gpu_add_backend_target)
 
     ov_add_target(
         NAME ${ARG_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        SOURCES ${ARG_SOURCES}
         TYPE OBJECT
         INCLUDES
             PRIVATE
@@ -84,13 +96,18 @@ macro(ov_gpu_add_backend_target)
     target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
     target_compile_definitions(${TARGET_NAME} PRIVATE ${TARGET_DEFINITIONS})
     ov_set_threading_interface_for(${TARGET_NAME})
-    ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+    ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${OV_GPU_RT})
 
     # We use onednn headers all over the graph module, so we have to append includes to all backends and add a dependency between targets
     if (ENABLE_ONEDNN_FOR_GPU)
-        target_include_directories(${ARG_NAME} SYSTEM BEFORE PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_INCLUDE_DIRECTORIES>)
-        add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj onednn_gpu_tgt)
+        target_include_directories(${ARG_NAME} SYSTEM BEFORE PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt${OV_GPU_SUFFIX},INTERFACE_INCLUDE_DIRECTORIES>)
+        add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj${OV_GPU_SUFFIX} onednn_gpu_tgt${OV_GPU_SUFFIX})
     endif()
+
+    # The graph backend implementations are compiled in these per-backend OBJECT
+    # libraries, which the openvino_intel_gpu_graph STATIC lib links but excludes
+    # from its own sources, so clang-tidy must be applied here to cover them too.
+    ov_apply_clang_tidy(TARGET ${ARG_NAME})
 endmacro()
 
 set(CODEGEN_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/common_utils/kernels_db_gen.py")
@@ -98,20 +115,23 @@ set(CODEGEN_TEST_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/common_utils/test_kernels_d
 
 enable_testing()
 
-add_custom_target(run_codegen_test
+add_custom_target(run_codegen_test${OV_GPU_SUFFIX}
     COMMAND ${Python3_EXECUTABLE} -B ${CODEGEN_TEST_SCRIPT}
     DEPENDS "${CODEGEN_SCRIPT}"
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-add_test(NAME TestOCLCodePreprocessing
+add_test(NAME TestOCLCodePreprocessing${OV_GPU_SUFFIX}
          COMMAND ${Python3_EXECUTABLE} -B ${CODEGEN_TEST_SCRIPT}
          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 foreach(IMPL_TYPE IN LISTS AVAILABLE_IMPL_TYPES)
-    add_subdirectory(impls/${IMPL_TYPE})
-    if (TARGET openvino_intel_gpu_${IMPL_TYPE}_obj)
-        list(APPEND OBJ_FILES $<TARGET_OBJECTS:openvino_intel_gpu_${IMPL_TYPE}_obj>)
+    if(IMPL_TYPE STREQUAL "cm" AND NOT ENABLE_CM_FOR_GPU)
+        continue()
+    endif()
+    add_subdirectory(impls/${IMPL_TYPE} impls/${IMPL_TYPE}${OV_GPU_SUFFIX})
+    if (TARGET openvino_intel_gpu_${IMPL_TYPE}_obj${OV_GPU_SUFFIX})
+        list(APPEND OBJ_FILES $<TARGET_OBJECTS:openvino_intel_gpu_${IMPL_TYPE}_obj${OV_GPU_SUFFIX}>)
     endif()
 endforeach()
 
@@ -120,9 +140,7 @@ get_property(EXTRA_LINK_LIBRARIES GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL)
 ov_add_target(
     NAME ${TARGET_NAME}
     TYPE STATIC
-    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-    EXCLUDED_SOURCE_PATHS
-        ${EXCLUDE_PATHS}
+    SOURCES  ${GPU_GRAPH_SOURCES}
     OBJECT_FILES
         ${OBJ_FILES}
     INCLUDES
@@ -134,7 +152,7 @@ ov_add_target(
             ${EXTRA_LINK_LIBRARIES}
             openvino::reference # for loop primitive subroutines
     DEPENDENCIES
-        run_codegen_test
+        run_codegen_test${OV_GPU_SUFFIX}
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
@@ -142,8 +160,12 @@ ov_build_target_faster(${TARGET_NAME} PCH)
 target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 
 ov_set_threading_interface_for(${TARGET_NAME})
-ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${OV_GPU_RT})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+# Static library built via ov_add_target, so apply clang-tidy directly
+# (the ADD_CLANG_TIDY option only exists for plugins created via ov_add_plugin).
+ov_apply_clang_tidy(TARGET ${TARGET_NAME})
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

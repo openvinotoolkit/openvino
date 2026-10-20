@@ -1,6 +1,6 @@
 # Skill: FE Op Analysis
 
-> Source: `skills/add-fe-op/SKILL.md` (Step 1)
+> Source: [`skills/add-fe-op/SKILL.md`](SKILL.md) (Step 1)
 > Agent: `fe_agent`
 
 ## When to Use

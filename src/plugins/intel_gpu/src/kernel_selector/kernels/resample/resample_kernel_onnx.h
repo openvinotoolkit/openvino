@@ -11,7 +11,7 @@ class ResampleKernelOnnx : public ResampleKernelBase {
 public:
     using Parent = ResampleKernelBase;
     ResampleKernelOnnx() : ResampleKernelBase("resample_onnx") {}
-    virtual ~ResampleKernelOnnx() = default;
+    ~ResampleKernelOnnx() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
@@ -20,7 +20,7 @@ public:
 
 protected:
     bool Validate(const Params& p) const override;
-    JitConstants GetJitConstants(const resample_params& params) const override;
+    JitConstants GetJitConstants(const resample_params& params, bool legacy_scale = false) const override;
     DispatchData SetDefault(const resample_params& arg) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {FusedOpType::QUANTIZE, FusedOpType::ELTWISE, FusedOpType::ACTIVATION};

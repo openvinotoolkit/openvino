@@ -236,6 +236,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_graph_Input(m);
     regclass_graph_Node(m);
     regclass_graph_NodeFactory(m);
+    regclass_graph_ConstOutputRTMap(m);
     regclass_graph_Output<const ov::Node>(m, std::string("Const"));
     regmodule_graph_util(m);
     regclass_graph_Op(m);

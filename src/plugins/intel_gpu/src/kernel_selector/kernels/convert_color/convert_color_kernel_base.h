@@ -29,7 +29,7 @@ struct convert_color_fuse_params : fuse_params {
 class ConvertColorKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~ConvertColorKernelBase() {}
+    ~ConvertColorKernelBase() override = default;
 
     struct DispatchData : public CommonDispatchData {};
 

@@ -4,6 +4,8 @@
 
 #include "moe_infer_utils.hpp"
 
+#include <algorithm>
+#include <cstring>
 #include <iomanip>
 #include <iostream>
 
@@ -24,12 +26,44 @@ MoEProfile::MoEProfile() {
     batch.report_on_die = ov::npuw::profiling_enabled();
 }
 
+void MoEChunkStats::init(bool active) {
+    enabled = active;
+}
+
+void MoEChunkStats::record_chunk(size_t chunk_size, uint64_t actual_tokens) {
+    if (!enabled) {
+        return;
+    }
+    auto& c = per_chunk_size[chunk_size];
+    c.chunks++;
+    c.tokens += actual_tokens;
+}
+
+void MoEChunkStats::report() const {
+    if (per_chunk_size.empty()) {
+        return;
+    }
+
+    std::cout << "MoE Chunk Efficiency:" << std::endl;
+
+    std::cout << "  Per chunk size (padding = capacity - real tokens):" << std::endl;
+    for (auto&& kv : per_chunk_size) {
+        const size_t cs = kv.first;
+        const auto& s = kv.second;
+        const uint64_t capacity = cs * s.chunks;
+        const uint64_t padding = capacity - s.tokens;
+        const double padding_pct =
+            capacity ? (100.0 * static_cast<double>(padding) / static_cast<double>(capacity)) : 0.0;
+        std::cout << "    cs=" << cs << " [ chunks=" << s.chunks << ", tokens=" << s.tokens << ", capacity=" << capacity
+                  << ", padding=" << padding << " (" << padding_pct << "%) ]" << std::endl;
+    }
+}
+
 ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_id, size_t num_experts) {
     // Slice weight tensor from batched (num_experts, ...) to single expert (1, ...)
     auto shape = batched_weight.get_shape();
-    if (shape.empty() || shape[0] != num_experts) {
-        NPUW_ASSERT(false && "Expected batched weight with first dimension equal to num_experts");
-    }
+    OPENVINO_ASSERT(num_experts > 0 && !shape.empty() && shape[0] == num_experts && expert_id < num_experts,
+                    "MoE: invalid expert weight shape or expert index");
 
     // Calculate new shape: replace first dimension with 1
     ov::Shape view_shape = shape;
@@ -40,6 +74,8 @@ ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_i
     // by wrapping the data pointer at the correct byte offset
     auto elem_type = batched_weight.get_element_type();
     if (elem_type == ov::element::nf4 || elem_type == ov::element::u4 || elem_type == ov::element::i4) {
+        OPENVINO_ASSERT(ov::shape_size(view_shape) % 2 == 0,
+                        "MoE: sub-byte expert weights must have byte-aligned expert boundaries");
         // Calculate byte-level offset for this expert
         size_t total_byte_size = batched_weight.get_byte_size();
         size_t expert_byte_size = total_byte_size / num_experts;
@@ -65,20 +101,32 @@ ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_i
     return view_tensor;
 }
 
+bool requires_expert_slice(const ov::Tensor& source, const ov::Shape& target_shape, size_t num_experts) {
+    const auto& source_shape = source.get_shape();
+    if (source_shape == target_shape)
+        return false;
+    OPENVINO_ASSERT(!source_shape.empty() && source_shape.size() == target_shape.size() &&
+                        source_shape[0] == num_experts && target_shape[0] == 1 &&
+                        std::equal(source_shape.begin() + 1, source_shape.end(), target_shape.begin() + 1),
+                    "MoE: closure shape does not match its transformed input");
+    return true;
+}
+
 namespace {
-// Returns the token-count dimension from a 4-D router output shape.
-// Two layout variants exist depending on the opset version used during model export:
-//   Layout A: [num_experts, 1, token_num, 1]  → returns shape[2]
-//   Layout B: [num_experts, token_num, 1, 1]  → returns shape[1]
-// ASSERTs if neither layout is recognised.
+// Returns the token-count dimension from a router output shape.
+// All supported layouts have a trailing singleton dim:
+//   [N, token, 1]     (3-D)          → token at dim 1
+//   [N, 1, token, 1]  (4-D, dim1=1)  → token at dim 2
+//   [N, token, 1, 1]  (4-D, dim1≠1)  → token at dim 1
+// ASSERTs if rank ∉ {3, 4} or trailing dim ≠ 1.
 static size_t get_router_token_count(const ov::Shape& router_shape) {
-    NPUW_ASSERT(router_shape.size() == 4);
-    if (router_shape[1] == 1 && router_shape[3] == 1)
-        return router_shape[2];  // Layout A
-    if (router_shape[2] == 1 && router_shape[3] == 1)
-        return router_shape[1];  // Layout B
-    NPUW_ASSERT(false && "Unexpected router output shape - cannot determine token dimension!");
-    return 0;  // unreachable, suppress warning
+    const auto rank = router_shape.size();
+    NPUW_ASSERT((rank == 3 || rank == 4) && router_shape.back() == 1 &&
+                "Router shape must be 3-D or 4-D with trailing singleton");
+    // [N, 1, token, 1] is the only layout where dim 1 is a singleton rather than the token dim.
+    if (rank == 4 && router_shape[1] == 1)
+        return router_shape[2];  // [N, 1, token, 1]
+    return router_shape[1];      // [N, token, 1, 1] or [N, token, 1]
 }
 }  // namespace
 
@@ -95,7 +143,7 @@ std::vector<size_t> parse_selected_experts_from_router(const ov::SoPtr<ov::ITens
     expert_to_tokens.clear();
 
     auto shape = router_output->get_shape();
-    if (shape.size() != 4 || shape[0] != num_experts) {
+    if ((shape.size() != 4 && shape.size() != 3) || shape[0] != num_experts) {
         NPUW_ASSERT(false && "Unexpected router output shape!");
     }
 
@@ -103,16 +151,11 @@ std::vector<size_t> parse_selected_experts_from_router(const ov::SoPtr<ov::ITens
 
     // Parse which expert each token selects based on non-zero weights
     auto parse_experts = [&](auto* data) {
-        // For each token, find which experts have non-zero weights
-        for (size_t token_id = 0; token_id < num_tokens; ++token_id) {
-            for (size_t expert_id = 0; expert_id < num_experts; ++expert_id) {
-                // Index calculation for shape [num_experts, 1, token_num, 1]
-                // data[expert_id, 0, token_id, 0]
-                size_t idx = expert_id * num_tokens + token_id;
-
-                float value = std::abs(static_cast<float>(data[idx]));
-                if (value > 1e-6f) {
-                    // This token selected this expert
+        // Iterate expert-major: each expert's row is contiguous in memory.
+        for (size_t expert_id = 0; expert_id < num_experts; ++expert_id) {
+            const auto* row = data + expert_id * num_tokens;
+            for (size_t token_id = 0; token_id < num_tokens; ++token_id) {
+                if (is_nonzero(row[token_id])) {
                     token_to_experts[token_id].push_back(expert_id);
                     expert_to_tokens[expert_id].push_back(token_id);
                 }
@@ -154,6 +197,8 @@ void set_tensor_optimized(ov::SoPtr<ov::IAsyncInferRequest> request,
         // Small tensor: direct copy to avoid set_tensor overhead (~0.65ms per call)
         // Copy is faster for small tensors due to avoiding NPU plugin overhead
         auto clparam = request->get_tensor(iport);
+        NPUW_ASSERT(clparam._ptr &&
+                    "request returned null tensor for input port — request may be uninitialized or port is invalid");
         tensor_impl->copy_to(clparam._ptr);
         LOG_DEBUG("Using copy for small tensor (" << tensor_bytes << " bytes)");
     } else {
@@ -168,32 +213,21 @@ void gather_router_scores(const ov::SoPtr<ov::ITensor>& router_source,
                           const std::vector<size_t>& token_ids,
                           size_t chunk_start,
                           size_t chunk_size) {
-    auto router_source_shape = router_source->get_shape();
+    const auto router_source_shape = router_source->get_shape();
+    const size_t expert_offset = expert_id * get_router_token_count(router_source_shape);
 
-    // Calculate expert offset in source tensor
-    size_t expert_offset;
-    if (router_source_shape.size() == 4) {
-        expert_offset = expert_id * get_router_token_count(router_source_shape);
-    } else if (router_source_shape.size() == 2) {
-        expert_offset = expert_id * router_source_shape[1];  // [num_experts, token_num]
-    } else {
-        NPUW_ASSERT(false && "Unexpected router source shape");
-        expert_offset = 0;  // unreachable, suppress uninitialized warning
-    }
+    auto gather = [&](const auto* src_base, auto* dst_base) {
+        const size_t* ids = token_ids.data() + chunk_start;
+        for (size_t i = 0; i < chunk_size; ++i) {
+            dst_base[i] = src_base[ids[i]];
+        }
+    };
 
-    // Gather router scores for chunk tokens
-    if (router_source->get_element_type() == ov::element::f16) {
-        const auto* src_base = router_source->data<ov::float16>() + expert_offset;
-        auto* dst_base = router_dest->data<ov::float16>();
-        for (size_t i = 0; i < chunk_size; ++i) {
-            dst_base[i] = src_base[token_ids[chunk_start + i]];
-        }
-    } else if (router_source->get_element_type() == ov::element::f32) {
-        const auto* src_base = router_source->data<float>() + expert_offset;
-        auto* dst_base = router_dest->data<float>();
-        for (size_t i = 0; i < chunk_size; ++i) {
-            dst_base[i] = src_base[token_ids[chunk_start + i]];
-        }
+    const auto elem_type = router_source->get_element_type();
+    if (elem_type == ov::element::f16) {
+        gather(router_source->data<ov::float16>() + expert_offset, router_dest->data<ov::float16>());
+    } else if (elem_type == ov::element::f32) {
+        gather(router_source->data<float>() + expert_offset, router_dest->data<float>());
     } else {
         NPUW_ASSERT(false && "Unsupported router element type for gathering");
     }
@@ -204,40 +238,24 @@ void gather_expert_inputs(const ov::SoPtr<ov::ITensor>& input_source,
                           const std::vector<size_t>& token_ids,
                           size_t chunk_start,
                           size_t chunk_size) {
-    auto input_shape = input_source->get_shape();
+    const auto input_shape = input_source->get_shape();
+    NPUW_ASSERT((input_shape.size() == 2 || input_shape.size() == 4) && "Unexpected expert input tensor shape");
+    // hidden_dim is always the last dimension for both supported layouts.
+    const size_t hidden_dim = input_shape.back();
 
-    // Determine dimensions
-    size_t hidden_dim;
-    size_t token_stride;
-    if (input_shape.size() == 2) {
-        hidden_dim = input_shape[1];
-        token_stride = hidden_dim;
-    } else if (input_shape.size() == 4) {
-        hidden_dim = input_shape[3];
-        token_stride = hidden_dim;
-    } else {
-        NPUW_ASSERT(false && "Unexpected expert input tensor shape");
-    }
+    auto gather = [&](const auto* src_base, auto* dst_base) {
+        const size_t elem_bytes = hidden_dim * sizeof(*src_base);
+        const size_t* ids = token_ids.data() + chunk_start;
+        for (size_t i = 0; i < chunk_size; ++i, dst_base += hidden_dim) {
+            std::memcpy(dst_base, src_base + ids[i] * hidden_dim, elem_bytes);
+        }
+    };
 
-    // Gather input embeddings for chunk tokens
-    if (input_source->get_element_type() == ov::element::f16) {
-        const auto* src_base = input_source->data<ov::float16>();
-        auto* dst_base = input_dest->data<ov::float16>();
-        for (size_t i = 0; i < chunk_size; ++i) {
-            size_t token_id = token_ids[chunk_start + i];
-            const auto* src_token = src_base + token_id * token_stride;
-            auto* dst_token = dst_base + i * hidden_dim;
-            std::memcpy(dst_token, src_token, hidden_dim * sizeof(ov::float16));
-        }
-    } else if (input_source->get_element_type() == ov::element::f32) {
-        const auto* src_base = input_source->data<float>();
-        auto* dst_base = input_dest->data<float>();
-        for (size_t i = 0; i < chunk_size; ++i) {
-            size_t token_id = token_ids[chunk_start + i];
-            const auto* src_token = src_base + token_id * token_stride;
-            auto* dst_token = dst_base + i * hidden_dim;
-            std::memcpy(dst_token, src_token, hidden_dim * sizeof(float));
-        }
+    const auto elem_type = input_source->get_element_type();
+    if (elem_type == ov::element::f16) {
+        gather(input_source->data<ov::float16>(), input_dest->data<ov::float16>());
+    } else if (elem_type == ov::element::f32) {
+        gather(input_source->data<float>(), input_dest->data<float>());
     } else {
         NPUW_ASSERT(false && "Unsupported expert input element type for gathering");
     }
@@ -251,28 +269,52 @@ void scatter_expert_outputs(const ov::SoPtr<ov::ITensor>& expert_output,
                             size_t embed_dim,
                             size_t input_token_count,
                             const std::vector<size_t>& expert_slots_for_tokens) {
-    auto elem_type = global_output_buffer->get_element_type();
+    // Hoist type dispatch and pointer acquisition outside the loop.
+    // slot_stride = number of elements between consecutive expert slots in the output buffer.
+    const size_t slot_stride = input_token_count * embed_dim;
 
-    for (size_t i = 0; i < chunk_size; ++i) {
-        size_t original_token_id = token_ids[chunk_start + i];
-        size_t expert_slot = expert_slots_for_tokens[chunk_start + i];
-
-        // Calculate offsets
-        size_t src_offset = i * embed_dim;
-        size_t dst_offset = expert_slot * input_token_count * embed_dim + original_token_id * embed_dim;
-
-        // Scatter output to global buffer
-        if (elem_type == ov::element::f32) {
-            const float* src = expert_output->data<float>() + src_offset;
-            float* dst = global_output_buffer->data<float>() + dst_offset;
-            std::memcpy(dst, src, embed_dim * sizeof(float));
-        } else if (elem_type == ov::element::f16) {
-            const ov::float16* src = expert_output->data<ov::float16>() + src_offset;
-            ov::float16* dst = global_output_buffer->data<ov::float16>() + dst_offset;
-            std::memcpy(dst, src, embed_dim * sizeof(ov::float16));
-        } else {
-            OPENVINO_THROW("MoE: Unsupported element type for chunk output relayout: ", elem_type);
+    auto scatter = [&](const auto* src_base, auto* dst_base) {
+        const size_t elem_bytes = embed_dim * sizeof(*src_base);
+        const size_t* ids = token_ids.data() + chunk_start;
+        const size_t* slots = expert_slots_for_tokens.data() + chunk_start;
+        for (size_t i = 0; i < chunk_size; ++i) {
+            std::memcpy(dst_base + slots[i] * slot_stride + ids[i] * embed_dim, src_base + i * embed_dim, elem_bytes);
         }
+    };
+
+    const auto elem_type = global_output_buffer->get_element_type();
+    if (elem_type == ov::element::f32) {
+        scatter(expert_output->data<float>(), global_output_buffer->data<float>());
+    } else if (elem_type == ov::element::f16) {
+        scatter(expert_output->data<ov::float16>(), global_output_buffer->data<ov::float16>());
+    } else {
+        OPENVINO_THROW("MoE: Unsupported element type for chunk output relayout: ", elem_type);
+    }
+}
+
+void clear_unfilled_accumulator_slots(const ov::SoPtr<ov::ITensor>& global_output_buffer,
+                                      const std::vector<size_t>& token_slot_count,
+                                      size_t num_active_experts,
+                                      size_t embed_dim,
+                                      size_t input_token_count) {
+    const size_t slot_stride = input_token_count * embed_dim;
+
+    auto clear = [&](auto* base) {
+        const size_t elem_bytes = embed_dim * sizeof(*base);
+        for (size_t token_id = 0; token_id < token_slot_count.size(); ++token_id) {
+            for (size_t slot = token_slot_count[token_id]; slot < num_active_experts; ++slot) {
+                std::memset(base + slot * slot_stride + token_id * embed_dim, 0, elem_bytes);
+            }
+        }
+    };
+
+    const auto elem_type = global_output_buffer->get_element_type();
+    if (elem_type == ov::element::f32) {
+        clear(global_output_buffer->data<float>());
+    } else if (elem_type == ov::element::f16) {
+        clear(global_output_buffer->data<ov::float16>());
+    } else {
+        OPENVINO_THROW("MoE: Unsupported element type for accumulator clear: ", elem_type);
     }
 }
 

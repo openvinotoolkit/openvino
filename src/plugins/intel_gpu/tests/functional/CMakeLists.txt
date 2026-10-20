@@ -13,13 +13,15 @@ endif()
 
 list(APPEND DEFINES TEST_CUSTOM_OP_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/custom_op/custom_op.xml")
 
+include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
+
+set(GPU_FUNC_TEST_SOURCES ${GPU_FUNCTIONAL_TEST_SOURCES} ${TEST_COMMON_SOURCE_FILES})
+
 ov_add_test_target(
         NAME
             ${TARGET_NAME}
-        ROOT
-            ${CMAKE_CURRENT_SOURCE_DIR}
-        ADDITIONAL_SOURCE_DIRS
-            ${TEST_COMMON_SOURCE_DIR}
+        SOURCES
+            ${GPU_FUNC_TEST_SOURCES}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
             $<TARGET_PROPERTY:openvino_intel_gpu_plugin,SOURCE_DIR>/include/
@@ -29,15 +31,25 @@ ov_add_test_target(
         DEPENDENCIES
             openvino_intel_gpu_plugin
         LINK_LIBRARIES
-            openvino::reference
             funcSharedTests
+            openvino::reference
             OpenCL::NewHeaders # should come before OpenCL::OpenCL
             OpenCL::OpenCL
         LABELS
             OV GPU
+        CHECK_SOURCES_LISTED
+        CHECK_SOURCES_EXCLUDE_FILES
+            ${GPU_FUNC_TEST_CHECK_SOURCES_EXCLUDE_FILES}
 )
 
-ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+# Functional tests load the plugin dynamically; OV_GPU_WITH_*_RT only selects which remote-tensor
+# interop tests compile. COMBINED ships both runtimes, so compile both sets; single-RT its own.
+if(GPU_RT_TYPE STREQUAL "COMBINED")
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_ZE_RT=1 OV_GPU_WITH_OCL_RT=1)
+    add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin_ocl)
+else()
+    ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${GPU_RT_TYPE})
+endif()
 
 if(ENABLE_PROXY)
     target_compile_definitions(${TARGET_NAME} PUBLIC PROXY_PLUGIN_ENABLED)
@@ -52,6 +64,15 @@ endif()
 if(libva_FOUND)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA)
     target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::libva)
+
+    # VA surface interop tests need a VADisplay of their own. The DRM backend is the only one
+    # which works headless, so these tests are enabled only when libva-drm is available.
+    pkg_search_module(libva_drm QUIET IMPORTED_TARGET libva-drm)
+    if(libva_drm_FOUND AND EXISTS "${libva_INCLUDEDIR}/va/va.h")
+        target_include_directories(${TARGET_NAME} PRIVATE "${libva_INCLUDEDIR}/va")
+        target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA_DRM OV_GPU_USE_SYSTEM_LIBVA_HEADERS)
+        target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::libva_drm)
+    endif()
 endif()
 
 if(WIN32)

@@ -12,6 +12,19 @@
     #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
 #endif
 
+#if ZERO_OUTPUT_FEATURE_PADDING
+    // Extend the feature GWS to clear unwritten lanes in the last feature block.
+    #define OUTPUT_FEATURE_PAD_RESET_SIZE                                                                  \
+        ((OUTPUT_FEATURE_BLOCK_SIZE - (OUTPUT_PAD_BEFORE_FEATURE_NUM + OUTPUT_FEATURE_NUM +                \
+                                       OUTPUT_PAD_AFTER_FEATURE_NUM) % OUTPUT_FEATURE_BLOCK_SIZE) %        \
+         OUTPUT_FEATURE_BLOCK_SIZE)
+    #define GWS_FEATURE_SIZE(logical_feature_size) (OUTPUT_FEATURE_NUM + OUTPUT_FEATURE_PAD_RESET_SIZE)
+    // Use non-safe indexing to address padding lanes past the logical feature range.
+    #define GET_PAD_RESET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
+#else
+    #define GWS_FEATURE_SIZE(logical_feature_size) (logical_feature_size)
+#endif
+
 KERNEL(eltwise)(
     OPTIONAL_SHAPE_INFO_ARG
     INPUTS_DECLS
@@ -140,8 +153,8 @@ KERNEL(eltwise)(
         data_idx = data_idx / OUTPUT_SIZE_Y;
 
         const uint d3 = data_idx % OUTPUT_SIZE_Z; // Z
-
-        const uint d4 = get_global_id(GWS_FEATURE);             // Feature
+        const uint f = get_global_id(GWS_FEATURE); // Feature, padding lanes included
+        const uint d4 = f;
         const uint d5 = get_global_id(GWS_BATCH);               // Batch
 
         uint output_offset = OUTPUT_GET_INDEX(d5, d4, d3, d2, d1);
@@ -152,8 +165,9 @@ KERNEL(eltwise)(
         const uint d1 = get_global_id(0);
         const uint d2 = (uint)get_global_id(1) % OUTPUT_SIZES[1];
         const uint d3 = (uint)get_global_id(1) / OUTPUT_SIZES[1];
-        const uint d4 = (uint)get_global_id(2) % OUTPUT_SIZES[3];
-        const uint d5 = (uint)get_global_id(2) / OUTPUT_SIZES[3];
+        const uint f = (uint)get_global_id(2) % GWS_FEATURE_SIZE(OUTPUT_SIZES[3]);  // Feature, padding lanes included
+        const uint d4 = f;
+        const uint d5 = (uint)get_global_id(2) / GWS_FEATURE_SIZE(OUTPUT_SIZES[3]);
 
         uint output_offset = OUTPUT_GET_INDEX(d5, d4, d3, d2, d1);
     #endif
@@ -161,7 +175,8 @@ KERNEL(eltwise)(
     #if ELTWISE_LAYOUT_BASED || QUANTIZATION_TERM || ELTWISE_BROADCAST
         const uint d1 = (uint)get_global_id(GWS_YX) % OUTPUT_SIZE_X;  // X
         const uint d2 = (uint)get_global_id(GWS_YX) / OUTPUT_SIZE_X;  // Y
-        const uint d3 = (uint)get_global_id(GWS_FEATURE);             // Feature
+        const uint f = (uint)get_global_id(GWS_FEATURE);              // Feature, padding lanes included
+        const uint d3 = f;
         const uint d4 = (uint)get_global_id(GWS_BATCH);               // Batch
 
         uint output_offset = GET_INDEX(OUTPUT,, OUTPUT_IDX_ORDER);
@@ -171,11 +186,19 @@ KERNEL(eltwise)(
     #else
         const uint d1 = get_global_id(0);
         const uint d2 = get_global_id(1);
-        const uint d3 = (uint)get_global_id(2) % OUTPUT_SIZES[2];
-        const uint d4 = (uint)get_global_id(2) / OUTPUT_SIZES[2];
+        const uint f = (uint)get_global_id(2) % GWS_FEATURE_SIZE(OUTPUT_SIZES[2]);  // Feature, padding lanes included
+        const uint d3 = f;
+        const uint d4 = (uint)get_global_id(2) / GWS_FEATURE_SIZE(OUTPUT_SIZES[2]);
 
         uint output_offset = GET_INDEX(OUTPUT,, OUTPUT_IDX_ORDER);
     #endif
+#endif
+
+#if ZERO_OUTPUT_FEATURE_PADDING
+    if (f >= OUTPUT_FEATURE_NUM) {
+        output[GET_PAD_RESET_INDEX(OUTPUT,, OUTPUT_PAD_RESET_IDX_ORDER)] = OUTPUT_VAL_ZERO;
+        return;
+    }
 #endif
 
     ACCUMULATOR_TYPE res;
@@ -184,13 +207,13 @@ KERNEL(eltwise)(
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    OUTPUT_TYPE out = FUSED_OPS_RESULT;
+    OUTPUT_COMPUTE_TYPE out = DECODE_OUTPUT_COMPUTE_TYPE(FUSED_OPS_RESULT);
 #else
     #define out res
 #endif
 
 #if QUANTIZATION_TERM && !OUTPUT_IS_FP
-    output[output_offset] = TO_OUTPUT_TYPE_SAT(ACTIVATION(out, ACTIVATION_PARAMS));
+    output[output_offset] = TO_OUTPUT_TYPE(ACTIVATION(out, ACTIVATION_PARAMS));
 #else
     output[output_offset] = TO_OUTPUT_TYPE(ACTIVATION_TYPED(out, ACTIVATION_PARAMS_TYPED));
 #endif

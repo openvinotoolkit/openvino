@@ -28,17 +28,23 @@
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/avg_pool.hpp"
+#if !defined(OPENVINO_ARCH_ARM64)
+#    include "openvino/op/bitwise_not.hpp"
+#    include "openvino/op/util/binary_elementwise_bitwise.hpp"
+#endif
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -46,9 +52,11 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "ov_ops/gather_compressed.hpp"
+#include "ov_ops/gather_matmul.hpp"
 
 // Common transformations
 #include "openvino/pass/constant_folding.hpp"
@@ -79,6 +87,7 @@
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/disable_bf16_comp_ltx_rope.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fp16_compression/mark_floatpoint_range.hpp"
 #include "transformations/init_node_info.hpp"
@@ -142,6 +151,7 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
+#include "transformations/cpu_opset/common/pass/disable_bf16_comp_cumsum_sin_gen.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
@@ -176,7 +186,6 @@
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #    include "openvino/op/add.hpp"
-#    include "openvino/op/swish.hpp"
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
 #else
 #    include "openvino/op/convolution.hpp"
@@ -203,6 +212,7 @@
 #    include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
 #    include "transformations/common_optimizations/rms_fusion.hpp"
+#    include "transformations/common_optimizations/strided_slice_reshape_concat_fusion.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
 #    include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
@@ -240,6 +250,7 @@
 #    include "openvino/opsets/opset1_decl.hpp"
 #    include "transformations/cpu_opset/arm/pass/align_unsupported_lp_conv_fq_precision.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
+#    include "transformations/cpu_opset/arm/pass/convert_fc_bias.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
@@ -256,10 +267,6 @@
 #    include "openvino/op/lstm_sequence.hpp"
 #endif
 
-#if !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_ARM64)
-#    include "openvino/core/except.hpp"
-#endif
-
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "transformations/op_conversions/hard_sigmoid_decomposition.hpp"
 #    include "transformations/op_conversions/hsigmoid_decomposition.hpp"
@@ -271,7 +278,7 @@
 
 #if defined(OPENVINO_ARCH_RISCV64)
 #    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
-#    include "openvino/op/swish.hpp"
+#    include "transformations/snippets/riscv64/op/brgemm_utils.hpp"
 #endif
 
 #if defined(SNIPPETS_LIBXSMM_TPP)
@@ -306,29 +313,35 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) {
         });
     };
 
+    auto benefit_from_decompression = [&all_has_type](const std::set<ov::Input<ov::Node>>& consumers) {
+        return all_has_type(consumers, ov::op::v0::MatMul::get_type_info_static()) ||
+               all_has_type(consumers, ov::op::v1::Convolution::get_type_info_static()) ||
+               all_has_type(consumers, ov::op::v17::GroupedMatMul::get_type_info_static()) ||
+               all_has_type(consumers, ov::op::internal::GatherMatmul::get_type_info_static());
+    };
+
     const auto consumers = node->get_output_target_inputs(0);
-    if (all_has_type(consumers, ov::op::v0::MatMul::get_type_info_static()) ||
-        all_has_type(consumers, ov::op::v1::Convolution::get_type_info_static())) {
+    if (benefit_from_decompression(consumers)) {
         return true;
     }
 
-    auto are_converts_from_decompression = [&all_has_type](const std::set<ov::Input<ov::Node>>& consumers) {
-        if (!all_has_type(consumers, ov::op::v0::Convert::get_type_info_static())) {
-            return false;
-        }
-        return std::all_of(consumers.begin(), consumers.end(), [&all_has_type](const ov::Input<ov::Node>& consumer) {
-            const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
-            return all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static()) ||
-                   all_has_type(child_consumers, ov::op::v1::Convolution::get_type_info_static());
-        });
-    };
+    auto are_converts_from_decompression =
+        [&all_has_type, &benefit_from_decompression](const std::set<ov::Input<ov::Node>>& consumers) {
+            if (!all_has_type(consumers, ov::op::v0::Convert::get_type_info_static())) {
+                return false;
+            }
+            return std::all_of(consumers.begin(),
+                               consumers.end(),
+                               [&benefit_from_decompression](const ov::Input<ov::Node>& consumer) {
+                                   const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
+                                   return benefit_from_decompression(child_consumers);
+                               });
+        };
 
     if (all_has_type(consumers, ov::op::v1::Reshape::get_type_info_static())) {
         for (const auto& consumer : consumers) {
             const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
-            if (all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static()) ||
-                all_has_type(child_consumers, ov::op::v1::Convolution::get_type_info_static()) ||
-                are_converts_from_decompression(child_consumers)) {
+            if (benefit_from_decompression(child_consumers) || are_converts_from_decompression(child_consumers)) {
                 return true;
             }
         }
@@ -510,8 +523,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             // 0. Deduplicate identical DQ subgraphs sharing a common Convert node
             qdq_stripping_manager.register_pass<ov::pass::SharedOpOptimization>();
             // 1. Fuse FQ->Convert->DQ to a single FQ
-            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16},
-                                                                                     TypeVector{f32});
+            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16});
             // 2. Strip FQ layers with unsupported levels
             qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, false);
             qdq_stripping_manager.run_passes(model);
@@ -576,7 +588,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                                        ov::op::v1::Convolution,
                                        ov::op::v1::GroupConvolution,
                                        ov::op::v1::ConvolutionBackpropData,
-                                       ov::op::v1::GroupConvolutionBackpropData>(consumer.get_node());
+                                       ov::op::v1::GroupConvolutionBackpropData,
+                                       ov::op::v17::GroupedMatMul>(consumer.get_node());
             });
         },
         ov::pass::KeepConstAndDecompression);
@@ -673,6 +686,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
     CPU_REGISTER_PASS_X64(manager, ConvertInteractionInt8);
+    CPU_REGISTER_PASS_X64(manager, ov::pass::StridedSliceReshapeConcatFusion);
     CPU_REGISTER_PASS_ARM(manager, ConvertReduceNoKeepDims);
     CPU_REGISTER_PASS_ARM(manager, ConvertReduceMultiAxis);
     CPU_REGISTER_PASS_ARM32(manager, MishDecomposition);
@@ -966,6 +980,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     lowPrecPass->add_markup<AlignUnsupportedLPConvFQPrecision>();
 #endif
     CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
+    CPU_REGISTER_PASS_ARM(lptManager, ConvertFullyConnectedBias);
     CPU_REGISTER_PASS_ARM(lptManager, FallbackUnsupportedLPConvToFP16);
     CPU_SET_CALLBACK_ARM(
         lptManager,
@@ -1125,8 +1140,7 @@ void Transformations::PostLpt() {
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion, true);
-    CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionFlux);
-    CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionLtxVideo);
+    CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionCohere);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1177,7 +1191,13 @@ void Transformations::PostLpt() {
     }
 #endif  // OPENVINO_ARCH_X86_64
 
-    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion, false);
+    // gamma-less fusion keeps the variance in f32 for bf16, which has no ConvertPrecision markup; under
+    // f16 the decomposed norm is already kept precise by ConvertPrecision, so fusing it there regresses it.
+    [[maybe_unused]] const bool enable_without_gamma = config.inferencePrecision != ov::element::f16;
+    CPU_REGISTER_PASS_X64(postLPTPassManager,
+                          ov::pass::RMSFusion,
+                          false /* force_tail_convert */,
+                          enable_without_gamma);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(
         postLPTPassManager,
@@ -1191,6 +1211,12 @@ void Transformations::PostLpt() {
     if (any_of(config.inferencePrecision, ov::element::bf16, ov::element::f16)) {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkRopeInputsToKeepInMixedPrecision);
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkFloatingPointRange);
+    }
+    // Only bf16 needs the rope markup: under f16 the angle chain is already kept precise by
+    // ConvertPrecision, and marking it there regresses accuracy.
+    if (config.inferencePrecision == ov::element::bf16) {
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::DisableBF16CompForLtxVideoRopePattern);
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::DisableBF16CompCumSumSinGen);
     }
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by
@@ -1248,12 +1274,9 @@ void Transformations::MainSnippets() {
         concurrency = parallel_get_max_threads();
     }
     CommonOptimizations::Config common_optimizations_config(concurrency);
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     common_optimizations_config.set_transpose_support_callback(
         ov::snippets::utils::make_transpose_support_callback(true));
-#elif defined(OPENVINO_ARCH_RISCV64)
-    common_optimizations_config.set_transpose_support_callback(
-        ov::snippets::utils::make_transpose_support_callback(false));
 #else
     common_optimizations_config.set_transpose_support_callback([](const std::shared_ptr<const ov::Node>&) -> bool {
         return false;
@@ -1335,6 +1358,15 @@ void Transformations::MainSnippets() {
     const auto is_infer_prc_supported_by_brgemm =
         any_of(config.inferencePrecision, ov::element::f32, ov::element::f16, ov::element::dynamic);
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
+#elif defined(OPENVINO_ARCH_RISCV64)
+    const auto is_infer_prc_supported_by_brgemm =
+        (any_of(config.inferencePrecision, ov::element::f32, ov::element::dynamic) &&
+         ov::intel_cpu::riscv64::brgemm_utils::is_fp32_supported()) ||
+        (any_of(config.inferencePrecision, ov::element::bf16, ov::element::f32, ov::element::dynamic) &&
+         ov::intel_cpu::riscv64::brgemm_utils::is_bf16_supported()) ||
+        (any_of(config.inferencePrecision, ov::element::f16, ov::element::f32, ov::element::dynamic) &&
+         ov::intel_cpu::riscv64::brgemm_utils::is_fp16_supported());
+    const bool isMHASupported = is_infer_prc_supported_by_brgemm;
 #else
     const bool isMHASupported = false;
 #endif
@@ -1358,12 +1390,17 @@ void Transformations::MainSnippets() {
         CPU_DISABLE_PASS_COMMON(snippetsManager, TokenizeMLPSeqSnippets);
     }
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_RISCV64)
     auto is_supported_matmul = [this](const std::shared_ptr<const ov::Node>& n) {
         const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
         if (!matmul) {
             return false;
         }
+#    if defined(OPENVINO_ARCH_RISCV64)
+        if (n->is_dynamic()) {
+            return false;
+        }
+#    endif
         const auto in_type0 = matmul->get_input_element_type(0);
         const auto in_type1 = matmul->get_input_element_type(1);
         const auto is_fp32 = (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 &&
@@ -1374,15 +1411,23 @@ void Transformations::MainSnippets() {
         const auto is_bf16 = (all_of(ov::element::bf16, in_type0, in_type1)) ||
                              ((in_type0 == element::f32 && in_type1 == ov::element::f32 &&
                                config.inferencePrecision == ov::element::bf16));
-        const auto is_int8 = (any_of(in_type0, element::i8, element::u8)) && (in_type1 == element::i8);
         if (matmul->get_transpose_a()) {
             return false;
         }
+#    if defined(OPENVINO_ARCH_X86_64)
+        const auto is_int8 = (any_of(in_type0, element::i8, element::u8)) && (in_type1 == element::i8);
         return (is_fp32 && ov::intel_cpu::brgemm_utils::is_fp32_supported()) ||
                (is_bf16 && ov::intel_cpu::brgemm_utils::is_bf16_supported()) ||
                (is_fp16 && ov::intel_cpu::brgemm_utils::is_fp16_supported()) ||
                (is_int8 && ov::intel_cpu::brgemm_utils::is_i8_supported());
+#    else
+        return (is_fp32 && ov::intel_cpu::riscv64::brgemm_utils::is_fp32_supported()) ||
+               (is_bf16 && ov::intel_cpu::riscv64::brgemm_utils::is_bf16_supported()) ||
+               (is_fp16 && ov::intel_cpu::riscv64::brgemm_utils::is_fp16_supported());
+#    endif
     };
+#endif
+#if defined(OPENVINO_ARCH_X86_64)
     auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n,
                                                    const ov::PartialShape& shape) {
         // Dynamic shapes are handled at runtime by MHAParallelWAOptimizer
@@ -1404,19 +1449,24 @@ void Transformations::MainSnippets() {
     };
 #endif  // OPENVINO_ARCH_X86_64
 
-    auto is_supported_op = []([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
+    auto is_supported_op = [ignoreCallback]([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
         // CPU Plugin supports Swish in Subgraph via conversion to SwishCPU that requires scalar beta.
         // CPU Plugin does not support Mish for x64
         auto is_unsupported = [](const std::shared_ptr<const ov::Node>& n) {
-            return (ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
-                    !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)))
-#if defined(OPENVINO_ARCH_X86_64)
-                   || ov::is_type<const ov::op::v4::Mish>(n)
-#elif defined(OPENVINO_ARCH_RISCV64)
-                   // These operations are not currently supported in the RISC-V snippets target machine.
-                   || ov::is_type<const ov::op::v4::Swish>(n)
+#if !defined(OPENVINO_ARCH_ARM64)
+            if (ov::is_type_any_of<const ov::op::util::BinaryElementwiseBitwise, const ov::op::v13::BitwiseNot>(n)) {
+                return true;
+            }
 #endif
-                ;
+            if (ov::is_type<const ov::op::v4::Swish>(n) && n->get_input_size() > 1) {
+                return !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)) ||
+                       ov::shape_size(n->get_input_shape(1)) != 1;
+            }
+#if defined(OPENVINO_ARCH_X86_64)
+            return ov::is_type<const ov::op::v4::Mish>(n);
+#else
+            return false;
+#endif
         };
         // todo: general tokenization flow is not currently supported for these operations.
         // they can be tokenized only as a part of complex patterns
@@ -1435,7 +1485,7 @@ void Transformations::MainSnippets() {
                                                                  const ov::op::v1::ReduceMax,
                                                                  const ov::op::v1::ReduceSum>(n));
         };
-        return !is_unsupported(n) && !is_unsupported_by_common_tokenization(n);
+        return !is_unsupported(n) && (ignoreCallback || !is_unsupported_by_common_tokenization(n));
     };
 
     auto has_supported_tensors = [ignoreCallback](const std::shared_ptr<const ov::Node>& n) -> bool {
@@ -1543,15 +1593,32 @@ void Transformations::MainSnippets() {
                        is_unsupported_parallel_work_amount(n, n->get_output_partial_shape(0));
             },
             ExtractReshapesFromMHA);
+        CPU_SET_CALLBACK_RISCV64(
+            snippetsManager,
+            [&](const std::shared_ptr<const ov::Node>& n) -> bool {
+                if (!is_supported_matmul(n)) {
+                    return true;
+                }
+                auto child = n->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+                while (!ov::is_type<const ov::op::v0::MatMul>(child)) {
+                    child = child->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+                }
+                return !is_supported_matmul(child);
+            },
+            TokenizeMHASnippets);
+        CPU_SET_CALLBACK_RISCV64(
+            snippetsManager,
+            [&](const std::shared_ptr<const ov::Node>& n) -> bool {
+                return !is_supported_matmul(n);
+            },
+            ExtractReshapesFromMHA);
     }
 
     CPU_SET_CALLBACK_COMMON(
         snippetsManager,
         [&](const std::shared_ptr<const ov::Node>& n) -> bool {
-            if (!ignoreCallback) {
-                if (n->is_dynamic() || !is_supported_op(n))
-                    return true;
-            }
+            if ((!ignoreCallback && n->is_dynamic()) || !is_supported_op(n))
+                return true;
 
             const auto& inputs = n->inputs();
             // todo: clarify whether we can evaluate snippets on const paths
@@ -1596,10 +1663,11 @@ void Transformations::MainSnippets() {
         }
 #endif
 #if defined(OPENVINO_ARCH_ARM64)
-        // KleidiAI matmul primitives do not support transposed B input
-        return false;
+        return true;
 #elif defined(OPENVINO_ARCH_X86_64)
         return true;
+#elif defined(OPENVINO_ARCH_RISCV64)
+        return false;
 #else
         OPENVINO_THROW("ExplicitTransposeMatMulInputs callback is not supported on this architecture");
         return false;
@@ -1632,7 +1700,8 @@ void Transformations::PostSnippets() {
     CPU_SET_CALLBACK_ARM(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
-            return match_acl_int8_pooling_fq_chain(node) || match_acl_int8_conv_fq_chain(node);
+            return match_acl_int8_pooling_fq_chain(node) || match_acl_int8_conv_fq_chain(node) ||
+                   match_acl_int8_matmul_fq_chain(node);
         },
         ov::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);

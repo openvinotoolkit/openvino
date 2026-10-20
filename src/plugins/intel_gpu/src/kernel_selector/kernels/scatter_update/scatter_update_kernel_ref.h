@@ -14,12 +14,13 @@ struct scatter_update_params : public base_params {
     scatter_update_params() : base_params(KernelType::SCATTER_UPDATE), axis(ScatterUpdateAxis::BATCH) {}
 
     ScatterUpdateAxis axis;
+    bool is_inplace{false};
 };
 
 class ScatterUpdateKernelRef : public KernelBaseOpenCL {
 public:
     ScatterUpdateKernelRef() : KernelBaseOpenCL("scatter_update_ref") {}
-    virtual ~ScatterUpdateKernelRef() {}
+    ~ScatterUpdateKernelRef() override = default;
     virtual JitConstants GetJitConstants(const scatter_update_params& params) const;
     virtual CommonDispatchData SetDefault(const scatter_update_params& params, bool is_second) const;
     KernelsData GetKernelsData(const Params& params) const override;

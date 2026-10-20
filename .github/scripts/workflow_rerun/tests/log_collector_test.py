@@ -17,6 +17,7 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
 from workflow_rerun.log_collector import collect_logs_for_run
+from workflow_rerun.tests.gh_test_utils import find_failed_run_with_logs
 
 
 class LogCollectorTest(unittest.TestCase):
@@ -46,8 +47,9 @@ class LogCollectorTest(unittest.TestCase):
                                                                 created=f">={oldest_allowed_date}")[0]
         print(f'Successful workflow run for testing: {cls.successful_workflow_run}', flush=True)
 
-        cls.failed_workflow_run = gh_repo.get_workflow_runs(status='failure',
-                                                            created=f">={oldest_allowed_date}")[0]
+        cls.failed_workflow_run = find_failed_run_with_logs(gh_repo=gh_repo, 
+                                                            created_filter=f">={oldest_allowed_date}", 
+                                                            max_candidates=50)
         print(f'Failed workflow run for testing: {cls.failed_workflow_run}', flush=True)
 
     def setUp(self):

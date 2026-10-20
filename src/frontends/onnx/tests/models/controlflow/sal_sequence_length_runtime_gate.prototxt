@@ -1,0 +1,327 @@
+ir_version: 9
+graph {
+  node {
+    output: "empty_cache"
+    op_type: "SequenceEmpty"
+  }
+  node {
+    input: "trip_count"
+    input: "cond_init"
+    input: "empty_cache"
+    input: "acc_init"
+    output: "cache_final"
+    output: "acc_final"
+    op_type: "Loop"
+    attribute {
+      name: "body"
+      g {
+        node {
+          input: "cache_in"
+          output: "cache_len"
+          op_type: "SequenceLength"
+        }
+        node {
+          output: "zero_i64"
+          op_type: "Constant"
+          attribute {
+            name: "value"
+            t {
+              data_type: 7
+              int64_data: 0
+              name: "z"
+            }
+            type: TENSOR
+          }
+        }
+        node {
+          input: "cache_len"
+          input: "zero_i64"
+          output: "is_populated"
+          op_type: "Greater"
+        }
+        node {
+          input: "is_populated"
+          output: "cache_out"
+          op_type: "If"
+          attribute {
+            name: "else_branch"
+            g {
+              node {
+                input: "v0"
+                input: "v1"
+                output: "cache_sel"
+                op_type: "SequenceConstruct"
+              }
+              name: "else_build"
+              output {
+                name: "cache_sel"
+                type {
+                  sequence_type {
+                    elem_type {
+                      tensor_type {
+                        elem_type: 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            type: GRAPH
+          }
+          attribute {
+            name: "then_branch"
+            g {
+              node {
+                output: "t_i0"
+                op_type: "Constant"
+                attribute {
+                  name: "value"
+                  t {
+                    data_type: 7
+                    int64_data: 0
+                    name: "ti0"
+                  }
+                  type: TENSOR
+                }
+              }
+              node {
+                output: "t_i1"
+                op_type: "Constant"
+                attribute {
+                  name: "value"
+                  t {
+                    data_type: 7
+                    int64_data: 1
+                    name: "ti1"
+                  }
+                  type: TENSOR
+                }
+              }
+              node {
+                input: "cache_in"
+                input: "t_i0"
+                output: "t_s0"
+                op_type: "SequenceAt"
+              }
+              node {
+                input: "cache_in"
+                input: "t_i1"
+                output: "t_s1"
+                op_type: "SequenceAt"
+              }
+              node {
+                input: "t_s0"
+                input: "t_s1"
+                output: "cache_sel"
+                op_type: "SequenceConstruct"
+              }
+              name: "then_forward"
+              output {
+                name: "cache_sel"
+                type {
+                  sequence_type {
+                    elem_type {
+                      tensor_type {
+                        elem_type: 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            type: GRAPH
+          }
+        }
+        node {
+          output: "idx0"
+          op_type: "Constant"
+          attribute {
+            name: "value"
+            t {
+              data_type: 7
+              int64_data: 0
+              name: "i0"
+            }
+            type: TENSOR
+          }
+        }
+        node {
+          input: "cache_out"
+          input: "idx0"
+          output: "slot0"
+          op_type: "SequenceAt"
+        }
+        node {
+          input: "acc_in"
+          input: "slot0"
+          output: "acc_out"
+          op_type: "Add"
+        }
+        node {
+          input: "cond_in"
+          output: "cond_out"
+          op_type: "Identity"
+        }
+        name: "loop_body"
+        input {
+          name: "iter_num"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+              }
+            }
+          }
+        }
+        input {
+          name: "cond_in"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              }
+            }
+          }
+        }
+        input {
+          name: "cache_in"
+          type {
+            sequence_type {
+              elem_type {
+                tensor_type {
+                  elem_type: 1
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "acc_in"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "cond_out"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              }
+            }
+          }
+        }
+        output {
+          name: "cache_out"
+          type {
+            sequence_type {
+              elem_type {
+                tensor_type {
+                  elem_type: 1
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "acc_out"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+  }
+  name: "sal_seqlen_gate"
+  input {
+    name: "trip_count"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "cond_init"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "v0"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "v1"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "acc_init"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "acc_final"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 13
+}

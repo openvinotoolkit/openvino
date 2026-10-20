@@ -273,6 +273,46 @@ std::vector<TransposeParams> generateThrowingTransposeParams() {
     };
 }
 
+std::vector<TransposeParams> generateTransposeParamsForSubByte() {
+    std::vector<TransposeParams> params;
+
+    // NOTE: Sub-byte types (u2, u4, i4) pack multiple values per byte.
+    // These tests validate transpose_2bit and transpose_4bit reference implementations.
+    // u2: 4 values per byte (2 bits each), u4/i4: 2 values per byte (4 bits each)
+
+    // u2 transpose test - swap dimensions
+    // Input: [2,2] = [[0,1], [2,3]] with axes {1,0}
+    // Output: [2,2] = [[0,2], [1,3]] = {0,2,1,3}
+    params.push_back(
+        TransposeParams(PartialShape::dynamic(),
+                        reference_tests::Tensor(element::u2, {2, 2}, std::vector<uint8_t>{0xE4}),  // {0,1,2,3}
+                        reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
+                        reference_tests::Tensor(element::u2, {2, 2}, std::vector<uint8_t>{0xD8}),  // {0,2,1,3}
+                        "transpose_u2_2d_swap"));
+
+    // u4 transpose test - swap dimensions
+    // Input: [2,2] = [[1,2], [3,4]] with axes {1,0}
+    // Output: [2,2] = [[1,3], [2,4]] = {1,3,2,4}
+    params.push_back(
+        TransposeParams(PartialShape::dynamic(),
+                        reference_tests::Tensor(element::u4, {2, 2}, std::vector<uint8_t>{0x21, 0x43}),  // {1,2,3,4}
+                        reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
+                        reference_tests::Tensor(element::u4, {2, 2}, std::vector<uint8_t>{0x31, 0x42}),  // {1,3,2,4}
+                        "transpose_u4_2d_swap"));
+
+    // i4 transpose test - swap dimensions with signed values
+    // Input: [2,2] = [[1,-2], [3,-4]] with axes {1,0}
+    // Output: [2,2] = [[1,3], [-2,-4]] = {1,3,-2,-4}
+    params.push_back(
+        TransposeParams(PartialShape::dynamic(),
+                        reference_tests::Tensor(element::i4, {2, 2}, std::vector<uint8_t>{0xE1, 0xC3}),  // {1,-2,3,-4}
+                        reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
+                        reference_tests::Tensor(element::i4, {2, 2}, std::vector<uint8_t>{0x31, 0xCE}),  // {1,3,-2,-4}
+                        "transpose_i4_2d_swap"));
+
+    return params;
+}
+
 std::vector<TransposeParams> generateTransposeCombinedParams() {
     const std::vector<std::vector<TransposeParams>> transposeTypeParams{
         generateTransposeParams<element::Type_t::i8>(),
@@ -288,6 +328,7 @@ std::vector<TransposeParams> generateTransposeCombinedParams() {
         generateThrowingTransposeParams<element::Type_t::f32>(),
         generateThrowingTransposeParams<element::Type_t::i32>(),
         generateTransposeParamsForString(),
+        generateTransposeParamsForSubByte(),
     };
     std::vector<TransposeParams> combinedParams;
 

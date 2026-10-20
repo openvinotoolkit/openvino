@@ -14,8 +14,8 @@ You have reference skill files with detailed workflows. **Do NOT read all skill 
 
 | Skill file | When to read |
 |---|---|
-| `.github/agents-prototype/skills/conversion-issues/onnx.md` | Conversion failures, existing op bugs, accuracy issues, shape/type mismatches, opset version gaps |
-| `.github/agents-prototype/skills/add-fe-op/onnx.md` | Implementing a new op translator (`"Not supported ONNX op"`, `ONNXFrameworkNode`, `NotSupportedONNXNode`) |
+| [`skills/conversion-issues/onnx.md`](skills/conversion-issues/onnx.md) | Conversion failures, existing op bugs, accuracy issues, shape/type mismatches, opset version gaps |
+| [`skills/add-fe-op/onnx.md`](skills/add-fe-op/onnx.md) | Implementing a new op translator (`"Not supported ONNX op"`, `ONNXFrameworkNode`, `NotSupportedONNXNode`) |
 
 ## Workflow
 

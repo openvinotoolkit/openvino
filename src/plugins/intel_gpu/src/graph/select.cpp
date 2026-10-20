@@ -54,7 +54,14 @@ std::vector<layout> select_inst::calc_output_layouts(const select_node& /*node*/
 
     std::vector<ShapeType> output_shapes = ov::op::v1::shape_infer(&op, input_shapes);
 
-    return {{output_shapes[0], dt, format::get_default_format(output_shapes[0].size())}};
+    const auto out_rank = output_shapes[0].size();
+    auto out_format = format::get_default_format(out_rank);
+    // Keep byxf from the "then" input to avoid an extra reorder after select in byxf graphs
+    if (input1_layout.format == format::byxf && input1_layout.get_partial_shape().size() == out_rank) {
+        out_format = format::byxf;
+    }
+
+    return {{output_shapes[0], dt, out_format}};
 }
 
 template std::vector<layout> select_inst::calc_output_layouts<ov::PartialShape>(select_node const& node, const kernel_impl_params& impl_param);
@@ -77,7 +84,7 @@ std::string select_inst::to_string(select_node const& node) {
 }
 
 select_inst::typed_primitive_inst(network& network, select_node const& node) : parent(network, node) {
-    auto& deps = node.get_dependencies();
+    const auto& deps = node.get_dependencies();
 
     auto dep0_out_layout = deps[0].first->get_output_layout();
     auto dep1_out_layout = deps[1].first->get_output_layout();
@@ -85,8 +92,9 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
 
     if (dep0_out_layout.is_dynamic() ||
         dep1_out_layout.is_dynamic() ||
-        dep2_out_layout.is_dynamic())
+        dep2_out_layout.is_dynamic()) {
         return;
+    }
 
     CLDNN_ERROR_LESS_THAN(node.id(),
                                 "Number of inputs",
@@ -135,7 +143,7 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
 
                     CLDNN_ERROR_BOOL(node.id(),
                                         "Sizes equal or broadcast is possible",
-                                        !(current_dim == output_tensor.raw[d] || current_dim == 1),
+                                        current_dim != output_tensor.raw[d] && current_dim != 1,
                                         "Invalid input shapes");
                 }
             }

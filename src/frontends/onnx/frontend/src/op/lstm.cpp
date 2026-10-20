@@ -6,25 +6,17 @@
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/lstm_sequence.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/util/common_util.hpp"
+#include "utils/recurrent.hpp"
 #include "utils/reshape.hpp"
 #include "utils/split.hpp"
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INPUT NODES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -39,77 +31,13 @@ enum class LSTMInput {
     LSTM_INPUT_P
 };
 
-// Normalize tensor rank to target_rank:
-// - If rank > target: squeeze leading dimensions of size 1 (handles upstream Unsqueeze ops).
-//   Static validation rejects leading dims that are statically != 1.
-// - If rank < target by exactly 1: unsqueeze a leading dimension of size 1
-//   (handles models that omit the num_directions=1 dimension for unidirectional LSTMs).
-// - If rank differs by more than the above, throw an error for malformed input.
-ov::Output<ov::Node> normalize_tensor_rank(const ov::Output<ov::Node>& input,
-                                           int64_t target_rank,
-                                           const std::string& input_name) {
-    const auto& input_rank = input.get_partial_shape().rank();
-
-    if (input_rank.is_dynamic()) {
-        return input;
-    }
-
-    if (input_rank.get_length() == target_rank) {
-        return input;
-    }
-
-    if (input_rank.get_length() > target_rank) {
-        // Squeeze leading dimensions to reduce rank to target_rank
-        const auto dims_to_squeeze = input_rank.get_length() - target_rank;
-
-        // Static validation: check if leading dimensions are statically known and != 1
-        const auto& input_shape = input.get_partial_shape();
-        for (int64_t i = 0; i < dims_to_squeeze; ++i) {
-            if (input_shape[i].is_static() && input_shape[i].get_length() != 1) {
-                OPENVINO_THROW("LSTM input '",
-                               input_name,
-                               "' has rank ",
-                               input_rank.get_length(),
-                               " but expected ",
-                               target_rank,
-                               ". Leading dimension [",
-                               i,
-                               "] is ",
-                               input_shape[i].get_length(),
-                               " but must be 1 to squeeze.");
-            }
-        }
-
-        std::vector<int64_t> axes_to_squeeze;
-        for (int64_t i = 0; i < dims_to_squeeze; ++i) {
-            axes_to_squeeze.push_back(i);
-        }
-
-        auto axes_const = v0::Constant::create(ov::element::i64, Shape{axes_to_squeeze.size()}, axes_to_squeeze);
-        return std::make_shared<v0::Squeeze>(input, axes_const);
-    }
-
-    // input_rank < target_rank: only allow exactly 1 missing dimension (the num_directions dim).
-    // For unidirectional LSTM (forward/reverse), num_directions=1, so some models omit it.
-    // A larger rank deficiency indicates a genuinely malformed model.
-    const auto dims_to_unsqueeze = target_rank - input_rank.get_length();
-    if (dims_to_unsqueeze != 1) {
-        OPENVINO_THROW("LSTM input '",
-                       input_name,
-                       "' has rank ",
-                       input_rank.get_length(),
-                       " but expected ",
-                       target_rank,
-                       ". Rank difference is ",
-                       dims_to_unsqueeze,
-                       " but only 1 (missing num_directions) is supported.");
-    }
-    auto axes_const = v0::Constant::create(ov::element::i64, Shape{1}, std::vector<int64_t>{0});
-    return std::make_shared<v0::Unsqueeze>(input, axes_const);
-}
+using ov::frontend::onnx::recurrent::normalize_tensor_rank;
 
 struct LSTMNgInputMap {
     explicit LSTMNgInputMap(const Node& node) {
+        const auto layout = node.get_attribute_value<std::int64_t>("layout", 0);
+        recurrent::validate_layout(node, layout);
+
         const auto& ng_inputs = node.get_ov_inputs();
         // We have input, output, forget and cell gates
         constexpr std::size_t gates_count{4};
@@ -117,14 +45,17 @@ struct LSTMNgInputMap {
 
         // ----- Mandatory inputs ------
         // Packed input sequences.
-        // ONNX Shape: [seq_length, batch_size, input_size]
-        // OpenVino Shape: [batch_size, seq_length, input_size]
+        // ONNX Shape: [seq_length, batch_size, input_size] (layout=0) or
+        //             [batch_size, seq_length, input_size] (layout=1)
+        // OpenVINO Shape: [batch_size, seq_length, input_size]
 
         // First normalize rank if needed, THEN reorder axes
         // This is important because Squeeze/Unsqueeze changes dimension indices
         auto input_x = ng_inputs.at(0);
-        input_x = normalize_tensor_rank(input_x, 3, "X");
-        input_x = ov::op::util::reorder_axes(input_x, {1, 0, 2});
+        input_x = normalize_tensor_rank(input_x, 3, "LSTM", "X");
+        if (layout == 0) {
+            input_x = ov::op::util::reorder_axes(input_x, {1, 0, 2});
+        }
 
         m_input_map[LSTMInput::LSTM_INPUT_X] = input_x;
 
@@ -148,7 +79,7 @@ struct LSTMNgInputMap {
 
         // Weight tensor for the gates.
         // ONNX Shape: [num_directions, 4*hidden_size, input_size]
-        auto input_w = normalize_tensor_rank(ng_inputs.at(1), 3, "W");
+        auto input_w = normalize_tensor_rank(ng_inputs.at(1), 3, "LSTM", "W");
         m_input_map[LSTMInput::LSTM_INPUT_W] =
             ov::op::util::convert_lstm_node_format(input_w,
                                                    ov::op::util::LSTMWeightsFormat::IOFC,
@@ -157,7 +88,7 @@ struct LSTMNgInputMap {
 
         // The recurrence weight tensor.
         // ONNX Shape: [num_directions, 4*hidden_size, hidden_size]
-        auto input_r = normalize_tensor_rank(ng_inputs.at(2), 3, "R");
+        auto input_r = normalize_tensor_rank(ng_inputs.at(2), 3, "LSTM", "R");
         m_input_map[LSTMInput::LSTM_INPUT_R] =
             ov::op::util::convert_lstm_node_format(input_r,
                                                    ov::op::util::LSTMWeightsFormat::IOFC,
@@ -165,33 +96,16 @@ struct LSTMNgInputMap {
                                                    1);
 
         // Get dimensions needed for default inputs creation
-        auto shape_of_x = std::make_shared<v3::ShapeOf>(m_input_map[LSTMInput::LSTM_INPUT_X]);
-        auto axes = v0::Constant::create(ov::element::Type_t::i32, ov::Shape{1}, {0});
-        auto batch_size_node =
-            std::make_shared<v8::Gather>(shape_of_x,
-                                         v0::Constant::create(ov::element::Type_t::i32, ov::Shape{1}, {0}),
-                                         axes);
-        auto seq_length_node =
-            std::make_shared<v8::Gather>(shape_of_x,
-                                         v0::Constant::create(ov::element::Type_t::i32, ov::Shape{1}, {1}),
-                                         axes);
-
-        auto shape_of_r = std::make_shared<v3::ShapeOf>(m_input_map[LSTMInput::LSTM_INPUT_R]);
-        auto num_directions_node =
-            std::make_shared<v8::Gather>(shape_of_r,
-                                         v0::Constant::create(ov::element::Type_t::i32, ov::Shape{1}, {0}),
-                                         axes);
-        auto hidden_size_node =
-            std::make_shared<v8::Gather>(shape_of_r,
-                                         v0::Constant::create(ov::element::Type_t::i32, ov::Shape{1}, {2}),
-                                         axes);
+        const ov::frontend::onnx::recurrent::LSTMDimensions dims{m_input_map[LSTMInput::LSTM_INPUT_X],
+                                                                 m_input_map[LSTMInput::LSTM_INPUT_R]};
+        const auto x_type = m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type();
 
         // ------ Optional inputs ------
         // `B` - The bias tensor for input gate.
         // ONNX Shape: [num_directions, 8*hidden_size]
-        // OpenVino Shape: [num_directions, 4*hidden_size]
+        // OpenVINO Shape: [num_directions, 4*hidden_size]
         if (ng_inputs.size() > 3 && !ov::op::util::is_null(ng_inputs.at(3))) {
-            auto bias = normalize_tensor_rank(ng_inputs.at(3), 2, "B");
+            auto bias = normalize_tensor_rank(ng_inputs.at(3), 2, "LSTM", "B");
             auto split_bias = ov::op::util::make_split(bias, 2, 1);
             m_input_map[LSTMInput::LSTM_INPUT_B] = std::make_shared<v1::Add>(split_bias.at(0), split_bias.at(1));
             m_input_map[LSTMInput::LSTM_INPUT_B] =
@@ -200,80 +114,64 @@ struct LSTMNgInputMap {
                                                        ov::op::util::LSTMWeightsFormat::FICO,
                                                        1);
         } else {
-            auto b_shape = std::make_shared<v0::Concat>(
-                ov::OutputVector{num_directions_node,
-                                 std::make_shared<v1::Multiply>(
-                                     v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {gates_count}),
-                                     hidden_size_node)},
-                0);
-            m_input_map[LSTMInput::LSTM_INPUT_B] = std::make_shared<v3::Broadcast>(
-                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), ov::Shape{}, {0}),
-                b_shape);
+            m_input_map[LSTMInput::LSTM_INPUT_B] =
+                ov::frontend::onnx::recurrent::default_bias(dims, x_type, gates_count);
         }
         // `sequence_lens`- The lengths of the sequences in a batch.
         // Shape: [batch_size]
         if (ng_inputs.size() > 4 && !ov::op::util::is_null(ng_inputs.at(4))) {
             m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] = ng_inputs.at(4);
         } else {
-            m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] =
-                std::make_shared<v3::Broadcast>(seq_length_node, batch_size_node);
+            m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] = ov::frontend::onnx::recurrent::default_sequence_lens(dims);
         }
         // `initial_h` - The initial value of the hidden.
-        // ONNX Shape: [num_directions, batch_size, hidden_size]
-        // OpenVino Shape: [batch_size, num_directions, hidden_size]
+        // ONNX Shape: [num_directions, batch_size, hidden_size] (layout=0) or
+        //             [batch_size, num_directions, hidden_size] (layout=1)
+        // OpenVINO Shape: [batch_size, num_directions, hidden_size]
         if (ng_inputs.size() > 5 && !ov::op::util::is_null(ng_inputs.at(5))) {
             auto init_h = ng_inputs.at(5);
             // First normalize rank, THEN reorder axes
-            init_h = normalize_tensor_rank(init_h, 3, "initial_h");
-            init_h = ov::op::util::reorder_axes(init_h, {1, 0, 2});
+            init_h = normalize_tensor_rank(init_h, 3, "LSTM", "initial_h");
+            if (layout == 0) {
+                init_h = ov::op::util::reorder_axes(init_h, {1, 0, 2});
+            }
 
             m_input_map[LSTMInput::LSTM_INPUT_INIT_H] = init_h;
         } else {
-            auto init_h_shape =
-                std::make_shared<v0::Concat>(ov::OutputVector{batch_size_node, num_directions_node, hidden_size_node},
-                                             0);
-            m_input_map[LSTMInput::LSTM_INPUT_INIT_H] = std::make_shared<v3::Broadcast>(
-                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), ov::Shape{}, {0}),
-                init_h_shape);
+            m_input_map[LSTMInput::LSTM_INPUT_INIT_H] =
+                ov::frontend::onnx::recurrent::default_initial_state(dims, x_type);
         }
         // `initial_c` - The initial value of the cell.
-        // ONNX Shape: [num_directions, batch_size, hidden_size]
-        // OpenVino Shape: [batch_size, num_directions, hidden_size]
+        // ONNX Shape: [num_directions, batch_size, hidden_size] (layout=0) or
+        //             [batch_size, num_directions, hidden_size] (layout=1)
+        // OpenVINO Shape: [batch_size, num_directions, hidden_size]
         if (ng_inputs.size() > 6 && !ov::op::util::is_null(ng_inputs.at(6))) {
             auto init_c = ng_inputs.at(6);
             // First normalize rank, THEN reorder axes
-            init_c = normalize_tensor_rank(init_c, 3, "initial_c");
-            init_c = ov::op::util::reorder_axes(init_c, {1, 0, 2});
+            init_c = normalize_tensor_rank(init_c, 3, "LSTM", "initial_c");
+            if (layout == 0) {
+                init_c = ov::op::util::reorder_axes(init_c, {1, 0, 2});
+            }
 
             m_input_map[LSTMInput::LSTM_INPUT_INIT_C] = init_c;
         } else {
-            auto init_c_shape =
-                std::make_shared<v0::Concat>(ov::OutputVector{batch_size_node, num_directions_node, hidden_size_node},
-                                             0);
-            m_input_map[LSTMInput::LSTM_INPUT_INIT_C] = std::make_shared<v3::Broadcast>(
-                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), ov::Shape{}, {0}),
-                init_c_shape);
+            m_input_map[LSTMInput::LSTM_INPUT_INIT_C] =
+                ov::frontend::onnx::recurrent::default_initial_state(dims, x_type);
         }
         // `P` - The weight tensor for peepholes.
         // ONNX Shape: [num_directions, 3*hidden_size]
-        // OpenVino Shape: [num_directions, 4*hidden_size]
+        // OpenVINO Shape: [num_directions, 4*hidden_size]
         if (ng_inputs.size() > 7 && !ov::op::util::is_null(ng_inputs.at(7))) {
-            auto peepholes = normalize_tensor_rank(ng_inputs.at(7), 2, "P");
+            auto peepholes = normalize_tensor_rank(ng_inputs.at(7), 2, "LSTM", "P");
             m_input_map[LSTMInput::LSTM_INPUT_P] =
                 ov::op::util::convert_lstm_peepholes_format(peepholes,
                                                             ov::op::util::LSTMPeepholesFormat::IOF,
                                                             ov::op::util::LSTMPeepholesFormat::FIO,
                                                             1);
         } else {
-            auto p_shape = std::make_shared<v0::Concat>(
-                ov::OutputVector{num_directions_node,
-                                 std::make_shared<v1::Multiply>(
-                                     v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {P_gates_count}),
-                                     hidden_size_node)},
-                0);
-            m_input_map[LSTMInput::LSTM_INPUT_P] = std::make_shared<v3::Broadcast>(
-                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), ov::Shape{}, {0}),
-                p_shape);
+            // A blank peephole tensor of zeros: [num_directions, 3*hidden_size].
+            m_input_map[LSTMInput::LSTM_INPUT_P] =
+                ov::frontend::onnx::recurrent::default_bias(dims, x_type, P_gates_count);
             m_input_map[LSTMInput::LSTM_INPUT_P].set_names({"P_blank"});
         }
     }
@@ -298,7 +196,9 @@ struct LSTMAttributes {
           ,
           m_activation_alpha{node.get_attribute_value<std::vector<float>>("activation_alpha", std::vector<float>{})},
           m_activation_beta{node.get_attribute_value<std::vector<float>>("activation_beta", std::vector<float>{})},
-          m_input_forget{static_cast<bool>(node.get_attribute_value<std::int64_t>("input_forget", 0))} {
+          m_input_forget{static_cast<bool>(node.get_attribute_value<std::int64_t>("input_forget", 0))},
+          m_layout{node.get_attribute_value<std::int64_t>("layout", 0)} {
+        recurrent::validate_layout(node, m_layout);
         m_clip_threshold = std::abs(m_clip_threshold);
 
         std::string direction = ov::util::to_lower(node.get_attribute_value<std::string>("direction", "forward"));
@@ -313,6 +213,7 @@ struct LSTMAttributes {
     std::vector<float> m_activation_alpha;
     std::vector<float> m_activation_beta;
     bool m_input_forget;
+    std::int64_t m_layout;
 };
 
 }  // anonymous namespace
@@ -352,8 +253,18 @@ ov::OutputVector lstm(const ov::frontend::onnx::Node& node) {
         auto Y_h_squeezed = std::make_shared<v0::Squeeze>(Y_h, num_dir_axis);
         auto Y_c_squeezed = std::make_shared<v0::Squeeze>(Y_c, num_dir_axis);
 
+        if (attributes.m_layout == 1) {
+            return {Y_squeezed, Y_h_squeezed, Y_c_squeezed};
+        }
+
         // Y: [batch_size, seq_length, hidden_size] -> [seq_length, batch_size, hidden_size]
         return {ov::op::util::reorder_axes(Y_squeezed, {1, 0, 2}), Y_h_squeezed, Y_c_squeezed};
+    }
+
+    if (attributes.m_layout == 1) {
+        // OV [batch, num_directions, seq, hidden] -> ONNX [batch, seq, num_directions, hidden];
+        // Y_h and Y_c already match.
+        return {ov::op::util::reorder_axes(Y, {0, 2, 1, 3}), Y_h, Y_c};
     }
 
     return {ov::op::util::reorder_axes(Y, {2, 1, 0, 3}),
@@ -362,7 +273,4 @@ ov::OutputVector lstm(const ov::frontend::onnx::Node& node) {
 }
 ONNX_OP("LSTM", OPSET_SINCE(1), ai_onnx::opset_1::lstm);
 }  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

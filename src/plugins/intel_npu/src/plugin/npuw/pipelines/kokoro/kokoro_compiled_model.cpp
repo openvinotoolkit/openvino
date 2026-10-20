@@ -10,6 +10,7 @@
 #include "kokoro_model_transforms.hpp"
 #include "kokoro_split.hpp"
 #include "npuw/logging.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "plugin.hpp"
 
 namespace {
@@ -39,6 +40,26 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
         }
     }
     return result;
+}
+
+/**
+ * @brief Kokoro's CPU-offloaded subgraphs are precision-sensitive.
+ * Setting default CPU inference precision to f32 to ensure better accuracy, if not set by user.
+ */
+void set_default_cpu_inference_precision(ov::AnyMap& properties) {
+    auto device_properties = properties.count(ov::device::properties.name())
+                                 ? properties.at(ov::device::properties.name()).as<ov::AnyMap>()
+                                 : ov::AnyMap{};
+    auto cpu_properties = device_properties.count("CPU") ? device_properties.at("CPU").as<ov::AnyMap>() : ov::AnyMap{};
+
+    if (cpu_properties.count(ov::hint::inference_precision.name())) {
+        return;
+    }
+    cpu_properties[ov::hint::inference_precision.name()] = ov::element::f32;
+
+    device_properties["CPU"] = std::move(cpu_properties);
+    properties[ov::device::properties.name()] = std::move(device_properties);
+    LOG_DEBUG("Setting default CPU INFERENCE_PRECISION_HINT to f32");
 }
 }  // namespace
 
@@ -94,6 +115,7 @@ ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Mod
         properties_model_b["NPUW_ONLINE_AVOID"] = "P:FloorModFP32/NPU,P:CumSumSinGen/NPU,"
                                                   "P:BoxMullerNoise/NPU,P:AngleComplex/NPU";
     }
+    set_default_cpu_inference_precision(properties_model_b);
     m_model_b_compiled = std::dynamic_pointer_cast<ov::npuw::ICompiledModel>(
         ov::npuw::ICompiledModel::create(split_result.model_b, plugin, properties_model_b));
 }
@@ -120,9 +142,15 @@ std::shared_ptr<const ov::Model> ov::npuw::KokoroCompiledModel::get_runtime_mode
 }
 
 void ov::npuw::KokoroCompiledModel::set_property(const ov::AnyMap& properties) {
-    // FIXME Not implemented
     LOG_DEBUG("Setting properties to KokoroCompiledModel");
-    OPENVINO_NOT_IMPLEMENTED;
+    // Both models are NPUW compiled models, they validate which keys are mutable
+    std::lock_guard<std::mutex> lock(m_set_property_mutex);
+    if (m_model_a_compiled) {
+        m_model_a_compiled->set_property(properties);
+    }
+    if (m_model_b_compiled) {
+        m_model_b_compiled->set_property(properties);
+    }
 }
 
 ov::Any ov::npuw::KokoroCompiledModel::get_property(const std::string& name) const {

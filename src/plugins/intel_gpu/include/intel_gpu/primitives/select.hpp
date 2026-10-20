@@ -42,8 +42,9 @@ struct select : public primitive_base<select> {
     ov::op::AutoBroadcastSpec broadcast_spec;
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const select>(rhs);
 

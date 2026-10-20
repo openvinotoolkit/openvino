@@ -12,6 +12,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/string_view_streambuf.hpp"
 
 namespace {
 // Legacy tensor name format for IR v10 compatibility (uses '.' separator instead of ':')

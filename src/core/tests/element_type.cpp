@@ -9,7 +9,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/except.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/container_util.hpp"
 
 using namespace ov;
 

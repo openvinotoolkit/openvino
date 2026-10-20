@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "openvino_intel_gpu_ocl_v2_obj")
+set(TARGET_NAME "openvino_intel_gpu_ocl_v2_obj${OV_GPU_SUFFIX}")
 
 # Path which points to root directory where code generated elements are created
 # (specific to build configuration).
@@ -19,7 +19,8 @@ set(KERNEL_HEADERS "gpu_ocl_kernel_headers.inc")
 set(CODEGEN_CACHE_SOURCES "${CODEGEN_INCDIR}/${KERNEL_SOURCES}"
                           "${CODEGEN_INCDIR}/${KERNEL_HEADERS}")
 
-file(GLOB_RECURSE KERNELS "${CMAKE_CURRENT_SOURCE_DIR}/*.cl")
+include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
+set(KERNELS ${GPU_OCL_V2_KERNEL_SOURCES})
 
 set_property(SOURCE ${CODEGEN_CACHE_SOURCES} PROPERTY GENERATED TRUE)
 
@@ -41,20 +42,20 @@ add_custom_command(OUTPUT "${CODEGEN_INCDIR}/${KERNEL_SOURCES}"
   COMMENT "Updating file if the file changed (${CODEGEN_INCDIR}/${KERNEL_SOURCES}) ..."
 )
 
-add_custom_target(run_ocl_codegen ALL DEPENDS "${CODEGEN_INCDIR}/${KERNEL_SOURCES}")
+add_custom_target(run_ocl_codegen${OV_GPU_SUFFIX} ALL DEPENDS "${CODEGEN_INCDIR}/${KERNEL_SOURCES}")
 
 ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}
     INCLUDES $<BUILD_INTERFACE:${CODEGEN_INCDIR}>
+    SOURCES ${GPU_OCL_V2_IMPL_SOURCES}
     BYPASS
-        ADDITIONAL_SOURCE_DIRS ${CODEGEN_INCDIR}
-        DEPENDENCIES run_ocl_codegen
+        DEPENDENCIES run_ocl_codegen${OV_GPU_SUFFIX}
         ADD_CLANG_FORMAT
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 
-if(GPU_RT_TYPE STREQUAL "SYCL")
+if(OV_GPU_RT STREQUAL "SYCL")
     # Some sources include oneDNN headers that require SYCL backend support.
     # Without the SYCL compilation flag, the compiler will fail with "Unsupported compiler" error.
     add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES)

@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <optional>
+#include <unordered_map>
 #include <vector>
 
 #include "logging.hpp"  // NPUW_ASSERT
@@ -35,6 +36,20 @@ struct Attention {
     PPtr _mask;
     ov::Shape _mask_shape;
 
+    // Per-variant KV block parameter indices.
+    // Ordered by Concat input order: [block_0_idx, ..., block_{M-1}_idx] in this variant's model
+    // (i.e. LOCAL indices — see global_to_local_param_idx below). Empty in the non-block
+    // (contiguous KV) case.
+    std::vector<size_t> past_key_block_local_param_indices;
+    std::vector<size_t> past_value_block_local_param_indices;
+
+    // Block mode only: global (original/full model) parameter index → this variant's LOCAL
+    // parameter index, for every parameter retained by this variant (mask, KV blocks, and
+    // everything else). Surplus KV block Parameters are removed per variant, which shifts
+    // every subsequent Parameter's index, so a direct lookup is required. Empty in
+    // contiguous mode (variants never drop parameters there).
+    std::unordered_map<size_t, size_t> global_to_local_param_idx;
+
     std::size_t query_len() const {
         // Put the mask's innermost dimension dynamic
         NPUW_ASSERT(_mask_shape.size() == 4);
@@ -53,9 +68,11 @@ struct Attention {
 // Helper function to patch broadcast constants (set to 1 for dynamic handling)
 void patch_broadcast_constants(const std::shared_ptr<ov::Model>& model, size_t target_length);
 
-// Helper function to patch reshape constants (-1 substitution)
+// Preserve inferred K/V sequence dimensions when reshaping an attention context.
 void patch_reshape_constants(const std::shared_ptr<ov::Model>& model,
-                             const std::map<std::string, size_t>& past_value_sequence_dims);
+                             const std::map<std::string, size_t>& past_key_sequence_dims,
+                             const std::map<std::string, size_t>& past_value_sequence_dims,
+                             size_t full_context_length);
 
 }  // namespace function
 

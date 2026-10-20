@@ -16,6 +16,7 @@ constexpr std::string_view NPU3720 = "3720";             // NPU3720
 constexpr std::string_view NPU4000 = "4000";             // NPU4000
 constexpr std::string_view NPU5010 = "5010";             // NPU5010
 constexpr std::string_view NPU5020 = "5020";             // NPU5020
+constexpr std::string_view NPU6010 = "6010";             // NPU6010
 
 /**
  * @brief Converts the given platform value to the standard one.
@@ -44,7 +45,6 @@ inline std::string standardize(const std::string_view platform) {
 /**
  * @enum ColorFormat
  * @brief Extra information about input color format for preprocessing
- * @note Configuration API v 2.0
  */
 enum ColorFormat : uint32_t {
     RAW = 0u,  ///< Plain blob (default), no extra color processing required
@@ -56,10 +56,6 @@ enum ColorFormat : uint32_t {
 
 /**
  * @brief Prints a string representation of ov::intel_npu::ColorFormat to a stream
- * @param out An output stream to send to
- * @param fmt A color format value to print to a stream
- * @return A reference to the `out` stream
- * @note Configuration API v 2.0
  */
 inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
     switch (fmt) {
@@ -99,10 +95,6 @@ enum class BatchMode {
 
 /**
  * @brief Prints a string representation of ov::intel_npu::BatchMode to a stream
- * @param out An output stream to send to
- * @param fmt A value for batching on plugin to print to a stream
- * @return A reference to the `out` stream
- * @note Configuration API v 2.0
  */
 inline std::ostream& operator<<(std::ostream& out, const BatchMode& fmt) {
     switch (fmt) {
@@ -120,6 +112,24 @@ inline std::ostream& operator<<(std::ostream& out, const BatchMode& fmt) {
         break;
     }
     return out;
+}
+
+/**
+ * @brief Reads a string representation of ov::intel_npu::BatchMode from a stream
+ */
+inline std::istream& operator>>(std::istream& is, BatchMode& fmt) {
+    std::string str;
+    is >> str;
+    if (str == "AUTO") {
+        fmt = BatchMode::AUTO;
+    } else if (str == "COMPILER") {
+        fmt = BatchMode::COMPILER;
+    } else if (str == "PLUGIN") {
+        fmt = BatchMode::PLUGIN;
+    } else {
+        OPENVINO_THROW("Unsupported value for the batch mode: ", str);
+    }
+    return is;
 }
 
 /**
@@ -208,7 +218,6 @@ inline std::istream& operator>>(std::istream& is, ModelSerializerVersion& modelS
  * @brief [Only for NPU Plugin]
  * Type: string, default is MODEL.
  * Type of profiling to execute. Can be Model (default) or INFER (based on npu timestamps)
- * @note Configuration API v 2.0
  */
 enum class ProfilingType { MODEL, INFER };
 
@@ -217,7 +226,6 @@ enum class ProfilingType { MODEL, INFER };
  * @param out An output stream to send to
  * @param fmt A profiling type value to print to a stream
  * @return A reference to the `out` stream
- * @note Configuration API v 2.0
  */
 inline std::ostream& operator<<(std::ostream& out, const ProfilingType& fmt) {
     switch (fmt) {
@@ -232,6 +240,22 @@ inline std::ostream& operator<<(std::ostream& out, const ProfilingType& fmt) {
         break;
     }
     return out;
+}
+
+/**
+ * @brief Reads a string representation of ov::intel_npu::ProfilingType from a stream
+ */
+inline std::istream& operator>>(std::istream& is, ProfilingType& fmt) {
+    std::string str;
+    is >> str;
+    if (str == "MODEL") {
+        fmt = ProfilingType::MODEL;
+    } else if (str == "INFER") {
+        fmt = ProfilingType::INFER;
+    } else {
+        OPENVINO_THROW("Unsupported value for the profiling type: ", str);
+    }
+    return is;
 }
 
 /**
@@ -295,6 +319,18 @@ static constexpr ov::Property<std::string> compilation_mode{"NPU_COMPILATION_MOD
 
 /**
  * @brief [Only for NPU Plugin]
+ * Type: ov::log::Level
+ * Controls the verbosity of the NPU compiler's own logging for a single compile() call, independently of
+ * ov::log::level (which controls the plugin-side logging). This lets a user raise plugin logging without also
+ * enabling the compiler's much more verbose internal logging, and vice versa. Like other compile-time properties,
+ * it can also be set persistently via ov::Core::set_property() / plugin set_property(), in which case it affects
+ * every subsequent compile_model() call until changed again.
+ * @note If this property is not set, the compile log level inherits the value of ov::log::level.
+ */
+static constexpr ov::Property<ov::log::Level> compile_log_level{"NPU_COMPILE_LOG_LEVEL"};
+
+/**
+ * @brief [Only for NPU Plugin]
  * Type: integer, default is -1
  * Sets the number of DMA engines that will be used to execute the model.
  */
@@ -352,11 +388,14 @@ static constexpr ov::Property<WSVersion> separate_weights_version{"NPU_SEPARATE_
 static constexpr ov::Property<ModelSerializerVersion> model_serializer_version{"NPU_MODEL_SERIALIZER_VERSION"};
 
 /**
- * @brief [Experimental, only for NPU Plugin]
+ * @brief [Only for NPU Plugin]
  * Type: integer.
  *
  * Used for communicating a state to the compiler when compiling a model using the compiler-in-driver interfaces. This
  * takes effect only when weights separation is enabled and "NPU_SEPARATE_WEIGHTS_VERSION" is set to "ITERATIVE".
+ *
+ * Note: This property is internal, it is used strictly for plugin -> compiler synchronization and is not meant to be
+ * used by the application. Setting or getting it from user code will throw.
  */
 static constexpr ov::Property<uint32_t> ws_compile_call_number{"WS_COMPILE_CALL_NUMBER"};
 
@@ -439,6 +478,15 @@ static constexpr ov::Property<bool> import_raw_blob{"NPU_IMPORT_RAW_BLOB"};
  * This option allows to skip writing plugin metadata to compiled model when exporting it
  */
 static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is true.
+ * Allows importing a blob that declares a payload running in-process on the host VM runtime instead of the NPU driver.
+ * Enabled by default. A higher-privilege importer that only expects native device blobs can set this to false to refuse
+ * such a payload forged across a trust boundary.
+ */
+static constexpr ov::Property<bool> allow_bytecode{"NPU_ALLOW_BYTECODE"};
 
 /**
  * @brief [Only for NPU Plugin]

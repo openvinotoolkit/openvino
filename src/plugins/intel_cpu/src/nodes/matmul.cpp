@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -35,6 +34,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/matmul.hpp"
 #include "utils/debug_capabilities.h"
@@ -104,7 +104,7 @@ MatMul::MatMul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
 
 bool MatMul::canFuse(const NodePtr& node) const {
     // WA for CVS-84056: oneDNN brgemm impl has problem with per-OC binary-postOps for MatMul with 6D inputs
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
             if (eltwiseNode->getBroadcastingPolicy() == EltwiseBroadcastingPolicy::PerChannel) {
                 auto rank = getInputShapeAtPort(0).getRank();
@@ -266,7 +266,12 @@ void MatMul::createPrimitive() {
 
     m_memory[ARG_DST] = getDstMemoryAtPort(0);
 
-    m_executor = m_factory->make(m_memory, false);
+    // If any input tensor is known to be empty at compile time, the executor is never used:
+    // the output is either empty (the node is not executable) or a null matrix (see prepareParams() and execute()).
+    // So there is no need to create it, moreover, the primitive can't be created for an empty problem.
+    if (!getInputShapeAtPort(0).hasZeroDims() && !getInputShapeAtPort(1).hasZeroDims()) {
+        m_executor = m_factory->make(m_memory, false);
+    }
 
     Node::createPrimitive();
 }

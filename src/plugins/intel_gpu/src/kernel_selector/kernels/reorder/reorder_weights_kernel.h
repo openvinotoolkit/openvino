@@ -10,10 +10,14 @@ namespace kernel_selector {
 class ReorderWeightsKernel : public ReorderKernelBase {
 public:
     ReorderWeightsKernel() : ReorderKernelBase("reorder_weights") {}
-    virtual ~ReorderWeightsKernel() {}
+    ~ReorderWeightsKernel() override = default;
     JitConstants GetJitConstants(const reorder_weights_params& params) const override;
+    DispatchData SetDefault(const reorder_weights_params& params) const override;
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
+
+private:
+    bool NeedsImadIsv4Padding(const reorder_weights_params& params) const;
 };
 }  // namespace kernel_selector

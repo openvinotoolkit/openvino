@@ -78,7 +78,7 @@ All paths are relative to the repository root.
 |---|---|
 | `tests/layer_tests/pytorch_tests/` | **Python layer tests** — one `test_<op>.py` file per operation. Primary test suite. |
 | `tests/layer_tests/pytorch_tests/pytorch_layer_test_class.py` | `PytorchLayerTest` base class. |
-| `tests/model_hub_tests/pytorch/` | Model-level tests for HuggingFace Transformers, TorchVision, etc. |
+| `tests/model_hub_tests/pytorch/` | Model-level tests for HuggingFace Transformers, timm, TorchVision, etc. See "PyTorch Frontend Model Hub Tests" in `src/frontends/pytorch/README.md` for how to run them and set up the model cache. |
 
 ### Build Targets
 
@@ -356,4 +356,4 @@ gdb --args python3 -m pytest tests/layer_tests/pytorch_tests/test_where.py -v -k
 - [PyTorch Operator Documentation](https://pytorch.org/docs/stable/torch.html)
 - [torch.export Reference](https://pytorch.org/docs/stable/export.html)
 - [OpenVINO Available Operations](https://docs.openvino.ai/latest/openvino_docs_ops_opset.html)
-- [OpenVINO PyTorch Frontend README](src/frontends/pytorch/README.md)
+- [OpenVINO PyTorch Frontend README](../../../../src/frontends/pytorch/README.md)

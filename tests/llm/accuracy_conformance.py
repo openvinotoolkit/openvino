@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import gc
 import logging
 import os
@@ -5,12 +8,12 @@ import shutil
 import tempfile
 
 import pytest
+import torch
 from huggingface_hub import snapshot_download
 from optimum.intel.openvino import (OVModelForCausalLM,
                                     OVWeightQuantizationConfig)
 from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
 import whowhatbench as wwb
-from whowhatbench.wwb import genai_gen_text
 from whowhatbench.model_loaders import load_model
 from openvino_tokenizers import convert_tokenizer
 from openvino import save_model
@@ -100,45 +103,20 @@ def setup_model(model_id):
 
     logger.info(f"Setting up model: {model_id}")
 
-    # Download original model
-    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
-    model = AutoModelForCausalLM.from_pretrained(model_cached, local_files_only=True)
+    # Download original model from a Hugging Face snapshot to get a stable, canonical on-disk layout
+    # (once cached, subsequent `from_pretrained(..., local_files_only=True)` calls are fully offline)
+    model_cached = snapshot_download(model_id)
+    # transformers>=5 defaults to dtype="auto" (config dtype, e.g. bf16), while GT references were calibrated in fp32
+    model = AutoModelForCausalLM.from_pretrained(model_cached, local_files_only=True, dtype=torch.float32)
     tokenizer = AutoTokenizer.from_pretrained(model_cached, local_files_only=True)
 
-    # Save original model
+    # Cache original model for reuse in repeated test runs and potential future tests
+    # This improves efficiency when PYTEST_DO_NOT_CLEANUP is enabled
     model_path = get_model_path(model_id, "org")
     if not os.path.exists(model_path):
-        logger.info(f"Saving original model: {model_path}")
+        logger.info(f"Caching original model: {model_path}")
         model.save_pretrained(model_path)
         tokenizer.save_pretrained(model_path)
-
-    # Convert tokenizer for OpenVINO
-    ov_tokenizer, ov_detokenizer = convert_tokenizer(tokenizer, with_detokenizer=True)
-
-    # Prepare INT8 model
-    int8_model_path = get_model_path(model_id, PREC_INT8)
-    if not os.path.exists(int8_model_path):
-        logger.info(f'Creating INT8 OpenVINO model: {int8_model_path}')
-        ov_model = OVModelForCausalLM.from_pretrained(model_path, load_in_8bit=True)
-        ov_model.save_pretrained(int8_model_path)
-        tokenizer.save_pretrained(int8_model_path)
-        del ov_model
-        save_model(ov_tokenizer, os.path.join(int8_model_path, "openvino_tokenizer.xml"))
-        save_model(ov_detokenizer, os.path.join(int8_model_path, "openvino_detokenizer.xml"))
-    gc.collect()
-
-    # Prepare INT4 model
-    int4_model_path = get_model_path(model_id, PREC_INT4)
-    if not os.path.exists(int4_model_path):
-        logger.info(f'Creating INT4 OpenVINO model: {int4_model_path}')
-        quantization_config = OVWeightQuantizationConfig(bits=4, ratio=0.8)
-        quantized_model = OVModelForCausalLM.from_pretrained(model_path, quantization_config=quantization_config)
-        quantized_model.save_pretrained(int4_model_path)
-        tokenizer.save_pretrained(int4_model_path)
-        del quantized_model
-        save_model(ov_tokenizer, os.path.join(int4_model_path, "openvino_tokenizer.xml"))
-        save_model(ov_detokenizer, os.path.join(int4_model_path, "openvino_detokenizer.xml"))
-    gc.collect()
 
     # Prepare ground truth data
     set_seed(42)
@@ -153,6 +131,40 @@ def setup_model(model_id):
             use_chat_template=use_chat_template
         )
         evaluator.dump_gt(gt_path)
+        del evaluator
+
+    del model
+    gc.collect()  # Free large base model before quantization steps
+
+    # Convert tokenizer for OpenVINO
+    ov_tokenizer, ov_detokenizer = convert_tokenizer(tokenizer, with_detokenizer=True)
+
+    # Prepare INT8 model
+    int8_model_path = get_model_path(model_id, PREC_INT8)
+    if not os.path.exists(int8_model_path):
+        logger.info(f'Creating INT8 OpenVINO model: {int8_model_path}')
+        ov_model = OVModelForCausalLM.from_pretrained(model_id, local_files_only=True, load_in_8bit=True)
+        ov_model.save_pretrained(int8_model_path)
+        tokenizer.save_pretrained(int8_model_path)
+        del ov_model
+        save_model(ov_tokenizer, os.path.join(int8_model_path, "openvino_tokenizer.xml"))
+        save_model(ov_detokenizer, os.path.join(int8_model_path, "openvino_detokenizer.xml"))
+
+    # Prepare INT4 model
+    int4_model_path = get_model_path(model_id, PREC_INT4)
+    if not os.path.exists(int4_model_path):
+        logger.info(f'Creating INT4 OpenVINO model: {int4_model_path}')
+        quantization_config = OVWeightQuantizationConfig(bits=4, ratio=0.8)
+        quantized_model = OVModelForCausalLM.from_pretrained(
+            model_id,
+            local_files_only=True,
+            quantization_config=quantization_config,
+        )
+        quantized_model.save_pretrained(int4_model_path)
+        tokenizer.save_pretrained(int4_model_path)
+        del quantized_model
+        save_model(ov_tokenizer, os.path.join(int4_model_path, "openvino_tokenizer.xml"))
+        save_model(ov_detokenizer, os.path.join(int4_model_path, "openvino_detokenizer.xml"))
 
     # Mark model as downloaded
     DOWNLOADED_MODELS.add(model_id)
@@ -220,7 +232,7 @@ def test_accuracy_conformance(model_id, precision, device):
     print(f"Testing model: {model_path}, precision: {precision}, device: {actual_device}")
     target_model = load_model(task, model_path, actual_device, ov_config, hf, use_genai, dont_use_llamacpp)
 
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
 
     use_chat_template = tokenizer is not None and tokenizer.chat_template is not None
 
@@ -231,17 +243,17 @@ def test_accuracy_conformance(model_id, precision, device):
         tokenizer=tokenizer,
         similarity_model_id='sentence-transformers/all-mpnet-base-v2',
         num_samples=NUMBER_OF_SAMPLES,
-        gen_answer_fn=genai_gen_text,
         use_chat_template=use_chat_template,
+        is_genai=use_genai,
     )
 
     set_seed(42)
-    _, all_metrics = evaluator.score(target_model, evaluator.get_generation_fn())
+    _, all_metrics = evaluator.score(target_model)
     metric = all_metrics[METRIC_OF_INTEREST].values[0]
     evaluator.dump_predictions(os.path.join(tmp_dir, f"{get_model_path(model_id, precision)}_{actual_device}_target.csv"))
 
     threshold = get_threshold(model_id, device, precision)
 
-    abs_metric_diff = abs(expected_reference - metric)
+    metric_drop = expected_reference - metric
     print(f"Metric: {metric}, Expected: {expected_reference}, Model: {model_id}, Precision: {precision}")
-    assert abs_metric_diff <= threshold, f"Metric difference {abs_metric_diff} exceeds threshold {threshold}"
+    assert metric_drop <= threshold, f"Metric drop {metric_drop} exceeds threshold {threshold}"
