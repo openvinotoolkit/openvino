@@ -204,7 +204,7 @@ private:
      *
      * @return true if the tensor was replaced, so any binding to the old tensor is stale
      */
-    bool unshare_block(uint32_t block_id);
+    bool make_block_private(uint32_t block_id);
 
     /**
      * @brief Represents a single block of KV cache memory

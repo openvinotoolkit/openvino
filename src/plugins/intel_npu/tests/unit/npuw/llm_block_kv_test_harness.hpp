@@ -59,6 +59,11 @@ struct LLMBlockKvTestAccess {
     static ov::SoPtr<ov::ITensor> generate_past(Request& req, const std::string& name) {
         return req.m_kvcache_request->get_tensor(req.m_kvcache_in_ports.at(name));
     }
+
+    // The tensor the prefill request currently reads the named past input from.
+    static ov::SoPtr<ov::ITensor> prefill_past(Request& req, const std::string& name) {
+        return req.m_prefill_request->get_tensor(req.m_prefill_in_ports.at(name));
+    }
 };
 
 inline void fill_pattern(const ov::SoPtr<ov::ITensor>& tensor, size_t seed) {
