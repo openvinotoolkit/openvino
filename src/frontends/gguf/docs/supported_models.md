@@ -38,6 +38,7 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 | `hunyuan-moe` | QK-norm after RoPE, routed and shared experts | Hunyuan-A13B-Instruct Q2_K | 13/13 |
 | `jais2` | Biased LayerNorm, ungated ReLU² FFN | Jais-2-8B-Chat Q4_K_M | 13/13 ² |
 | `lfm2` | LFM2 / LFM2.5 dense hybrid short convolution and GQA, QK-norm, tied head | LFM2-350M / LFM2.5-1.2B-Instruct Q4_0 | 13/13 each |
+| `lfm2.audio_vocoder` | Standalone speech component; accepts the existing publisher architecture string | LFM2.5-Audio-1.5B Q4_0 | [Component parity](mmproj.md#lfm2-audio-components) |
 | `lfm2moe` | LFM2 / LFM2.5 MoE hybrid, dense lead, biased normalized expert routing | LFM2.5-8B-A1B Q4_0 | 12/13 |
 | `llama` | llama-2 / llama-3, YaRN | Devstral Small 2507 24B Q4_K_M | 13/13 |
 | `llama-embed` | Per-token embeddings; mean/first/last pooling; causal or bidirectional | Llama-Nemotron-Embed-1B-v2 Q4_K_M | NMSE 3e-6 ² |
@@ -143,6 +144,11 @@ LFM2.5-8B-A1B. These pass the real-checkpoint greedy-choice gate above, not the 
 fixture NMSE gate. Checkpoint revisions are `8fdc9d526b7ed346b19257551b05816c7912ecc2`,
 `8ed288026e23958ad9dfa92d53ed773a8eee7125`, and
 `49c14831707011e64d70b2ebd8462ba08d608434`, respectively, from LiquidAI's GGUF repositories.
+
+The standalone `lfm2.audio_vocoder` architecture loads LFM2.5 Audio depthformer and
+codec components; the existing publisher architecture string is also accepted.
+It consumes hidden states and codec codes rather than text tokens; see
+[audio component inputs and outputs](mmproj.md#lfm2-audio-components).
 
 Noncausal LFM2 embedding/encoder/ColBERT variants need centered convolution and their
 embedding/pooling output contracts and are rejected explicitly. LFM2.5-Audio's `lfm2a`

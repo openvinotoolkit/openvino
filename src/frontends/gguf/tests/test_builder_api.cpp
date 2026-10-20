@@ -362,6 +362,34 @@ TEST(GGUFArchitectureRegistry, SupportedNamesTrackReplacementAndDeduplicateHandl
     EXPECT_EQ(registry.describe_supported(), "other");
 }
 
+TEST(GGUFArchitectureRegistry, Lfm2AudioVocoderAcceptsCanonicalAndPublisherNames) {
+    ArchRegistry registry;
+    EXPECT_EQ(registry.supported_archs().count("lfm2.audio_vocoder"), 1);
+    Environment env;
+    for (const auto& name :
+         {"lfm2.audio_vocoder", "this model cannot be used as LLM, use it via --model-vocoder in TTS examples"}) {
+        SCOPED_TRACE(name);
+        env.metadata["general.architecture"] = std::string(name);
+        env.metadata.erase("depthformer_n_layer");
+        env.metadata.erase("depthformer_n_embd");
+        EXPECT_FALSE(registry.find(env.context.metadata));
+        env.integer("depthformer_n_layer", 2);
+        EXPECT_FALSE(registry.find(env.context.metadata));
+        env.integer("depthformer_n_embd", 16);
+        const auto definition = registry.find(env.context.metadata);
+        ASSERT_TRUE(definition);
+        EXPECT_EQ(definition->architecture, name);
+        EXPECT_TRUE(definition->factory);
+    }
+
+    auto replacement = *registry.find(env.context.metadata);
+    EXPECT_EQ(replacement.id, "lfm2.audio_vocoder");
+    registry.add_extension(std::make_shared<ArchitectureExtension>(replacement, RegistrationMode::Replace));
+    EXPECT_NO_THROW(registry.find(env.context.metadata));
+    env.metadata["general.architecture"] = std::string("lfm2.audio_vocoder");
+    ASSERT_TRUE(registry.find(env.context.metadata));
+}
+
 TEST(GGUFArchitectureRegistry, DisjointHandlersForTheSameArchitectureCoexist) {
     Environment env;
     env.integer("modality", 1);

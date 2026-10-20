@@ -297,8 +297,10 @@ LFM2.5-Audio-1.5B Q4_0 encoder from LiquidAI revision
 `7d525f883a077e20afb782f2ff618edcae0e39e4` matches exact F32 expansions of the same
 weights with NMSE `3.81e-10` and `2.35e-9`. This is represented-F32 reference parity.
 
-LFM2.5 Audio's separate vocoder GGUF is identified by its publisher architecture
-string and `depthformer_n_layer`/`depthformer_n_embd` metadata. It exposes
+LFM2.5 Audio's separate vocoder GGUF is a standalone speech-component architecture,
+`lfm2.audio_vocoder`, with `depthformer_n_layer`/`depthformer_n_embd` metadata. The
+publisher's `general.architecture` string, `this model cannot be used as LLM, use it
+via --model-vocoder in TTS examples`, remains supported for existing files. It exposes
 `audio.depth_logits`, summed `audio.feedback`, averaged `audio.codec_features`, and
 `audio.istft_window`. Its `lfm2` detokenizer uses a 1282-channel `dense_2` spectral
 head and preserves all frames, including after GenAI adaptation. Pinned publisher

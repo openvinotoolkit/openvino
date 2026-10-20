@@ -60,9 +60,6 @@ def main():
         features = codec_embedding(codes.long() + torch.arange(books) * (vocabulary - 1)).mean(2)
     temporary = tempfile.TemporaryDirectory()
     path = Path(temporary.name) / "vocoder.gguf"
-    writer = gguf.GGUFWriter(path, "this model cannot be used as LLM, use it via --model-vocoder in TTS examples")
-    writer.add_uint32("depthformer_n_layer", 2)
-    writer.add_uint32("depthformer_n_embd", width)
     weights = {"depthformer." + key.replace("operator.bounded_attention.", "operator.attention."): value
                for key, value in model.state_dict().items()}
     weights.update({"depth_linear." + key: value for key, value in projection.state_dict().items()})
@@ -71,16 +68,23 @@ def main():
     weights["audio_embedding.embedding.weight"] = audio_embedding.weight
     weights["emb.emb.weight"] = codec_embedding.weight
     weights["istft.window"] = torch.hann_window(1280)
-    for name, value in weights.items():
-        writer.add_tensor(name, value.detach().numpy())
-    finish(writer)
-    arrays = {"model": np.frombuffer(path.read_bytes(), np.uint8),
-              "hidden": hidden.numpy().reshape(1, 1, 1, language),
+    arrays = {"hidden": hidden.numpy().reshape(1, 1, 1, language),
               "depth_codes": depth_codes.numpy().reshape(1, 1, 1, books),
               "codes": codes.numpy().reshape(1, 1, 3, books),
               "logits": logits.numpy(), "feedback": feedback.numpy(), "codec": features.numpy(),
               "reference_revision": np.frombuffer(REVISION.encode(), np.uint8),
               "reference_sha256": np.frombuffer(hashlib.sha256(source.read_bytes()).hexdigest().encode(), np.uint8)}
+    for key, architecture in [
+        ("model", "lfm2.audio_vocoder"),
+        ("publisher_model", "this model cannot be used as LLM, use it via --model-vocoder in TTS examples"),
+    ]:
+        writer = gguf.GGUFWriter(path, architecture)
+        writer.add_uint32("depthformer_n_layer", 2)
+        writer.add_uint32("depthformer_n_embd", width)
+        for name, value in weights.items():
+            writer.add_tensor(name, value.detach().numpy())
+        finish(writer)
+        arrays[key] = np.frombuffer(path.read_bytes(), np.uint8)
     save_npz(Path(__file__).parent / "test_data/lfm2_speech.npz", arrays)
     detok_path = Path(temporary.name) / "detokenizer.gguf"
     write_lfm2_model(detok_path, "lfm2", {"tied": True})

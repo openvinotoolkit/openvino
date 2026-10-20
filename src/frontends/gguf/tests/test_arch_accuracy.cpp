@@ -1126,9 +1126,11 @@ INSTANTIATE_TEST_SUITE_P(Architectures,
                          });
 }  // namespace
 
-TEST(GGUFLFM2SpeechAccuracy, DepthformerFeedbackAndCodecMatchLiquidReference) {
+class GGUFLFM2VocoderAccuracy : public ::testing::TestWithParam<const char*> {};
+
+TEST_P(GGUFLFM2VocoderAccuracy, DepthformerFeedbackAndCodecMatchLiquidReference) {
     auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/lfm2_speech.npz");
-    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, GetParam()));
     ov::frontend::gguf::FrontEnd frontend;
     auto model = frontend.convert(frontend.load(temporary.path));
     auto request = ov::Core{}
@@ -1159,6 +1161,8 @@ TEST(GGUFLFM2SpeechAccuracy, DepthformerFeedbackAndCodecMatchLiquidReference) {
             1e-5);
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(ArchitectureNames, GGUFLFM2VocoderAccuracy, ::testing::Values("model", "publisher_model"));
 
 TEST(GGUFLFM2SpeechAccuracy, DetokenizerPreservesAllFramesAcrossSlidingWindow) {
     auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/lfm2_detokenizer.npz");

@@ -64,6 +64,12 @@ const ArchitectureEntry architectures[] = {
      },
      "lfm2.audio_vocoder"},
     {"lfm2", make_lfm2_builder},
+    {"lfm2.audio_vocoder",
+     make_lfm2_vocoder_builder,
+     [](const GgufMetadata& meta) {
+         return meta.has("depthformer_n_layer") && meta.has("depthformer_n_embd");
+     },
+     "lfm2.audio_vocoder.canonical"},
     {"lfm2moe", make_lfm2_builder},
     {"llama", RopeMode::Normal},
     {"llama-embed", RopeMode::Normal},
