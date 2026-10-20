@@ -248,6 +248,8 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/softsign.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/space_to_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/space_to_depth.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/sparse_attention.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/sparse_attention_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/sparse_fill_empty_rows.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/split.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/sqrt.cpp

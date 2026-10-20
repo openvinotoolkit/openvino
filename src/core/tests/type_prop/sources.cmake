@@ -199,6 +199,8 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/softsign.cpp
     ${CMAKE_CURRENT_LIST_DIR}/space_to_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/space_to_depth.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sparse_fill_empty_rows.cpp
     ${CMAKE_CURRENT_LIST_DIR}/split.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sqrt.cpp
