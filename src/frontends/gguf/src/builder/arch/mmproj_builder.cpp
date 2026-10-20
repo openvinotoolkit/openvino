@@ -253,8 +253,10 @@ public:
             result.config["vision.minicpmv_version"] = std::to_string(c.version);
             result.config["vision.query_count"] = std::to_string(c.queries);
         }
-        if (modality == "vision")
+        if (modality == "vision") {
             result.config["vision.auxiliary_count"] = std::to_string(auxiliary.size());
+            result.config["vision.patch_size"] = std::to_string(c.patch);
+        }
         return result;
     }
 
