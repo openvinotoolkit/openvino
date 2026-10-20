@@ -1765,13 +1765,12 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
             if (link == CompiledModel::NO_LINK) {
                 return;
             }
-            const auto& effective_desc = resolve_effective_desc(compiled->m_compiled_submodels.at(link.first));
+            const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
+            const auto& effective_desc = resolve_effective_desc(submodel_desc);
             if (effective_desc.compiled_model == nullptr) {
                 return;
             }
-            // Block-KV HFA has one function param per KV block, more than its tile model's inputs.
-            // Routed ports are function params, all of them are before the closure.
-            const std::size_t n_inputs = ov::npuw::attn::has_block_kv_hfa(effective_desc.pipeline)
+            const std::size_t n_inputs = submodel_desc.replaced_by.has_value()
                                              ? effective_desc.param_base
                                              : effective_desc.compiled_model->inputs().size();
             if (link.second >= n_inputs) {

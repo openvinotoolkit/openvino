@@ -171,6 +171,27 @@ void add_fake_submodel(const std::shared_ptr<ov::npuw::CompiledModel>& compiled)
     compiled->m_compiled_submodels.push_back(std::move(desc));
 }
 
+std::shared_ptr<ov::Model> make_model_with_inputs(const std::string& name, std::size_t n_inputs) {
+    ov::ParameterVector params;
+    for (std::size_t i = 0u; i < n_inputs; ++i) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1}));
+    }
+    auto res = std::make_shared<ov::op::v0::Result>(params.front());
+    return std::make_shared<ov::Model>(ov::OutputVector{res->output(0)}, params, name);
+}
+
+void add_fake_function_body_submodel(const std::shared_ptr<ov::npuw::CompiledModel>& compiled,
+                                     std::size_t n_inputs,
+                                     std::size_t param_base) {
+    auto model = make_model_with_inputs("fake_fcall", n_inputs);
+    auto plugin = make_test_plugin();
+    ov::npuw::CompiledModel::CompiledModelDesc desc;
+    desc.compiled_model = ov::SoPtr<ov::ICompiledModel>{std::make_shared<FakeSubCompiledModel>(model, plugin)};
+    desc.param_base = param_base;
+    desc.replaced_by = compiled->m_compiled_submodels.size();
+    compiled->m_compiled_submodels.push_back(std::move(desc));
+}
+
 void expect_validation_throw_contains(const std::shared_ptr<ov::npuw::CompiledModel>& compiled,
                                       const std::string& expected_substr) {
     try {
@@ -222,6 +243,20 @@ TEST(CompiledModelOrcImportValidationTest, RejectsNoLinkOutputRouting) {
     compiled->m_outputs_to_submodels_outputs = {ov::npuw::CompiledModel::NO_LINK};
 
     expect_validation_throw_contains(compiled, "m_outputs_to_submodels_outputs[0] output link: NO_LINK is not allowed");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsInputRoutingToClosurePortOfFunctionBody) {
+    auto compiled = make_compiled_model_with_input_link({0u, 1u});
+    add_fake_function_body_submodel(compiled, /*n_inputs=*/2u, /*param_base=*/1u);
+
+    expect_validation_throw_contains(compiled, "m_inputs_to_submodels_inputs[0] input port index 1");
+}
+
+TEST(CompiledModelOrcImportValidationTest, AcceptsInputRoutingToFunctionParamPort) {
+    auto compiled = make_compiled_model_with_input_link({0u, 0u});
+    add_fake_function_body_submodel(compiled, /*n_inputs=*/2u, /*param_base=*/1u);
+
+    EXPECT_NO_THROW(ov::npuw::CompiledModel::validate_import_routing_tables(compiled));
 }
 
 TEST(CompiledModelOrcImportValidationTest, RejectsReplacedByOutOfRange) {
@@ -283,6 +318,7 @@ TEST(CompiledModelOrcImportValidationTest, RejectsParamSubscribersPortOutOfRange
 TEST(CompiledModelOrcImportValidationTest, AcceptsParamSubscribersPortWithinRangeAfterReplacement) {
     auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
     add_fake_submodel(compiled);
+    compiled->m_compiled_submodels[0].param_base = 1u;
     compiled->m_compiled_submodels.emplace_back();
     compiled->m_compiled_submodels[1].replaced_by = 0u;
     compiled->m_param_subscribers = {{0u, {{1u, 0u}}}};
