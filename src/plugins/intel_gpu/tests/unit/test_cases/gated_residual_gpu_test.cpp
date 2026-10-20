@@ -295,7 +295,13 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            gr_read_case{17, 2560, 320, true},   // real Qwen4-Exp width, decode tiling
                                            gr_read_case{100, 2560, 320, true},  // real Qwen4-Exp width, mid tiling
                                            gr_read_case{1000, 64, 32, true},  // wide tiling on <= 250-EU devices
-                                           gr_read_case{777, 48, 64, false}));  // wide tiling, partial tiles
+                                           gr_read_case{777, 48, 64, false},  // wide tiling, partial tiles
+                                           // L=16 keeps these on gr_read.cm; above 32 rows one work-group owns
+                                           // several rows, the last group only partially filled.
+                                           gr_read_case{37, 64, 16, true},
+                                           gr_read_case{100, 48, 16, false},
+                                           gr_read_case{50, 64, 16, true, true},
+                                           gr_read_case{65, 2560, 16, true}));  // real width: 4 rows per work-group
 
 class gated_residual_final_mix_test : public ::testing::TestWithParam<gr_read_case> {};
 
@@ -726,7 +732,7 @@ TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_scalar_kernel) {
     fill_tensor(infer_request.get_input_tensor(2), w_down);
     fill_tensor(infer_request.get_input_tensor(3), w_up);
 
-    for (const size_t rows : {size_t{3}, size_t{41}, size_t{1}}) {
+    for (const size_t rows : {size_t{3}, size_t{41}, size_t{1}, size_t{100}, size_t{2}}) {
         tests::random_generator input_rg;
         input_rg.set_seed(static_cast<uint32_t>(rows) + 1000);
         const auto residual = random_vec(input_rg, rows * CD, 1.0f);
