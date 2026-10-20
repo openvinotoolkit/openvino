@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "Check '!m_device_map.empty()' failed: [GPU] Can't get <PROPERTY> property as no supported devices found or an error happened during devices query|Infrastructure",
+  "signature_hash": "a5c3320815892838",
+  "title": "iGPU func tests fail en masse - no supported GPU devices found on runner",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-10-20T09:11:02Z",
+  "last_seen": "2026-10-20T09:11:02Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/39387885502"
+  ],
+  "affected_commits": [
+    "521ffc4d5a7de9fe8f678bd3effa810248259547"
+  ],
+  "recent_timestamps": [
+    "2026-10-20T09:11:02Z"
+  ]
+}

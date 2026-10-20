@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-20-09-11-02-000-39387885502",
+  "timestamp": "2026-10-20T09:11:02Z",
+  "run_id": "39387885502",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39387885502",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "521ffc4d5a7de9fe8f678bd3effa810248259547",
+  "pr_number": null,
+  "pr_url": null,
+  "author": "hyunback",
+  "category": "Infrastructure",
+  "title": "iGPU func tests fail en masse - no supported GPU devices found on runner",
+  "signature": "Check '!m_device_map.empty()' failed: [GPU] Can't get <PROPERTY> property as no supported devices found or an error happened during devices query|Infrastructure",
+  "signature_hash": "a5c3320815892838",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "iGPU Tests (func) / GPU",
+      "conclusion": "failure",
+      "symptom": "32927/43254 GPU func tests failed immediately with 'no supported devices found' (clinfo reports 0 platforms)"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because the iGPU Tests job failed"
+    }
+  ],
+  "key_errors": [
+    "Number of platforms                               0",
+    "C++ exception with description \"Exception from src/inference/src/cpp/core.cpp:272:\nException from src/inference/src/dev/plugin.cpp:112:\nCheck '!m_device_map.empty()' failed at src/plugins/intel_gpu/src/plugin/plugin.cpp:593:\n[GPU] Can't get DEVICE_TYPE property as no supported devices found or an error happened during devices query.\n[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\" thrown in the test body.",
+    "FAILED TESTS (32927/43254)"
+  ],
+  "root_cause": "The 'Run clinfo' step on the iGPU self-hosted runner reported 'Number of platforms 0' before any OpenVINO test executed, meaning the OpenCL/Level-Zero GPU driver stack inside the test container could not enumerate the Intel iGPU render device (/dev/dri/renderD128 was passed to the container, but no OpenCL platform was exposed). Every GPU plugin test that queries a device property (DEVICE_TYPE, PERFORMANCE_HINT, OPTIMIZATION_CAPABILITIES, etc.) then hits the '!m_device_map.empty()' assertion in src/plugins/intel_gpu/src/plugin/plugin.cpp:593 and fails uniformly (32927 of 43254 tests), which is the signature of a runner/driver-level device-enumeration failure rather than a product regression introduced by the triggering commit (a GPU binary_mul_inplace kernel change, PR #38615/#637, unrelated to device enumeration).",
+  "reproduction_steps": "N/A (requires the specific self-hosted iGPU runner/container image openvinogithubactions.azurecr.io/ov_test/ubuntu_22_04_x64_igpu:pr-37085); cannot be reproduced without access to that runner's GPU driver stack. To check driver health on the runner: run 'clinfo' inside the test container and confirm 'Number of platforms' > 0, then run any single GPU smoke test (e.g. --gtest_filter=TensorTest.smoke_dynamicOutputCallerOwnedUsmHostRebindsAllocation) against ov_gpu_func_tests.",
+  "recommended_actions": [
+    "Check the self-hosted iGPU runner's host and container for GPU driver/firmware health (Intel Compute Runtime / NEO, Level-Zero, i915 kernel driver) - 'clinfo' reporting 0 platforms indicates the OpenCL ICD stack is broken or the device node is not accessible.",
+    "Verify /dev/dri/renderD128 is present and has correct permissions/group mappings (--group-add 44 --group-add 993) on the runner host at the time of this run.",
+    "Restart or re-provision the affected iGPU runner if the driver stack is confirmed broken; check for a recent host OS/driver update or container image change coinciding with this failure.",
+    "Add a pre-flight health check step (clinfo/device enumeration) that fails fast with a clear infra error before running the full ~43k test GPU suite, to avoid wasting ~40 minutes of CI time on a doomed run."
+  ],
+  "prevention_strategies": "Add a lightweight GPU-device-availability smoke check as the very first step of the iGPU test job (fail fast with a clear 'runner GPU unavailable' message) instead of letting all 43k tests run and fail individually. Monitor self-hosted iGPU runner fleet health (driver versions, device node permissions) with periodic health checks independent of CI runs.",
+  "historical_context": "No prior post-commit investigation in this database recorded the same '!m_device_map.empty()' / 'no supported devices found' signature. A related but distinct iGPU infrastructure issue (HuggingFace Hub 429 rate limit during LLM accuracy tests, 2026-10-12) and a GitHub 504 cloning openvino.genai.git (2026-10-19) were previously recorded for the GPU test lanes, both being transient external-service/network issues rather than device-enumeration failures."
+}
