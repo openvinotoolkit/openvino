@@ -86,6 +86,13 @@ inline float moe_mlp_fast_erf(float x) {
 #    define DEQUANT_8BIT(v)    convert_half(v)
 #endif
 
+// Per-GEMM helpers (mixed-dtype MoE): per-expert byte strides given a compression code DT
+// (0=u4/i4, 1=u8/i8, 2=f16) and group size GS. N*K equals INTERMEDIATE_SIZE*HIDDEN_SIZE for all
+// three GEMMs, so one product serves gate/up/down.
+#define MOE_WEI_PROD (INTERMEDIATE_SIZE * HIDDEN_SIZE)
+#define MOE_EXPERT_WEI_BYTES(DT) ((DT) == 0 ? (MOE_WEI_PROD) / 2 : (MOE_WEI_PROD))
+#define MOE_EXPERT_ZP_BYTES(DT, GS) ((DT) == 0 ? (MOE_WEI_PROD) / 2 / (GS) : (MOE_WEI_PROD) / (GS))
+
 #if GATE_UP_ENABLE
 inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
                                 __global half* scales,
@@ -471,15 +478,12 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     bool is_shared = false;
 #    endif
 
-#    if WEIGHT_COMPRESSEION_DT == 0
-    const int expert_wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2;
-    const int expert_scale_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;
-    const int expert_zp_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2 / GATE_UP_GROUP_SIZE;
-#    else
-    const int expert_wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE;
-    const int expert_scale_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;
-    const int expert_zp_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;
-#    endif
+    // Per-GEMM strides (gate and up may differ in dtype).
+    const int gate_expert_wei_size = MOE_EXPERT_WEI_BYTES(GATE_WEIGHT_DT);
+    const int up_expert_wei_size = MOE_EXPERT_WEI_BYTES(UP_WEIGHT_DT);
+    const int expert_scale_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;  // f16 scale, dtype-independent
+    const int gate_zp_stride = MOE_EXPERT_ZP_BYTES(GATE_WEIGHT_DT, GATE_UP_GROUP_SIZE);
+    const int up_zp_stride = MOE_EXPERT_ZP_BYTES(UP_WEIGHT_DT, GATE_UP_GROUP_SIZE);
 
     int expert_id = 0;
     // gate, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
@@ -494,14 +498,14 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     if (!is_shared) {
         expert_id = expert_list[token_idx * MAX_TOPK + expert_slot];
         // gate, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
-        gate_weight = (__global MOE_WEI_DT*)(gate_weight_addr + expert_id * expert_wei_size);
+        gate_weight = (__global MOE_WEI_DT*)(gate_weight_addr + expert_id * gate_expert_wei_size);
         gate_scale = (__global MOE_SCALE_DT*)(gate_scale_addr + expert_id * expert_scale_size);
-        gate_zp = (__global MOE_ZP_DT*)(gate_zp_addr + expert_id * expert_zp_size);
+        gate_zp = (__global MOE_ZP_DT*)(gate_zp_addr + expert_id * gate_zp_stride);
 
         // up, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
-        up_weight = (__global MOE_WEI_DT*)(up_weight_addr + expert_id * expert_wei_size);
+        up_weight = (__global MOE_WEI_DT*)(up_weight_addr + expert_id * up_expert_wei_size);
         up_scale = (__global MOE_SCALE_DT*)(up_scale_addr + expert_id * expert_scale_size);
-        up_zp = (__global MOE_ZP_DT*)(up_zp_addr + expert_id * expert_zp_size);
+        up_zp = (__global MOE_ZP_DT*)(up_zp_addr + expert_id * up_zp_stride);
     }
 #    if SHARED_EXPERT_ENABLE
     else {
@@ -533,7 +537,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     __local float shared_gate_partial[SUBGROUP_NUM];  // one slot per subgroup for scalar gate reduction
 #    endif
 
-#    if WEIGHT_COMPRESSEION_DT == 0
+#    if GATE_WEIGHT_DT == 0
     //# interleaving x into x2
     int id_sg = get_sub_group_id();
     int num_sg = get_num_sub_groups();
@@ -625,14 +629,19 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     // shared_gate_out[token_idx] is consumed by the next kernel (mlp_down) — no barrier needed here.
 #    endif
 
-#    if WEIGHT_COMPRESSEION_DT == 0
+    // Dispatch up (silu=false) then gate (silu=true) by each projection's own dtype.
+#    if UP_WEIGHT_DT == 0
     gate_up_gemv_n2x_u4(up_weight, up_scale, up_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, false);
-    gate_up_gemv_n2x_u4(gate_weight, gate_scale, gate_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, true);
-#    elif WEIGHT_COMPRESSEION_DT == 1
+#    elif UP_WEIGHT_DT == 1
     gate_up_gemv_n2x_u8(up_weight, up_scale, up_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, false);
-    gate_up_gemv_n2x_u8(gate_weight, gate_scale, gate_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, true);
-#    elif WEIGHT_COMPRESSEION_DT == 2
+#    elif UP_WEIGHT_DT == 2
     gate_up_gemv_n2x_f16(up_weight, up_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, false);
+#    endif
+#    if GATE_WEIGHT_DT == 0
+    gate_up_gemv_n2x_u4(gate_weight, gate_scale, gate_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, true);
+#    elif GATE_WEIGHT_DT == 1
+    gate_up_gemv_n2x_u8(gate_weight, gate_scale, gate_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, true);
+#    elif GATE_WEIGHT_DT == 2
     gate_up_gemv_n2x_f16(gate_weight, gate_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, true);
 #    endif
 }
@@ -996,15 +1005,10 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     bool is_shared = false;
 #    endif
 
-#    if WEIGHT_COMPRESSEION_DT == 0
-    const int expert_wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2;
-    const int expert_scale_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / DOWN_GROUP_SIZE;
-    const int expert_zp_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2 / DOWN_GROUP_SIZE;
-#    else
-    const int expert_wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE;
-    const int expert_scale_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / DOWN_GROUP_SIZE;
-    const int expert_zp_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / DOWN_GROUP_SIZE;
-#    endif
+    // Per-GEMM strides for the down projection.
+    const int expert_wei_size = MOE_EXPERT_WEI_BYTES(DOWN_WEIGHT_DT);
+    const int expert_scale_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / DOWN_GROUP_SIZE;  // f16 scale, dtype-independent
+    const int down_zp_stride = MOE_EXPERT_ZP_BYTES(DOWN_WEIGHT_DT, DOWN_GROUP_SIZE);
     int expert_id = 0;
 
     // down, [INTERMEDIATE_SIZE, HIDDEN_SIZE]
@@ -1017,7 +1021,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
         // down, [INTERMEDIATE_SIZE, HIDDEN_SIZE]
         weight = (__global MOE_WEI_DT*)(down_weight_addr + expert_id * expert_wei_size);
         scales = (__global MOE_SCALE_DT*)(down_scale_addr + expert_id * expert_scale_size);
-        zps = (__global MOE_ZP_DT*)(down_zp_addr + expert_id * expert_zp_size);
+        zps = (__global MOE_ZP_DT*)(down_zp_addr + expert_id * down_zp_stride);
     }
 #    if SHARED_EXPERT_ENABLE
     else {
@@ -1044,7 +1048,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     __local float xg_sum[1];  // unused placeholder for function signature
 #endif
 
-#    if WEIGHT_COMPRESSEION_DT == 0
+#    if DOWN_WEIGHT_DT == 0
     //# interleaving x into x2
     int id_sg = get_sub_group_id();
     int num_sg = get_num_sub_groups();
@@ -1108,11 +1112,11 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     MOE_DTYPE routing_weight_val = routing_weights[token_idx * MAX_TOPK + expert_slot];
 #    endif
 
-#    if WEIGHT_COMPRESSEION_DT == 0
+#    if DOWN_WEIGHT_DT == 0
     down_gemv_n2x_u4(weight, scales, zps, routing_weight_val, y, N, K, x2, xg_sum);
-#    elif WEIGHT_COMPRESSEION_DT == 1
+#    elif DOWN_WEIGHT_DT == 1
     down_gemv_n2x_u8(weight, scales, zps, routing_weight_val, y, N, K, x2, xg_sum);
-#    elif WEIGHT_COMPRESSEION_DT == 2
+#    elif DOWN_WEIGHT_DT == 2
     down_gemv_n2x_f16(weight, routing_weight_val, y, N, K, x2);
 #    endif
 }
