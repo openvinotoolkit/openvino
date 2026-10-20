@@ -134,11 +134,11 @@ public:
             [](const ov::Output<ov::Node>& output) {
                 const auto node = output.get_node();
                 for (size_t input_pos : {kPastKeyInput, kPastValueInput}) {
-                    if (is_empty_param(node->input_value(input_pos))) {
-                        return true;
+                    if (!is_empty_param(node->input_value(input_pos))) {
+                        return false;
                     }
                 }
-                return false;
+                return true;
             },
             "has_empty_past_param"));
 
