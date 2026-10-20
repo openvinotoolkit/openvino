@@ -141,8 +141,10 @@ static constexpr Property<std::string, PropertyMutability::RW> config_file{"CONF
 static constexpr Property<float, PropertyMutability::RW> buffers_preallocation_ratio{"GPU_BUFFERS_PREALLOCATION_RATIO"};
 static constexpr Property<size_t, PropertyMutability::RW> max_kernels_per_batch{"GPU_MAX_KERNELS_PER_BATCH"};
 static constexpr Property<bool, PropertyMutability::RW> use_onednn{"GPU_USE_ONEDNN"};
+static constexpr Property<bool, PropertyMutability::RW> enable_sdpa_micro{"GPU_ENABLE_SDPA_MICRO"};
 static constexpr Property<bool, PropertyMutability::RW> use_cm{"GPU_USE_CM"};
 static constexpr Property<bool, PropertyMutability::RW> enable_zero_copy_cache_load{"GPU_ENABLE_ZERO_COPY_CACHE_LOAD"};
+static constexpr Property<bool, PropertyMutability::RW> record_replay{"GPU_RECORD_REPLAY"};
 
 /**
  * @brief [EXPERIMENTAL] Enables MLIR-based Graph Compiler execution for supported subgraphs.
@@ -179,6 +181,8 @@ static constexpr Property<bool, ov::PropertyMutability::RW> verbose_color{"VERBO
 static constexpr Property<std::string, ov::PropertyMutability::RW> debug_config{"GPU_DEBUG_CONFIG"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> log_to_file{"GPU_LOG_TO_FILE"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_usm{"GPU_DISABLE_USM"};
+static constexpr Property<bool, ov::PropertyMutability::RW> use_onednn_sdpa{"GPU_USE_ONEDNN_SDPA"};
+static constexpr Property<bool, ov::PropertyMutability::RW> finish_after_enqueue{"GPU_FINISH_AFTER_ENQUEUE"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_onednn_post_ops_opt{"GPU_DISABLE_ONEDNN_POST_OPS_OPT"};
 static constexpr Property<std::string, PropertyMutability::RW> dump_graphs_path{"GPU_DUMP_GRAPHS_PATH"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> dump_profiling_data_path{"GPU_DUMP_PROFILING_DATA_PATH"};
@@ -220,7 +224,7 @@ static constexpr Property<size_t, ov::PropertyMutability::RW> usm_policy{"GPU_US
 static constexpr Property<ShapePredictor::Settings, ov::PropertyMutability::RW> shape_predictor_settings{"GPU_SHAPE_PREDICTOR_SETTINGS"};
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> load_dump_raw_binary{"GPU_LOAD_DUMP_RAW_BINARY"};
 static constexpr Property<bool, ov::PropertyMutability::RW> could_use_flashattn_v2{"GPU_COULD_USE_FLASHATTN_V2"};
-static constexpr Property<bool, ov::PropertyMutability::RW> validate_output_buffer{"GPU_VALIDATE_OUTPUT_BUFFER"};
+static constexpr Property<int, ov::PropertyMutability::RW> validate_output_buffer{"GPU_VALIDATE_OUTPUT_BUFFER"};
 static constexpr Property<float, ov::PropertyMutability::RW> mem_pool_util_threshold{"GPU_MEM_POOL_UTIL_THRESHOLD"};
 static constexpr Property<bool, ov::PropertyMutability::RW> dump_src_after_exec{"GPU_DUMP_SRC_TENSORS_AFTER_EXEC"};
 static constexpr Property<bool, ov::PropertyMutability::RW> allow_bypass_xattn{"GPU_ALLOW_BYPASS_XATTN_EXEC"};
@@ -229,7 +233,9 @@ static constexpr Property<bool, ov::PropertyMutability::RW> list_layers{"GPU_LIS
 static constexpr Property<bool, ov::PropertyMutability::RW> print_input_data_shapes{"GPU_PRINT_INPUT_DATA_SHAPES"};
 static constexpr Property<bool, ov::PropertyMutability::RW> pa_integrity_check{"GPU_PA_INTEGRITY_CHECK"};
 static constexpr Property<std::vector<int>, ov::PropertyMutability::RW> micro_sdpa_workgroup_config{"GPU_MICRO_SDPA_WORKGROUP_CONFIG"};
+static constexpr Property<int, ov::PropertyMutability::RW> micro_sdpa_disable_prefetch{"GPU_MICRO_SDPA_DISABLE_PREFETCH"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> pa_mixed_route_mode{"GPU_PA_MIXED_ROUTE_MODE"};
+static constexpr Property<bool, PropertyMutability::RW> record_replay_dynamic{"GPU_RECORD_REPLAY_DYNAMIC"};
 }  // namespace ov::intel_gpu
 
 namespace cldnn {

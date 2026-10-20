@@ -10,9 +10,7 @@
 #include "place.hpp"
 #include "schema_generated.h"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
+namespace ov::frontend::tensorflow_lite {
 
 class TensorLitePlace;
 
@@ -32,6 +30,4 @@ std::shared_ptr<SparsityInfo> get_sparsity(const flatbuffers::Vector<int32_t>* t
 template <typename T>
 OutputVector get_indexed_outputs(const T& outputs);
 
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite

@@ -113,10 +113,19 @@ if(ENABLE_GPU_DEBUG_CAPS)
     add_definitions(-DENABLE_DEBUG_CAPS=1)
 endif()
 
-set(INTEL_GPU_TARGET_OCL_VERSION "300"
+if(APPLE)
+    set(INTEL_GPU_TARGET_OCL_VERSION_DEFAULT "120")
+else()
+    set(INTEL_GPU_TARGET_OCL_VERSION_DEFAULT "300")
+endif()
+
+set(INTEL_GPU_TARGET_OCL_VERSION "${INTEL_GPU_TARGET_OCL_VERSION_DEFAULT}"
   CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
 
 add_definitions(-DCL_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
+if(APPLE)
+    add_definitions(-DCL_HPP_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
+endif()
 
 set(MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -135,15 +144,15 @@ if(ENABLE_MLIR_FOR_GPU)
     add_compile_definitions(ENABLE_MLIR_FOR_GPU)
 endif()
 
-file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
+include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
+set(PLUGIN_SOURCES ${GPU_PLUGIN_SOURCES})
 
 # MLIR sources are always excluded from the main plugin target. When
 # ENABLE_MLIR_FOR_GPU=ON they are built into a dedicated OBJECT library
 # (openvino_intel_gpu_mlir_obj) that has MLIR/Graph-Compiler include paths;
 # when OFF they must not be compiled at all.
 set(OV_GPU_MLIR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/transformations/mlir)
-file(GLOB_RECURSE GPU_MLIR_SOURCES ${OV_GPU_MLIR_DIR}/*.cpp)
-list(REMOVE_ITEM PLUGIN_SOURCES ${GPU_MLIR_SOURCES})
+set(GPU_MLIR_SOURCES ${GPU_PLUGIN_MLIR_SOURCES})
 
 # Fetches GraphCompiler, so it must run once rather than once per stack.
 if(ENABLE_MLIR_FOR_GPU)

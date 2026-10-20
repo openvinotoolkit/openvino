@@ -41,7 +41,7 @@
     "typescript-eslint": "^8.56.1"
   },
   "engines": {
-    "node": ">=21.0.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
     "gunzip-maybe": "^1.4.2",

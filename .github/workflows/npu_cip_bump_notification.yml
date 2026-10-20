@@ -1,0 +1,112 @@
+name: NPU CiP Bump Notification
+
+# Notifies whenever the prebuilt NPU compiler-in-package (CiP) binaries are bumped on
+# master or a release branch. A bump is detected by a value-level change of any
+# PLUGIN_COMPILER_* platform SHA256 checksum in:
+#     src/plugins/intel_npu/cmake/download_compiler_libs.cmake
+#
+# Delivery:
+#   - GitHub: comment on the bump PR with @mentions (NPU_CIP_NOTIFY_LOGINS) so GitHub emails
+#     recipients from notifications@github.com.
+#   - Teams: Adaptive Card to a Power Automate webhook (optional).
+# workflow_dispatch is a dry-run: detect writes the run summary only (no Teams / PR comment).
+# If notify logins / webhook are unset on push, delivery steps no-op but the summary still logs the bump.
+#
+# Configuration (repository -> Settings -> Secrets and variables -> Actions):
+#   Variables:
+#     NPU_CIP_NOTIFY_LOGINS     - space/comma separated GitHub logins to @mention on the PR
+#     NPU_CIP_TEAMS_MENTION_UPNS - optional comma/space separated UPNs (emails) for Teams @mentions
+#   Secrets:
+#     NPU_CIP_TEAMS_WEBHOOK_URL - Teams incoming webhook URL of the destination channel
+
+on:
+  push:
+    branches:
+      - master
+      - 'releases/**'
+    paths:
+      - 'src/plugins/intel_npu/cmake/download_compiler_libs.cmake'
+  workflow_dispatch:
+    inputs:
+      before_sha:
+        description: 'Base commit SHA (old revision) for dry-run comparison'
+        required: true
+      after_sha:
+        description: 'Head commit SHA (new revision) for dry-run comparison'
+        required: true
+
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  notify-npu-cip-bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      FILE_PATH: src/plugins/intel_npu/cmake/download_compiler_libs.cmake
+      TRACKED_VARS: >-
+        PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM
+        PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM
+        PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM
+        PLUGIN_COMPILER_UBUNTU_26_04_CHECKSUM
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      # Sparse checkout only; the repository is far too large to check out in full.
+      - name: Check out notification scripts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+
+      - name: Detect CiP value-level change
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_BEFORE_SHA: ${{ github.event.inputs.before_sha }}
+          INPUT_AFTER_SHA: ${{ github.event.inputs.after_sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          PUSH_AFTER_SHA: ${{ github.sha }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          NPU_CIP_NOTIFY_LOGINS: ${{ vars.NPU_CIP_NOTIFY_LOGINS }}
+        run: python3 .github/scripts/npu_cip_detect_bump.py
+
+      - name: Post GitHub notification on pull request
+        if: steps.detect.outputs.changed == 'true' && github.event_name == 'push'
+        env:
+          NOTIFY_LOGINS: ${{ vars.NPU_CIP_NOTIFY_LOGINS }}
+          PR_NUMBER: ${{ steps.detect.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${NOTIFY_LOGINS// /}" ]]; then
+            echo "NPU_CIP_NOTIFY_LOGINS not set; skipping GitHub @mention comment."
+            exit 0
+          fi
+          if [[ -z "${PR_NUMBER}" ]]; then
+            echo "::warning::No pull request linked to this bump; cannot post @mention comment."
+            exit 0
+          fi
+          gh pr comment "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --body-file body.md
+          echo "Posted NPU CiP bump notification to PR #${PR_NUMBER}."
+
+      - name: Send Teams notification
+        if: steps.detect.outputs.changed == 'true' && github.event_name == 'push'
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.NPU_CIP_TEAMS_WEBHOOK_URL }}
+          CARD_DATE: ${{ steps.detect.outputs.date }}
+          CARD_BRANCH: ${{ steps.detect.outputs.branch }}
+          CARD_COMMIT_URL: ${{ steps.detect.outputs.commit_url }}
+          CARD_AUTHOR: ${{ steps.detect.outputs.author }}
+          CARD_PR_INFO: ${{ steps.detect.outputs.pr_info }}
+          CARD_PR_URL: ${{ steps.detect.outputs.pr_url }}
+          CARD_CHANGES: ${{ steps.detect.outputs.changes }}
+          CARD_REPO: ${{ github.repository }}
+          CARD_MENTION_UPNS: ${{ vars.NPU_CIP_TEAMS_MENTION_UPNS }}
+        run: python3 .github/scripts/npu_cip_notify_teams.py
