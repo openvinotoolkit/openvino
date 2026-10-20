@@ -13,7 +13,9 @@
 #include "activation_inst.h"
 #include "eltwise_inst.h"
 #include "fully_connected_inst.h"
+#include "fully_connected_woq_u2_gnk.hpp"
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
+#include "intel_gpu/op/fc_weights_layout.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "registry/implementation_manager.hpp"
@@ -28,11 +30,11 @@ using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::cm {
 
-// Weight layout woq_u2_gemm_dual.cm is built for (its WLAYOUT). A compressed FC always provides n_major:
-// weights [N, K/4], scales / zero points [N, K/64]. group_major -- weights [K/64, N, 16 B], scales / zero
-// points [K/64, N], the kernel's other path -- is selectable for tests only: the buffers are passed
-// through unchanged, so whoever selects it must fill them in group-major byte order. Read when the
-// kernel is generated (network build).
+// Weight layout woq_u2_gemm_dual.cm is built for (its WLAYOUT). An NK compressed FC provides n_major:
+// weights [N, K/4], scales / zero points [N, K/64]. A GNK FC (weights_layout) provides group_major --
+// weights [K/64, N, 16 B], scales / zero points [K/64, N]. For NK FCs, tests can still select group_major
+// here: the buffers are passed through unchanged, so whoever selects it must fill them in group-major byte
+// order. Read when the kernel is generated (network build).
 enum class WoqU2WeightLayout : int { group_major = 0, n_major = 1 };
 inline WoqU2WeightLayout& woq_u2_weight_layout_for_tests() {
     static WoqU2WeightLayout layout = WoqU2WeightLayout::n_major;
@@ -152,7 +154,8 @@ inline std::string woq_u2_check_epi_operand(const cldnn::layout& epi, const cldn
 }
 
 // u2 weight-only-quantized fully connected layer on XMX/DPAS: woq_u2_gemm_dual.cm (tiled) for M > 8 and
-// woq_u2_gemm_dual_gemv.cm for M <= 8, both built with WLAYOUT=1 (N-major weights and scales / zero points).
+// woq_u2_gemm_dual_gemv.cm for M <= 8, both built with WLAYOUT=1 (N-major weights and scales / zero points),
+// or WLAYOUT=0 for a GNK FC (weights [K/64, N, 64], scales / zero points [K/64, N], see woq_u2_accepts_gnk).
 //
 // Selected only for: Xe2 or Xe3 with CM JIT support, >= 96 KB SLM; f16 activations without padding; u2
 // weights [N, K] (weights_transposed); f16 decompression scales [N, K/64] bfyx (group size 64); u8
@@ -169,8 +172,8 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
     explicit FullyConnectedWoqU2ImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr)
         : ImplementationManager(impl_types::cm, shape_type, std::move(vf)) {}
 
-    static constexpr uint64_t required_slm_bytes = 3 * (2 * 256 * 32 + 64 * 256);  // matches SLM_BYTES in woq_u2_gemm_dual.cm
-    static constexpr int64_t group_size = 64;
+    static constexpr uint64_t required_slm_bytes = woq_u2_required_slm_bytes;
+    static constexpr int64_t group_size = woq_u2_group_size;
 
     [[nodiscard]] in_out_fmts_t query_formats(const program_node& node) const override {
         assert(node.is_type<fully_connected>());
@@ -219,10 +222,12 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
             CM_FC_LOG_AND_RETURN_FALSE(node, "dynamic quantized activation not supported");
         if (!prim->weights_transposed)
             CM_FC_LOG_AND_RETURN_FALSE(node, "weights not transposed");
-        if (prim->weights_rank != 2)
+        const bool gnk = prim->weights_layout == ov::intel_gpu::op::FcWeightsLayout::GNK;
+        if (!gnk && prim->weights_rank != 2)
             CM_FC_LOG_AND_RETURN_FALSE(node, "weights_rank != 2: " << prim->weights_rank);
-        if (!prim->transpose_b_scale || !prim->transpose_b_zp)
-            CM_FC_LOG_AND_RETURN_FALSE(node, "scale/zp not [N, K/64] (transpose_b_scale/zp false)");
+        // NK: scale / zp [N, K/64] (transpose_b_scale / zp true); GNK: [K/64, N] (false).
+        if (prim->transpose_b_scale == gnk || prim->transpose_b_zp == gnk)
+            CM_FC_LOG_AND_RETURN_FALSE(node, "scale/zp layout does not match weights_layout " << ov::intel_gpu::op::to_string(prim->weights_layout));
 
         const bool has_bias = fc_node.bias_term();
         const auto in_layouts = node.get_input_layouts();
@@ -246,12 +251,13 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
         if (out.format != format::bfyx || out.data_padding)
             CM_FC_LOG_AND_RETURN_FALSE(node, "output not plain bfyx");
 
-        // Weights [N, K] (static even when M is dynamic).
+        // Weights [N, K] or GNK [K/64, N, 64] (static even when M is dynamic).
         const auto wshape = wei.get_shape();
-        if (wshape.size() != 2)
-            CM_FC_LOG_AND_RETURN_FALSE(node, "weight shape rank != 2: " << wshape.size());
-        const auto N = static_cast<int64_t>(wshape[0]);
-        const auto K = static_cast<int64_t>(wshape[1]);
+        if (wshape.size() != (gnk ? 3u : 2u))
+            CM_FC_LOG_AND_RETURN_FALSE(node, "weight shape rank " << wshape.size() << " does not match weights_layout");
+        const auto dims = ov::intel_gpu::op::fc_weight_dims(wei.get_partial_shape(), prim->weights_layout);
+        const auto N = dims.N.get_length();
+        const auto K = dims.K.get_length();
         if (K % group_size != 0)
             CM_FC_LOG_AND_RETURN_FALSE(node, "K % 64 != 0: K=" << K);
         if (N % 32 != 0)
@@ -270,7 +276,7 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
             size_t total = 1;
             for (auto d : s)
                 total *= d;
-            return s.size() >= 2 && static_cast<int64_t>(s[0]) == N && static_cast<int64_t>(total) == N * KG;
+            return s.size() >= 2 && static_cast<int64_t>(s[0]) == (gnk ? KG : N) && static_cast<int64_t>(total) == N * KG;
         };
 
         if (scale.data_type != data_types::f16)
@@ -300,6 +306,17 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
                                                                                    << " N=" << N << " K=" << K << " implied_group_size="
                                                                                    << (total > 0 ? (N * K) / static_cast<int64_t>(total) : -1));
         }
+
+        if (gnk && !woq_u2_accepts_gnk(info,
+                                       true,
+                                       wei.data_type,
+                                       wei.get_partial_shape(),
+                                       scale.data_type,
+                                       scale.get_partial_shape(),
+                                       true,
+                                       zp.data_type,
+                                       zp.get_partial_shape()))
+            CM_FC_LOG_AND_RETURN_FALSE(node, "GNK weights / scale / zero point rejected by woq_u2_accepts_gnk");
 
         if (!check_epilogue)
             return true;

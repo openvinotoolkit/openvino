@@ -43,6 +43,16 @@ bool has_bias(const RuntimeParams& params) {
     return params.bias_layout.has_value();
 }
 
+bool is_gnk(const RuntimeParams& params) {
+    return params.typed_desc<fully_connected>()->weights_layout == ov::intel_gpu::op::FcWeightsLayout::GNK;
+}
+
+// {N, K} of the FC from its weights and weights_layout.
+std::pair<size_t, size_t> woq_u2_dims(const RuntimeParams& params) {
+    const auto dims = ov::intel_gpu::op::fc_weight_dims(params.get_input_layout(1).get_partial_shape(), params.typed_desc<fully_connected>()->weights_layout);
+    return {static_cast<size_t>(dims.N.get_length()), static_cast<size_t>(dims.K.get_length())};
+}
+
 // The epilogue (epi_mode and the dependency providing its tensor) of this FC; validate_impl guarantees it
 // is supported (create_impl asserts it).
 WoqU2Epilogue epilogue_of(const RuntimeParams& params) {
@@ -62,8 +72,9 @@ protected:
         const bool epi_f16 = epi.dep >= 0 && params.get_input_layout(static_cast<size_t>(epi.dep)).data_type == data_types::f16;
         jit.add({
             make_jit_constant("KERNEL_NAME", get_entry_point(params)),
-            // N-major unless a test selected the group-major path (see fully_connected_woq_u2.hpp).
-            make_jit_constant("WLAYOUT", static_cast<int>(woq_u2_weight_layout_for_tests())),
+            // GNK FCs are group-major; NK FCs are N-major unless a test selected the group-major path.
+            make_jit_constant("WLAYOUT",
+                              is_gnk(params) ? static_cast<int>(WoqU2WeightLayout::group_major) : static_cast<int>(woq_u2_weight_layout_for_tests())),
             make_jit_constant("OUT_F16", params.get_output_layout(0).data_type == data_types::f16 ? 1 : 0),
             make_jit_constant("EPI_F16", epi_f16 ? 1 : 0),  // epilogue tensor is half
         });
@@ -95,12 +106,12 @@ protected:
 
     // Scalars (M, K, N, epi_mode) of either kernel.
     static void set_scalars(const RuntimeParams& params, KernelData& kd, size_t M) {
-        const auto& wshape = params.get_input_layout(1).get_shape();  // [N, K]
+        const auto [N, K] = woq_u2_dims(params);
         auto& scalars = kd.params.scalars;
         scalars.resize(4);
         // epi_mode from the actual bias / fused pattern: 0 none, 1 acc + epi, 2 swish(acc) * epi.
         const int32_t epi_mode = epilogue_of(params).mode;
-        const size_t vals[4] = {M, wshape[1], wshape[0], static_cast<size_t>(epi_mode)};
+        const size_t vals[4] = {M, K, N, static_cast<size_t>(epi_mode)};
         for (size_t i = 0; i < 4; i++) {
             scalars[i].t = ScalarDescriptor::Types::INT32;
             scalars[i].v.s32 = static_cast<int32_t>(vals[i]);
@@ -121,7 +132,7 @@ protected:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
             assert(!params.is_dynamic());
-            const size_t N = params.get_input_layout(1).get_shape()[0];
+            const size_t N = woq_u2_dims(params).first;
             const size_t M = rows_of(params);
             auto& wgs = kd.params.workGroups;
             const size_t tiles_n = (N / cols_per_thread + wg_n - 1) / wg_n;
@@ -149,7 +160,7 @@ protected:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
             assert(!params.is_dynamic());
-            const size_t N = params.get_input_layout(1).get_shape()[0];
+            const size_t N = woq_u2_dims(params).first;
             const size_t M = rows_of(params);
             auto& wgs = kd.params.workGroups;
             const size_t blocks = (N + gemv_cols_per_thread - 1) / gemv_cols_per_thread;

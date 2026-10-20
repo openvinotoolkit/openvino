@@ -5,6 +5,7 @@
 set(GPU_CM_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/fully_connected_woq_u2.cpp
     ${CMAKE_CURRENT_LIST_DIR}/fully_connected_woq_u2.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/fully_connected_woq_u2_gnk.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/cm_attention_common.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/cm_pa_xe1.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/cm_pa_xe2.hpp

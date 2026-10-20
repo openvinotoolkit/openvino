@@ -34,6 +34,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <random>
@@ -41,9 +42,13 @@
 #include <string>
 #include <thread>
 
+#include "common_test_utils/graph_comparator.hpp"
 #include "fully_connected_inst.h"
 #include "impls/cm/fully_connected_woq_u2.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
@@ -51,6 +56,14 @@
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 #include "pass_manager.h"
 #include "program_wrapper.h"
 #include "random_generator.hpp"
@@ -1006,5 +1019,262 @@ TEST(fully_connected_cm_woq_u2_reorder, weights_not_transposed_no_reorder) {
     ASSERT_FALSE(r.scale_reordered);
     ASSERT_FALSE(r.zp_reordered);
 }
+
+// ---- Native group-major (GNK) weights [G, N, 64] ----
+
+using ov::intel_gpu::cm::woq_u2_accepts_gnk;
+using ov::intel_gpu::cm::woq_u2_gnk_enabled_for_tests;
+using ov::intel_gpu::op::FcWeightsLayout;
+
+TEST(fully_connected_cm_woq_u2_gnk_check, accepts_only_cm_eligible_gnk) {
+    cldnn::device_info info{};
+    info.arch = gpu_arch::xe2;
+    info.max_local_mem_size = 128 * 1024;
+    const ov::PartialShape w{80, 5120, 64}, gn{80, 5120}, gn1{80, 5120, 1};
+    const auto u2 = ov::element::u2, u8 = ov::element::u8, f16 = ov::element::f16;
+
+    EXPECT_TRUE(woq_u2_accepts_gnk(info, true, u2, w, f16, gn1, true, u2, gn1));
+    EXPECT_TRUE(woq_u2_accepts_gnk(info, true, u2, w, f16, gn, true, u8, gn));
+
+    auto other_arch = info;
+    other_arch.arch = gpu_arch::xe_hpg;
+    EXPECT_FALSE(woq_u2_accepts_gnk(other_arch, true, u2, w, f16, gn, true, u8, gn));
+    auto small_slm = info;
+    small_slm.max_local_mem_size = 64 * 1024;
+    EXPECT_FALSE(woq_u2_accepts_gnk(small_slm, true, u2, w, f16, gn, true, u8, gn));
+    EXPECT_FALSE(woq_u2_accepts_gnk(info, false, u2, w, f16, gn, true, u8, gn));
+    EXPECT_FALSE(woq_u2_accepts_gnk(info, true, u2, {160, 5120, 32}, f16, {160, 5120}, true, u8, {160, 5120}));  // gs != 64
+    EXPECT_FALSE(woq_u2_accepts_gnk(info, true, u2, {80, 5104, 64}, f16, {80, 5104}, true, u8, {80, 5104}));     // N % 32 != 0
+    EXPECT_FALSE(woq_u2_accepts_gnk(info, true, ov::element::u4, w, f16, gn, true, u8, gn));
+    EXPECT_FALSE(woq_u2_accepts_gnk(info, true, u2, w, ov::element::f32, gn, true, u8, gn));
+    EXPECT_FALSE(woq_u2_accepts_gnk(info, true, u2, w, f16, gn, false, ov::element::dynamic, {}));  // no zp
+    EXPECT_FALSE(woq_u2_accepts_gnk(info, true, u2, w, f16, gn, true, f16, gn));
+    EXPECT_FALSE(woq_u2_accepts_gnk(info, true, u2, w, f16, gn, true, u8, {1}));  // scalar zp
+    EXPECT_FALSE(woq_u2_accepts_gnk(info, true, u2, w, f16, {5120, 80}, true, u8, gn));
+}
+
+// MatMulNBits with reordered B, as the ONNX frontend builds it:
+// u2 [G, N, gs] -> Convert -> Subtract(zp [G, N, 1]) -> Multiply(scale [G, N, 1]) -> Transpose{1, 0, 2} -> Reshape [N, K] -> MatMul(transpose_b).
+struct GnkChain {
+    std::string name;
+    int64_t G, N, gs;
+    bool zp = true;
+    bool needs_no_cm = false;  // CM-eligible shape: checked only where the device cannot run CM
+};
+
+std::shared_ptr<ov::Model> make_gnk_chain_model(const GnkChain& c) {
+    const int64_t K = c.G * c.gs;
+    auto random_bytes = [](size_t elements, uint64_t seed) {
+        std::vector<uint8_t> v((elements + 3) / 4);
+        SplitMix64 rng{seed};
+        for (auto& b : v)
+            b = static_cast<uint8_t>(rng.next());
+        return v;
+    };
+    const ov::Shape w_shape{static_cast<size_t>(c.G), static_cast<size_t>(c.N), static_cast<size_t>(c.gs)};
+    const ov::Shape gn_shape{static_cast<size_t>(c.G), static_cast<size_t>(c.N), 1};
+
+    auto a = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, K});
+    const auto w_bytes = random_bytes(ov::shape_size(w_shape), 1);
+    auto w = std::make_shared<ov::op::v0::Constant>(ov::element::u2, w_shape, w_bytes.data());
+    std::shared_ptr<ov::Node> deq = std::make_shared<ov::op::v0::Convert>(w, ov::element::f16);
+    if (c.zp) {
+        const auto zp_bytes = random_bytes(ov::shape_size(gn_shape), 2);
+        auto zp = std::make_shared<ov::op::v0::Constant>(ov::element::u2, gn_shape, zp_bytes.data());
+        deq = std::make_shared<ov::op::v1::Subtract>(deq, std::make_shared<ov::op::v0::Convert>(zp, ov::element::f16));
+    }
+    std::vector<ov::float16> scales(ov::shape_size(gn_shape));
+    SplitMix64 rng{3};
+    for (auto& s : scales)
+        s = ov::float16(0.005f + static_cast<float>(rng.next() % 1000) * 2e-5f);
+    auto scale = std::make_shared<ov::op::v0::Constant>(ov::element::f16, gn_shape, scales);
+    auto mul = std::make_shared<ov::op::v1::Multiply>(deq, scale);
+    auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{1, 0, 2});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(mul, order);
+    auto target = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{c.N, K});
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(transpose, target, false);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(a, reshape, false, true);
+    return std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{a});
+}
+
+std::shared_ptr<ov::Model> run_gpu_pipeline(const std::shared_ptr<ov::Model>& model) {
+    auto& engine = get_test_engine();
+    auto context = std::make_shared<ov::intel_gpu::RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto config = get_test_default_config(engine);
+    config.set_user_property(ov::hint::inference_precision(ov::element::f16));
+    config.finalize(context.get(), model.get());
+    ov::intel_gpu::TransformationsPipeline pipeline(config, context);
+    pipeline.apply(model);
+    return model;
+}
+
+// (a) A CM-eligible chain becomes one GNK FullyConnectedCompressed on the raw u2 constant.
+TEST(fully_connected_cm_woq_u2_gnk_pipeline, eligible_chain_becomes_gnk_fc) {
+    auto& engine = get_test_engine();
+    if (!cm_woq_u2_supported(engine))
+        GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
+
+    const auto model = run_gpu_pipeline(make_gnk_chain_model({"eligible", 80, 5120, 64}));
+    std::vector<std::shared_ptr<ov::intel_gpu::op::FullyConnectedCompressed>> fcs;
+    for (const auto& op : model->get_ops())
+        if (auto fc = ov::as_type_ptr<ov::intel_gpu::op::FullyConnectedCompressed>(op))
+            fcs.push_back(fc);
+    ASSERT_EQ(fcs.size(), size_t(1));
+    const auto& fc = fcs[0];
+    EXPECT_EQ(fc->get_weights_layout(), FcWeightsLayout::GNK);
+    EXPECT_TRUE(fc->get_transpose_b());
+    EXPECT_FALSE(fc->get_transpose_b_scale());
+    EXPECT_FALSE(fc->get_transpose_b_zp());
+    const auto weights = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
+    ASSERT_NE(weights, nullptr) << "GNK weights must be the raw constant, without Transpose / Reshape";
+    EXPECT_EQ(weights->get_element_type(), ov::element::u2);
+    EXPECT_EQ(weights->get_shape(), (ov::Shape{80, 5120, 64}));
+    EXPECT_EQ(fc->get_input_element_type(3), ov::element::f16);
+    EXPECT_EQ(fc->get_input_shape(3), (ov::Shape{80, 5120}));
+    EXPECT_EQ(fc->get_input_element_type(4), ov::element::u8);
+    EXPECT_EQ(fc->get_input_shape(4), (ov::Shape{80, 5120}));
+    EXPECT_EQ(fc->get_output_partial_shape(0), (ov::PartialShape{-1, 5120}));
+}
+
+// Disables the GNK path (woq_u2_accepts_gnk always false) for the lifetime of the scope.
+struct GnkDisabledScope {
+    bool saved = woq_u2_gnk_enabled_for_tests();
+    GnkDisabledScope() {
+        woq_u2_gnk_enabled_for_tests() = false;
+    }
+    ~GnkDisabledScope() {
+        woq_u2_gnk_enabled_for_tests() = saved;
+    }
+};
+
+class fully_connected_cm_woq_u2_gnk_fold : public ::testing::TestWithParam<GnkChain> {};
+
+// (b) When the check fails, the chain folds to f16 exactly as without the GNK path: same graph and constants, no
+// compressed FC and no u2 constant (runtime decompression) left.
+TEST_P(fully_connected_cm_woq_u2_gnk_fold, matches_pipeline_without_gnk) {
+    const auto c = GetParam();
+    if (c.needs_no_cm && cm_woq_u2_supported(get_test_engine()))
+        GTEST_SKIP() << "the device runs CM; covered by eligible_chain_becomes_gnk_fc";
+
+    const auto with_gnk = run_gpu_pipeline(make_gnk_chain_model(c));
+    std::shared_ptr<ov::Model> without_gnk;
+    {
+        GnkDisabledScope disabled;
+        without_gnk = run_gpu_pipeline(make_gnk_chain_model(c));
+    }
+    const auto res =
+        FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES).enable(FunctionsComparator::CONST_VALUES).compare(with_gnk, without_gnk);
+    ASSERT_TRUE(res.valid) << res.message;
+    for (const auto& op : with_gnk->get_ops()) {
+        EXPECT_FALSE(ov::is_type<ov::intel_gpu::op::FullyConnectedCompressed>(op)) << op->get_friendly_name();
+        if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op)) {
+            EXPECT_NE(constant->get_element_type(), ov::element::u2) << "u2 constant left (runtime decompression): " << op->get_friendly_name();
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         fully_connected_cm_woq_u2_gnk_fold,
+                         ::testing::Values(GnkChain{"gs32", 160, 5120, 32},
+                                           GnkChain{"n_not_multiple_of_32", 80, 5104, 64},
+                                           GnkChain{"no_zp", 80, 5120, 64, false},
+                                           GnkChain{"no_cm_device", 80, 5120, 64, true, true}),
+                         [](const testing::TestParamInfo<GnkChain>& info) {
+                             return info.param.name;
+                         });
+
+// Group-major device buffers of the host N-major weights: Wq [G, N, 64], scales / zero points [G, N].
+struct GnkBuffers {
+    memory::ptr weights, scale, zp;
+};
+
+GnkBuffers make_gnk_buffers(engine& engine, const WoqU2Weights& w) {
+    const int64_t K = w.K, N = w.N, G = K / 64;
+    std::vector<uint8_t> packed(w.packed.size()), zp(w.zp_u8.size());
+    std::vector<ov::float16> scales(w.scales.size());
+    for (int64_t n = 0; n < N; n++)
+        for (int64_t g = 0; g < G; g++) {
+            std::copy_n(w.packed.begin() + n * (K / 4) + g * 16, 16, packed.begin() + (g * N + n) * 16);
+            scales[static_cast<size_t>(g * N + n)] = w.scales[static_cast<size_t>(n * G + g)];
+            zp[static_cast<size_t>(g * N + n)] = w.zp_u8[static_cast<size_t>(n * G + g)];
+        }
+    GnkBuffers b;
+    b.weights = engine.allocate_memory({ov::PartialShape{G, N, 64}, data_types::u2, format::bfyx});
+    b.scale = engine.allocate_memory({ov::PartialShape{G, N}, data_types::f16, format::bfyx});
+    b.zp = engine.allocate_memory({ov::PartialShape{G, N}, data_types::u8, format::bfyx});
+    set_values(b.weights, packed);
+    set_values(b.scale, scales);
+    set_values(b.zp, zp);
+    return b;
+}
+
+// Runs the u2 FC "fc_prim" that add_fc adds, without forcing an implementation; checks that CM ran and matches the
+// host reference of w. Returns the output values.
+std::vector<float> run_u2_fc(engine& engine,
+                             const WoqU2Weights& w,
+                             int64_t M,
+                             const std::vector<ov::float16>& a,
+                             data_types out_dt,
+                             const std::function<void(topology&)>& add_fc) {
+    const bool out_f32 = out_dt == data_types::f32;
+    topology topo(input_layout("input", layout{ov::PartialShape{M, w.K}, data_types::f16, format::bfyx}));
+    add_fc(topo);
+    topo.add(reorder("out", input_info("fc_prim"), format::bfyx, out_dt));
+    auto net = get_network(engine, topo, woq_config(engine, {}), get_test_stream_ptr(), false);
+    auto input_mem = engine.allocate_memory({ov::PartialShape{M, w.K}, data_types::f16, format::bfyx});
+    set_values(input_mem, a);
+    net->set_input_data("input", input_mem);
+    auto outputs = net->execute();
+    bool cm_ran = false;
+    for (const auto& id : net->get_executed_primitive_ids()) {
+        const auto impl = net->get_primitive(id)->get_impl();
+        cm_ran |= impl && impl->get_kernel_name().find("woq_u2") != std::string::npos;
+    }
+    EXPECT_TRUE(cm_ran) << "CM u2 FC implementation was not selected";
+    const auto out_mem = outputs.at("out").get_memory();
+    check_rows(out_mem, M, a, all_rows(M), w, out_f32);
+    return read_output(out_mem, static_cast<size_t>(M * w.N), out_f32);
+}
+
+class fully_connected_cm_woq_u2_gnk : public ::testing::TestWithParam<std::tuple<int64_t, data_types>> {};
+
+// (c) A GNK FC selects CM (not forced). Its buffers are group-major while the test layout override stays n-major,
+// so it only matches the reference if the kernel was built with WLAYOUT=0.
+// (d) The same logical weights as an NK FC give the same numbers.
+TEST_P(fully_connected_cm_woq_u2_gnk, selects_cm_and_matches_nk) {
+    auto& engine = get_test_engine();
+    if (!cm_woq_u2_supported(engine))
+        GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
+    ASSERT_EQ(woq_u2_weight_layout_for_tests(), WoqU2WeightLayout::n_major);
+
+    const int64_t M = std::get<0>(GetParam());
+    const data_types out_dt = std::get<1>(GetParam());
+    const int64_t K = 320, N = 512;
+    tests::random_generator rg(GET_SUITE_NAME);
+    const auto w = make_weights(engine, K, N, ZpKind::tensor_u8, rg, static_cast<uint32_t>(M * 131 + K));
+    const auto gnk = make_gnk_buffers(engine, w);
+    const auto a = random_activations(static_cast<size_t>(M * K), static_cast<uint64_t>(M * 1000003 + K));
+
+    SCOPED_TRACE("GNK");
+    const auto gnk_out = run_u2_fc(engine, w, M, a, out_dt, [&](topology& topo) {
+        topo.add(data("weights", gnk.weights));
+        topo.add(data("scale", gnk.scale));
+        topo.add(data("zp", gnk.zp));
+        topo.add(fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "zp", out_dt, 2, 3, true, false, false, FcWeightsLayout::GNK));
+    });
+    SCOPED_TRACE("NK");
+    const auto nk_out = run_u2_fc(engine, w, M, a, out_dt, [&](topology& topo) {
+        add_weights(topo, "", w);
+        topo.add(make_fc("fc_prim", "input", "", ZpKind::tensor_u8, out_dt, 2, w.zp_scalar));
+    });
+    EXPECT_EQ(gnk_out, nk_out);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         fully_connected_cm_woq_u2_gnk,
+                         ::testing::Combine(::testing::Values(int64_t{5}, int64_t{40}), ::testing::Values(data_types::f16, data_types::f32)),
+                         [](const testing::TestParamInfo<std::tuple<int64_t, data_types>>& info) {
+                             return "M" + std::to_string(std::get<0>(info.param)) + (std::get<1>(info.param) == data_types::f32 ? "_f32out" : "_f16out");
+                         });
 
 }  // namespace

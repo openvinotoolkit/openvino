@@ -1225,7 +1225,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 if (!can_fuse_parents[i] || !fc.is_type<fully_connected>() || fc.get_input_layout(1).data_type != data_types::u2 ||
                     !fc.get_input_layout(1).is_static())
                     continue;
-                const auto N = static_cast<int64_t>(fc.get_input_layout(1).get_shape()[0]);
+                const auto N = ov::intel_gpu::op::fc_weight_dims(fc.get_input_layout(1).get_partial_shape(),
+                                                                 fc.as<fully_connected>().get_primitive()->weights_layout).N.get_length();
                 const auto& peer = *parents[parents.size() - 1 - i].first;
                 if (!ov::intel_gpu::cm::woq_u2_check_epi_operand(peer.get_output_layout(), node.get_output_layout(), N).empty())
                     can_fuse_parents[i] = false;

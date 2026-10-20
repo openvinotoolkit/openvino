@@ -243,6 +243,9 @@
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/subtract.hpp"
+#include "graph/impls/cm/fully_connected_woq_u2_gnk.hpp"
 #include "openvino/util/log.hpp"
 
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
@@ -263,7 +266,72 @@ static typename std::enable_if<std::is_integral<T>::value, T>::type align_to(T s
     return static_cast<T>((size % align == 0) ? size : size - size % align + align);
 }
 
-static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node, bool supports_immad) {
+// Inputs of cm::woq_u2_accepts_gnk that come from the device and the compile config.
+struct CmU2GnkContext {
+    const cldnn::device_info& info;
+    bool cm_jit_supported;
+    bool f16_activations;
+};
+
+// Multiply -> Transpose{1, 0, 2} -> Reshape (3D -> 2D) -> MatMul on constant u2 GNK weights [G, N, gs] that the CM u2
+// FC kernel runs natively. Kept unfolded so ConvertFullyConnectedToFullyConnectedCompressed can emit a GNK FC.
+static bool is_cm_u2_gnk_decompression(const std::shared_ptr<const ov::Node>& multiply, const CmU2GnkContext& gnk) {
+    if (!gnk.f16_activations || !ov::is_type<ov::op::v1::Multiply>(multiply))
+        return false;
+    auto single_consumer = [](const ov::Node* node) -> ov::Node* {
+        const auto consumers = node->get_output_target_inputs(0);
+        return consumers.size() == 1 ? consumers.begin()->get_node() : nullptr;
+    };
+    const auto* transpose = ov::as_type<ov::op::v1::Transpose>(single_consumer(multiply.get()));
+    if (!transpose)
+        return false;
+    const auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+    if (!order || order->cast_vector<int64_t>() != std::vector<int64_t>{1, 0, 2})
+        return false;
+    const auto* reshape = ov::as_type<ov::op::v1::Reshape>(single_consumer(transpose));
+    if (!reshape || reshape->get_input_partial_shape(0).rank() != 3 || reshape->get_output_partial_shape(0).rank() != 2)
+        return false;
+    const auto reshape_consumers = reshape->get_output_target_inputs(0);
+    if (reshape_consumers.empty() || !std::all_of(reshape_consumers.begin(), reshape_consumers.end(), [](const ov::Input<ov::Node>& in) {
+            return in.get_index() == 1 && ov::is_type<ov::op::v0::MatMul>(in.get_node());
+        }))
+        return false;
+
+    // Multiply(Subtract(Convert(W), zp) or Convert(W), scale); scale / zp may sit behind a Convert.
+    auto skip_convert = [](const std::shared_ptr<ov::Node>& node) {
+        return ov::is_type<ov::op::v0::Convert>(node) ? node->get_input_node_shared_ptr(0) : node;
+    };
+    for (size_t data_idx : {0, 1}) {
+        auto data = multiply->get_input_node_shared_ptr(data_idx);
+        const auto scale = ov::as_type_ptr<ov::op::v0::Constant>(skip_convert(multiply->get_input_node_shared_ptr(1 - data_idx)));
+        std::shared_ptr<ov::op::v0::Constant> zp;
+        if (ov::is_type<ov::op::v1::Subtract>(data)) {
+            zp = ov::as_type_ptr<ov::op::v0::Constant>(skip_convert(data->get_input_node_shared_ptr(1)));
+            data = data->get_input_node_shared_ptr(0);
+        }
+        const auto weights = ov::is_type<ov::op::v0::Convert>(data) ? ov::as_type_ptr<ov::op::v0::Constant>(data->get_input_node_shared_ptr(0)) : nullptr;
+        if (!weights || !scale)
+            continue;
+        // With f16 inference ConvertPrecision makes a real scale f16 before ConvertFullyConnectedToFullyConnectedCompressed runs.
+        const auto scale_et = cldnn::one_of(scale->get_element_type(), {ov::element::f16, ov::element::f32, ov::element::bf16}) ? ov::element::f16
+                                                                                                                                 : scale->get_element_type();
+        return ov::intel_gpu::cm::woq_u2_accepts_gnk(gnk.info,
+                                                     gnk.cm_jit_supported,
+                                                     weights->get_element_type(),
+                                                     weights->get_output_partial_shape(0),
+                                                     scale_et,
+                                                     scale->get_output_partial_shape(0),
+                                                     zp != nullptr,
+                                                     zp ? zp->get_element_type() : ov::element::dynamic,
+                                                     zp ? zp->get_output_partial_shape(0) : ov::PartialShape{});
+    }
+    return false;
+}
+
+static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node, bool supports_immad, const CmU2GnkContext& cm_u2_gnk) {
+    if (is_cm_u2_gnk_decompression(node, cm_u2_gnk))
+        return true;
+
     std::vector<ov::DiscreteTypeInfo> target_consumers = {ov::opset1::MatMul::get_type_info_static(),
                                                           ov::op::internal::MOE::get_type_info_static(),
                                                           ov::op::v8::Gather::get_type_info_static(),
@@ -617,6 +685,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     if (infer_precision != ov::element::dynamic && !fp_precision_supported(infer_precision)) {
         infer_precision = fallback_precision;
     }
+    const bool cm_jit_supported = (device_info.arch == cldnn::gpu_arch::xe2 || device_info.arch == cldnn::gpu_arch::xe3) &&
+                                  check_cm_jit_support(m_context->get_engine(), config);
+    const CmU2GnkContext cm_u2_gnk{device_info, cm_jit_supported, infer_precision == ov::element::f16};
     {
         using namespace ov::pass::low_precision;
         const auto enableQDQStripping = LowPrecision::isFunctionQuantized(func, std::set<levels>{levels::int16});
@@ -789,7 +860,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::KeepConstPrecision>(supported_woq_types, !device_info.supports_immad);
         pass_config->set_callback<ov::pass::MarkDequantization,
                 ov::pass::KeepConstPrecision>([&](const std::shared_ptr<const ov::Node> node) {
-            return !is_decompression_multiply(node, device_info.supports_immad);
+            return !is_decompression_multiply(node, device_info.supports_immad, cm_u2_gnk);
         });
 
         pass_config->set_callback<ov::pass::RMSFusionMatcher>([OV_CAPTURE_CPY_AND_THIS](const_node_ptr& root) -> bool {
@@ -1531,19 +1602,19 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const auto& consumers = node->get_output_target_inputs(0);
             if (consumers.size() == 1) {
                 const auto consumer = consumers.begin()->get_node()->shared_from_this();
-                return ov::is_type<ov::opset1::Multiply>(consumer) && is_decompression_multiply(consumer, device_info.supports_immad);
+                return ov::is_type<ov::opset1::Multiply>(consumer) && is_decompression_multiply(consumer, device_info.supports_immad, cm_u2_gnk);
             }
             return false;
         });
         lptPassConfig->set_callback<FuseConvertTransformation>([&](const_node_ptr& node) -> bool {
             if (ov::is_type<ov::opset1::Multiply>(node)) {
-                return ov::is_type<ov::opset1::Multiply>(node) && is_decompression_multiply(node, device_info.supports_immad);
+                return ov::is_type<ov::opset1::Multiply>(node) && is_decompression_multiply(node, device_info.supports_immad, cm_u2_gnk);
             }
             if (ov::is_type<ov::opset1::Subtract>(node)) {
                 const auto& consumers = node->get_output_target_inputs(0);
                 if (consumers.size() == 1) {
                     const auto consumer = consumers.begin()->get_node()->shared_from_this();
-                    return ov::is_type<ov::opset1::Multiply>(consumer) && is_decompression_multiply(consumer, device_info.supports_immad);
+                    return ov::is_type<ov::opset1::Multiply>(consumer) && is_decompression_multiply(consumer, device_info.supports_immad, cm_u2_gnk);
                 }
             }
             return false;
@@ -1742,7 +1813,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::ReduceFCDimensions>();
         }
-        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
+        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>(device_info, cm_jit_supported);
         manager.register_pass<ov::intel_gpu::FoldActivationTranspose>();
 
         const bool disable_horizontal_fc_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_horizontal_fc_fusion(), false);
