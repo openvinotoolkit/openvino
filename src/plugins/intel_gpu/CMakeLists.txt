@@ -54,6 +54,11 @@ if(OV_COMPILER_IS_CLANG)
             }
         ")
 
+        # Compile SYCL device code for NVIDIA GPUs.
+        if(GPU_VENDOR STREQUAL "NVIDIA")
+            list(APPEND SYCL_EXTRA_FLAGS -fsycl-targets=nvptx64-nvidia-cuda)
+        endif()
+
         cmake_push_check_state(RESET)
         string(JOIN " " CMAKE_REQUIRED_FLAGS ${FSYCL_OPTION} ${SYCL_EXTRA_FLAGS})
         check_cxx_source_compiles("${CHECK_SYCL_HEADER_SOURCE}" HAS_SYCL_HEADER_WITH_FSYCL)
@@ -126,6 +131,13 @@ add_definitions(-DCL_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
 if(APPLE)
     add_definitions(-DCL_HPP_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
 endif()
+
+if(GPU_VENDOR STREQUAL "NVIDIA" AND NOT GPU_RT_TYPE STREQUAL "SYCL")
+    message(FATAL_ERROR "GPU_VENDOR=NVIDIA requires GPU_RT_TYPE=SYCL")
+endif()
+
+# GPU vendor the plugin is built for (not the vendor of the device found at runtime)
+add_compile_definitions(OV_GPU_VENDOR_${GPU_VENDOR})
 
 set(MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")

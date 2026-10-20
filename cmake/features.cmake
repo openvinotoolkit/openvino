@@ -55,6 +55,8 @@ if (ENABLE_INTEL_GPU)
         message(FATAL_ERROR "GPU_RT_TYPE=COMBINED requires BUILD_SHARED_LIBS=ON. "
                             "Static/monolithic builds support a single GPU runtime only.")
     endif()
+    ov_option_enum (GPU_VENDOR "Target GPU vendor. Supported values: INTEL (default) and NVIDIA (SYCL runtime only)" INTEL
+                    ALLOWED_VALUES INTEL NVIDIA)
 endif()
 
 ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
