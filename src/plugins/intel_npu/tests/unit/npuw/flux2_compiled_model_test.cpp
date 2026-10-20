@@ -9,14 +9,17 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "llm_test_helpers.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "serialization.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 namespace {
 
@@ -30,6 +33,7 @@ constexpr const char* kDynQuant = "NPU_COMPILER_DYNAMIC_QUANTIZATION";
 constexpr const char* kF16IC = "NPUW_F16IC";
 constexpr const char* kCompileParams = "NPU_COMPILATION_MODE_PARAMS";
 constexpr const char* kOnlinePipeline = "NPUW_ONLINE_PIPELINE";
+constexpr const char* kTiles = "NPU_TILES";
 
 std::shared_ptr<ov::Model> make_model(const std::string& model_name,
                                       const ov::element::Type& type,
@@ -69,6 +73,43 @@ public:
 private:
     std::vector<CompileCall> m_calls;
 };
+
+// Plugin that reports a specific NPU architecture and max-tiles count so the
+// architecture-aware tile configuration path can be exercised without real hardware.
+class ArchAwarePlugin final : public NullPlugin {
+public:
+    ArchAwarePlugin(std::string arch, int64_t max_tiles) : m_arch(std::move(arch)), m_max_tiles(max_tiles) {}
+
+    ov::Any get_property(const std::string& name, const ov::AnyMap&) const override {
+        if (name == ov::device::architecture.name()) {
+            return m_arch;
+        }
+        if (name == ov::intel_npu::max_tiles.name()) {
+            return m_max_tiles;
+        }
+        return {};
+    }
+
+private:
+    std::string m_arch;
+    int64_t m_max_tiles;
+};
+
+std::shared_ptr<ov::MockICore> attach_mock_core_with_npu_device(
+    const std::shared_ptr<ov::IPlugin>& plugin,
+    std::vector<std::string> device_list = std::vector<std::string>{"0"}) {
+    auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    plugin->set_core(core);
+
+    ON_CALL(*core,
+            get_property(testing::StrEq("NPU"),
+                         testing::StrEq(ov::available_devices.name()),
+                         testing::An<const ov::AnyMap&>()))
+        .WillByDefault([device_list](const std::string&, const std::string&, const ov::AnyMap&) -> ov::Any {
+            return ov::Any(device_list);
+        });
+    return core;
+}
 
 // Build a header matching Flux2CompiledModel::export_model so import_model's validation
 // can be exercised without a real inner ORC blob.
@@ -344,6 +385,230 @@ TEST_F(Flux2CompiledModelTest, ImportRejectsVersionMismatch) {
                                           std::string(NPUW_SERIALIZATION_VERSION));
     std::istringstream stream(header);
     EXPECT_THROW(ov::npuw::Flux2CompiledModel::import_model(stream, m_plugin, {}), ov::Exception);
+}
+
+// --- Architecture-aware NPU tile configuration ------------------------------
+
+TEST_F(Flux2CompiledModelTest, Arch5000SeriesSetsNpuTilesForTransformer) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("5010", 3);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+                        {},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.at(kTiles).as<int64_t>(), 3);
+    EXPECT_EQ(call.props.at(kCompileParams).as<std::string>(), "compute-layers-with-higher-precision=MVN");
+}
+
+TEST_F(Flux2CompiledModelTest, Arch4000AddsOptimizationLevelAndSetsNpuTiles) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("4000", 4);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+                        {},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.at(kTiles).as<int64_t>(), 4);
+    EXPECT_EQ(call.props.at(kCompileParams).as<std::string>(),
+              "compute-layers-with-higher-precision=MVN optimization-level=3");
+}
+
+TEST_F(Flux2CompiledModelTest, Arch3720SkipsNpuTiles) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("3720", 2);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+                        {},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.count(kTiles), 0u);
+    EXPECT_EQ(call.props.at(kCompileParams).as<std::string>(), "compute-layers-with-higher-precision=MVN");
+}
+
+TEST_F(Flux2CompiledModelTest, ArchAutoDetectUsesDefaultConfigAndSkipsNpuTiles) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("AUTO_DETECT", 4);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+                        {},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.count(kTiles), 0u);
+    EXPECT_EQ(call.props.at(kCompileParams).as<std::string>(), "compute-layers-with-higher-precision=MVN");
+}
+
+TEST_F(Flux2CompiledModelTest, Arch6010AppendsLatencyHintAndSkipsNpuTiles) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("6010", 4);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+                        {},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.count(kTiles), 0u);
+    EXPECT_EQ(call.props.at(kCompileParams).as<std::string>(),
+              "compute-layers-with-higher-precision=MVN performance-hint-override=latency");
+}
+
+TEST_F(Flux2CompiledModelTest, ArchAtLeast6000UsesDefaultConfig) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("7000", 8);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+                        {},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.count(kTiles), 0u);
+    EXPECT_EQ(call.props.at(kCompileParams).as<std::string>(), "compute-layers-with-higher-precision=MVN");
+}
+
+// Submodels without their own compile params (e.g. text_encoder) still get NPU_TILES
+// on 5000-series, but no NPU_COMPILATION_MODE_PARAMS, since 5010 adds no compile token.
+TEST_F(Flux2CompiledModelTest, Arch5000SeriesSetsNpuTilesForTextEncoderWithoutCompileParams) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("5010", 3);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        make_model("flux_text_encoder", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+                        {},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.at(kTiles).as<int64_t>(), 3);
+    EXPECT_EQ(call.props.at(kF16IC).as<std::string>(), "NO");
+    EXPECT_EQ(call.props.count(kCompileParams), 0u);
+}
+
+// --- NPU_COMPILATION_MODE_PARAMS is appended, not overwritten ---------------
+
+// Regression: a user-provided NPU_COMPILATION_MODE_PARAMS used to replace the per-submodel
+// precision hint. It must now be appended so both tokens survive.
+TEST_F(Flux2CompiledModelTest, UserCompilationParamsAppendToSubmodelDefault) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+                        {{kCompileParams, "performance-hint-override=latency"}},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_EQ(recorder.only_call().props.at(kCompileParams).as<std::string>(),
+              "compute-layers-with-higher-precision=MVN performance-hint-override=latency");
+}
+
+TEST_F(Flux2CompiledModelTest, UserCompilationParamsAppendAfterArchParams) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("4000", 4);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+                        {{kCompileParams, "performance-hint-override=latency"}},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.at(kTiles).as<int64_t>(), 4);
+    EXPECT_EQ(call.props.at(kCompileParams).as<std::string>(),
+              "compute-layers-with-higher-precision=MVN optimization-level=3 performance-hint-override=latency");
+}
+
+TEST_F(Flux2CompiledModelTest, TransformerUserHigherPrecisionLayersAppendToDefault) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model(
+            make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+            {{kCompileParams, "compute-layers-with-higher-precision=Sqrt,MVN performance-hint-override=latency"}},
+            recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_EQ(recorder.only_call().props.at(kCompileParams).as<std::string>(),
+              "compute-layers-with-higher-precision=MVN,Sqrt performance-hint-override=latency");
+}
+
+TEST_F(Flux2CompiledModelTest, UserCompilationParamsReplaceMatchingArchParam) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("4000", 4);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+                        {{kCompileParams, "optimization-level=2"}},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_EQ(recorder.only_call().props.at(kCompileParams).as<std::string>(),
+              "compute-layers-with-higher-precision=MVN optimization-level=2");
+}
+
+// User-provided NPU_TILES takes priority over the arch-computed default.
+TEST_F(Flux2CompiledModelTest, UserNpuTilesOverrideArchDefault) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("5010", 3);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+                        {{kTiles, static_cast<int64_t>(1)}},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.count(kTiles), 1u);
+    EXPECT_EQ(call.props.at(kTiles).as<int64_t>(), 1);
+}
+
+// No NPU backend => no architecture query => no NPU_TILES, per-submodel defaults intact.
+TEST_F(Flux2CompiledModelTest, NoNpuBackendSkipsNpuTiles) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+                        {},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.count(kTiles), 0u);
+    EXPECT_EQ(call.props.at(kCompileParams).as<std::string>(), "compute-layers-with-higher-precision=MVN");
 }
 
 }  // namespace
