@@ -68,6 +68,42 @@ TEST_F(RemoveEmptyKVInputsPassTest, GQAEmptyPastInputsBecomeConstants) {
     EXPECT_FALSE(pass.run_on_model(model));
 }
 
+TEST_F(RemoveEmptyKVInputsPassTest, GQAEmptyPastWindowedCacheBecomesConstants) {
+    auto query = std::make_shared<v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 1, 16});
+    auto key = std::make_shared<v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
+    auto value = std::make_shared<v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
+    auto past_key = std::make_shared<v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 0, 16});
+    auto past_value = std::make_shared<v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 0, 16});
+    auto seqlens = std::make_shared<v0::Parameter>(ov::element::i32, ov::Shape{1});
+    auto total_length = std::make_shared<v0::Parameter>(ov::element::i32, ov::Shape{1});
+    auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(
+        ov::OutputVector{query, key, value, past_key, past_value, seqlens, total_length},
+        4,
+        2,
+        0.0f,
+        false,
+        false,
+        0,
+        ov::op::internal::GroupQueryAttentionQuantType::NONE,
+        ov::op::internal::GroupQueryAttentionQuantType::NONE,
+        3,
+        true);
+    auto model = std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<v0::Result>(gqa->output(0)),
+                         std::make_shared<v0::Result>(gqa->output(1)),
+                         std::make_shared<v0::Result>(gqa->output(2))},
+        ov::ParameterVector{query, key, value, past_key, past_value, seqlens, total_length});
+
+    ov::npuw::RemoveEmptyKVInputs pass;
+    EXPECT_TRUE(pass.run_on_model(model));
+    EXPECT_EQ(model->get_parameters().size(), 5u);
+    EXPECT_EQ(model->outputs()[1].get_partial_shape(), (ov::PartialShape{1, 2, 1, 16}));
+    EXPECT_EQ(model->outputs()[2].get_partial_shape(), (ov::PartialShape{1, 2, 1, 16}));
+    EXPECT_TRUE(ov::is_type<v0::Constant>(gqa->input_value(3).get_node()));
+    EXPECT_TRUE(ov::is_type<v0::Constant>(gqa->input_value(4).get_node()));
+    EXPECT_FALSE(pass.run_on_model(model));
+}
+
 // Direct unit test for RemoveEmptyKVInputs: only the minimal past/current KV concat subgraph
 // is needed. This avoids relying on LLMCompiledModel orchestration to validate the matcher.
 TEST_F(RemoveEmptyKVInputsPassTest, HandlesDownUpProjSubgraph) {
