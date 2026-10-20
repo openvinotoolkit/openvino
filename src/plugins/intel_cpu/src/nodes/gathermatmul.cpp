@@ -121,6 +121,13 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
             }
         }
 
+        if (op->get_input_element_type(1) == ov::element::u2 &&
+            (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1)) || IC < 2048 || OC < 2048 ||
+             config.inferencePrecision != ov::element::f32 ||
+             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))) {
+            return false;
+        }
+
         if (IC % G != 0) {
             return false;  // sanity check IC must be evenly divided by the group size
         }
@@ -169,7 +176,7 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
 ov::element::TypeVector GatherMatmul::getSupportedCompressedWeightsTypes([[maybe_unused]] bool apply_fp8) {
     using ov::element::Type_t;
 #ifdef OPENVINO_ARCH_X86_64
-    return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4};
+    return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::u2};
 #elif defined(OPENVINO_ARCH_ARM64)
     return {Type_t::i8, Type_t::i4};
 #else
