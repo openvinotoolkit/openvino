@@ -285,8 +285,16 @@ The real Q4_K_M talker/Q8_0 projector produces finite PCM and exact repeated see
 but original quantized predictor/waveform numerical parity remains failing. Represented-F32
 predictor comparisons isolate arithmetic differences and do not replace the quantized gate.
 
-Real Gemma3n/MiniCPM media, Omni audio preprocessing, ASR transcription quality and
-TTS audio quality/cancellation still need acceptance coverage.
+Installed-runtime Qwen3-ASR Q8_0 passes a small transcription and cancellation/reset
+smoke check: two 16 kHz LibriSpeech clips, one word error across 27 reference words
+(3.7% WER), exact repeated transcripts, one cancellation token callback and one end
+callback, and matching output after reset. This does not replace the original quantized
+full-logit parity gate or establish quality on a broader speech corpus.
+
+Real Gemma3n/MiniCPM media, Omni audio preprocessing and TTS audio quality/cancellation
+still need acceptance coverage. The Qwen3VL Q4_0 checkpoint has separate successful
+repeated-image generation checks with both SDPA and PagedAttention; that result does
+not establish coverage for other projector families.
 
 ## LFM2 vision projectors
 

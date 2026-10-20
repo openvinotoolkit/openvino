@@ -236,8 +236,12 @@ is an auxiliary constant for the consumer's mapping; omitted tables use identity
 DFlash selector and LiLiCorr lattice consumers use a fixed noise block. The DSpark Markov
 head under `dflash` supports greedy in-graph conditioning, optional confidence outputs,
 reduced vocabulary, and both anchor rules. Independent CPU fixtures check every token's
-logits and confidence. Its DeepSeek-V4 backbone variant still needs implementation.
+logits and confidence. The DeepSeek-V4 backbone and support for multiple active DFlash
+requests are deferred to a follow-up PR; the current GenAI path supports one active request.
 The real Qwen3-8B Q8_0/EAGLE3 F16 pair passes repeated PA generation, two-request continuous
 batching and target-only greedy-token agreement. The Qwen3.6-35B-A3B Q4_K_M/DFlash BF16 pair
-passes repeated PA generation with prefix caching disabled. Broader drafting and multimodal
-acceptance remains outstanding. These catalog entries describe implemented graph paths.
+passes repeated PA generation with prefix caching disabled. Real Gemma3n/MiniCPM media,
+Omni audio preprocessing and TTS quality/cancellation still need acceptance coverage.
+AFMoE, Cohere2 and Qwen3Next have synthetic numerical coverage; no real-checkpoint
+numerical comparison is recorded for those families. These catalog entries describe
+implemented graph paths and the explicitly validated checkpoints.
