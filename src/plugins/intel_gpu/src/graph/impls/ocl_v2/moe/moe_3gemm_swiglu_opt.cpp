@@ -993,7 +993,8 @@ public:
     std::shared_ptr<onednn_linear> _shared_gate_gate_proj;  // The scalar gate for shared expert
 
     // Instance-specific flags (not static to avoid race conditions)
-    bool use_gpu_mask_gen_prefill = false;
+    // Set by config: build the routing masks on the GPU for prefill, overriding the per-impl heuristic
+    bool force_gpu_mask_gen_prefill = false;
     // Weight types without a batched GEMV OCL kernel (u3) run decode through OneDNN grouped GEMM instead
     MoeGemmImpl decode_impl = MoeGemmImpl::batched_gemv;  // token_num <= batched_gemv_threshold
     MoeGemmImpl prefill_impl = MoeGemmImpl::per_expert_onednn;
@@ -1001,6 +1002,30 @@ public:
 
     MoeGemmImpl select_impl(size_t token_num) const {
         return token_num <= batched_gemv_threshold ? decode_impl : prefill_impl;
+    }
+
+    // Whether the routing masks are built on the GPU (no host wait on topk) or on the host.
+    bool should_use_gpu_mask_gen(MoeGemmImpl impl, size_t token_num) const {
+        switch (impl) {
+        case MoeGemmImpl::micro_gemm:
+            return force_gpu_mask_gen_prefill;
+        case MoeGemmImpl::grouped_gemm:
+            // OTD computes the expert lease on the host
+            if (_weight_provider->is_offloaded()) {
+                return false;
+            }
+            // GPU mask gen avoids the host sync on topk, but the host never sees the real max rows per expert, which the
+            // grouped GEMM needs as a dispatch hint, so token_num is used instead. That is exact for one token
+            // but oversizes the dispatch for more (25-token prefill: 452 vs 290 ms on Qwen3.6-35B-A3B int3).
+            return force_gpu_mask_gen_prefill || token_num == 1;
+        default:
+            return false;
+        }
+    }
+
+    // Whether the grouped GEMM GPU mask gen stage and its per-expert buffers are needed
+    bool needs_grouped_gpu_mask_gen() const {
+        return decode_impl == MoeGemmImpl::grouped_gemm || (prefill_impl == MoeGemmImpl::grouped_gemm && force_gpu_mask_gen_prefill);
     }
 
     // Single-token decode on the batched GEMV path uses none of the gather/scatter scratch buffers
@@ -1012,6 +1037,23 @@ public:
         return one_of(weight_dt, {data_types::u4, data_types::i4, data_types::u8, data_types::i8, data_types::f16});
     }
 
+    // Weight types without a batched GEMV OCL kernel (u3) decode through OneDNN grouped GEMM instead
+    static MoeGemmImpl select_decode_impl(data_types weight_dt) {
+        return is_batched_gemv_supported(weight_dt) ? MoeGemmImpl::batched_gemv : MoeGemmImpl::grouped_gemm;
+    }
+
+    static MoeGemmImpl select_prefill_impl(const ExecutionConfig& config, data_types weight_dt, gpu_arch arch) {
+        // No batched GEMV kernel for this weight type: both decode and prefill go through OneDNN grouped GEMM
+        if (!is_batched_gemv_supported(weight_dt) || config.get_moe_use_grouped_gemm_prefill()) {
+            return MoeGemmImpl::grouped_gemm;
+        }
+        // micro_gemm is better than the per-expert onednn loop. Remove the weight limitation once it supports i8/u8.
+        if (config.get_moe_use_micro_gemm_prefill() && arch >= gpu_arch::xe2 && one_of(weight_dt, {data_types::u4, data_types::i4})) {
+            return MoeGemmImpl::micro_gemm;
+        }
+        return MoeGemmImpl::per_expert_onednn;
+    }
+
     moe_3gemm_swiglu_opt_impl() : PrimitiveImplOCL(moe_3gemm_swiglu_opt::get_type_info_static()) {}
     moe_3gemm_swiglu_opt_impl(const program_node& node, const RuntimeParams& params) : moe_3gemm_swiglu_opt_impl() {
         if (m_rt_params == nullptr) {
@@ -1021,48 +1063,12 @@ public:
 
         const auto& config = params.get_program().get_config();
 
-        // micro_gemm is better than gemm, default to use it
-        bool use_micro_gemm_prefill = config.get_moe_use_micro_gemm_prefill();
         // gpu mask gen kernel performance is worse than cpu mask gen, default is off
-        use_gpu_mask_gen_prefill = config.get_moe_use_gpu_mask_gen_prefill();
+        force_gpu_mask_gen_prefill = config.get_moe_use_gpu_mask_gen_prefill();
 
-        auto& engine = params.prog->get_engine();
-        const auto& info = engine.get_device_info();
-        if (info.arch < gpu_arch::xe2) {
-            use_micro_gemm_prefill = false;
-        }
-        GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
-                               << ", arch=" << static_cast<int>(info.arch) << std::endl;
-
-        // Remove this limitation once micro_gemm kernels has supported i8/u8 weights.
         const auto& weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
-        if (weight_dt != data_types::u4 && weight_dt != data_types::i4 && use_micro_gemm_prefill) {
-            use_micro_gemm_prefill = false;
-        }
-
-        // grouped_gemm path: single OneDNN grouped matmul per GEMM layer (all experts at once).
-        // micro_gemm takes priority; grouped_gemm falls back to onednn loop by default.
-        bool use_grouped_gemm_prefill = config.get_moe_use_grouped_gemm_prefill();
-        // grouped_gemm supersedes micro_gemm
-        if (use_grouped_gemm_prefill) {
-            use_micro_gemm_prefill = false;
-        }
-
-        // No batched GEMV kernel for this weight type: both decode and prefill go through OneDNN grouped GEMM
-        decode_impl = MoeGemmImpl::batched_gemv;
-        if (!is_batched_gemv_supported(weight_dt)) {
-            use_micro_gemm_prefill = false;
-            use_grouped_gemm_prefill = true;
-            decode_impl = MoeGemmImpl::grouped_gemm;
-        }
-
-        if (use_grouped_gemm_prefill) {
-            prefill_impl = MoeGemmImpl::grouped_gemm;
-        } else if (use_micro_gemm_prefill) {
-            prefill_impl = MoeGemmImpl::micro_gemm;
-        } else {
-            prefill_impl = MoeGemmImpl::per_expert_onednn;
-        }
+        decode_impl = select_decode_impl(weight_dt);
+        prefill_impl = select_prefill_impl(config, weight_dt, params.prog->get_engine().get_device_info().arch);
 
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): prefill_impl=" << static_cast<int>(prefill_impl)
                                << ", decode_impl=" << static_cast<int>(decode_impl) << std::endl;
@@ -1107,7 +1113,7 @@ public:
             add_stage(grouped_gemm_prefill_swiglu, params);
             add_stage(prefill_scatter_reduce_row_lut, params);
         }
-        if (decode_impl == MoeGemmImpl::grouped_gemm) {
+        if (needs_grouped_gpu_mask_gen()) {
             add_stage(grouped_gemm_mask_gen, params);
         }
     }
@@ -1346,7 +1352,7 @@ public:
 
     void save(BinaryOutputBuffer& ob) const override {
         PrimitiveImplOCL::save(ob);
-        ob << use_gpu_mask_gen_prefill;
+        ob << force_gpu_mask_gen_prefill;
         ob << make_data(&prefill_impl, sizeof(prefill_impl));
         ob << make_data(&decode_impl, sizeof(decode_impl));
     }
@@ -1355,7 +1361,7 @@ public:
         PrimitiveImplOCL::load(ib);
         // Read execution-path flags before init() so any future init() logic
         // that depends on them sees the deserialized (not default) values.
-        ib >> use_gpu_mask_gen_prefill;
+        ib >> force_gpu_mask_gen_prefill;
         ib >> make_data(&prefill_impl, sizeof(prefill_impl));
         ib >> make_data(&decode_impl, sizeof(decode_impl));
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
@@ -1379,7 +1385,7 @@ public:
         cur_moe->_gate_up_group_size = _gate_up_group_size;
         cur_moe->_down_group_size = _down_group_size;
         cur_moe->_weight_provider = _weight_provider;  // shared across clones within the same network
-        cur_moe->use_gpu_mask_gen_prefill = use_gpu_mask_gen_prefill;
+        cur_moe->force_gpu_mask_gen_prefill = force_gpu_mask_gen_prefill;
         cur_moe->prefill_impl = prefill_impl;
         cur_moe->decode_impl = decode_impl;
         cur_moe->batched_gemv_threshold = batched_gemv_threshold;
@@ -1436,10 +1442,10 @@ public:
         if (prefill_impl == MoeGemmImpl::grouped_gemm && needs_gather_scratch(token_num)) {
             // Buffers 7-9 and 11 fed the base scatter_reduce kernel, which the grouped path replaced
             // with the row_lut kernel. The slots stay to keep the shared indices, the storage does not,
-            // except 7 and 9, which the GPU mask gen of the grouped decode path writes (one entry per activated expert).
+            // except 7 and 9, which the grouped GPU mask gen writes (one entry per activated expert).
             layout layout_unused(ov::Shape{1}, ov::element::i32, cldnn::format::bfyx);
             layout layout_per_expert(ov::Shape{expert_num}, ov::element::i32, cldnn::format::bfyx);
-            const bool grouped_decode = decode_impl == MoeGemmImpl::grouped_gemm;
+            const bool grouped_decode = needs_grouped_gpu_mask_gen();
             internal_buffers.emplace_back(grouped_decode ? layout_per_expert : layout_unused, false);  // 7: activated expert ids
             internal_buffers.emplace_back(layout_unused, false);  // 8: token start offset per activated expert (unused here)
             internal_buffers.emplace_back(grouped_decode ? layout_per_expert : layout_unused, false);  // 9: token len per activated expert
@@ -2730,14 +2736,7 @@ public:
         if (impl != MoeGemmImpl::micro_gemm && should_pre_zero_output()) {
             final_hidden_states_mem_ptr->fill(stream, 0u);
         }
-        // GPU mask gen is used by micro_gemm (optional) and by grouped_gemm for single-token decode. Otherwise the CPU
-        // mask gen needs topk to be ready first.
-        // Grouped GEMM gets the max rows per expert as a dispatch hint. Without the host mask only token_num is known as
-        // its bound, which is exact for one token but oversizes the dispatch for more (25-token prefill: 452 vs 290 ms
-        // first token on Qwen3.6-35B-A3B int3), while GPU mask gen saves only ~1 ms/token of host sync in decode.
-        // OTD computes the expert lease on the host.
-        const bool grouped_gpu_mask_gen = impl == MoeGemmImpl::grouped_gemm && token_num == 1 && !_weight_provider->is_offloaded();
-        const bool use_gpu_mask_gen = (impl == MoeGemmImpl::micro_gemm && use_gpu_mask_gen_prefill) || grouped_gpu_mask_gen;
+        const bool use_gpu_mask_gen = should_use_gpu_mask_gen(impl, token_num);
         if (!use_gpu_mask_gen) {
             // Wait for input events (topk produced upstream by MoERouterFused)
             for (const auto& ev : events) {
@@ -2753,9 +2752,8 @@ public:
         if (impl == MoeGemmImpl::micro_gemm) {
             ret_env = exec_prefill_micro_gemm(events, instance, scratch, use_gpu_mask_gen);
         } else if (impl == MoeGemmImpl::grouped_gemm) {
-            // Same grouped GEMM either way: only the routing metadata comes from the GPU (1 token) or from the host mask gen
-            ret_env = grouped_gpu_mask_gen ? exec_grouped_gemm_gpu_mask_gen(events, stream, instance, scratch)
-                                           : exec_grouped_gemm_cpu_mask_gen(events, stream, instance, scratch);
+            ret_env = use_gpu_mask_gen ? exec_grouped_gemm_gpu_mask_gen(events, stream, instance, scratch)
+                                       : exec_grouped_gemm_cpu_mask_gen(events, stream, instance, scratch);
             // In OTD mode the grouped_gemm path interleaves OCL kernels with OneDNN
             // grouped matmul on the same in-order queue. The framework's event-based
             // scheduling may proceed to subsequent graph nodes before scatter_reduce
