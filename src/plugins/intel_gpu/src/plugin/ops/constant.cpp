@@ -106,7 +106,7 @@ struct ConstProperties {
 static bool is_grouped_fc_decompression_param(const ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Constant>& op) {
     const auto& shape = op->get_shape();
     // One group ([N, 1]) has the same order in both layouts and isn't reordered; sub-byte zp (u4 / i4) keeps the plain layout
-    if (!p.use_new_shape_infer() || shape.size() != 2 || shape[1] < 2 || op->get_output_element_type(0).bitwidth() < 8)
+    if (!p.use_new_shape_infer() || shape.size() != 2 || shape[1] == 1 || op->get_output_element_type(0).bitwidth() < 8)
         return false;
     const auto users = op->get_output_target_inputs(0);
     if (users.empty())
