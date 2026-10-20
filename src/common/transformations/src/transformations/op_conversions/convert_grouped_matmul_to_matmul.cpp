@@ -125,8 +125,8 @@ ConvertGroupedMatMul2Dx3DToMatMul::ConvertGroupedMatMul2Dx3DToMatMul() {
         group_outputs.reserve(static_cast<size_t>(num_groups));
 
         for (int64_t g = 0; g < num_groups; ++g) {
-            auto b_g = rg.make<v0::Squeeze>(b_split->output(g), axis_1d);                  // [N, K]
-            auto mm = rg.make<v0::MatMul>(a_split->output(g), b_g, false, true);           // [Mg, N]
+            auto b_g = rg.make<v0::Squeeze>(b_split->output(g), axis_1d);         // [N, K]
+            auto mm = rg.make<v0::MatMul>(a_split->output(g), b_g, false, true);  // [Mg, N]
             group_outputs.push_back(std::move(mm));
         }
 
