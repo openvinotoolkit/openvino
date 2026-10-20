@@ -11,10 +11,35 @@
 
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "util.hpp"
 
 using namespace ov::npuw;
 
+namespace ov {
+namespace test {
+namespace npuw {
+
+// Reaches the strategy-only entry points of the block manager.
+struct KVCacheBlockManagerTestAccess {
+    static uint32_t inject(ov::npuw::KVCacheBlockManager& manager, ov::SoPtr<ov::ITensor> tensor, uint32_t tokens) {
+        return manager.allocate_block_with_tensor(std::move(tensor), tokens);
+    }
+    static void share(ov::npuw::KVCacheBlockManager& manager, uint32_t block_id) {
+        manager.mark_block_shared(block_id);
+    }
+    static bool unshare(ov::npuw::KVCacheBlockManager& manager, uint32_t block_id) {
+        return manager.unshare_block(block_id);
+    }
+};
+
+}  // namespace npuw
+}  // namespace test
+}  // namespace ov
+
 namespace {
+
+using ov::test::npuw::KVCacheBlockManagerTestAccess;
 
 // Test fixture for KVCacheBlockManager tests
 class KVCacheBlockManagerTest : public ::testing::Test {
@@ -393,6 +418,74 @@ TEST_F(KVCacheBlockManagerTest, NumFreeBlocks) {
         manager->allocate_block();
     }
     EXPECT_EQ(manager->num_free_blocks(), 0u);
+}
+
+// Injected tensors are reported in injection order, not block ID order.
+TEST_F(KVCacheBlockManagerTest, InjectedBlocksKeepSequenceOrder) {
+    auto first = ov::npuw::util::allocMem(elem_type, base_shape, device, nullptr);
+    auto second = ov::npuw::util::allocMem(elem_type, base_shape, device, nullptr);
+
+    const auto id0 = KVCacheBlockManagerTestAccess::inject(*manager, first, block_size);
+    const auto id1 = KVCacheBlockManagerTestAccess::inject(*manager, second, block_size);
+    const auto id2 = manager->allocate_block().value();
+
+    const auto allocated = manager->get_allocated_blocks();
+    ASSERT_EQ(allocated.size(), 3u);
+    EXPECT_EQ(allocated[0], id0);
+    EXPECT_EQ(allocated[1], id1);
+    EXPECT_EQ(allocated[2], id2);
+    EXPECT_EQ(manager->get_block_tensor(id0)->data(), first->data());
+    EXPECT_EQ(manager->get_block_tensor(id1)->data(), second->data());
+    EXPECT_EQ(manager->get_block_tokens(id0), block_size);
+}
+
+// A tensor the prefix cache references must not stay in the pool as warm scratch memory.
+TEST_F(KVCacheBlockManagerTest, ReleaseDropsSharedTensorsEvenWhenWarm) {
+    const auto shared_id = manager->allocate_block().value();
+    const auto private_id = manager->allocate_block().value();
+    auto shared_tensor = manager->get_block_tensor(shared_id);
+    auto private_data = manager->get_block_tensor(private_id)->data();
+    KVCacheBlockManagerTestAccess::share(*manager, shared_id);
+
+    manager->release(2);
+
+    // The pool let go of the shared tensor, so only this test still holds it.
+    EXPECT_EQ(shared_tensor._ptr.use_count(), 1);
+    // The private block was kept warm and is handed out again with the same memory.
+    EXPECT_EQ(manager->allocate_block().value(), shared_id);
+    EXPECT_NE(manager->get_block_tensor(shared_id)->data(), shared_tensor->data());
+    EXPECT_EQ(manager->allocate_block().value(), private_id);
+    EXPECT_EQ(manager->get_block_tensor(private_id)->data(), private_data);
+}
+
+TEST_F(KVCacheBlockManagerTest, TruncateDropsSharedSuffixTensors) {
+    manager->allocate_block();
+    const auto shared_id = manager->allocate_block().value();
+    auto shared_tensor = manager->get_block_tensor(shared_id);
+    KVCacheBlockManagerTestAccess::share(*manager, shared_id);
+
+    manager->truncate_allocated(1);
+
+    EXPECT_EQ(shared_tensor._ptr.use_count(), 1);
+}
+
+TEST_F(KVCacheBlockManagerTest, UnshareGivesPrivateCopy) {
+    const auto id = manager->allocate_block().value();
+    auto original = manager->get_block_tensor(id);
+    std::fill_n(original->data<ov::float16>(), 8, ov::float16(3.0f));
+    manager->update_block_tokens(id, block_size);
+
+    // A block that was never shared is left alone.
+    EXPECT_FALSE(KVCacheBlockManagerTestAccess::unshare(*manager, id));
+    EXPECT_EQ(manager->get_block_tensor(id)->data(), original->data());
+
+    KVCacheBlockManagerTestAccess::share(*manager, id);
+    EXPECT_TRUE(KVCacheBlockManagerTestAccess::unshare(*manager, id));
+
+    auto copy = manager->get_block_tensor(id);
+    EXPECT_NE(copy->data(), original->data());
+    EXPECT_EQ(copy->data<ov::float16>()[0], ov::float16(3.0f));
+    EXPECT_EQ(manager->get_block_tokens(id), block_size);
 }
 
 }  // namespace

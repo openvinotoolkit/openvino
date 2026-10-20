@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "llm_kvcache_strategy.hpp"
@@ -48,6 +49,14 @@ public:
     // model's past KV layout so the chunked prefill can resume from `keep`.
     void continue_prefill(uint32_t keep, uint32_t delta_len) override;
 
+    // Prefix caching. Blocks hold CPU copies of the KV slices; restoring copies them back into
+    // the prefill model's past KV inputs.
+    void apply_cached_prefix_blocks(const std::vector<std::shared_ptr<KVBlock>>& blocks) override;
+    std::shared_ptr<KVBlock> make_prefix_block(size_t block_token_start,
+                                               size_t out_token_offset,
+                                               size_t block_size,
+                                               const std::vector<uint64_t>& token_hashes) override;
+
 private:
     // Static per-tensor facts, derived once in on_initialize() so the
     // continuation paths do not reclassify tensors on every call.
@@ -56,6 +65,10 @@ private:
         bool is_value = false;
     };
     std::vector<KVPairInfo> m_kv_pairs;
+
+    // Prefill KV output name ("present.*") -> prefill past KV input name; built in on_initialize()
+    // when prefix caching is enabled.
+    std::unordered_map<std::string, std::string> m_prefill_out_to_in_port_map;
 };
 
 }  // namespace npuw
