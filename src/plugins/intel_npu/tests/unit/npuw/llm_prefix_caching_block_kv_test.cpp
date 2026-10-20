@@ -25,6 +25,7 @@ using ov::test::npuw::build_llm_test_model;
 using ov::test::npuw::KVCacheBlockManagerTestAccess;
 using ov::test::npuw::LLMBlockKvTestAccess;
 using ov::test::npuw::LLMKvTestPipeline;
+using ov::test::npuw::to_floats;
 
 class PrefixCacheBlockKv : public ov::test::npuw::LLMBlockKvTest {
 protected:
@@ -190,6 +191,48 @@ TEST_F(PrefixCacheBlockKv, CachedTensorIsNotReusedAsScratchByAnotherPrompt) {
     const auto current = key_block_data(pipeline.request(), 0);
     for (const auto& [layer_idx, data] : cached) {
         EXPECT_NE(current.at(layer_idx), data) << "layer " << layer_idx;
+    }
+}
+
+// A generate step that rewinds into a cached block writes new KV there, which must go to a
+// private copy: the cache keeps serving the original prompt.
+TEST_F(PrefixCacheBlockKv, GenerateRewoundIntoCachedBlockLeavesItUntouched) {
+    LLMKvTestPipeline pipeline(build_llm_test_model(), prefix_props());
+    pipeline.prefill(kTwoBlocks, 0);
+
+    std::map<uint32_t, ov::SoPtr<ov::ITensor>> cached;
+    std::map<uint32_t, std::vector<float>> cached_before;
+    for (const auto& [layer_idx, layer] : managers(pipeline.request())) {
+        cached[layer_idx] = layer.key_manager->get_block_tensor(layer.key_manager->get_allocated_blocks().at(0));
+        // The fake writes the same value every time, so zero the block to make a write visible.
+        ov::npuw::util::fill_tensor_bytes(cached[layer_idx], 0u);
+        cached_before[layer_idx] = to_floats(cached[layer_idx]);
+    }
+
+    pipeline.generate_step(kBlock - 1, kBlock - 1);  // position 31 is the last row of block 0
+
+    for (const auto& [layer_idx, layer] : managers(pipeline.request())) {
+        const auto id = layer.key_manager->get_allocated_blocks().at(0);
+        const auto pooled = layer.key_manager->get_block_tensor(id);
+        EXPECT_EQ(to_floats(cached.at(layer_idx)), cached_before.at(layer_idx))
+            << "cached keys changed, layer " << layer_idx;
+        EXPECT_NE(pooled->data(), cached.at(layer_idx)->data()) << "layer " << layer_idx;
+        EXPECT_NE(to_floats(pooled), cached_before.at(layer_idx)) << "the step did not write, layer " << layer_idx;
+        EXPECT_FALSE(KVCacheBlockManagerTestAccess::is_shared(*layer.key_manager, id)) << "layer " << layer_idx;
+
+        // The generate request has to read the copy that now holds the new row.
+        const std::string port = "past_key_values." + std::to_string(layer_idx) + ".key_block_0";
+        EXPECT_EQ(LLMBlockKvTestAccess::generate_past(pipeline.request(), port)->data(), pooled->data())
+            << "layer " << layer_idx;
+    }
+
+    // The same prompt again hits the cache and gets the original block back.
+    pipeline.prefill(kTwoBlocks, 0);
+    for (const auto& [layer_idx, layer] : managers(pipeline.request())) {
+        const auto id = layer.key_manager->get_allocated_blocks().at(0);
+        const auto restored = layer.key_manager->get_block_tensor(id);
+        EXPECT_EQ(restored->data(), cached.at(layer_idx)->data()) << "layer " << layer_idx;
+        EXPECT_EQ(to_floats(restored), cached_before.at(layer_idx)) << "layer " << layer_idx;
     }
 }
 
