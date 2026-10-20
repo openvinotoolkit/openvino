@@ -168,11 +168,16 @@ std::vector<std::string> executed_stages() {
     return names;
 }
 
-/// With C = 4, C*D is always a multiple of 64, so only L decides the DPAS READ pipeline.
-/// The write gate is fused into DOWN_PROJ and the branch mix into UP_PROJ.
-std::vector<std::string> expected_read_stages(size_t L, bool /*write_gate*/) {
+/// With C = 4, C*D is always a multiple of 64, so only L decides the DPAS READ path. Above
+/// 4 rows per EU (and D % 32 == 0) the single-kernel gr_read_dpas.cm replaces the 3-kernel
+/// pipeline, whose DOWN_PROJ carries the write gate and UP_PROJ the branch mix.
+std::vector<std::string> expected_read_stages(size_t rows, size_t D, size_t L) {
     if (L % 32 != 0) {
         return {"READ"};
+    }
+    const size_t eu = get_test_engine().get_device_info().execution_units_count;
+    if (D % 32 == 0 && rows > 4 * eu) {
+        return {"READ_DPAS"};
     }
     return {"RBAR", "DOWN_PROJ", "UP_PROJ"};
 }
@@ -246,7 +251,7 @@ TEST_P(gated_residual_read_test, matches_fp32_reference) {
     ASSERT_TRUE(outputs.count("gr_read") > 0);
 
     cldnn::mem_lock<ov::float16> mixed_out(outputs.at("gr_read").get_memory(), get_test_stream());
-    EXPECT_EQ(executed_stages(), expected_read_stages(p.L, tc.produce_write_gate));
+    EXPECT_EQ(executed_stages(), expected_read_stages(p.rows, p.D, p.L));
     ASSERT_EQ(mixed_out.size(), ref_mixed.size());
     for (size_t i = 0; i < ref_mixed.size(); i++) {
         ASSERT_NEAR(static_cast<float>(mixed_out[i]), ref_mixed[i], 2e-2f) << "mixed mismatch at " << i;
@@ -294,8 +299,10 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            gr_read_case{257, 640, 320, true},  // production-like width, mid tiling
                                            gr_read_case{17, 2560, 320, true},   // real Qwen4-Exp width, decode tiling
                                            gr_read_case{100, 2560, 320, true},  // real Qwen4-Exp width, mid tiling
-                                           gr_read_case{1000, 64, 32, true},  // wide tiling on <= 250-EU devices
-                                           gr_read_case{777, 48, 64, false},  // wide tiling, partial tiles
+                                           gr_read_case{1000, 64, 32, true},  // wide tiling / single kernel (> 4 rows per EU)
+                                           gr_read_case{777, 48, 64, false},  // wide tiling, partial tiles (D % 32 != 0)
+                                           gr_read_case{1111, 128, 64, true, true},  // single kernel, partial 32-row tile
+                                           gr_read_case{700, 640, 320, false},      // single kernel, production-like width
                                            // L=16 keeps these on gr_read.cm; above 32 rows one work-group owns
                                            // several rows, the last group only partially filled.
                                            gr_read_case{37, 64, 16, true},
@@ -356,7 +363,7 @@ TEST_P(gated_residual_final_mix_test, matches_read) {
 
     auto outputs = network.execute();
     cldnn::mem_lock<ov::float16> out(outputs.at("gr_final").get_memory(), get_test_stream());
-    EXPECT_EQ(executed_stages(), expected_read_stages(p.L, false));
+    EXPECT_EQ(executed_stages(), expected_read_stages(p.rows, p.D, p.L));
     ASSERT_EQ(out.size(), ref_mixed.size());
     for (size_t i = 0; i < ref_mixed.size(); i++) {
         ASSERT_NEAR(static_cast<float>(out[i]), ref_mixed[i], 2e-2f);

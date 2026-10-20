@@ -162,6 +162,15 @@ const char* gr_tier_suffix(GrTier tier) {
     }
 }
 
+constexpr size_t gr_read_dpas_tm = 32;  // token rows per gr_read_dpas.cm work-group
+
+/// Above ~4 rows per EU (the down projection's wide tier) the single systolic kernel
+/// gr_read_dpas.cm beats the 3-kernel pipeline (B580 3-8%, PTL ~25% at D=2560) and needs
+/// no RBAR/T scratch; below it the pipeline's split-K tiers parallelize better.
+bool use_single_dpas_read(const gated_residual& desc, const cldnn::device_info& info, size_t num_rows) {
+    return desc.hidden_size % 32 == 0 && num_rows > 4 * static_cast<size_t>(info.execution_units_count);
+}
+
 /// Whether the systolic (cm_dpas) READ/FINAL_MIX pipeline (gr_rbar_dpas ->
 /// gr_down_proj_dpas[+write gate] -> gr_up_proj_dpas[+branch mix]) can replace the single
 /// fused scalar gr_read.cm kernel.
@@ -251,6 +260,69 @@ protected:
 
 private:
     bool m_decode;
+};
+
+// ---------------------------------------------------------------------------
+// G1 systolic READ / MIX in ONE kernel (many rows), see gr_read_dpas.cm
+// ---------------------------------------------------------------------------
+class GatedResidualReadDpasGenerator : public KernelGenerator {
+public:
+    GatedResidualReadDpasGenerator() : KernelGenerator("gr_read_dpas", "_cm") {}
+
+protected:
+    [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
+        return KernelGenerator::get_build_options(params) + get_gr_build_options();
+    }
+
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        const auto desc = params.typed_desc<gated_residual>();
+        jit.add(make_common_jit(desc));
+        jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
+        jit.make("GR_LOWRANK", desc->lowrank);
+        jit.add(make_jit_constant("GR_EPS", desc->epsilon));
+        jit.make("GR_NORM_GAIN_PLUS_ONE", desc->norm_gain_plus_one ? 1 : 0);
+        jit.make("GR_PRODUCE_WRITE_GATE", desc->produce_write_gate ? 1 : 0);
+        jit.make("GR_WG_SIZE", gr_wg_size);
+        jit.make("GR_RD_TM", gr_read_dpas_tm);
+        jit.make("GR_RD_NT", 2);
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        const auto desc = params.typed_desc<gated_residual>();
+        Arguments args;
+        args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // residual
+        args.push_back({ArgumentDescriptor::Types::INPUT, 1});  // norm weight
+        args.push_back({ArgumentDescriptor::Types::INPUT, 2});  // W_down
+        args.push_back({ArgumentDescriptor::Types::INPUT, 3});  // W_up
+        if (desc->produce_write_gate) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, 4});  // W_inject
+        }
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // mixed
+        if (desc->produce_write_gate) {
+            args.push_back({ArgumentDescriptor::Types::OUTPUT, 1});  // write gate S
+        }
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // num_rows
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
+            const auto desc = params.typed_desc<gated_residual>();
+            const size_t num_rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
+
+            auto& wgs = kd.params.workGroups;
+            wgs.global = {gr_wg_size, std::max<size_t>(1, (num_rows + gr_read_dpas_tm - 1) / gr_read_dpas_tm), 1};
+            wgs.local = {gr_wg_size, 1, 1};
+
+            kd.params.scalars.clear();
+            scalar_desc s;
+            s.t = scalar_desc::Types::UINT32;
+            s.v.u32 = static_cast<uint32_t>(num_rows);
+            kd.params.scalars.push_back(s);
+        }};
+    }
 };
 
 // ---------------------------------------------------------------------------
@@ -503,25 +575,34 @@ public:
     Stage::Ptr gr_down_proj_dpas_decode = make_stage<GatedResidualDownProjDpasGenerator>(GrTier::decode);
     Stage::Ptr gr_up_proj_dpas = make_stage<GatedResidualUpProjDpasGenerator>();
     Stage::Ptr gr_up_proj_dpas_decode = make_stage<GatedResidualUpProjDpasGenerator>(GrTier::decode);
+    Stage::Ptr gr_read_dpas = make_stage<GatedResidualReadDpasGenerator>();
 
     GatedResidualCMImpl() : PrimitiveImplCM(GatedResidualCMImplementationManager::get_type_info_static()) {}
     GatedResidualCMImpl(const program_node& /*node*/, const RuntimeParams& params) : GatedResidualCMImpl() {
         const auto desc = params.typed_desc<gated_residual>();
+        const auto& info = params.get_device_info();
         // READ and WRITE cannot be merged: an attention / GDN / MLP sub-layer sits between them.
         if (desc->mode == gated_residual::Mode::WRITE) {
             add_stage(gr_write, params);
-        } else if (can_use_dpas_gr_read(*desc, params.get_device_info())) {
+        } else if (can_use_dpas_gr_read(*desc, info)) {
             // Producer/consumer order through the RBAR/T scratch buffers is enforced by
-            // execute(); static shapes only build the tiling their row count needs.
-            add_stage(gr_rbar_dpas, params);
+            // execute(); static shapes only build what their row count needs.
             if (params.is_dynamic()) {
-                for (auto* stage : {&gr_down_proj_dpas_decode, &gr_down_proj_dpas_mid, &gr_down_proj_dpas, &gr_up_proj_dpas_decode, &gr_up_proj_dpas}) {
+                for (auto* stage : {&gr_rbar_dpas, &gr_down_proj_dpas_decode, &gr_down_proj_dpas_mid, &gr_down_proj_dpas, &gr_up_proj_dpas_decode, &gr_up_proj_dpas}) {
                     add_stage(*stage, params);
+                }
+                if (desc->hidden_size % 32 == 0) {
+                    add_stage(gr_read_dpas, params);
                 }
             } else {
                 const size_t rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
-                add_stage(down_stage(gr_down_tier(rows, params.get_device_info())), params);
-                add_stage(up_stage(gr_up_tier(rows)), params);
+                if (use_single_dpas_read(*desc, info, rows)) {
+                    add_stage(gr_read_dpas, params);
+                } else {
+                    add_stage(gr_rbar_dpas, params);
+                    add_stage(down_stage(gr_down_tier(rows, info)), params);
+                    add_stage(up_stage(gr_up_tier(rows)), params);
+                }
             }
         } else if (params.is_dynamic()) {
             add_stage(gr_read_decode, params);
@@ -561,13 +642,18 @@ public:
             record_stage_event("WRITE", ev);
             return ev;
         }
-        if (has_stage(gr_rbar_dpas)) {
+        if (has_stage(gr_rbar_dpas) || has_stage(gr_read_dpas)) {
             const auto& params = *instance.get_impl_params();
             const auto desc = params.typed_desc<gated_residual>();
             const size_t rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
+            if (has_stage(gr_read_dpas) && use_single_dpas_read(*desc, params.get_device_info(), rows)) {
+                auto ev = execute_stage(events, instance, gr_read_dpas);
+                record_stage_event("READ_DPAS", ev);
+                return ev;
+            }
             auto& down = down_stage(gr_down_tier(rows, params.get_device_info()));
             auto& up = up_stage(gr_up_tier(rows));
-            OPENVINO_ASSERT(has_stage(down) && has_stage(up), "[GPU][CM] gated_residual: dpas stage for ", rows, " rows was not built");
+            OPENVINO_ASSERT(has_stage(gr_rbar_dpas) && has_stage(down) && has_stage(up), "[GPU][CM] gated_residual: dpas stage for ", rows, " rows was not built");
 
             auto ev_rbar = execute_stage(events, instance, gr_rbar_dpas);
             record_stage_event("RBAR", ev_rbar);
@@ -595,6 +681,10 @@ public:
         const size_t cd = desc->hc_count * desc->hidden_size;
         const size_t num_rows = std::max<size_t>(1, get_num_rows(params.get_input_layout(0), cd));
         const size_t l = std::max<size_t>(1, desc->lowrank);
+        if (desc->mode != gated_residual::Mode::WRITE && can_use_dpas_gr_read(*desc, params.get_device_info()) &&
+            use_single_dpas_read(*desc, params.get_device_info(), num_rows)) {
+            return {};  // gr_read_dpas.cm keeps its intermediates in SLM
+        }
 
         std::vector<BufferDescriptor> bufs;
         bufs.emplace_back(num_rows * cd, ov::element::f16);  // RBAR
