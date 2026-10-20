@@ -20,8 +20,137 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/avg_pool.hpp"
+#include "openvino/op/topk.hpp"
+#include "openvino/runtime/core.hpp"
+
+#include <sstream>
 
 namespace {
+class ConditionMultiPortInputGPUTest : public testing::TestWithParam<bool> {};
+
+TEST_P(ConditionMultiPortInputGPUTest, ExecutesBothBodiesWithProducerPorts) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
+    auto predicate = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{});
+    auto count = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
+    auto producer = std::make_shared<ov::op::v3::TopK>(data,
+                                                      count,
+                                                      1,
+                                                      ov::op::v3::TopK::Mode::MAX,
+                                                      ov::op::v3::TopK::SortType::SORT_VALUES,
+                                                      ov::element::i32);
+    auto then_values = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
+    auto then_indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 2});
+    auto else_values = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
+    auto else_indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 2});
+    auto sum = std::make_shared<ov::op::v1::Add>(
+        then_values,
+        std::make_shared<ov::op::v0::Convert>(then_indices, ov::element::f32));
+    auto product = std::make_shared<ov::op::v1::Multiply>(
+        else_values,
+        std::make_shared<ov::op::v0::Convert>(else_indices, ov::element::f32));
+    auto then_result = std::make_shared<ov::op::v0::Result>(sum);
+    auto else_result = std::make_shared<ov::op::v0::Result>(product);
+    auto conditional = std::make_shared<ov::op::v8::If>(predicate);
+    conditional->set_then_body(std::make_shared<ov::Model>(ov::ResultVector{then_result},
+                                                          ov::ParameterVector{then_values, then_indices}));
+    conditional->set_else_body(std::make_shared<ov::Model>(ov::ResultVector{else_result},
+                                                          ov::ParameterVector{else_values, else_indices}));
+    conditional->set_input(producer->output(0), then_values, else_values);
+    conditional->set_input(producer->output(1), then_indices, else_indices);
+    conditional->set_output(then_result, else_result);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{conditional}, ov::ParameterVector{data, predicate});
+
+    ov::Core core;
+    auto compiled = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+    if (GetParam()) {
+        std::stringstream blob;
+        compiled.export_model(blob);
+        compiled = core.import_model(blob, ov::test::utils::DEVICE_GPU);
+    }
+    auto request = compiled.create_infer_request();
+    auto input = ov::Tensor(ov::element::f32, ov::Shape{1, 4});
+    const std::vector<float> input_values{3.f, 1.f, 4.f, 2.f};
+    std::copy(input_values.begin(), input_values.end(), input.data<float>());
+    request.set_input_tensor(0, input);
+    auto condition = ov::Tensor(ov::element::boolean, ov::Shape{});
+    request.set_input_tensor(1, condition);
+    for (const bool take_then : {true, false, true}) {
+        SCOPED_TRACE(take_then);
+        condition.data<bool>()[0] = take_then;
+        request.infer();
+        auto output = request.get_output_tensor();
+        ASSERT_EQ(output.get_shape(), (ov::Shape{1, 2}));
+        EXPECT_FLOAT_EQ(output.data<float>()[0], take_then ? 6.f : 8.f);
+        EXPECT_FLOAT_EQ(output.data<float>()[1], take_then ? 3.f : 0.f);
+    }
+}
+
+TEST_P(ConditionMultiPortInputGPUTest, ExecutesBothBodiesWithRepeatedProducerOutput) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
+    auto predicate = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{});
+    auto count = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
+    auto producer = std::make_shared<ov::op::v3::TopK>(data,
+                                                     count,
+                                                     1,
+                                                     ov::op::v3::TopK::Mode::MAX,
+                                                     ov::op::v3::TopK::SortType::SORT_VALUES,
+                                                     ov::element::i32);
+    auto then_first = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
+    auto then_second = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
+    auto else_first = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
+    auto else_second = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
+    auto then_result = std::make_shared<ov::op::v0::Result>(
+        std::make_shared<ov::op::v1::Add>(then_first, then_second));
+    auto else_result = std::make_shared<ov::op::v0::Result>(
+        std::make_shared<ov::op::v1::Multiply>(else_first, else_second));
+    auto conditional = std::make_shared<ov::op::v8::If>(predicate);
+    conditional->set_then_body(std::make_shared<ov::Model>(ov::ResultVector{then_result},
+                                                         ov::ParameterVector{then_first, then_second}));
+    conditional->set_else_body(std::make_shared<ov::Model>(ov::ResultVector{else_result},
+                                                         ov::ParameterVector{else_first, else_second}));
+    conditional->set_input(producer->output(0), then_first, else_first);
+    conditional->set_input(producer->output(0), then_second, else_second);
+    conditional->set_output(then_result, else_result);
+    ASSERT_EQ(conditional->get_input_size(), 3);
+    ASSERT_EQ(conditional->input_value(1), conditional->input_value(2));
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{conditional}, ov::ParameterVector{data, predicate});
+
+    ov::Core core;
+    auto compiled = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+    if (GetParam()) {
+        std::stringstream blob;
+        compiled.export_model(blob);
+        compiled = core.import_model(blob, ov::test::utils::DEVICE_GPU);
+    }
+    auto request = compiled.create_infer_request();
+    auto input = ov::Tensor(ov::element::f32, ov::Shape{1, 4});
+    request.set_input_tensor(0, input);
+    auto condition = ov::Tensor(ov::element::boolean, ov::Shape{});
+    request.set_input_tensor(1, condition);
+    for (const float offset : {0.f, 2.f}) {
+        SCOPED_TRACE(offset);
+        const std::vector<float> input_values{3.f + offset, 1.f + offset, 4.f + offset, 2.f + offset};
+        std::copy(input_values.begin(), input_values.end(), input.data<float>());
+        for (const bool take_then : {true, false, true}) {
+            SCOPED_TRACE(take_then);
+            condition.data<bool>()[0] = take_then;
+            request.infer();
+            auto output = request.get_output_tensor();
+            ASSERT_EQ(output.get_shape(), (ov::Shape{1, 2}));
+            const float first = 4.f + offset;
+            const float second = 3.f + offset;
+            EXPECT_FLOAT_EQ(output.data<float>()[0], take_then ? first + first : first * first);
+            EXPECT_FLOAT_EQ(output.data<float>()[1], take_then ? second + second : second * second);
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConditionGPU,
+                         ConditionMultiPortInputGPUTest,
+                         testing::Values(false, true));
+
 class InnerBodyGenerator {
 public:
     using ptr = std::shared_ptr<InnerBodyGenerator>;

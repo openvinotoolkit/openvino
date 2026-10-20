@@ -69,29 +69,23 @@ struct condition_impl : typed_primitive_impl<condition> {
                         GPU_DEBUG_LOG << "- body output[" << out_idx << "] is from constant" << std::endl;
                         output_mem_ptr = input_internal_node.as<data>().get_attached_memory_ptr();
                     } else {
-                        // look for corresponding external input for body input parameter
-                        using in_map_type = std::pair<cldnn::primitive_id, cldnn::primitive_id>;
-                        auto input_external_node =
-                            std::find_if(branch.input_map.begin(), branch.input_map.end(), [&](const in_map_type& m) {
-                                return input_internal_node.id() == m.second;
+                        auto input_mapping =
+                            std::find_if(branch.input_map.begin(), branch.input_map.end(), [&](const auto& m) {
+                                return input_internal_node.id() == m.second.internal_id;
                             });
+                        OPENVINO_ASSERT(input_mapping != branch.input_map.end(),
+                                        "[GPU] No input of condition primitive ", instance.id(),
+                                        " is mapped to body parameter ", input_internal_node.id());
+                        const size_t dep_idx = input_mapping->first;
                         GPU_DEBUG_LOG << "- body output[" << out_idx
                                       << "] is from parameter (internal: " << input_internal_node.id()
-                                      << ", external: " << input_external_node->first << ")" << std::endl;
-                        for (size_t dep_idx = 0; dep_idx < instance.dependencies().size(); ++dep_idx) {
-                            const auto& dep_info = instance.dependencies()[dep_idx];
-                            primitive_id dep_key = dep_info.first->id();
-                            if (dep_info.second != 0)
-                                dep_key += ".out" + std::to_string(dep_info.second);
-                            if (dep_key == input_external_node->first) {
-                                if (events.size() > dep_idx) {
-                                    output_events.push_back(events[dep_idx]);
-                                }
-                                output_mem_ptr = instance.input_memory_ptr(dep_idx);
-                                output_layout = dep_info.first->get_output_layout(dep_info.second);
-                                break;
-                            }
+                                      << ", dependency index: " << dep_idx << ")" << std::endl;
+                        const auto& dep_info = instance.dependencies().at(dep_idx);
+                        if (events.size() > dep_idx) {
+                            output_events.push_back(events[dep_idx]);
                         }
+                        output_mem_ptr = instance.input_memory_ptr(dep_idx);
+                        output_layout = dep_info.first->get_output_layout(dep_info.second);
                     }
                 }
 
@@ -117,15 +111,10 @@ struct condition_impl : typed_primitive_impl<condition> {
                 if (dep_info.second != 0)
                     lookup_key += ".out" + std::to_string(dep_info.second);
 
-                primitive_id input_internal_id;
-                if (mem_idx < branch.dep_to_internal.size() && !branch.dep_to_internal[mem_idx].empty()) {
-                    input_internal_id = branch.dep_to_internal[mem_idx];
-                } else {
-                    auto iter = branch.input_map.find(lookup_key);
-                    if (iter == branch.input_map.end())
-                        continue;
-                    input_internal_id = iter->second;
-                }
+                auto mapping = branch.input_map.find(mem_idx);
+                if (mapping == branch.input_map.end())
+                    continue;
+                const primitive_id& input_internal_id = mapping->second.internal_id;
 
                 auto mem_ptr = instance.input_memory_ptr(mem_idx);
                 const auto& dep = instance.dependencies()[mem_idx];

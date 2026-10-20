@@ -178,7 +178,7 @@ TEST_F(CompatibilityStringGPU, ImportRejectsCorruptedDescriptorHeader) {
     // is parsed. This protects serialized condition primitives after their payload layout changes.
     {
         std::string corrupted = original;
-        const uint32_t previous_version = 1;
+        const uint32_t previous_version = 2;
         std::memcpy(&corrupted[version_offset], &previous_version, sizeof(previous_version));
         std::stringstream blob(corrupted);
         EXPECT_THROW((void)core.import_model(blob, ov::test::utils::DEVICE_GPU), ov::Exception);
