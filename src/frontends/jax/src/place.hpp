@@ -7,9 +7,7 @@
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/place.hpp"
 
-namespace ov {
-namespace frontend {
-namespace jax {
+namespace ov::frontend::jax {
 
 class InputModel;
 
@@ -61,6 +59,4 @@ private:
     bool m_is_output = false;
 };
 
-}  // namespace jax
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::jax

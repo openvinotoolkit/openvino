@@ -556,9 +556,9 @@ void StaticMemory::StaticMemoryBlock::unregisterMemory(Memory* memPtr) {
     // do nothing
 }
 
-// Android arm64 (aarch64) the seccomp filter forbids the mbind syscall. Android devices
-// are single-NUMA-node anyway, so the binding is unnecessary there.
-#if defined(__linux__) && !(defined(__ANDROID__) && defined(__aarch64__))
+// Android (all architectures) is single-NUMA-node and its seccomp filters may
+// forbid the mbind syscall, so the binding is unnecessary there.
+#if defined(__linux__) && !defined(__ANDROID__)
 #    define MPOL_DEFAULT   0
 #    define MPOL_BIND      2
 #    define MPOL_MF_STRICT (1 << 0)
@@ -579,7 +579,7 @@ static int64_t mbind(void* start, uint64_t len, int mode, const uint64_t* nmask,
 }
 #endif
 
-#if defined(__linux__) && !(defined(__ANDROID__) && defined(__aarch64__))
+#if defined(__linux__) && !defined(__ANDROID__)
 bool mbind_move(void* data, size_t size, int targetNode) {
     int realNode = ov::get_org_numa_id(targetNode);
     auto pagesize = getpagesize();

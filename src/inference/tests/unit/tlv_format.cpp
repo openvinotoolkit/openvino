@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <limits>
 #include <sstream>
 
 namespace ov::test {
@@ -139,9 +140,43 @@ TEST(TLVFormatTest, ScanRecordsReadsMatchingTagsAndSkipsUnknown) {
     });
 
     stream.seekg(0);
-    runtime::scan_tlv_records(stream, scanners);
+    EXPECT_TRUE(runtime::scan_tlv_records(stream, scanners));
     EXPECT_EQ(scanner_calls, 2);
     EXPECT_EQ(scanned_first, first_data);
     EXPECT_EQ(scanned_third, third_data);
+}
+
+TEST(TLVFormatTest, ScanRecordsReturnsFalseForLengthBeyondSignedRange) {
+    // Length >= 2^63 becomes negative as std::streamoff, so skipping it would move the stream backwards.
+    // 2^64 - 12 would point back at the beginning of the same record and loop forever.
+    constexpr auto header_size = sizeof(TLVTraits::TagType) + sizeof(TLVTraits::LengthType);
+    constexpr TLVTraits::LengthType back_to_record_start =
+        std::numeric_limits<TLVTraits::LengthType>::max() - header_size + 1;
+    for (const TLVTraits::LengthType size : {back_to_record_start, TLVTraits::LengthType{1} << 63}) {
+        auto stream = make_stream();
+        const TLVTraits::TagType tag = 5;
+        stream.write(reinterpret_cast<const char*>(&tag), sizeof(tag));
+        stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
+        const std::array<char, 16> data{};
+        stream.write(data.data(), data.size());
+        stream.seekg(0);
+
+        bool scanner_called = false;
+        runtime::TLVValueScanner scanners;
+        scanners.emplace(tag + 1, [&](std::istream&, TLVTraits::LengthType) {
+            scanner_called = true;
+            return true;
+        });
+        EXPECT_FALSE(runtime::scan_tlv_records(stream, scanners)) << "size: " << size;
+
+        stream.clear();
+        stream.seekg(0);
+        scanners.emplace(tag, [&](std::istream&, TLVTraits::LengthType) {
+            scanner_called = true;
+            return true;
+        });
+        EXPECT_FALSE(runtime::scan_tlv_records(stream, scanners)) << "size: " << size;
+        EXPECT_FALSE(scanner_called);
+    }
 }
 }  // namespace ov::test

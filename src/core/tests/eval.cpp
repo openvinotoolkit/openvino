@@ -1537,8 +1537,8 @@ TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_scatter_elements_update_out
                          make_tensor<element::Type_t::f32>(indices_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}),
                          make_tensor<element::Type_t::i64>({}, {0})};
     OV_EXPECT_THROW(model->evaluate(out_vector, in_vector),
-                    ov::AssertFailure,
-                    HasSubstr("is out of bounds for the axis of size"));
+                    ov::Exception,
+                    HasSubstr("Accessing out-of-range dimension"));
 }
 
 TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_scatter_elements_update_out_of_bounds_negative_index) {
@@ -1561,8 +1561,8 @@ TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_scatter_elements_update_out
                          make_tensor<element::Type_t::f32>(indices_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}),
                          make_tensor<element::Type_t::i64>({}, {0})};
     OV_EXPECT_THROW(model->evaluate(out_vector, in_vector),
-                    ov::AssertFailure,
-                    HasSubstr("is out of bounds for the axis of size"));
+                    ov::Exception,
+                    HasSubstr("Accessing out-of-range dimension"));
 }
 
 REGISTER_TYPED_TEST_SUITE_P(ScatterElementsUpdateEvalTest,

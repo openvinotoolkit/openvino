@@ -250,6 +250,9 @@ struct format {
         gi_yxs_os_yxsv2_osv16,
         giy_xs_os_xsv2_osv8__ao32,
         giy_xs_os_xsv2_osv16__ao32,
+        is_os_yx_isv16_ternary,                       ///< u2 fully connected weights for the TernOCL int2 impl: K blocked by 16 into one
+                                                      ///< dword per (K/16, N), values re-encoded from codes {0,1,2} (zero point 1)
+                                                      ///< to 2-bit two's complement {-1,0,+1}
 
         format_num,  ///< number of format types
         custom,      ///< means that this format is created based on custom format traits and may have no corresponding label
@@ -343,7 +346,7 @@ struct format {
 
     static const std::vector<std::pair<size_t, int>> per_axis_block_size(format fmt);
 
-    static format find_format(const std::vector<uint64_t>& order,
+    static format find_format(const std::vector<size_t>& order,
                               const std::vector<std::pair<size_t, int>>& block_sizes,
                               bool is_weights = false,
                               bool is_grouped = false,
@@ -373,7 +376,9 @@ struct format {
     /// @brief Returns number of group dimensions.
     size_t group_num() const { return traits().group_num; }
     /// @brief Returns an order of dimensions.
-    const std::vector<uint64_t>& dims_order() const { return traits()._order; }
+    const std::vector<size_t>& dims_order() const {
+        return traits()._order;
+    }
     /// @brief Returns an order of dimensions in form of string.
     const std::string& order() const { return traits().order; }
     /// @brief Returns an internal orders of dimensions form of string.

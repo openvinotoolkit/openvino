@@ -522,8 +522,7 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
                                                 const ov::element::Type& dst_prc,
                                                 const int32_t ptr_offset) {
     if (src_prc != dst_prc) {
-        switch (src_prc) {
-        case ov::element::f32: {
+        auto convert_from_f32_to_dst = [&]() {
             switch (dst_prc) {
             case ov::element::f16: {
                 fcvtn(data.h4, data.s4);
@@ -550,6 +549,16 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
                                src_prc.to_string());
             }
             }
+        };
+
+        switch (src_prc) {
+        case ov::element::i32: {
+            scvtf(data.s, data.s);
+            convert_from_f32_to_dst();
+            break;
+        }
+        case ov::element::f32: {
+            convert_from_f32_to_dst();
             break;
         }
         default: {
@@ -597,8 +606,7 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
                                                 const ov::element::Type& dst_prc,
                                                 const int32_t ptr_offset) {
     if (src_prc != dst_prc) {
-        switch (src_prc) {
-        case ov::element::f32: {
+        auto convert_from_f32_to_dst = [&]() {
             switch (dst_prc) {
             case ov::element::f16: {
                 fcvt(Xbyak_aarch64::HReg(data.getIdx()), data);
@@ -627,6 +635,16 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
                                src_prc.to_string());
             }
             }
+        };
+
+        switch (src_prc) {
+        case ov::element::i32: {
+            scvtf(data, data);
+            convert_from_f32_to_dst();
+            break;
+        }
+        case ov::element::f32: {
+            convert_from_f32_to_dst();
             break;
         }
         default: {

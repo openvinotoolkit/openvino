@@ -6,31 +6,70 @@
 #include "op_table.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 OutputVector translate_get_rows(const NodeContext& context) {
-    num_inputs_check(context, 2, 2);
+    const bool relative_shift = context.get_attribute<bool>("relative_shift", false);
+    num_inputs_check(context, relative_shift ? 1 : 2, relative_shift ? 1 : 2);
 
     int op_case = context.get_op_case();
 
     Output<Node> res;
     auto data = context.get_input(0);
-    auto indices = context.get_input(1);
+    ov::Output<ov::Node> indices;
+    if (!relative_shift)
+        indices = context.get_input(1);
+    // GGML gathers integer rows as I32 and all floating/quantized rows as F32.
+    const auto type = data.get_element_type() == ov::element::i32 ? ov::element::i32 : ov::element::f32;
+    const auto convert_rows = [&](ov::Output<Node> rows) {
+        if (rows.get_element_type() != type) {
+            rows = std::make_shared<ov::op::v0::Convert>(rows, type);
+        }
+        return rows;
+    };
 
+    if (relative_shift) {
+        const auto scalar = [](int64_t value) {
+            return ov::op::v0::Constant::create(ov::element::i64, {}, {value});
+        };
+        auto length = std::make_shared<ov::op::v0::Squeeze>(get_dimensions(data, {2}));
+        auto range = std::make_shared<ov::op::v4::Range>(scalar(0), length, scalar(1), ov::element::i64);
+        auto row =
+            std::make_shared<ov::op::v0::Unsqueeze>(range,
+                                                    ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 1, 3}));
+        auto column =
+            std::make_shared<ov::op::v0::Unsqueeze>(range,
+                                                    ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 1, 2}));
+        indices = std::make_shared<ov::op::v1::Add>(
+            std::make_shared<ov::op::v1::Subtract>(std::make_shared<ov::op::v1::Subtract>(length, scalar(1)), row),
+            column);
+    }
+    if (context.get_attribute<bool>("gather_elements", false) || relative_shift) {
+        // Select a column independently in each row; singleton index batches broadcast.
+        auto shape = std::make_shared<ov::op::v0::Concat>(
+            ov::OutputVector{get_dimensions(data, {0, 1, 2}), get_dimensions(indices, {3})},
+            0);
+        indices = std::make_shared<ov::op::v3::Broadcast>(indices, shape);
+        return rename_outputs_with_suffix(
+            {convert_rows(std::make_shared<ov::op::v6::GatherElements>(data, indices, 3))},
+            context.get_name());
+    }
     if (op_case == 3) {
-        return {std::move(data)};
+        return {convert_rows(data)};
     }
 
     if (op_case == 4) {
@@ -39,10 +78,7 @@ OutputVector translate_get_rows(const NodeContext& context) {
                                                   ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 1, 2}));
         auto axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {2});
         res = std::make_shared<ov::op::v8::Gather>(data, flat_indices, axis);
-        if (res.get_element_type() != context.get_output_type()) {
-            res = std::make_shared<ov::op::v0::Convert>(res, context.get_output_type());
-        }
-        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
+        return rename_outputs_with_suffix({convert_rows(res)}, context.get_name());
     }
 
     // MoE gating-weight gather (op_case 10): data = probs [1,1,T,E], indices = selected experts
@@ -53,14 +89,25 @@ OutputVector translate_get_rows(const NodeContext& context) {
         // explicit [1,-1,K,1] reshape (K is static, read via PartialShape to avoid .to_shape()
         // throwing when T is dynamic) instead of Squeeze+Unsqueeze, which the CPU plugin
         // implements as a Reshape internally and mis-infers the static pattern when T=1.
-        const int64_t K = context.get_output_shape()[2].get_length();
+        const auto ids_shape = indices.get_partial_shape();
+        const int64_t K = ids_shape[ids_shape.size() - 1].get_length();
         auto idx = std::make_shared<ov::op::v0::Convert>(indices, ov::element::i32);
-        auto ge = std::make_shared<ov::op::v6::GatherElements>(data, idx, -1);  // [1,1,T,K]
+        // A single shared row (per-expert scales [1,1,1,E]) is gathered directly instead of per token.
+        ov::Output<Node> ge;
+        if (context.get_attribute<bool>("shared_row", false)) {
+            auto row = std::make_shared<ov::op::v1::Reshape>(data,
+                                                             ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}),
+                                                             false);
+            ge =
+                std::make_shared<ov::op::v8::Gather>(row, idx, ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
+        } else {
+            ge = std::make_shared<ov::op::v6::GatherElements>(data, idx, -1);  // [1,1,T,K]
+        }
         auto col = std::make_shared<ov::op::v1::Reshape>(
             ge,
             ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, -1, K, 1}),
             false);  // [1,T,K,1]
-        return rename_outputs_with_suffix({std::move(col)}, context.get_name());
+        return rename_outputs_with_suffix({convert_rows(col)}, context.get_name());
     }
 
     if (op_case == 2) {
@@ -90,15 +137,10 @@ OutputVector translate_get_rows(const NodeContext& context) {
         res = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
     }
 
-    if (res.get_element_type() != context.get_output_type()) {
-        res = std::make_shared<ov::op::v0::Convert>(res, context.get_output_type());
-    }
     // The two Squeezes above dropped the leading axes; restore ggml's rank-4 form.
     res = std::make_shared<ov::op::v0::Unsqueeze>(res, ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
-    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
+    res = apply_hadamard(context, res);
+    return rename_outputs_with_suffix({convert_rows(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

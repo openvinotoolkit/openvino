@@ -305,6 +305,7 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
     }
 
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
+
     const auto& input = fc_params.inputs[0];
     const auto& output = fc_params.outputs[0];
     const auto& weights = fc_params.weights;

@@ -41,6 +41,12 @@ TEST(ONNXFeConvertException, exception_if_other_translation_exception) {
                     testing::HasSubstr("only 'DCR' and 'CRD' modes are supported"));
 }
 
+TEST(ONNXFeConvertException, exception_if_unsupported_recurrent_layout) {
+    OV_EXPECT_THROW(convert_model("rnn_layout_invalid.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("Unsupported value of the 'layout' attribute: 2"));
+}
+
 TEST(ONNXFeConvertException, exception_if_both_unsupported_and_other_translation_exception) {
     OV_EXPECT_THROW(convert_model("unsupported_ops/unsupported_add_and_incorrect_dts.onnx"),
                     ov::AssertFailure,
@@ -90,6 +96,12 @@ TEST(ONNXFeConvertException, exception_if_matmulnbits_group_idx_out_of_range) {
                     testing::HasSubstr("group_idx values must be within"));
 }
 
+TEST(ONNXFeConvertException, exception_if_matmulnbits_reordered_layout_with_group_idx_unsupported) {
+    OV_EXPECT_THROW(convert_model("com.microsoft/matmulnbits_reordered_group_idx_unsupported.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("reordered B layout"));
+}
+
 TEST(ONNXFeConvertException, exception_if_scan_num_scan_inputs_exceeds_body_inputs) {
     OV_EXPECT_THROW(convert_model("scan15_num_scan_inputs_exceeds_body_inputs.onnx"),
                     ov::frontend::OpConversionFailure,
@@ -106,4 +118,18 @@ TEST(ONNXFeConvertException, exception_if_scan_body_fewer_outputs_than_initial_v
     OV_EXPECT_THROW(convert_model("scan15_body_fewer_outputs_than_initial_values.onnx"),
                     ov::frontend::OpConversionFailure,
                     testing::HasSubstr("num_scan_outputs can't be negative"));
+}
+
+/// Tests that Crop rejects a 'border' attribute with fewer than 2 values, since border[0] and
+/// border[1] are read to build the slice 'begin' constant regardless of the 'scale' attribute.
+TEST(ONNXFeConvertException, exception_if_crop_border_too_short) {
+    OV_EXPECT_THROW(convert_model("crop_border_too_short.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("expects at least 2 values in 'border' attribute, found: 1"));
+}
+
+TEST(ONNXFeConvertException, exception_if_crop_border_empty) {
+    OV_EXPECT_THROW(convert_model("crop_border_empty.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("expects at least 2 values in 'border' attribute, found: 0"));
 }

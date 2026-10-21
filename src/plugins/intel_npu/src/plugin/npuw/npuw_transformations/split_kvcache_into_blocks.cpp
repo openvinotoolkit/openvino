@@ -83,6 +83,10 @@ bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& mode
     for (const auto& param : model->get_parameters()) {
         const std::string& name = param->get_friendly_name();
 
+        if (ov::npuw::util::is_swa_kv_cache_name(name)) {
+            continue;
+        }
+
         const bool is_key = ov::npuw::util::isPastKeyValuesKeyContiguous(name).has_value();
         const bool is_value = ov::npuw::util::isPastKeyValuesValueContiguous(name).has_value();
         if (!is_key && !is_value) {
