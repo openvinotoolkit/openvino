@@ -673,19 +673,21 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto mvn_flattened_peer_is_indexable = [](const mvn_node& node, const layout& peer_layout) -> bool {
             const auto& in_pshape = node.get_input_layout(0).get_partial_shape();
             const auto& peer_pshape = peer_layout.get_partial_shape();
-            if (in_pshape.is_dynamic() || peer_pshape.is_dynamic())
+            if (peer_pshape.is_dynamic())
                 return false;
             // Scalar peers are broadcast without any index calculation
             if (peer_layout.count() == 1)
                 return true;
-            if (peer_pshape.size() != in_pshape.size())
+            if (in_pshape.rank().is_dynamic() || peer_pshape.size() != in_pshape.size())
                 return false;
             const auto last_axis = peer_pshape.size() - 1;
             for (size_t i = 0; i < last_axis; i++) {
                 if (peer_pshape[i].get_length() != 1)
                     return false;
             }
-            return peer_pshape[last_axis].get_length() == in_pshape[last_axis].get_length();
+            // Only the innermost input dim must be static: the folded outer dims never index the peer.
+            return in_pshape[last_axis].is_static() &&
+                   peer_pshape[last_axis].get_length() == in_pshape[last_axis].get_length();
         };
 
         auto mvn_supports_fusings = [&](mvn_node& node, const std::vector<layout>& peer_layouts) -> bool {
