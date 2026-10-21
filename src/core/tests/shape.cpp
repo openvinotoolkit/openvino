@@ -95,3 +95,15 @@ TEST(shape, get_dense_byte_strides) {
     // zero-sized last dimension collapses all strides to 0
     EXPECT_EQ(ov::util::get_dense_byte_strides(element::u4, Shape{2, 3, 0}), Strides({0, 0, 0}));
 }
+
+TEST(shape, get_shape_for_byte_strides) {
+    // byte-granular types are returned unchanged
+    EXPECT_EQ(ov::util::get_shape_for_byte_strides(element::f32, Shape{2, 3, 5}), Shape({2, 3, 5}));
+
+    // sub-byte types: last dimension becomes its packed byte count
+    EXPECT_EQ(ov::util::get_shape_for_byte_strides(element::u4, Shape{2, 3, 8}), Shape({2, 3, 4}));
+    EXPECT_EQ(ov::util::get_shape_for_byte_strides(element::u1, Shape{2, 16}), Shape({2, 2}));
+
+    // sub-byte scalar (rank 0) has no last dimension to convert
+    EXPECT_EQ(ov::util::get_shape_for_byte_strides(element::u4, Shape{}), Shape{});
+}

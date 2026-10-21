@@ -104,5 +104,18 @@ OPENVINO_API bool has_byte_strides(const element::Type& type, const Shape& shape
  *         the element type is sub-byte.
  */
 OPENVINO_API Strides get_dense_byte_strides(const element::Type& type, const Shape& shape);
+
+/**
+ * @brief Gets the shape to use together with byte strides when addressing a tensor by bytes.
+ *
+ * For sub-byte element types the last dimension is expressed as its packed byte count instead
+ * of its element count (the real per-element byte stride there is not addressable). Returns
+ * shape unchanged for byte-granular types, where element count and byte count coincide.
+ *
+ * @param type  Element type.
+ * @param shape Shape to convert.
+ * @return Shape whose last dimension (if any) is expressed in bytes.
+ */
+OPENVINO_API Shape get_shape_for_byte_strides(const element::Type& type, const Shape& shape);
 }  // namespace util
 }  // namespace ov
