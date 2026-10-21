@@ -143,18 +143,20 @@ bool attributes_equal(const ov::op::v1::Convolution& lhs, const ov::op::v1::Conv
            lhs.get_auto_pad() == rhs.get_auto_pad();
 }
 
-bool attributes_equal(const ov::op::v1::MaxPool& lhs, const ov::op::v1::MaxPool& rhs) {
+bool common_max_pool_attributes_equal(const ov::op::util::MaxPoolBase& lhs,
+                                      const ov::op::util::MaxPoolBase& rhs) {
     return lhs.get_strides() == rhs.get_strides() && lhs.get_pads_begin() == rhs.get_pads_begin() &&
            lhs.get_pads_end() == rhs.get_pads_end() && lhs.get_kernel() == rhs.get_kernel() &&
            lhs.get_rounding_type() == rhs.get_rounding_type() && lhs.get_auto_pad() == rhs.get_auto_pad();
 }
 
+bool attributes_equal(const ov::op::v1::MaxPool& lhs, const ov::op::v1::MaxPool& rhs) {
+    return common_max_pool_attributes_equal(lhs, rhs);
+}
+
 template <typename MaxPool>
 bool attributes_equal(const MaxPool& lhs, const MaxPool& rhs) {
-    return lhs.get_strides() == rhs.get_strides() && lhs.get_pads_begin() == rhs.get_pads_begin() &&
-           lhs.get_pads_end() == rhs.get_pads_end() && lhs.get_kernel() == rhs.get_kernel() &&
-           lhs.get_rounding_type() == rhs.get_rounding_type() && lhs.get_auto_pad() == rhs.get_auto_pad() &&
-           lhs.get_dilations() == rhs.get_dilations() &&
+    return common_max_pool_attributes_equal(lhs, rhs) && lhs.get_dilations() == rhs.get_dilations() &&
            lhs.get_index_element_type() == rhs.get_index_element_type() && lhs.get_axis() == rhs.get_axis();
 }
 
