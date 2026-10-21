@@ -162,43 +162,42 @@ TEST(GGUFArchitectureExtension, DeferredArchitecturesAreRejectedWithoutAnExtensi
     }
 }
 
-TEST(GGUFArchitectureExtension, LimitedDecodersCheckActualTensorTypes) {
+TEST(GGUFArchitectureExtension, BuiltInDecodersAcceptSupportedTensorTypes) {
     using namespace ov::frontend::gguf;
     for (const auto* architecture : {"afmoe", "qwen3tts"}) {
-        std::unordered_map<std::string, GGUFMetaData> metadata{{"general.architecture", std::string(architecture)},
-                                                               {"general.file_type", int32_t{0}}};
-        const detail::MetadataStore meta_store{metadata};
+        SCOPED_TRACE(architecture);
+        ScratchDir scratch;
+        const auto path = write_decoder_gguf(scratch.path(), architecture);
+        ASSERT_FALSE(path.empty());
+        auto loaded = get_gguf_data(path);
+        const detail::MetadataStore meta_store{std::get<0>(loaded)};
         const GgufMetadata meta(meta_store);
         const auto definition = ArchRegistry{}.find(meta);
         ASSERT_TRUE(definition);
-        std::unordered_map<std::string, ov::Tensor> weights;
-        std::unordered_map<std::string, GgufTensorType> types;
-        detail::WeightStore store{weights, types};
-        for (const auto type : {GGUF_TYPE_BF16, GGUF_TYPE_Q4_K}) {
-            types = {{"test.qtype", type}};
-            OV_EXPECT_THROW(definition->factory(BuildContext{meta, architecture, &store}),
-                            ov::Exception,
-                            testing::HasSubstr("requires F32 tensors"));
+        detail::WeightStore store{std::get<1>(loaded), std::get<2>(loaded)};
+        for (const auto type : {GGUF_TYPE_BF16, GGUF_TYPE_Q4_K, GGUF_TYPE_Q8_0}) {
+            SCOPED_TRACE(type);
+            store.qtypes["token_embd.qtype"] = type;
+            EXPECT_NE(definition->factory(BuildContext{meta, architecture, &store}), nullptr);
         }
     }
 }
 
-TEST(GGUFArchitectureExtension, LimitedOmniDecoderChecksActualTensorTypes) {
+TEST(GGUFArchitectureExtension, BuiltInOmniDecoderAcceptsSupportedTensorTypes) {
     using namespace ov::frontend::gguf;
-    std::unordered_map<std::string, GGUFMetaData> metadata{{"general.architecture", std::string("qwen3vlmoe")},
-                                                           {"general.file_type", int32_t{1}}};
-    const detail::MetadataStore meta_store{metadata};
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), "qwen3vlmoe");
+    ASSERT_FALSE(path.empty());
+    auto loaded = get_gguf_data(path);
+    const detail::MetadataStore meta_store{std::get<0>(loaded)};
     const GgufMetadata meta(meta_store);
     const auto definition = ArchRegistry{}.find(meta);
     ASSERT_TRUE(definition);
-    std::unordered_map<std::string, ov::Tensor> weights;
-    std::unordered_map<std::string, GgufTensorType> types;
-    detail::WeightStore store{weights, types};
-    for (const auto type : {GGUF_TYPE_BF16, GGUF_TYPE_Q4_K}) {
-        types = {{"test.qtype", type}};
-        OV_EXPECT_THROW(definition->factory(BuildContext{meta, "qwen3vlmoe", &store}),
-                        ov::Exception,
-                        testing::HasSubstr("requires F32/F16 tensors"));
+    detail::WeightStore store{std::get<1>(loaded), std::get<2>(loaded)};
+    for (const auto type : {GGUF_TYPE_BF16, GGUF_TYPE_Q4_K, GGUF_TYPE_Q8_0}) {
+        SCOPED_TRACE(type);
+        store.qtypes["token_embd.qtype"] = type;
+        EXPECT_NE(definition->factory(BuildContext{meta, "qwen3vlmoe", &store}), nullptr);
     }
 }
 

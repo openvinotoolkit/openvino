@@ -57,14 +57,6 @@ void register_deferred_decoder(ov::frontend::gguf::FrontEnd& frontend, const std
     using namespace ov::frontend::gguf;
     if (family == "qwen3next" || family == "qwen3next-legacy")
         frontend.add_extension(std::make_shared<ArchitectureExtension>("qwen3next", RopeMode::Neox));
-    else if (family == "afmoe")
-        frontend.add_extension(
-            std::make_shared<ArchitectureExtension>(make_decoder_architecture(family, RopeMode::Neox),
-                                                    RegistrationMode::Replace));
-    else if (family == "qwen3tts")
-        frontend.add_extension(
-            std::make_shared<ArchitectureExtension>(make_decoder_architecture(family, RopeMode::Interleaved),
-                                                    RegistrationMode::Replace));
 }
 
 TEST(GGUFDraftAdaptation, KeepsBorrowedTargetWeightsWithoutDuplicateParameters) {

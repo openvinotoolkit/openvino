@@ -103,7 +103,13 @@ Keep registration, structural conversion, numerical agreement, and application f
 as separate evidence. A new architecture needs a nonzero oracle fixture and a real-checkpoint
 comparison; exercise relevant positions, sizes, cache appends/resets, and adaptation paths.
 
-| Check | Acceptance and limit |
+For the families enabled in PR #39000, a working F32/F16 reference path establishes
+architecture support. Implemented quantized formats remain enabled even when their
+checkpoint comparison falls below the numerical or greedy agreement thresholds.
+Record those failed comparisons as accuracy limitations; do not relabel them as
+parity passes. Unsupported tensor encodings and graph/runtime errors remain failures.
+
+| Check | Numerical parity threshold and limit |
 |---|---|
 | Native decoder F32 fixture | Full-logit normalized MSE below `1e-5`; Gemma3n alone uses the accepted `2e-5` limit with every-step greedy equality; F32 inference, F16 KV, activation quantization disabled |
 | Native real decoder replay | Same first prediction and at least 90% matching greedy choices over prefill plus 12 reference-token steps; record full-logit errors |

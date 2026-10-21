@@ -5,10 +5,12 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <unordered_map>
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/arch/mmproj_builder.hpp"
 #include "builder/arch_registry.hpp"
+#include "builder/gguf_builder_decoder.hpp"
 #include "builder/projector_registry.hpp"
 #include "cnpy.h"
 #include "common_test_utils/common_utils.hpp"
@@ -16,6 +18,8 @@
 #include "gguf_writer.hpp"
 #include "gtest/gtest.h"
 #include "op_test_utils.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
 #include "openvino/frontend/gguf/extension/projector.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
@@ -28,19 +32,42 @@
 #include "openvino/pass/serialize.hpp"
 
 namespace {
-void register_deferred_projector(ov::frontend::gguf::FrontEnd& frontend, const std::string& type) {
+void quantize_weight(std::unordered_map<std::string, ov::Tensor>& weights,
+                     std::unordered_map<std::string, ov::frontend::gguf::GgufTensorType>& types,
+                     const std::string& name,
+                     ov::frontend::gguf::GgufTensorType type) {
     using namespace ov::frontend::gguf;
-    const auto modality = type == "minicpmv4_7" ? "vision" : "audio";
-    frontend.add_extension(std::make_shared<ProjectorExtension>(
-        ProjectorDefinition{"clip." + std::string(modality) + "." + type,
-                            "clip",
-                            modality,
-                            type,
-                            [modality, type](GgufGraphContext& graph) {
-                                return build_builtin_projector(graph, modality, type);
-                            },
-                            {}},
-        RegistrationMode::Replace));
+    const auto source = weights.at(name);
+    const auto base = name.substr(0, name.size() - std::string(".weight").size());
+    const auto* values = source.data<const float>();
+    if (type == GGUF_TYPE_BF16) {
+        ov::Tensor converted(ov::element::bf16, source.get_shape());
+        std::transform(values, values + source.get_size(), converted.data<ov::bfloat16>(), [](float value) {
+            return ov::bfloat16(value);
+        });
+        weights[name] = std::move(converted);
+    } else {
+        OPENVINO_ASSERT(type == GGUF_TYPE_Q8_0 && source.get_shape().back() % 32 == 0);
+        auto scale_shape = source.get_shape();
+        scale_shape.back() /= 32;
+        ov::Tensor codes(ov::element::i8, source.get_shape());
+        ov::Tensor scales(ov::element::f16, scale_shape);
+        for (size_t group = 0; group < scales.get_size(); ++group) {
+            const auto* block = values + group * 32;
+            float maximum = 0;
+            for (size_t i = 0; i < 32; ++i)
+                maximum = std::max(maximum, std::abs(block[i]));
+            const ov::float16 scale(maximum / 127.f);
+            scales.data<ov::float16>()[group] = scale;
+            for (size_t i = 0; i < 32; ++i)
+                codes.data<int8_t>()[group * 32 + i] =
+                    maximum == 0 ? 0
+                                 : static_cast<int8_t>(std::clamp(std::lround(block[i] / float(scale)), -127L, 127L));
+        }
+        weights[name] = std::move(codes);
+        weights[base + ".scales"] = std::move(scales);
+    }
+    types[base + ".qtype"] = type;
 }
 
 class GGUFMMProj : public ::testing::Test {
@@ -98,11 +125,9 @@ protected:
             weight("mm.a.fc.bias", {6});
         }
     }
-    std::shared_ptr<ov::Model> convert(const std::string& deferred_projector = "") {
+    std::shared_ptr<ov::Model> convert() {
         EXPECT_TRUE(writer.write(path));
         ov::frontend::gguf::FrontEnd frontend;
-        if (!deferred_projector.empty())
-            register_deferred_projector(frontend, deferred_projector);
         return frontend.convert(frontend.load(path));
     }
     void gemma3n_vision() {
@@ -122,7 +147,7 @@ TEST_F(GGUFMMProj, MiniCPMLearnedPositionGridIsIndependentOfResizeMetadata) {
     encoder("vision", "minicpmv4_7", 4900);
     weight("mm.up.weight", {32, 12});
     weight("mm.down.weight", {12, 6});
-    auto model = convert("minicpmv4_7");
+    auto model = convert();
     EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.position_grid_size"}), "70");
     EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "clip.vision.image_size"}), "8");
     ov::serialize(model, path + ".xml", path + ".bin");
@@ -130,23 +155,30 @@ TEST_F(GGUFMMProj, MiniCPMLearnedPositionGridIsIndependentOfResizeMetadata) {
     EXPECT_EQ(restored->get_rt_info<std::string>({"gguf_mmproj", "vision.position_grid_size"}), "70");
 }
 
-TEST_F(GGUFMMProj, LimitedProjectorsCheckActualTensorTypes) {
+TEST_F(GGUFMMProj, BuiltInProjectorsAcceptSupportedTensorTypes) {
     using namespace ov::frontend::gguf;
-    std::unordered_map<std::string, GGUFMetaData> metadata;
-    metadata["general.architecture"] = std::string("clip");
-    const detail::MetadataStore meta_store{metadata};
-    std::unordered_map<std::string, ov::Tensor> weights;
-    std::unordered_map<std::string, GgufTensorType> types;
-    detail::WeightStore store{weights, types};
     ProjectorRegistry registry;
-    for (const auto* type : {"minicpmv4_7", "qwen3a", "qwen3tts_spkenc"}) {
+    for (const auto& [type, name] : {std::pair{"minicpmv4_7", "mm.up.weight"},
+                                     std::pair{"qwen3a", "a.conv_out.weight"},
+                                     std::pair{"qwen3tts_spkenc", "mm.a.fc.weight"}}) {
         const auto modality = std::string(type) == "minicpmv4_7" ? "vision" : "audio";
-        const auto definition = registry.find(GgufMetadata(meta_store), modality, type);
-        ASSERT_TRUE(definition);
+        const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/mmproj_accuracy/" + type + ".npz");
+        const ov_gguf_test::TemporaryGguf file(ov_gguf_test::npz_array(arrays, "model"));
         for (const auto qtype : {GGUF_TYPE_BF16, GGUF_TYPE_Q8_0}) {
-            types = {{"test.qtype", qtype}};
-            GgufGraphContext graph(BuildContext{GgufMetadata(meta_store), "clip", &store, &registry});
-            OV_EXPECT_THROW(definition->build(graph), ov::Exception, testing::HasSubstr("requires F32 tensors"));
+            if (std::string(type) == "qwen3tts_spkenc" && qtype == GGUF_TYPE_Q8_0)
+                continue;
+            SCOPED_TRACE(std::string(type) + ":" + std::to_string(qtype));
+            auto loaded = get_gguf_data(file.path);
+            quantize_weight(std::get<1>(loaded), std::get<2>(loaded), name, qtype);
+            const detail::MetadataStore meta_store{std::get<0>(loaded)};
+            const GgufMetadata metadata(meta_store);
+            detail::WeightStore store{std::get<1>(loaded), std::get<2>(loaded)};
+            const auto definition = registry.find(metadata, modality, type);
+            ASSERT_TRUE(definition);
+            GgufGraphContext graph(BuildContext{metadata, "clip", &store, &registry});
+            const auto result = definition->build(graph);
+            ASSERT_TRUE(result.output);
+            EXPECT_EQ(result.output.type(), ov::element::f32);
         }
     }
 }
@@ -166,18 +198,23 @@ TEST_F(GGUFMMProj, TensorSourceTypesSurviveWeightConversion) {
     EXPECT_EQ(graph.tensors().source_types(), (std::set<uint32_t>{GGUF_TYPE_F32, GGUF_TYPE_BF16}));
 }
 
-TEST_F(GGUFMMProj, GeneratedAudioChecksActualTensorTypes) {
+TEST_F(GGUFMMProj, GeneratedAudioAcceptsSupportedTensorTypes) {
     using namespace ov::frontend::gguf;
-    std::unordered_map<std::string, GGUFMetaData> metadata{
-        {"general.architecture", std::string("clip")},
-        {"clip.has_gen_audio_encoder", true},
-        {"clip.gen.audio.projector_type", std::string("qwen3tts_gen")}};
-    const detail::MetadataStore meta_store{metadata};
-    std::unordered_map<std::string, ov::Tensor> weights;
-    std::unordered_map<std::string, GgufTensorType> types{{"test.qtype", GGUF_TYPE_BF16}};
-    detail::WeightStore store{weights, types};
-    auto builder = make_mmproj_builder(BuildContext{GgufMetadata(meta_store), "clip", &store});
-    OV_EXPECT_THROW(builder->build(), ov::Exception, testing::HasSubstr("requires F32 tensors"));
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/mmproj_accuracy/qwen3tts_gen.npz");
+    const ov_gguf_test::TemporaryGguf file(ov_gguf_test::npz_array(arrays, "model"));
+    for (const auto type : {GGUF_TYPE_BF16, GGUF_TYPE_Q8_0}) {
+        SCOPED_TRACE(type);
+        auto loaded = get_gguf_data(file.path);
+        quantize_weight(std::get<1>(loaded), std::get<2>(loaded), "a.gen.wav.tfm.in_proj.weight", type);
+        const detail::MetadataStore meta_store{std::get<0>(loaded)};
+        detail::WeightStore store{std::get<1>(loaded), std::get<2>(loaded)};
+        auto builder = make_mmproj_builder(BuildContext{GgufMetadata(meta_store), "clip", &store});
+        std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(builder->build());
+        FrontEnd frontend;
+        const auto model = frontend.convert(frontend.load(decoder));
+        EXPECT_NO_THROW(model->output("gen_audio.waveform"));
+        EXPECT_NO_THROW(model->output("gen_audio.codes"));
+    }
 }
 
 TEST_F(GGUFMMProj, GeneratedAudioRejectsUnknownType) {
@@ -191,7 +228,7 @@ TEST_F(GGUFMMProj, GeneratedAudioRejectsUnknownType) {
 
 TEST_F(GGUFMMProj, MiniCPMRejectsNonSquareLearnedPositionGrid) {
     encoder("vision", "minicpmv4_7", 15);
-    OV_EXPECT_THROW(convert("minicpmv4_7"), ov::Exception, testing::HasSubstr("square learned position grid"));
+    OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("square learned position grid"));
 }
 
 TEST_F(GGUFMMProj, ExtensionAddsOneBranchAlongsideBuiltinVision) {
@@ -757,11 +794,6 @@ protected:
                                     .string());
         model_file = std::make_unique<ov_gguf_test::TemporaryGguf>(array("model"));
         ov::frontend::gguf::FrontEnd frontend;
-        const std::string family = GetParam();
-        if (family == "minicpmv4_7" || family == "minicpmv4_7_4x")
-            register_deferred_projector(frontend, "minicpmv4_7");
-        else if (family == "qwen3a" || family == "qwen3tts_spkenc")
-            register_deferred_projector(frontend, family);
         model = frontend.convert(frontend.load(model_file->path));
     }
     ov::InferRequest compile(const std::shared_ptr<ov::Model>& current) {
@@ -792,12 +824,6 @@ TEST_F(GGUFMMProj, Qwen3TTSMatchesCPUAndResetsStreamingState) {
     };
     ov_gguf_test::TemporaryGguf file(array("model"));
     ov::frontend::gguf::FrontEnd frontend;
-    frontend.add_extension(std::make_shared<ov::frontend::gguf::ArchitectureExtension>(
-        ov::frontend::gguf::ArchitectureDefinition{"clip.mmproj",
-                                                   "clip",
-                                                   ov::frontend::gguf::make_qwen3tts_projector_builder,
-                                                   {}},
-        ov::frontend::gguf::RegistrationMode::Replace));
     auto full = frontend.convert(frontend.load(file.path));
     const auto component = [&](bool waveform) {
         ov::ResultVector results;

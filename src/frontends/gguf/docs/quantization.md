@@ -9,10 +9,12 @@ representation.
 The implementation is in [`gguf.cpp`](../src/quant/gguf.cpp),
 [`gguf_quants.cpp`](../src/quant/gguf_quants.cpp) and [`weights.cpp`](../src/quant/weights.cpp).
 
-## Preparing a limited F32 format
+## Preparing an F32 reference
 
-Some [supported families](supported_models.md#limited-formats-enabled-by-this-pr) require
-F32 tensors. Convert from the original Hugging Face checkpoint with llama.cpp's
+Use F32 to isolate graph correctness from quantized arithmetic differences for
+[supported families](supported_models.md#quantized-support-and-reference-accuracy).
+Quantized formats remain supported when their F32/F16 reference path works; known
+accuracy differences are documented separately. Convert from the original Hugging Face checkpoint with llama.cpp's
 `convert_hf_to_gguf.py --outtype f32`. This creates a separate checkpoint format.
 For an existing GGUF, exact F32 materialization must preserve metadata, tensor names
 and shapes; decode every tensor using its GGML type, write F32 payloads, and set

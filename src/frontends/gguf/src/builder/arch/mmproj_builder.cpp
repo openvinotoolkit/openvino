@@ -1472,9 +1472,6 @@ public:
         if (has_gen_audio) {
             const auto type = ctx.metadata.get_str("clip.gen.audio.projector_type").value_or("");
             OPENVINO_ASSERT(type == "qwen3tts_gen", "[GGUF] unsupported generated audio projector '", type, "'");
-            OPENVINO_ASSERT(g.tensors().source_types() == std::set<uint32_t>{GGUF_TYPE_F32},
-                            "[GGUF] built-in qwen3tts_gen support requires F32 tensors. Register an "
-                            "ArchitectureExtension to override it.");
             Qwen3TTSProjector(g).build();
             branch_config["gen_audio.projector"] = type;
             branch_config["gen_audio.window_size"] = "72";
@@ -1550,21 +1547,14 @@ std::vector<ProjectorDefinition> builtin_projectors() {
     for (const auto& entry : projector_catalog) {
         const std::string modality = entry.modality;
         const std::string type = entry.name;
-        definitions.push_back(
-            {"clip." + modality + "." + type,
-             "clip",
-             modality,
-             type,
-             [modality, type](GgufGraphContext& graph) {
-                 if (type == "minicpmv4_7" || type == "qwen3a" || type == "qwen3tts_spkenc")
-                     OPENVINO_ASSERT(
-                         graph.tensors().source_types() == std::set<uint32_t>{GGUF_TYPE_F32},
-                         "[GGUF] built-in ",
-                         type,
-                         " projector support requires F32 tensors. Register a ProjectorExtension to override it.");
-                 return build_builtin_projector(graph, modality, type);
-             },
-             {}});
+        definitions.push_back({"clip." + modality + "." + type,
+                               "clip",
+                               modality,
+                               type,
+                               [modality, type](GgufGraphContext& graph) {
+                                   return build_builtin_projector(graph, modality, type);
+                               },
+                               {}});
     }
     return definitions;
 }

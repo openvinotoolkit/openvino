@@ -113,25 +113,6 @@ std::vector<ArchitectureDefinition> builtin_architectures() {
         } else {
             auto definition = make_decoder_architecture(entry.name, entry.rope.value());
             definition.match = entry.match;
-            if (std::string(entry.name) == "afmoe" || std::string(entry.name) == "qwen3tts" ||
-                std::string(entry.name) == "qwen3vlmoe") {
-                const auto factory = definition.factory;
-                definition.factory = [factory](const BuildContext& ctx) {
-                    const bool allow_f16 = ctx.arch == "qwen3vlmoe";
-                    for (const auto& type : ctx.weights->qtypes)
-                        OPENVINO_ASSERT(type.second == GGUF_TYPE_F32 || (allow_f16 && type.second == GGUF_TYPE_F16),
-                                        "[GGUF] built-in ",
-                                        ctx.arch,
-                                        " support requires ",
-                                        allow_f16 ? "F32/F16" : "F32",
-                                        " tensors; unsupported type ",
-                                        static_cast<uint32_t>(type.second),
-                                        " in '",
-                                        type.first,
-                                        "'. Register an ArchitectureExtension to override it.");
-                    return factory(ctx);
-                };
-            }
             definitions.push_back(std::move(definition));
         }
     }

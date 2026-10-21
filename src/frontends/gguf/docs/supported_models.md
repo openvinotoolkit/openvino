@@ -239,21 +239,25 @@ continuous batching and target-only greedy agreement. The Qwen3.6-35B-A3B Q4_K_M
 BF16 pair passes repeated single-request PA generation with prefix caching disabled.
 DeepSeek-V4 and multiple active DFlash requests are deferred.
 
-### Limited formats enabled by this PR
+### Quantized support and reference accuracy
 
+The enabled families use the frontend's [implemented weight formats](quantization.md).
+Quantized decoder and projector files are accepted; F32/F16 files establish the
+reference graph behavior, rather than restricting which formats can be loaded.
 The CPU checkpoint results below use llama.cpp revision
-`098ce526b546b5a190327c1da82929cee051b9ac`. F32 materialization produces a separate
-GGUF format with the source tensor values preserved and `general.file_type=0`;
-it does not turn a failed original quantized checkpoint into a passing one.
-Built-in AFMoE, Qwen3TTS, Qwen3VL MoE and the limited projectors check actual tensor types.
+`098ce526b546b5a190327c1da82929cee051b9ac`. F32 materialization preserves the source
+represented values in a separate GGUF file with `general.file_type=0`.
+Known quantized accuracy differences remain recorded. They do not disable a format
+when the floating-point reference path works; passing conversion alone still does
+not establish its numerical parity or generated-output quality.
 
-| Family | Supported subset and evidence | Excluded formats |
+| Family | Floating-point reference evidence | Quantized accuracy observations |
 |---|---|---|
-| AFMoE | F32 tensors; Trinity-Nano-Preview represented-F32 decoder matches 13/13 | Original Q4_K_S matches 11/13; Q4_0/DQ32 matches 7/13 |
-| Qwen3-ASR | Original BF16 decoder matches 13/13; Q8_0 with CPU `DYNAMIC_QUANTIZATION_GROUP_SIZE=32` matches 12/13 with the same first prediction. Requires an F32 `qwen3a` projector | Original Q8_0 decoder with DQ disabled matches 10/13; original BF16/Q8_0 projectors fail feature parity |
-| MiniCPM-V 4.7 | Existing `qwen35` decoder matches 13/13; F32 `minicpmv4_7` projector passes 448×448 and 224×112 feature checks | Original mixed BF16/F32 projector exceeds the feature gate |
-| Qwen3TTS | F32 decoder and combined speaker/predictor/codec projector; represented-F32 decoder matches 13/13 | Original Q4_K_M decoder matches 8/13; original BF16/Q8_0 projectors fail feature parity |
-| Qwen3VL MoE / Qwen3-Omni | F16/F32 tensors; mixed-F16 30B-A3B decoder matches 13/13; F32 combined projector | Original Q4_K_M decoder matches 11/13; original Q8_0 projector fails feature parity |
+| AFMoE | Trinity-Nano-Preview represented-F32 decoder matches 13/13 | Original Q4_K_S matches 11/13; Q4_0/DQ32 matches 7/13 |
+| Qwen3-ASR | Original BF16 decoder matches 13/13; F32 `qwen3a` projector feature parity passes | Q8_0 decoder with CPU DQ32 matches 12/13, with DQ disabled 10/13; original BF16/Q8_0 projectors differ from llama.cpp |
+| MiniCPM-V 4.7 | F32 `minicpmv4_7` projector passes 448×448 and 224×112 feature checks; existing `qwen35` decoder matches 13/13 | Original mixed BF16/F32 projector exceeds the feature parity gate |
+| Qwen3TTS | Represented-F32 decoder matches 13/13; F32 speaker/predictor/codec projector checks pass | Original Q4_K_M decoder matches 8/13; original BF16/Q8_0 projectors differ from llama.cpp |
+| Qwen3VL MoE / Qwen3-Omni | Mixed-F16 30B-A3B decoder matches 13/13; F32 combined projector feature parity passes | Original Q4_K_M decoder matches 11/13; original Q8_0 projector differs from llama.cpp |
 
 ASR's F32 projector feature NMSE is `4.60e-9` / `4.74e-8` for 100 / 200 frames.
 Both the original BF16 decoder and Q8_0 decoder with CPU DQ32, paired with this projector, pass two pinned LibriSpeech clips
@@ -275,7 +279,7 @@ NMSE up to `1.37e-2` recorded separately. The runtime keeps 144 expert tensors
 in F16 and expands only selected experts, peaking at 27.2 GiB for this replay.
 Repeated native SDPA and PA text outputs agree. Image and audio generation are validated
 with PA and 16-token prefill chunks; unchunked SDPA image prefill exceeded the
-RAM guard. See [projector and scheduler limits](mmproj.md#limited-projector-formats).
+RAM guard. See [projector and scheduler limits](mmproj.md#projector-reference-accuracy-and-runtime-limits).
 
 ### Deferred families
 
