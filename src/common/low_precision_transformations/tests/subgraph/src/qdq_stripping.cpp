@@ -9,7 +9,7 @@
 #include <algorithm>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/identity.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_lpt_models/qdq_stripping.hpp"
@@ -88,11 +88,11 @@ TEST_P(QDQStrippingTest, NeedScalingForwardBias) {
     model_ref = QDQStrippingFunction::build_forward_bias_pattern_ref(input_shape, need_weights_adjustment);
 }
 
-TEST_P(QDQStrippingTest, FQOnModelOutputIsKept) {
+TEST_P(QDQStrippingTest, FQOnModelOutputIsReplacedWithIdentity) {
     const auto& [need_weights_adjustment, quantization_precision] = GetParam();
     const auto input_shape = ov::PartialShape{1, 3, 8, 8};
     model = QDQStrippingFunction::build_fq_on_model_output_pattern(input_shape, quantization_precision);
-    model_ref = QDQStrippingFunction::build_fq_on_model_output_pattern_ref(input_shape, quantization_precision);
+    model_ref = QDQStrippingFunction::build_fq_on_model_output_pattern_ref(input_shape);
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
@@ -101,8 +101,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          QDQStrippingTest::getTestCaseName);
 
 // Graph comparator skips edges to already visited nodes, so check it explicitly:
-// kept FQ must not be bypassed for its other consumers
-TEST(smoke_LPT_QDQStripping, KeptFQIsNotBypassed) {
+// other consumers of the replaced FQ must use Identity as well
+TEST(smoke_LPT_QDQStripping, ReplacedFQIsNotBypassed) {
     using namespace ov::element;
     auto model = QDQStrippingFunction::build_fq_on_model_output_pattern(ov::PartialShape{1, 3, 8, 8}, u16);
 
@@ -118,7 +118,7 @@ TEST(smoke_LPT_QDQStripping, KeptFQIsNotBypassed) {
     });
     ASSERT_NE(relu, ops.end());
     const auto relu_input = (*relu)->get_input_node_ptr(0);
-    ASSERT_TRUE(ov::is_type<ov::op::v0::FakeQuantize>(relu_input)) << relu_input->get_type_name();
+    ASSERT_TRUE(ov::is_type<ov::op::v16::Identity>(relu_input)) << relu_input->get_type_name();
 }
 
 class QDQStrippingTestMixed : public TransformationTestsF, public WithParamInterface<QDQStrippingTestParams> {

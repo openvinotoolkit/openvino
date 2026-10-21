@@ -14,6 +14,7 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/identity.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
@@ -693,7 +694,7 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_fq_on_model_output_patter
         return build_dq(convert2, quantization_precision, qp);
     };
 
-    // Parameter -> QDQ -> output: FQ is kept
+    // Parameter -> QDQ -> output: FQ is replaced with Identity
     auto param_qdq = qdq(param);
 
     // Mul -> QDQ -> output: FQ is removed
@@ -701,11 +702,11 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_fq_on_model_output_patter
     auto mul = std::make_shared<ov::op::v1::Multiply>(param, half);
     auto mul_qdq = qdq(mul);
 
-    // output -> QDQ -> output: FQ is kept, and Relu must still use it
+    // output -> QDQ -> output: FQ is replaced with Identity, and Relu must use it as well
     auto output_qdq = qdq(mul_qdq);
     auto relu = std::make_shared<ov::op::v0::Relu>(output_qdq);
 
-    // Split (multi-output) -> QDQ -> output: FQ is kept
+    // Split (multi-output) -> QDQ -> output: FQ is replaced with Identity
     auto split = std::make_shared<ov::op::v1::Split>(param, ov::op::v0::Constant::create(ov::element::i64, {}, {2}), 2);
     auto split_qdq = qdq(split->output(0));
 
@@ -714,26 +715,18 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_fq_on_model_output_patter
 }
 
 std::shared_ptr<ov::Model> QDQStrippingFunction::build_fq_on_model_output_pattern_ref(
-    const ov::PartialShape& input_shape,
-    const ov::element::Type& quantization_precision) {
+    const ov::PartialShape& input_shape) {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
-    const auto qp = get_fq_on_model_output_qp(quantization_precision);
-    // The kept FQ is fused with DQ by ConvertQuantizeDequantize, output range becomes (out - zp) * scale
-    auto fused_fq = [&](const ov::Output<ov::Node>& input) {
-        const float scale = (qp.i_h - qp.i_l) / (qp.o_h - qp.o_l);
-        const float zp = static_cast<float>(qp.zero_point);
-        return build_fq(input, {qp.i_l, qp.i_h, (qp.o_l - zp) * scale, (qp.o_h - zp) * scale, 0});
-    };
 
-    auto param_fq = fused_fq(param);
+    auto param_identity = std::make_shared<ov::op::v16::Identity>(param);
     auto half = ov::op::v0::Constant::create(ov::element::f32, {}, {0.5f});
     auto mul = std::make_shared<ov::op::v1::Multiply>(param, half);
-    auto output_fq = fused_fq(mul);
-    auto relu = std::make_shared<ov::op::v0::Relu>(output_fq);
+    auto output_identity = std::make_shared<ov::op::v16::Identity>(mul);
+    auto relu = std::make_shared<ov::op::v0::Relu>(output_identity);
     auto split = std::make_shared<ov::op::v1::Split>(param, ov::op::v0::Constant::create(ov::element::i64, {}, {2}), 2);
-    auto split_fq = fused_fq(split->output(0));
+    auto split_identity = std::make_shared<ov::op::v16::Identity>(split->output(0));
 
-    ov::OutputVector outputs{param_fq, mul, output_fq, relu, split_fq, split->output(1)};
+    ov::OutputVector outputs{param_identity, mul, output_identity, relu, split_identity, split->output(1)};
     return std::make_shared<ov::Model>(outputs, ov::ParameterVector{param}, "QDQStripping");
 }
 
