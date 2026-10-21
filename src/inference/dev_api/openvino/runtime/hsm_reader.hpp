@@ -129,10 +129,10 @@ SectionDecoder<T> make_section_decoder(std::function<std::optional<T>(ov::util::
 }
 
 /**
- * @brief Per-entry hook a #Reader offers to plugins/devices: given one manifest entry's section content, a
- * concrete handler self-selects by checking `(entry.device, entry.tag)` and returns whether it recognized
- * and handled it. Per the unknown-tag rule on #SectionTag, an entry no handler recognizes must be skipped,
- * never fail import.
+ * @brief Per-entry hook a #Reader offers to plugins/devices: given one manifest entry and its #Section
+ * handle, a concrete handler self-selects by checking `(entry.device, entry.tag)` and reports whether it
+ * recognized and handled it. Per the unknown-tag rule on #SectionTag, an entry no handler recognizes must be
+ * skipped, never fail import.
  */
 class OPENVINO_RUNTIME_API ISectionReaderHandler {
 public:
@@ -143,10 +143,10 @@ public:
      * @note Not itself a dispatch loop - a caller tries this once per candidate entry against each handler
      * it holds, in turn, until one returns true.
      * @param entry Manifest entry being considered - not necessarily one this extension owns.
-     * @param section Bounds-checked view of the payload.
+     * @param section Lazy handle to @p entry's payload. The handler reads it if needed.
      * @return true if `(entry.device, entry.tag)` was recognized and handled, false otherwise.
      */
-    virtual bool handle_section(const ManifestEntry& entry, ov::util::MemoryView section) = 0;
+    virtual bool handle_section(const ManifestEntry& entry, const Section& section) = 0;
 };
 
 /**
@@ -310,6 +310,7 @@ public:
     /**
      * @brief Dispatches every manifest entry - Core-owned sections included - to @p handlers, in order,
      * stopping at the first one that recognizes it. An entry no handler recognizes is silently skipped.
+     * Handlers receive a lazy #Section and read its payload only if needed.
      *
      * @param handlers The list of handlers to dispatch the manifest entries to.
      * @return The number of entries actually handled by some handler.
