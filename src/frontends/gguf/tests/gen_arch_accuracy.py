@@ -19,11 +19,18 @@ import numpy as np
 from mmproj_fixtures import finish, save_npz
 
 CASES = {
+    "lfm2": {},
+    "lfm2-tied": {"architecture": "lfm2", "tied": True},
+    "lfm2-swa": {"architecture": "lfm2", "swa": True, "kernel": 4},
+    "lfm2-attention-first": {"architecture": "lfm2", "attention_first": True, "fused": True},
+    "lfm2moe": {"moe": True, "lead": 1},
+    "lfm2moe-all-experts": {"architecture": "lfm2moe", "moe": True, "sigmoid": True, "expert_scale": 2.5},
     "qwen35": {}, "qwen35moe": {},
     "qwen35moe-fused": {"architecture": "qwen35moe", "fused_experts": True},
     # Real checkpoints quantize attn_gate apart from ssm_beta/ssm_alpha: F16 here selects the
     # frontend's beta+alpha-only merge, and an F16 beta in layer 2 selects separate projections.
     "qwen35-mixed": {"architecture": "qwen35", "f16": ("attn_gate", "blk.2.ssm_beta")},
+    "bonsai2-hadamard": {"architecture": "qwen35", "hadamard": True},
     "nemotron_h": {},
     "mamba2": {}, "mamba2-tied": {"architecture": "mamba2", "tied": True},
     "llama": {},
@@ -130,7 +137,7 @@ def write_mamba2_model(path, opts, arch="mamba2"):
     finish(w)
 
 
-def write_qwen35_model(path, arch, fused_experts=False, f16=()):
+def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False):
     w = gguf.GGUFWriter(path, arch)
     d, head, heads, kv, ff, vocab = 32, 16, 4, 2, 48, 32
     state, groups, vheads, kernel = 8, 2, 4, 4
@@ -153,6 +160,22 @@ def write_qwen35_model(path, arch, fused_experts=False, f16=()):
                        "state_size": state, "conv_kernel": kernel}.items():
         w.add_uint32(arch + ".ssm." + key, value)
     w.add_uint32(arch + ".full_attention_interval", 4)
+    if hadamard:
+        names = ["output.weight"]
+        for layer in range(4):
+            p = f"blk.{layer}."
+            kinds = ("attn_qkv", "attn_gate", "ssm_out") if layer < 3 else ("attn_q", "attn_k", "attn_v", "attn_output")
+            names.extend(p + kind + ".weight" for kind in (*kinds, "ffn_gate", "ffn_up", "ffn_down"))
+        w.add_uint32("prism.hadamard.version", 1)
+        w.add_uint32("prism.hadamard.block_size", 8)
+        w.add_string("prism.hadamard.transform", "normalized-sylvester-walsh-hadamard")
+        w.add_string("prism.hadamard.axis", "input-last-dimension")
+        w.add_string("prism.hadamard.sign_mode", "explicit")
+        w.add_array("prism.hadamard.weight_names", names)
+        w.add_array("prism.hadamard.inverse_weight_names", ["token_embd.weight"])
+        w.add_key_value("prism.hadamard.sign_widths", [32, 48, 64], gguf.GGUFValueType.ARRAY, gguf.GGUFValueType.INT32)
+        w.add_key_value("prism.hadamard.sign_values", [(-1 if i % 3 else 1) for i in range(144)], gguf.GGUFValueType.ARRAY, gguf.GGUFValueType.INT32)
+        w.add_bool("prism.hadamard.gdn_v_grouped", True)
     moe = arch == "qwen35moe"
     if moe:
         w.add_expert_count(4)
@@ -272,12 +295,76 @@ def write_gemma4_model(path, opts):
     finish(w)
 
 
+def write_lfm2_model(path, arch, opts):
+    w = gguf.GGUFWriter(path, arch)
+    d, heads, kv, head, ff, vocab = 32, 4, 2, 8, 48, 32
+    kernel = opts.get("kernel", 3)
+    kv_layers = [kv, 0, kv, 0] if opts.get("attention_first") else [0, kv, 0, kv]
+    w.add_context_length(128)
+    w.add_embedding_length(d)
+    w.add_block_count(len(kv_layers))
+    w.add_feed_forward_length(ff)
+    w.add_head_count(heads)
+    w.add_head_count_kv(kv_layers)
+    w.add_key_length(head)
+    w.add_value_length(head)
+    w.add_rope_dimension_count(head)
+    w.add_rope_freq_base(1000000.)
+    w.add_layer_norm_rms_eps(1e-5)
+    w.add_uint32(arch + ".shortconv.l_cache", kernel)
+    w.add_vocab_size(vocab)
+    w.add_tokenizer_model("none")
+    if opts.get("swa"):
+        w.add_sliding_window(2)
+    if opts.get("moe"):
+        w.add_expert_count(4)
+        w.add_expert_used_count(2)
+        w.add_expert_feed_forward_length(ff)
+        w.add_leading_dense_block_count(opts.get("lead", 0))
+        w.add_uint32(arch + ".expert_gating_func", 2 if opts.get("sigmoid") else 1)
+        if opts.get("expert_scale"):
+            w.add_expert_weights_scale(opts["expert_scale"])
+    tensor = tensor_writer(w, np.random.default_rng(20261014))
+    tensor("token_embd.weight", (vocab, d))
+    tensor("token_embd_norm.weight", (d,), True)
+    if not opts.get("tied"):
+        tensor("output.weight", (vocab, d))
+    for layer, layer_kv in enumerate(kv_layers):
+        p = f"blk.{layer}."
+        tensor(p + "attn_norm.weight", (d,), True)
+        tensor(p + "ffn_norm.weight", (d,), True)
+        if layer_kv:
+            if opts.get("fused"):
+                tensor(p + "attn_qkv.weight", ((heads + 2 * kv) * head, d))
+            else:
+                for name, width in (("q", d), ("k", kv * head), ("v", kv * head)):
+                    tensor(p + f"attn_{name}.weight", (width, d))
+            for name in ("q", "k"):
+                tensor(p + f"attn_{name}_norm.weight", (head,), True)
+            tensor(p + "attn_output.weight", (d, d))
+        else:
+            tensor(p + "shortconv.in_proj.weight", (3 * d, d))
+            tensor(p + "shortconv.conv.weight", (d, kernel))
+            tensor(p + "shortconv.out_proj.weight", (d, d))
+        if opts.get("moe") and layer >= opts.get("lead", 0):
+            tensor(p + "ffn_gate_inp.weight", (4, d))
+            tensor(p + "exp_probs_b.bias", (4,))
+            for name, shape in (("gate", (4, ff, d)), ("up", (4, ff, d)), ("down", (4, d, ff))):
+                tensor(p + f"ffn_{name}_exps.weight", shape)
+        else:
+            for name, shape in (("gate", (ff, d)), ("up", (ff, d)), ("down", (d, ff))):
+                tensor(p + f"ffn_{name}.weight", shape)
+    finish(w)
+
+
 def write_model(path, arch, opts):
     arch = opts.get("architecture", arch)
+    if arch in ("lfm2", "lfm2moe"):
+        return write_lfm2_model(path, arch, opts)
     if arch == "gemma4":
         return write_gemma4_model(path, opts)
     if arch in ("qwen35", "qwen35moe"):
-        return write_qwen35_model(path, arch, opts.get("fused_experts", False), opts.get("f16", ()))
+        return write_qwen35_model(path, arch, opts.get("fused_experts", False), opts.get("f16", ()), opts.get("hadamard", False))
     if arch in ("mamba2", "nemotron_h"):
         return write_mamba2_model(path, opts, arch)
     w = gguf.GGUFWriter(path, arch)
