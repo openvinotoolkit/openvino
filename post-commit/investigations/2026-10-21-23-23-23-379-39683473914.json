@@ -1,0 +1,36 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-21-23-23-23-379-39683473914",
+    "timestamp": "2026-10-21T23:23:23Z",
+    "run_id": "39683473914",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39683473914",
+    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+    "commit_sha": "31489b9cdbffa4c43e951a11eb3c6c2fa4b0c3d9",
+    "pr_number": "38811",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38811",
+    "author": null,
+    "category": "Network",
+    "title": "Upload compile_commands fails with ENOTFOUND artifact upload error on Windows runner",
+    "signature": "Failed to CreateArtifact: Unable to make request: ENOTFOUND|Network",
+    "signature_hash": "4e9cf236bf92d555",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "Build / Build",
+            "conclusion": "failure",
+            "symptom": "Build completed successfully; the 'Upload compile_commands' step failed with a DNS resolution error (ENOTFOUND) when contacting the GitHub Actions artifact service."
+        }
+    ],
+    "key_errors": [
+        "2026-10-21T23:17:20.2884219Z ##[error]Failed to CreateArtifact: Unable to make request: ENOTFOUND\nIf you are using self-hosted runners, please make sure your runner has access to all GitHub endpoints: https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners#communication-between-self-hosted-runners-and-github"
+    ],
+    "root_cause": "The 'Upload compile_commands' step (using ababushk/upload-artifact) failed because the self-hosted Windows runner could not resolve the DNS hostname for the GitHub Actions artifact upload service (ENOTFOUND), a transient network/DNS infrastructure error unrelated to the build or the PR's code changes. The build itself completed successfully (CMake configure/build/install, Pack Artifacts, Contrib build all succeeded); only the artifact upload step after a successful build failed.",
+    "reproduction_steps": "N/A - this is a transient network/DNS resolution failure on the self-hosted Windows runner infrastructure, not reproducible via local code changes. Rerunning the job would likely succeed if runner network connectivity to GitHub's artifact endpoints is restored.",
+    "recommended_actions": [
+        "Re-run the failed 'Build / Build' job; this is a transient infrastructure issue, not a code defect.",
+        "If ENOTFOUND failures on self-hosted Windows runners recur frequently, escalate to the CI infrastructure team to investigate DNS resolution reliability for the artifact upload endpoints from these runners.",
+        "Consider adding automatic retry logic (e.g., exponential backoff) around the upload-artifact action invocation for compile_commands and similar best-effort artifact uploads to reduce noise from transient DNS blips."
+    ],
+    "prevention_strategies": "Add a retry wrapper (with backoff) around non-critical artifact upload steps, and/or monitor self-hosted Windows runner outbound DNS/network health so recurring ENOTFOUND errors can be caught and remediated before they affect multiple post-commit runs.",
+    "historical_context": "This is the second occurrence of this exact signature (first seen 2026-09-23 on run 35899229472, 'Upload Test Results fails with ENOTFOUND artifact upload error on Windows runner'). A related but distinct DNS/network failure (ECONNREFUSED instead of ENOTFOUND) was also seen once on 2026-10-20 (run 39398307178). All three incidents point to intermittent outbound network/DNS instability from self-hosted Windows runners reaching GitHub's artifact service, not to any code or configuration regression."
+}
