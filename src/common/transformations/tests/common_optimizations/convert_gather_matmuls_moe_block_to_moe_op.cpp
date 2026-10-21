@@ -446,15 +446,10 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model(
     // MOE op with compact routing
     auto hidden_states = input->output(0);
     ov::OutputVector moe_inputs = {hidden_states, routing, topk_indices};
-    // TODO: remove with the scalar zero point broadcasting in Convert3GatherMatmulMoeBlockToMoeOp
-    auto ref_compression = compression;
-    if (ref_compression && ref_compression->decompression_subtract_type == ov::test::utils::DecompressionType::scalar) {
-        ref_compression->decompression_subtract_type = ov::test::utils::DecompressionType::full;
-    }
     for (auto [n, k] : {std::pair{intermediate_size, hidden_size},
                         std::pair{intermediate_size, hidden_size},
                         std::pair{hidden_size, intermediate_size}}) {
-        const auto w = make_expert_weights(number_of_experts, n, k, ref_compression);
+        const auto w = make_expert_weights(number_of_experts, n, k, compression);
         moe_inputs.insert(moe_inputs.end(), w.begin(), w.end());
     }
 
