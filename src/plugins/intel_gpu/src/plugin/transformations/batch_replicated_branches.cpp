@@ -31,6 +31,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
@@ -167,6 +168,10 @@ bool attributes_equal(const ov::op::v0::Convert& lhs, const ov::op::v0::Convert&
 template <typename Op>
 bool attributes_equal_as(const NodePtr& lhs, const NodePtr& rhs) {
     return attributes_equal(*std::static_pointer_cast<Op>(lhs), *std::static_pointer_cast<Op>(rhs));
+}
+
+bool is_type_relaxed(const NodePtr& node) {
+    return dynamic_cast<const ov::op::TypeRelaxedBase*>(node.get()) != nullptr;
 }
 
 bool operation_attributes_equal(const NodePtr& lhs, const NodePtr& rhs) {
@@ -386,9 +391,9 @@ bool equivalent_branch_nodes(const NodePtr& lhs,
     if (!is_batch_safe_operation(lhs, replica_count) || !is_batch_safe_operation(rhs, replica_count)) {
         return false;
     }
-    if (lhs->get_type_info() != rhs->get_type_info() || !is_static_node(lhs) || !is_static_node(rhs) ||
-        !output_shapes_equal(lhs, rhs) || !operation_attributes_equal(lhs, rhs) ||
-        lhs->get_input_size() != rhs->get_input_size()) {
+    if (lhs->get_type_info() != rhs->get_type_info() || is_type_relaxed(lhs) || is_type_relaxed(rhs) ||
+        !is_static_node(lhs) || !is_static_node(rhs) || !output_shapes_equal(lhs, rhs) ||
+        !operation_attributes_equal(lhs, rhs) || lhs->get_input_size() != rhs->get_input_size()) {
         return false;
     }
 

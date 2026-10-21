@@ -30,6 +30,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
@@ -58,7 +59,8 @@ std::shared_ptr<ov::Model> make_camera_model(const std::vector<int64_t>& indices
                                              bool add_external_endpoint_user = false,
                                              bool add_max_pool_indices_user = false,
                                              bool add_port_runtime_info = false,
-                                             bool add_external_data_user = false) {
+                                             bool add_external_data_user = false,
+                                             bool add_type_relaxed_branch = false) {
     const auto input_shape = dynamic_camera_height
                                  ? ov::PartialShape{1, 4, 3, ov::Dimension::dynamic(), 640}
                                  : ov::PartialShape{1, 4, 3, 480, 640};
@@ -119,19 +121,32 @@ std::shared_ptr<ov::Model> make_camera_model(const std::vector<int64_t>& indices
             ov::CoordinateDiff{0, 0},
             ov::CoordinateDiff{0, 0},
             ov::Strides{1, 1});
+        std::shared_ptr<ov::Node> convolution_node = convolution;
+        if (add_type_relaxed_branch) {
+            const auto origin_type = i == 1 ? ov::element::f16 : ov::element::f32;
+            convolution_node = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Convolution>>(
+                ov::element::TypeVector{origin_type, origin_type},
+                ov::element::TypeVector{ov::element::f32},
+                ov::op::TemporaryReplaceOutputType(gather, origin_type).get(),
+                ov::op::TemporaryReplaceOutputType(branch_weights, origin_type).get(),
+                ov::Strides{32, 32},
+                ov::CoordinateDiff{0, 0},
+                ov::CoordinateDiff{0, 0},
+                ov::Strides{1, 1});
+        }
         if (add_port_runtime_info) {
-            convolution->input(0).get_rt_info()["camera_input_port"] = int64_t{1};
-            convolution->input(1).get_rt_info()["camera_weights_port"] = std::string{"weights"};
-            convolution->output(0).get_rt_info()["camera_output_port"] = int64_t{2};
+            convolution_node->input(0).get_rt_info()["camera_input_port"] = int64_t{1};
+            convolution_node->input(1).get_rt_info()["camera_weights_port"] = std::string{"weights"};
+            convolution_node->output(0).get_rt_info()["camera_output_port"] = int64_t{2};
         }
         if (different_branch_runtime_info && i == 1) {
-            convolution->get_rt_info()["camera_branch"] = static_cast<int64_t>(i);
+            convolution_node->get_rt_info()["camera_branch"] = static_cast<int64_t>(i);
         }
-        ov::Output<ov::Node> branch = convolution;
+        ov::Output<ov::Node> branch = convolution_node;
         if (add_unknown_runtime_info && i < 2) {
-            convolution->get_rt_info()["camera_branch"] = int64_t{7};
-            convolution->get_rt_info()["camera_label"] = std::string{"camera"};
-            convolution->get_rt_info()["camera_payload"] =
+            convolution_node->get_rt_info()["camera_branch"] = int64_t{7};
+            convolution_node->get_rt_info()["camera_label"] = std::string{"camera"};
+            convolution_node->get_rt_info()["camera_payload"] =
                 UnknownRuntimeInfo{static_cast<int>(i), {"front", "wide"}};
         }
         if (use_v14_max_pool) {
@@ -615,6 +630,34 @@ TEST(BatchReplicatedBranches, RejectsAddWithoutSafeNumpyBatchBroadcast) {
 
 TEST(BatchReplicatedBranches, RejectsDifferentBranchRuntimeInfo) {
     auto model = make_camera_model({0, 1, 2, 3}, false, false, false, false, true);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
+    manager.run_passes(model);
+
+    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
+                                                      .get_node_shared_ptr()),
+              nullptr);
+}
+
+TEST(BatchReplicatedBranches, RejectsTypeRelaxedBranches) {
+    auto model = make_camera_model({0, 1, 2, 3},
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   true);
 
     ov::pass::Manager manager;
     manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
