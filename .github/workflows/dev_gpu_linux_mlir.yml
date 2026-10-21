@@ -221,7 +221,7 @@ jobs:
         id: llvm_cache
         uses: ./openvino/.github/actions/cache
         with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          save-always: true
           cache-path: ${{ env.LLVM_CACHE_DIR }}
           path: ${{ env.LLVM_INSTALL_DIR }}
           key: ${{ steps.cache_keys.outputs.llvm-key }}
