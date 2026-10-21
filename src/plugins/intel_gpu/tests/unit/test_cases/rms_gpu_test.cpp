@@ -32,7 +32,7 @@ void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr outpu
 
     cldnn::mem_lock<T> src(input, get_test_stream());
     cldnn::mem_lock<T> dst(output, get_test_stream());
-    
+
     std::unique_ptr<cldnn::mem_lock<T>> weight;
     if (gamma) {
         weight = std::make_unique<cldnn::mem_lock<T>>(gamma, get_test_stream());
@@ -1207,7 +1207,10 @@ class rms_mxfp8_dynamic_quantize_test : public ::testing::TestWithParam<std::tup
 
 TEST_P(rms_mxfp8_dynamic_quantize_test, rms_test_bfyx_opt_mxfp8_dynamic_quantize) {
     auto& engine = get_test_engine();
-    const auto [data_size, quantization_dt, additional_fusion] = GetParam();
+    const auto params = GetParam();
+    const auto data_size = std::get<0>(params);
+    const auto quantization_dt = std::get<1>(params);
+    const auto additional_fusion = std::get<2>(params);
     const ov::Shape input_shape{1, 1, data_size};
     const auto epsilon = 1e-6f;
 
@@ -1234,7 +1237,6 @@ TEST_P(rms_mxfp8_dynamic_quantize_test, rms_test_bfyx_opt_mxfp8_dynamic_quantize
 
     ov::Shape scale_shape = input_shape;
     scale_shape.back() = input_shape.back() / 32;
-
     auto make_topology = [&]() {
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
