@@ -225,6 +225,7 @@ jobs:
         uses: ./openvino/.github/actions/npu_metrics_baseline
         with:
           mode: compare
+          publish: ${{ job.status == 'success' }}
           platform: ${{ matrix.npu-platform }}
           model-scope: ${{ inputs.model-scope }}
           metrics-dir: ${{ env.INSTALL_TEST_DIR }}

@@ -83,6 +83,9 @@ def compare_metric(base: object, cur: object, threshold: float) -> dict:
 def compare(baseline: dict, current: dict, thresholds: dict[str, float], baseline_path: Path, current_path: Path) -> list[dict]:
     base_flat = flatten(baseline, baseline_path)
     cur_flat = flatten(current, current_path)
+    # A model is only "removed" if its suite ran in this job. A suite that did not run at all
+    # (skipped by Smart CI, or it failed before producing results) says nothing about its models.
+    executed_suites = {key[:3] for key in cur_flat}
     entries = []
     for key in sorted(set(base_flat) | set(cur_flat)):
         platform, framework, test_type, model = key
@@ -90,6 +93,8 @@ def compare(baseline: dict, current: dict, thresholds: dict[str, float], baselin
         if key not in base_flat:
             entry["status"] = "new"
         elif key not in cur_flat:
+            if key[:3] not in executed_suites:
+                continue
             entry["status"] = "removed"
         else:
             metrics = {

@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Extract per-model NPU compilation metrics from a pytest compiler log.
 
 Output structure:
@@ -44,7 +47,9 @@ TEST_TYPES = {
 
 # pytest -v output, for example:
 # tests/.../test_timm.py::TestTimm::test_timm_precommit[NPU-resnet18-...] PASSED
-PYTEST_CASE = re.compile(r"^(?P<nodeid>.+?\.py::.+?\[(?P<model>.+)\])(?:\s|$)")
+# With -s, the test's own log output can follow the ID on the same line, so the model must end at the
+# first "]" that is followed by whitespace, not at the last "]" of the line.
+PYTEST_CASE = re.compile(r"^(?P<nodeid>.+?\.py::.+?\[(?P<model>.+?)\])(?=\s|$)")
 
 # Both metrics are reported by the NPU compiler itself, which logs under the "vpux-compiler"
 # tag, e.g.:
@@ -117,14 +122,20 @@ def get_framework_bucket(
 
 
 def load_existing(path: Path) -> dict:
-    """Return previously collected results, or an empty dict."""
+    """Return previously collected results, or an empty dict if there are none yet.
+
+    An existing file that cannot be read or is not a JSON object is an error: silently
+    starting from {} would overwrite the metrics collected by the earlier steps.
+    """
     if not path.is_file():
         return {}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {}
-    return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, OSError) as err:
+        raise SystemExit(f"Cannot read existing metrics file '{path}': {err}. Delete it and rerun all parser steps.")
+    if not isinstance(data, dict):
+        raise SystemExit(f"Existing metrics file '{path}' is not a JSON object. Delete it and rerun all parser steps.")
+    return data
 
 
 def main() -> None:
