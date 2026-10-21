@@ -903,6 +903,7 @@ set(GPU_KERNEL_SELECTOR_CL_KERNELS
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/fully_connected_gpu_bf_tiled_dyn_b_core.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/gemm_common.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/image_data.cl
+    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/mmad.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/resample_utils.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/reshape_dims.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/sub_group.cl
