@@ -725,7 +725,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             }
         }
-        if (!(device_info.supports_immad && config.get_use_onednn())) {
+        if (!device_info.supports_immad || !config.get_use_onednn()) {
             manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
         }
 
