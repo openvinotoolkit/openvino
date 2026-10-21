@@ -12,7 +12,6 @@
 #include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -48,15 +47,9 @@ enum class InputType : int { Q, K, V, SDPA };
 enum class SinksSliceType : int { None, Slice, StridedSlice };
 
 namespace {
-// Additive mask value a where-style mask is fused into: half of the lowest value of the score type
-// (a true -inf cannot be built for f16/bf16 constants).
-float additive_mask_value(const element::Type& et) {
-    if (et == f16)
-        return static_cast<float>(std::numeric_limits<ov::float16>::lowest()) / 2.0f;
-    if (et == bf16)
-        return static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest()) / 2.0f;
-    return 0.0f;
-}
+// Additive mask value a where-style mask is fused into: half of the lowest f16 value, used for every
+// supported score type.
+const float kAdditiveMaskValue = static_cast<float>(std::numeric_limits<ov::float16>::lowest()) / 2.0f;
 }  // namespace
 
 class SDPA {
@@ -288,7 +281,7 @@ public:
             if (with_select_mask) {
                 // The where-style mask is fused as the additive attention mask.
                 auto zero = v0::Constant::create(m_type, Shape{}, {0.f});
-                auto mask_value = v0::Constant::create(m_type, Shape{}, {additive_mask_value(m_type)});
+                auto mask_value = v0::Constant::create(m_type, Shape{}, {kAdditiveMaskValue});
                 mask_input = make_shared<op::v1::Select>(m_cond, zero, mask_value);
             }
             auto mask_input_ps = mask_input->get_output_partial_shape(0);
@@ -1822,18 +1815,18 @@ protected:
     }
 };
 
-// f32 scores: the fused SDPA primitive supports f16/bf16 only.
-TEST_F(SDPASelectMaskNoFusion, SDPAFusionTest_SelectMaskF32) {
-    expect_unchanged([] {
-        return build_select_mask_attention(f32, PartialShape{4, 8, 8}, Shape{}, {kSelectMaskSentinel});
-    });
-}
-
 // The masked-out value must saturate to -inf, otherwise the additive form would change the result,
 // e.g. Softmax([-20000, -10000]) = [0, 1] but Softmax([-20000, masked]) = [1, 0].
 TEST_F(SDPASelectMaskNoFusion, SDPAFusionTest_SelectMaskWeakSentinel) {
     expect_unchanged([] {
         return build_select_mask_attention(f16, PartialShape{4, 8, 8}, Shape{}, {-10000.0f});
+    });
+}
+
+// Only the score precisions this rewrite supports are folded; f64 keeps its Select.
+TEST_F(SDPASelectMaskNoFusion, SDPAFusionTest_SelectMaskF64) {
+    expect_unchanged([] {
+        return build_select_mask_attention(f64, PartialShape{4, 8, 8}, Shape{}, {kSelectMaskSentinel});
     });
 }
 
@@ -1959,7 +1952,7 @@ TEST_P(SDPAFusionSelectMask, SDPAFusionTest_select_mask) {
 
 INSTANTIATE_TEST_SUITE_P(SDPAFusion,
                          SDPAFusionSelectMask,
-                         Combine(Values(f16, bf16),            // Types
+                         Combine(Values(f32, f16, bf16),       // Types
                                  Values(kSelectMaskSentinel),  // masked-out value
                                  Values(false, true),          // Use scale
                                  Values(explicit_transpose_4d(1, 4, 8, 8, 32, 32, {4, 8, 8}, 1.0f),

@@ -10,13 +10,10 @@ namespace test {
 void core_configuration(ov::test::SubgraphBaseTest* test) {
     ov::element::Type hint = ov::element::f32;
     for (auto& param : test->function->get_parameters()) {
-        const auto type = param->get_output_element_type(0);
-        if (type == ov::element::f16) {
+        if (param->get_output_element_type(0) == ov::element::f16) {
             hint = ov::element::f16;
             break;
         }
-        if (type == ov::element::bf16)
-            hint = ov::element::bf16;
     }
 
     // Set inference_precision hint to run fp32 model in fp32 runtime precision as default plugin execution precision
