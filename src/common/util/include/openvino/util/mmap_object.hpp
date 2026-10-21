@@ -70,7 +70,7 @@ public:
      *               mapping when set to auto_size.
      */
     virtual void hint_prefetch(size_t offset, size_t size) noexcept = 0;
-    void hint_prefetch() noexcept override final;
+    std::shared_future<void> hint_prefetch() noexcept override final;
 
     /**
      * @brief Asynchronous variant of @ref hint_prefetch: starts populating the region in the

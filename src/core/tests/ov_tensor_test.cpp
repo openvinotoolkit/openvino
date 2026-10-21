@@ -1367,7 +1367,7 @@ public:
 
     MOCK_METHOD(void, hint_evict, (size_t offset, size_t size), (noexcept, override));
     MOCK_METHOD(void, hint_prefetch, (size_t offset, size_t size), (noexcept, override));
-    MOCK_METHOD(void, hint_prefetch_async, (size_t offset, size_t size), (override));
+    MOCK_METHOD(std::shared_future<void>, hint_prefetch_async, (size_t offset, size_t size), (noexcept, override));
 
 private:
     std::vector<std::byte> m_data;
@@ -1387,7 +1387,7 @@ TEST_F(OVTensorTest, bufferTensorViewsBufferAndTakesItsId) {
     EXPECT_EQ(tensor.data(), static_cast<const void*>(mapping->data()));
     EXPECT_EQ(ov::get_tensor_source_id(tensor), std::optional<uint64_t>{7u});
 
-    EXPECT_CALL(*mapping, hint_prefetch(0, ov::auto_size));
+    EXPECT_CALL(*mapping, hint_prefetch_async(0, ov::auto_size));
     auto hints = ov::get_memory_hints(tensor);
     EXPECT_EQ(hints.get(), static_cast<ov::util::IMemoryHints*>(mapping.get()));
     hints->hint_prefetch();
@@ -1413,9 +1413,9 @@ TEST_F(OVTensorTest, memoryHintsCoverTensorRangeOfMapping) {
     const auto tensor = make_buffer_tensor(ov::element::u8, ov::Shape{1000}, mapping);
     const ov::Tensor roi{tensor, {100}, {300}};
 
-    EXPECT_CALL(*mapping, hint_prefetch(0, 1000));
+    EXPECT_CALL(*mapping, hint_prefetch_async(0, 1000));
     EXPECT_CALL(*mapping, hint_evict(0, 1000));
-    EXPECT_CALL(*mapping, hint_prefetch(100, 200));
+    EXPECT_CALL(*mapping, hint_prefetch_async(100, 200));
     EXPECT_CALL(*mapping, hint_evict(100, 200));
 
     auto hints = ov::get_memory_hints(tensor);

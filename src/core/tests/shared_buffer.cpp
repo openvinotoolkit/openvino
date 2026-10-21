@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <future>
+#include <numeric>
 #include <optional>
 #include <sstream>
 #include <vector>
@@ -16,6 +17,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "openvino/core/weights_prefetch.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov::test {
@@ -704,5 +706,55 @@ TEST_F(SharedBufferTest, prefetch_scheduler_extends_lookahead_below_min_bytes) {
         scheduler.acquire(*op);
         scheduler.release(*op);
     }
+}
+
+TEST_F(SharedBufferTest, sequential_prefetch_scheduler_slides_window) {
+    constexpr size_t region_offset = 64;
+    auto mock = std::make_shared<MockMappedMemory>(1024);
+    const auto mapped = ov::make_tensor(ov::make_tensor(ov::element::u8, ov::Shape{1024}, mock));
+    {
+        // Region [64, 964) of the mapping, window = 200, step = 100; offsets below are relative to the mapping.
+        ::testing::InSequence in_sequence;
+        EXPECT_CALL(*mock, hint_prefetch_async(region_offset + 0, 100));
+        EXPECT_CALL(*mock, hint_prefetch_async(region_offset + 100, 100));
+        EXPECT_CALL(*mock, hint_prefetch_async(region_offset + 200, 100));
+        EXPECT_CALL(*mock, hint_prefetch_async(region_offset + 300, 100));
+        EXPECT_CALL(*mock, hint_prefetch_async(region_offset + 400, 100));
+        EXPECT_CALL(*mock, hint_prefetch_async(region_offset + 500, 100));
+        EXPECT_CALL(*mock, hint_evict_mock(region_offset + 0, 300));
+        EXPECT_CALL(*mock, hint_evict_mock(region_offset + 300, 600));
+    }
+
+    ov::util::SequentialPrefetchScheduler scheduler(ov::Tensor{mapped, {region_offset}, {region_offset + 900}},
+                                                    200,
+                                                    100);
+    scheduler.advance(0, 50);     // window reaches 250
+    scheduler.advance(50, 350);   // a large read extends the window past its end
+    scheduler.advance(350, 360);  // whole steps before 350 are evicted
+    scheduler.advance(900, 900);  // the end evicts the tail
+}
+
+TEST_F(SharedBufferTest, sequential_prefetch_scheduler_rejects_non_byte_tensor) {
+    EXPECT_THROW(ov::util::SequentialPrefetchScheduler(ov::Tensor{ov::element::f32, ov::Shape{4}}), ov::Exception);
+}
+
+TEST(prefetch_stream_buf, reads_and_seeks_plain_memory) {
+    std::vector<char> data(64);
+    std::iota(data.begin(), data.end(), 0);
+    ov::util::PrefetchStreamBuf buf(ov::Tensor{ov::element::u8, ov::Shape{data.size()}, data.data()});
+    std::istream stream(&buf);
+
+    std::vector<char> out(10);
+    stream.read(out.data(), out.size());
+    EXPECT_EQ(out, std::vector<char>(data.begin(), data.begin() + 10));
+    stream.seekg(5, std::ios::cur);
+    EXPECT_EQ(stream.tellg(), 15);
+    EXPECT_EQ(stream.get(), 15);
+    stream.seekg(0, std::ios::end);
+    EXPECT_EQ(stream.tellg(), 64);
+    stream.seekg(60);
+    stream.read(out.data(), out.size());
+    EXPECT_EQ(stream.gcount(), 4);
+    EXPECT_TRUE(stream.eof());
 }
 }  // namespace ov::test

@@ -54,8 +54,8 @@ public:
         m_memory->hint_evict(m_offset, m_size);
     }
 
-    void hint_prefetch() noexcept override {
-        m_memory->hint_prefetch(m_offset, m_size);
+    std::shared_future<void> hint_prefetch() noexcept override {
+        return m_memory->hint_prefetch_async(m_offset, m_size);
     }
 
 private:

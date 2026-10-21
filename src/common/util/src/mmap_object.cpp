@@ -15,8 +15,8 @@ void MappedMemory::hint_evict() noexcept {
     hint_evict(0, auto_size);
 }
 
-void MappedMemory::hint_prefetch() noexcept {
-    hint_prefetch(0, auto_size);
+std::shared_future<void> MappedMemory::hint_prefetch() noexcept {
+    return hint_prefetch_async(0, auto_size);
 }
 
 }  // namespace ov
