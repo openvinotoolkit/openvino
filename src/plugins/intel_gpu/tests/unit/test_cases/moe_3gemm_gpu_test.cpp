@@ -2130,8 +2130,8 @@ TEST_P(moe_3gemm_compressed_gpu_u2, mixed_zp_form_accuracy) {
             all_zero = false;
         ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance) << "i = " << i;
     }
-    // The prefill path silently falls back when the native u2 GEMM fails to launch, and an
-    // all-zero output would otherwise satisfy every tolerance check above.
+    // An all-zero output (e.g. a skipped MoE stage) would otherwise satisfy every tolerance check
+    // above.
     ASSERT_FALSE(all_zero) << "output is all zeros - the MoE stage was silently skipped";
 }
 
@@ -2326,7 +2326,7 @@ TEST_P(moe_3gemm_compressed_gpu_u2_shared, mixed_u2_shared_projections) {
     // quantize() does not hand back the exact dequantized weights the way quantize_u2 does, so
     // reconstruct them. Feeding run_reference_softmax the original floats instead leaves the u8
     // quantization error in the reference, and on the decode path -- where the batched GEMV fuses
-    // the shared expert in-kernel -- that error measured ~0.37, several times the tolerance a u2
+    // the shared expert in-kernel -- that error is several times the tolerance a u2
     // test wants. Layouts follow quantize(): q is [cols, rows] cols-major, scale/zp are
     // [groups_per_row, cols], and the result is [rows, cols] row-major. expert_num is 1 here.
     auto dequantize_u8 = [&](const std::vector<uint8_t>& q,
@@ -2479,7 +2479,7 @@ TEST_P(moe_3gemm_compressed_gpu_u2_shared, mixed_u2_shared_projections) {
             all_zero = false;
         ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance) << "i = " << i;
     }
-    // A u2 unpack that fails at runtime falls back silently, and an all-zero output would satisfy
+    // An all-zero output (e.g. a skipped MoE stage) would satisfy
     // every tolerance check above.
     ASSERT_FALSE(all_zero) << "output is all zeros - the MoE stage was silently skipped";
 }
@@ -2492,7 +2492,7 @@ INSTANTIATE_TEST_SUITE_P(
         // all-u2 case is listed: the GEMV picks ONE decode rule per compiled body, from the routed
         // experts' dtype (GATE_WEIGHT_DT/UP_WEIGHT_DT), and the shared expert aliases those same
         // pointers -- so a shared projection whose dtype differs from the routed one is decoded by
-        // the wrong rule. Measured: a u8 shared projection under u2 routed experts is off by 0.37.
+        // the wrong rule: a u8 shared projection under u2 routed experts is far outside tolerance.
         // Fixing it means a per-slot decode inside one kernel body, so the mixed cases below are
         // prefill-only until that happens.
         MoeU2SharedParams{true, true, true, 1, 64, "all_u2"},
