@@ -1254,7 +1254,9 @@ TEST(GGUFGemma3nAccuracy, PagedAttentionMatchesStatefulSDPAFullLogits) {
                 if (input.get_element_type() == ov::element::i64)
                     std::copy(values.begin(), values.end(), tensor.data<int64_t>());
                 else
-                    std::copy(values.begin(), values.end(), tensor.data<int32_t>());
+                    std::transform(values.begin(), values.end(), tensor.data<int32_t>(), [](int64_t value) {
+                        return static_cast<int32_t>(value);
+                    });
                 request.set_tensor(input, tensor);
                 continue;
             }
