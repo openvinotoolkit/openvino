@@ -4,7 +4,7 @@
 
 /**
  * @brief Small per-tag section codecs that don't warrant a dedicated file of their own.
- * @file openvino/runtime/hsm_codecs.hpp
+ * @file openvino/runtime/hsm_model_id_codec.hpp
  */
 
 #pragma once
