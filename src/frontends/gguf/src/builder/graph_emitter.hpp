@@ -113,6 +113,13 @@ public:
         return m_emitted_weights.count(name) > 0;
     }
 
+    void configure_hadamard(const std::map<std::string, GGUFMetaData>& config);
+    void validate_hadamard() const;
+    bool has_hadamard() const {
+        return m_hadamard_block != 0;
+    }
+    void inherit_hadamard(const std::string& name, const std::string& source);
+
 private:
     std::unordered_map<std::string, ov::Tensor>& m_weights;
     std::unordered_map<std::string, GgufTensorType>& m_qtypes;
@@ -124,6 +131,13 @@ private:
     // Names of weights already emitted as GGML_OP_NONE leaves, so a weight referenced by several
     // ops (or tied, e.g. MQA tie-V) is emitted once.
     std::set<std::string> m_emitted_weights;
+    int64_t m_hadamard_block = 0;
+    int64_t m_hadamard_v_heads = 0;
+    int64_t m_hadamard_k_heads = 0;
+    std::set<std::string> m_hadamard_weights;
+    std::set<std::string> m_hadamard_inverse_weights;
+    std::set<std::string> m_hadamard_consumed;
+    std::map<int64_t, ov::Tensor> m_hadamard_signs;
 };
 
 // Shapes are kept in the OpenVINO/GGML logical order [ne3, ne2, ne1, ne0] (reverse of GGUF

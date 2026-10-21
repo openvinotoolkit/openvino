@@ -40,6 +40,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -186,6 +187,7 @@ const std::map<std::string, Fingerprint>& fingerprints() {
         {"gemma2-dense.gguf.hdr", {415, 11}},    {"glm4moe-moe.gguf.hdr", {501, 10}},
         {"gpt-oss-moe.gguf.hdr", {608, 11}},     {"hunyuan-dense-dense.gguf.hdr", {414, 10}},
         {"hunyuan-moe-moe.gguf.hdr", {600, 10}}, {"llama-dense.gguf.hdr", {398, 10}},
+        {"lfm2-dense.gguf.hdr", {290, 9}},       {"lfm2moe-moe.gguf.hdr", {373, 8}},
         {"llama-moe.gguf.hdr", {542, 10}},       {"maincoder-dense.gguf.hdr", {430, 10}},
         {"minicpm-dense.gguf.hdr", {396, 10}},   {"minicpm-moe.gguf.hdr", {540, 10}},
         {"minimax-m2-moe.gguf.hdr", {582, 10}},  {"mistral3-dense.gguf.hdr", {398, 10}},
@@ -364,6 +366,10 @@ TEST(GGUFArchConversionManifest, IsPresentAndComplete) {
     // means the suite above skips.  "Some present" is not: it means the generator ran and produced
     // an incomplete set, which would silently shrink coverage to whatever happened to be written.
     const size_t present = present_fixture_count();
+    const char* require_fixtures = std::getenv("OV_GGUF_REQUIRE_ARCH_FIXTURES");
+    if (require_fixtures && std::string(require_fixtures) == "1") {
+        ASSERT_EQ(present, fixtures.size()) << "CI requires every architecture fixture to be installed";
+    }
     if (present != 0) {
         for (const auto& f : fixtures) {
             const std::string path = ov::util::path_join({fixture_dir(), f.header_file}).string();

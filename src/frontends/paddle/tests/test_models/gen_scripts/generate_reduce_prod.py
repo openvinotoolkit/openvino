@@ -41,6 +41,10 @@ def main():
     reduce_prod("reduce_prod_test_4", data, axis=[1,2], keepdim=False)
     reduce_prod("reduce_prod_test_5", data, axis=[0,1], keepdim=True)
 
+    # issue 37952: reduce_prod keeps int32, unlike reduce_sum it must not be promoted
+    data_i32 = np.array([[1, 2, 3], [4, 5, 6]]).astype(np.int32)
+    reduce_prod("reduce_prod_i32", data_i32, axis=1, keepdim=True)
+
 
 if __name__ == "__main__":
     main()
