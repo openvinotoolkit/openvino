@@ -16,6 +16,8 @@
 #if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 #    include <sched.h>
 #    include <unistd.h>
+#elif defined(_WIN32)
+#    include <windows.h>
 #endif
 
 namespace ov {
@@ -53,6 +55,8 @@ std::tuple<CpuSet, int> get_process_mask() {
     const auto& process_mask = cpu_info().get_process_mask_raw();
     const int ncpus = cpu_info().get_process_mask_ncpus();
     if (nullptr == process_mask) {
+        // Snapshot failed during startup; do not query the process mask live, as that re-introduces
+        // affinity poisoning from the main thread. Return an empty mask instead.
         return std::make_tuple(nullptr, 0);
     }
     const size_t size = CPU_ALLOC_SIZE(ncpus);
@@ -142,7 +146,7 @@ bool pin_current_thread_to_socket(int socket) {
 std::tuple<CpuSet, int> query_process_mask() {
     DWORD_PTR pro_mask, sys_mask;
     if (0 != GetProcessAffinityMask(GetCurrentProcess(), &pro_mask, &sys_mask)) {
-        CpuSet mask = std::make_unique<cpu_set_t>(pro_mask);
+        CpuSet mask = std::make_unique<cpu_set_t>(static_cast<cpu_set_t>(pro_mask));
         return std::make_tuple(std::move(mask), 0);
     }
     return std::make_tuple(nullptr, 0);
@@ -151,7 +155,7 @@ std::tuple<CpuSet, int> query_process_mask() {
 std::tuple<CpuSet, int> query_thread_mask() {
     GROUP_AFFINITY ga{};
     if (0 != GetThreadGroupAffinity(GetCurrentThread(), &ga)) {
-        return std::make_tuple(std::make_unique<cpu_set_t>(ga.Mask), 0);
+        return std::make_tuple(std::make_unique<cpu_set_t>(static_cast<cpu_set_t>(ga.Mask)), 0);
     }
     return std::make_tuple(nullptr, 0);
 }
@@ -191,7 +195,7 @@ bool pin_thread_to_vacant_core(int thrIdx,
 bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
     if (!procMask)
         return false;
-    DWORD_PTR mask = *procMask.get();
+    DWORD_PTR mask = static_cast<DWORD_PTR>(*procMask.get());
     return 0 != SetThreadAffinityMask(GetCurrentThread(), mask);
 }
 bool pin_current_thread_to_socket(int socket) {

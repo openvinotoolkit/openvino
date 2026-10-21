@@ -4,17 +4,13 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <tuple>
 #include <vector>
 
 #if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 #    include <sched.h>
-#endif
-#if defined(_WIN32)
-#    include <windows.h>
-
-#    include <thread>
 #endif
 
 namespace ov {
@@ -23,7 +19,7 @@ namespace threading {
 #if (defined(__APPLE__) || defined(__EMSCRIPTEN__))
 using cpu_set_t = void;
 #elif defined(_WIN32)
-using cpu_set_t = DWORD_PTR;
+using cpu_set_t = uintptr_t;
 #endif
 
 /**
@@ -123,5 +119,37 @@ bool pin_current_thread_by_mask(int ncores, const CpuSet& processMask);
  * @return     `True` in case of success, `false` otherwise
  */
 bool pin_current_thread_to_socket(int socket);
+
+/**
+ * @brief An RAII guard that pins the calling thread to a set of cores and accurately
+ *        restores the calling thread's own affinity mask on destruction (including during
+ *        stack unwinding on exception).
+ * @ingroup ov_dev_api_threading
+ *
+ * The mask is snapshotted on construction via query_thread_mask() and restored in the
+ * destructor via pin_current_thread_by_mask() if a valid mask was captured.
+ */
+class ScopedThreadAffinity {
+public:
+    ScopedThreadAffinity() {
+        std::tie(_mask, _ncpus) = query_thread_mask();
+    }
+
+    ~ScopedThreadAffinity() {
+        if (_mask) {
+            pin_current_thread_by_mask(_ncpus, _mask);
+        }
+    }
+
+    ScopedThreadAffinity(const ScopedThreadAffinity&) = delete;
+    ScopedThreadAffinity& operator=(const ScopedThreadAffinity&) = delete;
+
+    ScopedThreadAffinity(ScopedThreadAffinity&&) = delete;
+    ScopedThreadAffinity& operator=(ScopedThreadAffinity&&) = delete;
+
+private:
+    CpuSet _mask;
+    int _ncpus = 0;
+};
 }  // namespace threading
 }  // namespace ov
