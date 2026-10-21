@@ -7,6 +7,7 @@
 
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
 #include "data_inst.h"
 #include "mvn_inst.h"
 #include "col2im_inst.h"
@@ -58,6 +59,7 @@ TEST(prepare_padding, onednn_int4_fc_aligns_rows_to_4_bytes) {
         ov::intel_gpu::ImplForcingMap{{"fc", {format::bfyx, "", impl_types::onednn}}}));
     auto prog = program::build_program(engine, topo, config, false, true);
 
+    prog->get_node("fc").set_preferred_impl_type(impl_types::onednn);
     program_wrapper::apply_opt_pass<prepare_padding>(*prog, false);
 
     const auto& input_reorder = prog->get_node("padding_reorder_for_input");
