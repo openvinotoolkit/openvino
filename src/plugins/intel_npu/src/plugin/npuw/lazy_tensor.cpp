@@ -281,8 +281,13 @@ bool Convert::operator==(const Convert& other) const {
 }
 
 ov::Tensor Convert::eval() const {
+    auto src = tensor.eval();
+    if (ov::element::i4 == type) {
+        // A sub-byte weight presented in the wider container the device's whole-group dequantization reads.
+        return ov::npuw::util::widen_subbyte_to_i4(src);
+    }
     NPUW_ASSERT(ov::element::f16 == type);
-    return ov::npuw::util::to_f16(tensor.eval());
+    return ov::npuw::util::to_f16(src);
 }
 
 LazyTensor::Meta Convert::eval_meta() const {

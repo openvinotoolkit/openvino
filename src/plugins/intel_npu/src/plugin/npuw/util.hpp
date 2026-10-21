@@ -355,6 +355,23 @@ bool isDQScaleOrZPValue(const std::string& str);
 // in Whisper model.
 bool isRestoredPastKeyValueParam(const std::string& str);
 
+// The sub-byte containers OpenVINO packs - the ones a device consumer must not read whole-group.
+bool is_subbyte(const ov::element::Type& type);
+
+// A sub-byte weight tensor re-stored in an `i4` container, with every code preserved.
+// The device's whole-group dynamic dequantization - the prebuilt `dynamic_dequantize` SHAVE kernel - decodes
+// `i4`, `i8` and `u2`, so a sub-byte weight is correct on the device only in the per-group form, which the
+// compiler unrolls at a multi-token consumer and which costs ~2x the same model's 4-bit compiled plan. Every
+// `i2` code is representable in `i4`, so the container is a pure presentation choice: the values, and hence
+// the arithmetic, are untouched.
+// The container costs what it buys. At that consumer an `i2` weight stages as `i4`, 2x its stored bytes, so
+// a sub-byte model's weight buffer there approaches the 4-bit one's; the stored weight, the single-token
+// path's bytes and the cached blob keep their sub-byte widths. The source is live while the widened tensor is
+// staged, so a load peaks at one such pair per worker.
+// Remove this with the kernel: when `dynamic_dequantize` reads `i2`, the widening call, this function and the
+// tests that pin it go, and the compiler's guard stops refusing the width.
+ov::Tensor widen_subbyte_to_i4(const ov::Tensor& src);
+
 }  // namespace util
 }  // namespace npuw
 }  // namespace ov

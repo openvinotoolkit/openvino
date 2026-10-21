@@ -36,6 +36,12 @@ struct Context {
     std::set<PPtr> closures_to_f16;
     void to_f16(const PPtr& orig_param);
 
+    // A sub-byte weight the device must read as 4-bit-and-wider codes: the closure is widened on the host
+    // and the parameter follows, so the compiler takes the whole-group dequantization path. Removed with
+    // util::widen_subbyte_to_i4 when the device kernel reads the width.
+    std::set<PPtr> closures_to_i4;
+    void to_i4(const PPtr& orig_param);
+
     using O = ov::Output<ov::Node>;
     struct DQParMM {
         PPtr w, s;

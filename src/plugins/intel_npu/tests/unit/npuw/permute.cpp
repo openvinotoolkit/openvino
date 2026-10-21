@@ -60,6 +60,53 @@ void permute(const T* input, T* output, const std::vector<size_t>& dims, const s
     }
 }
 
+// Permute a bit-packed tensor one field at a time, so the reference does not depend on the host's
+// byte-row copy. `get` reads one field of the payload and `set` writes it.
+template <typename Get, typename Set>
+void permute_fields(const uint8_t* input,
+                    uint8_t* output,
+                    const std::vector<size_t>& dims,
+                    const std::vector<size_t>& order,
+                    const Get& get,
+                    const Set& set) {
+    size_t ndim = dims.size();
+    assert(order.size() == ndim);
+
+    std::vector<size_t> new_dims = details::reorder(dims, order);
+    std::vector<size_t> old_strides = details::compute_strides(dims);
+    std::vector<size_t> new_strides = details::compute_strides(new_dims);
+
+    size_t total = std::accumulate(dims.begin(), dims.end(), size_t(1), std::multiplies<size_t>());
+
+    for (size_t out_idx = 0; out_idx < total; ++out_idx) {
+        std::vector<size_t> new_multi(ndim);
+        size_t tmp = out_idx;
+        for (size_t i = 0; i < ndim; ++i) {
+            new_multi[i] = tmp / new_strides[i];
+            tmp = tmp % new_strides[i];
+        }
+        std::vector<size_t> old_multi(ndim);
+        for (size_t i = 0; i < ndim; ++i)
+            old_multi[order[i]] = new_multi[i];
+
+        size_t in_idx = 0;
+        for (size_t i = 0; i < ndim; ++i)
+            in_idx += old_multi[i] * old_strides[i];
+
+        set(output, out_idx, get(input, in_idx));
+    }
+}
+
+/*i2: four codes per byte, LSB-first*/
+inline uint8_t get_i2(const uint8_t* in, size_t idx) {
+    return (in[idx / 4] >> (2 * (idx % 4))) & 0x3;
+}
+
+inline void set_i2(uint8_t* out, size_t idx, uint8_t value) {
+    const size_t shift = 2 * (idx % 4);
+    out[idx / 4] = static_cast<uint8_t>((out[idx / 4] & ~(0x3 << shift)) | (value << shift));
+}
+
 }  // namespace details
 
 namespace {
@@ -142,6 +189,13 @@ void PermuteTestsBase::make_ref_output() {
                                 reinterpret_cast<float*>(ref_output.data()),
                                 dims,
                                 axes);
+    } else if (type == ov::element::i2) {
+        details::permute_fields(reinterpret_cast<const uint8_t*>(input.data()),
+                                reinterpret_cast<uint8_t*>(ref_output.data()),
+                                dims,
+                                axes,
+                                details::get_i2,
+                                details::set_i2);
     } else if (type == ov::element::i4) {
         details::permute<uint8_t, true>(reinterpret_cast<const uint8_t*>(input.data()),
                                         reinterpret_cast<uint8_t*>(ref_output.data()),
@@ -209,7 +263,7 @@ const auto TestCases021 = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(PermuteTests021, PermuteTests, TestCases021, PermuteTests::getTestCaseName);
 
 const auto TestCases102 = ::testing::Combine(
-        ::testing::ValuesIn({ov::element::Type_t::i4, ov::element::Type_t::f16}),
+        ::testing::ValuesIn({ov::element::Type_t::i4, ov::element::Type_t::i2, ov::element::Type_t::f16}),
         ::details::ShapesIn({Tensors{input={1, 10, 16};
 }
 , Tensors {

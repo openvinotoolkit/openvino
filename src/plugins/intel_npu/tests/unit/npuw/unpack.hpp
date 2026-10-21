@@ -52,6 +52,10 @@ inline int8_t upc(int8_t h) {
     return h | (-((h & (1 << 3)) >> 3) & (-8));
 }
 
+inline int8_t upc2(int8_t h) {
+    return (h & 0x2) ? static_cast<int8_t>(h - 4) : h;
+}
+
 typedef unsigned short ushort;
 typedef unsigned int uint;
 
@@ -101,6 +105,48 @@ void unpack_i4f16(const int8_t* in, int8_t* out, int size) {
         *(hFloatOut++) = int2hfloat(upc(lo4(*in)));
         *(hFloatOut++) = int2hfloat(upc(hi4(*in)));
         in++;
+    }
+}
+
+/*i2, four signed 2-bit codes per byte, LSB-first; a tail of 1-3 codes sits in the last byte's high bits*/
+void unpack_i2f16(const int8_t* in, int8_t* out, int size) {
+    uint16_t *hFloatOut = reinterpret_cast<uint16_t *>(out);
+
+    for (int i = 0; i < size; i++) {
+        hFloatOut[i] = int2hfloat(upc2((in[i / 4] >> (2 * (i % 4))) & 0x3));
+    }
+}
+
+/*i2 -> i4: four signed codes per byte, low bits first, into two per byte, low nibble first*/
+void widen_i2_to_i4(const int8_t* in, int8_t* out, int size) {
+    for (int i = 0; i < size; i++) {
+        int code = (static_cast<uint8_t>(in[i / 4]) >> (2 * (i % 4))) & 0x3;
+        if (code >= 2) {
+            code -= 4;  // two's complement: 2 -> -2, 3 -> -1
+        }
+        const uint8_t nibble = static_cast<uint8_t>(code & 0xF);
+        out[i / 2] = static_cast<int8_t>(i % 2 == 0 ? (static_cast<uint8_t>(out[i / 2]) & 0xF0) | nibble
+                                                   : (static_cast<uint8_t>(out[i / 2]) & 0x0F) | (nibble << 4));
+    }
+}
+
+/*u2 -> i4: four unsigned codes per byte, low bits first, into two per byte, low nibble first*/
+void widen_u2_to_i4(const int8_t* in, int8_t* out, int size) {
+    for (int i = 0; i < size; i++) {
+        const int code = (static_cast<uint8_t>(in[i / 4]) >> (2 * (i % 4))) & 0x3;
+        const uint8_t nibble = static_cast<uint8_t>(code & 0xF);
+        out[i / 2] = static_cast<int8_t>(i % 2 == 0 ? (static_cast<uint8_t>(out[i / 2]) & 0xF0) | nibble
+                                                   : (static_cast<uint8_t>(out[i / 2]) & 0x0F) | (nibble << 4));
+    }
+}
+
+/*u1 -> i4: one bit per byte, MSB-first, 0/1 into two per byte, low nibble first*/
+void widen_u1_to_i4(const int8_t* in, int8_t* out, int size) {
+    for (int i = 0; i < size; i++) {
+        const int code = ((static_cast<uint8_t>(in[i / 8]) >> (7 - (i % 8))) & 0x1) ? 1 : 0;
+        const uint8_t nibble = static_cast<uint8_t>(code & 0xF);
+        out[i / 2] = static_cast<int8_t>(i % 2 == 0 ? (static_cast<uint8_t>(out[i / 2]) & 0xF0) | nibble
+                                                   : (static_cast<uint8_t>(out[i / 2]) & 0x0F) | (nibble << 4));
     }
 }
 
@@ -400,9 +446,22 @@ class UnpackWithScaleTestsBase : public UnpackTestsBase {
 protected:
     bool isNegative() const override {
         if (scale_shape.size() != 3 && scale_shape.size() != 2) return true;
+        if (toType != ov::element::f16) return true;
+        if (fromType == ov::element::i2) {
+            // The sub-byte kernel takes one f16 or f32 scale per group and has no vectorized tail to align,
+            // unlike the i4 kernel's 64 elements. Its scale keeps the input's leading dims - [N, G, 1] for a
+            // [N, G, group] weight, [N, 1] for a per-row [N, K] one - so a scale whose leading dim is below the
+            // input's starts a group the kernel does not decode.
+            if (scaleType != ov::element::f16 && scaleType != ov::element::f32) return true;
+            if (from->get_size() % scale->get_size() != 0) return true;
+            if (scale_shape.size() == 3) {
+                return scale_shape[0] != input_shape[0] || scale_shape[1] != input_shape[1] ||
+                       scale_shape[2] != 1;
+            }
+            return scale_shape[0] != input_shape[0] || scale_shape[1] != 1;
+        }
         if (input_shape.back() % 64) return true;
         if ((from->get_size() / scale->get_size()) % 64) return true;
-        if (toType != ov::element::f16) return true;
 
         return false;
     }
@@ -414,7 +473,11 @@ protected:
 
         const size_t nOutputElementsPerScale = ref_output.size() / (toType.bitwidth() / 8) / scale->get_size();
 
-        details::unpack_i4f16(input.data(), ref_output.data(), static_cast<int>(nElements));
+        if (fromType == ov::element::i2) {
+            details::unpack_i2f16(input.data(), ref_output.data(), static_cast<int>(nElements));
+        } else {
+            details::unpack_i4f16(input.data(), ref_output.data(), static_cast<int>(nElements));
+        }
 
         // lets apply per channel scale
         uint16_t * pRef = reinterpret_cast<uint16_t*>(ref_output.data());
@@ -725,6 +788,30 @@ protected:
         }
     }
 };
+
+// A sub-byte weight re-stored in an `i4` container: the values are the sub-byte reader's own, packed the way
+// the element iterator packs `i4` (two per byte, low nibble first). These cases exist for the widening and
+// go with it (util.hpp).
+class WidenSubbyteTestsBase : public UnpackTestsBase {
+protected:
+    bool isNegative() const override {
+        return false;
+    }
+
+    void make_ref_output() override {
+        if (fromType == ov::element::i2) {
+            details::widen_i2_to_i4(input.data(), ref_output.data(), static_cast<int>(from->get_size()));
+        } else if (fromType == ov::element::u2) {
+            details::widen_u2_to_i4(input.data(), ref_output.data(), static_cast<int>(from->get_size()));
+        } else if (fromType == ov::element::u1) {
+            details::widen_u1_to_i4(input.data(), ref_output.data(), static_cast<int>(from->get_size()));
+        } else {
+            FAIL() << fromType;
+        }
+    }
+};
+
+using WidenSubbyteTests = UnpackTestsTmpl<WidenSubbyteTestsBase>;
 
 using UnpackTestsWithScaleAndZeroPointTest3 = UnpackTestsTmpl<UnpackTestsWithScaleAndZeroPoint3>;
 

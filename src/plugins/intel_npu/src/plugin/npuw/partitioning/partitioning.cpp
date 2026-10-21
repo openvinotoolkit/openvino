@@ -2117,14 +2117,15 @@ void Partitioner::optimize(const std::string& func_name) {
             });
         }
     };
-    auto do_cvtf16 = [&](ov::npuw::patterns::opt::Context& ctx) {
-        for (auto&& p : ctx.closures_to_f16) {
+    auto do_convert = [&](const std::set<ov::npuw::patterns::opt::Context::PPtr>& closures,
+                          const ov::element::Type& type) {
+        for (auto&& p : closures) {
             auto param_idx = f._model->get_parameter_index(p);
             NPUW_ASSERT(param_idx != -1);
             auto closure_idx = param_idx - f._param_offset;
             ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
-                funcall._lazy_closure[closure_idx] = funcall._lazy_closure[closure_idx].convert(ov::element::f16);
+                funcall._lazy_closure[closure_idx] = funcall._lazy_closure[closure_idx].convert(type);
             });
         }
     };
@@ -2268,7 +2269,7 @@ void Partitioner::optimize(const std::string& func_name) {
         }
 
         // Convert parameters to f16 where required
-        do_cvtf16(ctx);
+        do_convert(ctx.closures_to_f16, ov::element::f16);
 
         // Host-side gather, pt 1. Add new parameters first
         if (ctx.params_to_gather) {
@@ -2416,7 +2417,12 @@ void Partitioner::optimize(const std::string& func_name) {
     ov::pass::Validate().run_on_model(f._model);
 
     do_permute(ctx);
-    do_cvtf16(ctx);
+    do_convert(ctx.closures_to_f16, ov::element::f16);
+    // The parameter now carries 4-bit-and-wider codes while the closure's *source* stays the IR's own sub-byte
+    // constant: the widening is a transform on the banked tensor, so the cached blob keeps its weightless
+    // record (serialization.cpp's serialize_weightless keys on the data pointer) and the host widens the
+    // codes once, at load. It goes with the widening (util.hpp).
+    do_convert(ctx.closures_to_i4, ov::element::i4);
 
     LOG_VERB("Done");
 }
