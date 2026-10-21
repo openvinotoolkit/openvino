@@ -55,6 +55,8 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_scatter_reduction_opt.hpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_scatter_reduction_ref.cpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_scatter_reduction_ref.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/msda_opt.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/msda_opt.hpp
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder.hpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_causal_conv1d_ref.cpp
@@ -127,6 +129,7 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/moe_scatter_reduction_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_scatter_reduction_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_scatter_reduction_row_lut.cl
+    ${CMAKE_CURRENT_LIST_DIR}/msda_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/pa_adaptive_rkv_diversity_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_cache_reorder_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_cache_rotate_ref.cl
