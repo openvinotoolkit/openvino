@@ -1063,11 +1063,22 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     size_t visual_tokens_scattered =
         has_deepstack ? count_visual_tokens_before(visual_pos_masks, kvcache_desc.num_stored_tokens) : 0u;
 
+    // Linear-attention layers carry a recurrent state and a causal-conv window between chunks. The padding of a
+    // partial chunk is masked in the inputs, but it still decays the recurrent state and pushes the real tokens out of
+    // the conv window. It is harmless only in front of the very first token, where the state is still zero. So for a
+    // fresh prefill of such a model the partial chunk goes first and every following chunk is full.
+    // A prefill that starts from a restored state (prefix cache, continuation) has no such position.
+    const bool partial_chunk_first =
+        !m_lincache_past_names.empty() && !enable_prefix_caching && kvcache_desc.num_stored_tokens == 0u;
+
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
-        // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
-        // the chunk size
-        auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
+        // One chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
+        // the chunk size: it is the last one, or the first one for partial_chunk_first
+        const uint64_t partial_chunk_len = remaining_prompts % chunk_prompt_len;
+        auto current_prompts_len = (partial_chunk_first && partial_chunk_len != 0u)
+                                       ? partial_chunk_len
+                                       : std::min(remaining_prompts, chunk_prompt_len);
 
         m_llm_profile["1/prefill:3a.prepare_chunk"].record([&]() {
             // Handle first chunk with prefix caching: populate attention mask for restored cache

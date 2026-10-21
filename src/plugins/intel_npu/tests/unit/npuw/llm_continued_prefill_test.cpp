@@ -59,6 +59,14 @@ struct LLMContinuedPrefillTestAccess {
         return req.m_generate_initialized;
     }
 
+    static bool use_chunk_prefill(Request& req) {
+        return req.m_npuw_llm_compiled_model->m_use_chunk_prefill;
+    }
+
+    static uint64_t tokens_in_present_chunk(Request& req) {
+        return req.m_tokens_in_present_chunk;
+    }
+
     static std::unique_ptr<ov::npuw::LLMKVCacheStrategy> take_strategy(Request& req) {
         return std::move(req.m_kvcache_strategy);
     }
@@ -358,15 +366,15 @@ protected:
 
     uint32_t generate_seq_dim(const std::string& past_name) {
         const auto& desc = LLMContinuedPrefillTestAccess::desc(*m_request);
-        const bool is_value = ov::npuw::util::isPastValueParam(past_name) ||
-                              ov::npuw::util::isDQScaleOrZPValue(past_name);
+        const bool is_value =
+            ov::npuw::util::isPastValueParam(past_name) || ov::npuw::util::isDQScaleOrZPValue(past_name);
         return (is_value && desc.v_tensors_transposed_gen) ? 3u : desc.dim;
     }
 
     uint32_t prefill_seq_dim(const std::string& past_name) {
         const auto& desc = LLMContinuedPrefillTestAccess::desc(*m_request);
-        const bool is_value = ov::npuw::util::isPastValueParam(past_name) ||
-                              ov::npuw::util::isDQScaleOrZPValue(past_name);
+        const bool is_value =
+            ov::npuw::util::isPastValueParam(past_name) || ov::npuw::util::isDQScaleOrZPValue(past_name);
         return (is_value && desc.v_tensors_transposed_pre) ? 3u : desc.dim;
     }
 
@@ -668,6 +676,83 @@ TEST_F(LLMBlockContinuedPrefillTest, GrantedContinuationTruncatesBlockPoolAndRun
     // The continuation hands over to an ordinary generate step on the block pool.
     run_generate_step(104);
     EXPECT_EQ(stored_tokens(), 105);
+}
+
+// Chunk layout of a fresh chunked prefill. Linear-attention layers carry a recurrent
+// state across chunks, so the padding of a partial chunk must not sit between two
+// real chunks: such a model prefills the partial chunk first and ends on a full one,
+// which the size of the last ("present") chunk and the attention mask expose.
+class LLMChunkedPrefillLayoutTest : public ::testing::Test {
+protected:
+    static constexpr size_t kChunk = 32;
+
+    void init(const std::shared_ptr<ov::Model>& model) {
+        m_plugin = std::make_shared<NullPlugin>();
+        ContinuedPrefillFactory factory;
+        ov::AnyMap props{{"NPUW_LLM", "YES"},
+                         {"NPUW_DEVICES", "CPU"},
+                         {"NPUW_LLM_MAX_PROMPT_LEN", "256"},
+                         {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                         {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                         {"NPUW_LLM_PREFILL_CHUNK_SIZE", std::to_string(kChunk)}};
+        m_compiled = std::make_shared<ov::npuw::LLMCompiledModel>(model, m_plugin, props, factory.make_factory());
+        m_request = std::make_unique<ov::npuw::LLMInferRequest>(m_compiled);
+        ASSERT_TRUE(LLMContinuedPrefillTestAccess::use_chunk_prefill(*m_request));
+    }
+
+    void prefill(size_t prompt_len) {
+        const auto& inputs = m_request->get_inputs();
+        m_request->set_tensor(ov::npuw::util::find_port_by_name(inputs, "input_ids").value(),
+                              ov::get_tensor_impl(make_i64({1, prompt_len}, 1)));
+        m_request->set_tensor(ov::npuw::util::find_port_by_name(inputs, "attention_mask").value(),
+                              ov::get_tensor_impl(make_i64({1, prompt_len}, 1)));
+        m_request->set_tensor(ov::npuw::util::find_port_by_name(inputs, "position_ids").value(),
+                              ov::get_tensor_impl(make_i64_iota({1, prompt_len}, 0)));
+        m_request->infer();
+    }
+
+    // Real tokens that the prefill model sees in front of the last chunk.
+    size_t tokens_before_last_chunk() {
+        const auto mask = LLMContinuedPrefillTestAccess::prefill_attention_mask(*m_request);
+        const auto* data = mask->data<int64_t>();
+        return static_cast<size_t>(std::count(data, data + mask->get_size() - kChunk, int64_t{1}));
+    }
+
+    std::shared_ptr<ov::IPlugin> m_plugin;
+    std::shared_ptr<ov::npuw::LLMCompiledModel> m_compiled;
+    std::unique_ptr<ov::npuw::LLMInferRequest> m_request;
+};
+
+TEST_F(LLMChunkedPrefillLayoutTest, AttentionModelKeepsPartialChunkLast) {
+    init(build_llm_test_model());
+    prefill(kChunk + 8);
+    EXPECT_EQ(LLMContinuedPrefillTestAccess::tokens_in_present_chunk(*m_request), 8u);
+    EXPECT_EQ(tokens_before_last_chunk(), kChunk);
+}
+
+TEST_F(LLMChunkedPrefillLayoutTest, HybridModelPutsPartialChunkFirst) {
+    init(ov::test::npuw::build_hybrid_llm_test_model());
+    prefill(kChunk + 8);
+    EXPECT_EQ(LLMContinuedPrefillTestAccess::tokens_in_present_chunk(*m_request), kChunk);
+    EXPECT_EQ(tokens_before_last_chunk(), 8u);
+}
+
+TEST_F(LLMChunkedPrefillLayoutTest, HybridModelLayoutWithSeveralFullChunks) {
+    init(ov::test::npuw::build_hybrid_llm_test_model());
+    prefill(2 * kChunk + 8);
+    EXPECT_EQ(LLMContinuedPrefillTestAccess::tokens_in_present_chunk(*m_request), kChunk);
+    EXPECT_EQ(tokens_before_last_chunk(), kChunk + 8);
+}
+
+TEST_F(LLMChunkedPrefillLayoutTest, HybridModelKeepsChunkAlignedAndSingleChunkPrompts) {
+    init(ov::test::npuw::build_hybrid_llm_test_model());
+    prefill(2 * kChunk);
+    EXPECT_EQ(LLMContinuedPrefillTestAccess::tokens_in_present_chunk(*m_request), kChunk);
+    EXPECT_EQ(tokens_before_last_chunk(), kChunk);
+
+    prefill(20);
+    EXPECT_EQ(LLMContinuedPrefillTestAccess::tokens_in_present_chunk(*m_request), 20u);
+    EXPECT_EQ(tokens_before_last_chunk(), 0u);
 }
 
 }  // namespace
