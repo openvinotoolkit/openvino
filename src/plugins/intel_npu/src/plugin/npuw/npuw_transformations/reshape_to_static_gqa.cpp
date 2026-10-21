@@ -130,8 +130,8 @@ std::optional<size_t> sliding_window_target_capacity(const ov::op::internal::Gro
     }
     // Window P3. Ensure window has a value, fallback to default if necessary
     if (!window.has_value()) {
-        // Default window size set by Property value if no other sources are available
-        window = sliding_window_size;
+        // if no sliding_window_size or local_window_size is available, we cannot determine a target capacity
+        return std::nullopt;
     }
 
     // Decide headroom size
