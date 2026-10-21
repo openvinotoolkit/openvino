@@ -68,6 +68,24 @@ TEST(prepare_padding, onednn_int4_fc_aligns_rows_to_4_bytes) {
     EXPECT_EQ(weights_reorder.get_output_layout(false).data_padding._upper_size[1], 7);
 }
 
+TEST(prepare_padding, onednn_int4_fc_pads_f32_activation) {
+    auto& engine = get_test_engine();
+    auto weights_mem = engine.allocate_memory({{4, 9}, data_types::u4, format::bfyx});
+
+    topology topo;
+    topo.add(input_layout("input", layout{{32, 9}, data_types::f32, format::bfyx}));
+    topo.add(data("weights", weights_mem));
+    topo.add(fully_connected("fc", input_info("input"), "weights", "", 2, 2));
+
+    auto prog = program::build_program(engine, topo, get_test_default_config(engine), false, true);
+    prog->get_node("fc").set_preferred_impl_type(impl_types::onednn);
+    program_wrapper::apply_opt_pass<prepare_padding>(*prog, false);
+
+    const auto& input_reorder = prog->get_node("padding_reorder_for_input");
+    EXPECT_EQ(input_reorder.get_output_layout(false).data_type, data_types::f32);
+    EXPECT_EQ(input_reorder.get_output_layout(false).data_padding._upper_size[1], 1);
+}
+
 TEST(prepare_padding, mvn_conv) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
