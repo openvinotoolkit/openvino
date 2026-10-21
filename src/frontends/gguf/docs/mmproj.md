@@ -296,22 +296,40 @@ image generation. The diagnostic disables only `clip.has_audio_encoder` and pres
 all 825 tensor payloads. Full vision features match the pinned CPU oracle with NMSE
 `6.10e-7` against the unchanged `1e-5` limit. The original combined projector remains
 rejected because its `gemma3na` audio branch is unsupported; the derived result does not
-establish combined-file support. The tested newspaper image does not produce its requested
-headline, so image quality remains unvalidated.
+establish combined-file support. GGUF image insertion uses the vocabulary's single `<pad>`
+token, including the per-layer embedding spans.
 
 MiniCPM-V4.7 1B Q4_K_M with its original 4x BF16/F32 projector runs repeated SDPA/PA
-image generation after the GenAI position-section fix. Both backends agree on the tested
-image, but transcribe its headline incorrectly. Original full-feature projector parity
-also fails: NMSE `9.86e-5` for 448x448 and `3.06e-4` for 224x112, versus the unchanged
-`1e-5` limit. Execution and backend agreement do not establish numerical parity or quality.
+image generation. The frontend exports `vision.position_grid_size` from the square learned
+position table. This checkpoint uses a 70x70 position grid independently of its 448-pixel
+processor resize; GenAI preserves both settings and the decoder's four-section positions.
+Older frontend exports fall back to `clip.vision.image_size / clip.vision.patch_size`.
+Original full-feature projector parity fails: NMSE `9.86e-5` for 448x448 and `3.06e-4`
+for 224x112, versus the unchanged `1e-5` limit.
+
+A reproducible image smoke check uses a 1000x667 JPEG (SHA256
+`cd36b2bdd95705a92bc803865cceae7fb7407c75946df3c0cb3ed45fb7bc30dd`)
+and the prompt "Describe the animal and the object it is lying in." Both models identify
+one gray tabby with exactly repeated, matching SDPA/PA outputs at 32 tokens. At 64 tokens,
+PA Gemma3n explicitly identifies the cardboard box; MiniCPM describes "open cardboard"
+but reaches the token limit before the noun. This is limited image-quality evidence,
+not numerical parity or general media acceptance. Earlier headline checks lacked retained
+request provenance and do not establish a reproducible quality result.
 
 Current-runtime Qwen3TTS repeated seeded output is finite and exactly equal (3840 samples
 at 24 kHz). The public `Text2SpeechPipeline` has no streaming/cancellation callback, so
 cancellation/reset acceptance cannot run through that API. A zero speaker embedding does
-not establish audio quality. Omni audio preprocessing and broader media/quality checks
-still need acceptance coverage. The Qwen3VL Q4_0 checkpoint has separate successful
+not establish audio quality. Broader media and quality checks still need acceptance coverage. The Qwen3VL Q4_0 checkpoint has separate successful
 repeated-image generation checks with both SDPA and PagedAttention; that result does
 not establish coverage for other projector families.
+
+Original Qwen3-Omni-30B-A3B Q4_K_M and its combined Q8_0 projector pass four repeated
+CPU image/audio API cases with matching SDPA/PA outputs. In-memory GGUF loading uses
+optional DeepStack inputs, split vision models and the decoder's declared three position
+sections; exported-model Omni retains its four-section contract. The pinned image produces
+a gray tabby description, truncated before the box at 64 tokens. A pinned 16 kHz LibriSpeech
+clip is transcribed correctly, using "Mr." for the reference's "MISTER". These limited media
+checks do not waive the original decoder's failed numerical gate or establish broad quality.
 
 ## LFM2 vision projectors
 

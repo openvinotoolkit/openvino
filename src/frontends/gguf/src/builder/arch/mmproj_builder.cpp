@@ -274,6 +274,13 @@ public:
         c.rms = rms_encoder(c);
         clippable = c.topology == EncoderTopology::GEMMA4 || c.topology == EncoderTopology::GEMMA4_AUDIO;
         ProjectorResult result;
+        if (c.topology == EncoderTopology::MINICPM46) {
+            const auto positions = g.tensors().require("v.position_embd.weight").ne(1);
+            const auto side = int64_t(std::sqrt(double(positions)));
+            OPENVINO_ASSERT(positions > 0 && side * side == positions,
+                            "[GGUF] MiniCPM-V requires a square learned position grid");
+            result.config["vision.position_grid_size"] = std::to_string(side);
+        }
         result.output = modality == "vision" ? vision(c) : audio(c);
         result.config[modality + ".merge"] = std::to_string(c.merge);
         if (c.topology == EncoderTopology::MUSE_GLIMMER)

@@ -242,13 +242,22 @@ The real Qwen3-8B Q8_0/EAGLE3 F16 pair passes repeated PA generation, two-reques
 batching and target-only greedy-token agreement. The Qwen3.6-35B-A3B Q4_K_M/DFlash BF16 pair
 passes repeated PA generation with prefix caching disabled. Real Gemma3n/MiniCPM image
 execution and SDPA/PA agreement are recorded in [mmproj.md](mmproj.md#validation-coverage); their
-projector and image-quality limitations remain. Omni audio preprocessing and TTS
-quality/cancellation still need acceptance coverage.
+projector and image-quality limitations remain. Omni repeated image/audio API smoke checks pass, as recorded in
+[mmproj.md](mmproj.md#validation-coverage); TTS quality/cancellation and broader media
+acceptance remain incomplete.
 Real Cohere2 Q4_0 and the MiniCPM-V4.7 1B Q4_K_M text backbone (`qwen35`) match all
-13 checked greedy choices against the pinned CPU oracle. Trinity-Nano-Preview Q4_K_S
-matches 11/13 and fails the existing 90% greedy-choice gate. An exact represented-F32
-diagnostic matches 13/13, which points toward quantized arithmetic but does not waive
-the original failure or establish full-logit parity. Its recorded full-logit NMSE reaches
-`3.24e-3`. These replay checks do not establish full-logit parity. Qwen3Next has synthetic numerical coverage; no real-checkpoint
-comparison is recorded. These catalog entries describe implemented graph paths and
-the explicitly validated checkpoints.
+13 checked greedy choices against the pinned CPU oracle. Cohere2's repeated GenAI text
+outputs are deterministic within each backend but differ between SDPA and PA.
+Trinity-Nano-Preview Q4_K_S matches 11/13 and fails the existing 90% greedy-choice gate.
+An exact represented-F32 diagnostic matches 13/13, which points toward quantized arithmetic
+but does not waive the original failure or establish full-logit parity; its recorded
+full-logit NMSE reaches `3.24e-3`.
+
+The original Qwen3-Omni-30B-A3B Q4_K_M decoder (`qwen3vlmoe`) matches 11/13 checked
+greedy choices, failing the same 90% gate (maximum NMSE `0.111335`). Its repeated GenAI
+text outputs match between SDPA and PA. The canonical Qwen3Next-80B-A3B Q4_K_M attempt
+completed the CPU oracle, but a RAM guard interrupted frontend execution when available
+system memory fell below 16 GiB (observed process-group peak PSS 92.4 GiB). No decoder
+accuracy or GenAI API result is claimed for that checkpoint. Qwen3Next retains synthetic
+numerical coverage. These catalog entries describe implemented graph paths and the
+explicitly validated checkpoints.
