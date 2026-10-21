@@ -1065,7 +1065,9 @@ TEST(GGUFCohere2Accuracy, PagedAttentionMatchesStatefulSDPAFullLogits) {
                 if (input.get_element_type() == ov::element::i64)
                     std::copy(values.begin(), values.end(), tensor.data<int64_t>());
                 else
-                    std::copy(values.begin(), values.end(), tensor.data<int32_t>());
+                    std::transform(values.begin(), values.end(), tensor.data<int32_t>(), [](int64_t value) {
+                        return static_cast<int32_t>(value);
+                    });
                 request.set_tensor(input, tensor);
                 continue;
             }
@@ -1555,8 +1557,9 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
             }
         } else {
             EXPECT_LT(metric.value(), nmse_tolerance) << "Normalized MSE against llama.cpp CPU";
-            if (gemma3n_fixture)
+            if (gemma3n_fixture) {
                 EXPECT_EQ(predicted, wanted);
+            }
         }
         past += tokens.size();
     }

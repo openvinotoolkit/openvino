@@ -4,6 +4,15 @@ Use these helpers for repeated batches or fragile overlays, alongside the existi
 harness. They check coverage and link inputs; numerical gates remain in the tests.
 Save every attempt outside the checkout. Run scripts with Python 3.9 or newer.
 
+## Compiler warning policy
+
+Match CI's `CMAKE_COMPILE_WARNING_AS_ERROR=ON` when compiling changed frontend/tests.
+A local cache with this option disabled can pass while GCC rejects unbraced GTest macro
+conditionals or MSVC rejects implicit narrowing inside STL algorithms. Record the compiler
+and effective warning flags; a successful test run does not establish other-toolchain
+buildability. Use braces around conditional assertion macros and explicit checked or
+known-safe integer conversions in test tensor writes.
+
 ## Test selection and required fixtures
 
 Capture `--gtest_list_tests` from the actual binary with the same filter and environment

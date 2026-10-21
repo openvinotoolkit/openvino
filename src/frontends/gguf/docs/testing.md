@@ -9,6 +9,7 @@ This Linux single-configuration example puts binaries and libraries in an explic
 ```sh
 cmake -S . -B build-gguf -DCMAKE_BUILD_TYPE=Release \
   -DENABLE_OV_GGUF_FRONTEND=ON -DENABLE_TESTS=ON -DBUILD_SHARED_LIBS=ON \
+  -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
   -DCMAKE_RUNTIME_OUTPUT_DIRECTORY="$PWD/build-gguf/bin" \
   -DCMAKE_LIBRARY_OUTPUT_DIRECTORY="$PWD/build-gguf/bin"
 cmake --build build-gguf --target ov_gguf_frontend_tests ov_gguf_architecture_library_tests --parallel
