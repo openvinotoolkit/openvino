@@ -10,6 +10,7 @@
 
 #include "weights.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <cstring>
@@ -187,10 +188,23 @@ std::shared_ptr<ov::Node> make_compressed(const WeightTensors& tensors, ov::elem
     // Tensor copies share their shape metadata. View each buffer through a Constant
     // without reshaping the caller's tensors: tied K/V projections reuse them.
     auto scales_node = make_shared_constant(tensors.scales.get_element_type(), scale_shape, tensors.scales);
-    const auto zp_node =
-        tensors.zero_point
-            ? make_shared_constant(tensors.zero_point.get_element_type(), scale_shape, tensors.zero_point)
-            : nullptr;
+    auto zp_node = tensors.zero_point
+                       ? make_shared_constant(tensors.zero_point.get_element_type(), scale_shape, tensors.zero_point)
+                       : nullptr;
+    if (et == ov::element::u2 && tensors.zero_point && tensors.zero_point.get_element_type() == ov::element::u8) {
+        const auto* zp = tensors.zero_point.data<const uint8_t>();
+        const auto* codes = static_cast<const uint8_t*>(tensors.weight.data());
+        if (std::all_of(zp,
+                        zp + tensors.zero_point.get_size(),
+                        [](uint8_t value) {
+                            return value == 1;
+                        }) &&
+            std::none_of(codes, codes + tensors.weight.get_byte_size(), [](uint8_t value) {
+                return (value & (value >> 1) & 0x55) != 0;
+            })) {
+            zp_node = ov::op::v0::Constant::create(ov::element::u8, {}, {1});
+        }
+    }
     auto final_shape_node =
         std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{orig_shape.size()}, orig_shape);
 

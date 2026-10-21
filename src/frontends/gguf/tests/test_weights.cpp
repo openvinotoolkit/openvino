@@ -17,6 +17,8 @@
 
 #include "op_test_utils.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/subtract.hpp"
 #include "quant/weights.hpp"
 
 using namespace ov_gguf_test;
@@ -95,6 +97,80 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                          [](const ::testing::TestParamInfo<WeightCase>& i) {
                              return std::string(i.param.stem);
                          });
+
+TEST(GGUFWeight, TernaryWeightsUseScalarZeroPoint) {
+    for (const auto& format :
+         std::vector<std::pair<const char*, const char*>>{{"q2_0", "Q2_0"}, {"pq2_0", "PQ2_0"}, {"ptq1_0", "PTQ1_0"}}) {
+        SCOPED_TRACE(format.second);
+        const auto bytes = load_npy<uint8_t>(std::string(format.first) + "_qbytes");
+        const auto node = make_weight_node(bytes_to_u8_tensor(bytes), format.second, {kRows, kCols});
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+        size_t subtracts = 0;
+        for (const auto& op : model->get_ordered_ops()) {
+            const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(op);
+            if (!subtract)
+                continue;
+            ++subtracts;
+            const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(subtract->get_input_node_shared_ptr(1));
+            ASSERT_TRUE(convert);
+            const auto zp = ov::as_type_ptr<ov::op::v0::Constant>(convert->get_input_node_shared_ptr(0));
+            ASSERT_TRUE(zp);
+            EXPECT_EQ(zp->get_element_type(), ov::element::u8);
+            EXPECT_EQ(zp->get_shape(), ov::Shape{});
+            EXPECT_EQ(zp->cast_vector<uint8_t>(), std::vector<uint8_t>{1});
+        }
+        EXPECT_EQ(subtracts, 1);
+    }
+}
+
+TEST(GGUFWeight, PreservesNonUniformU2ZeroPoints) {
+    using namespace ov::frontend::gguf;
+    WeightTensors tensors{ov::Tensor(ov::element::u2, {1, 256}),
+                          ov::Tensor(ov::element::f16, {1, 2}),
+                          ov::Tensor(ov::element::u8, {1, 2})};
+    auto* zp_data = tensors.zero_point.data<uint8_t>();
+    zp_data[0] = 1;
+    zp_data[1] = 2;
+    const auto node = make_weight_node(tensors, GGUF_TYPE_PTQ1_0);
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+    size_t subtracts = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(op);
+        if (!subtract)
+            continue;
+        ++subtracts;
+        const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(subtract->get_input_node_shared_ptr(1));
+        ASSERT_TRUE(convert);
+        const auto zp = ov::as_type_ptr<ov::op::v0::Constant>(convert->get_input_node_shared_ptr(0));
+        ASSERT_TRUE(zp);
+        EXPECT_EQ(zp->get_shape(), (ov::Shape{1, 2, 1}));
+        EXPECT_EQ(zp->cast_vector<uint8_t>(), (std::vector<uint8_t>{1, 2}));
+    }
+    EXPECT_EQ(subtracts, 1);
+}
+
+TEST(GGUFWeight, PreservesPQ2CodeThreeFallback) {
+    for (size_t lane = 0; lane < 4; ++lane) {
+        SCOPED_TRACE(lane);
+        auto bytes = load_npy<uint8_t>("pq2_0_qbytes");
+        bytes[2] = (bytes[2] & ~(3 << (lane * 2))) | (3 << (lane * 2));
+        const auto node = make_weight_node(bytes_to_u8_tensor(bytes), "PQ2_0", {kRows, kCols});
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+        size_t subtracts = 0;
+        for (const auto& op : model->get_ordered_ops()) {
+            const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(op);
+            if (!subtract)
+                continue;
+            ++subtracts;
+            EXPECT_EQ(subtract->get_input_shape(1), (ov::Shape{kRows, kCols / 128, 1}));
+        }
+        EXPECT_EQ(subtracts, 1);
+        const auto output = run_on_cpu(model, {});
+        uint16_t scale_bits;
+        std::memcpy(&scale_bits, bytes.data(), sizeof(scale_bits));
+        EXPECT_FLOAT_EQ(output.data<float>()[lane], 2.f * float(ov::float16::from_bits(scale_bits)));
+    }
+}
 
 TEST(GGUFWeight, Q1_0KeepsBinaryCodesForAllWeightNames) {
     const auto bytes = load_npy<uint8_t>("q1_0_qbytes");
