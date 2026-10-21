@@ -819,3 +819,38 @@ TEST(HostFlashAttentionPositionIdsFindTest, RejectsNonUnitBatchDimIn3D) {
     auto rq = make_position_ids_request(ov::Shape{3, 2, 16});
     EXPECT_EQ(ov::npuw::runtime::host_flash_attention::PositionIDs::find(16, *rq), nullptr);
 }
+
+// ---------------------------------------------------------------------------
+// runtime::host_flash_attention::HistorySize
+// ---------------------------------------------------------------------------
+
+TEST(HostFlashAttentionHistorySizeTest, PrefillWithoutHistoryHasNoPast) {
+    ov::npuw::runtime::host_flash_attention::HistorySize selector(1024);
+    selector.prepare(0);
+    EXPECT_EQ(selector.this_case(), ov::npuw::runtime::host_flash_attention::Selector::Case::PREFILL);
+    EXPECT_EQ(selector.context_length(), 1024);
+}
+
+TEST(HostFlashAttentionHistorySizeTest, PrefillRoundsHistoryUpToWholeChunks) {
+    ov::npuw::runtime::host_flash_attention::HistorySize selector(1024);
+    selector.prepare(1024);
+    EXPECT_EQ(selector.context_length(), 1024 + 1024);
+    // A partly filled last chunk (e.g. after a short turn) still needs its whole tile.
+    selector.prepare(2100);
+    EXPECT_EQ(selector.context_length(), 3 * 1024 + 1024);
+}
+
+TEST(HostFlashAttentionHistorySizeTest, FollowsEveryPrepare) {
+    ov::npuw::runtime::host_flash_attention::HistorySize selector(16);
+    selector.prepare(48);
+    EXPECT_EQ(selector.context_length(), 48 + 16);
+    selector.prepare(0);  // a new conversation
+    EXPECT_EQ(selector.context_length(), 16);
+}
+
+TEST(HostFlashAttentionHistorySizeTest, GenerateTakesHistoryAsIs) {
+    ov::npuw::runtime::host_flash_attention::HistorySize selector(1);
+    selector.prepare(37);
+    EXPECT_EQ(selector.this_case(), ov::npuw::runtime::host_flash_attention::Selector::Case::GENERATE);
+    EXPECT_EQ(selector.context_length(), 37 + 1);
+}
