@@ -17,7 +17,7 @@ public:
                      const std::vector<ov::Layout>& output_layouts,
                      const ov::log::Level log_level = ov::log::Level::WARNING);
 
-    void write(BlobWriterInterface& writer) override;
+    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
 
     std::vector<ov::Layout> get_input_layouts() const;
 

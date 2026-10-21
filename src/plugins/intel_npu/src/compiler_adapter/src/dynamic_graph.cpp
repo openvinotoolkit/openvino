@@ -140,7 +140,7 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
     _logger.info("Create DynamicGraph");
 }
 
-uint64_t DynamicGraph::export_main_blob(std::ostream& stream) const {
+uint64_t DynamicGraph::export_main_blob(const ov::runtime::hsm::SectionSink& sink) const {
     const uint8_t* blobPtr = nullptr;
     size_t blobSize = 0;
 

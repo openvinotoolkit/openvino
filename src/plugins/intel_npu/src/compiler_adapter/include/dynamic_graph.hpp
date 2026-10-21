@@ -23,7 +23,7 @@ public:
                  ov::Tensor blob,
                  BlobType blobType = BlobType::BYTECODE);
 
-    uint64_t export_main_blob(std::ostream& stream) const override;
+    uint64_t export_main_blob(const ov::runtime::hsm::SectionSink& sink) const override;
 
     void* get_handle() const override;
 

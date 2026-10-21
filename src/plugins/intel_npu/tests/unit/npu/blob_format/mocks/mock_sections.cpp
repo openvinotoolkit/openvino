@@ -6,7 +6,7 @@
 
 // MockSection_1::MockSection_1(double value) : ISection(MockTypes::MOCK_1), value(value) {}
 
-// void MockSection_1::write(BlobWriterInterface& writer) {
+// void MockSection_1::encode(const ov::runtime::hsm::SectionSink& sink) const {
 //     writer.write_from(&value, sizeof(value));
 // }
 
@@ -22,7 +22,7 @@
 
 // MockSection_2::MockSection_2(const std::vector<double>& values) : ISection(MockTypes::MOCK_2), values(values) {}
 
-// void MockSection_2::write(BlobWriterInterface& writer) {
+// void MockSection_2::encode(const ov::runtime::hsm::SectionSink& sink) const {
 //     uint64_t size = values.size();
 //     writer.write_from(&size, sizeof(size));
 //     for (const double& value : values) {
@@ -65,7 +65,7 @@
 //       section_1(section_1),
 //       section_2(section_2) {}
 
-// void MockSection_3::write(BlobWriterInterface& writer) {
+// void MockSection_3::encode(const ov::runtime::hsm::SectionSink& sink) const {
 //     section_1->write(writer);
 //     section_2->write(writer);
 // }
@@ -94,7 +94,7 @@
 //       parsed_reachables(std::move(parsed_reachables)),
 //       embedded_table(std::move(embedded_table)) {}
 
-// void MockSectionWithTable::write(BlobWriterInterface& writer) {
+// void MockSectionWithTable::encode(const ov::runtime::hsm::SectionSink& sink) const {
 //     const uint64_t number_of_entries = static_cast<uint64_t>(reachables.size());
 //     const uint64_t payload_start = static_cast<uint64_t>(writer.get_offset_relative_to_current_section());
 //     // stream position + size of table location field + size of member field section_1

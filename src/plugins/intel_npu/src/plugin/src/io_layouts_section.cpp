@@ -26,13 +26,13 @@ IOLayoutsSection::IOLayoutsSection(const std::vector<ov::Layout>& input_layouts,
       m_output_layouts(std::move(output_layouts)),
       m_logger("IOLayoutsSection", log_level) {}
 
-void IOLayoutsSection::write(BlobWriterInterface& writer) {
+void IOLayoutsSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "IOLayoutsSection::write");
 
     const uint32_t number_of_input_layouts = m_input_layouts.size();
     const uint32_t number_of_output_layouts = m_output_layouts.size();
-    writer.write_from(&number_of_input_layouts, sizeof(number_of_input_layouts));
-    writer.write_from(&number_of_output_layouts, sizeof(number_of_output_layouts));
+    sink({reinterpret_cast<const std::byte*>(&number_of_input_layouts), sizeof(number_of_input_layouts)});
+    sink({reinterpret_cast<const std::byte*>(&number_of_output_layouts), sizeof(number_of_output_layouts)});
 
     m_logger.debug("Writting %lu input layouts and %lu output layouts",
                    number_of_input_layouts,
@@ -42,8 +42,8 @@ void IOLayoutsSection::write(BlobWriterInterface& writer) {
         for (const ov::Layout& layout : layouts) {
             const std::string layout_string = layout.to_string();
             const uint16_t string_length = static_cast<uint16_t>(layout_string.size());
-            writer.write_from(&string_length, sizeof(string_length));
-            writer.write_from(layout_string.c_str(), string_length);
+            sink({reinterpret_cast<const std::byte*>(&string_length), sizeof(string_length)});
+            sink({reinterpret_cast<const std::byte*>(layout_string.c_str()), string_length});
 
             m_logger.trace("Layout %s written", layout_string.data());
         }

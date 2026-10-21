@@ -13,6 +13,7 @@
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
+#include "openvino/runtime/hsm_writer.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -45,7 +46,7 @@ public:
      * @param stream Where the content is placed
      * @return The total size written into the stream
      */
-    virtual uint64_t export_main_blob(std::ostream& stream) const = 0;
+    virtual uint64_t export_main_blob(const ov::runtime::hsm::SectionSink& sink) const = 0;
 
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const;
 

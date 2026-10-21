@@ -15,6 +15,7 @@
 #include "intel_npu/common/section_id.hpp"
 #include "intel_npu/common/section_type.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "openvino/runtime/hsm_writer.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace intel_npu {
@@ -43,14 +44,9 @@ class BlobReaderInterface;
  * @brief Interface that should be implemented by all blob section handlers. Its role is to standardize the
  * identification of the section, along with the signatures of the read & writer handlers.
  */
-class ISection {
+class ISection : public ov::runtime::hsm::ISectionEncoder {
 public:
     virtual ~ISection() = default;
-
-    /**
-     * @brief Method used to instruct the BlobWriter how to write the current section into the provided stream.
-     */
-    virtual void write(BlobWriterInterface& writer) = 0;
 
     SectionType get_type() const;
 

@@ -12,7 +12,7 @@ class CompilerVersionSection final : public ISection {
 public:
     CompilerVersionSection(const int32_t version, const ov::log::Level log_level = ov::log::Level::WARNING);
 
-    void write(BlobWriterInterface& writer) override;
+    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
 
     int32_t get_compiler_version() const;
 

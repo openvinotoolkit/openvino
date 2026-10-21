@@ -103,10 +103,10 @@ void* Graph::get_handle() const {
     return _graphDesc._handle;
 }
 
-std::tuple<uint64_t, uint64_t, std::optional<uint32_t>> Graph::write_blob_to_stream(
+std::tuple<uint64_t, uint64_t, std::optional<uint32_t>> Graph::write_blob(
     const std::variant<std::reference_wrapper<const GraphDescriptor>, std::reference_wrapper<const ov::Tensor>>&
         graphDescriptorOrTensor,
-    std::ostream& stream,
+    const ov::runtime::hsm::SectionSink& sink,
     const bool computeHash) const {
     uint64_t blobSize;
     const uint8_t* blobRawPtr = nullptr;
@@ -129,11 +129,7 @@ std::tuple<uint64_t, uint64_t, std::optional<uint32_t>> Graph::write_blob_to_str
     if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
         OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
     }
-    stream.write(reinterpret_cast<const char*>(blobRawPtr), static_cast<std::streamsize>(blobSize));
-
-    if (!stream) {
-        OPENVINO_THROW("Write blob to stream failed. Blob is broken!");
-    }
+    sink(reinterpret_cast<const std::byte*>(blobRawPtr), blobSize);
 
     std::optional<uint32_t> blobHash = std::nullopt;
     if (computeHash) {
@@ -146,25 +142,23 @@ std::tuple<uint64_t, uint64_t, std::optional<uint32_t>> Graph::write_blob_to_str
     size_t sizeWithPadding = utils::align_size_to_standard_page_size(blobSize);
     size_t paddingSize = sizeWithPadding - blobSize;
     if (paddingSize > 0) {
-        std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
-
-        if (!stream) {
-            OPENVINO_THROW("Write padding to stream failed. Blob is broken!");
-        }
+        std::array<std::byte, paddingSize> padding;
+        std::memset(padding.data(), 0, paddingSize);
+        sink(padding.data(), padding.size());
     }
 
     return {blobSize, sizeWithPadding, blobHash};
 }
 
-uint64_t Graph::export_main_blob(std::ostream& stream) const {
+uint64_t Graph::export_main_blob(const ov::runtime::hsm::SectionSink& sink) const {
     if (_blobIsReleased) {
         OPENVINO_THROW("Model was optimized away. Try importing it using `ov::hint::compiled_blob` property to extend "
                        "its lifetime.");
     }
 
     const auto [size, sizeWithPadding, hash] =
-        _blob.has_value() ? write_blob_to_stream(_blob.value(), stream, _logger.level() >= ov::log::Level::INFO)
-                          : write_blob_to_stream(_graphDesc, stream, _logger.level() >= ov::log::Level::INFO);
+        _blob.has_value() ? write_blob(_blob.value(), sink, _logger.level() >= ov::log::Level::INFO)
+                          : write_blob(_graphDesc, sink, _logger.level() >= ov::log::Level::INFO);
 
     if (hash.has_value()) {
         _logger.info("Main blob size: %zu, hash: %x", size, hash.value());

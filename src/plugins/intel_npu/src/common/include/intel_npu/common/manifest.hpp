@@ -58,7 +58,7 @@ class ManifestSection final : public ISection {
 public:
     ManifestSection(const Manifest& manifest, const ov::log::Level log_level = ov::log::Level::WARNING);
 
-    void write(BlobWriterInterface& writer) override;
+    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
 
     Manifest get_manifest() const;
 

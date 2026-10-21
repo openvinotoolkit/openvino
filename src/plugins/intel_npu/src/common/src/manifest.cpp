@@ -94,7 +94,7 @@ ManifestSection::ManifestSection(const Manifest& manifest, const ov::log::Level 
       m_manifest(manifest),
       m_logger("ManifestSection", log_level) {}
 
-void ManifestSection::write(BlobWriterInterface& writer) {
+void ManifestSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ManifestSection::write");
 
     m_logger.debug("Writting %lu entries", m_manifest.get_number_of_entries());

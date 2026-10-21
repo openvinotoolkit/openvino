@@ -72,22 +72,14 @@ std::vector<std::shared_ptr<CREToken>> ELFMainScheduleSection::get_compatibility
     return {std::make_shared<SectionType>(get_type()), std::make_shared<SectionID>(get_id().value())};
 }
 
-void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
+// TODO remember to register this with page alignment
+void ELFMainScheduleSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::write");
     const auto* graph = std::get_if<std::shared_ptr<Graph>>(&m_graph_or_schedule);
     OPENVINO_ASSERT(graph, INVALID_STATE_MESSAGE);
 
-    // Also take the padding size into account, we'll write that first
-    const size_t offset = writer.get_offset_relative_to_npu_region() + sizeof(uint16_t);
-    const uint16_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
-    writer.write_from(&padding_size, sizeof(padding_size));
-    // TODO add method that adds padding until page aligned relative to NPU region start
-    writer.add_padding(padding_size);
-
-    m_logger.debug("Added %lu padding to offset %lu", padding_size, offset);
-
     if (!m_encryption_callback) {
-        (*graph)->export_main_blob(writer.m_stream.get());
+        (*graph)->export_main_blob(sink);
         return;
     }
 
@@ -97,13 +89,16 @@ void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
         std::string tmp_plain_payload;
         {
             std::stringstream tmp_stream;
-            (*graph)->export_main_blob(tmp_stream);  // +1x blob size
-            tmp_plain_payload = tmp_stream.str();    // +2x blob size
+            (*graph)->export_main_blob([&tmp_stream](ov::util::MemoryView data) {
+                tmp_stream.write(reinterpret_cast<const char*>(data.data()), data.size());
+                OPENVINO_ASSERT(tmp_stream, "Stream invalidated during blob writing");
+            });                                    // +1x blob size
+            tmp_plain_payload = tmp_stream.str();  // +2x blob size
         }  // -1x blob size when deallocating temporary stringstream
         encrypted_payload = m_encryption_callback(tmp_plain_payload);  // +2x blob size
     }  // -1x blob size when deallocating temporary blob string
 
-    writer.write_from(encrypted_payload.c_str(), encrypted_payload.size());
+    sink({reinterpret_cast<const std::byte*>(encrypted_payload.c_str()), encrypted_payload.size()});
 }
 
 void ELFMainScheduleSection::set_graph(const std::shared_ptr<Graph>& graph) {
@@ -203,31 +198,18 @@ std::vector<std::shared_ptr<CREToken>> ELFInitSchedulesSection::get_compatibilit
 }
 
 // TODO document the form of the section on disk
-void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
+void ELFInitSchedulesSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::write");
     const auto* weightless_graph = std::get_if<std::shared_ptr<WeightlessGraph>>(&m_graph_or_schedules);
     OPENVINO_ASSERT(weightless_graph, INVALID_STATE_MESSAGE);
 
     // TODO check all written data types to eliminate some redundancy in size
     const uint16_t number_of_inits = (*weightless_graph)->get_number_of_inits();
-    writer.write_from(&number_of_inits, sizeof(number_of_inits));
-
     m_logger.debug("Writting %lu init schedules", number_of_inits);
 
-    // Placeholder until we get the sizes written in the stream
-    const auto will_get_to_this_later = writer.get_offset_relative_to_current_section();
-    writer.add_padding(number_of_inits * sizeof(uint64_t));
-
-    // Also take the padding size into account, we'll write that next
-    const size_t offset = writer.get_offset_relative_to_npu_region() + sizeof(uint16_t);
-    const uint16_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
-    writer.write_from(&padding_size, sizeof(padding_size));
-    writer.add_padding(padding_size);
-
-    std::vector<uint64_t> init_sizes = (*weightless_graph)->export_init_blobs(writer.m_stream.get());
-
+    std::vector<uint64_t> init_sizes;
     if (!m_encryption_callback) {
-        init_sizes = (*weightless_graph)->export_init_blobs(writer.m_stream.get());
+        init_sizes = (*weightless_graph)->export_init_blobs(sink);
     } else {
         // Encrypt the compiler payload, then write it
         std::string encrypted_payload;
@@ -235,21 +217,25 @@ void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
             std::string tmp_plain_payload;
             {
                 std::stringstream tmp_stream;
-                init_sizes = (*weightless_graph)->export_init_blobs(tmp_stream);
+                init_sizes = (*weightless_graph)->export_init_blobs([&tmp_stream](ov::util::MemoryView data) {
+                    tmp_stream.write(reinterpret_cast<const char*>(data.data()), data.size());
+                    OPENVINO_ASSERT(tmp_stream, "Stream invalidated during blob writing");
+                });
                 tmp_plain_payload = tmp_stream.str();  // +2x blob size
             }  // -1x blob size when deallocating temporary stringstream
             encrypted_payload = m_encryption_callback(tmp_plain_payload);  // +2x blob size
         }  // -1x blob size when deallocating temporary blob string
 
-        writer.write_from(encrypted_payload.c_str(), encrypted_payload.size());
+        sink({reinterpret_cast<const std::byte*>(encrypted_payload.c_str()), encrypted_payload.size()});
     }
 
     // Go back and write the sizes of the init schedules
-    writer.move_cursor_relative_to_current_section(will_get_to_this_later);
     for (const uint64_t init_size : init_sizes) {
-        writer.write_from(&init_size, sizeof(init_size));
+        sink({reinterpret_cast<const std::byte*>(&init_size), sizeof(init_size)});
         m_logger.debug("Init size %lu written", init_size);
     }
+
+    sink({reinterpret_cast<const std::byte*>(&number_of_inits), sizeof(number_of_inits)});
 }
 
 void ELFInitSchedulesSection::set_graph(const std::shared_ptr<WeightlessGraph>& weightless_graph) {
@@ -363,9 +349,9 @@ std::vector<std::shared_ptr<CREToken>> DynamicScheduleSection::get_compatibility
     return {std::make_shared<SectionType>(get_type()), std::make_shared<SectionID>(get_id().value())};
 }
 
-void DynamicScheduleSection::write(BlobWriterInterface& writer) {
+void DynamicScheduleSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "DynamicScheduleSection::write");
-    m_impl.write(writer);
+    m_impl.encode(sink);
 }
 
 void DynamicScheduleSection::set_graph(const std::shared_ptr<DynamicGraph>& graph) {

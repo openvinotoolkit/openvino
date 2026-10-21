@@ -112,7 +112,7 @@ public:
     RuntimeRequirementsSection(const RuntimeRequirements& runtime_requirements,
                                const ov::log::Level log_level = ov::log::Level::WARNING);
 
-    void write(BlobWriterInterface& writer) override;
+    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
 
     RuntimeRequirements get_runtime_requirements() const;
 

@@ -280,7 +280,7 @@ WeightlessGraph::WeightlessGraph(
 
 // TODO "Blob size" was the size of the composite before this. This probably needs to be restored bc CI. Or not, the CI
 // may just take the size of the on-disk file.
-std::vector<uint64_t> WeightlessGraph::export_init_blobs(std::ostream& stream) const {
+std::vector<uint64_t> WeightlessGraph::export_init_blobs(const ov::runtime::hsm::SectionSink& sink) const {
     if (_blobIsReleased) {
         OPENVINO_THROW("Model was optimized away. Try importing it using `ov::hint::compiled_blob` property to extend "
                        "its lifetime.");
@@ -293,15 +293,12 @@ std::vector<uint64_t> WeightlessGraph::export_init_blobs(std::ostream& stream) c
     for (size_t initIndex = 0; initIndex < _initsGraphDesc.size(); ++initIndex) {
         const auto [size, sizeWithPadding, hash] =
             _initBlobs.has_value() && _initBlobs->at(initIndex)
-                ? write_blob_to_stream(_initBlobs->at(initIndex), stream, _wgLogger.level() >= ov::log::Level::INFO)
-                : write_blob_to_stream(_initsGraphDesc.at(initIndex),
-                                       stream,
-                                       _wgLogger.level() >= ov::log::Level::INFO);
+                ? write_blob(_initBlobs->at(initIndex), sink, _wgLogger.level() >= ov::log::Level::INFO)
+                : write_blob(_initsGraphDesc.at(initIndex), sink, _wgLogger.level() >= ov::log::Level::INFO);
         totalBlobSize += sizeWithPadding;
         initSizes.push_back(sizeWithPadding);
 
         if (hash.has_value()) {
-            std::stringstream str;
             // TODO test logs
             _wgLogger.info("Init part %lu blob size: %zu, hash: %x", initIndex, size, hash.value());
 

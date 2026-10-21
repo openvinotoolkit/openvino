@@ -46,7 +46,7 @@ public:
     /**
      * @brief The weights initialization schedules are exported.
      */
-    std::vector<uint64_t> export_init_blobs(std::ostream& stream) const;
+    std::vector<uint64_t> export_init_blobs(const ov::runtime::hsm::SectionSink& sink) const;
 
     size_t get_number_of_inits() const;
 

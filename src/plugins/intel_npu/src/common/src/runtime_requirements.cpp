@@ -29,13 +29,16 @@ void string_to_lower(std::string& target) {
     });
 }
 
-void write_requirements_entry(intel_npu::BlobWriterInterface& writer, std::string_view key, std::string_view value) {
-    if (!writer.get_offset_relative_to_current_section() == 0) {
-        writer.write_from(&REQUIREMENTS_SEPARATOR, sizeof(REQUIREMENTS_SEPARATOR));
+void write_requirements_entry(const ov::runtime::hsm::SectionSink& sink,
+                              std::string_view key,
+                              std::string_view value,
+                              const bool is_first_entry = false) {
+    if (!is_first_entry) {
+        sink({reinterpret_cast<const std::byte*>(&REQUIREMENTS_SEPARATOR), sizeof(REQUIREMENTS_SEPARATOR)});
     }
-    writer.write_from(key.data(), key.size());
-    writer.write_from(&KEY_VALUE_SEPARATOR, sizeof(KEY_VALUE_SEPARATOR));
-    writer.write_from(value.data(), value.size());
+    sink({reinterpret_cast<const std::byte*>(key.data()), key.size()});
+    sink({reinterpret_cast<const std::byte*>(&KEY_VALUE_SEPARATOR), sizeof(KEY_VALUE_SEPARATOR)});
+    sink({reinterpret_cast<const std::byte*>(value.data()), value.size()});
 }
 
 }  // namespace
@@ -145,15 +148,15 @@ RuntimeRequirementsSection::RuntimeRequirementsSection(const RuntimeRequirements
     m_logger.debug("Initialized");
 }
 
-void RuntimeRequirementsSection::write(BlobWriterInterface& writer) {
+void RuntimeRequirementsSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "RuntimeRequirementsSection::write");
 
     // TODO logs?
     // Version
-    write_requirements_entry(writer, VERSION_KEY, CURRENT_RUNTIME_REQUIREMENTS_VERSION.to_string());
+    write_requirements_entry(sink, VERSION_KEY, CURRENT_RUNTIME_REQUIREMENTS_VERSION.to_string(), true);
 
     // CRE
-    write_requirements_entry(writer, CRE_KEY, m_runtime_requirements.get_cre().to_string());
+    write_requirements_entry(sink, CRE_KEY, m_runtime_requirements.get_cre().to_string());
 
     // All section requirements, following the format "<section type name>_<id>=<value>"
     const std::map<SectionID, std::string> sections_requirements = m_runtime_requirements.get_sections_requirements();
@@ -165,7 +168,7 @@ void RuntimeRequirementsSection::write(BlobWriterInterface& writer) {
         const SectionType section_type = section_id_to_type.at(section_id);
         std::string key = section_type_and_id_to_string(section_type, section_id);
         string_to_lower(key);
-        write_requirements_entry(writer, key, section_requirements);
+        write_requirements_entry(sink, key, section_requirements);
     }
 }
 

@@ -36,7 +36,7 @@ public:
      * @param stream Where the content is placed
      * @return The total size written into the stream
      */
-    uint64_t export_main_blob(std::ostream& stream) const override;
+    uint64_t export_main_blob(const ov::runtime::hsm::SectionSink& sink) const override;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const override;
 
@@ -88,10 +88,10 @@ protected:
      * @return The size of the written blob without padding, the size with padding and the hash of the blob if
      * requested.
      */
-    std::tuple<uint64_t, uint64_t, std::optional<uint32_t>> write_blob_to_stream(
+    std::tuple<uint64_t, uint64_t, std::optional<uint32_t>> write_blob(
         const std::variant<std::reference_wrapper<const GraphDescriptor>, std::reference_wrapper<const ov::Tensor>>&
             graphDescriptorOrTensor,
-        std::ostream& stream,
+        const ov::runtime::hsm::SectionSink& sink,
         const bool computeHash) const;
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;

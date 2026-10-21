@@ -17,11 +17,11 @@ CompilerVersionSection::CompilerVersionSection(const int32_t version, const ov::
     m_logger.trace("Section created");
 }
 
-void CompilerVersionSection::write(BlobWriterInterface& writer) {
+void CompilerVersionSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompilerVersionSection::write");
     m_logger.debug("Writting compiler version %lu", m_compiler_version);
 
-    writer.write_from(&m_compiler_version, sizeof(m_compiler_version));
+    sink({reinterpret_cast<const std::byte*>(&m_compiler_version), sizeof(m_compiler_version)});
 }
 
 int32_t CompilerVersionSection::get_compiler_version() const {

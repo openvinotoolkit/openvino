@@ -33,7 +33,7 @@ public:
     /**
      * @note The compiler payload is encrypted before writing if an encryption callback is available.
      */
-    void write(BlobWriterInterface& writer) override;
+    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
 
     /**
      * @brief Stores the given graph. The previously stored graph or schedule (as tensor) will be discarded.
@@ -83,7 +83,7 @@ public:
     /**
      * @note The compiler payload is encrypted before writing if an encryption callback is available.
      */
-    void write(BlobWriterInterface& writer) override;
+    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
 
     void set_graph(const std::shared_ptr<WeightlessGraph>& weightless_graph);
 
@@ -128,7 +128,7 @@ public:
     /**
      * @note The compiler payload is encrypted before writing if an encryption callback is available.
      */
-    void write(BlobWriterInterface& writer) override;
+    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
 
     void set_graph(const std::shared_ptr<DynamicGraph>& graph);
 

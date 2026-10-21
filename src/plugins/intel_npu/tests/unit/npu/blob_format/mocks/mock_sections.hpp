@@ -22,7 +22,7 @@
 // public:
 //     MockSection_1(double value);
 
-//     void write(BlobWriterInterface& writer) override;
+//     void encode(const ov::runtime::hsm::SectionSink& sink) const override;
 
 //     double get_value() const;
 
@@ -36,7 +36,7 @@
 // public:
 //     MockSection_2(const std::vector<double>& values);
 
-//     void write(BlobWriterInterface& writer) override;
+//     void encode(const ov::runtime::hsm::SectionSink& sink) const override;
 
 //     std::vector<double> get_values() const;
 
@@ -54,7 +54,7 @@
 // public:
 //     MockSection_3(const std::shared_ptr<MockSection_1>& section_1, const std::shared_ptr<MockSection_2>& section_2);
 
-//     void write(BlobWriterInterface& writer) override;
+//     void encode(const ov::runtime::hsm::SectionSink& sink) const override;
 
 //     std::pair<double, std::vector<double>> get_values() const;
 
@@ -73,7 +73,7 @@
 //     MockSectionWithTable(std::shared_ptr<MockSection_1> section_1, std::vector<std::shared_ptr<ISection>>
 //     reachables);
 
-//     void write(BlobWriterInterface& writer) override;
+//     void encode(const ov::runtime::hsm::SectionSink& sink) const override;
 
 //     std::shared_ptr<MockSection_1> get_section_1() const;
 

@@ -24,11 +24,11 @@ std::vector<std::shared_ptr<CREToken>> BatchSizeSection::get_compatibility_requi
     return {std::make_shared<SectionType>(get_type())};
 }
 
-void BatchSizeSection::write(BlobWriterInterface& writer) {
+void BatchSizeSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BatchSizeSection::write");
     m_logger.debug("Writting batch size %ld", m_batch_size);
 
-    writer.write_from(&m_batch_size, sizeof(m_batch_size));
+    sink({reinterpret_cast<const std::byte*>(&m_batch_size), sizeof(m_batch_size)});
 }
 
 int64_t BatchSizeSection::get_batch_size() const {

@@ -15,7 +15,7 @@ public:
     std::vector<std::shared_ptr<CREToken>> get_compatibility_requirements_subexpression(
         const std::unordered_map<SectionID, std::shared_ptr<ISection>>& all_registered_sections) const override;
 
-    void write(BlobWriterInterface& writer) override;
+    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
 
     int64_t get_batch_size() const;
 
