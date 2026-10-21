@@ -832,9 +832,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_INFO("Eagle3 speculative decoding mode enabled");
     }
 
-    // Detect supported MoE structure, retaining name hints for legacy exports.
-    const bool is_moe = is_moe_model(model);
-
     // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
     // the generate model they're not mutually exclusive
     const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
@@ -1362,7 +1359,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_longrope_tables.rebuild_tables();
     }
 
-    if (is_moe) {
+    if (is_moe_model(model)) {
         // Fold shape-compute chains (ShapeOf→Gather→Concat etc.) in the prefill model before
         // online partitioning runs pattern matching (e.g. GPTOSSRouter).  Must run after
         // ReshapeToStatic has made all shapes static so that ShapeOf bounds are resolvable.
