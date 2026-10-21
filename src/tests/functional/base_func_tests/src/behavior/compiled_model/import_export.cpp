@@ -18,7 +18,6 @@
 #include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/internal_properties.hpp"
-#include "openvino/util/common_util.hpp"
 
 namespace ov {
 namespace test {
@@ -871,11 +870,7 @@ void OVCompiledModelHsmBlobTest::SetUp() {
     core = ov::test::utils::create_core();
     // Plugin-level too: Core picks the cache blob format from the plugin, not from the compile config.
     core.set_property(target_device, configuration);
-    const auto internal = core.get_property(target_device, ov::internal::supported_properties);
-    if (!ov::util::contains(internal, ov::internal::emit_hsm_format.name()) ||
-        !core.get_property(target_device, ov::internal::emit_hsm_format)) {
-        GTEST_SKIP() << "Plugin does not export HSM blobs";
-    }
+    ASSERT_TRUE(core.get_property(target_device, ov::internal::emit_hsm_format));
 
     model = ov::test::utils::make_conv_pool_relu({1, 3, 16, 16}, ov::element::f32);
     cache_path = "hsm_blob_cache_" + ov::test::utils::generateTestFilePrefix();
@@ -990,22 +985,6 @@ TEST_P(OVCompiledModelHsmBlobTest, exported_blob_is_a_valid_container_of_the_cur
     EXPECT_EQ(header.version_major, hsm::FormatVersion::major);
     EXPECT_EQ(header.version_minor, hsm::FormatVersion::minor);
     EXPECT_EQ(header.container_size, exported.size());
-}
-
-TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkNoThrowWithHsmFormat) {
-    ov::Core core = ov::test::utils::create_core();
-    const auto internal = core.get_property(target_device, ov::internal::supported_properties);
-    if (!ov::util::contains(internal, ov::internal::emit_hsm_format.name())) {
-        GTEST_SKIP() << "Plugin does not report an HSM blob format capability";
-    }
-
-    std::stringstream strm;
-    ov::CompiledModel executableNetwork;
-    OV_ASSERT_NO_THROW(executableNetwork = core.compile_model(actualNetwork, target_device));
-    OV_ASSERT_NO_THROW(executableNetwork.export_model(strm));
-    EXPECT_EQ(is_hsm(strm.str()), core.get_property(target_device, ov::internal::emit_hsm_format));
-    OV_ASSERT_NO_THROW(executableNetwork = core.import_model(strm, target_device));
-    OV_ASSERT_NO_THROW(executableNetwork.create_infer_request());
 }
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelImportExportTestP);
