@@ -72,15 +72,13 @@ private:
 
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<IGraph> _graph;
-    std::optional<int64_t> _batchSize;
+    std::shared_ptr<BlobWriter> _blobWriter;
 
     std::unique_ptr<CompiledModelPropertyManager> _propertiesManager;
 
     /**
      * @brief Contains the information required to export the compiled model and provides an API to do so
      */
-    std::shared_ptr<BlobWriter> _blobWriter;
-
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor = nullptr;
     mutable std::once_flag _streamExecutorsInitFlag;
 };
