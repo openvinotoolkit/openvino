@@ -89,6 +89,7 @@
 
 // TODO: Remove once we have interface for kernels cache
 #include "impls/ocl/kernels_cache.hpp"
+#include "runtime/ocl/offline_memory.hpp"
 
 // TODO: implement self-registration for impls
 #include "impls/ocl/register.hpp"
@@ -250,7 +251,7 @@ void program::init_program() {
     _kernels_cache->set_kernels_reuse(_config.get_enable_kernels_reuse());
     // Only the top-level offline program exports placeholders; internal helper networks execute during
     // their own build and need runnable kernels.
-    _kernels_cache->set_offline_export(_config.get_offline_compile() && !is_internal);
+    _kernels_cache->set_offline_export(get_engine().is_hw_free() && !is_internal);
 
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
@@ -520,9 +521,11 @@ void program::build_program(bool is_internal) {
     if (!is_internal) {
         prim_info = get_current_stage_info();
         if (_config.get_offline_compile()) {
-            // No device to transfer to, but the layout reconciliation that transfer does as a side
+            // No device to transfer to, but the memory layout alignment that transfer does as a side
             // effect is still needed: the blob records the memory layout and import checks it.
-            reconcile_constant_layouts();
+            align_constant_memory_layouts();
+            if (get_engine().get_device_info().has_separate_cache)
+                assign_constant_alloc_types();
         } else if (get_engine().get_device_info().has_separate_cache) {
             transfer_memory_to_device();
         }
@@ -719,7 +722,7 @@ void program::mark_if_gemm_data_flow() {
     }
 }
 
-void program::reconcile_constant_layouts() {
+void program::align_constant_memory_layouts() {
     for (const auto& node : processing_order) {
         if (node->is_shape_infer_dep() || !node->is_type<data>())
             continue;
@@ -731,6 +734,31 @@ void program::reconcile_constant_layouts() {
         auto fixed = get_engine().reinterpret_buffer(mem, node_layout);
         data_node.attach_memory(fixed);
         const_cast<memory::ptr&>(data_node.get_primitive()->mem) = fixed;
+    }
+}
+
+void program::assign_constant_alloc_types() {
+    if (!get_engine().supports_allocation(allocation_type::usm_device))
+        return;
+
+    const auto& info = get_engine().get_device_info();
+    for (const auto& node : processing_order) {
+        if (node->is_shape_infer_dep() || !node->is_type<data>() || node->need_lockable_memory())
+            continue;
+        auto& data_node = node->as<data>();
+        auto& mem = data_node.get_attached_memory();
+        const auto alloc_type = mem.get_allocation_type();
+        if (data_node.get_primitive()->skip_device_transfer() || mem.get_layout().count() == 0)
+            continue;
+        if ((alloc_type != allocation_type::usm_host && alloc_type != allocation_type::usm_shared) ||
+            (info.arch >= gpu_arch::xe2 && info.dev_type == device_type::integrated_gpu))
+            continue;
+        const auto* offline_mem = dynamic_cast<const ocl::offline_memory*>(&mem);
+        OPENVINO_ASSERT(offline_mem, "[GPU offline] constant memory must be offline_memory");
+        auto retagged = std::make_shared<ocl::offline_memory>(&get_engine(), mem.get_layout(), allocation_type::usm_device,
+                                                              offline_mem->shared_buffer());
+        data_node.attach_memory(retagged);
+        const_cast<memory::ptr&>(data_node.get_primitive()->mem) = retagged;
     }
 }
 

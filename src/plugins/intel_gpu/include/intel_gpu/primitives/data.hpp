@@ -139,13 +139,11 @@ struct const_chain {
     bool empty() const { return prims.empty(); }
 };
 
-// Where the value this constant is rebuilt from comes from. `original_model` keeps the blob small but
-// needs the source model at load time; `embedded` is self-contained and works for constants that a
-// transformation created and so have no counterpart in the original model.
+// Source the constant is rebuilt from: `original_model` needs the source model at load time,
+// `chain` is self-contained and covers constants created by transformations.
 enum class const_source : uint8_t {
     original_model = 0,
-    embedded = 1,
-    chain = 2,     // leaves carry their own bytes; see const_chain
+    chain = 1,     // leaves carry their own bytes; see const_chain
 };
 
 struct weightless_cache_manager {
@@ -170,15 +168,14 @@ struct weightless_cache_manager {
         reorder_rep = {input_layout, reorder};
     }
 
-    // Carry the pre-transformation bytes in the blob instead of referencing the original model. Used
-    // when the constant has no bin_offset, which is the case for transformation-created constants.
-    void embed_source(memory::ptr src) { embedded_src = std::move(src); }
-
     // Multi-primitive counterpart of apply_reorder: the whole constant sub-graph travels in the blob.
     void apply_chain(const_chain chain) { this->chain = std::move(chain); }
 
+    // Drop the original-model recipe once the constant is modified in place, so the current value is serialized.
+    void invalidate() { do_weightless_caching = false; }
+
     // True when this manager owns the value, so data::save must not write the (possibly empty) buffer.
-    bool is_managed() const { return do_weightless_caching || embedded_src != nullptr || !chain.empty(); }
+    bool is_managed() const { return do_weightless_caching || !chain.empty(); }
 
     bool save(BinaryOutputBuffer& ob, size_t data_size) const {
         if (!is_managed()) {
@@ -187,9 +184,7 @@ struct weightless_cache_manager {
         }
 
         ob << true;
-        const auto source = !chain.empty()       ? const_source::chain
-                          : do_weightless_caching ? const_source::original_model
-                                                  : const_source::embedded;
+        const auto source = !chain.empty() ? const_source::chain : const_source::original_model;
         ob << make_data(&source, sizeof(source));
         if (source == const_source::chain) {
             ob << chain.leaves.size();
@@ -209,13 +204,8 @@ struct weightless_cache_manager {
                 }
             }
             ob << chain.output_id;
-        } else if (source == const_source::original_model) {
-            ob << bin_offset;
         } else {
-            mem_lock<uint8_t, mem_lock_type::read> lock(embedded_src, embedded_src->get_engine()->get_service_stream());
-            const size_t src_size = embedded_src->size();
-            ob << src_size;
-            ob << make_data(lock.data(), src_size);
+            ob << bin_offset;
         }
         ob << do_precision_conversion;
         if (do_precision_conversion) {
@@ -274,13 +264,8 @@ struct weightless_cache_manager {
                 }
             }
             ib >> chain.output_id;
-        } else if (do_weightless_caching) {
-            ib >> bin_offset;
         } else {
-            size_t src_size = 0;
-            ib >> src_size;
-            embedded_bytes.resize(src_size);
-            ib >> make_data(embedded_bytes.data(), src_size);
+            ib >> bin_offset;
         }
         ib >> do_precision_conversion;
         if (do_precision_conversion) {
@@ -293,7 +278,7 @@ struct weightless_cache_manager {
             shape.resize(num_dims);
             ib >> make_data(shape.data(), num_dims * sizeof(ov::Shape::value_type));
         } else {
-            original_size = embedded_bytes.empty() ? dst_mem->size() : embedded_bytes.size();
+            original_size = dst_mem->size();
         }
         bool do_reorder = false;
         ib >> do_reorder;
@@ -328,8 +313,6 @@ private:
     bool do_precision_conversion = false;
     reorder_replication reorder_rep{};
 
-    memory::ptr embedded_src = nullptr;    // compile side: bytes to put in the blob
-    std::vector<uint8_t> embedded_bytes;   // load side: bytes read back from the blob
     const_chain chain;                     // multi-primitive constant sub-graph
 
     size_t bin_offset = SIZE_MAX;
@@ -340,8 +323,6 @@ private:
 
     // Start of the value the recipe transforms, whichever source it came from.
     const uint8_t* source_data(const constant_memory_ptr& constant_ptr) const {
-        if (!embedded_bytes.empty())
-            return embedded_bytes.data();
         if (std::holds_alternative<std::shared_ptr<ov::op::v0::Constant>>(constant_ptr))
             return reinterpret_cast<const uint8_t*>(
                 std::get<std::shared_ptr<ov::op::v0::Constant>>(constant_ptr)->get_data_ptr());
@@ -411,9 +392,7 @@ private:
 
         if (do_precision_conversion) {
             std::shared_ptr<ov::op::v0::Constant> orig_constant = nullptr;
-            if (!embedded_bytes.empty()) {
-                orig_constant = std::make_shared<ov::op::v0::Constant>(original_dtype, shape, embedded_bytes.data());
-            } else if (std::holds_alternative<std::shared_ptr<ov::op::v0::Constant>>(constant_ptr)) {
+            if (std::holds_alternative<std::shared_ptr<ov::op::v0::Constant>>(constant_ptr)) {
                 orig_constant = std::get<std::shared_ptr<ov::op::v0::Constant>>(constant_ptr);
             } else {
                 auto shared_buf = std::get<shared_mapped_memory_ptr>(constant_ptr);

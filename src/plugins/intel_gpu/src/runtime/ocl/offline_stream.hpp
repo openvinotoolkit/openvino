@@ -37,7 +37,7 @@ public:
     event::ptr enqueue_marker(std::vector<event::ptr> const&, bool /*is_output_event*/ = false) override {
         OPENVINO_THROW("[GPU offline] stream::enqueue_marker is not available on the compile-only engine");
     }
-    void enqueue_barrier() override {
+    void enqueue_barrier(const std::vector<event::ptr>& /*deps*/ = {}) override {
         OPENVINO_THROW("[GPU offline] stream::enqueue_barrier is not available on the compile-only engine");
     }
     event::ptr group_events(std::vector<event::ptr> const&) override {

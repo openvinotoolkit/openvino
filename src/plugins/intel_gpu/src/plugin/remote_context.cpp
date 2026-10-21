@@ -373,7 +373,6 @@ void RemoteContextImpl::initialize() {
             // HW-free offline compile-only context: build a stub engine (no cl::Context / device init).
             // Self-identified by the device type, so no env dependency. See offline_engine.
             m_engine = std::make_shared<cldnn::ocl::offline_engine>(m_device);
-            std::cerr << "[GPU offline] RemoteContext uses stub offline_engine (no cl::Context)" << std::endl;
         } else {
             m_device->initialize();  // Initialize associated device before use
             m_engine = cldnn::engine::create(

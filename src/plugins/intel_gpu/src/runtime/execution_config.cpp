@@ -361,11 +361,6 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     if (!is_set_by_user(ov::intel_gpu::use_onednn) && info.supports_immad) {
         m_use_onednn = true;
     }
-    // onednn JITs its kernels against the driver and bypasses kernels_cache, so it cannot be compiled
-    // HW-free yet. Force everything onto the ocl path; this costs XMX performance on dGPU.
-    if (get_offline_compile() && m_use_onednn) {
-        m_use_onednn = false;
-    }
     if (m_use_onednn) {
         m_queue_type = QueueTypes::in_order;
     }
@@ -410,13 +405,6 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
         m_enable_profiling = true;
     }
 #endif // ENABLE_DEBUG_CAPS
-    if (std::getenv("OV_GPU_DUMP_CFG"))  // TEMP diagnostic
-        std::cerr << "[cfg] offline=" << get_offline_compile() << " use_onednn=" << get_use_onednn()
-                  << " queue_type=" << static_cast<int>(get_queue_type())
-                  << " optimize_data=" << get_optimize_data()
-                  << " weightless=" << get_enable_weightless()
-                  << " lp_transformations=" << get_enable_lp_transformations()
-                  << " dyn_quant_gs=" << get_dynamic_quantization_group_size() << std::endl;
 }
 
 void ExecutionConfig::apply_hints(const cldnn::device_info& info) {

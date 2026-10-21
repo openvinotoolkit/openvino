@@ -89,10 +89,9 @@ Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& con
     // the compiler process; the import ctor leaves m_offline_engine null.
     if (config.get_offline_compile()) {
         auto dev = std::make_shared<cldnn::ocl::offline_device>(
-            cldnn::ocl::make_offline_device_info(config.get_offline_compile_device()));
+            cldnn::ocl::make_offline_device_info(config.get_offline_compile_device()),
+            cldnn::ocl::make_offline_onednn_device_info(config.get_offline_compile_device()));
         m_offline_engine = std::make_shared<cldnn::ocl::offline_engine>(dev);
-        std::cerr << "[GPU offline] using stub device_info engine (" << dev->get_info().dev_name
-                  << ", no cl::Context) for compile-only program" << std::endl;
     }
 
     auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config);
@@ -150,9 +149,6 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
     m_config.visit_attributes(visitor);
     m_config.set_user_property(config.get_user_properties()); // Copy user properties if those were modified on import call
     m_config.set_user_property({ov::hint::model(std::shared_ptr<const ov::Model>(nullptr))});
-    // Import always builds a real network; the offline flag applies to the export path only. Deferred
-    // constants carry their own recipe and are materialized by data::load_weights below.
-    m_config.set_user_property({ov::intel_gpu::offline_compile(false)});
     m_config.finalize(context.get(), nullptr);
 
     auto imported_prog = std::make_shared<cldnn::program>(get_engine(), m_config);

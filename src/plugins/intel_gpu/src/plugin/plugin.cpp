@@ -31,6 +31,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/profiling.hpp"
 #include "runtime/ocl/offline_engine.hpp"
+#include "runtime/ocl/ocl_device.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -260,8 +261,8 @@ Plugin::Plugin() {
         cldnn::device_query device_query;
         m_device_map = device_query.get_available_devices();
     } catch (const std::exception& ex) {
-        std::cerr << "[GPU offline] device enumeration failed (" << ex.what()
-                  << "); continuing HW-free" << std::endl;
+        GPU_DEBUG_INFO << "[GPU offline] device enumeration failed (" << ex.what()
+                       << "); continuing HW-free" << std::endl;
     }
 
     // Set default configs for each device
@@ -273,8 +274,8 @@ Plugin::Plugin() {
     // code whenever a device was found.
     if (m_configs_map.empty()) {
         m_configs_map.insert({m_default_device_id, ExecutionConfig(ov::device::id(m_default_device_id))});
-        std::cerr << "[GPU offline] no GPU enumerated; installed default config for device '"
-                  << m_default_device_id << "'" << std::endl;
+        GPU_DEBUG_INFO << "[GPU offline] no GPU enumerated; installed default config for device '"
+                       << m_default_device_id << "'" << std::endl;
     }
 
     // Set common info for compiled_model_runtime_properties
@@ -295,15 +296,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // env peek is a development shortcut: finalize() runs too late for this pre-context decision.
     bool offline = config.get_offline_compile();
     std::string offline_target = config.get_offline_compile_device();
-    if (!offline) {
-        if (const char* env_off = std::getenv("OV_GPU_OFFLINE_COMPILE")) {
-            std::string v(env_off);
-            offline = (v == "1" || v == "true" || v == "TRUE" || v == "yes" || v == "YES");
-        }
-        if (offline && offline_target.empty()) {
-            if (const char* env_dev = std::getenv("OV_GPU_OFFLINE_COMPILE_DEVICE"))
-                offline_target = env_dev;
-        }
+    // Like in finalize(), the env overrides the property.
+    offline = ov::util::getenv_bool("OV_GPU_OFFLINE_COMPILE", offline);
+    if (offline && offline_target.empty()) {
+        if (const char* env_dev = std::getenv("OV_GPU_OFFLINE_COMPILE_DEVICE"))
+            offline_target = env_dev;
     }
 
     std::shared_ptr<RemoteContextImpl> context;
@@ -312,7 +309,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         // mechanism already serializes. Offline compile needs it regardless of the user's cache mode.
         config.set_user_property({ov::enable_weightless(true)});
         auto dev = std::make_shared<cldnn::ocl::offline_device>(
-            cldnn::ocl::make_offline_device_info(offline_target));
+            cldnn::ocl::make_offline_device_info(offline_target),
+            cldnn::ocl::make_offline_onednn_device_info(offline_target));
         context = std::make_shared<RemoteContextImpl>(get_device_name() + "." + device_id,
                                                       std::vector<cldnn::device::ptr>{dev});
     } else {
@@ -698,7 +696,20 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
 
     if (name == ov::intel_gpu::device_descriptor) {
         // Enumeration-phase export of everything the HW-free compiler process needs (see FR-2).
-        return decltype(ov::intel_gpu::device_descriptor)::value_type {cldnn::ocl::serialize_device_info(device_info)};
+        std::string onednn_version;
+        std::vector<uint8_t> onednn_device_info;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        if (device_info.supports_immad) {
+            device->initialize();
+            auto* ocl_dev = dynamic_cast<cldnn::ocl::ocl_device*>(device.get());
+            OPENVINO_ASSERT(ocl_dev, "[GPU] Device descriptor export expects an ocl_device");
+            auto engine = dnnl::ocl_interop::make_engine(ocl_dev->get_device().get(), ocl_dev->get_context().get());
+            onednn_device_info = dnnl::ocl_interop::get_engine_cache_blob(engine);
+            onednn_version = cldnn::ocl::onednn_fingerprint();
+        }
+#endif
+        return decltype(ov::intel_gpu::device_descriptor)::value_type {
+            cldnn::ocl::serialize_device_info(device_info, onednn_version, onednn_device_info)};
     }
     if (name == ov::intel_gpu::device_total_mem_size) {
         return decltype(ov::intel_gpu::device_total_mem_size)::value_type {device_info.max_global_mem_size};

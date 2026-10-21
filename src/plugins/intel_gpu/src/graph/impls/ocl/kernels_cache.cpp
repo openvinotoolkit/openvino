@@ -321,7 +321,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     std::vector<uint8_t> precompiled;
     if (is_cache_enabled()) {
         // A cached driver binary would bypass ocloc below and leak a non-HW-free kernel into the blob.
-        OPENVINO_ASSERT(!_config.get_offline_compile(),
+        OPENVINO_ASSERT(!_offline_export,
                         "[GPU offline] kernels cache (cl_cache) must be disabled for HW-free offline "
                         "compile; a cached driver binary would bypass ocloc.");
         std::lock_guard<std::mutex> lock(cacheAccessMutex);
@@ -378,13 +378,6 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
 
         if (dump_sources && dump_file.good())
             dump_file << "\n/* Offline (ocloc, HW-free): no driver build log */\n";
-
-        // TODO(productization): drop this marker; kept visible because GPU_DEBUG_LOG is compiled out
-        // without ENABLE_DEBUG_CAPS.
-        std::cerr << "[GPU offline] batch " << batch.hash_value
-                  << " device=" << device_arg
-                  << " micro=" << batch.has_microkernels
-                  << " ocloc_bin=" << ocloc_bin.size() << "B (context-less, load-once)" << std::endl;
     } else {
         auto combined_source = join_strings(batch.source);
         _builder->build_kernels(combined_source.data(), combined_source.size(), KernelFormat::SOURCE, batch.options, kernels);
@@ -592,12 +585,6 @@ void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernel
 }
 
 void kernels_cache::save(BinaryOutputBuffer& ob) const {
-    // TODO(productization): drop this marker. Counts unique binaries in the blob (deduped), which is
-    // the real "kernels in blob" number regardless of how many ocloc calls produced them.
-    if (_offline_export) {
-        std::cerr << "[GPU offline] serializing " << _cached_binaries.size()
-                  << " unique kernel binaries into blob" << std::endl;
-    }
     ob << _cached_binaries.size();
 
     // zebin (ELF format) or SPIR-V.

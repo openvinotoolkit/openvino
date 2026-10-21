@@ -108,7 +108,7 @@ inline std::vector<uint8_t> ocloc_compile_ocl_c(const std::string& source,
     argv.push_back(device_arg.c_str());
     // Native-ISA-only zebin. With the SPIR-V IR kept, a mismatched device would silently re-JIT from
     // it and mask a wrong target; without it, loading fails loudly.
-    if (!std::getenv("OV_GPU_OCLOC_KEEP_IR")) argv.push_back("-exclude_ir");
+    argv.push_back("-exclude_ir");
     if (!options.empty()) {
         argv.push_back("-options");
         argv.push_back(options.c_str());

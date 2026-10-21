@@ -11,6 +11,10 @@
 #include "offline_memory.hpp"
 #include "openvino/core/except.hpp"
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl_ocl.hpp>
+#endif
+
 #include <memory>
 
 namespace cldnn {
@@ -28,6 +32,7 @@ public:
     engine_types type() const override { return engine_types::ocl; }
     runtime_types runtime_type() const override { return runtime_types::ocl; }
     backend_types backend_type() const override { return backend_types::ocl; }
+    bool is_hw_free() const override { return true; }
 
     stream_ptr create_stream(const ExecutionConfig& /*config*/) const override {
         return std::make_shared<offline_stream>();
@@ -71,7 +76,7 @@ public:
     memory_ptr import_buffer(const layout& /*layout*/, ov::intel_gpu::os_handle_param /*external_handle*/) override {
         OPENVINO_THROW("[GPU offline] engine::import_buffer is not available on the compile-only engine");
     }
-    bool is_the_same_buffer(const memory& /*mem1*/, const memory& /*mem2*/) override {
+    bool is_the_same_buffer(const memory& /*mem1*/, const memory& /*mem2*/) const override {
         OPENVINO_THROW("[GPU offline] engine::is_the_same_buffer is not available on the compile-only engine");
     }
     // No real CL/L0 context exists. Returning null (rather than throwing) lets RemoteContextImpl::
@@ -82,8 +87,18 @@ public:
     }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    // HW-free: oneDNN builds its engine from the device data captured during enumeration, so no
+    // driver call is made. Such an engine serves primitive descriptor creation only; the primitives
+    // themselves are JIT-compiled at import time, when a real device is available.
     void create_onednn_engine(const ExecutionConfig& /*config*/) override {
-        OPENVINO_THROW("[GPU offline] engine::create_onednn_engine is not available on the compile-only engine");
+        if (_onednn_engine)
+            return;
+
+        const auto& onednn_device_info = static_cast<offline_device*>(_device.get())->onednn_device_info();
+        OPENVINO_ASSERT(!onednn_device_info.empty(),
+                        "[GPU offline] the device descriptor carries no oneDNN device data. Re-export it "
+                        "from a machine with the target GPU using a build that has oneDNN enabled.");
+        _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_offline_engine(onednn_device_info));
     }
 #endif
 };

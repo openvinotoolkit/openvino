@@ -18,9 +18,24 @@ namespace ocl {
 
 // Self-contained text form of device_info, produced on a HW-attached machine during enumeration and
 // consumed by the HW-free compiler process, which has no device to query.
-constexpr const char* device_descriptor_version = "1";
+constexpr const char* device_descriptor_version = "2";
 
 namespace detail {
+
+inline std::map<std::string, std::string> parse_kv(const std::string& descriptor) {
+    std::map<std::string, std::string> kv;
+    std::istringstream is(descriptor);
+    std::string line;
+    while (std::getline(is, line)) {
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        auto eq = line.find('=');
+        if (eq == std::string::npos)
+            continue;
+        kv[line.substr(0, eq)] = line.substr(eq + 1);
+    }
+    return kv;
+}
 
 inline std::string to_hex(const uint8_t* data, size_t count) {
     std::ostringstream os;
@@ -101,9 +116,16 @@ inline std::vector<size_t> split_sizes(const std::string& s) {
     STR(dev_name)                                                     \
     STR(driver_version)
 
-inline std::string serialize_device_info(const device_info& info) {
+// oneDNN keeps its own device_info with its own private layout, so the only robust way to reproduce
+// it offline is to carry the blob oneDNN itself produced. It has no version tag of its own, hence
+// onednn_version alongside it: a oneDNN upgrade silently changes the field order.
+inline std::string serialize_device_info(const device_info& info,
+                                         const std::string& onednn_version = "",
+                                         const std::vector<uint8_t>& onednn_device_info = {}) {
     std::ostringstream os;
     os << "version=" << device_descriptor_version << "\n";
+    os << "onednn_version=" << onednn_version << "\n";
+    os << "onednn_device_info=" << detail::to_hex(onednn_device_info.data(), onednn_device_info.size()) << "\n";
 #define OV_GPU_DD_NUM(field) os << #field "=" << static_cast<uint64_t>(info.field) << "\n";
 #define OV_GPU_DD_STR(field) os << #field "=" << info.field << "\n";
     OV_GPU_DEVICE_DESCRIPTOR_FIELDS(OV_GPU_DD_NUM, OV_GPU_DD_STR)
@@ -124,18 +146,21 @@ inline std::string serialize_device_info(const device_info& info) {
     return os.str();
 }
 
+// Opaque oneDNN device_info blob captured during enumeration; empty when oneDNN was not available.
+inline std::vector<uint8_t> deserialize_onednn_device_info(const std::string& descriptor) {
+    auto kv = detail::parse_kv(descriptor);
+    const auto& hex = kv["onednn_device_info"];
+    std::vector<uint8_t> blob(hex.size() / 2);
+    detail::from_hex(hex, blob.data(), blob.size());
+    return blob;
+}
+
+inline std::string deserialize_onednn_version(const std::string& descriptor) {
+    return detail::parse_kv(descriptor)["onednn_version"];
+}
+
 inline device_info deserialize_device_info(const std::string& descriptor) {
-    std::map<std::string, std::string> kv;
-    std::istringstream is(descriptor);
-    std::string line;
-    while (std::getline(is, line)) {
-        auto eq = line.find('=');
-        if (eq == std::string::npos)
-            continue;
-        if (!line.empty() && line.back() == '\r')
-            line.pop_back();
-        kv[line.substr(0, eq)] = line.substr(eq + 1);
-    }
+    auto kv = detail::parse_kv(descriptor);
 
     OPENVINO_ASSERT(kv.count("version") && kv["version"] == device_descriptor_version,
                     "[GPU] Unsupported device descriptor version '", kv["version"], "' (expected ",
