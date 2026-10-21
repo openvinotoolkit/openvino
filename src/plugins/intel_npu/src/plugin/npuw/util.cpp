@@ -1174,6 +1174,11 @@ bool ov::npuw::util::starts_with_past_lincache(const std::string& input_name) {
            ov::npuw::util::starts_with(input_name, past_lin_ssm_cache);
 }
 
+bool ov::npuw::util::is_option_enabled(const ov::AnyMap& config, const std::string& option_name) {
+    const auto it = config.find(option_name);
+    return it != config.end() && it->second.as<bool>();
+}
+
 bool ov::npuw::util::is_swa_kv_cache_name(const std::string& input_name) {
     // SWA-managed names carry an extra "swa" segment, e.g. "past_key_values.0.swa.key".
     return input_name.find(".swa.") != std::string::npos;

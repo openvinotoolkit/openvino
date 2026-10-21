@@ -1189,9 +1189,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
-    // Chunked prefill of a model with linear-attention state prefills the partial chunk first (see
-    // LLMInferRequest::infer_chunked_prefill), so a past tile can be partially filled and a regular HFA tile
-    // without a mask would attend to its unused entries.
+    // Chunked prefill of a model with linear-attention state prefills the partial chunk first, unless prefix caching
+    // is enabled (see LLMInferRequest::infer_chunked_prefill), so a past tile can be partially filled and a regular
+    // HFA tile without a mask would attend to its unused entries.
     const bool has_lincache = [&prefill_model]() {
         for (const auto& input : prefill_model->inputs()) {
             for (const auto& name : input.get_names()) {
@@ -1202,9 +1202,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
         return false;
     }();
-    const bool hfa_partial_past_tile = prefill_attn_hfa && m_use_chunk_prefill && has_lincache;
+    const bool partial_chunk_first = m_use_chunk_prefill && !m_enable_prefix_caching && has_lincache;
 
-    if (prefill_attn_hfa && !hfa_partial_past_tile) {
+    if (prefill_attn_hfa && !partial_chunk_first) {
         // Enable the mask-skipping optimization by default; the actual per-layer
         // decision (safe only for Causal, or SlidingWindow whose window already
         // covers the full context) is made independently for each SDPA subgraph in
@@ -1240,18 +1240,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(generate_config, other_props);
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
-    if (hfa_partial_past_tile) {
-        const auto is_enabled = [&prefill_config](const std::string& name) {
-            const auto it = prefill_config.find(name);
-            return it != prefill_config.end() && it->second.as<bool>();
-        };
-        // Only the fused HFA compiles its regular tiles without a mask
-        OPENVINO_ASSERT(!(is_enabled("NPUW_ATTN_HFA_FUSED") &&
-                          is_enabled(ov::intel_npu::npuw::partitioning::attn_hfa_mask_skipping.name())),
-                        "NPUW_ATTN_HFA_MASK_SKIPPING is not supported for the chunked prefill of a model with "
-                        "linear-attention state: the partial chunk is prefilled first, and a partially filled past "
-                        "tile would be attended without a mask.");
-    }
     if (user_compilation_mode_params.has_value() && default_compilation_mode_params.has_value() &&
         user_compilation_mode_params.value() != default_compilation_mode_params.value()) {
         LOG_WARN("User-provided NPU_COMPILATION_MODE_PARAMS overrides arch-aware setting \""
@@ -1292,6 +1280,20 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             }
             LOG_INFO("Gemma-4 cross-group KV model: setting NPUW_ONLINE_KEEP_BLOCKS=3 for prefill");
         }
+    }
+
+    // The final prefill config decides, whether HFA came from the hint or from an explicit NPUW_ATTN
+    if (partial_chunk_first) {
+        const auto attn = prefill_config.find("NPUW_ATTN");
+        const bool hfa_selected = attn != prefill_config.end() && attn->second.as<std::string>() == "HFA";
+        // Only the fused HFA compiles its regular tiles without a mask
+        OPENVINO_ASSERT(
+            !(hfa_selected && ov::npuw::util::is_option_enabled(prefill_config, "NPUW_ATTN_HFA_FUSED") &&
+              ov::npuw::util::is_option_enabled(prefill_config,
+                                                ov::intel_npu::npuw::partitioning::attn_hfa_mask_skipping.name())),
+            "NPUW_ATTN_HFA_MASK_SKIPPING is not supported for the chunked prefill of a model with "
+            "linear-attention state: the partial chunk is prefilled first, and a partially filled past "
+            "tile would be attended without a mask.");
     }
 
     if (generate_attn_pyramid || generate_attn_hfa || generate_attn_dyn) {

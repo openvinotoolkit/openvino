@@ -857,6 +857,53 @@ TEST_F(HfaMaskSkippingOverrideTest, PrefillConfigAdditionIsRejected) {
     expect_rejected({{"++NPUW_LLM_PREFILL_CONFIG", ov::AnyMap{{"NPUW_ATTN_HFA_MASK_SKIPPING", "YES"}}}});
 }
 
+// HFA can also be selected by an explicit NPUW_ATTN, bypassing the attention hint.
+TEST_F(HfaMaskSkippingOverrideTest, ExplicitHfaWithStaticHintIsRejected) {
+    expect_rejected(
+        {{"NPUW_LLM_PREFILL_ATTENTION_HINT", "STATIC"},
+         {"++NPUW_LLM_PREFILL_CONFIG", ov::AnyMap{{"NPUW_ATTN", "HFA"}, {"NPUW_ATTN_HFA_MASK_SKIPPING", "YES"}}}});
+}
+
+TEST_F(HfaMaskSkippingOverrideTest, ExplicitTopLevelHfaWithStaticHintIsRejected) {
+    expect_rejected(
+        {{"NPUW_LLM_PREFILL_ATTENTION_HINT", "STATIC"}, {"NPUW_ATTN", "HFA"}, {"NPUW_ATTN_HFA_MASK_SKIPPING", "YES"}});
+}
+
+// A DYNAMIC hint replaces the explicit NPUW_ATTN, so HFA is not in use.
+TEST_F(HfaMaskSkippingOverrideTest, ExplicitHfaOverriddenByDynamicHintIsAccepted) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        ov::test::npuw::build_hybrid_llm_test_model(),
+                        hybrid_hfa_props({{"NPUW_LLM_PREFILL_ATTENTION_HINT", "DYNAMIC"},
+                                          {"++NPUW_LLM_PREFILL_CONFIG",
+                                           ov::AnyMap{{"NPUW_ATTN", "HFA"}, {"NPUW_ATTN_HFA_MASK_SKIPPING", "YES"}}}}),
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+    expect_prop(require_call(recorder, "_prefill").props, "NPUW_ATTN", "DYNAMIC");
+}
+
+// Prefix caching keeps the partial chunk last, so past tiles stay full and mask skipping is safe.
+TEST_F(HfaMaskSkippingOverrideTest, PrefixCachingKeepsDefaultMaskSkipping) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_hybrid_llm_test_model(),
+                                                     hybrid_hfa_props({{"NPUW_LLM_ENABLE_PREFIX_CACHING", "YES"}}),
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+    expect_prop(require_call(recorder, "_prefill").props, "NPUW_ATTN_HFA_MASK_SKIPPING", "YES");
+}
+
+TEST_F(HfaMaskSkippingOverrideTest, ExplicitYesIsAcceptedWithPrefixCaching) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_hybrid_llm_test_model(),
+                                                     hybrid_hfa_props({{"NPUW_LLM_ENABLE_PREFIX_CACHING", "YES"},
+                                                                       {"NPUW_ATTN_HFA_MASK_SKIPPING", "YES"}}),
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+}
+
 TEST_F(HfaMaskSkippingOverrideTest, ExplicitNoIsAccepted) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;

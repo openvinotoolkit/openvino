@@ -288,6 +288,9 @@ bool is_swa_kv_cache_name(const std::string& input_name);
 // by the SDPAToPagedAttention transformation).
 bool is_pa_kv_cache_name(const std::string& input_name);
 
+// True if the boolean option is present in the config and set to true.
+bool is_option_enabled(const ov::AnyMap& config, const std::string& option_name);
+
 // One-line tensor digest for log traces: LOG_VERB("x: " << TensorBrief{t}).
 // Tensors past kMaxStats elements, such as KV cache pools, print their shape only.
 struct TensorBrief {
