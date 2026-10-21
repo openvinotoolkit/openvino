@@ -285,13 +285,6 @@ ExecutionConfig woq_config(engine& engine, const std::vector<std::string>& ids) 
     return config;
 }
 
-void expect_selected(network& net, const std::string& id) {
-    auto impl = net.get_primitive(id)->get_impl();
-    ASSERT_NE(impl, nullptr);
-    ASSERT_NE(impl->get_kernel_name().find("woq_u2"), std::string::npos)
-        << "CM u2 FC implementation was not selected for " << id << " (got " << impl->get_kernel_name() << ")";
-}
-
 // First `count` elements of an f16 / f32 output (dynamic-shape outputs may be over-allocated).
 std::vector<float> read_output(memory::ptr mem, size_t count, bool out_f32) {
     std::vector<float> out(count);
@@ -408,10 +401,11 @@ void compare_values(const std::vector<float>& out,
     ASSERT_EQ(bad, size_t(0)) << bad << " of " << out.size() << " compared outputs are more than " << max_abs_diff
                               << (out_f16 ? " from any value that rounds to them" : " off") << "; first at row " << bad_row << ", col " << first_bad % N
                               << ": got " << out[first_bad] << ", reference " << ref[first_bad];
-    if (out_f16)
+    if (out_f16) {
         ASSERT_LE(static_cast<double>(differing), max_midpoint_fraction * static_cast<double>(out.size()))
             << differing << " of " << out.size() << " f16 outputs differ from the fp16-rounded reference (more than " << 100.0 * max_midpoint_fraction
             << " %): too many for rounding-midpoint cases";
+    }
 }
 
 // CM output rows `rows` of an [m, N] output vs the host reference.
@@ -487,8 +481,9 @@ TEST_P(fully_connected_cm_woq_u2, conformance) {
     const int64_t M = p.M, K = p.K, N = p.N;
     ASSERT_EQ(K % 64, 0);
     ASSERT_EQ(N % 32, 0);
-    if (p.seq)
+    if (p.seq) {
         ASSERT_EQ(M % p.seq, 0);
+    }
 
     tests::random_generator rg(GET_SUITE_NAME);
     const auto w = make_weights(engine, K, N, p.zp, rg, static_cast<uint32_t>(M * 131 + K * 7 + N), wl);
@@ -500,8 +495,9 @@ TEST_P(fully_connected_cm_woq_u2, conformance) {
     auto net_in_shape = p.dynamic ? (p.seq ? ov::PartialShape{-1, p.seq, K} : ov::PartialShape{-1, K}) : make_shape(M);
 
     // The host reference computes a row sample only on the large shapes (all N columns, all of K).
-    if (p.sample_rows)
+    if (p.sample_rows) {
         ASSERT_FALSE(p.dynamic);
+    }
     const bool fused_post_op = p.epi == Epi::add || p.epi == Epi::swiglu;
     auto make_out_shape = [&](int64_t m) {
         return p.seq ? ov::PartialShape{m / p.seq, p.seq, N} : ov::PartialShape{m, N};
@@ -559,7 +555,8 @@ TEST_P(fully_connected_cm_woq_u2, conformance) {
         topo.add(reorder("out", input_info(last), format::bfyx, out_dt));
         return topo;
     };
-    network::ptr network = get_network(engine, build(net_in_shape), woq_config(engine, {"fc_prim"}), get_test_stream_ptr(), false);
+    auto net_topology = build(net_in_shape);
+    network::ptr network = get_network(engine, net_topology, woq_config(engine, {"fc_prim"}), get_test_stream_ptr(), false);
 
     std::vector<int64_t> run_ms = {M};
     if (p.dynamic) {
