@@ -461,6 +461,8 @@ set(GPU_KERNEL_SELECTOR_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/kernels/non_zero/gather_nonzero_params.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/normalize/normalize_kernel_across_spatial_ref.cpp
     ${CMAKE_CURRENT_LIST_DIR}/kernels/normalize/normalize_kernel_across_spatial_ref.h
+    ${CMAKE_CURRENT_LIST_DIR}/kernels/normalize/normalize_kernel_across_x.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/kernels/normalize/normalize_kernel_across_x.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/normalize/normalize_kernel_base.cpp
     ${CMAKE_CURRENT_LIST_DIR}/kernels/normalize/normalize_kernel_base.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/normalize/normalize_kernel_selector.cpp
