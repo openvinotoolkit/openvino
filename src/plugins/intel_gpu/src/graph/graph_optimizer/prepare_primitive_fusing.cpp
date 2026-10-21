@@ -8,15 +8,12 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <cmath>
-#include <optional>
 
 #include "activation_inst.h"
 #include "batch_to_space_inst.h"
 #include "broadcast_inst.h"
 #include "crop_inst.h"
 #include "cum_sum_inst.h"
-#include "data_inst.h"
 #include "depth_to_space_inst.h"
 #include "dynamic_quantize_inst.h"
 #include "eltwise_inst.h"
@@ -49,7 +46,6 @@
 #include "scatter_elements_update_inst.h"
 #include "scatter_nd_update_inst.h"
 #include "scatter_update_inst.h"
-#include "select_inst.h"
 #include "shuffle_channels_inst.h"
 #include "softmax_inst.h"
 #include "space_to_batch_inst.h"
