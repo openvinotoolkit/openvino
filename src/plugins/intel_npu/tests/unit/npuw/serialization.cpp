@@ -1479,10 +1479,10 @@ TEST(SerializationTest, HostFlashAttention_MaskCacheUsesIndependentFinalTileInde
     auto final_model = make_hfa_stub_model(8, 3);
     final_model->get_parameters()[6]->set_partial_shape(ov::Shape{1, 1, 8, 8});
     final_model->validate_nodes_and_infer_types();
-    hfa._compiled_tile_model = ov::SoPtr<ov::ICompiledModel>(
-        std::make_shared<HFAFakeCompiledModel>(regular_model, plugin));
-    hfa._compiled_final_tile_model = ov::SoPtr<ov::ICompiledModel>(
-        std::make_shared<HFAFakeCompiledModel>(final_model, plugin));
+    hfa._compiled_tile_model =
+        ov::SoPtr<ov::ICompiledModel>(std::make_shared<HFAFakeCompiledModel>(regular_model, plugin));
+    hfa._compiled_final_tile_model =
+        ov::SoPtr<ov::ICompiledModel>(std::make_shared<HFAFakeCompiledModel>(final_model, plugin));
     hfa._sdpa_attention_info._tile_input_indices = {5, 3, 4, 0, 0, 1, 2};
     hfa._sdpa_attention_info._tile_input_indices.scale = 6;
     hfa._sdpa_attention_info._final_tile_input_indices = {5, 3, 4, 6, 0, 1, 2};
@@ -1491,13 +1491,12 @@ TEST(SerializationTest, HostFlashAttention_MaskCacheUsesIndependentFinalTileInde
 
     ov::npuw::runtime::host_flash_attention::HFARuntimeContext runtime_context;
     std::vector<ov::Shape> allocated_shapes;
-    runtime_context.initialize_mask_cache(
-        hfa,
-        "CPU",
-        [&](const ov::element::Type&, const ov::Shape& shape, const std::string&) {
-            allocated_shapes.push_back(shape);
-            return ov::SoPtr<ov::ITensor>{};
-        });
+    runtime_context.initialize_mask_cache(hfa,
+                                          "CPU",
+                                          [&](const ov::element::Type&, const ov::Shape& shape, const std::string&) {
+                                              allocated_shapes.push_back(shape);
+                                              return ov::SoPtr<ov::ITensor>{};
+                                          });
     EXPECT_EQ(allocated_shapes, (std::vector<ov::Shape>{{1, 1, 8, 8}}));
     EXPECT_TRUE(runtime_context.m_mask_tile_buffers.empty());
 }

@@ -1503,22 +1503,21 @@ bool HostFlashAttention::is_valid() const {
     };
 
     // q/k/v/acc/max/d are always present on both the regular and the final tile model.
-        // The two models use independent indices; only the final tile always consumes a mask.
-        return in_range(tin.q, tile_inputs.size()) && in_range(final_tin.q, final_inputs.size()) &&
-            in_range(tin.k, tile_inputs.size()) && in_range(final_tin.k, final_inputs.size()) &&
-            in_range(tin.v, tile_inputs.size()) && in_range(final_tin.v, final_inputs.size()) &&
+    // The two models use independent indices; only the final tile always consumes a mask.
+    return in_range(tin.q, tile_inputs.size()) && in_range(final_tin.q, final_inputs.size()) &&
+           in_range(tin.k, tile_inputs.size()) && in_range(final_tin.k, final_inputs.size()) &&
+           in_range(tin.v, tile_inputs.size()) && in_range(final_tin.v, final_inputs.size()) &&
            seq_dim_in_range(_sdpa_attention_info._k_seq_dim, tile_inputs[tin.k]) &&
-            seq_dim_in_range(_sdpa_attention_info._k_seq_dim, final_inputs[final_tin.k]) &&
+           seq_dim_in_range(_sdpa_attention_info._k_seq_dim, final_inputs[final_tin.k]) &&
            seq_dim_in_range(_sdpa_attention_info._v_seq_dim, tile_inputs[tin.v]) &&
-            seq_dim_in_range(_sdpa_attention_info._v_seq_dim, final_inputs[final_tin.v]) &&
-            in_range(final_tin.mask, final_inputs.size()) && in_range(tin.acc, tile_inputs.size()) &&
-            in_range(final_tin.acc, final_inputs.size()) && in_range(tin.max, tile_inputs.size()) &&
-            in_range(final_tin.max, final_inputs.size()) && in_range(tin.d, tile_inputs.size()) &&
-            in_range(final_tin.d, final_inputs.size()) &&
-            (!tin.scale || in_range(*tin.scale, tile_inputs.size())) &&
-            (!final_tin.scale || in_range(*final_tin.scale, final_inputs.size())) &&
-            in_range(tout.acc, tile_outputs.size()) &&
-           in_range(tout.max, tile_outputs.size()) && in_range(tout.d, tile_outputs.size()) && !final_outputs.empty();
+           seq_dim_in_range(_sdpa_attention_info._v_seq_dim, final_inputs[final_tin.v]) &&
+           in_range(final_tin.mask, final_inputs.size()) && in_range(tin.acc, tile_inputs.size()) &&
+           in_range(final_tin.acc, final_inputs.size()) && in_range(tin.max, tile_inputs.size()) &&
+           in_range(final_tin.max, final_inputs.size()) && in_range(tin.d, tile_inputs.size()) &&
+           in_range(final_tin.d, final_inputs.size()) && (!tin.scale || in_range(*tin.scale, tile_inputs.size())) &&
+           (!final_tin.scale || in_range(*final_tin.scale, final_inputs.size())) &&
+           in_range(tout.acc, tile_outputs.size()) && in_range(tout.max, tile_outputs.size()) &&
+           in_range(tout.d, tile_outputs.size()) && !final_outputs.empty();
 }
 
 }  // namespace compiled

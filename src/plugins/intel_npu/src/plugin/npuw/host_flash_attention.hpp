@@ -358,7 +358,8 @@ struct HFARuntimeContext {
         // Regular tile model may omit the mask input entirely when mask-skipping is enabled.
         const size_t mask_input_idx = hfa_desc._sdpa_attention_info._tile_input_indices.mask;
         const auto& regular_inputs = hfa_desc._compiled_tile_model->inputs();
-        if (mask_input_idx >= regular_inputs.size() || regular_inputs[mask_input_idx].get_names().count("MASK_TILE") == 0) {
+        if (mask_input_idx >= regular_inputs.size() ||
+            regular_inputs[mask_input_idx].get_names().count("MASK_TILE") == 0) {
             return;
         }
 
