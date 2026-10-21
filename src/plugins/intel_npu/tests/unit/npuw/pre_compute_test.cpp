@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <memory>
 #include <sstream>
@@ -14,7 +15,10 @@
 #include <vector>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
 #include "orc.hpp"
 
 namespace {
@@ -164,11 +168,11 @@ std::shared_ptr<ov::Model> make_rope_model(bool with_concat2) {
     auto perm = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
     auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, perm);  // [1,4,2]
 
-    // Sin/Cos either via Concat_2 (LLama2) or directly (GPT)
+    // Sin/Cos either via Concat_2 (LLama2's torch.cat([freqs, freqs], -1), i.e. transpose
+    // concatenated with itself) or directly (GPT)
     ov::Output<ov::Node> sin_cos_input = transpose->output(0);
     if (with_concat2) {
-        auto zeros = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 4, 2}, std::vector<float>(8, 0.f));
-        sin_cos_input = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, zeros}, -1)->output(0);
+        sin_cos_input = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, transpose}, -1)->output(0);
     }
 
     auto sin = std::make_shared<ov::op::v0::Sin>(sin_cos_input);
@@ -178,6 +182,102 @@ std::shared_ptr<ov::Model> make_rope_model(bool with_concat2) {
         ov::ResultVector{std::make_shared<ov::op::v0::Result>(sin), std::make_shared<ov::op::v0::Result>(cos)},
         ov::ParameterVector{data, position_ids},
         with_concat2 ? "llama2_rope_test_model" : "gpt_rope_test_model");
+}
+
+// Same as make_rope_model(/*with_concat2=*/true), but the Concat's 2nd input is zeros instead
+// of a duplicate of the transpose output - e.g. partial-rotary models that pad rather than
+// duplicate. The matcher must not mistake this for freq duplication.
+std::shared_ptr<ov::Model> make_rope_model_non_duplicating_concat() {
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 4});
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4});
+
+    auto inv_freq = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 2, 1}, {0.5f, 0.1f});
+
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(data);
+    auto gather_idx = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto gather_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto gather = std::make_shared<ov::op::v8::Gather>(shape_of, gather_idx, gather_axis);
+    auto ndims_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+    auto one_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto concat_1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gather, ndims_const, one_const}, 0);
+
+    auto broadcast = std::make_shared<ov::op::v3::Broadcast>(inv_freq, concat_1);
+    auto unsq_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(position_ids, unsq_axis);
+    auto convert = std::make_shared<ov::op::v0::Convert>(unsqueeze, ov::element::f32);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(broadcast, convert);
+    auto perm = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, perm);
+
+    auto zeros = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 4, 2}, std::vector<float>(8, 0.f));
+    auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, zeros}, -1);
+
+    auto sin = std::make_shared<ov::op::v0::Sin>(concat_2);
+    auto cos = std::make_shared<ov::op::v0::Cos>(concat_2);
+
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(sin), std::make_shared<ov::op::v0::Result>(cos)},
+        ov::ParameterVector{data, position_ids},
+        "non_duplicating_concat_rope_test_model");
+}
+
+// Builds a RoPE model matching make_rope_model's two flavours, but where inv_freq is
+// already exported pre-broadcast to its final [1, half_dim, 1] shape, with no live
+// Broadcast node (and no ShapeOf->Gather->Concat shape-compute chain feeding it) - as
+// seen e.g. on Qwen3, where the exporter folds the broadcast away.
+std::shared_ptr<ov::Model> make_rope_model_no_broadcast(bool with_concat2) {
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4});
+
+    // inv_freq already shaped as if Broadcast had run: [1, half_dim=2, 1]
+    auto inv_freq = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 2, 1}, {0.5f, 0.1f});
+
+    auto unsq_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(position_ids, unsq_axis);
+    auto convert = std::make_shared<ov::op::v0::Convert>(unsqueeze, ov::element::f32);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(inv_freq, convert);  // [1,2,4]
+    auto perm = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, perm);  // [1,4,2]
+
+    ov::Output<ov::Node> sin_cos_input = transpose->output(0);
+    if (with_concat2) {
+        sin_cos_input = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, transpose}, -1)->output(0);
+    }
+
+    auto sin = std::make_shared<ov::op::v0::Sin>(sin_cos_input);
+    auto cos = std::make_shared<ov::op::v0::Cos>(sin_cos_input);
+
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(sin), std::make_shared<ov::op::v0::Result>(cos)},
+        ov::ParameterVector{position_ids},
+        with_concat2 ? "llama2_rope_no_broadcast_test_model" : "gpt_rope_no_broadcast_test_model");
+}
+
+// Same as make_rope_model_no_broadcast(/*with_concat2=*/true), but inv_freq has a real (non-
+// singleton) leading batch dim - a shape the "no live Broadcast" fallback never validates.
+// Without a validity check, makeCosSinCache would flatten this into the frequency axis and
+// silently corrupt the LUT's shape, so the matcher must leave Sin/Cos untouched instead.
+std::shared_ptr<ov::Model> make_rope_model_no_broadcast_extra_batch_dim() {
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4});
+
+    // inv_freq shaped [2, 2, 1] - batch=2, not the expected singleton batch dim.
+    auto inv_freq = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{2, 2, 1}, {0.5f, 0.1f, 0.5f, 0.1f});
+
+    auto unsq_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(position_ids, unsq_axis);
+    auto convert = std::make_shared<ov::op::v0::Convert>(unsqueeze, ov::element::f32);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(inv_freq, convert);  // [2,2,4]
+    auto perm = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, perm);  // [2,4,2]
+
+    auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, transpose}, -1);
+
+    auto sin = std::make_shared<ov::op::v0::Sin>(concat_2);
+    auto cos = std::make_shared<ov::op::v0::Cos>(concat_2);
+
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(sin), std::make_shared<ov::op::v0::Result>(cos)},
+        ov::ParameterVector{position_ids},
+        "llama2_rope_no_broadcast_extra_batch_dim_test_model");
 }
 
 // Builds a Gemma 4-style model with hybrid attention, it has multiple independent RoPE blocks.
@@ -213,10 +313,8 @@ std::shared_ptr<ov::Model> make_multi_rope_model(const std::vector<std::vector<f
         auto perm = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
         auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, perm);  // [1, 4, freqs.size()]
 
-        auto zeros = ov::op::v0::Constant::create(ov::element::f32,
-                                                  ov::Shape{1, 4, freqs.size()},
-                                                  std::vector<float>(4 * freqs.size(), 0.f));
-        auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, zeros}, -1);
+        // torch.cat([freqs, freqs], -1): the transpose output concatenated with itself.
+        auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, transpose}, -1);
 
         auto sin = std::make_shared<ov::op::v0::Sin>(concat_2);
         auto cos = std::make_shared<ov::op::v0::Cos>(concat_2);
@@ -241,6 +339,164 @@ std::shared_ptr<ov::Model> make_multi_rope_model(const std::vector<std::vector<f
     }
 
     return std::make_shared<ov::Model>(results, ov::ParameterVector{data, position_ids}, "multi_rope_test_model");
+}
+
+// Builds an N-section M-RoPE model (Qwen2-VL-style multi-section rotary): N stacked rows of
+// position_ids share one inv_freq, producing one batched [N,batch,seq,width] frequency tensor;
+// row 0 seeds a [batch,seq,width] accumulator and rows 1..N-1 are each sliced to their own
+// disjoint channel sub-range and merged in via ScatterNDUpdate, before the final
+// self-duplicating Concat feeding Sin/Cos. `section_width` is the per-section channel width
+// (equal for every section, including row 0, whose implicit/complement range is
+// [0, section_width)). `num_sections` is intentionally a runtime parameter, not a fixed
+// constant, so tests can verify the pattern isn't hardcoded to any specific section count.
+std::shared_ptr<ov::Model> make_mrope_model(int64_t num_sections, int64_t section_width) {
+    const int64_t batch = 1;
+    const int64_t seq = 4;
+    const int64_t full_width = num_sections * section_width;
+
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::i64,
+        ov::Shape{static_cast<size_t>(num_sections), static_cast<size_t>(batch), static_cast<size_t>(seq)});
+
+    std::vector<float> inv_freq_values(static_cast<size_t>(full_width));
+    for (size_t k = 0; k < inv_freq_values.size(); ++k) {
+        inv_freq_values[k] = 0.1f + 0.05f * static_cast<float>(k);
+    }
+    // Pre-broadcast shaped (singleton N and batch dims) - MatMul's own numpy-style batch
+    // broadcasting fans it out against position_ids' real N/batch dims below, same convention
+    // as RopePatternLLama2's "no broadcast chain" test models (no live Broadcast op).
+    auto inv_freq = ov::op::v0::Constant::create(ov::element::f32,
+                                                 ov::Shape{1, 1, static_cast<size_t>(full_width), 1},
+                                                 inv_freq_values);
+
+    auto unsq_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(position_ids, unsq_axis);  // [N,batch,1,seq]
+    auto convert = std::make_shared<ov::op::v0::Convert>(unsqueeze, ov::element::f32);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(inv_freq, convert);  // [N,batch,width,seq]
+    auto perm = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 1, 3, 2});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, perm);  // [N,batch,seq,width]
+
+    auto make_row_index = [](int64_t row) {
+        return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {row});
+    };
+    auto axis0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+
+    // Row 0: the implicit/terminal section, read directly off `transpose` with no slicing - its
+    // effective channel range ([0, section_width)) is never explicitly scattered over.
+    ov::Output<ov::Node> accumulator =
+        std::make_shared<ov::op::v8::Gather>(transpose, make_row_index(0), axis0)->output(0);  // [batch,seq,width]
+
+    for (int64_t i = 1; i < num_sections; ++i) {
+        auto select = std::make_shared<ov::op::v8::Gather>(transpose, make_row_index(i), axis0);  // [batch,seq,width]
+        auto begin = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {i * section_width});
+        auto end = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {(i + 1) * section_width});
+        auto step = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+        auto slice = std::make_shared<ov::op::v8::Slice>(select, begin, end, step, axis);  // [batch,seq,width_i]
+
+        // ScatterNDUpdate indices: one [b,s,c] coordinate triple per element of `slice`, placing
+        // it at the same channel offset in `accumulator` it was sliced from in `select`.
+        std::vector<int64_t> indices_values;
+        indices_values.reserve(static_cast<size_t>(batch * seq * section_width * 3));
+        for (int64_t b = 0; b < batch; ++b) {
+            for (int64_t s = 0; s < seq; ++s) {
+                for (int64_t c = 0; c < section_width; ++c) {
+                    indices_values.insert(indices_values.end(), {b, s, i * section_width + c});
+                }
+            }
+        }
+        auto indices = ov::op::v0::Constant::create(
+            ov::element::i64,
+            ov::Shape{static_cast<size_t>(batch), static_cast<size_t>(seq), static_cast<size_t>(section_width), 3},
+            indices_values);
+        accumulator = std::make_shared<ov::op::v3::ScatterNDUpdate>(accumulator, indices, slice)->output(0);
+    }
+
+    auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{accumulator, accumulator}, -1);
+    auto sin = std::make_shared<ov::op::v0::Sin>(concat_2);
+    auto cos = std::make_shared<ov::op::v0::Cos>(concat_2);
+
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(sin), std::make_shared<ov::op::v0::Result>(cos)},
+        ov::ParameterVector{position_ids},
+        "mrope_test_model_" + std::to_string(num_sections) + "_sections");
+}
+
+// Builds an N-section M-RoPE model using an INTERLEAVED (strided) channel assignment instead of
+// contiguous blocks - section i (i=1..N-1) claims channels {i, i+N, i+2N, ...} < full_width, so
+// row 0's implicit/leftover channels are {0, N, 2N, ...} too. Mirrors the "interleaved mrope"
+// layout real-world models (e.g. Qwen3-VL-style) use instead of a simple [0,w)/[w,2w)/... split -
+// the real bug this guards against: a sorted-Slice-then-Concat reassembly of contiguous ranges
+// cannot represent a channel_step > 1 section, only a ScatterUpdate-based merge can.
+std::shared_ptr<ov::Model> make_mrope_model_interleaved(int64_t num_sections, int64_t full_width) {
+    const int64_t batch = 1;
+    const int64_t seq = 4;
+
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::i64,
+        ov::Shape{static_cast<size_t>(num_sections), static_cast<size_t>(batch), static_cast<size_t>(seq)});
+
+    std::vector<float> inv_freq_values(static_cast<size_t>(full_width));
+    for (size_t k = 0; k < inv_freq_values.size(); ++k) {
+        inv_freq_values[k] = 0.1f + 0.05f * static_cast<float>(k);
+    }
+    auto inv_freq = ov::op::v0::Constant::create(ov::element::f32,
+                                                 ov::Shape{1, 1, static_cast<size_t>(full_width), 1},
+                                                 inv_freq_values);
+
+    auto unsq_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(position_ids, unsq_axis);  // [N,batch,1,seq]
+    auto convert = std::make_shared<ov::op::v0::Convert>(unsqueeze, ov::element::f32);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(inv_freq, convert);  // [N,batch,width,seq]
+    auto perm = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 1, 3, 2});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, perm);  // [N,batch,seq,width]
+
+    auto make_row_index = [](int64_t row) {
+        return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {row});
+    };
+    auto axis0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+
+    ov::Output<ov::Node> accumulator =
+        std::make_shared<ov::op::v8::Gather>(transpose, make_row_index(0), axis0)->output(0);  // [batch,seq,width]
+
+    for (int64_t i = 1; i < num_sections; ++i) {
+        auto select = std::make_shared<ov::op::v8::Gather>(transpose, make_row_index(i), axis0);  // [batch,seq,width]
+
+        // Interleaved: channels {i, i+num_sections, i+2*num_sections, ...} < full_width.
+        int64_t count = 0;
+        for (int64_t c = i; c < full_width; c += num_sections) {
+            ++count;
+        }
+        auto begin = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {i});
+        auto end = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {full_width});
+        auto step = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_sections});
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+        auto slice = std::make_shared<ov::op::v8::Slice>(select, begin, end, step, axis);  // [batch,seq,count]
+
+        std::vector<int64_t> indices_values;
+        indices_values.reserve(static_cast<size_t>(batch * seq * count * 3));
+        for (int64_t b = 0; b < batch; ++b) {
+            for (int64_t s = 0; s < seq; ++s) {
+                for (int64_t c = i; c < full_width; c += num_sections) {
+                    indices_values.insert(indices_values.end(), {b, s, c});
+                }
+            }
+        }
+        auto indices = ov::op::v0::Constant::create(
+            ov::element::i64,
+            ov::Shape{static_cast<size_t>(batch), static_cast<size_t>(seq), static_cast<size_t>(count), 3},
+            indices_values);
+        accumulator = std::make_shared<ov::op::v3::ScatterNDUpdate>(accumulator, indices, slice)->output(0);
+    }
+
+    auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{accumulator, accumulator}, -1);
+    auto sin = std::make_shared<ov::op::v0::Sin>(concat_2);
+    auto cos = std::make_shared<ov::op::v0::Cos>(concat_2);
+
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(sin), std::make_shared<ov::op::v0::Result>(cos)},
+        ov::ParameterVector{position_ids},
+        "mrope_test_model_interleaved_" + std::to_string(num_sections) + "_sections");
 }
 
 // A model with one full RoPE block (Sin+Cos) plus a second, independent Cos with no Sin partner.
@@ -399,11 +655,11 @@ TEST(PreComputeTest, LongRopeCosSinSerializationRoundTrip) {
 
         std::stringstream ss;
         auto writer = Stream::writer(ss);
-        writer& src;
+        writer & src;
 
         ov::npuw::patterns::pre_compute::LongRopeCosSin dst;
         auto reader = Stream::reader(ss);
-        reader& dst;
+        reader & dst;
 
         EXPECT_EQ(dst.max_len, src.max_len);
         EXPECT_EQ(dst.rotary_ndims, src.rotary_ndims);
@@ -431,12 +687,12 @@ TEST(PreComputeTest, LongRopeCosSinSerializationRoundTripEmpty) {
     ov::npuw::patterns::pre_compute::LongRopeCosSin src;
     std::stringstream ss;
     auto writer = Stream::writer(ss);
-    writer& src;
+    writer & src;
 
     ov::npuw::patterns::pre_compute::LongRopeCosSin dst;
     dst.max_len = 7;  // must be overwritten by the read
     auto reader = Stream::reader(ss);
-    reader& dst;
+    reader & dst;
 
     EXPECT_EQ(dst.max_len, 0u);
     EXPECT_EQ(dst.rotary_ndims, 0u);
@@ -497,6 +753,52 @@ TEST(PreComputeTest, RopeCacheTransformsGPTPattern) {
 
     EXPECT_EQ(sin_count, 0) << "Sin should be replaced by Gather from the non-duplicated LUT";
     EXPECT_EQ(cos_count, 0) << "Cos should be replaced by Gather from the non-duplicated LUT";
+}
+
+// Qwen3-style export: inv_freq is already a pre-broadcast Constant, no live Broadcast
+// node and no ShapeOf->Gather->Concat chain feeding it. The matcher must still fire via
+// the optional Broadcast's fallback to matching inv_freq's output directly.
+TEST(PreComputeTest, RopeCacheTransformsLLama2PatternWithoutBroadcastChain) {
+    auto model = make_rope_model_no_broadcast(/*with_concat2=*/true);
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    EXPECT_EQ(count_ops_of_type_sin_cos(model), 0u) << "Sin/Cos should be replaced by Gather from the LUT";
+}
+
+TEST(PreComputeTest, RopeCacheTransformsGPTPatternWithoutBroadcastChain) {
+    auto model = make_rope_model_no_broadcast(/*with_concat2=*/false);
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    EXPECT_EQ(count_ops_of_type_sin_cos(model), 0u) << "Sin/Cos should be replaced by Gather from the LUT";
+}
+
+// When the Broadcast is bypassed, inv_freq must still have only the supported singleton
+// batch dim - anything else (e.g. a real batch dim) would be silently flattened into the
+// frequency axis by makeCosSinCache, corrupting the LUT's shape. The matcher must leave
+// Sin/Cos untouched rather than misfire on such a constant.
+TEST(PreComputeTest, RopeCacheLeavesNonSingletonBatchInvFreqUntouched) {
+    auto model = make_rope_model_no_broadcast_extra_batch_dim();
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    EXPECT_EQ(count_ops_of_type_sin_cos(model), 2u) << "Sin/Cos must stay as-is, not be wrongly replaced by the LUT";
+}
+
+// A Concat following Transpose whose 2nd input isn't the same tensor (e.g. zero-padding for
+// partial-rotary models) must not be mistaken for freq duplication - the LUT's second half
+// would otherwise be wrong. The matcher must leave Sin/Cos untouched rather than misfire.
+TEST(PreComputeTest, RopeCacheLeavesNonDuplicatingConcatUntouched) {
+    auto model = make_rope_model_non_duplicating_concat();
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    EXPECT_EQ(count_ops_of_type_sin_cos(model), 2u) << "Sin/Cos must stay as-is, not be wrongly replaced by the LUT";
 }
 
 // A model can contain more than one independent RoPE block (e.g. Gemma 4's hybrid attention)
@@ -594,6 +896,171 @@ TEST(PreComputeTest, RopeCacheLeavesUnpairedCosUntouched) {
                             }),
               1)
         << "only the lone, unpaired Cos should remain";
+}
+
+// Counts ops of type T still reachable from the model's current Results.
+template <typename T>
+size_t count_ops_of_type(const std::shared_ptr<ov::Model>& model) {
+    const auto& ops = model->get_ops();
+    return static_cast<size_t>(std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+        return ov::is_type<T>(op);
+    }));
+}
+
+// RopePatternMRope must detect and cache M-RoPE's multi-section merge idiom regardless of how
+// many sections it stacks - not just a fixed/hardcoded count. Parameterized so the same checks
+// run for several different section counts (see the TEST() instantiations below).
+void expect_mrope_cached(int64_t num_sections, int64_t section_width) {
+    auto model = make_mrope_model(num_sections, section_width);
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    EXPECT_EQ(count_ops_of_type<ov::op::v0::Sin>(model), 0u) << "Sin should be replaced by the merged LUT cache";
+    EXPECT_EQ(count_ops_of_type<ov::op::v0::Cos>(model), 0u) << "Cos should be replaced by the merged LUT cache";
+    EXPECT_EQ(count_ops_of_type<ov::op::v3::ScatterNDUpdate>(model), 0u)
+        << "the now-dead section-merge chain must not remain reachable from the Results";
+}
+
+TEST(PreComputeTest, RopeCacheTransformsMRopeWithTwoSections) {
+    expect_mrope_cached(/*num_sections=*/2, /*section_width=*/3);
+}
+
+TEST(PreComputeTest, RopeCacheTransformsMRopeWithThreeSections) {
+    expect_mrope_cached(/*num_sections=*/3, /*section_width=*/2);
+}
+
+// Section count must not be hardcoded to 3 (or any other fixed value) - verify a 4th explicit
+// section (on top of the implicit first one) is discovered and merged too.
+TEST(PreComputeTest, RopeCacheTransformsMRopeWithFourSections) {
+    expect_mrope_cached(/*num_sections=*/4, /*section_width=*/2);
+}
+
+// Two sections explicitly claiming an overlapping channel sub-range would silently corrupt the
+// merged LUT (one of them would be dropped); the matcher must leave Sin/Cos untouched instead.
+TEST(PreComputeTest, RopeCacheRejectsMRopeWithOverlappingSections) {
+    auto model = make_mrope_model(/*num_sections=*/3, /*section_width=*/2);
+
+    // Rewrite the last section's Slice range to overlap the previous one's: [2,4) -> [1,3).
+    const auto& ops = model->get_ops();
+    for (const auto& op : ops) {
+        auto slice = ov::as_type_ptr<ov::op::v8::Slice>(op);
+        if (!slice) {
+            continue;
+        }
+        auto begin = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
+        if (begin && begin->cast_vector<int64_t>() == std::vector<int64_t>{4}) {
+            slice->input(1).replace_source_output(
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1})->output(0));
+            slice->input(2).replace_source_output(
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {3})->output(0));
+        }
+    }
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    EXPECT_EQ(count_ops_of_type<ov::op::v0::Sin>(model), 1u) << "Sin/Cos must stay as-is, not be wrongly merged";
+    EXPECT_EQ(count_ops_of_type<ov::op::v0::Cos>(model), 1u) << "Sin/Cos must stay as-is, not be wrongly merged";
+}
+
+// A channel range left uncovered by every explicit section doesn't need to form a contiguous
+// (or even regular) run: those channels simply keep the implicit/base row's own value, exactly
+// as the traced model's un-touched Gather("select") output would - so the match must still
+// succeed instead of being rejected.
+TEST(PreComputeTest, RopeCacheTransformsMRopeWithNonContiguousLeftoverChannels) {
+    auto model = make_mrope_model(/*num_sections=*/3, /*section_width=*/2);
+
+    // Shift the first explicit section's range (same width, so shapes stay valid) from [2,4) to
+    // [1,3): still disjoint from the other explicit section ([4,6)), but now leaves behind two
+    // separate uncovered channels ({0} and {3}) instead of one contiguous run.
+    const auto& ops = model->get_ops();
+    for (const auto& op : ops) {
+        auto slice = ov::as_type_ptr<ov::op::v8::Slice>(op);
+        if (!slice) {
+            continue;
+        }
+        auto begin = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
+        if (begin && begin->cast_vector<int64_t>() == std::vector<int64_t>{2}) {
+            slice->input(1).replace_source_output(
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1})->output(0));
+            slice->input(2).replace_source_output(
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {3})->output(0));
+        }
+    }
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    EXPECT_EQ(count_ops_of_type<ov::op::v0::Sin>(model), 0u) << "Sin should be replaced by the merged LUT cache";
+    EXPECT_EQ(count_ops_of_type<ov::op::v0::Cos>(model), 0u) << "Cos should be replaced by the merged LUT cache";
+}
+
+// Real-world models (e.g. Qwen3-VL-style "interleaved mrope") assign sections to channels with a
+// stride > 1 instead of contiguous blocks - a layout a sorted-Slice-then-Concat reassembly of
+// ranges cannot represent (only a ScatterUpdate-based merge can). This binds concrete position
+// ids, constant-folds the merge graph, and checks the actual produced sin/cos values against a
+// manually computed reference, so a channel-permutation bug (not just a crash) would be caught.
+TEST(PreComputeTest, RopeCacheTransformsInterleavedMRopeSections) {
+    const int64_t num_sections = 3;
+    const int64_t full_width = 7;  // not evenly divisible by num_sections: counts become 3,2,2
+    const int64_t seq = 4;
+
+    auto model = make_mrope_model_interleaved(num_sections, full_width);
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/64);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    EXPECT_EQ(count_ops_of_type<ov::op::v0::Sin>(model), 0u) << "Sin should be replaced by the merged LUT cache";
+    EXPECT_EQ(count_ops_of_type<ov::op::v0::Cos>(model), 0u) << "Cos should be replaced by the merged LUT cache";
+    EXPECT_EQ(count_ops_of_type<ov::op::v3::ScatterNDUpdate>(model), 0u)
+        << "the now-dead section-merge chain must not remain reachable from the Results";
+
+    // Bind concrete position ids per rotary axis (row) and constant-fold the merge graph so the
+    // actual produced values can be checked, not just "it doesn't crash". position_ids[row][0][s]
+    // = 10*(row+1) + s - distinct per row so a channel accidentally reading the wrong row's
+    // position id would be caught.
+    std::vector<int64_t> position_ids_values;
+    for (int64_t row = 0; row < num_sections; ++row) {
+        for (int64_t s = 0; s < seq; ++s) {
+            position_ids_values.push_back(10 * (row + 1) + s);
+        }
+    }
+    auto position_ids_param = model->get_parameters().at(0);
+    auto position_ids_const =
+        ov::op::v0::Constant::create(ov::element::i64, position_ids_param->get_shape(), position_ids_values);
+    ov::replace_node(position_ids_param, position_ids_const);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ConstantFolding>();
+    manager.run_passes(model);
+
+    const auto& results = model->get_results();
+    ASSERT_EQ(results.size(), 2u);
+    auto sin_const = ov::as_type_ptr<ov::op::v0::Constant>(results[0]->input_value(0).get_node_shared_ptr());
+    auto cos_const = ov::as_type_ptr<ov::op::v0::Constant>(results[1]->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(sin_const) << "the merge graph must fully constant-fold once position_ids is concrete";
+    ASSERT_TRUE(cos_const);
+
+    const auto sin_values = sin_const->cast_vector<float>();
+    const auto cos_values = cos_const->cast_vector<float>();
+    ASSERT_EQ(sin_values.size(), static_cast<size_t>(seq * full_width * 2));
+
+    for (int64_t s = 0; s < seq; ++s) {
+        for (int64_t c = 0; c < full_width; ++c) {
+            // Interleaved assignment used by make_mrope_model_interleaved(): channel c belongs to
+            // rotary axis row (c % num_sections).
+            const int64_t row = c % num_sections;
+            const float position = static_cast<float>(10 * (row + 1) + s);
+            const float inv_freq = 0.1f + 0.05f * static_cast<float>(c);
+            const float angle = position * inv_freq;
+            for (int64_t half : {0, 1}) {  // torch.cat([row, row], dim=-1) duplication
+                const size_t idx = static_cast<size_t>(s * (full_width * 2) + half * full_width + c);
+                EXPECT_NEAR(sin_values[idx], std::sin(angle), 1e-2f) << "s=" << s << " c=" << c << " half=" << half;
+                EXPECT_NEAR(cos_values[idx], std::cos(angle), 1e-2f) << "s=" << s << " c=" << c << " half=" << half;
+            }
+        }
+    }
 }
 
 }  // namespace

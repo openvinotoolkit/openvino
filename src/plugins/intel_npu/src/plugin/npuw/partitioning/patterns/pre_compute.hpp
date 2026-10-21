@@ -33,6 +33,11 @@ public:
     std::shared_ptr<ov::Node> matched_cos;
     std::shared_ptr<ov::Node> matched_concat;
     bool duplicate_freqs = false;
+    // bind_match can set this to false to veto a structurally-matched but semantically
+    // invalid subgraph (e.g. a non-duplicating Concat) for the match currently being bound -
+    // MultiMatcher::Callback returns void, so this is the only way to stop transform_cb from
+    // running for that match without affecting the other matches in the same callback.
+    bool accept_match = true;
 
     std::function<void()> transform_cb;
 
@@ -41,8 +46,16 @@ public:
     ov::pass::MultiMatcher::Callback make_matcher_callback(const std::shared_ptr<ov::Node>& output_sin,
                                                            const std::shared_ptr<ov::Node>& output_cos) {
         return [this, output_sin, output_cos](const auto& matches) {
-            const auto& sin_matches = matches.at(output_sin);
-            const auto& cos_matches = matches.at(output_cos);
+            // MultiMatcher only inserts a map entry for a pattern root that matched at least one
+            // node - a model can easily have Cos matches with zero Sin matches or vice versa
+            // (e.g. an unpaired Cos, or a paired block already cached away by an earlier pass),
+            // so looking either one up with .at() would throw. Treat an absent root as "no
+            // matches" instead.
+            static const std::vector<ov::pass::pattern::PatternValueMap> empty_matches;
+            const auto sin_it = matches.find(output_sin);
+            const auto cos_it = matches.find(output_cos);
+            const auto& sin_matches = sin_it != matches.end() ? sin_it->second : empty_matches;
+            const auto& cos_matches = cos_it != matches.end() ? cos_it->second : empty_matches;
 
             std::unordered_map<ov::Node*, const ov::pass::pattern::PatternValueMap*> cos_by_shared_input;
             for (const auto& cos_match : cos_matches) {
@@ -55,8 +68,11 @@ public:
                 if (it == cos_by_shared_input.end()) {
                     continue;  // no matching Cos for this Sin - leave it untouched
                 }
+                accept_match = true;
                 bind_match(sin_match, *it->second);
-                transform_cb();
+                if (accept_match) {
+                    transform_cb();
+                }
             }
         };
     }
@@ -88,9 +104,65 @@ public:
 class RopePatternLLama2 : public RopePatternDesc {
     ov::pass::MultiMatcher matcher;
 
+    // Rejects matches that structurally fit the pattern but whose optional nodes (`broadcast`,
+    // `concat_2`) carry a shape/semantics the rest of the pass can't handle correctly - see
+    // RopePatternLLama2() for the specific cases. `sin_input` is matched_sin's direct input.
+    bool is_valid_match(const std::shared_ptr<ov::Node>& sin_input) const;
+
 public:
     using RopePatternDesc::transform_cb;
     RopePatternLLama2();
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) {
+        return matcher.run_on_model(m);
+    }
+};
+
+// One M-RoPE "section": `channel_count` channels of the (pre-duplication) frequency row
+// RopePatternMRope merges together, at positions `channel_offset`, `channel_offset +
+// channel_step`, `channel_offset + 2*channel_step`, ... (channel_step == 1 gives the common
+// contiguous-block case; channel_step > 1 is an interleaved/strided assignment, e.g. Qwen's
+// "interleaved mrope" layout) - computed from the `position_ids_row_index`-th row of
+// matched_position_ids (see below).
+struct MRopeSection {
+    int64_t position_ids_row_index = 0;
+    int64_t channel_offset = 0;
+    int64_t channel_step = 1;
+    int64_t channel_count = 0;
+};
+
+// Matches M-RoPE (multi-section rotary position embedding, as used e.g. by Qwen2-VL/Qwen2.5-VL's
+// `mrope_section` and by hybrid models that stack several rotary position axes). Unlike
+// RopePatternLLama2, inv_freq is broadcast against a *stacked* position_ids tensor of shape
+// [num_sections, batch, seq] (one row per rotary axis), producing a [num_sections, batch, seq,
+// rotary_ndims/2] frequency tensor out of Broadcast->MatMul->Transpose. Instead of being
+// concatenated with itself directly, that stacked tensor is merged into a single [batch, seq,
+// rotary_ndims/2] row by picking, for each disjoint (possibly strided/interleaved) channel
+// sub-range, the corresponding section row via a Gather("select")->Slice->ScatterNDUpdate chain
+// (num_sections - 1 such merge steps, chained so each reads the previous one's result as its
+// "base" - see discover_mrope_sections() in pre_compute.cpp), before the usual
+// torch.cat([row, row], dim=-1) duplication and Sin/Cos. The number of sections is discovered
+// dynamically by walking that chain - it is NOT assumed to be any fixed value.
+//
+// matched_inv_freq is the shared (pre-broadcast) inverse-frequency constant - identical for
+// every section. matched_position_ids is the stacked [num_sections, batch, seq] tensor feeding
+// Unsqueeze/MatMul (whatever produces it - a raw Parameter or e.g. a Slice of one picking a
+// subset of rows - is not constrained by the pattern).
+//
+// matched_sections holds only the *explicitly* sliced sections discovered by
+// discover_mrope_sections(), in unspecified order. The remaining (implicit/base) row -
+// identified by matched_base_row_index - is never itself sliced: whichever of its channels no
+// explicit section claims simply keeps that row's own value, exactly as the traced model's
+// un-touched Gather("select") output would. See replaceSinCosByMRopeCache() in pre_compute.cpp
+// for how this is consumed.
+class RopePatternMRope : public RopePatternDesc {
+    ov::pass::MultiMatcher matcher;
+
+public:
+    using RopePatternDesc::transform_cb;
+    std::vector<MRopeSection> matched_sections;
+    int64_t matched_base_row_index = 0;
+
+    RopePatternMRope();
     bool run_on_model(const std::shared_ptr<ov::Model>& m) {
         return matcher.run_on_model(m);
     }
