@@ -114,12 +114,16 @@ OutputVector translate_conv_transpose_1d(const NodeContext& context) {
                                   "CONV_TRANSPOSE_1D expects [IC,OC,K] weights and [B,IC,T] input");
     if (w.get_element_type() != x.get_element_type())
         w = std::make_shared<ov::op::v1::ConvertLike>(w, x);
-    auto result = std::make_shared<ov::op::v1::ConvolutionBackpropData>(x,
-                                                                        w,
-                                                                        ov::Strides{size_t(stride)},
-                                                                        ov::CoordinateDiff{0},
-                                                                        ov::CoordinateDiff{0},
-                                                                        ov::Strides{1});
+    // Keep a singleton height to avoid the ARM 1D deconvolution rewrite losing the kernel reversal.
+    auto axis = i64_const({2});
+    auto convolution =
+        std::make_shared<ov::op::v1::ConvolutionBackpropData>(std::make_shared<ov::op::v0::Unsqueeze>(x, axis),
+                                                              std::make_shared<ov::op::v0::Unsqueeze>(w, axis),
+                                                              ov::Strides{1, size_t(stride)},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+    auto result = std::make_shared<ov::op::v0::Squeeze>(convolution, axis);
     return rename_outputs_with_suffix({result}, context.get_name());
 }
 

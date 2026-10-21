@@ -36,6 +36,11 @@ Use `--gtest_list_tests` for exact parameterized names; filter while iterating, 
 runs in environment teardown, so inspect the process exit status even if no individual test failed.
 Shared changes require the affected architecture/projector numerical and structural regressions.
 
+The Cohere2 and Gemma3n PagedAttention parity tests require FP16 KV caches and skip on ARM64,
+whose CPU PagedAttention executor does not support that cache precision. Their architecture
+conversion and stateful SDPA tests still run there. FP32-cache ARM64 PA equivalence is not
+established by these tests.
+
 ## Fixtures and oracles
 
 Small NPZ/NPY numerical references are committed and work offline. Missing numerical references
@@ -112,7 +117,7 @@ parity passes. Unsupported tensor encodings and graph/runtime errors remain fail
 
 | Check | Numerical parity threshold and limit |
 |---|---|
-| Native decoder F32 fixture | Full-logit normalized MSE below `1e-5`; Gemma3n alone uses the accepted `2e-5` limit with every-step greedy equality; F32 inference, F16 KV, activation quantization disabled |
+| Native decoder F32 fixture | Full-logit normalized MSE below `1e-5`; Gemma3n uses `2e-5` (`3e-4` on ARM64) with every-step greedy equality; F32 inference, F16 KV, activation quantization disabled |
 | Native real decoder replay | Same first prediction and at least 90% matching greedy choices over prefill plus 12 reference-token steps; record full-logit errors |
 | mmproj fixture | Raw and adapted embeddings, normalized MSE below `1e-5`; dynamic cases reuse one compiled model |
 | mmproj real checkpoint | CPU NMSE below `1e-5` unless an explicit model-list override documents the reason; other devices are not calibrated to the CPU limit |

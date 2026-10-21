@@ -309,6 +309,33 @@ TEST(GGUFOps, ConvTranspose1DAccumulatesOverlappingTaps) {
     expect_near(output, {13.f, 17.f, 39.f, 24.f, 30.f}, 0.f);
 }
 
+TEST(GGUFOps, ConvTranspose1DPreservesChannelsAndDynamicLength) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CONV_TRANSPOSE_1D")
+                     .input("w", ov::element::f16, {1, 2, 3})
+                     .input("x", ov::element::f32, {1, 1, -1})
+                     .output("out", ov::element::f32, {1, 2, -1})
+                     .attr<int64_t>("stride", 2)
+                     .build();
+    ov::Core core;
+    auto request =
+        core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32)).create_infer_request();
+    ov::Tensor weights(ov::element::f16, {1, 2, 3});
+    const std::vector<float> taps{1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+    std::transform(taps.begin(), taps.end(), weights.data<ov::float16>(), [](float value) {
+        return ov::float16(value);
+    });
+    request.set_tensor("w", weights);
+    request.set_tensor("x", make_f32_tensor({1, 1, 2}, {1.f, 2.f}));
+    request.infer();
+    ASSERT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, 2, 5}));
+    expect_near(request.get_output_tensor(), {1.f, 2.f, 5.f, 4.f, 6.f, 4.f, 5.f, 14.f, 10.f, 12.f}, 0.f);
+    request.set_tensor("x", make_f32_tensor({1, 1, 1}, {3.f}));
+    request.infer();
+    ASSERT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, 2, 3}));
+    expect_near(request.get_output_tensor(), {3.f, 6.f, 9.f, 12.f, 15.f, 18.f}, 0.f);
+}
+
 // Scale: out = in * scale + bias (scale/bias in op-params slots 0,1).
 TEST(GGUFOps, Scale) {
     const float scale = 2.5f;
