@@ -94,6 +94,11 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
         const auto shape_rank = shape.size();
         const auto default_strides = util::get_dense_byte_strides(type, shape);
 
+        // for sub-byte types the last dimension's element count does not match its real byte
+        // span (default_strides.back() is an unaddressable placeholder) - use its packed byte
+        // count instead, so dimension counts below always line up with real byte strides
+        const auto byte_shape = util::get_shape_for_byte_strides(type, shape);
+
         src_strides = get_strides();
         dst_strides = dst->get_strides();
 
@@ -114,19 +119,25 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
                     dst_str.resize(strides_size + 1);
                     max_pos.resize(strides_size + 1);
                     cur_pos.resize(strides_size + 1);
-                    // Dimensions after inverted_idx have default strides in both tensors,
-                    // so they are copied as one block of default_strides[inverted_idx] bytes
-                    // In case the innermost dimension is strided, the block is one element
-                    const auto block_size = default_strides[inverted_idx];
-                    src_str[strides_size] = block_size;
-                    dst_str[strides_size] = block_size;
-                    max_pos[strides_size] = 1;
+
+                    // In case of default continuous strides we can copy several elements
+                    // In other case only one element
+                    size_t dim = 1;
+                    size_t strides = type.size();
+
+                    if (strides_size < default_strides.size()) {
+                        strides = default_strides[strides_size];
+                        dim = byte_shape[strides_size];
+                    }
+                    src_str[strides_size] = strides;
+                    dst_str[strides_size] = strides;
+                    max_pos[strides_size] = dim;
                     cur_pos[strides_size] = 0;
                 }
             }
             src_str[inverted_idx] = src_strides[inverted_idx];
             dst_str[inverted_idx] = dst_strides[inverted_idx];
-            max_pos[inverted_idx] = shape[inverted_idx];
+            max_pos[inverted_idx] = byte_shape[inverted_idx];
             cur_pos[inverted_idx] = 0;
         }
         src_strides = std::move(src_str);

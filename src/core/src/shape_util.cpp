@@ -105,5 +105,14 @@ Strides get_dense_byte_strides(const element::Type& type, const Shape& shape) {
     return strides;
 }
 
+Shape get_shape_for_byte_strides(const element::Type& type, const Shape& shape) {
+    auto byte_shape = shape;
+    const auto bitwidth = type.bitwidth();
+    if (bitwidth < bits_per_byte && !byte_shape.empty()) {
+        byte_shape.back() = byte_shape.back() * bitwidth / bits_per_byte;
+    }
+    return byte_shape;
+}
+
 }  // namespace util
 }  // namespace ov
