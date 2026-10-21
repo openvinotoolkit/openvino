@@ -22,20 +22,6 @@ set(MANDATORY_UNIT_TESTS_LIBS
 
 )
 
-include(${PROJECT_SOURCE_DIR}/cmake/bytecode/embed_bytecode_artifacts_header.cmake)
-
-set(BYTECODE_ARTIFACTS_TARGET "generateBytecodeArtifactsHeader")
-set(BYTECODE_ARTIFACTS_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/vm/compatibility/bytecode_artifacts.hpp.inc")
-set(BYTECODE_ARTIFACTS_HEADER "${CMAKE_CURRENT_BINARY_DIR}/vm/compatibility/bytecode_artifacts.hpp")
-set(BYTECODE_BINARY_ARTIFACTS_DIR "${PROJECT_SOURCE_DIR}/tests/artifacts/bytecode/binary")  # Directory containing the bytecode artifact files
-
-npu_embed_bytecode_artifacts_header(
-        TARGET ${BYTECODE_ARTIFACTS_TARGET}
-        TEMPLATE_FILE ${BYTECODE_ARTIFACTS_TEMPLATE}
-        OUTPUT_HEADER ${BYTECODE_ARTIFACTS_HEADER}
-        BINARY_ARTIFACTS_DIR ${BYTECODE_BINARY_ARTIFACTS_DIR}
-)
-
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -47,6 +33,7 @@ ov_add_test_target(
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${CMAKE_CURRENT_SOURCE_DIR}/npuw
+            ${CMAKE_CURRENT_SOURCE_DIR}/vm
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/pipelines
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/utils/include
