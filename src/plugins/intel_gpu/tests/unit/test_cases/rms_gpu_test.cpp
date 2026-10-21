@@ -5,6 +5,7 @@
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/dynamic_quantize.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
@@ -31,7 +32,7 @@ void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr outpu
 
     cldnn::mem_lock<T> src(input, get_test_stream());
     cldnn::mem_lock<T> dst(output, get_test_stream());
-    
+
     std::unique_ptr<cldnn::mem_lock<T>> weight;
     if (gamma) {
         weight = std::make_unique<cldnn::mem_lock<T>>(gamma, get_test_stream());
@@ -623,6 +624,56 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_dyn) {
     }
 }
 
+TEST(rms_gpu_test, rms_test_bfyx_opt_fused_eltwise_f16_dyn) {
+    auto& engine = get_test_engine();
+
+    const ov::PartialShape input_shape{1, 2, 256};
+    auto input_layout_dynamic = layout{ov::PartialShape{-1, -1, 256}, data_types::f16, format::bfyx};
+    auto input = engine.allocate_memory({input_shape, data_types::f16, format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{1, 1, 256}, data_types::f16, format::bfyx});
+    auto bias = engine.allocate_memory({input_shape, data_types::f16, format::bfyx});
+    auto output_ref = engine.allocate_memory({input_shape, data_types::f16, format::bfyx});
+
+    tests::set_random_values<ov::float16>(input, true, 8, 100);
+    tests::set_random_values<ov::float16>(gamma, true, 8, 10);
+    tests::set_random_values<ov::float16>(bias, true, 8, 10);
+
+    constexpr float epsilon = 1e-6f;
+    rms_ref<ov::float16>(input, gamma, output_ref, epsilon);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(data("gamma", gamma));
+    topology.add(data("bias", bias));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), epsilon));
+    topology.add(eltwise("sum", {input_info("rms"), input_info("bias")}, eltwise_mode::sum, data_types::f16));
+    topology.add(reorder("output", input_info("sum"), format::bfyx, data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"rms", {format::bfyx, "rms_gpu_bfyx_opt"}}
+    }));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto impl = network.get_primitive("rms")->get_impl();
+    ASSERT_NE(impl, nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+    ASSERT_EQ(impl->get_kernel_name(), "rms_gpu_bfyx_opt");
+
+    auto outputs = network.execute();
+    ASSERT_EQ(network.get_executed_primitives().count("sum"), 0);
+    auto output = outputs.at("output").get_memory();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<ov::float16> output_ref_ptr(output_ref, get_test_stream());
+    cldnn::mem_lock<ov::float16> bias_ptr(bias, get_test_stream());
+    for (size_t index = 0; index < output_ref->count(); ++index) {
+        const auto expected = ov::float16(output_ref_ptr[index] + bias_ptr[index]);
+        EXPECT_NEAR(static_cast<float>(output_ptr[index]), static_cast<float>(expected), 1e-3f) << "index=" << index;
+    }
+}
+
 TEST(rms_gpu_test, rms_test_bfyx_opt_all_dims_dyn) {
     auto& engine = get_test_engine();
 
@@ -1156,7 +1207,10 @@ class rms_mxfp8_dynamic_quantize_test : public ::testing::TestWithParam<std::tup
 
 TEST_P(rms_mxfp8_dynamic_quantize_test, rms_test_bfyx_opt_mxfp8_dynamic_quantize) {
     auto& engine = get_test_engine();
-    const auto [data_size, quantization_dt, additional_fusion] = GetParam();
+    const auto params = GetParam();
+    const auto data_size = std::get<0>(params);
+    const auto quantization_dt = std::get<1>(params);
+    const auto additional_fusion = std::get<2>(params);
     const ov::Shape input_shape{1, 1, data_size};
     const auto epsilon = 1e-6f;
 
@@ -1183,7 +1237,6 @@ TEST_P(rms_mxfp8_dynamic_quantize_test, rms_test_bfyx_opt_mxfp8_dynamic_quantize
 
     ov::Shape scale_shape = input_shape;
     scale_shape.back() = input_shape.back() / 32;
-
     auto make_topology = [&]() {
         topology topology;
         topology.add(input_layout("input", input->get_layout()));

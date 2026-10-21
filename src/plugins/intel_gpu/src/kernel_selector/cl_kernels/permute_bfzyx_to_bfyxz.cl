@@ -80,17 +80,15 @@ KERNEL (permute_bfzyx_to_bfyxz)(
     else if (X_REMAINDER_CONDITION) {
         // read
         for (int lh = 0; lh < TILE_SIZE; ++lh) {
-            // read
             unsigned int input_idx = INPUT0_GET_INDEX(b, f, (z * TILE_SIZE + lh), y, (x * TILE_SIZE));
-            INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx));
             // transpose
             unroll_for (int i = 0; i < X_REMAINDER_SIZE; ++i) {
 #if HAS_FUSED_OPS
-                INPUT0_TYPE input_var = read_data[i];
+                INPUT0_TYPE input_var = input[input_idx + i];
                 FUSED_OPS;
                 transpose_buf[local_buf_offset + i][lh] = FUSED_OPS_RESULT;
 #else
-                transpose_buf[local_buf_offset + i][lh] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(read_data[i]), ACTIVATION_PARAMS));
+                transpose_buf[local_buf_offset + i][lh] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + i]), ACTIVATION_PARAMS));
 #endif
             }
         }
@@ -105,18 +103,16 @@ KERNEL (permute_bfzyx_to_bfyxz)(
      else if (z == Z_REMAINDER_ITEM && x == X_REMAINDER_ITEM) {
         // point by point
         for (int lh = 0; lh < Z_REMAINDER_SIZE; ++lh) {
-            // read
             unsigned int input_idx = INPUT0_GET_INDEX(b, f, (z * TILE_SIZE + lh), y, (x * TILE_SIZE));
-            INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx));
             // transpose
             for (int i = 0; i < X_REMAINDER_SIZE; ++i) {
                 unsigned int dst = local_buf_offset + i;
 #if HAS_FUSED_OPS
-                INPUT0_TYPE input_var = read_data[i];
+                INPUT0_TYPE input_var = input[input_idx + i];
                 FUSED_OPS;
                 transpose_buf[local_buf_offset + i][lh] = FUSED_OPS_RESULT;
 #else
-                transpose_buf[local_buf_offset + i][lh] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(read_data[i]), ACTIVATION_PARAMS));
+                transpose_buf[local_buf_offset + i][lh] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + i]), ACTIVATION_PARAMS));
 #endif
             }
         }
@@ -130,4 +126,3 @@ KERNEL (permute_bfzyx_to_bfyxz)(
     }
 #endif
 }
-
