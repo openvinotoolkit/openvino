@@ -129,7 +129,8 @@ bool pin_current_thread_to_socket(int socket) {
     for (int core = socket * cores_per_socket; core < (socket + 1) * cores_per_socket; core++) {
         CPU_SET_S(core, size, targetMask.get());
     }
-    // respect the user-defined mask for the entire process
+    // Restrict to the process affinity baseline snapshotted once at first cpu_info() use
+    // (before OpenVINO pins any thread); later changes to process affinity are not observed.
     CPU_AND_S(size, targetMask.get(), targetMask.get(), mask.get());
     bool res = false;
     if (CPU_COUNT_S(size, targetMask.get())) {  //  if we have non-zero mask to set

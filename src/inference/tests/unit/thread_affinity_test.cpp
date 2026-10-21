@@ -8,28 +8,17 @@
 
 #include <bitset>
 
-using namespace testing;
-using namespace ov;
-
 namespace {
 
-#if defined(__linux__)
-
+#if defined(__linux__) || defined(_WIN32)
 // RAII guard restoring the calling thread's affinity mask on destruction.
 class ScopedThreadMask {
 public:
-    ScopedThreadMask() : _valid(false) {
-        ov::threading::CpuSet mask;
-        int ncpus = 0;
-        std::tie(mask, ncpus) = ov::threading::query_thread_mask();
-        if (nullptr != mask) {
-            _ncpus = ncpus;
-            _mask = std::move(mask);
-            _valid = true;
-        }
+    ScopedThreadMask() {
+        std::tie(_mask, _ncpus) = ov::threading::query_thread_mask();
     }
     ~ScopedThreadMask() {
-        if (_valid) {
+        if (_mask) {
             ov::threading::pin_current_thread_by_mask(_ncpus, _mask);
         }
     }
@@ -39,8 +28,10 @@ public:
 private:
     ov::threading::CpuSet _mask;
     int _ncpus = 0;
-    bool _valid;
 };
+#endif
+
+#if defined(__linux__)
 
 // Regression test for the process-affinity baseline cache: get_process_mask() must return the
 // unpolluted process baseline even if the calling thread's affinity is temporarily restricted
@@ -96,32 +87,6 @@ TEST(ThreadAffinity, ProcessMaskStaysAtBaselineWhileThreadIsPinned) {
 }
 
 #elif defined(_WIN32)
-#    include <windows.h>
-
-// RAII guard restoring the calling thread's affinity mask on destruction.
-class ScopedThreadMask {
-public:
-    ScopedThreadMask() : _valid(false) {
-        ov::threading::CpuSet mask;
-        int ncpus = 0;
-        std::tie(mask, ncpus) = ov::threading::query_thread_mask();
-        if (nullptr != mask) {
-            _mask = std::move(mask);
-            _valid = true;
-        }
-    }
-    ~ScopedThreadMask() {
-        if (_valid) {
-            ov::threading::pin_current_thread_by_mask(0, _mask);
-        }
-    }
-    ScopedThreadMask(const ScopedThreadMask&) = delete;
-    ScopedThreadMask& operator=(const ScopedThreadMask&) = delete;
-
-private:
-    ov::threading::CpuSet _mask;
-    bool _valid;
-};
 
 // The calling thread's affinity must be restored (see ScopedThreadMask), and get_process_mask()
 // must keep returning the unpolluted process baseline even while the thread is temporarily pinned.
