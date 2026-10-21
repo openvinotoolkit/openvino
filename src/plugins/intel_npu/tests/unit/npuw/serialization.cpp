@@ -2199,6 +2199,97 @@ TEST(SerializationTest, FuncallSubmodelClosureOverflowFails) {
     EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
 }
 
+// Hand-builds a minimal but wire-correct NPUW ORC container (file header + PartitionedModel
+// root + META leaf + one Subgraph leaf + an empty WeightsBank leaf) describing a single
+// function-call submodel whose replaced_by names `out_of_range_index`. The submodel also
+// carries one non-CPU (bank-tracked) closure entry, so that - if nothing validates the index
+// first - reconstruct_closure()/finalize_weights_bank() would dereference
+// m_compiled_submodels[out_of_range_index] via submodel_device() while rebuilding the closure.
+std::string build_blob_with_out_of_range_replaced_by(std::size_t out_of_range_index) {
+    using namespace ov::npuw::orc;
+    using ov::npuw::CompiledModel;
+    using ov::npuw::CompiledModelDescTestAccessor;
+
+    auto options_desc = std::make_shared<::intel_npu::OptionsDesc>();
+    ::intel_npu::registerNPUWOptions(*options_desc);
+    ::intel_npu::Config cfg(options_desc);
+    cfg.update(std::map<std::string, std::string>{{"NPUW_DEVICES", "CPU"}});
+
+    std::stringstream out(std::ios::in | std::ios::out | std::ios::binary);
+    write_file_header(out, schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA);
+
+    with_section(out, CompiledModel::kOrcType, CompiledModel::kOrcVersion, 0ull, [&] {
+        with_leaf_section(out, META_SECTION_TYPE, 0u, [&] {
+            auto meta = Stream::writer(out);
+            std::string model_name = "malicious_replaced_by";
+            ov::ParameterVector parameters;  // no ports: keeps the routing tables trivially empty
+            ov::NodeVector results;
+            meta & model_name & parameters & results;
+
+            std::vector<std::pair<std::size_t, std::size_t>> empty_port_links;
+            std::map<std::size_t, std::vector<std::pair<std::size_t, std::size_t>>> empty_param_subscribers;
+            std::map<std::pair<std::size_t, std::size_t>, std::pair<std::size_t, std::size_t>> empty_prev_output;
+            meta & empty_port_links & empty_port_links & empty_param_subscribers & empty_prev_output;
+
+            std::vector<std::string> dev_list{"CPU"};
+            meta & dev_list;
+            meta & cfg;
+
+            ov::AnyMap non_npuw_props;
+            meta & non_npuw_props;
+
+            bool is_weightless = false;
+            meta & is_weightless;
+
+            ov::npuw::s11n::BF16Cache bf16_consts;
+            meta & bf16_consts;
+        });
+
+        ov::npuw::s11n::WeightsContext weights_ctx(/*is_weightless=*/false, {});
+        with_leaf_section(out,
+                          CompiledModelDescTestAccessor::SubmodelDesc::kOrcType,
+                          CompiledModelDescTestAccessor::SubmodelDesc::kOrcVersion,
+                          [&] {
+                              auto desc_stream = Stream::writer(out);
+                              auto desc = CompiledModelDescTestAccessor::make();
+                              // No compiled_model of its own: a pure function call, naming a
+                              // (supposedly) separate function body submodel.
+                              desc.replaced_by = out_of_range_index;
+                              auto& closure = CompiledModelDescTestAccessor::closure(desc);
+                              closure.get().closure.resize(1);  // one param, not yet bound
+                              closure.get().closure_uid = {5};  // non-CPU: lives in the weights bank
+                              closure.get().is_remote = {false};
+                              desc.serialize(desc_stream, weights_ctx, std::size_t{0});
+                          });
+
+        with_leaf_section(out, ov::npuw::weights::Bank::kOrcType, ov::npuw::weights::Bank::kOrcVersion, [&] {
+            auto bank_stream = Stream::writer(out);
+            std::string bank_name;  // empty: a standalone bank, not shared via the global registry
+            bank_stream & bank_name;
+            std::size_t bank_size = 0u;
+            bank_stream & bank_size;
+        });
+    });
+
+    return out.str();
+}
+
+// Regression test for the CVS security report on IBaseInferRequest::unpack_closure /
+// reconstruct_closure OOB access: a blob-supplied replaced_by must be range-checked before any
+// code (closure reconstruction included) treats it as a m_compiled_submodels index. Goes through
+// the real production entry point so a future regression that moves validate_submodels() back
+// after weights-bank consumption is actually caught (a direct call to validate_submodels() or to
+// reconstruct_closure() alone would not prove the two run in the right order).
+TEST(SerializationTest, ImportRejectsOutOfRangeReplacedByBeforeWeightsBankConsumption) {
+    auto plugin = std::make_shared<NullPlugin>();
+    const auto blob = build_blob_with_out_of_range_replaced_by(/*out_of_range_index=*/42u);
+
+    std::stringstream input(blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::CompiledModel::import_model(input, plugin, {}),
+                                  ov::Exception,
+                                  "replaced_by");
+}
+
 TEST(SerializationTest, FuncallSubmodelRoundTripThroughReadPath) {
     auto plugin = std::make_shared<NullPlugin>();
     auto model = make_validation_model(8);

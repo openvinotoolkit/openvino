@@ -1689,6 +1689,11 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
                peek_child_header(decrypted_stream).type == CompiledModelDesc::kOrcType) {
             consume_submodel(decrypted_stream);
         }
+        // Validate cross-submodel indices (replaced_by, param_base, routing tables) now that every
+        // submodel is known, and before consume_weights_bank() dereferences them (unvalidated) via
+        // reconstruct_closure()/finalize_weights_bank() -> submodel_device().
+        validate_submodels(compiled->m_compiled_submodels);
+        validate_import_routing_tables(compiled);
         if (require_weights_bank) {
             if (decrypted_stream.peek() == std::char_traits<char>::eof()) {
                 OPENVINO_THROW("Missing ORC weights bank container");
@@ -1699,6 +1704,10 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         while (!root.done() && peek_child_header(stream).type == CompiledModelDesc::kOrcType) {
             consume_submodel(stream);
         }
+        // See the comment in the encrypted branch above: validate before any weights-bank
+        // consumption can dereference an unvalidated replaced_by index.
+        validate_submodels(compiled->m_compiled_submodels);
+        validate_import_routing_tables(compiled);
         if (require_weights_bank) {
             if (root.done()) {
                 OPENVINO_THROW("Missing ORC weights bank container");
@@ -1713,9 +1722,6 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
     if (require_weights_bank && !have_weights) {
         OPENVINO_THROW("Missing ORC weights bank container");
     }
-
-    validate_submodels(compiled->m_compiled_submodels);
-    validate_import_routing_tables(compiled);
 
     compiled->implement_properties();
     return compiled;
