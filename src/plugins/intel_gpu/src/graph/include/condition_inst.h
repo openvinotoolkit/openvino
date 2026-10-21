@@ -42,14 +42,8 @@ public:
                                       const primitive_id& prevID,
                                       const primitive_id& newID) {
             for (auto& input : input_map) {
-                auto& external_id = input.second.external_id;
-                if (external_id == prevID) {
-                    external_id = newID;
-                } else {
-                    const auto suffix_pos = external_id.rfind(".out");
-                    if (suffix_pos != primitive_id::npos && external_id.substr(0, suffix_pos) == prevID) {
-                        external_id = newID + external_id.substr(suffix_pos);
-                    }
+                if (input.second.external_id.pid == prevID) {
+                    input.second.external_id.pid = newID;
                 }
             }
         };

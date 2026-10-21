@@ -551,7 +551,7 @@ public:
                 eltwise("scale_5", { input_info("branch_input1"), input_info("scale_5_data") }, eltwise_mode::prod)
             );
             nested_true.inner_program = program::build_program(engine, nested_true_topology, config, false, false, true);
-            nested_true.input_map.insert({1, {"pooling_when_true", "branch_input1"}});
+            nested_true.input_map.insert({1, {input_info("pooling_when_true"), "branch_input1"}});
             nested_true.output_map.insert({0, "scale_5"});
         }
         condition::branch nested_false;
@@ -563,7 +563,7 @@ public:
                 eltwise("scale_10", { input_info("branch_input2"), input_info("scale_10_data") }, eltwise_mode::prod)
             );
             nested_false.inner_program = program::build_program(engine, nested_false_topology, config, false, false, true);
-            nested_false.input_map.insert({1, {"pooling_when_true", "branch_input2"}});
+            nested_false.input_map.insert({1, {input_info("pooling_when_true"), "branch_input2"}});
             nested_false.output_map.insert({0, "scale_10"});
         }
 
@@ -577,8 +577,8 @@ public:
                 condition( "condi_nested", {input_info("predicate2"), input_info("pooling_when_true")}, nested_true, nested_false)
             );
             branch_true.inner_program = program::build_program(engine, branch_true_topology, config, false, false, true);
-            branch_true.input_map.insert({2, {"input", "branch_input3"}});
-            branch_true.input_map.insert({1, {"predicate2", "predicate2"}});
+            branch_true.input_map.insert({2, {input_info("input"), "branch_input3"}});
+            branch_true.input_map.insert({1, {input_info("predicate2"), "predicate2"}});
             branch_true.output_map.insert({0, "condi_nested"});
         }
 
@@ -590,7 +590,7 @@ public:
                 pooling("pooling_when_false", input_info("branch_input4"), cldnn::pooling_mode::average, { 1, 2 }, { 1, 2 })
             );
             branch_false.inner_program = program::build_program(engine, branch_false_topology, config, false, false, true);
-            branch_false.input_map.insert({2, {"input", "branch_input4"}});
+            branch_false.input_map.insert({2, {input_info("input"), "branch_input4"}});
             branch_false.output_map.insert({0, "pooling_when_false"});
         }
 
@@ -881,7 +881,7 @@ public:
                 input_layout(parameter, f16_input->get_layout()),
                 reorder(result, input_info(parameter), format::bfyx, data_types::f16));
             branch.inner_program = program::build_program(engine, branch_topology, config, false, false, true);
-            branch.input_map.insert({1, {producer_id + ".out1", parameter}});
+            branch.input_map.insert({1, {input_info(producer_id, 1), parameter}});
             branch.output_map.insert({0, result});
             return branch;
         };
@@ -1079,6 +1079,45 @@ TEST(condition_gpu, empty_body_with_different_shapes) {
     auto output_layout = output->get_layout();
     auto out_pshape = output_layout.get_partial_shape();
     ASSERT_EQ(out_pshape, oned_pshape);
+}
+
+TEST(condition_gpu, update_primitive_map_renames_only_matching_input) {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    const layout data_layout{data_types::f32, format::bfyx, {1, 1, 4, 1}};
+    const primitive_id input_id = "a";
+    const primitive_id lookalike_id = "a.outside_node";
+
+    auto make_branch = [&](const primitive_id& prefix) {
+        condition::branch branch;
+        topology branch_topology(
+            input_layout(prefix + "_p0", data_layout),
+            input_layout(prefix + "_p1", data_layout),
+            eltwise(prefix + "_sum", {input_info(prefix + "_p0"), input_info(prefix + "_p1")}, eltwise_mode::sum));
+        branch.inner_program = program::build_program(engine, branch_topology, config, false, false, true);
+        branch.input_map.insert({1, {input_info(input_id), prefix + "_p0"}});
+        branch.input_map.insert({2, {input_info(lookalike_id), prefix + "_p1"}});
+        branch.output_map.insert({0, prefix + "_sum"});
+        return branch;
+    };
+
+    topology topology(
+        input_layout("predicate", {data_types::u8, format::bfyx, {1, 1, 1, 1}}),
+        input_layout(input_id, data_layout),
+        input_layout(lookalike_id, data_layout),
+        condition("condi",
+                  {input_info("predicate"), input_info(input_id), input_info(lookalike_id)},
+                  make_branch("true"),
+                  make_branch("false")));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    auto& cond = prog->get_node("condi").as<condition>();
+
+    cond.update_primitive_map(input_id, "renamed");
+
+    for (const auto& branch : {cond.get_branch_true(), cond.get_branch_false()}) {
+        EXPECT_EQ(branch.input_map.at(1).external_id, input_info("renamed"));
+        EXPECT_EQ(branch.input_map.at(2).external_id, input_info(lookalike_id));
+    }
 }
 
 TEST(condition_gpu, set_empty_tensor) {

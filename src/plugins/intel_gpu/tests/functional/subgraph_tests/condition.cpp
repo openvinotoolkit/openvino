@@ -23,6 +23,7 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/runtime/core.hpp"
 
+#include <algorithm>
 #include <sstream>
 
 namespace {

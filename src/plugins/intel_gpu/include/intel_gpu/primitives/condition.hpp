@@ -23,7 +23,7 @@ struct condition : public primitive_base<condition> {
     ///
     struct branch {
         struct input_mapping {
-            primitive_id external_id;
+            input_info external_id;
             primitive_id internal_id;
         };
 
@@ -35,8 +35,8 @@ struct condition : public primitive_base<condition> {
             std::stringstream ss;
             ss << "branch: {input_map : [(dependency_index,outer_id,inner_id),";
             for (auto& in_iter : input_map) {
-                ss << "(" << in_iter.first << "," << in_iter.second.external_id << "," << in_iter.second.internal_id
-                   << "),";
+                ss << "(" << in_iter.first << "," << in_iter.second.external_id.to_string() << ","
+                   << in_iter.second.internal_id << "),";
             }
             ss << "],";
 
