@@ -143,7 +143,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Use weight from model not from path hint
             std::regex(R"(.*compile_from_weightless_blob.*)"),
             // u3 Transpose reference implementation is not upstreamed yet (non-transposed u3 weights fold a Transpose)
-            std::regex(R"(.*smoke_MatMulCompressedWeights.*weights_precision=u3_.*transpose_weights=0_.*)"),
+            std::regex(R"(.*MatMulCompressedWeights.*weights_precision=u3_.*transpose_weights=0_.*)"),
 
 #if defined(_WIN32)
             // by calc abs_threshold with expected value
