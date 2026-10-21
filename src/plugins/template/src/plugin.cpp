@@ -499,7 +499,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
         return supported_properties;
     } else if (ov::internal::supported_properties == name) {
-        return decltype(ov::internal::supported_properties)::value_type{
+        auto internal_properties = decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::inference_num_threads.name(), ov::PropertyMutability::RW},
@@ -509,6 +509,11 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
             ov::PropertyName{ov::internal::emit_hsm_format.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::template_plugin::export_hsm_format.name(), ov::PropertyMutability::RW},
         };
+        // Only the HSM reader imports from a mapped blob without copying; the legacy path would copy it.
+        if (m_cfg.export_hsm_format) {
+            internal_properties.emplace_back(ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO);
+        }
+        return internal_properties;
     } else if (ov::available_devices == name) {
         // TODO: fill list of available devices
         return decltype(ov::available_devices)::value_type{{""}};
