@@ -56,7 +56,7 @@ void run_gq2ip(std::shared_ptr<ov::Model>& model, Context& ctx) {
 }
 
 TEST(DQMatMulGQ2iP, MultiTokenSubByteIsPresentedAsI4) {
-    for (const auto& weight_type : {ov::element::Type_t::i2}) {
+    for (const auto& weight_type : {ov::element::Type_t::i2, ov::element::Type_t::s1}) {
         auto nodes = build_gq2ip_subgraph(weight_type, {1, 4, 32});
         Context ctx;
         ctx.mm_dq_full = false;
@@ -69,7 +69,7 @@ TEST(DQMatMulGQ2iP, MultiTokenSubByteIsPresentedAsI4) {
 }
 
 TEST(DQMatMulGQ2iP, SingleTokenKeepsTheStoredWidth) {
-    for (const auto& weight_type : {ov::element::Type_t::i2}) {
+    for (const auto& weight_type : {ov::element::Type_t::i2, ov::element::Type_t::s1}) {
         auto nodes = build_gq2ip_subgraph(weight_type, {1, 1, 32});
         Context ctx;
         ctx.mm_dq_full = false;

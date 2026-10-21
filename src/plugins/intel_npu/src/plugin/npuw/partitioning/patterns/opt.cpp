@@ -243,7 +243,8 @@ DQMatMulCWi::DQMatMulCWi(Context::Ref ctx) {
 
         auto qcoeff_shape = matched_node_qcoeff->output(0).get_shape();
 
-        if ((ov::element::i2 == matched_qweight->get_element_type() ||
+        if ((ov::element::s1 == matched_qweight->get_element_type() ||
+             ov::element::i2 == matched_qweight->get_element_type() ||
              ov::element::i4 == matched_qweight->get_element_type() ||
              ov::element::i8 == matched_qweight->get_element_type() ||
              ov::element::nf4 == matched_qweight->get_element_type()) &&
@@ -334,7 +335,8 @@ DQMatMulCWi_Transpose::DQMatMulCWi_Transpose(Context::Ref ctx) {
         const auto& tr_in_shape = matched_node_transpose->input(0).get_shape();
         const auto& tr_out_shape = matched_node_transpose->output(0).get_shape();
 
-        if ((ov::element::i2 == matched_qweight->get_element_type() ||
+        if ((ov::element::s1 == matched_qweight->get_element_type() ||
+             ov::element::i2 == matched_qweight->get_element_type() ||
              ov::element::i4 == matched_qweight->get_element_type() ||
              ov::element::i8 == matched_qweight->get_element_type() ||
              ov::element::nf4 == matched_qweight->get_element_type()) &&
@@ -555,13 +557,14 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
         auto act_shape = matched_out_mmi.get_shape();
         auto out_shape = matched_node_matmul->output(0).get_shape();
 
-        // A grouped signed 2-bit weight takes the same presentation as `i4`: the
+        // A grouped sub-byte weight - 2 bits, or the 1-bit sign type - takes the same presentation as `i4`: the
         // banked closure is put in the [G, N, g] layout with a Transpose back, which is the shape whose
         // per-group convolutions read the stored codes in place. Without it the weight keeps the export's own
         // [N, G, g] layout and its forward is unrolled per group, so the device passes over it several times
         // per token. The `GQi`/`GQiP` pair stay `i4`-only: their layout needs a bit-level host transpose that
-        // `util::permute` does not implement for sub-byte codes.
-        if ((ov::element::i2 == matched_qweight->get_element_type() ||
+        // `util::permute` does not implement for sub-byte codes, so a sub-byte transpose there would lift it.
+        if ((ov::element::s1 == matched_qweight->get_element_type() ||
+             ov::element::i2 == matched_qweight->get_element_type() ||
              ov::element::i4 == matched_qweight->get_element_type()) &&
             qweight_shape.size() == 3 &&
             // The presentation's swap is a host byte-row copy, so the innermost dimension has to be
@@ -854,8 +857,9 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
             return (a == 1 && b > 1) || (a > 1 && b == 1);
         };
 
-        // As in DQMatMulGQ2i: the multi-token case of the same grouped signed 2-bit presentation.
-        if ((ov::element::i2 == matched_qweight->get_element_type() ||
+        // As in DQMatMulGQ2i: the multi-token case of the same grouped sub-byte presentation.
+        if ((ov::element::s1 == matched_qweight->get_element_type() ||
+             ov::element::i2 == matched_qweight->get_element_type() ||
              ov::element::i4 == matched_qweight->get_element_type()) &&
             qweight_shape.size() == 3 &&
             qweight_shape[2] % (8 / matched_qweight->get_element_type().bitwidth()) == 0 &&
@@ -871,7 +875,7 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
                 // The compiler unrolls a sub-byte weight at this multi-token consumer into per-group
                 // convolutions, because the device's whole-group dequantization (the prebuilt
                 // `dynamic_dequantize` SHAVE kernel) decodes `i4`, `i8` and `u2` codes only, and that plan is
-                // ~2x the same model's 4-bit one. Every i2 code is representable in i4, so the weight is
+                // ~2x the same model's 4-bit one. Every i2/s1 code is representable in i4, so the weight is
                 // presented in that container instead and the values do not change. Remove this when the
                 // kernel reads the width: the call, `widen_subbyte_to_i4` and its tests go, and the compiler's
                 // guard stops refusing the width. The single-token consumer keeps its stored width.
@@ -1661,7 +1665,11 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
         // were Hs = hidden size, G is # of groups, N is the prompt size.
         auto out_len = out_shape.size() == 3 ? out_shape[2] : out_shape[2] * out_shape[3];
 
-        if (out_len >= 2048 && (qweight_type == ov::element::i4 ||
+        // The sign type joins the quantized containers here: a sign-type `embed_tokens` Gather is the one such
+        // chain the folded route cannot take -- the compiler has no 1-bit case for `VPU::ConvertOp` -- so the
+        // gathered rows are unpacked on the host from the packed payload (`unpack_s1f16_scale`) and handed to
+        // the device as one small f16 closure, exactly as the 4-bit dictionary's are.
+        if (out_len >= 2048 && (qweight_type == ov::element::s1 || qweight_type == ov::element::i4 ||
                                 qweight_type == ov::element::i8 || qweight_type == ov::element::nf4 ||
                                 qweight_type == ov::element::f8e4m3 || qweight_type == ov::element::f8e5m2 ||
                                 qweight_type == ov::element::f8e8m0)) {

@@ -117,6 +117,24 @@ void unpack_i2f16(const int8_t* in, int8_t* out, int size) {
     }
 }
 
+/*s1, one bit per element in the host's MSB-first order, a set bit being +1; any element count*/
+void unpack_s1f16(const int8_t* in, int8_t* out, int size) {
+    uint16_t *hFloatOut = reinterpret_cast<uint16_t *>(out);
+
+    for (int i = 0; i < size; i++) {
+        hFloatOut[i] = int2hfloat(((in[i / 8] >> (7 - i % 8)) & 0x1) ? 1 : -1);
+    }
+}
+
+/*s1 in element::s1's host spelling (MSB-first), a set bit being +1; the widen test's source is the OV tensor*/
+void unpack_s1f16_host_order(const int8_t* in, int8_t* out, int size) {
+    uint16_t *hFloatOut = reinterpret_cast<uint16_t *>(out);
+
+    for (int i = 0; i < size; i++) {
+        hFloatOut[i] = int2hfloat(((in[i / 8] >> (7 - (i % 8))) & 0x1) ? 1 : -1);
+    }
+}
+
 /*i2 -> i4: four signed codes per byte, low bits first, into two per byte, low nibble first*/
 void widen_i2_to_i4(const int8_t* in, int8_t* out, int size) {
     for (int i = 0; i < size; i++) {
@@ -124,6 +142,16 @@ void widen_i2_to_i4(const int8_t* in, int8_t* out, int size) {
         if (code >= 2) {
             code -= 4;  // two's complement: 2 -> -2, 3 -> -1
         }
+        const uint8_t nibble = static_cast<uint8_t>(code & 0xF);
+        out[i / 2] = static_cast<int8_t>(i % 2 == 0 ? (static_cast<uint8_t>(out[i / 2]) & 0xF0) | nibble
+                                                   : (static_cast<uint8_t>(out[i / 2]) & 0x0F) | (nibble << 4));
+    }
+}
+
+/*s1 -> i4: one sign bit per byte, MSB-first, +1/-1 into two per byte, low nibble first*/
+void widen_s1_to_i4(const int8_t* in, int8_t* out, int size) {
+    for (int i = 0; i < size; i++) {
+        const int code = ((static_cast<uint8_t>(in[i / 8]) >> (7 - (i % 8))) & 0x1) ? 1 : -1;
         const uint8_t nibble = static_cast<uint8_t>(code & 0xF);
         out[i / 2] = static_cast<int8_t>(i % 2 == 0 ? (static_cast<uint8_t>(out[i / 2]) & 0xF0) | nibble
                                                    : (static_cast<uint8_t>(out[i / 2]) & 0x0F) | (nibble << 4));
@@ -447,11 +475,11 @@ protected:
     bool isNegative() const override {
         if (scale_shape.size() != 3 && scale_shape.size() != 2) return true;
         if (toType != ov::element::f16) return true;
-        if (fromType == ov::element::i2) {
-            // The sub-byte kernel takes one f16 or f32 scale per group and has no vectorized tail to align,
-            // unlike the i4 kernel's 64 elements. Its scale keeps the input's leading dims - [N, G, 1] for a
+        if (fromType == ov::element::i2 || fromType == ov::element::s1) {
+            // The sub-byte kernels take one f16 or f32 scale per group and have no vectorized tail to align,
+            // unlike the i4 kernel's 64 elements. The scale keeps the input's leading dims - [N, G, 1] for a
             // [N, G, group] weight, [N, 1] for a per-row [N, K] one - so a scale whose leading dim is below the
-            // input's starts a group the kernel does not decode.
+            // input's starts a group the kernels do not decode.
             if (scaleType != ov::element::f16 && scaleType != ov::element::f32) return true;
             if (from->get_size() % scale->get_size() != 0) return true;
             if (scale_shape.size() == 3) {
@@ -475,6 +503,8 @@ protected:
 
         if (fromType == ov::element::i2) {
             details::unpack_i2f16(input.data(), ref_output.data(), static_cast<int>(nElements));
+        } else if (fromType == ov::element::s1) {
+            details::unpack_s1f16(input.data(), ref_output.data(), static_cast<int>(nElements));
         } else {
             details::unpack_i4f16(input.data(), ref_output.data(), static_cast<int>(nElements));
         }
@@ -803,6 +833,8 @@ protected:
             details::widen_i2_to_i4(input.data(), ref_output.data(), static_cast<int>(from->get_size()));
         } else if (fromType == ov::element::u2) {
             details::widen_u2_to_i4(input.data(), ref_output.data(), static_cast<int>(from->get_size()));
+        } else if (fromType == ov::element::s1) {
+            details::widen_s1_to_i4(input.data(), ref_output.data(), static_cast<int>(from->get_size()));
         } else if (fromType == ov::element::u1) {
             details::widen_u1_to_i4(input.data(), ref_output.data(), static_cast<int>(from->get_size()));
         } else {

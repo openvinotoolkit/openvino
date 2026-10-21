@@ -69,11 +69,16 @@ TEST_P(WidenSubbyteTests, widen) {
     // The invariant the change rests on: the readers decode the same values from both containers. The codes
     // are small enough for f16 to hold exactly, so the comparison needs no tolerance. The suite has no unsigned
     // readers, so u2/u1 rest on the byte-level check above.
-    if (fromType == ov::element::i2) {
+    if (fromType == ov::element::i2 || fromType == ov::element::s1) {
         const auto elements = static_cast<int>(shape_size(input_shape));
         std::vector<int8_t> source_values(elements * sizeof(uint16_t));
         std::vector<int8_t> widened_values(source_values.size());
-        details::unpack_i2f16(static_cast<const int8_t*>(subbyte.data()), source_values.data(), elements);
+        if (fromType == ov::element::i2) {
+            details::unpack_i2f16(static_cast<const int8_t*>(subbyte.data()), source_values.data(), elements);
+        } else {
+            details::unpack_s1f16_host_order(static_cast<const int8_t*>(subbyte.data()), source_values.data(),
+                                             elements);
+        }
         details::unpack_i4f16(actual, widened_values.data(), elements);
         ASSERT_EQ(source_values, widened_values) << "the two containers decode to different values";
     }
@@ -82,11 +87,12 @@ TEST_P(WidenSubbyteTests, widen) {
 TEST(WidenSubbyteLazyTensor, evals_the_permute_convert_chain) {
     // The chain DQMatMulGQ2iP registers: the closure is permuted, then converted to i4.
     const ov::Shape shape{2, 2, 16};
-    {
-        const ov::element::Type type(ov::element::Type_t::i2);
+    for (const auto& fromType : {ov::element::Type_t::i2, ov::element::Type_t::s1}) {
+        const ov::element::Type type(fromType);
         const std::size_t elements = shape_size(shape);
         // Dims 0 and 1 are equal, so permute({1, 0, 2}) leaves the payload's order unchanged.
-        const std::vector<int8_t> data(elements * type.bitwidth() / 8, static_cast<int8_t>(0xE4));
+        const std::vector<int8_t> data(elements * type.bitwidth() / 8,
+                                       static_cast<int8_t>(type == ov::element::i2 ? 0xE4 : 0xB7));
         auto constant = std::make_shared<ov::op::v0::Constant>(type, shape, data.data());
         const auto lazy = ov::npuw::weights::LazyTensor(constant).permute({1, 0, 2}).convert(ov::element::i4);
 
@@ -94,7 +100,11 @@ TEST(WidenSubbyteLazyTensor, evals_the_permute_convert_chain) {
         ASSERT_EQ(lazy.eval_meta().shape, shape);
 
         std::vector<int8_t> expected(elements / 2);
-        details::widen_i2_to_i4(data.data(), expected.data(), static_cast<int>(elements));
+        if (type == ov::element::i2) {
+            details::widen_i2_to_i4(data.data(), expected.data(), static_cast<int>(elements));
+        } else {
+            details::widen_s1_to_i4(data.data(), expected.data(), static_cast<int>(elements));
+        }
         const auto widened = lazy.eval();
         ASSERT_EQ(widened.get_element_type(), ov::element::i4);
         ASSERT_EQ(widened.get_byte_size(), expected.size());
@@ -106,6 +116,7 @@ TEST(WidenSubbyteLazyTensor, evals_the_permute_convert_chain) {
 const auto TestCasesWidenSubbyte = ::testing::Combine(
         ::testing::ValuesIn({ov::element::Type_t::i2,
                              ov::element::Type_t::u2,
+                             ov::element::Type_t::s1,
                              ov::element::Type_t::u1}),
         ::testing::ValuesIn({ov::element::Type_t::i4}),
         ::testing::ValuesIn({ov::element::Type_t::dynamic}),  // no used in this test
@@ -130,7 +141,8 @@ const auto TestCasesWidenSubbyte = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(WidenSubbyteTests, WidenSubbyteTests, TestCasesWidenSubbyte, WidenSubbyteTests::getTestCaseName);
 
 const auto TestCasesScale = ::testing::Combine(
-        ::testing::ValuesIn({ov::element::Type_t::i2,
+        ::testing::ValuesIn({ov::element::Type_t::s1,
+                             ov::element::Type_t::i2,
                              ov::element::Type_t::i4}), // TODO: add i8 as input for test
         ::testing::ValuesIn({ov::element::Type_t::f16, ov::element::Type_t::f32}),
         ::testing::ValuesIn({ov::element::Type_t::f16, ov::element::Type_t::f32}),

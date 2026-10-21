@@ -83,7 +83,8 @@ ov::npuw::util::DynamicQuantStorageTypes ov::npuw::util::resolve_dynamic_quant_s
 }
 
 bool ov::npuw::util::is_subbyte(const ov::element::Type& type) {
-    return type == ov::element::i2 || type == ov::element::u2 || type == ov::element::u1;
+    return type == ov::element::i2 || type == ov::element::u2 || type == ov::element::s1 ||
+           type == ov::element::u1;
 }
 
 ov::Tensor ov::npuw::util::widen_subbyte_to_i4(const ov::Tensor& src) {
@@ -97,10 +98,11 @@ ov::Tensor ov::npuw::util::widen_subbyte_to_i4(const ov::Tensor& src) {
     auto* out = static_cast<uint8_t*>(dst.data());
 
     // The packings are OpenVINO's own, and they are the ones the reader uses: `i2`/`u2` put four codes per
-    // byte low bits first, `i4` two, and `u1` is the one spelling packed MSB-first inside a byte (the device
-    // indexes a sub-byte payload LSB-first at every width, which is why weights_bank.cpp reverses a one-bit
-    // byte on its way to the device and not an `i4` one). unpack_i2f16_scale below decodes the source, the
-    // unpack suite's `unpack_i4f16` decodes the result, and WidenSubbyteTests pins the two against each other.
+    // byte low bits first, `i4` two, and `s1`/`u1` are the one spelling packed MSB-first inside a byte (the
+    // device indexes a sub-byte payload LSB-first at every width, which is why weights_bank.cpp reverses a
+    // `s1` byte on its way to the device and not an `i4` one). unpack_i2f16_scale/unpack_s1f16_scale below
+    // decode the sources, the unpack suite's `unpack_i4f16` decodes the result, and WidenSubbyteTests pins the
+    // two against each other.
     const auto code_at = [&](std::size_t idx) {
         if (type == ov::element::i2 || type == ov::element::u2) {
             int code = (in[idx / 4] >> (2 * (idx % 4))) & 0x3;
@@ -110,7 +112,7 @@ ov::Tensor ov::npuw::util::widen_subbyte_to_i4(const ov::Tensor& src) {
             return code;
         }
         const bool set = ((in[idx / 8] >> (7 - (idx % 8))) & 0x1) != 0;
-        return set ? 1 : 0;
+        return type == ov::element::s1 ? (set ? 1 : -1) : (set ? 1 : 0);
     };
 
     // Every destination byte is written by one iteration, so the sweep parallelizes the way the readers do.
@@ -220,6 +222,95 @@ void unpack_i2i8(const ov::SoPtr<ov::ITensor>& from,
     ov::parallel_for(from->get_size(), [&](size_t idx) {
         const int code = (from_ptr[idx / 4] >> (2 * (idx % 4))) & 0x3;
         to_ptr[idx] = static_cast<int8_t>(code >= 2 ? code - 4 : code);
+    });
+}
+
+// The sign type s1: one bit per element, a set bit decoding to +1 and a clear bit to -1, times the group scale
+// exactly as for i2. The payload is read in the host's own order, `element::s1`'s MSB-first spelling: this decoder
+// runs on the closure's source, the IR's Constant, and the weights bank's device copy is another tensor -
+// weights_bank.cpp's fill_device_tensor reverses the bytes on the way to the device without reordering the
+// source, and widen_subbyte_to_i4 reads the same source in the same order.
+void unpack_s1f16_scale(const ov::SoPtr<ov::ITensor>& from,
+                        const ov::SoPtr<ov::ITensor>& scale,
+                        const ov::SoPtr<ov::ITensor>& to,
+                        const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    const auto& from_shape = from->get_shape();
+    const auto& scale_shape = scale->get_shape();
+    const auto scale_elem_type = scale->get_element_type();
+    NPUW_ASSERT(scale_elem_type == ov::element::f16 || scale_elem_type == ov::element::f32);
+    NPUW_ASSERT(scale_shape.size() == 3 || scale_shape.size() == 2);
+    if (scale_shape.size() == 3) {
+        NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+        NPUW_ASSERT(scale_shape[1] == from_shape[1]);
+        NPUW_ASSERT(scale_shape[2] == 1);
+    } else {
+        NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+        NPUW_ASSERT(scale_shape[1] == 1);
+    }
+
+    const auto size = from->get_size();
+    const auto scale_count = scale->get_size();
+    NPUW_ASSERT(scale_count != 0 && size % scale_count == 0);
+    const auto group_len = size / scale_count;
+
+    const auto* from_ptr = static_cast<const uint8_t*>(from->data());
+    const auto* scale_ptr = static_cast<const ov::float16*>(scale->data());
+    const auto* scale_ptr_f32 = static_cast<const float*>(scale->data());
+    auto* to_ptr = to->data<ov::float16>();
+
+    auto sign_at = [&](size_t idx) -> float {
+        return ((from_ptr[idx / 8] >> (7 - (idx % 8))) & 0x1) ? 1.0f : -1.0f;
+    };
+    auto scale_at = [&](size_t idx) -> float {
+        return scale_elem_type == ov::element::f16 ? static_cast<float>(scale_ptr[idx])
+                                                   : scale_ptr_f32[idx];
+    };
+
+    ov::parallel_for(size / 8, [&](size_t byte_idx) {
+        for (size_t k = 0; k < 8; ++k) {
+            const size_t idx = byte_idx * 8 + k;
+            to_ptr[idx] = ov::float16(sign_at(idx) * scale_at(idx / group_len));
+        }
+    });
+    // A valid packed sign buffer has any element count: the last 1-7 signs sit in the high bits of the last byte.
+    for (size_t idx = size - size % 8; idx < size; ++idx) {
+        to_ptr[idx] = ov::float16(sign_at(idx) * scale_at(idx / group_len));
+    }
+}
+
+// The scale-less decoders, in the host's MSB order like unpack_s1f16_scale.
+void unpack_s1f16(const ov::SoPtr<ov::ITensor>& from,
+                  const ov::SoPtr<ov::ITensor>& to,
+                  const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    const auto* from_ptr = static_cast<const uint8_t*>(from->data());
+    auto* to_ptr = to->data<ov::float16>();
+
+    ov::parallel_for(from->get_size(), [&](size_t idx) {
+        to_ptr[idx] = ov::float16(((from_ptr[idx / 8] >> (7 - (idx % 8))) & 0x1) ? 1.0f : -1.0f);
+    });
+}
+
+void unpack_s1i8(const ov::SoPtr<ov::ITensor>& from,
+                 const ov::SoPtr<ov::ITensor>& to,
+                 const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    const auto* from_ptr = static_cast<const uint8_t*>(from->data());
+    auto* to_ptr = to->data<int8_t>();
+
+    ov::parallel_for(from->get_size(), [&](size_t idx) {
+        to_ptr[idx] = ((from_ptr[idx / 8] >> (7 - (idx % 8))) & 0x1) ? 1 : -1;
     });
 }
 
@@ -363,13 +454,32 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         HNDL(u4, f16);
         HNDL(u4, f32);
         HNDL(i8, f16);
-        // i2 has no vectorized decoder.
+        // i2 and s1 have no vectorized decoder.
         case PAIR(ove::i2, ove::f16):
             unpack_i2f16(from, to, unpack_options);
             break;
         case PAIR(ove::i2, ove::i8):
             unpack_i2i8(from, to, unpack_options);
             break;
+        case PAIR(ove::s1, ove::f16):
+            unpack_s1f16(from, to, unpack_options);
+            break;
+        case PAIR(ove::s1, ove::i8):
+            unpack_s1i8(from, to, unpack_options);
+            break;
+        // `s1` and `u1` are the same 1-bit payload in two spellings: the IR's sign type and the device's `BIN`/`U1`
+        // description of it. A subgraph input port recovered from a compiled blob is typed `u1` where the closure
+        // carries `s1`, so the transfer is a byte copy - the device indexes either spelling identically, and the
+        // closure's payload is already what the compiled graph was built from. No transformation is applied: a set
+        // bit means +1 in both spellings, and reversing the payload here would flip every sign. The pair is
+        // symmetric: the same copy recovers a `u1` closure into an `s1` port. It goes when the driver reports
+        // `s1` for the port directly.
+        case PAIR(ove::s1, ove::u1):
+        case PAIR(ove::u1, ove::s1): {
+            NPUW_ASSERT(from->get_byte_size() == to->get_byte_size());
+            std::memcpy(to->data(), from->data(), from->get_byte_size());
+            break;
+        }
     default:
         OPENVINO_THROW("Unknown unpack combination ", type_from, " -> ", type_to);
     }
@@ -405,6 +515,8 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         ov::npuw::util::XARCH::unpack_i8f16_scale(from, scale, to, unpack_options);
     } else if (type_from == ov::element::i2) {
         unpack_i2f16_scale(from, scale, to, unpack_options);
+    } else if (type_from == ov::element::s1) {
+        unpack_s1f16_scale(from, scale, to, unpack_options);
     } else if (type_from == ov::element::nf4) {
         unpack_nf4f16(from, scale, to, unpack_options);
     } else if (type_from == ov::element::f8e4m3 || type_from == ov::element::f8e5m2 ||
@@ -612,7 +724,7 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
     NPUW_ASSERT(from.size() == to.size());
 
     // Sub-byte views are not supported here
-    NPUW_ASSERT(type != ov::element::u4 && type != ov::element::i4);
+    NPUW_ASSERT(type != ov::element::u4 && type != ov::element::i4 && !ov::npuw::util::is_subbyte(type));
 
     const auto num_dims = from.size();
     ov::Shape view_shape;
@@ -831,7 +943,7 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
         return tnew;
     } else if (axes[0] == 1 && axes[1] == 0 && axes[2] == 2) {
         NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::i2 ||
-                    t.get_element_type() == ov::element::f16);
+                    t.get_element_type() == ov::element::s1 || t.get_element_type() == ov::element::f16);
         ov::Shape tshape = {shape[1], shape[0], shape[2]};
         ov::Tensor tnew(t.get_element_type(), tshape);
         switch (t.get_element_type()) {
@@ -857,6 +969,19 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
                 const size_t src_off = (p * shape[1] + r) * shape[2] / 4;
                 const size_t dst_off = (r * shape[0] + p) * shape[2] / 4;
                 std::copy_n(src + src_off, shape[2] / 4, dst + dst_off);
+            });
+            break;
+        }
+        case ov::element::s1: {
+            // Eight sign bits per byte, MSB-first: a row is a byte copy while the innermost dimension is
+            // byte-aligned.
+            NPUW_ASSERT(shape[2] % 8 == 0);
+            const uint8_t* src = static_cast<const uint8_t*>(t.data());
+            uint8_t* dst = static_cast<uint8_t*>(tnew.data());
+            ov::parallel_for2d(shape[0], shape[1], [&](size_t p, size_t r) {
+                const size_t src_off = (p * shape[1] + r) * shape[2] / 8;
+                const size_t dst_off = (r * shape[0] + p) * shape[2] / 8;
+                std::copy_n(src + src_off, shape[2] / 8, dst + dst_off);
             });
             break;
         }
@@ -903,6 +1028,8 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
     NPUW_ASSERT(axis == 0 || axis == 2);
 
     const auto type = tt.front().get_element_type();
+    // Only the 4-bit types are packed by this routine; the narrower sub-byte ones would be copied a byte per element.
+    NPUW_ASSERT(!ov::npuw::util::is_subbyte(type));
     auto shape = tt.front().get_shape();
     std::size_t new_dim = 0;
     std::vector<std::size_t> offsets;

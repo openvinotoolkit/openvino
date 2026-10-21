@@ -159,7 +159,8 @@ DQMatMulGQi4::DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto matched_qweight = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qweight);
         auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qcoeff);
 
-        if ((ov::element::i2 == matched_qweight->get_element_type() ||
+        if ((ov::element::s1 == matched_qweight->get_element_type() ||
+             ov::element::i2 == matched_qweight->get_element_type() ||
              ov::element::i4 == matched_qweight->get_element_type() ||
              ov::element::i8 == matched_qweight->get_element_type() ||
              ov::element::f8e4m3 == matched_qweight->get_element_type() ||
@@ -237,7 +238,8 @@ DQMatMulCWi4::DQMatMulCWi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto matched_qweight = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qweight);
         auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qcoeff);
 
-        if ((ov::element::i2 == matched_qweight->get_element_type() ||
+        if ((ov::element::s1 == matched_qweight->get_element_type() ||
+             ov::element::i2 == matched_qweight->get_element_type() ||
              ov::element::i4 == matched_qweight->get_element_type() ||
              ov::element::i8 == matched_qweight->get_element_type() ||
              ov::element::f8e4m3 == matched_qweight->get_element_type() ||
