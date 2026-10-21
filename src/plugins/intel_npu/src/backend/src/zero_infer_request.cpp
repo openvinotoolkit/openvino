@@ -4,6 +4,9 @@
 
 #include "zero_infer_request.hpp"
 
+#include <cstring>
+#include <vector>
+
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
@@ -11,6 +14,7 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -32,6 +36,38 @@ bool has_related_shape_tensor(const std::vector<intel_npu::IODescriptor>& metada
     return relatedDescriptor.has_value() && metadata.at(relatedDescriptor.value()).isShapeTensor;
 }
 
+/**
+ * @brief Copy a payload between a user tensor and a device tensor, in the bit order the destination must read.
+ *
+ * The conversion is `intel_npu::zeroUtils::reverseBitsPerByte`; it runs in host memory because a byte-wise walk over a device
+ * allocation measures ~9 MB/s (58.92 ms for a 524288 B payload against 0.091 ms for the same slice's plain copy).
+ * A buffer this function does not copy - an imported user allocation, a tensor the plugin handed out - carries the
+ * device's order, because the code that fills it owns the order (the NPUW weights bank is the expected caller).
+ */
+void copy_payload(const ov::SoPtr<ov::ITensor>& srcTensor, const ov::SoPtr<ov::ITensor>& dstTensor) {
+    if (ov::element::is_lsb_packed(dstTensor->get_element_type())) {
+        srcTensor->copy_to(dstTensor._ptr);
+        return;
+    }
+
+    OPENVINO_ASSERT(srcTensor->get_element_type() == dstTensor->get_element_type() ||
+                        intel_npu::zeroUtils::isSameStorageSpelling(srcTensor->get_element_type(),
+                                                                   dstTensor->get_element_type()),
+                    "The tensor element type is not corresponding with the destination element type (",
+                    srcTensor->get_element_type(),
+                    " != ",
+                    dstTensor->get_element_type(),
+                    ")");
+
+    // A shape-tensor view copies only what both tensors hold; the L0 tensor may be allocated for a larger shape.
+    const size_t byteSize = std::min(srcTensor->get_byte_size(), dstTensor->get_byte_size());
+    const auto* srcBytes = static_cast<const uint8_t*>(srcTensor->data());
+    std::vector<uint8_t> converted(byteSize);
+    std::memcpy(converted.data(), srcBytes, byteSize);
+    intel_npu::zeroUtils::reverseBitsPerByte(converted.data(), byteSize);
+    std::memcpy(dstTensor->data(), converted.data(), byteSize);
+}
+
 void copy_tensor_with_optional_shape_view(const std::shared_ptr<ov::ITensor>& srcTensor,
                                           const std::shared_ptr<ov::ITensor>& dstTensor,
                                           bool srcTensorIsUserTensor,
@@ -47,7 +83,7 @@ void copy_tensor_with_optional_shape_view(const std::shared_ptr<ov::ITensor>& sr
             auto viewTensor = ov::make_tensor(dstTensor->get_element_type(),
                                               srcTensor->get_shape(),
                                               static_cast<unsigned char*>(dstTensor->data()));
-            srcTensor->copy_to(viewTensor);
+            copy_payload(srcTensor, viewTensor);
             return;
         }
 
@@ -57,11 +93,29 @@ void copy_tensor_with_optional_shape_view(const std::shared_ptr<ov::ITensor>& sr
         auto viewTensor = ov::make_tensor(srcTensor->get_element_type(),
                                           dstTensor->get_shape(),
                                           static_cast<unsigned char*>(srcTensor->data()));
-        viewTensor->copy_to(dstTensor);
+        copy_payload(viewTensor, dstTensor);
         return;
     }
 
-    srcTensor->copy_to(dstTensor);
+    copy_payload(srcTensor, dstTensor);
+}
+
+/**
+ * @brief Let the Level Zero tensor take the user tensor's element type when the two spell the same storage.
+ *
+ * The rule is `intel_npu::zeroUtils::isSameStorageSpelling`: the compiler's unsigned name for a container against the model's
+ * signed one.
+ */
+void align_element_type_with_user_tensor(const std::shared_ptr<intel_npu::ZeroTensor>& levelZeroTensor,
+                                         const ov::element::Type& userTensorElementType) {
+    const auto& deviceTensorElementType = levelZeroTensor->get_element_type();
+    if (userTensorElementType == deviceTensorElementType) {
+        return;
+    }
+
+    if (intel_npu::zeroUtils::isSameStorageSpelling(deviceTensorElementType, userTensorElementType)) {
+        levelZeroTensor->set_element_type(userTensorElementType);
+    }
 }
 
 }  // namespace
@@ -539,11 +593,7 @@ void ZeroInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest::Found
                               "is not shared with the user");
             }
 
-            const auto& userTensorElementType = tensor->get_element_type();
-            if (userTensorElementType == ov::element::boolean &&
-                levelZeroTensor->get_element_type() == ov::element::u8) {
-                levelZeroTensor->set_element_type(userTensorElementType);
-            }
+            align_element_type_with_user_tensor(levelZeroTensor, tensor->get_element_type());
         }
 
         if (_pipelineIsCreated && updateCommandListArg && !_dynamicBatchValueChanged) {
@@ -563,10 +613,7 @@ void ZeroInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest::Found
             levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input(), _graph->get_batch_size());
         }
 
-        const auto& userTensorElementType = tensor->get_element_type();
-        if (userTensorElementType == ov::element::boolean && levelZeroTensor->get_element_type() == ov::element::u8) {
-            levelZeroTensor->set_element_type(userTensorElementType);
-        }
+        align_element_type_with_user_tensor(levelZeroTensor, tensor->get_element_type());
     }
 }
 
@@ -649,12 +696,9 @@ void ZeroInferRequest::sync_zero_tensors_with_graph(const ZeroInferRequest::Foun
                     auto& levelZeroTensor = get_level_zero_input(foundPort.idx, i);
                     levelZeroTensor = allocate_tensor(foundPort.idx, INPUT);
 
-                    // corner case for boolean inputs as compiler maps them to u8
-                    const auto& userTensorElementType = tensors.at(i)->get_element_type();
-                    if (userTensorElementType == ov::element::boolean &&
-                        levelZeroTensor->get_element_type() == ov::element::u8) {
-                        levelZeroTensor->set_element_type(userTensorElementType);
-                    }
+                    // corner case for boolean inputs as compiler maps them to u8, and for a sub-byte container
+                    // whose signed spelling differs from the device tensor's unsigned one
+                    align_element_type_with_user_tensor(levelZeroTensor, tensors.at(i)->get_element_type());
                 }
 
                 if (_pipelineIsCreated && !_dynamicBatchValueChanged) {
@@ -685,11 +729,7 @@ void ZeroInferRequest::sync_zero_tensors_with_graph(const ZeroInferRequest::Foun
                               "not shared with the user");
             }
 
-            const auto& userTensorElementType = tensors.at(SINGLE_TENSOR)->get_element_type();
-            if (userTensorElementType == ov::element::boolean &&
-                levelZeroTensor->get_element_type() == ov::element::u8) {
-                levelZeroTensor->set_element_type(userTensorElementType);
-            }
+            align_element_type_with_user_tensor(levelZeroTensor, tensors.at(SINGLE_TENSOR)->get_element_type());
         }
     } else {
         // If command list updates are not supported, fallback to copying tensors every time.
@@ -698,10 +738,7 @@ void ZeroInferRequest::sync_zero_tensors_with_graph(const ZeroInferRequest::Foun
             levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input(), tensors.size());
         }
 
-        const auto& userTensorElementType = tensors.at(SINGLE_TENSOR)->get_element_type();
-        if (userTensorElementType == ov::element::boolean && levelZeroTensor->get_element_type() == ov::element::u8) {
-            levelZeroTensor->set_element_type(userTensorElementType);
-        }
+        align_element_type_with_user_tensor(levelZeroTensor, tensors.at(SINGLE_TENSOR)->get_element_type());
     }
 }
 
@@ -997,7 +1034,7 @@ void ZeroInferRequest::prepare_inputs() {
                             userTensorPtr->get_byte_size(),
                             levelZeroTensor->get_byte_size());
                         OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
-                        userTensorPtr->copy_to(levelZeroTensor);
+                        copy_payload(userTensorPtr, levelZeroTensor);
                     }
                 }
             } else {
@@ -1016,7 +1053,7 @@ void ZeroInferRequest::prepare_inputs() {
                         levelZeroTensor->get_shape(),
                         static_cast<unsigned char*>(levelZeroTensor->data()) + (i * userTensor.at(i)->get_byte_size()));
 
-                    userTensor.at(i)->copy_to(viewTensor);
+                    copy_payload(userTensor.at(i), viewTensor);
                     copied_bytes_from_user += userTensor.at(i)->get_byte_size();
                 }
                 OPENVINO_ASSERT(levelZeroTensor->get_byte_size() == copied_bytes_from_user,
@@ -1149,21 +1186,14 @@ void ZeroInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
     const auto& port_element_type = port.get_element_type();
     const auto& tensor_element_type = tensor->get_element_type();
 
-    if ((port_element_type == ov::element::Type_t::boolean || tensor_element_type == ov::element::Type_t::boolean) &&
-        port_element_type != tensor_element_type) {
-        // Exception case for boolean treated as u8 in the NPU driver
-        OPENVINO_ASSERT(port_element_type == ov::element::Type_t::u8 || tensor_element_type == ov::element::Type_t::u8,
-                        "The tensor element type is not corresponding with output element type (",
-                        tensor_element_type,
-                        " != ",
-                        port_element_type);
-    } else {
-        OPENVINO_ASSERT(port_element_type == tensor_element_type,
-                        "The tensor element type is not corresponding with output element type (",
-                        tensor_element_type,
-                        " != ",
-                        port_element_type);
-    }
+    // The boolean/u8, u1/s1, u2/i2 and u4/i4 pairs are the same storage in two spellings, so a tensor the plugin
+    // itself allocated (typed by the driver) is accepted at a port the model spells the other way.
+    OPENVINO_ASSERT(port_element_type == tensor_element_type ||
+                        intel_npu::zeroUtils::isSameStorageSpelling(port_element_type, tensor_element_type),
+                    "The tensor element type is not corresponding with output element type (",
+                    tensor_element_type,
+                    " != ",
+                    port_element_type);
 
     const auto& port_partial_shape = port.get_partial_shape();
     const auto& tensor_shape = tensor->get_shape();
@@ -1383,10 +1413,14 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
         break;
     case ov::element::Type_t::boolean:
         break;
+    case ov::element::Type_t::u1:
+        // The driver's `ZE_GRAPH_ARGUMENT_PRECISION_BIN` is a 1-bit tensor (`zero_utils.hpp`), which is what a
+        // sub-byte codebook descriptor maps onto.
+        break;
     default:
         OPENVINO_THROW(
             "Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
-            "! Supported precisions: FP32, FP16, BF16, FP8, NF4, I2, U2, U4, I4, U8, I8, U16, I16, U32, I32, "
+            "! Supported precisions: FP32, FP16, BF16, FP8, NF4, U1, I2, U2, U4, I4, U8, I8, U16, I16, U32, I32, "
             "U64, I64, FP64, BOOLEAN");
     }
 }

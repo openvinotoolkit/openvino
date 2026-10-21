@@ -111,6 +111,10 @@ std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precisio
         return "U64";
     case ov::element::Type_t::u1:
         return "BIN";
+    case ov::element::Type_t::s1:
+        // The driver has no sign precision of its own, so a compiled s1 tensor is reported back as BIN, i.e. u1.
+        // Removed when the driver gains the signed spelling.
+        return "S1";
     case ov::element::Type_t::u2:
         return "U2";
     case ov::element::Type_t::boolean:

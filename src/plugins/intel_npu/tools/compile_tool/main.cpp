@@ -174,6 +174,7 @@ ov::element::Type getType(const std::string& value) {
         {"I4", ov::element::i4},    {"i4", ov::element::i4},        {"U2", ov::element::u2},
         {"u2", ov::element::u2},    {"BOOL", ov::element::boolean}, {"boolean", ov::element::boolean},
         {"I2", ov::element::i2},    {"i2", ov::element::i2},
+        {"S1", ov::element::s1},    {"s1", ov::element::s1},
     };
 
     return getType(value, supported_types);

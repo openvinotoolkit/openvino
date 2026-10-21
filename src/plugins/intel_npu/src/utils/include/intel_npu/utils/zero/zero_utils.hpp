@@ -8,6 +8,8 @@
 #include <level_zero/ze_api.h>
 #include <ze_graph_ext.h>
 
+#include <array>
+#include <cstdint>
 #include <optional>
 
 #include "intel_npu/utils/logger/logger.hpp"
@@ -18,6 +20,51 @@
 namespace intel_npu {
 
 namespace zeroUtils {
+
+/**
+ * @brief Convert a sub-byte payload between the host's bit order and the device's.
+ *
+ * `u1`/`s1` are the one sub-byte spelling OpenVINO packs MSB-first inside a byte (`ov::element::is_lsb_packed()` is
+ * false for exactly these two), while the device's sub-byte consumers index the payload LSB-first at every width -
+ * the rule the compiler's own constant packing follows (`Const::Content::copySubByteContent`, in the paired
+ * npu_compiler tree at src/vpux_compiler/include/vpux/compiler/dialect/const/utils/content.hpp). A byte-local bit
+ * reversal converts between the two orders and is its own inverse, so one function serves both copy directions.
+ */
+static inline void reverseBitsPerByte(uint8_t* data, const size_t byteSize) {
+    static const std::array<uint8_t, 256> kReversedByte = [] {
+        std::array<uint8_t, 256> reversed{};
+        for (size_t value = 0; value < reversed.size(); ++value) {
+            uint8_t result = 0;
+            for (size_t bit = 0; bit < 8; ++bit) {
+                result = static_cast<uint8_t>((result << 1) | ((value >> bit) & 1U));
+            }
+            reversed[value] = result;
+        }
+        return reversed;
+    }();
+
+    for (size_t i = 0; i < byteSize; ++i) {
+        data[i] = kReversedByte[data[i]];
+    }
+}
+
+/**
+ * @brief Whether `elementType` is another spelling of the storage `deviceElementType` names.
+ *
+ * The compiler names a sub-byte network tensor after the unsigned spelling of its storage width (`u1`, `u2`, `u4`)
+ * and maps `boolean` to `u8`, while a model's own parameter may carry the signed spelling of that same storage
+ * (`s1`, `i2`, `i4`) or `boolean` itself. The payload, its byte count and the device's interpretation are identical,
+ * so the predicate is symmetric: the two arguments may be given in either order. It goes when the driver and
+ * the compiler expose the signed spelling directly.
+ */
+static inline bool isSameStorageSpelling(const ov::element::Type& deviceElementType,
+                                         const ov::element::Type& elementType) {
+    const auto pair = [&](const ov::element::Type& a, const ov::element::Type& b) {
+        return (a == ov::element::u8 && b == ov::element::boolean) || (a == ov::element::u1 && b == ov::element::s1) ||
+               (a == ov::element::u2 && b == ov::element::i2) || (a == ov::element::u4 && b == ov::element::i4);
+    };
+    return pair(deviceElementType, elementType) || pair(elementType, deviceElementType);
+}
 
 #define THROW_ON_FAIL_FOR_LEVELZERO_EXT(step, result, graph_ddi_table_ext)                  \
     {                                                                                       \
