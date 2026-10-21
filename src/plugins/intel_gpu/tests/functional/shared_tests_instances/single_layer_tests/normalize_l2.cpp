@@ -61,7 +61,7 @@ TEST_P(NormalizeL2AcrossX, OnnxPatternUsesSingleKernel) {
         }
         const auto model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
         ov::Core core;
-        const auto compiled = core.compile_model(model,
+        auto compiled = core.compile_model(model,
                                                                                          ov::test::utils::DEVICE_GPU,
                                                                                          {ov::hint::inference_precision(type)});
         size_t normalize_kernels = 0;

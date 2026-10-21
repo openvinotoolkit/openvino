@@ -41,7 +41,7 @@ NormalizeKernelBase::DispatchData NormalizeKernelBase::SetDefault(const normaliz
         dispatchData.gws = {64, output.Y().v, output.Batch().v * output.Feature().v};
         dispatchData.lws = {64, 1, 1};
         return dispatchData;
-    } else if (params.normMode == NormalizeMode::WITHIN_SPATIAL) {
+    } if (params.normMode == NormalizeMode::WITHIN_SPATIAL) {
         dispatchData.gws = {output.X().v, output.Y().v, output.Batch().v};
     } else {
         dispatchData.gws = {output.Batch().v, 1, 1};
