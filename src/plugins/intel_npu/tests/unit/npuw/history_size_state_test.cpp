@@ -73,4 +73,23 @@ TEST(HistorySizeStateTest, SetStateRejectsInvalidTensors) {
     EXPECT_EQ(state.get(), 7) << "a rejected set_state must leave the history untouched";
 }
 
+// Only a caller's set_state() marks the history as provided; the internal setter and reset() do not.
+TEST(HistorySizeStateTest, ProvidedOnlyAfterSetState) {
+    ov::npuw::HistorySizeState state;
+    EXPECT_FALSE(state.provided());
+
+    state.set(16);
+    state.reset();
+    EXPECT_FALSE(state.provided());
+
+    EXPECT_ANY_THROW(state.set_state(make_history(ov::Shape{1}, -1)));
+    EXPECT_FALSE(state.provided()) << "a rejected set_state must not count";
+
+    state.set_state(make_history(ov::Shape{1}, 0));
+    EXPECT_TRUE(state.provided());
+
+    state.reset();
+    EXPECT_TRUE(state.provided()) << "an empty KV cache is still a reported history";
+}
+
 }  // namespace

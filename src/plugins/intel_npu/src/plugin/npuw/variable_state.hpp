@@ -90,6 +90,7 @@ public:
         const auto value = newState->data<int64_t>()[0];
         OPENVINO_ASSERT(value >= 0, "HistorySizeState expects a non-negative history size");
         set(value);
+        m_provided = true;
     }
 
     int64_t get() const {
@@ -99,6 +100,16 @@ public:
     void set(int64_t value) {
         m_state->data<int64_t>()[0] = value;
     }
+
+    // True once a caller has set the history through set_state(). Lets a consumer that can only
+    // learn the history from this state tell "no history yet" apart from "nobody maintains it".
+    // reset() keeps it: an empty KV cache is still a history someone reported.
+    bool provided() const {
+        return m_provided;
+    }
+
+private:
+    bool m_provided = false;
 };
 
 }  // namespace npuw

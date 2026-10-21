@@ -80,6 +80,11 @@ public:
         return m_history_state->get();
     }
 
+    // Whether a caller set the history through the npuw_history_size state (see HistorySizeState).
+    bool history_size_provided() const {
+        return m_history_state->provided();
+    }
+
     std::size_t get_run_iteration() const {
         return m_run_iter;
     }
