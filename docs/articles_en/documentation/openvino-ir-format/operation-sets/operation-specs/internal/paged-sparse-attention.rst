@@ -15,7 +15,7 @@ PagedSparseAttention
 :doc:`SparseAttention <../sequence/sparse-attention-17>`. It processes the tokens of several sequences
 packed into one batch, writes their keys and values into a block-paged KV cache, and computes
 grouped-query attention in which every token attends only to the tokens of its selected key blocks
-and of the incomplete block that contains it.
+and of the incomplete block that contains it, with optional attention sinks.
 
 **Detailed description**:
 
@@ -38,7 +38,13 @@ DSA. There is no other causal mask. With
 ``key_block_size = 4`` this is the attention of Qwen Sparse Attention (QSA, Qwen3.8-Flash-Next);
 with ``key_block_size = 1`` the incomplete block is always empty and this is the sparse attention
 of DeepSeek Sparse Attention (DSA, DeepSeek-V3.2, GLM-MoE-DSA), with the multi-head latent attention
-in its absorbed form as described for *SparseAttention*.
+in its absorbed form as described for *SparseAttention*, and of Hunyuan V4 (``hy_v4``) with its
+attention sinks.
+
+The optional ``sinks`` hold one learnable logit per query head, with the semantics of the attention
+sinks of *SparseAttention*: the sink of head ``h`` joins the softmax normalization as
+``exp(sinks[h])``, is not multiplied by ``scale``, and is dropped. An empty ``sinks`` tensor disables
+them.
 
 **Paged memory management**
 
@@ -69,7 +75,7 @@ table. Because a block never spans two physical blocks, a selected block is a co
 
     def PagedSparseAttention(query, key, value, key_cache, value_cache, past_lens, subsequence_begins,
                                   block_indices, block_indices_begins, selected_block_indices,
-                                  selected_block_count, scale, *, key_block_size):
+                                  selected_block_count, scale, sinks, *, key_block_size):
         T = query.shape[0]
         Hkv, Bs, S = key_cache.shape[1], key_cache.shape[2], key_cache.shape[3]
         Sv = value_cache.shape[3]
@@ -104,7 +110,11 @@ table. Because a block never spans two physical blocks, a selected block is a co
                     k = numpy.stack([key_cache[slot(s, pos)[0], kvh, slot(s, pos)[1]] for pos in positions])
                     v = numpy.stack([value_cache[slot(s, pos)[0], kvh, slot(s, pos)[1]] for pos in positions])
                     q = query[t, h * S:(h + 1) * S]
-                    attn = Softmax((k @ q) * scale, axis=-1)    # [K]
+                    logits = (k @ q) * scale                    # [K]
+                    if sinks.size:                              # the sink logit, not scaled, is dropped
+                        attn = Softmax(numpy.append(logits, sinks[h]), axis=-1)[:-1]
+                    else:
+                        attn = Softmax(logits, axis=-1)
                     output[t, h * Sv:(h + 1) * Sv] = attn @ v
         return output
 
@@ -120,6 +130,8 @@ Properties that follow from the definition:
   ``selected_block_indices``. The entries after the first ``selected_block_count`` ones are ignored.
 * A token whose row is empty and whose incomplete block is empty produces zeros.
   *PagedSparseAttentionIndexer* never produces such a token.
+* With ``sinks``, the output of a query head is the sink-free result scaled by
+  ``Z / (Z + exp(sinks[h]))``, where ``Z`` is the sum of the exponentials of its attended logits.
 
 The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the output by a separate
 *Multiply* and is not part of this operation.
@@ -184,6 +196,9 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 * **11**: ``scale`` - scalar tensor of type *T*: the attention scale factor, typically
   ``1 / sqrt(S)``. **Required.**
 
+* **12**: ``sinks`` - 1D tensor of type *T_sink* and shape ``[H]``, or an empty tensor: the attention
+  sink logit of every query head. **Required (empty tensor = no sinks).**
+
 
 **Outputs**
 
@@ -198,6 +213,8 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 **Types**
 
 * *T*: any supported floating-point type.
+
+* *T_sink*: any supported floating-point type; it may differ from *T*.
 
 * *T_cache* - cache precision; may differ from *T*. Every cache has its own precision, independently of
   the other caches.
@@ -281,9 +298,10 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
                 <dim>1</dim>     <!-- Hs -->
             </port>
             <port id="11" precision="BF16"/> <!-- scale -->
+            <port id="12" precision="BF16"> <dim>0</dim> </port> <!-- sinks: empty, QSA has no sinks -->
         </input>
         <output>
-            <port id="12" precision="BF16">
+            <port id="13" precision="BF16">
                 <dim>300</dim>   <!-- T -->
                 <dim>6144</dim>  <!-- H * Sv -->
             </port>

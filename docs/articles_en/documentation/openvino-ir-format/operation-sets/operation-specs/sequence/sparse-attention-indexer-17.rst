@@ -33,7 +33,8 @@ output is consumed by :doc:`SparseAttention <sparse-attention-17>`. It covers:
   ``token_budget = 4 * index_topk``). Their block keys come from a learned, softmax-gated pooling
   computed by regular operations of the graph instead of
   :doc:`QSAPrepare <../internal/qsa-prepare>`. DeepSeek-V4 attends to the selected compressed entries rather
-  than to the tokens of the selected blocks, which *SparseAttention* does not cover.
+  than to the tokens of the selected blocks: *SparseAttention* covers it with ``causal = false`` and
+  ``key_block_size = 1`` over the window and compressed entries (see its note *DeepSeek-V4*).
 
 The selection is decoupled from the attention in the same way as in inference engines:
 

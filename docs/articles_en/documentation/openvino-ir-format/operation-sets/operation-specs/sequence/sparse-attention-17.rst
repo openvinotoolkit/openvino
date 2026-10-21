@@ -5,7 +5,8 @@ SparseAttention
 .. meta::
   :description: Learn about SparseAttention-17 - grouped-query scaled dot-product attention
                 restricted to dynamically selected key blocks, optionally causal with the query's
-                incomplete block, with selections per query token or per query block.
+                incomplete block, with selections per query token or per query block and optional
+                attention sinks.
 
 **Versioned name**: *SparseAttention-17*
 
@@ -13,7 +14,8 @@ SparseAttention
 
 **Short description**: *SparseAttention* computes grouped-query scaled dot-product attention
 in which every query token attends only to the tokens of its selected key blocks and, in the causal
-mode, to the tokens of the incomplete block that contains it.
+mode, to the tokens of the incomplete block that contains it. An optional learnable attention sink per
+query head joins the softmax normalization.
 
 **Detailed description**:
 
@@ -25,8 +27,11 @@ blocks are not a fixed sparsity pattern: they are selected per query token, or p
   Hugging Face Transformers), with blocks of ``key_block_size = 4`` tokens selected by
   :doc:`SparseAttentionIndexer <sparse-attention-indexer-17>`. Most of this document uses it as the
   example;
-* DeepSeek Sparse Attention (DSA) of DeepSeek-V3.2 and GLM-MoE-DSA, with single-token blocks
-  (``key_block_size = 1``). See the note below;
+* DeepSeek Sparse Attention (DSA) of DeepSeek-V3.2, GLM-MoE-DSA and Hunyuan V4 (``hy_v4``, with
+  attention sinks), with single-token blocks (``key_block_size = 1``). See the note below;
+* the sparse attention of DeepSeek-V4 (``deepseek_v4``) and DeepSeek-V4.1-Flash over the
+  sliding-window and the compressed entries, with attention sinks (``causal = false``,
+  ``key_block_size = 1``). See the note *DeepSeek-V4* below;
 * Locality-Constrained Sparse Attention (LCSA) of the FlashVSR video super-resolution model, which
   is not causal and selects key blocks of 128 tokens per head for every block of 128 query tokens
   (``causal = false``, ``key_block_size = 128``, ``query_block_size = 128``, ``Hs = H``). See the
@@ -69,6 +74,14 @@ of query heads has its own selection, as in Native Sparse Attention (NSA); with 
 query head has its own selection. In the causal mode, the incomplete block of the query is attended
 by every head.
 
+**Attention sinks.** The optional ``sinks`` hold one learnable logit per query head, as in Hunyuan V4,
+DeepSeek-V4 and DeepSeek-V4.1-Flash (``sinks`` / ``attn_sink`` of shape ``[num_attention_heads]``), and
+gpt-oss. The sink of head ``h`` is an extra attention target without a value: it joins the softmax
+normalization of every query of the head as ``exp(sinks[h])``, takes a share of the probability, and is
+dropped, so the weights of the attended tokens sum to less than one. The sink is not multiplied by
+``scale``, and it is the same for all tokens and sequences. Without ``sinks`` the softmax is
+normalized over the attended tokens only.
+
 **Batches with padding.** The sequences of a batch are aligned to the right (left padding), as for
 :doc:`SparseAttentionIndexer <sparse-attention-indexer-17>`: sequence ``n`` has ``key_length[n]`` valid key tokens, the last ones
 of the ``S`` key positions. The positions, the blocks and the block indices of a sequence are counted
@@ -92,7 +105,7 @@ than in a paged cache.
 .. code-block:: py
    :force:
 
-    def SparseAttention(query, key, value, block_indices, block_count, key_length=None, scale=None, *,
+    def SparseAttention(query, key, value, block_indices, block_count, key_length=None, scale=None, sinks=None, *,
                              key_block_size, query_block_size=1, causal=True):
         N, H, L, E = query.shape
         Hkv, S = key.shape[1], key.shape[2]
@@ -124,7 +137,12 @@ than in a paged cache.
         value = numpy.repeat(value, H // Hkv, axis=1)
         attn = (query @ numpy.swapaxes(key, -1, -2)) * scale        # [N, H, L, S]
         attn = numpy.where(mask, attn, -inf)
-        attn = Softmax(attn, axis=-1)
+        if sinks is not None:
+            # one extra logit per query head, not scaled, joins the normalization and is dropped
+            sink = numpy.broadcast_to(numpy.reshape(sinks, (1, H, 1, 1)), (N, H, L, 1))
+            attn = Softmax(numpy.concatenate([attn, sink], axis=-1), axis=-1)[..., :S]
+        else:
+            attn = Softmax(attn, axis=-1)
         output = attn @ value                                       # [N, H, L, Ev]
         # a query head without selected positions produces zeros
         return numpy.where(mask.any(axis=-1)[..., None], output, 0.0)
@@ -154,6 +172,11 @@ Properties that follow from the definition:
 * A query head attends to nothing, and produces zeros, if the ``block_count`` of its selection is
   ``0`` and, in the causal mode, ``p + 1`` is a multiple of ``key_block_size``, or if it is a padding
   token. *SparseAttentionIndexer* produces such a row only for padding tokens; the FlashVSR selection can.
+* With ``sinks``, the output of a query head is the sink-free result scaled by
+  ``Z / (Z + exp(sinks[h]))``, where ``Z`` is the sum of the exponentials of its attended logits, so an
+  implementation with an online softmax adds ``exp(sinks[h] - m)`` to the running sum once, after the
+  last block, as the DeepSeek-V4.1 kernel does. A query head without attended tokens still produces
+  zeros.
 * With ``Hs = 1`` every query head of a token attends to the same key and value rows, so an
   implementation can read every selected block once for all heads, as for multi-query attention.
   With ``Hs = Hkv`` the rows are shared within every group of query heads of one key-value head.
@@ -207,7 +230,22 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
    of DeepSeek Sparse Attention (DSA) models such as DeepSeek-V3.2 and GLM-MoE-DSA. Their
    multi-head latent attention maps to this operation in its absorbed form, as multi-query
    attention with ``Hkv = 1``, ``E = kv_lora_rank + qk_rope_head_dim`` (``576``) and
-   ``Ev = kv_lora_rank`` (``512``), with the attention scale passed through ``scale``.
+   ``Ev = kv_lora_rank`` (``512``), with the attention scale passed through ``scale``. Hunyuan V4
+   (``hy_v4``) uses the same mapping with its per-head ``sinks``.
+
+.. note::
+
+   **DeepSeek-V4.** The sparse attention of DeepSeek-V4 (``deepseek_v4``) and DeepSeek-V4.1-Flash
+   (``sparse_attn(q, kv, attn_sink, topk_idxs, softmax_scale)`` of the reference inference code) maps
+   to this operation with ``causal = false``, ``key_block_size = 1`` and ``sinks = attn_sink``:
+
+   * ``key = value`` is the single key-value head (``Hkv = 1``) of the sliding-window cache followed
+     by the compressed entries of the layer, and the query is not a part of it;
+   * ``block_indices`` are the entry indices ``topk_idxs`` of the window and of the selected
+     compressed entries, with the ``-1`` (empty) entries moved to the end of every row, and
+     ``block_count`` is the number of the other entries;
+   * a row without valid entries produces zeros, as in the reference kernel. The conjugate RoPE of
+     the output and the grouped output projection are separate operations.
 
 .. note::
 
@@ -301,6 +339,10 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 * **7**: ``scale`` - a scalar or single element 1D tensor of type *T*: the attention scale factor,
   used instead of the default ``1 / sqrt(E)``. **Optional.**
 
+* **8**: ``sinks`` - 1D tensor of type *T_sink* and shape ``[H]``: the attention sink logit of every
+  query head. If not provided, there are no sinks. ``scale`` must be provided to provide ``sinks``.
+  **Optional.**
+
 
 **Outputs**
 
@@ -311,6 +353,9 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 **Types**
 
 * *T*: any supported floating-point type.
+
+* *T_sink*: any supported floating-point type; it may differ from *T* (DeepSeek-V4.1 keeps
+  ``attn_sink`` in ``f32`` with ``bf16`` activations).
 
 * *T_IND*: ``int32`` or ``int64``.
 
