@@ -30,16 +30,6 @@ std::shared_ptr<IVCLCompiler> makePluginCompiler(const std::shared_ptr<const VCL
         optionSupportCache);
 }
 
-// A missing decoder only disables profiling, so a failure is logged and not rethrown.
-std::shared_ptr<IProfilingDecoder> makeProfilingDecoder(const std::shared_ptr<const VCLFunctionTable>& functions) {
-    try {
-        return std::make_shared<VCLProfilingDecoder>(functions);
-    } catch (const std::exception& ex) {
-        Logger::global().warning("Failed to create the VCL profiling decoder for plugin compilation: %s", ex.what());
-        return nullptr;
-    }
-}
-
 }  // namespace
 
 CompilerAdapterFactory::CompilerAdapterFactory(const VCLFunctionTableProvider& vclFunctions)
@@ -73,9 +63,17 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
             OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
         }
 
+        std::shared_ptr<IProfilingDecoder> profilingDecoder;
+        try {
+            profilingDecoder = std::make_shared<VCLProfilingDecoder>(functions);
+        } catch (const std::exception& ex) {
+            Logger::global().warning("Failed to create the VCL profiling decoder for plugin compilation: %s",
+                                     ex.what());
+        }
+
         return std::make_unique<PluginCompilerAdapter>(engineBackend ? engineBackend->getInitStructs() : nullptr,
                                                        compiler,
-                                                       makeProfilingDecoder(functions));
+                                                       profilingDecoder);
     }
 
     if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
@@ -157,10 +155,18 @@ CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBacke
         }
 
         _pluginCompilerPresence.store(PluginCompilerPresence::PRESENT, std::memory_order_release);
+        std::shared_ptr<IProfilingDecoder> profilingDecoder;
+        try {
+            profilingDecoder = std::make_shared<VCLProfilingDecoder>(functions);
+        } catch (const std::exception& ex) {
+            Logger::global().warning("Failed to create the VCL profiling decoder for plugin compilation: %s",
+                                     ex.what());
+        }
+
         auto pluginAdapter =
             std::make_unique<PluginCompilerAdapter>(engineBackend ? engineBackend->getInitStructs() : nullptr,
                                                     pluginCompiler,
-                                                    makeProfilingDecoder(functions));
+                                                    profilingDecoder);
         return {std::move(pluginAdapter), ov::intel_npu::CompilerType::PLUGIN};
     }
 
