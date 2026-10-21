@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-21-12-21-50-000-39587404336",
+  "timestamp": "2026-10-21T12:21:50Z",
+  "run_id": "39587404336",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39587404336",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "4513efe8a6b3b8ec56d169c849b019cc960f244f",
+  "pr_number": "38633",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38633",
+  "author": "YugShah1510",
+  "category": "Infrastructure",
+  "title": "iGPU Tests (unit) / GPU fails - no supported GPU devices found on runner",
+  "signature": "Check '!m_device_map.empty()' failed: [GPU] Can't get <PROPERTY> property as no supported devices found or an error happened during devices query|Infrastructure",
+  "signature_hash": "a5c3320815892838",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "iGPU Tests (unit) / GPU",
+      "conclusion": "failure",
+      "symptom": "benchmark_app sample fails to load model to GPU device because no OpenCL platforms are visible on the runner"
+    }
+  ],
+  "key_errors": [
+    "Number of platforms                               0",
+    "[ ERROR ] Exception from src/inference/src/cpp/core.cpp:117:\nException from src/inference/src/dev/plugin.cpp:112:\nCheck '!m_device_map.empty()' failed at src/plugins/intel_gpu/src/plugin/plugin.cpp:593:\n[GPU] Can't get PERFORMANCE_HINT property as no supported devices found or an error happened during devices query.\n[GPU] Please check OpenVINO documentation for GPU drivers setup guide."
+  ],
+  "root_cause": "The `clinfo` step run just before benchmark_app reports 'Number of platforms  0', meaning the OpenCL ICD cannot see any GPU devices on this self-hosted iGPU runner. This causes the intel_gpu plugin's device enumeration (`!m_device_map.empty()` check in plugin.cpp:593) to fail immediately when benchmark_app tries to load the model with '-d GPU'. This is not a code regression from the merged PR (#38633, unrelated Node.js Buffer handling change) - it is the same recurring runner/driver-level failure recorded 4 times previously since 2026-10-20, now occurring a 5th time, indicating the iGPU self-hosted runner pool has an intermittent or persistent GPU driver/device exposure problem (missing OpenCL ICD registration, container not passing through /dev/dri, or driver crash) rather than a software defect in OpenVINO.",
+  "reproduction_steps": "N/A - requires access to the specific self-hosted iGPU runner. To diagnose: on the affected runner (or container), run `clinfo` and confirm 'Number of platforms' is 0; check /dev/dri device nodes are present and passed into the container, check that the intel-opencl-icd / intel-level-zero-gpu packages and kernel i915 driver are correctly installed and loaded, and check for recent driver/container image changes.",
+  "recommended_actions": [
+    "Escalate to CI infrastructure team: this iGPU runner pool has failed devices-query 5 times since 2026-10-20 - treat as a known recurring infra issue, not a code bug.",
+    "On the affected runner/container image, verify /dev/dri/* nodes exist and are passed through, and that 'clinfo' lists at least one GPU platform before the job starts.",
+    "Add a pre-flight 'clinfo' platform-count check (fail fast with a clear infra error) to iGPU test jobs so future occurrences are immediately distinguishable from code regressions.",
+    "Consider temporarily excluding/quarantining the affected runner from the iGPU test pool until the OpenCL/driver setup is repaired."
+  ],
+  "prevention_strategies": "Add a runner health-check step (e.g., `clinfo` platform count > 0) that fails fast with an explicit 'runner GPU unavailable' message before launching benchmark_app/test suites, so infra failures are not conflated with code regressions. Track iGPU runner health via periodic smoke tests outside of post-commit CI.",
+  "historical_context": "Identical signature recorded 4 times previously in the pattern database (first seen 2026-10-20T09:11:02Z, most recently 2026-10-20T21:22:20Z) across different commits/PRs unrelated to GPU code, confirming this is a persistent runner-level infrastructure problem rather than a code-induced regression. This run is the 5th occurrence."
+}
