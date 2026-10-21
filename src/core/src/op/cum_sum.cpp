@@ -34,6 +34,19 @@ bool evaluate(TensorVector& outputs, const TensorVector& inputs, const bool excl
     outputs[0].set_shape(inputs[0].get_shape());
     const auto axis = ov::get_tensor_data_as<int64_t>(inputs[1]).front();
 
+    // Validate that the normalized axis is within [0, rank) on the core evaluate / constant-folding
+    // path, matching the CPU plugin node check (src/plugins/intel_cpu/src/nodes/cum_sum.cpp).
+    // The shared reference kernel (reference/cum_sum.hpp) also checks bounds defensively; asserting
+    // here surfaces a descriptive ov::Exception during constant folding when the axis is out of
+    // range.
+    const auto cumsum_rank = static_cast<int64_t>(inputs[0].get_shape().size());
+    const auto cumsum_norm_axis = axis < 0 ? axis + cumsum_rank : axis;
+    OPENVINO_ASSERT(cumsum_norm_axis >= 0 && cumsum_norm_axis < cumsum_rank,
+                    "CumSum axis ",
+                    axis,
+                    " is out of range for a tensor of rank ",
+                    cumsum_rank);
+
     using namespace ov::element;
     return IF_TYPE_OF(CumSum_evaluate,
                       f32,
