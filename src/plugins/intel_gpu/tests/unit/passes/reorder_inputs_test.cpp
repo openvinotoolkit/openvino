@@ -588,6 +588,17 @@ TEST(reorder_inputs, mvn_across_channels_rejects_blocked_layout) {
     auto last_axis_unaligned = build({3}, ov::PartialShape{1, 8, 64, 64});
     EXPECT_FALSE(supports(last_axis_unaligned, format::b_fs_yx_fsv16));
     EXPECT_TRUE(supports(last_axis_unaligned, format::bfyx));
+
+    // Aligned MVN with a dynamic batch is always reordered to planar by reorder_inputs, so blocked layouts
+    // must not be offered; otherwise format propagation wraps the MVN in a reorder pair.
+    auto last_axis_dyn = build({3}, ov::PartialShape{-1, 24, 24, 256});
+    EXPECT_FALSE(supports(last_axis_dyn, format::b_fs_yx_fsv16));
+    EXPECT_FALSE(supports(last_axis_dyn, format::b_fs_yx_fsv32));
+    EXPECT_TRUE(supports(last_axis_dyn, format::bfyx));
+
+    // A non-reduced spatial axis with max length 1 does not require alignment: blocked stays supported.
+    auto unit_y_dyn = build({3}, ov::PartialShape{-1, 32, 1, 256});
+    EXPECT_TRUE(supports(unit_y_dyn, format::b_fs_yx_fsv16));
 }
 // TODO Not yet implemented
 //TEST(reorder_inputs, impl_forcing_conv_format_kernel) {
