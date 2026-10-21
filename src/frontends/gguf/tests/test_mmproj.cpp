@@ -723,6 +723,9 @@ INSTANTIATE_TEST_SUITE_P(Reference,
                                            "pixtral",
                                            "pixtral_merge",
                                            "phi4",
+                                           "lfm2",
+                                           "lfm2_no_norm",
+                                           "lfm2a",
                                            "gemma4v",
                                            "gemma4v_one_sided",
                                            "gemma4uv",
@@ -817,7 +820,11 @@ TEST_P(GGUFMMProjGenAIVisionLayout, MatchesSourceGraph) {
             return image.data<const float>()[((frame * 3 + channel) * height + row) * width + col];
         };
         std::vector<ov::Tensor> actual;
-        if (projector == "gemma3") {
+        if (projector == "lfm2") {
+            actual =
+                infer(models.at("vision_embeddings"),
+                      {{"pixel_values", image}, {"merge_indices", tensor(step + "merge_indices", ov::element::i32)}});
+        } else if (projector == "gemma3") {
             actual = infer(models.at("vision_embeddings"), {{"pixel_values", image}});
         } else if (projector == "gemma4v" || projector == "gemma4uv") {
             const size_t padded = count + 3, dim = patch * patch * 3;
@@ -939,8 +946,14 @@ TEST_P(GGUFMMProjGenAIVisionLayout, MatchesSourceGraph) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    Reference,
-    GGUFMMProjGenAIVisionLayout,
-    ::testing::Values("gemma3", "gemma4v", "gemma4v_one_sided", "gemma4uv", "muse-glimmer", "qwen3vl_merger"));
+INSTANTIATE_TEST_SUITE_P(Reference,
+                         GGUFMMProjGenAIVisionLayout,
+                         ::testing::Values("gemma3",
+                                           "gemma4v",
+                                           "gemma4v_one_sided",
+                                           "gemma4uv",
+                                           "muse-glimmer",
+                                           "qwen3vl_merger",
+                                           "lfm2",
+                                           "lfm2_no_norm"));
 }  // namespace

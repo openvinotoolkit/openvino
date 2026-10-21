@@ -447,7 +447,7 @@ public:
      * @brief Bounds-checked payload bytes of a pointer-mode manifest entry; empty view for an invalid or inline entry.
      */
     constexpr ov::util::MemoryView section(const ManifestEntry& entry) const noexcept {
-        if (entry.tag.is_inline() || entry.offset > size() || entry.size > size() - entry.offset) {
+        if (m_view.empty() || entry.tag.is_inline() || entry.offset > size() || entry.size > size() - entry.offset) {
             return {};
         } else {
             return {begin() + static_cast<size_t>(entry.offset), static_cast<size_t>(entry.size)};
