@@ -321,9 +321,9 @@ class ConvFusingForceKernelTest : public BaseFusingTest<bc_force_kernel_params> 
 class WeightsPrimitiveFusingTestOneDNN : public BaseFusingTest<convolution_test_params> {
 public:
     void execute(convolution_test_params& p) {
-        // Onednn post operation has issue in a machine that does not support imad.
-        if (!engine.get_device_info().supports_immad)
-            return;
+        const auto& device_info = engine.get_device_info();
+        if (!device_info.supports_immad || device_info.arch == gpu_arch::unknown)
+            GTEST_SKIP() << "oneDNN is not supported";
         p.expected_fused_primitives = p.expected_fused_primitives_onednn;
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
@@ -336,6 +336,8 @@ public:
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
         network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
         network network_fused(this->engine, this->topology_fused, cfg);
+        if (!network_not_fused.get_config().get_use_onednn())
+            GTEST_SKIP() << "oneDNN is not available";
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -804,6 +806,11 @@ TEST_P(conv_fp32_wrong_bias, basic) {
         reorder("reorder_bfyx", input_info("add"), p.default_format, data_types::f32)
     );
 
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::any, "", impl_types::ocl };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        { "conv_prim", conv_impl }
+    }));
+
     tolerance = default_tolerance(p.default_type);
     execute(p);
 }
@@ -811,6 +818,35 @@ TEST_P(conv_fp32_wrong_bias, basic) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_wrong_bias, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_FP32_15, 3, 3, 3 },
 }));
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+class conv_fp32_wrong_bias_onednn : public WeightsPrimitiveFusingTestOneDNN {};
+TEST_P(conv_fp32_wrong_bias_onednn, basic) {
+    auto p = GetParam();
+    ov::PartialShape eltw_data_shape = get_input_layout(p).get_partial_shape();
+    for (size_t i = 0; i < eltw_data_shape.size() - 2; i++)
+        eltw_data_shape[i] = 1;
+
+    auto eltw_data_layout = layout{eltw_data_shape, p.default_type, format::bfyx};
+    ASSERT_EQ(p.out_shape[1], eltw_data_layout.count());
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("non-bias", get_mem(eltw_data_layout)),
+        convolution("conv_prim", input_info("input"), "weights", "", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
+        eltwise("add", { input_info("conv_prim"), input_info("non-bias") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("add"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_wrong_bias_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_15, 3, 2, 3 },
+}));
+#endif  // ENABLE_ONEDNN_FOR_GPU
 
 class conv_fp16_wrong_bias : public ConvFusingTest {};
 TEST_P(conv_fp16_wrong_bias, basic) {
@@ -3339,7 +3375,7 @@ class ConvFp32ReorderOneDNN : public BaseFusingTest<int> {};
 
 TEST_P(ConvFp32ReorderOneDNN, matches_opencl) {
     if (!engine.get_device_info().supports_immad || engine.get_device_info().arch == gpu_arch::unknown)
-        GTEST_SKIP() << "oneDNN convolution requires a supported GPU";
+        GTEST_SKIP() << "oneDNN is not supported";
 
     const auto scenario = GetParam();
     const bool depthwise = scenario < 2;
@@ -3407,7 +3443,7 @@ TEST_P(ConvFp32ReorderOneDNN, matches_opencl) {
     cfg_not_fused.set_property(ov::intel_gpu::force_implementations(reference_forcing));
     network reference(engine, topology_non_fused, cfg_not_fused);
     if (!reference.get_config().get_use_onednn())
-        GTEST_SKIP() << "oneDNN is disabled in the finalized configuration";
+        GTEST_SKIP() << "oneDNN is not available";
     cfg_fused.set_property(ov::intel_gpu::force_implementations(onednn_forcing));
     network optimized(engine, topology_fused, cfg_fused);
     auto input_memory = get_mem(input_desc);
@@ -3439,7 +3475,7 @@ TEST_P(ConvFp32ReorderOneDNN, matches_opencl) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu_onednn, ConvFp32ReorderOneDNN, ::testing::Range(0, 7),
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, ConvFp32ReorderOneDNN, ::testing::Range(0, 7),
     ([](const ::testing::TestParamInfo<int>& info) {
         static const std::vector<std::string> names{
             "depthwise_blocked_weights", "depthwise_chain", "mean", "subtract",
@@ -4714,6 +4750,31 @@ TEST_P(conv_elt_fp16_onednn, basic_activation_eltwise_div) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_elt_fp16_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 4 },
+}));
+
+
+class conv_elt_fp32_onednn : public WeightsPrimitiveFusingTestOneDNN {};
+TEST_P(conv_elt_fp32_onednn, basic_activation_eltwise_div) {
+    auto p = GetParam();
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_per_channel_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
+        data("eltwise_data", get_mem(get_output_layout(p), 1.0f)),
+        convolution("conv_prim", input_info("input"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
+        activation("activation", input_info("conv_prim"), "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", input_info("activation"), input_info("eltwise_data"), eltwise_mode::div),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_elt_fp32_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 4 },
 }));
 
 #endif  // ENABLE_ONEDNN_FOR_GPU
