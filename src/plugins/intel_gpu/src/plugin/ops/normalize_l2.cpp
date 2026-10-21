@@ -31,7 +31,7 @@ static void CreateNormalizeL2Op(ProgramBuilder& p, const std::shared_ptr<ov::op:
 
     // WA for OVC outputting %.6f
     if (eps == 0.0f && !across_x) {
-        eps = 1.19209e-7f;
+        eps = 1e-10f;
     }
 
     // We create fake scale constant and fill it with ones to keep the same behavior as current primitive
