@@ -483,8 +483,9 @@ private:
 
         switch (fmt) {
         case dnnl::memory::format_tag::ab:
+            strides.push_back(std::accumulate(padded_dims.begin() + 1, padded_dims.end(), int64_t{1},
+                                              [](int64_t stride, int64_t dim) { return stride * dim; }));
             strides.push_back(1);
-            strides.push_back(padded_dims[0]);
             break;
 
         case dnnl::memory::format_tag::abc:
