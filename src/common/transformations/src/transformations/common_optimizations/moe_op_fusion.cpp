@@ -166,8 +166,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
                 // Note: other compressed types usually don't have scalar zero points
                 return weights.get_element_type() == ov::element::u3 || ov::shape_size(zp.get_shape()) != 1;
             };
-            if (!is_zp_supported(pm.at(gate_zp_m), gate_w) ||
-                !is_zp_supported(pm.at(up_zp_m), up_w) ||
+            if (!is_zp_supported(pm.at(gate_zp_m), gate_w) || !is_zp_supported(pm.at(up_zp_m), up_w) ||
                 !is_zp_supported(pm.at(down_zp_m), down_w)) {
                 return false;
             }
