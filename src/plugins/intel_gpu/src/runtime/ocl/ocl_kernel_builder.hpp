@@ -64,37 +64,29 @@ class ocl_kernel_builder : public kernel_builder{
                 DISCARD_RETURN(program.build({m_device.get_device()}, options.c_str()));
                 DISCARD_RETURN(program.createKernels(&kernels));
             } catch (const cl::BuildError& err) {
-                // GPU_DEBUG_INFO is compiled out in release builds (ENABLE_DEBUG_CAPS off), which
-                // leaves "clBuildProgram, error code: -11" as the only output — the compiler
-                // diagnostics, the sole actionable information for a kernel that fails to build,
-                // are lost entirely. Put them in the exception message so they always survive.
-                std::string build_log;
-                for (auto& e : err.getBuildLog()) {
-                    build_log += e.second;
-                }
                 GPU_DEBUG_INFO << "-------- Kernel build error" << std::endl;
-                GPU_DEBUG_INFO << build_log;
+                auto log = err.getBuildLog();
+                for (auto &e : log) {
+                    GPU_DEBUG_INFO << e.second;
+                }
                 GPU_DEBUG_INFO << "-------- End of Kernel build error" << std::endl;
-                OPENVINO_THROW(OCL_ERR_MSG_FMT(err), "\n-------- OpenCL build log --------\n", build_log, "\n-------- End of build log --------");
+                OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
             } catch (const cl::Error& err) {
                 // cl::Program::build only throws cl::BuildError for CL_BUILD_PROGRAM_FAILURE.
                 // Other build-time failures (e.g. CL_OUT_OF_RESOURCES when the generated
                 // kernel exceeds device limits) arrive here as a plain cl::Error, so the
                 // program build log is otherwise lost. Surface it for diagnostics.
-                std::string build_log;
+                GPU_DEBUG_INFO << "-------- Kernel build error" << std::endl;
                 try {
-                    for (auto& e : program.getBuildInfo<CL_PROGRAM_BUILD_LOG>()) {
-                        build_log += e.second;
+                    auto log = program.getBuildInfo<CL_PROGRAM_BUILD_LOG>();
+                    for (auto& e : log) {
+                        GPU_DEBUG_INFO << e.second;
                     }
                 } catch (const cl::Error&) {
-                    build_log = "Failed to retrieve program build log";
+                    GPU_DEBUG_INFO << "Failed to retrieve program build log" << std::endl;
                 }
-                GPU_DEBUG_INFO << "-------- Kernel build error" << std::endl;
-                GPU_DEBUG_INFO << build_log;
                 GPU_DEBUG_INFO << "-------- End of Kernel build error" << std::endl;
-                // Same rationale as the BuildError branch above: without this the release build
-                // reports only an error code.
-                OPENVINO_THROW(OCL_ERR_MSG_FMT(err), "\n-------- OpenCL build log --------\n", build_log, "\n-------- End of build log --------");
+                OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
             } catch (...) {
                 // We should never hit this catch block
                 OPENVINO_THROW("[GPU] Unknown error during kernel build process");

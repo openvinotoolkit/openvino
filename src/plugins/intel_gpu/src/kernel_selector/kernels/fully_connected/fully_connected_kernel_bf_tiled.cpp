@@ -551,8 +551,7 @@ FullyConnected_bf_tiled::tune_params FullyConnected_bf_tiled::GetAutoTuneParams(
         const bool is_osv64_isv2 = params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2;
         if (!params.is_shape_agnostic && batch == 1) {
             if (is_osv64_isv2) {
-                selector.Case(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT))
-                        .Case(tune_params(1, 4, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+                selector.Case(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT)).Case(tune_params(1, 4, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
                 return selector.Default(tune_params(1, 4, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
             }
             return selector.Default(tune_params(1, 1, 4, 4, 1, 1, 1, EXE_MODE_DEFAULT));
@@ -854,8 +853,8 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
             // In os_iyx_osv16 the byte holds 4 consecutive IFM values of one output feature;
             // in os_is_yx_osv64_isv2 it holds a k-pair of two output features 16 apart, and the
             // second staged byte (next 32-byte k-pair line) completes the TILE_K 4 window.
-            OPENVINO_ASSERT((params.weights.GetLayout() == WeightsLayout::os_iyx_osv16 ||
-                             params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) && block_read_size == 4,
+            OPENVINO_ASSERT((params.weights.GetLayout() == WeightsLayout::os_iyx_osv16 || params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) &&
+                                block_read_size == 4,
                             "[GPU] Unsupported weights layout or block size for u2 SLM kernel configuration");
             jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", 1));
             jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", weights_dt, 4));

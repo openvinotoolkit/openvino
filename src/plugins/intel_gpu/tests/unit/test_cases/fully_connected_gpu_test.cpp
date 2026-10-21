@@ -25,6 +25,31 @@
 using namespace cldnn;
 using namespace ::tests;
 
+TEST(fully_connected_gpu, dynamic_byxf) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ov::PartialShape{2, 2, 2}, data_types::f32, format::byxf});
+    auto weights = engine.allocate_memory({ov::PartialShape{2, 2}, data_types::f32, format::bfyx});
+    set_values(input, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+    set_values(weights, {1.f, 1.f, 1.f, -1.f});
+
+    topology topology(input_layout("input", {ov::PartialShape::dynamic(3), data_types::f32, format::byxf}),
+                      data("weights", weights),
+                      fully_connected("fc", input_info("input"), "weights", "", 3, 2));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    ASSERT_TRUE(network.get_primitive("fc")->get_impl()->is_dynamic());
+    auto output = network.execute().at("fc").get_memory();
+    ASSERT_EQ(output->get_layout().format, format::byxf);
+    mem_lock<float, mem_lock_type::read> result(output, get_test_stream());
+    const std::vector<float> expected = {4.f, 6.f, -2.f, -2.f, 12.f, 14.f, -2.f, -2.f};
+    ASSERT_EQ(result.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i)
+        EXPECT_FLOAT_EQ(result[i], expected[i]) << i;
+}
+
 namespace {
 cldnn::format::type layout_4d(cldnn::format f) {
     switch (f.value) {
@@ -3180,6 +3205,126 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         }
     }
 
+    void test_compressed_int8_transpose_scale_zp(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+        const int64_t ofm = 3;
+        const int64_t ifm = 32;
+        constexpr int64_t group_size = 16;
+
+        auto input_mem = engine.allocate_memory({ {1, 2, ifm}, data_types::f16, format::bfyx });
+        auto weights_mem = engine.allocate_memory({ {ofm, ifm}, data_types::u8, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {ifm / group_size, ofm}, data_types::f16, format::bfyx });
+        auto zp_mem = engine.allocate_memory({ {ifm / group_size, ofm}, data_types::u8, format::bfyx });
+
+        set_values<ov::float16>(input_mem,
+                                std::vector<ov::float16>(1 * 2 * ifm, ov::float16(1.0f)));
+        set_values<ov::float16>(scale_mem, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f});
+        set_values<uint8_t>(zp_mem, {1, 2, 3, 4, 5, 6});
+
+        std::vector<uint8_t> weights_data;
+        weights_data.reserve(ifm * ofm);
+        for (int64_t output = 0; output < ofm; ++output) {
+            for (int64_t group = 0; group < ifm / group_size; ++group) {
+                const auto zp = static_cast<uint8_t>(group * ofm + output + 1);
+                weights_data.insert(weights_data.end(), static_cast<size_t>(group_size), static_cast<uint8_t>(zp + 1));
+            }
+        }
+        set_values<uint8_t>(weights_mem, weights_data);
+
+        auto fc_prim = fully_connected("fc_prim",
+                                       input_info("input"),
+                                       "weights",
+                                       "",
+                                       "scale",
+                                       "zp",
+                                       data_types::f16,
+                                       3,
+                                       2,
+                                       true, 0, 0);
+
+        topology topology(
+            input_layout("input", input_mem->get_layout()),
+            data("weights", weights_mem),
+            data("scale", scale_mem),
+            data("zp", zp_mem),
+            fc_prim);
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input_mem);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+        auto output_mem = outputs.begin()->second.get_memory();
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+
+        ASSERT_EQ((ov::PartialShape{1, 2, ofm}), output_mem->get_layout().get_partial_shape());
+
+        const std::vector<ov::float16> expected_result = {80.0f, 112.0f, 144.0f, 80.0f, 112.0f, 144.0f};
+        ASSERT_EQ(expected_result.size(), output_ptr.size());
+        for (size_t i = 0; i < expected_result.size(); ++i) {
+            ASSERT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
+        }
+    }
+
+    void test_compressed_int8_broadcast_scale_zp(bool is_caching_test, bool transpose_parameters) {
+        auto& engine = get_test_engine();
+        if (!engine.get_device_info().supports_fp16) {
+            GTEST_SKIP() << "The test requires FP16 support.";
+        }
+
+        constexpr int64_t ofm = 3;
+        constexpr int64_t ifm = 32;
+        constexpr int64_t groups = 2;
+        const auto param_shape = transpose_parameters ? ov::PartialShape{1, groups} : ov::PartialShape{groups, 1};
+
+        auto input_mem = engine.allocate_memory({{1, 2, ifm}, data_types::f16, format::bfyx});
+        auto weights_mem = engine.allocate_memory({{ofm, ifm}, data_types::u8, format::bfyx});
+        auto scale_mem = engine.allocate_memory({param_shape, data_types::f16, format::bfyx});
+        auto zp_mem = engine.allocate_memory({param_shape, data_types::u8, format::bfyx});
+        set_values<ov::float16>(input_mem, std::vector<ov::float16>(2 * ifm, ov::float16(1.0f)));
+        set_values<uint8_t>(weights_mem, std::vector<uint8_t>(ofm * ifm, 3));
+        set_values<ov::float16>(scale_mem, {2.0f, 3.0f});
+        set_values<uint8_t>(zp_mem, {1, 2});
+
+        auto fc_prim = fully_connected("fc_prim",
+                                       input_info("input"),
+                                       "weights",
+                                       "",
+                                       "scale",
+                                       "zp",
+                                       data_types::f16,
+                                       3,
+                                       2,
+                                       true,
+                                       transpose_parameters,
+                                       transpose_parameters);
+        topology topology(input_layout("input", input_mem->get_layout()), data("weights", weights_mem), data("scale", scale_mem), data("zp", zp_mem), fc_prim);
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        auto network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input_mem);
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t{1});
+        auto output_mem = outputs.at("fc_prim").get_memory();
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+        ASSERT_EQ((ov::PartialShape{1, 2, ofm}), output_mem->get_layout().get_partial_shape());
+        ASSERT_EQ(output_ptr.size(), size_t{2 * ofm});
+
+        // Both groups broadcast across all output channels: 16*(3-1)*2 + 16*(3-2)*3 = 112.
+        for (size_t i = 0; i < output_ptr.size(); ++i) {
+            EXPECT_EQ(ov::float16(112.0f), output_ptr[i]) << "i = " << i;
+        }
+    }
+
     void test_dynamic(bool is_caching_test) {
         auto& engine = get_test_engine();
 
@@ -5675,6 +5820,18 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_scalar) {
     this->test_compressed_int8_scale_zp_scalar(false);
 }
 
+TEST_F(fully_connected_gpu_tests, compressed_int8_transpose_scale_zp) {
+    this->test_compressed_int8_transpose_scale_zp(true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_broadcast_scale_zp) {
+    this->test_compressed_int8_broadcast_scale_zp(false, false);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_broadcast_scale_zp_cached) {
+    this->test_compressed_int8_broadcast_scale_zp(true, false);
+}
+
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_b1) {
     this->test_compressed_int8_scale(false, true, 1, false, false);
 }
@@ -6724,3 +6881,161 @@ TEST(fully_connected_gpu_u2_bf_tiled_osv64, horizontal_weights) {
 
     run_fc_u2_bf_tiled(1, ifm_num, ofm_num, 32, false, format::os_is_yx_osv64_isv2);
 }
+
+// Batch-1 FC on the GEMV kernel with u2 weights. Unlike the int4 GEMV cases above these do not skip
+// discrete or IMMAD devices: no oneDNN FC implementation takes u2, so GEMV is what u2 decode runs on
+// there.
+enum class fc_gemv_zp { none, grouped, scalar };
+
+struct fc_gemv_case {
+    data_types wei_type;
+    int ifm_num;
+    int ofm_num;
+    int scales_group_size;
+    fc_gemv_zp zp;
+    float scalar_zp;
+    bool dynamic;
+    // u4 compressed FC is taken by oneDNN on IMMAD devices, so the u4 case has to force the kernel.
+    bool force_gemv;
+    bool expect_gemv;
+};
+
+class fully_connected_gpu_u2_gemv : public ::testing::TestWithParam<fc_gemv_case> {
+public:
+    static std::string GetTestCaseName(const testing::TestParamInfo<fc_gemv_case>& obj) {
+        const auto& p = obj.param;
+        std::string name = (p.wei_type == data_types::u2 ? "u2" : "u4");
+        name += "_ifm" + std::to_string(p.ifm_num) + "_ofm" + std::to_string(p.ofm_num) + "_g" +
+                std::to_string(p.scales_group_size);
+        if (p.zp == fc_gemv_zp::grouped)
+            name += "_zp";
+        if (p.zp == fc_gemv_zp::scalar)
+            name += "_scalarzp" + std::to_string(static_cast<int>(p.scalar_zp * 10));
+        if (p.dynamic)
+            name += "_dyn";
+        if (!p.expect_gemv)
+            name += "_fallback";
+        return name;
+    }
+};
+
+TEST_P(fully_connected_gpu_u2_gemv, batch1) {
+    const auto& p = GetParam();
+    auto& engine = get_test_engine();
+    const int bits = p.wei_type == data_types::u2 ? 2 : 4;
+    const int per_byte = 8 / bits;
+    ASSERT_EQ(p.ifm_num % per_byte, 0);
+    ASSERT_EQ(p.ifm_num % p.scales_group_size, 0);
+    const int groups = p.ifm_num / p.scales_group_size;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    // Non-negative activations: a scalar zp of 1.5 truncated to 1 shifts every output by
+    // 0.5 * scale * sum(x), which stays far outside the tolerance only if sum(x) cannot cancel out.
+    auto input_data = rg.generate_random_1d<ov::float16>(p.ifm_num, 0.0f, 1.0f);
+    auto weight_vals = rg.generate_random_1d<uint8_t>(p.ofm_num * p.ifm_num, 0, (1 << bits) - 1);
+    std::vector<uint8_t> packed(weight_vals.size() / per_byte, 0);
+    for (size_t i = 0; i < weight_vals.size(); ++i)
+        packed[i / per_byte] |= static_cast<uint8_t>(weight_vals[i] << ((i % per_byte) * bits));
+    auto scale_data = rg.generate_random_1d<ov::float16>(p.ofm_num * groups, 0.5f, 2.0f);
+    std::vector<ov::float16> zp_data;
+    if (p.zp == fc_gemv_zp::grouped)
+        zp_data = rg.generate_random_1d<ov::float16>(p.ofm_num * groups, 0.5f, 2.5f);
+
+    auto input_mem = engine.allocate_memory({{1, p.ifm_num}, data_types::f16, format::bfyx});
+    set_values(input_mem, input_data);
+    auto weights_mem = engine.allocate_memory({{p.ofm_num, p.ifm_num}, p.wei_type, format::bfyx});
+    set_values(weights_mem, packed);
+    auto scale_mem = engine.allocate_memory({{p.ofm_num, groups}, data_types::f16, format::bfyx});
+    set_values(scale_mem, scale_data);
+
+    auto in_layout = p.dynamic ? layout{ov::PartialShape{-1, p.ifm_num}, data_types::f16, format::bfyx}
+                               : layout{ov::PartialShape{1, p.ifm_num}, data_types::f16, format::bfyx};
+    topology topology(input_layout("input", in_layout), data("weights", weights_mem), data("scale", scale_mem));
+    if (p.zp == fc_gemv_zp::grouped) {
+        auto zp_mem = engine.allocate_memory({{p.ofm_num, groups}, data_types::f16, format::bfyx});
+        set_values(zp_mem, zp_data);
+        topology.add(data("zp", zp_mem));
+    } else if (p.zp == fc_gemv_zp::scalar) {
+        // The shape the plugin emits for a scalar zero point: a one-element input plus the value.
+        auto zp_mem = engine.allocate_memory({{1, 1}, data_types::f16, format::bfyx});
+        set_values(zp_mem, std::vector<ov::float16>{ov::float16(p.scalar_zp)});
+        topology.add(data("zp", zp_mem));
+    }
+    auto fc_prim = fully_connected("fc_prim",
+                                   input_info("input"),
+                                   "weights",
+                                   "",
+                                   "scale",
+                                   p.zp == fc_gemv_zp::none ? "" : "zp",
+                                   data_types::f16,
+                                   2,
+                                   2);
+    if (p.zp == fc_gemv_zp::scalar)
+        fc_prim.decompression_zero_point_scalar = p.scalar_zp;
+    topology.add(fc_prim);
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+    if (p.force_gemv) {
+        ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_gemv", impl_types::ocl};
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
+    }
+
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->set_input_data("input", input_mem);
+    auto outputs = network->execute();
+    if (p.dynamic) {
+        // A dynamic FC starts on the shape-agnostic kernel and switches to GEMV asynchronously.
+        network->get_program()->get_compilation_context().wait_all();
+        outputs = network->execute();
+    }
+    ASSERT_EQ(outputs.size(), size_t(1));
+
+    auto impl = network->get_primitive("fc_prim")->get_impl();
+    ASSERT_NE(impl, nullptr);
+    bool on_gemv = false;
+    for (auto& kernel : impl->get_kernels())
+        on_gemv |= kernel->get_id().find("fully_connected_gpu_gemv") != std::string::npos;
+    ASSERT_EQ(on_gemv, p.expect_gemv) << (p.expect_gemv ? "GEMV was not selected for this shape"
+                                                        : "GEMV accepted a shape its u2 unpack cannot decode");
+
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), static_cast<size_t>(p.ofm_num));
+    for (int ofm = 0; ofm < p.ofm_num; ++ofm) {
+        double acc = 0.0;
+        for (int ifm = 0; ifm < p.ifm_num; ++ifm) {
+            const int g = ofm * groups + ifm / p.scales_group_size;
+            const float zp = p.zp == fc_gemv_zp::grouped  ? static_cast<float>(zp_data[g])
+                             : p.zp == fc_gemv_zp::scalar ? p.scalar_zp
+                                                          : 0.0f;
+            const float w = (static_cast<float>(weight_vals[ofm * p.ifm_num + ifm]) - zp) * static_cast<float>(scale_data[g]);
+            acc += static_cast<double>(input_data[ifm]) * w;
+        }
+        const float tolerance = std::max(0.5f, 0.01f * std::fabs(static_cast<float>(acc)));
+        ASSERT_NEAR(acc, static_cast<float>(output_ptr[ofm]), tolerance) << "Mismatch at ofm " << ofm;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    fully_connected_gpu_u2_gemv,
+    ::testing::Values(
+        // u2 on GEMV: no zp, per-group zp, and the scalar 1.5 of the {-1.5,-0.5,+0.5,+1.5} grid.
+        fc_gemv_case{data_types::u2, 512, 256, 64, fc_gemv_zp::none, 0.0f, false, false, true},
+        fc_gemv_case{data_types::u2, 2048, 512, 128, fc_gemv_zp::grouped, 0.0f, false, false, true},
+        fc_gemv_case{data_types::u2, 512, 256, 64, fc_gemv_zp::scalar, 1.5f, false, false, true},
+        fc_gemv_case{data_types::u2, 2048, 512, 128, fc_gemv_zp::scalar, 1.5f, false, false, true},
+        // Channel-wise scale: the SINGLE_GROUP_NUM path, which re-splits K by 128.
+        fc_gemv_case{data_types::u2, 1024, 256, 1024, fc_gemv_zp::scalar, 1.5f, false, false, true},
+        // Dynamic batch, as in LLM decode: the shape-agnostic kernel first, then the switch to GEMV.
+        fc_gemv_case{data_types::u2, 2048, 512, 128, fc_gemv_zp::scalar, 1.5f, true, false, true},
+        // Shapes the u2 unpack cannot decode must leave GEMV: K not a multiple of 64, and a scale
+        // group that does not cover whole 64-value windows.
+        fc_gemv_case{data_types::u2, 160, 256, 32, fc_gemv_zp::none, 0.0f, false, false, false},
+        fc_gemv_case{data_types::u2, 512, 256, 32, fc_gemv_zp::scalar, 1.5f, false, false, false},
+        // u4 with an integer scalar zp through the same zp variable, now a half instead of a char.
+        fc_gemv_case{data_types::u4, 512, 256, 128, fc_gemv_zp::scalar, 8.0f, false, true, true}),
+    fully_connected_gpu_u2_gemv::GetTestCaseName);

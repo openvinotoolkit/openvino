@@ -433,10 +433,10 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     {
         const auto up_weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1)).data_type;
         const auto down_weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2)).data_type;
-        const bool all_u2 =
-            weight_dt == ov::element::u2 && up_weight_dt == ov::element::u2 && down_weight_dt == ov::element::u2;
+        const bool all_u2 = weight_dt == ov::element::u2 && up_weight_dt == ov::element::u2 && down_weight_dt == ov::element::u2;
         const size_t sg = (info.arch >= gpu_arch::xe2) ? 32u : 16u;
-        // Mirrors FAKE_GROUP_SIZE in moe_3gemm_swiglu_mlp.cl; the two must not drift apart.
+        // Mirrors FAKE_GROUP_SIZE in moe_3gemm_swiglu_mlp.cl, which also takes the down group size;
+        // checking gate/up alone let a smaller down group through to a branch that does not exist.
         const size_t fake_gs = std::min({gate_up_group_size, down_group_size, size_t{128}});
         const size_t min_fake_gs = all_u2 ? sg : 2 * sg;
         OPENVINO_ASSERT(fake_gs >= min_fake_gs,
@@ -517,8 +517,8 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
         jit.make("MOE_ZP_DT", "half");     // not use
     }
 
-    // A3: per-GEMM weight dtype codes (gate/up/down may differ under NNCF mixed precision).
-    // Code mirrors WEIGHT_COMPRESSEION_DT: 0=u4/i4, 1=u8/i8, 2=f16, 3=u2.
+    // Per-GEMM weight dtype codes: gate, up and down may differ under NNCF mixed precision, and
+    // each is decoded with its own. Codes mirror WEIGHT_COMPRESSEION_DT: 0=u4/i4, 1=u8/i8, 2=f16, 3=u2.
     const auto moe_weight_code = [](ov::element::Type dt) -> int {
         if (dt == ov::element::u4 || dt == ov::element::i4)
             return 0;
@@ -680,7 +680,7 @@ protected:
 };
 
 // Native u2 grouped GEMM for prefill: consumes the u2 expert weights directly, so the u4
-// unpack scratch (12.08 GB on Qwen3.6-35B-A3B) is not needed at all. One instantiation per
+// unpack scratch (twice the size of the u2 expert weights) is not needed at all. One instantiation per
 // GEMM because K and N differ between gate/up (K=hidden, N=inter) and down (K=inter, N=hidden),
 // and the kernel sizes its SLM staging buffer from K at compile time.
 //
@@ -690,9 +690,7 @@ protected:
 class MoE3GemmSwigluU2Gemm : public KernelGenerator {
 public:
     // gemm_idx: 0 = gate, 1 = up, 2 = down.
-    explicit MoE3GemmSwigluU2Gemm(int gemm_idx)
-        : KernelGenerator("moe_3gemm_swiglu_mlp", "u2_gemm_" + std::to_string(gemm_idx)),
-          m_gemm_idx(gemm_idx) {}
+    explicit MoE3GemmSwigluU2Gemm(int gemm_idx) : KernelGenerator("moe_3gemm_swiglu_mlp", "u2_gemm_" + std::to_string(gemm_idx)), m_gemm_idx(gemm_idx) {}
 
     // Tokens staged in SLM per work-group. The whole point of the kernel: one weight byte read
     // (and one shift/mask dequant) feeds TILE_M FMAs, taking weight arithmetic intensity from
@@ -727,7 +725,7 @@ public:
     // The DPAS variant needs XMX (intel_sub_group_f16_f16_matrix_mad_k16) and 2D block loads
     // (cl_intel_subgroup_2d_block_io); without them the OpenCL JIT fails at model load rather than
     // falling back. Gating on xe2 also excludes Xe-HPC, which has both -- a deliberately
-    // conservative choice, since xe2 is the only architecture this kernel has been measured on.
+    // conservative choice, since xe2 is the only architecture this kernel has been validated on.
     static bool dpas_supported(gpu_arch arch, size_t hidden_size, size_t inter_size, size_t gate_up_gs, size_t down_gs) {
         if (arch < gpu_arch::xe2) {
             return false;
@@ -751,8 +749,7 @@ public:
     // Exactly one of the two variants is compiled (U2_DPAS_ENABLE selects between them), so the
     // native u2 GEMM is available whenever the variant that would be chosen is.
     static bool supported(gpu_arch arch, size_t hidden_size, size_t inter_size, size_t gate_up_gs, size_t down_gs) {
-        return dpas_supported(arch, hidden_size, inter_size, gate_up_gs, down_gs) ||
-               fma_supported(arch, gate_up_gs, down_gs);
+        return dpas_supported(arch, hidden_size, inter_size, gate_up_gs, down_gs) || fma_supported(arch, gate_up_gs, down_gs);
     }
 
 protected:
@@ -787,9 +784,7 @@ protected:
         // Zero-point form is per GEMM -- a mixed layer can pair a scalar (INT2_SYM) gate with a
         // per-group (INT2_ASYM) down -- and this kernel is instantiated once per GEMM.
         if (cfg.has_zp) {
-            const auto zp_idx = m_gemm_idx == 0   ? MOE3GemmInputIndex::ZP_0
-                                : m_gemm_idx == 1 ? MOE3GemmInputIndex::ZP_1
-                                                  : MOE3GemmInputIndex::ZP_2;
+            const auto zp_idx = m_gemm_idx == 0 ? MOE3GemmInputIndex::ZP_0 : m_gemm_idx == 1 ? MOE3GemmInputIndex::ZP_1 : MOE3GemmInputIndex::ZP_2;
             const auto& zp_layout = params.get_input_layout(static_cast<size_t>(zp_idx));
             const bool zp_scalar = zp_layout.count() == 1;
             jit.make("U2_GEMM_ZP_SCALAR", zp_scalar ? 1 : 0);
@@ -797,9 +792,7 @@ protected:
                 // The kernel unpacks the zp 4 per byte. A u8 zp behind u2 weights would be read at
                 // a quarter of its true stride and produce plausible-looking garbage, so refuse it
                 // here instead of at the end of an eval run.
-                OPENVINO_ASSERT(zp_layout.data_type == ov::element::u2,
-                                "Per-group zp for a u2 MoE GEMM must be u2 (4 per byte), got ",
-                                zp_layout.data_type);
+                OPENVINO_ASSERT(zp_layout.data_type == ov::element::u2, "Per-group zp for a u2 MoE GEMM must be u2 (4 per byte), got ", zp_layout.data_type);
                 const size_t per_expert = n * (k / group_size);
                 OPENVINO_ASSERT(per_expert != 0 && zp_layout.count() % per_expert == 0,
                                 "Per-group MoE zp element count ",
@@ -845,6 +838,12 @@ static int64_t get_bytes_count(int64_t element_count, const cldnn::layout& layou
 class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
+
+    // Routing/expert selection is read back to the host (topk_ids, expert masks)
+    bool supports_replay() const override {
+        return false;
+    }
+
     Stage::Ptr gather = make_stage<MoE3GemmSwigluGather>();
     Stage::Ptr scatter = make_stage<MoE3GemmSwigluScatter>();
     Stage::Ptr mlp_gate_up = make_stage<MoE3GemmSwigluMLPGateUp>();
@@ -1242,8 +1241,8 @@ public:
     bool use_micro_gemm_prefill = false;
     bool use_gpu_mask_gen_prefill = false;
     bool use_grouped_gemm_prefill = false;
-    bool _weights_u2 = false;                     // any u2 GEMM: batched GEMV for decode, u4-unpack + grouped GEMM for prefill
-    bool _gemm_weights_u2[3] = {false, false, false};  // per-GEMM (gate/up/down) u2 flags
+    bool _weights_u2 = false;                                   // any u2 GEMM: batched GEMV for decode, u4-unpack + grouped GEMM for prefill
+    bool _gemm_weights_u2[3] = {false, false, false};           // per-GEMM (gate/up/down) u2 flags
     bool _shared_weights_u2[4] = {false, false, false, false};  // per-projection (gate/up/down/scalar-gate) shared-expert u2 flags
     // u2 prefill scratch: unpacked u4 copies of this layer's expert weights (and zp).
     // Allocated lazily on first prefill and reused across calls (unpack_u2_weights_for_prefill).
@@ -1354,7 +1353,7 @@ public:
         // u4-only prefill paths cannot consume u2 data directly. Decode (small token
         // counts) is served by the hand-written batched GEMV kernels; prefill unpacks
         // the u2 weights into u4 scratch buffers and runs the grouped GEMM path.
-        // In NNCF mixed-precision layers ANY u2 GEMM (gate/up/down) selects this split (A3).
+        // In NNCF mixed-precision layers ANY u2 GEMM (gate/up/down) selects this split.
         _gemm_weights_u2[0] = (weight_dt == data_types::u2);
         _gemm_weights_u2[1] = (params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1)).data_type == data_types::u2);
         _gemm_weights_u2[2] = (params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2)).data_type == data_types::u2);
@@ -1394,8 +1393,7 @@ public:
 
         // Weight provider: select based on OTD configuration.
         auto cur_moe = node.as<moe_3gemm_fused_compressed>().get_primitive();
-        OPENVINO_ASSERT(!_weights_u2 || cur_moe->_otd.lru_expert_num == 0,
-                        "moe_3gemm: u2 weights are not supported with OTD (expert offload) yet");
+        OPENVINO_ASSERT(!_weights_u2 || cur_moe->_otd.lru_expert_num == 0, "moe_3gemm: u2 weights are not supported with OTD (expert offload) yet");
         if (cur_moe->_otd.lru_expert_num > 0) {
             _weight_provider = std::make_shared<OffloadExpertWeightProvider>(cur_moe->_otd.lru_expert_num,
                                                                              cur_moe->_config,
@@ -1577,16 +1575,14 @@ public:
         auto shared_weight_mem = [&](int i, const std::vector<int64_t>& dims, dnnl::memory::format_tag tag) {
             if (_shared_weights_u2[i]) {
                 OPENVINO_ASSERT(_u2_unpack_shared_weight[i], "moe_3gemm shared weight ", i, " is u2 but its u4 unpack scratch is not allocated");
-                return _u2_unpack_shared_weight[i]->get_onednn_memory(
-                    dnnl::memory::desc(dnnl::memory::dims(dims), dnnl::memory::data_type::u4, tag));
+                return _u2_unpack_shared_weight[i]->get_onednn_memory(dnnl::memory::desc(dnnl::memory::dims(dims), dnnl::memory::data_type::u4, tag));
             }
             return convert2dnnl(addr.shared_weight[i], dims, tag);
         };
         auto shared_zp_mem = [&](int i, const std::vector<int64_t>& dims, dnnl::memory::format_tag tag) {
             if (_shared_weights_u2[i]) {
                 OPENVINO_ASSERT(_u2_unpack_shared_zp[i], "moe_3gemm shared weight ", i, " is u2 but its u4 zp unpack scratch is not allocated");
-                return _u2_unpack_shared_zp[i]->get_onednn_memory(
-                    dnnl::memory::desc(dnnl::memory::dims(dims), dnnl::memory::data_type::u4, tag));
+                return _u2_unpack_shared_zp[i]->get_onednn_memory(dnnl::memory::desc(dnnl::memory::dims(dims), dnnl::memory::data_type::u4, tag));
             }
             return convert2dnnl(addr.shared_zp[i], dims, tag);
         };
@@ -2793,9 +2789,7 @@ public:
         // 32 rows for the DPAS variant (4 float8 accumulators), 8 for the FMA one. The kernel
         // guards the ragged final block with n_tokens, so a short block costs nothing but a few
         // masked-off accumulator slots.
-        const int tile_m = use_u2_dpas(instance.get_impl_params()->get_device_info().arch)
-                               ? MoE3GemmSwigluU2Gemm::DPAS_TILE_M
-                               : MoE3GemmSwigluU2Gemm::TILE_M;
+        const int tile_m = use_u2_dpas(instance.get_impl_params()->get_device_info().arch) ? MoE3GemmSwigluU2Gemm::DPAS_TILE_M : MoE3GemmSwigluU2Gemm::TILE_M;
         std::vector<int32_t> blocks;
         blocks.reserve(static_cast<size_t>(tokens_lens_per_expert_cpu.size()) * 3);
 
@@ -2820,9 +2814,7 @@ public:
         auto& engine = instance.get_network().get_engine();
         const auto bytes = blocks.size() * sizeof(int32_t);
         if (!_u2_gemm_blocks || _u2_gemm_blocks->size() < bytes) {
-            auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(blocks.size())},
-                                        ov::element::i32,
-                                        cldnn::format::bfyx);
+            auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(blocks.size())}, ov::element::i32, cldnn::format::bfyx);
             // usm_host: written by the CPU every prefill, read once by the kernel. Tiny
             // (3 ints per TILE_M rows), so the host-side write is not worth a staging copy.
             _u2_gemm_blocks = engine.allocate_memory(layout, allocation_type::usm_host, false);
@@ -2841,8 +2833,7 @@ public:
                                   scratch_buffers& scratch,
                                   size_t n_cols,
                                   int num_blocks) {
-        // Fail loudly rather than silently decoding a u4/u8 buffer as u2. The throw is caught by
-        // the caller's try/catch, which falls back to the batched GEMV.
+        // Fail loudly rather than silently decoding a u4/u8 buffer as u2.
         OPENVINO_ASSERT(_gemm_weights_u2[gemm_idx], "moe_3gemm native u2 GEMM invoked on a non-u2 weight, gemm_idx=", gemm_idx);
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
         // The raw u2 weights, NOT the u4 unpack scratch — that is the entire point.
@@ -2854,12 +2845,10 @@ public:
 
         if (use_u2_dpas(instance.get_impl_params()->get_device_info().arch)) {
             // Split N back across work-groups. The FMA variant sweeps all of N inside one
-            // work-group because repeating its 33 KB SLM staging 16x was worse; with the staging
+            // work-group because repeating its SLM staging per N block was worse; with the staging
             // gone that trade reverses, and narrow N tiles now lose only because each work-group
-            // re-reads the activation tile from L2. Measured on the 1k gate/up shape: 32 channels
-            // per work-group 3.27 ms, 64 -> 1.43, 128 -> 1.25, 256 -> 1.17, all of N -> 1.15.
-            // 256 is the balance point - within 1.5% of the best at 1k, the best measured at 55
-            // tokens, and unlike full-N it leaves enough work-groups to load-balance.
+            // re-reads the activation tile from L2. 256 channels per work-group is close to the
+            // full-N speed while still leaving enough work-groups to load-balance.
             //
             // Dimension order is load-bearing: get_group_id(0) is the N tile so it varies fastest
             // and the work-groups sharing an activation tile stay co-resident in L2, while
@@ -2867,11 +2856,7 @@ public:
             constexpr size_t sg = MoE3GemmSwigluU2Gemm::DPAS_SG;
             constexpr size_t n_sg = MoE3GemmSwigluU2Gemm::DPAS_N_SG;
             constexpr size_t n_per_wg = MoE3GemmSwigluU2Gemm::DPAS_N_PER_WG;
-            OPENVINO_ASSERT(n_cols % n_per_wg == 0,
-                            "moe_3gemm u2 DPAS GEMM N=",
-                            n_cols,
-                            " is not a multiple of ",
-                            n_per_wg);
+            OPENVINO_ASSERT(n_cols % n_per_wg == 0, "moe_3gemm u2 DPAS GEMM N=", n_cols, " is not a multiple of ", n_per_wg);
             return execute_stage({ev},
                                  instance,
                                  stage,
@@ -2902,13 +2887,11 @@ public:
     // allocated on first use and the unpack runs ONCE per bound weight buffer, not per prefill:
     // the weights are constant (OTD is rejected for u2 in the ctor), so re-unpacking identical
     // data every prefill was pure overhead — a full streaming pass over every expert of every
-    // layer, which measured ~430ms of TTFT per prefill on Qwen3.6-35B-A3B and made a multi-turn
-    // benchmark ~1.6x slower end-to-end than the same model at int4. See the *_key members.
+    // layer on every prefill. See the *_key members.
     //
     // skip_routed: the native u2 GEMM consumes the routed-expert weights directly, so their u4
-    // scratch (12.08 GB on Qwen3.6-35B-A3B — the entire reason this function was expensive) is
-    // never allocated. The shared expert still goes through oneDNN primitives that have no u2
-    // dtype, so its four much smaller buffers are still unpacked.
+    // scratch is never allocated. The shared expert still goes through oneDNN primitives that
+    // have no u2 dtype, so its four much smaller buffers are still unpacked.
     cldnn::event::ptr unpack_u2_weights_for_prefill(typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                                     scratch_buffers& scratch,
                                                     const std::vector<cldnn::event::ptr>& events,
@@ -2935,14 +2918,19 @@ public:
             OPENVINO_ASSERT(src_bytes % 4 == 0, "moe_3gemm u2 weight buffer byte size ", src_bytes, " is not a multiple of 4");
             const bool wei_realloc = !_u2_unpack_weight[i] || _u2_unpack_weight[i]->size() < src_bytes * 2;
             if (wei_realloc) {
-                auto dst_layout =
-                    cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(src_bytes * 2)}, ov::element::u8, cldnn::format::bfyx);
+                auto dst_layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(src_bytes * 2)}, ov::element::u8, cldnn::format::bfyx);
                 _u2_unpack_weight[i] = engine.allocate_memory(dst_layout, allocation_type::usm_device, false);
             }
             // A fresh allocation is uninitialised, so it always forces the unpack to run.
             if (wei_realloc || !_u2_unpack_weight_key[i].matches(src_mem)) {
                 const int src_uints = static_cast<int>(src_bytes / 4);
-                ret = execute_stage({ret}, instance, *u2_unpack, {src_mem}, {_u2_unpack_weight[i]}, {round_up(src_bytes / 4), 1, 1}, {lws, 1, 1},
+                ret = execute_stage({ret},
+                                    instance,
+                                    *u2_unpack,
+                                    {src_mem},
+                                    {_u2_unpack_weight[i]},
+                                    {round_up(src_bytes / 4), 1, 1},
+                                    {lws, 1, 1},
                                     false,
                                     {src_uints, 0});
                 _u2_unpack_weight_key[i].set(src_mem);
@@ -3004,12 +2992,18 @@ public:
             }
             const bool zp_realloc = !_u2_unpack_zp[i] || _u2_unpack_zp[i]->size() < zp_dst_bytes;
             if (zp_realloc) {
-                auto dst_layout =
-                    cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(zp_dst_bytes)}, ov::element::u8, cldnn::format::bfyx);
+                auto dst_layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(zp_dst_bytes)}, ov::element::u8, cldnn::format::bfyx);
                 _u2_unpack_zp[i] = engine.allocate_memory(dst_layout, allocation_type::usm_device, false);
             }
             if (zp_realloc || !_u2_unpack_zp_key[i].matches(zp_src)) {
-                ret = execute_stage({ret}, instance, *u2_unpack, {zp_src}, {_u2_unpack_zp[i]}, {round_up(work_items), 1, 1}, {lws, 1, 1}, false,
+                ret = execute_stage({ret},
+                                    instance,
+                                    *u2_unpack,
+                                    {zp_src},
+                                    {_u2_unpack_zp[i]},
+                                    {round_up(work_items), 1, 1},
+                                    {lws, 1, 1},
+                                    false,
                                     {zp_count, zp_mode});
                 _u2_unpack_zp_key[i].set(zp_src);
             }
@@ -3029,13 +3023,17 @@ public:
             OPENVINO_ASSERT(src_bytes % 4 == 0, "moe_3gemm u2 shared weight buffer byte size ", src_bytes, " is not a multiple of 4");
             const bool wei_realloc = !_u2_unpack_shared_weight[i] || _u2_unpack_shared_weight[i]->size() < src_bytes * 2;
             if (wei_realloc) {
-                auto dst_layout =
-                    cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(src_bytes * 2)}, ov::element::u8, cldnn::format::bfyx);
+                auto dst_layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(src_bytes * 2)}, ov::element::u8, cldnn::format::bfyx);
                 _u2_unpack_shared_weight[i] = engine.allocate_memory(dst_layout, allocation_type::usm_device, false);
             }
             if (wei_realloc || !_u2_unpack_shared_weight_key[i].matches(src_mem)) {
                 const int src_uints = static_cast<int>(src_bytes / 4);
-                ret = execute_stage({ret}, instance, *u2_unpack, {src_mem}, {_u2_unpack_shared_weight[i]}, {round_up(src_bytes / 4), 1, 1},
+                ret = execute_stage({ret},
+                                    instance,
+                                    *u2_unpack,
+                                    {src_mem},
+                                    {_u2_unpack_shared_weight[i]},
+                                    {round_up(src_bytes / 4), 1, 1},
                                     {lws, 1, 1},
                                     false,
                                     {src_uints, 0});
@@ -3095,12 +3093,17 @@ public:
             }
             const bool zp_realloc = !_u2_unpack_shared_zp[i] || _u2_unpack_shared_zp[i]->size() < zp_dst_bytes;
             if (zp_realloc) {
-                auto dst_layout =
-                    cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(zp_dst_bytes)}, ov::element::u8, cldnn::format::bfyx);
+                auto dst_layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(zp_dst_bytes)}, ov::element::u8, cldnn::format::bfyx);
                 _u2_unpack_shared_zp[i] = engine.allocate_memory(dst_layout, allocation_type::usm_device, false);
             }
             if (zp_realloc || !_u2_unpack_shared_zp_key[i].matches(zp_src)) {
-                ret = execute_stage({ret}, instance, *u2_unpack, {zp_src}, {_u2_unpack_shared_zp[i]}, {round_up(work_items), 1, 1}, {lws, 1, 1},
+                ret = execute_stage({ret},
+                                    instance,
+                                    *u2_unpack,
+                                    {zp_src},
+                                    {_u2_unpack_shared_zp[i]},
+                                    {round_up(work_items), 1, 1},
+                                    {lws, 1, 1},
                                     false,
                                     {zp_count, zp_mode});
                 _u2_unpack_shared_zp_key[i].set(zp_src);
@@ -3294,8 +3297,8 @@ public:
 
         // gate GEMM: [total, hidden] * W_gate[E,hidden,inter] -> [total, inter]
         if (use_native_u2) {
-            ret_event = run_u2_gemm(ret_event, instance, *u2_gemm_gate, 0, scratch.x, scratch.gate, scratch,
-                                    static_cast<size_t>(_intermediate_size), u2_num_blocks);
+            ret_event =
+                run_u2_gemm(ret_event, instance, *u2_gemm_gate, 0, scratch.x, scratch.gate, scratch, static_cast<size_t>(_intermediate_size), u2_num_blocks);
         } else {
             auto& gk = *gk_ptr;
             auto src_mem = scratch.x->get_onednn_grouped_memory(gk.gate_pd.src_desc(), *row_offsets);
@@ -3316,8 +3319,8 @@ public:
 
         // up GEMM: [total, hidden] * W_up[E,hidden,inter] -> [total, inter]
         if (use_native_u2) {
-            ret_event = run_u2_gemm(ret_event, instance, *u2_gemm_up, 1, scratch.x, scratch.up, scratch,
-                                    static_cast<size_t>(_intermediate_size), u2_num_blocks);
+            ret_event =
+                run_u2_gemm(ret_event, instance, *u2_gemm_up, 1, scratch.x, scratch.up, scratch, static_cast<size_t>(_intermediate_size), u2_num_blocks);
         } else {
             auto& gk = *gk_ptr;
             auto src_mem = scratch.x->get_onednn_grouped_memory(gk.up_pd.src_desc(), *row_offsets);
@@ -3353,8 +3356,7 @@ public:
 
         // down GEMM: [total, inter] * W_down[E,inter,hidden] -> [total, hidden]
         if (use_native_u2) {
-            ret_event = run_u2_gemm(ret_event, instance, *u2_gemm_down, 2, scratch.gate, scratch.y, scratch,
-                                    static_cast<size_t>(_hidden_size), u2_num_blocks);
+            ret_event = run_u2_gemm(ret_event, instance, *u2_gemm_down, 2, scratch.gate, scratch.y, scratch, static_cast<size_t>(_hidden_size), u2_num_blocks);
         } else {
             auto& gk = *gk_ptr;
             auto src_mem = scratch.gate->get_onednn_grouped_memory(gk.down_pd.src_desc(), *row_offsets);
@@ -3470,35 +3472,16 @@ public:
         // run on every prefill path, so the unpack is not tied to _weights_u2 alone.
         cldnn::event::ptr unpack_event = nullptr;
         if (_weights_u2 || has_u2_shared_weights()) {
-            try {
-                // _weights_u2 => the routed experts take the native u2 GEMM below, so only the
-                // shared expert's projections still need a u4 copy.
-                unpack_event = unpack_u2_weights_for_prefill(
-                    instance,
-                    scratch,
-                    events,
-                    /*skip_routed=*/use_native_u2_prefill(instance.get_impl_params()->get_device_info().arch));
-            } catch (const std::exception& e) {
-                // The batched GEMV fuses the shared expert in-kernel, so returning it
-                // directly also skips the oneDNN shared-expert block below.
-                GPU_DEBUG_TRACE_DETAIL << "u2 weight unpack for prefill failed (" << e.what() << "), falling back to batched GEMV" << std::endl;
-                instance.output_memory_ptr(0)->fill(stream, false);
-                return exec_batched_gemv(events, instance, scratch, token_num);
-            }
+            // _weights_u2 => the routed experts take the native u2 GEMM below, so only the
+            // shared expert's projections still need a u4 copy.
+            unpack_event = unpack_u2_weights_for_prefill(instance,
+                                                         scratch,
+                                                         events,
+                                                         /*skip_routed=*/use_native_u2_prefill(instance.get_impl_params()->get_device_info().arch));
         }
         if (_weights_u2) {
-            // Run the grouped GEMM path on the unpacked u4 weights as regular u4 weights. If
-            // the grouped GEMM cannot be created/executed, fall back to the batched GEMV
-            // (the pre-u2-prefill behavior).
-            try {
-                ret_env = exec_prefill_grouped_gemm({unpack_event}, stream, instance, scratch);
-            } catch (const std::exception& e) {
-                GPU_DEBUG_TRACE_DETAIL << "u2 grouped GEMM prefill failed (" << e.what() << "), falling back to batched GEMV" << std::endl;
-                instance.output_memory_ptr(0)->fill(stream, false);
-                // Return directly: the batched GEMV fuses the shared expert in-kernel, so it
-                // must skip the oneDNN shared-expert block below (it would apply it twice).
-                return exec_batched_gemv(events, instance, scratch, token_num);
-            }
+            // Routed experts: the native u2 GEMM, or else the unpacked u4 copies as regular u4 weights.
+            ret_env = exec_prefill_grouped_gemm({unpack_event}, stream, instance, scratch);
         } else if (use_micro_gemm_prefill) {
             ret_env = exec_prefill_micro_gemm(events, instance, scratch, use_gpu_mask_gen);
         } else if (use_grouped_gemm_prefill) {

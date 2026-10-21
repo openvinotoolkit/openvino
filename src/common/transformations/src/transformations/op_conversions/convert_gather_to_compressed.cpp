@@ -29,11 +29,11 @@ using ov::pass::pattern::op::Or;
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
-ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
-    auto compressed_constant = [](const ov::Output<ov::Node>& output) {
+ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed(bool support_u2) {
+    auto compressed_constant = [support_u2](const ov::Output<ov::Node>& output) {
         return (output.get_element_type() == ov::element::u8 || output.get_element_type() == ov::element::i8 ||
                 output.get_element_type() == ov::element::u4 || output.get_element_type() == ov::element::i4 ||
-                output.get_element_type() == ov::element::u2) &&
+                (support_u2 && output.get_element_type() == ov::element::u2)) &&
                (output.get_shape().size() == 2 || output.get_shape().size() == 3);
     };
 
