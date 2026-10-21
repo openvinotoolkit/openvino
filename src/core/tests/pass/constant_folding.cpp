@@ -10,6 +10,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/gather_nd.hpp"
 #include "openvino/op/ops.hpp"
 #include "ov_ops/type_relaxed.hpp"
@@ -2661,6 +2662,29 @@ TEST(constant_folding, const_reshape_no_data_copy) {
     ASSERT_TRUE(const2);
     ASSERT_EQ(const1, const2);
     ASSERT_EQ(const1->get_data_ptr(), const2->get_data_ptr());
+}
+
+TEST(constant_folding, const_reshape_preserves_weightless_cache_attribute) {
+    for (const auto dtype : {element::i4, element::i8, element::f16}) {
+        auto data = op::v0::Constant::create(dtype, Shape{2, 8}, {1});
+        data->get_rt_info()[WeightlessCacheAttribute::get_type_info_static()] =
+            WeightlessCacheAttribute(data->get_byte_size(), 128, dtype);
+        auto pattern = op::v0::Constant::create(element::i64, Shape{3}, {2, 2, 4});
+        auto reshape = make_shared<op::v1::Reshape>(data, pattern, false);
+        OutputVector replacements(1);
+        ASSERT_TRUE(reshape->constant_fold(replacements, reshape->input_values()));
+        auto folded = ov::as_type_ptr<op::v0::Constant>(replacements[0].get_node_shared_ptr());
+        ASSERT_TRUE(folded);
+        EXPECT_EQ(folded->get_shape(), (Shape{2, 2, 4}));
+        EXPECT_EQ(folded->get_data_ptr(), data->get_data_ptr());
+        const auto& info = folded->get_rt_info();
+        auto found = info.find(WeightlessCacheAttribute::get_type_info_static());
+        ASSERT_NE(found, info.end());
+        const auto& attribute = found->second.as<WeightlessCacheAttribute>();
+        EXPECT_EQ(attribute.bin_offset, 128);
+        EXPECT_EQ(attribute.original_size, data->get_byte_size());
+        EXPECT_EQ(attribute.original_dtype, dtype);
+    }
 }
 
 TEST(constant_folding, const_squeeze_no_data_copy) {

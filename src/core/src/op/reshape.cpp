@@ -9,6 +9,7 @@
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "openvino/core/dimension.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/reshape.hpp"
@@ -102,6 +103,9 @@ bool Reshape::constant_fold(OutputVector& output_values, const OutputVector& inp
 
     if (auto data_const = ov::as_type_ptr<v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
         output_values[0] = std::make_shared<v0::Constant>(*data_const, get_output_shape(0));
+        // A reshape shares the same bytes with its source constant. Preserve the
+        // source file offset so weightless caching does not retain another copy.
+        ov::copy_weightless_cache_attr(data_const, output_values[0].get_node_shared_ptr());
         return true;
     } else {
         return false;
