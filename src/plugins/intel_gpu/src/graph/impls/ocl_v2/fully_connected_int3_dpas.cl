@@ -201,10 +201,13 @@ KERNEL(quantize_input)(
 #endif
 #if TILE_M == 8
 #   define V2_A_READ intel_sub_group_2d_block_read_8b_8r32x2c
+#   define V2_ELT_TILE_READ_16B intel_sub_group_2d_block_read_16b_8r16x1c
 #elif TILE_M == 16
 #   define V2_A_READ intel_sub_group_2d_block_read_8b_16r32x2c
+#   define V2_ELT_TILE_READ_16B intel_sub_group_2d_block_read_16b_16r16x1c
 #elif TILE_M == 32
 #   define V2_A_READ intel_sub_group_2d_block_read_8b_32r32x2c
+#   define V2_ELT_TILE_READ_16B intel_sub_group_2d_block_read_16b_32r16x1c
 #else
 #   error "fully_connected_int3_dpas.cl - DPAS_V2 needs TILE_M of 8, 16 or 32"
 #endif
@@ -584,6 +587,19 @@ KERNEL(fc)(
     // reason no row is behind a branch: a branch per row would put each fused-op
     // load in its own block, waited on before the next one is issued. Rows past
     // the batch take the last row's fused-op inputs and are not stored.
+#if V2_ELT_TILE
+    // Fused-op inputs shaped like the output are read as one 2D block per column block instead, rows past the batch
+    // reading as zero: loaded per element, the compiler issues them one after another, each waiting on the last.
+    // V2_ELT_TILE_DECLS and V2_ELT_TILE_READS(read) declare and fill a [V2_NB][TILE_M] ushort array per such input,
+    // and V2_FUSED_OPS_TILED is FUSED_OPS with those inputs taken from the arrays.
+#   define V2_ELT_TILE_READ(ptr, dst)                                                                      \
+    unroll_for (uint j = 0; j < V2_NB; ++j)                                                                \
+        V2_ELT_TILE_READ_16B((__global void*)(ptr), TILE_OUT_F_NUM * 2, batch_size, TILE_OUT_B_PITCH * 2, \
+                             (int2)((nbw * V2_NB + j) * SIMD, m0), dst[j]);
+    V2_ELT_TILE_DECLS
+    V2_ELT_TILE_READS(V2_ELT_TILE_READ)
+#   undef V2_ELT_TILE_READ
+#endif
     unroll_for (uint j = 0; j < V2_NB; ++j) {
         const uint n = (nbw * V2_NB + j) * SIMD + lane;
         if (n < TILE_OUT_F_NUM) {
@@ -595,7 +611,10 @@ KERNEL(fc)(
 #endif
                 const uint out_row = min(m0 + t, batch_size - 1);
                 const float activated = res;
-#if HAS_FUSED_OPS
+#if HAS_FUSED_OPS && V2_ELT_TILE
+                V2_FUSED_OPS_TILED;
+                result[t] = FUSED_OPS_RESULT;
+#elif HAS_FUSED_OPS
                 FUSED_OPS;
                 result[t] = FUSED_OPS_RESULT;
 #else
@@ -913,6 +932,7 @@ KERNEL(fc)(
 #undef V2_ITERS_K
 #undef V2_RB
 #undef V2_A_READ
+#undef V2_ELT_TILE_READ_16B
 #undef V2_WEI_ZP
 #undef V2_ACC_BIAS
 #undef V2_SCALE_VEC

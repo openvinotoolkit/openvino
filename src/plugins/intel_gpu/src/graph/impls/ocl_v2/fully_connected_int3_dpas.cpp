@@ -13,10 +13,13 @@
 
 #include "common_utils/jitter.hpp"
 #include "fully_connected_inst.h"
+#include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/dynamic_quantize.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "ocl_v2/utils/fused_ops_jitter.hpp"
 #include "primitive_ocl_base.hpp"
@@ -39,6 +42,13 @@ constexpr size_t v2_tile_m = 16;
 // so each step pays off once it is mostly full. Below 96 rows the 32-row tiles of v1 are as fast or faster.
 constexpr size_t v2_min_rows_sg8 = 96;
 constexpr size_t v2_min_rows_sg16 = 192;
+// On Xe3 (Panther Lake, 32 EUs) v2 at sg_m 8 is faster from 33 rows, where a 32-row tile needs two passes. Below
+// that the 8-, 16- and 32-row tiles of v1 run the same, bound by the weight reads, so the 32-row tile serves them all.
+constexpr size_t v2_min_rows_sg8_xe3 = 33;
+
+size_t get_v2_min_rows_sg8(const device_info& dev) {
+    return dev.arch >= gpu_arch::xe3 ? v2_min_rows_sg8_xe3 : v2_min_rows_sg8;
+}
 
 size_t get_scale_idx(const fully_connected& desc) {
     return desc.bias.is_valid() ? 3 : 2;
@@ -318,19 +328,36 @@ GemmConfig get_scalar_config(size_t tile_m) {
     return GemmConfig{false, false, tile_m, 1, 1};
 }
 
-// DPAS variant for a row count: tile_m 8 up to 8 rows, 16 up to 16 rows, otherwise v2 (sg_m 8 from 96 rows, 16 from
-// 192) if supported, else v1 32-row tiles with sg_m from get_dense_sg_m. With small_grf_v2, v2 takes the 16 x 32
-// tile in 128 GRFs.
-GemmConfig get_dpas_config(const Int3FcInfo& info, gpu_arch arch, size_t rows, bool small_grf_v2 = false) {
-    if (rows <= 8) {
+// Whether v2 with sg_m subgroups takes the 16 x 32 tile in 128 GRFs rather than the 16 x 64 one in 256.
+// On large Xe2 dGPUs (B570: 144 EUs) the 128-GRF tile is ~12% faster on the Qwen3-8B shapes at 96 to 2048 rows:
+// twice the threads per EU hide the per-group scaling behind other threads' DPAS.
+// On Xe3 (Panther Lake, 32 EUs) it is 4-9% faster at sg_m 8, where the 256-GRF tile leaves too few workgroups to
+// fill the device, and ~13% faster at sg_m 16 for K > N (down projections); the other FCs are faster with the
+// 256-GRF tile from sg_m 16. Smaller Xe2 devices (LNL) keep the 256-GRF tile.
+bool use_small_grf_v2(const Int3FcInfo& info, const device_info& dev, size_t sg_m) {
+    if (dev.execution_units_count >= 128) {
+        return true;
+    }
+    if (dev.arch >= gpu_arch::xe3) {
+        return sg_m == 8 || info.ifm > info.ofm;
+    }
+    return false;
+}
+
+// DPAS variant for a row count: tile_m 8 up to 8 rows, 16 up to 16 rows (except on Xe3), otherwise v2 (sg_m 8 from
+// get_v2_min_rows_sg8, 16 from 192) if supported, else v1 32-row tiles with sg_m from get_dense_sg_m. v2 takes the
+// 16 x 32 tile in 128 GRFs where use_small_grf_v2 says so.
+GemmConfig get_dpas_config(const Int3FcInfo& info, const device_info& dev, size_t rows) {
+    const auto arch = dev.arch;
+    if (arch < gpu_arch::xe3 && rows <= 8) {
         return get_v1_config(8, 1);
     }
-    if (rows <= 16) {
+    if (arch < gpu_arch::xe3 && rows <= 16) {
         return get_v1_config(16, 1);
     }
-    if (rows >= v2_min_rows_sg8 && supports_v2(info, arch)) {
+    if (rows >= get_v2_min_rows_sg8(dev) && supports_v2(info, arch)) {
         const size_t sg_m = (rows >= v2_min_rows_sg16) ? 16 : 8;
-        const auto cfg = small_grf_v2 ? get_v2_small_grf_config(sg_m) : get_v2_config(sg_m);
+        const auto cfg = use_small_grf_v2(info, dev, sg_m) ? get_v2_small_grf_config(sg_m) : get_v2_config(sg_m);
         if (is_valid_v2_sg_m(info, sg_m, cfg.nb)) {
             return cfg;
         }
@@ -420,6 +447,60 @@ protected:
     }
 };
 
+// The v2 epilogue reads eltwise inputs shaped exactly like the output (f16, dense, plain, static) as 2D blocks
+// instead of per element; on PTL that takes 7-13% off the FCs with such an input. A dynamic impl keeps the
+// per-element loads, which also cover inputs that turn out to broadcast. V2_FUSED_OPS_TILED is FUSED_OPS with
+// those inputs read from the blocks.
+JitConstants make_v2_elt_tile_jit_constants(const RuntimeParams& params) {
+    JitConstants jit;
+    if (params.is_dynamic()) {
+        return jit;
+    }
+    const auto out_shape = params.get_output_layout(0).get_shape();
+    std::string decls;
+    std::string reads;
+    std::string fused_ops;
+    size_t tiles = 0;
+    for (size_t i = 0; i < params.fused_desc.size(); ++i) {
+        const auto& fd = params.fused_desc[i];
+        if (fd.is_type<reorder>() || fd.is_type<dynamic_quantize>()) {
+            continue;
+        }
+        const FusedOpsCodeGenerator gen(fd, params, i);
+        std::vector<size_t> ext_inputs;
+        for (const auto& in : fd.inputs) {
+            if (in.m_type == FusedInputType::EXTERNAL) {
+                ext_inputs.push_back(in.m_idx);
+            }
+        }
+        bool tiled = false;
+        if (fd.is_type<eltwise>() && ext_inputs.size() == 1) {
+            const auto& l = params.get_input_layout(ext_inputs[0]);
+            tiled = l.data_type == ov::element::f16 && is_dense(l) && format::is_simple_data_format(l.format) && l.get_shape() == out_shape;
+        }
+        const auto op = std::to_string(i);
+        if (tiled) {
+            const auto arr = "v2_elt" + std::to_string(tiles++);
+            const auto in_idx = ext_inputs[0];
+            decls += "ushort " + arr + "[V2_NB][TILE_M];";
+            reads += "read(" + gen.get_input_ptr_name(in_idx).str() + ", " + arr + ")";
+            fused_ops += concat(gen.get_input_tensor_name(in_idx), "_TYPE").str() + " " + gen.get_input_var_name(in_idx).str() + " = as_half(" + arr +
+                         "[j][t]);";
+        } else {
+            fused_ops += "FUSED_OP" + op + "_LOAD";
+        }
+        fused_ops += " FUSED_OP" + op + "_ACTION ";
+    }
+    if (tiles == 0) {
+        return jit;
+    }
+    jit.make("V2_ELT_TILE", 1);
+    jit.make("V2_ELT_TILE_DECLS", decls);
+    jit.make("V2_ELT_TILE_READS(read)", reads);
+    jit.make("V2_FUSED_OPS_TILED", fused_ops);
+    return jit;
+}
+
 // One GEMM variant. Its JIT depends on N, K, the group layout, the zero point kind and the fused ops, but not on the
 // row count, which arrives as a kernel argument.
 class Int3FcGemm : public Int3FcGeneratorBase {
@@ -499,6 +580,9 @@ protected:
             }
             FusedOpsConfiguration conf = {"", idx_order, "activated", ov::element::f32, 1};
             jit.add(make_fused_ops_jit_constants(params, {conf}));
+            if (m_cfg.v2 && params.get_device_info().arch >= gpu_arch::xe3) {
+                jit.add(make_v2_elt_tile_jit_constants(params));
+            }
         }
 
         return jit;
@@ -534,6 +618,9 @@ protected:
         auto options = KernelGenerator::get_build_options(params);
         if (m_cfg.v2 && !is_small_grf_v2(m_cfg)) {
             options += " -cl-intel-256-GRF-per-thread";
+        } else if (m_cfg.v2 && params.get_device_info().arch >= gpu_arch::xe3) {
+            // Without it IGC picks 160 GRFs on Xe3, which runs 6 threads per EU instead of 8 and is up to 14% slower.
+            options += " -cl-intel-128-GRF-per-thread";
         }
         return options;
     }
@@ -596,14 +683,14 @@ bool supports_simd16_dpas(gpu_arch arch) {
     return arch >= gpu_arch::xe_hpc;
 }
 
-GemmVariant get_gemm_variant(const Int3FcInfo& info, gpu_arch arch, size_t rows, bool small_grf_v2 = false) {
+GemmVariant get_gemm_variant(const Int3FcInfo& info, const device_info& dev, size_t rows) {
     if (rows < dpas_min_rows) {
         return GemmVariant::scalar;
     }
-    if (!supports_simd16_dpas(arch)) {
+    if (!supports_simd16_dpas(dev.arch)) {
         return rows <= 8 ? GemmVariant::scalar_t8 : GemmVariant::scalar_t16;
     }
-    const auto cfg = get_dpas_config(info, arch, rows, small_grf_v2);
+    const auto cfg = get_dpas_config(info, dev, rows);
     if (cfg.v2) {
         if (is_small_grf_v2(cfg)) {
             return cfg.sg_m == 16 ? GemmVariant::v2_small_grf_sg16 : GemmVariant::v2_small_grf_sg8;
@@ -626,13 +713,6 @@ GemmVariant get_gemm_variant(const Int3FcInfo& info, gpu_arch arch, size_t rows,
     default:
         return GemmVariant::v1_t32_sg1;
     }
-}
-
-// On large Xe2 dGPUs (B570: 144 EUs) the 128-GRF v2 tile is ~12% faster than the 256-GRF one on the Qwen3-8B
-// shapes at 96 to 2048 rows: twice the threads per EU hide the per-group scaling behind other threads' DPAS. It is
-// tuned on BMG only, so smaller devices keep the 256-GRF tile.
-bool use_small_grf_v2(const RuntimeParams& params) {
-    return params.get_device_info().execution_units_count >= 128;
 }
 
 class FullyConnectedInt3DpasImpl : public PrimitiveImplOCL {
@@ -662,22 +742,21 @@ public:
     FullyConnectedInt3DpasImpl() : PrimitiveImplOCL(FullyConnectedInt3Dpas::get_type_info_static()) {}
     FullyConnectedInt3DpasImpl(const program_node& node, const RuntimeParams& params) : FullyConnectedInt3DpasImpl() {
         const auto info = get_int3_fc_info(params);
-        const auto arch = params.get_device_info().arch;
-        const bool small_grf_v2 = use_small_grf_v2(params);
+        const auto& dev = params.get_device_info();
 
         if (params.is_dynamic()) {
             add_stage(quantize, params);
             add_stage(gemms[static_cast<size_t>(GemmVariant::scalar)], make_single_row_params(params));
             // get_gemm_variant is constant over each of these row counts' ranges
-            for (size_t rows : {size_t{8}, size_t{16}, size_t{17}, size_t{48}, v2_min_rows_sg8, v2_min_rows_sg16, size_t{384}}) {
-                add_gemm_stage(get_gemm_variant(info, arch, rows, small_grf_v2), params);
+            for (size_t rows : {size_t{8}, size_t{16}, size_t{17}, get_v2_min_rows_sg8(dev), size_t{48}, v2_min_rows_sg8, v2_min_rows_sg16, size_t{384}}) {
+                add_gemm_stage(get_gemm_variant(info, dev, rows), params);
             }
         } else {
             // A static impl of a dynamic model takes the shape-agnostic quantizer from the dynamic impl, and a
             // single-row one its GEMV too, so decode never compiles at runtime.
             const size_t rows = get_rows(params.get_input_layout(0));
             const auto* dynamic_impl = get_compiled_dynamic_impl(node);
-            auto& gemm = gemms[static_cast<size_t>(get_gemm_variant(info, arch, rows, small_grf_v2))];
+            auto& gemm = gemms[static_cast<size_t>(get_gemm_variant(info, dev, rows))];
             if (dynamic_impl != nullptr) {
                 reuse_stage(quantize, *dynamic_impl);
             } else {
@@ -734,9 +813,8 @@ public:
         // The single-row GEMV is compiled for exactly one row, so an empty input takes a shape-agnostic variant.
         const auto variant = rows == 1 ? GemmVariant::scalar
                                        : get_gemm_variant(get_int3_fc_info(impl_params, m_rt_params.get()),
-                                                          impl_params.get_device_info().arch,
-                                                          std::max(rows, dpas_min_rows),
-                                                          use_small_grf_v2(impl_params));
+                                                          impl_params.get_device_info(),
+                                                          std::max(rows, dpas_min_rows));
         const size_t gemm_idx = get_stage_idx(gemms[static_cast<size_t>(variant)]);
         OPENVINO_ASSERT(is_activated(gemm_idx), "[GPU] ", kernel_name, ": GEMM variant ", static_cast<size_t>(variant), " is not compiled");
         return {quantize_idx, gemm_idx};

@@ -186,7 +186,9 @@ public:
                 }
             }
             if (impl->is_dynamic()) {
-                for (const std::string variant : {"scalar", "v1_t8", "v1_t16", "v1_t32_sg1"}) {
+                const auto variants = is_xe3() ? std::vector<std::string>{"scalar", "v1_t32_sg1"}
+                                               : std::vector<std::string>{"scalar", "v1_t8", "v1_t16", "v1_t32_sg1"};
+                for (const auto& variant : variants) {
                     ASSERT_TRUE(std::any_of(gemms.begin(),
                                             gemms.end(),
                                             [&](const std::string& id) {
@@ -228,6 +230,10 @@ public:
         return get_test_engine().get_device_info().arch >= gpu_arch::xe2;
     }
 
+    static bool is_xe3() {
+        return get_test_engine().get_device_info().arch >= gpu_arch::xe3;
+    }
+
     static bool is_igpu() {
         return get_test_engine().get_device_info().dev_type == device_type::integrated_gpu;
     }
@@ -248,15 +254,15 @@ TEST_F(fully_connected_int3_gpu_tests, scalar_gemm_single_row) {
 }
 
 TEST_F(fully_connected_int3_gpu_tests, v1_t8_few_rows) {
-    run(base, false, false, {2}, {{"v1_t8"}});
+    run(base, false, false, {2}, {{is_xe3() ? "v1_t32_sg1" : "v1_t8"}});
 }
 
 TEST_F(fully_connected_int3_gpu_tests, v1_t8) {
-    run(base, false, false, {8}, {{"v1_t8"}});
+    run(base, false, false, {8}, {{is_xe3() ? "v1_t32_sg1" : "v1_t8"}});
 }
 
 TEST_F(fully_connected_int3_gpu_tests, v1_t16) {
-    run(base, false, false, {16}, {{"v1_t16"}});
+    run(base, false, false, {16}, {{is_xe3() ? "v1_t32_sg1" : "v1_t16"}});
 }
 
 TEST_F(fully_connected_int3_gpu_tests, v1_t32) {
@@ -357,6 +363,22 @@ TEST_F(fully_connected_int3_gpu_tests, dynamic_3d_fused_eltwise_static_impls_reu
     auto p = with(base, 1, 1);
     p.fused_eltwise = true;
     run(p, true, false, {1, 20, 1}, {}, true);
+}
+
+// Static v2 impls read a fused eltwise input shaped like the output as 2D blocks; the row counts leave a partial
+// last tile.
+TEST_F(fully_connected_int3_gpu_tests, dynamic_3d_fused_eltwise_static_impls_v2) {
+    auto p = with(base, 1, 1);
+    p.fused_eltwise = true;
+    run(p, true, false, {40, 130, 300}, {}, true);
+}
+
+TEST_F(fully_connected_int3_gpu_tests, dynamic_fused_eltwise_static_impls_v2_k_above_n) {
+    auto p = base;
+    p.ifm = 2048;
+    p.bias = true;
+    p.fused_eltwise = true;
+    run(p, true, false, {100, 211}, {}, true);
 }
 
 TEST_F(fully_connected_int3_gpu_tests, cached_static) {
