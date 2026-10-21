@@ -610,36 +610,119 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace axisBeyondDequantizationRank
 }  // namespace
 
-// moveDequantizationBefore normalizes the split axis against the Concat's output rank. For a
-// dynamic-rank Concat that rank is unknown, so the axis stays at its -1 sentinel, which must not be
-// used to index the dequantization constant's shape. The only pipeline caller (MoveFakeQuantize)
-// rejects dynamic-rank Concats, so this guard is exercised directly here. The out-of-bounds read
-// itself is only reliably caught under AddressSanitizer.
-TEST(LPT, MoveDequantizationBeforeDynamicRankConcat) {
-    const auto input1 = std::make_shared<opset1::Parameter>(element::u8, PartialShape::dynamic());
-    const auto input2 = std::make_shared<opset1::Parameter>(element::u8, PartialShape::dynamic());
-    const auto concat = std::make_shared<opset1::Concat>(OutputVector{input1, input2}, 1);
+// Direct moveDequantizationBefore tests for Concat shapes that the only pipeline caller
+// (MoveFakeQuantize) doesn't produce today: a dynamic-rank Concat, and dequantization constants of
+// lower rank than the Concat, which broadcast against it aligned to the trailing dimensions.
+namespace {
+struct ConcatDequantization {
+    std::shared_ptr<ov::Model> model;
+    std::shared_ptr<opset1::Concat> concat;
+    std::shared_ptr<opset1::Result> result;
+};
+
+ConcatDequantization makeConcatDequantization(const PartialShape& inputShape,
+                                              const int64_t axis,
+                                              const Shape& constantShape,
+                                              const bool scalarSubtract,
+                                              const bool scalarMultiply) {
+    const auto makeConstant = [](const Shape& shape, const float step) {
+        std::vector<float> values(shape_size(shape));
+        for (size_t i = 0; i < values.size(); ++i) {
+            values[i] = step * static_cast<float>(i + 1);
+        }
+        return opset1::Constant::create(element::f32, shape, values);
+    };
+    const auto input1 = std::make_shared<opset1::Parameter>(element::u8, inputShape);
+    const auto input2 = std::make_shared<opset1::Parameter>(element::u8, inputShape);
+    const auto concat = std::make_shared<opset1::Concat>(OutputVector{input1, input2}, axis);
     const auto convert = std::make_shared<opset1::Convert>(concat, element::f32);
-    const auto subtract = std::make_shared<opset1::Subtract>(
-        convert, opset1::Constant::create(element::f32, Shape{2, 1}, {2.f, 3.f}));
-    const auto multiply = std::make_shared<opset1::Multiply>(
-        subtract, opset1::Constant::create(element::f32, Shape{2, 1}, {0.2f, 0.3f}));
+    const auto subtract =
+        std::make_shared<opset1::Subtract>(convert, makeConstant(scalarSubtract ? Shape{} : constantShape, 1.f));
+    const auto multiply =
+        std::make_shared<opset1::Multiply>(subtract, makeConstant(scalarMultiply ? Shape{} : constantShape, 0.1f));
     const auto result = std::make_shared<opset1::Result>(multiply);
     const auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input1, input2});
+    return {model, concat, result};
+}
 
-    const auto dequantization = low_precision::NetworkHelper::getDequantizationBelow(concat);
-    ASSERT_NO_THROW(low_precision::NetworkHelper::moveDequantizationBefore(concat, dequantization, true));
-    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+// Moves the dequantization in front of the Concat inputs and returns the Subtract and Multiply
+// constants that ended up in front of each input.
+std::vector<std::pair<std::shared_ptr<opset1::Constant>, std::shared_ptr<opset1::Constant>>> moveAndGetConstants(
+    const ConcatDequantization& graph) {
+    const auto dequantization = low_precision::NetworkHelper::getDequantizationBelow(graph.concat);
+    low_precision::NetworkHelper::moveDequantizationBefore(graph.concat, dequantization, true);
+    graph.model->validate_nodes_and_infer_types();
 
-    // The dequantization moves in front of every Concat input with its constants left unsplit.
-    const auto newConcat = ov::as_type_ptr<opset1::Concat>(result->get_input_node_shared_ptr(0));
-    ASSERT_NE(newConcat, nullptr);
+    std::vector<std::pair<std::shared_ptr<opset1::Constant>, std::shared_ptr<opset1::Constant>>> constants;
+    const auto newConcat = ov::as_type_ptr<opset1::Concat>(graph.result->get_input_node_shared_ptr(0));
+    OPENVINO_ASSERT(newConcat != nullptr, "Concat is expected in front of the Result");
     for (size_t i = 0; i < newConcat->get_input_size(); ++i) {
-        const auto newMultiply = ov::as_type_ptr<opset1::Multiply>(newConcat->get_input_node_shared_ptr(i));
-        ASSERT_NE(newMultiply, nullptr);
-        EXPECT_EQ(newMultiply->get_input_shape(1), (Shape{2, 1}));
-        const auto newSubtract = ov::as_type_ptr<opset1::Subtract>(newMultiply->get_input_node_shared_ptr(0));
-        ASSERT_NE(newSubtract, nullptr);
-        EXPECT_EQ(newSubtract->get_input_shape(1), (Shape{2, 1}));
+        const auto multiply = ov::as_type_ptr<opset1::Multiply>(newConcat->get_input_node_shared_ptr(i));
+        OPENVINO_ASSERT(multiply != nullptr, "Multiply is expected in front of Concat input ", i);
+        const auto subtract = ov::as_type_ptr<opset1::Subtract>(multiply->get_input_node_shared_ptr(0));
+        OPENVINO_ASSERT(subtract != nullptr, "Subtract is expected in front of Concat input ", i);
+        constants.emplace_back(ov::as_type_ptr<opset1::Constant>(subtract->get_input_node_shared_ptr(1)),
+                               ov::as_type_ptr<opset1::Constant>(multiply->get_input_node_shared_ptr(1)));
+    }
+    return constants;
+}
+}  // namespace
+
+// With a dynamic rank the Concat axis can't be mapped onto a non-scalar constant, so whether it
+// must be split per input is unknown: reject instead of leaving it unsplit.
+TEST(LPT, MoveDequantizationBeforeDynamicRankConcatNonScalarMultiply) {
+    const auto graph = makeConcatDequantization(PartialShape::dynamic(), 1, Shape{2, 1}, true, false);
+    EXPECT_THROW(moveAndGetConstants(graph), ov::Exception);
+}
+
+TEST(LPT, MoveDequantizationBeforeDynamicRankConcatNonScalarSubtract) {
+    const auto graph = makeConcatDequantization(PartialShape::dynamic(), 1, Shape{2, 1}, false, true);
+    EXPECT_THROW(moveAndGetConstants(graph), ov::Exception);
+}
+
+TEST(LPT, MoveDequantizationBeforeDynamicRankConcatScalar) {
+    const auto graph = makeConcatDequantization(PartialShape::dynamic(), 1, Shape{}, true, true);
+    std::vector<std::pair<std::shared_ptr<opset1::Constant>, std::shared_ptr<opset1::Constant>>> constants;
+    ASSERT_NO_THROW(constants = moveAndGetConstants(graph));
+    ASSERT_EQ(constants.size(), 2);
+    for (const auto& constant : constants) {
+        ASSERT_NE(constant.first, nullptr);
+        ASSERT_NE(constant.second, nullptr);
+        EXPECT_EQ(constant.first->get_shape(), Shape{});
+        EXPECT_EQ(constant.second->get_shape(), Shape{});
+    }
+}
+
+// Rank-2 {1, 6} constants under a rank-4 Concat on axis 3: aligned to the trailing dims, the
+// constant's last dim is the Concat axis, so each input gets its own 3-element slice.
+TEST(LPT, MoveDequantizationBeforeLowRankConstantSplitOnAlignedAxis) {
+    const auto graph = makeConcatDequantization(PartialShape{1, 1, 2, 3}, 3, Shape{1, 6}, false, false);
+    std::vector<std::pair<std::shared_ptr<opset1::Constant>, std::shared_ptr<opset1::Constant>>> constants;
+    ASSERT_NO_THROW(constants = moveAndGetConstants(graph));
+    ASSERT_EQ(constants.size(), 2);
+    const std::vector<std::vector<float>> subtractValues = {{1.f, 2.f, 3.f}, {4.f, 5.f, 6.f}};
+    const std::vector<std::vector<float>> multiplyValues = {{0.1f, 0.2f, 0.3f}, {0.4f, 0.5f, 0.6f}};
+    for (size_t i = 0; i < constants.size(); ++i) {
+        ASSERT_NE(constants[i].first, nullptr);
+        ASSERT_NE(constants[i].second, nullptr);
+        EXPECT_EQ(constants[i].first->get_shape(), (Shape{1, 1, 1, 3}));
+        EXPECT_EQ(constants[i].second->get_shape(), (Shape{1, 1, 1, 3}));
+        EXPECT_EQ(constants[i].first->cast_vector<float>(), subtractValues[i]);
+        EXPECT_EQ(constants[i].second->cast_vector<float>(), multiplyValues[i]);
+    }
+}
+
+// The same {1, 6} constants under a rank-4 Concat on axis 1: aligned to the trailing dims, the
+// constant broadcasts along the Concat axis, so every input gets it unsplit.
+TEST(LPT, MoveDequantizationBeforeLowRankConstantBroadcastOnConcatAxis) {
+    const auto graph = makeConcatDequantization(PartialShape{1, 1, 2, 6}, 1, Shape{1, 6}, false, false);
+    std::vector<std::pair<std::shared_ptr<opset1::Constant>, std::shared_ptr<opset1::Constant>>> constants;
+    ASSERT_NO_THROW(constants = moveAndGetConstants(graph));
+    ASSERT_EQ(constants.size(), 2);
+    for (const auto& constant : constants) {
+        ASSERT_NE(constant.first, nullptr);
+        ASSERT_NE(constant.second, nullptr);
+        EXPECT_EQ(constant.first->get_shape(), (Shape{1, 6}));
+        EXPECT_EQ(constant.second->get_shape(), (Shape{1, 6}));
     }
 }
