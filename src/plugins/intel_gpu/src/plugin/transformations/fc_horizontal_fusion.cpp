@@ -199,8 +199,9 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         std::shared_ptr<ov::Node> fused_zps;
         if (!zp_nodes.empty()) {
             bool single_zp_value = (ov::shape_size(zp_nodes[0].get_shape()) == 1);
-            if (std::any_of(zp_nodes.begin(), zp_nodes.end(), [single_zp_value](const ov::Output<ov::Node>& zp) {
-                    return (ov::shape_size(zp.get_shape()) == 1) != single_zp_value;
+            if (std::any_of(zp_nodes.begin(), zp_nodes.end(), [&](const ov::Output<ov::Node>& zp) {
+                    return zp.get_shape().size() != zp_nodes[0].get_shape().size() ||
+                           (ov::shape_size(zp.get_shape()) == 1) != single_zp_value;
                 })) {
                 return false;
             }
