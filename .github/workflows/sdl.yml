@@ -24,8 +24,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false || github.run_attempt > 1
     timeout-minutes: 10
-    env:
-      BANDIT_VENV_PATH: ${{ runner.temp }}/bandit-venv
     defaults:
       run:
         shell: bash
@@ -35,6 +33,6 @@ jobs:
         with:
           python-version: 3.12
       - name: Install bandit
-        run: python3 -m venv "$BANDIT_VENV_PATH" && . "$BANDIT_VENV_PATH/bin/activate" && pip install -r .github/requirements_bandit.txt
+        run: python3 -m venv "$RUNNER_TEMP/bandit-venv" && . "$RUNNER_TEMP/bandit-venv/bin/activate" && pip install -r .github/requirements_bandit.txt
       - name: Run bandit
-        run: . "$BANDIT_VENV_PATH/bin/activate" && bandit -c pyproject.toml -r .
+        run: . "$RUNNER_TEMP/bandit-venv/bin/activate" && bandit -c pyproject.toml -r .
