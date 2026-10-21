@@ -187,10 +187,10 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=(f16|f32)_.*)"));
             patterns.push_back(std::regex(R"(.*smoke_ConvolutionLayerGPUTest_3D_tensor_basic/ConvolutionLayerGPUTest..*)"));
             // oneDNN FC: grouped scales with group_size not aligned to 16 are rejected
-            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_corner_cases_basic/.*group_size=4_weights_precision=(u8|u4|i4)_.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_basic/.*weights_shape=\[16,32\]_group_size=2_weights_precision=(u8|u4|i4)_.*)"));
-            // 4-bit constant weights with odd K: no kernel for padding_reorder_for_constant
-            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_basic/.*weights_shape=\[377,335\]_group_size=1111_weights_precision=(u4|i4)_.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_corner_cases_basic/.*group_size=4_weights_precision=(u8|u4|i4|u3)_.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_basic/.*weights_shape=\[16,32\]_group_size=2_weights_precision=(u8|u4|i4|u3)_.*)"));
+            // 3/4-bit constant weights with odd K: no kernel for padding_reorder_for_constant
+            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_basic/.*weights_shape=\[377,335\]_group_size=1111_weights_precision=(u4|i4|u3)_.*)"));
             // Non-transposed u4 weights + per-token dynamic quantization: no kernel found
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_dyn_quan/.*transpose_weights=0_.*_dyn_quan_group_size=9223372036854775807_.*)"));
         } else {
