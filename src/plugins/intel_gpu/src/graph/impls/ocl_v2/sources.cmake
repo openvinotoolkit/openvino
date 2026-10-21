@@ -89,6 +89,10 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/selective_ssm_utils.hpp
     ${CMAKE_CURRENT_LIST_DIR}/slice_scatter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/slice_scatter.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ternocl_int2/fully_connected_ternocl_int2.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ternocl_int2/fully_connected_ternocl_int2.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ternocl_int2/ternocl_int2_weights_reorder.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ternocl_int2/ternocl_int2_weights_reorder.hpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/fused_ops_jitter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/fused_ops_jitter.hpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/jitter.cpp
