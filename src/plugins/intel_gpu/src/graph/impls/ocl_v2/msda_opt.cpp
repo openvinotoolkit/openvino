@@ -7,6 +7,7 @@
 #include "common_utils/dispatch_utils.hpp"
 #include "intel_gpu/primitives/msda.hpp"
 #include "primitive_ocl_base.hpp"
+#include "utils/jitter.hpp"
 #include "utils/kernel_generator.hpp"
 
 namespace ov::intel_gpu::ocl {
@@ -29,12 +30,15 @@ protected:
         jit.make("NUM_QUERY", weights[1]);
         jit.make("NUM_LEVELS", weights[3]);
         jit.make("NUM_POINT", weights[4]);
+        // f32 for f16 data too: the sum over levels and points loses
+        // precision when it is accumulated in f16.
+        jit.add(make_type_jit_constants("ACCUMULATOR", ov::element::f32));
         return jit;
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-            assert(!params.is_dynamic());
+            OPENVINO_ASSERT(!params.is_dynamic(), "MSDA kernel requires static shapes");
             auto& wgs = kd.params.workGroups;
             // One work item per output element (b, q, h, d).
             wgs.global = {1, 1, params.get_output_layout(0).count()};
@@ -61,7 +65,7 @@ public:
 }  // namespace
 
 std::unique_ptr<primitive_impl> MSDAOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
-    assert(node.is_type<msda>());
+    OPENVINO_ASSERT(node.is_type<msda>(), "MSDAOpt expects an msda node");
     return std::make_unique<MSDAOptImpl>(node, params);
 }
 

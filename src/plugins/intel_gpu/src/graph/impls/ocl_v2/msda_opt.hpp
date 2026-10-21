@@ -33,7 +33,7 @@ struct MSDAOpt : public ImplementationManager {
     // needs plain layouts, f16/f32 data, i32 level sizes and offsets, and
     // element counts that fit its 32-bit offsets.
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
-        assert(node.is_type<msda>());
+        OPENVINO_ASSERT(node.is_type<msda>(), "MSDAOpt expects an msda node");
         static constexpr std::array supported_types = {ov::element::f16, ov::element::f32};
         const auto plain = [](const layout& l) {
             return l.format == format::get_default_format(l.get_rank()) && !l.get_padding();

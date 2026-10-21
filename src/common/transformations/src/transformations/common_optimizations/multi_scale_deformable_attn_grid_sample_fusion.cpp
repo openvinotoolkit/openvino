@@ -126,9 +126,7 @@ std::optional<std::vector<Level>> match_levels(const LevelPattern& pattern,
                     matcher.get_matched_nodes()};
         const auto index =
             ov::as_type_ptr<v0::Constant>(pm.at(pattern.gather).get_node()->get_input_node_shared_ptr(1));
-        OPENVINO_ASSERT(index,
-                        "MultiScaleDeformableAttnGridSampleFusion: the Gather index is expected to be a Constant");
-        if (split_output.get_index() != l ||
+        if (!index || split_output.get_index() != l ||
             index->cast_vector<int64_t>() != std::vector<int64_t>{static_cast<int64_t>(l)} ||
             dims.at("HW").i() != level.h * level.w ||
             (!levels.empty() && (level.split != levels.front().split || level.value != levels.front().value ||
@@ -194,7 +192,8 @@ ov::pass::MultiScaleDeformableAttnGridSampleFusion::MultiScaleDeformableAttnGrid
 
         auto symbols = m.get_symbols();
         const auto levels = match_levels(*level_pattern, pattern_map.at(concat_m), symbols);
-        OPENVINO_ASSERT(levels, "MultiScaleDeformableAttnGridSampleFusion: the matched levels are expected to match");
+        if (!levels)
+            return false;
 
         std::vector<int32_t> spatial_shapes, level_starts;
         int64_t start = 0;
