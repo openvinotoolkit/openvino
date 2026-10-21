@@ -10,7 +10,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/transpose.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -86,16 +86,14 @@ OutputVector translate_interpolate_op(const NodeContext& node) {
     std::vector<int> axes_values{1, 2};
     if (needs_nchw_layout) {
         axes_values = {2, 3};
-        auto to_nchw = make_shared<v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 2});
-        images = make_shared<v1::Transpose>(images, to_nchw);
+        convert_nhwc_to_nchw(true, images, Rank(4));
     }
     auto axes = make_shared<v0::Constant>(element::i32, Shape{2}, axes_values);
 
     Output<Node> interpolate = make_shared<v11::Interpolate>(images, size, axes, interpolate_attrs);
 
     if (needs_nchw_layout) {
-        auto to_nhwc = make_shared<v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
-        interpolate = make_shared<v1::Transpose>(interpolate, to_nhwc);
+        convert_nchw_to_nhwc(true, interpolate, Rank(4));
     }
 
     // it needs to return original i16 and u16 input_type due to temporal adjustment before
