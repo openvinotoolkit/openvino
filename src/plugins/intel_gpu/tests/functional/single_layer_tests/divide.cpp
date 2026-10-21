@@ -68,7 +68,8 @@ protected:
     }
 
     void validate() override {
-        const auto& [et, pythondiv] = GetParam();
+        const auto& et = std::get<0>(GetParam());
+        const bool pythondiv = std::get<1>(GetParam());
         const auto actual = get_plugin_outputs();
         ASSERT_EQ(actual.size(), 1);
         const auto& out_tensor = actual[0];
