@@ -17,24 +17,24 @@ namespace op {
 namespace convert {
 
 #define CONVERT_ET_LIST                                                                                              \
-    boolean, bf16, f16, f32, f64, i2, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, nf4, f8e4m3, \
+    boolean, bf16, f16, f32, f64, s1, i2, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, nf4, f8e4m3, \
         f8e5m2, f4e2m1, f8e8m0
 
 #define CONVERT_TO_ANY_NO_NF4                                                                                   \
-    boolean, bf16, f16, f32, f64, i2, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, f8e4m3, \
+    boolean, bf16, f16, f32, f64, s1, i2, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, f8e4m3, \
         f8e5m2, f4e2m1, f8e8m0
 
 #define CONVERT_TO_ANY_NO_F4 \
-    boolean, bf16, f16, f32, f64, i2, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, f8e4m3, f8e5m2
+    boolean, bf16, f16, f32, f64, s1, i2, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, f8e4m3, f8e5m2
 
 struct Evaluate : public element::NoAction<bool> {
     using element::NoAction<bool>::visit;
 
-    // convert from any (except F16, bf16, f32, NF4, f8e8m0) to any except NF4
+    // convert from any (except F16, bf16, f32, NF4, the sign type, f8e8m0) to any except NF4
     template <element::Type_t ET_IN,
               class TI = fundamental_type_for<ET_IN>,
               typename std::enable_if<ET_IN != element::f16 && ET_IN != element::bf16 && ET_IN != element::f32 &&
-                                      ET_IN != element::nf4 && ET_IN != element::f4e2m1 &&
+                                      ET_IN != element::nf4 && ET_IN != element::s1 && ET_IN != element::f4e2m1 &&
                                       ET_IN != element::f8e8m0>::type* = nullptr>
     static result_type visit(const Tensor& arg, Tensor& out, const size_t count) {
         using namespace ov::element;
@@ -70,6 +70,23 @@ struct Evaluate : public element::NoAction<bool> {
         using namespace ov::element;
         return IF_TYPE_OF(Convert_out,
                           CONVERT_TO_ANY_NO_NF4,
+                          EvalByOutputType,
+                          out.get_element_type(),
+                          iterator<ET_IN>(reinterpret_cast<const TI*>(arg.data())),
+                          out,
+                          count);
+    }
+
+    // convert from the sign type: its values are +1 and -1, so the output list is the one has_evaluate() admits
+    // for any valid type - the reference conversion reads the sign as a float and casts it.
+    template <element::Type_t ET_IN,
+              class TI = fundamental_type_for<ET_IN>,
+              typename std::enable_if<ET_IN == element::s1>::type* = nullptr>
+    static result_type visit(const Tensor& arg, Tensor& out, const size_t count) {
+        using namespace ov::element;
+        return IF_TYPE_OF(Convert_out,
+                          OV_PP_ET_LIST(boolean, bf16, f16, f32, f64, s1, i2, i4, i8, i16, i32, i64, u1, u4, u8, u16,
+                                        u32, u64, f8e4m3, f8e5m2),
                           EvalByOutputType,
                           out.get_element_type(),
                           iterator<ET_IN>(reinterpret_cast<const TI*>(arg.data())),
@@ -250,6 +267,7 @@ bool Convert::has_evaluate() const {
         case element::i16:
         case element::i32:
         case element::i64:
+        case element::s1:
         case element::u1:
         case element::u4:
         case element::u8:

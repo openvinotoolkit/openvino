@@ -175,6 +175,7 @@ typedef enum {
     F16,           //!< f16 element type
     F32,           //!< f32 element type
     F64,           //!< f64 element type
+    S1,            //!< s1 (sign) element type
     I2,            //!< i2 element type
     I4,            //!< i4 element type
     I8,            //!< i8 element type

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <string>
@@ -17,6 +18,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/acos.hpp"
@@ -735,6 +737,49 @@ TEST(eval, evaluate_convert) {
         auto result_data = read_vector<int64_t>(result);
         ASSERT_EQ(result_data, expected_result[i]);
     }
+}
+
+TEST(eval, evaluate_convert_s1_round_trip) {
+    auto p = make_shared<ov::op::v0::Parameter>(element::s1, Shape{8});
+    auto convert = make_shared<op::v0::Convert>(p, element::s1);
+    auto model = make_shared<Model>(OutputVector{convert}, ParameterVector{p});
+
+    // A set bit is +1, so 0x9C is {+1, -1, -1, +1, +1, +1, -1, -1}.
+    std::array<int8_t, 1> packed{static_cast<int8_t>(0x9C)};
+    auto out_vector = ov::TensorVector{ov::Tensor(element::s1, Shape{8})};
+    auto in_vector = ov::TensorVector{ov::Tensor(element::s1, Shape{8}, packed.data())};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    auto result = out_vector.at(0);
+    EXPECT_EQ(result.get_element_type(), element::s1);
+    EXPECT_EQ(result.get_shape(), (Shape{8}));
+
+    auto out_iter = element::iterator<element::s1>(static_cast<int8_t*>(result.data(element::s1)));
+    EXPECT_THAT(std::vector<float>(out_iter, out_iter + 8),
+                ElementsAre(1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, -1.0f, -1.0f));
+}
+
+TEST(eval, evaluate_convert_u8_to_s1_and_s1_to_f64) {
+    auto u8_param = make_shared<ov::op::v0::Parameter>(element::u8, Shape{8});
+    auto to_s1 = make_shared<op::v0::Convert>(u8_param, element::s1);
+    auto sign_param = make_shared<ov::op::v0::Parameter>(element::s1, Shape{8});
+    auto to_f64 = make_shared<op::v0::Convert>(sign_param, element::f64);
+    auto model = make_shared<Model>(OutputVector{to_s1, to_f64}, ParameterVector{u8_param, sign_param});
+
+    // Both pairs evaluate, and has_evaluate() reports the same contract.
+    EXPECT_TRUE(to_s1->has_evaluate());
+    EXPECT_TRUE(to_f64->has_evaluate());
+
+    std::array<uint8_t, 8> unsigned_values{0, 1, 2, 3, 4, 5, 6, 7};
+    std::array<int8_t, 1> packed{static_cast<int8_t>(0x9C)};
+    auto out_vector = ov::TensorVector{ov::Tensor(element::s1, Shape{8}), ov::Tensor(element::f64, Shape{8})};
+    auto in_vector = ov::TensorVector{ov::Tensor(element::u8, Shape{8}, unsigned_values.data()),
+                                      ov::Tensor(element::s1, Shape{8}, packed.data())};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+
+    auto out_iter = element::iterator<element::s1>(static_cast<int8_t*>(out_vector.at(0).data(element::s1)));
+    EXPECT_THAT(std::vector<int8_t>(out_iter, out_iter + 8), ElementsAre(1, 1, 1, 1, 1, 1, 1, 1));
+    EXPECT_THAT(read_vector<double>(out_vector.at(1)),
+                ElementsAre(1.0, -1.0, -1.0, 1.0, 1.0, 1.0, -1.0, -1.0));
 }
 
 TEST(eval, evaluate_abs) {

@@ -31,6 +31,14 @@ constexpr bool is_nf4_iterator() {
            std::is_same<it, element::Iterator<element::nf4, T>>::value;
 }
 
+template <class ElementIter>
+constexpr bool is_sign_iterator() {
+    using it = typename std::decay<ElementIter>::type;
+    using T = fundamental_type_for<element::s1>;
+    return std::is_same<it, element::Iterator<element::s1, const T>>::value ||
+           std::is_same<it, element::Iterator<element::s1, T>>::value;
+}
+
 namespace reference {
 namespace detail {
 
@@ -50,11 +58,16 @@ void convert(InputIt arg, OutputIt out, const size_t count) {
     using IN_T = typename std::iterator_traits<InputIt>::value_type;
     using OUT_T = typename std::iterator_traits<OutputIt>::value_type;
 
-    // Deduce types for NF4 <-> floating point conversion to use quantization.
-    using From = typename std::
-        conditional<is_nf4_iterator<InputIt>() && !std::is_integral<OUT_T>::value, const float, IN_T>::type;
-    using To =
-        typename std::conditional<is_nf4_iterator<OutputIt>() && !std::is_integral<IN_T>::value, float, OUT_T>::type;
+    // Deduce types for NF4 and sign <-> floating point conversion to use quantization. A sign output takes floats
+    // for any input, so that a negative value stores a clear bit.
+    using From = typename std::conditional<is_sign_iterator<InputIt>() ||
+                                               (is_nf4_iterator<InputIt>() && !std::is_integral<OUT_T>::value),
+                                           const float,
+                                           IN_T>::type;
+    using To = typename std::conditional<(is_nf4_iterator<OutputIt>() && !std::is_integral<IN_T>::value) ||
+                                             is_sign_iterator<OutputIt>(),
+                                         float,
+                                         OUT_T>::type;
 
     std::transform(arg, arg + count, out, detail::convert<From, To>);
 }

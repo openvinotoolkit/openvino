@@ -286,6 +286,31 @@ TEST(constant, double_vector_broadcast) {
 }
 
 //
+// s1
+//
+
+TEST(constant, s1_stores_the_sign_of_each_value) {
+    Shape shape{4};
+    std::vector<float> input{1.0f, -1.0f, 0.5f, -2.0f};
+    ov::op::v0::Constant c(element::s1, shape, input);
+
+    EXPECT_EQ(c.get_byte_size(), 1u);
+    // +1 -> 1, -1 -> 0, +0.5 -> 1, -2 -> 0, MSB first: 0b1010 0000.
+    EXPECT_EQ(c.get_data_ptr<uint8_t>()[0], 0xA0);
+    EXPECT_THAT(c.cast_vector<float>(), ::testing::ElementsAre(1.0f, -1.0f, 1.0f, -1.0f));
+}
+
+TEST(constant, s1_stores_an_unsigned_value_as_its_bit) {
+    Shape shape{4};
+    std::vector<uint8_t> input{1, 0, 2, 0};
+    ov::op::v0::Constant c(element::s1, shape, input);
+
+    // Any non-zero value is a set bit, so an unsigned container spells the bit itself.
+    EXPECT_EQ(c.get_data_ptr<uint8_t>()[0], 0xA0);
+    EXPECT_THAT(c.cast_vector<float>(), ::testing::ElementsAre(1.0f, -1.0f, 1.0f, -1.0f));
+}
+
+//
 // int2
 //
 

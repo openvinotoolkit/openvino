@@ -68,6 +68,7 @@ def test_dtype_ovtype_conversion(dtype_string, dtype, ovtype):
     (Type.i4, True, False, False, True, True, True, "i4", 1, 4),
     (Type.u6, True, False, False, True, False, False, "u6", 1, 6),
     (Type.i2, True, False, False, True, True, True, "i2", 1, 2),
+    (Type.s1, True, False, False, True, True, True, "s1", 1, 1),
 ])
 def test_basic_ovtypes(ovtype,
                        static_flag,

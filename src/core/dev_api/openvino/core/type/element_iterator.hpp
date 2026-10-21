@@ -32,7 +32,7 @@ namespace element {
  * @return True if element type is bit type otherwise false.
  */
 constexpr bool is_bit_type(Type_t et) {
-    return et == u1 || et == u2 || et == i2;
+    return et == u1 || et == u2 || et == i2 || et == s1;
 }
 
 /**
@@ -74,7 +74,7 @@ constexpr bool is_byte_type(Type_t et) {
  * @return True if type is packet LSB first, false otherwise.
  */
 constexpr bool is_lsb_packed(Type_t et) {
-    return et != u1;
+    return et != u1 && et != s1;
 }
 
 /**
@@ -110,6 +110,11 @@ constexpr size_t bit_width<Type_t::u4>() {
 template <>
 constexpr size_t bit_width<Type_t::nf4>() {
     return 4;
+}
+
+template <>
+constexpr size_t bit_width<Type_t::s1>() {
+    return 1;
 }
 
 template <>
@@ -212,9 +217,18 @@ public:
      *
      * @return Value of BitProxy.
      */
-    template <Type_t ETT = ET, std::enable_if_t<ETT != i4 && ETT != i2 && ETT != f4e2m1>* = nullptr>
+    template <Type_t ETT = ET, std::enable_if_t<ETT != i4 && ETT != i2 && ETT != s1 && ETT != f4e2m1>* = nullptr>
     operator value_type() const {
         return static_cast<value_type>(get_bit_value());
+    }
+
+    /**
+     * @brief Converts to fundamental type for the sign type: the decoded value, +1 or -1.
+     * @return Value of BitProxy.
+     */
+    template <Type_t ETT = ET, std::enable_if_t<ETT == s1>* = nullptr>
+    operator value_type() const {
+        return get_bit_value() ? 1 : -1;
     }
 
     /**
@@ -246,6 +260,15 @@ public:
     }
 
     /**
+     * @brief Converts to float for the sign type: a set bit is +1, a clear bit is -1.
+     * @return The decoded value, +1 or -1.
+     */
+    template <Type_t ETT = ET, std::enable_if_t<ETT == s1>* = nullptr>
+    operator float() const {
+        return get_bit_value() ? 1.0f : -1.0f;
+    }
+
+    /**
      * @brief Converts to fundamental type.
      *
      * @return Value of BitProxy.
@@ -268,10 +291,21 @@ public:
      * @brief Sets current ProxyBit to value.
      * @param v  Value to be set.
      */
-    template <Type_t ETT = ET, std::enable_if_t<ETT != f4e2m1>* = nullptr>
+    template <Type_t ETT = ET, std::enable_if_t<ETT != f4e2m1 && ETT != s1>* = nullptr>
     BitProxy<T, ET>& operator=(const value_type v) {
         constexpr auto value_mask = util::make_n_bit_mask(m_bits);
         set_bit_value(static_cast<uint8_t>(v) & value_mask);
+        return *this;
+    }
+
+    /**
+     * @brief Sets the current sign value from the fundamental type: non-negative stores a set bit (+1),
+     * negative a clear bit (-1), the inverse of operator value_type().
+     * @param v  Value to be set.
+     */
+    template <Type_t ETT = ET, std::enable_if_t<ETT == s1>* = nullptr>
+    BitProxy<T, ET>& operator=(const value_type v) {
+        set_bit_value(v >= 0 ? 1 : 0);
         return *this;
     }
 
@@ -292,6 +326,18 @@ public:
     template <Type_t ETT = ET, std::enable_if_t<ETT == nf4>* = nullptr>
     BitProxy<T, ET>& operator=(const float v) {
         set_bit_value(ConvertNF4::quantize(v));
+        return *this;
+    }
+
+    /**
+     * @brief Sets current sign value from float: non-negative stores a set bit (+1), negative a clear bit (-1).
+     *
+     * @note The comparison is ordered, so a NaN stores a clear bit, i.e. -1, as -0.0f stores +1.
+     * @param v  Value to be set.
+     */
+    template <Type_t ETT = ET, std::enable_if_t<ETT == s1>* = nullptr>
+    BitProxy<T, ET>& operator=(const float v) {
+        set_bit_value(v >= 0.0f ? 1 : 0);
         return *this;
     }
 };

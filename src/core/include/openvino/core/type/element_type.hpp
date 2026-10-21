@@ -43,6 +43,7 @@ enum class Type_t {
     f16,      //!< f16 element type
     f32,      //!< f32 element type
     f64,      //!< f64 element type
+    s1,       //!< sign element type: one bit decoding to {-1, +1}
     i2,       //!< i2 element type
     i4,       //!< i4 element type
     i8,       //!< i8 element type
@@ -154,6 +155,9 @@ inline constexpr Type f32(Type_t::f32);
 /// \brief f64 element type
 /// \ingroup ov_element_cpp_api
 inline constexpr Type f64(Type_t::f64);
+/// \brief s1 (sign) element type
+/// \ingroup ov_element_cpp_api
+inline constexpr Type s1(Type_t::s1);
 /// \brief i2 element type
 /// \ingroup ov_element_cpp_api
 inline constexpr Type i2(Type_t::i2);

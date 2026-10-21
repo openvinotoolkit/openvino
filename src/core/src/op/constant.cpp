@@ -29,7 +29,7 @@
 namespace ov::op {
 
 #define SUPPORTED_ET                                                                                                 \
-    boolean, bf16, f16, f32, f64, i2, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, nf4, f8e4m3, \
+    boolean, bf16, f16, f32, f64, s1, i2, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, nf4, f8e4m3, \
         f8e5m2, f4e2m1, f8e8m0
 
 template <class TContainer>
@@ -112,6 +112,8 @@ bool in_t_range(const U& v) {
     } else if constexpr (ET == element::u6) {
         const auto temp = static_cast<ConstantT>(v);
         return 0 <= temp && temp <= 63;
+    } else if constexpr (ET == element::s1) {
+        return true;
     } else if constexpr (ET == element::i2) {
         const auto temp = static_cast<ConstantT>(v);
         return -2 <= temp && temp <= 1;
@@ -158,6 +160,15 @@ std::conditional_t<ET == element::nf4 && !std::is_integral_v<U>, float, fundamen
     }
     if constexpr (ET == element::u1) {
         return static_cast<fundamental_type_for<ET>>(static_cast<bool>(value));
+    } else if constexpr (ET == element::s1) {
+        // The converted value is the decoded sign, which is what the iterator's proxy takes: non-negative is
+        // +1 (bit set), negative is -1 (bit clear). An unsigned container can only spell the bit itself, where
+        // any non-zero value is a set bit.
+        if constexpr (std::is_unsigned_v<U>) {
+            return static_cast<fundamental_type_for<ET>>(value != 0 ? 1 : -1);
+        } else {
+            return static_cast<fundamental_type_for<ET>>(value >= 0 ? 1 : -1);
+        }
     } else if constexpr (ET == element::nf4 && !std::is_integral_v<U>) {
         return static_cast<float>(value);
     } else {

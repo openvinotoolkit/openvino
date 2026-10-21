@@ -321,6 +321,46 @@ TEST(ElementIteratorTest, read_u4_from_tensor) {
     EXPECT_THAT(std::vector<int8_t>(iter, iter + t.get_size()), ElementsAre(2, 4, 10, 3, 1, 6, 9, 7, 11, 5));
 }
 
+// --- s1
+TEST(ElementIteratorTest, write_s1_data_from_sign) {
+    constexpr auto elements_count = 8;
+    auto input = std::array<float, elements_count>{1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, -1.0f, -1.0f};
+    auto output = std::array<int8_t, get_buffer_size(1, elements_count)>{};
+    auto iter = element::iterator<element::s1>(output.data());
+
+    std::copy(input.begin(), input.end(), iter);
+
+    // Packed MSB first like u1: element 0 is bit 7 of byte 0. A set bit is +1.
+    EXPECT_THAT(output, ElementsAre(static_cast<int8_t>(0x9C)));
+}
+
+TEST(ElementIteratorTest, read_const_s1_data_as_sign) {
+    constexpr auto elements_count = 8;
+    constexpr auto input = std::array<int8_t, get_buffer_size(1, elements_count)>{static_cast<int8_t>(0x9C)};
+    auto iter = element::iterator<element::s1>(input.data());
+
+    EXPECT_THAT(std::vector<float>(iter, iter + elements_count),
+                ElementsAre(1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, -1.0f, -1.0f));
+}
+
+TEST(ElementIteratorTest, s1_value_type_is_the_sign) {
+    constexpr auto elements_count = 2;
+    auto output = std::array<int8_t, get_buffer_size(1, elements_count)>{};
+    auto iter = element::iterator<element::s1>(output.data());
+
+    *iter = static_cast<int8_t>(-1);
+    ++iter;
+    *iter = static_cast<int8_t>(1);
+    --iter;
+
+    // The value_type view is the decoded sign, the same value the float view gives.
+    EXPECT_THAT(output, ElementsAre(static_cast<int8_t>(0x40)));
+    EXPECT_EQ(static_cast<int8_t>(*iter), -1);
+    EXPECT_EQ(static_cast<float>(*iter), -1.0f);
+    ++iter;
+    EXPECT_EQ(static_cast<float>(*iter), 1.0f);
+}
+
 // --- i2
 TEST(ElementIteratorTest, write_i2_data) {
     constexpr auto elements_count = 8;

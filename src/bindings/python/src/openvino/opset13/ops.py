@@ -301,6 +301,9 @@ def constant(
     :param value: One of: array of values or scalar to initialize node with.
     :param dtype: The data type of provided data.
                   If dtype does not match, data will be converted.
+                  For Type.s1 the payload is the sign of each element, not a raw bit: a negative
+                  value stores a clear bit and a non-negative one a set bit, so pass {1, -1} rather
+                  than the 0/1 spelling used for Type.u1.
                   Note: disables sharing of the memory when convertion occurs.
     :param name: Optional name for output node.
     :param shared_memory: keyword-only argument.
@@ -312,7 +315,7 @@ def constant(
                           Requires data to be C_CONTIGUOUS if `True`.
                           Disabled by default if:
                           - value is a scalar.
-                          - dtype is one of: Type.u1, Type.u2, Type.u3, Type.i2, Type.i4, Type.u4, Type.u6,
+                          - dtype is one of: Type.u1, Type.u2, Type.u3, Type.s1, Type.i2, Type.i4, Type.u4, Type.u6,
                             Type.nf4, Type.f4e2m1, Type.bf16, Type.f8e8m0, Type.f8e4m3, Type.f8e5m2.
                           - dtype force conversion of data.
     :return: The Constant node initialized with provided data.
@@ -333,7 +336,7 @@ def constant(
     # Handle type casting, when dtype is not None:
     if dtype:
         # Expect packed data, use different constructor to handle it correctly:
-        if dtype in [Type.u1, Type.u2, Type.u3, Type.i2, Type.i4, Type.u4, Type.u6, Type.nf4, Type.f4e2m1]:
+        if dtype in [Type.u1, Type.u2, Type.u3, Type.s1, Type.i2, Type.i4, Type.u4, Type.u6, Type.nf4, Type.f4e2m1]:
             display_shared_memory_warning(f"Constant initialized with packed type of {dtype}")
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         elif dtype in [Type.bf16, Type.f8e8m0, Type.f8e4m3, Type.f8e5m2]:
