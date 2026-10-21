@@ -416,7 +416,7 @@ TEST_F(HintPrefetchTest, parallel_prefault_whole_file) {
         ASSERT_NE(mapped, nullptr);
         EXPECT_EQ(mapped->size(), file_size);
 
-        EXPECT_NO_THROW(mapped->hint_prefetch());
+        EXPECT_NO_THROW(mapped->hint_prefetch(0, ov::auto_size));
 
         EXPECT_THAT(data, ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
     }
@@ -449,7 +449,7 @@ TEST_F(HintPrefetchTest, parallel_prefault_below_threshold_is_noop) {
     {
         auto mapped = load_mmap_object(m_file_path);
         ASSERT_NE(mapped, nullptr);
-        EXPECT_NO_THROW(mapped->hint_prefetch());  // no optimization
+        EXPECT_NO_THROW(mapped->hint_prefetch(0, ov::auto_size));  // no optimization
         EXPECT_THAT(data, ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
     }
 }
@@ -466,7 +466,7 @@ TEST_F(HintPrefetchTest, parallel_prefault_with_file_offset) {
         ASSERT_NE(mapped, nullptr);
         EXPECT_EQ(mapped->size(), file_size - map_offset);
 
-        EXPECT_NO_THROW(mapped->hint_prefetch());
+        EXPECT_NO_THROW(mapped->hint_prefetch(0, ov::auto_size));
 
         const auto* mapped_bytes = reinterpret_cast<const uint8_t*>(mapped->data());
         EXPECT_TRUE(std::equal(mapped_bytes, mapped_bytes + mapped->size(), data.begin() + map_offset));

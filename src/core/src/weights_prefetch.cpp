@@ -4,14 +4,105 @@
 
 #include "openvino/core/weights_prefetch.hpp"
 
+#include <algorithm>
+#include <cstring>
+#include <tuple>
 #include <utility>
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 namespace ov::util {
+
+SequentialPrefetchScheduler::SequentialPrefetchScheduler(ov::Tensor tensor, size_t window, size_t step)
+    : m_tensor(std::move(tensor)),
+      m_size(m_tensor.get_byte_size()),
+      m_window(window),
+      m_step(std::max<size_t>(step, 1)) {
+    OPENVINO_ASSERT(m_tensor.get_element_type() == ov::element::u8 && m_tensor.get_shape().size() == 1,
+                    "Prefetch tensor must be 1D u8");
+    advance(0, 0);
+}
+
+std::shared_ptr<IMemoryHints> SequentialPrefetchScheduler::chunk_hints(size_t begin, size_t end) const {
+    return ov::get_memory_hints(ov::Tensor{m_tensor, ov::Coordinate{begin}, ov::Coordinate{end}});
+}
+
+void SequentialPrefetchScheduler::advance(size_t begin, size_t end) noexcept {
+    try {
+        begin = std::min(begin, m_size);
+        end = std::min(std::max(begin, end), m_size);
+        if (m_evict) {
+            // Whole steps only, the read position may be in the middle of a page.
+            const auto evict_end = begin == m_size ? m_size : begin / m_step * m_step;
+            if (evict_end > m_evicted) {
+                if (const auto hints = chunk_hints(m_evicted, evict_end)) {
+                    hints->hint_evict();
+                }
+                m_evicted = evict_end;
+            }
+        }
+        m_prefetched = std::max(m_prefetched, begin);
+        const auto target = std::min(end + m_window, m_size);
+        while (m_prefetched < target) {
+            const auto chunk_end = std::min(m_prefetched + m_step, m_size);
+            if (const auto hints = chunk_hints(m_prefetched, chunk_end)) {
+                std::ignore = hints->hint_prefetch();
+            }
+            m_prefetched = chunk_end;
+        }
+    } catch (...) {
+        // Hints are advisory, the data is read correctly without them.
+    }
+}
+
+PrefetchStreamBuf::PrefetchStreamBuf(const ov::Tensor& tensor, bool prefetch) {
+    const auto begin = static_cast<char*>(const_cast<void*>(tensor.data()));
+    setg(begin, begin, begin + tensor.get_byte_size());
+    if (prefetch && ov::get_memory_hints(tensor)) {
+        m_scheduler = std::make_unique<SequentialPrefetchScheduler>(tensor);
+    }
+}
+
+std::streamsize PrefetchStreamBuf::xsgetn(char_type* dst, std::streamsize count) {
+    const auto n = std::min<std::streamsize>(count, egptr() - gptr());
+    if (n <= 0) {
+        return 0;
+    }
+    const auto pos = static_cast<size_t>(gptr() - eback());
+    if (m_scheduler) {
+        m_scheduler->advance(pos, pos + static_cast<size_t>(n));
+    }
+    std::memcpy(dst, gptr(), static_cast<size_t>(n));
+    // gbump() takes int, reads may exceed 2 GB.
+    setg(eback(), gptr() + n, egptr());
+    return n;
+}
+
+PrefetchStreamBuf::pos_type PrefetchStreamBuf::seekoff(off_type off,
+                                                       std::ios_base::seekdir dir,
+                                                       std::ios_base::openmode which) {
+    if (!(which & std::ios_base::in)) {
+        return pos_type(off_type(-1));
+    }
+    const off_type base = dir == std::ios_base::beg   ? 0
+                          : dir == std::ios_base::cur ? gptr() - eback()
+                                                      : egptr() - eback();
+    const off_type pos = base + off;
+    if (pos < 0 || pos > egptr() - eback()) {
+        return pos_type(off_type(-1));
+    }
+    setg(eback(), eback() + pos, egptr());
+    return pos_type(pos);
+}
+
+PrefetchStreamBuf::pos_type PrefetchStreamBuf::seekpos(pos_type pos, std::ios_base::openmode which) {
+    return seekoff(off_type(pos), std::ios_base::beg, which);
+}
 
 OrderedPrefetchScheduler::OrderedPrefetchScheduler(const std::vector<std::shared_ptr<ov::Node>>& ops,
                                                    size_t lookahead,
