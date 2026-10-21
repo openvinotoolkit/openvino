@@ -890,11 +890,13 @@ struct ConvertFromBinPrecision<std::tuple<src_t, dst_t>> {
         const auto* src = static_cast<const uint8_t*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
         const size_t nBits = 8;
-        const size_t nBytes = rnd_up(ctx.size, nBits);
+        // The loop runs over source bytes: eight u1 elements per byte.
+        const size_t nBytes = rnd_up(ctx.size, nBits) / nBits;
         LoopPolicy::run(nBytes, [&](size_t byteIndex) {
             auto currentBitNum = std::min(nBits, ctx.size - byteIndex * nBits);
             for (size_t bitIndex = 0; bitIndex < currentBitNum; ++bitIndex) {
-                const auto bit = static_cast<uint8_t>((src[byteIndex] >> bitIndex) & 0x1U);
+                // u1 is the one element type packed MSB-first inside a byte.
+                const auto bit = static_cast<uint8_t>((src[byteIndex] >> (nBits - 1 - bitIndex)) & 0x1U);
                 dst[byteIndex * nBits + bitIndex] = static_cast<dst_t>(bit);
             }
         });
