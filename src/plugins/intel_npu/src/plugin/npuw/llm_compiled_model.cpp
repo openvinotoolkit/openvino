@@ -1342,7 +1342,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // The long factors are only worth materializing if a position can actually reach
         // the context limit and they differ from the short ones - models that declare
         // LongRoPE but set the limit at (or beyond) their whole context, or repeat the
-        // same factors twice, always run in the short regime.
+        // same factors twice, always run in the short mode.
         m_longrope_tables.has_long = m_longrope_context_limit < m_longrope_tables.max_len &&
                                      m_longrope_tables.inv_freq_long != m_longrope_tables.inv_freq_short;
         if (m_longrope_tables.rotary_ndims > 0 && !m_longrope_tables.has_long) {
@@ -1439,6 +1439,20 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                      "HFA or Pyramid attention, and a non-embedding model. "
                      "Falling back to monolithic (continuous) KV cache.");
         }
+    }
+
+    // A LongRoPE model can flip between its short- and its long-factor coefficients in
+    // the middle of a conversation, and NPUW repairs that by re-rotating the cached keys
+    // in place (llm_longrope_kv.hpp). That rewrite needs a non-quantized key cache.
+    // Where it cannot run there is no correct fallback - the cache would stay in the old
+    // rotation frame and every answer past the crossing would be garbage - so refuse the
+    // combination here rather than at the crossing token.
+    if (m_longrope_tables.has_long) {
+        OPENVINO_ASSERT(kv_kache_storage_type == ov::element::f16 || kv_kache_storage_type == ov::element::f32,
+                        "NPUW: a ",
+                        kv_kache_storage_type,
+                        " KV cache cannot be re-rotated when the LongRoPE mode changes. "
+                        "Use an f16 or f32 KV cache for this model.");
     }
 
     // Duplicate shared K/V broadcast chains in the prefill model so that each downstream
@@ -1885,7 +1899,22 @@ std::shared_ptr<const ov::Model> ov::npuw::LLMCompiledModel::get_runtime_model()
 }
 
 void ov::npuw::LLMCompiledModel::set_property(const ov::AnyMap& properties) {
-    OPENVINO_NOT_IMPLEMENTED;
+    // Propagate to every inner compiled model once; they validate which keys are mutable
+    std::lock_guard<std::mutex> lock(m_set_property_mutex);
+    auto apply = [&](const std::shared_ptr<ov::npuw::ICompiledModel_v0>& cm) {
+        if (cm) {
+            cm->set_property(properties);
+        }
+    };
+    apply(m_prefill_compiled);
+    for (const auto& variant : m_generate_compiled_variants) {
+        apply(variant);
+    }
+    // m_kvcache_compiled is the last generate variant when variants are used
+    if (m_generate_compiled_variants.empty()) {
+        apply(m_kvcache_compiled);
+    }
+    apply(m_lm_head_compiled);
 }
 
 void ov::npuw::LLMCompiledModel::resolve_continuous_prefill() {
