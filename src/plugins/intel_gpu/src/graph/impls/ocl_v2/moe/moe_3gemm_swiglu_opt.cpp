@@ -37,9 +37,9 @@ using ov::intel_gpu::ocl::moe::ResidentExpertWeightProvider;
 
 #    include "../primitive_ocl_base.hpp"
 #    include "../utils/kernel_generator.hpp"
-#    include "impls/onednn/utils.hpp"
 #    include "common_utils/jitter.hpp"
 #    include "impls/onednn/grouped_matmul_helper.hpp"
+#    include "impls/onednn/utils.hpp"
 #    include "intel_gpu/graph/kernel_impl_params.hpp"
 #    include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #    include "intel_gpu/runtime/lru_cache.hpp"
@@ -58,9 +58,9 @@ using namespace ov::intel_gpu::ocl;
 // Bring shared onednn matmul wrappers into this anonymous namespace so existing call sites
 // that reference `onednn_matmul`, `onednn_linear`, etc. unqualified continue to compile after
 // the definitions moved to impls/onednn/grouped_matmul_helper.hpp.
+using cldnn::onednn::convert_data_type;
 using cldnn::onednn::onednn_linear;
 using cldnn::onednn::onednn_matmul;
-using cldnn::onednn::convert_data_type;
 
 inline dnnl::algorithm moe_activation_to_dnnl_algo(ov::op::internal::MOE::Activation_type act) {
     switch (act) {
@@ -1223,7 +1223,9 @@ public:
                     // Skip ZP memory allocation for symmetric quantization (has_zp=false) to save memory
                     if (cur_moe->_config.has_zp) {
                         OPENVINO_ASSERT(moe_fusion_wei_addr.zp[i]->get_layout().count() != 1,
-                                        "moe_3gemm GEMM ", i, ": a zero point shared by all the experts is supported by the grouped GEMM only");
+                                        "moe_3gemm GEMM ",
+                                        i,
+                                        ": a zero point shared by all the experts is supported by the grouped GEMM only");
                         int64_t zp_offset = j * get_bytes_count(static_cast<int64_t>(dnnl_weights[i].ic) * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size,
                                                                 moe_fusion_wei_addr.zp[i]->get_layout());
                         dnnl_weights[i].zp = convert2dnnl(moe_fusion_wei_addr.zp[i],
@@ -2325,9 +2327,9 @@ public:
     //     scatter(final_hidden, scratch.y, expert_mask.batch)
     //
     cldnn::event::ptr exec_per_expert_onednn_linear(const std::vector<cldnn::event::ptr>& events,
-                                          cldnn::stream& stream,
-                                          typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                          scratch_buffers& scratch) {
+                                                    cldnn::stream& stream,
+                                                    typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                                    scratch_buffers& scratch) {
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         const auto& config = cur_moe->_config;
         auto& dnn_stream = stream.get_onednn_stream();
@@ -2687,8 +2689,7 @@ public:
                                                      cldnn::stream& stream,
                                                      typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                                      scratch_buffers& scratch) {
-        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin,
-                           openvino::itt::handle("moe_3gemm_swiglu_opt_impl::exec_grouped_gemm_gpu_mask_gen"));
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("moe_3gemm_swiglu_opt_impl::exec_grouped_gemm_gpu_mask_gen"));
 
         const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
