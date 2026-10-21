@@ -33,6 +33,7 @@ const std::map<ov_element_type_e, ov::element::Type> element_type_map = {
     {ov_element_type_e::STRING, ov::element::string},
     {ov_element_type_e::F4E2M1, ov::element::f4e2m1},
     {ov_element_type_e::F8E8M0, ov::element::f8e8m0},
+    {ov_element_type_e::I2, ov::element::i2},
 };
 // clang-format on
 

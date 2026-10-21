@@ -321,6 +321,41 @@ TEST(ElementIteratorTest, read_u4_from_tensor) {
     EXPECT_THAT(std::vector<int8_t>(iter, iter + t.get_size()), ElementsAre(2, 4, 10, 3, 1, 6, 9, 7, 11, 5));
 }
 
+// --- i2
+TEST(ElementIteratorTest, write_i2_data) {
+    constexpr auto elements_count = 8;
+    auto input = std::array<int8_t, elements_count>{1, -2, 0, -1, 1, 1, -2, 0};
+    auto output = std::array<int8_t, get_buffer_size(2, elements_count)>{};
+    auto iter = element::iterator<element::i2>(output.data());
+
+    std::copy(input.begin(), input.end(), iter);
+
+    // Packed LSB first like u2: element 0 in bits 0-1 of byte 0.
+    EXPECT_THAT(output, ElementsAre(static_cast<int8_t>(0xC9), 0x25));
+}
+
+TEST(ElementIteratorTest, read_i2_data_sign_extends) {
+    constexpr auto elements_count = 8;
+    constexpr auto input = std::array<int8_t, get_buffer_size(2, elements_count)>{static_cast<int8_t>(0xC9), 0x25};
+    auto iter = element::iterator<element::i2>(input.data());
+
+    EXPECT_THAT(std::vector<int8_t>(iter, iter + elements_count), ElementsAre(1, -2, 0, -1, 1, 1, -2, 0));
+}
+
+TEST(ElementIteratorTest, read_i2_data_increment_decrement_iterator) {
+    constexpr auto input = std::array<int8_t, 1>{static_cast<int8_t>(0xE4)};  // -1, 1 from LSB
+    auto iter = element::iterator<element::i2>(input.data());
+    EXPECT_EQ(static_cast<int8_t>(*iter), 0);
+    ++iter;
+    EXPECT_EQ(static_cast<int8_t>(*iter), 1);
+    ++iter;
+    EXPECT_EQ(static_cast<int8_t>(*iter), -2);
+    ++iter;
+    EXPECT_EQ(static_cast<int8_t>(*iter), -1);
+    --iter;
+    EXPECT_EQ(static_cast<int8_t>(*iter), -2);
+}
+
 // --- i4
 // nibbles are counted as [n1, n0]
 TEST(ElementIteratorTest, write_i4_data) {

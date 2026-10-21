@@ -39,6 +39,11 @@ struct element_type_traits<element::Type_t::f64> {
 };
 
 template <>
+struct element_type_traits<element::Type_t::i2> {
+    using value_type = int8_t;
+};
+
+template <>
 struct element_type_traits<element::Type_t::i4> {
     using value_type = int8_t;
 };

@@ -4982,6 +4982,7 @@ class Type:
     f8e5m2: typing.ClassVar[Type]  # value = <Type: 'f8e5m2'>
     f8e8m0: typing.ClassVar[Type]  # value = <Type: 'f8e8m0'>
     i16: typing.ClassVar[Type]  # value = <Type: 'int16_t'>
+    i2: typing.ClassVar[Type]  # value = <Type: 'int2_t'>
     i32: typing.ClassVar[Type]  # value = <Type: 'int32_t'>
     i4: typing.ClassVar[Type]  # value = <Type: 'int4_t'>
     i64: typing.ClassVar[Type]  # value = <Type: 'int64_t'>

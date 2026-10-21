@@ -255,6 +255,7 @@ def test_init_bf16_direct(ov_type, numpy_dtype, shared_flag):
         (Type.u3, np.uint8),
         (Type.u4, np.uint8),
         (Type.u6, np.uint8),
+        (Type.i2, np.int8),
         (Type.i4, np.int8),
         (Type.nf4, np.uint8),
     ],

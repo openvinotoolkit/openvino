@@ -286,6 +286,26 @@ TEST(constant, double_vector_broadcast) {
 }
 
 //
+// int2
+//
+
+TEST(constant, int2_write_and_read_back) {
+    Shape shape{4};
+    std::vector<int> input{-2, 1, 0, -1};
+    ov::op::v0::Constant c(element::i2, shape, input);
+
+    EXPECT_EQ(c.get_byte_size(), 1u);
+    EXPECT_EQ(c.cast_vector<int>(), input);
+    // LSB first, two bits each: -2 = 10 at bits 0-1, 1 = 01, 0 = 00, -1 = 11 at bits 6-7: 0xC6.
+    EXPECT_EQ(c.get_data_ptr<uint8_t>()[0], 0xC6);
+}
+
+TEST(constant, int2_out_of_range_throws) {
+    EXPECT_THROW(ov::op::v0::Constant(element::i2, Shape{1}, std::vector<int>{2}), Exception);
+    EXPECT_THROW(ov::op::v0::Constant(element::i2, Shape{1}, std::vector<int>{-3}), Exception);
+}
+
+//
 // int4
 //
 

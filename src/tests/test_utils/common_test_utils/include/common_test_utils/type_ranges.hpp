@@ -78,6 +78,11 @@ static ov::test::utils::InputGenerateData get_range_by_type(
         inData.range = 2;
         break;
     }
+    case ov::element::Type_t::i2: {
+        inData.start_from = -2;
+        inData.range = 4;
+        break;
+    }
     case ov::element::Type_t::string: {
         auto lowest = std::numeric_limits<char>::lowest();
         auto max = std::numeric_limits<char>::max();
