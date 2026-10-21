@@ -179,16 +179,20 @@ private:
     const npu_vm_runtime_config_desc_t* update_runtime_config(const CommandQueueDesc& previousCommandQueueDesc,
                                                               const CommandQueueDesc& currentCommandQueueDesc);
 
+    // Command queues replaced by queue switches that the VM runtime may still reference. The runtime only
+    // rebinds its execution-context fence to the new queue inside a successful Execute2, so a switch that is
+    // not followed by a successful Execute2 (e.g. a shape-prediction switch, then a failed output check, then
+    // another priority change) can leave the fence bound to an earlier queue. Retain every outgoing queue here
+    // until a successful Execute2 migrates the fence, then release them in push(). Declared before
+    // _executionContext so these queues outlive the context's fence at teardown (members are destroyed in
+    // reverse declaration order).
+    std::vector<std::shared_ptr<CommandQueue>> _pending_command_queues;
     // VM execution context owned by this pipeline; shared between shape prediction and execution.
     VMExecutionContext _executionContext;
     npu_vm_runtime_version_t _apiVersion = NPU_VM_RUNTIME_VERSION_1_0;
     NpuVMRuntimeConfigChain _runtimeConfigChain;
     CommandQueueDesc _runtime_config_command_queue_desc;
     bool _runtime_config_command_queue_desc_valid = false;
-    // Keeps the command queue replaced during a queue switch alive until the current push()/pull()
-    // completes, so the VM runtime can migrate off (and destroy) the old queue-bound fence without a
-    // use-after-free. Released at the end of pull().
-    std::shared_ptr<CommandQueue> _retired_command_queue;
     std::unique_ptr<PipelinedCommandLists> _command_list_group;
 };
 
