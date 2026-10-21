@@ -983,6 +983,74 @@ TEST_P(InferWithHostCompileTests, SetProperty_ModelPriority_SingleCompiledModel)
     OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqNew, reqRefNew, inTensor, "Priority_new_request_after_set"));
 }
 
+// ── V2: queue retained across a failed inference between two queue switches ───
+//
+// Regression for the lifetime hazard where a single retained slot is not enough:
+//   1) set_property(HIGH) then an undersized user output tensor makes
+//      check_tensor_and_predicted_shapes() throw AFTER shape prediction switched the queue but BEFORE
+//      push()/Execute2 migrated the runtime's fence off the original queue.
+//   2) set_property(MEDIUM) switches the queue again before retrying.
+// The original (still fence-bound) queue must survive both switches until the retry's Execute2 migrates
+// the fence; otherwise the runtime destroys a fence on an already-freed queue (use-after-free).
+TEST_P(InferWithHostCompileTests, SetProperty_Priority_RetryAfterUndersizedOutput) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    ov::AnyMap cfg = configuration;
+    cfg[ov::hint::model_priority.name()] = ov::hint::Priority::LOW;
+    cfg[ov::intel_npu::shared_common_queue.name()] = true;
+
+    auto model = createModelByName(selectedModelName);
+    RuntimeCompareSetupResult setupResult;
+    {
+        auto savedCfg = configuration;
+        configuration = cfg;
+        setupResult = prepareRuntimeCompareContext(model);
+        configuration = savedCfg;
+    }
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
+    }
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
+    }
+    auto& ctx = setupResult.context;
+
+    const ov::Shape shape = makeInputShape(model, 1, true);
+    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
+
+    // Baseline at LOW establishes the initial VM-bound queue.
+    OV_ASSERT_NO_THROW(
+        setInputInferAndCompare(model, ctx.reqDynamic, ctx.reqReference, inTensor, "RetryUndersized_low_baseline"));
+
+    // First switch LOW->HIGH, then feed an undersized user output tensor (shaped for the model's small bound)
+    // together with the large input, so shape prediction switches the queue but the output size check throws
+    // before Execute2 runs.
+    OV_ASSERT_NO_THROW(ctx.compiledModel.set_property({{ov::hint::model_priority.name(), ov::hint::Priority::HIGH}}));
+    const ov::Shape smallInputShape = makeInputShape(model, 1, false);
+    ov::Tensor undersizedOutput =
+        ov::test::utils::create_and_fill_tensor(model->output().get_element_type(),
+                                                makeOutputShape(selectedModelName, smallInputShape),
+                                                100,
+                                                0);
+    OV_ASSERT_NO_THROW(ctx.reqDynamic.set_input_tensor(0, inTensor));
+    OV_ASSERT_NO_THROW(ctx.reqDynamic.set_tensor(model->output(), undersizedOutput));
+    ASSERT_ANY_THROW(ctx.reqDynamic.infer());
+
+    // Second switch HIGH->MEDIUM, then retry with a correctly sized output tensor. The retry's Execute2
+    // migrates the fence off the original queue, which must still be alive after both switches.
+    OV_ASSERT_NO_THROW(ctx.compiledModel.set_property({{ov::hint::model_priority.name(), ov::hint::Priority::MEDIUM}}));
+    ov::Tensor validOutput = ov::test::utils::create_and_fill_tensor(model->output().get_element_type(),
+                                                                     makeOutputShape(selectedModelName, shape),
+                                                                     100,
+                                                                     0);
+    OV_ASSERT_NO_THROW(ctx.reqDynamic.set_tensor(model->output(), validOutput));
+    OV_ASSERT_NO_THROW(
+        setInputInferAndCompare(model, ctx.reqDynamic, ctx.reqReference, inTensor, "RetryUndersized_retry_medium"));
+}
+
 // ── V2: compiledModel.set_property(workload_type) → workload change ───────────
 //
 // Call chain (shared=YES):

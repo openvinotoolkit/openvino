@@ -275,8 +275,8 @@ void DynamicPipeline::push() {
             _runtime_config_command_queue_desc_valid = true;
         }
     } else if (commandQueueVersionChanged) {
-        // Retain the outgoing queue so the old fences can be destroyed against a live queue.
-        _pending_command_queues.push_back(_command_queue);
+        // v1 Fences own a shared_ptr to their queue, so the old queue outlives the fence recreation below;
+        // no extra retention is needed here (unlike the v2 runtime-owned fence migrated in Execute2).
         _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
 
         if (_sync_output_with_fences) {
