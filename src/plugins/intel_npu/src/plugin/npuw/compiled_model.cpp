@@ -1939,6 +1939,10 @@ bool ov::npuw::CompiledModel::attention_no_copy() const {
     return m_cfg.get<::intel_npu::NPUW_ATTN_NO_COPY>();
 }
 
+std::string ov::npuw::CompiledModel::attention_history_size_input() const {
+    return m_cfg.get<::intel_npu::NPUW_ATTN_HISTORY_SIZE_INPUT>();
+}
+
 std::shared_ptr<ov::npuw::weights::Bank> ov::npuw::CompiledModel::get_weights_bank() const {
     return m_weights_bank;
 }
@@ -3169,6 +3173,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
                           BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
                           BIND(npuw::partitioning::attn_hfa_fused, NPUW_ATTN_HFA_FUSED),
+                          BIND(npuw::partitioning::attn_history_size_input, NPUW_ATTN_HISTORY_SIZE_INPUT),
                           BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::ensure_compatibility, NPUW_ENSURE_COMPATIBILITY),
                           BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),

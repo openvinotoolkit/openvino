@@ -711,6 +711,34 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     LOG_DEBUG("Preparing to infer...");
     LOG_BLOCK();
 
+    const auto history_input_name = m_npuw_model->attention_history_size_input();
+    if (!history_input_name.empty()) {
+        const auto model_inputs = m_npuw_model->inputs();
+        const auto history_port = std::find_if(model_inputs.begin(), model_inputs.end(), [&](const auto& input) {
+            const auto& names = input.get_names();
+            return names.count(history_input_name) != 0 ||
+                   input.get_node()->get_friendly_name() == history_input_name;
+        });
+        OPENVINO_ASSERT(history_port != model_inputs.end(),
+                        "NPUW attention history input '",
+                        history_input_name,
+                        "' was not found among model inputs");
+        const auto history_tensor = get_tensor(*history_port);
+        OPENVINO_ASSERT(history_tensor->get_size() > 0,
+                        "NPUW attention history input must contain at least one element");
+        int64_t history_size = 0;
+        if (history_tensor->get_element_type() == ov::element::i64) {
+            history_size = history_tensor->data<int64_t>()[0];
+        } else if (history_tensor->get_element_type() == ov::element::i32) {
+            history_size = history_tensor->data<int32_t>()[0];
+        } else {
+            OPENVINO_THROW("NPUW attention history input must have i32 or i64 element type");
+        }
+        OPENVINO_ASSERT(history_size >= 0, "NPUW attention history size cannot be negative");
+        update_history_size(history_size);
+        LOG_DEBUG("Attention history size: " << history_size);
+    }
+
     // Adjust spatial input range, if supported
     if (m_spatial_selector) {
         m_spatial_selector->prepare();

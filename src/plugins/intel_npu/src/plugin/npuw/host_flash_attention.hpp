@@ -118,6 +118,11 @@ struct HostFlashAttention {
     std::size_t _k_seq_dim = 0;
     std::size_t _v_seq_dim = 0;
 
+    // Sequence dims of the past-KV parameters themselves; differ from _k/_v_seq_dim when a
+    // [B,S,H,D] past input is transposed to [B,H,S,D] right before the Concat.
+    std::size_t _past_k_seq_dim = 0;
+    std::size_t _past_v_seq_dim = 0;
+
     // Direct SDPA parameter indices (extracted during pattern analysis in from())
     std::size_t _query_param_idx = 0u;
     std::size_t _present_key_param_idx = 0u;
@@ -173,6 +178,18 @@ struct HostFlashAttentionInfo {
     // Copied from function::HostFlashAttention::_k_seq_dim and _v_seq_dim
     std::size_t _k_seq_dim = 0u;
     std::size_t _v_seq_dim = 0u;
+
+    // Past-KV parameter seq dims are packed into bits 8+ of _k/_v_seq_dim as (dim + 1), 0 meaning
+    // "same as the Concat dim", so the serialized blob layout stays unchanged.
+    static std::size_t pack_seq_dim(std::size_t concat_dim, std::size_t past_dim) {
+        return past_dim == concat_dim ? concat_dim : (concat_dim | ((past_dim + 1u) << 8));
+    }
+    static std::size_t concat_seq_dim(std::size_t packed) {
+        return packed & 0xFFu;
+    }
+    static std::size_t past_seq_dim(std::size_t packed) {
+        return (packed >> 8) != 0u ? (packed >> 8) - 1u : (packed & 0xFFu);
+    }
 
     // NOTE: SDPA parameter map is not stored to save memory.
     // Indices are pre-cached below during compilation.
@@ -543,6 +560,22 @@ public:
     // Returns nullptr unless rq exposes the npuw_history_size state and the host has set it, i.e.
     // unless the host is known to report the history. Meant to be called once, on the first infer().
     static Selector::Ptr find(std::size_t original_query_length, const ov::ISyncInferRequest& rq);
+};
+
+class ExplicitHistory final : public Selector {
+    std::size_t _history_idx = 0u;
+    int64_t _past_length = 0;
+    std::size_t _query_size = 0u;
+    std::reference_wrapper<const ov::ISyncInferRequest> _rq;
+
+    ExplicitHistory(std::size_t param_idx, std::size_t query_size, const ov::ISyncInferRequest& rq);
+    void prepare(int64_t past_len) override;
+    int64_t context_length() const override;
+
+public:
+    static Selector::Ptr find(std::size_t query_size,
+                              const std::string& input_name,
+                              const ov::ISyncInferRequest& rq);
 };
 
 }  // namespace host_flash_attention
