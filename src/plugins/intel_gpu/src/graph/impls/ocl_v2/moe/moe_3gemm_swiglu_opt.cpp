@@ -2582,8 +2582,7 @@ public:
     // allocated on first use and the unpack runs ONCE per bound weight buffer, not per prefill:
     // the weights are constant (OTD is rejected for u2 in the ctor), so re-unpacking identical
     // data every prefill was pure overhead — a full streaming pass over every expert of every
-    // layer, which measured ~430ms of TTFT per prefill on Qwen3.6-35B-A3B and made a multi-turn
-    // benchmark ~1.6x slower end-to-end than the same model at int4. See the *_key members.
+    // layer on every prefill. See the *_key members.
     cldnn::event::ptr unpack_u2_weights_for_prefill(typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                                     scratch_buffers& scratch,
                                                     const std::vector<cldnn::event::ptr>& events) {
@@ -3135,29 +3134,11 @@ public:
         // run on every prefill path, so the unpack is not tied to _weights_u2 alone.
         cldnn::event::ptr unpack_event = nullptr;
         if (_weights_u2 || has_u2_shared_weights()) {
-            try {
-                unpack_event = unpack_u2_weights_for_prefill(instance, scratch, events);
-            } catch (const std::exception& e) {
-                // The batched GEMV fuses the shared expert in-kernel, so returning it
-                // directly also skips the oneDNN shared-expert block below.
-                GPU_DEBUG_TRACE_DETAIL << "u2 weight unpack for prefill failed (" << e.what() << "), falling back to batched GEMV" << std::endl;
-                instance.output_memory_ptr(0)->fill(stream, false);
-                return exec_batched_gemv(events, instance, scratch, token_num);
-            }
+            unpack_event = unpack_u2_weights_for_prefill(instance, scratch, events);
         }
         if (_weights_u2) {
-            // Run the grouped GEMM path on the unpacked u4 weights as regular u4 weights. If
-            // the grouped GEMM cannot be created/executed, fall back to the batched GEMV
-            // (the pre-u2-prefill behavior).
-            try {
-                ret_env = exec_prefill_grouped_gemm({unpack_event}, stream, instance, scratch);
-            } catch (const std::exception& e) {
-                GPU_DEBUG_TRACE_DETAIL << "u2 grouped GEMM prefill failed (" << e.what() << "), falling back to batched GEMV" << std::endl;
-                instance.output_memory_ptr(0)->fill(stream, false);
-                // Return directly: the batched GEMV fuses the shared expert in-kernel, so it
-                // must skip the oneDNN shared-expert block below (it would apply it twice).
-                return exec_batched_gemv(events, instance, scratch, token_num);
-            }
+            // The grouped GEMM path serves the unpacked u4 copies as regular u4 weights.
+            ret_env = exec_prefill_grouped_gemm({unpack_event}, stream, instance, scratch);
         } else if (use_micro_gemm_prefill) {
             ret_env = exec_prefill_micro_gemm(events, instance, scratch, use_gpu_mask_gen);
         } else if (use_grouped_gemm_prefill) {
