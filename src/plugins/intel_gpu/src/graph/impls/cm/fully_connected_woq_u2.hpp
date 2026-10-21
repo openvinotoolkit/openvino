@@ -186,6 +186,24 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
         return validate_base(node, true);
     }
 
+    // Runtime shapes: dynamic dims that matched in validate_impl can differ at execution (output [5, N] with a
+    // [1, N] operand), which eltwise broadcasts but the kernels do not; reject so another implementation runs.
+    [[nodiscard]] bool support_shapes(const kernel_impl_params& params) const override {
+        const auto epi = woq_u2_epilogue(params.fused_desc, params.bias_layout.has_value());
+        if (!epi.ok()) {
+            GPU_DEBUG_TRACE_DETAIL << "cm::woq_u2 support_shapes: " << epi.error << std::endl;
+            return false;
+        }
+        if (epi.dep < 0)
+            return true;
+        // Weights are [N, K] here; GNK weights [G, N, gs] need N from fc_weight_dims.
+        const auto N = static_cast<int64_t>(params.get_input_layout(1).get_shape()[0]);
+        const auto why = woq_u2_check_epi_operand(params.get_input_layout(static_cast<size_t>(epi.dep)), params.get_output_layout(0), N);
+        if (!why.empty())
+            GPU_DEBUG_TRACE_DETAIL << "cm::woq_u2 support_shapes: " << why << std::endl;
+        return why.empty();
+    }
+
     // Everything but the epilogue: whether this FC could run on the CM kernels if its bias / fused post-ops
     // are supported. prepare_primitive_fusing uses it to let such FCs take post-op fusions.
     static bool accepts_post_op_fusion(const program_node& node) {
