@@ -142,10 +142,9 @@ TEST_F(ParallelReadStreamBufTest, StreamSizeExceedingRemainingFileThrows) {
     constexpr size_t k_payload_size = 64;
     ASSERT_NO_FATAL_FAILURE(setup_temp_file(std::vector<char>(k_payload_size), k_prefix_size));
 
-    OV_EXPECT_THROW(
-        (util::ParallelReadStreamBuf(m_tmp_path, k_prefix_size, /*threshold=*/1, k_payload_size + 1)),
-        std::out_of_range,
-        testing::StrEq("ParallelReadStreamBuf region exceeds file size"));
+    OV_EXPECT_THROW((util::ParallelReadStreamBuf(m_tmp_path, k_prefix_size, /*threshold=*/1, k_payload_size + 1)),
+                    std::out_of_range,
+                    testing::StrEq("ParallelReadStreamBuf region exceeds file size"));
 }
 
 // 3.  Multiple consecutive reads – each partial read must pick up exactly
