@@ -333,6 +333,7 @@ REGISTER_FACTORY(internal, GatherMatmul);
 REGISTER_FACTORY(internal, GatherMatmulCompressed);
 REGISTER_FACTORY(internal, GroupedMatMulCompressed);
 REGISTER_FACTORY(internal, Atan2);
+REGISTER_FACTORY(internal, Swoosh);
 #ifdef ENABLE_MLIR_FOR_GPU
 REGISTER_FACTORY(internal, MLIR);
 #endif
