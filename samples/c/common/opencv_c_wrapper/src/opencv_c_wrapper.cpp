@@ -4,6 +4,8 @@
 
 #include "opencv_c_wrapper.h"
 
+#include <cstdlib>
+
 extern "C" {
 #include "bmp_reader.h"
 }
@@ -31,7 +33,7 @@ int image_save(const char* img_path, c_mat_t* img) {
     return -1;
 }
 int image_free(c_mat_t* img) {
-    delete img->mat_data;
+    std::free(img->mat_data);
     return 0;
 }
 int image_add_rectangles(c_mat_t* img, rectangle_t rects[], int classes[], int num, int thickness) {
