@@ -625,6 +625,7 @@ Blocking defect, pre-merge verification, follow-up validation, or question.
 
 Confidence:
 High, Medium, or Low.
+```
 
 ## Review summary table
 
