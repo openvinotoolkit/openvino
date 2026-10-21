@@ -5,6 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <algorithm>
 #include <chrono>
+#include <filesystem>
 
 #include "auto_schedule.hpp"
 
@@ -294,54 +295,38 @@ void AutoSchedule::init() {
         }
     }
     m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
-    // Trigger cache pre-compilation for the remaining candidate devices in background.
-    compile_for_all_other_devices_for_cache();
+    if (m_context->m_compile_for_all) {
+        DeviceInformation actual_device_info;
+        {
+            std::lock_guard<std::mutex> lock(m_context->m_mutex);
+            actual_device_info = m_compile_context[ACTUALDEVICE].m_device_info;
+        }
+        if (!is_cache_configured(actual_device_info)) {
+            LOG_WARNING_TAG("compile_for_all is enabled but neither cache dir nor cache path is set; disabling "
+                            "cache pre-compilation");
+            m_context->m_compile_for_all = false;
+        } else {
+            // Trigger cache pre-compilation for the remaining candidate devices in background.
+            compile_for_all_other_devices_for_cache();
+        }
+    }
+}
+
+bool AutoSchedule::is_cache_configured(const DeviceInformation& device_info) const {
+    const bool has_cache_dir = device_info.config.count(ov::cache_dir.name())
+                                    ? !device_info.config.at(ov::cache_dir.name()).as<std::string>().empty()
+                                    : !m_context->m_ov_core->get_property("", ov::cache_dir).empty();
+    const bool has_cache_path = device_info.config.count(ov::cache_path.name())
+                                     ? !device_info.config.at(ov::cache_path.name())
+                                            .as<std::filesystem::path>()
+                                            .empty()
+                                     : !m_context->m_ov_core->get_property("", ov::cache_path).empty();
+    return has_cache_dir || has_cache_path;
 }
 
 void AutoSchedule::compile_for_all_other_devices_for_cache() {
     if (!m_context->m_compile_for_all) {
         return;
-    }
-    // Snapshot device info under the mutex to avoid concurrent access.
-    DeviceInformation actual_device_info;
-    {
-        std::lock_guard<std::mutex> lock(m_context->m_mutex);
-        actual_device_info = m_compile_context[ACTUALDEVICE].m_device_info;
-    }
-    const std::string cache_dir = actual_device_info.config.count(ov::cache_dir.name())
-                                       ? actual_device_info.config[ov::cache_dir.name()].as<std::string>()
-                                       : m_context->m_ov_core->get_property("", ov::cache_dir);
-    if (cache_dir.empty()) {
-        LOG_INFO_TAG("Skip cache pre-compilation when cache dir is not set");
-        return;
-    }
-    // Keep the source model alive for the background tasks. The actual-device path may reset
-    // m_context->m_model once its compilation finishes, so capture a copy of the shared pointer.
-    const auto model = m_context->m_model;
-    const auto model_path = m_context->m_model_path;
-    if (!model && model_path.empty()) {
-        return;
-    }
-    const std::string& actual_device = actual_device_info.device_name;
-    std::vector<DeviceInformation> devices_to_precompile;
-    for (const auto& device : m_context->m_device_priorities_initial) {
-        // Skip the actual device and CPU (already handled by CPU_HELP).
-        if (device.device_name == actual_device || device.device_name.find("CPU") != std::string::npos) {
-            continue;
-        }
-        devices_to_precompile.push_back(device);
-    }
-    if (devices_to_precompile.empty()) {
-        return;
-    }
-    {
-        // Pre-register futures so an early foreground compile always has something to wait on.
-        std::lock_guard<std::mutex> lock(m_precompile_mutex);
-        for (const auto& device : devices_to_precompile) {
-            std::promise<void> promise;
-            m_precompile_futures[device.device_name] = promise.get_future().share();
-            m_precompile_promises[device.device_name] = std::move(promise);
-        }
     }
     if (!m_precompile_executor) {
         // Single stream: precompile devices sequentially in priority order.
@@ -351,8 +336,47 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
                 1,
                 0 /*default threads per stream, workaround for ticket 62376*/});
     }
+    // Keep the source model alive for the background task. The actual-device path may reset
+    // m_context->m_model once its compilation finishes, so capture a copy of the shared pointer now.
+    const auto model = m_context->m_model;
+    const auto model_path = m_context->m_model_path;
 
-    m_precompile_executor->run([this, core = m_context->m_ov_core, devices_to_precompile, model, model_path] {
+    m_precompile_executor->run([this, core = m_context->m_ov_core, model, model_path] {
+        // Wait for the actual device and CPU_HELP (if any) to finish compiling first.
+        wait_actual_compiled_model_ready();
+        if (m_compile_context[CPU].m_future.valid()) {
+            m_compile_context[CPU].m_future.wait();
+        }
+        // Snapshot device info under the mutex to avoid concurrent access.
+        DeviceInformation actual_device_info;
+        {
+            std::lock_guard<std::mutex> lock(m_context->m_mutex);
+            actual_device_info = m_compile_context[ACTUALDEVICE].m_device_info;
+        }
+        if (!model && model_path.empty()) {
+            return;
+        }
+        const std::string& actual_device = actual_device_info.device_name;
+        std::vector<DeviceInformation> devices_to_precompile;
+        for (const auto& device : m_context->m_device_priorities_initial) {
+            // Skip the actual device and CPU (already handled by CPU_HELP).
+            if (device.device_name == actual_device || device.device_name.find("CPU") != std::string::npos) {
+                continue;
+            }
+            devices_to_precompile.push_back(device);
+        }
+        if (devices_to_precompile.empty()) {
+            return;
+        }
+        {
+            // Pre-register futures so an early foreground compile always has something to wait on.
+            std::lock_guard<std::mutex> lock(m_precompile_mutex);
+            for (const auto& device : devices_to_precompile) {
+                std::promise<void> promise;
+                m_precompile_futures[device.device_name] = promise.get_future().share();
+                m_precompile_promises[device.device_name] = std::move(promise);
+            }
+        }
         for (const auto& device : devices_to_precompile) {
             auto notify_done = [this, &device]() {
                 std::lock_guard<std::mutex> lock(m_precompile_mutex);
@@ -379,10 +403,6 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
                     notify_done();
                     continue;
                 }
-            }
-            // Wait for ACTUALDEVICE to settle, then skip this device if it was selected as the actual device.
-            if (m_compile_context[ACTUALDEVICE].m_future.valid()) {
-                m_compile_context[ACTUALDEVICE].m_future.wait();
             }
             {
                 std::lock_guard<std::mutex> lock(m_context->m_mutex);

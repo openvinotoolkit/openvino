@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <filesystem>
 #include <list>
 #include <sstream>
 #include <thread>
@@ -51,6 +52,8 @@ TEST_P(AutoCacheCompileForAllTest, compileForAllCompilesOtherDevicesWhenEnabled)
     const std::string cacheDir = cacheEnabled ? "test_cache_dir" : "";
     ON_CALL(*core, get_property(StrEq(""), StrEq(ov::cache_dir.name()), _))
         .WillByDefault(Return(ov::Any(cacheDir)));
+    ON_CALL(*core, get_property(StrEq(""), StrEq(ov::cache_path.name()), _))
+        .WillByDefault(Return(ov::Any(std::filesystem::path())));
 
     std::atomic<int> compileCount{0};
     // ACTUALDEVICE (GPU.1)
