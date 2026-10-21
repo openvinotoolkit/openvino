@@ -19,7 +19,7 @@
 #include <string_view>
 #include <vector>
 
-using namespace intel_npu::vm;
+using namespace ov::intel_npu::vm;
 
 namespace {
 
@@ -262,7 +262,7 @@ void intel_npu::vm::detail::resetLoggingCache() {
 
 // For developer builds, the effective log level can be set by the user through the NPU_VM_LOG_LEVEL or OV_NPU_LOG_LEVEL
 // environment variables. For non-developer builds, the log level is Info by default
-LogLevel intel_npu::vm::detail::getEffectiveLogLevel() {
+LogLevel ov::intel_npu::vm::detail::getEffectiveLogLevel() {
 #if !defined(VPUX_DEVELOPER_BUILD)
     return LogLevel::Info;
 #else
@@ -283,7 +283,7 @@ LogLevel intel_npu::vm::detail::getEffectiveLogLevel() {
 // Check whether the log message should be printed based on the log filter. Only developer builds support log filtering,
 // which is done by matching the log source (file name / path and line) against a regex specified in the
 // NPU_VM_LOG_FILTER or IE_NPU_LOG_FILTER environment variables. For non-developer builds, all messages are printed
-bool intel_npu::vm::detail::isLogIncludedInFilter([[maybe_unused]] const char* file, [[maybe_unused]] int line) {
+bool ov::intel_npu::vm::detail::isLogIncludedInFilter([[maybe_unused]] const char* file, [[maybe_unused]] int line) {
 #if !defined(VPUX_DEVELOPER_BUILD)
     return true;
 #else
@@ -300,7 +300,7 @@ bool intel_npu::vm::detail::isLogIncludedInFilter([[maybe_unused]] const char* f
 }
 
 // Print the log message to the appropriate stream with the specified formatting and colors based on the log level
-void intel_npu::vm::detail::dispatchLogMessage(LogLevel level, const char* file, int line, std::string_view format,
+void ov::intel_npu::vm::detail::dispatchLogMessage(LogLevel level, const char* file, int line, std::string_view format,
                                                const std::vector<std::string>& args) {
     static std::mutex logMutex;
     std::lock_guard<std::mutex> lock(logMutex);

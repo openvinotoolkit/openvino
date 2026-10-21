@@ -3,13 +3,15 @@
 //
 
 #include "call_frame.hpp"
-#include "vm_runtime/utils/function.hpp"
+#include "function.hpp"
 #include "npu_bytecode_utils/except.hpp"
 
 #include <cstdint>
 #include <cstring>
 #include <utility>
 #include <vector>
+
+using namespace ov;
 
 intel_npu::vm::CallFrame::CallFrame(const Function& function, const uint8_t* returnAddress,
                                     std::vector<int64_t*> results)

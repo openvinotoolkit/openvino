@@ -15,6 +15,8 @@
 #include <iostream>
 #include <vector>
 
+using namespace ov;
+
 const std::array<uint8_t, intel_npu::vm::MAGIC_NUMBER_SIZE>& intel_npu::vm::MagicNumber::value() const {
     return _value;
 }

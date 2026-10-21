@@ -4,11 +4,13 @@
 
 #pragma once
 
-#include "vm_runtime/utils/function.hpp"
-#include "vm_runtime/vm_export.hpp"
+#include "function.hpp"
+#include "vm_export.hpp"
 
 #include <cstdint>
 #include <vector>
+
+namespace ov {
 
 namespace intel_npu::vm {
 
@@ -42,3 +44,5 @@ public:
 };
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

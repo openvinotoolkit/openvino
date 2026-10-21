@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+namespace ov {
+
 namespace intel_npu::vm {
 
 inline void printIndent(size_t indentLevel) {
@@ -39,3 +41,5 @@ std::string formatVector(const std::vector<T>& values) {
 std::string formatPtrVectorContent(const std::vector<int64_t*>& values);
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

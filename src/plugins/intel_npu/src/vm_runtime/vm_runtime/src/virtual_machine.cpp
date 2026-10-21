@@ -16,7 +16,7 @@
 #include "utils/buffer.hpp"
 #include "utils/buffer_metadata.hpp"
 #include "utils/call_frame.hpp"
-#include "vm_runtime/utils/function.hpp"
+#include "utils/function.hpp"
 #include "utils/host_allocator.hpp"
 #include "utils/kernel_execution.hpp"
 #include "utils/level_zero_allocator.hpp"
@@ -51,8 +51,8 @@
 #include <utility>
 #include <vector>
 
-using namespace intel_npu;
-using namespace intel_npu::vm;
+using namespace ov::intel_npu;
+using namespace ov::intel_npu::vm;
 
 namespace {
 
@@ -62,18 +62,18 @@ enum class ExecState : uint8_t { Initialized, Running, Halted, Finalized };
 
 template <typename T>
 std::optional<int64_t> evaluateCmp(T lhs, T rhs, uint8_t cmpType) {
-    switch (static_cast<intel_npu::vm::CmpPredicate>(cmpType)) {
-    case intel_npu::vm::CmpPredicate::EQ:
+    switch (static_cast<ov::intel_npu::vm::CmpPredicate>(cmpType)) {
+    case ov::intel_npu::vm::CmpPredicate::EQ:
         return static_cast<int64_t>(lhs == rhs);
-    case intel_npu::vm::CmpPredicate::NE:
+    case ov::intel_npu::vm::CmpPredicate::NE:
         return static_cast<int64_t>(lhs != rhs);
-    case intel_npu::vm::CmpPredicate::GT:
+    case ov::intel_npu::vm::CmpPredicate::GT:
         return static_cast<int64_t>(lhs > rhs);
-    case intel_npu::vm::CmpPredicate::GTE:
+    case ov::intel_npu::vm::CmpPredicate::GTE:
         return static_cast<int64_t>(lhs >= rhs);
-    case intel_npu::vm::CmpPredicate::LT:
+    case ov::intel_npu::vm::CmpPredicate::LT:
         return static_cast<int64_t>(lhs < rhs);
-    case intel_npu::vm::CmpPredicate::LTE:
+    case ov::intel_npu::vm::CmpPredicate::LTE:
         return static_cast<int64_t>(lhs <= rhs);
     default:
         NPU_VM_LOG_ERROR("Unknown CMP predicate: {}", static_cast<unsigned>(cmpType));
@@ -175,15 +175,15 @@ inline int64_t saturatingFloatToInt(FloatT src) noexcept {
     return static_cast<int64_t>(static_cast<IntT>(src));
 }
 
-bool decodeInstruction(const uint8_t* pc, size_t bytesAvailable, intel_npu::vm::OpCode& opcode,
+bool decodeInstruction(const uint8_t* pc, size_t bytesAvailable, ov::intel_npu::vm::OpCode& opcode,
                        size_t& instructionSize) {
-    if (bytesAvailable < intel_npu::vm::OPCODE_SIZE) {
+    if (bytesAvailable < ov::intel_npu::vm::OPCODE_SIZE) {
         NPU_VM_LOG_ERROR("Reached end of function body while decoding opcode. This likely means the function body "
                          "is malformed.");
         return false;
     }
-    opcode = intel_npu::vm::getOpcode(pc);
-    const auto sizeOpt = intel_npu::vm::getInstructionSize(opcode, pc, bytesAvailable);
+    opcode = ov::intel_npu::vm::getOpcode(pc);
+    const auto sizeOpt = ov::intel_npu::vm::getInstructionSize(opcode, pc, bytesAvailable);
     if (!sizeOpt.has_value()) {
         NPU_VM_LOG_ERROR("Failed to decode instruction size for opcode {}: unknown opcode or malformed instruction.",
                          static_cast<uint16_t>(opcode));
@@ -212,8 +212,8 @@ class BytecodeModule {
     /// module will reference the provided bytecode directly, meaning the caller must ensure the bytecode remains valid
     /// for the lifetime of the module
     /// @return true on success, false on failure
-    bool parse(const intel_npu::vm::Span<uint8_t>& bytecode, bool copyBytecode = false) {
-        intel_npu::vm::BytecodeReader reader(bytecode);
+    bool parse(const ov::intel_npu::vm::Span<uint8_t>& bytecode, bool copyBytecode = false) {
+        ov::intel_npu::vm::BytecodeReader reader(bytecode);
         if (!reader.parseFile()) {
             NPU_VM_LOG_ERROR("Failed to parse bytecode file.");
             return false;
@@ -223,7 +223,7 @@ class BytecodeModule {
         auto& sectionHeaders = sectionHeaderTable.getSectionHeaders();
         auto& sections = reader.getSections();
 
-        const auto typeByteSizes = intel_npu::vm::extractTypeByteSizes(sectionHeaderTable, sections);
+        const auto typeByteSizes = ov::intel_npu::vm::extractTypeByteSizes(sectionHeaderTable, sections);
         if (!typeByteSizes.has_value()) {
             return false;
         }
@@ -232,11 +232,11 @@ class BytecodeModule {
         // Iterate over section headers to find function sections and extract individual function bodies
         for (size_t headerIdx = 0; headerIdx < sectionHeaders.size(); ++headerIdx) {
             const auto& header = sectionHeaders.at(headerIdx);
-            if (header.type != intel_npu::vm::SectionType::ConstantSection) {
+            if (header.type != ov::intel_npu::vm::SectionType::ConstantSection) {
                 continue;
             }
 
-            auto constantSectionInfo = dynamic_cast<intel_npu::vm::details::DataSectionInfo*>(header.info.get());
+            auto constantSectionInfo = dynamic_cast<ov::intel_npu::vm::details::DataSectionInfo*>(header.info.get());
             if (constantSectionInfo == nullptr || headerIdx >= sections.size()) {
                 NPU_VM_LOG_ERROR("Constant section header is malformed");
                 return false;
@@ -254,10 +254,10 @@ class BytecodeModule {
 
         for (size_t headerIdx = 0; headerIdx < sectionHeaders.size(); ++headerIdx) {
             const auto& header = sectionHeaders.at(headerIdx);
-            if (header.type != intel_npu::vm::SectionType::FuncSection) {
+            if (header.type != ov::intel_npu::vm::SectionType::FuncSection) {
                 continue;
             }
-            auto funcSectionInfo = dynamic_cast<intel_npu::vm::details::FunctionSectionInfo*>(header.info.get());
+            auto funcSectionInfo = dynamic_cast<ov::intel_npu::vm::details::FunctionSectionInfo*>(header.info.get());
             if (funcSectionInfo == nullptr) {
                 NPU_VM_LOG_ERROR("Function section header does not contain function section info");
                 return false;
@@ -289,9 +289,9 @@ class BytecodeModule {
                     return false;
                 }
                 const auto& functionType = functionTypeOpt.value();
-                std::vector<intel_npu::vm::FuncParamResType> paramTypes;
+                std::vector<ov::intel_npu::vm::FuncParamResType> paramTypes;
                 for (auto paramTypeIndex : functionType.paramTypeIndices) {
-                    auto paramType = intel_npu::vm::extractFuncParamResType(reader, paramTypeIndex);
+                    auto paramType = ov::intel_npu::vm::extractFuncParamResType(reader, paramTypeIndex);
                     if (!paramType.has_value()) {
                         NPU_VM_LOG_ERROR(
                                 "Failed to extract parameter type for param type index {} in function at index {} "
@@ -301,9 +301,9 @@ class BytecodeModule {
                     }
                     paramTypes.push_back(std::move(paramType.value()));
                 }
-                std::vector<intel_npu::vm::FuncParamResType> resultTypes;
+                std::vector<ov::intel_npu::vm::FuncParamResType> resultTypes;
                 for (auto resultTypeIndex : functionType.resultTypeIndices) {
-                    auto resultType = intel_npu::vm::extractFuncParamResType(reader, resultTypeIndex);
+                    auto resultType = ov::intel_npu::vm::extractFuncParamResType(reader, resultTypeIndex);
                     if (!resultType.has_value()) {
                         NPU_VM_LOG_ERROR(
                                 "Failed to extract result type for result type index {} in function at index {} "
@@ -348,11 +348,11 @@ class BytecodeModule {
 
         for (size_t headerIdx = 0; headerIdx < sectionHeaders.size(); ++headerIdx) {
             const auto& header = sectionHeaders.at(headerIdx);
-            if (header.type != intel_npu::vm::SectionType::KernelSection) {
+            if (header.type != ov::intel_npu::vm::SectionType::KernelSection) {
                 continue;
             }
 
-            auto kernelSectionInfo = dynamic_cast<intel_npu::vm::details::DataSectionInfo*>(header.info.get());
+            auto kernelSectionInfo = dynamic_cast<ov::intel_npu::vm::details::DataSectionInfo*>(header.info.get());
             if (kernelSectionInfo == nullptr) {
                 NPU_VM_LOG_ERROR("Kernel section header does not contain data section info");
                 return false;
@@ -376,11 +376,11 @@ class BytecodeModule {
 
         for (size_t headerIdx = 0; headerIdx < sectionHeaders.size(); ++headerIdx) {
             const auto& header = sectionHeaders.at(headerIdx);
-            if (header.type != intel_npu::vm::SectionType::StringSection) {
+            if (header.type != ov::intel_npu::vm::SectionType::StringSection) {
                 continue;
             }
 
-            auto stringSectionInfo = dynamic_cast<intel_npu::vm::details::DataSectionInfo*>(header.info.get());
+            auto stringSectionInfo = dynamic_cast<ov::intel_npu::vm::details::DataSectionInfo*>(header.info.get());
             if (stringSectionInfo == nullptr) {
                 NPU_VM_LOG_ERROR("String section header does not contain data section info");
                 return false;
@@ -414,7 +414,7 @@ public:
     /// module will reference the provided bytecode directly, meaning the caller must ensure the bytecode remains valid
     /// for the lifetime of the module
     /// @return A unique pointer to the created BytecodeModule if parsing succeeded, or nullptr if parsing failed
-    static std::unique_ptr<BytecodeModule> createFrom(const intel_npu::vm::Span<uint8_t>& bytecode,
+    static std::unique_ptr<BytecodeModule> createFrom(const ov::intel_npu::vm::Span<uint8_t>& bytecode,
                                                       bool copyBytecode = false) {
         auto bytecodeModule = std::make_unique<BytecodeModule>();
         if (!bytecodeModule->parse(bytecode, copyBytecode)) {
@@ -757,7 +757,7 @@ class VMEngine {
 
     // Interprets the instruction stream of the given function until a RET instruction is encountered or an unknown
     // opcode halts execution. Results are written as raw register values to the provided sinks
-    void execute(intel_npu::vm::CallFrame entryFrame);
+    void execute(ov::intel_npu::vm::CallFrame entryFrame);
 
 public:
     /// Loads a bytecode module into the engine, replacing any previously loaded module. The loaded module can then be
@@ -1926,7 +1926,7 @@ void VMEngine::execute(CallFrame entryFrame) {
                 break;
             }
             const auto elemByteSize =
-                    intel_npu::vm::lookupTypeByteSize(_bytecodeModule->getTypeByteSizes(), elemTypeIdx);
+                    ov::intel_npu::vm::lookupTypeByteSize(_bytecodeModule->getTypeByteSizes(), elemTypeIdx);
             if (elemByteSize == 0) {
                 NPU_VM_LOG_ERROR("buffer.create references unknown or non-primitive type index {}, type table size={}",
                                  elemTypeIdx, _bytecodeModule->getTypeByteSizes().size());
@@ -1944,15 +1944,15 @@ void VMEngine::execute(CallFrame entryFrame) {
             for (int64_t i = 0; i < rank; ++i) {
                 meta.strides.push_back(frame.getReg(getOperand(pc, 3 + rank + i)));
             }
-            if (!intel_npu::vm::validateShapeAndStrides("buffer.create", meta)) {
+            if (!ov::intel_npu::vm::validateShapeAndStrides("buffer.create", meta)) {
                 _state.setExecState(ExecState::Halted);
                 break;
             }
-            const auto byteSize = intel_npu::vm::computeLogicalByteSize(meta);
+            const auto byteSize = ov::intel_npu::vm::computeLogicalByteSize(meta);
             if (!byteSize.has_value()) {
                 NPU_VM_LOG_ERROR("buffer.create size overflows the addressable range, shape={}, strides={}, element "
                                  "byte size={}",
-                                 intel_npu::vm::formatVector(meta.shape), intel_npu::vm::formatVector(meta.strides),
+                                 ov::intel_npu::vm::formatVector(meta.shape), ov::intel_npu::vm::formatVector(meta.strides),
                                  meta.elemByteSize);
                 _state.setExecState(ExecState::Halted);
                 break;
@@ -1974,15 +1974,15 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto constantIndex = getOperand(pc, 1);
             const auto elemTypeIdx = static_cast<int64_t>(getOperand(pc, 2));
             const auto rank = static_cast<int64_t>(getOperand(pc, 3));
-            if (constantIndex < 0 || rank < 0 || rank > intel_npu::vm::BufferType::MAX_RANK) {
+            if (constantIndex < 0 || rank < 0 || rank > ov::intel_npu::vm::BufferType::MAX_RANK) {
                 NPU_VM_LOG_ERROR(
                         "buffer.from_const requires non-negative constant index and rank in [0, {}], got {} and {}",
-                        intel_npu::vm::BufferType::MAX_RANK, constantIndex, rank);
+                        ov::intel_npu::vm::BufferType::MAX_RANK, constantIndex, rank);
                 _state.setExecState(ExecState::Halted);
                 break;
             }
             const auto elemByteSize =
-                    intel_npu::vm::lookupTypeByteSize(_bytecodeModule->getTypeByteSizes(), elemTypeIdx);
+                    ov::intel_npu::vm::lookupTypeByteSize(_bytecodeModule->getTypeByteSizes(), elemTypeIdx);
             const auto& constants = _constantPool.getConstants();
             if (elemByteSize == 0 || static_cast<size_t>(constantIndex) >= constants.size()) {
                 NPU_VM_LOG_ERROR("buffer.from_const references unknown type {} or constant {}", elemTypeIdx,
@@ -1999,11 +1999,11 @@ void VMEngine::execute(CallFrame entryFrame) {
                 meta.shape.push_back(frame.getReg(getOperand(pc, 4 + i)));
                 meta.strides.push_back(frame.getReg(getOperand(pc, 4 + rank + i)));
             }
-            if (!intel_npu::vm::validateShapeAndStrides("buffer.from_const", meta)) {
+            if (!ov::intel_npu::vm::validateShapeAndStrides("buffer.from_const", meta)) {
                 _state.setExecState(ExecState::Halted);
                 break;
             }
-            const auto byteSize = intel_npu::vm::computeLogicalByteSize(meta);
+            const auto byteSize = ov::intel_npu::vm::computeLogicalByteSize(meta);
             const auto constantData = constants.at(static_cast<size_t>(constantIndex));
             if (!byteSize.has_value() || *byteSize != constantData.size()) {
                 NPU_VM_LOG_ERROR("buffer.from_const descriptor size {} does not match constant {} size {}",
@@ -2154,7 +2154,7 @@ void VMEngine::execute(CallFrame entryFrame) {
             }
             const auto byteOffset = static_cast<uint64_t>(frame.getReg(byteOffsetReg));
             const auto elemByteSize =
-                    intel_npu::vm::lookupTypeByteSize(_bytecodeModule->getTypeByteSizes(), elemTypeIdx);
+                    ov::intel_npu::vm::lookupTypeByteSize(_bytecodeModule->getTypeByteSizes(), elemTypeIdx);
             if (elemByteSize == 0) {
                 NPU_VM_LOG_ERROR("buffer.view references unknown or non-primitive type index {}, type table size={}",
                                  elemTypeIdx, _bytecodeModule->getTypeByteSizes().size());
@@ -2173,15 +2173,15 @@ void VMEngine::execute(CallFrame entryFrame) {
             for (int64_t i = 0; i < rank; ++i) {
                 newMeta.strides.push_back(frame.getReg(getOperand(pc, shapeStartIndex + rank + i)));
             }
-            if (!intel_npu::vm::validateShapeAndStrides("buffer.view", newMeta)) {
+            if (!ov::intel_npu::vm::validateShapeAndStrides("buffer.view", newMeta)) {
                 _state.setExecState(ExecState::Halted);
                 break;
             }
-            const auto byteSize = intel_npu::vm::computeLogicalByteSize(newMeta);
+            const auto byteSize = ov::intel_npu::vm::computeLogicalByteSize(newMeta);
             if (!byteSize.has_value()) {
                 NPU_VM_LOG_ERROR(
                         "buffer.view size overflows the addressable range, shape={}, strides={}, element byte size={}",
-                        intel_npu::vm::formatVector(newMeta.shape), intel_npu::vm::formatVector(newMeta.strides),
+                        ov::intel_npu::vm::formatVector(newMeta.shape), ov::intel_npu::vm::formatVector(newMeta.strides),
                         newMeta.elemByteSize);
                 _state.setExecState(ExecState::Halted);
                 break;
@@ -2236,8 +2236,8 @@ void VMEngine::execute(CallFrame entryFrame) {
                 if (idx < 0 || idx >= meta.shape.at(dimIdx) || meta.strides.at(dimIdx) < 0) {
                     NPU_VM_LOG_ERROR(
                             "buffer.store index {} at dim {} is out of range for buffer {} (shape={}, strides={})", idx,
-                            i, handle, intel_npu::vm::formatVector(meta.shape),
-                            intel_npu::vm::formatVector(meta.strides));
+                            i, handle, ov::intel_npu::vm::formatVector(meta.shape),
+                            ov::intel_npu::vm::formatVector(meta.strides));
                     indexFailure = true;
                     break;
                 }
@@ -2330,8 +2330,8 @@ void VMEngine::execute(CallFrame entryFrame) {
                 if (idx < 0 || idx >= meta.shape.at(dimIdx) || meta.strides.at(dimIdx) < 0) {
                     NPU_VM_LOG_ERROR(
                             "buffer.load index {} at dim {} is out of range for buffer {} (shape={}, strides={})", idx,
-                            i, handle, intel_npu::vm::formatVector(meta.shape),
-                            intel_npu::vm::formatVector(meta.strides));
+                            i, handle, ov::intel_npu::vm::formatVector(meta.shape),
+                            ov::intel_npu::vm::formatVector(meta.strides));
                     indexFailure = true;
                     break;
                 }
@@ -2401,14 +2401,14 @@ void VMEngine::execute(CallFrame entryFrame) {
                 dstMeta.strides != srcMeta.strides) {
                 NPU_VM_LOG_ERROR("buffer.copy requires matching buffer descriptors: dst={} elemType={} shape={} "
                                  "strides={}, src={} elemType={} shape={} strides={}",
-                                 dstHandle, dstMeta.elemTypeIndex, intel_npu::vm::formatVector(dstMeta.shape),
-                                 intel_npu::vm::formatVector(dstMeta.strides), srcHandle, srcMeta.elemTypeIndex,
-                                 intel_npu::vm::formatVector(srcMeta.shape),
-                                 intel_npu::vm::formatVector(srcMeta.strides));
+                                 dstHandle, dstMeta.elemTypeIndex, ov::intel_npu::vm::formatVector(dstMeta.shape),
+                                 ov::intel_npu::vm::formatVector(dstMeta.strides), srcHandle, srcMeta.elemTypeIndex,
+                                 ov::intel_npu::vm::formatVector(srcMeta.shape),
+                                 ov::intel_npu::vm::formatVector(srcMeta.strides));
                 _state.setExecState(ExecState::Halted);
                 break;
             }
-            const auto byteSize = intel_npu::vm::computeLogicalByteSize(dstMeta);
+            const auto byteSize = ov::intel_npu::vm::computeLogicalByteSize(dstMeta);
             if (!byteSize.has_value()) {
                 NPU_VM_LOG_ERROR("buffer.copy descriptor size overflows");
                 _state.setExecState(ExecState::Halted);
@@ -2696,7 +2696,7 @@ void VMEngine::execute(CallFrame entryFrame) {
             }
 
             NPU_VM_LOG_DEBUG("  call '{}' (index {}), arguments={}, destRegs={}", callee.getName(), funcIndex,
-                             intel_npu::vm::formatVector(argValues), intel_npu::vm::formatVector(destRegs));
+                             ov::intel_npu::vm::formatVector(argValues), ov::intel_npu::vm::formatVector(destRegs));
 
             // 5. Transfer control to the callee by pushing its frame and jumping to its body
             callStack.push_back(std::move(calleeFrame));
@@ -3053,7 +3053,7 @@ struct _npu_vm_module {
     std::shared_ptr<BytecodeModule> impl;
 };
 
-std::optional<intel_npu::vm::NetworkMetadata> intel_npu::vm::getNetworkMetadata(npu_vm_module* bytecodeModule) {
+std::optional<ov::intel_npu::vm::NetworkMetadata> ov::intel_npu::vm::getNetworkMetadata(npu_vm_module* bytecodeModule) {
     if (bytecodeModule == nullptr || bytecodeModule->impl == nullptr) {
         return std::nullopt;
     }

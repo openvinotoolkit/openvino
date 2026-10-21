@@ -11,6 +11,8 @@
 #include <optional>
 #include <type_traits>
 
+namespace ov {
+
 namespace intel_npu::vm {
 
 // Instruction opcodes recognized by the bytecode interpreter
@@ -172,3 +174,5 @@ inline T getAsOperand(const uint8_t* instructionBegin, size_t byteOffset) {
 }
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

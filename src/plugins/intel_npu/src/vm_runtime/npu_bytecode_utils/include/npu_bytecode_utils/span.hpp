@@ -11,6 +11,8 @@
 #include <stdexcept>
 #include <type_traits>
 
+namespace ov {
+
 namespace intel_npu::vm {
 
 // NOLINTNEXTLINE(readability-identifier-naming) - keep std::span-compatible naming
@@ -214,3 +216,5 @@ constexpr Span<std::byte> as_writable_bytes(Span<T> span) noexcept {  // NOLINT(
 }
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

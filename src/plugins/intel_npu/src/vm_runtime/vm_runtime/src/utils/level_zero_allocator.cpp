@@ -10,6 +10,8 @@
 #include <cstddef>
 #include <cstdint>
 
+namespace ov {
+
 intel_npu::vm::LevelZeroAllocator::LevelZeroAllocator(ze_context_handle_t context): _context(context) {
 }
 
@@ -53,3 +55,5 @@ intel_npu::vm::AnyAllocator intel_npu::vm::makeLevelZeroAllocator(ze_context_han
             GrowingArena<LevelZeroAllocator, BumpRegion<LevelZeroAllocator::ALIGNMENT>,
                          DEFAULT_ARENA_INITIAL_SLAB_BYTES, DEFAULT_ARENA_MAX_SLAB_BYTES>(LevelZeroAllocator(context))};
 }
+
+}  // namespace ov

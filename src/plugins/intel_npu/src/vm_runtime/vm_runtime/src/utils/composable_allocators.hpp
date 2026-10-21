@@ -13,6 +13,8 @@
 #include <utility>
 #include <vector>
 
+namespace ov {
+
 namespace intel_npu::vm {
 
 // Rounds up to the next multiple of `alignment`: sizes a block's footprint so the next block starts aligned.
@@ -217,3 +219,5 @@ private:
 };
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

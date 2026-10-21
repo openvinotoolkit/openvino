@@ -10,6 +10,8 @@
 #include <type_traits>
 #include <vector>
 
+namespace ov {
+
 namespace intel_npu::vm {
 
 /// A vector-like container that can either own its data (by making a copy of it) or reference external data without
@@ -117,3 +119,5 @@ public:
 };
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

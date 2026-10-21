@@ -14,6 +14,8 @@
 #include <utility>
 #include <vector>
 
+using namespace ov;
+
 size_t intel_npu::vm::Version::getBinarySize() {
     using VersionType = decltype(std::declval<intel_npu::vm::Version>().getFullVersion());
     return sizeof(VersionType);

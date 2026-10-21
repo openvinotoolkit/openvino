@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "vm_runtime/vm_export.hpp"
+#include "vm_export.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -27,6 +27,8 @@
 // SubAllocator into a full Allocator, and routes deallocations through SubAllocator::owns(). Each role
 // advertises a `static constexpr size_t ALIGNMENT`: a Backing's chunk-base guarantee, a SubAllocator's
 // sub-block stride.
+
+namespace ov {
 
 namespace intel_npu::vm {
 
@@ -119,3 +121,5 @@ public:
 };
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

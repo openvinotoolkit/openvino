@@ -25,7 +25,10 @@
 #include <openvino/core/partial_shape.hpp>
 #include <openvino/core/type/element_type.hpp>
 
+namespace ov {
+
 namespace intel_npu::vm {
+
 void NetworkMetadata::bindRelatedDescriptors() {
     size_t ioIndex = 0;
 
@@ -83,6 +86,8 @@ void NetworkMetadata::bindRelatedDescriptors() {
         ++ioIndex;
     }
 }
+
+using namespace ov::intel_npu::vm;
 
 namespace {
 ov::element::Type parsePrecision(const BytecodeReader& reader, size_t typeIndex) {
@@ -484,3 +489,5 @@ void printMetadataEntry(Span<uint8_t> metadata) {
 }
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

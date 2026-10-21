@@ -4,12 +4,14 @@
 
 #pragma once
 
-#include "vm_runtime/vm_export.hpp"
+#include "vm_export.hpp"
 
 #include <cstdint>
 #include <optional>
 #include <string_view>
 #include <vector>
+
+namespace ov {
 
 namespace intel_npu::vm {
 
@@ -31,3 +33,5 @@ std::optional<uint64_t> NPU_VM_EXPORT computeSubviewStartElement(const BufferMet
 bool NPU_VM_EXPORT validateShapeAndStrides(std::string_view opName, const BufferMetadata& meta);
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

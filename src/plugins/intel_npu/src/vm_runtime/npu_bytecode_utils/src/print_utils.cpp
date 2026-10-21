@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+using namespace ov;
+
 std::string intel_npu::vm::toHex(uint8_t byte) {
     std::stringstream ss;
     ss << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << static_cast<int>(byte);

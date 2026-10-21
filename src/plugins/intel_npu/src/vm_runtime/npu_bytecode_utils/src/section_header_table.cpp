@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+using namespace ov;
+
 size_t intel_npu::vm::details::FunctionSectionInfo::getBinarySize() const {
     const auto functionInfoSize = sizeof(FunctionInfo::nameIndex) + sizeof(FunctionInfo::functionTypeIndex) +
                                   sizeof(FunctionInfo::numGeneralRegisters) + sizeof(FunctionInfo::bodyOffset) +

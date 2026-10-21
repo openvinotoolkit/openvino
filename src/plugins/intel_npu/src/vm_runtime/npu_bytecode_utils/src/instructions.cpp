@@ -10,6 +10,8 @@
 #include <optional>
 #include <unordered_map>
 
+namespace ov {
+
 namespace intel_npu::vm {
 
 namespace {
@@ -297,3 +299,5 @@ std::optional<size_t> getInstructionSize(OpCode opcode, const uint8_t* instructi
 }
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

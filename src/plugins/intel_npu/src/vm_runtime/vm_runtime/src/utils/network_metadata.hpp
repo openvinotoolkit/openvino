@@ -9,8 +9,12 @@
 
 #include <optional>
 
+namespace ov {
 namespace intel_npu::vm {
 
 std::optional<NetworkMetadata> getNetworkMetadata(npu_vm_module* module);
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov
+

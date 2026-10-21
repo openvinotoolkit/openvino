@@ -11,6 +11,8 @@
 #include <cstdint>
 #include <vector>
 
+namespace ov {
+
 namespace intel_npu::vm {
 
 constexpr uint8_t MAGIC_NUMBER_SIZE = 8;
@@ -42,3 +44,5 @@ public:
 };
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

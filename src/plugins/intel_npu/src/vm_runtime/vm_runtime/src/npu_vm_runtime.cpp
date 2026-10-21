@@ -29,9 +29,11 @@
 #include <utility>
 #include <vector>
 
+using namespace ov;
+
 /// Opaque runtime object holding the VirtualMachine instance.
 struct _npu_vm_runtime_handle_t {
-    intel_npu::vm::NetworkMetadata metadata;
+    ov::intel_npu::vm::NetworkMetadata metadata;
     npu_vm_module* module{};
     // Ze command queue handle for executing the graph.
     // A command queue will be created when npuVMRuntimeCreateExecutionContext2 is called with
@@ -104,7 +106,7 @@ ze_result_t createCmdQueue(npu_vm_runtime_handle_t hRuntime, ze_command_queue_ha
     }
 
     auto groupOrdinal =
-            intel_npu::zeroUtils::findCommandQueueGroupOrdinal(device, ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+            ::intel_npu::zeroUtils::findCommandQueueGroupOrdinal(device, ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
     ze_command_queue_desc_t ze_queue_desc = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr,      groupOrdinal, 0, 0,
                                              ZE_COMMAND_QUEUE_MODE_DEFAULT,        desc.priority};
@@ -262,7 +264,7 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreate(cons
         if (npu_vm_parse_module(bytecodePtr, static_cast<uint32_t>(bytecodeSize), &handle->module) != NPU_VM_SUCCESS) {
             return NPU_VM_RUNTIME_RESULT_ERROR_UNKNOWN;
         }
-        auto metadata = intel_npu::vm::getNetworkMetadata(handle->module);
+        auto metadata = ov::intel_npu::vm::getNetworkMetadata(handle->module);
         if (metadata.has_value()) {
             handle->metadata = std::move(metadata.value());
             if (handle->metadata.numCmdLists == 0 ||
@@ -336,7 +338,7 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeGetMetadata
     }
 
     try {
-        const intel_npu::vm::IODescriptor* descriptor = nullptr;
+        const ov::intel_npu::vm::IODescriptor* descriptor = nullptr;
         ze_graph_argument_type_t argType = ZE_GRAPH_ARGUMENT_TYPE_INPUT;
 
         const auto inputCount = hRuntime->metadata.inputs.size();
@@ -606,16 +608,16 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeSetMemRef(n
         return NPU_VM_RUNTIME_RESULT_ERROR_UNSUPPORTED_DIM_COUNT;
     }
 
-    memRef->dirtyFlags = static_cast<uint32_t>(intel_npu::vm::MemRef::DirtyFlag::NONE);
+    memRef->dirtyFlags = static_cast<uint32_t>(ov::intel_npu::vm::MemRef::DirtyFlag::NONE);
     if (memRef->basePtr != basePtr || memRef->data != data) {
         memRef->basePtr = basePtr;
         memRef->data = data;
-        memRef->dirtyFlags |= static_cast<uint32_t>(intel_npu::vm::MemRef::DirtyFlag::BUFFER_PTR);
+        memRef->dirtyFlags |= static_cast<uint32_t>(ov::intel_npu::vm::MemRef::DirtyFlag::BUFFER_PTR);
     }
 
     if (memRef->offset != offset) {
         memRef->offset = offset;
-        memRef->dirtyFlags |= static_cast<uint32_t>(intel_npu::vm::MemRef::DirtyFlag::OFFSET);
+        memRef->dirtyFlags |= static_cast<uint32_t>(ov::intel_npu::vm::MemRef::DirtyFlag::OFFSET);
     }
 
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -625,7 +627,7 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeSetMemRef(n
         }
     } else {
         std::copy(pSizes, pSizes + dimsCount, memRef->sizes.begin());
-        memRef->dirtyFlags |= static_cast<uint32_t>(intel_npu::vm::MemRef::DirtyFlag::SIZES);
+        memRef->dirtyFlags |= static_cast<uint32_t>(ov::intel_npu::vm::MemRef::DirtyFlag::SIZES);
     }
 
     if (pStrides == nullptr) {
@@ -634,7 +636,7 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeSetMemRef(n
         }
     } else {
         std::copy(pStrides, pStrides + dimsCount, memRef->strides.begin());
-        memRef->dirtyFlags |= static_cast<uint32_t>(intel_npu::vm::MemRef::DirtyFlag::STRIDES);
+        memRef->dirtyFlags |= static_cast<uint32_t>(ov::intel_npu::vm::MemRef::DirtyFlag::STRIDES);
     }
     // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     return NPU_VM_RUNTIME_RESULT_SUCCESS;

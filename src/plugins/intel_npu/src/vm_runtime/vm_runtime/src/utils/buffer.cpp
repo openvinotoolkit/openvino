@@ -13,6 +13,8 @@
 #include <stdexcept>
 #include <utility>
 
+using namespace ov;
+
 intel_npu::vm::Buffer::Buffer(uint8_t* data, size_t size, Permission permission, Ownership ownership)
         : _data(data), _size(size), _permission(permission), _ownership(ownership) {
 }

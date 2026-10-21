@@ -5,7 +5,7 @@
 #include "parameters.hpp"
 #include "buffer.hpp"
 #include "buffer_metadata.hpp"
-#include "vm_runtime/utils/function.hpp"
+#include "function.hpp"
 #include "math.hpp"
 #include "npu_bytecode_utils/logger.hpp"
 #include "npu_bytecode_utils/print_utils.hpp"
@@ -20,9 +20,9 @@
 #include <variant>
 #include <vector>
 
-using namespace intel_npu::vm;
+using namespace ov::intel_npu::vm;
 
-std::optional<BufferHandle> intel_npu::vm::extractMemRef(
+std::optional<BufferHandle> ov::intel_npu::vm::extractMemRef(
         npu_vm_runtime_mem_ref_handle_t handle, BufferManager& bufferManager,
         std::unordered_map<BufferHandle, BufferMetadata>& bufferMetadata, Permission permission,
         const FuncParamResType& type, const std::vector<uint16_t>& typeByteSizes) {

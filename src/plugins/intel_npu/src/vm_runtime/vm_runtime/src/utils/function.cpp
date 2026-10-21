@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vm_runtime/utils/function.hpp"
+#include "function.hpp"
 #include "npu_bytecode_utils/bytecode_reader.hpp"
 #include "npu_bytecode_utils/instructions.hpp"
 #include "npu_bytecode_utils/logger.hpp"
@@ -16,6 +16,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+using namespace ov;
 
 intel_npu::vm::Function::Function(std::string name, uint64_t numGeneralRegisters, bool isEntrypoint,
                                   std::vector<FuncParamResType> paramTypes, std::vector<FuncParamResType> resultTypes,

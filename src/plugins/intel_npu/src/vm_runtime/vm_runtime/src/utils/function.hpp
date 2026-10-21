@@ -8,7 +8,7 @@
 #include "npu_bytecode_utils/managed_vector.hpp"
 #include "npu_bytecode_utils/span.hpp"
 #include "npu_bytecode_utils/type_section.hpp"
-#include "vm_runtime/vm_export.hpp"
+#include "vm_export.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -16,6 +16,8 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+
+namespace ov {
 
 namespace intel_npu::vm {
 
@@ -80,3 +82,5 @@ std::optional<FuncParamResType> NPU_VM_EXPORT extractFuncParamResType(intel_npu:
                                                                       size_t typeIndex);
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

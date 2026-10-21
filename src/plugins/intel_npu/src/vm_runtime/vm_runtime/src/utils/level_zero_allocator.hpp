@@ -5,7 +5,7 @@
 #pragma once
 
 #include "allocator_core.hpp"
-#include "vm_runtime/vm_export.hpp"
+#include "vm_export.hpp"
 
 #include <intel_npu/utils/utils.hpp>
 
@@ -13,6 +13,8 @@
 
 #include <cstddef>
 #include <cstdint>
+
+namespace ov {
 
 namespace intel_npu::vm {
 
@@ -30,7 +32,7 @@ class NPU_VM_EXPORT LevelZeroAllocator {
 
 public:
     // Chunk-base alignment this backing guarantees: zeMemAllocHost is asked for page-aligned memory.
-    static constexpr size_t ALIGNMENT = intel_npu::utils::STANDARD_PAGE_SIZE;
+    static constexpr size_t ALIGNMENT = ::intel_npu::utils::STANDARD_PAGE_SIZE;
 
     explicit LevelZeroAllocator(ze_context_handle_t context);
 
@@ -44,3 +46,5 @@ public:
 NPU_VM_EXPORT AnyAllocator makeLevelZeroAllocator(ze_context_handle_t context);
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

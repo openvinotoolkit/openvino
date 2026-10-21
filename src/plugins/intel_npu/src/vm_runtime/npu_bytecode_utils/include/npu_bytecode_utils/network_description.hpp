@@ -16,6 +16,8 @@
 #include <unordered_set>
 #include <vector>
 
+namespace ov {
+
 namespace intel_npu::vm {
 
 /**
@@ -169,3 +171,5 @@ std::optional<NetworkMetadata> parseNetworkMetadata(BytecodeReader& reader);
 void printMetadataEntry(Span<uint8_t> metadata);
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

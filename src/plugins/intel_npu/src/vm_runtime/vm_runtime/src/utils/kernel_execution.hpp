@@ -16,6 +16,8 @@
 #include <utility>
 #include <vector>
 
+namespace ov {
+
 namespace intel_npu::vm {
 
 constexpr size_t HOST_SYNC_EVENT_INDEX = 0U;
@@ -753,3 +755,5 @@ result_t executeGraph(ExecutionContext& executionContext, ze_command_list_handle
 result_t submitCmdList(ExecutionContext& executionContext, ze_command_list_handle_t commandListHandle,
                        bool needHostSync);
 }  // namespace intel_npu::vm
+
+}  // namespace ov

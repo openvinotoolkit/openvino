@@ -19,6 +19,8 @@
 #include <variant>
 #include <vector>
 
+using namespace ov;
+
 namespace {
 
 std::optional<uint16_t> extractPrimitiveTypeByteSize(intel_npu::vm::TypeCode typeCode,

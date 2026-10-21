@@ -6,13 +6,15 @@
 
 #include "buffer.hpp"
 #include "buffer_metadata.hpp"
-#include "vm_runtime/utils/function.hpp"
+#include "function.hpp"
 #include "vm_runtime/npu_vm_runtime.hpp"
 
 #include <cstdint>
 #include <optional>
 #include <unordered_map>
 #include <vector>
+
+namespace ov {
 
 namespace intel_npu::vm {
 
@@ -49,4 +51,6 @@ std::optional<BufferHandle> extractMemRef(npu_vm_runtime_mem_ref_handle_t handle
 
 }  // namespace intel_npu::vm
 
-using npu_vm_runtime_mem_ref = intel_npu::vm::MemRef;
+}  // namespace ov
+
+using npu_vm_runtime_mem_ref = ov::intel_npu::vm::MemRef;

@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <new>
+using namespace ov;
 
 intel_npu::vm::Block intel_npu::vm::HostAllocator::allocate(size_t bytes) {
     // operator new[] takes size_t, so buffers whose size does not fit in size_t cannot be allocated on this host.

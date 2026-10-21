@@ -5,10 +5,12 @@
 #pragma once
 
 #include "allocator_core.hpp"
-#include "vm_runtime/vm_export.hpp"
+#include "vm_export.hpp"
 
 #include <cstddef>
 #include <cstdint>
+
+namespace ov {
 
 namespace intel_npu::vm {
 
@@ -35,3 +37,5 @@ inline constexpr uint64_t DEFAULT_HOST_ARENA_MAX_SLAB_BYTES = uint64_t{64} << 20
 NPU_VM_EXPORT AnyAllocator makeHostAllocator();
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

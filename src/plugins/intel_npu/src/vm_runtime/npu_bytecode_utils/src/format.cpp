@@ -10,6 +10,8 @@
 #include <string_view>
 #include <vector>
 
+using namespace ov;
+
 std::string intel_npu::vm::formatString(std::string_view format, const std::vector<std::string>& args) {
     std::ostringstream stream;
     size_t formatOffset = 0;

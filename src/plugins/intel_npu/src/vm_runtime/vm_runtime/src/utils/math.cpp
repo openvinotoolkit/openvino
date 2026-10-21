@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <limits>
 
+using namespace ov;
+
 bool intel_npu::vm::checkedMultiply(uint64_t lhs, uint64_t rhs, uint64_t& result) {
     if (rhs != 0 && lhs > std::numeric_limits<uint64_t>::max() / rhs) {
         return false;

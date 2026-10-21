@@ -13,6 +13,8 @@
 #include <string_view>
 #include <vector>
 
+using namespace ov;
+
 std::optional<uint64_t> intel_npu::vm::computeMaxLinearOffset(const intel_npu::vm::BufferMetadata& meta) {
     if (meta.shape.size() != meta.strides.size()) {
         return std::nullopt;

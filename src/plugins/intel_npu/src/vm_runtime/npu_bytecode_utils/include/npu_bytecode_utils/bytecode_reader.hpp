@@ -16,6 +16,8 @@
 #include <string>
 #include <vector>
 
+namespace ov {
+
 namespace intel_npu::vm {
 
 // Deserializes a bytecode binary into its constituent parts: file header and section payloads
@@ -88,3 +90,5 @@ public:
 };
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

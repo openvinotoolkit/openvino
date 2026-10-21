@@ -13,6 +13,8 @@
 #include <variant>
 #include <vector>
 
+namespace ov {
+
 namespace intel_npu::vm {
 
 class SectionHeaderTable;
@@ -143,3 +145,5 @@ std::optional<std::vector<uint16_t>> extractTypeByteSizes(const SectionHeaderTab
                                                           const std::vector<Span<uint8_t>>& sections);
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

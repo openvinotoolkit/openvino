@@ -13,6 +13,8 @@
 #include <utility>
 #include <vector>
 
+namespace ov {
+
 namespace intel_npu::vm {
 
 namespace details {
@@ -180,3 +182,5 @@ public:
 };
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

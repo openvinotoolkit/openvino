@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <string>
 
+using namespace ov;
+
 [[noreturn]] void intel_npu::vm::detail::throwRuntimeError([[maybe_unused]] const char* file, [[maybe_unused]] int line,
                                                            const std::string& message) {
     std::ostringstream stream;

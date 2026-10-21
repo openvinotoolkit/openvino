@@ -37,6 +37,8 @@
 // For non-developer builds, the log level is set to Info by default, colors are enabled, only the file name is printed
 // and all messages are included regardless of their source.
 
+namespace ov {
+
 namespace intel_npu::vm {
 
 enum class LogLevel : uint8_t {
@@ -123,12 +125,14 @@ void dispatchLog(LogLevel level, const char* file, int line, std::string_view fo
 
 }  // namespace intel_npu::vm
 
+}  // namespace ov
+
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
 
 #define NPU_VM_LOG_DETAIL_IMPL(level, ...)                                                                           \
     do { /* NOLINT(cppcoreguidelines-avoid-do-while) */                                                              \
-        if (::intel_npu::vm::detail::isLogLevelActive(::intel_npu::vm::LogLevel::level)) {                           \
-            ::intel_npu::vm::detail::dispatchLog(::intel_npu::vm::LogLevel::level, __FILE__, __LINE__, __VA_ARGS__); \
+        if (::ov::intel_npu::vm::detail::isLogLevelActive(::ov::intel_npu::vm::LogLevel::level)) {                           \
+            ::ov::intel_npu::vm::detail::dispatchLog(::ov::intel_npu::vm::LogLevel::level, __FILE__, __LINE__, __VA_ARGS__); \
         }                                                                                                            \
     } while (0)
 

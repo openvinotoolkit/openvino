@@ -19,7 +19,7 @@
 #include <utility>
 #include <vector>
 
-using namespace intel_npu::vm;
+using namespace ov::intel_npu::vm;
 
 namespace {
 result_t success() {
@@ -294,7 +294,7 @@ result_t submitCmdListImmediate(ExecutionContext& executionContext, ze_command_l
 
 }  // namespace
 
-namespace intel_npu::vm {
+namespace ov::intel_npu::vm {
 result_t ExecutionContext::EventPool::initialize(ze_device_handle_t deviceHandle, ze_context_handle_t context,
                                                  uint32_t cmdListCount, ExecutionContext::ExecutionMode executionMode,
                                                  bool isCounterBasedEventSupported, bool hostSyncWithEventRequired,
@@ -1295,4 +1295,4 @@ result_t submitCmdList(ExecutionContext& executionContext, ze_command_list_handl
     return success();
 }
 
-}  // namespace intel_npu::vm
+}  // namespace ov::intel_npu::vm

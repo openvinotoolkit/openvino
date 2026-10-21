@@ -13,6 +13,8 @@
 #include <type_traits>
 #include <vector>
 
+namespace ov {
+
 namespace intel_npu::vm {
 
 namespace detail {
@@ -46,10 +48,12 @@ std::string formatMessage(std::string_view format, const Args&... args) {
 
 }  // namespace intel_npu::vm
 
+}  // namespace ov
+
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
 
 #define NPU_VM_THROW(...) \
-    ::intel_npu::vm::detail::throwRuntimeError(__FILE__, __LINE__, ::intel_npu::vm::detail::formatMessage(__VA_ARGS__))
+    ov::intel_npu::vm::detail::throwRuntimeError(__FILE__, __LINE__, ov::intel_npu::vm::detail::formatMessage(__VA_ARGS__))
 
 #define NPU_VM_THROW_WHEN(condition, ...) \
     if (NPU_VM_UNLIKELY(condition)) {     \

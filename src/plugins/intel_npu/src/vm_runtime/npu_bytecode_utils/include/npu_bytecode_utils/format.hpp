@@ -8,6 +8,8 @@
 #include <string_view>
 #include <vector>
 
+namespace ov {
+
 namespace intel_npu::vm {
 
 // Format the string by replacing "{}" placeholders in the input with the provided arguments. If there are
@@ -16,3 +18,5 @@ namespace intel_npu::vm {
 std::string formatString(std::string_view format, const std::vector<std::string>& args);
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

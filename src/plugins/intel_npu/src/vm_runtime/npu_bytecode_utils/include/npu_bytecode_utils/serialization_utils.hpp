@@ -11,6 +11,8 @@
 #include <cstring>
 #include <vector>
 
+namespace ov {
+
 namespace intel_npu::vm {
 
 template <typename T>
@@ -34,3 +36,5 @@ bool parseValueFrom(vm::Span<uint8_t>& buffer, T& value) {
 }
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

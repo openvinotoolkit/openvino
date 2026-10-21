@@ -5,13 +5,15 @@
 #pragma once
 
 #include "allocator_core.hpp"
-#include "vm_runtime/vm_export.hpp"
+#include "vm_export.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+namespace ov {
 
 namespace intel_npu::vm {
 
@@ -175,3 +177,5 @@ public:
 };
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

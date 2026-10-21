@@ -21,6 +21,8 @@
 #include <string_view>
 #include <vector>
 
+using namespace ov;
+
 namespace {
 
 bool checkInstructionInBounds(intel_npu::vm::Span<uint8_t> functionBody, intel_npu::vm::OpCode opcode) {

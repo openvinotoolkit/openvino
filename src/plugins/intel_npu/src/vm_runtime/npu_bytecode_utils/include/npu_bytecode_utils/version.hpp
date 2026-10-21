@@ -12,6 +12,8 @@
 #include <ostream>
 #include <vector>
 
+namespace ov {
+
 namespace intel_npu::vm {
 
 constexpr uint8_t VERSION_SIZE = 3;
@@ -86,3 +88,5 @@ public:
 };
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov

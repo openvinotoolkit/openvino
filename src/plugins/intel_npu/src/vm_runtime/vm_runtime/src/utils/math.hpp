@@ -4,9 +4,11 @@
 
 #pragma once
 
-#include "vm_runtime/vm_export.hpp"
+#include "vm_export.hpp"
 
 #include <cstdint>
+
+namespace ov {
 
 namespace intel_npu::vm {
 
@@ -15,3 +17,5 @@ bool NPU_VM_EXPORT checkedAddProduct(uint64_t lhs, uint64_t rhs, uint64_t& accum
 bool NPU_VM_EXPORT checkedMultiplyNonNegative(int64_t lhs, int64_t rhs, int64_t& result);
 
 }  // namespace intel_npu::vm
+
+}  // namespace ov
