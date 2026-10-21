@@ -5,10 +5,7 @@
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "utils/arg_min_max_factory.hpp"
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace opset_1 {
 ov::OutputVector argmin(const ov::frontend::onnx::Node& node) {
     const utils::ArgMinMaxFactory arg_factory(node);
@@ -26,7 +23,4 @@ ov::OutputVector argmin(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("ArgMin", OPSET_SINCE(12), ai_onnx::opset_12::argmin);
 }  // namespace opset_12
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

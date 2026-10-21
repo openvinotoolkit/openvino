@@ -9,9 +9,7 @@
 #include "openvino/op/convert_promote_types.hpp"
 #include "openvino/opsets/opset10.hpp"
 
-namespace ov {
-namespace frontend {
-namespace jax {
+namespace ov::frontend::jax {
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
     auto inputs = context.inputs();
@@ -94,6 +92,4 @@ OutputVector make_framework_node(const NodeContext& context, const std::string& 
     return outputs;
 }
 
-}  // namespace jax
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::jax

@@ -9,10 +9,7 @@
 #include "builder/decoder_config.hpp"
 #include "builder/graph_emitter.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace blocks {
+namespace ov::frontend::gguf::blocks {
 
 // Per-layer KV-cache routing, precomputed once for the whole stack.
 //
@@ -41,7 +38,4 @@ std::string attention(GraphEmitter& e,
                       int il,
                       const std::string& attn_norm);
 
-}  // namespace blocks
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::blocks

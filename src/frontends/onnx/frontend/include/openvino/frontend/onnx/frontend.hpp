@@ -11,9 +11,7 @@
 #include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 class ONNX_FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
@@ -47,6 +45,4 @@ protected:
     std::once_flag has_legacy_extension;
 };
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx
