@@ -39,7 +39,8 @@ void register_deferred_projector(ov::frontend::gguf::FrontEnd& frontend, const s
                             [modality, type](GgufGraphContext& graph) {
                                 return build_builtin_projector(graph, modality, type);
                             },
-                            {}}));
+                            {}},
+        RegistrationMode::Replace));
 }
 
 class GGUFMMProj : public ::testing::Test {
@@ -129,39 +130,63 @@ TEST_F(GGUFMMProj, MiniCPMLearnedPositionGridIsIndependentOfResizeMetadata) {
     EXPECT_EQ(restored->get_rt_info<std::string>({"gguf_mmproj", "vision.position_grid_size"}), "70");
 }
 
-TEST_F(GGUFMMProj, DeferredProjectorRegistrationsAreAbsent) {
-    const auto definitions = ov::frontend::gguf::ArchRegistry{}.projectors().supported_projectors();
-    for (const auto* type : {"minicpmv4_7", "qwen3a", "qwen3tts_spkenc", "qwen3tts_gen"}) {
-        EXPECT_TRUE(std::none_of(definitions.begin(), definitions.end(), [&](const auto& definition) {
-            return definition.projector_type == type;
-        })) << type;
-    }
-}
-
-TEST_F(GGUFMMProj, DeferredEncoderRequiresExplicitExtension) {
+TEST_F(GGUFMMProj, LimitedProjectorsCheckActualTensorTypes) {
+    using namespace ov::frontend::gguf;
+    std::unordered_map<std::string, GGUFMetaData> metadata;
+    metadata["general.architecture"] = std::string("clip");
+    const detail::MetadataStore meta_store{metadata};
+    std::unordered_map<std::string, ov::Tensor> weights;
+    std::unordered_map<std::string, GgufTensorType> types;
+    detail::WeightStore store{weights, types};
+    ProjectorRegistry registry;
     for (const auto* type : {"minicpmv4_7", "qwen3a", "qwen3tts_spkenc"}) {
-        SCOPED_TRACE(type);
-        ov_gguf_test::GgufWriter deferred;
-        deferred.kv_str("general.architecture", "clip");
         const auto modality = std::string(type) == "minicpmv4_7" ? "vision" : "audio";
-        deferred.kv_bool("clip.has_" + std::string(modality) + "_encoder", true);
-        deferred.kv_str("clip." + std::string(modality) + ".projector_type", type);
-        deferred.filled_tensor("test.weight", {1});
-        ASSERT_TRUE(deferred.write(path));
-        ov::frontend::gguf::FrontEnd frontend;
-        OV_EXPECT_THROW(frontend.convert(frontend.load(path)),
-                        ov::Exception,
-                        testing::AllOf(testing::HasSubstr("unsupported"), testing::HasSubstr(type)));
+        const auto definition = registry.find(GgufMetadata(meta_store), modality, type);
+        ASSERT_TRUE(definition);
+        for (const auto qtype : {GGUF_TYPE_BF16, GGUF_TYPE_Q8_0}) {
+            types = {{"test.qtype", qtype}};
+            GgufGraphContext graph(BuildContext{GgufMetadata(meta_store), "clip", &store, &registry});
+            OV_EXPECT_THROW(definition->build(graph), ov::Exception, testing::HasSubstr("requires F32 tensors"));
+        }
     }
 }
 
-TEST_F(GGUFMMProj, DeferredGeneratedAudioRequiresExplicitExtension) {
+TEST_F(GGUFMMProj, TensorSourceTypesSurviveWeightConversion) {
+    using namespace ov::frontend::gguf;
+    std::unordered_map<std::string, GGUFMetaData> metadata;
+    const detail::MetadataStore meta_store{metadata};
+    std::unordered_map<std::string, ov::Tensor> weights;
+    std::unordered_map<std::string, GgufTensorType> types{{"conv.qtype", GGUF_TYPE_BF16},
+                                                          {"norm.bias.qtype", GGUF_TYPE_F32}};
+    detail::WeightStore store{weights, types};
+    GgufGraphContext graph(BuildContext{GgufMetadata(meta_store), "clip", &store});
+    EXPECT_EQ(graph.tensors().source_type("conv.weight"), std::optional<uint32_t>{GGUF_TYPE_BF16});
+    EXPECT_EQ(graph.tensors().source_type("norm.bias"), std::optional<uint32_t>{GGUF_TYPE_F32});
+    EXPECT_FALSE(graph.tensors().source_type("missing.weight"));
+    EXPECT_EQ(graph.tensors().source_types(), (std::set<uint32_t>{GGUF_TYPE_F32, GGUF_TYPE_BF16}));
+}
+
+TEST_F(GGUFMMProj, GeneratedAudioChecksActualTensorTypes) {
+    using namespace ov::frontend::gguf;
+    std::unordered_map<std::string, GGUFMetaData> metadata{
+        {"general.architecture", std::string("clip")},
+        {"clip.has_gen_audio_encoder", true},
+        {"clip.gen.audio.projector_type", std::string("qwen3tts_gen")}};
+    const detail::MetadataStore meta_store{metadata};
+    std::unordered_map<std::string, ov::Tensor> weights;
+    std::unordered_map<std::string, GgufTensorType> types{{"test.qtype", GGUF_TYPE_BF16}};
+    detail::WeightStore store{weights, types};
+    auto builder = make_mmproj_builder(BuildContext{GgufMetadata(meta_store), "clip", &store});
+    OV_EXPECT_THROW(builder->build(), ov::Exception, testing::HasSubstr("requires F32 tensors"));
+}
+
+TEST_F(GGUFMMProj, GeneratedAudioRejectsUnknownType) {
     writer.kv_bool("clip.has_gen_audio_encoder", true);
-    writer.kv_str("clip.gen.audio.projector_type", "qwen3tts_gen");
+    writer.kv_str("clip.gen.audio.projector_type", "unknown_gen");
     weight("test.weight", {1});
     OV_EXPECT_THROW(convert(),
                     ov::Exception,
-                    testing::HasSubstr("unsupported generated audio projector 'qwen3tts_gen'"));
+                    testing::HasSubstr("unsupported generated audio projector 'unknown_gen'"));
 }
 
 TEST_F(GGUFMMProj, MiniCPMRejectsNonSquareLearnedPositionGrid) {

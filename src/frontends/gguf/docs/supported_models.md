@@ -239,16 +239,46 @@ continuous batching and target-only greedy agreement. The Qwen3.6-35B-A3B Q4_K_M
 BF16 pair passes repeated single-request PA generation with prefix caching disabled.
 DeepSeek-V4 and multiple active DFlash requests are deferred.
 
+### Limited formats enabled by this PR
+
+The CPU checkpoint results below use llama.cpp revision
+`098ce526b546b5a190327c1da82929cee051b9ac`. F32 materialization produces a separate
+GGUF format with the source tensor values preserved and `general.file_type=0`;
+it does not turn a failed original quantized checkpoint into a passing one.
+Built-in AFMoE, Qwen3TTS, Qwen3VL MoE and the limited projectors check actual tensor types.
+
+| Family | Supported subset and evidence | Excluded formats |
+|---|---|---|
+| AFMoE | F32 tensors; Trinity-Nano-Preview represented-F32 decoder matches 13/13 | Original Q4_K_S matches 11/13; Q4_0/DQ32 matches 7/13 |
+| Qwen3-ASR | Original BF16 decoder matches 13/13; Q8_0 with CPU `DYNAMIC_QUANTIZATION_GROUP_SIZE=32` matches 12/13 with the same first prediction. Requires an F32 `qwen3a` projector | Original Q8_0 decoder with DQ disabled matches 10/13; original BF16/Q8_0 projectors fail feature parity |
+| MiniCPM-V 4.7 | Existing `qwen35` decoder matches 13/13; F32 `minicpmv4_7` projector passes 448×448 and 224×112 feature checks | Original mixed BF16/F32 projector exceeds the feature gate |
+| Qwen3TTS | F32 decoder and combined speaker/predictor/codec projector; represented-F32 decoder matches 13/13 | Original Q4_K_M decoder matches 8/13; original BF16/Q8_0 projectors fail feature parity |
+| Qwen3VL MoE / Qwen3-Omni | F16/F32 tensors; mixed-F16 30B-A3B decoder matches 13/13; F32 combined projector | Original Q4_K_M decoder matches 11/13; original Q8_0 projector fails feature parity |
+
+ASR's F32 projector feature NMSE is `4.60e-9` / `4.74e-8` for 100 / 200 frames.
+Both the original BF16 decoder and Q8_0 decoder with CPU DQ32, paired with this projector, pass two pinned LibriSpeech clips
+with aggregate WER `3.7%`, exact repeats, first-output cancellation, one terminal
+callback, and reset after cancellation through the GenAI ASR pipeline.
+MiniCPM's F32 projector feature NMSE is `7.65e-7` / `3.61e-6`.
+Qwen3TTS's F32 path passes 14 full predictor logits, all 15 sampled codes, exact
+feedback, and two 138,240-sample forced-code waveform chunks (NMSE `2.31e-6` /
+`1.23e-6`). Its speaker encoder passes 100/200-frame feature checks. Standard
+codec convolutions preserve llama.cpp's F16 operand rounding through serialization
+and CPU compilation. GenAI passes two identical finite 3,840-sample outputs at
+24 kHz using three generated tokens and a zero speaker vector. Speech quality,
+voice cloning and longer generation are outside this validation; the current
+Text2SpeechPipeline has no public cancellation callback.
+
+Qwen3-Omni mixed-F16 preserves the source F32 router/norm tensors. The decoder
+passes all 13 choices against its own llama.cpp CPU reference, with full-logit
+NMSE up to `1.37e-2` recorded separately. The runtime keeps 144 expert tensors
+in F16 and expands only selected experts, peaking at 27.2 GiB for this replay.
+Repeated native SDPA and PA text outputs agree. Image and audio generation are validated
+with PA and 16-token prefill chunks; unchunked SDPA image prefill exceeded the
+RAM guard. See [projector and scheduler limits](mmproj.md#limited-projector-formats).
+
 ### Deferred families
 
-These native paths are not enabled by this PR. Their independent implementation fixtures
-remain for further development; they do not establish original-checkpoint acceptance.
-
-| Family | Blocking evidence |
+| Family | Remaining evidence |
 |---|---|
-| AFMoE | Original Trinity-Nano-Preview Q4_K_S matches 11/13, below the 90% gate; represented-F32 diagnostic agreement does not waive this failure |
-| Qwen3Next | Canonical 80B-A3B Q4_K_M frontend attempt stopped at 12.56 GB available RAM, with peak process-group PSS 92.4 GiB; no completed decoder or API result |
-| Qwen3VL MoE / Qwen3-Omni | Original 30B-A3B Q4_K_M matches 11/13, maximum full-logit NMSE `0.111335`; passing media smoke checks do not waive the decoder failure |
-| Qwen3-ASR | Original Q8_0 decoder uses `qwen3vl` but matches only 10/13; the ASR subtype and its `qwen3a` projector are deferred |
-| Qwen3TTS | Original quantized predictor/waveform comparisons fail; finite seeded PCM does not establish quality |
-| MiniCPM-V 4.7 | Original BF16/F32 projector exceeds the feature gate; its existing `qwen35` text backbone remains enabled |
+| Qwen3Next | Canonical 80B-A3B Q4_K_M frontend attempt stopped at 12.56 GB available RAM. A complete first-layer audit keeps experts compressed, but source plus executor expert copies estimate 111 GiB before globals and temporary allocations. No completed full decoder or API result |

@@ -4,6 +4,7 @@
 
 // Build against a CPU-only llama.cpp. See gen_arch_accuracy.py.
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -56,8 +57,12 @@ int main(int argc, char** argv) {
         return 4;
     char architecture[64]{};
     llama_model_meta_val_str(model, "general.architecture", architecture, sizeof(architecture));
-    const int32_t vocab =
-        std::string(architecture) == "qwen3tts" ? 3072 : llama_vocab_n_tokens(llama_model_get_vocab(model));
+    const int32_t full_vocab = llama_vocab_n_tokens(llama_model_get_vocab(model));
+    const bool tts = std::string(architecture) == "qwen3tts";
+    const int32_t vocab = tts ? 3072 : full_vocab;
+    if (full_vocab < vocab)
+        return 12;
+    const int32_t vocab_offset = tts ? full_vocab - vocab : 0;
     std::ofstream out(argv[2], std::ios::binary);
     out.write(reinterpret_cast<const char*>(&vocab), sizeof(vocab));
     const auto* vocabulary = llama_model_get_vocab(model);
@@ -214,14 +219,17 @@ int main(int argc, char** argv) {
             batch.pos = allocated_positions;
             llama_batch_free(batch);
         }
-        const auto* logits = llama_get_logits_ith(ctx, -1);
+        const auto* logits = llama_get_logits_ith(ctx, -1) + vocab_offset;
+        if (tts && !std::all_of(logits, logits + vocab, [](float value) {
+                return std::isfinite(value);
+            }))
+            return 13;
         out.write(reinterpret_cast<const char*>(logits), vocab * sizeof(float));
-        tokens =
-            lilicorr ? std::vector<llama_token>{4, 5, 6}
-            : generation
-                ? std::vector<llama_token>{static_cast<llama_token>(std::max_element(logits, logits + vocab) - logits)}
-            : step == 0 ? std::vector<llama_token>{4}
-                        : std::vector<llama_token>{5, 6};
+        tokens = lilicorr     ? std::vector<llama_token>{4, 5, 6}
+                 : generation ? std::vector<llama_token>{static_cast<llama_token>(
+                                    std::max_element(logits, logits + vocab) - logits + vocab_offset)}
+                 : step == 0  ? std::vector<llama_token>{4}
+                              : std::vector<llama_token>{5, 6};
     }
     llama_free(ctx);
     llama_model_free(model);

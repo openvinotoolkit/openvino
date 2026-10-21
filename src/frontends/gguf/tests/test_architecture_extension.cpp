@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+#include "builder/api/metadata_store.hpp"
+#include "builder/arch_registry.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
@@ -142,7 +144,7 @@ TEST(GGUFArchitectureExtension, UnknownArchitectureIsRejectedWithoutAnExtension)
 }
 
 TEST(GGUFArchitectureExtension, DeferredArchitecturesAreRejectedWithoutAnExtension) {
-    for (const auto* architecture : {"afmoe", "qwen3next", "qwen3vlmoe", "qwen3tts"}) {
+    for (const auto* architecture : {"qwen3next"}) {
         SCOPED_TRACE(architecture);
         ScratchDir scratch;
         const auto path = write_decoder_gguf(scratch.path(), architecture);
@@ -160,22 +162,51 @@ TEST(GGUFArchitectureExtension, DeferredArchitecturesAreRejectedWithoutAnExtensi
     }
 }
 
-TEST(GGUFArchitectureExtension, Qwen3ASRTaskTagRequiresExplicitExtension) {
+TEST(GGUFArchitectureExtension, LimitedDecodersCheckActualTensorTypes) {
+    using namespace ov::frontend::gguf;
+    for (const auto* architecture : {"afmoe", "qwen3tts"}) {
+        std::unordered_map<std::string, GGUFMetaData> metadata{{"general.architecture", std::string(architecture)},
+                                                               {"general.file_type", int32_t{0}}};
+        const detail::MetadataStore meta_store{metadata};
+        const GgufMetadata meta(meta_store);
+        const auto definition = ArchRegistry{}.find(meta);
+        ASSERT_TRUE(definition);
+        std::unordered_map<std::string, ov::Tensor> weights;
+        std::unordered_map<std::string, GgufTensorType> types;
+        detail::WeightStore store{weights, types};
+        for (const auto type : {GGUF_TYPE_BF16, GGUF_TYPE_Q4_K}) {
+            types = {{"test.qtype", type}};
+            OV_EXPECT_THROW(definition->factory(BuildContext{meta, architecture, &store}),
+                            ov::Exception,
+                            testing::HasSubstr("requires F32 tensors"));
+        }
+    }
+}
+
+TEST(GGUFArchitectureExtension, LimitedOmniDecoderChecksActualTensorTypes) {
+    using namespace ov::frontend::gguf;
+    std::unordered_map<std::string, GGUFMetaData> metadata{{"general.architecture", std::string("qwen3vlmoe")},
+                                                           {"general.file_type", int32_t{1}}};
+    const detail::MetadataStore meta_store{metadata};
+    const GgufMetadata meta(meta_store);
+    const auto definition = ArchRegistry{}.find(meta);
+    ASSERT_TRUE(definition);
+    std::unordered_map<std::string, ov::Tensor> weights;
+    std::unordered_map<std::string, GgufTensorType> types;
+    detail::WeightStore store{weights, types};
+    for (const auto type : {GGUF_TYPE_BF16, GGUF_TYPE_Q4_K}) {
+        types = {{"test.qtype", type}};
+        OV_EXPECT_THROW(definition->factory(BuildContext{meta, "qwen3vlmoe", &store}),
+                        ov::Exception,
+                        testing::HasSubstr("requires F32/F16 tensors"));
+    }
+}
+
+TEST(GGUFArchitectureExtension, Qwen3ASRTaskTagRemainsRegistered) {
     ScratchDir scratch;
     const auto path = write_qwen3vl_gguf(scratch.path(), {"automatic-speech-recognition"});
     ASSERT_FALSE(path.empty());
     ov::frontend::gguf::FrontEnd frontend;
-    OV_EXPECT_THROW(
-        frontend.load(path),
-        ov::Exception,
-        testing::AllOf(testing::HasSubstr("Qwen3 ASR subtype"), testing::HasSubstr("automatic-speech-recognition")));
-    auto definition = make_decoder_architecture("qwen3vl", RopeMode::Interleaved);
-    definition.id = "qwen3vl.asr.extension";
-    definition.match = [](const GgufMetadata& metadata) {
-        const auto tags = metadata.get_str_array("general.tags");
-        return std::find(tags.begin(), tags.end(), "automatic-speech-recognition") != tags.end();
-    };
-    frontend.add_extension(std::make_shared<ArchitectureExtension>(std::move(definition)));
     EXPECT_NO_THROW(frontend.load(path));
 }
 

@@ -31,6 +31,25 @@ bool GgufTensors::has(const std::string& gguf_name) const {
     return (*m_ctx->m_impl).emitter.has_weight(gguf_name);
 }
 
+std::optional<uint32_t> GgufTensors::source_type(const std::string& gguf_name) const {
+    const auto& types = m_ctx->m_impl->build_ctx.weights->qtypes;
+    auto prefix = gguf_name;
+    const std::string suffix = ".weight";
+    if (prefix.size() >= suffix.size() && prefix.compare(prefix.size() - suffix.size(), suffix.size(), suffix) == 0)
+        prefix.resize(prefix.size() - suffix.size());
+    const auto found = types.find(prefix + ".qtype");
+    if (found == types.end())
+        return std::nullopt;
+    return static_cast<uint32_t>(found->second);
+}
+
+std::set<uint32_t> GgufTensors::source_types() const {
+    std::set<uint32_t> types;
+    for (const auto& entry : m_ctx->m_impl->build_ctx.weights->qtypes)
+        types.insert(static_cast<uint32_t>(entry.second));
+    return types;
+}
+
 GgufValue GgufTensors::operator()(const std::string& gguf_name) const {
     auto& impl = (*m_ctx->m_impl);
     auto& e = impl.emitter;

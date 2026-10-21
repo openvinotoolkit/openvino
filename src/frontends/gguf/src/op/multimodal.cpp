@@ -31,6 +31,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -182,6 +183,18 @@ OutputVector translate_conv_2d(const NodeContext& context) {
         return rename_outputs_with_suffix(
             {std::make_shared<ov::op::v1::GroupConvolution>(x, w, strides, pads, pads, dilation, auto_pad)},
             context.get_name());
+    }
+    const auto weight_type = context.get_input(0).get_element_type();
+    if (context.get_attribute<bool>("im2col_precision_f16", false) &&
+        (weight_type == ov::element::f32 || weight_type == ov::element::f16)) {
+        const auto round_operand = [](const ov::Output<ov::Node>& operand) {
+            auto narrow = std::make_shared<ov::op::v0::Convert>(operand, ov::element::f16);
+            // ggml's F16 im2col rounds both operands before the F32 dot product.
+            ov::disable_conversion(narrow, ov::element::f16, ov::element::f32);
+            return std::make_shared<ov::op::v0::Convert>(narrow, ov::element::f32);
+        };
+        x = round_operand(x);
+        w = round_operand(w);
     }
     return rename_outputs_with_suffix(
         {std::make_shared<ov::op::v1::Convolution>(x, w, strides, pads, pads, dilation, auto_pad)},

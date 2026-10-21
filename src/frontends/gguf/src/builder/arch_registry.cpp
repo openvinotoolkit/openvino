@@ -8,6 +8,7 @@
 #include <optional>
 #include <utility>
 
+#include "builder/api/metadata_store.hpp"
 #include "builder/arch/dspark_builder.hpp"
 #include "builder/arch/lfm2_builder.hpp"
 #include "builder/arch/mamba_builder.hpp"
@@ -39,6 +40,7 @@ struct ArchitectureEntry {
     const char* id = nullptr;
 };
 const ArchitectureEntry architectures[] = {
+    {"afmoe", RopeMode::Neox},
     {"bailingmoe2", RopeMode::Neox},
     {"clip",
      make_mmproj_builder,
@@ -87,13 +89,11 @@ const ArchitectureEntry architectures[] = {
     {"plamo3", RopeMode::Neox},
     {"qwen2", RopeMode::Neox},
     {"qwen3", RopeMode::Neox},
+    {"qwen3tts", RopeMode::Interleaved},
     {"qwen35", RopeMode::Interleaved},
     {"qwen35moe", RopeMode::Interleaved},
-    {"qwen3vl",
-     RopeMode::Interleaved,
-     [](const GgufMetadata& meta) {
-         return !is_qwen3_asr(meta);
-     }},
+    {"qwen3vl", RopeMode::Interleaved},
+    {"qwen3vlmoe", RopeMode::Interleaved},
     {"qwen3moe", RopeMode::Neox},
     {"smollm3", RopeMode::Normal},
 };
@@ -113,6 +113,25 @@ std::vector<ArchitectureDefinition> builtin_architectures() {
         } else {
             auto definition = make_decoder_architecture(entry.name, entry.rope.value());
             definition.match = entry.match;
+            if (std::string(entry.name) == "afmoe" || std::string(entry.name) == "qwen3tts" ||
+                std::string(entry.name) == "qwen3vlmoe") {
+                const auto factory = definition.factory;
+                definition.factory = [factory](const BuildContext& ctx) {
+                    const bool allow_f16 = ctx.arch == "qwen3vlmoe";
+                    for (const auto& type : ctx.weights->qtypes)
+                        OPENVINO_ASSERT(type.second == GGUF_TYPE_F32 || (allow_f16 && type.second == GGUF_TYPE_F16),
+                                        "[GGUF] built-in ",
+                                        ctx.arch,
+                                        " support requires ",
+                                        allow_f16 ? "F32/F16" : "F32",
+                                        " tensors; unsupported type ",
+                                        static_cast<uint32_t>(type.second),
+                                        " in '",
+                                        type.first,
+                                        "'. Register an ArchitectureExtension to override it.");
+                    return factory(ctx);
+                };
+            }
             definitions.push_back(std::move(definition));
         }
     }

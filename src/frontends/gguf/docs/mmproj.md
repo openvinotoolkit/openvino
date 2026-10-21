@@ -21,6 +21,7 @@ numerical fixture checked against the llama.cpp CPU encoder (see
 | Vision | `resampler` | MiniCPM-V resampler, `clip.minicpmv_version` 2-6 and 100045 |
 | Vision | `gemma3nv` | MobileNet stem, UIR, attention and multiscale feature branches; vision-only support |
 | Vision | `minicpmv4_6` | window attention, two-stage merging |
+| Vision | `minicpmv4_7` | F32 tensors only; learned position grid, window attention and 4× merging |
 | Vision | `qwen2vl_merger`, `qwen2.5vl_merger`, `qwen3vl_merger` | temporal pairs, M-RoPE, windows (2.5), DeepStack (3) |
 | Vision | `pixtral` | 2D RoPE, patch merger, row separators |
 | Vision | `phi4` | dynamic resolution, resized positions |
@@ -30,6 +31,9 @@ numerical fixture checked against the llama.cpp CPU encoder (see
 | Vision | `deepseekocr`, `deepseekocr2` | SAM local/global attention, tiles, queries, view separators |
 | Audio | `gemma4a` | causal convolution, 12-position relative attention with softcap |
 | Audio | `gemma4ua` | raw 640-sample waveform frames |
+| Audio | `qwen3a` | F32 tensors only; Qwen3-ASR audio encoder |
+| Audio | `qwen3tts_spkenc` | F32 tensors only; speaker features |
+| Generated audio | `qwen3tts_gen` | F32 tensors only; code predictor and streaming codec |
 | Audio | `qwen2a`, `ultravox`, `voxtral`, `musicflamingo`, `meralion`, `glma` | Whisper-derived encoders |
 
 Bonsai-27B, Ternary-Bonsai-27B and Ternary-Bonsai-2-27B BF16 and Q8_0 projector files are
@@ -293,17 +297,51 @@ responses are identical. This is limited image-quality evidence. GGUF image inse
 uses the vocabulary's single `<pad>` placeholder, including per-layer embedding spans.
 The Qwen3VL Q4_0 checkpoint separately passes repeated image generation with SDPA and PA.
 
-### Deferred projector paths
+### Limited projector formats
 
-`minicpmv4_7`, `qwen3a`, `qwen3tts_spkenc` and `qwen3tts_gen` are not enabled by
-this PR. Their implementation fixtures remain for further development through explicit
-registration. Original MiniCPM-V 4.7 feature NMSE is `9.86e-5` at 448x448 and
-`3.06e-4` at 224x112, above `1e-5`; BF16 activation-rounding diagnostics did not fix
-this. Qwen3-ASR's original decoder fails the greedy gate despite a passing two-clip
-transcription smoke check. Qwen3TTS's original quantized predictor and waveform
-comparisons fail; finite seeded PCM and zero-speaker inputs do not establish quality.
-Qwen3-Omni is also deferred because its original MoE decoder fails the greedy gate,
-even though repeated SDPA/PA image and audio API checks pass.
+`minicpmv4_7` and `qwen3a` are enabled for F32 tensor files. The built-in handlers
+reject other tensor types with an explicit diagnostic; a `ProjectorExtension` can
+replace the handler. Inspect the tensor inventory rather than the filename or
+`general.file_type`, which may describe mixed or stale formats.
+
+MiniCPM-V 4.7's F32 materialization preserves the original represented weights.
+Its full feature NMSE is `7.65e-7` at 448×448 and `3.61e-6` at 224×112. The original
+mixed BF16/F32 projector fails at `9.86e-5` / `3.06e-4`. The F32 projector and existing
+1B Q4_K_M decoder pass repeated CPU SDPA and PA image generation on the pinned cat/box image.
+This covers the tested geometry and greedy single-request path.
+
+Qwen3-ASR's F32 projector passes full feature checks at 100 and 200 frames. Paired
+with either the original BF16 decoder or the Q8_0 decoder with CPU DQ32, it passes two LibriSpeech clips through GenAI with
+3.7% aggregate WER, exact repeats, cancellation, a terminal callback and reset.
+The original Q8_0 and BF16 projectors fail feature parity. Original Q8_0 decoder
+support requires CPU `DYNAMIC_QUANTIZATION_GROUP_SIZE=32`; the default DQ-disabled
+original decoder fails the greedy gate. See [limited decoder formats](supported_models.md#limited-formats-enabled-by-this-pr).
+
+Qwen3TTS supports F32 speaker/predictor/codec tensors in its combined projector.
+Native conversion passes 14 full-logit checks, 15 actual sampled codes, exact
+feedback, two streaming waveform chunks and two speaker-feature checks. The
+codec rounds both standard-convolution operands to F16 before F32 arithmetic,
+matching llama.cpp's im2col path. The narrowing conversions are protected against
+precision conversion and survive IR serialization. The GenAI F32 decoder/projector
+pair returns two identical finite 3,840-sample outputs at 24 kHz with a zero speaker
+vector; speech quality and voice cloning are unassessed. Its public API does not
+provide cancellation. Original quantized/BF16 TTS comparisons fail.
+Qwen3-Omni uses the validated mixed F16/F32 decoder and F32 combined projector.
+The F32 projector passes image feature checks at 128×128 and 256×128 (NMSE
+`8.92e-7` / `1.50e-6`) and audio checks at 100/200 frames (`2.81e-8` / `1.52e-8`).
+The original Q8_0 projector fails all four checks, and the original Q4_K_M
+MoE decoder fails the greedy gate.
+
+Full 1000×667-image PA generation passes two identical 64-token responses identifying
+the tabby cat. Media prefills use GenAI `scheduler_config.max_num_batched_tokens=16`,
+`dynamic_split_fuse=true`, `max_num_seqs=1`, with prefix caching disabled. Unchunked
+SDPA image prefill exceeded the 96 GiB RAM guard; selected expert-weight buffers scale
+with submitted token count. The chunked PA image case peaked at 68.8 GiB. Native
+SDPA and PA text generation passes exact repeats and cross-backend equality. A
+pinned LibriSpeech clip through PA with the same scheduler gives two identical
+transcripts reproducing its reference sentence with “Mr.” for “Mister” (strict word
+error rate `1/17`, or `5.88%`). This covers audio input and text output;
+Omni speech output, video and longer media are unassessed.
 
 ## LFM2 vision projectors
 

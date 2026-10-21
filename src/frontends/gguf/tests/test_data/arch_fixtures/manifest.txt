@@ -102,7 +102,7 @@ qwen35moe-moe.gguf.hdr 9995904 convert
 qwen3moe-moe.gguf.hdr 7096192 convert
 qwen3next-moe.gguf.hdr 11044416 reject
 qwen3vl-dense.gguf.hdr 4733824 convert
-qwen3vlmoe-moe.gguf.hdr 7096192 reject
+qwen3vlmoe-moe.gguf.hdr 7096192 convert
 refact-dense.gguf.hdr 4741248 reject
 refact-moe.gguf.hdr 7096448 reject
 rnd1-moe.gguf.hdr 7096192 reject

@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
+#include "quant/gguf.hpp"
 
 namespace ov::frontend::gguf {
 
@@ -211,11 +212,16 @@ private:
             x = concat(state(name, input_channels, pad), x, 3);
             update(name, slice(x, 3, length, pad));
         }
+        const auto source_type = g.tensors().source_type(base + ".weight");
+        const bool f16_im2col =
+            !depthwise && source_type && (*source_type == GGUF_TYPE_F32 || *source_type == GGUF_TYPE_F16);
         auto w = reshape(weight, {output_channels, weight.ne(1), 1, kernel});
         auto y = g.node("GGML_OP_CONV_2D",
                         {w, x},
                         0,
-                        {{"conv_params", std::vector<int64_t>{1, 1, 0, 0, dilation, 1}}, {"depthwise", depthwise}});
+                        {{"conv_params", std::vector<int64_t>{1, 1, 0, 0, dilation, 1}},
+                         {"depthwise", depthwise},
+                         {"im2col_precision_f16", f16_im2col}});
         if (auto bias = g.tensors()(base + ".bias"))
             y = add(y, reshape(bias, {1, output_channels, 1, 1}));
         return y;

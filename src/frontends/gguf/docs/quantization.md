@@ -9,6 +9,22 @@ representation.
 The implementation is in [`gguf.cpp`](../src/quant/gguf.cpp),
 [`gguf_quants.cpp`](../src/quant/gguf_quants.cpp) and [`weights.cpp`](../src/quant/weights.cpp).
 
+## Preparing a limited F32 format
+
+Some [supported families](supported_models.md#limited-formats-enabled-by-this-pr) require
+F32 tensors. Convert from the original Hugging Face checkpoint with llama.cpp's
+`convert_hf_to_gguf.py --outtype f32`. This creates a separate checkpoint format.
+For an existing GGUF, exact F32 materialization must preserve metadata, tensor names
+and shapes; decode every tensor using its GGML type, write F32 payloads, and set
+`general.file_type=0`. Verify the output tensor inventory and finite values before
+using it. A filename ending in `f32` or a file-type metadata edit does not convert weights.
+
+Materializing a quantized GGUF preserves its represented values; it cannot recover
+information lost during the original quantization. Record both file hashes and test
+the new file against its own llama.cpp reference. Original quantized-checkpoint
+failures remain separate. F32 increases disk and compilation memory, especially
+for models with many experts.
+
 ## Storage and graph conventions
 
 The tables below describe the **native `.gguf` input path before device compilation**. The
@@ -337,6 +353,14 @@ During compilation a device may fuse decompression into its matrix kernel, reord
 weights, or expand them to floating point. Full F16 and F32 expansions require `2*N` and
 `4*N` bytes respectively, potentially alongside packed storage. In particular, CPU compressed
 expert matmul does not support `u2` in this implementation, so Q2 MoE weights can expand.
+Plain F16/BF16 expert constants use a half-precision Gather followed by F32 conversion
+and MatMul. Only the selected experts expand; serializable precision guards retain the
+full expert storage in its source precision after IR loading. This trades the fused
+expert kernel for explicit selection and does not change quantized expert lowering.
+Selected-weight buffers scale with the number of tokens submitted in one inference.
+For long MoE media prefills, limit GenAI PA `scheduler_config.max_num_batched_tokens`
+and enable `dynamic_split_fuse` rather than submitting the whole prompt at once.
+
 Weight reorders and temporary buffers add to these costs; reducing context length does not
 remove them. KV caches, activation buffers and Hadamard transforms are separate from weight
 payload estimates. See [checkpoint-specific limits](supported_models.md#runtime-limitations).
