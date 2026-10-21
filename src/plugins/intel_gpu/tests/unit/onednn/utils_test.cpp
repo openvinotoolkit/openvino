@@ -419,6 +419,17 @@ TEST_F(test_layout_to_memory_desc, strides_with_padding) {
     EXPECT_GT(strides[2], 56);  // Stride should account for padding
 }
 
+TEST_F(test_layout_to_memory_desc, fc_source_stride_with_feature_padding) {
+    layout l = layout{ov::PartialShape{32, 9}, data_types::f16, format::bfyx};
+    l.data_padding = padding{{0, 0}, {0, 1}};
+
+    auto desc = layout_to_memory_desc_strides(l, dnnl::memory::format_tag::ab);
+    const auto strides = desc.get_strides();
+
+    EXPECT_EQ(desc.get_dims(), (dnnl::memory::dims{32, 9}));
+    EXPECT_EQ(strides, (dnnl::memory::dims{10, 1}));
+}
+
 TEST_F(test_layout_to_memory_desc, strides_cannot_flatten) {
     layout l = layout{ov::PartialShape{1, 64, 56, 56}, data_types::f32, format::bfyx};
     l.data_padding = padding{{0, 0, 1, 1}, {0, 0, 1, 1}};
