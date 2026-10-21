@@ -291,7 +291,24 @@ smoke check: two 16 kHz LibriSpeech clips, one word error across 27 reference wo
 callback, and matching output after reset. This does not replace the original quantized
 full-logit parity gate or establish quality on a broader speech corpus.
 
-Real Gemma3n/MiniCPM media, Omni audio preprocessing and TTS audio quality/cancellation
+The Gemma3n E2B Q4_0 decoder and a derived vision-only projector run repeated SDPA/PA
+image generation. The diagnostic disables only `clip.has_audio_encoder` and preserves
+all 825 tensor payloads. Full vision features match the pinned CPU oracle with NMSE
+`6.10e-7` against the unchanged `1e-5` limit. The original combined projector remains
+rejected because its `gemma3na` audio branch is unsupported; the derived result does not
+establish combined-file support. The tested newspaper image does not produce its requested
+headline, so image quality remains unvalidated.
+
+MiniCPM-V4.7 1B Q4_K_M with its original 4x BF16/F32 projector runs repeated SDPA/PA
+image generation after the GenAI position-section fix. Both backends agree on the tested
+image, but transcribe its headline incorrectly. Original full-feature projector parity
+also fails: NMSE `9.86e-5` for 448x448 and `3.06e-4` for 224x112, versus the unchanged
+`1e-5` limit. Execution and backend agreement do not establish numerical parity or quality.
+
+Current-runtime Qwen3TTS repeated seeded output is finite and exactly equal (3840 samples
+at 24 kHz). The public `Text2SpeechPipeline` has no streaming/cancellation callback, so
+cancellation/reset acceptance cannot run through that API. A zero speaker embedding does
+not establish audio quality. Omni audio preprocessing and broader media/quality checks
 still need acceptance coverage. The Qwen3VL Q4_0 checkpoint has separate successful
 repeated-image generation checks with both SDPA and PagedAttention; that result does
 not establish coverage for other projector families.

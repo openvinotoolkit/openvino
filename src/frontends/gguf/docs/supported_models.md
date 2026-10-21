@@ -23,8 +23,8 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 
 | Architecture | Notes | Real checkpoint | Choices |
 |---|---|---|---|
-| `afmoe` | Dense lead, sigmoid routed/shared experts, post-norms and periodic RoPE | — | |
-| `cohere2` | Parallel LayerNorm attention/FFN; RoPE on local layers | — | |
+| `afmoe` | Dense lead, sigmoid routed/shared experts, post-norms and periodic RoPE | Trinity-Nano-Preview Q4_K_S | 11/13; greedy gate fails |
+| `cohere2` | Parallel LayerNorm attention/FFN; RoPE on local layers | c4ai-command-r7b-12-2024 Q4_0 | 13/13 |
 | `qwen3next` | Hybrid Gated DeltaNet/full attention; fused and legacy projections | — | |
 | `qwen3vl`, `qwen3vlmoe` | Interleaved multimodal RoPE and DeepStack inputs | Qwen3-VL-2B Q4_0 | 13/13 |
 | `qwen3a` | Qwen3-ASR language decoder | Qwen3-ASR-0.6B Q4_K_M | 10/13; numerical parity fails |
@@ -240,8 +240,15 @@ logits and confidence. The DeepSeek-V4 backbone and support for multiple active 
 requests are deferred to a follow-up PR; the current GenAI path supports one active request.
 The real Qwen3-8B Q8_0/EAGLE3 F16 pair passes repeated PA generation, two-request continuous
 batching and target-only greedy-token agreement. The Qwen3.6-35B-A3B Q4_K_M/DFlash BF16 pair
-passes repeated PA generation with prefix caching disabled. Real Gemma3n/MiniCPM media,
-Omni audio preprocessing and TTS quality/cancellation still need acceptance coverage.
-AFMoE, Cohere2 and Qwen3Next have synthetic numerical coverage; no real-checkpoint
-numerical comparison is recorded for those families. These catalog entries describe
-implemented graph paths and the explicitly validated checkpoints.
+passes repeated PA generation with prefix caching disabled. Real Gemma3n/MiniCPM image
+execution and SDPA/PA agreement are recorded in [mmproj.md](mmproj.md#validation-coverage); their
+projector and image-quality limitations remain. Omni audio preprocessing and TTS
+quality/cancellation still need acceptance coverage.
+Real Cohere2 Q4_0 and the MiniCPM-V4.7 1B Q4_K_M text backbone (`qwen35`) match all
+13 checked greedy choices against the pinned CPU oracle. Trinity-Nano-Preview Q4_K_S
+matches 11/13 and fails the existing 90% greedy-choice gate. An exact represented-F32
+diagnostic matches 13/13, which points toward quantized arithmetic but does not waive
+the original failure or establish full-logit parity. Its recorded full-logit NMSE reaches
+`3.24e-3`. These replay checks do not establish full-logit parity. Qwen3Next has synthetic numerical coverage; no real-checkpoint
+comparison is recorded. These catalog entries describe implemented graph paths and
+the explicitly validated checkpoints.
