@@ -84,6 +84,18 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[may
 #endif
 }
 
+ov::element::TypeVector FullyConnected::getSupportedDequantizationPrecisions([[maybe_unused]] bool apply_fp8) {
+    using ov::element::Type_t;
+
+    auto precisions = getSupportedCompressedWeightsTypes(apply_fp8);
+    // The sub-byte precisions oneDNN cannot take as a compressed weight: it has no data type for i2,
+    // and a u1 weight is a packed Constant whose dequantization runs as graph operations. Their
+    // Convert must still survive ConstantFolding, or the payload is expanded to full precision. The
+    // superset collapses into getSupportedCompressedWeightsTypes when oneDNN takes these widths.
+    precisions.insert(precisions.end(), {Type_t::u1, Type_t::i2});
+    return precisions;
+}
+
 ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes() {
     using ov::element::Type_t;
 
