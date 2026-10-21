@@ -213,7 +213,8 @@ public:
 
         const auto npuOutputTensor = reqDynamic.get_output_tensor(0);
         const auto referenceOutputTensor = reqReference.get_output_tensor(0);
-        ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type());
+        // NPU HostCompile runs in reduced (f16-class) precision while the TEMPLATE reference is f32.
+        ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type(), 0.02, 0.02);
     }
 
     static void waitAndCompare(ov::InferRequest& reqDynamic, ov::InferRequest& reqReference) {
@@ -222,7 +223,8 @@ public:
 
         const auto npuOutputTensor = reqDynamic.get_output_tensor(0);
         const auto referenceOutputTensor = reqReference.get_output_tensor(0);
-        ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type());
+        // NPU HostCompile runs in reduced (f16-class) precision while the TEMPLATE reference is f32.
+        ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type(), 0.02, 0.02);
     }
 
     static void setInputInferAndCompare(ov::InferRequest& reqDynamic,

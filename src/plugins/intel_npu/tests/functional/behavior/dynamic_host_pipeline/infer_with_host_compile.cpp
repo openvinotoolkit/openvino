@@ -173,7 +173,16 @@ void InferWithHostCompileTests::compareInferenceResult(const std::shared_ptr<ov:
     const auto npuOutputTensor = reqDynamic.get_tensor(model->output());
     const auto referenceOutputTensor = reqReference.get_tensor(model->output());
 
-    ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type());
+    // NPU HostCompile runs in reduced (f16-class) precision while the TEMPLATE reference is f32, so a few
+    // tenths of a percent of difference is expected. Use a tolerance that accepts that gap but stays far
+    // tighter than any stale/garbage or cross-request difference.
+    constexpr double absThreshold = 0.02;
+    constexpr double relThreshold = 0.02;
+    ov::test::utils::compare(referenceOutputTensor,
+                             npuOutputTensor,
+                             npuOutputTensor.get_element_type(),
+                             absThreshold,
+                             relThreshold);
 }
 
 void InferWithHostCompileTests::inferAndCompare(const std::shared_ptr<ov::Model>& model,
