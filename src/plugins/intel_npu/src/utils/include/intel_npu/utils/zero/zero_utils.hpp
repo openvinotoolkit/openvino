@@ -111,6 +111,8 @@ static inline ov::element::Type_t toOVElementType(const ze_graph_argument_precis
         return ov::element::Type_t::i32;
     case ZE_GRAPH_ARGUMENT_PRECISION_INT64:
         return ov::element::Type_t::i64;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT2:
+        return ov::element::Type_t::i2;
     case ZE_GRAPH_ARGUMENT_PRECISION_UINT2:
         return ov::element::Type_t::u2;
     case ZE_GRAPH_ARGUMENT_PRECISION_BIN:

@@ -24,6 +24,7 @@ const std::vector<ov::element::Type> prcs = {
     ov::element::f16,
     ov::element::f32,
     ov::element::f64,
+    ov::element::i2,
     ov::element::i4,
     ov::element::i8,
     ov::element::i16,
