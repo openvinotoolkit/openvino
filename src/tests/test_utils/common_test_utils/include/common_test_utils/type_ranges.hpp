@@ -78,6 +78,11 @@ static ov::test::utils::InputGenerateData get_range_by_type(
         inData.range = 2;
         break;
     }
+    case ov::element::Type_t::s1: {
+        inData.start_from = -1;
+        inData.range = 2;
+        break;
+    }
     case ov::element::Type_t::i2: {
         inData.start_from = -2;
         inData.range = 4;

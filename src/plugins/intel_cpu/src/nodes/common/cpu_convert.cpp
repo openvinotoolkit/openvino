@@ -863,16 +863,21 @@ struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
         INTEL_CPU_CVT(f16, f16), INTEL_CPU_CVT(bf16, bf16), INTEL_CPU_CVT(f64, f64), INTEL_CPU_CVT(boolean, boolean),  \
         INTEL_CPU_CVT_FP8_LIST
 
+// s1 has no boolean destination: the decoded sign is -1 or +1, so static_cast<bool> would encode -1 as true.
 #define INTEL_CPU_CVT_FROM_BIN_LIST                                                                     \
     INTEL_CPU_CVT(u1, f32), INTEL_CPU_CVT(u1, f16), INTEL_CPU_CVT(u1, bf16), INTEL_CPU_CVT(u1, f64),    \
         INTEL_CPU_CVT(u1, i16), INTEL_CPU_CVT(u1, u8), INTEL_CPU_CVT(u1, i8), INTEL_CPU_CVT(u1, u16),   \
         INTEL_CPU_CVT(u1, i32), INTEL_CPU_CVT(u1, u32), INTEL_CPU_CVT(u1, i64), INTEL_CPU_CVT(u1, u64), \
-        INTEL_CPU_CVT(u1, boolean)
+        INTEL_CPU_CVT(u1, boolean), INTEL_CPU_CVT(s1, f32), INTEL_CPU_CVT(s1, f16), INTEL_CPU_CVT(s1, bf16), \
+        INTEL_CPU_CVT(s1, f64), INTEL_CPU_CVT(s1, i16), INTEL_CPU_CVT(s1, u8), INTEL_CPU_CVT(s1, i8),   \
+        INTEL_CPU_CVT(s1, u16), INTEL_CPU_CVT(s1, i32), INTEL_CPU_CVT(s1, u32), INTEL_CPU_CVT(s1, i64), \
+        INTEL_CPU_CVT(s1, u64)
 
 template <typename LoopPolicy>
 struct ConvertFromBinContext {
     using loop_policy = LoopPolicy;
 
+    ov::element::Type_t inType;
     const void* srcPtr;
     void* dstPtr;
     size_t size;
@@ -890,14 +895,17 @@ struct ConvertFromBinPrecision<std::tuple<src_t, dst_t>> {
         const auto* src = static_cast<const uint8_t*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
         const size_t nBits = 8;
-        // The loop runs over source bytes: eight u1 elements per byte.
+        // The loop runs over source bytes: eight 1-bit elements per byte.
         const size_t nBytes = rnd_up(ctx.size, nBits) / nBits;
         LoopPolicy::run(nBytes, [&](size_t byteIndex) {
             auto currentBitNum = std::min(nBits, ctx.size - byteIndex * nBits);
             for (size_t bitIndex = 0; bitIndex < currentBitNum; ++bitIndex) {
-                // u1 is the one element type packed MSB-first inside a byte.
+                // u1 and s1 are packed MSB-first inside a byte.
                 const auto bit = static_cast<uint8_t>((src[byteIndex] >> (nBits - 1 - bitIndex)) & 0x1U);
-                dst[byteIndex * nBits + bitIndex] = static_cast<dst_t>(bit);
+                // A u1 element is its own bit; a sign element is +1 when the bit is set.
+                dst[byteIndex * nBits + bitIndex] = ctx.inType == ov::element::s1
+                                                        ? static_cast<dst_t>(bit ? 1.0f : -1.0f)
+                                                        : static_cast<dst_t>(bit);
             }
         });
         ctx.converted = true;
@@ -1172,7 +1180,7 @@ static void do_cpu_convert(const void* srcPtr,
         } else {
             cpu_memcpy(dstPtr, srcPtr, size * dstPrc.size());
         }
-    } else if (srcPrc == ov::element::u1) {
+    } else if (srcPrc == ov::element::u1 || srcPrc == ov::element::s1) {
         OPENVINO_ASSERT(srcPrc.bitwidth() == 1,
                         "cpu_convert can't convert from: ",
                         srcPrc,
@@ -1181,7 +1189,7 @@ static void do_cpu_convert(const void* srcPtr,
                         "> precision to: ",
                         dstPrc,
                         ". Not implemented.");
-        ConvertFromBinContext<LoopPolicy> ctx{srcPtr, dstPtr, size, false};
+        ConvertFromBinContext<LoopPolicy> ctx{srcPrc, srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertFromBinPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BIN_LIST);
         OPENVINO_ASSERT(ctx.converted,
                         "cpu_convert can't convert from: ",
