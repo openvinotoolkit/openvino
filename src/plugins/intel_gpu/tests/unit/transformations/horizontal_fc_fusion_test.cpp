@@ -8,6 +8,7 @@
 
 #include <string>
 #include <memory>
+#include <tuple>
 
 #include "openvino/core/model.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -638,6 +639,53 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_mixed_scale_orientat
     model_ref = model->clone();
     comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
+
+class MixedZeroPointHorizontalFusionTests : public TransformationTestsF,
+                                          public testing::WithParamInterface<std::tuple<size_t, bool>> {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        const auto [num_fcs, scalar_first] = GetParam();
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 1, 256});
+        ov::NodeVector fcs;
+        for (size_t i = 0; i < num_fcs; ++i) {
+            auto weights = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{16, 256}, {1});
+            auto scales = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{16, 2}, {0.125f});
+            fcs.push_back(std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(
+                input,
+                weights,
+                std::make_shared<ov::intel_gpu::op::Placeholder>(),
+                scales,
+                ov::op::v0::Constant::create(ov::element::u8, ov::Shape{16, 2}, {1})));
+        }
+        const auto ordered_users = input->get_users();
+        for (size_t i = 0; i < ordered_users.size(); ++i) {
+            const bool scalar = scalar_first ? i == 0 : i != 0;
+            if (scalar) {
+                ordered_users[i]->input(4).replace_source_output(
+                    ov::op::v0::Constant::create(ov::element::u8, {}, {1}));
+            } else {
+                ordered_users[i]->input(1).replace_source_output(
+                    ov::op::v0::Constant::create(ov::element::u2, ov::Shape{16, 256}, {3}));
+            }
+        }
+        model = std::make_shared<ov::Model>(ov::as_output_vector(fcs), ov::ParameterVector{input});
+        manager.register_pass<FullyConnectedHorizontalFusion>(num_fcs == 2);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+    }
+};
+
+TEST_P(MixedZeroPointHorizontalFusionTests, PreservesSeparateProjections) {}
+
+INSTANTIATE_TEST_SUITE_P(
+    QkvAndGateUp,
+    MixedZeroPointHorizontalFusionTests,
+    testing::Combine(testing::Values(size_t{2}, size_t{3}), testing::Bool()),
+    [](const testing::TestParamInfo<MixedZeroPointHorizontalFusionTests::ParamType>& info) {
+        return std::string(std::get<0>(info.param) == 2 ? "GateUp" : "Qkv") +
+               (std::get<1>(info.param) ? "ScalarFirst" : "GroupedFirst");
+    });
 
 }  // namespace intel_gpu
 }  // namespace test

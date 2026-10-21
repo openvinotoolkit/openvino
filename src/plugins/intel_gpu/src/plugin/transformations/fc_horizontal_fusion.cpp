@@ -4,6 +4,7 @@
 
 #include "fc_horizontal_fusion.hpp"
 
+#include <algorithm>
 #include <string_view>
 
 #include "intel_gpu/op/fully_connected.hpp"
@@ -163,8 +164,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             if (weight_dtype != fc->get_input_element_type(weight_idx)) {
                 return false;
             }
-            if (transpose_b != fc->get_transpose_b() || transpose_b_scale != fc->get_transpose_b_scale() ||
-                transpose_b_zp != fc->get_transpose_b_zp()) {
+            if (transpose_b != fc->get_transpose_b() || transpose_b_scale != fc->get_transpose_b_scale() || transpose_b_zp != fc->get_transpose_b_zp()) {
                 return false;
             }
             orig_n_sizes.push_back(fc->get_input_shape(weight_idx)[n_axis]);
@@ -199,6 +199,11 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         std::shared_ptr<ov::Node> fused_zps;
         if (!zp_nodes.empty()) {
             bool single_zp_value = (ov::shape_size(zp_nodes[0].get_shape()) == 1);
+            if (std::any_of(zp_nodes.begin(), zp_nodes.end(), [single_zp_value](const ov::Output<ov::Node>& zp) {
+                    return (ov::shape_size(zp.get_shape()) == 1) != single_zp_value;
+                })) {
+                return false;
+            }
             int32_t scalar_zp_val = 0;
             if (single_zp_value) {
                 if (auto zp_const = ov::as_type_ptr<ov::op::v0::Constant>(zp_nodes[0].get_node_shared_ptr())) {
