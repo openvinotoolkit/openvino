@@ -176,9 +176,11 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_avg_down.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_gated_mlp.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_grouped_depth_to_space.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_hadamard_fc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_moe_router.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_moe_router_scale.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_moe_shared_expert.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_rms_rope.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_rope_input_deinterleave.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/group_query_attention_decomposition.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/increase_position_ids_precision.cpp
