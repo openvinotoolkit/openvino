@@ -342,21 +342,6 @@ Example:
     </skip_config>
 
     <skip_config>
-        <message>UD12 driver does not support CACHE_ENCRYPTION_CALLBACKS on MTL</message>
-        <enable_rules>
-            <device>3720</device>
-            <driver_release>RELEASE</driver_release>
-        </enable_rules>
-        <filters>
-            <filter>.*OVClassCompiledModelPropertiesTests.CanUseCache.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
-            <filter>.*OVClassCompileModelWithCorrectPropertiesTest.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
-            <filter>.*OVClassCompiledModelGetPropertyTest.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
-            <filter>.*OVCompileModelGetExecutionDeviceTests.CanGetExecutionDeviceInfo.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
-            <filter>.*CompileModelWithCacheEncryptionTest.*</filter>
-        </filters>
-    </skip_config>
-
-    <skip_config>
         <message>UD12 driver does not support secure compilation</message>
         <enable_rules>
             <driver_release>RELEASE</driver_release>
