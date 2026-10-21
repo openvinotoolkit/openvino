@@ -85,9 +85,7 @@ public:
     // FQs on model outputs which can't be removed: input is Parameter, another model output or multi-output node
     static std::shared_ptr<ov::Model> build_fq_on_model_output_pattern(const ov::PartialShape& input_shape,
                                                                        const ov::element::Type& quantization_precision);
-    static std::shared_ptr<ov::Model> build_fq_on_model_output_pattern_ref(
-        const ov::PartialShape& input_shape,
-        const ov::element::Type& quantization_precision);
+    static std::shared_ptr<ov::Model> build_fq_on_model_output_pattern_ref(const ov::PartialShape& input_shape);
 
 private:
     // Builds one residual block: MVN → Conv+bias [→ optional FQ] + shortcut → Add.

@@ -27,6 +27,7 @@
 #include "openvino/op/equal.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/identity.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/logical_or.hpp"
 #include "openvino/op/matmul.hpp"
@@ -281,10 +282,11 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             adjuster.adjust();
         }
 
-        // Keep FQ if it can't be removed without losing a model output name
-        // (e.g. its input is Parameter, multi-output node or another model output)
+        // If FQ input can't take the model output name (e.g. Parameter, multi-output node or another
+        // model output), replace FQ with Identity, so the output keeps its name
         if (!replace_output_update_name(fq->output(0), fq->input_value(0))) {
-            continue;
+            const auto identity = std::make_shared<ov::op::v16::Identity>(fq->input_value(0));
+            OPENVINO_ASSERT(replace_output_update_name(fq->output(0), identity), "FQ stripping failed");
         }
         model_changed = true;
     }
