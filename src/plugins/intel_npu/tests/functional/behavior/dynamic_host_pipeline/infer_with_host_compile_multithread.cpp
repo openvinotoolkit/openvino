@@ -54,7 +54,6 @@ public:
     }
 
     void SetUp() override {
-        std::cout << "[Manual LOG]Setting up test: " << getTestCaseName(testing::TestParamInfo<InferWithHostCompileMTParams>(this->GetParam(), 0)) << std::endl;
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
         std::tie(target_device, configuration, selectedModelName) = this->GetParam();
@@ -201,10 +200,19 @@ public:
         runConcurrentlyAsync(threadCount, [](size_t) {}, startInference, waitInference);
     }
 
+    // create_and_fill_tensor spans [startFrom, startFrom + kInputFillRange]; spacing each request's seed by
+    // at least that range keeps concurrent requests' inputs (and outputs) clearly distinct, so the result
+    // comparison still catches cross-request output swaps despite the loosened NPU tolerance.
+    static constexpr int kInputFillRange = 100;
+    static constexpr int kSeedSpacing = kInputFillRange;
+
     static ov::Tensor makeInputTensor(const std::shared_ptr<ov::Model>& model,
                                       const ov::Shape& shape,
                                       const int startFrom) {
-        return ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, startFrom);
+        return ov::test::utils::create_and_fill_tensor(model->input().get_element_type(),
+                                                       shape,
+                                                       kInputFillRange,
+                                                       startFrom);
     }
 
     static void inferAndCompare(ov::InferRequest& reqDynamic, ov::InferRequest& reqReference) {
@@ -213,7 +221,8 @@ public:
 
         const auto npuOutputTensor = reqDynamic.get_output_tensor(0);
         const auto referenceOutputTensor = reqReference.get_output_tensor(0);
-        ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type());
+        // NPU HostCompile runs in reduced (f16-class) precision while the TEMPLATE reference is f32.
+        ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type(), 0.02, 0.02);
     }
 
     static void waitAndCompare(ov::InferRequest& reqDynamic, ov::InferRequest& reqReference) {
@@ -222,7 +231,8 @@ public:
 
         const auto npuOutputTensor = reqDynamic.get_output_tensor(0);
         const auto referenceOutputTensor = reqReference.get_output_tensor(0);
-        ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type());
+        // NPU HostCompile runs in reduced (f16-class) precision while the TEMPLATE reference is f32.
+        ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type(), 0.02, 0.02);
     }
 
     static void setInputInferAndCompare(ov::InferRequest& reqDynamic,
@@ -261,9 +271,7 @@ protected:
 };
 
 TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
-    std::cout << "[Manual LOG]Setting up test: (1)MT_PerThreadCompileCreateInfer "  << std::endl;
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    std::cout << "[Manual LOG]Setting up test: (2)MT_PerThreadCompileCreateInfer "  << std::endl;
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
@@ -291,7 +299,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
                 requests[threadIdx] = std::make_shared<ov::InferRequest>(compiledModel.create_infer_request());
                 referenceRequests[threadIdx] =
                     std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
-                inputs[threadIdx] = makeInputTensor(model, shape, static_cast<int>(100 + threadIdx));
+                inputs[threadIdx] = makeInputTensor(model, shape, static_cast<int>(100 + threadIdx * kSeedSpacing));
                 requests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
                 referenceRequests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
             },
@@ -304,11 +312,57 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
     }
 }
 
-TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateRequestAndInfer) {
-    std::cout << "[Manual LOG]Setting up test: (1)MT_SingleCompileParallelCreateRequestAndInfer "  << std::endl;
+// Negative control for the per-request seed spacing: distinct requests must produce outputs that differ by
+// more than the comparison tolerance, so comparing one request's NPU output against another request's
+// reference is rejected. This guards the concurrency checks against silently accepting cross-request swaps.
+TEST_P(InferWithHostCompileMultithreadTests, MT_CrossRequestOutputMismatchIsRejected) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    std::cout << "[Manual LOG]Setting up test: (2)MT_SingleCompileParallelCreateRequestAndInfer "  << std::endl;
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
 
+    auto referenceModel = createModelByName(selectedModelName);
+    const ov::Shape shape = makeInputShape(referenceModel, 1, false);
+    ov::CompiledModel referenceCompiledModel;
+    try {
+        referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();
+    }
+
+    const auto cfg = makeConfig(/*sharedQueue=*/true);
+    auto model = createModelByName(selectedModelName);
+    ov::CompiledModel compiledModel;
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device, cfg));
+
+    auto npuRequestA = compiledModel.create_infer_request();
+    auto referenceRequestA = referenceCompiledModel.create_infer_request();
+    auto referenceRequestB = referenceCompiledModel.create_infer_request();
+
+    const auto inputA = makeInputTensor(model, shape, 100);
+    const auto inputB = makeInputTensor(model, shape, 100 + kSeedSpacing);
+    npuRequestA.set_input_tensor(0, inputA);
+    referenceRequestA.set_input_tensor(0, inputA);
+    referenceRequestB.set_input_tensor(0, inputB);
+
+    OV_ASSERT_NO_THROW(npuRequestA.infer());
+    OV_ASSERT_NO_THROW(referenceRequestA.infer());
+    OV_ASSERT_NO_THROW(referenceRequestB.infer());
+
+    const auto npuOutputA = npuRequestA.get_output_tensor(0);
+    const auto referenceOutputA = referenceRequestA.get_output_tensor(0);
+    const auto referenceOutputB = referenceRequestB.get_output_tensor(0);
+    const auto outputType = npuOutputA.get_element_type();
+
+    // Matching request pair stays within the NPU-calibrated tolerance.
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(referenceOutputA, npuOutputA, outputType, 0.02, 0.02));
+
+    // The other request's reference must be rejected, proving the comparison still detects swapped outputs.
+    ASSERT_THROW(ov::test::utils::compare(referenceOutputB, npuOutputA, outputType, 0.02, 0.02), ov::Exception);
+}
+
+TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateRequestAndInfer) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
@@ -339,7 +393,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateReque
                 requests[threadIdx] = std::make_shared<ov::InferRequest>(compiledModel.create_infer_request());
                 referenceRequests[threadIdx] =
                     std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
-                inputs[threadIdx] = makeInputTensor(model, shape, static_cast<int>(100 + threadIdx));
+                inputs[threadIdx] = makeInputTensor(model, shape, static_cast<int>(100 + threadIdx * kSeedSpacing));
                 requests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
                 referenceRequests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
             },
@@ -353,9 +407,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateReque
 }
 
 TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAndInfer) {
-    std::cout << "[Manual LOG]Setting up test: (1)MT_ConcurrentInferThenSetPriorityAndInfer "  << std::endl;
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    std::cout << "[Manual LOG]Setting up test: (2)MT_ConcurrentInferThenSetPriorityAndInfer "  << std::endl;
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
@@ -394,7 +446,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
         std::vector<ov::Tensor> firstInputs;
         firstInputs.reserve(kThreadCount);
         for (size_t i = 0; i < kThreadCount; ++i) {
-            firstInputs.emplace_back(makeInputTensor(model, shape, static_cast<int>(100 + i)));
+            firstInputs.emplace_back(makeInputTensor(model, shape, static_cast<int>(100 + i * kSeedSpacing)));
             requests[i].set_input_tensor(0, firstInputs.back());
             referenceRequests[i].set_input_tensor(0, firstInputs.back());
         }
@@ -412,7 +464,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
         std::vector<ov::Tensor> secondInputs;
         secondInputs.reserve(kThreadCount);
         for (size_t i = 0; i < kThreadCount; ++i) {
-            secondInputs.emplace_back(makeInputTensor(model, shape, static_cast<int>(200 + i)));
+            secondInputs.emplace_back(makeInputTensor(model, shape, static_cast<int>(10000 + i * kSeedSpacing)));
             requests[i].set_input_tensor(0, secondInputs.back());
             referenceRequests[i].set_input_tensor(0, secondInputs.back());
         }
@@ -430,7 +482,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
         std::vector<ov::Tensor> thirdInputs;
         thirdInputs.reserve(kThreadCount);
         for (size_t i = 0; i < kThreadCount; ++i) {
-            thirdInputs.emplace_back(makeInputTensor(model, shape, static_cast<int>(300 + i)));
+            thirdInputs.emplace_back(makeInputTensor(model, shape, static_cast<int>(20000 + i * kSeedSpacing)));
             requests[i].set_input_tensor(0, thirdInputs.back());
             referenceRequests[i].set_input_tensor(0, thirdInputs.back());
         }
@@ -446,9 +498,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
 }
 
 TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequestsMultiInfer) {
-    std::cout << "[Manual LOG]Setting up test: (1)MT_MultiCompiledModelsMultiRequestsMultiInfer "  << std::endl;
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    std::cout << "[Manual LOG]Setting up test: (2)MT_MultiCompiledModelsMultiRequestsMultiInfer "  << std::endl;
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
@@ -513,8 +563,10 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
                                 referenceRequests[threadIdx].emplace_back(
                                     referenceCompiledModel.create_infer_request());
                             }
-                            const int startFrom =
-                                static_cast<int>(100 + threadIdx * 17 + modelIdx * 7 + reqIdx * 3 + inferIdx);
+                            const int requestSeedIndex = static_cast<int>(
+                                threadIdx * (compiledModels.size() * kRequestsPerModel) +
+                                modelIdx * kRequestsPerModel + reqIdx);
+                            const int startFrom = 100 + requestSeedIndex * kSeedSpacing + static_cast<int>(inferIdx);
                             inputs[threadIdx].emplace_back(makeInputTensor(model, shape, startFrom));
                             const size_t requestIdx = modelIdx * kRequestsPerModel + reqIdx;
                             requests[threadIdx][requestIdx].set_input_tensor(0, inputs[threadIdx].back());
@@ -542,9 +594,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
 }
 
 TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOutputTensorInfer) {
-    std::cout << "[Manual LOG]Setting up test: (1)MT_SingleCompileParallelZeroInputOutputTensorInfer "  << std::endl;
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    std::cout << "[Manual LOG]Setting up test: (2)MT_SingleCompileParallelZeroInputOutputTensorInfer "  << std::endl;
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
@@ -616,9 +666,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
 }
 
 TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputTensorInfer) {
-    std::cout << "[Manual LOG]Setting up test: (1)MT_PerThreadCompileZeroInputOutputTensorInfer "  << std::endl;
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    std::cout << "[Manual LOG]Setting up test: (2)MT_PerThreadCompileZeroInputOutputTensorInfer "  << std::endl;
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
@@ -693,9 +741,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputT
 }
 
 TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
-    std::cout << "[Manual LOG]Setting up test: (1)MT_CompileAndInferOverlap "  << std::endl;
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    std::cout << "[Manual LOG]Setting up test: (2)MT_CompileAndInferOverlap "  << std::endl;
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
@@ -756,7 +802,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
 
                     auto reqDynamic = compiledModel.create_infer_request();
                     auto reqReference = referenceCompiledModel.create_infer_request();
-                    auto input = makeInputTensor(model, shape, static_cast<int>(100 + threadIdx));
+                    auto input = makeInputTensor(model, shape, static_cast<int>(100 + threadIdx * kSeedSpacing));
                     reqDynamic.set_input_tensor(0, input);
                     reqReference.set_input_tensor(0, input);
                     reqDynamic.start_async();

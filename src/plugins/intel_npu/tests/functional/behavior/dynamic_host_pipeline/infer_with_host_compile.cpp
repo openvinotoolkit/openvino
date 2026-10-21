@@ -173,7 +173,16 @@ void InferWithHostCompileTests::compareInferenceResult(const std::shared_ptr<ov:
     const auto npuOutputTensor = reqDynamic.get_tensor(model->output());
     const auto referenceOutputTensor = reqReference.get_tensor(model->output());
 
-    ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type());
+    // NPU HostCompile runs in reduced (f16-class) precision while the TEMPLATE reference is f32, so a few
+    // tenths of a percent of difference is expected. Use a tolerance that accepts that gap but stays far
+    // tighter than any stale/garbage or cross-request difference.
+    constexpr double absThreshold = 0.02;
+    constexpr double relThreshold = 0.02;
+    ov::test::utils::compare(referenceOutputTensor,
+                             npuOutputTensor,
+                             npuOutputTensor.get_element_type(),
+                             absThreshold,
+                             relThreshold);
 }
 
 void InferWithHostCompileTests::inferAndCompare(const std::shared_ptr<ov::Model>& model,
@@ -602,9 +611,7 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
     OV_ASSERT_NO_THROW(reqDynamic1.infer());
     OV_ASSERT_NO_THROW(reqReference1.infer());
     ASSERT_EQ(reqDynamic1.get_tensor(model->output()).get_shape(), makeOutputShape(selectedModelName, batchShape));
-    ov::test::utils::compare(reqReference1.get_tensor(model->output()),
-                             reqDynamic1.get_tensor(model->output()),
-                             model->output().get_element_type());
+    compareInferenceResult(model, reqDynamic1, reqReference1);
 
     ASSERT_EQ(countVMExecutions(logCapture.str()), 1u) << logCapture.str();
 }
