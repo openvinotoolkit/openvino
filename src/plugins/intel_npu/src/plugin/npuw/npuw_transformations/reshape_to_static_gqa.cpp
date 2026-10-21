@@ -118,6 +118,11 @@ std::optional<size_t> sliding_window_target_capacity(const ov::op::internal::Gro
     // Window P1. Use user-provided sliding_window_headroom if available
     if (sliding_window_size.has_value()) {
         window = static_cast<int64_t>(*sliding_window_size);
+        const int64_t op_window = gqa.get_local_window_size();
+        if (op_window != -1 && *window < op_window) {
+            LOG_WARN("GQA op '" << gqa.get_friendly_name() << "': configured sliding window length " << *window
+                                << " is smaller than the op's local_window_size " << op_window);
+        }
     }
     // Window P2. Use the local window size from the GQA op attribute if available
     if (!window.has_value() && gqa.get_local_window_size() != -1) {
