@@ -177,7 +177,7 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
 
     // onednn accumulates a sum post-op into dep_node's buffer, so p_node must not also read it;
     // is_direct_ancestor answers yes for an own input too
-    auto reads_dep_buffer = [&]() {
+    auto p_node_consumes_dep_node = [&]() {
         // has_outer_dep() above rejects a negative index.
         const auto outer_dep_start_idx = static_cast<size_t>(desc.outer_dep_start_idx);
         for (size_t i = 0; i < outer_dep_start_idx; i++) {
@@ -196,7 +196,7 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
             && !p_node.is_type<pooling>()
             && !p_node.is_output()
             && (!dep_node.is_type<input_layout>() || dep_node.get_users().size() <= 1)
-            && !reads_dep_buffer()) {
+            && !p_node_consumes_dep_node()) {
             return add_fusing_type::sum;
         }
         if (p_layout.get_tensor() == d_layout.get_tensor()) {
