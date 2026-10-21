@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifndef PAGED_GATED_DELTA_NET_TYPE_UTILS
-#define PAGED_GATED_DELTA_NET_TYPE_UTILS
-
 #include "include/batch_headers/bf16_utils.cl"
 
 // bf16 arrives as ushort, so the storage type is selected by (TYPE_SIZE, IS_FP).
@@ -38,5 +35,3 @@
 #define PGDN_SENC_BF16(f) _convert_bfloat16_as_ushort(f)
 #define PGDN_SDEC(KT, x)  CAT(PGDN_SDEC_, KT)(x)
 #define PGDN_SENC(KT, f)  CAT(PGDN_SENC_, KT)(f)
-
-#endif
