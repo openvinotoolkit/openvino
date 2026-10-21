@@ -149,10 +149,10 @@ private:
         // Static KV-cache capacity actually used to reshape the model; stripped from the
         // inner CompiledModel's properties, so this is the only way to read it back.
         uint32_t effective_max_context_len = 0;
-        // Resolved sliding-window fallback capacity (see resolve_default_sliding_window_capacity()),
+        // Resolved sliding-window fallback length (see resolve_default_sliding_window_length()),
         // 0 if NPUW_LLM_SWA_LEN wasn't configured. Also stripped from the inner
         // CompiledModel's properties.
-        uint32_t effective_sliding_window_capacity = 0;
+        uint32_t effective_sliding_window_length = 0;
         // NPUW_LLM_SWA_HEADROOM as configured, 0 if unset. Also stripped from the inner properties.
         uint32_t effective_sliding_window_headroom = 0;
     };
@@ -173,7 +173,7 @@ private:
                      std::shared_ptr<ov::npuw::ICompiledModel> inner_compiled_model,
                      std::unordered_map<std::string, size_t> dynamic_kv_cache_axes,
                      uint32_t effective_max_context_len,
-                     uint32_t effective_sliding_window_capacity,
+                     uint32_t effective_sliding_window_length,
                      uint32_t effective_sliding_window_headroom,
                      std::optional<std::string> total_seq_len_param_name,
                      std::unordered_map<std::string, std::string> present_to_past_param_names);
@@ -207,7 +207,7 @@ private:
     // Effective sliding-window fallback capacity (0 if unconfigured); returned from
     // get_property(NPUW_LLM_SWA_LEN) for the same reason. Serialized across
     // export_model()/import_model().
-    uint32_t m_effective_sliding_window_capacity = 0;
+    uint32_t m_effective_sliding_window_length = 0;
     // Returned from get_property(NPUW_LLM_SWA_HEADROOM); serialized like the two above.
     uint32_t m_effective_sliding_window_headroom = 0;
 };

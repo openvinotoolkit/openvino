@@ -584,7 +584,7 @@ ov::npuw::GQACompiledModel::GQACompiledModel(PreparedState prepared,
       m_outer_model(prepared.model),
       m_dynamic_kv_cache_axes(std::move(prepared.dynamic_kv_cache_axes)),
       m_effective_max_context_len(prepared.effective_max_context_len),
-      m_effective_sliding_window_capacity(prepared.effective_sliding_window_capacity),
+      m_effective_sliding_window_length(prepared.effective_sliding_window_length),
       m_effective_sliding_window_headroom(prepared.effective_sliding_window_headroom) {
     OPENVINO_ASSERT(m_inner_compiled_model != nullptr, "GQACompiledModel requires a valid inner compiled model");
     m_dynamic_kv_cache_output_axes = find_dynamic_kv_cache_output_axes(outputs());
@@ -599,7 +599,7 @@ ov::npuw::GQACompiledModel::GQACompiledModel(const std::shared_ptr<ov::Model>& o
                                              std::shared_ptr<ov::npuw::ICompiledModel> inner_compiled_model,
                                              std::unordered_map<std::string, size_t> dynamic_kv_cache_axes,
                                              uint32_t effective_max_context_len,
-                                             uint32_t effective_sliding_window_capacity,
+                                             uint32_t effective_sliding_window_length,
                                              uint32_t effective_sliding_window_headroom,
                                              std::optional<std::string> total_seq_len_param_name,
                                              std::unordered_map<std::string, std::string> present_to_past_param_names)
@@ -608,7 +608,7 @@ ov::npuw::GQACompiledModel::GQACompiledModel(const std::shared_ptr<ov::Model>& o
       m_outer_model(outer_model),
       m_dynamic_kv_cache_axes(std::move(dynamic_kv_cache_axes)),
       m_effective_max_context_len(effective_max_context_len),
-      m_effective_sliding_window_capacity(effective_sliding_window_capacity),
+      m_effective_sliding_window_length(effective_sliding_window_length),
       m_effective_sliding_window_headroom(effective_sliding_window_headroom) {
     OPENVINO_ASSERT(m_inner_compiled_model != nullptr, "GQACompiledModel requires a valid inner compiled model");
     m_dynamic_kv_cache_output_axes = find_dynamic_kv_cache_output_axes(outputs());
@@ -709,7 +709,7 @@ void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
     GQACompiledModel::write_port_list(stream, outer_outputs);
     write(stream, m_dynamic_kv_cache_axes);
     write(stream, m_effective_max_context_len);
-    write(stream, m_effective_sliding_window_capacity);
+    write(stream, m_effective_sliding_window_length);
     write(stream, m_effective_sliding_window_headroom);
     // Written here (from the real model, available at this point) rather than
     // re-derived by import_model() from its dummy carcass outer_model, which has no
@@ -720,7 +720,7 @@ void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
               << outer_inputs.size() << " outer inputs, " << outer_outputs.size() << " outer outputs, "
               << m_dynamic_kv_cache_axes.size()
               << " dynamic-axis entries, effective_max_context_len=" << m_effective_max_context_len
-              << ", effective_sliding_window_capacity=" << m_effective_sliding_window_capacity
+              << ", effective_sliding_window_length=" << m_effective_sliding_window_length
               << ", effective_sliding_window_headroom=" << m_effective_sliding_window_headroom
               << ", total_seq_len_param_name=" << m_total_seq_len_param_name.value_or("<none>")
               << ", present_to_past_param_names has " << m_present_to_past_param_names.size() << " entries"
@@ -747,7 +747,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
     ov::NodeVector outer_results;
     std::unordered_map<std::string, size_t> dynamic_kv_cache_axes;
     uint32_t effective_max_context_len = 0;
-    uint32_t effective_sliding_window_capacity = 0;
+    uint32_t effective_sliding_window_length = 0;
     uint32_t effective_sliding_window_headroom = 0;
     std::optional<std::string> total_seq_len_param_name;
     std::unordered_map<std::string, std::string> present_to_past_param_names;
@@ -755,7 +755,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
     outer_results = GQACompiledModel::read_output_port_list(stream);
     read(stream, dynamic_kv_cache_axes);
     read(stream, effective_max_context_len);
-    read(stream, effective_sliding_window_capacity);
+    read(stream, effective_sliding_window_length);
     read(stream, effective_sliding_window_headroom);
     read(stream, total_seq_len_param_name);
     read(stream, present_to_past_param_names);
@@ -784,7 +784,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
                                                                   std::move(inner_compiled_model),
                                                                   std::move(dynamic_kv_cache_axes),
                                                                   effective_max_context_len,
-                                                                  effective_sliding_window_capacity,
+                                                                  effective_sliding_window_length,
                                                                   effective_sliding_window_headroom,
                                                                   std::move(total_seq_len_param_name),
                                                                   std::move(present_to_past_param_names)));
@@ -806,7 +806,7 @@ ov::Any ov::npuw::GQACompiledModel::get_property(const std::string& name) const 
         return m_effective_max_context_len;
     }
     if (name == std::string(::intel_npu::NPUW_LLM_SWA_LEN::key())) {
-        return m_effective_sliding_window_capacity;
+        return m_effective_sliding_window_length;
     }
     if (name == std::string(::intel_npu::NPUW_LLM_SWA_HEADROOM::key())) {
         return m_effective_sliding_window_headroom;
