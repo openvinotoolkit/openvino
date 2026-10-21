@@ -158,6 +158,9 @@ public:
     constexpr const std::byte* end() const noexcept {
         return data() + size();
     }
+    constexpr bool empty() const noexcept {
+        return size() == 0 || data() == nullptr;
+    }
 
 private:
     const std::byte* m_data = nullptr;

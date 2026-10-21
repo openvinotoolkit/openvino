@@ -1303,6 +1303,25 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         return;
     }
 
+    // binary_mul_inplace lets this FC's dst share the fused eltwise dep buffer (the post-op src1).
+    // A static node binds that alias when its output is allocated; a dynamic node has to bind it here.
+    if (actual_layouts.size() == 1 && get_node().get_preferred_impl_type() == impl_types::onednn) {
+        auto reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(get_node());
+        if (reused_eltwmem_idx != -1) {
+            const auto& eltw_inst = get_network().get_primitive(get_node().get_dependency(reused_eltwmem_idx).id());
+            auto eltw_mem = eltw_inst->output_memory_ptr();
+            if (eltw_mem && eltw_mem->get_mem_tracker() &&
+                eltw_mem->get_mem_tracker()->size() >= updated_layouts[0].get_linear_size() * dt_sizes_in_B[0]) {
+                if (_outputs[0]) {
+                    get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), id(), get_network_id());
+                }
+                _outputs[0] = eltw_mem->get_engine()->reinterpret_buffer(*eltw_mem, updated_layouts[0]);
+                _max_output_layout_count[0] = eltw_mem->get_mem_tracker()->size() / dt_sizes_in_B[0];
+                return;
+            }
+        }
+    }
+
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
         bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_linear_size() <= _max_output_layout_count[i]);
         std::pair<bool, ov::Shape> prealloc_info;
@@ -1526,7 +1545,31 @@ bool primitive_inst::use_async_compilation() {
             !_impls_factory->has(impl_types::onednn) && (get_node().get_selected_impl() != nullptr) && !get_node().get_selected_impl()->is_onednn();
     }
 
-    return (compile_conv_impls || compile_fc_impls || compile_gemm_impls ||
+    // Shape-agnostic simple_ref concat is slow; compile a static oneDNN impl for this supported case.
+    bool compile_concat_impls = false;
+    const auto& node = get_node();
+    if (node.is_type<concatenation>() && !can_be_optimized() && !node.is_runtime_skippable() && !node.is_in_shape_of_subgraph() &&
+        _impls_factory->has(impl_types::onednn) && node.get_selected_impl() != nullptr && node.get_selected_impl()->is_dynamic() &&
+        node.get_selected_impl()->get_kernel_name().find("concatenation_gpu_simple_ref") != std::string::npos &&
+        node.as<concatenation>().get_primitive()->axis == 1) {
+        const auto concat_output_type = node.get_output_layout().data_type;
+        const auto eligible_layout = [concat_output_type](const layout& candidate_layout) {
+            const auto& shape = candidate_layout.get_partial_shape();
+            const bool has_matching_int8_type = (concat_output_type == data_types::i8 || concat_output_type == data_types::u8) &&
+                                               candidate_layout.data_type == concat_output_type;
+            const bool is_planar_bfyx = candidate_layout.format == format::bfyx;
+            const bool has_static_non_batch_dims = shape.rank().is_static() && shape.size() == 4 &&
+                                                   shape[1].is_static() && shape[2].is_static() && shape[3].is_static();
+            const bool has_no_padding = !candidate_layout.data_padding && !candidate_layout.data_padding.is_dynamic();
+            return has_matching_int8_type && is_planar_bfyx && has_static_non_batch_dims && has_no_padding;
+        };
+        compile_concat_impls = eligible_layout(node.get_output_layout()) && eligible_layout(_impl_params->get_output_layout());
+        for (size_t i = 0; i < _impl_params->input_layouts.size() && compile_concat_impls; ++i) {
+            compile_concat_impls = eligible_layout(node.get_input_layout(i)) && eligible_layout(_impl_params->get_input_layout(i));
+        }
+    }
+
+    return (compile_conv_impls || compile_fc_impls || compile_gemm_impls || compile_concat_impls ||
             (get_node().is_type<softmax>() && (get_node().get_selected_impl() != nullptr) &&
              get_node().get_selected_impl()->get_kernel_name().find("softmax_gpu_ref") != std::string::npos));
 }
@@ -2755,7 +2798,7 @@ primitive_inst::primitive_inst(network& network, const program_node& node, bool 
             }
         }
 
-        if (auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
+        if (auto reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
             // sum post-op can use the input buffer as the output buffer
             auto& eltw_node = node.get_dependency(reused_eltwmem_idx);
             const auto& eltw_inst = _network.get_primitive(eltw_node.id());
@@ -3357,9 +3400,11 @@ bool primitive_inst::is_valid_fusion() const {
         if (!get_node().get_selected_impl()) {
             LOG_AND_RETURN_FALSE(_node);
         }
+        // ternocl_int2 folds its fused chain into the GEMM epilogue itself (see its validate_impl).
         if (!data_type_traits::is_i8_u8(get_node().get_input_layout(0).data_type) &&
             (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") == std::string::npos) &&
-            (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bfyx_ref") == std::string::npos)) {
+            (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bfyx_ref") == std::string::npos) &&
+            (get_node().get_selected_impl()->get_kernel_name() != "ternocl_int2")) {
             LOG_AND_RETURN_FALSE(_node);
         }
     }

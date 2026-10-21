@@ -13,23 +13,21 @@
 
 // Transposed layout: St[k_row][q_col], k_row in [0, N), q_col in [0, M).
 template <int N, int M>
-inline void apply_qq_bias_tree_mask(matrix_ref<float, N, M> St,
-                                    svmptr_t qq_bias_base,
-                                    int qq_bias_spec_num,
-                                    int kv_pos,
-                                    int q_start,
-                                    int past_lens) {
-    if (qq_bias_spec_num <= 0) return;
+inline void apply_qq_bias_tree_mask(matrix_ref<float, N, M> St, svmptr_t qq_bias_base, int qq_bias_spec_num, int kv_pos, int q_start, int past_lens) {
+    if (qq_bias_spec_num <= 0)
+        return;
     const uchar* qq_bias_ptr = reinterpret_cast<const uchar*>(qq_bias_base);
-    #pragma unroll
+#pragma unroll
     for (int k_row = 0; k_row < N; ++k_row) {
         const int key_local = kv_pos + k_row;
         const int key_spec = key_local - past_lens;
-        if (key_spec < 0 || key_spec >= qq_bias_spec_num) continue;
-        #pragma unroll
+        if (key_spec < 0 || key_spec >= qq_bias_spec_num)
+            continue;
+#pragma unroll
         for (int q_col = 0; q_col < M; ++q_col) {
             const int query_spec = q_start + q_col;
-            if (query_spec < 0 || query_spec >= qq_bias_spec_num) continue;
+            if (query_spec < 0 || query_spec >= qq_bias_spec_num)
+                continue;
             const int qq_off = query_spec * qq_bias_spec_num + key_spec;
             if (qq_bias_ptr[qq_off] == 0) {
                 St[k_row][q_col] = -3.4e38f;
@@ -51,14 +49,18 @@ inline vector<unsigned short, K> build_qq_bias_tree_mask_row(const uchar* qq_bia
                                                              int key_local_start,
                                                              int past_lens) {
     vector<unsigned short, K> m = 0;
-    if (qq_bias_spec_num <= 0) return m;
-    if (query_spec < 0 || query_spec >= qq_bias_spec_num) return m;
+    if (qq_bias_spec_num <= 0)
+        return m;
+    if (query_spec < 0 || query_spec >= qq_bias_spec_num)
+        return m;
     const int row_off = query_spec * qq_bias_spec_num;
-    #pragma unroll
+#pragma unroll
     for (int c = 0; c < K; ++c) {
         const int key_spec = key_local_start + c - past_lens;
-        if (key_spec < 0 || key_spec >= qq_bias_spec_num) continue;
-        if (qq_bias_ptr[row_off + key_spec] == 0) m[c] = 1;
+        if (key_spec < 0 || key_spec >= qq_bias_spec_num)
+            continue;
+        if (qq_bias_ptr[row_off + key_spec] == 0)
+            m[c] = 1;
     }
     return m;
 }
