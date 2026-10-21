@@ -86,10 +86,10 @@ public:
         const auto bits = cu32(x);
         // Rounding can discard a NaN's only payload bits or carry its mantissa
         // into the exponent. Preserve the sign and force a quiet BF16 NaN.
-        if ((bits & 0x7fffffff) > 0x7f800000) {
-            return static_cast<uint16_t>((bits >> 16) | 0x0040);
+        if ((bits & 0x7fffffffu) > 0x7f800000u) {
+            return static_cast<uint16_t>((bits >> 16) | 0x00000040u);
         }
-        return static_cast<uint16_t>((bits + 0x7fff + ((bits >> 16) & 1)) >> 16);
+        return static_cast<uint16_t>((bits + 0x00007fffu + ((bits >> 16) & 0x00000001u)) >> 16);
     }
 
     static uint16_t round_to_nearest(float x) {
