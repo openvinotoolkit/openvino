@@ -62,7 +62,11 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 }
             }
 
-            build_primitive(config);
+            // Offline (HW-free) compile has no device to JIT against. The primitive descriptor above is
+            // what drives format and layout decisions, and it is serialized; load() rebuilds the
+            // primitive from it on the importing device.
+            if (!engine.is_hw_free())
+                build_primitive(config);
         }
 
     typed_primitive_onednn_impl(const engine& engine, const ExecutionConfig& config = {})
@@ -393,6 +397,9 @@ protected:
     // Returns an empty blob if the primitive does not support cache blob serialization.
     std::vector<uint8_t> get_cache_blob() const {
         std::vector<uint8_t> cache;
+        // Offline compile never built the primitive; load() falls back to building it from _pd.
+        if (!_prim)
+            return cache;
         try {
             cache = _prim.get_cache_blob();
         } catch (const dnnl::error& e) {

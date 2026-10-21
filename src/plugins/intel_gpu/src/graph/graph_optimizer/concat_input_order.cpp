@@ -99,6 +99,8 @@ void shuffle_weights(data_node& node, const std::vector<shuffle_range>& ranges, 
     }
 
     node.attach_memory(new_weights_memory, false);
+    // The weightless recipe refers to the unshuffled original weights.
+    node.get_primitive()->cache_info->invalidate();
 }
 
 void shuffle_features(program_node& node, const std::vector<shuffle_range>& ranges, stream& stream) {

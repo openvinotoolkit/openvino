@@ -45,6 +45,8 @@ public:
     virtual runtime_types runtime_type() const = 0;
     /// Returns backend type used in the engine
     virtual backend_types backend_type() const = 0;
+    /// True for a compile-only engine with no device: primitives and kernels cannot be built or run
+    virtual bool is_hw_free() const { return false; }
 
     /// Create memory object attached to the buffer allocated by user.
     /// @param ptr  The pointer to user allocated buffer.

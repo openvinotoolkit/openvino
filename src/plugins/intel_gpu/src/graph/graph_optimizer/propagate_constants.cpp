@@ -100,7 +100,8 @@ void propagate_constants::run(program& p) {
         }
     }
 
-    auto&& to_replace = calculate(p.get_engine(), p.get_config(), p.get_task_executor());
+    auto&& to_replace = _defer_materialization ? defer_to_import(p.get_engine())
+                                               : calculate(p.get_engine(), p.get_config(), p.get_task_executor());
 
     // remove all nodes which are no longer relevant, i.e. nodes which:
     // 1. are constants, and
@@ -233,24 +234,11 @@ bool propagate_constants::has_non_const_user(program_node& node) const {
     return false;
 }
 
-using cache_tuple = std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>;
-
-std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constants::calculate(engine& engine,
-                                                                                             const ExecutionConfig& config,
-                                                                                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor) {
-    if (!has_non_trivial_constants) {
-        return {};
-    }
-
-    ExecutionConfig cf_config = config.clone();
-    cf_config.set_property(ov::intel_gpu::optimize_data(false));
-    cf_config.set_property(ov::intel_gpu::custom_outputs(const_outputs));
-    cf_config.finalize(engine);
-    network::ptr net = network::build_network(engine, nodes, cf_config, task_executor, true);
+// `data -> reorder` is replayable at load time on top of the original weights, so its value need not
+// live in the blob. Weightless caching already does this; HW-free compile reuses the same recipe.
+std::map<primitive_id, propagate_constants::cache_tuple> propagate_constants::collect_weightless_recipes() const {
     std::map<primitive_id, cache_tuple> weightless_cache_map;
     for (auto& cin : const_inputs) {
-        net->set_input_data(cin->id(), cin->get_attached_memory_ptr());
-
         auto users = cin->get_users();
         if (users.size() == 1 && users.front()->is_type<reorder>()) {
             auto rprim = users.front()->as<reorder>().get_primitive();
@@ -260,6 +248,25 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
             auto layout_ptr = std::make_shared<layout>(cin->get_output_layout());
             weightless_cache_map.emplace(id, std::make_tuple(cache_ptr, layout_ptr, copy));
         }
+    }
+    return weightless_cache_map;
+}
+
+propagate_constants::replacement_list propagate_constants::calculate(engine& engine,
+                                                                    const ExecutionConfig& config,
+                                                                    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor) {
+    if (!has_non_trivial_constants) {
+        return {};
+    }
+
+    ExecutionConfig cf_config = config.clone();
+    cf_config.set_property(ov::intel_gpu::optimize_data(false));
+    cf_config.set_property(ov::intel_gpu::custom_outputs(const_outputs));
+    cf_config.finalize(engine);
+    network::ptr net = network::build_network(engine, nodes, cf_config, task_executor, true);
+    std::map<primitive_id, cache_tuple> weightless_cache_map = collect_weightless_recipes();
+    for (auto& cin : const_inputs) {
+        net->set_input_data(cin->id(), cin->get_attached_memory_ptr());
     }
 
     net->execute({});
@@ -274,6 +281,123 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
             cache_info = it->second;
         }
         ret.push_back({out->id(), out->output_memory_ptr(), cache_info});
+    }
+
+    return ret;
+}
+
+// Walks back from a folded constant to the data nodes feeding it, capturing the primitives in
+// between. Constant nodes only depend on constant nodes, so the result is always self-contained.
+const_chain propagate_constants::build_chain(program_node& out) const {
+    const_chain chain;
+    chain.output_id = out.id();
+    std::set<primitive_id> seen;
+
+    std::function<bool(program_node&)> visit = [&](program_node& node) -> bool {
+        if (!seen.insert(node.id()).second)
+            return true;
+        if (node.is_type<data>()) {
+            auto mem = node.as<data>().get_attached_memory_ptr();
+            if (mem == nullptr)
+                return false;
+            const_chain::leaf l{node.id(), node.get_output_layout(), std::vector<uint8_t>(mem->size())};
+            mem_lock<uint8_t, mem_lock_type::read> lock(mem, mem->get_engine()->get_service_stream());
+            std::copy_n(lock.data(), l.bytes.size(), l.bytes.begin());
+            chain.leaves.push_back(std::move(l));
+            return true;
+        }
+        if (!node.is_constant() || node.get_dependencies().empty())
+            return false;
+        for (const auto& dep : node.get_dependencies()) {
+            if (!visit(*dep.first))
+                return false;
+        }
+        // deps first keeps the order topological
+        std::vector<input_info> ins;
+        for (const auto& dep : node.get_dependencies())
+            ins.emplace_back(dep.first->id(), dep.second);
+        chain.prims.push_back(std::const_pointer_cast<primitive>(node.get_primitive()));
+        chain.prim_inputs.push_back(std::move(ins));
+        return true;
+    };
+
+    if (!visit(out) || chain.prims.empty() || chain.leaves.empty())
+        return {};
+    return chain;
+}
+
+propagate_constants::replacement_list propagate_constants::defer_to_import(engine& engine) {
+    if (!has_non_trivial_constants) {
+        return {};
+    }
+
+    auto weightless_cache_map = collect_weightless_recipes();
+
+    auto find_node = [&](const primitive_id& id) -> program_node* {
+        for (const auto& n : nodes) {
+            if (n->id() == id)
+                return n.get();
+        }
+        return nullptr;
+    };
+
+    replacement_list ret;
+    std::vector<std::string> unsupported;
+    std::set<primitive_id> visited;
+
+    for (const auto& out_id : const_outputs) {
+        if (!visited.insert(out_id).second)
+            continue;
+
+        auto* node = find_node(out_id);
+        OPENVINO_ASSERT(node != nullptr, "[GPU] propagate_constants: constant output ", out_id, " is not in the chain set");
+
+        // Describes the chain for the diagnostics below: the folded node plus its constant inputs.
+        auto describe = [&]() {
+            std::string s = out_id + " (" + node->get_primitive()->type_string() + " <- ";
+            for (const auto& dep : node->get_dependencies())
+                s += dep.first->get_primitive()->type_string() + std::string(" ");
+            return s + ")";
+        };
+
+        auto it = weightless_cache_map.find(out_id);
+        const bool has_recipe = it != weightless_cache_map.end() && std::get<0>(it->second) != nullptr;
+
+        if (node->is_shape_infer_dep()) {
+            // The host reads these bytes while inferring shapes, so a layout-only placeholder is not
+            // enough. Needs compile-time evaluation (CPU) rather than deferral.
+            unsupported.push_back(describe() + ": value is a shape inference dependency");
+            continue;
+        }
+        if (!has_recipe || !std::get<0>(it->second)->is_managed()) {
+            // Either not the single `data -> reorder` shape, or no reference to the original model.
+            // Both are covered by carrying the whole constant sub-graph in the blob.
+            auto chain = build_chain(*node);
+            if (chain.prims.empty()) {
+                unsupported.push_back(describe() + ": constant chain could not be captured");
+                continue;
+            }
+            auto manager = std::make_shared<weightless_cache_manager>();
+            manager->apply_chain(std::move(chain));
+            const auto chain_layout = node->get_output_layout();
+            auto chain_alloc = engine.get_preferred_memory_allocation_type(chain_layout.format.is_image_2d());
+            ret.push_back({out_id, engine.allocate_memory(chain_layout, chain_alloc, false),
+                           cache_tuple{manager, nullptr, nullptr}});
+            continue;
+        }
+        // Layout comes from shape inference, which needs no GPU. The buffer stays empty by design:
+        // data::save serializes the layout and the recipe, and import rebuilds the value.
+        const auto out_layout = node->get_output_layout();
+        auto alloc_type = engine.get_preferred_memory_allocation_type(out_layout.format.is_image_2d());
+        ret.push_back({out_id, engine.allocate_memory(out_layout, alloc_type, false), it->second});
+    }
+
+    if (!unsupported.empty()) {
+        std::string msg = "[GPU] HW-free compile cannot defer " + std::to_string(unsupported.size()) +
+                          " constant chain(s) to import time:\n";
+        for (const auto& u : unsupported)
+            msg += "  - " + u + "\n";
+        OPENVINO_THROW(msg);
     }
 
     return ret;

@@ -18,6 +18,7 @@
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/istft.hpp"
 #include "openvino/op/loop.hpp"
+#include "ocl/device_descriptor.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -169,6 +170,10 @@ ExecutionConfig ExecutionConfig::clone() const {
 }
 
 void ExecutionConfig::finalize(cldnn::engine& engine) {
+    // PluginConfig::finalize would early-return anyway, so skip building a context that would have to
+    // run engine::create on a device the stub offline engine cannot provide.
+    if (m_is_finalized)
+        return;
     auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
     PluginConfig::finalize(ctx.get(), nullptr);
 }

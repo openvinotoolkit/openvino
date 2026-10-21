@@ -73,7 +73,7 @@ protected:
 public:
     void save(BinaryOutputBuffer& ob) const override {
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
-        if (_prim.get(true) == nullptr) {
+        if (_pd.get(true) == nullptr) {
             ob << false;
             primitive_impl::save(ob);
             return;

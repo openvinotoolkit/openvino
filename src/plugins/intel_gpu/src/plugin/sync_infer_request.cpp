@@ -175,7 +175,9 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
     init_mappings();
     allocate_inputs();
     allocate_outputs();
-    allocate_states();
+    // No network means no stateful variables, and allocate_states() would deref the null network.
+    if (!m_graph->is_compile_only())
+        allocate_states();
 }
 
 SyncInferRequest::~SyncInferRequest() {
@@ -197,6 +199,11 @@ SyncInferRequest::~SyncInferRequest() {
 }
 
 void SyncInferRequest::infer() {
+    // Compile-only models have no network. The EP constructs such a request but never runs it, so this
+    // fires only on genuine misuse.
+    OPENVINO_ASSERT(!m_graph->is_compile_only(),
+                    "[GPU] This model was compiled with GPU_OFFLINE_COMPILE (compile-only); it can be "
+                    "exported but not executed. Import the exported blob on the target GPU to infer.");
     // String can be constructed once in the constructor
     OV_ITT_SCOPED_TASK_BASE(itt::domains::intel_gpu_inference, m_itt_infer_request_str.c_str());
     setup_stream_graph();
@@ -1373,10 +1380,14 @@ void SyncInferRequest::init_mappings() {
         m_input_ports_map[input_idx] = inputs[input_idx];
     }
 
+    // out_port_index_to_internal() reads the null network. The map is only used while inferring, which
+    // a compile-only request never does.
+    const bool compile_only = m_graph->is_compile_only();
     const auto& outputs = get_outputs();
     for (size_t output_idx = 0; output_idx < outputs.size(); ++output_idx) {
         m_output_ports_map[output_idx] = outputs[output_idx];
-        m_output_names_map[output_idx] = m_graph->out_port_index_to_internal(output_idx);
+        if (!compile_only)
+            m_output_names_map[output_idx] = m_graph->out_port_index_to_internal(output_idx);
     }
 }
 

@@ -361,6 +361,12 @@ private:
     void pre_optimize_graph(bool is_internal);
     void post_optimize_graph(bool is_internal);
     void transfer_memory_to_device();
+    // Offline compile: make each constant's memory layout match its node, which transfer does on the
+    // normal path. The blob records the memory layout and import rejects a mismatch.
+    void align_constant_memory_layouts();
+    // Offline compile: tag constants usm_device like transfer does, so the blob records it and import
+    // allocates them on the device instead of leaving them in usm_host.
+    void assign_constant_alloc_types();
 
     /*
     ** Analysis functions

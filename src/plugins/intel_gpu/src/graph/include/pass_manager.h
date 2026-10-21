@@ -236,17 +236,32 @@ private:
 
 class propagate_constants : public base_pass {
 public:
-    propagate_constants() : base_pass("propagate_constants") {}
+    // defer_materialization: HW-free compile. Same graph surgery, but values are not computed here;
+    // each folded constant keeps only a layout plus a recipe and is materialized at import.
+    explicit propagate_constants(bool defer_materialization = false)
+        : base_pass("propagate_constants")
+        , _defer_materialization(defer_materialization) {}
 
 private:
+    using cache_tuple = std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>;
+    using replacement_list = std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>>;
+
     void run(program& p) override;
-    std::list<std::tuple<primitive_id, memory::ptr, std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>>>
-    calculate(engine& engine, const ExecutionConfig& config, std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
+    replacement_list calculate(engine& engine, const ExecutionConfig& config, std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
+    // HW-free counterpart of calculate(): same replacement list, nothing executed. Chains that cannot
+    // be rebuilt at import are reported rather than silently left unfolded.
+    replacement_list defer_to_import(engine& engine);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);
     void add_deps_to_tpl(program& prog, const std::vector<std::pair<program_node*, int32_t>>& node);
 
+    // `data -> reorder` chains the import side can rebuild from the original weights.
+    std::map<primitive_id, cache_tuple> collect_weightless_recipes() const;
+    // Whole constant sub-graph for chains the single-reorder recipe cannot express.
+    const_chain build_chain(program_node& out) const;
+
+    bool _defer_materialization = false;
     bool has_non_trivial_constants = false;
     std::list<typed_program_node<data>*> const_inputs;
     std::vector<primitive_id> const_outputs;
