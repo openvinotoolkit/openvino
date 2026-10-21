@@ -134,7 +134,12 @@ std::string case_name(const testing::TestParamInfo<WoqU2Param>& info) {
 bool cm_woq_u2_supported(engine& e) {
     const auto& info = e.get_device_info();
     auto config = get_test_default_config(e);
-    return (info.arch == gpu_arch::xe2 || info.arch == gpu_arch::xe3) && info.max_local_mem_size >= 98304 && check_cm_jit_support(e, config);
+    // The device can run CM while this build has no CM backend (ENABLE_CM_FOR_GPU=OFF).
+    const auto& impls = fully_connected::type_id()->get_all_implementations();
+    const bool cm_registered = std::any_of(impls.begin(), impls.end(), [](const auto& impl) {
+        return impl->get_type_info() == ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager::get_type_info_static();
+    });
+    return cm_registered && (info.arch == gpu_arch::xe2 || info.arch == gpu_arch::xe3) && info.max_local_mem_size >= 98304 && check_cm_jit_support(e, config);
 }
 
 // Constant inputs of one u2 FC. Host copies are always N-major: packed weights [N, K/4] (4 per byte, LSB
@@ -394,6 +399,9 @@ void compare_values(const std::vector<float>& out,
     size_t bad = 0, first_bad = 0, differing = 0;
     float max_err = 0.0f;
     for (size_t i = 0; i < out.size(); i++) {
+        // NaN makes every comparison in the f16 interval distance false, i.e. a zero error.
+        ASSERT_TRUE(std::isfinite(out[i])) << "Non-finite CM output at index " << i;
+        ASSERT_TRUE(std::isfinite(ref[i])) << "Non-finite reference at index " << i;
         // f32: distance to ref; f16: distance from ref to the values that round to the CM value.
         const float err = out_f16 ? distance_to_fp16_rounding_interval(ref[i], ov::float16(out[i])) : std::fabs(out[i] - ref[i]);
         max_err = std::max(max_err, err);
@@ -1019,6 +1027,68 @@ TEST(fully_connected_cm_woq_u2_reorder, weights_not_transposed_no_reorder) {
     ASSERT_FALSE(r.scale_reordered);
     ASSERT_FALSE(r.zp_reordered);
 }
+
+// Dynamic M and a dynamic operand pass the static epilogue check, but at run time the operand can have fewer rows
+// than the output ([1, N] against M rows): an eltwise broadcast the kernels do not do (they would read past its
+// single row). Such shapes must run on another implementation; equal rows (and M = 1) stay on CM.
+class fully_connected_cm_woq_u2_epi_rows : public ::testing::TestWithParam<std::tuple<int64_t, int64_t>> {};
+
+TEST_P(fully_connected_cm_woq_u2_epi_rows, broadcast_operand_does_not_run_on_cm) {
+    auto& engine = get_test_engine();
+    if (!cm_woq_u2_supported(engine))
+        GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
+
+    const int64_t M = std::get<0>(GetParam());
+    const int64_t epi_rows = std::get<1>(GetParam());
+    const int64_t K = 320, N = 512;
+    tests::random_generator rg(GET_SUITE_NAME);
+    const auto w = make_weights(engine, K, N, ZpKind::tensor_u8, rg, static_cast<uint32_t>(M * 131 + epi_rows));
+
+    topology topo(input_layout("input", layout{ov::PartialShape{-1, K}, data_types::f16, format::bfyx}));
+    topo.add(input_layout("epi", layout{ov::PartialShape{-1, N}, data_types::f16, format::bfyx}));
+    add_weights(topo, "", w);
+    topo.add(make_fc("fc_prim", "input", "", ZpKind::tensor_u8, data_types::f16, 2, w.zp_scalar));
+    topo.add(eltwise("post", input_info("fc_prim"), input_info("epi"), eltwise_mode::sum));
+    topo.add(reorder("out", input_info("post"), format::bfyx, data_types::f16));
+    network::ptr net = get_network(engine, topo, woq_config(engine, {}), get_test_stream_ptr(), false);
+
+    const auto a = random_activations(static_cast<size_t>(M * K), static_cast<uint64_t>(M * 1000003 + K));
+    const auto t_half = random_activations(static_cast<size_t>(epi_rows * N), static_cast<uint64_t>(epi_rows * 7919 + N));
+    std::vector<float> t(t_half.size());
+    for (size_t i = 0; i < t.size(); i++)
+        t[i] = static_cast<float>(t_half[i]);
+
+    auto input_mem = engine.allocate_memory({ov::PartialShape{M, K}, data_types::f16, format::bfyx});
+    set_values(input_mem, a);
+    auto epi_mem = engine.allocate_memory({ov::PartialShape{epi_rows, N}, data_types::f16, format::bfyx});
+    set_values(epi_mem, t_half);
+    net->set_input_data("input", input_mem);
+    net->set_input_data("epi", epi_mem);
+    auto outputs = net->execute();
+
+    bool cm_ran = false;
+    for (const auto& id : net->get_executed_primitive_ids()) {
+        const auto impl = net->get_primitive(id)->get_impl();
+        cm_ran |= impl && impl->get_kernel_name().find("woq_u2") != std::string::npos;
+    }
+    EXPECT_EQ(cm_ran, epi_rows == M) << "M = " << M << ", operand rows = " << epi_rows;
+
+    HostEpi he;
+    he.kind = Epi::add;
+    he.row = epi_rows == 1;
+    he.t = &t;
+    check_rows(outputs.at("out").get_memory(), M, a, all_rows(M), w, false, he);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         fully_connected_cm_woq_u2_epi_rows,
+                         ::testing::Values(std::make_tuple(int64_t{5}, int64_t{5}),
+                                           std::make_tuple(int64_t{1}, int64_t{1}),
+                                           std::make_tuple(int64_t{5}, int64_t{1}),
+                                           std::make_tuple(int64_t{40}, int64_t{1})),
+                         [](const testing::TestParamInfo<std::tuple<int64_t, int64_t>>& info) {
+                             return "M" + std::to_string(std::get<0>(info.param)) + "_operand_rows" + std::to_string(std::get<1>(info.param));
+                         });
 
 // ---- Native group-major (GNK) weights [G, N, 64] ----
 
