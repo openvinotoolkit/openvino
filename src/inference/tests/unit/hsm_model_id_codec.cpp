@@ -87,8 +87,8 @@ TEST(HsmModelIdSectionTest, unwraps_an_id_from_a_hand_built_container) {
     EXPECT_GT(section->size(), sizeof(uint64_t));
 
     const auto payload = section->view();
-    ASSERT_TRUE(payload.has_value());
-    EXPECT_EQ(hsm::unwrap_model_id(*payload), sample_id);
+    ASSERT_FALSE(payload.empty());
+    EXPECT_EQ(hsm::unwrap_model_id(payload), sample_id);
 }
 
 TEST(HsmModelIdSectionTest, unwraps_the_maximum_id_from_a_hand_built_container_stream) {
@@ -100,8 +100,8 @@ TEST(HsmModelIdSectionTest, unwraps_the_maximum_id_from_a_hand_built_container_s
     const auto section = reader->section(hsm::Tags::model_id);
     ASSERT_TRUE(section.has_value());
     const auto payload = section->view();
-    ASSERT_TRUE(payload.has_value());
-    EXPECT_EQ(hsm::unwrap_model_id(*payload), max_id);
+    ASSERT_FALSE(payload.empty());
+    EXPECT_EQ(hsm::unwrap_model_id(payload), max_id);
 }
 
 TEST(HsmModelIdSectionTest, unwrap_rejects_a_payload_too_short_to_hold_an_id) {
@@ -123,11 +123,11 @@ TEST(HsmModelIdSectionTest, device_scoped_id_unwraps_independently_of_the_common
 
     const auto common = reader->section(hsm::Tags::model_id);
     ASSERT_TRUE(common.has_value());
-    EXPECT_EQ(hsm::unwrap_model_id(*common->view()), common_id);
+    EXPECT_EQ(hsm::unwrap_model_id(common->view()), common_id);
 
     const auto overridden = reader->section(hsm::npu_device_id, hsm::Tags::model_id);
     ASSERT_TRUE(overridden.has_value());
-    EXPECT_EQ(hsm::unwrap_model_id(*overridden->view()), npu_id);
+    EXPECT_EQ(hsm::unwrap_model_id(overridden->view()), npu_id);
 
     // A device that published no id of its own falls back to the common one.
     EXPECT_FALSE(reader->section(hsm::gpu_device_id, hsm::Tags::model_id).has_value());
