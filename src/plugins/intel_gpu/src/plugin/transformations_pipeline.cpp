@@ -597,13 +597,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     }
 
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
-    // The int3 FC kernel quantizes activations to int8 in-kernel, so u3 weights are kept compressed only when
-    // dynamic quantization is allowed. Otherwise (group size 0, or a model that caps the group size via
-    // GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX) they are decompressed and the f16 path is used.
+    // The int3 FC kernel quantizes activations to int8 in-kernel and needs SIMD16 DPAS (Xe2+). u3 weights are kept
+    // compressed only when dynamic quantization is allowed and the device is Xe2 or newer; otherwise they are
+    // decompressed and the f16 path is used (group size 0, GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX below the group
+    // size, or pre-Xe2 such as DG2).
     const bool dyn_quan_allowed = config.get_dynamic_quantization_group_size() != 0 &&
                                   config.get_dynamic_quantization_group_size_max() >= config.get_dynamic_quantization_group_size();
     ov::element::TypeVector supported_woq_types = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u2};
-    if (dyn_quan_allowed) {
+    if (dyn_quan_allowed && device_info.arch >= cldnn::gpu_arch::xe2) {
         supported_woq_types.push_back(ov::element::u3);
     }
     bool enableInt8;

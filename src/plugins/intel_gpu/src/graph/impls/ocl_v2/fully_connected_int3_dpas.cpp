@@ -323,11 +323,6 @@ bool is_small_grf_v2(const GemmConfig& cfg) {
     return cfg.v2 && cfg.nb != v2_nb;
 }
 
-// Scalar path with tile_m rows per subgroup, which decodes each weight granule once for all of them.
-GemmConfig get_scalar_config(size_t tile_m) {
-    return GemmConfig{false, false, tile_m, 1, 1};
-}
-
 // Whether v2 with sg_m subgroups takes the 16 x 32 tile in 128 GRFs rather than the 16 x 64 one in 256.
 // On large Xe2 dGPUs (B570: 144 EUs) the 128-GRF tile is ~12% faster on the Qwen3-8B shapes at 96 to 2048 rows:
 // twice the threads per EU hide the per-group scaling behind other threads' DPAS.
@@ -672,23 +667,12 @@ enum class GemmVariant : uint8_t {
     v2_sg8,
     v2_sg16,
     v2_small_grf_sg8,
-    v2_small_grf_sg16,
-    scalar_t8,
-    scalar_t16
+    v2_small_grf_sg16
 };
-
-// The DPAS variants use the SIMD16 forms of the matrix builtins, which IGC lowers only from Xe-HPC on. On Xe-HPG
-// (DG2) they compile without error to code that has no dpas at all, so those devices run the scalar variants.
-bool supports_simd16_dpas(gpu_arch arch) {
-    return arch >= gpu_arch::xe_hpc;
-}
 
 GemmVariant get_gemm_variant(const Int3FcInfo& info, const device_info& dev, size_t rows) {
     if (rows < dpas_min_rows) {
         return GemmVariant::scalar;
-    }
-    if (!supports_simd16_dpas(dev.arch)) {
-        return rows <= 8 ? GemmVariant::scalar_t8 : GemmVariant::scalar_t16;
     }
     const auto cfg = get_dpas_config(info, dev, rows);
     if (cfg.v2) {
@@ -725,7 +709,7 @@ public:
     // compiled for exactly one row, so a single-row static impl of a dynamic model can reuse it. Every static impl of
     // a dynamic model reuses its quantizer.
     Stage::Ptr quantize = make_stage<Int3FcQuantize>();
-    std::array<Stage::Ptr, 13> gemms = {make_stage<Int3FcGemm>("scalar", GemmConfig{}),
+    std::array<Stage::Ptr, 11> gemms = {make_stage<Int3FcGemm>("scalar", GemmConfig{}),
                                         make_stage<Int3FcGemm>("v1_t8", get_v1_config(8, 1)),
                                         make_stage<Int3FcGemm>("v1_t16", get_v1_config(16, 1)),
                                         make_stage<Int3FcGemm>("v1_t32_sg1", get_v1_config(32, 1)),
@@ -735,9 +719,7 @@ public:
                                         make_stage<Int3FcGemm>("v2_sg8", get_v2_config(8)),
                                         make_stage<Int3FcGemm>("v2_sg16", get_v2_config(16)),
                                         make_stage<Int3FcGemm>("v2_sg8_grf128", get_v2_small_grf_config(8)),
-                                        make_stage<Int3FcGemm>("v2_sg16_grf128", get_v2_small_grf_config(16)),
-                                        make_stage<Int3FcGemm>("scalar_t8", get_scalar_config(8)),
-                                        make_stage<Int3FcGemm>("scalar_t16", get_scalar_config(16))};
+                                        make_stage<Int3FcGemm>("v2_sg16_grf128", get_v2_small_grf_config(16))};
 
     FullyConnectedInt3DpasImpl() : PrimitiveImplOCL(FullyConnectedInt3Dpas::get_type_info_static()) {}
     FullyConnectedInt3DpasImpl(const program_node& node, const RuntimeParams& params) : FullyConnectedInt3DpasImpl() {
@@ -881,8 +863,8 @@ bool FullyConnectedInt3Dpas::validate_impl(const program_node& node) const {
     const auto& program = node.get_program();
     const auto& config = program.get_config();
 
-    // The matrix engine is the whole point of this kernel; without it the generic kernels are a better choice.
-    if (!program.get_engine().get_device_info().supports_immad) {
+    // SIMD16 DPAS is required; pre-Xe2 (e.g. DG2) keeps u3 decompressed at the transformation stage instead.
+    if (program.get_engine().get_device_info().arch < gpu_arch::xe2) {
         return false;
     }
 
