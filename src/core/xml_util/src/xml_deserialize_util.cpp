@@ -907,15 +907,25 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
             size);
         adapter.set(buffer);
     } else {
-        if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3)) {
+        for (const auto dim : shape) {
+            OPENVINO_ASSERT(dim >= 0, "Negative dimension in Const shape for ", node_type, " op!");
+            OPENVINO_ASSERT(static_cast<uint64_t>(dim) <= std::numeric_limits<size_t>::max(),
+                            "Const shape size overflow for ",
+                            node_type,
+                            " op!");
+        }
+        const bool has_zero_dim = std::find(shape.begin(), shape.end(), 0) != shape.end();
+        const auto required_size =
+            has_zero_dim ? std::optional<size_t>{0}
+                         : ov::util::get_memory_size_safe(el_type, ov::Shape(shape.begin(), shape.end()));
+        OPENVINO_ASSERT(required_size, "Const shape size overflow for ", node_type, " op!");
+        if (size < *required_size) {
             OPENVINO_THROW("Attribute and shape size are inconsistent for ",
                            node_type,
                            " op!",
                            size,
                            ", ",
-                           ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3),
-                           ", ",
-                           ov::util::get_memory_size(el_type, ov::shape_size(shape)));
+                           *required_size);
         }
 
         auto buffer = m_weights_provider->make_region(offset, size);

@@ -2053,3 +2053,152 @@ TEST_F(IRFrontendTests, read_value_layer_with_missing_variable_id_attribute) {
                     ov::Exception,
                     testing::HasSubstr("Variable is not initialized."));
 }
+
+namespace {
+// Const -> Result IR whose Const declares `shape` and `size`; port dims repeat the shape.
+std::string make_const_result_ir(const std::string& element_type, const std::string& shape, size_t size) {
+    std::string dims;
+    if (!shape.empty()) {
+        for (size_t begin = 0; begin <= shape.size();) {
+            auto end = shape.find(',', begin);
+            if (end == std::string::npos) {
+                end = shape.size();
+            }
+            dims += "<dim>" + shape.substr(begin, end - begin) + "</dim>";
+            begin = end + 1;
+        }
+    }
+    return R"(<?xml version="1.0"?>
+<net name="const_size" version="11">
+    <layers>
+        <layer id="0" name="c0" type="Const" version="opset1">
+            <data element_type=")" +
+           element_type + R"(" shape=")" + shape + R"(" offset="0" size=")" + std::to_string(size) + R"("/>
+            <output><port id="0" precision=")" +
+           element_type + R"(">)" + dims + R"(</port></output>
+        </layer>
+        <layer id="1" name="r0" type="Result" version="opset1">
+            <input><port id="0">)" +
+           dims + R"(</port></input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)";
+}
+
+ov::Tensor make_weights(size_t size) {
+    ov::Tensor weights(ov::element::u8, ov::Shape{size});
+    auto* data = static_cast<uint8_t*>(weights.data());
+    for (size_t i = 0; i < size; ++i) {
+        data[i] = static_cast<uint8_t>(i * 37 + 1);
+    }
+    return weights;
+}
+}  // namespace
+
+TEST_F(IRFrontendTests, const_bitwidth_size_overflow_is_rejected) {
+    // 2^59 + 1 (64-bit size_t) or 2^27 + 1 (32-bit size_t) f32 elements: shape_size * bitwidth wraps to 32 bits,
+    // so a 4-byte buffer used to pass.
+    const char* shape = sizeof(size_t) >= 8 ? "576460752303423489" : "134217729";
+    const auto xml = make_const_result_ir("f32", shape, 4);
+    OV_EXPECT_THROW(core.read_model(xml, make_weights(4)),
+                    ov::Exception,
+                    testing::HasSubstr("Attribute and shape size are inconsistent"));
+    if constexpr (sizeof(size_t) < 8) {
+        OV_EXPECT_THROW(core.read_model(make_const_result_ir("f32", "576460752303423489", 4), make_weights(4)),
+                        ov::Exception,
+                        testing::HasSubstr("Const shape size overflow"));
+    }
+}
+
+TEST_F(IRFrontendTests, const_u8_bitwidth_size_overflow_is_rejected) {
+    // 2^61 + 1 (64-bit size_t) or 2^29 + 1 (32-bit size_t) u8 elements: shape_size * bitwidth wraps to 8 bits.
+    const char* shape = sizeof(size_t) >= 8 ? "2305843009213693953" : "536870913";
+    const auto xml = make_const_result_ir("u8", shape, 1);
+    OV_EXPECT_THROW(core.read_model(xml, make_weights(1)),
+                    ov::Exception,
+                    testing::HasSubstr("Attribute and shape size are inconsistent"));
+}
+
+TEST_F(IRFrontendTests, const_element_count_overflow_to_zero_is_rejected) {
+    // 2^32 * 2^32 elements: the element count wraps to 0.
+    const auto xml = make_const_result_ir("f32", "4294967296,4294967296", 4);
+    OV_EXPECT_THROW(core.read_model(xml, make_weights(4)),
+                    ov::Exception,
+                    testing::HasSubstr("Const shape size overflow"));
+}
+
+TEST_F(IRFrontendTests, const_element_count_overflow_to_two_is_rejected) {
+    // 3 * 6148914691236517206 elements: the element count wraps to 2.
+    const auto xml = make_const_result_ir("f32", "3,6148914691236517206", 8);
+    OV_EXPECT_THROW(core.read_model(xml, make_weights(8)),
+                    ov::Exception,
+                    testing::HasSubstr("Const shape size overflow"));
+}
+
+TEST_F(IRFrontendTests, const_negative_dimension_is_rejected) {
+    // AttributeAdapter<ov::Shape> inherits from IndirectVectorValueAccessor<ov::Shape, std::vector<int64_t>>,
+    // so XmlDeserializer parses `shape` into std::vector<int64_t> before calling set_constant_num_buffer.
+    const auto xml = make_const_result_ir("f32", "-1,4", 16);
+    OV_EXPECT_THROW(core.read_model(xml, make_weights(16)),
+                    ov::Exception,
+                    testing::HasSubstr("Negative dimension in Const shape"));
+}
+
+TEST_F(IRFrontendTests, const_exact_and_padded_size_is_accepted_undersized_is_rejected) {
+    struct Case {
+        const char* element_type;
+        const char* shape;
+        size_t required;
+    };
+    // Sub-byte types pack elements, so the required size rounds up to whole bytes.
+    const Case cases[] = {
+        {"f32", "", 4},
+        {"f32", "2,3", 24},
+        {"f16", "2,3", 12},
+        {"bf16", "3", 6},
+        {"i8", "5", 5},
+        {"i32", "2,2", 16},
+        {"i64", "3", 24},
+        {"u8", "7", 7},
+        {"u4", "3", 2},
+        {"i4", "5", 3},
+        {"u4", "2,4", 4},
+        {"u1", "9", 2},
+        {"u2", "3", 1},
+        {"u3", "5", 2},
+        {"nf4", "3", 2},
+        {"f4e2m1", "5", 3},
+        {"f8e4m3", "3", 3},
+    };
+    for (const auto& c : cases) {
+        SCOPED_TRACE(std::string(c.element_type) + " [" + c.shape + "]");
+        std::shared_ptr<ov::Model> model;
+        OV_ASSERT_NO_THROW(model = core.read_model(make_const_result_ir(c.element_type, c.shape, c.required),
+                                                   make_weights(c.required)));
+        ASSERT_NE(model, nullptr);
+        // A writer that pads the buffer beyond the packed size is still accepted.
+        OV_ASSERT_NO_THROW(core.read_model(make_const_result_ir(c.element_type, c.shape, c.required + 8),
+                                           make_weights(c.required + 8)));
+        OV_EXPECT_THROW(
+            core.read_model(make_const_result_ir(c.element_type, c.shape, c.required - 1), make_weights(c.required)),
+            ov::Exception,
+            testing::HasSubstr("Attribute and shape size are inconsistent"));
+    }
+}
+
+TEST_F(IRFrontendTests, const_empty_with_one_byte_buffer_is_accepted) {
+    // Empty constants own a 1-byte buffer, and the IR serializer writes size="1" for them; the CPU plugin's
+    // compiled-model export contains such Consts with element_type="dynamic". The size check must accept both
+    // zero-byte and padded 1-byte buffers on any valid shape containing a zero dimension.
+    for (const auto* element_type : {"dynamic", "f32", "u4"}) {
+        for (const auto* shape : {"0", "0,4", "65536,65536,0"}) {
+            SCOPED_TRACE(std::string(element_type) + " [" + shape + "]");
+            OV_ASSERT_NO_THROW(core.read_model(make_const_result_ir(element_type, shape, 0), make_weights(1)));
+            OV_ASSERT_NO_THROW(core.read_model(make_const_result_ir(element_type, shape, 1), make_weights(1)));
+        }
+    }
+}
