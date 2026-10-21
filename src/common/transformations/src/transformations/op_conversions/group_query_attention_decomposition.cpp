@@ -367,14 +367,14 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto mask_bias = split_bias ? ov::Output<ov::Node>() : external_bias;
     std::shared_ptr<ov::Node> mask =
         batched         ? make_batched_attention_mask(curr_seqlen_scalar,
-                                                      concat_kv_len_scalar,
-                                                      concat_kv_len,
-                                                      q_past_b,
-                                                      total_b,
-                                                      T,
-                                                      causal,
-                                                      local_window_size,
-                                                      mask_bias)
+                                              concat_kv_len_scalar,
+                                              concat_kv_len,
+                                              q_past_b,
+                                              total_b,
+                                              T,
+                                              causal,
+                                              local_window_size,
+                                              mask_bias)
         : explicit_mask ? GroupQueryAttentionDecomposition::make_attention_mask(curr_seqlen_scalar,
                                                                                 concat_kv_len_scalar,
                                                                                 concat_kv_len,
