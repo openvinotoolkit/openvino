@@ -240,6 +240,10 @@ Dim normalizeM(Dim M) {
     return M;
 }
 
+// An expert that receives fewer rows than this runs per-row GEMV: below it the GEMM does not pay for gathering
+// and scattering the rows (a decode step of N requests is M = N, so most experts get one or two rows).
+constexpr size_t kMinRowsForGemm = 4;
+
 // ---- GatherMatmulDnnlExecutor -----------------------------------------------
 
 dnnl::memory::desc makeBiasMd(dnnl::memory::dim N, const MemoryPtr& biasMem) {
@@ -287,8 +291,7 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
     auto src_precision = srcMemory->getDesc().getPrecision();
     auto weights_precision = weightsMemory->getDesc().getPrecision();
 #ifdef OPENVINO_ARCH_X86_64
-    m_bf16AmxMode =
-        (src_precision == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx));
+    m_expertGemmMode = any_of(src_precision, ov::element::bf16, ov::element::f32);
 #endif
 
     const auto& weiDims = weightsMemory->getShape().getStaticDims();
@@ -337,7 +340,7 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
         return std::make_shared<InnerProduct>(eng, threadPool, k);
     });
 
-    if (m_bf16AmxMode) {
+    if (m_expertGemmMode) {
         // The M > 1 GEMMs solve the GEMV problem on the weights layout the GEMV selected (the weights are
         // repacked to it below); createGemm() sets the row count.
         key.weights_md = m_gemvImpl->get_weights_md();
@@ -409,7 +412,7 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
 }
 
 bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
-    if (!m_bf16AmxMode) {
+    if (!m_expertGemmMode) {
         return true;
     }
 
@@ -497,7 +500,7 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
             }
         }
 
-        if (m_bf16AmxMode) {
+        if (m_expertGemmMode) {
             OPENVINO_ASSERT(m_tmpInpBuffer, "Temporary input/output memory is not created");
             OPENVINO_ASSERT(m_tmpInputDesc, "Temporary input memory desc is not created");
             OPENVINO_ASSERT(m_tmpOutputDesc, "Temporary output memory desc is not created");
@@ -522,6 +525,20 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
             for (size_t gather_axis_index = 0; gather_axis_index < gather_axis_size; gather_axis_index++) {
                 const size_t num_valid_rows = elements_per_gather_indx[gather_axis_index];
                 if (0 == num_valid_rows) {
+                    continue;
+                }
+
+                if (num_valid_rows < kMinRowsForGemm) {
+                    for (size_t m = 0; m < num_valid_rows; ++m) {
+                        const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
+                        const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
+                        m_gemvImpl->exec(src_offset(batch_index, row_id),
+                                         dst_offset(batch_index, row_id),
+                                         wei_offset(gather_axis_index),
+                                         bias_offset(gather_axis_index),
+                                         scale_offset(gather_axis_index),
+                                         zp_offset(gather_axis_index));
+                    }
                     continue;
                 }
 
