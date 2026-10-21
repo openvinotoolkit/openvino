@@ -222,6 +222,8 @@ def test_centercrop():
         ((64, 64), [transforms.CenterCrop(63)]),
         ((64, 64), [transforms.CenterCrop(61)]),
         ((64, 64), [transforms.CenterCrop(59)]),
+        # H and W offsets round differently: H diff 1 -> 0, W diff 3 -> 2
+        ((65, 64), [transforms.CenterCrop((64, 61))]),
     ],
 )
 def test_centercrop_matches_torchvision(image_size, transforms_list):
