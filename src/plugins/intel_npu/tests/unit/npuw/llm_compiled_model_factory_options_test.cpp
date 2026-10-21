@@ -625,10 +625,9 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, ArchAutoDetectSkipsNpuTilesInDefaultS
 
     for (const auto* call : {&prefill, &generate, &head}) {
         expect_missing_prop(call->props, "NPU_TILES");
-        expect_prop(
-            call->props,
-            "NPU_COMPILATION_MODE_PARAMS",
-            "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
+        expect_prop(call->props,
+                    "NPU_COMPILATION_MODE_PARAMS",
+                    "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
     }
 }
 
@@ -773,6 +772,119 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, HfaAttentionHintsEnableAttentionIsola
         expect_prop(call->props, "NPUW_ATTN_DYN", "YES");
         expect_prop(call->props, "NPUW_ATTN_NO_COPY", "YES");
     }
+}
+
+// Chunked prefill of a model with linear-attention state puts the partial chunk first, so a past tile can be only
+// partially filled. Regular HFA tiles without a mask would attend to the unused entries, so mask skipping is not
+// enabled there.
+TEST_F(LLMCompiledModelFactoryOptionsTest, HfaMaskSkippingIsEnabledForAttentionOnlyModel) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_PREFILL_ATTENTION_HINT", "HFA"},
+                                                      {"NPUW_ATTN_HFA_FUSED", "YES"},
+                                                      {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                                                      {"NPUW_LLM_PREFILL_CHUNK_SIZE", "64"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+    expect_prop(require_call(recorder, "_prefill").props, "NPUW_ATTN_HFA_MASK_SKIPPING", "YES");
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, HfaMaskSkippingIsNotEnabledForLinearAttentionModel) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_hybrid_llm_test_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_PREFILL_ATTENTION_HINT", "HFA"},
+                                                      {"NPUW_ATTN_HFA_FUSED", "YES"},
+                                                      {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                                                      {"NPUW_LLM_PREFILL_CHUNK_SIZE", "64"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+    const auto& prefill = require_call(recorder, "_prefill");
+    expect_prop(prefill.props, "NPUW_ATTN", "HFA");
+    expect_missing_prop(prefill.props, "NPUW_ATTN_HFA_MASK_SKIPPING");
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, HfaMaskSkippingIsEnabledForLinearAttentionModelWithoutChunkedPrefill) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_hybrid_llm_test_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_PREFILL_ATTENTION_HINT", "HFA"},
+                                                      {"NPUW_ATTN_HFA_FUSED", "YES"},
+                                                      {"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+    expect_prop(require_call(recorder, "_prefill").props, "NPUW_ATTN_HFA_MASK_SKIPPING", "YES");
+}
+
+// An explicit NPUW_ATTN_HFA_MASK_SKIPPING=YES on the fused HFA prefill of a model with linear-attention state must be
+// rejected on every path that can carry it, not only suppressed as a default.
+class HfaMaskSkippingOverrideTest : public LLMCompiledModelFactoryOptionsTest {
+protected:
+    static ov::AnyMap hybrid_hfa_props(const ov::AnyMap& overrides) {
+        ov::AnyMap props{{"NPUW_LLM_SHARED_HEAD", "NO"},
+                         {"NPUW_LLM_PREFILL_ATTENTION_HINT", "HFA"},
+                         {"NPUW_ATTN_HFA_FUSED", "YES"},
+                         {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                         {"NPUW_LLM_PREFILL_CHUNK_SIZE", "64"}};
+        merge_props(props, overrides);
+        return props;
+    }
+
+    void expect_rejected(const ov::AnyMap& overrides) {
+        RecordingFactory recorder;
+        EXPECT_THROW(
+            create_compiled_model(ov::test::npuw::build_hybrid_llm_test_model(), hybrid_hfa_props(overrides), recorder),
+            ov::Exception);
+    }
+};
+
+TEST_F(HfaMaskSkippingOverrideTest, TopLevelPropertyIsRejected) {
+    expect_rejected({{"NPUW_ATTN_HFA_MASK_SKIPPING", "YES"}});
+}
+
+TEST_F(HfaMaskSkippingOverrideTest, PrefillConfigIsRejected) {
+    expect_rejected({{"NPUW_LLM_PREFILL_CONFIG", ov::AnyMap{{"NPUW_ATTN_HFA_MASK_SKIPPING", "YES"}}}});
+}
+
+TEST_F(HfaMaskSkippingOverrideTest, PrefillConfigAdditionIsRejected) {
+    expect_rejected({{"++NPUW_LLM_PREFILL_CONFIG", ov::AnyMap{{"NPUW_ATTN_HFA_MASK_SKIPPING", "YES"}}}});
+}
+
+TEST_F(HfaMaskSkippingOverrideTest, ExplicitNoIsAccepted) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_hybrid_llm_test_model(),
+                                                     hybrid_hfa_props({{"NPUW_ATTN_HFA_MASK_SKIPPING", "NO"}}),
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+}
+
+// Only the fused HFA compiles its regular tiles without a mask.
+TEST_F(HfaMaskSkippingOverrideTest, NonFusedHfaIsAccepted) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        ov::test::npuw::build_hybrid_llm_test_model(),
+                        hybrid_hfa_props({{"NPUW_ATTN_HFA_FUSED", "NO"}, {"NPUW_ATTN_HFA_MASK_SKIPPING", "YES"}}),
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+}
+
+TEST_F(HfaMaskSkippingOverrideTest, ExplicitYesIsAcceptedWithoutChunkedPrefill) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_hybrid_llm_test_model(),
+                                                     hybrid_hfa_props({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"},
+                                                                       {"NPUW_ATTN_HFA_MASK_SKIPPING", "YES"}}),
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, MoeModelKeepsHostRoutedStageIntegration) {

@@ -1189,7 +1189,22 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
-    if (prefill_attn_hfa) {
+    // Chunked prefill of a model with linear-attention state prefills the partial chunk first (see
+    // LLMInferRequest::infer_chunked_prefill), so a past tile can be partially filled and a regular HFA tile
+    // without a mask would attend to its unused entries.
+    const bool has_lincache = [&prefill_model]() {
+        for (const auto& input : prefill_model->inputs()) {
+            for (const auto& name : input.get_names()) {
+                if (ov::npuw::util::starts_with_past_lincache(name)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }();
+    const bool hfa_partial_past_tile = prefill_attn_hfa && m_use_chunk_prefill && has_lincache;
+
+    if (prefill_attn_hfa && !hfa_partial_past_tile) {
         // Enable the mask-skipping optimization by default; the actual per-layer
         // decision (safe only for Causal, or SlidingWindow whose window already
         // covers the full context) is made independently for each SDPA subgraph in
@@ -1225,6 +1240,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(generate_config, other_props);
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
+    if (hfa_partial_past_tile) {
+        const auto is_enabled = [&prefill_config](const std::string& name) {
+            const auto it = prefill_config.find(name);
+            return it != prefill_config.end() && it->second.as<bool>();
+        };
+        // Only the fused HFA compiles its regular tiles without a mask
+        OPENVINO_ASSERT(!(is_enabled("NPUW_ATTN_HFA_FUSED") &&
+                          is_enabled(ov::intel_npu::npuw::partitioning::attn_hfa_mask_skipping.name())),
+                        "NPUW_ATTN_HFA_MASK_SKIPPING is not supported for the chunked prefill of a model with "
+                        "linear-attention state: the partial chunk is prefilled first, and a partially filled past "
+                        "tile would be attended without a mask.");
+    }
     if (user_compilation_mode_params.has_value() && default_compilation_mode_params.has_value() &&
         user_compilation_mode_params.value() != default_compilation_mode_params.value()) {
         LOG_WARN("User-provided NPU_COMPILATION_MODE_PARAMS overrides arch-aware setting \""
