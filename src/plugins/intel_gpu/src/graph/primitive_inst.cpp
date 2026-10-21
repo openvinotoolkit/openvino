@@ -949,11 +949,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     auto fake_aligned_params = use_fake_aligned_params ? get_fake_aligned_params_if_possible(get_node(), *_impl_params) : kernel_impl_params();
     // A copy, not _impl_params->output_layouts itself: the code below enlarges these layouts to the allocation size (FC users'
     // fake-aligned input, dynamic quantize scales, preallocation), while the users read _impl_params' layouts as their input shapes.
-    std::vector<layout> output_layouts_copy;
-    if (!use_fake_aligned_params) {
-        output_layouts_copy = _impl_params->output_layouts;
-    }
-    auto& updated_output_layouts = use_fake_aligned_params ? fake_aligned_params.output_layouts : output_layouts_copy;
+    auto updated_output_layouts = use_fake_aligned_params ? fake_aligned_params.output_layouts : _impl_params->output_layouts;
 
     const auto& actual_layouts = updated_output_layouts;
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
@@ -1404,16 +1400,16 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. " << std::endl;
             GPU_DEBUG_TRACE_DETAIL << " outputs[" << i << "] " << get_node().id() << " Current buffer_size=" << _max_output_layout_count[i]
                                    << " Requested buffer_size=" << updated_layouts[i].get_linear_size() << std::endl;
-            if (!use_fake_aligned_params) {
-                if (!alloc_params) {
-                    alloc_params = *_impl_params;
-                }
-                alloc_params->output_layouts = updated_output_layouts;
+            if (!use_fake_aligned_params && !alloc_params) {
+                alloc_params = *_impl_params;
             }
+            // allocate_output() sizes the buffer from these params, so they must carry the edited layouts
+            auto& output_alloc_params = use_fake_aligned_params ? fake_aligned_params : *alloc_params;
+            output_alloc_params.output_layouts = updated_output_layouts;
             _outputs[i] = allocate_output(get_network().get_engine(),
                                           get_network().get_memory_pool(),
                                           *_node,
-                                          use_fake_aligned_params ? fake_aligned_params : *alloc_params,
+                                          output_alloc_params,
                                           _runtime_memory_dependencies,
                                           get_network_id(),
                                           get_network().is_internal(),
