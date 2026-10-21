@@ -4,9 +4,28 @@
 
 #pragma once
 
+#include <memory>
+#include <unordered_set>
+
 #include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov::intel_gpu {
+
+class CollectSinCosConstantsForPrecisionPreservation : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("CollectSinCosConstantsForPrecisionPreservation");
+    using ConstantSet = std::unordered_set<const ov::Node*>;
+
+    explicit CollectSinCosConstantsForPrecisionPreservation(const std::shared_ptr<ConstantSet>& constants);
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+
+private:
+    std::shared_ptr<ConstantSet> m_constants;
+};
+
+bool skip_constant_precision_preservation(
+    const std::shared_ptr<const ov::Node>& node,
+    const CollectSinCosConstantsForPrecisionPreservation::ConstantSet& sincos_constants);
 
 class IncreasePositionIdsPrecisionForRoPE : public ov::pass::MatcherPass {
 public:
