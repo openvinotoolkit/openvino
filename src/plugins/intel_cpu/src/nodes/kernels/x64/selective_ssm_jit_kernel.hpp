@@ -59,9 +59,10 @@ public:
     explicit jit_selective_ssm_kernel(const jit_selective_ssm_compile_params& jcp) : JitKernel(jit_name(), jcp, isa) {}
 
 private:
-    using Vmm = std::conditional_t<(static_cast<unsigned>(isa) & static_cast<unsigned>(dnnl::impl::cpu::x64::zmm_bit)) != 0,
-                                   Xbyak::Zmm,
-                                   Xbyak::Ymm>;
+    using Vmm =
+        std::conditional_t<(static_cast<unsigned>(isa) & static_cast<unsigned>(dnnl::impl::cpu::x64::zmm_bit)) != 0,
+                           Xbyak::Zmm,
+                           Xbyak::Ymm>;
 
     static constexpr size_t vector_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::vlen / sizeof(float);
     static constexpr size_t max_row_tile = 4;
