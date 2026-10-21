@@ -131,8 +131,14 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         if (weights_are_constant) {
             fc_input_b = reshape_const(weight_ptr);
             if (fc_input_b->get_output_element_type(0) == ov::element::u2) {
-                fc_input_b = ov::op::util::make_try_fold<ov::op::v0::Convert>(fc_input_b, ov::element::u4);
-                ov::copy_weightless_cache_attr(weight_ptr, fc_input_b);
+                const auto ifm_idx = fc_input_b->get_shape().size() - (has_transpose != fc->get_transpose_b() ? 1 : 2);
+                const auto ngroups = scale->get_shape().size() <= 1 ? 1 : scale->get_shape()[ifm_idx];
+                const auto group_size = fc_input_b->get_shape()[ifm_idx] / ngroups;
+                // Widening can select oneDNN, which requires these scale-group alignments.
+                if (group_size == 1 || ngroups == 1 || group_size % 16 == 0) {
+                    fc_input_b = ov::op::util::make_try_fold<ov::op::v0::Convert>(fc_input_b, ov::element::u4);
+                    ov::copy_weightless_cache_attr(weight_ptr, fc_input_b);
+                }
             }
         } else if (pattern_map.count(weights_reshape_m)) {
             fc_input_b = pattern_map.at(weights_reshape_m).get_node_shared_ptr();

@@ -23,6 +23,7 @@
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
 
 #include <memory>
+#include <tuple>
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -36,11 +37,11 @@ class ConvertFCU2Weights : public TransformationTestsF, public testing::WithPara
 TEST_P(ConvertFCU2Weights, WidenConstantCodesWithoutChangingDecompression) {
     const auto precision = GetParam();
     auto make_model = [&](ov::element::Type weights_type) {
-        auto input = std::make_shared<ov::op::v0::Parameter>(precision, ov::PartialShape{-1, 8});
-        std::vector<uint8_t> codes(32);
+        auto input = std::make_shared<ov::op::v0::Parameter>(precision, ov::PartialShape{-1, 32});
+        std::vector<uint8_t> codes(128);
         for (size_t i = 0; i < codes.size(); ++i)
             codes[i] = i % 4;
-        auto weights = ov::op::v0::Constant::create(weights_type, ov::Shape{4, 2, 4}, codes);
+        auto weights = ov::op::v0::Constant::create(weights_type, ov::Shape{4, 2, 16}, codes);
         auto scales = ov::op::v0::Constant::create(precision,
                                                 ov::Shape{4, 2, 1},
                                                 {0.5f, 0.25f, 0.5f, 0.25f, 0.5f, 0.25f, 0.5f, 0.25f});
@@ -52,11 +53,11 @@ TEST_P(ConvertFCU2Weights, WidenConstantCodesWithoutChangingDecompression) {
             auto zp = std::make_shared<ov::op::v0::Convert>(zero_points, precision);
             auto centered = std::make_shared<ov::op::v1::Subtract>(converted, zp);
             auto scaled = std::make_shared<ov::op::v1::Multiply>(centered, scales);
-            auto shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {4, 8});
+            auto shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {4, 32});
             auto reshaped = std::make_shared<ov::op::v1::Reshape>(scaled, shape, false);
             fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, reshaped, no_bias);
         } else {
-            weights = std::make_shared<ov::op::v0::Constant>(*weights, ov::Shape{4, 8});
+            weights = std::make_shared<ov::op::v0::Constant>(*weights, ov::Shape{4, 32});
             scales = std::make_shared<ov::op::v0::Constant>(*scales, ov::Shape{4, 2});
             zero_points = std::make_shared<ov::op::v0::Constant>(*zero_points, ov::Shape{4, 2});
             fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weights, no_bias, scales, zero_points);
@@ -103,12 +104,51 @@ INSTANTIATE_TEST_SUITE_P(Precisions,
                              return info.param.get_type_name();
                          });
 
+class ConvertFCU2Groups : public testing::TestWithParam<std::tuple<size_t, bool>> {};
+
+TEST_P(ConvertFCU2Groups, PreservesUnsupportedScaleGroups) {
+    const auto [group_size, transpose_weights] = GetParam();
+    constexpr size_t ifm = 32;
+    constexpr size_t ofm = 8;
+    const bool transpose_scale = !transpose_weights;
+    const ov::Shape weight_shape = transpose_scale ? ov::Shape{ofm, ifm} : ov::Shape{ifm, ofm};
+    const ov::Shape scale_shape = transpose_scale ? ov::Shape{ofm, ifm / group_size} : ov::Shape{ifm / group_size, ofm};
+    const ov::Shape grouped_shape = transpose_scale ? ov::Shape{ofm, ifm / group_size, group_size} : ov::Shape{ifm / group_size, group_size, ofm};
+    const ov::Shape grouped_scale_shape = transpose_scale ? ov::Shape{ofm, ifm / group_size, 1} : ov::Shape{ifm / group_size, 1, ofm};
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, ifm});
+    std::vector<uint8_t> codes(ifm * ofm);
+    for (size_t i = 0; i < codes.size(); ++i)
+        codes[i] = i % 4;
+    auto weights = ov::op::v0::Constant::create(ov::element::u2, grouped_shape, codes);
+    auto converted = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+    auto scales = ov::op::v0::Constant::create(ov::element::f32, grouped_scale_shape, {0.5f});
+    auto scaled = std::make_shared<ov::op::v1::Multiply>(converted, scales);
+    auto shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, weight_shape);
+    std::shared_ptr<ov::Node> decompressed = std::make_shared<ov::op::v1::Reshape>(scaled, shape, false);
+    if (transpose_weights) {
+        decompressed = std::make_shared<ov::op::v1::Transpose>(decompressed, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0}));
+    }
+    auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+    auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, decompressed, no_bias);
+    auto graph = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    ov::pass::Manager passes;
+    passes.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    passes.run_passes(graph);
+    const auto compressed = ov::as_type_ptr<ov::intel_gpu::op::FullyConnectedCompressed>(graph->get_results()[0]->get_input_node_shared_ptr(0));
+    ASSERT_NE(compressed, nullptr);
+    const auto expected_type = group_size == 1 || group_size == ifm || group_size % 16 == 0 ? ov::element::u4 : ov::element::u2;
+    EXPECT_EQ(compressed->get_input_element_type(1), expected_type);
+    EXPECT_EQ(compressed->get_input_shape(3), scale_shape);
+}
+
+INSTANTIATE_TEST_SUITE_P(GroupSizes, ConvertFCU2Groups, testing::Combine(testing::Values(1, 2, 4, 8, 16, 32), testing::Bool()));
+
 TEST_F(TransformationTestsF, ConvertFCToCompressed1) {
     {
-        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, 16 });
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 32, 16 }, { 1 });
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 16});
+        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
         auto convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 32, 1 }, { 1 });
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{32, 1}, {1});
         auto scale = std::make_shared<ov::op::v1::Multiply>(convert, scale_const);
         auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input1, scale, no_bias);
