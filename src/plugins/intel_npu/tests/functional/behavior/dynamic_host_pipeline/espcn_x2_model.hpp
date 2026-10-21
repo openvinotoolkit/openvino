@@ -5,14 +5,39 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset6.hpp"
 
 namespace ov::test::behavior {
+
+// Deterministic xorshift32 PRNG so generated weights are reproducible from a fixed seed.
+inline uint32_t espcnXorshift32(uint32_t& state) {
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    return state;
+}
+
+// Signed, per-element varied weights in [-1, 1] * 1/sqrt(fan_in). Centering around 0 and Xavier-scaling by
+// fan-in keeps the conv cascade + final Tanh out of saturation, so outputs vary with the input instead of
+// collapsing to a constant 1.0 - which is what lets reference comparisons catch stale or cross-request results.
+inline std::vector<float> espcnMakeConvWeights(size_t count, size_t fanIn, uint32_t seed) {
+    const float scale = 1.0f / std::sqrt(static_cast<float>(fanIn));
+    std::vector<float> weights(count);
+    uint32_t state = seed ? seed : 1u;
+    for (size_t i = 0; i < count; ++i) {
+        const float unit = static_cast<float>(espcnXorshift32(state) % 20001u) / 10000.0f - 1.0f;  // [-1, 1]
+        weights[i] = unit * scale;
+    }
+    return weights;
+}
 
 inline std::shared_ptr<ov::Model> createESPCNX2Model(ov::Dimension batchDimension = ov::Dimension(1, 2),
                                                      ov::Dimension heightDimension = ov::Dimension(32, 64),
@@ -34,15 +59,23 @@ inline std::shared_ptr<ov::Model> createESPCNX2Model(ov::Dimension batchDimensio
         input->set_layout("NCHW");
     }
 
+    // Tests fill inputs up to a few hundred; normalize into Tanh's responsive range so the output is not a
+    // constant saturated 1.0 but varies with the input (needed to detect stale/cross-request results).
+    auto inputScale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {1.0f / 128.0f});
+    ov::Output<ov::Node> scaledInput = std::make_shared<ov::op::v1::Multiply>(nchwInput, inputScale);
+
     const auto makeConvAdd = [](const ov::Output<ov::Node>& data,
                                 size_t inputChannels,
                                 size_t outputChannels,
                                 size_t kernelSize,
-                                float weightValue,
+                                uint32_t weightSeed,
                                 float biasValue) -> ov::Output<ov::Node> {
-        auto weights = ov::op::v0::Constant::create(ov::element::f32,
-                                                    ov::Shape{outputChannels, inputChannels, kernelSize, kernelSize},
-                                                    {weightValue});
+        const size_t count = outputChannels * inputChannels * kernelSize * kernelSize;
+        const size_t fanIn = inputChannels * kernelSize * kernelSize;
+        auto weights =
+            ov::op::v0::Constant::create(ov::element::f32,
+                                         ov::Shape{outputChannels, inputChannels, kernelSize, kernelSize},
+                                         espcnMakeConvWeights(count, fanIn, weightSeed));
         auto convolution = std::make_shared<ov::op::v1::Convolution>(data,
                                                                      weights,
                                                                      ov::Strides{1, 1},
@@ -54,11 +87,12 @@ inline std::shared_ptr<ov::Model> createESPCNX2Model(ov::Dimension batchDimensio
         return std::make_shared<ov::op::v1::Add>(convolution, bias);
     };
 
-    auto firstConv = makeConvAdd(nchwInput, 1, 64, 5, 0.01f, 0.001f);
+    // Distinct seeds per conv give independent, reproducible weight patterns.
+    auto firstConv = makeConvAdd(scaledInput, 1, 64, 5, 0x9E3779B1u, 0.0f);
     auto firstRelu = std::make_shared<ov::op::v0::Relu>(firstConv);
-    auto secondConv = makeConvAdd(firstRelu, 64, 32, 3, 0.011f, 0.001f);
+    auto secondConv = makeConvAdd(firstRelu, 64, 32, 3, 0x85EBCA77u, 0.0f);
     auto secondRelu = std::make_shared<ov::op::v0::Relu>(secondConv);
-    auto thirdConv = makeConvAdd(secondRelu, 32, 4, 3, 0.012f, 0.001f);
+    auto thirdConv = makeConvAdd(secondRelu, 32, 4, 3, 0xC2B2AE3Du, 0.0f);
     auto depthToSpace =
         std::make_shared<ov::op::v0::DepthToSpace>(thirdConv,
                                                    ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
@@ -82,12 +116,10 @@ struct DynamicModelConfig {
 
 inline const std::map<std::string, DynamicModelConfig>& espcnModelConfigs() {
     static const std::map<std::string, DynamicModelConfig> configs = {
-        // {"ESPCN_x2_DynHW_FHD2", {ov::Dimension(1), ov::Dimension(10, 2160), ov::Dimension(10, 3840), true}},  /// too large to run with many times
-        {"ESPCN_x2_DynHW_FHD", {ov::Dimension(1), ov::Dimension(10, 1080), ov::Dimension(10, 960), true}},
-        {"ESPCN_x2_DynNHW_FHD", {ov::Dimension(1, 10), ov::Dimension(1, 1080), ov::Dimension(10, 960), true}},
-        {"ESPCN_x2_DynHW_HD", {ov::Dimension(1), ov::Dimension(10, 1080), ov::Dimension(10, 960), true}},
-        {"ESPCN_x2_DynNHW_HD_NCHW", {ov::Dimension(1, 10), ov::Dimension(10, 1080), ov::Dimension(10, 960), false}},
-        {"ESPCN_x2_DynN_HD_NCHW", {ov::Dimension(1, 10), ov::Dimension(1080), ov::Dimension(960), false}},
+        {"ESPCN_x2_DynHW_H1080xW960", {ov::Dimension(1), ov::Dimension(10, 1080), ov::Dimension(10, 960), true}},
+        {"ESPCN_x2_DynNHW_H1080xW960", {ov::Dimension(1, 10), ov::Dimension(1, 1080), ov::Dimension(10, 960), true}},
+        {"ESPCN_x2_DynNHW_H1080xW960_NCHW", {ov::Dimension(1, 10), ov::Dimension(10, 1080), ov::Dimension(10, 960), false}},
+        {"ESPCN_x2_DynN_H1080xW960_NCHW", {ov::Dimension(1, 10), ov::Dimension(1080), ov::Dimension(960), false}},
     };
     return configs;
 }
