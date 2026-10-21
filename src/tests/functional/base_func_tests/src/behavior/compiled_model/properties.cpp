@@ -251,11 +251,12 @@ TEST_P(OVClassCompiledModelPropertiesTests, canCompileModelWithPropertiesAndChec
     for (const auto& property_item : properties) {
         const auto supported_property =
             std::find(supported_properties.begin(), supported_properties.end(), property_item.first);
-        if (supported_property != supported_properties.end() &&
-            supported_property->get_mutability() != ov::PropertyMutability::WO) {
+        if (supported_property != supported_properties.end()) {
             Any property;
             OV_ASSERT_NO_THROW(property = compiled_model.get_property(property_item.first));
-            ASSERT_FALSE(property.empty());
+            if (supported_property->get_mutability() != ov::PropertyMutability::WO) {
+                ASSERT_FALSE(property.empty());
+            }
             std::cout << property_item.first << ":" << property.as<std::string>() << std::endl;
         }
     }
@@ -348,12 +349,11 @@ TEST_P(OVClassCompiledModelGetConfigTest, GetConfigNoThrow) {
     OV_ASSERT_NO_THROW(property_names = compiled_model.get_property(ov::supported_properties));
 
     for (auto&& property : property_names) {
-        if (property.get_mutability() == ov::PropertyMutability::WO) {
-            continue;
-        }
         ov::Any defaultValue;
         OV_ASSERT_NO_THROW(defaultValue = compiled_model.get_property(property));
-        ASSERT_FALSE(defaultValue.empty());
+        if (property.get_mutability() != ov::PropertyMutability::WO) {
+            ASSERT_FALSE(defaultValue.empty());
+        }
     }
 }
 

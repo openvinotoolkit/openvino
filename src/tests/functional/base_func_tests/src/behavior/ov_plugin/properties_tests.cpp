@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_plugin/properties_tests.hpp"
-
 #include <algorithm>
 #include <cstdint>
 
+#include "behavior/ov_plugin/properties_tests.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "common_test_utils/subgraph_builders/split_concat.hpp"
 #include "openvino/util/common_util.hpp"
@@ -115,12 +114,11 @@ TEST_P(OVPropertiesTests, canSetPropertyAndCheckGetProperty) {
     for (const auto& property_item : properties) {
         const auto supported_property =
             std::find(supported_properties.begin(), supported_properties.end(), property_item.first);
-        if (supported_property != supported_properties.end() &&
-            supported_property->get_mutability() == ov::PropertyMutability::WO) {
-            continue;
-        }
         Any property;
         OV_ASSERT_NO_THROW(property = core->get_property(target_device, property_item.first));
+        if (supported_property != supported_properties.end() && supported_property->get_mutability() == ov::PropertyMutability::WO) {
+            continue;
+        }
         ASSERT_FALSE(property.empty());
         std::cout << property_item.first << ":" << property.as<std::string>() << std::endl;
     }
@@ -171,14 +169,13 @@ TEST_P(OVPropertiesDefaultSupportedTests, CanSetDefaultValueBackToPlugin) {
     std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = core.get_property(target_device, ov::supported_properties));
     for (auto& supported_property : supported_properties) {
-        // By definition, write-only properties have no readable value to set back
-        if (supported_property.get_mutability() == ov::PropertyMutability::WO) {
-            continue;
-        }
         Any property;
         OV_ASSERT_NO_THROW(property = core.get_property(target_device, supported_property));
-        ASSERT_FALSE(property.empty());
-        if (supported_property.is_mutable()) {
+        if (supported_property.get_mutability() != ov::PropertyMutability::WO) {
+            ASSERT_FALSE(property.empty());
+        }
+        // By definition, write-only properties have no readable value to set back
+        if (supported_property.get_mutability() == ov::PropertyMutability::RW) {
             OV_ASSERT_NO_THROW(core.set_property(target_device, {{ supported_property, property}}));
         }
     }
@@ -673,12 +670,11 @@ TEST_P(OVSpecificDeviceGetConfigTest, GetConfigSpecificDeviceNoThrow) {
     OV_ASSERT_NO_THROW(configValues = ie.get_property(target_device, ov::supported_properties));
 
     for (auto &&confKey : configValues) {
-        if (confKey.get_mutability() == ov::PropertyMutability::WO) {
-            continue;
-        }
         ov::Any defaultValue;
         OV_ASSERT_NO_THROW(defaultValue = ie.get_property(target_device, confKey));
-        ASSERT_FALSE(defaultValue.empty());
+        if (confKey.get_mutability() != ov::PropertyMutability::WO) {
+            ASSERT_FALSE(defaultValue.empty());
+        }
     }
 }
 
