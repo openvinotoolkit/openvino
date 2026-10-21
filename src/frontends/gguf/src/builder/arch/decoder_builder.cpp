@@ -48,6 +48,7 @@ DecoderBuilder::DecoderBuilder(const std::map<std::string, GGUFMetaData>& config
     : m_cfg(config, weights, rope, options),
       m_emit(weights, qtypes, m_cfg.arch, translators),
       m_kv(blocks::KvCachePlan::build(m_cfg)) {
+    m_emit.configure_hadamard(config);
     auto& graph = *m_emit.graph();
     graph.has_rope = true;
     graph.rope_config = m_cfg.rope_config;
@@ -386,6 +387,7 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
     }
 
     const std::string logits = build_head(cur);
+    m_emit.validate_hadamard();
 
     // logits is the primary output; the cache_k/v_l* outputs (appended per layer above)
     // become Assign sinks via MakeStateful.

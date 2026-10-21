@@ -40,6 +40,11 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
         auto out_dt = out_layout.data_type;
         auto fc_prim = fc_node.get_primitive();
 
+        // A fused Hadamard input transform is applied only by the TernOCL impl.
+        if (fc_prim->hadamard_block != 0) {
+            LOG_AND_RETURN_FALSE(node);
+        }
+
         if (one_of(data_types::i64, {in0_dt, wei_dt})) {
             LOG_AND_RETURN_FALSE(node);
         }
