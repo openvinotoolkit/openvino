@@ -50,10 +50,14 @@ void prepare_padding::run(program& p) {
                     p.add_intermediate(new_reorder_node, *node, weight_node, new_reorder_node.get_dependencies().empty());
                     new_reorder_node.recalc_output_layouts(false);
 
-                    // f16 source rows also need an even K so their byte stride is 4-byte aligned. It is because of OneDNN FC performance.
+                    // Pad odd activation rows alongside the aligned int4 weights.
+                    // This will cause some amount of runtime performance overhead.
+                    // However, this is necessary to avoid ref kernel selection, and to take advantage of block loading instruction of xe2+ architecture.
+                    // In the future, we may back-propagate padding information to the producer so that it generates padded result directly.
                     const auto input_layout = node->get_input_layout(0);
                     const auto input_shape = input_layout.get_partial_shape();
-                    if (input_layout.data_type == cldnn::data_types::f16 && input_shape.size() == 2) {
+                    bool activation_padding_added = false;
+                    if (input_shape.size() == 2) {  // Limited to 2d activation only, because it is the only validated path.
                         const auto input_feature_idx = input_shape.size() - 1;
                         if (input_shape[input_feature_idx].is_static() && input_shape[input_feature_idx].get_length() % 2 != 0) {
                             auto input0_new_layout = input_layout;
@@ -66,7 +70,12 @@ void prepare_padding::run(program& p) {
                             auto& new_input_reorder_node = p.get_or_create(new_input_reorder);
                             p.add_intermediate(new_input_reorder_node, *node, node->get_dependency(0), new_input_reorder_node.get_dependencies().empty());
                             new_input_reorder_node.recalc_output_layouts(false);
+                            activation_padding_added = true;
                         }
+                    }
+                    if (!activation_padding_added) {
+                        GPU_DEBUG_INFO << "[WARNING] " << node->id() << ": INT4 weights were padded, but activation padding was not added. Input layout: "
+                                       << input_layout.to_short_string() << std::endl;
                     }
                 }
             } else if (const_shape[inner_most_idx] % 2 != 0) {
