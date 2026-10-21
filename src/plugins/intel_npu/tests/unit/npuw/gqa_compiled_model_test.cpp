@@ -1394,6 +1394,16 @@ TEST_F(GQACompiledModelTest, CaseV2GenerateSlidingCapacityWithoutSwaHeadroom) {
     EXPECT_EQ(parameter_shape(recorder.only_call().model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
 }
 
+TEST_F(GQACompiledModelTest, CasePrefillSlidingCapacityCoversQueryLongerThanDefaultSwaHeadroom) {
+    RecordingFactory recorder;
+    auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1024, /*as_v2_model=*/true);
+
+    ASSERT_NO_THROW(create_compiled_model(model, {{"NPUW_LLM_MAX_CONTEXT_LEN", "16384"}}, recorder));
+
+    // Default headroom (512) is smaller than the 1024-token query: align16(4095) + 1024.
+    EXPECT_EQ(parameter_shape(recorder.only_call().model, "past_keys_30"), ov::PartialShape({1, 10, 5120, 128}));
+}
+
 TEST_F(GQACompiledModelTest, NonV2SlidingCapacityHonorsSwaHeadroom) {
     RecordingFactory recorder;
     auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1, /*as_v2_model=*/true);
@@ -1909,9 +1919,10 @@ TEST(ReshapeToStaticGQATest, SWALayerGenerateGetsWindowPlusOneBlockForKeyAndTran
     ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/16384);
     ASSERT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
 
-    // align16(4095) + align16(max(16, 1)) = 4112
-    EXPECT_EQ(parameter_shape(model, "past_keys_30"), ov::PartialShape({1, 10, 4112, 128}));
-    EXPECT_EQ(parameter_shape(model, "past_values_30"), ov::PartialShape({1, 10, 128, 4112}));
+    // query_len=1 means the generate stage, so the query length is not used as headroom and
+    // it goes straight to the 512 default: align16(4095) + align16(512) = 4608
+    EXPECT_EQ(parameter_shape(model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
+    EXPECT_EQ(parameter_shape(model, "past_values_30"), ov::PartialShape({1, 10, 128, 4608}));
     EXPECT_FALSE(model->is_dynamic());
 }
 
@@ -1936,6 +1947,20 @@ TEST(ReshapeToStaticGQATest, SWALayerGenerateHeadroomCoversConfiguredSwaHeadroom
     // Generate shares the prefill KV buffers: align16(4095) + align16(max(16, 1, 512)) = 4608.
     EXPECT_EQ(parameter_shape(model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
     EXPECT_EQ(parameter_shape(model, "past_values_30"), ov::PartialShape({1, 10, 128, 4608}));
+}
+
+TEST(ReshapeToStaticGQATest, SWALayerHeadroomIsMaxOfConfiguredValueAndStaticQueryLength) {
+    // A configured headroom must not suppress the query-length requirement: the cache has to
+    // hold the whole window plus the query chunk written into the shared KV buffers.
+    auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1024);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/16384,
+                                                       /*default_sliding_window_capacity=*/std::nullopt,
+                                                       /*sliding_window_headroom=*/std::nullopt);
+    ASSERT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+
+    // align16(4095) + align16(1024)
+    EXPECT_EQ(parameter_shape(model, "past_keys_30"), ov::PartialShape({1, 10, 5120, 128}));
+    EXPECT_EQ(parameter_shape(model, "past_values_30"), ov::PartialShape({1, 10, 128, 5120}));
 }
 
 TEST(ReshapeToStaticGQATest, SWALayerUnalignedQueryChunkIsRoundedUpTo16) {

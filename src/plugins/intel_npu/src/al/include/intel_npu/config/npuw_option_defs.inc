@@ -76,7 +76,7 @@ INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_ENABLE_CONTINUOUS_PREFILL, bool, true, ov::in
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_CACHE_ROPE, bool, true, ov::intel_npu::npuw::llm, cache_rope, "NPUW_LLM_CACHE_ROPE", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_MAX_CONTEXT_LEN, uint32_t, 8192, ov::intel_npu::npuw::llm, max_context_len, "NPUW_LLM_MAX_CONTEXT_LEN", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_SWA_LEN, uint32_t, 0, ov::intel_npu::npuw::llm, swa_len, "NPUW_LLM_SWA_LEN", LLM, EXPOSED, CACHED, ALL)
-INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_SWA_HEADROOM, uint32_t, 512, ov::intel_npu::npuw::llm, swa_headroom, "NPUW_LLM_SWA_HEADROOM", LLM, EXPOSED, CACHED, ALL)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_SWA_HEADROOM, uint32_t, 0, ov::intel_npu::npuw::llm, swa_headroom, "NPUW_LLM_SWA_HEADROOM", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE, bool, false, ov::intel_npu::npuw::llm, enable_block_based_kv_cache, "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK, bool, false, ov::intel_npu::npuw::llm, enable_swa_kv_cache_shrink, "NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_STRING_ENUM_OPT(NPUW_LLM_PREFILL_MOE_HINT, ::intel_npu::npuw::llm::MoEHint, MoEHintOptionTraits, ov::intel_npu::npuw::llm, prefill_moe_hint, "NPUW_LLM_PREFILL_MOE_HINT", LLM, EXPOSED, CACHED, ALL)

@@ -140,16 +140,17 @@ std::optional<size_t> sliding_window_target_capacity(const ov::op::internal::Gro
     if (sliding_window_headroom.has_value()) {
         headroom = static_cast<int64_t>(*sliding_window_headroom);
     }
-    // Headroom P2. Use the query sequence length as additional headroom if available
+    // Headroom P2. Use the query sequence length as additional headroom if available.
+    // Skip this in the Generate case when query length is 1
     const auto& query_shape = gqa.get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::QUERY));
     if (!headroom.has_value() && query_shape.rank().is_static() && query_shape.size() > 2 &&
-        query_shape[2].is_static()) {
+        query_shape[2].is_static() && query_shape[2].get_length() > 1) {
         headroom = query_shape[2].get_length();
     }
     // Headroom P3. Fallback to a default headroom if none was determined
     if (!headroom.has_value()) {
         // Default window size set by Property value if no other sources are available
-        headroom = sliding_window_headroom;
+        headroom = 512;
     }
 
     auto align_size = [](int64_t size, int64_t align) {
