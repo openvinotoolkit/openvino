@@ -6,46 +6,79 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <initializer_list>
 #include <limits>
 #include <optional>
 #include <sstream>
 #include <string>
-#include <system_error>
+#include <vector>
 
-#include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/hsm_format.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
 
-// Core section codecs, each round-tripped through a real Writer and a real Reader rather than a
-// hand-built container - so the encode/decode pair is exercised against the bytes a writer really emits.
 namespace ov::test {
 namespace hsm = ov::runtime::hsm;
 namespace {
 
-// `id` is borrowed by the writer until finalize(), which happens here - so a by-value copy is enough.
-std::string container_with_model_id(hsm::DeviceId device, uint64_t id) {
-    std::stringstream stream;
-    auto writer = hsm::DeferredWriter::open(stream);
-    EXPECT_TRUE(writer.has_value());
-    EXPECT_TRUE(writer->add_section(device, hsm::model_id_tag, hsm::encode_model_id(id)));
-    EXPECT_EQ(writer->finalize(), std::error_code{});
-    return stream.str();
+using WireId = std::array<uint8_t, sizeof(uint64_t)>;
+
+constexpr uint64_t sample_id = 0x0123456789ABCDEF;
+constexpr WireId sample_wire{0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01};
+
+constexpr uint64_t max_id = std::numeric_limits<uint64_t>::max();
+constexpr WireId max_wire{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+struct InlineModelId {
+    hsm::DeviceId device;
+    WireId wire;
+};
+
+// Header followed directly by one inline model_id manifest entry per element - no section payloads.
+std::vector<uint8_t> container_with_model_ids(std::initializer_list<InlineModelId> ids) {
+    hsm::Header header{};
+    header.magic = hsm::BlobMagic::single;
+    header.version_major = hsm::FormatVersion::major;
+    header.version_minor = hsm::FormatVersion::minor;
+    header.manifest_offset = sizeof(hsm::Header);
+    header.manifest_size = ids.size() * sizeof(hsm::ManifestEntry);
+    header.container_size = header.manifest_offset + header.manifest_size;
+
+    std::vector<uint8_t> blob(header.container_size);
+    std::memcpy(blob.data(), &header, sizeof(header));
+    auto* entry_bytes = blob.data() + header.manifest_offset;
+    for (const auto& id : ids) {
+        hsm::ManifestEntry entry{};
+        entry.device = id.device;
+        entry.tag = hsm::model_id_tag;
+        std::copy(id.wire.begin(), id.wire.end(), entry.inline_bytes.begin());
+        std::memcpy(entry_bytes, &entry, sizeof(entry));
+        entry_bytes += sizeof(entry);
+    }
+    return blob;
 }
 
-std::optional<hsm::Reader> open_reader(const std::string& bytes) {
-    return hsm::Reader::open(reinterpret_cast<const uint8_t*>(bytes.data()), bytes.size());
+void expect_encodes_to(const uint64_t& id, const WireId& expected) {
+    const auto encoded = hsm::encode_model_id(id);
+    ASSERT_EQ(encoded.size(), expected.size());
+    EXPECT_EQ(std::memcmp(encoded.data(), expected.data(), expected.size()), 0);
 }
 
 }  // namespace
 
-TEST(HsmModelIdSectionTest, round_trips_through_a_real_writer_and_reader) {
-    constexpr uint64_t id = 0x0123456789ABCDEF;
+TEST(HsmModelIdSectionTest, encode_emits_the_little_endian_wire_bytes) {
+    expect_encodes_to(sample_id, sample_wire);
+    expect_encodes_to(max_id, max_wire);
+    expect_encodes_to(0, WireId{});
+}
 
-    const auto bytes = container_with_model_id(hsm::any_device_id, id);
-    const auto reader = open_reader(bytes);
+TEST(HsmModelIdSectionTest, decodes_an_id_from_a_hand_built_container) {
+    const auto bytes = container_with_model_ids({{hsm::any_device_id, sample_wire}});
+    const auto reader = hsm::Reader::open(bytes.data(), bytes.size());
     ASSERT_TRUE(reader.has_value());
 
     const auto section = reader->section(hsm::Tags::model_id);
@@ -55,30 +88,20 @@ TEST(HsmModelIdSectionTest, round_trips_through_a_real_writer_and_reader) {
 
     const auto payload = section->view();
     ASSERT_TRUE(payload.has_value());
-    EXPECT_EQ(hsm::decode_model_id(*payload), id);
+    EXPECT_EQ(hsm::decode_model_id(*payload), sample_id);
 }
 
-TEST(HsmModelIdSectionTest, inline_section_adds_no_payload_bytes_to_the_container) {
-    const auto bytes = container_with_model_id(hsm::any_device_id, 0x0123456789ABCDEF);
-
-    // model_id is inline-mode, so its payload lives in the manifest entry itself - the manifest must start
-    // right after the header, with no section-payload bytes written in between.
-    const auto& header = hsm::Header::view(reinterpret_cast<const uint8_t*>(bytes.data()));
-    EXPECT_EQ(header.manifest_offset, sizeof(hsm::Header));
-}
-
-TEST(HsmModelIdSectionTest, round_trips_the_maximum_id) {
-    constexpr uint64_t id = std::numeric_limits<uint64_t>::max();
-
-    const auto bytes = container_with_model_id(hsm::any_device_id, id);
-    const auto reader = open_reader(bytes);
+TEST(HsmModelIdSectionTest, decodes_the_maximum_id_from_a_hand_built_container_stream) {
+    const auto bytes = container_with_model_ids({{hsm::any_device_id, max_wire}});
+    std::stringstream stream{std::string{bytes.begin(), bytes.end()}};
+    const auto reader = hsm::Reader::open(stream);
     ASSERT_TRUE(reader.has_value());
 
     const auto section = reader->section(hsm::Tags::model_id);
     ASSERT_TRUE(section.has_value());
     const auto payload = section->view();
     ASSERT_TRUE(payload.has_value());
-    EXPECT_EQ(hsm::decode_model_id(*payload), id);
+    EXPECT_EQ(hsm::decode_model_id(*payload), max_id);
 }
 
 TEST(HsmModelIdSectionTest, decode_rejects_a_payload_too_short_to_hold_an_id) {
@@ -89,18 +112,13 @@ TEST(HsmModelIdSectionTest, decode_rejects_a_payload_too_short_to_hold_an_id) {
 }
 
 TEST(HsmModelIdSectionTest, device_scoped_id_decodes_independently_of_the_common_one) {
-    constexpr uint64_t common_id = 0x1111111111111111;
-    constexpr uint64_t npu_id = 0x2222222222222222;
+    constexpr uint64_t common_id = 0x1122334455667788;
+    constexpr WireId common_wire{0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11};
+    constexpr uint64_t npu_id = 0xA1B2C3D4E5F60718;
+    constexpr WireId npu_wire{0x18, 0x07, 0xF6, 0xE5, 0xD4, 0xC3, 0xB2, 0xA1};
 
-    std::stringstream stream;
-    auto writer = hsm::DeferredWriter::open(stream);
-    ASSERT_TRUE(writer.has_value());
-    ASSERT_TRUE(writer->add_section(hsm::any_device_id, hsm::model_id_tag, hsm::encode_model_id(common_id)));
-    ASSERT_TRUE(writer->add_section(hsm::npu_device_id, hsm::model_id_tag, hsm::encode_model_id(npu_id)));
-    ASSERT_EQ(writer->finalize(), std::error_code{});
-
-    const auto bytes = stream.str();
-    const auto reader = open_reader(bytes);
+    const auto bytes = container_with_model_ids({{hsm::any_device_id, common_wire}, {hsm::npu_device_id, npu_wire}});
+    const auto reader = hsm::Reader::open(bytes.data(), bytes.size());
     ASSERT_TRUE(reader.has_value());
 
     const auto common = reader->section(hsm::Tags::model_id);
