@@ -239,7 +239,7 @@ continuous batching and target-only greedy agreement. The Qwen3.6-35B-A3B Q4_K_M
 BF16 pair passes repeated single-request PA generation with prefix caching disabled.
 DeepSeek-V4 and multiple active DFlash requests are deferred.
 
-### Quantized support and reference accuracy
+### Quantized support and model quality
 
 The enabled families use the frontend's [implemented weight formats](quantization.md).
 Quantized decoder and projector files are accepted; F32/F16 files establish the
@@ -247,17 +247,54 @@ reference graph behavior, rather than restricting which formats can be loaded.
 The CPU checkpoint results below use llama.cpp revision
 `098ce526b546b5a190327c1da82929cee051b9ac`. F32 materialization preserves the source
 represented values in a separate GGUF file with `general.file_type=0`.
-Known quantized accuracy differences remain recorded. They do not disable a format
-when the floating-point reference path works; passing conversion alone still does
-not establish its numerical parity or generated-output quality.
+Known quantized numerical differences remain recorded. Model support depends on
+floating graph correctness, integration checks and validated output quality;
+quantized replay divergence alone does not disable a format. Passing conversion
+alone does not establish numerical parity or generated-output quality.
+
+AFMoE (Trinity-Nano-Preview Q4_K_S) and Qwen3-Omni-30B-A3B-Instruct Q4_K_M
+are supported on CPU with GenAI PagedAttention. WWB validates their quantized text
+quality against original-weight FP16 references using the same quantized file in
+llama.cpp and GenAI; the token-replay differences below are numerical diagnostics,
+with no material additional GenAI quality loss in the measured prompts.
+
+| Quantized checkpoint | llama.cpp vs original FP16 | GenAI matched-input decoder vs same FP16 | GenAI default inputs vs same FP16 | GenAI matched minus llama.cpp |
+|---|---:|---:|---:|---:|
+| Trinity-Nano-Preview Q4_K_S (AFMoE) | 0.9174 | 0.9272 | 0.9275 | +0.0098 |
+| Qwen3-Omni-30B-A3B-Instruct Q4_K_M | 0.9844 | 0.9832 | 0.9832 | −0.0011 |
+
+These WWB mean semantic cosine scores use 20 prompts per model and at most 128
+generated tokens, greedy sampling without penalties, CPU with four threads, F16 KV,
+F32 inference hint, dynamic quantization disabled and `OV_GGUF_Q4_K_ZP_F16=1`.
+They measure reference-answer agreement, not percent accuracy. The lowest AFMoE
+score is 0.7204 on a flawed French translation shared by both quantized backends.
+Omni's lowest GenAI score is 0.9133; reviewed low-score outputs remain coherent.
+Image/audio/TTS, long-context and GPU quality are outside this WWB result.
+
+References come from original publisher BF16 GGUFs converted to F16, with only
+BF16/F32 input tensors; they are not expansions of quantized weights. Publisher
+revisions are `arcee-ai/Trinity-Nano-Preview-GGUF@2aa08593b79242d224da0215fb36924dcc0f87ea`
+and `ggml-org/Qwen3-Omni-30B-A3B-Instruct-GGUF@6e35a28f4a19b18730f8949b0c579c6429649ab8`.
+Reference answers use the pinned llama.cpp CPU revision above. Scoring uses WWB
+from GenAI `0169aa93d98811cdec1e4ea52e56396b9fbc4166` and
+`sentence-transformers/all-mpnet-base-v2@e8c3b32edf5434bc2275fc9bab85f82640a19130`.
+
+The matched-input runs use identical reference token IDs and EOG sets. AFMoE's
+GenAI tokenizer segments ` $` and `-sentence` differently on two prompts; those
+two prompts were regenerated with actual default string inputs, reusing 18
+verified unchanged rows. Omni's GenAI default stop set omits llama.cpp's
+`<|fim_pad|>`, `<|repo_name|>` and `<|file_sep|>` markers. All 20 Omni prompt
+encodings match and none of those markers was sampled, so audited default-input
+reuse gives the same score. These integration differences remain recorded. See
+[WWB validation](../../../../.claude/skills/ov-gguf/references/wwb.md) for the method.
 
 | Family | Floating-point reference evidence | Quantized accuracy observations |
 |---|---|---|
-| AFMoE | Trinity-Nano-Preview represented-F32 decoder matches 13/13 | Original Q4_K_S matches 11/13; Q4_0/DQ32 matches 7/13 |
+| AFMoE | Original-weight F16 reference used by WWB; represented-F32 decoder matches 13/13 in the arithmetic diagnostic | Q4_K_S text quality supported by WWB above; token replay matches 11/13; Q4_0/DQ32 matches 7/13 |
 | Qwen3-ASR | Original BF16 decoder matches 13/13; F32 `qwen3a` projector feature parity passes | Q8_0 decoder with CPU DQ32 matches 12/13, with DQ disabled 10/13; original BF16/Q8_0 projectors differ from llama.cpp |
 | MiniCPM-V 4.7 | F32 `minicpmv4_7` projector passes 448×448 and 224×112 feature checks; existing `qwen35` decoder matches 13/13 | Original mixed BF16/F32 projector exceeds the feature parity gate |
 | Qwen3TTS | Represented-F32 decoder matches 13/13; F32 speaker/predictor/codec projector checks pass | Original Q4_K_M decoder matches 8/13; original BF16/Q8_0 projectors differ from llama.cpp |
-| Qwen3VL MoE / Qwen3-Omni | Mixed-F16 30B-A3B decoder matches 13/13; F32 combined projector feature parity passes | Original Q4_K_M decoder matches 11/13; original Q8_0 projector differs from llama.cpp |
+| Qwen3VL MoE / Qwen3-Omni | Original-weight F16 Omni reference used by WWB; represented mixed-F16 decoder matches 13/13; F32 combined projector feature parity passes | Omni Q4_K_M text quality supported by WWB above; token replay matches 11/13; original Q8_0 projector differs from llama.cpp |
 
 ASR's F32 projector feature NMSE is `4.60e-9` / `4.74e-8` for 100 / 200 frames.
 Both the original BF16 decoder and Q8_0 decoder with CPU DQ32, paired with this projector, pass two pinned LibriSpeech clips

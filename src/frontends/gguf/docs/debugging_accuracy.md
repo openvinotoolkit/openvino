@@ -26,7 +26,10 @@ may compute their expectations inline; see [operation tests](how_to_add_op.md#te
 Record both revisions, checkpoint and quantization, input tensors or token history, device,
 inference precision, activation quantization, and cache precision. Use reference-token replay
 after a greedy choice differs; comparing later logits on different histories hides the cause.
-Coherent text is a functional check, not numerical acceptance.
+Coherent text alone is a smoke check. Use [WWB model validation](../../../../.claude/skills/ov-gguf/references/wwb.md)
+to compare quantized generated-text quality against the same original-weight floating
+reference for llama.cpp and GenAI. A quantized token/logit mismatch can remain a numerical
+diagnostic while the measured model is supported; WWB does not replace graph/API checks.
 
 The same checkpoint does not imply the same arithmetic. Compare against both native quantized
 CPU execution and, when needed, F32 arithmetic on the checkpoint's represented weights. Expanding
