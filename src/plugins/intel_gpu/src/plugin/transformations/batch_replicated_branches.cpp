@@ -137,20 +137,20 @@ bool constants_equal(const NodePtr& lhs, const NodePtr& rhs) {
                        lhs_constant->get_byte_size()) == 0;
 }
 
-bool convolution_attributes_equal(const ov::op::v1::Convolution& lhs, const ov::op::v1::Convolution& rhs) {
+bool attributes_equal(const ov::op::v1::Convolution& lhs, const ov::op::v1::Convolution& rhs) {
     return lhs.get_strides() == rhs.get_strides() && lhs.get_pads_begin() == rhs.get_pads_begin() &&
            lhs.get_pads_end() == rhs.get_pads_end() && lhs.get_dilations() == rhs.get_dilations() &&
            lhs.get_auto_pad() == rhs.get_auto_pad();
 }
 
-bool max_pool_attributes_equal(const ov::op::v1::MaxPool& lhs, const ov::op::v1::MaxPool& rhs) {
+bool attributes_equal(const ov::op::v1::MaxPool& lhs, const ov::op::v1::MaxPool& rhs) {
     return lhs.get_strides() == rhs.get_strides() && lhs.get_pads_begin() == rhs.get_pads_begin() &&
            lhs.get_pads_end() == rhs.get_pads_end() && lhs.get_kernel() == rhs.get_kernel() &&
            lhs.get_rounding_type() == rhs.get_rounding_type() && lhs.get_auto_pad() == rhs.get_auto_pad();
 }
 
 template <typename MaxPool>
-bool max_pool_attributes_equal(const MaxPool& lhs, const MaxPool& rhs) {
+bool attributes_equal(const MaxPool& lhs, const MaxPool& rhs) {
     return lhs.get_strides() == rhs.get_strides() && lhs.get_pads_begin() == rhs.get_pads_begin() &&
            lhs.get_pads_end() == rhs.get_pads_end() && lhs.get_kernel() == rhs.get_kernel() &&
            lhs.get_rounding_type() == rhs.get_rounding_type() && lhs.get_auto_pad() == rhs.get_auto_pad() &&
@@ -158,31 +158,30 @@ bool max_pool_attributes_equal(const MaxPool& lhs, const MaxPool& rhs) {
            lhs.get_index_element_type() == rhs.get_index_element_type() && lhs.get_axis() == rhs.get_axis();
 }
 
+bool attributes_equal(const ov::op::v0::Convert& lhs, const ov::op::v0::Convert& rhs) {
+    return lhs.get_destination_type() == rhs.get_destination_type();
+}
+
+template <typename Op>
+bool attributes_equal_as(const NodePtr& lhs, const NodePtr& rhs) {
+    return attributes_equal(*std::static_pointer_cast<Op>(lhs), *std::static_pointer_cast<Op>(rhs));
+}
+
 bool operation_attributes_equal(const NodePtr& lhs, const NodePtr& rhs) {
     if (ov::is_type<ov::op::v1::Convolution>(lhs)) {
-        const auto lhs_conv = ov::as_type_ptr<ov::op::v1::Convolution>(lhs);
-        const auto rhs_conv = ov::as_type_ptr<ov::op::v1::Convolution>(rhs);
-        return rhs_conv && convolution_attributes_equal(*lhs_conv, *rhs_conv);
+        return attributes_equal_as<ov::op::v1::Convolution>(lhs, rhs);
     }
     if (ov::is_type<ov::op::v1::MaxPool>(lhs)) {
-        const auto lhs_pool = ov::as_type_ptr<ov::op::v1::MaxPool>(lhs);
-        const auto rhs_pool = ov::as_type_ptr<ov::op::v1::MaxPool>(rhs);
-        return rhs_pool && max_pool_attributes_equal(*lhs_pool, *rhs_pool);
+        return attributes_equal_as<ov::op::v1::MaxPool>(lhs, rhs);
     }
     if (ov::is_type<ov::op::v8::MaxPool>(lhs)) {
-        const auto lhs_pool = ov::as_type_ptr<ov::op::v8::MaxPool>(lhs);
-        const auto rhs_pool = ov::as_type_ptr<ov::op::v8::MaxPool>(rhs);
-        return rhs_pool && max_pool_attributes_equal(*lhs_pool, *rhs_pool);
+        return attributes_equal_as<ov::op::v8::MaxPool>(lhs, rhs);
     }
     if (ov::is_type<ov::op::v14::MaxPool>(lhs)) {
-        const auto lhs_pool = ov::as_type_ptr<ov::op::v14::MaxPool>(lhs);
-        const auto rhs_pool = ov::as_type_ptr<ov::op::v14::MaxPool>(rhs);
-        return rhs_pool && max_pool_attributes_equal(*lhs_pool, *rhs_pool);
+        return attributes_equal_as<ov::op::v14::MaxPool>(lhs, rhs);
     }
     if (ov::is_type<ov::op::v0::Convert>(lhs)) {
-        const auto lhs_convert = ov::as_type_ptr<ov::op::v0::Convert>(lhs);
-        const auto rhs_convert = ov::as_type_ptr<ov::op::v0::Convert>(rhs);
-        return rhs_convert && lhs_convert->get_destination_type() == rhs_convert->get_destination_type();
+        return attributes_equal_as<ov::op::v0::Convert>(lhs, rhs);
     }
     return true;
 }
