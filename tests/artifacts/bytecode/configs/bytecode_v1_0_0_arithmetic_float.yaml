@@ -1,0 +1,70 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_arithmetic_float.bin
+
+type_section:
+  - id: f64
+    kind: float
+    width: 64
+    format: ieee754
+  - id: fn_main_float
+    kind: function
+    params: []
+    results: [f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64]
+
+function_section:
+  - name: main_float_arith
+    type: fn_main_float
+    # Register mapping:
+    # 0=one, 1=two, 2=neg_two, 3=one_point_five
+    # 4=add, 5=sub, 6=mul, 7=div, 8=rem, 9=max, 10=min, 11=abs, 12=neg
+    # 13=ceil, 14=floor, 15-19=round (NE,NA,DN,UP,TZ)
+    instructions:
+      - op: set_imm
+        args: [0, 4607182418800017408]      #  1.0 as i64
+      - op: set_imm
+        args: [1, 4611686018427387904]      #  2.0 as i64
+      - op: set_imm
+        args: [2, -4611686018427387904]     # -2.0 as i64
+      - op: set_imm
+        args: [3, 4609434218613702656]      #  1.5 as i64
+
+      - op: add_f64
+        args: [4, 0, 1]
+      - op: sub_f64
+        args: [5, 1, 0]
+      - op: mul_f64
+        args: [6, 1, 0]
+      - op: div_f64
+        args: [7, 1, 0]
+      - op: rem_f64
+        args: [8, 1, 0]
+      - op: max_f64
+        args: [9, 0, 1]
+      - op: min_f64
+        args: [10, 0, 1]
+      - op: abs_f64
+        args: [11, 2]
+      - op: neg_f64
+        args: [12, 0]
+      - op: ceil_f64
+        args: [13, 3]
+      - op: floor_f64
+        args: [14, 3]
+      - op: round_f64
+        args: [15, 3, 0]  # round to nearest, ties to even
+      - op: round_f64
+        args: [16, 3, 1]  # round to nearest, ties away from zero
+      - op: round_f64
+        args: [17, 3, 2]  # round down
+      - op: round_f64
+        args: [18, 3, 3]  # round up
+      - op: round_f64
+        args: [19, 3, 4]  # round towards zero
+
+      - op: retv
+        args: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]

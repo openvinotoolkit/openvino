@@ -1,0 +1,26 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_invalid_missing_section.bin
+
+type_section:
+  - id: fn_type
+    kind: function
+    params: []
+    results: []
+
+function_section:
+  - name: main_invalid_missing_section
+    type: fn_type
+    instructions:
+      - op: ret
+        args: []
+
+# Corrupt the function section header to point outside the file.
+# Header still advertises a valid section, but target data is missing.
+section_header_overrides:
+  - section_type: function
+    offset: 18446744073709551500
