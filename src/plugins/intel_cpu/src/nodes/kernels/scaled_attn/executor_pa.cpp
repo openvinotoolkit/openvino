@@ -1431,7 +1431,7 @@ struct MHAHelper {
             }
         }
 
-        memset(_output.ptr<float>(ithr), 0, q_len * H * SV * sizeof(float));
+        memset(_output.ptr<float>(ithr), 0, q_len * _output.stride(1) * sizeof(float));
         for (size_t pv = 0, i = 0; pv < cur_kv_len; pv += _block_size, i++) {
             auto block_number = block_table[i];
             for (size_t pq = 0; pq < q_len; pq++) {

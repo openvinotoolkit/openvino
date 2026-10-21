@@ -202,8 +202,9 @@ public:
         if (IsSkipped()) {
             return;
         }
-        function = get_model(ElementType::f16, false, 128, 1, false, 0, false);
-        function->get_parameters()[2]->set_partial_shape({-1, 64});
+        const auto head_num = static_cast<int64_t>(targetStaticShapes[0][0][2]);
+        function = get_model(ElementType::f16, false, 128, head_num, false, 0, false);
+        function->get_parameters()[2]->set_partial_shape({-1, head_num * 64});
         for (const auto& node : function->get_ops()) {
             if (ov::is_type<ov::op::PagedAttentionExtension>(node)) {
                 node->get_rt_info()["v_head_size"] = int64_t{64};
@@ -219,40 +220,44 @@ public:
                   bool useSinkInput) override {
         PagedAttnTestBase::generate(idx, isPagedAttn, shapes, extendBlockIndices, useSinkInput);
         const auto tokens = shapes[0][0];
-        inputs.at(function->get_parameters()[2]) = ov::Tensor(ov::element::f16, {tokens, 64});
+        const auto heads = shapes[0][2];
+        inputs.at(function->get_parameters()[2]) = ov::Tensor(ov::element::f16, {tokens, heads * 64});
         for (size_t port = 0; port < 3; ++port) {
             fill_fp16_attention_input(inputs.at(function->get_parameters()[port]), port, static_cast<size_t>(idx));
         }
         const auto* query = inputs.at(function->get_parameters()[0]).data<ov::float16>();
         const auto* key = inputs.at(function->get_parameters()[1]).data<ov::float16>();
         const auto* value = inputs.at(function->get_parameters()[2]).data<ov::float16>();
-        const auto past = keys.size() / 128;
-        keys.insert(keys.end(), key, key + tokens * 128);
-        values.insert(values.end(), value, value + tokens * 64);
-        ov::Tensor expected(ov::element::f16, {tokens, 64});
+        const auto past = keys.size() / (heads * 128);
+        keys.insert(keys.end(), key, key + tokens * heads * 128);
+        values.insert(values.end(), value, value + tokens * heads * 64);
+        ov::Tensor expected(ov::element::f16, {tokens, heads * 64});
         auto* output = expected.data<ov::float16>();
         // Independent causal FP32 reference, including all cached tokens during
         // decode.
         for (size_t token = 0; token < tokens; ++token) {
-            std::vector<float> weights(past + token + 1, 0.f);
-            for (size_t pos = 0; pos < weights.size(); ++pos) {
-                for (size_t channel = 0; channel < 128; ++channel) {
-                    weights[pos] += static_cast<float>(query[token * 128 + channel]) * keys[pos * 128 + channel];
-                }
-                weights[pos] /= std::sqrt(128.f);
-            }
-            const auto max_weight = *std::max_element(weights.begin(), weights.end());
-            float sum = 0.f;
-            for (auto& weight : weights) {
-                weight = std::exp(weight - max_weight);
-                sum += weight;
-            }
-            for (size_t channel = 0; channel < 64; ++channel) {
-                float result = 0.f;
+            for (size_t head = 0; head < heads; ++head) {
+                std::vector<float> weights(past + token + 1, 0.f);
                 for (size_t pos = 0; pos < weights.size(); ++pos) {
-                    result += weights[pos] * values[pos * 64 + channel];
+                    for (size_t channel = 0; channel < 128; ++channel) {
+                        weights[pos] += static_cast<float>(query[(token * heads + head) * 128 + channel]) *
+                                        keys[(pos * heads + head) * 128 + channel];
+                    }
+                    weights[pos] /= std::sqrt(128.f);
                 }
-                output[token * 64 + channel] = ov::float16(result / sum);
+                const auto max_weight = *std::max_element(weights.begin(), weights.end());
+                float sum = 0.f;
+                for (auto& weight : weights) {
+                    weight = std::exp(weight - max_weight);
+                    sum += weight;
+                }
+                for (size_t channel = 0; channel < 64; ++channel) {
+                    float result = 0.f;
+                    for (size_t pos = 0; pos < weights.size(); ++pos) {
+                        result += weights[pos] * values[(pos * heads + head) * 64 + channel];
+                    }
+                    output[(token * heads + head) * 64 + channel] = ov::float16(result / sum);
+                }
             }
         }
         expectedOutputs.push_back(expected);
@@ -268,6 +273,7 @@ TEST_P(PagedAttnFP16UnequalHeadTest, CompareWithRefs) {
     const auto actual = run_test(function, false, false);
     ASSERT_EQ(actual.size(), expectedOutputs.size());
     for (size_t i = 0; i < actual.size(); ++i) {
+        SCOPED_TRACE(i);
         ov::test::utils::compare(expectedOutputs[i], actual[i], abs_threshold, rel_threshold);
     }
 }
@@ -278,7 +284,11 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::Values(ElementType::f16),
         ::testing::Values(InputShapes{{{-1, 1, 1, 128}, {{63, 1, 1, 128}, {1, 1, 1, 128}, {1, 1, 1, 128}}},
-                                      {{-1, 1, 1, 128}, {{0, 1, 1, 128}, {63, 1, 1, 128}, {64, 1, 1, 128}}}}),
+                                      {{-1, 1, 1, 128}, {{0, 1, 1, 128}, {63, 1, 1, 128}, {64, 1, 1, 128}}}},
+                          InputShapes{{{-1, 1, 2, 128}, {{63, 1, 2, 128}, {1, 1, 2, 128}, {1, 1, 2, 128}}},
+                                      {{-1, 1, 2, 128}, {{0, 1, 2, 128}, {63, 1, 2, 128}, {64, 1, 2, 128}}}},
+                          InputShapes{{{-1, 1, 4, 128}, {{63, 1, 4, 128}, {1, 1, 4, 128}, {1, 1, 4, 128}}},
+                                      {{-1, 1, 4, 128}, {{0, 1, 4, 128}, {63, 1, 4, 128}, {64, 1, 4, 128}}}}),
         ::testing::Values(false),
         ::testing::Values(false),
         ::testing::Values(false),
