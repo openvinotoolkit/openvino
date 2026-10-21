@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "url fetch failure downloading tensorflow keras-applications weights: getaddrinfo failed (dns resolution failure)|Network",
+    "signature_hash": "30a2eda292a88eb7",
+    "title": "TensorFlow model hub tests fail downloading Keras ResNet50 weights with getaddrinfo DNS failure",
+    "category": "Network",
+    "count": 1,
+    "first_seen": "2026-10-21T01:02:30Z",
+    "last_seen": "2026-10-21T01:02:30Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/39512513588"
+    ],
+    "affected_commits": [
+        "7de55d7fb2c8297d8c97fbab83174c2d0d9ce622"
+    ],
+    "recent_timestamps": [
+        "2026-10-21T01:02:30Z"
+    ]
+}

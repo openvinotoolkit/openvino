@@ -1,0 +1,39 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-21-01-02-30-562-39512513588",
+    "timestamp": "2026-10-21T01:02:30Z",
+    "run_id": "39512513588",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39512513588",
+    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+    "commit_sha": "7de55d7fb2c8297d8c97fbab83174c2d0d9ce622",
+    "pr_number": "38948",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38948",
+    "author": "Daksha1611",
+    "category": "Network",
+    "title": "TensorFlow model hub tests fail downloading Keras ResNet50 weights with getaddrinfo DNS failure",
+    "signature": "url fetch failure downloading tensorflow keras-applications weights: getaddrinfo failed (dns resolution failure)|Network",
+    "signature_hash": "30a2eda292a88eb7",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "NPU Models Tests / 6010",
+            "conclusion": "failure",
+            "symptom": "TensorFlow Models Tests - NPU compile-only (convert_model) step failed: test_convert_model_precommit[NPU-ResNet50-tf_keras_applications-None-None] raised ProcessError due to a DNS resolution failure downloading model weights."
+        }
+    ],
+    "key_errors": [
+        "install\\tests\\model_hub_tests\\tensorflow\\test_tf_convert_model.py::TestTFHubConvertModel::test_convert_model_precommit[NPU-ResNet50-tf_keras_applications-None-None] Load the model ResNet50 (url: tf_keras_applications)\nDownloading data from https://storage.googleapis.com/tensorflow/keras-applications/resnet/resnet50_weights_tf_dim_ordering_tf_kernels.h5\nFAILED",
+        "E           multiprocessing.context.ProcessError: \nE           ResNet50 running failed: \nE             File \"...keras\\src\\utils\\file_utils.py\", line 358, in get_file\nE               raise Exception(error_msg.format(origin, e.errno, e.reason))\nE           Exception: URL fetch failure on https://storage.googleapis.com/tensorflow/keras-applications/resnet/resnet50_weights_tf_dim_ordering_tf_kernels.h5: None -- [Errno 11001] getaddrinfo failed",
+        "= 1 failed, 7 passed, 7 skipped, 937 deselected, 1 xfailed, 2 warnings in 227.87s (0:03:47) =\n##[error]Process completed with exit code 1."
+    ],
+    "root_cause": "The 'NPU Models Tests / 6010' job's TensorFlow model-hub step downloads pretrained Keras application weights (ResNet50) from storage.googleapis.com at test time. On this Windows runner, the Winsock DNS resolver call getaddrinfo failed for that hostname (error 11001, WSAHOST_NOT_FOUND), so the HTTP download used by keras.utils.file_utils.get_file could not even establish a connection. This is a transient DNS/network resolution problem on the runner's network path to storage.googleapis.com (outside the OpenVINO plugin/test code, and unrelated to PR #38948's actual change, which only de-duplicated two PyTorch layer test method names). All other TensorFlow, PyTorch, JAX, and NPU conversion tests in the same job passed, including other Kaggle/HuggingFace downloads that succeeded moments earlier, which further points to an isolated resolver hiccup for this specific external host rather than a systemic outage.",
+    "reproduction_steps": "Not reliably reproducible outside CI since it depends on transient DNS resolution of storage.googleapis.com from the Windows runner's network. To approximate locally: run `python -m pytest install/tests/model_hub_tests/tensorflow/test_tf_convert_model.py -k ResNet50 -m precommit --ie_device NPU` on a Windows host configured like the CI runner, optionally while simulating DNS failures for storage.googleapis.com (e.g., via a hosts-file block or firewall rule) to confirm the same getaddrinfo failure path.",
+    "recommended_actions": [
+        "No code fix required for PR #38948; the failure is unrelated to its changes (test method de-duplication in PyTorch layer tests).",
+        "Re-run the 'NPU Models Tests / 6010' job; this class of DNS failure is typically transient and resolves on retry.",
+        "If this host (storage.googleapis.com) continues to fail intermittently, consider caching/mirroring the Keras ResNet50 weights artifact internally (similar to other model caches already used in the hub tests) to reduce dependency on live external DNS/network availability during CI.",
+        "Monitor the pattern database entry 30a2eda292a88eb7 for recurrence; if it starts occurring frequently, escalate to the CI infrastructure team to investigate DNS reliability for storage.googleapis.com from the Windows runner pool."
+    ],
+    "prevention_strategies": "Reduce hard dependency on live third-party DNS/network availability during precommit CI by pre-caching or mirroring frequently-used model weight downloads (e.g., Keras application weights) in an internal artifact store, and add retry-with-backoff around keras.utils.file_utils.get_file-based downloads in the model-hub test harness so a single transient DNS blip does not fail the whole job.",
+    "historical_context": "Several past Network-category patterns exist for this repository's post-commit runs, including DNS resolution failures during git checkout ('Could not resolve host: github.com', pattern eeae3ce3f5218e80), getaddrinfo EAI_AGAIN during artifact upload (pattern d877f2bb57b833d0, count 2), and HuggingFace 429 rate limiting during model downloads (pattern 4dd69b5f0be10a15). This is the first recorded occurrence of a DNS/getaddrinfo failure specifically for storage.googleapis.com while downloading Keras application weights, so a new pattern entry (30a2eda292a88eb7) was created."
+}
