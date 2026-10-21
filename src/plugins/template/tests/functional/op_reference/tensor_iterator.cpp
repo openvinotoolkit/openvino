@@ -86,8 +86,7 @@ class ReferenceTILayerTest : public testing::TestWithParam<TensorIteratorParams>
 public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        legacy_compare = true;
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = params.function->create_function(params.inputs, params.expected_results);
         inputData.reserve(params.inputs.size());
         refOutData.reserve(params.expected_results.size());
@@ -100,7 +99,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<TensorIteratorParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         return param.test_case_name;
     }
 };
@@ -484,8 +483,11 @@ class ReferenceTILayerStaticTest : public testing::TestWithParam<TensorIteratorS
 public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        legacy_compare = true;
-        auto params = GetParam();
+        const auto& params = GetParam();
+        if (params.iType == ov::element::Type_t::f16 && params.body_type == TensorIteratorBodyType::RNN) {
+            // Refs hold f64-precision values rounded to f16, while the loop accumulates f16 error over time steps.
+            abs_threshold = 0.01f;
+        }
         function = params.function->create_function(params);
         if (params.body_type == TensorIteratorBodyType::LSTM) {
             inputData = {params.X.data, params.H_t.data, params.C_t.data};
@@ -497,7 +499,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<TensorIteratorStaticParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "bSize=" << param.batchSize;
         result << "_iSize=" << param.inputSize;

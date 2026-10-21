@@ -4,9 +4,15 @@
 
 #include "lazy_tensor.hpp"
 
+#include <limits>
 #include <tuple>
 #include <type_traits>
 #include <variant>
+
+#ifdef __ANDROID__
+#    include <fcntl.h>
+#    include <unistd.h>
+#endif
 
 #include "logging.hpp"
 #include "openvino/core/memory_util.hpp"
@@ -167,10 +173,42 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
     }
 }
 
+// The weight has been copied to its destination and is not needed anymore: drop its file range from the page cache
+// right away instead of leaving it there for the reclaim, so the weights do not pile up in the page cache during the
+// model load. This has to happen after the mapping is released, pages that are still mapped cannot be dropped.
+// TODO: Enabled only on Android for now, until a generic fix is found.
+static void drop_file_range(const std::string& path,
+                            const ov::FileHandleProvider& provider,
+                            std::size_t offset,
+                            std::size_t size) {
+#if defined(__ANDROID__) && defined(POSIX_FADV_DONTNEED)
+    if (size == 0 || (path.empty() && !provider) ||
+        offset + size > static_cast<std::size_t>(std::numeric_limits<off_t>::max())) {
+        return;
+    }
+    // The handle provider returns a new file descriptor on every call, the caller owns it
+    const int fd = provider ? provider() : ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
+    if (fd < 0) {
+        return;
+    }
+    ::posix_fadvise(fd, static_cast<off_t>(offset), static_cast<off_t>(size), POSIX_FADV_DONTNEED);
+    ::close(fd);
+#else
+    static_cast<void>(path);
+    static_cast<void>(provider);
+    static_cast<void>(offset);
+    static_cast<void>(size);
+#endif
+}
+
 void Const::detach() {
     m_node.reset();
     m_read_from_bin = ov::Tensor();
+    const bool was_mapped = m_mmaped_weights != nullptr;
     m_mmaped_weights.reset();
+    if (was_mapped) {
+        drop_file_range(m_weights_path, m_handle_provider, m_offset, m_byte_size);
+    }
 }
 
 std::size_t Concat::hash() const {
@@ -325,6 +363,37 @@ void Convert::detach() {
     tensor.detach();
 }
 
+std::size_t Subtract128::hash() const {
+    return tensor.get_hash() ^ (ov::element::i8.hash() + 0x9e3779b9);
+}
+
+bool Subtract128::operator==(const Subtract128& other) const {
+    return tensor == other.tensor;
+}
+
+ov::Tensor Subtract128::eval() const {
+    const auto source = tensor.eval();
+    OPENVINO_ASSERT(source.get_element_type() == ov::element::u8, "Subtract128 requires u8 input");
+    ov::Tensor result(ov::element::i8, source.get_shape());
+    const auto& get_tensor_impl = ov::get_tensor_impl;
+    ov::npuw::util::subtract_128(get_tensor_impl(source), get_tensor_impl(result));
+    return result;
+}
+
+LazyTensor::Meta Subtract128::eval_meta() const {
+    const auto meta = tensor.eval_meta();
+    OPENVINO_ASSERT(meta.type == ov::element::u8, "Subtract128 requires u8 input");
+    return {meta.shape, ov::element::i8};
+}
+
+void Subtract128::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
+    tensor.read_weight(ctx);
+}
+
+void Subtract128::detach() {
+    tensor.detach();
+}
+
 std::size_t Gather::hash() const {
     std::size_t seed = w.get_hash() + 0x9e3779b9;
     seed ^= t.get_element_type().hash() + 0x9e3779b9;
@@ -396,6 +465,7 @@ enum class TransformType : std::uint16_t {
     PERMUTE = 4,
     CONVERT = 5,
     GATHER = 6,
+    SUBTRACT_128 = 7,
 };
 
 struct LazyTensorImpl {
@@ -458,6 +528,10 @@ ov::npuw::weights::TransformType get_transform_type(const ov::npuw::weights::op:
     return ov::npuw::weights::TransformType::GATHER;
 }
 
+ov::npuw::weights::TransformType get_transform_type(const ov::npuw::weights::op::Subtract128&) {
+    return ov::npuw::weights::TransformType::SUBTRACT_128;
+}
+
 }  // namespace
 
 namespace ov {
@@ -517,6 +591,10 @@ void Convert::serialize(ov::npuw::orc::Stream& stream) {
     }
 }
 
+void Subtract128::serialize(ov::npuw::orc::Stream& stream) {
+    stream & tensor;
+}
+
 void Gather::serialize(ov::npuw::orc::Stream& stream) {
     std::string type_str;
     if (stream.output()) {
@@ -564,6 +642,9 @@ void LazyTensorImpl::serialize(ov::npuw::orc::Stream& stream) {
         break;
     case TransformType::GATHER:
         m_transform.emplace<op::Gather>(ov::npuw::orc::load_versioned_payload<op::Gather>(section));
+        break;
+    case TransformType::SUBTRACT_128:
+        m_transform.emplace<op::Subtract128>(ov::npuw::orc::load_versioned_payload<op::Subtract128>(section));
         break;
     default:
         OPENVINO_THROW("ORC LazyTensor: unknown op_type ", section.type, " — please upgrade NPUW");
@@ -661,6 +742,10 @@ void LazyTensorImpl::get_transformations(std::vector<LazyTensor::Transform>& vec
                        auto next_tr = op.tensor.get_transformations();
                        vec.insert(vec.end(), next_tr.begin(), next_tr.end());
                    },
+                   [&vec](const op::Subtract128& op) {
+                       auto next_tr = op.tensor.get_transformations();
+                       vec.insert(vec.end(), next_tr.begin(), next_tr.end());
+                   },
                    [&vec](const op::Permute& op) {
                        auto next_tr = op.tensor.get_transformations();
                        vec.insert(vec.end(), next_tr.begin(), next_tr.end());
@@ -713,6 +798,12 @@ LazyTensor LazyTensor::permute(const std::vector<std::size_t>& axes) {
 LazyTensor LazyTensor::convert(const ov::element::Type& type) {
     LazyTensor new_lt;
     new_lt.m_impl = std::make_shared<LazyTensorImpl>(op::Convert(*this, type));
+    return new_lt;
+}
+
+LazyTensor LazyTensor::subtract_128() {
+    LazyTensor new_lt;
+    new_lt.m_impl = std::make_shared<LazyTensorImpl>(op::Subtract128(*this));
     return new_lt;
 }
 

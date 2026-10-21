@@ -3,8 +3,11 @@
 //
 
 #include "resample_kernel_opt.h"
+
+#include <algorithm>
 #include <vector>
 #include <kernel_selector_utils.h>
+#include "resample/utils.hpp"
 
 namespace kernel_selector {
 
@@ -157,6 +160,9 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
     }
 
     const auto& input = params.inputs[0];
+    const auto& output = params.outputs[0];
+
+    const auto has_padding = ResampleKernelBase::has_padding(params);
 
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
@@ -173,7 +179,6 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
     // LINEAR_ONNX in resample_opt does not implement OOB-to-zero for padded
     // coordinates; let resample_onnx (which does) handle those cases.
     if (params.resampleType == ResampleType::LINEAR_ONNX) {
-        const auto& output = params.outputs[0];
         if (input.Batch().v != output.Batch().v || input.Feature().v != output.Feature().v) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
@@ -185,11 +190,30 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
         }
     }
 
+    if (params.resampleType == ResampleType::NEAREST_NEIGHBOR) {
+        // The NEAREST kernel handles every CoordinateTransformationMode/NearestMode combination
+        // via get_original_coordinate()/get_nearest_val(); padding and batch/feature resize are not supported.
+        if (has_padding ||
+            input.Batch().v != output.Batch().v ||
+            input.Feature().v != output.Feature().v) {
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
+    }
+
+    if (params.resampleType == ResampleType::BILINEAR_INTERP) {
+        if (has_padding ||
+            params.coordTransMode != CoordinateTransformationMode::ASYMMETRIC ||
+            input.Batch().v != output.Batch().v ||
+            input.Feature().v != output.Feature().v) {
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
+    }
+
     return true;
 }
 
-JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params) const {
-    auto jit = Parent::GetJitConstants(params);
+JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params, bool legacy_scale) const {
+    auto jit = Parent::GetJitConstants(params, true);
 
     auto opt_x_block_size = GetOptimalBlockSize(params);
     if (params.outputs[0].X().v > 32 && opt_x_block_size == 1) {

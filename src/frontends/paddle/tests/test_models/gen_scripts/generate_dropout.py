@@ -9,13 +9,18 @@ from save_model import saveModel
 import sys
 
 
-def paddle_dropout(name : str, x, p, paddle_attrs):
+def paddle_dropout(name : str, x, p, paddle_attrs, op_dtype=None):
     import paddle
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype='float32')
-        out = paddle.nn.functional.dropout(x=node_x, p=p, training=paddle_attrs['training'], mode=paddle_attrs['mode'])
+        data = node_x
+        if op_dtype is not None:
+            data = paddle.cast(node_x, op_dtype)
+        out = paddle.nn.functional.dropout(x=data, p=p, training=paddle_attrs['training'], mode=paddle_attrs['mode'])
+        if op_dtype is not None:
+            out = paddle.cast(out, node_x.dtype)
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
@@ -45,6 +50,10 @@ def main():
     }
     paddle_dropout("dropout", data, p, paddle_attrs)
     paddle_dropout("dropout_upscale_in_train", data, p, paddle_attrs2)
+
+    # dropout has to scale with a constant of its input element type, so run it on a float64 tensor
+    # (the model keeps float32 inputs and outputs to stay readable by the fuzzy test harness)
+    paddle_dropout("dropout_float64", data, p, paddle_attrs, op_dtype='float64')
 
 if __name__ == "__main__":
     main()

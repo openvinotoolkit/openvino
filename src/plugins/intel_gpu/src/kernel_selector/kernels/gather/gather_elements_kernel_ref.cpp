@@ -56,7 +56,7 @@ static std::string GetAxisDimSizeStr(const gather_elements_params& params) {
 
 static std::string GetLoadAndHandleNegativeIndicesStr(const gather_elements_params& params) {
     std::string str = "const int axis_dim = " + GetAxisDimSizeStr(params) + ";";
-    str += "const int indices_val_read = (int)indices[out_idx];";
+    str += "const int indices_val_read = (int)indices[indices_idx];";
     str += "const int indices_val = indices_val_read < 0 ? indices_val_read + axis_dim : indices_val_read;";
     return str;
 }
@@ -75,8 +75,12 @@ ParamsKey GatherElementsKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableInputLayout(DataLayout::bfwzyx);
     k.EnableOutputLayout(DataLayout::bfwzyx);
     k.EnableTensorOffset();
@@ -128,12 +132,14 @@ CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_par
 
     switch (params.inputs[1].GetLayout()) {
     case DataLayout::bfyx:
+    case DataLayout::b_fs_yx_fsv16:
         dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::X}, {Tensor::DataChannelName::Y}, {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
 
         break;
 
     case DataLayout::bfzyx:
+    case DataLayout::b_fs_zyx_fsv16:
         dispatchData.gws = {output.X().v, output.Y().v * output.Z().v, output.Feature().v * output.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::X},
                        {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},

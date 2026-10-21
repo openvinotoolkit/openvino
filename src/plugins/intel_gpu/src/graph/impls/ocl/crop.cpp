@@ -104,6 +104,7 @@ attach_crop_impl::attach_crop_impl() {
 
     auto dyn_formats = {
         format::bfyx,
+        format::byxf,
         format::bfzyx,
         format::bfwzyx
     };
