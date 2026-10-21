@@ -96,6 +96,7 @@ OP_CONVERTER(translate_exp);
 OP_CONVERTER(translate_expm1);
 OP_CONVERTER(translate_eye);
 OP_CONVERTER(translate_fake_quantize_per_channel_affine);
+OP_CONVERTER(translate_fake_quantize_learnable_per_channel_affine);
 OP_CONVERTER(translate_fake_quantize_per_tensor_affine);
 OP_CONVERTER(translate_fft_fft);
 OP_CONVERTER(translate_fft_fft2);
@@ -131,6 +132,7 @@ OP_CONVERTER(translate_gru);
 OP_CONVERTER(translate_hann_window);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_hstack);
+OP_CONVERTER(translate_hypot);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_cond_fx);
 OP_CONVERTER(translate_im2col);
@@ -278,6 +280,7 @@ OP_CONVERTER(translate_transformer_encoder_layer_fwd);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tril);
 OP_CONVERTER(translate_triu);
+OP_CONVERTER(translate_trunc);
 OP_CONVERTER(translate_type_as);
 OP_CONVERTER(translate_tuple_index);
 OP_CONVERTER(translate_tuple_unpack);
@@ -389,6 +392,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::__ixor__", op::inplace_op<op::translate_bitwise_xor>},
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
+        {"aten::_fake_quantize_learnable_per_channel_affine", op::translate_fake_quantize_learnable_per_channel_affine},
         {"aten::_native_multi_head_attention", op::translate_native_multi_head_attention},
         {"aten::_pack_padded_sequence", op::translate_pack_padded_sequence},
         {"aten::_pad_packed_sequence", op::translate_pad_packed_sequence},
@@ -568,6 +572,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::hardswish", op::quantizable_op<op::translate_1to1_match_1_inputs<opset10::HSwish>>},
         {"aten::hardtanh", op::quantizable_op<op::translate_hardtanh>},
         {"aten::hstack", op::translate_hstack},
+        {"aten::hypot", op::translate_hypot},
         {"aten::im2col", op::translate_im2col},
         {"aten::imag", common_translators::translate_imag},
         // aten::index - Supported in limited set of patterns
@@ -779,6 +784,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::transpose", op::quantizable_op<op::translate_transpose>},
         {"aten::tril", op::translate_tril},
         {"aten::triu", op::translate_triu},
+        {"aten::trunc", op::optional_out<op::translate_trunc, 1>},
+        {"aten::trunc_", op::inplace_op<op::translate_trunc>},
         {"aten::type_as", op::translate_type_as},
         // aten::unbind - Supported in limited set of patterns
         {"aten::unflatten", op::translate_unflatten},
@@ -867,6 +874,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten._cdist_forward.default", op::translate_cdist},
         {"aten._embedding_bag.default", op::translate_embedding_bag},
         {"aten._embedding_bag_forward_only.default", op::translate_embedding_bag},
+        {"aten._fake_quantize_learnable_per_channel_affine.default",
+         op::translate_fake_quantize_learnable_per_channel_affine},
         {"aten._fake_quantize_per_tensor_affine_cachemask_tensor_qparams.default",
          op::translate_fake_quantize_per_tensor_affine_fx},
         {"aten._local_scalar_dense.default", op::skip_node},

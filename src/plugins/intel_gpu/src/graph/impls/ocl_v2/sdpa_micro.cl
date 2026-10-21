@@ -263,6 +263,29 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #else
     uint b0_kv = b0 / KV_GROUP_SIZE;
 #endif
+#if !IS_PAGED_ATTENTION
+    // Q/K/V batch may be broadcast (the output batch is their numpy broadcast): wrap the batch index by their own batch size.
+    // The flags are compile-time, so the modulo is dropped when no broadcast is needed.
+#if BROADCAST_Q_BATCH
+    const uint b1_q = b1 % QRY_D0;
+#else
+    const uint b1_q = b1;
+#endif
+#if BROADCAST_K_BATCH
+    const uint b1_k = b1 % KEY_D0;
+#else
+    const uint b1_k = b1;
+#endif
+#if BROADCAST_V_BATCH
+    const uint b1_v = b1 % VAL_D0;
+#else
+    const uint b1_v = b1;
+#endif
+#else
+    const uint b1_q = b1;
+    const uint b1_k = b1;
+    const uint b1_v = b1;
+#endif
 
 #if IS_PAGED_ATTENTION
     uint wg_j0 = subsequence_query_block_idx;
@@ -311,6 +334,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         window_k_begin = MAX(0, k - SLIDING_WINDOW_SIZE);
     #elif IS_PAGED_ATTENTION && !IS_PREFILL
         window_k_begin = MAX(0, past_len + (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
+    #elif !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+        /* causal_offset (declared above, still in scope here since IS_CAUSAL implies it was
+           set) shifts wg_j0 to its true whole-sequence position -- without it wg_j0 alone
+           (bounded by this chunk's size) can never exceed SLIDING_WINDOW_SIZE and this always
+           clamps to 0, silently disabling the K-range skip for any chunked prefill call. */
+        window_k_begin = MAX(0, causal_offset + (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
     #else
         window_k_begin = MAX(0, (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
     #endif
@@ -465,9 +494,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 #else
     /* KEY_OFF/VAL_OFF and offsets address the physical byte-backed layouts. */
-    K += KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET;
-    Q += (QRY_OFF(b1, b0, 0, 0) + INPUT0_OFFSET);
-    V += VAL_OFF(b1, b0_kv, 0, 0) + INPUT2_OFFSET;
+    K += KEY_OFF(b1_k, b0_kv, 0, 0) + INPUT1_OFFSET;
+    Q += (QRY_OFF(b1_q, b0, 0, 0) + INPUT0_OFFSET);
+    V += VAL_OFF(b1_v, b0_kv, 0, 0) + INPUT2_OFFSET;
     A += DST_OFF(b1, b0, 0, 0, 0);
 #if WITH_ATTN_MASK
     uint ldmsk = MSK_S2;
@@ -476,22 +505,22 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if KEY_SCALES
-    K_scales += KEY_COMP_OFF(b1, b0_kv, 0, 0);
+    K_scales += KEY_COMP_OFF(b1_k, b0_kv, 0, 0);
 #endif
 #if KEY_SCALES == QUANTIZE_COMMON
     float k_scale = convert_float(*K_scales);
 #endif
 #if KEY_ZERO_POINTS
-    K_zp += KEY_COMP_OFF(b1, b0_kv, 0, 0) / KEY_ZP_ELEMENTS_PER_BYTE;
+    K_zp += KEY_COMP_OFF(b1_k, b0_kv, 0, 0) / KEY_ZP_ELEMENTS_PER_BYTE;
 #endif
 #if VAL_SCALES
-    V_scales += VAL_COMP_OFF(b1, b0_kv, 0, 0);
+    V_scales += VAL_COMP_OFF(b1_v, b0_kv, 0, 0);
 #endif
 #if VAL_SCALES == QUANTIZE_COMMON
     float v_scale = convert_float(*V_scales);
 #endif
 #if VAL_ZERO_POINTS
-    V_zp += VAL_COMP_OFF(b1, b0_kv, 0, 0) / VAL_ZP_ELEMENTS_PER_BYTE;
+    V_zp += VAL_COMP_OFF(b1_v, b0_kv, 0, 0) / VAL_ZP_ELEMENTS_PER_BYTE;
 #endif
 
     __builtin_assume_aligned(K, K_ALIGN);
@@ -712,13 +741,29 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if WITH_ATTN_MASK
         /* Load mask. No remainder handling needed assuming k block size is a power of 2. */
         mask_tile_type mask_tile;
-        if (MSK_D2 == 1 && MSK_D3 > 1) {
+        if (MSK_D3 == 1) {
+            /* Mask is broadcast over keys ([.., .., Q, 1] or [.., .., 1, 1]): one value per query row. */
+            const uint ldmsk_q = (MSK_D2 == 1) ? 0 : ldmsk;
+#pragma unroll
+            for (int i0 = 0; i0 < ugemm_kq_c_type_block0 * ugemm_kq_c_type_nblock0; i0 += SUBGROUP_SIZE) {
+                const int q_idx = (int)(wg_j0 + sg_j0_kq) + i0 + get_sub_group_local_id();
+                const half msk_q = (MSK_D2 == 1 || q_idx < q) ? msk[q_idx * ldmsk_q] : 0;
+#pragma unroll
+                for (int j = 0; j < ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1; j++) {
+                    tile_access(mask_tile, i0, j, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
+                            ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0) = msk_q;
+                }
+            }
+        } else if (MSK_D2 == 1) {
             // Check if attention mask has a single Query dimension (e.g., [batch, num_heads, 1, sequence_length])
             // In the case of single query dimension, set ld and offset_r to zero
             // to avoid exceeding bounds for single dimension.
             tile_load_t(&mask_tile, msk, MSK_D2, MSK_D3, 0, 0, k0 + sg_i0_kq);
         } else {
-            tile_load_t(&mask_tile, msk, q, k, sg_j0_kq + wg_j0, k0 + sg_i0_kq);
+            /* Must pass ldmsk explicitly: the 6-arg overload defaults ld to k (the K/V
+               sequence length), which is wrong whenever the mask's physical row stride
+               (MSK_S2) differs from k, e.g. when the mask is padded to max_seq_len. */
+            tile_load_t(&mask_tile, msk, q, k, ldmsk, sg_j0_kq + wg_j0, k0 + sg_i0_kq);
         }
 #endif
 
@@ -1464,19 +1509,35 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         }
 #endif
 #if WITH_ATTN_MASK && defined(PREFETCH_MASK)
-        /* Prefetch next mask tile. */
-        if (!last) {
-            cooperative_prefetch_2d_maybe_rem(
-                    /* ptr */ msk + k0 + ugemm_kq_sg_tile_m + (wg_j0)*ldmsk,
-                    /* r */ causal_k - k0 - ugemm_kq_wg_tile_m,
-                    /* c */ q - wg_j0,
-                    /* rmax */ ugemm_kq_wg_tile_m,
-                    /* cmax */ (ugemm_kq_wg_tile_n * PREFETCH_D_MAX) / D_MAX,
-                    /* ld */ ldmsk,
-                    /* sg_id */ sg_ij,
-                    /* n_sg */ sg_per_wg,
-                    /* sg_size */ SUBGROUP_SIZE,
-                    /* cache */ LSC_LDCC_L1UC_L3C);
+        /* Prefetch next mask tile. A key-broadcast mask (MSK_D3 == 1) has no further tiles. */
+        if (!last && MSK_D3 > 1) {
+            if (MSK_D2 == 1) {
+                /* Mask is broadcast over queries ([.., .., 1, K]): only one row exists.
+                   Striding by ldmsk per query would prefetch far past the end of the mask buffer. */
+                cooperative_prefetch_2d_maybe_rem(
+                        /* ptr */ msk + k0 + ugemm_kq_wg_tile_m,
+                        /* r */ causal_k - k0 - ugemm_kq_wg_tile_m,
+                        /* c */ 1,
+                        /* rmax */ ugemm_kq_wg_tile_m,
+                        /* cmax */ 1,
+                        /* ld */ 0,
+                        /* sg_id */ sg_ij,
+                        /* n_sg */ sg_per_wg,
+                        /* sg_size */ SUBGROUP_SIZE,
+                        /* cache */ LSC_LDCC_L1C_L3C);
+            } else {
+                cooperative_prefetch_2d_maybe_rem(
+                        /* ptr */ msk + k0 + ugemm_kq_sg_tile_m + (wg_j0)*ldmsk,
+                        /* r */ causal_k - k0 - ugemm_kq_wg_tile_m,
+                        /* c */ q - wg_j0,
+                        /* rmax */ ugemm_kq_wg_tile_m,
+                        /* cmax */ (ugemm_kq_wg_tile_n * PREFETCH_D_MAX) / D_MAX,
+                        /* ld */ ldmsk,
+                        /* sg_id */ sg_ij,
+                        /* n_sg */ sg_per_wg,
+                        /* sg_size */ SUBGROUP_SIZE,
+                        /* cache */ LSC_LDCC_L1UC_L3C);
+            }
         }
 #endif
 

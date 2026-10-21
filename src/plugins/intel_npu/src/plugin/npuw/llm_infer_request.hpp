@@ -26,6 +26,7 @@ struct LLMVariantSwitchTestAccess;
 struct LLMTrimKVCacheTestAccess;
 struct LLMPortNameRegistrationTestAccess;
 struct LLMContinuedPrefillTestAccess;
+struct LLMLongRopeModeTestAccess;
 struct LLMSwaCacheTestAccess;
 }  // namespace npuw
 }  // namespace test
@@ -114,6 +115,24 @@ protected:
                         ov::SoPtr<ov::ITensor> position_ids,
                         ov::SoPtr<ov::ITensor> per_layer_inputs);
 
+    // Picks the LongRoPE mode for this call from position_ids, points the stage's
+    // npuw_lr_cos/npuw_lr_sin inputs at that mode's coefficients, and - when the choice
+    // flipped mid-conversation - turns the num_cached_tokens keys already in `request` by
+    // the angle difference between the modes instead of dropping them; see
+    // llm_longrope_kv.hpp. A no-op for models without those inputs.
+    //
+    // The two halves are never done separately: coefficients bound without the cache
+    // turned to match is exactly the corruption this path exists to prevent. That also
+    // fixes where it can be called from - each stage must first have the conversation's
+    // KV in `request`, which only happens inside infer_prefill()/infer_generate().
+    //
+    // Throws if the flip cannot be carried out in full, leaving m_longrope_long_mode
+    // describing the mode the cache is actually in.
+    void sync_longrope_mode(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                            const PortsMap& in_ports,
+                            const ov::SoPtr<ov::ITensor>& position_ids,
+                            uint32_t num_cached_tokens);
+
     // Continuation counterpart of prepare_for_new_conversation(), run by
     // infer_prefill() when a granted keep is armed. Validates the delta inputs,
     // repacks the preserved prefix through the strategy, restores the history
@@ -185,6 +204,10 @@ protected:
 
     bool m_first_run = true;
 
+    // Whether the currently cached keys were rotated with the long-factor LongRoPE
+    // coefficients. Meaningless for models without LongRoPE, where it stays false.
+    bool m_longrope_long_mode = false;
+
     int64_t m_first_position_id = 0;
 
     uint64_t m_tokens_in_present_chunk = 0;
@@ -195,8 +218,8 @@ protected:
     // Support reset of stored tokens to 0 from external pipeline
     ov::SoPtr<ov::npuw::StoredTokensState> m_stored_tokens_state;
 
-    // Continuous prefill transaction coordinator, disabled unless the compiled model
-    // reports the capability.
+    // Continuous prefill transaction coordinator, disabled unless continuous prefill
+    // is enabled for the compiled model.
     ContinuationCoordinator m_continuation;
     // Absolute KV position the current chunked prefill started at. Non-zero only while
     // a continued prefill is running, where the caller tensors hold just the delta and
@@ -237,6 +260,7 @@ protected:
     friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
     friend struct ov::test::npuw::LLMPortNameRegistrationTestAccess;
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
+    friend struct ov::test::npuw::LLMLongRopeModeTestAccess;
     friend struct ov::test::npuw::LLMSwaCacheTestAccess;
 };
 
