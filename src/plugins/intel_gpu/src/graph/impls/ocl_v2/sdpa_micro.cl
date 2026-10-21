@@ -182,6 +182,12 @@ DECLARE_2D_TILE_RSELECT(a_scale_tile_type, SUBGROUP_SIZE, ugemm_vs_sg_tile_n, 1,
 #define binary_add(x, y) ((x) + (y))
 
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
+#if IS_PREFILL
+#define TT_MASK_PRESENT 1
+#else
+#define TT_MASK_PRESENT (TOKEN_TYPE_IDS_BATCH_NUM > 0)
+#endif
+
 KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         const global KEY_DATA_T *K,
         const global QRY_DATA_T *Q,
@@ -310,6 +316,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #define TT_NEW(t) token_type_ids[subsequence_begin + (t)]
     /* token types by K position: valid for K positions in [past_len, k) */
     const __global int *tt_kpos = token_type_ids + subsequence_begin - past_len;
+    /* An empty token_type_ids input (runtime size 0) disables the bidirectional masking. */
+    #if IS_PREFILL
+    const bool tt_present = true; /* PREFILL: unchanged */
+    #else
+    const bool tt_present = TOKEN_TYPE_IDS_BATCH_NUM > 0;
+    #endif
     /* Extend causal_k to cover the full bidirectional group that overlaps
        the current WG's query range. Without this, future K positions in
        the same image-token group would be skipped entirely.
@@ -318,7 +330,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         /* last query of this tile (queries are only the q new tokens) */
         const int wg_q_end = min((int)wg_j0 + ugemm_kq_wg_tile_n, (int)q) - 1;
         int bidir_causal_k = causal_k;
-        if (wg_q_end >= 0 && TT_NEW(wg_q_end) == 1) {
+        if (tt_present && wg_q_end >= 0 && TT_NEW(wg_q_end) == 1) {
             int bidir_end = wg_q_end + 1;
             if (get_sub_group_local_id() == 0) {
                 while (bidir_end < (int)q && TT_NEW(bidir_end) == 1)
@@ -354,7 +366,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
        same image-token group but before window_k_begin would be skipped.
        Groups exist only in the new tokens (K >= past_len).
        Only lane 0 performs the scan; result is broadcast to all WIs. */
-    if (window_k_begin > past_len && TT_NEW(window_k_begin - past_len) == 1) {
+    if (tt_present && window_k_begin > past_len && TT_NEW(window_k_begin - past_len) == 1) {
         int wb = window_k_begin - past_len;
         if (get_sub_group_local_id() == 0) {
             while (wb > 0 && TT_NEW(wb - 1) == 1)
@@ -1181,7 +1193,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                         const int offset_q = col_offset + i;
                         if (greater_than(offset_k, offset_q)) {
                             bool is_bidirectional = false;
-                            if (offset_k >= past_len && offset_k < k && offset_q >= past_len && offset_q < k &&
+                            if (TT_MASK_PRESENT && offset_k >= past_len && offset_k < k && offset_q >= past_len && offset_q < k &&
                                 tt_kpos[offset_k] == 1 &&
                                 tt_kpos[offset_q] == 1) {
                                 /* Verify no 0 exists between q and k (same 1-group).

@@ -651,6 +651,11 @@ public:
             jit.make("QQ_BIAS_BEGINS_DATA_T", to_ocl_type(qq_begins_layout.data_type));
         }
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
+        if (desc->has_token_type_ids) {
+            // the kernel checks the runtime size: an empty token_type_ids input disables the bidirectional masking
+            const size_t tensor_id = PagedAttentionInputIdx::TOKEN_TYPE_IDS;
+            jit.add(make_layout_jit_constants("TOKEN_TYPE_IDS", params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+        }
 
         return jit;
     }
@@ -728,7 +733,8 @@ public:
         jit.make("SDPA_STAGE_1", 1);
         jit.make("MULTI_TOKENS_PROCESSING", 1);
         jit.make("HEADS_PER_WI", 1);
-        if (params.typed_desc<paged_attention>()->has_token_type_ids) {
+        const bool has_token_type_ids = params.typed_desc<paged_attention>()->has_token_type_ids;
+        if (has_token_type_ids) {
             jit.make("HAS_TOKEN_TYPE_IDS", 1);
         }
 
@@ -738,6 +744,10 @@ public:
         jit.add(make_layout_jit_constants("INPUT3", params.input_layouts[5], in_offsets_map.at(5)));
         jit.add(make_layout_jit_constants("INPUT6", params.input_layouts[6], in_offsets_map.at(6)));
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
+        if (has_token_type_ids) {
+            const size_t tensor_id = PagedAttentionInputIdx::TOKEN_TYPE_IDS;
+            jit.add(make_layout_jit_constants("TOKEN_TYPE_IDS", params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+        }
 
         return jit;
     }
@@ -746,6 +756,9 @@ public:
         Arguments args;
         const auto desc = params.typed_desc<paged_attention>();
 
+        if (params.is_dynamic() && desc->has_token_type_ids) {
+            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});  // to read the runtime size of token_type_ids
+        }
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});           // past_lens
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});  // subsequence_begins
         if (desc->has_token_type_ids) {

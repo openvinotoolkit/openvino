@@ -27,6 +27,8 @@
 #endif
 
 #if HAS_TOKEN_TYPE_IDS && MULTI_TOKENS_PROCESSING
+// An empty token_type_ids input (runtime size 0) disables the bidirectional masking.
+#define TT_PRESENT (TOKEN_TYPE_IDS_BATCH_NUM > 0)
 // token_type_ids has one value per scheduled token (all subsequences joined). Indexes below are global token indexes.
 // A group is a run of 1s (type-1 tokens). All lanes of the sub-group get the same result.
 
@@ -216,7 +218,7 @@ KERNEL(pa_sdpa_opt)(
     const uint causal_len = past_len + 1 + (seq_idx - subsequence_begin);
     uint seq_len = causal_len;
     uint sliding_window_begin_ext = 0xFFFFFFFFu;  // window start of a type-1 token: its group start
-    if (token_type_ids[seq_idx] == 1) {
+    if (TT_PRESENT && token_type_ids[seq_idx] == 1) {
         seq_len = past_len + (FUNC_CALL(pa_bidir_group_end)(token_type_ids, seq_idx, subsequence_end) - subsequence_begin);
     #if SLIDING_WINDOW_SIZE != 0
         sliding_window_begin_ext = past_len + (FUNC_CALL(pa_bidir_group_begin)(token_type_ids, seq_idx, subsequence_begin) - subsequence_begin);
@@ -1064,6 +1066,9 @@ KERNEL(pa_sdpa_opt)(
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(pa_sdpa_finalization_stage)(
+#if HAS_TOKEN_TYPE_IDS && MULTI_TOKENS_PROCESSING
+    OPTIONAL_SHAPE_INFO_ARG
+#endif
     const __global INPUT3_TYPE* past_lens,
 #if MULTI_TOKENS_PROCESSING
     const __global INPUT6_TYPE* subsequence_begins,
@@ -1097,7 +1102,7 @@ KERNEL(pa_sdpa_finalization_stage)(
 #if HAS_TOKEN_TYPE_IDS
     // same as the main kernel
     uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
-    if (token_type_ids[seq_idx] == 1) {
+    if (TT_PRESENT && token_type_ids[seq_idx] == 1) {
         const int subsequence_end = subsequence_begins[subsequence_idx + 1];
         seq_len = past_lens[subsequence_idx] + (FUNC_CALL(pa_bidir_group_end)(token_type_ids, seq_idx, subsequence_end) - subsequence_begin);
     }

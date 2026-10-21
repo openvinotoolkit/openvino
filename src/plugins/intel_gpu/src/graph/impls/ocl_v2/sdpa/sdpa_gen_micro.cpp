@@ -1341,6 +1341,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         const auto desc = params.typed_desc<paged_attention>();
         if (desc->has_token_type_ids) {
             jit.make("HAS_TOKEN_TYPE_IDS", 1);
+            // the kernel checks the runtime size: an empty token_type_ids input disables the bidirectional masking
+            const size_t tensor_id = PagedAttentionInputIdx::TOKEN_TYPE_IDS;
+            jit.add(make_layout_jit_constants("TOKEN_TYPE_IDS", params.input_layouts[tensor_id], params.in_port_to_shape_info_offset.at(tensor_id)));
         }
     }
 
