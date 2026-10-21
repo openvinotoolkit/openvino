@@ -146,7 +146,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
     FUNC_CALL(thread_task_splitter)(SCALE_GROUP_NUM, thr_num, thr_id, &gk0, &gk1);
 
 #    if DECOMPRESSION_ZP_SCALAR
-    // half, not char: a scalar zero point is not necessarily an integer. The SEQ/Q2_0 grid
+    // half, not char: a scalar zero point is not necessarily an integer. The symmetric 4-level grid
     // {-1.5,-0.5,+0.5,+1.5}*scale is w = (q - 1.5)*scale, and (char)1.5 silently truncates to 1,
     // which would corrupt every weight without failing anything. The OSV64_ISV2 branch below
     // already used half; these two did not.
@@ -318,7 +318,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
     FUNC_CALL(thread_task_splitter)(SCALE_GROUP_NUM, thr_num, thr_id, &gk0, &gk1);
 
 #    if DECOMPRESSION_ZP_SCALAR
-    // half, not char: a scalar zero point is not necessarily an integer. The SEQ/Q2_0 grid
+    // half, not char: a scalar zero point is not necessarily an integer. The symmetric 4-level grid
     // {-1.5,-0.5,+0.5,+1.5}*scale is w = (q - 1.5)*scale, and (char)1.5 silently truncates to 1,
     // which would corrupt every weight without failing anything. The OSV64_ISV2 branch below
     // already used half; these two did not.
