@@ -942,11 +942,13 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         }
     }
 
-    // Update param if fake_alignment is available. Only fully_connected has a fake alignment (the other types' params would
-    // be a plain copy), so the other nodes copy just the output layouts and build full params only if they allocate.
-    const bool use_fake_aligned_params = get_node().is_type<fully_connected>();
+    // Update param if fake_alignment is available. For the types without a fake alignment the params would be a plain copy,
+    // so these nodes copy just the output layouts and build full params only if they allocate.
+    const bool use_fake_aligned_params = get_node().type()->has_fake_alignment();
     // Both branches are prvalues, so nothing is copied (kernel_impl_params has no move constructor); the default one is cheap.
     auto fake_aligned_params = use_fake_aligned_params ? get_fake_aligned_params_if_possible(get_node(), *_impl_params) : kernel_impl_params();
+    // A copy, not _impl_params->output_layouts itself: the code below enlarges these layouts to the allocation size (FC users'
+    // fake-aligned input, dynamic quantize scales, preallocation), while the users read _impl_params' layouts as their input shapes.
     std::vector<layout> output_layouts_copy;
     if (!use_fake_aligned_params) {
         output_layouts_copy = _impl_params->output_layouts;
@@ -3579,7 +3581,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     // Only types that were ever added to the static impls cache can hit it; the others (e.g. primitives that run a
     // shape-agnostic impl) skip the lookup, and the params copy too unless an async compilation task needs it.
     const bool lookup_static_impl = prog.has_static_impl_type(node->type());
-    const bool compile_async = use_async_compilation && ((inst.get_impl() && inst.get_impl()->is_dynamic()) || inst.get_flag(ExecutionFlags::SHAPE_CHANGED));
+    const bool compile_async = use_async_compilation && ((inst.get_impl() != nullptr && inst.get_impl()->is_dynamic()) || inst.get_flag(ExecutionFlags::SHAPE_CHANGED));
     const bool has_updated_params = lookup_static_impl || compile_async;
     // Both branches are prvalues, so nothing is copied (kernel_impl_params has no move constructor); the default one is cheap.
     auto updated_params = has_updated_params ? get_updated_params() : kernel_impl_params();
