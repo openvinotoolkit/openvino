@@ -66,6 +66,64 @@ TEST_F(TypePropSparseAttentionTest, with_key_length_and_scale) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 24, 1, 32}));
 }
 
+TEST_F(TypePropSparseAttentionTest, with_sinks) {
+    const auto op = make_op(param(element::f16, PartialShape{2, 24, 1, 64}),
+                            param(element::f16, PartialShape{2, 2, 12, 64}),
+                            param(element::f16, PartialShape{2, 2, 12, 32}),
+                            param(element::i64, PartialShape{2, 1, 1, 4}),
+                            param(element::i64, PartialShape{2, 1, 1}),
+                            param(element::i64, PartialShape{2}),
+                            param(element::f16, PartialShape{}),
+                            param(element::f32, PartialShape{24}),
+                            4);
+
+    EXPECT_EQ(op->get_input_size(), 8);
+    EXPECT_EQ(op->get_output_element_type(0), element::f16);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 24, 1, 32}));
+}
+
+TEST_F(TypePropSparseAttentionTest, sinks_count_mismatch) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{2, 24, 5, 64}),
+                                          param(element::f32, PartialShape{2, 2, 12, 64}),
+                                          param(element::f32, PartialShape{2, 2, 12, 32}),
+                                          param(element::i32, PartialShape{2, 1, 5, 4}),
+                                          param(element::i32, PartialShape{2, 1, 5}),
+                                          param(element::i32, PartialShape{2}),
+                                          param(element::f32, PartialShape{}),
+                                          param(element::f32, PartialShape{12}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The number of sinks must be equal to the number of query heads."));
+}
+
+TEST_F(TypePropSparseAttentionTest, incorrect_sinks_rank) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{2, 24, 5, 64}),
+                                          param(element::f32, PartialShape{2, 2, 12, 64}),
+                                          param(element::f32, PartialShape{2, 2, 12, 32}),
+                                          param(element::i32, PartialShape{2, 1, 5, 4}),
+                                          param(element::i32, PartialShape{2, 1, 5}),
+                                          param(element::i32, PartialShape{2}),
+                                          param(element::f32, PartialShape{}),
+                                          param(element::f32, PartialShape{1, 24}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The shape of sinks must be 1D [H]."));
+}
+
+TEST_F(TypePropSparseAttentionTest, incorrect_sinks_element_type) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{2, 24, 5, 64}),
+                                          param(element::f32, PartialShape{2, 2, 12, 64}),
+                                          param(element::f32, PartialShape{2, 2, 12, 32}),
+                                          param(element::i32, PartialShape{2, 1, 5, 4}),
+                                          param(element::i32, PartialShape{2, 1, 5}),
+                                          param(element::i32, PartialShape{2}),
+                                          param(element::f32, PartialShape{}),
+                                          param(element::i32, PartialShape{24}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The element type of sinks must be a floating point type."));
+}
+
 TEST_F(TypePropSparseAttentionTest, query_block_size_groups_query_tokens) {
     const auto op = make_op(param(element::f32, PartialShape{1, 12, 8448, 128}),
                             param(element::f32, PartialShape{1, 12, 33792, 128}),
