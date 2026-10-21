@@ -61,9 +61,7 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
                                                                         m_bias,
                                                                         m_fc->input_value(3),
                                                                         output_type,
-                                                                        m_fc_typed->get_transpose_b(),
-                                                                        m_fc_typed->get_transpose_b_scale(),
-                                                                        m_fc_typed->get_transpose_b_zp());
+                                                                        m_fc_typed->get_transpose_b());
             } else {
                 new_fc = std::make_shared<op::FullyConnectedCompressed>(m_fc->input_value(0),
                                                                         m_weights,
@@ -71,9 +69,7 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
                                                                         m_fc->input_value(3),
                                                                         m_fc->input_value(4),
                                                                         output_type,
-                                                                        m_fc_typed->get_transpose_b(),
-                                                                        m_fc_typed->get_transpose_b_scale(),
-                                                                        m_fc_typed->get_transpose_b_zp());
+                                                                        m_fc_typed->get_transpose_b());
             }
         }
         new_fc->set_friendly_name(m_convert->get_friendly_name());
