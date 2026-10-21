@@ -15,6 +15,7 @@
 #include <intel_gpu/runtime/utils.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/dynamic_quantize.hpp"
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
@@ -7007,3 +7008,121 @@ TEST(fully_connected_gpu_ternocl_int2_dynamic, non_ternary_zero_point_falls_back
     net->execute();
     ASSERT_NE(net->get_primitive("fc_prim")->get_impl()->get_kernel_name(), "ternocl_int2");
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+namespace {
+class matmul_dynamic_quantize_matmul_gpu : public ::testing::TestWithParam<size_t> {};
+
+TEST_P(matmul_dynamic_quantize_matmul_gpu, switches_at_runtime_threshold) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "Dynamic quantized fully connected requires XMX";
+
+    constexpr size_t input_features = 32;
+    constexpr size_t hidden_features = 128;
+    constexpr size_t output_features = 32;
+    constexpr size_t threshold = 64;
+    constexpr float weight_scale = 1.0f / 32;
+
+    std::vector<ov::float16> weights_a(hidden_features * input_features);
+    for (size_t i = 0; i < weights_a.size(); ++i)
+        weights_a[i] = static_cast<float>(static_cast<int>((i * 7 + i / input_features) % 17) - 8) / 32;
+
+    std::vector<uint8_t> weights_b(output_features * hidden_features / 2);
+    for (size_t i = 0; i < weights_b.size(); ++i)
+        weights_b[i] = static_cast<uint8_t>((i * 3 % 16) | ((i * 7 + 1) % 16) << 4);
+
+    auto weights_a_mem = engine.allocate_memory({ov::Shape{hidden_features, input_features}, data_types::f16, format::bfyx});
+    auto weights_b_mem = engine.allocate_memory({ov::Shape{output_features, hidden_features}, data_types::u4, format::bfyx});
+    auto scale_mem = engine.allocate_memory({ov::Shape{output_features, 1}, data_types::f16, format::bfyx});
+    auto zero_point_mem = engine.allocate_memory({ov::Shape{1, 1}, data_types::u8, format::bfyx});
+    set_values(weights_a_mem, weights_a);
+    set_values(weights_b_mem, weights_b);
+    set_values(scale_mem, std::vector<ov::float16>(output_features, weight_scale));
+    set_values<uint8_t>(zero_point_mem, {8});
+
+    dynamic_quantize::Attributes attrs;
+    attrs.quantization_dt = data_types::i8;
+    attrs.scale_dt = data_types::f16;
+    attrs.group_sizes = {1, hidden_features};
+
+    auto matmul_b = fully_connected("matmul_b", input_info("dynamic_quantize", 0), "weights_b", "", "scale", "zero_point",
+                                   input_info("dynamic_quantize", 1), input_info(""), input_info(""), data_types::f16);
+
+    topology topo(
+        input_layout("input", layout{ov::PartialShape{-1, input_features}, data_types::f16, format::bfyx}),
+        data("weights_a", weights_a_mem),
+        data("weights_b", weights_b_mem),
+        data("scale", scale_mem),
+        data("zero_point", zero_point_mem),
+        fully_connected("matmul_a", input_info("input"), "weights_a", "", data_types::f16),
+        dynamic_quantize("dynamic_quantize", input_info("matmul_a"), attrs, 2, hidden_features),
+        matmul_b);
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true),
+                        ov::intel_gpu::optimize_data(true),
+                        ov::intel_gpu::dynamic_quantization_threshold(threshold));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"matmul_a", {format::bfyx, "", impl_types::onednn}},
+        {"matmul_b", {format::bfyx, "", impl_types::onednn}}}));
+    network net(engine, topo, config);
+
+    const auto length = GetParam();
+    const auto other_length = length <= threshold ? threshold + 1 : 1;
+    for (const auto m : {length, other_length, length}) {
+        SCOPED_TRACE("M=" + std::to_string(m));
+        std::vector<ov::float16> input(m * input_features);
+        for (size_t i = 0; i < input.size(); ++i)
+            input[i] = static_cast<float>(static_cast<int>((i * 11 + i / input_features) % 23) - 11) / 16;
+        auto input_mem = engine.allocate_memory({ov::Shape{m, input_features}, data_types::f16, format::bfyx});
+        set_values(input_mem, input);
+        net.set_input_data("input", input_mem);
+        auto outputs = net.execute();
+
+        const bool quantized = m > threshold;
+        const auto dq = net.get_primitive("dynamic_quantize");
+        ASSERT_TRUE(dq->get_node().is_runtime_skippable());
+        EXPECT_EQ(dq->can_be_optimized(), !quantized);
+        EXPECT_EQ(dq->get_output_layout().data_type, quantized ? data_types::i8 : data_types::f16);
+        EXPECT_EQ(net.get_primitive("matmul_b")->get_impl_params()->get_input_layout(0).data_type,
+                  quantized ? data_types::i8 : data_types::f16);
+        if (!quantized) {
+            EXPECT_TRUE(engine.is_the_same_buffer(dq->output_memory(), net.get_primitive("matmul_a")->output_memory()));
+        }
+
+        auto output_mem = outputs.at("matmul_b").get_memory();
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output(output_mem, get_test_stream());
+        ASSERT_EQ(outputs.at("matmul_b").get_layout().get_shape(), (ov::Shape{m, output_features}));
+        for (size_t row = 0; row < m; ++row) {
+            std::vector<ov::float16> hidden(hidden_features);
+            for (size_t h = 0; h < hidden_features; ++h) {
+                float sum = 0;
+                for (size_t k = 0; k < input_features; ++k)
+                    sum += static_cast<float>(input[row * input_features + k]) *
+                           static_cast<float>(weights_a[h * input_features + k]);
+                hidden[h] = sum;
+            }
+            for (size_t n = 0; n < output_features; ++n) {
+                float expected = 0;
+                for (size_t h = 0; h < hidden_features; ++h) {
+                    const auto index = n * hidden_features + h;
+                    const auto packed = weights_b[index / 2];
+                    const auto weight = static_cast<int>((packed >> (4 * (index % 2))) & 0xf) - 8;
+                    expected += static_cast<float>(hidden[h]) * static_cast<float>(weight) * weight_scale;
+                }
+                ASSERT_NEAR(static_cast<float>(output[row * output_features + n]), expected, 0.01f)
+                    << "row=" << row << ", output feature=" << n;
+            }
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(token_length,
+                         matmul_dynamic_quantize_matmul_gpu,
+                         ::testing::Values(size_t{1}, size_t{32}, size_t{64}, size_t{65}, size_t{1024}),
+                         [](const ::testing::TestParamInfo<size_t>& info) {
+                             return "M" + std::to_string(info.param);
+                         });
+}  // namespace
+#endif
