@@ -44,12 +44,14 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
  * @param[in]  cpu_pinning_changed the property changedCpuPinning which value depends on whether user sets
  * enableCpuPinning. true: user sets property enableCpuPinning. false: user does not set property enableCpuPinning.
  * @param[in]  cpu_reservation the property enableCpuReservation set by user. False by default
+ * @param[in]  proc_type_table available processors grouped by architectural core type
  * @param[in]  streams_info_table indicate streams detail of this model
  * @return     whether pinning threads to cpu cores
  */
 bool check_cpu_pinning(bool cpu_pinning,
                        bool cpu_pinning_changed,
                        bool cpu_reservation,
+                       const std::vector<std::vector<int>>& proc_type_table,
                        const std::vector<std::vector<int>>& streams_info_table);
 
 }  // namespace ov::intel_cpu
