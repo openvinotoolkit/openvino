@@ -18,7 +18,6 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "common/vcl_test_utils.hpp"
 #include "compiler_option_support_helper.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
@@ -28,6 +27,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/log.hpp"
 #include "openvino/runtime/core.hpp"
@@ -46,6 +46,15 @@ using ConfigParams = std::tuple<std::string,   // Device name
 namespace ov {
 namespace test {
 namespace behavior {
+namespace {
+::intel_npu::VCLFunctionTableProvider testVclFunctions() {
+    static const auto holder = std::make_shared<::intel_npu::VCLLoaderHolder>();
+    return [] {
+        return holder->functions();
+    };
+}
+}  // namespace
+
 class PropertiesManagerTests : public ov::test::behavior::OVPluginTestBase,
                                public testing::WithParamInterface<ConfigParams> {
 protected:

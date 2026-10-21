@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -12,12 +13,12 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "common/vcl_test_utils.hpp"
 #include "compiler_option_support_helper.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
@@ -28,6 +29,13 @@ namespace test {
 namespace behavior {
 
 namespace {
+::intel_npu::VCLFunctionTableProvider testVclFunctions() {
+    static const auto holder = std::make_shared<::intel_npu::VCLLoaderHolder>();
+    return [] {
+        return holder->functions();
+    };
+}
+
 // Log markers emitted once per adapter, when its constructor runs (see driver_compiler_adapter.cpp /
 // plugin_compiler_adapter.cpp). Used to detect whether a given compiler type had to be (re)initialized.
 std::string startMarkerFor(ov::intel_npu::CompilerType compilerType) {
