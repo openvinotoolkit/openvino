@@ -134,8 +134,8 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         jit.make("K_HEAD_SIZE_LEFTOVER", k_head_size % subgroup_size);
         jit.make("V_HEAD_SIZE_LEFTOVER", v_head_size % subgroup_size);
     }
-    jit.make("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(info, v_head_size, stage, static_cast<size_t>(k_head_size)));
-    jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(info, v_head_size, stage, static_cast<size_t>(k_head_size)));
+    jit.make("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(info, v_head_size, stage));
+    jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(info, v_head_size, stage));
 
     bool could_use_flashattn_v2 = params.get_program().get_config().get_could_use_flashattn_v2();
     if (could_use_flashattn_v2) {
@@ -231,11 +231,11 @@ DispatchDataFunc SDPAOptGeneratorSingleToken::get_dispatch_data_func() const {
                                                          " in static dispatch");
             const size_t num_of_partitions = get_partitions_num(params, SDPAStage::SINGLE_TOKEN);
             auto [k_head_size, v_head_size] = SDPABase::get_effective_head_sizes(params);
+            (void)k_head_size;
 
             const size_t head_size_u = ensure_positive_dim(v_head_size, "head_size", "SDPA: invalid non-positive ", " in static dispatch");
 
-            const size_t sg_num_scale =
-                get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::SINGLE_TOKEN, static_cast<size_t>(k_head_size));
+            const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::SINGLE_TOKEN);
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
             GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size_u << ", num_of_partitions = " << num_of_partitions << "\n";
             GPU_DEBUG_TRACE_DETAIL << "sg_num_scale = " << sg_num_scale << "\n";
@@ -279,11 +279,11 @@ DispatchDataFunc SDPAOptGeneratorMultiToken::get_dispatch_data_func() const {
                                                          " in static dispatch");
             const size_t target_seq_len_block_size = get_target_seq_len_block_size();
             auto [k_head_size, v_head_size] = SDPABase::get_effective_head_sizes(params);
+            (void)k_head_size;
 
             const size_t head_size_u = ensure_positive_dim(v_head_size, "head_size", "SDPA: invalid non-positive ", " in static dispatch");
-            const size_t k_head_size_u = ensure_positive_dim(k_head_size, "k_head_size", "SDPA: invalid non-positive ", " in static dispatch");
 
-            const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::MULTI_TOKENS, k_head_size_u);
+            const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::MULTI_TOKENS);
 
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
             GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size_u << ", sg_num_scale = " << sg_num_scale << "\n";
