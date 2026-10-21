@@ -4,14 +4,14 @@
 
 #pragma once
 
+#include <map>
+
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/pytorch/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 using DecoderRTInfo = std::unordered_map<std::string, ov::Any>;
 
@@ -144,8 +144,13 @@ public:
 
     /// \brief Converts the node if `has_converter` returns true
     virtual OutputVector convert(const ov::frontend::NodeContext* context) const = 0;
+
+    using InputSequences = std::map<size_t, std::vector<size_t>>;
+
+    // Sequence input indices mapped to their ordered element output indices; empty when unknown.
+    virtual InputSequences get_input_sequences() const {
+        return {};
+    }
 };
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch

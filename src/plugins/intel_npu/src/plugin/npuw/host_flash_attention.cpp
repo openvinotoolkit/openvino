@@ -1467,6 +1467,60 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     // Note: _compiled_tile_model and _compiled_final_tile_model will be set later by
     // compile_host_flash_attention_model()
 }
+
+bool HostFlashAttention::is_valid() const {
+    if (_compiled_tile_model == nullptr || _compiled_final_tile_model == nullptr || _past_tile_size <= 0 ||
+        _final_tile_size <= 0 || _sdpa_attention_info._query_size == 0 ||
+        static_cast<std::size_t>(_final_tile_size) != _sdpa_attention_info._query_size) {
+        return false;
+    }
+
+    // _context_size drives the mask tile buffer allocation loop in
+    // HFARuntimeContext::initialize_mask_cache (ceil(context_size / past_tile_size) iterations, one device
+    // allocation each), so a corrupted blob must not be able to turn it into an unbounded loop.
+    const std::size_t context_size = _sdpa_attention_info._context_size;
+    const std::size_t past_tile_size = static_cast<std::size_t>(_past_tile_size);
+    const std::size_t num_tiles = context_size / past_tile_size + (context_size % past_tile_size != 0);
+    if (context_size == 0 || num_tiles > kMaxTiles) {
+        return false;
+    }
+
+    const auto& tile_inputs = _compiled_tile_model->inputs();
+    const auto& final_inputs = _compiled_final_tile_model->inputs();
+    const auto& tile_outputs = _compiled_tile_model->outputs();
+    const auto& final_outputs = _compiled_final_tile_model->outputs();
+    const auto& tin = _sdpa_attention_info._tile_input_indices;
+    const auto& final_tin = _sdpa_attention_info._final_tile_input_indices;
+    const auto& tout = _sdpa_attention_info._tile_output_indices;
+
+    auto in_range = [](std::size_t idx, std::size_t size) {
+        return idx < size;
+    };
+
+    auto seq_dim_in_range = [](std::size_t seq_dim, const ov::Output<const ov::Node>& port) {
+        const auto rank = port.get_partial_shape().rank();
+        return rank.is_static() && seq_dim < static_cast<std::size_t>(rank.get_length());
+    };
+
+    // q/k/v/acc/max/d are always present on both the regular and the final tile model.
+        // The two models use independent indices; only the final tile always consumes a mask.
+        return in_range(tin.q, tile_inputs.size()) && in_range(final_tin.q, final_inputs.size()) &&
+            in_range(tin.k, tile_inputs.size()) && in_range(final_tin.k, final_inputs.size()) &&
+            in_range(tin.v, tile_inputs.size()) && in_range(final_tin.v, final_inputs.size()) &&
+           seq_dim_in_range(_sdpa_attention_info._k_seq_dim, tile_inputs[tin.k]) &&
+            seq_dim_in_range(_sdpa_attention_info._k_seq_dim, final_inputs[final_tin.k]) &&
+           seq_dim_in_range(_sdpa_attention_info._v_seq_dim, tile_inputs[tin.v]) &&
+            seq_dim_in_range(_sdpa_attention_info._v_seq_dim, final_inputs[final_tin.v]) &&
+            in_range(final_tin.mask, final_inputs.size()) && in_range(tin.acc, tile_inputs.size()) &&
+            in_range(final_tin.acc, final_inputs.size()) && in_range(tin.max, tile_inputs.size()) &&
+            in_range(final_tin.max, final_inputs.size()) && in_range(tin.d, tile_inputs.size()) &&
+            in_range(final_tin.d, final_inputs.size()) &&
+            (!tin.scale || in_range(*tin.scale, tile_inputs.size())) &&
+            (!final_tin.scale || in_range(*final_tin.scale, final_inputs.size())) &&
+            in_range(tout.acc, tile_outputs.size()) &&
+           in_range(tout.max, tile_outputs.size()) && in_range(tout.d, tile_outputs.size()) && !final_outputs.empty();
+}
+
 }  // namespace compiled
 
 namespace runtime {

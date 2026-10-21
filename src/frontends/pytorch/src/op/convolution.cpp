@@ -9,10 +9,7 @@
 #include "openvino/op/group_conv.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -104,7 +101,4 @@ OutputVector translate_convolution(const NodeContext& context) {
     return {context.mark_output(conv)};
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

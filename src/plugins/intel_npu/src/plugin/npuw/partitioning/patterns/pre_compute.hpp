@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "openvino/pass/pattern/multi_matcher.hpp"
@@ -21,7 +22,9 @@ namespace ov ::npuw ::patterns ::pre_compute {
 
 class RopePatternDesc {
 protected:
-    ov::pass::MultiMatcher::Callback init_cb;
+    std::function<void(const ov::pass::pattern::PatternValueMap& map_sin,
+                       const ov::pass::pattern::PatternValueMap& map_cos)>
+        bind_match;
 
 public:
     std::shared_ptr<ov::Node> matched_inv_freq;
@@ -33,10 +36,28 @@ public:
 
     std::function<void()> transform_cb;
 
-    ov::pass::MultiMatcher::Callback make_matcher_callback() {
-        return [this](const auto& matches) {
-            init_cb(matches);
-            transform_cb();
+    // Support models with multiple independent RoPE blocks (e.g. hybrid/sliding window
+    // attention): binds and transforms every match found for (output_sin, output_cos).
+    ov::pass::MultiMatcher::Callback make_matcher_callback(const std::shared_ptr<ov::Node>& output_sin,
+                                                           const std::shared_ptr<ov::Node>& output_cos) {
+        return [this, output_sin, output_cos](const auto& matches) {
+            const auto& sin_matches = matches.at(output_sin);
+            const auto& cos_matches = matches.at(output_cos);
+
+            std::unordered_map<ov::Node*, const ov::pass::pattern::PatternValueMap*> cos_by_shared_input;
+            for (const auto& cos_match : cos_matches) {
+                cos_by_shared_input[cos_match.at(output_cos).get_node()->input_value(0).get_node()] = &cos_match;
+            }
+
+            for (const auto& sin_match : sin_matches) {
+                auto* shared_input = sin_match.at(output_sin).get_node()->input_value(0).get_node();
+                auto it = cos_by_shared_input.find(shared_input);
+                if (it == cos_by_shared_input.end()) {
+                    continue;  // no matching Cos for this Sin - leave it untouched
+                }
+                bind_match(sin_match, *it->second);
+                transform_cb();
+            }
         };
     }
 };
@@ -117,22 +138,22 @@ constexpr const char* longrope_sin_input = "npuw_lr_sin";
 // Nothing here aliases compiled-blob memory - a driver is free to repack the constants
 // it is given, so host data must never be assumed to still match them.
 //
-// Both regimes live in ONE tensor per trig function, [1, regimes * max_len,
+// Both modes live in ONE tensor per trig function, [1, modes * max_len,
 // rotary_ndims]: the short-factor rows first, the long-factor rows after. Because row i
 // means position i regardless of the variant, a leading slice of either half serves
 // prefill and every generate variant, whatever their individual LUT lengths - so
 // LLMCompiledModel keeps a single instance sized to the longest LUT in the model.
 //
-// The long half is omitted altogether (has_long == false) when the long regime cannot
+// The long half is omitted altogether (has_long == false) when the long mode cannot
 // be reached - the context limit is at or beyond the longest LUT - or when the two
 // factor sets are numerically identical, which is the case for models that declare
-// LongRoPE but never actually switch (e.g. MiniCPM). Both regimes then bind the same
+// LongRoPE but never actually switch (e.g. MiniCPM). Both modes then bind the same
 // rows.
 //
 // Only max_len/rotary_ndims/has_long and the two inverse-frequency arrays go to the
 // blob; rebuild_tables() regenerates the tensors on import.
 struct LongRopeCosSin {
-    size_t max_len = 0;       // rows per regime; == the longest sin/cos LUT in the model
+    size_t max_len = 0;       // rows per mode; == the longest sin/cos LUT in the model
     size_t rotary_ndims = 0;  // row width; 0 means "no LongRoPE in this model"
     bool has_long = false;
 
@@ -151,7 +172,7 @@ struct LongRopeCosSin {
     // frequency arrays. Used both at compile time and on blob import.
     void rebuild_tables();
 
-    // Dense, non-owning views over the first lut_len rows of the requested regime.
+    // Dense, non-owning views over the first lut_len rows of the requested mode.
     // The backing tensors must outlive them. Non-const because NPUW's input binding
     // path reaches for a writable data pointer.
     ov::Tensor cos_rows(size_t lut_len, bool is_long);

@@ -9,11 +9,7 @@
 #include "utils/common.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 
 ov::OutputVector random_uniform_like(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
@@ -39,8 +35,4 @@ ov::OutputVector random_uniform_like(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("RandomUniformLike", OPSET_SINCE(1), ai_onnx::opset_1::random_uniform_like);
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1

@@ -91,6 +91,20 @@ std::shared_ptr<ov::Model> build_static_shape_side_branch_model() {
                                        ov::ParameterVector{input});
 }
 
+void set_output_bound(const std::shared_ptr<ov::Model>& model, const std::string& node_name) {
+    const auto ops = model->get_ordered_ops();
+    const auto node_it = std::find_if(ops.begin(), ops.end(),
+                                      [&](const std::shared_ptr<ov::Node>& node) {
+                                          return node->get_friendly_name() == node_name;
+                                      });
+    OPENVINO_ASSERT(node_it != ops.end(), "Node not found: ", node_name);
+
+    auto output = (*node_it)->output(0);
+    ov::Tensor bound(output.get_element_type(), output.get_shape());
+    output.get_tensor().set_lower_value(bound);
+    output.get_tensor().set_upper_value(bound);
+}
+
 std::shared_ptr<ov::Model> build_static_llm_model(const int64_t query_len, const int64_t past_len) {
     LLMConfig config;
     config.num_layers = 4;
@@ -438,6 +452,34 @@ TEST(PartitioningOptionsTest, FoldSkipsConstantFoldedFunctionSubgraphs) {
     EXPECT_TRUE(std::all_of(partitioning.functions.begin(), partitioning.functions.end(), [](const auto& function) {
         return !function.second._model->get_results().empty();
     }));
+}
+
+TEST(PartitioningOptionsTest, OptimizedOutForcedFunctionsAreNotMaterialized) {
+    auto model = build_unary_chain_model();
+    // The isolated Sin group feeds the Concat through a statically bound tensor,
+    // so identifySubgraphs() must optimize that group out.
+    set_output_bound(model, "n4");
+    set_output_bound(model, "n6");
+
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"},
+                         {"NPUW_ONLINE_ISOLATE", "Op:Sin/compute"},
+                         {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                         {"NPUW_FOLD", "YES"}});
+    const auto partitioning = ov::npuw::getPartitioning(model, cfg);
+
+    std::size_t optimized_out_count = 0;
+    for (const auto& subgraph : partitioning.subgraphs) {
+        if (!subgraph._optimized_out) {
+            continue;
+        }
+
+        ++optimized_out_count;
+        EXPECT_FALSE(subgraph._repeated_id.empty());
+        EXPECT_TRUE(subgraph._funcall.empty());
+        EXPECT_EQ(partitioning.functions.count(subgraph._repeated_id), 0u);
+    }
+
+    EXPECT_GT(optimized_out_count, 0u);
 }
 
 TEST(PartitioningOptionsTest, FoldCreatesFunctionCallsForRepeatedBlocks) {

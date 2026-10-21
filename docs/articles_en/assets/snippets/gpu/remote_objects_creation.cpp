@@ -7,7 +7,7 @@
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
 #include <openvino/util/memory.hpp>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <openvino/runtime/intel_gpu/ocl/dx.hpp>
 #elif defined(ENABLE_LIBVA)
 #include <openvino/runtime/intel_gpu/ocl/va.hpp>
@@ -22,7 +22,7 @@ cl::Image2D allocate_image(size_t size);
 ov::intel_gpu::SharedBufferHandle get_shared_handle();
 
 
-#ifdef WIN32
+#ifdef _WIN32
 ID3D11Device* get_d3d_device();
 #elif defined(ENABLE_LIBVA)
 VADisplay get_va_display();
@@ -49,8 +49,9 @@ int main() {
 
 {
     //! [wrap_cpu_pointer]
-    // Allocation part - must be done with alignment(for OCL backend) - align the address to cache line size
-    // and the allocation size must be a multiple of cache line size.
+    // Allocation part - must be done with alignment. For OCL backend, align the address to cache line size
+    // and the allocation size must be a multiple of cache line size. For L0 backend, align the address to page size
+    // and the allocation size must be a multiple of page size.
     // In case of size of tensor lower than cache line size, allocate at least one cache line size 
     // and use ov::intel_gpu::VirtualAddressMemory(cpu_pointer, allocated_size)
     size_t size = input_size * in_element_type.size();
@@ -166,7 +167,7 @@ int main() {
     //! [context_from_cl_queue]
 }
 
-#ifdef WIN32
+#ifdef _WIN32
 {
     //! [context_from_d3d_device]
     ID3D11Device* device = get_d3d_device();

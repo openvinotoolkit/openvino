@@ -10,6 +10,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -219,6 +220,10 @@ struct HostFlashAttentionInfo {
 
 // Compile-time host flash attention information
 struct HostFlashAttention {
+    // Upper bound on the number of tiles a single HFA inference may be split into. Only used to
+    // reject corrupted _context_size / _query_size combinations coming from a cache blob.
+    static constexpr std::size_t kMaxTiles = 1u << 20;
+
     // Models to compile (will be cleared after compilation)
     std::shared_ptr<ov::Model> _tile_model_to_compile;
     std::shared_ptr<ov::Model> _final_tile_model_to_compile;
@@ -257,10 +262,13 @@ struct HostFlashAttention {
         _final_tile_model_to_compile.reset();  // Free memory after compilation
     }
 
-    bool is_valid() const {
-        return _compiled_tile_model != nullptr && _compiled_final_tile_model != nullptr && _past_tile_size > 0 &&
-               _final_tile_size > 0;
+    // Past K/V split into per-block inputs by SplitKVCacheIntoBlocks.
+    bool is_block_mode() const {
+        const auto& indices = _sdpa_attention_info._sdpa_indices;
+        return indices.past_key_blocks.size() > 1 && indices.past_value_blocks.size() > 1;
     }
+
+    bool is_valid() const;
 };
 
 }  // namespace compiled
@@ -338,23 +346,19 @@ struct HFARuntimeContext {
         m_mask_tile_buffers.clear();
         m_final_mask_tile_buffer = {};
 
-        // _tile_input_indices.mask is built from final_tile_model only (see
-        // build_tile_param_mapping), but create_hfa_tile_model always places the first 6 params
-        // in the same fixed order and appends mask_tile (if present) as the last one — so the
-        // same index is valid for the regular tile model too, whenever it also has a mask input.
-        const size_t mask_input_idx = hfa_desc._sdpa_attention_info._tile_input_indices.mask;
-
         // Final tile model always has a mask input (mask-skipping only applies to regular tiles).
+        const size_t final_mask_input_idx = hfa_desc._sdpa_attention_info._final_tile_input_indices.mask;
         const auto& final_inputs = hfa_desc._compiled_final_tile_model->inputs();
-        if (mask_input_idx < final_inputs.size()) {
-            const auto& final_mask_port = final_inputs[mask_input_idx];
+        if (final_mask_input_idx < final_inputs.size()) {
+            const auto& final_mask_port = final_inputs[final_mask_input_idx];
             m_final_mask_tile_buffer =
                 allocator(final_mask_port.get_element_type(), final_mask_port.get_shape(), device_name);
         }
 
         // Regular tile model may omit the mask input entirely when mask-skipping is enabled.
+        const size_t mask_input_idx = hfa_desc._sdpa_attention_info._tile_input_indices.mask;
         const auto& regular_inputs = hfa_desc._compiled_tile_model->inputs();
-        if (mask_input_idx >= regular_inputs.size()) {
+        if (mask_input_idx >= regular_inputs.size() || regular_inputs[mask_input_idx].get_names().count("MASK_TILE") == 0) {
             return;
         }
 
@@ -371,7 +375,7 @@ struct HFARuntimeContext {
         // to be exact — context_size includes the final tile's present KV, which isn't itself
         // chunked into past_tile_size units, so the division may not be exact.
         const size_t context_size = hfa_desc._sdpa_attention_info._context_size;
-        const size_t max_num_tiles = (context_size + past_tile_size - 1) / past_tile_size;
+        const size_t max_num_tiles = context_size / past_tile_size + (context_size % past_tile_size != 0);
 
         m_mask_tile_buffers.reserve(max_num_tiles);
         for (size_t i = 0; i < max_num_tiles; ++i) {
