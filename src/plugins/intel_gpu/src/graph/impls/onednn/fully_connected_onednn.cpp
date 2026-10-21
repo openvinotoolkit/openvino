@@ -199,7 +199,12 @@ protected:
             weights_md = onednn::layout_to_memory_desc(weights_layout, weights_fmt);
         }
 
-        dnnl::memory::desc input_md = onednn::layout_to_memory_desc(input_layout, target_fmt);
+        dnnl::memory::desc input_md;
+        if (input_layout.data_padding && format::is_default_format(input_layout.format)) {
+            input_md = onednn::layout_to_memory_desc_strides(input_layout, target_fmt);
+        } else {
+            input_md = onednn::layout_to_memory_desc(input_layout, target_fmt);
+        }
         dnnl::memory::desc output_md = onednn::layout_to_memory_desc(output_layout, target_fmt);
 
         if (has_bias) {
