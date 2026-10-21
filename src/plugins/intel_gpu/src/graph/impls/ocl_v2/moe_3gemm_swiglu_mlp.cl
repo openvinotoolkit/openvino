@@ -1524,8 +1524,8 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(con
 #elif defined(U2_GEMM_ENABLE)
 
 // Native u2 grouped GEMM for prefill. Replaces "unpack u2 -> u4 scratch, then run the u4
-// oneDNN grouped matmul", which cost a permanent 12.08 GB of device memory on
-// Qwen3.6-35B-A3B (2x the 5.63 GiB of u2 expert weights) plus a ~2.0 s one-time unpack.
+// oneDNN grouped matmul", which costs permanent device memory of twice the u2 expert weights
+// plus a one-time unpack.
 //
 // Why a hand-written kernel rather than the micro-gemm path: micro-gemm hands the weight
 // dtype to oneDNN's JIT GEMM generator (gemmstone), whose Type has no 2-bit entry and whose
@@ -1561,12 +1561,9 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(con
 // ---------------------------------------------------------------------------------------------
 // DPAS (systolic) variant.
 //
-// The FMA variant below is correct but spends 20% of the machine: it stages TILE_M*K halfs of
-// activations in SLM (33792 B at K=2048), which is past the 32 KB SLM granule, so only 2
-// work-groups fit per Xe core = 16 of 80 hardware threads. Three controlled measurements pin the
-// blame on SLM residency rather than on the algorithm: the down GEMM (K=512, 8448 B, 10 WG/core)
-// runs at 992 GMAC/s against gate/up's 555 GMAC/s on the same instruction stream; dropping TILE_M
-// 8 -> 7 (29568 B, back under the granule) takes the 1k gate/up shape from 16.4 to 9.3 ms.
+// The FMA variant below is correct but occupancy-bound: it stages TILE_M*K halfs of activations
+// in SLM, which at large K exceeds the 32 KB SLM granule, so only a few work-groups fit per Xe
+// core. Its cost tracks SLM residency rather than the algorithm.
 //
 // So this variant does not tile the SLM staging - it deletes it. Operand roles are rotated so that
 // nothing but the zero-point row sums needs to be shared:
@@ -1576,19 +1573,14 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(con
 //                     of one channel is exactly 4 bytes of the existing layout, so the weights
 //                     feed the systolic array with no transpose, no SLM and no repacking.
 //   activations -> `a` = read straight from global with a block2d load.
-// SLM drops 33792 B -> 4096 B (gate/up) / 1024 B (down), occupancy 20% -> 100%, and the
+// SLM use becomes small and independent of K, occupancy is no longer SLM-bound, and the
 // sub_group_reduce_add and the single-lane scalar stores both disappear.
 //
-// Measured on Arc B390 against the FMA variant, same session:
-//   gate/up   55 tok  2.723 ms -> 0.535 ms   gate/up 1k  16.426 ms -> 1.169 ms
-//   down      55 tok  1.635 ms -> 0.521 ms   down    1k   9.485 ms -> 1.159 ms
-// At those times the kernel moves 42.5-96 MB of weights at 81-103 GB/s against a measured 113
-// GB/s streaming ceiling, i.e. it is at the DRAM floor, not ALU-bound. Deleting the whole xg_sum
-// pass changes nothing measurable. That is why no further dequant cleverness (k-permuted unpack,
-// int8 DPAS) is implemented here: there is nothing left to buy.
+// The resulting kernel is bound by weight bandwidth, not ALU, which is why no further dequant
+// cleverness (k-permuted unpack, int8 DPAS) is implemented here.
 //
-// Do not "optimise" the M tile upward. 48 and 64 rows measure 1.63 and 2.08 ms against 1.17 ms at
-// 32 rows for the same 1k shape, despite halving weight re-reads.
+// Do not "optimise" the M tile upward: 48 and 64 rows are slower than 32 despite halving weight
+// re-reads.
 
 #        define U2_MTILE    ((U2_MSUB) * 8)
 #        define U2_NUM_G    ((U2_GEMM_K) / (U2_GEMM_GROUP_SIZE))
@@ -1885,11 +1877,10 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(moe_u2_gemm)(
     }
 
     // Sweep the whole N range from inside one work-group rather than dispatching a separate
-    // work-group per N block. The SLM staging above (TILE_M*K halfs, 32 KB at K=2048, plus the
-    // xg_sum reduction) depends only on the token block, so dispatching N/(SUBGROUP_NUM*N_BLOCK)
-    // work-groups over the same tokens repeated that staging 16x — which is what made TTFT at a
-    // 1k prompt 10.3 s against 2.3 s for the unpack path. Total FLOPs are unchanged; only the
-    // redundant staging goes away.
+    // work-group per N block. The SLM staging above (TILE_M*K halfs plus the xg_sum reduction)
+    // depends only on the token block, so dispatching N/(SUBGROUP_NUM*N_BLOCK) work-groups over
+    // the same tokens repeated that staging once per N block, which made prefill slower than the
+    // unpack path. Total FLOPs are unchanged; only the redundant staging goes away.
     const int n_per_wg = SUBGROUP_NUM * N_BLOCK;
     for (int n_super = 0; n_super < U2_GEMM_N; n_super += n_per_wg) {
     const int n_start = n_super + (int)get_local_id(2) * N_BLOCK;

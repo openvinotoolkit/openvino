@@ -680,7 +680,7 @@ protected:
 };
 
 // Native u2 grouped GEMM for prefill: consumes the u2 expert weights directly, so the u4
-// unpack scratch (12.08 GB on Qwen3.6-35B-A3B) is not needed at all. One instantiation per
+// unpack scratch (twice the size of the u2 expert weights) is not needed at all. One instantiation per
 // GEMM because K and N differ between gate/up (K=hidden, N=inter) and down (K=inter, N=hidden),
 // and the kernel sizes its SLM staging buffer from K at compile time.
 //
@@ -2833,8 +2833,7 @@ public:
                                   scratch_buffers& scratch,
                                   size_t n_cols,
                                   int num_blocks) {
-        // Fail loudly rather than silently decoding a u4/u8 buffer as u2. The throw is caught by
-        // the caller's try/catch, which falls back to the batched GEMV.
+        // Fail loudly rather than silently decoding a u4/u8 buffer as u2.
         OPENVINO_ASSERT(_gemm_weights_u2[gemm_idx], "moe_3gemm native u2 GEMM invoked on a non-u2 weight, gemm_idx=", gemm_idx);
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
         // The raw u2 weights, NOT the u4 unpack scratch — that is the entire point.
@@ -2846,12 +2845,10 @@ public:
 
         if (use_u2_dpas(instance.get_impl_params()->get_device_info().arch)) {
             // Split N back across work-groups. The FMA variant sweeps all of N inside one
-            // work-group because repeating its 33 KB SLM staging 16x was worse; with the staging
+            // work-group because repeating its SLM staging per N block was worse; with the staging
             // gone that trade reverses, and narrow N tiles now lose only because each work-group
-            // re-reads the activation tile from L2. Measured on the 1k gate/up shape: 32 channels
-            // per work-group 3.27 ms, 64 -> 1.43, 128 -> 1.25, 256 -> 1.17, all of N -> 1.15.
-            // 256 is the balance point - within 1.5% of the best at 1k, the best measured at 55
-            // tokens, and unlike full-N it leaves enough work-groups to load-balance.
+            // re-reads the activation tile from L2. 256 channels per work-group is close to the
+            // full-N speed while still leaving enough work-groups to load-balance.
             //
             // Dimension order is load-bearing: get_group_id(0) is the N tile so it varies fastest
             // and the work-groups sharing an activation tile stay co-resident in L2, while
@@ -3483,7 +3480,7 @@ public:
                                                          /*skip_routed=*/use_native_u2_prefill(instance.get_impl_params()->get_device_info().arch));
         }
         if (_weights_u2) {
-            // The grouped GEMM path serves the unpacked u4 copies as regular u4 weights.
+            // Routed experts: the native u2 GEMM, or else the unpacked u4 copies as regular u4 weights.
             ret_env = exec_prefill_grouped_gemm({unpack_event}, stream, instance, scratch);
         } else if (use_micro_gemm_prefill) {
             ret_env = exec_prefill_micro_gemm(events, instance, scratch, use_gpu_mask_gen);
