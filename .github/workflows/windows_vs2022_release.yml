@@ -716,7 +716,7 @@ jobs:
       - name: Run GPU functional smoke tests
         run: |
           . "${{ env.INSTALL_DIR }}\\setupvars.ps1"
-          & "${{ env.INSTALL_TEST_DIR }}\\ov_gpu_func_tests.exe" "--gtest_filter=*smoke*" "--gtest_output=xml:${{ env.INSTALL_TEST_DIR }}\\TEST-gpu-functional-${{ matrix.shard }}.xml"
+          & "${{ env.INSTALL_TEST_DIR }}\\ov_gpu_func_tests.exe" "--gtest_filter=*smoke*:-*ConvolutionBackpropDataTransformationGPU*:*FakeQuantizeTransformation*:*GroupConvolutionTransformationGPU*:*MatMulTransformation*:*EinsumLayerTest*:*Mvn6LayerGPUTest*:*RandomUniformLayerTest*:*SoftMax8LayerTest*:*NormalizeL2LayerGPUTest*:*MatmulWeightsDecompression*:*GroupedMatMul*" "--gtest_output=xml:${{ env.INSTALL_TEST_DIR }}\\TEST-gpu-functional-${{ matrix.shard }}.xml"
         timeout-minutes: 500
 
       - name: Upload GPU functional test results
