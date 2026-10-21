@@ -694,13 +694,9 @@ struct MHAHelper {
         auto prev_score_stride = _new_score_stride;
         auto want_score_stride = rnd_up(kv_len, _block_size);
         _new_score_stride = std::max(prev_score_stride, want_score_stride);
-        // std::max(S, SV) here is to ensure by_channel quantize has enough buffer to use
+        // Key dequantization needs S columns, including per-token quantization and FP16-to-FP32 fallback.
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
-        if (_params.quant_key_bychannel || _params.quant_value_bychannel) {
-            _output.resize<float>({_nthr, _block_size, H, std::max(S, SV)});
-        } else {
-            _output.resize<float>({_nthr, _block_size, H, SV});
-        }
+        _output.resize<float>({_nthr, _block_size, H, std::max(S, SV)});
 
         // to ensure qk s8s8 s32 has enough buffer
         if (_params.is_sage_attn && H * std::max(S, SV) < _block_size) {
