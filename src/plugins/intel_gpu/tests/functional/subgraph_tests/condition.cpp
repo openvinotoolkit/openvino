@@ -24,9 +24,44 @@
 #include "openvino/runtime/core.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <sstream>
 
 namespace {
+class ScopedEnvVar {
+public:
+    ScopedEnvVar(const char* name, const char* value) : m_name(name) {
+        if (const char* previous = std::getenv(name)) {
+            m_had_previous = true;
+            m_previous = previous;
+        }
+#ifdef _WIN32
+        _putenv_s(m_name.c_str(), value);
+#else
+        ::setenv(m_name.c_str(), value, 1);
+#endif
+    }
+
+    ~ScopedEnvVar() {
+#ifdef _WIN32
+        _putenv_s(m_name.c_str(), m_had_previous ? m_previous.c_str() : "");
+#else
+        if (m_had_previous)
+            ::setenv(m_name.c_str(), m_previous.c_str(), 1);
+        else
+            ::unsetenv(m_name.c_str());
+#endif
+    }
+
+    ScopedEnvVar(const ScopedEnvVar&) = delete;
+    ScopedEnvVar& operator=(const ScopedEnvVar&) = delete;
+
+private:
+    std::string m_name;
+    std::string m_previous;
+    bool m_had_previous = false;
+};
+
 class ConditionMultiPortInputGPUTest : public testing::TestWithParam<bool> {};
 
 TEST_P(ConditionMultiPortInputGPUTest, ExecutesBothBodiesWithProducerPorts) {
@@ -62,6 +97,7 @@ TEST_P(ConditionMultiPortInputGPUTest, ExecutesBothBodiesWithProducerPorts) {
     conditional->set_output(then_result, else_result);
     auto model = std::make_shared<ov::Model>(ov::OutputVector{conditional}, ov::ParameterVector{data, predicate});
 
+    ScopedEnvVar new_shape_infer("OV_GPU_ALLOW_NEW_SHAPE_INFER", "1");
     ov::Core core;
     auto compiled = core.compile_model(model, ov::test::utils::DEVICE_GPU);
     if (GetParam()) {
@@ -118,6 +154,7 @@ TEST_P(ConditionMultiPortInputGPUTest, ExecutesBothBodiesWithRepeatedProducerOut
     ASSERT_EQ(conditional->input_value(1), conditional->input_value(2));
     auto model = std::make_shared<ov::Model>(ov::OutputVector{conditional}, ov::ParameterVector{data, predicate});
 
+    ScopedEnvVar new_shape_infer("OV_GPU_ALLOW_NEW_SHAPE_INFER", "1");
     ov::Core core;
     auto compiled = core.compile_model(model, ov::test::utils::DEVICE_GPU);
     if (GetParam()) {

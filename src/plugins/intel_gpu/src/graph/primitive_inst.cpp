@@ -43,6 +43,7 @@
 #include "kv_cache_inst.h"
 #include "loop_inst.h"
 #include "lora_inst.h"
+#include "multiclass_nms_inst.h"
 #include "mutable_data_inst.h"
 #include "non_max_suppression_inst.h"
 #include "paged_attention_inst.h"
@@ -597,7 +598,7 @@ void primitive_inst::update_shape() {
     }
 
     // required to zero out the number of valid boxes (third output) when NMS is not executed
-    if (get_node().is_type<non_max_suppression>()) {
+    if (get_node().is_type<non_max_suppression>() || get_node().is_type<multiclass_nms>()) {
         if (!_impl_params->output_layouts[0].count() && _outputs.size() == 3 && _outputs[2]) {
             const bool out_of_order_queue = queue_type == QueueTypes::out_of_order;
             auto dep_events =

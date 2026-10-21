@@ -54,7 +54,8 @@ TEST_P(MulticlassNmsDynamicConsumerGPUTest, OutputsFollowRuntimeBoxCount) {
     }
 
     auto request = compiled.create_infer_request();
-    const std::vector<size_t> box_counts = static_inputs ? std::vector<size_t>{10} : std::vector<size_t>{10, 4, 10, 1};
+    const std::vector<size_t> box_counts = static_inputs ? std::vector<size_t>{10} :
+        (boxes_shape[1].get_min_length() == 0 ? std::vector<size_t>{10, 0, 4, 10, 1} : std::vector<size_t>{10, 4, 10, 1});
     for (const size_t num_boxes : box_counts) {
         SCOPED_TRACE(num_boxes);
         ov::Tensor boxes_tensor(ov::element::f32, ov::Shape{1, num_boxes, 4});
