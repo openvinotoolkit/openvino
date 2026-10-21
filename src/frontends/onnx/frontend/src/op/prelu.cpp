@@ -6,12 +6,15 @@
 
 #include "core/operator_set.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/reshape.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 using namespace ov::op;
 
 namespace ov::frontend::onnx::ai_onnx {
@@ -37,37 +40,28 @@ ov::OutputVector prelu(const ov::frontend::onnx::Node& node) {
     const auto& slope = ov_inputs.at(1);
 
     const auto data_shape = std::make_shared<v3::ShapeOf>(data, ov::element::i64);
-    const auto data_rank = data.get_partial_shape().rank();
-    const auto slope_rank = slope.get_partial_shape().rank();
-    if (data_rank.is_static() && slope_rank.is_static() && slope_rank.get_length() <= data_rank.get_length()) {
-        // Validate against the trailing data dimensions without expanding singleton slope dimensions.
-        // Keeping this check in the graph also rejects incompatible shapes after specialization or at runtime.
-        std::vector<int64_t> trailing_axes;
-        for (int64_t axis = -slope_rank.get_length(); axis < 0; ++axis) {
-            trailing_axes.push_back(axis);
-        }
-        const auto axes = v0::Constant::create(ov::element::i64, ov::Shape{trailing_axes.size()}, trailing_axes);
-        const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-        const auto one = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
-        const auto trailing_shape = std::make_shared<v8::Gather>(data_shape, axes, zero);
-        const auto slope_shape = std::make_shared<v3::ShapeOf>(slope, ov::element::i64);
-        const auto singleton_dims = std::make_shared<v1::Equal>(slope_shape, one);
-        const auto compact_target = std::make_shared<v1::Select>(singleton_dims, slope_shape, trailing_shape);
-        ov::Output<ov::Node> checked_slope =
-            std::make_shared<v3::Broadcast>(slope, compact_target, BroadcastType::NUMPY);
-        if (slope_rank.get_length() == 1 && data_rank.get_length() >= 2) {
-            // Only rank-1 slopes need reshaping to avoid PRelu's channel-axis interpretation.
-            std::vector<int64_t> pattern(data_rank.get_length(), 1);
-            pattern.back() = -1;
-            const auto target = v0::Constant::create(ov::element::i64, ov::Shape{pattern.size()}, pattern);
-            checked_slope = std::make_shared<v1::Reshape>(checked_slope, target, false);
-        }
-        return {std::make_shared<v0::PRelu>(data, checked_slope)};
-    }
+    const auto slope_shape = std::make_shared<v3::ShapeOf>(slope, ov::element::i64);
+    const auto data_rank_vector = std::make_shared<v3::ShapeOf>(data_shape, ov::element::i64);
+    const auto slope_rank_vector = std::make_shared<v3::ShapeOf>(slope_shape, ov::element::i64);
+    const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    const auto one = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    const auto data_rank = std::make_shared<v0::Squeeze>(data_rank_vector);
+    const auto slope_rank = std::make_shared<v0::Squeeze>(slope_rank_vector);
+    const auto axes_start = std::make_shared<v1::Subtract>(data_rank, slope_rank);
+    const auto trailing_axes = std::make_shared<v4::Range>(axes_start, data_rank, one, ov::element::i64);
+    const auto trailing_shape = std::make_shared<v8::Gather>(data_shape, trailing_axes, zero);
+    const auto singleton_dims = std::make_shared<v1::Equal>(slope_shape, one);
+    const auto compact_target = std::make_shared<v1::Select>(singleton_dims, slope_shape, trailing_shape);
+    const auto leading_ones =
+        std::make_shared<v3::Broadcast>(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+                                        std::make_shared<v1::Subtract>(data_rank_vector, slope_rank_vector));
+    const auto normalized_shape = std::make_shared<v0::Concat>(ov::OutputVector{leading_ones, compact_target}, 0);
 
-    // Unknown ranks need a checked fallback: never allow the slope to enlarge PRelu's output.
-    const auto broadcast_slope = std::make_shared<v3::Broadcast>(slope, data_shape, BroadcastType::NUMPY);
-    return {std::make_shared<v0::PRelu>(data, broadcast_slope)};
+    // Everything is derived from the current shapes so a post-conversion rank change keeps non-singleton slope
+    // dimensions on the trailing data axes. Broadcasting to this compact target left-pads the slope and rejects
+    // dimensions that are neither 1 nor equal to the data, without materializing an activation-sized slope.
+    const auto normalized_slope = std::make_shared<v3::Broadcast>(slope, normalized_shape, BroadcastType::NUMPY);
+    return {std::make_shared<v0::PRelu>(data, normalized_slope)};
 }
 
 ONNX_OP("PRelu", OPSET_SINCE(7), ai_onnx::opset_7::prelu);
