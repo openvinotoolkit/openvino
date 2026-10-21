@@ -261,6 +261,11 @@ void collect_branch_nodes(const NodePtr& node, size_t replica_count, NodeSet& no
     visiting.erase(node.get());
 }
 
+template <typename... Types>
+bool equal_supported_scalars(const ov::Any& lhs, const ov::Any& rhs) {
+    return ((lhs.is<Types>() && lhs.as<Types>() == rhs.as<Types>()) || ...);
+}
+
 bool equivalent_supported_rt_value(const std::string& key, const ov::Any& lhs, const ov::Any& rhs) {
     if (lhs.empty() || rhs.empty()) {
         return lhs.empty() && rhs.empty();
@@ -295,38 +300,18 @@ bool equivalent_supported_rt_value(const std::string& key, const ov::Any& lhs, c
         return rhs.is<ov::FusedNames>();
     }
 
-    if (lhs.is<bool>()) {
-        return lhs.as<bool>() == rhs.as<bool>();
-    }
-    if (lhs.is<int8_t>()) {
-        return lhs.as<int8_t>() == rhs.as<int8_t>();
-    }
-    if (lhs.is<int16_t>()) {
-        return lhs.as<int16_t>() == rhs.as<int16_t>();
-    }
-    if (lhs.is<int32_t>()) {
-        return lhs.as<int32_t>() == rhs.as<int32_t>();
-    }
-    if (lhs.is<int64_t>()) {
-        return lhs.as<int64_t>() == rhs.as<int64_t>();
-    }
-    if (lhs.is<uint8_t>()) {
-        return lhs.as<uint8_t>() == rhs.as<uint8_t>();
-    }
-    if (lhs.is<uint16_t>()) {
-        return lhs.as<uint16_t>() == rhs.as<uint16_t>();
-    }
-    if (lhs.is<uint32_t>()) {
-        return lhs.as<uint32_t>() == rhs.as<uint32_t>();
-    }
-    if (lhs.is<uint64_t>()) {
-        return lhs.as<uint64_t>() == rhs.as<uint64_t>();
-    }
-    if (lhs.is<float>()) {
-        return lhs.as<float>() == rhs.as<float>();
-    }
-    if (lhs.is<double>()) {
-        return lhs.as<double>() == rhs.as<double>();
+    if (equal_supported_scalars<bool,
+                                int8_t,
+                                int16_t,
+                                int32_t,
+                                int64_t,
+                                uint8_t,
+                                uint16_t,
+                                uint32_t,
+                                uint64_t,
+                                float,
+                                double>(lhs, rhs)) {
+        return true;
     }
     if (lhs.is<std::string>()) {
         return lhs.as<std::string>() == rhs.as<std::string>();
