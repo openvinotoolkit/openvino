@@ -61,21 +61,25 @@ std::vector<ov::Layout> IOLayoutsSection::get_output_layouts() const {
     return m_output_layouts;
 }
 
-std::shared_ptr<ISection> IOLayoutsSection::read(BlobReaderInterface& blob_reader) {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "IOLayoutsSection::read");
-    const Logger logger("IOLayoutsSection", blob_reader.get_log_level());
+ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> IOLayoutsSection::decode =
+    [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "IOLayoutsSection::decode");
+    const Logger logger("IOLayoutsSection", Logger::global().level());
 
-    const size_t section_length = blob_reader.get_total_section_size();
+    const size_t section_length = section.size();
     OPENVINO_ASSERT(section_length >= MINIMUM_LAYOUTS_SECTION_SIZE,
                     "The length of the IOLayouts section is too small. Received: ",
                     section_length,
                     ". Minimum expected: ",
                     MINIMUM_LAYOUTS_SECTION_SIZE);
 
+    size_t offset = 0;
     uint32_t number_of_input_layouts;
     uint32_t number_of_output_layouts;
-    blob_reader.read_into_buffer(&number_of_input_layouts, sizeof(number_of_input_layouts));
-    blob_reader.read_into_buffer(&number_of_output_layouts, sizeof(number_of_output_layouts));
+    section.read(offset, sizeof(number_of_input_layouts), &number_of_input_layouts);
+    offset += sizeof(number_of_input_layouts);
+    section.read(offset, sizeof(number_of_output_layouts), &number_of_output_layouts);
+    offset += sizeof(number_of_output_layouts);
 
     const size_t max_layouts =
         (section_length - sizeof(number_of_input_layouts) - sizeof(number_of_output_layouts)) / SIZE_OF_LAYOUT_SIZE;
@@ -94,12 +98,14 @@ std::shared_ptr<ISection> IOLayoutsSection::read(BlobReaderInterface& blob_reade
         uint16_t string_length;
         layouts.reserve(number_of_layouts);
         for (uint32_t layout_index = 0; layout_index < number_of_layouts; ++layout_index) {
-            blob_reader.read_into_buffer(&string_length, sizeof(string_length));
-            OPENVINO_ASSERT(string_length <= blob_reader.get_remaining_section_size(),
+            section.read(offset, sizeof(string_length), &string_length);
+            offset += sizeof(string_length);
+            OPENVINO_ASSERT(string_length <= section_length - offset,
                             "The size of at least one layout exceeds the limit of the section");
 
             std::string layout_string(string_length, 0);
-            blob_reader.read_into_buffer(const_cast<char*>(layout_string.c_str()), string_length);
+            section.read(offset, string_length, const_cast<char*>(layout_string.c_str()));
+            offset += sizeof(number_of_input_layouts);
 
             try {
                 layouts.push_back(ov::Layout(std::move(layout_string)));
@@ -118,8 +124,8 @@ std::shared_ptr<ISection> IOLayoutsSection::read(BlobReaderInterface& blob_reade
 
     const std::vector<ov::Layout> input_layouts = read_n_layouts(number_of_input_layouts, "Input");
     const std::vector<ov::Layout> output_layouts = read_n_layouts(number_of_output_layouts, "Output");
-    OPENVINO_ASSERT(blob_reader.get_remaining_section_size() == 0, "Failed to read the whole content of the section");
-    return std::make_shared<IOLayoutsSection>(input_layouts, output_layouts, blob_reader.get_log_level());
-}
+    OPENVINO_ASSERT(section_length - offset == 0, "Failed to read the whole content of the section");
+    return std::make_shared<IOLayoutsSection>(input_layouts, output_layouts, Logger::global().level());
+};
 
 }  // namespace intel_npu

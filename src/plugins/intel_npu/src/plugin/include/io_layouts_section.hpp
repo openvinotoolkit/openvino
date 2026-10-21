@@ -23,7 +23,7 @@ public:
 
     std::vector<ov::Layout> get_output_layouts() const;
 
-    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
+    static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
 
 private:
     std::vector<ov::Layout> m_input_layouts;

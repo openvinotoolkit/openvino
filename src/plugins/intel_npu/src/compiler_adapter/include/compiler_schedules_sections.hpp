@@ -40,9 +40,11 @@ public:
      */
     void set_graph(const std::shared_ptr<Graph>& graph);
 
+    void set_encryption_callback(const std::function<std::string(const std::string&)> encryption_callback);
+
     ov::Tensor get_schedule() const;
 
-    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
+    static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
 
     // TODO can't this happen during `read`, by getting the callbacks from the BlobReader?
     void decrypt(const std::function<std::string(const std::string&)>& decryption_callback);
@@ -56,7 +58,7 @@ private:
     std::variant<std::shared_ptr<Graph>, ov::Tensor> m_graph_or_schedule;
     /**
      * @brief Used to encrypt the schedule before writing it if available.
-     * @note Entryption will happen only if this attribute is not null.
+     * @note Encryption will happen only if this attribute is not null.
      */
     std::function<std::string(const std::string&)> m_encryption_callback;
 
@@ -87,9 +89,11 @@ public:
 
     void set_graph(const std::shared_ptr<WeightlessGraph>& weightless_graph);
 
+    void set_encryption_callback(const std::function<std::string(const std::string&)> encryption_callback);
+
     std::vector<ov::Tensor> get_schedules() const;
 
-    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
+    static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
 
     void decrypt(const std::function<std::string(const std::string&)>& decryption_callback);
 
@@ -100,7 +104,7 @@ private:
     std::variant<std::shared_ptr<WeightlessGraph>, std::vector<ov::Tensor>> m_graph_or_schedules;
     /**
      * @brief Used to encrypt the schedules before writing it if available.
-     * @note Entryption will happen only if this attribute is not null.
+     * @note Encryption will happen only if this attribute is not null.
      */
     std::function<std::string(const std::string&)> m_encryption_callback;
 
@@ -132,10 +136,12 @@ public:
 
     void set_graph(const std::shared_ptr<DynamicGraph>& graph);
 
+    void set_encryption_callback(const std::function<std::string(const std::string&)> encryption_callback);
+
     // TODO consider moving the tensor to free the schedule earlier
     ov::Tensor get_schedule() const;
 
-    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
+    static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
 
     void decrypt(const std::function<std::string(const std::string&)>& decryption_callback);
 

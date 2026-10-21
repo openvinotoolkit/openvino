@@ -15,11 +15,11 @@ public:
     std::vector<std::shared_ptr<CREToken>> get_compatibility_requirements_subexpression(
         const std::unordered_map<SectionID, std::shared_ptr<ISection>>& all_registered_sections) const override;
 
-    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
-
     int64_t get_batch_size() const;
 
-    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
+    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
+
+    static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
 
 private:
     int64_t m_batch_size;

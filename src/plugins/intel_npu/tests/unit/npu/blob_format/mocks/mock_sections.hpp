@@ -26,7 +26,7 @@
 
 //     double get_value() const;
 
-//     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
+//     static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
 
 // private:
 //     double value;
@@ -40,7 +40,7 @@
 
 //     std::vector<double> get_values() const;
 
-//     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
+//     static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
 
 //     static uint64_t write_size(size_t n_values, uint64_t start_offset);
 
@@ -58,7 +58,7 @@
 
 //     std::pair<double, std::vector<double>> get_values() const;
 
-//     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
+//     static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
 
 // private:
 //     std::shared_ptr<MockSection_1> section_1;
@@ -81,7 +81,7 @@
 
 //     Manifest get_embedded_table() const;
 
-//     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
+//     static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
 
 // private:
 //     // Dispatches to the concrete read() for the given embedded section type.

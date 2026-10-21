@@ -15,6 +15,7 @@
 #include "intel_npu/common/section_id.hpp"
 #include "intel_npu/common/section_type.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/hsm_writer.hpp"
 #include "openvino/runtime/tensor.hpp"
 

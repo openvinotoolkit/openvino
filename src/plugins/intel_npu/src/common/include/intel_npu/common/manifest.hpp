@@ -62,7 +62,7 @@ public:
 
     Manifest get_manifest() const;
 
-    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
+    static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
 
 private:
     Manifest m_manifest;

@@ -24,6 +24,10 @@ std::vector<std::shared_ptr<CREToken>> BatchSizeSection::get_compatibility_requi
     return {std::make_shared<SectionType>(get_type())};
 }
 
+int64_t BatchSizeSection::get_batch_size() const {
+    return m_batch_size;
+}
+
 void BatchSizeSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BatchSizeSection::write");
     m_logger.debug("Writting batch size %ld", m_batch_size);
@@ -31,14 +35,11 @@ void BatchSizeSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
     sink({reinterpret_cast<const std::byte*>(&m_batch_size), sizeof(m_batch_size)});
 }
 
-int64_t BatchSizeSection::get_batch_size() const {
-    return m_batch_size;
-}
+ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> BatchSizeSection::decode =
+    [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BatchSizeSection::decode");
 
-std::shared_ptr<ISection> BatchSizeSection::read(BlobReaderInterface& blob_reader) {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BatchSizeSection::read");
-
-    const size_t section_length = blob_reader.get_total_section_size();
+    const size_t section_length = section.size();
     OPENVINO_ASSERT(section_length == sizeof(int64_t),
                     "BatchSizeSection: incorrect section length ",
                     section_length,
@@ -46,11 +47,11 @@ std::shared_ptr<ISection> BatchSizeSection::read(BlobReaderInterface& blob_reade
                     sizeof(int64_t));
 
     int64_t batch_size;
-    blob_reader.read_into_buffer(&batch_size, sizeof(batch_size));
+    section.read(&batch_size);
 
-    Logger("BatchSizeSection", blob_reader.get_log_level()).debug("Read batch size %lu", batch_size);
+    Logger("BatchSizeSection", Logger::global().level()).debug("Read batch size %lu", batch_size);
 
-    return std::make_shared<BatchSizeSection>(batch_size, blob_reader.get_log_level());
-}
+    return std::make_shared<BatchSizeSection>(batch_size, Logger::global().level());
+};
 
 }  // namespace intel_npu

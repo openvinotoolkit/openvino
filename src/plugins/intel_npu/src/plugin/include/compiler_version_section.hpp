@@ -16,7 +16,7 @@ public:
 
     int32_t get_compiler_version() const;
 
-    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
+    static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
 
 private:
     int32_t m_compiler_version;

@@ -116,7 +116,7 @@ public:
 
     RuntimeRequirements get_runtime_requirements() const;
 
-    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
+    static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
 
 private:
     RuntimeRequirements m_runtime_requirements;

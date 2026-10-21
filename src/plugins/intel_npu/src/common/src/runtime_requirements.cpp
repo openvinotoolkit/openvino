@@ -176,7 +176,8 @@ RuntimeRequirements RuntimeRequirementsSection::get_runtime_requirements() const
     return m_runtime_requirements;
 }
 
-std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& blob_reader) {
+ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> BatchSizeSection::decode =
+    [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "RuntimeRequirementsSection::read");
     Logger logger("RuntimeRequirementsSection", blob_reader.get_log_level());
 

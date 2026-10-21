@@ -28,10 +28,11 @@ int32_t CompilerVersionSection::get_compiler_version() const {
     return m_compiler_version;
 }
 
-std::shared_ptr<ISection> CompilerVersionSection::read(BlobReaderInterface& blob_reader) {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompilerVersionSection::read");
+ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> CompilerVersionSection::decode =
+    [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompilerVersionSection::decode");
 
-    const size_t section_length = blob_reader.get_total_section_size();
+    const size_t section_length = section.size();
     OPENVINO_ASSERT(section_length == sizeof(int32_t),
                     "CompilerVersionSection: incorrect section length ",
                     section_length,
@@ -39,11 +40,11 @@ std::shared_ptr<ISection> CompilerVersionSection::read(BlobReaderInterface& blob
                     sizeof(int32_t));
 
     int32_t compiler_version;
-    blob_reader.read_into_buffer(&compiler_version, sizeof(compiler_version));
+    section.read(&compiler_version);
 
-    Logger("CompilerVersionSection", blob_reader.get_log_level()).debug("Read compiler version %lu", compiler_version);
+    Logger("CompilerVersionSection", Logger::global().level()).debug("Read compiler version %lu", compiler_version);
 
-    return std::make_shared<CompilerVersionSection>(compiler_version, blob_reader.get_log_level());
-}
+    return std::make_shared<CompilerVersionSection>(compiler_version, Logger::global().level());
+};
 
 }  // namespace intel_npu

@@ -24,21 +24,8 @@ constexpr size_t SIZE_OF_INIT_SCHEDULE_SIZE = sizeof(uint64_t);
 constexpr char LIST_START_DELIMITER = '[';
 constexpr char LIST_END_DELIMITER = ']';
 
-constexpr size_t SIZE_OF_PADDING_SIZE = sizeof(uint16_t);
-constexpr size_t MINIMUM_MAIN_SCHEDULE_SECTION_SIZE = SIZE_OF_PADDING_SIZE;
 constexpr size_t NUMBER_OF_INITS_SIZE = sizeof(uint16_t);
 constexpr size_t MINIMUM_INIT_SCHEDULES_SECTION_SIZE = NUMBER_OF_INITS_SIZE;
-
-std::function<std::string(const std::string&)> get_encryption_callback_from_config(
-    const std::optional<Config>& config) {
-    OPENVINO_ASSERT(config.has_value(), "A config object is required to query the encryption callback");
-
-    if (config->has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
-        config->get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
-        return config->get<CACHE_ENCRYPTION_CALLBACKS>().encrypt;
-    }
-    return nullptr;
-}
 
 }  // namespace
 
@@ -107,6 +94,12 @@ void ELFMainScheduleSection::set_graph(const std::shared_ptr<Graph>& graph) {
     m_graph_or_schedule = graph;
 }
 
+// TODO remember to call this after parsing. Maybe a test could be useful for this
+void ELFMainScheduleSection::set_encryption_callback(
+    const std::function<std::string(const std::string&)> encryption_callback) {
+    m_encryption_callback = encryption_callback;
+}
+
 ov::Tensor ELFMainScheduleSection::get_schedule() const {
     const auto* schedule = std::get_if<ov::Tensor>(&m_graph_or_schedule);
     OPENVINO_ASSERT(schedule, INVALID_STATE_MESSAGE);
@@ -120,45 +113,32 @@ void ELFMainScheduleSection::decrypt(const std::function<std::string(const std::
     utils::decrypt_payload(*schedule, decryption_callback, m_logger);
 }
 
-std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob_reader) {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::read");
-    const Logger logger("ELFMainScheduleSection", blob_reader.get_log_level());
-    OPENVINO_ASSERT(blob_reader.get_total_section_size() >= MINIMUM_MAIN_SCHEDULE_SECTION_SIZE,
-                    SECTION_TOO_SHORT_MESSAGE);
+ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFMainScheduleSection::decode =
+    [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::decode");
+    const Logger logger("ELFMainScheduleSection", Logger::global().level());
 
-    // Skip the first padding region
+    // TODO update the tests, there is a minimum size no more
     // TODO double check no "size_t" used for r/w sizes
-    uint16_t padding_size;
-    blob_reader.read_into_buffer(&padding_size, sizeof(padding_size));
-    OPENVINO_ASSERT(padding_size <= blob_reader.get_remaining_section_size(),
-                    "The read padding size is greater than the length of the blob section");
-    blob_reader.move_cursor_relative_to_current_section(blob_reader.get_offset_relative_to_current_section() +
-                                                        padding_size);
+    const size_t main_schedule_size = section.size();
+    std::shared_ptr<ELFMainScheduleSection> result;
+    const ov::util::MemoryView content_view = section.view();
 
-    logger.debug("Skipped %lu padding from offset %lu", padding_size, blob_reader.get_offset_relative_to_npu_region());
-
-    const size_t main_schedule_size = blob_reader.get_remaining_section_size();
-    std::shared_ptr<ELFMainScheduleSection> section;
-
-    if (!blob_reader.source_is_contiguous()) {
+    if (content_view.empty()) {
         ov::Tensor main_schedule = utils::allocate_aligned_tensor(main_schedule_size);
-        blob_reader.read_into_buffer(main_schedule.data(), main_schedule_size);
+        section.read(main_schedule.data());
 
         logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data(), main_schedule_size);
-        section =
-            std::make_shared<ELFMainScheduleSection>(std::move(main_schedule),
-                                                     get_encryption_callback_from_config(blob_reader.get_config()),
-                                                     logger.level());
+        result = std::make_shared<ELFMainScheduleSection>(std::move(main_schedule), nullptr, logger.level());
     } else {
-        section =
-            std::make_shared<ELFMainScheduleSection>(blob_reader.create_roi_tensor(main_schedule_size),
-                                                     get_encryption_callback_from_config(blob_reader.get_config()),
-                                                     logger.level());
+        result = std::make_shared<ELFMainScheduleSection>(
+            ov::Tensor(ov::element::Type_t::u8, ov::Shape({content_view.size()}), content_view.data()),
+            nullptr,
+            logger.level());
     }
 
-    OPENVINO_ASSERT(blob_reader.get_remaining_section_size() == 0, "Failed to read the whole content of the section");
-    return section;
-}
+    return result;
+};
 
 std::optional<std::string> ELFMainScheduleSection::get_individual_compatibility_requirements() const {
     const auto* graph = std::get_if<std::shared_ptr<Graph>>(&m_graph_or_schedule);
@@ -244,6 +224,11 @@ void ELFInitSchedulesSection::set_graph(const std::shared_ptr<WeightlessGraph>& 
     m_graph_or_schedules = weightless_graph;
 }
 
+void ELFInitSchedulesSection::set_encryption_callback(
+    const std::function<std::string(const std::string&)> encryption_callback) {
+    m_encryption_callback = encryption_callback;
+}
+
 std::vector<ov::Tensor> ELFInitSchedulesSection::get_schedules() const {
     const auto* schedules = std::get_if<std::vector<ov::Tensor>>(&m_graph_or_schedules);
     OPENVINO_ASSERT(schedules, INVALID_STATE_MESSAGE);
@@ -259,33 +244,35 @@ void ELFInitSchedulesSection::decrypt(const std::function<std::string(const std:
     }
 }
 
-std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blob_reader) {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::read");
-    Logger logger("ELFInitSchedulesSection", blob_reader.get_log_level());
-    OPENVINO_ASSERT(blob_reader.get_total_section_size() >= MINIMUM_INIT_SCHEDULES_SECTION_SIZE,
-                    SECTION_TOO_SHORT_MESSAGE);
+ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFInitSchedulesSection::decode =
+    [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::decode");
+    Logger logger("ELFInitSchedulesSection", Logger::global().level());
+    OPENVINO_ASSERT(section.size() >= MINIMUM_INIT_SCHEDULES_SECTION_SIZE, SECTION_TOO_SHORT_MESSAGE);
 
     uint16_t number_of_inits;
-    blob_reader.read_into_buffer(&number_of_inits, sizeof(number_of_inits));
-    OPENVINO_ASSERT(number_of_inits <= blob_reader.get_remaining_section_size() / SIZE_OF_INIT_SCHEDULE_SIZE,
+    size_t offset = section.size() - sizeof(number_of_inits);
+    section.read(offset, sizeof(number_of_inits), &number_of_inits);
+    OPENVINO_ASSERT(number_of_inits <= (section.size() - sizeof(number_of_inits)) / SIZE_OF_INIT_SCHEDULE_SIZE,
                     "The number of init schedules read from the blob is too great relative to the size of the section");
 
     logger.debug("Parsed number of init schedules: %lu", number_of_inits);
 
     std::vector<ov::Tensor> init_schedules;
     if (number_of_inits == 0) {
-        OPENVINO_ASSERT(blob_reader.get_remaining_section_size() == 0,
+        OPENVINO_ASSERT(section.size() == MINIMUM_INIT_SCHEDULES_SECTION_SIZE,
                         "Failed to read the whole content of the section");
-        return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules),
-                                                         get_encryption_callback_from_config(blob_reader.get_config()),
-                                                         logger.level());
+        return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules), nullptr, logger.level());
     }
 
+    // TODO comment
+    offset = section.size() - sizeof(number_of_inits) - number_of_inits * SIZE_OF_INIT_SCHEDULE_SIZE;
     size_t total_init_sizes = 0;
     std::vector<uint64_t> init_sizes;
     uint64_t value;
     while (number_of_inits--) {
-        blob_reader.read_into_buffer(&value, sizeof(value));
+        section.read(offset, sizeof(value), &value);
+        offset += sizeof(value);
         init_sizes.push_back(value);
 
         OPENVINO_ASSERT(total_init_sizes <= total_init_sizes + value, "Integer overflow");
@@ -294,36 +281,33 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
         logger.debug("Init schedule parsed size: %lu", value);
     }
 
-    OPENVINO_ASSERT(total_init_sizes <= blob_reader.get_remaining_section_size() - SIZE_OF_PADDING_SIZE,
-                    "The sum of the parsed init schedule sizes is too big for the current section size");
+    // TODO check the checks and their tests
+    OPENVINO_ASSERT(
+        total_init_sizes == section.size() - sizeof(number_of_inits) - number_of_inits * SIZE_OF_INIT_SCHEDULE_SIZE,
+        "The sum of the parsed init schedule sizes does not correspond to the current section size");
 
-    // Skip the first padding
-    uint16_t padding_size;
-    blob_reader.read_into_buffer(&padding_size, sizeof(padding_size));
-    blob_reader.move_cursor_relative_to_current_section(blob_reader.get_offset_relative_to_current_section() +
-                                                        padding_size);
+    const ov::util::MemoryView content_view = section.view();
+    offset = 0;
 
     for (const auto& init_size : init_sizes) {
         ov::Tensor init_schedule;
 
-        if (!blob_reader.source_is_contiguous()) {
+        if (content_view.empty()) {
             init_schedule = utils::allocate_aligned_tensor(init_size);
-            blob_reader.read_into_buffer(init_schedule.data(), init_size);
+            section.read(offset, init_size, init_schedule.data());
+            offset += init_size;
 
             logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data(), init_size);
         } else {
-            init_schedule = blob_reader.create_roi_tensor(init_size);
+            init_schedule = ov::Tensor(ov::element::Type_t::u8, ov::Shape({init_size}), content_view.data() + offset);
+            offset += init_size;
         }
 
         init_schedules.push_back(std::move(init_schedule));
     }
 
-    OPENVINO_ASSERT(blob_reader.get_remaining_section_size() == 0, "Failed to read the whole content of the section");
-
-    return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules),
-                                                     get_encryption_callback_from_config(blob_reader.get_config()),
-                                                     logger.level());
-}
+    return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules), nullptr, logger.level());
+};
 
 DynamicScheduleSection::DynamicScheduleSection(
     const std::shared_ptr<DynamicGraph>& graph,
@@ -358,6 +342,11 @@ void DynamicScheduleSection::set_graph(const std::shared_ptr<DynamicGraph>& grap
     m_impl.set_graph(std::dynamic_pointer_cast<Graph>(graph));
 }
 
+void DynamicScheduleSection::set_encryption_callback(
+    const std::function<std::string(const std::string&)> encryption_callback) {
+    m_impl.set_encryption_callback(encryption_callback);
+}
+
 ov::Tensor DynamicScheduleSection::get_schedule() const {
     return m_impl.get_schedule();
 }
@@ -366,15 +355,16 @@ void DynamicScheduleSection::decrypt(const std::function<std::string(const std::
     m_impl.decrypt(decryption_callback);
 }
 
-std::shared_ptr<ISection> DynamicScheduleSection::read(BlobReaderInterface& blob_reader) {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "DynamicScheduleSection::read");
+ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> DynamicScheduleSection::decode =
+    [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "DynamicScheduleSection::decode");
     // TODO more logs
 
     return std::make_shared<DynamicScheduleSection>(
-        std::dynamic_pointer_cast<ELFMainScheduleSection>(ELFMainScheduleSection::read(blob_reader))->get_schedule(),
-        get_encryption_callback_from_config(blob_reader.get_config()),
-        blob_reader.get_log_level());
-}
+        std::dynamic_pointer_cast<ELFMainScheduleSection>(ELFMainScheduleSection::decode(section))->get_schedule(),
+        nullptr,
+        Logger::global()::level());
+};
 
 std::optional<std::string> DynamicScheduleSection::get_individual_compatibility_requirements() const {
     // TODO is this correct?
