@@ -62,36 +62,36 @@ std::vector<uint8_t> container_with_model_ids(std::initializer_list<InlineModelI
     return blob;
 }
 
-void expect_encodes_to(const uint64_t& id, const WireId& expected) {
-    const auto encoded = hsm::encode_model_id(id);
-    ASSERT_EQ(encoded.size(), expected.size());
-    EXPECT_EQ(std::memcmp(encoded.data(), expected.data(), expected.size()), 0);
+void expect_wraps_to(const uint64_t& id, const WireId& expected) {
+    const auto wrapped = hsm::wrap_model_id(id);
+    ASSERT_EQ(wrapped.size(), expected.size());
+    EXPECT_EQ(std::memcmp(wrapped.data(), expected.data(), expected.size()), 0);
 }
 
 }  // namespace
 
-TEST(HsmModelIdSectionTest, encode_emits_the_little_endian_wire_bytes) {
-    expect_encodes_to(sample_id, sample_wire);
-    expect_encodes_to(max_id, max_wire);
-    expect_encodes_to(0, WireId{});
+TEST(HsmModelIdSectionTest, wrap_emits_the_little_endian_wire_bytes) {
+    expect_wraps_to(sample_id, sample_wire);
+    expect_wraps_to(max_id, max_wire);
+    expect_wraps_to(0, WireId{});
 }
 
-TEST(HsmModelIdSectionTest, decodes_an_id_from_a_hand_built_container) {
+TEST(HsmModelIdSectionTest, unwraps_an_id_from_a_hand_built_container) {
     const auto bytes = container_with_model_ids({{hsm::any_device_id, sample_wire}});
     const auto reader = hsm::Reader::open(bytes.data(), bytes.size());
     ASSERT_TRUE(reader.has_value());
 
     const auto section = reader->section(hsm::Tags::model_id);
     ASSERT_TRUE(section.has_value());
-    // The slot reads back full-width whatever the payload was, which is why decode reads a fixed 8 bytes.
+    // The slot reads back full-width whatever the payload was, which is why unwrap reads a fixed 8 bytes.
     EXPECT_GT(section->size(), sizeof(uint64_t));
 
     const auto payload = section->view();
     ASSERT_TRUE(payload.has_value());
-    EXPECT_EQ(hsm::decode_model_id(*payload), sample_id);
+    EXPECT_EQ(hsm::unwrap_model_id(*payload), sample_id);
 }
 
-TEST(HsmModelIdSectionTest, decodes_the_maximum_id_from_a_hand_built_container_stream) {
+TEST(HsmModelIdSectionTest, unwraps_the_maximum_id_from_a_hand_built_container_stream) {
     const auto bytes = container_with_model_ids({{hsm::any_device_id, max_wire}});
     std::stringstream stream{std::string{bytes.begin(), bytes.end()}};
     const auto reader = hsm::Reader::open(stream);
@@ -101,17 +101,17 @@ TEST(HsmModelIdSectionTest, decodes_the_maximum_id_from_a_hand_built_container_s
     ASSERT_TRUE(section.has_value());
     const auto payload = section->view();
     ASSERT_TRUE(payload.has_value());
-    EXPECT_EQ(hsm::decode_model_id(*payload), max_id);
+    EXPECT_EQ(hsm::unwrap_model_id(*payload), max_id);
 }
 
-TEST(HsmModelIdSectionTest, decode_rejects_a_payload_too_short_to_hold_an_id) {
+TEST(HsmModelIdSectionTest, unwrap_rejects_a_payload_too_short_to_hold_an_id) {
     const std::array<std::byte, sizeof(uint64_t) - 1> too_short{};
 
-    EXPECT_FALSE(hsm::decode_model_id({too_short.data(), too_short.size()}).has_value());
-    EXPECT_FALSE(hsm::decode_model_id({}).has_value());
+    EXPECT_FALSE(hsm::unwrap_model_id({too_short.data(), too_short.size()}).has_value());
+    EXPECT_FALSE(hsm::unwrap_model_id({}).has_value());
 }
 
-TEST(HsmModelIdSectionTest, device_scoped_id_decodes_independently_of_the_common_one) {
+TEST(HsmModelIdSectionTest, device_scoped_id_unwraps_independently_of_the_common_one) {
     constexpr uint64_t common_id = 0x1122334455667788;
     constexpr WireId common_wire{0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11};
     constexpr uint64_t npu_id = 0xA1B2C3D4E5F60718;
@@ -123,11 +123,11 @@ TEST(HsmModelIdSectionTest, device_scoped_id_decodes_independently_of_the_common
 
     const auto common = reader->section(hsm::Tags::model_id);
     ASSERT_TRUE(common.has_value());
-    EXPECT_EQ(hsm::decode_model_id(*common->view()), common_id);
+    EXPECT_EQ(hsm::unwrap_model_id(*common->view()), common_id);
 
     const auto overridden = reader->section(hsm::npu_device_id, hsm::Tags::model_id);
     ASSERT_TRUE(overridden.has_value());
-    EXPECT_EQ(hsm::decode_model_id(*overridden->view()), npu_id);
+    EXPECT_EQ(hsm::unwrap_model_id(*overridden->view()), npu_id);
 
     // A device that published no id of its own falls back to the common one.
     EXPECT_FALSE(reader->section(hsm::gpu_device_id, hsm::Tags::model_id).has_value());
