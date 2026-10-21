@@ -35,6 +35,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/behavior/ov_infer_request/cancellation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/behavior/ov_infer_request/infer_consistency.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/behavior/ov_infer_request/infer_request_dynamic.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/behavior/ov_infer_request/inference.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/behavior/ov_infer_request/io_tensor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/behavior/ov_infer_request/iteration_chaining.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/behavior/ov_infer_request/multithreading.cpp
