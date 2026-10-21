@@ -23,13 +23,9 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 
 | Architecture | Notes | Real checkpoint | Choices |
 |---|---|---|---|
-| `afmoe` | Dense lead, sigmoid routed/shared experts, post-norms and periodic RoPE | Trinity-Nano-Preview Q4_K_S | 11/13; greedy gate fails |
 | `cohere2` | Parallel LayerNorm attention/FFN; RoPE on local layers | c4ai-command-r7b-12-2024 Q4_0 | 13/13 |
-| `qwen3next` | Hybrid Gated DeltaNet/full attention; fused and legacy projections | — | |
-| `qwen3vl`, `qwen3vlmoe` | Interleaved multimodal RoPE and DeepStack inputs | Qwen3-VL-2B Q4_0 | 13/13 |
-| `qwen3a` | Qwen3-ASR language decoder | Qwen3-ASR-0.6B Q4_K_M | 10/13; numerical parity fails |
-| `qwen3tts` | Talker codec vocabulary and normalized hidden-state output | — | |
-| `gemma3n` | AltUp, Laurel, sparse FFN, per-layer embeddings and shared KV | Gemma3n E2B Q4_K_M | 13/13; numerical parity fails |
+| `qwen3vl` | Interleaved multimodal RoPE and DeepStack inputs | Qwen3-VL-2B Q4_0 | 13/13 |
+| `gemma3n` | AltUp, Laurel, sparse FFN, per-layer embeddings and shared KV | Gemma3n E2B Q4_0 | 13/13 |
 | `eagle3` | Target feature fusion, optional pre-FC/residual norms and vocabulary mapping | — | |
 | `dflash` | Context-only cache commits, noncausal noise block, optional post-norms/scales and shared V | — | |
 | `bailingmoe2` | Sigmoid routing, biased/grouped selection, shared experts | Ling-mini-2.0 Q2_K | 12/13 |
@@ -210,54 +206,49 @@ Draft blocks up to 4096 tokens are supported.
 
 ## 2026 family validation
 
-The new family fixtures use llama.cpp CPU revision `098ce526b546b5a190327c1da82929cee051b9ac`.
-AFMoE, Cohere2, Qwen3Next, Qwen3VL dense/MoE, EAGLE3 and DFlash have independent
-small F32 prefill/decode references. DFlash also covers GELU, FC/output scales, post-norms,
-missing V weights, dynamic convolution, reduced-vocabulary scatter, selector and LiLiCorr
-lattices. Gemma3n's three-step fixture uses a `2e-5` NMSE limit and requires matching
-greedy tokens at every step. Its final-step NMSE is `1.65684e-5`, above the original
-`1e-5` limit, due to query/probability and GELU rounding differences from the pinned
-nonflash llama.cpp CPU oracle. Other architecture fixtures retain the `1e-5` limit.
-Gemma3n keeps standard SDPA and GenAI PagedAttention, using the existing CPU plugin.
-Consumer regression checks compare their full logits over prefill, cached decode,
-multi-token append, cache reset and mixed requests at the unchanged `1e-5` limit.
-These checks establish SDPA/PA consistency; the fixture's adjusted tolerance does not
-establish real-checkpoint parity. The real Gemma3n checkpoint comparison remains failing.
-The real Qwen3-ASR quantized decoder also fails its original full-logit parity gate.
+This change enables Cohere2, dense Qwen3VL, Gemma3n, EAGLE3 and Qwen-backed DFlash.
+The independent small F32 fixtures use llama.cpp CPU revision
+`098ce526b546b5a190327c1da82929cee051b9ac` and compare full logits through prefill,
+cached decode and cache append. Gemma3n's fixture uses a scoped `2e-5` NMSE limit
+and requires matching greedy predictions at every step; its final-step NMSE is
+`1.65684e-5`. Other decoder fixtures retain `1e-5`. Gemma3n uses standard SDPA and
+GenAI PagedAttention with the existing plugins. Its SDPA/PA full-logit regression
+checks retain `1e-5`; Cohere2 also checks prefill, decode and multi-token append.
+
+Original Cohere2 Q4_0, Qwen3-VL-2B Q4_0 and Gemma3n E2B Q4_0 each match all
+13 checked greedy predictions. This meets the real-checkpoint gate: the first prediction
+must match and at least 90% of the 13 choices must agree. Full-logit NMSE is recorded
+separately; Gemma3n's maximum is `0.001477`, which does not use the synthetic-fixture
+NMSE gate. Cohere2's repeated GenAI SDPA and PA outputs now agree. The original combined
+Gemma3n projector passes the vision feature gate and repeated PA image generation;
+its audio branch is unsupported, as described in [mmproj.md](mmproj.md#added-2026-projector-paths).
 
 A real Llama-Nemotron-Embed-1B-v2 F16 checkpoint at revision
-`effc8deb9688852dbf4ba458301999f7133f8eed` passes the per-token embedding
-comparison against the same pinned llama.cpp CPU oracle on a clean CPU build.
+`effc8deb9688852dbf4ba458301999f7133f8eed` passes per-token embedding comparison
+against the same pinned CPU oracle.
 
-Drafts may omit token embeddings and the output head. Native conversion then exposes
-`gguf.target_token_embedding` and `gguf.target_lm_head` weight inputs; the GenAI integration
-clones the target weight subgraphs before compilation. EAGLE3's reduced-vocabulary `d2t`
-is an auxiliary constant for the consumer's mapping; omitted tables use identity mapping.
-DFlash selector and LiLiCorr lattice consumers use a fixed noise block. The DSpark Markov
-head under `dflash` supports greedy in-graph conditioning, optional confidence outputs,
-reduced vocabulary, and both anchor rules. Independent CPU fixtures check every token's
-logits and confidence. The DeepSeek-V4 backbone and support for multiple active DFlash
-requests are deferred to a follow-up PR; the current GenAI path supports one active request.
-The real Qwen3-8B Q8_0/EAGLE3 F16 pair passes repeated PA generation, two-request continuous
-batching and target-only greedy-token agreement. The Qwen3.6-35B-A3B Q4_K_M/DFlash BF16 pair
-passes repeated PA generation with prefix caching disabled. Real Gemma3n/MiniCPM image
-execution and SDPA/PA agreement are recorded in [mmproj.md](mmproj.md#validation-coverage); their
-projector and image-quality limitations remain. Omni repeated image/audio API smoke checks pass, as recorded in
-[mmproj.md](mmproj.md#validation-coverage); TTS quality/cancellation and broader media
-acceptance remain incomplete.
-Real Cohere2 Q4_0 and the MiniCPM-V4.7 1B Q4_K_M text backbone (`qwen35`) match all
-13 checked greedy choices against the pinned CPU oracle. Cohere2's repeated GenAI text
-outputs are deterministic within each backend but differ between SDPA and PA.
-Trinity-Nano-Preview Q4_K_S matches 11/13 and fails the existing 90% greedy-choice gate.
-An exact represented-F32 diagnostic matches 13/13, which points toward quantized arithmetic
-but does not waive the original failure or establish full-logit parity; its recorded
-full-logit NMSE reaches `3.24e-3`.
+Drafts may omit token embeddings and the output head. Conversion then exposes
+`gguf.target_token_embedding` and `gguf.target_lm_head` weight inputs; the GenAI
+consumer clones target weight subgraphs before compilation. EAGLE3's reduced-vocabulary
+`d2t` is an auxiliary mapping constant; omitted tables use identity mapping. DFlash
+selector/LiLiCorr lattice consumers use a fixed noise block. The DSpark Markov head
+under `dflash` supports greedy conditioning, confidence outputs, reduced vocabulary
+and both anchor rules. Independent fixtures check every token's logits and confidence.
+The real Qwen3-8B Q8_0/EAGLE3 F16 pair passes repeated PA generation, two-request
+continuous batching and target-only greedy agreement. The Qwen3.6-35B-A3B Q4_K_M/DFlash
+BF16 pair passes repeated single-request PA generation with prefix caching disabled.
+DeepSeek-V4 and multiple active DFlash requests are deferred.
 
-The original Qwen3-Omni-30B-A3B Q4_K_M decoder (`qwen3vlmoe`) matches 11/13 checked
-greedy choices, failing the same 90% gate (maximum NMSE `0.111335`). Its repeated GenAI
-text outputs match between SDPA and PA. The canonical Qwen3Next-80B-A3B Q4_K_M attempt
-completed the CPU oracle, but a RAM guard interrupted frontend execution when available
-system memory fell below 16 GiB (observed process-group peak PSS 92.4 GiB). No decoder
-accuracy or GenAI API result is claimed for that checkpoint. Qwen3Next retains synthetic
-numerical coverage. These catalog entries describe implemented graph paths and the
-explicitly validated checkpoints.
+### Deferred families
+
+These native paths are not enabled by this PR. Their independent implementation fixtures
+remain for further development; they do not establish original-checkpoint acceptance.
+
+| Family | Blocking evidence |
+|---|---|
+| AFMoE | Original Trinity-Nano-Preview Q4_K_S matches 11/13, below the 90% gate; represented-F32 diagnostic agreement does not waive this failure |
+| Qwen3Next | Canonical 80B-A3B Q4_K_M frontend attempt stopped at 12.56 GB available RAM, with peak process-group PSS 92.4 GiB; no completed decoder or API result |
+| Qwen3VL MoE / Qwen3-Omni | Original 30B-A3B Q4_K_M matches 11/13, maximum full-logit NMSE `0.111335`; passing media smoke checks do not waive the decoder failure |
+| Qwen3-ASR | Original Q8_0 decoder uses `qwen3vl` but matches only 10/13; the ASR subtype and its `qwen3a` projector are deferred |
+| Qwen3TTS | Original quantized predictor/waveform comparisons fail; finite seeded PCM does not establish quality |
+| MiniCPM-V 4.7 | Original BF16/F32 projector exceeds the feature gate; its existing `qwen35` text backbone remains enabled |

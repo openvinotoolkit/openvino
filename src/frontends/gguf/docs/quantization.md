@@ -76,7 +76,7 @@ The type columns describe stored Constants; their decompression or Convert outpu
 Ordinary native Q4_1/Q4_K and Q5_K matrix weights use integer zero points by default.
 `token_embd.weight` and `output.weight` use fractional zero points for these affine formats;
 Q5_1 and Q2_K also use fractional zero points. See [accuracy controls](#accuracy-controls)
-to select fractional zero points for all Q4_1/Q4_K tensors.
+to select fractional zero points for all Q4_1/Q4_K/Q5_K tensors.
 Q2_0/PQ2_0/PTQ1_0 always use a `u8` zero point of 1 in this path, including embeddings.
 The frontend prints an accuracy notice once per process for each requantization approximation.
 
@@ -311,8 +311,8 @@ compiled = core.compile_model(model, "CPU", {
 })
 ```
 
-Set `OV_GGUF_Q4_K_ZP_F16=1` **before starting the process** to preserve fractional Q4_K/Q4_1
-zero points instead of their default u4 requantization. It is cached on first use; changing the
+Set `OV_GGUF_Q4_K_ZP_F16=1` **before starting the process** to preserve fractional Q4_K/Q4_1/Q5_K
+zero points instead of their default u4/u8 requantization. It is cached on first use; changing the
 environment later in a notebook does not switch an already initialized process. The option
 does not make every quantized format lossless or guarantee device support for fractional zero points.
 

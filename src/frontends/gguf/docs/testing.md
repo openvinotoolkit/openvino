@@ -105,7 +105,7 @@ comparison; exercise relevant positions, sizes, cache appends/resets, and adapta
 
 | Check | Acceptance and limit |
 |---|---|
-| Native decoder F32 fixture | Full-logit normalized MSE below `1e-5`; F32 inference, F16 KV, activation quantization disabled |
+| Native decoder F32 fixture | Full-logit normalized MSE below `1e-5`; Gemma3n alone uses the accepted `2e-5` limit with every-step greedy equality; F32 inference, F16 KV, activation quantization disabled |
 | Native real decoder replay | Same first prediction and at least 90% matching greedy choices over prefill plus 12 reference-token steps; record full-logit errors |
 | mmproj fixture | Raw and adapted embeddings, normalized MSE below `1e-5`; dynamic cases reuse one compiled model |
 | mmproj real checkpoint | CPU NMSE below `1e-5` unless an explicit model-list override documents the reason; other devices are not calibrated to the CPU limit |

@@ -1421,6 +1421,26 @@ private:
     }
 };
 
+class Qwen3TTSBuilder : public ModelBuilder {
+public:
+    explicit Qwen3TTSBuilder(const BuildContext& context) : g(context) {}
+
+    std::shared_ptr<GgufGraph> build() override {
+        RopeConfig rope;
+        rope.per_op = true;
+        g.configure_rope(rope);
+        Qwen3TTSProjector(g).build();
+        auto graph = g.finish();
+        graph->mmproj_config = {{"gen_audio.projector", std::string("qwen3tts_gen")},
+                                {"gen_audio.window_size", std::string("72")},
+                                {"gen_audio.sample_rate", std::string("24000")}};
+        return graph;
+    }
+
+private:
+    GgufGraphContext g;
+};
+
 class MmprojBuilder : public ModelBuilder {
 public:
     explicit MmprojBuilder(const BuildContext& context) : ctx(context), g(context) {}
@@ -1429,28 +1449,28 @@ public:
         std::optional<ProjectorRegistry> defaults;
         const auto& registry = ctx.projectors ? *ctx.projectors : defaults.emplace();
         std::vector<std::shared_ptr<const ProjectorDefinition>> encoders;
+        std::map<std::string, std::string> branch_config;
         for (const auto* modality : {"vision", "audio"}) {
             if (!ctx.metadata.get_bool(std::string("clip.has_") + modality + "_encoder").value_or(false))
                 continue;
             const auto type = resolve_projector_type(ctx.metadata, modality);
             const auto definition = registry.find(ctx.metadata, modality, type);
+            if (!definition && std::string(modality) == "audio" && type == "gemma3na" &&
+                ctx.metadata.get_bool("clip.has_vision_encoder").value_or(false) &&
+                resolve_projector_type(ctx.metadata, "vision") == "gemma3nv") {
+                branch_config["audio.projector"] = type;
+                branch_config["audio.supported"] = "false";
+                continue;
+            }
             OPENVINO_ASSERT(definition, "[GGUF] unsupported ", modality, " mmproj projector '", type, "'");
             encoders.push_back(definition);
         }
         const auto has_gen_audio = ctx.metadata.get_bool("clip.has_gen_audio_encoder").value_or(false);
         OPENVINO_ASSERT(!encoders.empty() || has_gen_audio, "[GGUF] mmproj has no encoder");
-        std::map<std::string, std::string> branch_config;
         branch_config["vision.auxiliary_count"] = "0";
         if (has_gen_audio) {
             const auto type = ctx.metadata.get_str("clip.gen.audio.projector_type").value_or("");
-            OPENVINO_ASSERT(type == "qwen3tts_gen", "[GGUF] unsupported generated audio projector '", type, "'");
-            RopeConfig rope;
-            rope.per_op = true;
-            g.configure_rope(rope);
-            Qwen3TTSProjector(g).build();
-            branch_config["gen_audio.projector"] = type;
-            branch_config["gen_audio.window_size"] = "72";
-            branch_config["gen_audio.sample_rate"] = "24000";
+            OPENVINO_THROW("[GGUF] unsupported generated audio projector '", type, "'");
         }
         for (const auto& definition : encoders) {
             auto result = definition->build(g);
@@ -1522,6 +1542,8 @@ std::vector<ProjectorDefinition> builtin_projectors() {
     for (const auto& entry : projector_catalog) {
         const std::string modality = entry.modality;
         const std::string type = entry.name;
+        if (type == "minicpmv4_7" || type == "qwen3a" || type == "qwen3tts_spkenc")
+            continue;
         definitions.push_back({"clip." + modality + "." + type,
                                "clip",
                                modality,
@@ -1536,6 +1558,10 @@ std::vector<ProjectorDefinition> builtin_projectors() {
 
 std::shared_ptr<ModelBuilder> make_mmproj_builder(const BuildContext& context) {
     return std::make_shared<MmprojBuilder>(context);
+}
+
+std::shared_ptr<ModelBuilder> make_qwen3tts_projector_builder(const BuildContext& context) {
+    return std::make_shared<Qwen3TTSBuilder>(context);
 }
 
 }  // namespace ov::frontend::gguf

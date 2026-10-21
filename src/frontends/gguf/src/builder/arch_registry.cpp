@@ -4,6 +4,7 @@
 
 #include "arch_registry.hpp"
 
+#include <algorithm>
 #include <optional>
 #include <utility>
 
@@ -17,7 +18,10 @@ namespace ov::frontend::gguf {
 
 namespace {
 struct ArchitectureEntry {
-    ArchitectureEntry(const char* name, RopeMode rope) : name(name), rope(rope) {}
+    ArchitectureEntry(const char* name, RopeMode rope, ArchitectureDefinition::MatchFn match = {})
+        : name(name),
+          rope(rope),
+          match(std::move(match)) {}
 
     ArchitectureEntry(const char* name,
                       ArchitectureDefinition::BuilderFactory factory,
@@ -35,7 +39,6 @@ struct ArchitectureEntry {
     const char* id = nullptr;
 };
 const ArchitectureEntry architectures[] = {
-    {"afmoe", RopeMode::Neox},
     {"bailingmoe2", RopeMode::Neox},
     {"clip",
      make_mmproj_builder,
@@ -86,14 +89,21 @@ const ArchitectureEntry architectures[] = {
     {"qwen3", RopeMode::Neox},
     {"qwen35", RopeMode::Interleaved},
     {"qwen35moe", RopeMode::Interleaved},
-    {"qwen3next", RopeMode::Neox},
-    {"qwen3vl", RopeMode::Interleaved},
-    {"qwen3tts", RopeMode::Interleaved},
-    {"qwen3vlmoe", RopeMode::Interleaved},
+    {"qwen3vl",
+     RopeMode::Interleaved,
+     [](const GgufMetadata& meta) {
+         return !is_qwen3_asr(meta);
+     }},
     {"qwen3moe", RopeMode::Neox},
     {"smollm3", RopeMode::Normal},
 };
 }  // namespace
+
+bool is_qwen3_asr(const GgufMetadata& metadata) {
+    const auto tags = metadata.get_str_array("general.tags");
+    return metadata.architecture() == "qwen3vl" &&
+           std::find(tags.begin(), tags.end(), "automatic-speech-recognition") != tags.end();
+}
 
 std::vector<ArchitectureDefinition> builtin_architectures() {
     std::vector<ArchitectureDefinition> definitions;
@@ -101,13 +111,17 @@ std::vector<ArchitectureDefinition> builtin_architectures() {
         if (entry.factory) {
             definitions.push_back({entry.id ? entry.id : entry.name, entry.name, entry.factory, entry.match});
         } else {
-            definitions.push_back(make_decoder_architecture(entry.name, entry.rope.value()));
+            auto definition = make_decoder_architecture(entry.name, entry.rope.value());
+            definition.match = entry.match;
+            definitions.push_back(std::move(definition));
         }
     }
     return definitions;
 }
 
 bool arch_uses_neox_rope(const std::string& arch) {
+    if (arch == "afmoe" || arch == "qwen3next")
+        return true;
     for (const auto& entry : architectures) {
         if (arch == entry.name)
             return entry.rope == RopeMode::Neox;

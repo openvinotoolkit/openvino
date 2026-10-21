@@ -19,6 +19,7 @@ numerical fixture checked against the llama.cpp CPU encoder (see
 | Vision | `mlp` | CLIP feature layers; normalized variant detected from tensors |
 | Vision | `internvl` | InternViT, class token, pixel-shuffle merge |
 | Vision | `resampler` | MiniCPM-V resampler, `clip.minicpmv_version` 2-6 and 100045 |
+| Vision | `gemma3nv` | MobileNet stem, UIR, attention and multiscale feature branches; vision-only support |
 | Vision | `minicpmv4_6` | window attention, two-stage merging |
 | Vision | `qwen2vl_merger`, `qwen2.5vl_merger`, `qwen3vl_merger` | temporal pairs, M-RoPE, windows (2.5), DeepStack (3) |
 | Vision | `pixtral` | 2D RoPE, patch merger, row separators |
@@ -60,7 +61,7 @@ for every checkpoint, resolution, quantization, or device.
 ## Files with vision and audio encoders
 
 A projector file holds at most one vision and one audio encoder; Gemma4 E2B/E4B/12B files carry
-both. Conversion builds every encoder the file declares into one model:
+both. Conversion builds the file's supported encoders into one model:
 
 1. `clip.has_vision_encoder` and `clip.has_audio_encoder` select the encoders. A file with
    neither fails conversion.
@@ -68,11 +69,14 @@ both. Conversion builds every encoder the file declares into one model:
    `clip.vision.projector_type` / `clip.audio.projector_type`. A combined file therefore uses the
    per-modality keys; only the legacy `qwen2.5o` resolves to a different projector per modality
    (Qwen2.5 VL vision, Qwen2 audio). An unsupported projector fails conversion of the whole file,
-   so no declared modality is dropped silently.
+   except for the combined Gemma3n `gemma3nv` vision / `gemma3na` audio pair. As in the reference,
+   this pair builds only vision when no registered extension handles its audio branch.
 3. The encoders become disconnected branches of the same graph. Vision reads `v.*` tensors and
    `vision.*` inputs and produces `vision.embeddings`; audio reads `a.*` tensors and `audio.*`
    inputs and produces `audio.embeddings`.
 4. `gguf_mmproj` rt_info records each encoder's `<modality>.projector` and `<modality>.merge`.
+   The omitted Gemma3n audio branch retains `audio.projector=gemma3na` and
+   `audio.supported=false`; both fields survive serialization.
 
 Running the combined model requires the inputs of both branches. `AdaptMmprojToGenAI` (below)
 turns it into one encoder; apply it to a clone per modality to obtain both.
@@ -268,68 +272,38 @@ build and run one. A different whole-model format needs an `ArchitectureExtensio
 
 ## Added 2026 projector paths
 
-| Projector | Graph and validation |
-|---|---|
-| `minicpmv4_7` | Explicit patch grids, packed windows and inverse order; independent CPU merge-2/merge-4 fixtures |
-| `gemma3nv` | MobileNet stem, expansion/UIR, attention and multiscale feature branches; native/adapted CPU fixtures including unequal Q/KV attention grids |
-| `qwen3a` | Qwen3-ASR convolutional audio encoder and projector; independent 100/200-frame fixtures |
-| `qwen3tts_spkenc` | Speaker convolution and attentive statistics pooling; independent dynamic-frame CPU features |
-| `qwen3tts_gen` | 16-codebook predictor and streaming waveform decoder; independent unequal-Q/KV F32 fixture with 38 state buffers and reset |
+The built-in `gemma3nv` vision projector supports MobileNet stem, expansion/UIR,
+attention and multiscale branches. Independent native/adapted CPU fixtures include
+unequal Q/KV attention grids.
 
-Qwen3TTS predictor inputs include the talker's normalized hidden state, codebook zero and
-15 uniform sampling scalars. Outputs include all 16 codes, summed feedback embeddings
-and auxiliary logits. The waveform branch takes 72 codec frames plus explicit streaming
-state buffers and emits 1920 samples per frame at 24 kHz. The GenAI GGUF path supports
-sampling temperature 1, top-k 50 and top-p 1; unsupported subtalker settings are rejected.
-The real Q4_K_M talker/Q8_0 projector produces finite PCM and exact repeated seeded calls,
-but original quantized predictor/waveform numerical parity remains failing. Represented-F32
-predictor comparisons isolate arithmetic differences and do not replace the quantized gate.
+The original Gemma3n E2B combined projector passes full vision-feature comparison:
+524288 features, NMSE `6.10e-7`, below the unchanged `1e-5` limit. Its output is
+byte-identical to the previously retained vision-only reference. The native frontend
+omits the unsupported `gemma3na` audio branch only for this combined pair, matching
+the pinned llama.cpp behavior. It serializes `audio.projector=gemma3na` and
+`audio.supported=false`; a registered audio extension takes precedence over omission.
+This establishes vision support for the original file, without audio support.
 
-Installed-runtime Qwen3-ASR Q8_0 passes a small transcription and cancellation/reset
-smoke check: two 16 kHz LibriSpeech clips, one word error across 27 reference words
-(3.7% WER), exact repeated transcripts, one cancellation token callback and one end
-callback, and matching output after reset. This does not replace the original quantized
-full-logit parity gate or establish quality on a broader speech corpus.
+The original E2B Q4_0 decoder matches 13/13 reference-token greedy predictions.
+Repeated PA generation with the original combined projector identifies the gray tabby
+and cardboard box in a pinned 1000x667 JPEG (SHA256
+`cd36b2bdd95705a92bc803865cceae7fb7407c75946df3c0cb3ed45fb7bc30dd`),
+using the prompt "Describe the animal and the object it is lying in." The two 64-token
+responses are identical. This is limited image-quality evidence. GGUF image insertion
+uses the vocabulary's single `<pad>` placeholder, including per-layer embedding spans.
+The Qwen3VL Q4_0 checkpoint separately passes repeated image generation with SDPA and PA.
 
-The Gemma3n E2B Q4_0 decoder and a derived vision-only projector run repeated SDPA/PA
-image generation. The diagnostic disables only `clip.has_audio_encoder` and preserves
-all 825 tensor payloads. Full vision features match the pinned CPU oracle with NMSE
-`6.10e-7` against the unchanged `1e-5` limit. The original combined projector remains
-rejected because its `gemma3na` audio branch is unsupported; the derived result does not
-establish combined-file support. GGUF image insertion uses the vocabulary's single `<pad>`
-token, including the per-layer embedding spans.
+### Deferred projector paths
 
-MiniCPM-V4.7 1B Q4_K_M with its original 4x BF16/F32 projector runs repeated SDPA/PA
-image generation. The frontend exports `vision.position_grid_size` from the square learned
-position table. This checkpoint uses a 70x70 position grid independently of its 448-pixel
-processor resize; GenAI preserves both settings and the decoder's four-section positions.
-Older frontend exports fall back to `clip.vision.image_size / clip.vision.patch_size`.
-Original full-feature projector parity fails: NMSE `9.86e-5` for 448x448 and `3.06e-4`
-for 224x112, versus the unchanged `1e-5` limit.
-
-A reproducible image smoke check uses a 1000x667 JPEG (SHA256
-`cd36b2bdd95705a92bc803865cceae7fb7407c75946df3c0cb3ed45fb7bc30dd`)
-and the prompt "Describe the animal and the object it is lying in." Both models identify
-one gray tabby with exactly repeated, matching SDPA/PA outputs at 32 tokens. At 64 tokens,
-PA Gemma3n explicitly identifies the cardboard box; MiniCPM describes "open cardboard"
-but reaches the token limit before the noun. This is limited image-quality evidence,
-not numerical parity or general media acceptance. Earlier headline checks lacked retained
-request provenance and do not establish a reproducible quality result.
-
-Current-runtime Qwen3TTS repeated seeded output is finite and exactly equal (3840 samples
-at 24 kHz). The public `Text2SpeechPipeline` has no streaming/cancellation callback, so
-cancellation/reset acceptance cannot run through that API. A zero speaker embedding does
-not establish audio quality. Broader media and quality checks still need acceptance coverage. The Qwen3VL Q4_0 checkpoint has separate successful
-repeated-image generation checks with both SDPA and PagedAttention; that result does
-not establish coverage for other projector families.
-
-Original Qwen3-Omni-30B-A3B Q4_K_M and its combined Q8_0 projector pass four repeated
-CPU image/audio API cases with matching SDPA/PA outputs. In-memory GGUF loading uses
-optional DeepStack inputs, split vision models and the decoder's declared three position
-sections; exported-model Omni retains its four-section contract. The pinned image produces
-a gray tabby description, truncated before the box at 64 tokens. A pinned 16 kHz LibriSpeech
-clip is transcribed correctly, using "Mr." for the reference's "MISTER". These limited media
-checks do not waive the original decoder's failed numerical gate or establish broad quality.
+`minicpmv4_7`, `qwen3a`, `qwen3tts_spkenc` and `qwen3tts_gen` are not enabled by
+this PR. Their implementation fixtures remain for further development through explicit
+registration. Original MiniCPM-V 4.7 feature NMSE is `9.86e-5` at 448x448 and
+`3.06e-4` at 224x112, above `1e-5`; BF16 activation-rounding diagnostics did not fix
+this. Qwen3-ASR's original decoder fails the greedy gate despite a passing two-clip
+transcription smoke check. Qwen3TTS's original quantized predictor and waveform
+comparisons fail; finite seeded PCM and zero-speaker inputs do not establish quality.
+Qwen3-Omni is also deferred because its original MoE decoder fails the greedy gate,
+even though repeated SDPA/PA image and audio API checks pass.
 
 ## LFM2 vision projectors
 

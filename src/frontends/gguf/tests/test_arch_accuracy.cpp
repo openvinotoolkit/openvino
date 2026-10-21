@@ -28,6 +28,7 @@
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
+#include "openvino/frontend/gguf/extension/architecture.hpp"
 #include "openvino/frontend/gguf/extension/genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
@@ -51,6 +52,16 @@
 
 namespace {
 class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {};
+
+void register_deferred_decoder(ov::frontend::gguf::FrontEnd& frontend, const std::string& family) {
+    using namespace ov::frontend::gguf;
+    if (family == "qwen3next" || family == "qwen3next-legacy")
+        frontend.add_extension(std::make_shared<ArchitectureExtension>("qwen3next", RopeMode::Neox));
+    else if (family == "afmoe")
+        frontend.add_extension(std::make_shared<ArchitectureExtension>(family, RopeMode::Neox));
+    else if (family == "qwen3vlmoe" || family == "qwen3tts")
+        frontend.add_extension(std::make_shared<ArchitectureExtension>(family, RopeMode::Interleaved));
+}
 
 TEST(GGUFDraftAdaptation, KeepsBorrowedTargetWeightsWithoutDuplicateParameters) {
     using namespace ov::frontend::gguf;
@@ -619,6 +630,7 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
             }
         }
         ov::frontend::gguf::FrontEnd frontend;
+        register_deferred_decoder(frontend, family);
         frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
         auto model = frontend.convert(frontend.load(temporary.path));
         check_batched_decode(model);
@@ -974,6 +986,120 @@ TEST(GGUFEmbeddingAccuracy, RealCheckpointTokenEmbeddingsMatchLlamaCPU) {
     ov_gguf_test::expect_nmse_below(metric, 1e-5);
 }
 
+TEST(GGUFCohere2Accuracy, PagedAttentionMatchesStatefulSDPAFullLogits) {
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/cohere2.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    const auto vocab = ov_gguf_test::npz_array(arrays, "logits").shape.back();
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+    auto model = frontend.convert(frontend.load(temporary.path));
+    const auto compile = [](ov::Core& core, const std::shared_ptr<ov::Model>& graph) {
+        return core.compile_model(graph,
+                                  "CPU",
+                                  ov::hint::inference_precision(ov::element::f32),
+                                  ov::num_streams(1),
+                                  ov::inference_num_threads(4),
+                                  ov::hint::dynamic_quantization_group_size(0),
+                                  ov::hint::kv_cache_precision(ov::element::f16));
+    };
+    const std::vector<std::vector<int64_t>> schedule{{1, 2, 3}, {4}, {5, 6}};
+    ov::Core core;
+    auto sdpa_request = compile(core, model).create_infer_request();
+    std::vector<std::vector<float>> reference;
+    size_t past = 0;
+    for (const auto& tokens : schedule) {
+        ov::Tensor ids(ov::element::i64, {1, tokens.size()});
+        ov::Tensor positions(ov::element::i64, {1, tokens.size()});
+        ov::Tensor mask(ov::element::i64, {1, past + tokens.size()});
+        ov::Tensor beam(ov::element::i32, {1});
+        *beam.data<int32_t>() = 0;
+        std::copy(tokens.begin(), tokens.end(), ids.data<int64_t>());
+        for (size_t i = 0; i < tokens.size(); ++i)
+            positions.data<int64_t>()[i] = static_cast<int64_t>(past + i);
+        std::fill_n(mask.data<int64_t>(), mask.get_size(), 1);
+        sdpa_request.set_tensor("input_ids", ids);
+        sdpa_request.set_tensor("position_ids", positions);
+        sdpa_request.set_tensor("attention_mask", mask);
+        sdpa_request.set_tensor("beam_idx", beam);
+        sdpa_request.infer();
+        const auto output = sdpa_request.get_tensor("logits");
+        ASSERT_EQ(output.get_shape().front(), 1);
+        ASSERT_EQ(output.get_shape().back(), vocab);
+        const auto* last = output.data<const float>() + output.get_size() - vocab;
+        reference.emplace_back(last, last + vocab);
+        past += tokens.size();
+    }
+    ASSERT_TRUE(ov::pass::SDPAToPagedAttention(false, false, false).run_on_model(model));
+    size_t attention_count = 0;
+    for (const auto& node : model->get_ops()) {
+        if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
+            ++attention_count;
+            EXPECT_EQ(pa->get_input_partial_shape(1)[1], 16);
+            EXPECT_EQ(pa->get_input_partial_shape(0)[1], 32);
+        }
+    }
+    ASSERT_EQ(attention_count, 4);
+    auto compiled = compile(core, model);
+    auto request = compiled.create_infer_request();
+    for (const auto& input : compiled.inputs()) {
+        const auto name = input.get_any_name();
+        if (name.find("key_cache.") != 0 && name.find("value_cache.") != 0)
+            continue;
+        auto shape = input.get_partial_shape();
+        shape[0] = 1;
+        ASSERT_TRUE(shape.is_static());
+        ov::Tensor tensor(input.get_element_type(), shape.get_shape());
+        std::memset(tensor.data(), 0, tensor.get_byte_size());
+        request.set_tensor(input, tensor);
+    }
+    past = 0;
+    for (size_t step = 0; step < schedule.size(); ++step) {
+        SCOPED_TRACE("Cohere2 PA schedule step=" + std::to_string(step));
+        const auto& tokens = schedule[step];
+        for (const auto& input : compiled.inputs()) {
+            const auto name = input.get_any_name();
+            if (name.find("key_cache.") == 0 || name.find("value_cache.") == 0)
+                continue;
+            if (name == "input_ids" || name == "position_ids") {
+                ov::Tensor tensor(input.get_element_type(), {tokens.size()});
+                std::vector<int64_t> values = tokens;
+                if (name == "position_ids")
+                    for (size_t i = 0; i < values.size(); ++i)
+                        values[i] = static_cast<int64_t>(past + i);
+                if (input.get_element_type() == ov::element::i64)
+                    std::copy(values.begin(), values.end(), tensor.data<int64_t>());
+                else
+                    std::copy(values.begin(), values.end(), tensor.data<int32_t>());
+                request.set_tensor(input, tensor);
+                continue;
+            }
+            std::vector<int32_t> values;
+            if (name == "past_lens")
+                values = {static_cast<int32_t>(past)};
+            else if (name == "subsequence_begins")
+                values = {0, static_cast<int32_t>(tokens.size())};
+            else if (name == "block_indices")
+                values = {0};
+            else if (name == "block_indices_begins")
+                values = {0, 1};
+            else if (name == "max_context_len")
+                values = {static_cast<int32_t>(past + tokens.size())};
+            else
+                FAIL() << "Unexpected Cohere2 PagedAttention input: " << name;
+            ov::Tensor tensor(ov::element::i32,
+                              input.get_partial_shape().rank() == 0 ? ov::Shape{} : ov::Shape{values.size()});
+            std::copy(values.begin(), values.end(), tensor.data<int32_t>());
+            request.set_tensor(input, tensor);
+        }
+        request.infer();
+        const auto output = request.get_tensor("logits");
+        ASSERT_EQ(output.get_shape(), ov::Shape({tokens.size(), 1, vocab}));
+        const auto* last = output.data<const float>() + output.get_size() - vocab;
+        ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(last, reference[step].data(), vocab), 1e-5);
+        past += tokens.size();
+    }
+}
+
 TEST(GGUFGemma3nAccuracy, PagedAttentionMatchesStatefulSDPAFullLogits) {
     const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma3n.npz");
     const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
@@ -1279,6 +1405,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         model_path = temporary->path;
     }
     ov::frontend::gguf::FrontEnd fe;
+    register_deferred_decoder(fe, GetParam());
     using GenAIExtension = ov::frontend::gguf::GenAIExtension;
     auto extension = std::make_shared<GenAIExtension>(deepstack_layers ? GenAIExtension::InputMode::EMBEDS_TO_LOGITS
                                                                        : GenAIExtension::InputMode::IDS_TO_LOGITS);

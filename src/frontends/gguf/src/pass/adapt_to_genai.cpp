@@ -163,7 +163,8 @@ public:
             auto indices_flat = make_shared<v1::Reshape>(indices_squeeze->input_value(0), indices_flat_shape, false);
             auto axis0 = v0::Constant::create(ov::element::i64, {1}, {0});
             auto fixed_res = make_shared<v8::Gather>(data_flat, indices_flat, axis0);
-            auto fixed_unsqueeze = make_shared<v0::Unsqueeze>(fixed_res, axis0);
+            auto axis1 = v0::Constant::create(ov::element::i64, {1}, {1});
+            auto fixed_unsqueeze = make_shared<v0::Unsqueeze>(fixed_res, axis1);
             fixed_unsqueeze->set_friendly_name(unsqueeze->get_friendly_name());
             ov::copy_runtime_info(unsqueeze, fixed_unsqueeze);
             unsqueeze->output(0).replace(fixed_unsqueeze->output(0));

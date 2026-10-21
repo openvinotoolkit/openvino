@@ -355,3 +355,45 @@ TEST(GGUFWeight, UsesIntegerZeroPointForRequantizedMatmulWeights) {
     EXPECT_EQ(gguf_zero_point_type("output.weight", GGUF_TYPE_Q5_K), ov::element::f16);
     EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_Q2_0), ov::element::u8);
 }
+
+TEST(GGUFWeight, SelectsFractionalZeroPointsForStrictMatmulWeights) {
+    using namespace ov::frontend::gguf;
+
+    for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q4_1, GGUF_TYPE_Q5_K}) {
+        SCOPED_TRACE(qtype);
+        EXPECT_EQ(gguf_zero_point_type("blk.2.ffn_down_exps.weight", qtype, false), ov::element::u8);
+        EXPECT_EQ(gguf_zero_point_type("blk.2.ffn_down_exps.weight", qtype, true), ov::element::f16);
+        EXPECT_EQ(gguf_zero_point_type("token_embd.weight", qtype, false), ov::element::f16);
+        EXPECT_EQ(gguf_zero_point_type("output.weight", qtype, true), ov::element::f16);
+    }
+    for (const auto qtype : {GGUF_TYPE_Q2_0, GGUF_TYPE_PQ2_0, GGUF_TYPE_PTQ1_0}) {
+        EXPECT_EQ(gguf_zero_point_type("blk.2.ffn_down.weight", qtype, true), ov::element::u8);
+    }
+}
+
+TEST(GGUFWeight, FractionalQ5KPreservesSourceCodesAndMatchesGgmlToFloat) {
+    using namespace ov::frontend::gguf;
+
+    const auto bytes = load_npy<uint8_t>("q5_k_qbytes");
+    const auto reference = load_npy<float>("q5_k_deq");
+    GgufTensor tensor;
+    tensor.type = GGUF_TYPE_Q5_K;
+    tensor.bsize = bytes.size();
+    tensor.num_weights = kRows * kCols;
+    tensor.weights_data = bytes.data();
+    WeightTensors extracted{
+        ov::Tensor(ov::element::u8, {kRows, kCols}),
+        ov::Tensor(ov::element::f16, {kRows, kCols / 32}),
+        ov::Tensor(gguf_zero_point_type("blk.2.ffn_down_exps.weight", GGUF_TYPE_Q5_K, true), {kRows, kCols / 32})};
+    gguf_fill_asym(tensor, extracted.weight, extracted.scales, extracted.zero_point);
+    for (size_t i = 0; i < extracted.weight.get_size(); ++i) {
+        EXPECT_LE(extracted.weight.data<uint8_t>()[i], 31);
+    }
+    const auto node = make_weight_node(extracted, GGUF_TYPE_Q5_K, "blk.2.ffn_down_exps.weight");
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+    const auto output = run_on_cpu(model, {});
+    ASSERT_EQ(output.get_size(), reference.size());
+    for (size_t i = 0; i < reference.size(); ++i) {
+        EXPECT_NEAR(output.data<float>()[i], reference[i], kTolFaithful);
+    }
+}

@@ -7,6 +7,7 @@
 #include <filesystem>
 
 #include "builder/api/metadata_store.hpp"
+#include "builder/arch/mmproj_builder.hpp"
 #include "builder/arch_registry.hpp"
 #include "builder/projector_registry.hpp"
 #include "cnpy.h"
@@ -27,6 +28,20 @@
 #include "openvino/pass/serialize.hpp"
 
 namespace {
+void register_deferred_projector(ov::frontend::gguf::FrontEnd& frontend, const std::string& type) {
+    using namespace ov::frontend::gguf;
+    const auto modality = type == "minicpmv4_7" ? "vision" : "audio";
+    frontend.add_extension(std::make_shared<ProjectorExtension>(
+        ProjectorDefinition{"clip." + std::string(modality) + "." + type,
+                            "clip",
+                            modality,
+                            type,
+                            [modality, type](GgufGraphContext& graph) {
+                                return build_builtin_projector(graph, modality, type);
+                            },
+                            {}}));
+}
+
 class GGUFMMProj : public ::testing::Test {
 protected:
     ov_gguf_test::GgufWriter writer;
@@ -82,10 +97,23 @@ protected:
             weight("mm.a.fc.bias", {6});
         }
     }
-    std::shared_ptr<ov::Model> convert() {
+    std::shared_ptr<ov::Model> convert(const std::string& deferred_projector = "") {
         EXPECT_TRUE(writer.write(path));
         ov::frontend::gguf::FrontEnd frontend;
+        if (!deferred_projector.empty())
+            register_deferred_projector(frontend, deferred_projector);
         return frontend.convert(frontend.load(path));
+    }
+    void gemma3n_vision() {
+        writer.kv_bool("clip.has_vision_encoder", true);
+        writer.kv_str("clip.vision.projector_type", "gemma3nv");
+        writer.kv_u32("clip.vision.embedding_length", 8);
+        writer.kv_u32("clip.vision.image_size", 8);
+        weight("v.conv_stem.conv.weight", {3, 3, 3, 8});
+        weight("v.blk.0.0.conv_exp.weight", {3, 3, 8, 8});
+        weight("v.blk.0.0.conv_pwl.weight", {1, 1, 8, 8});
+        weight("mm.soft_emb_norm.weight", {8}, true);
+        weight("mm.input_projection.weight", {8, 6});
     }
 };
 
@@ -93,7 +121,7 @@ TEST_F(GGUFMMProj, MiniCPMLearnedPositionGridIsIndependentOfResizeMetadata) {
     encoder("vision", "minicpmv4_7", 4900);
     weight("mm.up.weight", {32, 12});
     weight("mm.down.weight", {12, 6});
-    auto model = convert();
+    auto model = convert("minicpmv4_7");
     EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.position_grid_size"}), "70");
     EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "clip.vision.image_size"}), "8");
     ov::serialize(model, path + ".xml", path + ".bin");
@@ -101,9 +129,44 @@ TEST_F(GGUFMMProj, MiniCPMLearnedPositionGridIsIndependentOfResizeMetadata) {
     EXPECT_EQ(restored->get_rt_info<std::string>({"gguf_mmproj", "vision.position_grid_size"}), "70");
 }
 
+TEST_F(GGUFMMProj, DeferredProjectorRegistrationsAreAbsent) {
+    const auto definitions = ov::frontend::gguf::ArchRegistry{}.projectors().supported_projectors();
+    for (const auto* type : {"minicpmv4_7", "qwen3a", "qwen3tts_spkenc", "qwen3tts_gen"}) {
+        EXPECT_TRUE(std::none_of(definitions.begin(), definitions.end(), [&](const auto& definition) {
+            return definition.projector_type == type;
+        })) << type;
+    }
+}
+
+TEST_F(GGUFMMProj, DeferredEncoderRequiresExplicitExtension) {
+    for (const auto* type : {"minicpmv4_7", "qwen3a", "qwen3tts_spkenc"}) {
+        SCOPED_TRACE(type);
+        ov_gguf_test::GgufWriter deferred;
+        deferred.kv_str("general.architecture", "clip");
+        const auto modality = std::string(type) == "minicpmv4_7" ? "vision" : "audio";
+        deferred.kv_bool("clip.has_" + std::string(modality) + "_encoder", true);
+        deferred.kv_str("clip." + std::string(modality) + ".projector_type", type);
+        deferred.filled_tensor("test.weight", {1});
+        ASSERT_TRUE(deferred.write(path));
+        ov::frontend::gguf::FrontEnd frontend;
+        OV_EXPECT_THROW(frontend.convert(frontend.load(path)),
+                        ov::Exception,
+                        testing::AllOf(testing::HasSubstr("unsupported"), testing::HasSubstr(type)));
+    }
+}
+
+TEST_F(GGUFMMProj, DeferredGeneratedAudioRequiresExplicitExtension) {
+    writer.kv_bool("clip.has_gen_audio_encoder", true);
+    writer.kv_str("clip.gen.audio.projector_type", "qwen3tts_gen");
+    weight("test.weight", {1});
+    OV_EXPECT_THROW(convert(),
+                    ov::Exception,
+                    testing::HasSubstr("unsupported generated audio projector 'qwen3tts_gen'"));
+}
+
 TEST_F(GGUFMMProj, MiniCPMRejectsNonSquareLearnedPositionGrid) {
     encoder("vision", "minicpmv4_7", 15);
-    OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("square learned position grid"));
+    OV_EXPECT_THROW(convert("minicpmv4_7"), ov::Exception, testing::HasSubstr("square learned position grid"));
 }
 
 TEST_F(GGUFMMProj, ExtensionAddsOneBranchAlongsideBuiltinVision) {
@@ -546,6 +609,64 @@ TEST_F(GGUFMMProj, UnsupportedSecondModalityIsNotSilentlyDiscarded) {
     OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("unsupported_audio"));
 }
 
+TEST_F(GGUFMMProj, Gemma3nCombinedFileBuildsVisionAndRecordsUnsupportedAudio) {
+    gemma3n_vision();
+    writer.kv_bool("clip.has_audio_encoder", true);
+    writer.kv_str("clip.audio.projector_type", "gemma3na");
+    auto model = convert();
+    ASSERT_EQ(model->inputs().size(), 1);
+    ASSERT_EQ(model->outputs().size(), 1);
+    EXPECT_EQ(model->input().get_any_name(), "vision.pixel_values");
+    EXPECT_EQ(model->output().get_any_name(), "vision.embeddings");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"}), "gemma3nv");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "audio.projector"}), "gemma3na");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "audio.supported"}), "false");
+    ov::serialize(model, path + ".xml", path + ".bin");
+    auto restored = ov::Core{}.read_model(path + ".xml");
+    EXPECT_EQ(restored->get_rt_info<std::string>({"gguf_mmproj", "audio.projector"}), "gemma3na");
+    EXPECT_EQ(restored->get_rt_info<std::string>({"gguf_mmproj", "audio.supported"}), "false");
+}
+
+TEST_F(GGUFMMProj, Gemma3nAudioExtensionTakesPrecedenceOverVisionFallback) {
+    using namespace ov::frontend::gguf;
+    gemma3n_vision();
+    writer.kv_bool("clip.has_audio_encoder", true);
+    writer.kv_str("clip.audio.projector_type", "gemma3na");
+    ASSERT_TRUE(writer.write(path));
+    FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ProjectorExtension>(
+        ProjectorDefinition{"clip.audio.gemma3na.custom",
+                            "clip",
+                            "audio",
+                            "gemma3na",
+                            [](GgufGraphContext& graph) {
+                                return ProjectorResult{graph.add_input("audio.custom", ov::element::f32, {1, 1, 2, 6}),
+                                                       {{"audio.merge", "1"}}};
+                            },
+                            {}}));
+    auto model = frontend.convert(frontend.load(path));
+    ASSERT_EQ(model->inputs().size(), 2);
+    ASSERT_EQ(model->outputs().size(), 2);
+    EXPECT_NO_THROW(model->input("audio.custom"));
+    EXPECT_NO_THROW(model->output("audio.embeddings"));
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "audio.projector"}), "gemma3na");
+    EXPECT_FALSE(model->has_rt_info({"gguf_mmproj", "audio.supported"}));
+}
+
+TEST_F(GGUFMMProj, Gemma3nAudioFallbackRejectsOtherVisionProjectors) {
+    encoder("vision", "gemma3");
+    writer.kv_bool("clip.has_audio_encoder", true);
+    writer.kv_str("clip.audio.projector_type", "gemma3na");
+    OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("gemma3na"));
+}
+
+TEST_F(GGUFMMProj, Gemma3nVisionRejectsOtherUnsupportedAudioProjectors) {
+    gemma3n_vision();
+    writer.kv_bool("clip.has_audio_encoder", true);
+    writer.kv_str("clip.audio.projector_type", "unsupported_audio");
+    OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("unsupported_audio"));
+}
+
 TEST_F(GGUFMMProj, LegacyGlobalProjectorTakesPrecedence) {
     encoder("vision", "unused_modality_key");
     writer.kv_str("clip.projector_type", "gemma3");
@@ -611,6 +732,11 @@ protected:
                                     .string());
         model_file = std::make_unique<ov_gguf_test::TemporaryGguf>(array("model"));
         ov::frontend::gguf::FrontEnd frontend;
+        const std::string family = GetParam();
+        if (family == "minicpmv4_7" || family == "minicpmv4_7_4x")
+            register_deferred_projector(frontend, "minicpmv4_7");
+        else if (family == "qwen3a" || family == "qwen3tts_spkenc")
+            register_deferred_projector(frontend, family);
         model = frontend.convert(frontend.load(model_file->path));
     }
     ov::InferRequest compile(const std::shared_ptr<ov::Model>& current) {
@@ -641,6 +767,12 @@ TEST_F(GGUFMMProj, Qwen3TTSMatchesCPUAndResetsStreamingState) {
     };
     ov_gguf_test::TemporaryGguf file(array("model"));
     ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::ArchitectureExtension>(
+        ov::frontend::gguf::ArchitectureDefinition{"clip.mmproj",
+                                                   "clip",
+                                                   ov::frontend::gguf::make_qwen3tts_projector_builder,
+                                                   {}},
+        ov::frontend::gguf::RegistrationMode::Replace));
     auto full = frontend.convert(frontend.load(file.path));
     const auto component = [&](bool waveform) {
         ov::ResultVector results;
