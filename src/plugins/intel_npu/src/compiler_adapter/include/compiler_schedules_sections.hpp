@@ -119,7 +119,6 @@ public:
                            const ov::log::Level log_level = ov::log::Level::WARNING);
 
     DynamicScheduleSection(ov::Tensor&& main_schedule,
-                           const BlobType blob_type,
                            const std::function<std::string(const std::string&)>& encryption_callback = nullptr,
                            const ov::log::Level log_level = ov::log::Level::WARNING);
 
@@ -136,8 +135,6 @@ public:
     // TODO consider moving the tensor to free the schedule earlier
     ov::Tensor get_schedule() const;
 
-    BlobType get_blob_type() const;
-
     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
     void decrypt(const std::function<std::string(const std::string&)>& decryption_callback);
@@ -149,7 +146,6 @@ private:
      * @note The dynamic schedule is handled almost the same as the ELFMainSchedule. Thus this attribute.
      */
     ELFMainScheduleSection m_impl;
-    BlobType m_blob_type;
 
     Logger m_logger;
 };

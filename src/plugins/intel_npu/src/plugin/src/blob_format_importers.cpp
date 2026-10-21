@@ -636,10 +636,8 @@ private:
             return BlobType::ELF;
         }
 
-        const auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
-            m_blob_reader.retrieve_any_section(SectionTypeCode::DYNAMIC_SCHEDULE));
-        OPENVINO_ASSERT(dynamic_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
-        return dynamic_schedule_section->get_blob_type();
+        OPENVINO_ASSERT(m_blob_reader.has_section_of_type(SectionTypeCode::DYNAMIC_SCHEDULE));
+        return BlobType::BYTECODE;
     }
 
     BlobReader m_blob_reader;

@@ -18,17 +18,12 @@ using namespace intel_npu;
 namespace {
 
 constexpr std::string_view COMPILER_SCHEDULE_CONTENT = "dummy";
-constexpr uint8_t ELF_BLOB_TYPE_SERIALIZED_VALUE = 0;
-constexpr uint8_t LLVM_BLOB_TYPE_SERIALIZED_VALUE = 1;
-constexpr uint8_t BYTECODE_BLOB_TYPE_SERIALIZED_VALUE = 2;
 constexpr size_t FIRST_REGISTERED_SECTION_ID = 0;
 constexpr size_t SECOND_REGISTERED_SECTION_ID = 1;
 
 std::shared_ptr<DynamicScheduleSection> create_section_using_dummy_content() {
     return std::make_shared<DynamicScheduleSection>(
-
-        ov::Tensor(ov::element::Type_t::u8, {COMPILER_SCHEDULE_CONTENT.size()}, COMPILER_SCHEDULE_CONTENT.data()),
-        BlobType::BYTECODE);
+        ov::Tensor(ov::element::Type_t::u8, {COMPILER_SCHEDULE_CONTENT.size()}, COMPILER_SCHEDULE_CONTENT.data()));
 }
 
 }  // namespace
@@ -49,7 +44,6 @@ TEST_F(DynamicScheduleSectionTest, NullSetGraph) {
 TEST_F(DynamicScheduleSectionTest, CtorSetsTheRightValue) {
     std::shared_ptr<DynamicScheduleSection> section = create_section_using_dummy_content();
     ASSERT_EQ(section->get_type(), SectionType(SectionTypeCode::DYNAMIC_SCHEDULE));
-    ASSERT_EQ(section->get_blob_type(), BlobType::BYTECODE);
     ASSERT_EQ(section->get_schedule().get_element_type(), ov::element::Type_t::u8);
     ASSERT_EQ(section->get_schedule().get_shape(), ov::Shape({COMPILER_SCHEDULE_CONTENT.size()}));
     ASSERT_EQ(std::memcmp(static_cast<const ov::Tensor&>(section->get_schedule()).data(),
@@ -60,20 +54,11 @@ TEST_F(DynamicScheduleSectionTest, CtorSetsTheRightValue) {
     // Test using an empty schedule too
     // TODO LLVM was replaced. make sure there is no test redundancy
     section =
-        std::make_shared<DynamicScheduleSection>(ov::Tensor(ov::element::Type_t::u8, ov::Shape({0}), (void*)nullptr),
-                                                 BlobType::BYTECODE);
+        std::make_shared<DynamicScheduleSection>(ov::Tensor(ov::element::Type_t::u8, ov::Shape({0}), (void*)nullptr));
     ASSERT_EQ(section->get_type(), SectionType(SectionTypeCode::DYNAMIC_SCHEDULE));
-    ASSERT_EQ(section->get_blob_type(), BlobType::BYTECODE);
     ASSERT_EQ(section->get_schedule().get_element_type(), ov::element::Type_t::u8);
     ASSERT_EQ(section->get_schedule().get_shape(), ov::Shape({0}));
     ASSERT_EQ(section->get_schedule().get_byte_size(), 0);
-}
-
-TEST_F(DynamicScheduleSectionTest, CtorELFBlobTypeRejected) {
-    OV_EXPECT_THROW(
-        DynamicScheduleSection(ov::Tensor(ov::element::Type_t::u8, ov::Shape({0}), (void*)nullptr), BlobType::ELF),
-        ov::Exception,
-        _);
 }
 
 TEST_F(DynamicScheduleSectionTest, CompatibilityReqsSubexpression) {
@@ -133,27 +118,8 @@ TEST_F(DynamicScheduleSectionTest, WorkingDecryption) {
     }
 }
 
-TEST_F(DynamicScheduleSectionTest, ReadELFBlobType) {
-    std::string section_content(reinterpret_cast<const char*>(&ELF_BLOB_TYPE_SERIALIZED_VALUE),
-                                sizeof(ELF_BLOB_TYPE_SERIALIZED_VALUE));
-    section_content += std::string("\x00\x00", 2);  // padding
-    section_content += "0";                         // dummy compiler schedule
-
-    ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size());
-    OV_EXPECT_THROW(DynamicScheduleSection::read(reader), ov::Exception, _);
-
-    std::istringstream stream(section_content);
-    source = BlobSource(stream);
-    reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size());
-    OV_EXPECT_THROW(DynamicScheduleSection::read(reader), ov::Exception, _);
-}
-
 TEST_F(DynamicScheduleSectionTest, ReadingATooSmallSection) {
-    std::string section_content(reinterpret_cast<const char*>(&LLVM_BLOB_TYPE_SERIALIZED_VALUE),
-                                sizeof(LLVM_BLOB_TYPE_SERIALIZED_VALUE));
-    section_content += "0";  // dummy compiler schedule
+    std::string section_content("0");  // dummy compiler schedule
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
@@ -167,10 +133,8 @@ TEST_F(DynamicScheduleSectionTest, ReadingATooSmallSection) {
 }
 
 TEST_F(DynamicScheduleSectionTest, ReadPaddingTooBig) {
-    std::string section_content(reinterpret_cast<const char*>(&LLVM_BLOB_TYPE_SERIALIZED_VALUE),
-                                sizeof(LLVM_BLOB_TYPE_SERIALIZED_VALUE));
-    section_content += std::string("\x06\x00", 2);  // padding
-    section_content += "dummy";                     // dummy compiler schedule
+    std::string section_content("\x06\x00", 2);  // padding
+    section_content += "dummy";                  // dummy compiler schedule
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
@@ -183,30 +147,25 @@ TEST_F(DynamicScheduleSectionTest, ReadPaddingTooBig) {
     OV_EXPECT_THROW(DynamicScheduleSection::read(reader), ov::Exception, _);
 }
 
-class DynamicScheduleSectionReadTest : public testing::TestWithParam<std::tuple<bool, size_t, bool, bool>> {
+class DynamicScheduleSectionReadTest : public testing::TestWithParam<std::tuple<size_t, bool, bool>> {
 public:
     DynamicScheduleSectionReadTest() : source(stream), reader(source, 0, 0, 0, 0) {}
 
-    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<bool, size_t, bool, bool>>& obj) {
-        bool llvm_blob_type, tensor_source, empty_schedule;
+    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<size_t, bool, bool>>& obj) {
+        bool tensor_source, empty_schedule;
         size_t padding_size;
-        std::tie(llvm_blob_type, padding_size, tensor_source, empty_schedule) = obj.param;
+        std::tie(padding_size, tensor_source, empty_schedule) = obj.param;
 
-        return std::string(llvm_blob_type ? "llvm" : "bytecode") + "_" + std::to_string(padding_size) + "_" +
-               (tensor_source ? "tensor" : "stream") + "_" + (empty_schedule ? "empty" : "not_empty");
+        return std::to_string(padding_size) + "_" + (tensor_source ? "tensor" : "stream") + "_" +
+               (empty_schedule ? "empty" : "not_empty");
     }
 
 protected:
     void SetUp() override {
         uint16_t padding_size;
         bool empty_schedule;
-        std::tie(is_llvm_blob_type, padding_size, is_tensor_source, empty_schedule) = GetParam();
-        section_content = is_llvm_blob_type
-                              ? std::string(reinterpret_cast<const char*>(&LLVM_BLOB_TYPE_SERIALIZED_VALUE),
-                                            sizeof(LLVM_BLOB_TYPE_SERIALIZED_VALUE))
-                              : std::string(reinterpret_cast<const char*>(&BYTECODE_BLOB_TYPE_SERIALIZED_VALUE),
-                                            sizeof(BYTECODE_BLOB_TYPE_SERIALIZED_VALUE));
-        section_content += std::string(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
+        std::tie(padding_size, is_tensor_source, empty_schedule) = GetParam();
+        section_content = std::string(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
         section_content += std::string(padding_size, 0);
         after_padding_offset = section_content.size();
         if (!empty_schedule) {
@@ -226,8 +185,6 @@ protected:
         reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size(), empty_config);
     }
 
-    // TODO remove this
-    bool is_llvm_blob_type;
     bool is_tensor_source;
     std::string section_content;
     size_t after_padding_offset;
@@ -245,7 +202,6 @@ TEST_P(DynamicScheduleSectionReadTest, SuccessfulRead) {
     // Check that the cursor was left at the end of the section. This may be an indicator that the whole section has
     // been read.
     ASSERT_EQ(reader.get_offset_relative_to_current_section(), section_content.size());
-    ASSERT_EQ(casted_section->get_blob_type(), BlobType::BYTECODE);
 
     const std::string parsed_content(casted_section->get_schedule().data<char>(),
                                      casted_section->get_schedule().get_byte_size());
@@ -264,8 +220,7 @@ TEST_P(DynamicScheduleSectionReadTest, SuccessfulRead) {
 
 INSTANTIATE_TEST_SUITE_P(UnitTests,
                          DynamicScheduleSectionReadTest,
-                         testing::Combine(testing::ValuesIn(std::vector<bool>{true, false}),
-                                          testing::ValuesIn(std::vector<size_t>{0,
+                         testing::Combine(testing::ValuesIn(std::vector<size_t>{0,
                                                                                 1,
                                                                                 utils::STANDARD_PAGE_SIZE - 1,
                                                                                 utils::STANDARD_PAGE_SIZE,

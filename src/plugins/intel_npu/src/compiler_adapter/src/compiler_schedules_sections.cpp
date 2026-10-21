@@ -345,20 +345,15 @@ DynamicScheduleSection::DynamicScheduleSection(
     const ov::log::Level log_level)
     : ISection(SectionTypeCode::DYNAMIC_SCHEDULE),
       m_impl(std::dynamic_pointer_cast<Graph>(graph), encryption_callback, log_level),
-      m_blob_type(graph->get_blob_type()),
       m_logger("DynamicScheduleSection", log_level) {}
 
 DynamicScheduleSection::DynamicScheduleSection(
     ov::Tensor&& main_schedule,
-    const BlobType blob_type,
     const std::function<std::string(const std::string&)>& encryption_callback,
     const ov::log::Level log_level)
     : ISection(SectionTypeCode::DYNAMIC_SCHEDULE),
       m_impl(std::move(main_schedule), encryption_callback, log_level),
-      m_blob_type(blob_type),
-      m_logger("DynamicScheduleSection", log_level) {
-    OPENVINO_ASSERT(blob_type == BlobType::BYTECODE, "Invalid blob type for a dynamic compiler schedule");
-}
+      m_logger("DynamicScheduleSection", log_level) {}
 
 std::vector<std::shared_ptr<CREToken>> DynamicScheduleSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
@@ -370,8 +365,6 @@ std::vector<std::shared_ptr<CREToken>> DynamicScheduleSection::get_compatibility
 
 void DynamicScheduleSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "DynamicScheduleSection::write");
-    // TODO might need casting to uint8_t
-    writer.write_from(&m_blob_type, sizeof(m_blob_type));
     m_impl.write(writer);
 }
 
@@ -383,10 +376,6 @@ ov::Tensor DynamicScheduleSection::get_schedule() const {
     return m_impl.get_schedule();
 }
 
-BlobType DynamicScheduleSection::get_blob_type() const {
-    return m_blob_type;
-}
-
 void DynamicScheduleSection::decrypt(const std::function<std::string(const std::string&)>& decryption_callback) {
     m_impl.decrypt(decryption_callback);
 }
@@ -395,14 +384,8 @@ std::shared_ptr<ISection> DynamicScheduleSection::read(BlobReaderInterface& blob
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "DynamicScheduleSection::read");
     // TODO more logs
 
-    // TODO do not store/read the blob type anymore
-    OPENVINO_ASSERT(blob_reader.get_remaining_section_size() >= sizeof(BlobType), SECTION_TOO_SHORT_MESSAGE);
-    BlobType blob_type;
-    blob_reader.read_into_buffer(&blob_type, sizeof(blob_type));
-
     return std::make_shared<DynamicScheduleSection>(
         std::dynamic_pointer_cast<ELFMainScheduleSection>(ELFMainScheduleSection::read(blob_reader))->get_schedule(),
-        blob_type,
         get_encryption_callback_from_config(blob_reader.get_config()),
         blob_reader.get_log_level());
 }
