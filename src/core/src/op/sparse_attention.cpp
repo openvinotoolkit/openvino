@@ -62,12 +62,28 @@ SparseAttention::SparseAttention(const Output<Node>& query,
                       query_block_size,
                       causal) {}
 
+SparseAttention::SparseAttention(const Output<Node>& query,
+                                 const Output<Node>& key,
+                                 const Output<Node>& value,
+                                 const Output<Node>& block_indices,
+                                 const Output<Node>& block_count,
+                                 const Output<Node>& key_length,
+                                 const Output<Node>& scale,
+                                 const Output<Node>& sinks,
+                                 int64_t key_block_size,
+                                 int64_t query_block_size,
+                                 bool causal)
+    : SparseAttention(OutputVector{query, key, value, block_indices, block_count, key_length, scale, sinks},
+                      key_block_size,
+                      query_block_size,
+                      causal) {}
+
 void SparseAttention::validate_and_infer_types() {
     OV_OP_SCOPE(v17_SparseAttention_validate_and_infer_types);
     const auto input_count = get_input_size();
     NODE_VALIDATION_CHECK(this,
-                          5 <= input_count && input_count <= 7,
-                          "The number of inputs must be from 5 to 7. Got: ",
+                          5 <= input_count && input_count <= 8,
+                          "The number of inputs must be from 5 to 8. Got: ",
                           input_count);
 
     element::Type data_et = get_input_element_type(0);
@@ -96,12 +112,21 @@ void SparseAttention::validate_and_infer_types() {
                               et);
     }
 
-    if (input_count == 7) {
+    if (input_count >= 7) {
         const auto& scale_et = get_input_element_type(6);
         NODE_VALIDATION_CHECK(this,
                               element::Type::merge(data_et, data_et, scale_et),
                               "The element type of scale must be the same as of query, key and value. Got: ",
                               scale_et);
+    }
+
+    // The sink logits are not scaled and may be kept in a higher precision than the activations.
+    if (input_count == 8) {
+        const auto& sinks_et = get_input_element_type(7);
+        NODE_VALIDATION_CHECK(this,
+                              sinks_et.is_dynamic() || sinks_et.is_real(),
+                              "The element type of sinks must be a floating point type. Got: ",
+                              sinks_et);
     }
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));

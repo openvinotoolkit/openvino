@@ -15,7 +15,7 @@ std::vector<TRShape> shape_infer(const SparseAttention* op,
     using TDim = typename TShape::value_type;
 
     const auto inputs_count = input_shapes.size();
-    NODE_VALIDATION_CHECK(op, 5 <= inputs_count && inputs_count <= 7);
+    NODE_VALIDATION_CHECK(op, 5 <= inputs_count && inputs_count <= 8);
 
     const auto key_block_size = op->get_key_block_size();
     const auto query_block_size = op->get_query_block_size();
@@ -154,6 +154,21 @@ std::vector<TRShape> shape_infer(const SparseAttention* op,
                                    input_shapes,
                                    scale_is_scalar || scale_has_one_elem,
                                    "The scale input must be a scalar or a single element 1D tensor.");
+        }
+    }
+
+    if (inputs_count > 7) {
+        const auto& sinks_shape = input_shapes[7];
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               sinks_shape.rank().compatible(1),
+                               "The shape of sinks must be 1D [H].");
+        if (sinks_shape.rank().is_static() && query_shape.rank().is_static()) {
+            TDim merged;
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   TDim::merge(merged, sinks_shape[0], query_shape[1]),
+                                   "The number of sinks must be equal to the number of query heads.");
         }
     }
 

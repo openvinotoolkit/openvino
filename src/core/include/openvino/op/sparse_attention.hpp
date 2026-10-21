@@ -15,6 +15,7 @@ namespace ov::op::v17 {
 /// `block_indices` and, in the causal mode, the incomplete block containing the query is added.
 /// Query tokens share a selection in groups of `query_block_size` tokens. The selected blocks
 /// differ per query token and are normally produced by SparseAttentionIndexer.
+/// The optional `sinks` hold one learnable logit per query head.
 ///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API SparseAttention : public Op {
@@ -73,6 +74,21 @@ public:
                     const Output<Node>& block_count,
                     const Output<Node>& key_length,
                     const Output<Node>& scale,
+                    int64_t key_block_size,
+                    int64_t query_block_size = 1,
+                    bool causal = true);
+
+    /// \brief Constructs a SparseAttention operation with attention sinks.
+    ///
+    /// \param sinks Attention sink logit of every query head, shape [H]
+    SparseAttention(const Output<Node>& query,
+                    const Output<Node>& key,
+                    const Output<Node>& value,
+                    const Output<Node>& block_indices,
+                    const Output<Node>& block_count,
+                    const Output<Node>& key_length,
+                    const Output<Node>& scale,
+                    const Output<Node>& sinks,
                     int64_t key_block_size,
                     int64_t query_block_size = 1,
                     bool causal = true);
