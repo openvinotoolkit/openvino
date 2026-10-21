@@ -52,6 +52,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #if defined(OPENVINO_ARCH_X86_64)
+#    include "transformations/rt_info/disable_precision_conversion.hpp"
 #    include "utils/precision_support.h"
 #endif
 #if defined(OV_CPU_WITH_KLEIDIAI)
@@ -64,7 +65,7 @@ using namespace ov::element;
 
 namespace ov::intel_cpu::node {
 
-ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[maybe_unused]] bool apply_fp8) {
+ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
     using ov::element::Type_t;
 
     bool useMatmulPrim = false;
@@ -74,12 +75,15 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[may
         return {Type_t::u8, Type_t::i8};
     }
 #if defined(OPENVINO_ARCH_X86_64)
-    ov::element::TypeVector supportedDataTypes =
-        {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1, Type_t::u2};
-    if (apply_fp8) {
-        supportedDataTypes.insert(supportedDataTypes.end(), {Type_t::f8e4m3, Type_t::f8e5m2});
-    }
-    return supportedDataTypes;
+    return {Type_t::u8,
+            Type_t::i8,
+            Type_t::u4,
+            Type_t::i4,
+            Type_t::nf4,
+            Type_t::f4e2m1,
+            Type_t::u2,
+            Type_t::f8e4m3,
+            Type_t::f8e5m2};
 #elif defined(OV_CPU_WITH_KLEIDIAI)
     // Symmetric weight-only compression uses i4. Asymmetric groupwise
     // compression exported by Optimum uses u4 weights plus u4 zero-points.
@@ -157,9 +161,15 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
 
         const auto weightsPrecision = op->get_input_element_type(WEIGHTS);
         if (any_of(weightsPrecision, ov::element::f8e4m3, ov::element::f8e5m2)) {
-            // fp8 weights are decompressed by the oneDNN brgemm matmul kernel; there is no
-            // f32 x fp8 configuration, so the constant is folded for other precisions.
-            if (!hasFp8WeightsDecompressionSupport(config.inferencePrecision)) {
+            // No f32 x fp8 kernel, so the constant is folded unless the activations end up bf16/f16.
+            // f32 counts as bf16 under the bf16 hint (enforced later) unless the node is excluded from it.
+            auto activationPrecision = op->get_input_element_type(DATA);
+            if (activationPrecision == ov::element::f32 && config.inferencePrecision == ov::element::bf16 &&
+                !ov::is_conversion_disabled(op, ov::element::f16) &&
+                !ov::is_conversion_disabled(op, ov::element::f32, ov::element::bf16)) {
+                activationPrecision = ov::element::bf16;
+            }
+            if (!hasFp8WeightsDecompressionSupport(activationPrecision)) {
                 return false;
             }
             // Grouped scales over IC are rejected by oneDNN for fp8 weights
@@ -181,7 +191,11 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
             return IC >= 4 && OC != 1;
         }
 
-        if (op->get_input_element_type(DATA) == ov::element::f16) {
+        bool useMatmulPrim = false;
+        CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
+        // At the moment there is no implementation supporting integer weights decompression with f16 input
+        // (subject to change once we completely switch to dnnl::matmul).
+        if (!useMatmulPrim && op->get_input_element_type(DATA) == ov::element::f16) {
             return false;
         }
 

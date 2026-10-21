@@ -159,10 +159,11 @@ static const TypeMapping dnnlMatMulTypeMapping {
     {{_u8 | _i8, _i8, _any, _any},                            {bypass(), bypass(), just<f32>(), just<f32>()}},
     // compresses int weights
     {{_f32 | _bf16 | _f16, _u8 | _i8, _any, _any},            {bypass(), bypass(), use<0>(), use<0>()}},
-    // fp8 weights are decompressed inside the matmul kernel; the exact bf16/f16 gating
-    // is done by dnnlMatMulSupportedPrecision().
-    {{_bf16 | _f16, _f8e4m3 | _f8e5m2, _any, _any},           {bypass(), bypass(), use<0>(), use<0>()},
+    // fp8 weights are decompressed inside the matmul kernel
+    {{_bf16, _f8e4m3 | _f8e5m2, _any, _any},                  {bypass(), bypass(), use<0>(), use<0>()},
      []() { return hasFp8WeightsDecompressionSupport(ov::element::bf16); }},
+    {{_f16, _f8e4m3 | _f8e5m2, _any, _any},                   {bypass(), bypass(), use<0>(), use<0>()},
+     []() { return hasFp8WeightsDecompressionSupport(ov::element::f16); }},
     // @todo should we fallback to FPXX instead of _f32?
     {{_any, _any, _any, _any},                                {just<f32>(), just<f32>(), just<f32>(), just<f32>()}},
     // @todo explicitly cover configuration limitations for oneDNN on ARM
@@ -428,9 +429,8 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                     })
                 VERIFY(dnnlMatMulSupportedPrecision(config), UNSUPPORTED_SRC_WEI_PRECISIONS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
-                // fp8 decompression runs on dnnl::matmul with rank-2 weights, skip the rank checks.
-                if (any_of(weiType(config), f8e4m3, f8e5m2) &&
-                    DnnlMatMulPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config))) {
+                // fp8 decompression uses rank-2 [OC, IC] weights
+                if (any_of(weiType(config), f8e4m3, f8e5m2)) {
                     VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
                     return true;
                 }
