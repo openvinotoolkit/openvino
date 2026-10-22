@@ -203,7 +203,7 @@ enum PagedAttentionInternBuffIdx {
 // Stage/context helpers shared across CM paged-attention implementation units.
 PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param);
 size_t get_max_context_len(const kernel_impl_params& params);
-size_t get_batch_size_in_sequences(const std::vector<layout>& input_layouts);
+size_t get_batch_size_in_sequences(const std::vector<cldnn::layout>& input_layouts);
 
 // XAttention policy helpers.
 float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx = 0);
