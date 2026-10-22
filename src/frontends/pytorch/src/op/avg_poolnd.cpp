@@ -79,8 +79,9 @@ Output<Node> pool_short_windows(const NodeContext& context,
         res = context.mark_node(std::make_shared<v0::Convert>(input, element::f32));
     }
     auto axes = context.mark_node(v0::Constant::create(element::i64, Shape{reduced_axes.size()}, reduced_axes));
-    // Accumulate the innermost axis first, like PyTorch, to keep cancellation within window rows.
-    if (short_axes.back() + 1 == kernel.size()) {
+    // Integers must truncate only whole-window sums; floats accumulate the innermost axis first, like
+    // PyTorch, to keep cancellation within window rows.
+    if (input_type.is_integral() || short_axes.back() + 1 == kernel.size()) {
         res = pool(context.mark_node(std::make_shared<v1::ReduceSum>(res, axes, true)));
     } else {
         res = context.mark_node(std::make_shared<v1::ReduceSum>(pool(res), axes, true));
