@@ -3,6 +3,8 @@
 //
 #include "llm_compiled_model.hpp"
 
+#include <algorithm>
+
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
 #include "embedding/prepare_embedding_model.hpp"
@@ -14,12 +16,14 @@
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
 #include "moe_transformations/apply_moe_device_routed_transforms.hpp"
+#include "moe_transformations/moe_topology.hpp"
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
 #include "npuw_transformations/insert_vocab_sub128.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
+#include "npuw_transformations/optimize_lincache_layout.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
 #include "npuw_transformations/propagate_slice.hpp"
@@ -47,6 +51,7 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 #include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
@@ -334,7 +339,7 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
         bool set_npu_tiles = false;
         std::string arch_added_compilation_param;
         if (npu_platform == ov::intel_npu::Platform::NPU3720) {
-            // Keep baseline settings.
+            // Keep baseline settings
         } else if (npu_platform == ov::intel_npu::Platform::NPU4000) {
             set_npu_tiles = true;
             arch_added_compilation_param = "optimization-level=3";
@@ -344,7 +349,7 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
         } else if (npu_platform == ov::intel_npu::Platform::NPU6010) {
             arch_added_compilation_param = "performance-hint-override=latency";
         } else if (npu_platform == ov::intel_npu::Platform::AUTO_DETECT) {
-            arch_added_compilation_param = "performance-hint-override=latency";
+            // Keep baseline settings
         } else {
             LOG_WARN("Unknown NPU platform: " << npu_platform << ". Default config will be used.");
         }
@@ -523,10 +528,15 @@ bool has_per_layer_inputs(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
-// Detect if the model is a Mixture-of-Experts (MoE) architecture
-// by checking if any node name matches MoE patterns: layers.*.mlp.router or layers.*.mlp.experts
+// Prefer structural detection. Keep names as a legacy hint for older exports
+// that still need normalization before their batched experts can be matched.
 bool is_moe_model(const std::shared_ptr<ov::Model>& model) {
+    const ov::npuw::moe::BatchedMoEPattern pattern;
     for (const auto& op : model->get_ops()) {
+        if (pattern.match(op)) {
+            LOG_INFO("Detected MoE model: supported batched expert topology");
+            return true;
+        }
         const std::string& node_name = op->get_friendly_name();
         // Check for MoE-specific patterns:
         // - layers.*.mlp.router (router network for expert selection)
@@ -538,7 +548,7 @@ bool is_moe_model(const std::shared_ptr<ov::Model>& model) {
             return true;
         }
     }
-    LOG_DEBUG("Non-MoE model detected: no .mlp.router or .mlp.expert nodes found");
+    LOG_DEBUG("Non-MoE model detected: no supported topology or legacy router/expert names");
     return false;
 }
 
@@ -556,6 +566,18 @@ void apply_moe_config(ov::AnyMap& stage_config,
             {"NPUW_UNFOLD_IREQS", "NO"},
         };
         merge_config_with(stage_config, expert_opts);
+        // Keep isolated experts even below the generic repeated-block threshold.
+        const auto keep_key = "NPUW_ONLINE_KEEP_BLOCKS_TAGGED";
+        auto keep = stage_config.find(keep_key);
+        if (keep == stage_config.end() || keep->second.as<std::string>().empty()) {
+            stage_config[keep_key] = "expert";
+        } else {
+            const auto& value = keep->second.as<std::string>();
+            const auto tags = ov::util::split(value);
+            if (std::find(tags.begin(), tags.end(), "expert") == tags.end()) {
+                keep->second = value + ",expert";
+            }
+        }
         auto isol_it = stage_config.find("NPUW_ONLINE_ISOLATE");
         if (isol_it != stage_config.end() && !isol_it->second.as<std::string>().empty()) {
             isol_it->second = isol_it->second.as<std::string>() + ",MOE";
@@ -811,17 +833,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_INFO("Eagle3 speculative decoding mode enabled");
     }
 
-    // Auto-detect MoE model by scanning for router/expert nodes
-    const bool is_moe = is_moe_model(model);
-    if (is_moe) {
-        // Enable DEVICE_ROUTED mode by default for MoE models on newer compiler versions, as it's more efficient than
-        // HOST_ROUTED
-        if (npuw_llm_props.find("NPUW_LLM_GENERATE_MOE_HINT") == npuw_llm_props.end() && npudesc->arch == "5010" &&
-            npudesc->compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
-            m_cfg.update({{"NPUW_LLM_GENERATE_MOE_HINT", "DEVICE_ROUTED"}});
-        }
-    }
-
     // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
     // the generate model they're not mutually exclusive
     const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
@@ -865,21 +876,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             LOG_INFO("Prefix caching block size: " << m_prefix_caching_block_size);
             LOG_INFO("Prefix caching maximum number of blocks: " << m_prefix_caching_max_num_blocks);
         }
-    }
-
-    // Continuous prefill is opt-in and mutually exclusive with the hash prefix cache.
-    // The prefix cache restore step unconditionally overwrites num_stored_tokens and
-    // its helper hashes absolute token positions of a full prompt. Neither holds under
-    // the delta-input contract, so the combination fails compilation instead of
-    // silently misbehaving, mirroring the block-KV and prefix-caching exclusion.
-    m_enable_continuous_prefill = m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_CONTINUOUS_PREFILL>();
-    if (m_enable_continuous_prefill) {
-        OPENVINO_ASSERT(!m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>(),
-                        "NPUW_LLM_ENABLE_CONTINUOUS_PREFILL and NPUW_LLM_ENABLE_PREFIX_CACHING "
-                        "cannot be enabled simultaneously. Continuous prefill receives delta-only "
-                        "inputs which the hash prefix cache cannot process. "
-                        "Please disable one of the two options.");
-        LOG_INFO("Continuous prefill is enabled");
     }
 
     const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
@@ -982,10 +978,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // auto-enable both options for them unless the user explicitly configured it.
     bool propagate_slice_up = m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>();
     if (is_per_layer_inputs_model) {
-        // SWA shrink is incompatible with prefix caching, multi-token generation (e.g. speculative
-        // decoding), and continuous prefill.
-        const bool swa_shrink_compatible =
-            !m_enable_prefix_caching && max_generation_token_len == 1 && !m_enable_continuous_prefill;
+        // SWA shrink is incompatible with prefix caching and multi-token generation (e.g.
+        // speculative decoding). When it applies, continuous prefill is resolved off.
+        const bool swa_shrink_compatible = !m_enable_prefix_caching && max_generation_token_len == 1;
         if (swa_shrink_compatible && !m_cfg.has<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
             m_cfg.update({{"NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", "YES"}});
             LOG_INFO("Gemma-4 cross-group KV model: auto-enabling NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK");
@@ -1007,6 +1002,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
     }
 
+    if (m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_LINCACHE_LAYOUT>()) {
+        // Applied once before the prefill model and the generate variants are cloned, so all of
+        // them share the conv state layout that the byte-wise present -> past copy relies on.
+        if (ov::npuw::util::OptimizeLinCacheLayout().run_on_model(kvcache_model)) {
+            LOG_DEBUG("Conv state tensors re-laid out as [batch, kernel, channels]");
+        }
+    }
+
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
@@ -1021,7 +1024,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         whisper_lhs_seq_size =
             static_cast<uint32_t>(prefill_model->input("encoder_hidden_states").get_partial_shape()[1].get_length());
         auto whisper_decompose_sdpa = m_cfg.get<::intel_npu::NPUW_WHISPER_DECOMPOSE_SDPA>();
-        if (whisper_decompose_sdpa) {
+
+        // With word-level timestamps, the decoder may receive tokens decoded from the
+        // entire audio chunk in one prefill call, so the static prompt length needs to
+        // reach almost the full KV-cache size rather than the usual (smaller) max prompt.
+        // This is needed whether GenAI already decomposed cross-attention SDPA itself
+        // (CPU/GPU) or NPUW is about to decompose it below (NPU).
+        if (whisper_decompose_sdpa || ov::npuw::util::has_decomposed_cross_attention_sdpa(prefill_model)) {
             m_kvcache_desc.max_prompt_size = whisper_kvcache_size - 1;
         }
 
@@ -1350,7 +1359,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // The long factors are only worth materializing if a position can actually reach
         // the context limit and they differ from the short ones - models that declare
         // LongRoPE but set the limit at (or beyond) their whole context, or repeat the
-        // same factors twice, always run in the short regime.
+        // same factors twice, always run in the short mode.
         m_longrope_tables.has_long = m_longrope_context_limit < m_longrope_tables.max_len &&
                                      m_longrope_tables.inv_freq_long != m_longrope_tables.inv_freq_short;
         if (m_longrope_tables.rotary_ndims > 0 && !m_longrope_tables.has_long) {
@@ -1359,15 +1368,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_longrope_tables.rebuild_tables();
     }
 
-    if (is_moe) {
-        // Apply MoE configuration for prefill stage
-        const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
-        apply_moe_config(prefill_config, prefill_moe_hint, "PREFILL");
-
-        // Apply MoE configuration for generate stage
-        const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
-        apply_moe_config(generate_config, generate_moe_hint, "GENERATE");
-
+    if (is_moe_model(model)) {
         // Fold shape-compute chains (ShapeOf→Gather→Concat etc.) in the prefill model before
         // online partitioning runs pattern matching (e.g. GPTOSSRouter).  Must run after
         // ReshapeToStatic has made all shapes static so that ShapeOf bounds are resolvable.
@@ -1375,6 +1376,36 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         for (auto&& model_variant : generate_model_variants) {
             ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model_variant);
         }
+
+        const auto eligible = [](const std::shared_ptr<ov::Model>& variant) {
+            bool found = false;
+            const ov::npuw::moe::BatchedMoEPattern pattern;
+            for (const auto& node : variant->get_ordered_ops()) {
+                if (!ov::is_type<ov::op::v1::ReduceSum>(node)) {
+                    continue;
+                }
+                opp::Matcher matcher(pattern.root(), "LLMMoEDeviceEligibility");
+                if (matcher.match(node)) {
+                    const auto topology = pattern.extract(matcher);
+                    if (!topology || !ov::npuw::moe::can_device_route(*topology)) {
+                        return false;
+                    }
+                    found = true;
+                }
+            }
+            return found;
+        };
+        if (npuw_llm_props.count("NPUW_LLM_GENERATE_MOE_HINT") == 0 && npudesc && npudesc->arch == "5010" &&
+            npudesc->compiler_ver >= ONEAPI_MAKE_VERSION(7, 29) &&
+            m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>() == 1 && !generate_model_variants.empty() &&
+            std::all_of(generate_model_variants.begin(), generate_model_variants.end(), eligible)) {
+            m_cfg.update({{"NPUW_LLM_GENERATE_MOE_HINT", "DEVICE_ROUTED"}});
+        }
+
+        const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
+        apply_moe_config(prefill_config, prefill_moe_hint, "PREFILL");
+        const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
+        apply_moe_config(generate_config, generate_moe_hint, "GENERATE");
 
         if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
             // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED
@@ -1449,6 +1480,20 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
+    // A LongRoPE model can flip between its short- and its long-factor coefficients in
+    // the middle of a conversation, and NPUW repairs that by re-rotating the cached keys
+    // in place (llm_longrope_kv.hpp). That rewrite needs a non-quantized key cache.
+    // Where it cannot run there is no correct fallback - the cache would stay in the old
+    // rotation frame and every answer past the crossing would be garbage - so refuse the
+    // combination here rather than at the crossing token.
+    if (m_longrope_tables.has_long) {
+        OPENVINO_ASSERT(kv_kache_storage_type == ov::element::f16 || kv_kache_storage_type == ov::element::f32,
+                        "NPUW: a ",
+                        kv_kache_storage_type,
+                        " KV cache cannot be re-rotated when the LongRoPE mode changes. "
+                        "Use an f16 or f32 KV cache for this model.");
+    }
+
     // Duplicate shared K/V broadcast chains in the prefill model so that each downstream
     // SDPA gets its own independent Concat chain.  This enables TagSDPA/SDPADecomposed to
     // isolate and convert each SDPA to HFA independently (e.g. Gemma-4 L15–L34 reuse
@@ -1480,12 +1525,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     implement_properties();
-
-    if (m_enable_continuous_prefill && !compute_continuous_prefill_supported()) {
-        LOG_WARN("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL is set, but continuous prefill is not "
-                 "supported for this compiled model. NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED "
-                 "reports false and full-history behaviour stays in effect.");
-    }
+    resolve_continuous_prefill();
 
     LOG_DEBUG("Done");
 }
@@ -1727,7 +1767,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     if (is_weightless) {
         std::string encrypted_str;
         read(stream, encrypted_str);
-        std::istringstream decrypted_stream(std::move(enc_callbacks.decrypt(encrypted_str)));
+        std::istringstream decrypted_stream(enc_callbacks.decrypt(encrypted_str));
         CompiledContext ctx(false, nullptr, nullptr);
         compiled_model = ov::npuw::LLMCompiledModel::deserialize(decrypted_stream, plugin, properties, ctx);
     } else {
@@ -1784,8 +1824,6 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         // Deserialize config
         stream & compiled->m_cfg;
         compiled->implement_properties();
-        // Not serialized. Recomputed from the deserialized config so older blobs stay loadable.
-        compiled->m_enable_continuous_prefill = compiled->m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_CONTINUOUS_PREFILL>();
 
         // Deserialize KV cache model variants
         stream & compiled->m_kvcache_sizes;
@@ -1829,6 +1867,13 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
                 ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         }
 
+        // Reject blobs whose KVCacheDesc::dim is not a valid axis for the restored KV tensors.
+        compiled->validate_imported_kvcache_dim();
+
+        // The flag itself is not serialized. Resolving it here also keeps blobs written
+        // before the write-back correct.
+        compiled->resolve_continuous_prefill();
+
         return compiled;
     };
 
@@ -1836,7 +1881,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     if (ctx.encrypted) {
         std::string encrypted_string;
         read(stream, encrypted_string);
-        std::istringstream decrypted_stream(std::move(ctx.decrypt(encrypted_string)));
+        std::istringstream decrypted_stream(ctx.decrypt(encrypted_string));
         compiled = read_model_meta(decrypted_stream);
     } else {
         compiled = read_model_meta(stream);
@@ -1847,23 +1892,88 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     return compiled;
 }
 
+void ov::npuw::LLMCompiledModel::validate_imported_kvcache_dim() const {
+    // On the compile path every KV axis is in [0, rank), so an out-of-range one means a tampered blob.
+    auto validate_ports = [this](const std::vector<ov::Output<const ov::Node>>& ports, bool v_transposed) {
+        for (const auto& port : ports) {
+            // Check every alias, so get_any_name()'s choice can't hide a KV port.
+            for (const auto& name : port.get_names()) {
+                const auto past_name = ov::npuw::util::present_to_past_key_values_name(name);
+                const bool is_key = ov::npuw::util::isPastKeyParam(name) ||
+                                    ov::npuw::util::isPresentKeyValuesKey(name).has_value() ||
+                                    ov::npuw::util::isDQScaleOrZPKey(past_name);
+                const bool is_value = ov::npuw::util::isPastValueParam(name) ||
+                                      ov::npuw::util::isPresentKeyValuesValue(name).has_value() ||
+                                      ov::npuw::util::isDQScaleOrZPValue(past_name);
+                if (!is_key && !is_value) {
+                    continue;
+                }
+                // Same axis selection as the runtime KV copy/slice helpers.
+                const uint32_t axis = (is_value && v_transposed) ? 3u : m_kvcache_desc.dim;
+                const auto& rank = port.get_partial_shape().rank();
+                OPENVINO_ASSERT(rank.is_static() && axis < static_cast<uint32_t>(rank.get_length()),
+                                "NPUW blob: KV axis ",
+                                axis,
+                                " is out of range for tensor '",
+                                name,
+                                "' of rank ",
+                                rank,
+                                ".");
+            }
+        }
+    };
+
+    for (const auto& variant : m_generate_compiled_variants) {
+        validate_ports(variant->inputs(), m_kvcache_desc.v_tensors_transposed_gen);
+        validate_ports(variant->outputs(), m_kvcache_desc.v_tensors_transposed_gen);
+    }
+    if (m_prefill_compiled) {
+        validate_ports(m_prefill_compiled->inputs(), m_kvcache_desc.v_tensors_transposed_pre);
+        validate_ports(m_prefill_compiled->outputs(), m_kvcache_desc.v_tensors_transposed_pre);
+    }
+}
+
 std::shared_ptr<const ov::Model> ov::npuw::LLMCompiledModel::get_runtime_model() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 void ov::npuw::LLMCompiledModel::set_property(const ov::AnyMap& properties) {
-    OPENVINO_NOT_IMPLEMENTED;
+    // Propagate to every inner compiled model once; they validate which keys are mutable
+    std::lock_guard<std::mutex> lock(m_set_property_mutex);
+    auto apply = [&](const std::shared_ptr<ov::npuw::ICompiledModel_v0>& cm) {
+        if (cm) {
+            cm->set_property(properties);
+        }
+    };
+    apply(m_prefill_compiled);
+    for (const auto& variant : m_generate_compiled_variants) {
+        apply(variant);
+    }
+    // m_kvcache_compiled is the last generate variant when variants are used
+    if (m_generate_compiled_variants.empty()) {
+        apply(m_kvcache_compiled);
+    }
+    apply(m_lm_head_compiled);
 }
 
-bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {
+void ov::npuw::LLMCompiledModel::resolve_continuous_prefill() {
+    m_enable_continuous_prefill =
+        m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_CONTINUOUS_PREFILL>() && can_continue_prefill();
+    m_cfg.update({{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", m_enable_continuous_prefill ? "YES" : "NO"}});
+    if (m_enable_continuous_prefill) {
+        LOG_INFO("Continuous prefill is enabled");
+    }
+}
+
+bool ov::npuw::LLMCompiledModel::can_continue_prefill() const {
     // Static exclusions for continuous prefill. Every condition here is knowable at
     // compile or import time. Per-turn limits like capacity, alignment and the
     // watermark are applied dynamically by the propose/grant channel instead.
-    if (!m_enable_continuous_prefill) {
-        return false;  // opt-in feature
-    }
     if (!m_use_chunk_prefill) {
         return false;  // whole (STATIC) prefill has no continuation path
+    }
+    if (m_enable_prefix_caching) {
+        return false;  // the hash prefix cache restores full prompts, not deltas
     }
     if (m_is_whisper || m_is_embedding || m_is_eagle) {
         return false;  // out of scope pipelines
@@ -1903,10 +2013,10 @@ bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {
         return false;
     }
     // Position ids must be the exact [batch, seq] sequence the runtime validation
-    // accepts: 3-D M-RoPE cannot be validated as a contiguous continuation. A
-    // read-only property must never throw, so a dynamic rank is treated as
-    // unsupported rather than queried through PartialShape::size(), which asserts
-    // a static rank.
+    // accepts: 3-D M-RoPE cannot be validated as a contiguous continuation. This
+    // check runs for every compiled model and must not throw, so a dynamic rank is
+    // treated as unsupported rather than queried through PartialShape::size(),
+    // which asserts a static rank.
     const auto position_ids_port =
         ov::npuw::util::find_port_by_name(prefill_inputs, ov::npuw::LLMInferRequest::layer_names::position_ids);
     if (!position_ids_port.has_value()) {
@@ -1924,10 +2034,6 @@ ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const 
     if (name == ov::intel_npu::npuw::llm::prefill_config.name() ||
         name == ov::intel_npu::npuw::llm::generate_config.name()) {
         OPENVINO_THROW(name, " is write-only option!");
-    }
-
-    if (name == ov::intel_npu::npuw::llm::continuous_prefill_supported.name()) {
-        return compute_continuous_prefill_supported();
     }
 
     auto&& configIterator = m_prop_to_opt.find(name);
@@ -1987,6 +2093,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN, get),
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
+                          BIND(npuw::llm::optimize_lincache_layout, NPUW_LLM_OPTIMIZE_LINCACHE_LAYOUT, get),
                           BIND(npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8, get),
                           BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
                           BIND(npuw::llm::enable_block_based_kv_cache, NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE, get),
