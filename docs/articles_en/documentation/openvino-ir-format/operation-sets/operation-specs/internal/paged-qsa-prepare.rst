@@ -28,7 +28,7 @@ later one. *PagedQSAPrepare* therefore keeps the state it needs in three paged c
 place:
 
 * ``index_key_cache``: the raw index key of every token, before normalization and rotation;
-* ``pa_block_index_keys``: the final key of every complete block, mean-pooled, RMS-normalized and
+* ``block_index_keys_cache``: the final key of every complete block, mean-pooled, RMS-normalized and
   rotated with the RoPE of the first token of the block. This is the cache that *PagedSparseAttentionIndexer*
   reads;
 * ``index_block_rope_cache``: the RoPE ``cos`` and ``sin`` of the first token of every block, needed
@@ -46,7 +46,7 @@ The responsibilities are the same as for :doc:`PagedAttentionExtension <paged-at
   ``subsequence_begins``. The three caches use **the same block table as the KV cache** of the
   layer: a physical block ``blk`` that holds ``Bs`` tokens of a sequence in the key and value caches
   holds their raw index keys in ``index_key_cache[blk]``, and the keys and the RoPE of the
-  ``Bs / key_block_size`` blocks formed by these tokens in ``pa_block_index_keys[blk]`` and
+  ``Bs / key_block_size`` blocks formed by these tokens in ``block_index_keys_cache[blk]`` and
   ``index_block_rope_cache[blk]``. The host allocates the three caches with the same number of
   physical blocks as the KV cache. ``Bs`` must be divisible by ``key_block_size``, so that a block
   never spans two physical blocks.
@@ -63,20 +63,21 @@ works as for the KV cache. When the host rolls back the last tokens of a sequenc
 rejected speculative or MTP draft tokens) by passing a smaller ``past_lens``, the keys of the blocks
 that are no longer complete are recomputed from the raw keys when the blocks are completed again.
 
-**Ordering with PagedSparseAttentionIndexer.** The output of *PagedQSAPrepare* is ``pa_block_index_keys`` itself,
-the same buffer after the update. It is connected to the ``pa_block_index_keys`` input of
-*PagedSparseAttentionIndexer*, so the data dependency makes the selection read the block keys of the new tokens.
+**Ordering with PagedSparseAttentionIndexer.** The output of *PagedQSAPrepare*,
+``out_block_index_keys_cache``, is the ``block_index_keys_cache`` input itself, the same buffer after the
+update. It is connected to the ``block_index_keys_cache`` input of *PagedSparseAttentionIndexer*, so the
+data dependency makes the selection read the block keys of the new tokens.
 
 *PagedQSAPrepare* provides functionality according to the following pseudo-code using ``numpy``:
 
 .. code-block:: py
    :force:
 
-    def PagedQSAPrepare(index_key, index_key_cache, pa_block_index_keys, index_block_rope_cache, past_lens,
+    def PagedQSAPrepare(index_key, index_key_cache, block_index_keys_cache, index_block_rope_cache, past_lens,
                         subsequence_begins, block_indices, block_indices_begins, k_norm_weight, rope_cos, rope_sin, *,
                         key_block_size, epsilon=1e-6):
         r = key_block_size
-        Bs, Di = pa_block_index_keys.shape[1] * r, index_key.shape[1]
+        Bs, Di = block_index_keys_cache.shape[1] * r, index_key.shape[1]
         Dr = rope_cos.shape[-1] if rope_cos.size else 0
 
         def slot(s, pos):            # physical block and offset of the token at position pos of sequence s
@@ -108,12 +109,12 @@ the same buffer after the update. It is connected to the ``pa_block_index_keys``
                     x = k[:Dr]
                     rotated = numpy.concatenate([-x[Dr // 2:], x[:Dr // 2]])
                     k = numpy.concatenate([x * cos + rotated * sin, k[Dr:]])
-                pa_block_index_keys[blk, i] = k
-        return pa_block_index_keys                              # the same tensor, updated in place
+                block_index_keys_cache[blk, i] = k
+        return block_index_keys_cache                           # out_block_index_keys_cache: the same tensor, in place
 
 Properties that follow from the definition:
 
-* For every sequence, ``pa_block_index_keys`` holds after the call the block index keys of
+* For every sequence, ``block_index_keys_cache`` holds after the call the block index keys of
   *QSAPrepare* computed from all raw keys of the sequence (for ``key_block_size = 1`` the pooling over
   one token is the identity), independently of how the tokens were split into inference calls and of
   the physical block assignment.
@@ -124,9 +125,9 @@ Properties that follow from the definition:
 * For DeepSeek Sparse Attention (``key_block_size = 1``) every block is complete as soon as its token
   is processed. The graph computes the final per-token index keys itself (LayerNorm and partial
   RoPE) and passes them as ``index_key`` with empty ``k_norm_weight``, ``rope_cos``, ``rope_sin`` and
-  ``index_block_rope_cache``; the operation then only writes them into ``pa_block_index_keys``. As a
+  ``index_block_rope_cache``; the operation then only writes them into ``block_index_keys_cache``. As a
   block is complete with its token, no raw key is read back, so ``index_key_cache`` may be an empty
-  tensor: the host allocates only ``pa_block_index_keys``.
+  tensor: the host allocates only ``block_index_keys_cache``.
 
 
 **Attributes**
@@ -164,7 +165,7 @@ Properties that follow from the definition:
   is complete with its token and no raw key is read back, so it may then be empty.
   **Required (empty tensor allowed if and only if key_block_size = 1).**
 
-* **2**: ``pa_block_index_keys`` - 3D tensor of type *T_cache* and shape
+* **2**: ``block_index_keys_cache`` - 3D tensor of type *T_cache* and shape
   ``[B, Bs / key_block_size, Di]``: the keys of the complete blocks, updated in place. **Required.**
 
 * **3**: ``index_block_rope_cache`` - 3D tensor of type *T_cache* and shape
@@ -198,13 +199,13 @@ Properties that follow from the definition:
 
 **Outputs**
 
-* **0**: ``pa_block_index_keys`` - 3D tensor of type *T_cache* and shape
+* **0**: ``out_block_index_keys_cache`` - 3D tensor of type *T_cache* and shape
   ``[B, Bs / key_block_size, Di]``: input 2 after the update, the same buffer. It is connected to the
-  ``pa_block_index_keys`` input of *PagedSparseAttentionIndexer*.
+  ``block_index_keys_cache`` input of *PagedSparseAttentionIndexer*.
 
 .. note::
 
-   ``index_key_cache`` (input 1), ``pa_block_index_keys`` (input 2) and ``index_block_rope_cache``
+   ``index_key_cache`` (input 1), ``block_index_keys_cache`` (input 2) and ``index_block_rope_cache``
    (input 3), if not empty, are updated in place as a side effect. Their initial content does not matter: every row
    is written before it is read.
 
@@ -218,7 +219,7 @@ Properties that follow from the definition:
   the other caches.
 
   * Allowed for ``index_key_cache`` (input 1): ``u4``, ``u8``, ``f16``, ``f32``, ``bf16``.
-  * Allowed for ``pa_block_index_keys`` (input 2): ``u4``, ``u8``, ``f16``, ``f32``, ``bf16``.
+  * Allowed for ``block_index_keys_cache`` (input 2): ``u4``, ``u8``, ``f16``, ``f32``, ``bf16``.
   * Allowed for ``index_block_rope_cache`` (input 3): ``f16``, ``f32``, ``bf16``. It holds RoPE cos / sin
     values and is not quantized, as ``rotation_trig_lut`` of *PagedAttentionExtension*.
 
@@ -260,7 +261,7 @@ Properties that follow from the definition:
                 <dim>32</dim>   <!-- Bs -->
                 <dim>128</dim>  <!-- Di -->
             </port>
-            <port id="2" precision="BF16"> <!-- pa_block_index_keys -->
+            <port id="2" precision="BF16"> <!-- block_index_keys_cache -->
                 <dim>-1</dim>   <!-- B -->
                 <dim>8</dim>    <!-- Bs / key_block_size -->
                 <dim>128</dim>  <!-- Di -->
@@ -285,7 +286,7 @@ Properties that follow from the definition:
             </port>
         </input>
         <output>
-            <port id="11" precision="BF16"> <!-- pa_block_index_keys, updated: to PagedSparseAttentionIndexer -->
+            <port id="11" precision="BF16"> <!-- out_block_index_keys_cache, updated: to PagedSparseAttentionIndexer -->
                 <dim>-1</dim>   <!-- B -->
                 <dim>8</dim>    <!-- Bs / key_block_size -->
                 <dim>128</dim>  <!-- Di -->

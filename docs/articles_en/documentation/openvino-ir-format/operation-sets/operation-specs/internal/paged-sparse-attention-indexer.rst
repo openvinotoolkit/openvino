@@ -21,7 +21,7 @@ The graph flow of a QSA layer with a paged KV cache is :doc:`PagedQSAPrepare <pa
 *PagedSparseAttentionIndexer* -> :doc:`PagedSparseAttention <paged-sparse-attention>`.
 *PagedSparseAttentionIndexer* only selects. The normalized and rotated index query is computed by regular
 operations of the graph (*RMS* and *RoPE*, as the query of the main attention). The block keys come
-from ``pa_block_index_keys``, connected to the output of *PagedQSAPrepare*: the buffer updated in place
+from ``block_index_keys_cache``, connected to the output of *PagedQSAPrepare*: the buffer updated in place
 for the new tokens. This data dependency orders the two operations. *PagedSparseAttentionIndexer* corresponds to
 the ``qsa_select_paged_decode`` / ``qsa_select_paged_prefill`` kernels of vLLM.
 
@@ -33,19 +33,19 @@ top-k). It covers Qwen Sparse Attention (``key_block_size = 4``) and DeepSeek Sp
 (``key_block_size = 1`` with ``index_weights``); see *SparseAttentionIndexer* for the model mapping and the
 selection heads.
 
-``pa_block_index_keys`` uses the block table of the KV cache: the key of the logical block ``b`` of
+``block_index_keys_cache`` uses the block table of the KV cache: the key of the logical block ``b`` of
 the sequence ``s`` is in the physical block that holds the token ``b * key_block_size``, at the row
-``(b * key_block_size % Bs) / key_block_size``, with ``Bs = key_block_size * pa_block_index_keys.shape[1]``.
+``(b * key_block_size % Bs) / key_block_size``, with ``Bs = key_block_size * block_index_keys_cache.shape[1]``.
 
 *PagedSparseAttentionIndexer* provides functionality according to the following pseudo-code using ``numpy``:
 
 .. code-block:: py
    :force:
 
-    def PagedSparseAttentionIndexer(index_query, pa_block_index_keys, past_lens, subsequence_begins, block_indices,
+    def PagedSparseAttentionIndexer(index_query, block_index_keys_cache, past_lens, subsequence_begins, block_indices,
                         block_indices_begins, index_weights, *, key_block_size, token_budget, num_selection_heads=1):
         T = index_query.shape[0]
-        rows_per_block, Di = pa_block_index_keys.shape[1], pa_block_index_keys.shape[2]
+        rows_per_block, Di = block_index_keys_cache.shape[1], block_index_keys_cache.shape[2]
         Hi = index_query.shape[1]
         r = key_block_size
         Bs = rows_per_block * r                                 # tokens per physical block
@@ -66,7 +66,8 @@ the sequence ``s`` is in the physical block that holds the token ``b * key_block
                 num_visible_blocks = (p + 1) // r
                 if num_visible_blocks == 0:
                     continue
-                k = numpy.stack([pa_block_index_keys[row(s, b)] for b in range(num_visible_blocks)]).astype(numpy.float32)
+                k = numpy.stack([block_index_keys_cache[row(s, b)] for b in range(num_visible_blocks)])
+                k = k.astype(numpy.float32)
                 q_all = index_query[t].astype(numpy.float32)              # [Hi, Di]
                 w_all = index_weights[t].astype(numpy.float32) if index_weights.size else numpy.ones(Hi)
                 for g in range(Hs):
@@ -91,7 +92,7 @@ Properties that follow from the definition:
   token: a token at the position ``p`` sees only the blocks that end at or before ``p``.
 * ``selected_block_count`` is ``min(token_budget / key_block_size, (p + 1) // key_block_size)`` for
   every selection head, and the valid entries come first in every row.
-* The operation reads ``pa_block_index_keys`` and writes no cache.
+* The operation reads ``block_index_keys_cache`` and writes no cache.
 
 
 **Attributes**
@@ -135,7 +136,7 @@ Properties that follow from the definition:
 * **0**: ``index_query`` - 3D tensor of type *T* and shape ``[T, Hi, Di]``: the normalized and
   rotated index query heads of every new token, packed across all sequences. **Required.**
 
-* **1**: ``pa_block_index_keys`` - 3D tensor of type *T_cache* and shape
+* **1**: ``block_index_keys_cache`` - 3D tensor of type *T_cache* and shape
   ``[B, Bs / key_block_size, Di]``: the keys of the complete blocks, the output of
   *PagedQSAPrepare*. **Required.**
 
@@ -174,7 +175,7 @@ Properties that follow from the definition:
   precision.
 
 * *T_cache* - cache precision; may differ from *T*.
-  Allowed for ``pa_block_index_keys`` (input 1): ``u4``, ``u8``, ``f16``, ``f32``, ``bf16``.
+  Allowed for ``block_index_keys_cache`` (input 1): ``u4``, ``u8``, ``f16``, ``f32``, ``bf16``.
 
 
 **Dimensions**
@@ -211,7 +212,7 @@ Properties that follow from the definition:
                 <dim>4</dim>    <!-- Hi -->
                 <dim>128</dim>  <!-- Di -->
             </port>
-            <port id="1" precision="BF16"> <!-- pa_block_index_keys: output of PagedQSAPrepare -->
+            <port id="1" precision="BF16"> <!-- block_index_keys_cache: output of PagedQSAPrepare -->
                 <dim>-1</dim>   <!-- B -->
                 <dim>8</dim>    <!-- Bs / key_block_size -->
                 <dim>128</dim>  <!-- Di -->
