@@ -1,0 +1,48 @@
+Subject: [PATCH] Fix Abseil 20250127 compile-time constexpr failures on some GCC
+
+Abseil 20250127 (bundled with protobuf 6.31 and fetched via FetchContent when no
+system Abseil is available, e.g. when cross-compiling or on RHEL8) fails to
+compile with several GCC versions because of two unrelated constant-expression
+issues. Both are compiler bugs; upstream Abseil keeps the same code, so OpenVINO
+patches the fetched source.
+
+1. container/internal/raw_hash_set.h: GetPolicyFunctions() initializes a
+   `static constexpr PolicyFunctions value`. Its `get_hash_slot_fn<hasher>()`
+   member compares the address of the function template `TypeErasedApplyToSlotFn`
+   against nullptr, which those GCCs reject in a core constant expression:
+     hash_policy_traits.h:163: error: '(... == 0)' is not a constant expression
+   Making `value` `static const` keeps the exact same semantics (a once-
+   initialized function-local static) without forcing constant evaluation.
+
+2. strings/ascii.cc: the compile-time self-test
+   `static_assert(ValidateAsciiCasefold() == 0, ...)` evaluates AsciiInAZRange(),
+   whose `static_cast<signed char>(u)` with u > 127 is an implementation-defined
+   conversion that those GCCs reject in constexpr:
+     ascii.cc:252: error: non-constant condition for static assertion
+   Replacing it with a well-defined signed interpretation keeps identical
+   runtime values (and the compiler folds it back to a signed-byte compare)
+   while being valid in a constant expression.
+--- a/absl/container/internal/raw_hash_set.h
++++ b/absl/container/internal/raw_hash_set.h
+@@ -4100,5 +4100,5 @@
+   static const PolicyFunctions& GetPolicyFunctions() {
+-    static constexpr PolicyFunctions value = {
++    static const PolicyFunctions value = {
+         sizeof(slot_type),
+         // TODO(b/328722020): try to type erase
+         // for standard layout and alignof(Hash) <= alignof(CommonFields).
+--- a/absl/strings/ascii.cc
++++ b/absl/strings/ascii.cc
+@@ -170,7 +170,11 @@
+   constexpr unsigned char sub = (ToUpper ? 'a' : 'A') - SCHAR_MIN;
+   constexpr signed char threshold = SCHAR_MIN + 26;  // 26 = alphabet size.
+   // Using unsigned arithmetic as overflows/underflows are well defined.
+   unsigned char u = c - sub;
+   // Using signed cmp, as SIMD unsigned cmp isn't available in many platforms.
+-  return static_cast<signed char>(u) < threshold;
++  // Avoid the implementation-defined unsigned->signed char conversion, which
++  // some GCC versions reject as a non-constant expression in the compile-time
++  // ValidateAsciiCasefold() self-test below.
++  return (u < 0x80u ? static_cast<int>(u) : static_cast<int>(u) - 0x100) <
++         threshold;
+ }
