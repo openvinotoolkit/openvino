@@ -185,29 +185,19 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
             auto up_zp = pm.at(up_zp_m);
             auto down_zp = pm.at(down_zp_m);
 
-            // Non-zero scalar zp broadcast is only implemented for the u2 batched GEMV
-            // kernels, so it is retained per-GEMM only when that GEMM's weights are u2.
-
-            // A scalar (rank-0) zp constant is a folded per-tensor zero point.
-            // An all-zero scalar zp is equivalent to symmetric quantization: normalize
-            // it to the "absent zp" convention (dynamic-typed empty constant).
-            // A non-zero scalar zp is passed through unchanged (u2 weights only):
-            // MOE validation explicitly exempts rank-0 inputs from the num_experts
-            // check, and the batched GEMV kernels broadcast the single element over
-            // all experts/groups/channels.
-            // Anything else (non-constant, packed dtype, or mixed sym/asym forms)
-            // bails out and leaves the graph in the GatherMatmul form.
+            // A rank-0 zp is a folded per-tensor zero point. All-zero is symmetric and becomes the absent-zp constant.
+            // Non-zero is kept as is for u2 weights only: MOE validation exempts rank-0 inputs and only the u2 kernels
+            // broadcast it.
             auto normalize_scalar_zp = [&](ov::Output<ov::Node>& zp, ov::element::Type wt) -> bool {
                 const auto& zp_shape = zp.get_partial_shape();
                 if (!zp_shape.is_static() || zp_shape.rank().get_length() != 0) {
-                    return true;  // not a scalar zp: nothing to do
+                    return true;
                 }
                 const auto zp_const = ov::as_type_ptr<v0::Constant>(zp.get_node_shared_ptr());
                 if (!zp_const) {
                     return false;
                 }
-                // Restrict to byte/wide integer types: cast_vector on packed (u2/u4/i4)
-                // constants is not meaningful here and may throw.
+                // cast_vector is not meaningful on packed (u2/u4/i4) constants.
                 const auto zp_et = zp_const->get_element_type();
                 if (zp_et != ov::element::i8 && zp_et != ov::element::u8 && zp_et != ov::element::i32 &&
                     zp_et != ov::element::u32 && zp_et != ov::element::i64) {
@@ -216,10 +206,8 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
                 for (const auto v : zp_const->cast_vector<int64_t>()) {
                     if (v != 0) {
                         if (wt != ov::element::u2) {
-                            return false;  // non-zero scalar zp only supported for u2 weights
+                            return false;
                         }
-                        // Keep the rank-0 scalar constant as-is: MOE validation exempts rank-0
-                        // inputs from the num_experts check, and the u2 kernels broadcast it.
                         return true;
                     }
                 }
@@ -266,12 +254,8 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
             const size_t up_G = scale_num_groups(up_scale);
             const size_t down_G = scale_num_groups(down_scale);
 
-            // MOECompressed requires one group_size shared by all three GEMMs.
-            // A per-channel scale ([E, N, 1], group_size == K) is mathematically
-            // identical to a group-wise scale with the same value repeated across
-            // groups, so broadcast per-channel scale constants to the group-wise
-            // num_groups used by the other GEMMs. Genuinely inconsistent group
-            // sizes (two different group-wise gs) or non-constant scales bail out.
+            // MOECompressed needs one group_size for all GEMMs. A per-channel scale equals a group-wise one with the
+            // value repeated, so per-channel scales are broadcast to the common group count; other mismatches bail out.
             size_t group_size = std::numeric_limits<size_t>::max();
             for (const auto& kg : {std::make_pair(gate_K, gate_G), {up_K, up_G}, {down_K, down_G}}) {
                 const size_t K = kg.first;
@@ -290,8 +274,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
                 }
             }
 
-            // Broadcast a per-channel scale constant [E, N, 1] (or [E, N]) to
-            // [E, N, K/group_size] by repeating each channel value across groups.
+            // [E, N, 1] (or [E, N]) -> [E, N, K/group_size], each channel value repeated across groups.
             auto broadcast_per_channel_scale = [&](ov::Output<ov::Node>& scale, size_t K) -> bool {
                 const auto c = ov::as_type_ptr<v0::Constant>(scale.get_node_shared_ptr());
                 if (!c)
@@ -303,11 +286,10 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
                 const size_t N = s[1];
                 const size_t target_G = K / group_size;
                 if (target_G == 1)
-                    return true;  // nothing to expand
+                    return true;
                 const auto et = c->get_element_type();
-                // Sub-byte types are bit-packed and Type::size() rounds up to a whole byte, so the
-                // per-element memcpy below would read past the constant and interleave neighbouring
-                // channels. Fall back to the unfused form rather than materialise corrupt values.
+                // Type::size() rounds sub-byte types up to a byte, so the per-element copy below would corrupt
+                // packed data.
                 if (et.bitwidth() < 8)
                     return false;
                 const size_t esz = et.size();
@@ -326,10 +308,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
                     (down_G == 1 && !broadcast_per_channel_scale(down_scale, down_K))) {
                     return false;
                 }
-                // A3: broadcast a per-channel (u8) zp [E, N, 1] to [E, N, K/group_size], the
-                // same expansion as its scale, so zshape == sshape and the byfx reorder plus
-                // in-kernel (group, channel) zp indexing line up. Scalar (u2) zps are rank-0
-                // and were normalized above; they are left untouched here.
+                // Per-channel zps get the same expansion as their scales so the shapes match; rank-0 zps are kept.
                 if (num_dynamic_zp == 0) {
                     if ((gate_G == 1 && !broadcast_per_channel_scale(gate_zp, gate_K)) ||
                         (up_G == 1 && !broadcast_per_channel_scale(up_zp, up_K)) ||
@@ -536,9 +515,7 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
 
         const bool is_compressed = is_gate_up_compressed;
         if (is_compressed) {
-            // The GEMM2 fused path lowers to cldnn::moe_gemm, whose only registered
-            // impl (oneDNN) does not accept u2 weights. Keep u2 in GatherMatmul form
-            // until moe_gemm gains u2 support, otherwise compilation fails.
+            // GEMM2 lowers to cldnn::moe_gemm, whose only impl (oneDNN) does not take u2 weights.
             if (pm.at(gate_up_w_m).get_element_type() == ov::element::u2 ||
                 pm.at(down_w_m).get_element_type() == ov::element::u2) {
                 return false;
@@ -546,21 +523,17 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
             auto gate_up_zp = pm.at(gate_up_zp_m);
             auto down_zp = pm.at(down_zp_m);
 
-            // Non-zero scalar zp broadcast is only implemented for the u2 fused
-            // kernels, so it is retained per-GEMM only when that GEMM's weights are u2.
-
             // Same scalar-zp normalization as the 3-GEMM matcher above.
             auto normalize_scalar_zp = [&](ov::Output<ov::Node>& zp, ov::element::Type wt) -> bool {
                 const auto& zp_shape = zp.get_partial_shape();
                 if (!zp_shape.is_static() || zp_shape.rank().get_length() != 0) {
-                    return true;  // not a scalar zp: nothing to do
+                    return true;
                 }
                 const auto zp_const = ov::as_type_ptr<v0::Constant>(zp.get_node_shared_ptr());
                 if (!zp_const) {
                     return false;
                 }
-                // Restrict to byte/wide integer types: cast_vector on packed (u2/u4/i4)
-                // constants is not meaningful here and may throw.
+                // cast_vector is not meaningful on packed (u2/u4/i4) constants.
                 const auto zp_et = zp_const->get_element_type();
                 if (zp_et != ov::element::i8 && zp_et != ov::element::u8 && zp_et != ov::element::i32 &&
                     zp_et != ov::element::u32 && zp_et != ov::element::i64) {
@@ -569,10 +542,8 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
                 for (const auto v : zp_const->cast_vector<int64_t>()) {
                     if (v != 0) {
                         if (wt != ov::element::u2) {
-                            return false;  // non-zero scalar zp only supported for u2 weights
+                            return false;
                         }
-                        // Keep the rank-0 scalar constant as-is: the fused backend
-                        // broadcasts the single element over all experts/groups/channels.
                         return true;
                     }
                 }
@@ -633,8 +604,7 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
                 }
             }
 
-            // Broadcast a per-channel scale constant [E, N, 1] (or [E, N]) to
-            // [E, N, K/group_size] by repeating each channel value across groups.
+            // [E, N, 1] (or [E, N]) -> [E, N, K/group_size], each channel value repeated across groups.
             auto broadcast_per_channel_scale = [&](ov::Output<ov::Node>& scale, size_t K) -> bool {
                 const auto c = ov::as_type_ptr<v0::Constant>(scale.get_node_shared_ptr());
                 if (!c)
@@ -646,11 +616,10 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
                 const size_t N = s[1];
                 const size_t target_G = K / group_size;
                 if (target_G == 1)
-                    return true;  // nothing to expand
+                    return true;
                 const auto et = c->get_element_type();
-                // Sub-byte types are bit-packed and Type::size() rounds up to a whole byte, so the
-                // per-element memcpy below would read past the constant and interleave neighbouring
-                // channels. Fall back to the unfused form rather than materialise corrupt values.
+                // Type::size() rounds sub-byte types up to a byte, so the per-element copy below would corrupt
+                // packed data.
                 if (et.bitwidth() < 8)
                     return false;
                 const size_t esz = et.size();
@@ -668,10 +637,7 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
                     (down_G == 1 && !broadcast_per_channel_scale(down_scale, down_K))) {
                     return false;
                 }
-                // Broadcast a per-channel (u8) zp [E, N, 1] to [E, N, K/group_size], the
-                // same expansion as its scale, so zshape == sshape and the (group, channel)
-                // zp indexing line up. Scalar (u2) zps are rank-0 and were normalized
-                // above; they are left untouched here.
+                // Per-channel zps get the same expansion as their scales so the shapes match; rank-0 zps are kept.
                 if (num_dynamic_zp == 0) {
                     if ((gate_up_G == 1 && !broadcast_per_channel_scale(gate_up_zp, hidden)) ||
                         (down_G == 1 && !broadcast_per_channel_scale(down_zp, down_K))) {
