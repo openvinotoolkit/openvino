@@ -1,0 +1,180 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "dimension_util.hpp"
+#include "openvino/op/qsa_prepare.hpp"
+#include "utils.hpp"
+
+namespace ov::op::v17 {
+/// \brief An optional input of QSAPrepare is disabled by connecting a tensor with no elements.
+template <class TShape>
+bool qsa_prepare_input_disabled(const TShape& shape) {
+    if (shape.rank().is_dynamic()) {
+        return false;
+    }
+    for (const auto& dim : shape) {
+        if (dim.is_static() && dim.get_length() == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const QSAPrepare* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+    using TDim = typename TShape::value_type;
+
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 8);
+
+    const auto key_block_size = op->get_key_block_size();
+    NODE_VALIDATION_CHECK(op,
+                          key_block_size > 1,
+                          "The attribute key_block_size must be an integer greater than 1. Got: ",
+                          key_block_size);
+
+    const auto& raw_index_keys_shape = input_shapes[0];
+    const auto& past_block_index_keys_shape = input_shapes[1];
+    const auto& key_length_shape = input_shapes[2];
+    const auto& rope_cos_shape = input_shapes[3];
+    const auto& rope_sin_shape = input_shapes[4];
+    const auto& k_norm_weight_shape = input_shapes[5];
+    const auto& past_incomplete_raw_keys_shape = input_shapes[6];
+    const auto& past_incomplete_rope_shape = input_shapes[7];
+
+    const auto has_rope =
+        !qsa_prepare_input_disabled(rope_cos_shape) && !qsa_prepare_input_disabled(rope_sin_shape);
+    const auto is_raw_keys_rank_static = raw_index_keys_shape.rank().is_static();
+
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           raw_index_keys_shape.rank().compatible(3),
+                           "The shape of raw_index_keys must be 3D [N, L, Di].");
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           past_block_index_keys_shape.rank().compatible(3),
+                           "The shape of past_block_index_keys must be 3D [N, Bp, Di].");
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           key_length_shape.rank().compatible(1),
+                           "The shape of key_length must be 1D [N] or [1].");
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           k_norm_weight_shape.rank().compatible(1),
+                           "The shape of k_norm_weight must be 1D [Di].");
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           past_incomplete_raw_keys_shape.rank().compatible(3),
+                           "The shape of past_incomplete_raw_keys must be 3D [N, key_block_size - 1, Di].");
+    if (has_rope) {
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               rope_cos_shape.rank().compatible(3) && rope_sin_shape.rank().compatible(3),
+                               "The shape of rope_cos and rope_sin must be 3D [N, L, Dr].");
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               past_incomplete_rope_shape.rank().compatible(2),
+                               "The shape of past_incomplete_rope must be 2D [N, 2 * Dr].");
+    }
+
+    TDim batch{};
+    TDim head_size{};
+    if (is_raw_keys_rank_static) {
+        batch = raw_index_keys_shape[0];
+        head_size = raw_index_keys_shape[2];
+    }
+
+    if (past_block_index_keys_shape.rank().is_static() && is_raw_keys_rank_static) {
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               TDim::merge(batch, batch, past_block_index_keys_shape[0]),
+                               "The batch dimension of raw_index_keys and past_block_index_keys must be the same.");
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               TDim::merge(head_size, head_size, past_block_index_keys_shape[2]),
+                               "The head size of raw_index_keys and past_block_index_keys must be the same.");
+    }
+
+    if (past_incomplete_raw_keys_shape.rank().is_static() && is_raw_keys_rank_static) {
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               TDim::merge(batch, batch, past_incomplete_raw_keys_shape[0]),
+                               "The batch dimension of raw_index_keys and past_incomplete_raw_keys must be the same.");
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               TDim::merge(head_size, head_size, past_incomplete_raw_keys_shape[2]),
+                               "The head size of raw_index_keys and past_incomplete_raw_keys must be the same.");
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               past_incomplete_raw_keys_shape[1].compatible(key_block_size - 1),
+                               "The second dimension of past_incomplete_raw_keys must be key_block_size - 1, "
+                               "expected: ",
+                               key_block_size - 1,
+                               ", got: ",
+                               past_incomplete_raw_keys_shape[1]);
+    }
+
+    if (!qsa_prepare_input_disabled(k_norm_weight_shape) && k_norm_weight_shape.rank().is_static() &&
+        is_raw_keys_rank_static) {
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               TDim::merge(head_size, head_size, k_norm_weight_shape[0]),
+                               "The size of k_norm_weight must be equal to the head size of raw_index_keys.");
+    }
+
+    // Rotated dimensions, doubled by the cos / sin packing of the incomplete block RoPE row.
+    auto rotated_size = has_rope ? TDim(ov::util::dim::inf_bound) : TDim(0);
+    if (has_rope && rope_cos_shape.rank().is_static() && rope_sin_shape.rank().is_static()) {
+        TDim merged;
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               TDim::merge(merged, rope_cos_shape[2], rope_sin_shape[2]),
+                               "The number of rotated dimensions of rope_cos and rope_sin must be the same.");
+        rotated_size = merged + merged;
+        if (is_raw_keys_rank_static) {
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   TDim::merge(merged, rope_cos_shape[1], raw_index_keys_shape[1]),
+                                   "The number of new tokens of rope_cos and raw_index_keys must be the same.");
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   TDim::merge(merged, rope_sin_shape[1], raw_index_keys_shape[1]),
+                                   "The number of new tokens of rope_sin and raw_index_keys must be the same.");
+        }
+        if (past_incomplete_rope_shape.rank().is_static()) {
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   TDim::merge(rotated_size, rotated_size, past_incomplete_rope_shape[1]),
+                                   "The second dimension of past_incomplete_rope must be 2 * Dr.");
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   TDim::merge(batch, batch, past_incomplete_rope_shape[0]),
+                                   "The batch dimension of raw_index_keys and past_incomplete_rope must be the same.");
+        }
+    }
+
+    // The number of complete blocks of the longest sequence is known only from the key_length values.
+    auto num_blocks = TDim(ov::util::dim::inf_bound);
+    if (const auto key_lengths = get_input_const_data_as<TRShape, int64_t>(op, 2, ta)) {
+        int64_t longest = 0;
+        for (const auto& length : *key_lengths) {
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   length >= 0,
+                                   "The key_length values must be non-negative. Got: ",
+                                   length);
+            const auto blocks = length / key_block_size;
+            longest = blocks > longest ? blocks : longest;
+        }
+        num_blocks = TDim(longest);
+    }
+
+    return {TRShape{batch, std::move(num_blocks), head_size},
+            TRShape{batch, TDim(key_block_size - 1), head_size},
+            TRShape{batch, std::move(rotated_size)}};
+}
+}  // namespace ov::op::v17
