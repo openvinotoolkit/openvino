@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "intel_npu/common/blob_writer.hpp"
+#include "intel_npu/common/blob_sections_registry.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
@@ -27,7 +27,7 @@ public:
                                  const ov::AnyMap& properties,
                                  const std::shared_ptr<IDevice>& device,
                                  const std::shared_ptr<IGraph>& graph,
-                                 const std::shared_ptr<BlobWriter>& blobWriter,
+                                 const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry,
                                  Logger& logger);
 
     void setProperty(const ov::AnyMap& properties);
@@ -42,7 +42,7 @@ private:
 
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<IGraph> _graph;
-    std::shared_ptr<BlobWriter> _blobWriter;
+    std::shared_ptr<BlobSectionsRegistry> _blobSectionsRegistry;
     Logger& _logger;
 
     mutable std::mutex _mutex;

@@ -70,12 +70,12 @@ public:
     std::shared_ptr<ov::Model> create_dummy_model() const;
 
     /**
-     * @brief Creates a new BlobWriter using the data parsed from the blob. The BlobWriter can later be used to
-     * re-export the blob.
+     * @brief Creates a new BlobSectionsRegistry using the data parsed from the blob. The BlobSectionsRegistry can later
+     * be used to re-export the blob.
      *
-     * @return The BlobWriter if the imported compiled model is not a "raw blob". "nullptr" otherwise.
+     * @return The BlobSectionsRegistry if the imported compiled model is not a "raw blob". "nullptr" otherwise.
      */
-    virtual std::shared_ptr<BlobWriter> create_blob_writer() = 0;
+    virtual std::shared_ptr<BlobSectionsRegistry> create_blob_writer() = 0;
 
     Config get_config() const;
 

@@ -51,18 +51,19 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
                  ZE_MINOR_VERSION(graphExtVersion));
 }
 
-std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
-                                                       const Config& config,
-                                                       const AdapterDescriptor&,
-                                                       const std::shared_ptr<BlobWriter>& blobWriter) const {
+std::shared_ptr<IGraph> PluginCompilerAdapter::compile(
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config,
+    const AdapterDescriptor&,
+    const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
-    OPENVINO_ASSERT(blobWriter, "Requested compilation without providing a blob writer object");
+    OPENVINO_ASSERT(blobSectionsRegistry, "Requested compilation without providing a blob writer object");
     std::function<std::string(const std::string&)> encryptionCallback = nullptr;
     if (config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
         config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
         encryptionCallback = config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt;
-        blobWriter->register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
+        blobSectionsRegistry->register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
     }
 
     _logger.debug("compile start");
@@ -83,7 +84,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         const auto graph = std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), blobType);
 
         // Tell the blob writer to store the dynamic schedule in the blob at export time
-        blobWriter->register_section(
+        blobSectionsRegistry->register_section(
             std::make_shared<DynamicScheduleSection>(graph, encryptionCallback, _logger.level()));
         return graph;
     }
@@ -117,18 +118,20 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 
     // Tell the blob writer to store the main schedule in the blob at export time
-    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(graph, encryptionCallback, _logger.level()));
+    blobSectionsRegistry->register_section(
+        std::make_shared<ELFMainScheduleSection>(graph, encryptionCallback, _logger.level()));
 
     return graph;
 }
 
-std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
-                                                         const Config& config,
-                                                         const AdapterDescriptor&,
-                                                         const std::shared_ptr<BlobWriter>& blobWriter) const {
+std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(
+    std::shared_ptr<ov::Model>&& model,
+    const Config& config,
+    const AdapterDescriptor&,
+    const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
     _logger.debug("compile start");
-    OPENVINO_ASSERT(blobWriter, "Requested compilation without providing a blob writer object");
+    OPENVINO_ASSERT(blobSectionsRegistry, "Requested compilation without providing a blob writer object");
 
     Config localConfig = config;
     if (!localConfig.has<SEPARATE_WEIGHTS_VERSION>()) {
@@ -284,13 +287,13 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     if (localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
         localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
         encryptionCallback = localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt;
-        blobWriter->register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
+        blobSectionsRegistry->register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
     }
 
     // At export time, all schedules (main + inits) shall be stored in the blob
-    blobWriter->register_section(
+    blobSectionsRegistry->register_section(
         std::make_shared<ELFMainScheduleSection>(weightlessGraph, encryptionCallback, _logger.level()));
-    blobWriter->register_section(
+    blobSectionsRegistry->register_section(
         std::make_shared<ELFInitSchedulesSection>(weightlessGraph, encryptionCallback, _logger.level()));
 
     return weightlessGraph;

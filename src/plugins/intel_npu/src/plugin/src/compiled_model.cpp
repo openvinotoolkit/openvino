@@ -25,10 +25,10 @@ namespace {
 
 using namespace intel_npu;
 
-bool blob_contains_only_main_schedule(const std::shared_ptr<BlobWriter>& writer) {
-    return (writer->count_registered_sections_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE) == 1) &&
-           !writer->count_registered_sections_of_type(SectionTypeCode::ELF_INIT_SCHEDULES) &&
-           !writer->count_registered_sections_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
+bool blob_contains_only_main_schedule(const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry) {
+    return (blobSectionsRegistry->count_registered_sections_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE) == 1) &&
+           !blobSectionsRegistry->count_registered_sections_of_type(SectionTypeCode::ELF_INIT_SCHEDULES) &&
+           !blobSectionsRegistry->count_registered_sections_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
 }
 
 }  // namespace
@@ -39,18 +39,18 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<IDevice>& device,
                              const std::shared_ptr<IGraph>& graph,
-                             const std::shared_ptr<BlobWriter>& blobWriter,
+                             const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry,
                              const Config& config,
                              const ov::AnyMap& properties)
     : ICompiledModel(model, plugin, nullptr, nullptr),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _graph(graph),
-      _blobWriter(blobWriter),
+      _blobSectionsRegistry(blobSectionsRegistry),
       _propertiesManager(
           std::make_unique<CompiledModelPropertyManager>(config, properties, _device, _graph, _blobWriter, _logger)) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
-    OPENVINO_ASSERT(blobWriter);
+    OPENVINO_ASSERT(blobSectionsRegistry);
 
     OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
     _logger.info("The current compiled model is a %s one", to_string(_graph->get_kind()));
@@ -106,12 +106,13 @@ void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
     if (!_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
-        OPENVINO_ASSERT(_blobWriter, "Cannot export non-raw blobs without a BlobWriter");
-        _blobWriter->write_to(stream);
+        OPENVINO_ASSERT(_blobSectionsRegistry, "Cannot export non-raw blobs without a BlobSectionsRegistry");
+        // TODO use a HSM decorator?
+        _blobSectionsRegistry->write_to(stream);
         return;
     }
 
-    if (_blobWriter && !blob_contains_only_main_schedule(_blobWriter)) {
+    if (_blobSectionsRegistry && !blob_contains_only_main_schedule(_blobSectionsRegistry)) {
         OPENVINO_THROW("Received a request to export the compiled model using the raw format, but multiple compiler "
                        "schedules have been found. The raw format supports only a single compiler schedule.");
     }

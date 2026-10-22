@@ -251,7 +251,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     update_global_properties(properties);
 
     // Created at this stage to allow functions to register blob sections on the fly
-    auto blobWriter = std::make_shared<BlobWriter>(_logger.level());
+    auto blobSectionsRegistry = std::make_shared<BlobSectionsRegistry>();
 
     // Before going any further: if
     // ... 1 - NPUW mode is activated
@@ -455,13 +455,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     adapterDesc.secureCompile = localConfig.has(ov::cache_encryption_callbacks.name()) &&
                                 localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
 
-    auto compileWithConfig = [&](auto&& modelToCompile, const auto& config, const auto& blobWriter) {
+    auto compileWithConfig = [&](auto&& modelToCompile, const auto& config, const auto& blobSectionsRegistry) {
         if (!localConfig.get<ENABLE_WEIGHTLESS>()) {
-            return compiler->compile(modelToCompile, config, adapterDesc, blobWriter);
+            return compiler->compile(modelToCompile, config, adapterDesc, blobSectionsRegistry);
         }
 
         check_weightless_cache_attribute_occurrence(model);
-        return compiler->compileWS(std::move(modelToCompile), config, adapterDesc, blobWriter);
+        return compiler->compileWS(std::move(modelToCompile), config, adapterDesc, blobSectionsRegistry);
     };
 
     try {
@@ -501,7 +501,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             compilerConfig.update(ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT);
         }
 
-        graph = compileWithConfig(std::move(modelToCompile), compilerConfig, blobWriter);
+        graph = compileWithConfig(std::move(modelToCompile), compilerConfig, blobSectionsRegistry);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -517,7 +517,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             graph->set_batch_size(batch.value());
         }
 
-        blobWriter->register_section(std::make_shared<BatchSizeSection>(batch.value(), _logger.level()));
+        blobSectionsRegistry->register_section(std::make_shared<BatchSizeSection>(batch.value(), _logger.level()));
     }
 
     if (localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
@@ -533,7 +533,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                         shared_from_this(),
                                                         device,
                                                         graph,
-                                                        blobWriter,
+                                                        blobSectionsRegistry,
                                                         localConfig,
                                                         unknownProperties);
     } catch (const std::exception& ex) {
@@ -542,7 +542,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         OPENVINO_THROW("Unexpected exception thrown upon attempting to create the \"CompiledModel\" object");
     }
 
-    blobWriter->register_section(
+    blobSectionsRegistry->register_section(
         std::make_shared<CompilerVersionSection>(localConfig.get<COMPILER_VERSION>(), _logger.level()));
 
     // Registed the IO layouts section
@@ -558,7 +558,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
     }
 
-    blobWriter->register_section(
+    blobSectionsRegistry->register_section(
         std::make_shared<IOLayoutsSection>(std::move(inputLayouts), std::move(outputLayouts), _logger.level()));
 
     ++_compiledModelLoadCounter;

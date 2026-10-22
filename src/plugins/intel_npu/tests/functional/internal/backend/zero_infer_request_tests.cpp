@@ -241,8 +241,9 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         copy_model = batchedModel;
     }
 
-    const auto blob_writer = std::make_shared<::intel_npu::BlobWriter>(npu_config->get<::intel_npu::LOG_LEVEL>());
-    auto graph = compiler->compile(copy_model, *npu_config, ::intel_npu::AdapterDescriptor{}, blob_writer);
+    const auto blob_sections_registry =
+        std::make_shared<::intel_npu::BlobSectionsRegistry>(npu_config->get<::intel_npu::LOG_LEVEL>());
+    auto graph = compiler->compile(copy_model, *npu_config, ::intel_npu::AdapterDescriptor{}, blob_sections_registry);
     if (batch) {
         graph->set_batch_size(batch.value());
     }

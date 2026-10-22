@@ -171,7 +171,7 @@ public:
         m_main_schedule = compiler_main_schedule.create_roi_tensor(blob_size);
     }
 
-    std::shared_ptr<BlobWriter> create_blob_writer() override {
+    std::shared_ptr<BlobSectionsRegistry> create_blob_writer() override {
         return nullptr;
     }
 
@@ -264,10 +264,10 @@ public:
      * @brief Constructs a blob writer that can be used to re-export the blob.
      * @details The sections are built using the content found within the V1 format.
      */
-    std::shared_ptr<BlobWriter> create_blob_writer() override {
+    std::shared_ptr<BlobSectionsRegistry> create_blob_writer() override {
         OPENVINO_ASSERT(m_graph, "Invalid state");
 
-        auto blob_writer = std::make_shared<BlobWriter>(m_logger.level());
+        auto blob_writer = std::make_shared<BlobSectionsRegistry>();
 
         // Register the compiler schedules
         const bool encryption_enabled = m_config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
@@ -441,14 +441,14 @@ public:
         verify_valid_sections();
     }
 
-    std::shared_ptr<BlobWriter> create_blob_writer() override {
+    std::shared_ptr<BlobSectionsRegistry> create_blob_writer() override {
         // Moving forward, the "Graph" object will manage the ownership of the compiler schedules
         auto elfMainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-            m_blob_reader.retrieve_any_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
+            m_blob_sections_registry.retrieve_any_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
 
         if (elfMainScheduleSection) {
             auto initSchedulesSection = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-                m_blob_reader.retrieve_any_section(SectionTypeCode::ELF_INIT_SCHEDULES));
+                m_blob_sections_registry.retrieve_any_section(SectionTypeCode::ELF_INIT_SCHEDULES));
 
             elfMainScheduleSection->set_graph(std::dynamic_pointer_cast<Graph>(m_graph));
             if (initSchedulesSection) {
@@ -456,11 +456,11 @@ public:
             }
         } else {
             auto dynamicScheduleSection = std::dynamic_pointer_cast<DynamicScheduleSection>(
-                m_blob_reader.retrieve_any_section(SectionTypeCode::DYNAMIC_SCHEDULE));
+                m_blob_sections_registry.retrieve_any_section(SectionTypeCode::DYNAMIC_SCHEDULE));
             dynamicScheduleSection->set_graph(std::dynamic_pointer_cast<DynamicGraph>(m_graph));
         }
 
-        return std::make_shared<BlobWriter>(m_blob_reader, m_logger.level());
+        return m_blob_sections_registry;
     }
 
 private:
@@ -640,7 +640,7 @@ private:
         return BlobType::BYTECODE;
     }
 
-    BlobReader m_blob_reader;
+    BlobSectionsRegistry m_blob_sections_registry;
 };
 
 }  // namespace

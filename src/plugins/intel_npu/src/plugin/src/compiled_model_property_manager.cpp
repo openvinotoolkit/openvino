@@ -21,14 +21,17 @@ inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-std::string buildRuntimeRequirements(const std::shared_ptr<BlobWriter>& blobWriter, intel_npu::Logger& logger) {
+std::string buildRuntimeRequirements(const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry,
+                                     intel_npu::Logger& logger) {
     // Build and use a "RuntimeRequirementsSection" to serialize the requirements
-    const RuntimeRequirements runtimeRequirements = blobWriter->build_runtime_requirements();
+    const RuntimeRequirements runtimeRequirements = blobSectionsRegistry->build_runtime_requirements();
     RuntimeRequirementsSection section(runtimeRequirements, logger.level());
 
     std::ostringstream result_stream;
-    BlobWriterInterface writeInterface(result_stream, 0, logger.level());
-    section.write(writeInterface);
+    section.encode([&result_stream](ov::util::MemoryView data) {
+        result_stream.write(reinterpret_cast<const char*>(data.data()), data.size());
+        OPENVINO_ASSERT(result_stream, "Stream invalidated during runtime requirements encoding");
+    });
 
     const std::string result = result_stream.str();
     logger.debug("Runtime requirements string: %s length: %zu", result, result.size());
@@ -40,16 +43,17 @@ std::string buildRuntimeRequirements(const std::shared_ptr<BlobWriter>& blobWrit
 
 namespace intel_npu {
 
-CompiledModelPropertyManager::CompiledModelPropertyManager(const Config& config,
-                                                           const ov::AnyMap& properties,
-                                                           const std::shared_ptr<IDevice>& device,
-                                                           const std::shared_ptr<IGraph>& graph,
-                                                           const std::shared_ptr<BlobWriter>& blobWriter,
-                                                           Logger& logger)
+CompiledModelPropertyManager::CompiledModelPropertyManager(
+    const Config& config,
+    const ov::AnyMap& properties,
+    const std::shared_ptr<IDevice>& device,
+    const std::shared_ptr<IGraph>& graph,
+    const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry,
+    Logger& logger)
     : _config(config),
       _device(device),
       _graph(graph),
-      _blobWriter(blobWriter),
+      _blobSectionsRegistry(blobSectionsRegistry),
       _logger(logger) {
     registerProperties();
 

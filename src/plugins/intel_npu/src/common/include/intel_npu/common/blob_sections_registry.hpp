@@ -16,12 +16,9 @@
 
 namespace intel_npu {
 
-// ID 0 & 1 are reserved for the manifest & CRE sections
-constexpr uint16_t FIRST_AVAILABLE_SECTION_ID = 0;
-
 class BlobSectionsRegistry final {
 public:
-    BlobSectionsRegistry(const ov::log::Level log_level = ov::log::Level::WARNING);
+    BlobSectionsRegistry();
 
     /**
      * @brief Add a new blob section to the writing queue.
@@ -86,7 +83,7 @@ private:
      * @brief Tracks the next available instance ID for each section type. This should assure that the generated section
      * IDs (type + instance) are unique per compiled model.
      */
-    uint16_t m_next_section_id = FIRST_AVAILABLE_SECTION_ID;
+    uint16_t m_next_section_id;
     /**
      * @brief Queue that holds all sections to be written at export time.
      */

@@ -9,16 +9,15 @@
 
 namespace {
 
-constexpr std::string_view MAGIC_BYTES = "OVNPU";
-
-constexpr size_t FIRST_INSTANCE_ID = 0;
+constexpr uint16_t FIRST_AVAILABLE_SECTION_ID = 0;
 
 }  // namespace
 
 namespace intel_npu {
 
-BlobSectionsRegistry::BlobSectionsRegistry(const ov::log::Level log_level)
-    : m_logger("BlobSectionsRegistry", log_level) {}
+BlobSectionsRegistry::BlobSectionsRegistry()
+    : m_next_section_id(FIRST_AVAILABLE_SECTION_ID),
+      m_logger("BlobSectionsRegistry", Logger::global().level()) {}
 
 SectionID BlobSectionsRegistry::register_section(const std::shared_ptr<ISection>& section) {
     OPENVINO_ASSERT(!section->get_id().has_value(),
