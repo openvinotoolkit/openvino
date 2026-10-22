@@ -9,6 +9,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
@@ -20,6 +21,7 @@
 #include "intel_gpu/op/placeholder.hpp"
 
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/convert_matmul_to_fc.hpp"
 
 #include <memory>
 
@@ -891,6 +893,63 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed24_mxfp4e2m1) {
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1});
     }
 }
+
+class ConvertFCToCompressedBroadcastParameterWeights : public TransformationTestsF, public ::testing::WithParamInterface<bool> {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+};
+
+TEST_P(ConvertFCToCompressedBroadcastParameterWeights, PreservesOCBroadcastScaleAndZeroPoint) {
+    constexpr size_t oc = 3, ifm = 32, groups = 2;
+    const bool transposed = GetParam();
+    const auto weights_shape = transposed ? ov::Shape{oc, groups, ifm / groups} : ov::Shape{groups, ifm / groups, oc};
+    const auto param_shape = transposed ? ov::Shape{1, groups, 1} : ov::Shape{groups, 1, 1};
+    const auto flat_weights_shape = transposed ? std::vector<int32_t>{oc, ifm} : std::vector<int32_t>{ifm, oc};
+    const auto flat_param_shape = transposed ? ov::Shape{1, groups} : ov::Shape{groups, 1};
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, ifm});
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, weights_shape);
+        auto convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+        auto zp = ov::op::v0::Constant::create(ov::element::u8, param_shape, {1, 2});
+        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp, ov::element::f16);
+        auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zp_convert);
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, param_shape, {2, 3});
+        auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
+        auto shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, flat_weights_shape);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(multiply, shape, false);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(input, reshape, false, transposed);
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input, weights});
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, ifm});
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, weights_shape);
+        auto shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, flat_weights_shape);
+        std::shared_ptr<ov::Node> reshape = std::make_shared<ov::op::v1::Reshape>(weights, shape, false);
+        if (!transposed) {
+            auto order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
+            reshape = std::make_shared<ov::op::v1::Transpose>(reshape, order);
+        }
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, flat_param_shape, {2, 3});
+        auto zp = ov::op::v0::Constant::create(ov::element::u8, flat_param_shape, {1, 2});
+        auto bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc =
+            std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, reshape, bias, scale, zp, ov::element::f16, true, transposed, transposed);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input, weights});
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(ConvertFCToCompressed,
+                         ConvertFCToCompressedBroadcastParameterWeights,
+                         ::testing::Bool(),
+                         [](const ::testing::TestParamInfo<bool>& info) {
+                             return info.param ? "TransposedWeights" : "NonTransposedWeights";
+                         });
 
 }  // namespace intel_gpu
 }  // namespace test
