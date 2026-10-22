@@ -7,6 +7,8 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/col2im.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ctc_loss.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ctc_loss.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/fully_connected_gguf/fully_connected_gguf.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/fully_connected_gguf/fully_connected_gguf_impl.hpp
     ${CMAKE_CURRENT_LIST_DIR}/gated_delta_net_ref.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gated_delta_net_ref.hpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul/gather_matmul.cpp
@@ -110,6 +112,11 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/ctc_loss.cl
     ${CMAKE_CURRENT_LIST_DIR}/expert_gemm_common.cl
     ${CMAKE_CURRENT_LIST_DIR}/expert_gemm_compute.cl
+    ${CMAKE_CURRENT_LIST_DIR}/fully_connected_gguf_common.cl
+    ${CMAKE_CURRENT_LIST_DIR}/fully_connected_gguf_dequantize.cl
+    ${CMAKE_CURRENT_LIST_DIR}/fully_connected_gguf_gemv.cl
+    ${CMAKE_CURRENT_LIST_DIR}/fully_connected_gguf_prefill.cl
+    ${CMAKE_CURRENT_LIST_DIR}/fully_connected_gguf_quantize.cl
     ${CMAKE_CURRENT_LIST_DIR}/gated_delta_net_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul.cl
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul_batched.cl
