@@ -35,6 +35,7 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/rt_info/decompression.hpp"
+#include "transformations/rt_info/fused_names_attribute.hpp"
 
 namespace {
 
@@ -552,6 +553,43 @@ TEST(BatchReplicatedBranches, PreservesDistinctEqualConstantNamesForQueryModel) 
 
     for (const auto& name : weight_names) {
         EXPECT_EQ(supported_nodes.count(name), 0u) << "Replica weight was reported as supported: " << name;
+    }
+}
+
+TEST(BatchReplicatedBranches, DoesNotMutateDistinctConstantProvenance) {
+    auto model = make_camera_model({0, 1, 2, 3},
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   true);
+    std::vector<std::shared_ptr<ov::op::v0::Constant>> original_weights;
+    for (const auto& node : model->get_ops()) {
+        if (node->get_friendly_name().find("camera_weights_") == 0) {
+            original_weights.push_back(ov::as_type_ptr<ov::op::v0::Constant>(node));
+        }
+    }
+    ASSERT_EQ(original_weights.size(), 4u);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
+    manager.run_passes(model);
+
+    for (const auto& weight : original_weights) {
+        EXPECT_TRUE(ov::getFusedNamesVector(weight).empty());
     }
 }
 

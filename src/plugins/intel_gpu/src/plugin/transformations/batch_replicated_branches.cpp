@@ -701,11 +701,25 @@ bool transform_camera_branches(const std::shared_ptr<ov::op::v0::Concat>& output
             return batched_camera;
         }
         if (is_constant(original)) {
-            if (const auto corresponding = corresponding_nodes.find(original.get());
-                corresponding != corresponding_nodes.end()) {
-                merge_fused_names(original, corresponding->second, original);
+            if (const auto found = cloned_nodes.find(original.get()); found != cloned_nodes.end()) {
+                return found->second;
             }
-            return original;
+            const auto corresponding = corresponding_nodes.find(original.get());
+            const bool has_distinct_correspondence =
+                corresponding != corresponding_nodes.end() &&
+                std::any_of(corresponding->second.begin(),
+                            corresponding->second.end(),
+                            [&](const NodePtr& node) {
+                                return node.get() != original.get();
+                            });
+            if (!has_distinct_correspondence) {
+                return original;
+            }
+            auto clone = original->clone_with_new_inputs({});
+            copy_node_metadata(original, clone);
+            merge_fused_names(original, corresponding->second, clone);
+            cloned_nodes.emplace(original.get(), clone);
+            return clone;
         }
         const auto found = cloned_nodes.find(original.get());
         if (found != cloned_nodes.end()) {
