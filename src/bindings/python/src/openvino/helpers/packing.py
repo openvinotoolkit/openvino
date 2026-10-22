@@ -9,14 +9,14 @@ from openvino import Type, Shape
 
 
 def pack_data(array: np.ndarray, type: Type) -> np.ndarray:
-    """Represent array values as u1, u2, u3, u4, u6 or i4 openvino element type and pack them into uint8 numpy array.
+    """Represent array values as u1, u2, u3, u4, u6, i4, nf4 or f4e2m1 element type and pack them into uint8 numpy array.
 
     For u1: Bit packing from the most significant bit, like the core
     For u2, u4, i4, nf4, f4e2m1: Bit packing from the least significant bits, like the core
     For u3, u6: Linear LSB-first bit-stream packing, values may straddle a byte boundary
 
-    If the number of elements in array is odd we pad them with zero value to be able to fit the bit
-    sequence into the uint8 array.
+    For the byte-aligned types (u1, u2, u4, i4, nf4, f4e2m1) the values are padded with zeros up to a
+    multiple of the number of values that fit into one byte (8 // bitwidth).
 
     Example: two uint8 values - [7, 8] can be represented as uint4 values and be packed into one uint8
              value - [135]. The first value takes the low 4 bits and the second the high 4 bits,
@@ -56,7 +56,7 @@ def pack_data(array: np.ndarray, type: Type) -> np.ndarray:
     # Same layout as the core: u1 is packed from the most significant bit,
     # u2, u4, i4, nf4 and f4e2m1 from the least significant bits.
     if type == Type.u1:
-        return np.packbits(bit_order_little.flatten())
+        return np.packbits(bit_order_little.flatten(), bitorder="big")
     return np.packbits(bit_order_little.flatten(), bitorder="little")
 
 
