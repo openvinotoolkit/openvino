@@ -1075,6 +1075,50 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_Asymme
     expect_kv_cache_input_types(generate.model, ov::element::i8, false, true);
 }
 
+// Integer KV-cache compression needs the unrolled (decomposed) SDPA, which a DYNAMIC attention hint
+// leaves fused. The combination must be rejected up front with a message that names the option,
+// instead of compiling a prefill model with undequantized integer past KV inputs.
+TEST_F(ConvertKVCacheToPrecisionPassTest, IntegerKVCacheWithDynamicPrefillAttentionIsRejected) {
+    for (const auto kv_type : {ov::element::i8, ov::element::u8}) {
+        RecordingFactory recorder;
+        ov::AnyMap props = make_kv_precision_props(kv_type);
+        props["NPUW_LLM_PREFILL_HINT"] = "DYNAMIC";
+        props["NPUW_LLM_PREFILL_ATTENTION_HINT"] = "DYNAMIC";
+        try {
+            create_compiled_model(props, recorder);
+            FAIL() << "Expected an exception for " << kv_type << " KV-cache with dynamic prefill attention";
+        } catch (const ov::Exception& ex) {
+            const std::string msg = ex.what();
+            EXPECT_NE(msg.find("NPUW_LLM_PREFILL_ATTENTION_HINT"), std::string::npos) << msg;
+            EXPECT_NE(msg.find("DYNAMIC"), std::string::npos) << msg;
+        }
+    }
+}
+
+TEST_F(ConvertKVCacheToPrecisionPassTest, IntegerKVCacheWithDynamicGenerateAttentionIsRejected) {
+    RecordingFactory recorder;
+    ov::AnyMap props = make_kv_precision_props(ov::element::i8);
+    props["NPUW_LLM_GENERATE_ATTENTION_HINT"] = "DYNAMIC";
+    try {
+        create_compiled_model(props, recorder);
+        FAIL() << "Expected an exception for i8 KV-cache with dynamic generate attention";
+    } catch (const ov::Exception& ex) {
+        const std::string msg = ex.what();
+        EXPECT_NE(msg.find("NPUW_LLM_GENERATE_ATTENTION_HINT"), std::string::npos) << msg;
+    }
+}
+
+// The check is specific to integer storage: an f16 KV-cache keeps working with dynamic attention.
+TEST_F(ConvertKVCacheToPrecisionPassTest, Fp16KVCacheWithDynamicPrefillAttentionIsAccepted) {
+    RecordingFactory recorder;
+    ov::AnyMap props = make_kv_precision_props(ov::element::f16);
+    props["NPUW_LLM_PREFILL_HINT"] = "DYNAMIC";
+    props["NPUW_LLM_PREFILL_ATTENTION_HINT"] = "DYNAMIC";
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(props, recorder));
+    ASSERT_NE(compiled, nullptr);
+}
+
 TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_InvalidFormat) {
     // Invalid configuration format should throw
     RecordingFactory recorder;
