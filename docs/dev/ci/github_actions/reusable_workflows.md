@@ -77,6 +77,9 @@ the pinned dependencies from [`tests/llm/requirements.txt`](../../../../tests/ll
 The suite pins PyTorch 2.11, torchvision 0.26, and torchaudio 2.11 directly in its requirements to match
 WhoWhatBench's `master` branch. It does not include the shared constraints, which require a
 conflicting PyTorch version. Other test suites keep the repository-wide constraints unchanged.
+The LLM requirements select Transformers 5.10.4 and Sentence Transformers 5.6.1, using Optimum Intel
+from `main` because release 2.2.0 excludes the patched Transformers version. The Optimum Intel
+`tests` extra is not needed by this suite and imposes an incompatible Sentence Transformers cap.
 
 Since reusable workflows are structured and behave like jobs, you can refer to the [adding tests page](./adding_tests.md) to learn more about creating a job and
 use the information about the reusable workflows to transform a job into a reusable workflow.
