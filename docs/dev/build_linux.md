@@ -1,17 +1,17 @@
 # Build OpenVINO™ Runtime for Linux systems
 
-The software was validated on:
-- Ubuntu 18.04 (64-bit) with default GCC 7.5.0
-- Ubuntu 20.04 (64-bit) with default GCC 9.3.0
-- Red Hat Enterprise Linux 8.2 (64-bit) with default GCC 8.5.0
+Current validation environments include:
+- Ubuntu 22.04, 24.04, and 26.04 (64-bit) in GitHub Actions
 
-> **NOTE**: To build on CentOS 7 (64-bit), refer to [Building OpenVINO on CentOS 7 Guide](https://github.com/openvinotoolkit/openvino/wiki/Building-OpenVINO-on-CentOS-7-Guide)
+The external infrastructure Docker repository also contains RHEL 8.10 and 9.6 build images, but
+the current product CI configurations do not reference them. Other compatible distributions may
+build OpenVINO, but are not covered by the current CI matrix.
 
 ## Software requirements
 
 - [CMake](https://cmake.org/download/) 3.26 or higher
 - GCC 7.5 or higher to build OpenVINO Runtime
-- Python 3.9 - 3.12 for OpenVINO Runtime Python API
+- Python 3.11 - 3.14 for OpenVINO Runtime Python API
 - (Optional) Install Intel® Graphics Compute Runtime for OpenCL™ Driver package to enable inference on Intel integrated GPUs.
 
 ## How to build
@@ -66,7 +66,7 @@ You can use the following additional build options:
 - To build the OpenVINO Runtime Python API:
   1. Enable the `-DENABLE_PYTHON=ON` option in the CMake step above (Step 4). To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
      ```
-     -DPython3_EXECUTABLE=/usr/bin/python3.9
+     -DPython3_EXECUTABLE=/usr/bin/python3.11
      ```
   2. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
      ```sh

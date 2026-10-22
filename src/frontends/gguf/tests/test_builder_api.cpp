@@ -303,6 +303,19 @@ TEST(GGUFBuilderAPI, RecurrentStateDeclarationReachesMakeStateful) {
     EXPECT_EQ(model->get_sinks().size(), 1);
 }
 
+// A named output can expose an input or another output; every name stays addressable.
+TEST(GGUFBuilderAPI, NamedOutputsKeepTheNamesOfTheValuesTheyExpose) {
+    Environment env;
+    GgufGraphContext graph(env.context);
+    auto input = graph.add_input("x", ov::element::f32, {1, 1, 1, 4});
+    graph.set_output(input, "first");
+    graph.set_output(input, "second");
+    auto model = convert(graph.finish());
+    EXPECT_NO_THROW(model->input("x"));
+    EXPECT_NO_THROW(model->output("first"));
+    EXPECT_NO_THROW(model->output("second"));
+}
+
 TEST(GGUFBuilderAPI, SlidingWindowDeclarationSurvivesConversion) {
     Environment env;
     GgufGraphContext graph(env.context);
@@ -312,6 +325,41 @@ TEST(GGUFBuilderAPI, SlidingWindowDeclarationSurvivesConversion) {
     EXPECT_EQ(model->get_rt_info().at(pass::gguf_swa_window_key()).as<int64_t>(), 32);
     EXPECT_THROW(graph.set_sliding_window(64), ov::Exception);
     EXPECT_THROW(graph.finish(), ov::Exception);
+}
+
+TEST(GGUFArchitectureRegistry, SupportedListIncludesCustomFamiliesAndExtensions) {
+    ArchRegistry registry;
+    const auto builtin_names = registry.supported_archs();
+    EXPECT_EQ(builtin_names.count("clip"), 1);
+    EXPECT_EQ(builtin_names.count("mamba2"), 1);
+    EXPECT_EQ(builtin_names.count("nemotron_h"), 1);
+    EXPECT_EQ(builtin_names.count("qwen3"), 1);
+    Environment env;
+    env.metadata["general.architecture"] = std::string("clip");
+    EXPECT_FALSE(registry.find(env.context.metadata));
+    env.metadata["clip.vision.projector_type"] = std::string("mlp");
+    ASSERT_TRUE(registry.find(env.context.metadata));
+    EXPECT_EQ(registry.find(env.context.metadata)->id, "clip.mmproj");
+
+    registry.add_extension(std::make_shared<ArchitectureExtension>("custom-decoder", RopeMode::Neox));
+    EXPECT_EQ(registry.supported_archs().size(), builtin_names.size() + 1);
+    EXPECT_EQ(registry.supported_archs().count("custom-decoder"), 1);
+    EXPECT_NE(registry.describe_supported().find("custom-decoder"), std::string::npos);
+    EXPECT_EQ(ArchRegistry{}.supported_archs(), builtin_names);
+}
+
+TEST(GGUFArchitectureRegistry, SupportedNamesTrackReplacementAndDeduplicateHandlers) {
+    ArchRegistry registry({handler("vision"), handler("audio")});
+    EXPECT_EQ(registry.supported_archs(), (std::set<std::string>{"test"}));
+    EXPECT_EQ(registry.describe_supported(), "test");
+    auto replacement = handler("vision");
+    replacement.architecture = "other";
+    registry.add_extension(std::make_shared<ArchitectureExtension>(replacement, RegistrationMode::Replace));
+    EXPECT_EQ(registry.supported_archs(), (std::set<std::string>{"other", "test"}));
+    replacement.id = "audio";
+    registry.add_extension(std::make_shared<ArchitectureExtension>(replacement, RegistrationMode::Replace));
+    EXPECT_EQ(registry.supported_archs(), (std::set<std::string>{"other"}));
+    EXPECT_EQ(registry.describe_supported(), "other");
 }
 
 TEST(GGUFArchitectureRegistry, DisjointHandlersForTheSameArchitectureCoexist) {
@@ -338,10 +386,12 @@ TEST(GGUFArchitectureRegistry, ReplacementIsExplicitAndInstancesAreIsolated) {
     ArchRegistry second({handler("test")});
     EXPECT_THROW(first.add(handler("test")), ov::Exception);
     auto replacement = handler("test");
-    replacement.maturity = Maturity::Verified;
+    replacement.match = [](const GgufMetadata&) {
+        return false;
+    };
     first.add(replacement, RegistrationMode::Replace);
-    EXPECT_EQ(first.find(env.context.metadata)->maturity, Maturity::Verified);
-    EXPECT_EQ(second.find(env.context.metadata)->maturity, Maturity::Experimental);
+    EXPECT_FALSE(first.find(env.context.metadata));
+    EXPECT_TRUE(second.find(env.context.metadata));
     EXPECT_THROW(first.add(handler("missing"), RegistrationMode::Replace), ov::Exception);
     auto invalid = handler("invalid");
     invalid.factory = {};
@@ -416,6 +466,36 @@ TEST(GGUFBuilderAPI, Gemma2RejectsZeroAttentionHeadsWithOrWithoutKeyLength) {
         env.architecture("gemma2");
         EXPECT_THROW(decoder_config_from_meta(env.metadata), ov::Exception);
     }
+}
+
+TEST(GGUFBuilderAPI, SlidingWindowDefaultsMatchExaoneMoeAndPlamo3) {
+    for (const auto* family : {"exaone-moe", "plamo3"}) {
+        SCOPED_TRACE(family);
+        Environment env;
+        env.decoder();
+        env.integer("test.block_count", 8);
+        env.integer("test.attention.sliding_window", 128);
+        env.real("test.rope.freq_base", 1000000.f);
+        env.architecture(family);
+        DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights);
+        const bool exaone = std::string(family) == "exaone-moe";
+        EXPECT_EQ(config.swa_layer_pattern, exaone ? 4 : 8);
+        EXPECT_TRUE(config.layer_is_swa(0));
+        EXPECT_FALSE(config.layer_is_swa(exaone ? 3 : 7));
+        EXPECT_EQ(config.rope_on_swa_only, exaone);
+        EXPECT_FLOAT_EQ(config.rope_freq_base_swa, exaone ? 1000000.f : 10000.f);
+    }
+}
+
+TEST(GGUFBuilderAPI, Glm4MoeDefaultsToSigmoidRouting) {
+    Environment env;
+    env.decoder();
+    env.architecture("glm4moe");
+    EXPECT_TRUE(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights).moe_sigmoid_gating);
+    env.integer("glm4moe.expert_gating_func", 0);
+    EXPECT_TRUE(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights).moe_sigmoid_gating);
+    env.integer("glm4moe.expert_gating_func", 1);
+    EXPECT_FALSE(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights).moe_sigmoid_gating);
 }
 
 TEST(GGUFBuilderAPI, ErnieInterleavesDenseAndExpertLayers) {

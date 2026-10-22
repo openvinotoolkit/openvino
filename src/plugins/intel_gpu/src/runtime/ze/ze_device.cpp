@@ -109,6 +109,8 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
         supports_extension(extensions, ZEX_INTEL_QUEUE_COPY_OPERATIONS_OFFLOAD_HINT_EXP_NAME, ZEX_INTEL_QUEUE_COPY_OPERATIONS_OFFLOAD_HINT_EXP_VERSION_1_0);
     bool supports_dp_properties =
         supports_extension(extensions, ZE_INTEL_DEVICE_MODULE_DP_PROPERTIES_EXP_NAME, ZE_INTEL_DEVICE_MODULE_DP_PROPERTIES_EXP_VERSION_1_0);
+    bool supports_external_memmap_sysmem =
+        supports_extension(extensions, ZE_EXTERNAL_MEMORY_MAPPING_EXT_NAME, ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION_1_0);
 
     void *device_properties_next = nullptr;
     ze_device_ip_version_ext_t ip_version_properties = {ZE_STRUCTURE_TYPE_DEVICE_IP_VERSION_EXT, device_properties_next, 0};
@@ -227,6 +229,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     info.supports_usm = device_memory_access_properties.hostAllocCapabilities && device_memory_access_properties.deviceAllocCapabilities;
     info.supports_leo = ze_ocl_interop::get_instance().check_support(device);
+    info.supports_external_memmap_sysmem = supports_external_memmap_sysmem;
 
     // FIXME: Could not find how to retrieve those from ZE
     info.supports_work_group_collective_functions = false;

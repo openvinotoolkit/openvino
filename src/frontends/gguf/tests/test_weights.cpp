@@ -13,6 +13,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <vector>
 
 #include "op_test_utils.hpp"
 #include "quant/weights.hpp"
@@ -86,7 +87,8 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                                            WeightCase{"q4_k", "Q4_K", kTolU4Requant},
                                            WeightCase{"q5_k", "Q5_K", kTolRequant},
                                            WeightCase{"q6_k", "Q6_K", kTolRequant},
-                                           WeightCase{"q2_0", "Q2_0", kTolFaithful}),
+                                           WeightCase{"q2_0", "Q2_0", kTolFaithful},
+                                           WeightCase{"q1_0", "Q1_0", kTolFaithful}),
                          [](const ::testing::TestParamInfo<WeightCase>& i) {
                              return std::string(i.param.stem);
                          });
@@ -298,10 +300,13 @@ TEST(GGUFWeight, RejectsMissingAuxiliaryTensors) {
     EXPECT_THROW(make_weight_node(without_zero_point, GGUF_TYPE_Q4_K), ov::Exception);
 }
 
-TEST(GGUFWeight, UsesIntegerZeroPointForQ4KMatmulWeights) {
+TEST(GGUFWeight, UsesIntegerZeroPointForRequantizedMatmulWeights) {
     using namespace ov::frontend::gguf;
 
     EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_Q4_K), ov::element::u8);
+    EXPECT_EQ(gguf_zero_point_type("blk.0.ffn_down.weight", GGUF_TYPE_Q4_1), ov::element::u8);
+    EXPECT_EQ(gguf_zero_point_type("blk.0.ssm_out.weight", GGUF_TYPE_Q5_K), ov::element::u8);
     EXPECT_EQ(gguf_zero_point_type("token_embd.weight", GGUF_TYPE_Q4_K), ov::element::f16);
+    EXPECT_EQ(gguf_zero_point_type("output.weight", GGUF_TYPE_Q5_K), ov::element::f16);
     EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_Q2_0), ov::element::u8);
 }
