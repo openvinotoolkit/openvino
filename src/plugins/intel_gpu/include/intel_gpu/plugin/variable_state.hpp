@@ -5,7 +5,7 @@
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
-#include "intel_gpu/plugin/pending_conversion.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/shape_predictor.hpp"
 #include "intel_gpu/runtime/memory.hpp"

@@ -7,7 +7,7 @@
 #include <memory>
 #include <ostream>
 #include <tuple>
-#include "intel_gpu/plugin/pending_conversion.hpp"
+#include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 
@@ -143,6 +143,19 @@ inline void ForceExit() {
               << "to avoid CL_OUT_OF_RESOURCES exception" << std::endl;
     std::_Exit(-1);
 }
+
+struct PendingConversion {
+    PendingConversion() = default;
+    PendingConversion(const PendingConversion&) = delete;
+    PendingConversion& operator=(const PendingConversion&) = delete;
+
+    void wait();
+    // Call only after GPU completion has been confirmed.
+    void clear_after_completion() noexcept;
+
+    cldnn::memory::ptr staging;
+    cldnn::event::ptr done;
+};
 
 // Returns false before submission for unsupported inputs; true means submitted, not completed.
 // Pass an empty pending object; wait or drain and clear before reuse. No destructor waits automatically.
