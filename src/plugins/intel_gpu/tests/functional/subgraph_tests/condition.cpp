@@ -21,12 +21,13 @@
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/topk.hpp"
-#include "openvino/op/topk.hpp"
 #include "openvino/runtime/core.hpp"
 
 #include <algorithm>
 #include <cstdlib>
+#include <exception>
 #include <sstream>
+#include <string>
 #include <utility>
 
 namespace {
@@ -38,21 +39,25 @@ public:
             m_previous = previous;
         }
 #ifdef _WIN32
-        _putenv_s(m_name.c_str(), value);
+        const int result = _putenv_s(m_name.c_str(), value);
 #else
-        ::setenv(m_name.c_str(), value, 1);
+        const int result = ::setenv(m_name.c_str(), value, 1);
 #endif
+        OPENVINO_ASSERT(result == 0, "Failed to set environment variable ", m_name, " (error ", result, ")");
     }
 
     ~ScopedEnvVar() {
+        int result;
 #ifdef _WIN32
-        _putenv_s(m_name.c_str(), m_had_previous ? m_previous.c_str() : "");
+        result = _putenv_s(m_name.c_str(), m_had_previous ? m_previous.c_str() : "");
 #else
         if (m_had_previous)
-            ::setenv(m_name.c_str(), m_previous.c_str(), 1);
+            result = ::setenv(m_name.c_str(), m_previous.c_str(), 1);
         else
-            ::unsetenv(m_name.c_str());
+            result = ::unsetenv(m_name.c_str());
 #endif
+        if (result != 0)
+            std::terminate();
     }
 
     ScopedEnvVar(const ScopedEnvVar&) = delete;
