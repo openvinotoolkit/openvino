@@ -11,6 +11,7 @@
 #include "backends_registry.hpp"
 #include "blob_source.hpp"
 #include "compiler_option_support_helper.hpp"
+#include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -73,8 +74,8 @@ private:
      * @brief Returns a provider of the VCL entry points for the components that need them.
      *
      * The provider captures the loader holder, not `this`, so it stays valid when a longer lived
-     * component keeps it. The library loads on the first call and unloads after the plugin and
-     * every compiler or decoder using the entry points are gone.
+     * component keeps it. The library loads on the first call and stays loaded while any provider
+     * or returned table still owns it.
      */
     VCLFunctionTableProvider vcl_functions() const {
         return [holder = _vclLoaderHolder] {
@@ -88,8 +89,16 @@ private:
     //  Appropriate checks are needed in plugin/metrics/properties when actions depend on a backend.
     ov::SoPtr<IEngineBackend> _backend;
 
-    // Loads the VCL compiler library on first use, so the driver compiler path never pays for it.
+    // Defers VCL loading until compiler construction or profiling decoder creation needs it.
     std::shared_ptr<VCLLoaderHolder> _vclLoaderHolder;
+
+    // PREFER_PLUGIN probes compiler availability and remembers whether to use the plugin or driver compiler.
+    // A process-wide cache can reuse another provider's result, choosing DRIVER despite an available compiler
+    // or PLUGIN despite an unavailable one. Keep one factory per plugin so compile/query operations,
+    // property queries and option support checks share the result for this plugin's VCL provider.
+    // Creating a fresh factory for each operation would lose that result and repeat failed compiler probes.
+    // Factory copies held by the helpers share this cache; explicit PLUGIN requests still retry after failure.
+    std::unique_ptr<CompilerAdapterFactory> _compilerAdapterFactory;
 
     mutable Logger _logger;
     std::unique_ptr<PluginPropertyManager> _propertiesManager;

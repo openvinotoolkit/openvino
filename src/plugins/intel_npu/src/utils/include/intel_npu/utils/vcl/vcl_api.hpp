@@ -114,19 +114,20 @@ private:
 /**
  * @brief Obtains the VCL entry points on demand.
  *
- * Implementations must stay lazy: the library may only load once something needs to compile or to
- * decode a profiling buffer, so a flow that uses only the driver compiler never pays for it.
+ * Providers defer loading until the entry points are requested for compiler construction or
+ * profiling decoder creation. Profiling imports can request them even when using the driver compiler.
  */
 using VCLFunctionTableProvider = std::function<std::shared_ptr<const VCLFunctionTable>()>;
 
 /**
  * @brief Owns one lazily loaded VCL compiler library.
  *
- * Loads at most once, on the first call to `functions()`. The plugin holds one, so the library is
- * released with the plugin instead of at static teardown.
+ * Caches the first successful load. The returned tables keep the library loaded even after the
+ * plugin releases its holder.
  *
  * @note A failed load is not remembered, so a later call tries again. CompilerAdapterFactory caches
- * the absence of the plugin compiler, which keeps callers from retrying in a loop.
+ * availability only for PREFER_PLUGIN resolution. Explicit PLUGIN requests and profiling imports
+ * can retry after a failure.
  */
 class VCLLoaderHolder final {
 public:

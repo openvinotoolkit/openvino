@@ -166,12 +166,12 @@ public:
             REGISTER_OPTION(Opt);
         });
 
+        const CompilerAdapterFactory compilerAdapterFactory{testVclFunctions()};
         propertiesManager = std::make_unique<PluginPropertyManager>(
             options,
             backend,
-            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend,
-                                                                       CompilerAdapterFactory{testVclFunctions()}),
-            testVclFunctions(),
+            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, compilerAdapterFactory),
+            compilerAdapterFactory,
             ::intel_npu::Logger::global());
     }
 
@@ -694,13 +694,12 @@ TEST_P(CompatibilityCheckTests, CheckUnsupportedConfigWithGetMergedConfigAndUnkn
 
     std::shared_ptr<::intel_npu::OptionsDesc> localOptions = std::make_shared<::intel_npu::OptionsDesc>();
     localOptions->add<::intel_npu::COMPILER_TYPE>();
+    const ::intel_npu::CompilerAdapterFactory compilerAdapterFactory{testVclFunctions()};
     auto localPropertiesManager = std::make_unique<::intel_npu::PluginPropertyManager>(
         localOptions,
         backend,
-        std::make_shared<::intel_npu::CompilerOptionSupportHelper>(
-            backend,
-            ::intel_npu::CompilerAdapterFactory{testVclFunctions()}),
-        testVclFunctions(),
+        std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, compilerAdapterFactory),
+        compilerAdapterFactory,
         ::intel_npu::Logger::global());
 
     {

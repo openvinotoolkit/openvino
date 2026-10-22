@@ -589,18 +589,4 @@ bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::
     return supported;
 }
 
-namespace {
-// Key under which the compiler-in-plugin stores its option support answers.
-constexpr OptionSupportCache::CacheKey pluginOptionSupportKey =
-    static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN);
-}  // namespace
-
-std::shared_ptr<IVCLCompiler> makeVCLCompiler(const std::shared_ptr<const VCLFunctionTable>& functions,
-                                              const std::optional<IDevice::DeviceProperties>& deviceProperties,
-                                              const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
-    return std::make_shared<VCLCompilerImpl>(functions,
-                                             deviceProperties,
-                                             ScopedOptionSupportCache{optionSupportCache, pluginOptionSupportKey});
-}
-
 }  // namespace intel_npu

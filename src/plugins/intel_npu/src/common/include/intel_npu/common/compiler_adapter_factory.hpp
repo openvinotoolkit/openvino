@@ -36,7 +36,7 @@ public:
 
     void decideCompilerType(ov::intel_npu::CompilerType& compilerType,
                             const std::shared_ptr<intel_npu::IDevice>& device,
-                            std::string_view platform);
+                            std::string_view platform) const;
 
     static const std::vector<ov::intel_npu::CompilerType>& getKnownCompilerTypes();
 
@@ -55,9 +55,9 @@ private:
         ABSENT = 2,
     };
 
-    // Process-wide on purpose: every copy of this factory (CompilerOptionSupportHelper holds one by value)
-    // must give the same answer on whether the compiler-in-plugin can be loaded.
-    inline static std::atomic<PluginCompilerPresence> _pluginCompilerPresence{PluginCompilerPresence::UNKNOWN};
+    // Copies share the availability result for this provider, independently of other plugin instances.
+    std::shared_ptr<std::atomic<PluginCompilerPresence>> _pluginCompilerPresence =
+        std::make_shared<std::atomic<PluginCompilerPresence>>(PluginCompilerPresence::UNKNOWN);
 
     VCLFunctionTableProvider _vclFunctions;
 };

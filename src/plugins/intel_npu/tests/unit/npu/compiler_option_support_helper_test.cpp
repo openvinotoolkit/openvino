@@ -13,10 +13,10 @@ namespace {
 using CompilerType = ov::intel_npu::CompilerType;
 
 // No case below reaches the compiler-in-plugin branch of the factory. Each is answered from the
-// cache, rejected before any lookup, or uses the driver path without a device. The provider throws
-// so that any call to it fails the test.
+// cache, rejected before any lookup, or uses the driver path without a device.
 ::intel_npu::VCLFunctionTableProvider noVclLibrary() {
     return []() -> std::shared_ptr<const ::intel_npu::VCLFunctionTable> {
+        ADD_FAILURE() << "The VCL function table provider must not be invoked by this test";
         OPENVINO_THROW("The VCL function table provider must not be invoked by this test");
     };
 }

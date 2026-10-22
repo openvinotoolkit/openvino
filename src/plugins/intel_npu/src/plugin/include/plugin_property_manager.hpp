@@ -13,12 +13,12 @@
 #include <vector>
 
 #include "compiler_option_support_helper.hpp"
+#include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "property_registration.hpp"
 
 namespace intel_npu {
@@ -30,7 +30,7 @@ public:
     PluginPropertyManager(const std::shared_ptr<OptionsDesc>& options,
                           const ov::SoPtr<IEngineBackend>& backend,
                           const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
-                          const VCLFunctionTableProvider& vclFunctions,
+                          const CompilerAdapterFactory& compilerAdapterFactory,
                           Logger& logger);
 
     PluginPropertyManager& operator=(const PluginPropertyManager& other) = delete;
@@ -62,8 +62,7 @@ private:
 
     ov::SoPtr<IEngineBackend> _backend;
     std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;
-    // Builds the compiler adapters that the compiler dependent properties query.
-    VCLFunctionTableProvider _vclFunctions;
+    CompilerAdapterFactory _compilerAdapterFactory;
     Logger& _logger;
 
     mutable std::mutex _mutex;
