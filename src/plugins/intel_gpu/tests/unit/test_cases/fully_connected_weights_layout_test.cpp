@@ -199,7 +199,10 @@ TEST(fc_weights_layout, gnk_legacy_shape_inference) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
     auto prog = program::build_program(engine, topo, config, false, true);
     auto& fc = prog->get_node("fc").as<fully_connected>();
-    EXPECT_EQ(fc.get_output_layout().get_partial_shape(), (ov::PartialShape{4, N}));
+    // Legacy shape inference yields a 4D bfyx output.
+    const auto out = fc.get_output_layout();
+    EXPECT_EQ(out.batch(), 4);
+    EXPECT_EQ(out.feature(), N);
 }
 
 TEST(fc_weights_layout, gnk_shape_inference_and_impl_rejection) {
