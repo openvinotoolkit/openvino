@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,9 +55,13 @@ public:
      * @brief Get the section ID, unique per compiled model.
      *
      * @return Either the ID or a std::nullopt. This value exists only if the current section has been added to a
-     * BlobWriter writing queue.
+     * blob sections registry.
      */
     std::optional<SectionID> get_id() const;
+
+    ov::runtime::hsm::SectionAlignment get_alignment() const;
+
+    bool is_inline() const;
 
     // TODO rename?
     /**
@@ -88,7 +92,9 @@ public:
         const std::unordered_map<SectionID, std::shared_ptr<ISection>>& all_registered_sections) const;
 
 protected:
-    ISection(const SectionType type);
+    ISection(const SectionType type,
+             const ov::runtime::hsm::SectionAlignment alignment = {},
+             const bool is_inline = false);
 
 private:
     // Access required to set the section type instance ID
@@ -107,9 +113,12 @@ private:
 
     SectionType m_type;
     /**
-     * @note This value exists only if the current section has been added to a BlobWriter writing queue.
+     * @note This value exists only if the current section has been added to a blob sections registry.
      */
     mutable std::optional<SectionID> m_id;
+    // TODO test alignment
+    ov::runtime::hsm::SectionAlignment m_alignment;
+    bool m_is_inline;
 };
 
 }  // namespace intel_npu

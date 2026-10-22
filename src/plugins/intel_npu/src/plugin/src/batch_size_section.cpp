@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,9 @@
 
 namespace intel_npu {
 
+// TODO comment why inline
 BatchSizeSection::BatchSizeSection(const int64_t batch_size, const ov::log::Level log_level)
-    : ISection(SectionTypeCode::BATCH_SIZE),
+    : ISection(SectionTypeCode::BATCH_SIZE, {}, true),
       m_batch_size(batch_size),
       m_logger("BatchSizeSection", log_level) {
     m_logger.trace("Section created");

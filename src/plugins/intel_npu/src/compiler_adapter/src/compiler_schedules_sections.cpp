@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,8 @@ constexpr char LIST_END_DELIMITER = ']';
 constexpr size_t NUMBER_OF_INITS_SIZE = sizeof(uint16_t);
 constexpr size_t MINIMUM_INIT_SCHEDULES_SECTION_SIZE = NUMBER_OF_INITS_SIZE;
 
+const ov::runtime::hsm::SectionAlignment PAGE_ALIGNED_BEGINNING{utils::STANDARD_PAGE_SIZE, 1};
+
 }  // namespace
 
 namespace intel_npu {
@@ -35,7 +37,7 @@ ELFMainScheduleSection::ELFMainScheduleSection(
     const std::shared_ptr<Graph>& graph,
     const std::function<std::string(const std::string&)>& encryption_callback,
     const ov::log::Level log_level)
-    : ISection(SectionTypeCode::ELF_MAIN_SCHEDULE),
+    : ISection(SectionTypeCode::ELF_MAIN_SCHEDULE, PAGE_ALIGNED_BEGINNING),
       m_graph_or_schedule(graph),
       m_encryption_callback(encryption_callback),
       m_logger("ELFMainScheduleSection", log_level) {
@@ -46,7 +48,7 @@ ELFMainScheduleSection::ELFMainScheduleSection(
     ov::Tensor&& main_schedule,
     const std::function<std::string(const std::string&)>& encryption_callback,
     const ov::log::Level log_level)
-    : ISection(SectionTypeCode::ELF_MAIN_SCHEDULE),
+    : ISection(SectionTypeCode::ELF_MAIN_SCHEDULE, PAGE_ALIGNED_BEGINNING),
       m_graph_or_schedule(std::move(main_schedule)),
       m_encryption_callback(encryption_callback),
       m_logger("ELFMainScheduleSection", log_level) {}
@@ -153,7 +155,7 @@ ELFInitSchedulesSection::ELFInitSchedulesSection(
     const std::shared_ptr<WeightlessGraph>& weightless_graph,
     const std::function<std::string(const std::string&)>& encryption_callback,
     const ov::log::Level log_level)
-    : ISection(SectionTypeCode::ELF_INIT_SCHEDULES),
+    : ISection(SectionTypeCode::ELF_INIT_SCHEDULES, PAGE_ALIGNED_BEGINNING),
       m_graph_or_schedules(weightless_graph),
       m_encryption_callback(encryption_callback),
       m_logger("ELFInitSchedulesSection", log_level) {
@@ -164,7 +166,7 @@ ELFInitSchedulesSection::ELFInitSchedulesSection(
     std::vector<ov::Tensor>&& init_schedules,
     const std::function<std::string(const std::string&)>& encryption_callback,
     const ov::log::Level log_level)
-    : ISection(SectionTypeCode::ELF_INIT_SCHEDULES),
+    : ISection(SectionTypeCode::ELF_INIT_SCHEDULES, PAGE_ALIGNED_BEGINNING),
       m_graph_or_schedules(std::move(init_schedules)),
       m_encryption_callback(encryption_callback),
       m_logger("ELFInitSchedulesSection", log_level) {}
@@ -313,7 +315,7 @@ DynamicScheduleSection::DynamicScheduleSection(
     const std::shared_ptr<DynamicGraph>& graph,
     const std::function<std::string(const std::string&)>& encryption_callback,
     const ov::log::Level log_level)
-    : ISection(SectionTypeCode::DYNAMIC_SCHEDULE),
+    : ISection(SectionTypeCode::DYNAMIC_SCHEDULE, PAGE_ALIGNED_BEGINNING),
       m_impl(std::dynamic_pointer_cast<Graph>(graph), encryption_callback, log_level),
       m_logger("DynamicScheduleSection", log_level) {}
 
@@ -321,7 +323,7 @@ DynamicScheduleSection::DynamicScheduleSection(
     ov::Tensor&& main_schedule,
     const std::function<std::string(const std::string&)>& encryption_callback,
     const ov::log::Level log_level)
-    : ISection(SectionTypeCode::DYNAMIC_SCHEDULE),
+    : ISection(SectionTypeCode::DYNAMIC_SCHEDULE, PAGE_ALIGNED_BEGINNING),
       m_impl(std::move(main_schedule), encryption_callback, log_level),
       m_logger("DynamicScheduleSection", log_level) {}
 

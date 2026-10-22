@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 namespace intel_npu {
 
 CompilerVersionSection::CompilerVersionSection(const int32_t version, const ov::log::Level log_level)
-    : ISection(SectionTypeCode::COMPILER_VERSION),
+    : ISection(SectionTypeCode::COMPILER_VERSION, {}, true),
       m_compiler_version(version),
       m_logger("CompilerVersionSection", log_level) {
     m_logger.trace("Section created");

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -109,8 +109,7 @@ private:
  */
 class RuntimeRequirementsSection final : public ISection {
 public:
-    RuntimeRequirementsSection(const RuntimeRequirements& runtime_requirements,
-                               const ov::log::Level log_level = ov::log::Level::WARNING);
+    RuntimeRequirementsSection(const RuntimeRequirements& runtime_requirements);
 
     void encode(const ov::runtime::hsm::SectionSink& sink) const override;
 

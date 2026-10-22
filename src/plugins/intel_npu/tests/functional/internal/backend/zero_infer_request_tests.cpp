@@ -254,7 +254,7 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         std::make_shared<ov::test::utils::MockPlugin>(),  // MockPlugin needed only to avoid throw for nullptr
         device,
         graph,
-        blob_writer,
+        blob_sections_registry,
         *npu_config,
         unknownProperties);
     OPENVINO_ASSERT(compiledModel->inputs()[0].get_element_type() == element_type);

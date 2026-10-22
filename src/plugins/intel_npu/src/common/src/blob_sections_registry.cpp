@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,6 +63,10 @@ std::vector<std::shared_ptr<ISection>> BlobSectionsRegistry::retrieve_sections(c
     return {};
 }
 
+std::queue<std::shared_ptr<ISection>> BlobSectionsRegistry::get_write_queue() const {
+    return m_write_queue;
+}
+
 bool BlobSectionsRegistry::has_section_of_type(const SectionType section_type) const {
     return m_types_to_sections.count(section_type) ? m_types_to_sections.at(section_type).size() > 0 : false;
 }
@@ -80,7 +84,7 @@ std::unordered_map<SectionType, size_t> BlobSectionsRegistry::get_content_summar
     return summary;
 }
 
-RuntimeRequirements BlobSectionsRegistry::build_runtime_requirements() const {
+std::shared_ptr<ISection> BlobSectionsRegistry::build_runtime_requirements_section() const {
     m_logger.debug("Building the runtime requirements");
     std::map<SectionID, std::string> sections_requirements;
     CRE cre(m_logger.level());
@@ -97,7 +101,15 @@ RuntimeRequirements BlobSectionsRegistry::build_runtime_requirements() const {
         section_id_to_type.emplace(section_id, section->get_type());
     }
 
-    return RuntimeRequirements(sections_requirements, cre, section_id_to_type, m_logger.level());
+    const auto section = std::make_shared<RuntimeRequirementsSection>(
+        RuntimeRequirements(sections_requirements, cre, section_id_to_type));
+    // TODO move to hpp
+    // This section is not registered within this class since the section is dynamically generated based on the current
+    // contents of the registry. Future calls to this function may yield different runtime requirements. Despite this, a
+    // section ID is set to this section. We are assuming the user of this function may want to write the current
+    // section, and a unique section ID may be required for that.
+    section->set_id(m_next_section_id);
+    return section;
 }
 
 }  // namespace intel_npu

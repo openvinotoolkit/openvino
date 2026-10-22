@@ -24,11 +24,11 @@ inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
 std::string buildRuntimeRequirements(const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry,
                                      intel_npu::Logger& logger) {
     // Build and use a "RuntimeRequirementsSection" to serialize the requirements
-    const RuntimeRequirements runtimeRequirements = blobSectionsRegistry->build_runtime_requirements();
-    RuntimeRequirementsSection section(runtimeRequirements, logger.level());
+    const auto section = std::dynamic_pointer_cast<RuntimeRequirementsSection>(
+        blobSectionsRegistry->build_runtime_requirements_section());
 
     std::ostringstream result_stream;
-    section.encode([&result_stream](ov::util::MemoryView data) {
+    section->encode([&result_stream](ov::util::MemoryView data) {
         result_stream.write(reinterpret_cast<const char*>(data.data()), data.size());
         OPENVINO_ASSERT(result_stream, "Stream invalidated during runtime requirements encoding");
     });

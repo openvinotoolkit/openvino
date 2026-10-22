@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,10 @@ constexpr std::string_view TYPE_AND_ID_DELIMITER = "_";
 
 namespace intel_npu {
 
-ISection::ISection(const SectionType type) : m_type(type) {}
+ISection::ISection(const SectionType type, const ov::runtime::hsm::SectionAlignment alignment, const bool is_inline)
+    : m_type(type),
+      m_alignment(alignment),
+      m_is_inline(is_inline) {}
 
 SectionType ISection::get_type() const {
     return m_type;
@@ -22,6 +25,14 @@ SectionType ISection::get_type() const {
 
 std::optional<SectionID> ISection::get_id() const {
     return m_id;
+}
+
+ov::runtime::hsm::SectionAlignment ISection::get_alignment() const {
+    return m_alignment;
+}
+
+bool ISection::is_inline() const {
+    return m_is_inline;
 }
 
 std::optional<std::string> ISection::get_individual_compatibility_requirements() const {

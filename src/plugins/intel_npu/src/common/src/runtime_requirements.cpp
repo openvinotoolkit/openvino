@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,12 +48,11 @@ namespace intel_npu {
 // TODO use logger
 RuntimeRequirements::RuntimeRequirements(const std::map<SectionID, std::string>& sections_requirements,
                                          const CRE& cre,
-                                         const std::unordered_map<SectionID, SectionType>& section_id_to_type,
-                                         const ov::log::Level log_level)
+                                         const std::unordered_map<SectionID, SectionType>& section_id_to_type)
     : m_sections_requirements(sections_requirements),
       m_cre(cre),
       m_section_id_to_type(section_id_to_type),
-      m_logger("RuntimeRequirements", log_level) {}
+      m_logger("RuntimeRequirements", Logger::global().level()) {}
 
 std::map<SectionID, std::string> RuntimeRequirements::get_sections_requirements() const {
     return m_sections_requirements;
@@ -140,11 +139,10 @@ std::optional<bool> RuntimeRequirements::get_instance_evaluation_result(const Se
     }
 }
 
-RuntimeRequirementsSection::RuntimeRequirementsSection(const RuntimeRequirements& runtime_requirements,
-                                                       const ov::log::Level log_level)
+RuntimeRequirementsSection::RuntimeRequirementsSection(const RuntimeRequirements& runtime_requirements)
     : ISection(SectionTypeCode::RUNTIME_REQUIREMENTS),
       m_runtime_requirements(runtime_requirements),
-      m_logger("RuntimeRequirementsSection", log_level) {
+      m_logger("RuntimeRequirementsSection", Logger::global().level()) {
     m_logger.debug("Initialized");
 }
 

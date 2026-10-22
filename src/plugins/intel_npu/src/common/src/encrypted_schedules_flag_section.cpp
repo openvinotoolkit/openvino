@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ namespace intel_npu {
 
 EncryptedSchedulesFlagSection::EncryptedSchedulesFlagSection(const bool applied_encryption,
                                                              const ov::log::Level log_level)
-    : ISection(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG),
+    : ISection(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, {}, true),
       m_flag(applied_encryption),
       m_logger("EncryptedSchedulesFlagSection", log_level) {
     m_logger.trace("Section created");

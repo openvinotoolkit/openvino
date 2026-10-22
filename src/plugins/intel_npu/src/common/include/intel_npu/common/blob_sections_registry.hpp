@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,6 +53,8 @@ public:
      */
     std::vector<std::shared_ptr<ISection>> retrieve_sections(const SectionType type) const;
 
+    std::queue<std::shared_ptr<ISection>> get_write_queue() const;
+
     /**
      * @return true if at least one section of the given type has been parsed
      * @return false otherwise
@@ -70,13 +72,14 @@ public:
      */
     std::unordered_map<SectionType, size_t> get_content_summary() const;
 
+    // TODO update
     /**
      * @brief Builds the runtime requirements (CRE + individual "compatibility substrings") based on the sections
      * registered so far.
      * @note The requirements are built on demand and not stored in order to make sure the requirements are aligned with
      * the content of the blob.
      */
-    RuntimeRequirements build_runtime_requirements() const;
+    std::shared_ptr<ISection> build_runtime_requirements_section() const;
 
 private:
     /**
