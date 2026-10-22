@@ -4,8 +4,7 @@
 
 #include "openvino/frontend/sequence_at.hpp"
 
-namespace ov {
-namespace frontend {
+namespace ov::frontend {
 
 SequenceAt::SequenceAt(const Output<Node>& input_sequence, const Output<Node>& position)
     : FrameworkNode({input_sequence, position}, 1) {}
@@ -15,5 +14,4 @@ std::shared_ptr<Node> SequenceAt::clone_with_new_inputs(const OutputVector& inpu
     return std::make_shared<SequenceAt>(inputs[0], inputs[1]);
 }
 
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend

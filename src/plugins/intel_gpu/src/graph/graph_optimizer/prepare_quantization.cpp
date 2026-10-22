@@ -4,6 +4,7 @@
 
 #include "fully_connected_inst.h"
 #include "gather_matmul_inst.h"
+#include "grouped_matmul_inst.h"
 #include "moe_3gemm_fused_inst.h"
 #include "moe_gemm_inst.h"
 #include "impls/ocl_v2/moe/moe_3gemm_base.hpp"
@@ -546,7 +547,8 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
 
 static void optimize_weights_decompression_parameters(fully_connected_node& fc_node, program& p) {
     auto fc_prim = fc_node.get_primitive();
-    if (!fc_prim->compressed_weights)
+    // Grouped scale/zp of non-transposed weights [K, N] are [K / G, N], so they already have the [groups, N] physical layout.
+    if (!fc_prim->compressed_weights || !fc_prim->weights_transposed)
         return;
 
     auto reorder_bfyx = [&](size_t dep_id, cldnn::format format) {
@@ -558,7 +560,9 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
         fc_node.get_dependency(dep_id).recalc_output_layout(false);
     };
 
-    auto need_reorder = [&](size_t dep_id, size_t weight_rank) {
+    auto need_reorder = [&](size_t dep_id, size_t weight_rank, bool transpose_b_param) {
+        if (!transpose_b_param)
+            return false;
         auto dep_layout = fc_node.get_input_layout(dep_id);
         auto dep_pshape = dep_layout.get_partial_shape();
         auto dep_rank = dep_pshape.size();
@@ -590,13 +594,14 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
       format = format::byfx;
 
     auto decompression_scale_idx = !fc_node.bias_term() ? 2 : 3;
-    if (need_reorder(decompression_scale_idx, weight_rank)) {
+    // OCL/oneDNN kernel requires decompression scale/zp in layout where scale_ofm dimension is innermost
+    if (need_reorder(decompression_scale_idx, weight_rank, fc_prim->transpose_b_scale)) {
         reorder_bfyx(decompression_scale_idx, format);
     }
 
     if (fc_prim->decompression_zero_point.is_valid()) {
         auto decompression_zp_idx = decompression_scale_idx + 1;
-        if (need_reorder(decompression_zp_idx, weight_rank)) {
+        if (need_reorder(decompression_zp_idx, weight_rank, fc_prim->transpose_b_zp)) {
             reorder_bfyx(decompression_zp_idx, format);
         }
     }
@@ -636,6 +641,18 @@ static void optimize_gather_matmul_decompression_parameters(gather_matmul_node& 
     reorder_decompression_param_to_byfx(node, gather_matmul::WEIGHT_SCALE, p);
     if (prim->has_zp)
         reorder_decompression_param_to_byfx(node, gather_matmul::WEIGHT_ZP, p);
+}
+
+// onednn grouped matmul reads group-wise scales/zp as [G, K/gs, N] (N innermost), while the graph provides
+// [G, N, K/gs]. The reorder to byfx is constant-folded at compile time.
+static void optimize_grouped_matmul_decompression_parameters(grouped_matmul_node& node, program& p) {
+    auto prim = node.get_primitive();
+    if (!prim->compressed_weights)
+        return;
+    size_t idx = grouped_matmul::GroupedMatmulInputIdx::OFFSETS + 1;
+    reorder_decompression_param_to_byfx(node, idx++, p);
+    if (prim->decompression_zero_point.is_valid())
+        reorder_decompression_param_to_byfx(node, idx, p);
 }
 
 static void optimize_moe_gemm_decompression_parameters(moe_gemm_node& node, program& p) {
@@ -698,6 +715,8 @@ void prepare_quantization::run(program& p) {
             optimize_weights_decompression_parameters(node->as<fully_connected>(), p);
         } else if (node->is_type<gather_matmul>()) {
             optimize_gather_matmul_decompression_parameters(node->as<gather_matmul>(), p);
+        } else if (node->is_type<grouped_matmul>()) {
+            optimize_grouped_matmul_decompression_parameters(node->as<grouped_matmul>(), p);
         } else if (node->is_type<moe_gemm>()) {
             optimize_moe_gemm_decompression_parameters(node->as<moe_gemm>(), p);
         } else if (node->is_type<moe_3gemm_fused_compressed>()) {

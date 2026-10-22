@@ -6,13 +6,11 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/frontend/sequence_mark.hpp"
 #include "pt_framework_node.hpp"
+#include "transforms/prim_list_unpack_replacer.hpp"
 #include "utils.hpp"
 #include "utils_quantize.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -58,12 +56,14 @@ OutputVector translate_list_unpack(const NodeContext& context) {
             }
         }
 
+        const auto sequence = make_list_construct(outputs);
+        if (pass::PrimListUnpackReplacer().apply(list_unpack_fw)) {
+            return wrap_complex(context, sequence->get_sequence(), complex);
+        }
+
         // Wrap outputs in ComplexTypeMark if input was complex
         return wrap_complex(context, outputs, complex);
     }
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op
