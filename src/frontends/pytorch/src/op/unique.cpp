@@ -71,7 +71,4 @@ OutputVector translate_unique2_fx(const NodeContext& context) {
     return {context.mark_node(make_list_construct(translate_unique2(context)))};
 }
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op
