@@ -190,6 +190,7 @@ static constexpr Property<bool, ov::PropertyMutability::RW> dump_profiling_data_
 static constexpr Property<std::string, ov::PropertyMutability::RW> average_counters{"GPU_AVERAGE_COUNTERS"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> dump_sources_path{"GPU_DUMP_SOURCES_PATH"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> dump_tensors_path{"GPU_DUMP_TENSORS_PATH"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> dump_sincos_path{"GPU_DUMP_SINCOS_PATH"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> dry_run_path{"GPU_DRY_RUN_PATH"};
 static constexpr Property<DumpTensors, ov::PropertyMutability::RW> dump_tensors{"GPU_DUMP_TENSORS"};
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> dump_layer_names{"GPU_DUMP_LAYER_NAMES"};
