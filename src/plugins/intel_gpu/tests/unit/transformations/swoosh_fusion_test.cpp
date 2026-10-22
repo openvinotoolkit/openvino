@@ -30,6 +30,13 @@ struct SwooshDecomposition {
     std::shared_ptr<ov::Model> model;
 };
 
+struct SwooshBuildOptions {
+    bool reverse_commutative_inputs = false;
+    bool use_different_scale_input = false;
+    bool use_different_select_shifted = false;
+    bool use_different_select_softplus = false;
+};
+
 SwooshDecomposition build_swoosh(float shift,
                                  float bias,
                                  bool expose_softplus = false,
@@ -37,14 +44,18 @@ SwooshDecomposition build_swoosh(float shift,
                                  const ov::element::Type& data_type = ov::element::f32,
                                  const ov::PartialShape& input_shape = {-1, 128},
                                  const ov::Shape& constant_shape = {},
-                                 bool use_f16_rounded_constants = false) {
+                                 bool use_f16_rounded_constants = false,
+                                 const SwooshBuildOptions& options = {}) {
     SwooshDecomposition decomposition;
     decomposition.input = std::make_shared<ov::op::v0::Parameter>(data_type, input_shape);
+    ov::ParameterVector parameters{decomposition.input};
     const auto constant_value = [&](float value) {
         return use_f16_rounded_constants ? static_cast<float>(ov::float16(value)) : value;
     };
     auto shift_constant = ov::op::v0::Constant::create(data_type, constant_shape, {constant_value(shift)});
-    auto shifted = std::make_shared<ov::op::v1::Add>(decomposition.input, shift_constant);
+    auto shifted = options.reverse_commutative_inputs
+                       ? std::make_shared<ov::op::v1::Add>(shift_constant, decomposition.input)
+                       : std::make_shared<ov::op::v1::Add>(decomposition.input, shift_constant);
     decomposition.softplus = std::make_shared<ov::op::v4::SoftPlus>(shifted);
     const auto overflow_limit = data_type == ov::element::f16
                                     ? static_cast<float>(std::numeric_limits<ov::float16>::max())
@@ -52,26 +63,46 @@ SwooshDecomposition build_swoosh(float shift,
     auto infinity = ov::op::v0::Constant::create(data_type,
                                                  constant_shape,
                                                  {overflow_limit});
-    auto equal = std::make_shared<ov::op::v1::Equal>(decomposition.softplus, infinity);
-    auto select = std::make_shared<ov::op::v1::Select>(equal, shifted, decomposition.softplus);
+    auto equal = options.reverse_commutative_inputs
+                     ? std::make_shared<ov::op::v1::Equal>(infinity, decomposition.softplus)
+                     : std::make_shared<ov::op::v1::Equal>(decomposition.softplus, infinity);
+    std::shared_ptr<ov::Node> select_shifted = shifted;
+    if (options.use_different_select_shifted) {
+        auto other_shift = ov::op::v0::Constant::create(data_type, constant_shape, {constant_value(shift)});
+        select_shifted = std::make_shared<ov::op::v1::Add>(decomposition.input, other_shift);
+    }
+    std::shared_ptr<ov::Node> select_softplus = decomposition.softplus;
+    if (options.use_different_select_softplus) {
+        select_softplus = std::make_shared<ov::op::v4::SoftPlus>(shifted);
+    }
+    auto select = std::make_shared<ov::op::v1::Select>(equal, select_shifted, select_softplus);
     auto slope = ov::op::v0::Constant::create(data_type,
                                               constant_shape,
                                               {constant_value(canonical_body ? -0.08f : 0.08f)});
-    auto scaled = std::make_shared<ov::op::v1::Multiply>(slope, decomposition.input);
+    std::shared_ptr<ov::op::v0::Parameter> scale_input = decomposition.input;
+    if (options.use_different_scale_input) {
+        scale_input = std::make_shared<ov::op::v0::Parameter>(data_type, input_shape);
+        parameters.push_back(scale_input);
+    }
+    auto scaled = options.reverse_commutative_inputs
+                      ? std::make_shared<ov::op::v1::Multiply>(scale_input, slope)
+                      : std::make_shared<ov::op::v1::Multiply>(slope, scale_input);
     std::shared_ptr<ov::Node> body;
     if (canonical_body) {
-        body = std::make_shared<ov::op::v1::Add>(select, scaled);
+        body = options.reverse_commutative_inputs ? std::make_shared<ov::op::v1::Add>(scaled, select)
+                                                  : std::make_shared<ov::op::v1::Add>(select, scaled);
     } else {
         body = std::make_shared<ov::op::v1::Subtract>(select, scaled);
     }
     auto bias_constant = ov::op::v0::Constant::create(data_type, constant_shape, {constant_value(bias)});
-    auto root = std::make_shared<ov::op::v1::Add>(bias_constant, body);
+    auto root = options.reverse_commutative_inputs ? std::make_shared<ov::op::v1::Add>(body, bias_constant)
+                                                   : std::make_shared<ov::op::v1::Add>(bias_constant, body);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(root)};
     if (expose_softplus) {
         results.push_back(std::make_shared<ov::op::v0::Result>(decomposition.softplus));
     }
-    decomposition.model = std::make_shared<ov::Model>(results, ov::ParameterVector{decomposition.input});
+    decomposition.model = std::make_shared<ov::Model>(results, parameters);
     return decomposition;
 }
 
@@ -106,6 +137,34 @@ TEST(SwooshFusionTest, FusesSwooshR) {
 TEST(SwooshFusionTest, FusesCanonicalizedAddBody) {
     auto decomposition = build_swoosh(-4.0f, -0.035f, false, true);
     EXPECT_NE(run_fusion(decomposition.model), nullptr);
+}
+
+TEST(SwooshFusionTest, FusesReversedCommutativeInputs) {
+    SwooshBuildOptions options;
+    options.reverse_commutative_inputs = true;
+    auto decomposition = build_swoosh(-4.0f, -0.035f, false, true, ov::element::f32, {-1, 128}, {}, false, options);
+    EXPECT_NE(run_fusion(decomposition.model), nullptr);
+}
+
+TEST(SwooshFusionTest, RejectsDifferentScaleInput) {
+    SwooshBuildOptions options;
+    options.use_different_scale_input = true;
+    auto decomposition = build_swoosh(-4.0f, -0.035f, false, false, ov::element::f32, {-1, 128}, {}, false, options);
+    EXPECT_EQ(run_fusion(decomposition.model), nullptr);
+}
+
+TEST(SwooshFusionTest, RejectsDifferentSelectShiftedInput) {
+    SwooshBuildOptions options;
+    options.use_different_select_shifted = true;
+    auto decomposition = build_swoosh(-4.0f, -0.035f, false, false, ov::element::f32, {-1, 128}, {}, false, options);
+    EXPECT_EQ(run_fusion(decomposition.model), nullptr);
+}
+
+TEST(SwooshFusionTest, RejectsDifferentSelectSoftplusInput) {
+    SwooshBuildOptions options;
+    options.use_different_select_softplus = true;
+    auto decomposition = build_swoosh(-4.0f, -0.035f, false, false, ov::element::f32, {-1, 128}, {}, false, options);
+    EXPECT_EQ(run_fusion(decomposition.model), nullptr);
 }
 
 TEST(SwooshFusionTest, RejectsUnsupportedConstants) {

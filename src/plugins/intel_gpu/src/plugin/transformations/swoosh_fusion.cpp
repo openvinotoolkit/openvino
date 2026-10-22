@@ -4,7 +4,6 @@
 
 #include "swoosh_fusion.hpp"
 
-#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -20,40 +19,17 @@
 #include "openvino/op/select.hpp"
 #include "openvino/op/softplus.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
 namespace {
 
-template <typename BinaryOp>
-bool split_scalar_constant(const std::shared_ptr<ov::Node>& node, ov::Output<ov::Node>& data, float& value) {
-    auto binary = ov::as_type_ptr<BinaryOp>(node);
-    if (!binary) {
-        return false;
-    }
-
-    for (size_t constant_index = 0; constant_index < 2; ++constant_index) {
-        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(binary->get_input_node_shared_ptr(constant_index));
-        if (constant && ov::shape_size(constant->get_shape()) > 0 &&
-            ov::op::util::get_single_value(constant, value, false)) {
-            data = binary->input_value(1 - constant_index);
-            return true;
-        }
-    }
-    return false;
-}
-
-bool has_only_users(const ov::Output<ov::Node>& output, const std::vector<std::shared_ptr<ov::Node>>& expected) {
-    const auto& targets = output.get_target_inputs();
-    if (targets.size() != expected.size()) {
-        return false;
-    }
-    return std::all_of(expected.begin(), expected.end(), [&](const std::shared_ptr<ov::Node>& node) {
-        return std::any_of(targets.begin(), targets.end(), [&](const ov::Input<ov::Node>& target) {
-            return target.get_node() == node.get();
-        });
-    });
+bool get_scalar_constant(const ov::Output<ov::Node>& output, float& value) {
+    auto constant = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
+    return constant && ov::shape_size(constant->get_shape()) > 0 &&
+           ov::op::util::get_single_value(constant, value, false);
 }
 
 bool matches_constant(float value, float expected, const ov::element::Type& data_type) {
@@ -71,72 +47,70 @@ bool matches_constant(float value, float expected, const ov::element::Type& data
 SwooshFusion::SwooshFusion() {
     using namespace ov::pass::pattern;
 
-    auto root_pattern = wrap_type<ov::op::v1::Add>({any_input(), any_input()});
+    auto input_m = any_input();
+    auto shift_constant_m = wrap_type<ov::op::v0::Constant>();
+    auto shifted_lhs_m = wrap_type<ov::op::v1::Add>({input_m, shift_constant_m}, consumers_count(2));
+    auto shifted_rhs_m = wrap_type<ov::op::v1::Add>({shift_constant_m, input_m}, consumers_count(2));
+    auto shifted_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{shifted_lhs_m, shifted_rhs_m});
+    auto softplus_m = wrap_type<ov::op::v4::SoftPlus>({shifted_m}, consumers_count(2));
+
+    auto limit_constant_m = wrap_type<ov::op::v0::Constant>();
+    auto equal_lhs_m = wrap_type<ov::op::v1::Equal>({softplus_m, limit_constant_m}, consumers_count(1));
+    auto equal_rhs_m = wrap_type<ov::op::v1::Equal>({limit_constant_m, softplus_m}, consumers_count(1));
+    auto equal_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{equal_lhs_m, equal_rhs_m});
+    auto select_m = wrap_type<ov::op::v1::Select>({equal_m, shifted_m, softplus_m}, consumers_count(1));
+
+    auto slope_constant_m = wrap_type<ov::op::v0::Constant>();
+    auto scaled_lhs_m = wrap_type<ov::op::v1::Multiply>({input_m, slope_constant_m}, consumers_count(1));
+    auto scaled_rhs_m = wrap_type<ov::op::v1::Multiply>({slope_constant_m, input_m}, consumers_count(1));
+    auto scaled_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{scaled_lhs_m, scaled_rhs_m});
+
+    auto subtract_m = wrap_type<ov::op::v1::Subtract>({select_m, scaled_m}, consumers_count(1));
+    auto body_lhs_m = wrap_type<ov::op::v1::Add>({select_m, scaled_m}, consumers_count(1));
+    auto body_rhs_m = wrap_type<ov::op::v1::Add>({scaled_m, select_m}, consumers_count(1));
+    auto body_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{subtract_m, body_lhs_m, body_rhs_m});
+
+    auto bias_constant_m = wrap_type<ov::op::v0::Constant>();
+    auto root_lhs_m = wrap_type<ov::op::v1::Add>({body_m, bias_constant_m});
+    auto root_rhs_m = wrap_type<ov::op::v1::Add>({bias_constant_m, body_m});
+    auto root_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{root_lhs_m, root_rhs_m});
+
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& matcher) {
-        const auto root = matcher.get_match_root();
+        const auto& pattern_map = matcher.get_pattern_value_map();
+        const auto root = pattern_map.at(root_m).get_node_shared_ptr();
         if (transformation_callback(root)) {
             return false;
         }
 
-        ov::Output<ov::Node> body_output;
-        float final_bias = 0.0f;
-        if (!split_scalar_constant<ov::op::v1::Add>(root, body_output, final_bias)) {
-            return false;
-        }
-
-        auto body = body_output.get_node_shared_ptr();
-        std::shared_ptr<ov::op::v1::Select> select;
-        std::shared_ptr<ov::Node> scaled;
-        float expected_slope = 0.0f;
-        if (auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(body)) {
-            select = ov::as_type_ptr<ov::op::v1::Select>(subtract->get_input_node_shared_ptr(0));
-            scaled = subtract->get_input_node_shared_ptr(1);
-            expected_slope = 0.08f;
-        } else if (auto add = ov::as_type_ptr<ov::op::v1::Add>(body)) {
-            for (size_t select_index = 0; select_index < 2; ++select_index) {
-                select = ov::as_type_ptr<ov::op::v1::Select>(add->get_input_node_shared_ptr(select_index));
-                if (select) {
-                    scaled = add->get_input_node_shared_ptr(1 - select_index);
-                    expected_slope = -0.08f;
-                    break;
-                }
-            }
-        }
-        if (!select || !scaled) {
-            return false;
-        }
-
-        ov::Output<ov::Node> direct_input;
-        float slope = 0.0f;
-        if (!split_scalar_constant<ov::op::v1::Multiply>(scaled, direct_input, slope)) {
-            return false;
-        }
-
+        const auto direct_input = pattern_map.at(input_m);
+        const auto body = pattern_map.at(body_m).get_node_shared_ptr();
+        const auto scaled = pattern_map.at(scaled_m).get_node_shared_ptr();
+        const auto select = pattern_map.at(select_m).get_node_shared_ptr();
+        const auto equal = pattern_map.at(equal_m).get_node_shared_ptr();
+        const auto softplus = pattern_map.at(softplus_m).get_node_shared_ptr();
+        const auto shifted = pattern_map.at(shifted_m).get_node_shared_ptr();
         const auto data_type = direct_input.get_element_type();
+
+        float shift = 0.0f;
+        float slope = 0.0f;
+        float equal_constant = 0.0f;
+        float final_bias = 0.0f;
+        if (!get_scalar_constant(pattern_map.at(shift_constant_m), shift) ||
+            !get_scalar_constant(pattern_map.at(slope_constant_m), slope) ||
+            !get_scalar_constant(pattern_map.at(limit_constant_m), equal_constant) ||
+            !get_scalar_constant(pattern_map.at(bias_constant_m), final_bias)) {
+            return false;
+        }
+
+        const float expected_slope = ov::is_type<ov::op::v1::Subtract>(body) ? 0.08f : -0.08f;
         if (!matches_constant(slope, expected_slope, data_type)) {
             return false;
         }
 
-        auto equal = ov::as_type_ptr<ov::op::v1::Equal>(select->get_input_node_shared_ptr(0));
-        auto softplus = ov::as_type_ptr<ov::op::v4::SoftPlus>(select->get_input_node_shared_ptr(2));
-        auto shifted = select->get_input_node_shared_ptr(1);
-        if (!equal || !softplus || softplus->get_input_node_shared_ptr(0) != shifted) {
-            return false;
-        }
-
-        ov::Output<ov::Node> equal_data;
-        float equal_constant = 0.0f;
-        const bool has_equal_constant = split_scalar_constant<ov::op::v1::Equal>(equal, equal_data, equal_constant);
         const bool is_positive_limit = (std::isinf(equal_constant) && equal_constant > 0.0f) ||
                                        (data_type == ov::element::f16 &&
                                         equal_constant == static_cast<float>(std::numeric_limits<ov::float16>::max()));
-        if (!has_equal_constant || !is_positive_limit || equal_data.get_node_shared_ptr() != softplus) {
-            return false;
-        }
-
-        ov::Output<ov::Node> shifted_input;
-        float shift = 0.0f;
-        if (!split_scalar_constant<ov::op::v1::Add>(shifted, shifted_input, shift) || shifted_input != direct_input) {
+        if (!is_positive_limit) {
             return false;
         }
 
@@ -153,15 +127,6 @@ SwooshFusion::SwooshFusion() {
             return false;
         }
 
-        if (!has_only_users(body->output(0), {root}) ||
-            !has_only_users(scaled->output(0), {body}) ||
-            !has_only_users(select->output(0), {body}) ||
-            !has_only_users(equal->output(0), {select}) ||
-            !has_only_users(softplus->output(0), {equal, select}) ||
-            !has_only_users(shifted->output(0), {softplus, select})) {
-            return false;
-        }
-
         const float offset = is_swoosh_l ? 4.0f : 1.0f;
         const float bias = is_swoosh_l ? 0.035f : 0.3132616877555847f;
         auto swoosh = std::make_shared<ov::intel_gpu::op::Swoosh>(direct_input, offset, bias);
@@ -171,7 +136,7 @@ SwooshFusion::SwooshFusion() {
         return true;
     };
 
-    auto matcher = std::make_shared<Matcher>(root_pattern, "SwooshFusion");
+    auto matcher = std::make_shared<Matcher>(root_m, "SwooshFusion");
     register_matcher(matcher, callback);
 }
 
