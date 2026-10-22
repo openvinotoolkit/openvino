@@ -60,7 +60,8 @@ std::shared_ptr<ov::Model> make_camera_model(const std::vector<int64_t>& indices
                                              bool add_max_pool_indices_user = false,
                                              bool add_port_runtime_info = false,
                                              bool add_external_data_user = false,
-                                             bool add_type_relaxed_branch = false) {
+                                             bool add_type_relaxed_branch = false,
+                                             bool add_type_relaxed_concat = false) {
     const auto input_shape = dynamic_camera_height
                                  ? ov::PartialShape{1, 4, 3, ov::Dimension::dynamic(), 640}
                                  : ov::PartialShape{1, 4, 3, 480, 640};
@@ -186,7 +187,21 @@ std::shared_ptr<ov::Model> make_camera_model(const std::vector<int64_t>& indices
         branches.push_back(branch);
     }
 
-    auto output_concat = std::make_shared<ov::op::v0::Concat>(branches, 3);
+    std::shared_ptr<ov::op::v0::Concat> output_concat;
+    if (add_type_relaxed_concat) {
+        ov::OutputVector relaxed_inputs;
+        relaxed_inputs.reserve(branches.size());
+        for (const auto& branch : branches) {
+            relaxed_inputs.push_back(ov::op::TemporaryReplaceOutputType(branch, ov::element::f16).get());
+        }
+        output_concat = std::make_shared<ov::op::TypeRelaxed<ov::op::v0::Concat>>(
+            ov::element::TypeVector(branches.size(), ov::element::f16),
+            ov::element::TypeVector{ov::element::f32},
+            relaxed_inputs,
+            3);
+    } else {
+        output_concat = std::make_shared<ov::op::v0::Concat>(branches, 3);
+    }
     output_concat->set_friendly_name("camera_output_concat");
     output_concat->output(0).set_names({"camera_output"});
     auto result = std::make_shared<ov::op::v0::Result>(output_concat);
@@ -666,6 +681,36 @@ TEST(BatchReplicatedBranches, RejectsTypeRelaxedBranches) {
     EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
                                                       .get_node_shared_ptr()),
               nullptr);
+}
+
+TEST(BatchReplicatedBranches, RejectsTypeRelaxedConcatRoot) {
+    auto model = make_camera_model({0, 1, 2, 3},
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   true);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
+    manager.run_passes(model);
+
+    const auto concat =
+        ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(concat, nullptr);
+    EXPECT_NE(dynamic_cast<ov::op::TypeRelaxedBase*>(concat.get()), nullptr);
 }
 
 TEST(BatchReplicatedBranches, RejectsUnknownRuntimeInfoWithoutThrowing) {

@@ -599,7 +599,8 @@ void merge_fused_names(const NodePtr& source,
 }
 
 bool transform_camera_branches(const std::shared_ptr<ov::op::v0::Concat>& output_concat) {
-    if (!output_concat || output_concat->get_output_size() == 0 || !is_static_node(output_concat)) {
+    if (!output_concat || is_type_relaxed(output_concat) || output_concat->get_output_size() == 0 ||
+        !is_static_node(output_concat)) {
         return false;
     }
 
