@@ -6,13 +6,14 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <optional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "llm_test_helpers.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 
@@ -111,13 +112,13 @@ protected:
     std::shared_ptr<ov::IPlugin> m_plugin;
 };
 
-TEST_F(LLMCompiledModelGraphOptionsTest, SharedHeadAddsHeadModelAndSlicesPrefillEmbeds) {
+TEST_F(LLMCompiledModelGraphOptionsTest, SharedHeadAddsHeadModelAndSelectsPrefillEmbeds) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_SHARED_HEAD", "YES"},
-                                                      {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}},
-                                                     recorder));
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model({{"NPUW_LLM_SHARED_HEAD", "YES"}, {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}},
+                                         recorder));
     ASSERT_NE(compiled, nullptr);
 
     const auto* prefill = recorder.find_suffix("_prefill");
@@ -133,7 +134,12 @@ TEST_F(LLMCompiledModelGraphOptionsTest, SharedHeadAddsHeadModelAndSlicesPrefill
     const auto head_input = lm_head->model->input(0);
     ASSERT_TRUE(head_input.get_partial_shape().is_static());
     EXPECT_EQ(head_input.get_shape(), (ov::Shape{1, 8, 64}));
-    EXPECT_GE(count_ops<ov::op::v8::Slice>(prefill->model), 1u);
+    EXPECT_TRUE(find_input(prefill->model, ov::npuw::util::kLogitsSelectionIndicesParamName).has_value());
+    EXPECT_GE(count_ops<ov::op::v8::Gather>(prefill->model), 1u);
+
+    const auto& generate = require_call_containing(recorder, "_kv");
+    EXPECT_TRUE(find_input(generate.model, ov::npuw::util::kLogitsSelectionIndicesParamName).has_value());
+    EXPECT_GE(count_ops<ov::op::v8::Gather>(generate.model), 1u);
 }
 
 TEST_F(LLMCompiledModelGraphOptionsTest, PromptResponseAndGenerationLengthsDriveStaticShapes) {
@@ -185,6 +191,27 @@ TEST_F(LLMCompiledModelGraphOptionsTest, DynamicChunkPrefillKeepsPastKvInputsAnd
     EXPECT_EQ(ids->get_shape(), (ov::Shape{1, 32}));
 }
 
+TEST_F(LLMCompiledModelGraphOptionsTest, DynamicChunkPrefillWithoutSharedHeadSelectsLastTokenLogits) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                                                      {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto* prefill = recorder.find_suffix("_prefill");
+    ASSERT_NE(prefill, nullptr);
+    const auto logits = find_output(prefill->model, "logits");
+    ASSERT_TRUE(logits.has_value());
+    EXPECT_EQ(logits->get_shape()[1], 1u);
+
+    const auto result = logits->get_node_shared_ptr();
+    ASSERT_NE(result, nullptr);
+    EXPECT_TRUE(ov::is_type<ov::op::v8::Gather>(result->input_value(0).get_node_shared_ptr()));
+}
+
 TEST_F(LLMCompiledModelGraphOptionsTest, StaticPrefillRemovesPastKvInputsAndKeepsPresentKvOutputs) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
@@ -200,6 +227,8 @@ TEST_F(LLMCompiledModelGraphOptionsTest, StaticPrefillRemovesPastKvInputsAndKeep
     ASSERT_NE(prefill, nullptr);
     EXPECT_EQ(count_inputs(prefill->model, "past_key_values"), 0u);
     EXPECT_GT(count_outputs(prefill->model, "present"), 0u);
+    EXPECT_TRUE(find_input(prefill->model, ov::npuw::util::kLogitsSelectionIndicesParamName).has_value());
+    EXPECT_GE(count_ops<ov::op::v8::Gather>(prefill->model), 1u);
     const auto ids = find_input(prefill->model, "input_ids");
     ASSERT_TRUE(ids.has_value());
     EXPECT_EQ(ids->get_shape(), (ov::Shape{1, 128}));
@@ -223,6 +252,7 @@ TEST_F(LLMCompiledModelGraphOptionsTest, GeneratePyramidBuildsTwoStaticGenerateV
             ASSERT_TRUE(mask.has_value());
             ASSERT_TRUE(mask->get_partial_shape().is_static());
             generate_attention_mask_shapes.push_back(mask->get_shape());
+            EXPECT_FALSE(find_input(call.model, ov::npuw::util::kLogitsSelectionIndicesParamName).has_value());
         }
     }
     EXPECT_EQ(generate_attention_mask_shapes.size(), 2u);
@@ -254,9 +284,9 @@ TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillUnsupportedForStaticPr
 
     // Whole (STATIC) prefill has no continuation path, so the option is accepted
     // but the capability reports false.
-    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"},
-                                                      {"NPUW_LLM_PREFILL_HINT", "STATIC"}},
-                                                     recorder));
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        {{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"}, {"NPUW_LLM_PREFILL_HINT", "STATIC"}},
+                        recorder));
     ASSERT_NE(compiled, nullptr);
 
     ov::Any supported;

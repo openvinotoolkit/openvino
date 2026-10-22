@@ -9,6 +9,7 @@
 // sub-requests whose infer() only zeroes outputs, so every byte that the tests
 // observe in a KV tensor was moved there by the plugin's own KV plumbing.
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -116,6 +117,24 @@ struct LLMContinuedPrefillTestAccess {
         return req.m_prefill_request->get_tensor(req.m_prefill_out_ports.at(output_name));
     }
 
+    static ov::SoPtr<ov::ITensor> lm_head_input(Request& req) {
+        return req.m_lm_head_request->get_tensor(req.m_lm_head_embed_port);
+    }
+
+    static ov::SoPtr<ov::ITensor> prefill_logits_selection_indices(Request& req) {
+        return req.m_prefill_request->get_tensor(
+            req.m_prefill_in_ports.at(ov::npuw::util::kLogitsSelectionIndicesParamName));
+    }
+
+    static ov::SoPtr<ov::ITensor> generate_logits_selection_indices(Request& req) {
+        return req.m_kvcache_request->get_tensor(
+            req.m_kvcache_in_ports.at(ov::npuw::util::kLogitsSelectionIndicesParamName));
+    }
+
+    static ov::SoPtr<ov::ITensor> logits(Request& req) {
+        return req.m_logits;
+    }
+
     static void copy_prefill_outputs_to_blocks(Request& req, uint32_t num_tokens, uint32_t current_kv_position) {
         auto* strategy = block_strategy(req);
         OPENVINO_ASSERT(strategy != nullptr, "Block-KV strategy is not initialized");
@@ -221,7 +240,14 @@ FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledMo
 void FakeSubInferRequest::infer() {
     for (const auto& output : get_compiled_model()->outputs()) {
         auto tensor = ov::ISyncInferRequest::get_tensor(output);
-        std::memset(tensor->data(), 0, tensor->get_byte_size());
+        if (output.get_any_name() == ov::npuw::LLMCompiledModel::output_embeds) {
+            auto* data = static_cast<uint8_t*>(tensor->data());
+            for (size_t index = 0; index < tensor->get_byte_size(); ++index) {
+                data[index] = static_cast<uint8_t>(index % 251u);
+            }
+        } else {
+            std::memset(tensor->data(), 0, tensor->get_byte_size());
+        }
     }
 }
 
@@ -328,7 +354,8 @@ protected:
                                                                   props,
                                                                   factory.make_factory());
         ASSERT_NE(m_compiled, nullptr);
-        ASSERT_TRUE(m_compiled->get_property("NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED").as<bool>());
+        const bool is_dynamic_prefill = props.at("NPUW_LLM_PREFILL_HINT").as<std::string>() == "DYNAMIC";
+        EXPECT_EQ(m_compiled->get_property("NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED").as<bool>(), is_dynamic_prefill);
 
         m_request = std::make_unique<ov::npuw::LLMInferRequest>(m_compiled);
 
@@ -379,10 +406,10 @@ protected:
         m_request->infer();
     }
 
-    void run_generate_step(size_t live_tokens) {
-        set_inputs(make_i64({1, 1}, 1),
-                   make_i64({1, live_tokens + 1}, 1),
-                   make_i64({1, 1}, static_cast<int64_t>(live_tokens)));
+    void run_generate_step(size_t live_tokens, size_t input_token_count = 1u) {
+        set_inputs(make_i64({1, input_token_count}, 1),
+                   make_i64({1, live_tokens + input_token_count}, 1),
+                   make_i64_iota({1, input_token_count}, static_cast<int64_t>(live_tokens)));
         m_request->infer();
     }
 
@@ -606,6 +633,91 @@ TEST_F(LLMContinuedPrefillTest, WholePrefillHandoffReadsLeftAlignedKvOutput) {
         auto live_prefix = ov::npuw::util::make_tensor_slice(generate, generate_seq_dim(name), 0u, prompt_len);
         EXPECT_EQ(materialize_bytes(live_prefix), expected_kv_bytes.at(name)) << name;
     }
+}
+
+TEST_F(LLMContinuedPrefillTest, ShortTailChunkRoutesGraphSelectedEmbedToSharedHead) {
+    init({{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "4"}});
+
+    run_full_prefill(67u);
+
+    auto prefill_embeds =
+        LLMContinuedPrefillTestAccess::prefill_output(request(), ov::npuw::LLMCompiledModel::output_embeds);
+    ASSERT_EQ(prefill_embeds->get_shape(), (ov::Shape{1, 8, 64}));
+    auto selection_indices = LLMContinuedPrefillTestAccess::prefill_logits_selection_indices(request());
+    ASSERT_EQ(selection_indices->get_shape(), (ov::Shape{8}));
+    EXPECT_THAT(std::vector<int64_t>(selection_indices->data<int64_t>(),
+                                     selection_indices->data<int64_t>() + selection_indices->get_size()),
+                ::testing::ElementsAre(0, 0, 0, 0, 0, 0, 1, 2));
+
+    auto lm_head_input = LLMContinuedPrefillTestAccess::lm_head_input(request());
+    EXPECT_EQ(prefill_embeds->data(), lm_head_input->data());
+}
+
+TEST_F(LLMContinuedPrefillTest, FullChunkStagesAllSelectionIndices) {
+    init({{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "4"}});
+
+    run_full_prefill(72u);
+
+    auto indices = LLMContinuedPrefillTestAccess::prefill_logits_selection_indices(request());
+    ASSERT_EQ(indices->get_shape(), (ov::Shape{8}));
+    EXPECT_THAT(std::vector<int64_t>(indices->data<int64_t>(), indices->data<int64_t>() + indices->get_size()),
+                ::testing::ElementsAre(0, 1, 2, 3, 4, 5, 6, 7));
+}
+
+TEST_F(LLMContinuedPrefillTest, ContinuedPrefillStagesDeltaSelectionIndices) {
+    init({{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "4"}});
+
+    run_full_prefill(64u);
+    run_generate_step(64u);
+    propose(65u);
+    EXPECT_EQ(stored_tokens(), 64);
+
+    run_delta_prefill(64u, 3u);
+
+    auto indices = LLMContinuedPrefillTestAccess::prefill_logits_selection_indices(request());
+    ASSERT_EQ(indices->get_shape(), (ov::Shape{8}));
+    EXPECT_THAT(std::vector<int64_t>(indices->data<int64_t>(), indices->data<int64_t>() + indices->get_size()),
+                ::testing::ElementsAre(0, 0, 0, 0, 0, 0, 1, 2));
+}
+
+TEST_F(LLMContinuedPrefillTest, WholePrefillStagesExactSharedHeadSelectionIndices) {
+    init({{"NPUW_LLM_PREFILL_HINT", "STATIC"},
+          {"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "NO"},
+          {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "4"}});
+
+    run_full_prefill(3u);
+
+    auto indices = LLMContinuedPrefillTestAccess::prefill_logits_selection_indices(request());
+    ASSERT_EQ(indices->get_shape(), (ov::Shape{8}));
+    EXPECT_THAT(std::vector<int64_t>(indices->data<int64_t>(), indices->data<int64_t>() + indices->get_size()),
+                ::testing::ElementsAre(0, 0, 0, 0, 0, 0, 1, 2));
+}
+
+TEST_F(LLMContinuedPrefillTest, WholePrefillStagesExactFusedHeadSelectionIndices) {
+    init({{"NPUW_LLM_PREFILL_HINT", "STATIC"},
+          {"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "NO"},
+          {"NPUW_LLM_SHARED_HEAD", "NO"},
+          {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "4"}});
+
+    run_full_prefill(3u);
+
+    auto indices = LLMContinuedPrefillTestAccess::prefill_logits_selection_indices(request());
+    ASSERT_EQ(indices->get_shape(), (ov::Shape{8}));
+    EXPECT_THAT(std::vector<int64_t>(indices->data<int64_t>(), indices->data<int64_t>() + indices->get_size()),
+                ::testing::ElementsAre(0, 0, 0, 0, 0, 0, 1, 2));
+    EXPECT_EQ(LLMContinuedPrefillTestAccess::logits(request())->get_shape(), (ov::Shape{1, 8, 256}));
+}
+
+TEST_F(LLMContinuedPrefillTest, GenerateStagesNewestTokenAtLastSelectionIndex) {
+    init({{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "4"}});
+
+    run_full_prefill(65u);
+    run_generate_step(65u, 3u);
+
+    auto indices = LLMContinuedPrefillTestAccess::generate_logits_selection_indices(request());
+    ASSERT_EQ(indices->get_shape(), (ov::Shape{8}));
+    EXPECT_THAT(std::vector<int64_t>(indices->data<int64_t>(), indices->data<int64_t>() + indices->get_size()),
+                ::testing::ElementsAre(0, 0, 0, 0, 0, 0, 1, 2));
 }
 
 // A preflight rejection mutates nothing and leaves the command pending, so a

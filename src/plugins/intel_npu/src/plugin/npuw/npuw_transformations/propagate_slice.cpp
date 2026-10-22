@@ -10,6 +10,7 @@
 #include <tuple>
 #include <vector>
 
+#include "../llm_compiled_model_utils.hpp"
 #include "../logging.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -253,6 +254,399 @@ static std::shared_ptr<ov::op::v8::Slice> create_slice_with_params(const ov::Out
     new_slice->validate_and_infer_types();
     return new_slice;
 }
+
+static bool is_logits_selection_indices(const ov::Output<ov::Node>& output) {
+    const auto parameter = ov::as_type_ptr<ov::op::v0::Parameter>(output.get_node_shared_ptr());
+    return parameter && parameter->output(0).get_names().count(ov::npuw::util::kLogitsSelectionIndicesParamName) > 0;
+}
+
+static std::optional<int64_t> get_logits_selection_axis(const std::shared_ptr<ov::op::v8::Gather>& gather) {
+    if (!is_logits_selection_indices(gather->input_value(1))) {
+        return std::nullopt;
+    }
+    const auto& data_shape = gather->get_input_partial_shape(0);
+    if (data_shape.is_dynamic()) {
+        return std::nullopt;
+    }
+    return static_cast<int64_t>(
+        ov::util::normalize_axis(gather->get_axis(), static_cast<int64_t>(data_shape.to_shape().size())));
+}
+
+static std::shared_ptr<ov::op::v8::Gather> clone_logits_selection_gather(
+    const std::shared_ptr<ov::op::v8::Gather>& gather,
+    const ov::Output<ov::Node>& data,
+    int64_t axis) {
+    const auto axis_constant = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {axis});
+    auto cloned = std::make_shared<ov::op::v8::Gather>(data, gather->input_value(1), axis_constant);
+    cloned->validate_and_infer_types();
+    return cloned;
+}
+
+static bool selector_input_needs_gather(const std::shared_ptr<ov::op::v8::Gather>& gather,
+                                        const ov::Output<ov::Node>& parent_output,
+                                        const ov::PartialShape& input_shape,
+                                        int64_t output_axis) {
+    const auto& output_shape = parent_output.get_partial_shape();
+    if (input_shape.is_dynamic() || output_shape.is_dynamic()) {
+        return false;
+    }
+    const auto input_rank = static_cast<int64_t>(input_shape.to_shape().size());
+    const auto output_rank = static_cast<int64_t>(output_shape.to_shape().size());
+    const int64_t input_axis = output_axis - (output_rank - input_rank);
+    if (input_axis < 0 || input_axis >= input_rank || input_shape[static_cast<size_t>(input_axis)].get_length() == 1) {
+        return false;
+    }
+    return gather->get_input_partial_shape(0)[static_cast<size_t>(output_axis)].get_length() ==
+           input_shape[static_cast<size_t>(input_axis)].get_length();
+}
+
+// ---------------------------------------------------------------------------
+// Runtime selector Gather propagation. The selector branch is cloned rather
+// than moving the original producer, preserving full-sequence fan-out users.
+// ---------------------------------------------------------------------------
+class PropagateLogitsGatherThroughUnary : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PropagateLogitsGatherThroughUnary");
+
+    PropagateLogitsGatherThroughUnary() {
+        auto data = any_input();
+        auto unary = wrap_type<ov::op::v0::Gelu,
+                               ov::op::v7::Gelu,
+                               ov::op::v0::Relu,
+                               ov::op::v0::Sqrt,
+                               ov::op::v0::Tanh,
+                               ov::op::v0::Sigmoid,
+                               ov::op::v0::Erf,
+                               ov::op::v4::Swish,
+                               ov::op::v0::Exp,
+                               ov::op::v0::Log,
+                               ov::op::v0::Abs,
+                               ov::op::v0::Negative,
+                               ov::op::v1::LogicalNot,
+                               ov::op::v0::HardSigmoid,
+                               ov::op::v0::Selu,
+                               ov::op::v0::Convert>({data});
+        auto gather = wrap_type<ov::op::v8::Gather>({unary, any_input(), any_input()});
+
+        register_matcher(std::make_shared<Matcher>(gather, "PropagateLogitsGatherThroughUnary"), [=](Matcher& m) {
+            auto& map = m.get_pattern_value_map();
+            const auto gather_node = ov::as_type_ptr<ov::op::v8::Gather>(map[gather].get_node_shared_ptr());
+            const auto unary_node = map[unary].get_node_shared_ptr();
+            const auto axis = get_logits_selection_axis(gather_node);
+            if (!axis) {
+                return false;
+            }
+
+            auto selected_input = clone_logits_selection_gather(gather_node, unary_node->input_value(0), *axis);
+            auto selected_unary = unary_node->clone_with_new_inputs({selected_input});
+            selected_unary->set_friendly_name(unary_node->get_friendly_name() + "_selected");
+            selected_unary->validate_and_infer_types();
+            ov::replace_node(gather_node, selected_unary);
+            return true;
+        });
+    }
+};
+
+class PropagateLogitsGatherThroughBinary : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PropagateLogitsGatherThroughBinary");
+
+    PropagateLogitsGatherThroughBinary() {
+        auto input_a = any_input();
+        auto input_b = any_input();
+        auto binary = wrap_type<ov::op::v1::Add,
+                                ov::op::v1::Subtract,
+                                ov::op::v1::Multiply,
+                                ov::op::v1::Divide,
+                                ov::op::v1::Maximum,
+                                ov::op::v1::Minimum,
+                                ov::op::v1::Power,
+                                ov::op::v1::Equal,
+                                ov::op::v1::Less,
+                                ov::op::v1::Greater,
+                                ov::op::v1::LessEqual,
+                                ov::op::v1::GreaterEqual>({input_a, input_b});
+        auto gather = wrap_type<ov::op::v8::Gather>({binary, any_input(), any_input()});
+
+        register_matcher(std::make_shared<Matcher>(gather, "PropagateLogitsGatherThroughBinary"), [=](Matcher& m) {
+            auto& map = m.get_pattern_value_map();
+            const auto gather_node = ov::as_type_ptr<ov::op::v8::Gather>(map[gather].get_node_shared_ptr());
+            const auto binary_node = map[binary].get_node_shared_ptr();
+            const auto axis = get_logits_selection_axis(gather_node);
+            if (!axis) {
+                return false;
+            }
+
+            const bool select_a = selector_input_needs_gather(gather_node,
+                                                              binary_node->output(0),
+                                                              binary_node->get_input_partial_shape(0),
+                                                              *axis);
+            const bool select_b = selector_input_needs_gather(gather_node,
+                                                              binary_node->output(0),
+                                                              binary_node->get_input_partial_shape(1),
+                                                              *axis);
+            if (!select_a && !select_b) {
+                return false;
+            }
+
+            auto selected_a = select_a ? clone_logits_selection_gather(gather_node, binary_node->input_value(0), *axis)
+                                       : binary_node->input_value(0);
+            auto selected_b = select_b ? clone_logits_selection_gather(gather_node, binary_node->input_value(1), *axis)
+                                       : binary_node->input_value(1);
+            auto selected_binary = binary_node->clone_with_new_inputs({selected_a, selected_b});
+            selected_binary->set_friendly_name(binary_node->get_friendly_name() + "_selected");
+            selected_binary->validate_and_infer_types();
+            ov::replace_node(gather_node, selected_binary);
+            return true;
+        });
+    }
+};
+
+class PropagateLogitsGatherThroughMatMul : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PropagateLogitsGatherThroughMatMul");
+
+    PropagateLogitsGatherThroughMatMul() {
+        auto data = any_input();
+        auto weight = any_input();
+        auto matmul = wrap_type<ov::op::v0::MatMul>({data, weight});
+        auto gather = wrap_type<ov::op::v8::Gather>({matmul, any_input(), any_input()});
+
+        register_matcher(std::make_shared<Matcher>(gather, "PropagateLogitsGatherThroughMatMul"), [=](Matcher& m) {
+            auto& map = m.get_pattern_value_map();
+            const auto gather_node = ov::as_type_ptr<ov::op::v8::Gather>(map[gather].get_node_shared_ptr());
+            const auto matmul_node = ov::as_type_ptr<ov::op::v0::MatMul>(map[matmul].get_node_shared_ptr());
+            const auto axis = get_logits_selection_axis(gather_node);
+            if (!axis) {
+                return false;
+            }
+
+            const auto& input_shape = matmul_node->get_input_partial_shape(0);
+            const auto& output_shape = matmul_node->get_output_partial_shape(0);
+            if (input_shape.is_dynamic() || output_shape.is_dynamic() || input_shape.rank().get_length() < 2 ||
+                input_shape.rank().get_length() != output_shape.rank().get_length() || matmul_node->get_transpose_a()) {
+                return false;
+            }
+            const int64_t rank = input_shape.rank().get_length();
+            if (*axis != rank - 2) {
+                return false;
+            }
+
+            auto selected_data = clone_logits_selection_gather(gather_node, matmul_node->input_value(0), *axis);
+            auto selected_matmul = matmul_node->clone_with_new_inputs({selected_data, matmul_node->input_value(1)});
+            selected_matmul->set_friendly_name(matmul_node->get_friendly_name() + "_selected");
+            selected_matmul->validate_and_infer_types();
+            ov::replace_node(gather_node, selected_matmul);
+            return true;
+        });
+    }
+};
+
+class PropagateLogitsGatherThroughReduce : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PropagateLogitsGatherThroughReduce");
+
+    PropagateLogitsGatherThroughReduce() {
+        auto data = any_input();
+        auto axes = any_input();
+        auto reduce =
+            wrap_type<ov::op::util::ArithmeticReductionKeepDims, ov::op::util::LogicalReductionKeepDims>({data, axes});
+        auto gather = wrap_type<ov::op::v8::Gather>({reduce, any_input(), any_input()});
+
+        register_matcher(std::make_shared<Matcher>(gather, "PropagateLogitsGatherThroughReduce"), [=](Matcher& m) {
+            auto& map = m.get_pattern_value_map();
+            const auto gather_node = ov::as_type_ptr<ov::op::v8::Gather>(map[gather].get_node_shared_ptr());
+            const auto reduce_node = map[reduce].get_node_shared_ptr();
+            const auto output_axis = get_logits_selection_axis(gather_node);
+            if (!output_axis) {
+                return false;
+            }
+
+            const auto axes_constant =
+                ov::as_type_ptr<ov::op::v0::Constant>(reduce_node->input_value(1).get_node_shared_ptr());
+            const auto& input_shape = reduce_node->get_input_partial_shape(0);
+            const auto& output_shape = reduce_node->get_output_partial_shape(0);
+            if (!axes_constant || input_shape.is_dynamic() || output_shape.is_dynamic()) {
+                return false;
+            }
+
+            std::vector<int64_t> reduction_axes;
+            for (const auto axis : axes_constant->cast_vector<int64_t>()) {
+                reduction_axes.push_back(
+                    static_cast<int64_t>(ov::util::normalize_axis(axis, input_shape.rank().get_length())));
+            }
+            std::sort(reduction_axes.begin(), reduction_axes.end());
+
+            int64_t input_axis = *output_axis;
+            if (input_shape.rank().get_length() != output_shape.rank().get_length()) {
+                int64_t removed_before = 0;
+                for (const auto reduction_axis : reduction_axes) {
+                    if (reduction_axis <= input_axis + removed_before) {
+                        ++removed_before;
+                    }
+                }
+                input_axis += removed_before;
+            }
+            if (std::find(reduction_axes.begin(), reduction_axes.end(), input_axis) != reduction_axes.end()) {
+                return false;
+            }
+
+            auto selected_input = clone_logits_selection_gather(gather_node, reduce_node->input_value(0), input_axis);
+            auto selected_reduce = reduce_node->clone_with_new_inputs({selected_input, reduce_node->input_value(1)});
+            selected_reduce->set_friendly_name(reduce_node->get_friendly_name() + "_selected");
+            selected_reduce->validate_and_infer_types();
+            ov::replace_node(gather_node, selected_reduce);
+            return true;
+        });
+    }
+};
+
+class PropagateLogitsGatherThroughTranspose : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PropagateLogitsGatherThroughTranspose");
+
+    PropagateLogitsGatherThroughTranspose() {
+        auto transpose = wrap_type<ov::op::v1::Transpose>();
+        auto gather = wrap_type<ov::op::v8::Gather>({transpose, any_input(), any_input()});
+
+        register_matcher(std::make_shared<Matcher>(gather, "PropagateLogitsGatherThroughTranspose"), [=](Matcher& m) {
+            auto& map = m.get_pattern_value_map();
+            const auto gather_node = ov::as_type_ptr<ov::op::v8::Gather>(map[gather].get_node_shared_ptr());
+            const auto transpose_node = ov::as_type_ptr<ov::op::v1::Transpose>(map[transpose].get_node_shared_ptr());
+            const auto output_axis = get_logits_selection_axis(gather_node);
+            const auto permutation =
+                ov::as_type_ptr<ov::op::v0::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
+            if (!output_axis || !permutation) {
+                return false;
+            }
+
+            const auto order = permutation->cast_vector<int64_t>();
+            if (*output_axis < 0 || static_cast<size_t>(*output_axis) >= order.size()) {
+                return false;
+            }
+            auto selected_input =
+                clone_logits_selection_gather(gather_node, transpose_node->input_value(0), order[*output_axis]);
+            auto selected_transpose =
+                transpose_node->clone_with_new_inputs({selected_input, transpose_node->input_value(1)});
+            selected_transpose->set_friendly_name(transpose_node->get_friendly_name() + "_selected");
+            selected_transpose->validate_and_infer_types();
+            ov::replace_node(gather_node, selected_transpose);
+            return true;
+        });
+    }
+};
+
+class PropagateLogitsGatherThroughConcat : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PropagateLogitsGatherThroughConcat");
+
+    PropagateLogitsGatherThroughConcat() {
+        auto concat = wrap_type<ov::op::v0::Concat>();
+        auto gather = wrap_type<ov::op::v8::Gather>({concat, any_input(), any_input()});
+
+        register_matcher(std::make_shared<Matcher>(gather, "PropagateLogitsGatherThroughConcat"), [=](Matcher& m) {
+            auto& map = m.get_pattern_value_map();
+            const auto gather_node = ov::as_type_ptr<ov::op::v8::Gather>(map[gather].get_node_shared_ptr());
+            const auto concat_node = ov::as_type_ptr<ov::op::v0::Concat>(map[concat].get_node_shared_ptr());
+            const auto axis = get_logits_selection_axis(gather_node);
+            if (!axis) {
+                return false;
+            }
+            const int64_t concat_axis = static_cast<int64_t>(
+                ov::util::normalize_axis(concat_node->get_axis(),
+                                         concat_node->get_input_partial_shape(0).rank().get_length()));
+            if (*axis == concat_axis) {
+                return false;
+            }
+
+            ov::OutputVector selected_inputs;
+            selected_inputs.reserve(concat_node->get_input_size());
+            for (size_t index = 0; index < concat_node->get_input_size(); ++index) {
+                selected_inputs.push_back(
+                    clone_logits_selection_gather(gather_node, concat_node->input_value(index), *axis));
+            }
+            auto selected_concat = std::make_shared<ov::op::v0::Concat>(selected_inputs, concat_node->get_axis());
+            selected_concat->set_friendly_name(concat_node->get_friendly_name() + "_selected");
+            selected_concat->validate_and_infer_types();
+            ov::replace_node(gather_node, selected_concat);
+            return true;
+        });
+    }
+};
+
+class PropagateLogitsGatherThroughSDPA : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PropagateLogitsGatherThroughSDPA");
+
+    PropagateLogitsGatherThroughSDPA() {
+        auto sdpa = wrap_type<ov::op::v13::ScaledDotProductAttention>();
+        auto gather = wrap_type<ov::op::v8::Gather>({sdpa, any_input(), any_input()});
+
+        register_matcher(std::make_shared<Matcher>(gather, "PropagateLogitsGatherThroughSDPA"), [=](Matcher& m) {
+            auto& map = m.get_pattern_value_map();
+            const auto gather_node = ov::as_type_ptr<ov::op::v8::Gather>(map[gather].get_node_shared_ptr());
+            const auto sdpa_node =
+                ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(map[sdpa].get_node_shared_ptr());
+            const auto output_axis = get_logits_selection_axis(gather_node);
+            if (!output_axis) {
+                return false;
+            }
+            if (sdpa_node->get_causal()) {
+                LOG_WARN("PropagateLogitsGatherUp: cannot propagate through causal SDPA "
+                         << sdpa_node->get_friendly_name() << ": its built-in mask depends on the query length");
+                return false;
+            }
+
+            const auto& q_shape = sdpa_node->get_input_partial_shape(0);
+            const auto& output_shape = sdpa_node->get_output_partial_shape(0);
+            if (q_shape.is_dynamic() || output_shape.is_dynamic() || q_shape.rank().get_length() < 2 ||
+                *output_axis != output_shape.rank().get_length() - 2) {
+                return false;
+            }
+            const int64_t q_axis = q_shape.rank().get_length() - 2;
+            if (q_shape[q_axis].get_length() != output_shape[*output_axis].get_length()) {
+                return false;
+            }
+
+            auto selected_q = clone_logits_selection_gather(gather_node, sdpa_node->input_value(0), q_axis);
+            ov::OutputVector selected_inputs;
+            selected_inputs.reserve(sdpa_node->get_input_size());
+            for (size_t index = 0; index < sdpa_node->get_input_size(); ++index) {
+                if (index == 0u) {
+                    selected_inputs.push_back(selected_q);
+                    continue;
+                }
+                if (index != 3u) {
+                    selected_inputs.push_back(sdpa_node->input_value(index));
+                    continue;
+                }
+
+                const auto& mask_shape = sdpa_node->get_input_partial_shape(index);
+                if (mask_shape.is_dynamic() || mask_shape.rank().get_length() < 2) {
+                    return false;
+                }
+                const int64_t mask_axis = mask_shape.rank().get_length() - 2;
+                const auto mask_query_length = mask_shape[mask_axis].get_length();
+                if (mask_query_length == 1) {
+                    selected_inputs.push_back(sdpa_node->input_value(index));
+                } else if (mask_query_length == q_shape[q_axis].get_length()) {
+                    selected_inputs.push_back(
+                        clone_logits_selection_gather(gather_node, sdpa_node->input_value(index), mask_axis));
+                } else {
+                    return false;
+                }
+            }
+
+            auto selected_sdpa = sdpa_node->clone_with_new_inputs(selected_inputs);
+            selected_sdpa->set_friendly_name(sdpa_node->get_friendly_name() + "_selected");
+            selected_sdpa->get_rt_info()[ov::npuw::NPUW_ORIGINAL_QUERY_LENGTH_RT_KEY] =
+                static_cast<size_t>(q_shape[q_axis].get_length());
+            selected_sdpa->validate_and_infer_types();
+            ov::replace_node(gather_node, selected_sdpa);
+            return true;
+        });
+    }
+};
 
 // Create a new Slice with explicit multi-axis parameters (vector overload of create_slice_with_params(),
 // for merge/extraction rules that build a Slice spanning several axes at once).
@@ -2324,6 +2718,35 @@ bool PropagateSliceUp::run_on_model(const std::shared_ptr<ov::Model>& model) {
     if (iteration >= max_iterations) {
         LOG_WARN("PropagateSliceUp: reached maximum iterations (" << max_iterations
                                                                   << "), stopping to prevent infinite loop");
+    }
+
+    return overall_changed;
+}
+
+bool PropagateLogitsGatherUp::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    bool overall_changed = false;
+    bool iteration_changed = true;
+    int iteration = 0;
+    constexpr int max_iterations = 5000;
+
+    while (iteration_changed && iteration < max_iterations) {
+        ++iteration;
+        ov::pass::GraphRewrite rewrite;
+        rewrite.add_matcher<PropagateLogitsGatherThroughUnary>();
+        rewrite.add_matcher<PropagateLogitsGatherThroughBinary>();
+        rewrite.add_matcher<PropagateLogitsGatherThroughReduce>();
+        rewrite.add_matcher<PropagateLogitsGatherThroughMatMul>();
+        rewrite.add_matcher<PropagateLogitsGatherThroughTranspose>();
+        rewrite.add_matcher<PropagateLogitsGatherThroughConcat>();
+        rewrite.add_matcher<PropagateLogitsGatherThroughSDPA>();
+
+        iteration_changed = rewrite.run_on_model(model);
+        overall_changed |= iteration_changed;
+    }
+
+    if (iteration >= max_iterations) {
+        LOG_WARN("PropagateLogitsGatherUp: reached maximum iterations (" << max_iterations
+                                                                         << "), stopping to prevent infinite loop");
     }
 
     return overall_changed;

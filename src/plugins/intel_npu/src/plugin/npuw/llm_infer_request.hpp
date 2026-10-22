@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 
 #include "base_sync_infer_request.hpp"
 #include "llm_compiled_model.hpp"
@@ -113,6 +114,10 @@ protected:
                         ov::SoPtr<ov::ITensor> position_ids,
                         ov::SoPtr<ov::ITensor> per_layer_inputs);
 
+    void set_logits_selection_indices(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                      const std::optional<ov::Output<const ov::Node>>& selection_port,
+                                      uint32_t valid_token_count) const;
+
     // Continuation counterpart of prepare_for_new_conversation(), run by
     // infer_prefill() when a granted keep is armed. Validates the delta inputs,
     // repacks the preserved prefix through the strategy, restores the history
@@ -134,6 +139,7 @@ protected:
     // Selects the generate variant for the given prompt length and rebinds the
     // request, its port maps and the variant index together.
     void bind_generate_variant(int64_t prompt_length);
+    void refresh_kvcache_logits_selection_port();
 
     // Multiple generate inference request variants, each with a different KV cache size
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_generate_requests;
@@ -166,7 +172,12 @@ protected:
     // Ports for all generate model variants - maps from request pointer to its input/output ports
     std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap> m_generate_variant_in_ports;
     std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap> m_generate_variant_out_ports;
+    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, ov::Output<const ov::Node>>
+        m_generate_variant_logits_selection_ports;
+    std::optional<ov::Output<const ov::Node>> m_prefill_logits_selection_port;
+    std::optional<ov::Output<const ov::Node>> m_kvcache_logits_selection_port;
 
+    ov::Output<const ov::Node> m_lm_head_embed_port;
     ov::Output<const ov::Node> m_lm_head_logits_port;
 
     std::vector<std::string> m_kvcache_past_names;
