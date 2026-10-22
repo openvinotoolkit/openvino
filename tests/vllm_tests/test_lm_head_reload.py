@@ -49,13 +49,21 @@ def _ref(x, w):
 
 @pytest.fixture(autouse=True, params=["1", "0"], ids=["ov_lm_head", "onednn_lm_head"])
 def lm_head_impl(request, monkeypatch):
-    """Run every test against both lm_head implementations.
+    """Run every test against both lm_head implementations, restoring the weight hooks afterwards.
 
     _install_ov_lm_head reads OV_LM_HEAD at call time, so monkeypatch.setenv
     is enough. "1" is the OV-constant path; "0" is the default oneDNN path,
     whose packed weight goes just as stale on reload.
     """
     monkeypatch.setenv("OV_LM_HEAD", request.param)
+    # The hook tests replace these class attributes with stand-ins; snapshot them so
+    # teardown restores the real methods and markers for later tests in the process.
+    from vllm.v1.worker.cpu_model_runner import CPUModelRunner
+    from vllm.v1.worker.cpu_worker import CPUWorker
+    for cls, names in ((CPUModelRunner, ("reload_weights", "_ov_plugin_reload_patched")),
+                       (CPUWorker, ("finish_weight_update", "_ov_plugin_update_patched"))):
+        for name in names:
+            monkeypatch.setattr(cls, name, getattr(cls, name, None), raising=False)
     return request.param
 
 
