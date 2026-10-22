@@ -198,6 +198,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_GPU_VENDOR=${GPU_VENDOR}"
                 "-DDNNL_LIBRARY_NAME=${onednn_lib_name}"
                 "-DCMAKE_INSTALL_PREFIX=${ONEDNN_INSTALL_DIR}"
+                "-DCMAKE_INSTALL_LIBDIR=lib"
                 "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
                 "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
                 "-DDNNL_ENABLE_WORKLOAD=INFERENCE"
