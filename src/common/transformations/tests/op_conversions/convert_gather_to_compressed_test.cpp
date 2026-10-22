@@ -154,7 +154,7 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressed4) {
 }
 
 TEST_F(TransformationTestsF, ConvertGatherToCompressedU2NotMatchedByDefault) {
-    // A plugin that runs the pass without opting in may have no u2 GatherCompressed; the graph must stay as is.
+    // u2 is not in the default type list, so the graph must stay as is.
     auto input1 = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
     auto axis_const = v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
     auto weights_const = v0::Constant::create(ov::element::u2, ov::Shape{32, 16}, {1});

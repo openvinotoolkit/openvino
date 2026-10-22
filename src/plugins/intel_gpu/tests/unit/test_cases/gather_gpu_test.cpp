@@ -2635,9 +2635,7 @@ public:
         }
     }
 
-    // The only thing in the tree that compiles the "#elif COMPRESSED_WEIGHTS_UINT2" arm of
-    // gather_ref.cl. Values are chosen so the whole result is exactly representable and every
-    // decoded u2 level (0..3) appears, which is what makes a wrong unpack shift visible.
+    // Every decoded u2 level (0..3) appears, so a wrong unpack shift is visible.
     void test_compressed_scale_zp_u2(bool is_caching_test, bool use_zp, bool is_dynamic = false) {
         auto& engine = get_test_engine();
 
@@ -2728,7 +2726,6 @@ TEST_F(gather_gpu_tests, compressed_scale_u2_dynamic) {
     this->test_compressed_scale_zp_u2(false, false, true);
 }
 
-// A u2 dictionary is only decoded on the compressed path; a plain u2 Gather must not get the ref kernel.
 TEST(gather_gpu, u2_uncompressed_not_supported) {
     auto& engine = get_test_engine();
 
