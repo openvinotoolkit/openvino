@@ -39,6 +39,13 @@ ov::OutputVector prelu(const ov::frontend::onnx::Node& node) {
     const auto& data = ov_inputs.at(0);
     const auto& slope = ov_inputs.at(1);
 
+    // v0::PRelu only reinterprets a rank-1 slope as per-channel; any other static rank already broadcasts with
+    // ONNX (NUMPY, trailing-axis) rules, so forward it without the normalization subgraph.
+    const auto& static_slope_rank = slope.get_partial_shape().rank();
+    if (static_slope_rank.is_static() && static_slope_rank.get_length() != 1) {
+        return {std::make_shared<v0::PRelu>(data, slope)};
+    }
+
     const auto data_shape = std::make_shared<v3::ShapeOf>(data, ov::element::i64);
     const auto slope_shape = std::make_shared<v3::ShapeOf>(slope, ov::element::i64);
     const auto data_rank_vector = std::make_shared<v3::ShapeOf>(data_shape, ov::element::i64);

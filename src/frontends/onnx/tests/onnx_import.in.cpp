@@ -3155,7 +3155,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_compact_channel_constant) {
     ASSERT_NE(prelu, nullptr);
     const auto constant = ov::as_type_ptr<op::v0::Constant>(prelu->get_input_node_shared_ptr(1));
     ASSERT_NE(constant, nullptr);
-    EXPECT_EQ(constant->get_shape(), (Shape{1, 64, 1, 1}));
+    EXPECT_EQ(constant->get_shape(), (Shape{64, 1, 1}));
     EXPECT_EQ(constant->get_byte_size(), 64 * sizeof(float));
 
     // The large activation shape above must not produce a large folded slope. Infer a smaller equivalent case.
@@ -3174,7 +3174,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_compact_channel_runtime_slope) {
     auto model = frontend->convert(input_model);
     const auto prelu = ov::as_type_ptr<op::v0::PRelu>(model->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_NE(prelu, nullptr);
-    EXPECT_EQ(prelu->get_input_shape(1), (Shape{1, 3, 1, 1}));
+    EXPECT_EQ(prelu->get_input_shape(1), (Shape{3, 1, 1}));
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>(std::vector<float>(18, -2.f));
     test_case.add_input<float>(std::vector<float>(3, 0.5f));
