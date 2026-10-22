@@ -180,7 +180,11 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressedU2) {
         auto gather = std::make_shared<v8::Gather>(scale, input1, axis_const);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{gather}, ov::ParameterVector{input1});
-        manager.register_pass<ConvertGatherToGatherCompressed>(/*support_u2=*/true);
+        manager.register_pass<ConvertGatherToGatherCompressed>(std::vector<ov::element::Type>{ov::element::u8,
+                                                                                              ov::element::i8,
+                                                                                              ov::element::u4,
+                                                                                              ov::element::i4,
+                                                                                              ov::element::u2});
     }
     {
         auto input1 = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});

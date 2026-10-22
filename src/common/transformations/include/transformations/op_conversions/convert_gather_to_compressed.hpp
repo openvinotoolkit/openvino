@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <vector>
+
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
@@ -38,9 +41,8 @@ class TRANSFORMATIONS_API MoveDecompressionAfterGather;
 class ov::pass::ConvertGatherToGatherCompressed : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertGatherToGatherCompressed");
-    // support_u2: also match u2 dictionaries. Off by default because a plugin running this pass must
-    // be able to execute a u2 GatherCompressed.
-    explicit ConvertGatherToGatherCompressed(bool support_u2 = false);
+    explicit ConvertGatherToGatherCompressed(const std::vector<ov::element::Type>& supported_weights_types =
+                                                 {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4});
 };
 
 /*

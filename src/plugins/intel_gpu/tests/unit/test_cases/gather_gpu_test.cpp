@@ -2638,7 +2638,7 @@ public:
     // The only thing in the tree that compiles the "#elif COMPRESSED_WEIGHTS_UINT2" arm of
     // gather_ref.cl. Values are chosen so the whole result is exactly representable and every
     // decoded u2 level (0..3) appears, which is what makes a wrong unpack shift visible.
-    void test_compressed_scale_zp_u2(bool is_caching_test, bool use_zp) {
+    void test_compressed_scale_zp_u2(bool is_caching_test, bool use_zp, bool is_dynamic = false) {
         auto& engine = get_test_engine();
 
         auto input_mem = engine.allocate_memory({{2, 3}, data_types::i32, format::bfyx});
@@ -2656,39 +2656,36 @@ public:
         if (use_zp)
             set_values(zp_mem, {1.0f, 2.0f});
 
-        topology topology(input_layout("input", input_mem->get_layout()),
+        auto in_layout = is_dynamic ? layout{ov::PartialShape::dynamic(2), data_types::i32, format::bfyx}
+                                    : input_mem->get_layout();
+        topology topology(input_layout("input", in_layout),
                           data("weights", weights_mem),
                           data("scale", scale_mem));
         if (use_zp) {
             topology.add(data("zp", zp_mem));
-            topology.add(gather("gather_prim",
-                                input_info("weights"),
-                                input_info("input"),
-                                1,
-                                input_info("scale"),
-                                input_info("zp"),
-                                data_types::f32,
-                                2,
-                                ov::Shape{2, 3},
-                                1));
-        } else {
-            topology.add(gather("gather_prim",
-                                input_info("weights"),
-                                input_info("input"),
-                                1,
-                                input_info("scale"),
-                                input_info(""),
-                                data_types::f32,
-                                2,
-                                ov::Shape{2, 3},
-                                1));
         }
+        topology.add(gather("gather_prim",
+                            input_info("weights"),
+                            input_info("input"),
+                            1,
+                            input_info("scale"),
+                            use_zp ? input_info("zp") : input_info(""),
+                            data_types::f32,
+                            2,
+                            is_dynamic ? ov::Shape{} : ov::Shape{2, 3},
+                            1));
 
         auto config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input_mem);
+
+        if (is_dynamic) {
+            auto impl = network->get_primitive("gather_prim")->get_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic());
+        }
 
         auto outputs = network->execute();
         ASSERT_EQ(outputs.size(), size_t(1));
@@ -2721,6 +2718,31 @@ TEST_F(gather_gpu_tests, compressed_scale_zp_u2_cached) {
 
 TEST_F(gather_gpu_tests, compressed_scale_u2) {
     this->test_compressed_scale_zp_u2(false, false);
+}
+
+TEST_F(gather_gpu_tests, compressed_scale_zp_u2_dynamic) {
+    this->test_compressed_scale_zp_u2(false, true, true);
+}
+
+TEST_F(gather_gpu_tests, compressed_scale_u2_dynamic) {
+    this->test_compressed_scale_zp_u2(false, false, true);
+}
+
+// A u2 dictionary is only decoded on the compressed path; a plain u2 Gather must not get the ref kernel.
+TEST(gather_gpu, u2_uncompressed_not_supported) {
+    auto& engine = get_test_engine();
+
+    auto weights_mem = engine.allocate_memory({{2, 8}, data_types::u2, format::bfyx});
+    auto input_mem = engine.allocate_memory({{2, 3}, data_types::i32, format::bfyx});
+
+    topology topology(input_layout("input", input_mem->get_layout()),
+                      data("weights", weights_mem),
+                      gather("gather_prim", input_info("weights"), input_info("input"), 1, 2, ov::Shape{2, 3}, 1));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    EXPECT_ANY_THROW({ network net(engine, topology, config); });
 }
 
 TEST_F(gather_gpu_tests, compressed_scale_zp) {
