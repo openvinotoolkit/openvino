@@ -7,6 +7,8 @@ import os
 import subprocess
 import sys
 
+import re
+
 import numpy as np
 
 import openvino as ov
@@ -490,8 +492,20 @@ def test_packing(shape, low, high, ov_type, dtype):
     ],
 )
 def test_pack_data_rejects_values_out_of_range(ov_type, values, dtype):
-    with pytest.raises(RuntimeError):
+    low, high = (-8, 7) if ov_type == ov.Type.i4 else (0, (1 << ov_type.bitwidth) - 1)
+    with pytest.raises(RuntimeError, match=re.escape(f"out of the {ov_type.get_type_name()} range [{low}, {high}]")):
         pack_data(np.array(values, dtype=dtype), ov_type)
+
+
+def test_pack_data_range_error_reports_summary_not_values():
+    # The error names dtype, shape, min and max instead of printing the whole array
+    data = np.zeros(100_000, dtype=np.uint8)
+    data[-1] = 16
+    with pytest.raises(RuntimeError) as e:
+        pack_data(data, ov.Type.u4)
+    message = str(e.value)
+    assert len(message) < 300
+    assert "uint8" in message and "(100000,)" in message and "min 0" in message and "max 16" in message
 
 
 @pytest.mark.parametrize(
