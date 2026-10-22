@@ -488,33 +488,35 @@ std::vector<ze_event_handle_t>& ExecutionContext::EventPool::getWaitEvents() {
 
 bool ExecutionContext::EventPool::destroy() {
     bool success = true;
-    auto pfnEventDestroy = _ddiTable->zeEventDestroy;
-    auto pfnEventPoolDestroy = _ddiTable->zeEventPoolDestroy;
-    for (auto& event : _events) {
-        if (event == nullptr) {
-            continue;
-        }
+    if (_ddiTable != nullptr) {
+        auto pfnEventDestroy = _ddiTable->zeEventDestroy;
+        auto pfnEventPoolDestroy = _ddiTable->zeEventPoolDestroy;
+        for (auto& event : _events) {
+            if (event == nullptr) {
+                continue;
+            }
 
-        auto result = pfnEventDestroy(event);
-        if (result != ZE_RESULT_SUCCESS) {
-            NPU_VM_LOG_ERROR("Failed to destroy event during destruction: {}", result);
-            success = false;
-        } else {
-            event = nullptr;
+            auto result = pfnEventDestroy(event);
+            if (result != ZE_RESULT_SUCCESS) {
+                NPU_VM_LOG_ERROR("Failed to destroy event during destruction: {}", result);
+                success = false;
+            } else {
+                event = nullptr;
+            }
+        }
+    
+        _events.clear();
+
+        if (_eventPool != nullptr) {
+            auto result = pfnEventPoolDestroy(_eventPool);
+            if (result != ZE_RESULT_SUCCESS) {
+                NPU_VM_LOG_ERROR("Failed to destroy event pool during destruction: {}", result);
+                success = false;
+            } else {
+                _eventPool = nullptr;
+            }
         }
     }
-    _events.clear();
-
-    if (_eventPool != nullptr) {
-        auto result = pfnEventPoolDestroy(_eventPool);
-        if (result != ZE_RESULT_SUCCESS) {
-            NPU_VM_LOG_ERROR("Failed to destroy event pool during destruction: {}", result);
-            success = false;
-        } else {
-            _eventPool = nullptr;
-        }
-    }
-
     return success;
 }
 

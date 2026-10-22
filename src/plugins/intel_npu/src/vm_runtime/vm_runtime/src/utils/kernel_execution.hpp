@@ -212,13 +212,15 @@ public:
             // resetEventCount is selected below to reset only the events that may remain signaled on host.
             auto resetEventCount = getEventCountForReset();
 
-            auto pfnEventHostReset = _ddiTable->zeEventHostReset;
-            for (uint32_t i = 0; i < resetEventCount; ++i) {
-                auto& event = _events.at(i);
-                if (event != nullptr) {
-                    auto result = pfnEventHostReset(event);
-                    if (result != ZE_RESULT_SUCCESS) {
-                        return result;
+            if (_ddiTable) {
+                auto pfnEventHostReset = _ddiTable->zeEventHostReset;
+                for (uint32_t i = 0; i < resetEventCount; ++i) {
+                    auto& event = _events.at(i);
+                    if (event != nullptr) {
+                        auto result = pfnEventHostReset(event);
+                        if (result != ZE_RESULT_SUCCESS) {
+                            return result;
+                        }
                     }
                 }
             }
