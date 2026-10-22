@@ -65,6 +65,10 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
     [[nodiscard]] bool is_cpu() const override {
         return false;
     }
+
+    [[nodiscard]] bool supports_replay() const override {
+        return false;
+    }
 };
 
 }  // namespace
