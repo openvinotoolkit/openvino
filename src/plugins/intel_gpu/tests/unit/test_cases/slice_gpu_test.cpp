@@ -7,6 +7,8 @@
 #include <intel_gpu/primitives/slice.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
+#include "primitive_inst.h"
+
 #include <random>
 #include <algorithm>
 #include <vector>
@@ -329,6 +331,79 @@ TYPED_TEST(SliceTest, bfzyx) {
     params.is_axes_dynamic = true;
 
     this->RunAllTestCasesForParams(params);
+}
+
+void run_slice_gpu_different_jit_kernels(bool is_caching_test) {
+    auto& engine = get_test_engine();
+    const ov::PartialShape input_shape{1, 2, 2, 4};
+    auto input = engine.allocate_memory({input_shape, data_types::i32, format::bfyx});
+    set_values<int32_t>(input, helpers::GenInput<int32_t>(input_shape));
+
+    auto start = engine.allocate_memory({ov::PartialShape{3}, data_types::i64, format::bfyx});
+    auto stop = engine.allocate_memory({ov::PartialShape{3}, data_types::i64, format::bfyx});
+    auto step = engine.allocate_memory({ov::PartialShape{3}, data_types::i64, format::bfyx});
+    auto axes = engine.allocate_memory({ov::PartialShape{3}, data_types::i64, format::bfyx});
+    set_values<int64_t>(start, {1, 0, 0});
+    set_values<int64_t>(stop, {2, 2, 4});
+    set_values<int64_t>(step, {1, 1, 2});
+    set_values<int64_t>(axes, {1, 2, 3});
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(data("start", start));
+    topology.add(data("stop", stop));
+    topology.add(data("step", step));
+    topology.add(data("axes", axes));
+    topology.add(
+        slice("slice_static", {input_info("input"), input_info("start"), input_info("stop"), input_info("step"), input_info("axes")}, true, true, true));
+
+    topology.add(input_layout("dynamic_start", start->get_layout()));
+    topology.add(input_layout("dynamic_step", step->get_layout()));
+    topology.add(slice("slice_dynamic",
+                       {input_info("input"), input_info("dynamic_start"), input_info("stop"), input_info("dynamic_step"), input_info("axes")},
+                       false,
+                       false,
+                       true));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("input", input);
+    network->set_input_data("dynamic_start", start);
+    network->set_input_data("dynamic_step", step);
+
+    auto outputs = network->execute();
+    ASSERT_EQ(outputs.size(), size_t(2));
+
+    const auto static_slice = network->get_primitive("slice_static");
+    const auto dynamic_slice = network->get_primitive("slice_dynamic");
+    ASSERT_NE(static_slice, nullptr);
+    ASSERT_NE(dynamic_slice, nullptr);
+    ASSERT_NE(static_slice->get_impl(), nullptr);
+    ASSERT_NE(dynamic_slice->get_impl(), nullptr);
+    EXPECT_EQ(static_slice->get_impl()->get_kernel_name(), dynamic_slice->get_impl()->get_kernel_name());
+    EXPECT_NE(static_slice->get_impl(), dynamic_slice->get_impl());
+    EXPECT_NE(static_slice->desc()->hash(), dynamic_slice->desc()->hash());
+    EXPECT_NE(static_slice->get_impl_params()->hash(), dynamic_slice->get_impl_params()->hash());
+
+    const std::vector<int32_t> expected = {8, 10, 12, 14};
+
+    const layout expected_layout{ov::PartialShape{1, 1, 2, 2}, data_types::i32, format::bfyx};
+    for (const auto& output_id : {"slice_static", "slice_dynamic"}) {
+        auto output = outputs.at(output_id).get_memory();
+        cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+        ASSERT_EQ(output->get_layout(), expected_layout);
+        for (size_t i = 0; i < expected.size(); ++i)
+            ASSERT_EQ(expected[i], output_ptr[i]) << "i=" << i;
+    }
+}
+
+TEST(slice_gpu_different_jit_kernels, not_cached) {
+    run_slice_gpu_different_jit_kernels(false);
+}
+
+TEST(slice_gpu_different_jit_kernels, cached) {
+    run_slice_gpu_different_jit_kernels(true);
 }
 
 // int8 Slice: dedicated small-value case (the shared TYPED_TEST data exceeds the i8 range). Covers the
