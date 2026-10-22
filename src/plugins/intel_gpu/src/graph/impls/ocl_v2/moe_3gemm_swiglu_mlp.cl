@@ -100,10 +100,8 @@ inline float moe_mlp_fast_erf(float x) {
 
 #if defined(U2_UNPACK_ENABLE)
 
-// Unpacks u2-packed data (4 values per byte, LSB-first) into u4-packed data
-// (2 values per byte, LSB-first), doubling the byte size while preserving the
-// logical element order. Used to feed u2 MoE expert weights/zp to the u4-only
-// prefill GEMM paths (micro-gemm/oneDNN have no u2 dtype).
+// Unpacks u2-packed data (4 values per byte) into u4-packed data (2 per byte), keeping the logical element
+// order, for the u4-only prefill GEMM paths.
 inline uint moe_unpack_u2_byte(uint b) {
     // byte (v3 v2 v1 v0) -> uint16 ((v3 | v2 << 4) << 8) | (v0 | v1 << 4)
     return (b & 0x3u) | ((b & 0xCu) << 2) | ((b & 0x30u) << 4) | ((b & 0xC0u) << 6);
@@ -334,10 +332,8 @@ inline void gate_up_gemv_n2x_u2(const __global uchar* weight,
             sum_all1 += (sum1[0] + sum1[1]) * s1;
 #    endif
 #    elif ELEMS_PER_LANE == 2
-            // Each lane handles 2 K-elements; two lanes share one packed byte.
-            // NOTE: keep per-lane scalar loads here. A subgroup block read would make
-            // lanes >= FAKE_GROUP_SIZE/4 read past the tile, and at the end of the
-            // mmap'd weights buffer that overhang faults (CL_OUT_OF_RESOURCES).
+            // Each lane handles 2 K-elements; two lanes share one packed byte. Per-lane scalar loads: a subgroup
+            // block read would overhang the tile and fault at the end of the weights buffer.
             half sum0;
             half sum1;
             half2 a = vload2(id_local, x2 + gk * FAKE_GROUP_SIZE);
@@ -359,9 +355,7 @@ inline void gate_up_gemv_n2x_u2(const __global uchar* weight,
             sum_all1 += sum1 * s1;
 #    endif
 #    elif ELEMS_PER_LANE == 1
-            // Each lane handles 1 K-element; four lanes share one packed byte.
-            // Same per-lane scalar loads as the ==2 branch: subgroup block reads
-            // would overhang the weights buffer and fault (CL_OUT_OF_RESOURCES).
+            // Each lane handles 1 K-element; four lanes share one packed byte. Scalar loads as in the ==2 branch.
             half sum0;
             half sum1;
             half a = x2[gk * FAKE_GROUP_SIZE + id_local];
@@ -1049,10 +1043,8 @@ inline void down_gemv_n2x_u2(const __global uchar* weight,
             sum_all1 += (sum1[0] + sum1[1]) * s1;
 #    endif
 #    elif ELEMS_PER_LANE == 2
-            // Each lane handles 2 K-elements; two lanes share one packed byte.
-            // NOTE: keep per-lane scalar loads here. A subgroup block read would make
-            // lanes >= FAKE_GROUP_SIZE/4 read past the tile, and at the end of the
-            // mmap'd weights buffer that overhang faults (CL_OUT_OF_RESOURCES).
+            // Each lane handles 2 K-elements; two lanes share one packed byte. Per-lane scalar loads: a subgroup
+            // block read would overhang the tile and fault at the end of the weights buffer.
             half sum0;
             half sum1;
             half2 a = vload2(id_local, x2 + gk * FAKE_GROUP_SIZE);
@@ -1074,9 +1066,7 @@ inline void down_gemv_n2x_u2(const __global uchar* weight,
             sum_all1 += sum1 * s1;
 #    endif
 #    elif ELEMS_PER_LANE == 1
-            // Each lane handles 1 K-element; four lanes share one packed byte.
-            // Same per-lane scalar loads as the ==2 branch: subgroup block reads
-            // would overhang the weights buffer and fault (CL_OUT_OF_RESOURCES).
+            // Each lane handles 1 K-element; four lanes share one packed byte. Scalar loads as in the ==2 branch.
             half sum0;
             half sum1;
             half a = x2[gk * FAKE_GROUP_SIZE + id_local];
