@@ -285,8 +285,13 @@ py::array as_contiguous(py::array& array, ov::element::Type type) {
     case ov::element::bf16:
         return array.view("int16").cast<py::array_t<int16_t, py::array::c_style | py::array::forcecast>>();
     // fixed-width strings keep their numpy dtype
-    case ov::element::string:
-        return py::array::ensure(array, py::array::c_style);
+    case ov::element::string: {
+        py::array result = py::array::ensure(array, py::array::c_style);
+        if (!result) {
+            OPENVINO_THROW("Failed to ensure a contiguous NumPy array for string tensor.");
+        }
+        return result;
+    }
     default:
         OPENVINO_THROW("Tensor cannot be created as contiguous!");
     }
