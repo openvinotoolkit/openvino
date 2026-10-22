@@ -309,8 +309,9 @@ TEST(GGUFWeight, HadamardProjectionGroupsPreserveDistinctActivations) {
             EXPECT_FALSE(subtracts[0]->get_input_shape(1).empty());
             EXPECT_EQ(subtracts[1]->get_input_shape(1).empty(), different_signs || different_output);
             for (const auto& [node, original_inputs] : inputs) {
-                if (!ov::is_type<ov::op::v1::Subtract>(node))
+                if (!ov::is_type<ov::op::v1::Subtract>(node)) {
                     EXPECT_EQ(node->input_values(), original_inputs);
+                }
             }
             ov::Tensor data(ov::element::f32, {2, 256});
             for (size_t i = 0; i < data.get_size(); ++i)
