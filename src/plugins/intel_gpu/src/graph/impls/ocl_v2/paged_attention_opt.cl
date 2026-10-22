@@ -1416,3 +1416,68 @@ KERNEL(pa_sdpa_scores_calculation)(
 
 #undef MAX_PARTITIONS_NUM
 #endif
+
+#ifdef TT_BOUNDS_STAGE
+/* Per-token bidirectional group bounds from token_type_ids, consumed by sdpa_micro (USE_TT_BOUNDS).
+   One work-group of TT_BOUNDS_WG work-items per subsequence. For token u (index among the subsequence's new tokens):
+   bounds[2 * (subsequence_begin + u)]     = first index of its type-1 run,
+   bounds[2 * (subsequence_begin + u) + 1] = last index of its type-1 run (inclusive).
+   Text tokens, and every token when token_type_ids is empty, get the empty range (1, 0). */
+#define TT_BOUNDS_WG 256
+__attribute__((reqd_work_group_size(TT_BOUNDS_WG, 1, 1)))
+KERNEL(pa_tt_bounds)(
+    const __global int* subsequence_begins,
+    const __global int* token_type_ids,
+    __global int* bounds,
+    int num_seqs,
+    int tt_count) {
+    const int s = get_group_id(0);
+    if (s >= num_seqs) {
+        return;
+    }
+    const int lid = get_local_id(0);
+    const int b = subsequence_begins[s];
+    const int n = subsequence_begins[s + 1] - b;
+
+    /* run begin = running max of run-start indices */
+    int carry = -1;
+    for (int c0 = 0; c0 < n; c0 += TT_BOUNDS_WG) {
+        const int u = c0 + lid;
+        int tt = 0;
+        int start = -1;
+        if (u < n && tt_count > 0) {
+            tt = token_type_ids[b + u];
+            if (tt == 1 && (u == 0 || token_type_ids[b + u - 1] != 1)) {
+                start = u;
+            }
+        }
+        const int pm = max(work_group_scan_inclusive_max(start), carry);
+        carry = max(carry, work_group_reduce_max(start));
+        if (u < n) {
+            bounds[2 * (b + u)] = (tt == 1) ? pm : 1;
+        }
+    }
+
+    /* run end = running min of run-end indices, scanning the chunks from the back (lane order reversed) */
+    const int big = 0x7fffffff;
+    int carry_end = big;
+    const int last_chunk = ((n + TT_BOUNDS_WG - 1) / TT_BOUNDS_WG - 1) * TT_BOUNDS_WG;
+    for (int c0 = last_chunk; c0 >= 0; c0 -= TT_BOUNDS_WG) {
+        const int u = c0 + (TT_BOUNDS_WG - 1 - lid);
+        int tt = 0;
+        int end = big;
+        if (u < n && tt_count > 0) {
+            tt = token_type_ids[b + u];
+            if (tt == 1 && (u == n - 1 || token_type_ids[b + u + 1] != 1)) {
+                end = u;
+            }
+        }
+        const int sm = min(work_group_scan_inclusive_min(end), carry_end);
+        carry_end = min(carry_end, work_group_reduce_min(end));
+        if (u < n) {
+            bounds[2 * (b + u) + 1] = (tt == 1) ? sm : 0;
+        }
+    }
+}
+#undef TT_BOUNDS_WG
+#endif

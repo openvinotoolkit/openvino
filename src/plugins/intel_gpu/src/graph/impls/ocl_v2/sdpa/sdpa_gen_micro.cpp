@@ -1344,6 +1344,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             // the kernel checks the runtime size: an empty token_type_ids input disables the bidirectional masking
             const size_t tensor_id = PagedAttentionInputIdx::TOKEN_TYPE_IDS;
             jit.add(make_layout_jit_constants("TOKEN_TYPE_IDS", params.input_layouts[tensor_id], params.in_port_to_shape_info_offset.at(tensor_id)));
+            if (pa_micro_uses_tt_bounds(*desc)) {
+                jit.make("USE_TT_BOUNDS", 1);  // group bounds precomputed by the pa_tt_bounds stage
+            }
         }
     }
 
@@ -1691,6 +1694,9 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         }
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // blocked_indexes_start_and_gws_mapping
+        if (pa_micro_uses_tt_bounds(*desc)) {
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // tt_bounds
+        }
     } else {
         args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::KEY});    // K
         args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::QUERY});  // Q

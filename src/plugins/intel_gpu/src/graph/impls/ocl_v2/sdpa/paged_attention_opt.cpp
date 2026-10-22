@@ -797,6 +797,50 @@ public:
     }
 };
 
+// Precomputes, for every token, the first/last index of its bidirectional (token_type_ids == 1) run,
+// so that sdpa_micro (USE_TT_BOUNDS) compares indices instead of scanning token_type_ids between q and k.
+class PagedAttentionGeneratorTTBounds : public PagedAttentionGeneratorBase {
+public:
+    PagedAttentionGeneratorTTBounds() : PagedAttentionGeneratorBase("_tt_bounds") {}
+    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
+        auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
+        jit.make("TT_BOUNDS_STAGE", 1);
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override {
+        Arguments args;
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // tt_bounds
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});           // num_seqs
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});           // token_type_ids element count (0 = empty input)
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+            assert(!params.is_dynamic());
+            auto& wgs = kd.params.workGroups;
+            auto& scalars = kd.params.scalars;
+            scalars.resize(2);
+
+            constexpr size_t wg_size = 256;  // TT_BOUNDS_WG
+            const size_t num_seqs = params.input_layouts[PagedAttentionInputIdx::SUBSEQUENCE_BEGINS].get_partial_shape()[0].get_length() - 1;
+            const auto& tt_layout = params.input_layouts[PagedAttentionInputIdx::TOKEN_TYPE_IDS];
+            const size_t tt_count = tt_layout.is_static() ? ov::shape_size(tt_layout.get_shape()) : 0;
+
+            wgs.global = {num_seqs * wg_size, 1, 1};
+            wgs.local = {wg_size, 1, 1};
+
+            scalars[0].t = ScalarDescriptor::Types::UINT32;
+            scalars[0].v.u32 = static_cast<uint32_t>(num_seqs);
+            scalars[1].t = ScalarDescriptor::Types::UINT32;
+            scalars[1].v.u32 = static_cast<uint32_t>(tt_count);
+        }};
+    }
+};
+
 class PagedAttentionGeneratorScoresCalculation : public PagedAttentionGeneratorBase {
 public:
     PagedAttentionGeneratorScoresCalculation() : PagedAttentionGeneratorBase("_scores_calculation") {}
@@ -1366,6 +1410,7 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
     Stage::Ptr pa_sdpa_micro_mixed = make_stage<SDPAMicroGenerator>(false);
+    Stage::Ptr pa_tt_bounds = make_stage<PagedAttentionGeneratorTTBounds>();
 #endif
 
     PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
@@ -1380,6 +1425,9 @@ public:
         if (use_micro_sdpa) {
             add_stage(pa_sdpa_micro, params);
             add_stage(pa_sdpa_micro_mixed, params);
+            if (pa_micro_uses_tt_bounds(*desc)) {
+                add_stage(pa_tt_bounds, params);
+            }
         }
 #endif
 
@@ -1596,6 +1644,9 @@ public:
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
             if (rt_params->use_micro_sdpa) {
+                if (pa_micro_uses_tt_bounds(*desc)) {
+                    res_event = {execute_stage(res_event, instance, pa_tt_bounds)};
+                }
                 res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
             } else
 #endif
@@ -1610,6 +1661,9 @@ public:
             } else {
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 if (multi_tokens_mode && rt_params->use_micro_sdpa) {
+                    if (pa_micro_uses_tt_bounds(*desc)) {
+                        res_event = {execute_stage(res_event, instance, pa_tt_bounds)};
+                    }
                     res_event = {execute_stage(res_event, instance, pa_sdpa_micro_mixed)};
                 } else
 #endif
@@ -1821,6 +1875,11 @@ public:
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
             const auto indexes_buf_size = ceil_div(target_seq_len, wg_tile_q) * 2;
             internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable, not_shareable);
+            if (pa_micro_uses_tt_bounds(*desc)) {
+                // 4: per-token [first, last] index of the token_type_ids == 1 run, filled by pa_tt_bounds.
+                // Not lockable: only kernels access it, so it stays in device memory.
+                internal_buffers.emplace_back(total_tokens * 2 * sizeof(int32_t), indexes_dt);
+            }
         }
 #endif
 

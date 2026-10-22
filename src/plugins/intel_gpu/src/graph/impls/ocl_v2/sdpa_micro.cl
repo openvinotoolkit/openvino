@@ -223,6 +223,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #if IS_PAGED_ATTENTION
         const __global int* blocked_indexes_start_and_gws_mapping
+    #if USE_TT_BOUNDS
+        , const __global int* tt_bounds
+    #endif
 #else
         int d, int k, int q
 #endif
@@ -325,11 +328,19 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     /* Extend causal_k to cover the full bidirectional group that overlaps
        the current WG's query range. Without this, future K positions in
        the same image-token group would be skipped entirely.
-       Only lane 0 performs the scan; result is broadcast to all WIs. */
+       With USE_TT_BOUNDS the group bounds come from pa_tt_bounds; otherwise lane 0 scans and broadcasts the result. */
     {
         /* last query of this tile (queries are only the q new tokens) */
         const int wg_q_end = min((int)wg_j0 + ugemm_kq_wg_tile_n, (int)q) - 1;
         int bidir_causal_k = causal_k;
+    #if USE_TT_BOUNDS
+        /* group bounds precomputed by pa_tt_bounds: (1, 0) = not in a group */
+        if (wg_q_end >= 0) {
+            const int grp_end = tt_bounds[2 * (subsequence_begin + wg_q_end) + 1];
+            if (grp_end >= tt_bounds[2 * (subsequence_begin + wg_q_end)])
+                bidir_causal_k = max(causal_k, past_len + grp_end + 1);
+        }
+    #else
         if (tt_present && wg_q_end >= 0 && TT_NEW(wg_q_end) == 1) {
             int bidir_end = wg_q_end + 1;
             if (get_sub_group_local_id() == 0) {
@@ -339,6 +350,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             bidir_end = sub_group_broadcast(bidir_end, 0);
             bidir_causal_k = max(causal_k, past_len + bidir_end);
         }
+    #endif
         causal_k = bidir_causal_k;
     }
     #endif
@@ -365,7 +377,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
        that overlaps the window boundary. Without this, K positions in the
        same image-token group but before window_k_begin would be skipped.
        Groups exist only in the new tokens (K >= past_len).
-       Only lane 0 performs the scan; result is broadcast to all WIs. */
+       With USE_TT_BOUNDS the group bounds come from pa_tt_bounds; otherwise lane 0 scans and broadcasts the result. */
+    #if USE_TT_BOUNDS
+    if (window_k_begin > past_len && window_k_begin - past_len < (int)q) {
+        const int loc = window_k_begin - past_len;
+        if (tt_bounds[2 * (subsequence_begin + loc) + 1] >= tt_bounds[2 * (subsequence_begin + loc)])
+            window_k_begin = past_len + tt_bounds[2 * (subsequence_begin + loc)];
+    }
+    #else
     if (tt_present && window_k_begin > past_len && TT_NEW(window_k_begin - past_len) == 1) {
         int wb = window_k_begin - past_len;
         if (get_sub_group_local_id() == 0) {
@@ -374,6 +393,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         }
         window_k_begin = past_len + sub_group_broadcast(wb, 0);
     }
+    #endif
     #endif
     window_k0_begin = (window_k_begin / ugemm_kq_wg_tile_m) * ugemm_kq_wg_tile_m;
 #endif
@@ -1186,6 +1206,25 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             const bool tt_block_fully_valid = !(tt_k_end > causal_q_begin);
     #endif
             if (!tt_block_fully_valid) {
+    #if USE_TT_BOUNDS
+                for (int i0 = 0; i0 < (ugemm_kq_c_type_block0 * ugemm_kq_c_type_nblock0); i0 += SUBGROUP_SIZE) {
+                    const int offset_q = col_offset + i0 + get_sub_group_local_id();
+                    /* group of this query row, precomputed by pa_tt_bounds (empty = (1, 0) for text tokens) */
+                    int g_lo = 1, g_hi = 0;
+                    if (offset_q >= past_len && offset_q < k) {
+                        const int bidx = 2 * (subsequence_begin + (offset_q - past_len));
+                        g_lo = past_len + tt_bounds[bidx];
+                        g_hi = past_len + tt_bounds[bidx + 1];
+                    }
+                    for (int j = 0; j < (ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1); j++) {
+                        const int offset_k = tt_k_begin + j;
+                        if (greater_than(offset_k, offset_q) && !(offset_k >= g_lo && offset_k <= g_hi)) {
+                            tile_access(S_tile, i0, j, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
+                                        ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0) = -FLT_MAX;
+                        }
+                    }
+                }
+    #else
                 for (int j = 0; j < (ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1); j++) {
                     const int offset_k = tt_k_begin + j;
                     for (int i0 = 0; i0 < (ugemm_kq_c_type_block0 * ugemm_kq_c_type_nblock0); i0 += SUBGROUP_SIZE) {
@@ -1217,6 +1256,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                         }
                     }
                 }
+    #endif
             }
         }
     #else
