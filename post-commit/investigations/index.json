@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 48,
+  "total": 49,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -493,6 +493,17 @@
       "category": "External Service",
       "signature_hash": "09126916fe54469f",
       "commit_sha": "178d03e210433f32af080aab3e05562e238c5ee2"
+    },
+    {
+      "investigation_id": "2026-10-22-10-30-17-748-39750812689",
+      "run_id": "39750812689",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39750812689",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-10-22T10:30:17Z",
+      "title": "Debian Packages job fails apt-get update with Hash Sum mismatch on archive.ubuntu.com",
+      "category": "Network",
+      "signature_hash": "ad3678610dab3215",
+      "commit_sha": "ee2e4b5e73dbd80dc411892a3a9a59d053a62322"
     }
   ]
 }

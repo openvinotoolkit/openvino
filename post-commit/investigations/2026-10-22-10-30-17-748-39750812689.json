@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-22-10-30-17-748-39750812689",
+  "timestamp": "2026-10-22T10:30:17Z",
+  "run_id": "39750812689",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39750812689",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "ee2e4b5e73dbd80dc411892a3a9a59d053a62322",
+  "pr_number": "38934",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38934",
+  "author": "Kotomi-Du",
+  "category": "Network",
+  "title": "Debian Packages job fails apt-get update with Hash Sum mismatch on archive.ubuntu.com",
+  "signature": "apt-get update fails: E: Failed to fetch http://archive.ubuntu.com Packages.gz Hash Sum mismatch; some index files failed to download|Network",
+  "signature_hash": "ad3678610dab3215",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get update -y fails with Hash Sum mismatch on jammy-updates/universe and jammy-updates/main Packages.gz, exit code 100"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because the Debian Packages job failed"
+    }
+  ],
+  "key_errors": [
+    "Err:29 http://archive.ubuntu.com/ubuntu jammy-updates/universe amd64 Packages\n  Hash Sum mismatch\n  Hashes of expected file:\n   - SHA256:67e98d627f51cced7ba599b46c14cc22914554a4c9d9dd7fd9112889192afedc\n  Hashes of received file:\n   - SHA256:cc1eca644b31fc4995f75decca539c597fc3f238cc5a77b012ad1f33320c674c\n  Last modification reported: Thu, 22 Oct 2026 05:27:18 +0000\n  Release file created at: Thu, 22 Oct 2026 06:46:38 +0000",
+    "E: Failed to fetch http://archive.ubuntu.com/ubuntu/dists/jammy-updates/universe/binary-amd64/Packages.gz  Hash Sum mismatch\nE: Failed to fetch http://archive.ubuntu.com/ubuntu/dists/jammy-updates/main/binary-amd64/Packages.gz\nE: Some index files failed to download. They have been ignored, or old ones used instead.\n##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The 'Install debian packages & check conflicts' step runs 'apt-get update -y' against the public Ubuntu mirror network (archive.ubuntu.com and azure.archive.ubuntu.com), which GitHub-hosted runners resolve to different CDN edge nodes/mirrors on each request. The job log shows the Release file was created at 06:46:38Z but the received Packages.gz was last modified at 05:27:18Z - i.e. the runner fetched a stale/partially-synced mirror whose index checksum does not match the signed Release manifest. This is a well-known upstream Ubuntu archive mirror propagation-lag race condition, not caused by the openvino.deb build output or by the merge commit (#38934, a GPU oneDNN FullyConnected mask fix unrelated to packaging/CI). apt then aborts with exit code 100 before it can install dpkg-dev and register the local openvino-local.list repository, causing the whole job (and the downstream gha_overall_status aggregate check) to fail.",
+  "reproduction_steps": "Not reliably reproducible locally - depends on hitting a stale Ubuntu archive mirror at the exact moment of 'apt-get update -y'. To approximate: run on an Ubuntu 22.04 (jammy) host/container behind the same Azure mirror pool and repeatedly run 'apt-get update -y' during a mirror sync window; intermittently observe 'Hash Sum mismatch' for jammy-updates/universe or jammy-updates/main Packages.gz.",
+  "recommended_actions": [
+    "Re-run the failed 'Debian Packages' job - this is a transient upstream mirror desync and typically succeeds on retry.",
+    "In .github/workflows/job_debian_packages.yml, add 'apt-get clean && rm -rf /var/lib/apt/lists/*' before 'apt-get update -y', or add a short retry loop (e.g. 3 attempts with backoff) around the 'apt-get update -y' calls to absorb transient mirror hash mismatches.",
+    "Consider passing 'Acquire::http::Pipeline-Depth=0' or switching to a pinned/stable mirror (e.g. a regional official mirror instead of the dynamic azure.archive.ubuntu.com CDN) to reduce mirror-consistency races.",
+    "No source code changes are required; this is unrelated to the merged PR (#38934)."
+  ],
+  "prevention_strategies": "Wrap 'apt-get update' invocations in CI with a small retry-with-backoff wrapper script shared across workflows (e.g. a composite action 'apt-get-update-retry') so transient mirror Hash Sum mismatches are absorbed automatically instead of failing the whole job. Monitor recurrence via this pattern database; if count grows significantly, consider switching to a vendored/mirrored apt cache for CI runners.",
+  "historical_context": "No prior investigation in the post-commit database matches this exact signature (Ubuntu apt mirror Hash Sum mismatch). Related but distinct network-flake patterns already tracked include DNS resolution failures during checkout/fetch (eeae3ce3f5218e80), getaddrinfo failures during artifact upload (d877f2bb57b833d0, b6957c2b9e09de1c), and HTTP 503/429/504 failures against npm/HuggingFace/GitHub during dependency installs (09126916fe54469f, 4dd69b5f0be10a15, 8788a3eff93ab889) - all upstream-service transient-network issues, consistent with this being another instance of the broader 'flaky external network dependency in CI' category rather than a new code regression."
+}

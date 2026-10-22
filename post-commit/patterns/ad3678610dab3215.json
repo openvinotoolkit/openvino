@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "apt-get update fails: E: Failed to fetch http://archive.ubuntu.com Packages.gz Hash Sum mismatch; some index files failed to download|Network",
+  "signature_hash": "ad3678610dab3215",
+  "title": "Debian Packages job fails apt-get update with Hash Sum mismatch on archive.ubuntu.com",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-10-22T10:30:17Z",
+  "last_seen": "2026-10-22T10:30:17Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/39750812689"
+  ],
+  "affected_commits": [
+    "ee2e4b5e73dbd80dc411892a3a9a59d053a62322"
+  ],
+  "recent_timestamps": [
+    "2026-10-22T10:30:17Z"
+  ]
+}
