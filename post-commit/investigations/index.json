@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 49,
+  "total": 50,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -504,6 +504,15 @@
       "category": "Network",
       "signature_hash": "ad3678610dab3215",
       "commit_sha": "ee2e4b5e73dbd80dc411892a3a9a59d053a62322"
+    },
+    {
+      "investigation_id": "2026-10-22-13-09-09-502-39780187567",
+      "run_id": "39780187567",
+      "timestamp": "2026-10-22T13:09:09Z",
+      "title": "Debian Packages job fails apt-get update with File has unexpected size on archive.ubuntu.com",
+      "category": "Network",
+      "signature_hash": "23eeaa0c051f425e",
+      "commit_sha": "8bebd6df62d9e12334c77d4baa6cd96c05cb5c36"
     }
   ]
 }

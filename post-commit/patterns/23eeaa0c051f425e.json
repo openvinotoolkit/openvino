@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "apt-get update fails: E: Failed to fetch http://archive.ubuntu.com Packages.gz File has unexpected size; Mirror sync in progress; some index files failed to download|Network",
+  "signature_hash": "23eeaa0c051f425e",
+  "title": "Debian Packages job fails apt-get update with File has unexpected size on archive.ubuntu.com",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-10-22T13:09:09Z",
+  "last_seen": "2026-10-22T13:09:09Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/39780187567"
+  ],
+  "affected_commits": [
+    "8bebd6df62d9e12334c77d4baa6cd96c05cb5c36"
+  ],
+  "recent_timestamps": [
+    "2026-10-22T13:09:09Z"
+  ]
+}

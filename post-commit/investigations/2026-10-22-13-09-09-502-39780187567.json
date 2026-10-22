@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-22-13-09-09-502-39780187567",
+  "timestamp": "2026-10-22T13:09:09Z",
+  "run_id": "39780187567",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39780187567",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "commit_sha": "8bebd6df62d9e12334c77d4baa6cd96c05cb5c36",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Network",
+  "title": "Debian Packages job fails apt-get update with File has unexpected size on archive.ubuntu.com",
+  "signature": "apt-get update fails: E: Failed to fetch http://archive.ubuntu.com Packages.gz File has unexpected size; Mirror sync in progress; some index files failed to download|Network",
+  "signature_hash": "23eeaa0c051f425e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get update -y fails with 'File has unexpected size' on noble-updates/main Packages.gz, exit code 100"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because the Debian Packages job failed"
+    }
+  ],
+  "key_errors": [
+    "Err:29 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages\n  File has unexpected size (1732808 != 1732807). Mirror sync in progress? [IP: 91.189.91.82 80]\n  Hashes of expected file:\n   - Filesize:1732807 [weak]\n   - SHA256:13aff9ab989073ddf16e6bb6de08edfbddcb6cc981fa42f77476859945a9bd97\n  Release file created at: Thu, 22 Oct 2026 11:25:25 +0000",
+    "E: Failed to fetch http://archive.ubuntu.com/ubuntu/dists/noble-updates/main/binary-amd64/Packages.gz  File has unexpected size (1732808 != 1732807). Mirror sync in progress?\nE: Some index files failed to download. They have been ignored, or old ones used instead.\n##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The 'Install debian packages & check conflicts' step in job_debian_packages.yml runs 'apt-get update -y' twice against public Ubuntu archive mirrors (azure.archive.ubuntu.com and archive.ubuntu.com). The second apt-get update (performed after adding the local openvino-local.list repo) fetched noble-updates/main/binary-amd64/Packages.gz from archive.ubuntu.com and received a file one byte larger than the size declared in the signed Release manifest (1732808 vs 1732807 bytes), with apt explicitly flagging 'Mirror sync in progress?'. This is the same class of upstream Ubuntu archive mirror propagation-lag race previously recorded under signature ad3678610dab3215 (Hash Sum mismatch variant, run 39750812689, ~2.5 hours earlier) but manifests as a byte-size mismatch rather than a checksum mismatch - both stem from a CDN edge node serving a stale/partially-synced index file against a newer Release manifest. apt aborts with exit code 100 before 'apt-get install openvino -y' can run, failing the job and the downstream gha_overall_status_ubuntu_24 aggregate check. Not caused by the triggering commit (an unrelated oneTBB package version bump for ARM in src/plugins/intel_cpu).",
+  "reproduction_steps": "Not reliably reproducible locally - depends on hitting a stale Ubuntu archive mirror edge node during 'apt-get update -y'. To approximate: run on an Ubuntu 24.04 (noble) container behind the same mirror pool and repeatedly invoke 'apt-get update -y' during an active mirror sync window; intermittently observe 'File has unexpected size' for noble-updates/main Packages.gz.",
+  "recommended_actions": [
+    "Re-run the failed 'Debian Packages' job - this is a transient upstream mirror desync and typically succeeds on retry.",
+    "In .github/workflows/job_debian_packages.yml, add a short retry-with-backoff wrapper (e.g. 3 attempts) around both 'apt-get update -y' invocations to absorb transient mirror size/hash mismatches, matching the recommendation already logged for pattern ad3678610dab3215.",
+    "Consider adding 'Acquire::Retries \"10\";' coverage to also retry index fetch failures (currently only covers package download retries) or pin to a stable regional mirror instead of the dynamic azure.archive.ubuntu.com/archive.ubuntu.com CDN pool.",
+    "No source code changes are required; this is unrelated to the triggering commit (#39036, oneTBB version bump)."
+  ],
+  "prevention_strategies": "Add a shared composite action (e.g. 'apt-get-update-retry') used by job_debian_packages.yml and any other job invoking apt-get update, retrying on both 'Hash Sum mismatch' and 'File has unexpected size' errors with exponential backoff. Track recurrence via the pattern database; if the combined count of this and pattern ad3678610dab3215 grows further, prioritize implementing the retry wrapper or switching to a vendored apt cache/mirror for CI runners.",
+  "historical_context": "A closely related pattern (ad3678610dab3215: 'Hash Sum mismatch' on jammy-updates, run 39750812689, ~2.5 hours prior) was recorded against the same Debian Packages job and the same job_debian_packages.yml step, also attributed to Ubuntu archive mirror sync lag. This is the second apt-mirror-related Debian Packages failure within a single day, suggesting it may be worth escalating from 'wait and retry' to implementing the shared retry wrapper recommended in that prior investigation."
+}
