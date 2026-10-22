@@ -201,19 +201,19 @@ public:
         runConcurrentlyAsync(threadCount, [](size_t) {}, startInference, waitInference);
     }
 
-    // create_and_fill_tensor spans [startFrom, startFrom + kInputFillRange]; spacing each request's seed by
-    // at least that range keeps concurrent requests' inputs (and outputs) clearly distinct, so the result
-    // comparison still catches cross-request output swaps despite the loosened NPU tolerance.
-    static constexpr int kInputFillRange = 100;
-    static constexpr int kSeedSpacing = kInputFillRange;
+    // Requests differ by independent random patterns (distinct seeds) at a fixed small amplitude. DC offsets do
+    // not work: after the 1/128 input scale, Tanh compresses large offsets below the comparison tolerance.
+    static constexpr uint32_t kInputFillRange = 100;
 
     static ov::Tensor makeInputTensor(const std::shared_ptr<ov::Model>& model,
                                       const ov::Shape& shape,
-                                      const int startFrom) {
+                                      const int seed) {
         return ov::test::utils::create_and_fill_tensor(model->input().get_element_type(),
                                                        shape,
                                                        kInputFillRange,
-                                                       startFrom);
+                                                       0,
+                                                       1,
+                                                       seed);
     }
 
     static void inferAndCompare(ov::InferRequest& reqDynamic, ov::InferRequest& reqReference) {
@@ -247,9 +247,9 @@ public:
     static ov::Tensor makeZeroInputTensor(ov::RemoteContext& zeroContext,
                                           const std::shared_ptr<ov::Model>& model,
                                           const ov::Shape& shape,
-                                          const int startFrom) {
+                                          const int seed) {
         auto zeroInput = zeroContext.create_host_tensor(model->input().get_element_type(), shape);
-        auto inputSource = makeInputTensor(model, shape, startFrom);
+        auto inputSource = makeInputTensor(model, shape, seed);
         if (inputSource.get_byte_size() != zeroInput.get_byte_size()) {
             OPENVINO_THROW("Source and zero input tensors have different byte sizes");
         }
@@ -302,7 +302,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
                 requests[threadIdx] = std::make_shared<ov::InferRequest>(compiledModel.create_infer_request());
                 referenceRequests[threadIdx] =
                     std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
-                inputs[threadIdx] = makeInputTensor(model, shape, static_cast<int>(100 + threadIdx * kSeedSpacing));
+                inputs[threadIdx] = makeInputTensor(model, shape, static_cast<int>(1 + threadIdx));
                 requests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
                 referenceRequests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
             },
@@ -342,12 +342,16 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CrossRequestOutputMismatchIsReje
     auto referenceRequestA = referenceCompiledModel.create_infer_request();
     auto referenceRequestB = referenceCompiledModel.create_infer_request();
 
-    // The priority-change phases run 8 concurrent requests over the band {100 .. 100 + 7 * kSeedSpacing}.
-    // Check both the low and high adjacent pairs so a swap is caught anywhere in the band, not only at the
-    // responsive low end - a high end that saturated Tanh would silently accept swapped outputs.
-    for (const int baseline : {100, 100 + 6 * kSeedSpacing}) {
-        const auto inputA = makeInputTensor(model, shape, baseline);
-        const auto inputB = makeInputTensor(model, shape, baseline + kSeedSpacing);
+    // Adjacent seed pairs from the low and high end of the seeds used by the concurrent tests, at both shapes.
+    const ov::Shape shapeLarge = makeInputShape(referenceModel, 1, true);
+    const std::vector<std::tuple<ov::Shape, int, int>> cases = {
+        {shape, 1, 2},
+        {shape, 1023, 1024},
+        {shapeLarge, 23, 24},
+    };
+    for (const auto& [caseShape, seedA, seedB] : cases) {
+        const auto inputA = makeInputTensor(model, caseShape, seedA);
+        const auto inputB = makeInputTensor(model, caseShape, seedB);
         npuRequestA.set_input_tensor(0, inputA);
         referenceRequestA.set_input_tensor(0, inputA);
         referenceRequestB.set_input_tensor(0, inputB);
@@ -364,7 +368,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CrossRequestOutputMismatchIsReje
         // Matching request pair stays within the NPU-calibrated tolerance.
         OV_ASSERT_NO_THROW(ov::test::utils::compare(referenceOutputA, npuOutputA, outputType, 0.02, 0.02));
 
-        // The other request's reference must be rejected, proving swaps are detectable across the band.
+        // The other request's reference must be rejected, proving swapped outputs are detectable.
         ASSERT_THROW(ov::test::utils::compare(referenceOutputB, npuOutputA, outputType, 0.02, 0.02),
                      std::runtime_error);
     }
@@ -405,7 +409,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateReque
                 requests[threadIdx] = std::make_shared<ov::InferRequest>(compiledModel.create_infer_request());
                 referenceRequests[threadIdx] =
                     std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
-                inputs[threadIdx] = makeInputTensor(model, shape, static_cast<int>(100 + threadIdx * kSeedSpacing));
+                inputs[threadIdx] = makeInputTensor(model, shape, static_cast<int>(1 + threadIdx));
                 requests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
                 referenceRequests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
             },
@@ -457,14 +461,11 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
             referenceRequests.emplace_back(referenceCompiledModel.create_infer_request());
         }
 
-        // All three priority phases must stay inside the same Tanh-responsive input band: after the 1/128
-        // normalization large baselines saturate Tanh, collapsing outputs to a constant and hiding
-        // cross-request swaps. Each phase only permutes the per-thread assignment of that band so a request's
-        // data still changes after the priority switch.
+        // Each phase uses fresh seeds so a request's data changes after every priority switch.
         std::vector<ov::Tensor> firstInputs;
         firstInputs.reserve(kThreadCount);
         for (size_t i = 0; i < kThreadCount; ++i) {
-            firstInputs.emplace_back(makeInputTensor(model, shape, static_cast<int>(100 + i * kSeedSpacing)));
+            firstInputs.emplace_back(makeInputTensor(model, shape, static_cast<int>(1 + i)));
             requests[i].set_input_tensor(0, firstInputs.back());
             referenceRequests[i].set_input_tensor(0, firstInputs.back());
         }
@@ -482,9 +483,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
         std::vector<ov::Tensor> secondInputs;
         secondInputs.reserve(kThreadCount);
         for (size_t i = 0; i < kThreadCount; ++i) {
-            // Same responsive band as the first phase, reversed per thread.
-            secondInputs.emplace_back(
-                makeInputTensor(model, shape, static_cast<int>(100 + (kThreadCount - 1 - i) * kSeedSpacing)));
+            secondInputs.emplace_back(makeInputTensor(model, shape, static_cast<int>(1 + kThreadCount + i)));
             requests[i].set_input_tensor(0, secondInputs.back());
             referenceRequests[i].set_input_tensor(0, secondInputs.back());
         }
@@ -502,9 +501,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
         std::vector<ov::Tensor> thirdInputs;
         thirdInputs.reserve(kThreadCount);
         for (size_t i = 0; i < kThreadCount; ++i) {
-            // Same responsive band, rotated by half for a third distinct per-thread assignment.
-            const size_t rotated = (i + kThreadCount / 2) % kThreadCount;
-            thirdInputs.emplace_back(makeInputTensor(model, shape, static_cast<int>(100 + rotated * kSeedSpacing)));
+            thirdInputs.emplace_back(makeInputTensor(model, shape, static_cast<int>(1 + 2 * kThreadCount + i)));
             requests[i].set_input_tensor(0, thirdInputs.back());
             referenceRequests[i].set_input_tensor(0, thirdInputs.back());
         }
@@ -594,8 +591,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
                             const int requestSeedIndex = static_cast<int>(
                                 threadIdx * (compiledModels.size() * requestsPerModel) +
                                 modelIdx * requestsPerModel + reqIdx);
-                            const int startFrom = 100 + requestSeedIndex * kSeedSpacing + static_cast<int>(inferIdx);
-                            inputs[threadIdx].emplace_back(makeInputTensor(model, shape, startFrom));
+                            const int seed = 1 + requestSeedIndex + static_cast<int>(inferIdx) * 1000;
+                            inputs[threadIdx].emplace_back(makeInputTensor(model, shape, seed));
                             const size_t requestIdx = modelIdx * requestsPerModel + reqIdx;
                             requests[threadIdx][requestIdx].set_input_tensor(0, inputs[threadIdx].back());
                             referenceRequests[threadIdx][requestIdx].set_input_tensor(0, inputs[threadIdx].back());
@@ -673,8 +670,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
                             std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
                     }
                     auto zeroContext = core.get_default_context(target_device);
-                    const int startFrom = static_cast<int>(100 + threadIdx * 11 + inferIdx);
-                    inputs[threadIdx] = makeZeroInputTensor(zeroContext, model, shape, startFrom);
+                    const int seed = static_cast<int>(100 + threadIdx * 11 + inferIdx);
+                    inputs[threadIdx] = makeZeroInputTensor(zeroContext, model, shape, seed);
                     outputs[threadIdx] = zeroContext.create_host_tensor(model->output().get_element_type(),
                                                                         makeOutputShape(selectedModelName, shape));
                     requests[threadIdx]->set_tensor(model->input(), inputs[threadIdx]);
@@ -750,8 +747,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputT
                             std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
                     }
                     auto zeroContext = core.get_default_context(target_device);
-                    const int startFrom = static_cast<int>(100 + threadIdx * 11 + inferIdx);
-                    inputs[threadIdx] = makeZeroInputTensor(zeroContext, models[threadIdx], shape, startFrom);
+                    const int seed = static_cast<int>(100 + threadIdx * 11 + inferIdx);
+                    inputs[threadIdx] = makeZeroInputTensor(zeroContext, models[threadIdx], shape, seed);
                     outputs[threadIdx] = zeroContext.create_host_tensor(models[threadIdx]->output().get_element_type(),
                                                                         makeOutputShape(selectedModelName, shape));
                     requests[threadIdx]->set_tensor(models[threadIdx]->input(), inputs[threadIdx]);
@@ -838,7 +835,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
 
                     auto reqDynamic = compiledModel.create_infer_request();
                     auto reqReference = referenceCompiledModel.create_infer_request();
-                    auto input = makeInputTensor(model, shape, static_cast<int>(100 + threadIdx * kSeedSpacing));
+                    auto input = makeInputTensor(model, shape, static_cast<int>(1 + threadIdx));
                     reqDynamic.set_input_tensor(0, input);
                     reqReference.set_input_tensor(0, input);
                     reqDynamic.start_async();
