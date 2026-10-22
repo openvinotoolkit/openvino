@@ -20,9 +20,12 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/tile.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "ov_ops/moe_compressed.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 #include "whisper/prepare_whisper_model.hpp"
 
@@ -40,6 +43,27 @@ bool has_transposed_value_matmul(const std::shared_ptr<ov::Model>& model, std::s
         }
     }
     return false;
+}
+
+template <class T>
+size_t count_nodes(const std::shared_ptr<ov::Model>& model) {
+    size_t count = 0;
+    for (const auto& op : model->get_ops()) {
+        if (ov::as_type_ptr<T>(op)) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+size_t count_moe_nodes(const std::shared_ptr<ov::Model>& model) {
+    size_t count = 0;
+    for (const auto& op : model->get_ops()) {
+        if (ov::is_type<ov::op::internal::MOE>(op)) {
+            ++count;
+        }
+    }
+    return count;
 }
 
 class ArchAwarePlugin final : public NullPlugin {
@@ -95,6 +119,10 @@ protected:
 
     std::shared_ptr<ov::Model> build_moe_llm_model() const {
         return ov::test::npuw::build_moe_llm_test_model();
+    }
+
+    std::shared_ptr<ov::Model> build_qwen3_moe_llm_model() const {
+        return ov::test::npuw::build_qwen3_moe_llm_test_model();
     }
 
     std::shared_ptr<ov::Model> build_whisper_decoder_model() const {
@@ -625,10 +653,9 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, ArchAutoDetectSkipsNpuTilesInDefaultS
 
     for (const auto* call : {&prefill, &generate, &head}) {
         expect_missing_prop(call->props, "NPU_TILES");
-        expect_prop(
-            call->props,
-            "NPU_COMPILATION_MODE_PARAMS",
-            "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
+        expect_prop(call->props,
+                    "NPU_COMPILATION_MODE_PARAMS",
+                    "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
     }
 }
 
@@ -798,6 +825,58 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, MoeModelKeepsHostRoutedStageIntegrati
 
     EXPECT_EQ(recorder.count_suffix("_prefill"), 1u);
     EXPECT_EQ(recorder.count_contains("_kv"), 1u);
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintCollapsesExpertsIntoMoeCompressedOp) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_qwen3_moe_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_PREFILL_MOE_HINT", "FUSED"},
+                                                      {"NPUW_LLM_GENERATE_MOE_HINT", "FUSED"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+
+    for (const auto* call : {&prefill, &generate}) {
+        EXPECT_EQ(count_nodes<ov::op::v0::Tile>(call->model), 0u) << "Expert Tile should be fused away";
+        EXPECT_EQ(count_nodes<ov::op::v3::ScatterElementsUpdate>(call->model) +
+                      count_nodes<ov::op::v12::ScatterElementsUpdate>(call->model),
+                  0u)
+            << "Expert routing scatter should be fused away";
+        EXPECT_GE(count_moe_nodes(call->model), 1u) << "Expected at least one fused MOE(Compressed) op";
+        // FUSED carries no per-expert partitioning hints: the block is already a single opaque op.
+        expect_missing_prop(call->props, "NPUW_ONLINE_ISOLATE");
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintIsIndependentPerStage) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_qwen3_moe_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_PREFILL_MOE_HINT", "FUSED"},
+                                                      {"NPUW_LLM_GENERATE_MOE_HINT", "HOST_ROUTED"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+
+    // PREFILL was fused: no decomposed expert scaffolding left.
+    EXPECT_EQ(count_nodes<ov::op::v0::Tile>(prefill.model), 0u);
+    EXPECT_GE(count_moe_nodes(prefill.model), 1u);
+    expect_missing_prop(prefill.props, "NPUW_ONLINE_ISOLATE");
+
+    // GENERATE stayed HOST_ROUTED: the decomposed block is untouched and isolated for the
+    // online partitioner instead.
+    EXPECT_GT(count_nodes<ov::op::v0::Tile>(generate.model), 0u);
+    EXPECT_EQ(count_moe_nodes(generate.model), 0u);
+    expect_prop(generate.props, "NPUW_ONLINE_ISOLATE", "MOE");
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeEnabledRoundsTripThroughCompiledModel) {
