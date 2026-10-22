@@ -56,8 +56,14 @@ struct condition_impl : typed_primitive_impl<condition> {
 
         std::vector<event::ptr> output_events;
         if (can_skip_subgraph) {
-            for (size_t out_idx = 0; out_idx < branch.inner_program->get_outputs().size(); ++out_idx) {
-                const auto& output_internal_node = *branch.inner_program->get_outputs()[out_idx];
+            for (const auto& [out_idx, output_id] : branch.output_map) {
+                auto output_it = std::find_if(branch.inner_program->get_outputs().begin(),
+                                              branch.inner_program->get_outputs().end(),
+                                              [&](const program_node* output) { return output->id() == output_id; });
+                OPENVINO_ASSERT(output_it != branch.inner_program->get_outputs().end(),
+                                "[GPU] Condition primitive ", instance.id(), " has no body output ", output_id,
+                                " mapped to output index ", out_idx);
+                const auto& output_internal_node = **output_it;
                 layout output_layout = output_internal_node.get_output_layout();
                 cldnn::memory::ptr output_mem_ptr = nullptr;
                 if (output_internal_node.is_type<data>()) {
@@ -91,7 +97,19 @@ struct condition_impl : typed_primitive_impl<condition> {
 
                 if (output_layout.get_partial_shape().rank().get_length() == 0) {
                     auto other_branch = !pred ? instance.get_branch_true() : instance.get_branch_false();
-                    auto other_layout = other_branch.inner_program->get_outputs()[out_idx]->get_output_layout();
+                    auto other_mapping = other_branch.output_map.find(out_idx);
+                    OPENVINO_ASSERT(other_mapping != other_branch.output_map.end(),
+                                    "[GPU] Condition primitive ", instance.id(),
+                                    " has no output mapping for branch output index ", out_idx);
+                    auto other_output = std::find_if(other_branch.inner_program->get_outputs().begin(),
+                                                     other_branch.inner_program->get_outputs().end(),
+                                                     [&](const program_node* output) {
+                                                         return output->id() == other_mapping->second;
+                                                     });
+                    OPENVINO_ASSERT(other_output != other_branch.inner_program->get_outputs().end(),
+                                    "[GPU] Condition primitive ", instance.id(), " has no body output ",
+                                    other_mapping->second, " mapped to output index ", out_idx);
+                    auto other_layout = (*other_output)->get_output_layout();
                     output_layout = condition_inst::adjust_scalar_to_1d_layout(output_layout, other_layout);
                     OPENVINO_ASSERT(output_mem_ptr != nullptr, "output_mem_ptr should not be null.");
                     output_mem_ptr = instance.get_network().get_engine().reinterpret_buffer(*output_mem_ptr, output_layout);

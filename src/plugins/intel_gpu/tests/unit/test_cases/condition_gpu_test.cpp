@@ -853,11 +853,8 @@ public:
             condition::branch branch;
             const primitive_id f32_parameter = prefix + "_f32_parameter";
             const primitive_id f16_parameter = prefix + "_f16_parameter";
-            // Note: node ids are chosen so that their lexicographic order matches the declared
-            // output_map index order (program::get_outputs() enumerates outputs following the
-            // internal nodes_map key order, which is alphabetical).
-            const primitive_id f32_result = prefix + "_result_0";
-            const primitive_id f16_result = prefix + "_result_1";
+            const primitive_id f32_result = prefix + "_z_result_0";
+            const primitive_id f16_result = prefix + "_a_result_1";
             topology branch_topology;
             branch_topology.add(
                 input_layout(f32_parameter, f32_input->get_layout()),
