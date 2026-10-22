@@ -148,10 +148,7 @@ void create_decomposed_block_lstm(const Output<Node>& x,
 }
 }  // namespace
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 OutputVector translate_block_lstm_op(const ov::frontend::tensorflow::NodeContext& node) {
     default_op_checks(node, 9, {"BlockLSTM"});
     auto node_name = node.get_name();
@@ -290,7 +287,4 @@ OutputVector translate_block_lstm_op(const ov::frontend::tensorflow::NodeContext
 
     return results;
 }
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

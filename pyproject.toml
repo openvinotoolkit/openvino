@@ -8,13 +8,12 @@ authors = [
     { name = "OpenVINO Developers", email = "openvino@intel.com" },
 ]
 classifiers = [
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 dependencies = [
     "numpy>=1.16.6,<2.6.0",
@@ -67,3 +66,40 @@ reportFunctionMemberAccess = false
 reportAttributeAccessIssue = false
 reportMissingImports = false
 reportIncompatibleMethodOverride = false
+
+[tool.bandit]
+exclude_dirs = ["docs", "tests", "thirdparty", "samples", ".github"]
+skips = [
+    'B101', 
+    'B102', 
+    'B103', 
+    'B104', 
+    'B105', 
+    'B106', 
+    'B107', 
+    'B108', 
+    'B110', 
+    'B112', 
+    'B201', 
+    'B501', 
+    'B502', 
+    'B503', 
+    'B504', 
+    'B505', 
+    'B506', 
+    'B507', 
+    'B601', 
+    'B602', 
+    'B603', 
+    'B604', 
+    'B605', 
+    'B606', 
+    'B607', 
+    'B608', 
+    'B609', 
+    'B610', 
+    'B611', 
+    'B701', 
+    'B702', 
+    'B703']
+

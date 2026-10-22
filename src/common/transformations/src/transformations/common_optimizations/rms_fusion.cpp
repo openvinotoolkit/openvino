@@ -6,6 +6,7 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -28,7 +29,7 @@ namespace op_util = ov::op::util;
 
 namespace ov::pass {
 
-RMSFusionMatcher::RMSFusionMatcher(bool force_tail_convert, bool enable_without_gamma) {
+RMSFusionMatcher::RMSFusionMatcher(bool force_tail_convert, bool enable_without_gamma, bool enable_feature_axis) {
     // Detect RMS decomposition pattern
     //  x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
     auto x = pattern::any_input();
@@ -142,17 +143,55 @@ RMSFusionMatcher::RMSFusionMatcher(bool force_tail_convert, bool enable_without_
         const auto& axes = pattern_map.at(mean_axes).get_node_shared_ptr();
         auto axes_constant = ov::as_type_ptr<v0::Constant>(axes);
         auto axes_val = axes_constant->cast_vector<int64_t>();
-        // allow last dimension only
-        if ((axes_val[0] != -1) &&
-            (axes_val[0] != (static_cast<int64_t>(mean_node->get_input_partial_shape(0).size()) - 1))) {
-            return false;
+        int64_t rms_axis = -1;
+        const auto input_rank = mean_node->get_input_partial_shape(0).rank();
+        if (input_rank.is_dynamic()) {
+            if (axes_val[0] != -1) {
+                return false;
+            }
+        } else {
+            const auto rank = input_rank.get_length();
+            if (axes_val[0] < -rank || axes_val[0] >= rank) {
+                return false;
+            }
+
+            const auto normalized_axis = ov::util::normalize_axis(axes_val[0], rank);
+            const bool is_last_axis = normalized_axis == static_cast<size_t>(rank - 1);
+            const bool is_feature_axis = enable_feature_axis && normalized_axis == 1 && (rank == 4 || rank == 5);
+            if (!is_last_axis && !is_feature_axis) {
+                return false;
+            }
+            if (is_feature_axis) {
+                auto reduce_mean = ov::as_type_ptr<v1::ReduceMean>(mean_node);
+                if (!reduce_mean->get_keep_dims() || pattern_map.count(add_eps_opt_reshape)) {
+                    return false;
+                }
+
+                if (elementwise_affine) {
+                    const auto gamma_shape = pattern_map.at(gamma).get_shape();
+                    if (ov::shape_size(gamma_shape) != 1) {
+                        if (gamma_shape.size() > static_cast<size_t>(rank)) {
+                            return false;
+                        }
+
+                        const auto rank_offset = static_cast<size_t>(rank) - gamma_shape.size();
+                        for (size_t i = 0; i < gamma_shape.size(); ++i) {
+                            if (i + rank_offset != normalized_axis && gamma_shape[i] != 1) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                rms_axis = 1;
+            }
         }
 
         auto output_type = elementwise_affine ? m.get_match_root()->get_output_element_type(0)
                                               : mul_or_div_node->get_output_element_type(0);
         std::shared_ptr<ov::op::internal::RMS> rms =
-            elementwise_affine ? std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value, output_type)
-                               : std::make_shared<ov::op::internal::RMS>(x_output, eps_value, output_type);
+            elementwise_affine
+                ? std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value, output_type, rms_axis)
+                : std::make_shared<ov::op::internal::RMS>(x_output, eps_value, output_type, rms_axis);
         if (elementwise_affine) {
             rms->set_friendly_name(m.get_match_root()->get_friendly_name());
             ov::copy_runtime_info(m.get_matched_nodes(), rms);

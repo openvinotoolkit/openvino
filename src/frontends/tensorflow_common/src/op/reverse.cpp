@@ -15,10 +15,7 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 shared_ptr<Node> compute_sequence_lengths(const Output<Node>& input_shape, int64_t batch_axis, int64_t seq_axis) {
     auto batch_axis_const = make_shared<v0::Constant>(element::i32, Shape{1}, batch_axis);
     auto seq_axis_const = make_shared<v0::Constant>(element::i32, Shape{1}, seq_axis);
@@ -118,7 +115,4 @@ OutputVector translate_reverse_v2_op(const NodeContext& node) {
 
     return translate_reverse_base_op(node, input, axes);
 }
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

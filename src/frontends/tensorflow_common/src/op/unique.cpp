@@ -10,10 +10,7 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 NamedOutputVector translate_unique_op(const NodeContext& node) {
     // This operation returns a tensor y containing all of the unique elements of x sorted in the same order that they
     // occur in x. This operation also returns a tensor idx the same size as x that contains the index of each value of
@@ -33,7 +30,4 @@ NamedOutputVector translate_unique_op(const NodeContext& node) {
     return {{"y", unique->output(0)}, {"idx", unique->output(2)}};
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op
