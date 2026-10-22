@@ -24,9 +24,9 @@ inline namespace v1 {
 // `ov::util::as_memory_view(id)`.
 
 /**
- * @brief Recovers the id written by #wrap_model_id().
- * @param section Section whose #Section::view() is read.
- * @return `std::nullopt` if @p section's tag isn't #model_id_tag.
+ * @brief Reads the model id from a #model_id_tag section.
+ * @param section Section to decode.
+ * @return `std::nullopt` if @p section's tag isn't #model_id_tag or the read fails.
  */
 inline std::optional<uint64_t> decode_model_id(const Section& section) noexcept {
     if (section.tag().value != model_id_tag.value) {
