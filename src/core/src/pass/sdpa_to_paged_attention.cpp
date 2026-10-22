@@ -122,6 +122,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     auto position_ids = m_params.get("position_ids");
     if (!position_ids) {
         position_ids = m_params.add("position_ids", element::i64, PartialShape{-1});
+        std::cout << "position_ids created" << std::endl;
     } else {
         const auto& position_ids_shape = position_ids->get_partial_shape();
         if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 2) {
@@ -165,6 +166,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<PositionIDsReplacerQwen>(unsqueezed_position_ids);
     manager.register_pass<PositionIDsReplacerCodeGen2>(position_ids);
     manager.register_pass<PositionIDsReplacerLFM2>(position_ids);
+    manager.register_pass<PositionIDsReplacerGranite>(unsqueezed_position_ids);
     manager.run_passes(model);
 
     OPENVINO_ASSERT(ssm_fusion->get_fused_count() == paged_ssm_fusion->get_fused_count(),
