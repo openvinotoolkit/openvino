@@ -98,6 +98,15 @@ ov_apply_patch(
     PATCH "${CMAKE_CURRENT_SOURCE_DIR}/patches/0003-protobuf-absl-apply-openvino-patch.patch"
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/protobuf")
 
+# Protobuf's JSON UntypedMessage stores a std::variant (which holds UntypedMessage
+# itself) in an absl::flat_hash_map member. Abseil's containers probe trivial-type
+# traits on the value_type at class instantiation, which requires the still-incomplete
+# UntypedMessage to be complete and breaks Clang + libstdc++ builds. Use a node-based
+# std::map, which accepts the incomplete mapped type.
+ov_apply_patch(
+    PATCH "${CMAKE_CURRENT_SOURCE_DIR}/patches/0004-protobuf-untyped-message-stdmap.patch"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/protobuf")
+
 add_subdirectory(${protobuf_dir} EXCLUDE_FROM_ALL)
 get_directory_property(protobuf_VERSION DIRECTORY ${protobuf_dir} DEFINITION protobuf_VERSION)
 

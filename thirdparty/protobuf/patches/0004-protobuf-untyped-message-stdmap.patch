@@ -1,0 +1,30 @@
+Subject: [PATCH] json: use std::map for UntypedMessage::fields_
+
+UntypedMessage declares `absl::flat_hash_map<int32_t, Value> fields_` as a member,
+where Value is a std::variant that holds UntypedMessage itself (both singular and
+as std::vector<UntypedMessage>). Abseil's open-addressing containers compute
+trivial-type traits (e.g. is_trivially_copyable) on the map's value_type at class
+instantiation to decide slot relocation. That forces the variant's alternatives to
+be complete, including the singular UntypedMessage alternative - which is impossible
+inside UntypedMessage's own definition. Clang with libstdc++ evaluates these traits
+eagerly and fails to build:
+
+    type_traits: error: incomplete type 'UntypedMessage' used in type trait expression
+    variant: error: ... must be initialized by a constant expression
+
+A node-based std::map does not perform this relocation-trait probing, so it accepts
+an incomplete mapped type at member-declaration time. The field is only looked up by
+number (order-independent), so std::map is a drop-in replacement.
+--- a/src/google/protobuf/json/internal/untyped_message.h
++++ b/src/google/protobuf/json/internal/untyped_message.h
+@@ -15,4 +15,5 @@
+ #include <cstddef>
+ #include <cstdint>
++#include <map>
+ #include <memory>
+ #include <string>
+@@ -232,3 +232,3 @@
+   const ResolverPool::Message* desc_;
+-  absl::flat_hash_map<int32_t, Value> fields_;
++  std::map<int32_t, Value> fields_;
+ };
