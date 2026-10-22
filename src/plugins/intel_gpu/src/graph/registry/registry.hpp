@@ -191,6 +191,7 @@ REGISTER_IMPLS(moe_gemm);
 REGISTER_IMPLS(moe_scatter_reduction);
 REGISTER_IMPLS(moe_gather);
 REGISTER_IMPLS(gather_matmul);
+REGISTER_IMPLS(fully_connected_gguf);
 #ifdef ENABLE_MLIR_FOR_GPU
 REGISTER_IMPLS(mlir_primitive);
 #endif
