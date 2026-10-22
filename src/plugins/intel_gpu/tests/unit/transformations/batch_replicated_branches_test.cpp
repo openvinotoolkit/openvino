@@ -609,8 +609,15 @@ TEST(BatchReplicatedBranches, DoesNotCopyConcatInputMetadataToReshapePorts) {
     auto repacked = ov::as_type_ptr<ov::op::v1::Reshape>(
         model->get_results().front()->input_value(0).get_node_shared_ptr());
     ASSERT_NE(repacked, nullptr);
+
+    // Concat input metadata must not leak to any Reshape input port.
     EXPECT_FALSE(repacked->input(0).get_rt_info().count("concat_input_0"));
+    EXPECT_FALSE(repacked->input(1).get_rt_info().count("concat_input_0"));
+
+    EXPECT_FALSE(repacked->input(0).get_rt_info().count("concat_input_1"));
     EXPECT_FALSE(repacked->input(1).get_rt_info().count("concat_input_1"));
+
+    EXPECT_FALSE(repacked->input(0).get_rt_info().count("concat_input_3"));
     EXPECT_FALSE(repacked->input(1).get_rt_info().count("concat_input_3"));
 }
 
