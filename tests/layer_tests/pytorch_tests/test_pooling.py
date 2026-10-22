@@ -247,6 +247,7 @@ class TestPooling(PytorchLayerTest):
         ([[2**63 - 1, -(2**63 - 1) + 256]], (2, 3), (2, 3)),
         ([[2**63 - 1, -(2**63 - 1) + 256], [0, 0]], (3, 2), (2, 2)),
         ([[-3, 0], [0, 0]], (3, 3), (2, 2)),
+        ([[2, 0, 0], [4, 0, 0]], (3, 4), (2, 4)),
     ])
     @pytest.mark.parametrize("is_dynamic_shapes", [False, True])
     @pytest.mark.nightly
@@ -403,14 +404,15 @@ class TestPooling(PytorchLayerTest):
         np.testing.assert_allclose(actual, scripted(example).numpy(), rtol=1e-3, atol=1e-3)
         assert actual.dtype == np.float16
 
+    @pytest.mark.parametrize("kernel", [(3, 2), (2, 3)])
     @pytest.mark.parametrize("is_dynamic_shapes", [False, True])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_avg_pool_oversized_fp32_cancellation(self, is_dynamic_shapes, ie_device, precision, ir_version):
+    def test_avg_pool_oversized_fp32_cancellation(self, kernel, is_dynamic_shapes, ie_device, precision, ir_version):
         if ie_device != "CPU":
             pytest.skip("FP32 cancellation regression is checked on CPU")
 
-        model, _ = self.create_model("avg_pool2d", kernel_size=(3, 2), stride=(2, 2),
+        model, _ = self.create_model("avg_pool2d", kernel_size=kernel, stride=(2, 2),
                                      padding=0, ceil_mode=True)
         example = torch.tensor([[[[1e8, -1e8], [1, 1]]]], dtype=torch.float32)
         scripted = torch.jit.trace(model, example)
