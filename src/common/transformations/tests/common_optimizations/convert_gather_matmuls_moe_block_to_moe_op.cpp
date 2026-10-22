@@ -1060,7 +1060,6 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              DtypeGateParams{ov::element::u8, ov::element::u2, ov::element::u8, true},
                              DtypeGateParams{ov::element::u2, ov::element::u2, ov::element::u8, true},
                              // u4 on down only: down stages its own activation copy, so it may differ from gate/up.
-                             // The first row is the recipe this exists for -- gate/up u2, down u4.
                              DtypeGateParams{ov::element::u2, ov::element::u2, ov::element::u4, true},
                              DtypeGateParams{ov::element::u8, ov::element::u8, ov::element::u4, true},
                              DtypeGateParams{ov::element::u2, ov::element::u8, ov::element::u4, true},

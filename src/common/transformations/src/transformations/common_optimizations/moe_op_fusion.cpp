@@ -160,14 +160,10 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
         const bool is_compressed = is_gate_compressed;
 
         if (is_compressed) {
-            // A layer that mixes dtypes across the three expert GEMMs is decoded per GEMM by
-            // moe_3gemm (GATE/UP/DOWN_WEIGHT_DT) for u2, u4 and u8. One constraint is shared state
-            // rather than dispatch: gate and up read ONE SLM copy of the activations, and its layout
-            // is chosen from the gate dtype alone -- interleaved (even/odd halves) for u4, plain for
-            // u2/u8. So gate and up must agree on whether they are u4; down stages its own copy and
-            // is free. This is what admits the NNCF recipe that keeps gate/up at u2 and gives down
-            // u4. Signed types stay uniform-only: WEIGHT_IS_SIGNED is set once, from the gate.
-            // Anything else keeps the per-GEMM-correct GatherMatmul form rather than being mis-decoded.
+            // moe_3gemm decodes each GEMM with its own dtype, except that gate and up share one SLM copy of the
+            // activations whose layout follows the gate dtype (interleaved for u4), so gate and up must agree on
+            // being u4. Signed types stay uniform-only (WEIGHT_IS_SIGNED comes from the gate). Anything else
+            // stays as GatherMatmul.
             {
                 const auto gate_dt = pm.at(gate_w_m).get_element_type();
                 const auto up_dt = pm.at(up_w_m).get_element_type();
