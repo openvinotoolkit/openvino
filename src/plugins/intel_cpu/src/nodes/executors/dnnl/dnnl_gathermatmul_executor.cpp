@@ -337,6 +337,13 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
         return std::make_shared<InnerProduct>(eng, threadPool, k);
     });
 
+    if (m_bf16AmxMode) {
+        // The M > 1 GEMMs solve the GEMV problem on the weights layout the GEMV selected (the weights are
+        // repacked to it below); createGemm() sets the row count.
+        key.weights_md = m_gemvImpl->get_weights_md();
+        m_gemmKey = std::make_shared<const InnerProductKey>(std::move(key));
+    }
+
     // Repack weights: convert from [G, K, N] to [G, (packed_N, K)] format expected by oneDNN
     auto gemvWeightsDesc =
         MemoryDescUtils::convertToBlockedMemoryDesc(DnnlExtensionUtils::makeDescriptor(m_gemvImpl->get_weights_md()));
@@ -411,6 +418,7 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
     // srcShape is [B, M, K]
     if (Dim{1} == srcShape[1]) {
         // If M is 1, we can skip the temporary buffer and execute GEMV in-place on the src buffer
+        m_implType = m_gemvImpl->get_impl_type();
         return true;
     }
     const Dim M = normalizeM(srcShape[1]);
@@ -428,44 +436,26 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
     auto scratchPadDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::u8, Shape({totalSize}));
     m_tmpInpBuffer = m_context->getScratchPad()->createScratchPadMem(scratchPadDesc);
 
-    OPENVINO_ASSERT(m_gemvImpl, "GEMV implementation is not created");
+    // The GEMMs are created in execute(), each sized to the rows its gather index receives, so the oneDNN
+    // primitive that will run is not known here. DNNL_VERBOSE reports the implementation.
+    m_implType = impl_desc_type::unknown;
+    return true;
+}
 
-    dnnl::memory::desc src_md({static_cast<dnnl::memory::dim>(M), static_cast<dnnl::memory::dim>(srcShape[2])},
-                              DnnlExtensionUtils::ElementTypeToDataType(srcPrc),
-                              dnnl::memory::format_tag::ab);
-    auto weights_md = m_gemvImpl->get_weights_md();
-
-    VectorDims scale_shape{};
-    VectorDims zp_shape{};
-    if (m_scalesMemory) {
-        const auto& fullScaleDims = m_scalesMemory->getStaticDims();
-        if (1 == fullScaleDims.size()) {
-            scale_shape.push_back(fullScaleDims[0]);
-        } else {
-            scale_shape.assign(fullScaleDims.begin() + 1, fullScaleDims.end());
-        }
-    }
-    if (m_zpMemory) {
-        const auto& fullZpDims = m_zpMemory->getStaticDims();
-        if (1 == fullZpDims.size()) {
-            zp_shape.push_back(fullZpDims[0]);
-        } else {
-            zp_shape.assign(fullZpDims.begin() + 1, fullZpDims.end());
-        }
-    }
-
-    InnerProductKey key{src_md,
-                        weights_md,
-                        makeBiasMd(static_cast<dnnl::memory::dim>(weights_md.get_dims()[0]), memory.at(ARG_BIAS)),
-                        scale_shape,
-                        zp_shape};
+GatherMatmulDnnlExecutor::InnerProductPtr GatherMatmulDnnlExecutor::createGemm(size_t rows) const {
+    OPENVINO_ASSERT(m_gemmKey, "GEMM key is not initialized");
+    InnerProductKey key = *m_gemmKey;
+    key.src_md = dnnl::memory::desc({static_cast<dnnl::memory::dim>(rows), key.src_md.get_dims()[1]},
+                                    key.src_md.get_data_type(),
+                                    dnnl::memory::format_tag::ab);
     const auto& eng = m_context->getEngine();
     const auto threadPool = m_context->getThreadPool();
-    auto cache = m_context->getRuntimeCache();
-    std::tie(m_gemmImpl, std::ignore) = cache->getOrCreate(key, [&eng, &threadPool](const InnerProductKey& k) {
-        return std::make_shared<InnerProduct>(eng, threadPool, k);
-    });
-    return true;
+    InnerProductPtr gemm;
+    std::tie(gemm, std::ignore) =
+        m_context->getRuntimeCache()->getOrCreate(key, [&eng, &threadPool](const InnerProductKey& k) {
+            return std::make_shared<InnerProduct>(eng, threadPool, k);
+        });
+    return gemm;
 }
 
 void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
@@ -526,14 +516,26 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
             auto tmp_input_offset = OffsetHelper::createOffsetHelper(tmpInput);
             auto tmp_dst_offset = OffsetHelper::createOffsetHelper(tmpOutput);
 
-            OPENVINO_ASSERT(m_gemmImpl, "GEMM implementation is not created");
+            // Gather indices with the same rounded row count share one GEMM within this call. The runtime cache
+            // keeps the primitives across calls.
+            std::unordered_map<size_t, InnerProductPtr> gemmBySize;
             for (size_t gather_axis_index = 0; gather_axis_index < gather_axis_size; gather_axis_index++) {
                 const size_t num_valid_rows = elements_per_gather_indx[gather_axis_index];
                 if (0 == num_valid_rows) {
                     continue;
                 }
 
-                cpu_parallel->parallel_for(M_size, [&](size_t m) {
+                // Size the GEMM to the rows routed to this gather index (rounded up by normalizeM), not to
+                // the full input length: with top-k routing most rows of a full-length GEMM are zero padding.
+                OPENVINO_ASSERT(num_valid_rows <= M_size,
+                                "GatherMatmul: a gather index received more rows than the input has");
+                const size_t gemm_rows = normalizeM(num_valid_rows);
+                auto& gemmImpl = gemmBySize[gemm_rows];
+                if (!gemmImpl) {
+                    gemmImpl = createGemm(gemm_rows);
+                }
+
+                cpu_parallel->parallel_for(gemm_rows, [&](size_t m) {
                     auto* dst_row = tmp_input_offset(m);
                     if (m < num_valid_rows) {
                         const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
@@ -551,7 +553,7 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
                 auto* bias = bias_offset(gather_axis_index);
                 auto* scale = scale_offset(gather_axis_index);
                 auto* zp = zp_offset(gather_axis_index);
-                m_gemmImpl->exec(src, dst, wei, bias, scale, zp);
+                gemmImpl->exec(src, dst, wei, bias, scale, zp);
 
                 cpu_parallel->parallel_for(num_valid_rows, [&](size_t m) {
                     const auto* src_row = tmp_dst_offset(m);
