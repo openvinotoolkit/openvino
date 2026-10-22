@@ -44,6 +44,11 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             LOG_AND_RETURN_FALSE(node);
         }
 
+        // A fused Hadamard input transform is applied only by the TernOCL impl.
+        if (fc_prim->hadamard_block != 0) {
+            LOG_AND_RETURN_FALSE(node);
+        }
+
         if (one_of(data_types::i64, {in0_dt, wei_dt})) {
             LOG_AND_RETURN_FALSE(node);
         }
@@ -101,7 +106,7 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             }
         }
 
-        return true;
+        return is_supported_post_ops(node);
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {
