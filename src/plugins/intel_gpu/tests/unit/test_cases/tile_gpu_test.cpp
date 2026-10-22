@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "test_name_utils.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/tile.hpp>
@@ -807,7 +808,7 @@ struct PrintToStringParamName {
             << " output tensor " << p.output_tensor.to_string()
             << " plain layout " << plain_layout
             << " target layout " << target_layout;
-        return buf.str();
+        return tests::sanitize_test_name(buf.str());
     }
 };
 };

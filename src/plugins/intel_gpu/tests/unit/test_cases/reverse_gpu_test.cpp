@@ -9,6 +9,7 @@
 #include <string>
 
 #include "test_utils.h"
+#include "test_name_utils.hpp"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -101,7 +102,7 @@ struct PrintToStringParamName {
             buf << val << ",";
         }
         buf << "} format " << param.param.input_format.to_string();
-        return buf.str();
+        return tests::sanitize_test_name(buf.str());
     }
 };
 

@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "test_name_utils.hpp"
 #include "random_generator.hpp"
 
 #include "openvino/reference/softmax.hpp"
@@ -919,7 +920,7 @@ struct PrintToStringParamName {
             << "_axis=" << p.axis
             << "_plainFormat=" << fmt_to_str(plain_format)
             << "_targetFormat=" << fmt_to_str(target_format);
-        return buf.str();
+        return tests::sanitize_test_name(buf.str());
     }
 };
 }; // namespace

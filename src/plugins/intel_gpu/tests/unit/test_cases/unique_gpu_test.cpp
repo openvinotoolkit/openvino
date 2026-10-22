@@ -3,6 +3,7 @@
 //
 
 #include <test_utils/test_utils.h>
+#include <test_utils/test_name_utils.hpp>
 
 #include <intel_gpu/primitives/unique.hpp>
 #include <vector>
@@ -112,7 +113,7 @@ public:
             result << "axis=" << p.axis << "; ";
         }
         result << "fmt=" << fmt_to_str(fmt) << "; ";
-        return result.str();
+        return tests::sanitize_test_name(result.str());
     }
 };
 

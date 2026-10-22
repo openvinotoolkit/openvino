@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "test_name_utils.hpp"
 
 #include "intel_gpu/runtime/format.hpp"
 
@@ -92,7 +93,7 @@ public:
             res += " { " + std::to_string(block.first) + ", " + std::to_string(block.second) + "}";
         }
 
-        return res;
+        return tests::sanitize_test_name(res);
     }
  };
 

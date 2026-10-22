@@ -7,6 +7,8 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/subgraph_builders/llm_builders.hpp"
+#include "test_name_utils.hpp"
+
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
 #include "intel_gpu/op/read_value.hpp"
@@ -150,7 +152,7 @@ public:
         result << "model_element_type=" << model_element_type << "_";
         result << "num_groups=" << num_groups << "_";
         result << "qkv_order=" << ov::test::utils::vec2str(qkv_order);
-        return result.str();
+        return tests::sanitize_test_name(result.str());
     }
 };
 

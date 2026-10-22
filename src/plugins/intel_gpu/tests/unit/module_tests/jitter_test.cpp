@@ -12,6 +12,7 @@
 #include "openvino/core/except.hpp"
 #include "primitive_inst.h"
 #include "test_utils.h"
+#include "test_name_utils.hpp"
 #include "registry/registry.hpp"
 #include "primitive_type_base.h"
 #include <memory>
@@ -72,7 +73,7 @@ public:
     static std::string get_test_case_name(const testing::TestParamInfo<Params> &obj) {
         std::stringstream s;
         s << obj.param.l.to_short_string() << "/" << obj.index;
-        return s.str();
+        return tests::sanitize_test_name(s.str());
     }
 };
 TEST_P(JitterTest, data_layout) {

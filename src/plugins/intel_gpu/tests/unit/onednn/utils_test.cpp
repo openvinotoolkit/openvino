@@ -8,6 +8,7 @@
 
 #include "intel_gpu/runtime/utils.hpp"
 #include "test_utils.h"
+#include "test_name_utils.hpp"
 
 #include "intel_gpu/runtime/format.hpp"
 #include "graph/impls/onednn/utils.hpp"
@@ -37,7 +38,7 @@ public:
         }
         res += "}";
 
-        return res;
+        return tests::sanitize_test_name(res);
     }
 };
 
@@ -87,7 +88,7 @@ public:
         std::string res = " data format (dnnl::memory::format_tag) : " + std::string(dnnl_fmt_tag2str((dnnl_format_tag_t)dnnl_format));
         res += " > " + format::traits(param_info.param.cldnn_format).str;
 
-        return res;
+        return tests::sanitize_test_name(res);
     }
 };
 
@@ -147,7 +148,7 @@ public:
         std::string res = " weight format (dnnl::memory::format_tag) : " + std::string(dnnl_fmt_tag2str((dnnl_format_tag_t)dnnl_format));
         res += " > " + format::traits(param_info.param.cldnn_format).str;
 
-        return res;
+        return tests::sanitize_test_name(res);
     }
 };
 

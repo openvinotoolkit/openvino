@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "test_name_utils.hpp"
 
 #include "openvino/reference/scatter_elements_update.hpp"
 
@@ -275,7 +276,7 @@ struct PrintToStringParamName {
             << "_targetDataFormat=" << fmt_to_str(target_data_format)
             << "_targetIndicesFormat=" << fmt_to_str(target_indices_format)
             << "_targetUpdatesFormat=" << fmt_to_str(target_updates_format);
-        return buf.str();
+        return tests::sanitize_test_name(buf.str());
     }
 
     template<typename T, typename T_IND>
@@ -290,7 +291,7 @@ struct PrintToStringParamName {
             << "_data=" << p.data_tensor.to_string()
             << "_indices=" << p.indices_tensor.to_string()
             << "_plainFormat=" << fmt_to_str(plain_format);
-        return buf.str();
+        return tests::sanitize_test_name(buf.str());
     }
 };
 

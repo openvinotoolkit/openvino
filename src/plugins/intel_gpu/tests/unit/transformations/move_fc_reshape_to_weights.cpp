@@ -13,6 +13,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
+#include "test_utils/test_name_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "intel_gpu/op/fully_connected.hpp"
 #include "openvino/op/multiply.hpp"
@@ -36,7 +37,7 @@ public:
         std::ostringstream result;
         result << "Input_shape=(" << input_shapes.first << ")_Weights_shape=(" << input_shapes.second
                << ")_add_transpose=" << add_transpose << "_add_subtract=" << add_subtract;
-        return result.str();
+        return tests::sanitize_test_name(result.str());
     }
 
     static std::shared_ptr<ov::Model> init_model(const ov::PartialShape& data_shape,

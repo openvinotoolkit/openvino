@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "test_name_utils.hpp"
 #include "random_generator.hpp"
 #include "openvino/reference/adaptive_avg_pool.hpp"
 #include "openvino/reference/adaptive_max_pool.hpp"
@@ -105,7 +106,7 @@ struct PrintToStringParamName {
             << " plain layout " << plain_layout
             << " target layout " << target_layout
             << " is_caching_test " << is_caching_test;
-        return buf.str();
+        return tests::sanitize_test_name(buf.str());
     }
 };
 };  // namespace
