@@ -265,8 +265,7 @@ void select_preferred_formats::run(program& p) {
         // u2 scale/zp were left bfyx by prepare_quantization; CM keeps them, other impls get the usual reorder.
         if (n->is_type<fully_connected>()) {
             auto& fc_node = n->as<fully_connected>();
-            auto fc_prim = fc_node.get_primitive();
-            if (fc_prim->compressed_weights && fc_node.get_input_layout(1).data_type == data_types::u2) {
+            if (defer_u2_decompression_reorder(fc_node)) {
                 bool cm_selected = false;
 #if OV_GPU_WITH_CM
                 cm_selected = factory && factory->get_type_info() == ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager::get_type_info_static();
