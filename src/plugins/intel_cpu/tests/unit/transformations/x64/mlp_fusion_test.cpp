@@ -125,4 +125,19 @@ TEST_F(TransformationTestsF, MLPFusionGateUpTokenAxisSplitNotFused) {
     register_mlp_fusion(manager);
 }
 
+class MLPFusionGateUpDynamicFeatureTest : public TransformationTestsF, public WithParamInterface<PartialShape> {};
+
+TEST_P(MLPFusionGateUpDynamicFeatureTest, NotFused) {
+    std::shared_ptr<v0::Constant> gate_up_w, down_w;
+    std::shared_ptr<v0::Parameter> input;
+    // LLMMLPNode requires a static hidden size; constant weights don't make the input's last dimension static.
+    GateUpMLPParams p{GetParam(), element::bf16, element::i64, -1, {up_size, up_size}};
+    model = make_gate_up_mlp(p, gate_up_w, down_w, input);
+    register_mlp_fusion(manager);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         MLPFusionGateUpDynamicFeatureTest,
+                         Values(PartialShape{-1, -1}, PartialShape{-1, -1, -1}));
+
 }  // namespace
