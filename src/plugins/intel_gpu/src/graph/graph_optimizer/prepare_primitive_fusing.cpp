@@ -606,6 +606,18 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
         auto fc_supports_fusings = [&](fully_connected_node& node) -> bool {
             auto& fused_prims = node.get_fused_primitives();
+#ifdef OV_GPU_WITH_OCL_RT
+            const auto& fc = node.get_primitive();
+            if (p.get_config().get_enable_ternocl_int2() && supports_immad && p.get_engine().get_device_info().arch >= gpu_arch::xe2 &&
+                fc->compressed_weights && node.weights().get_output_layout(false).data_type == data_types::u2 &&
+                node.get_input_layout(0).data_type == data_types::f16 && !fc->bias.is_valid() && fc->decompression_zero_point_scalar == 1.0f &&
+                node.weights().is_type<data>() && node.weights().get_output_layout(false).batch() % 16 == 0 &&
+                node.weights().get_output_layout(false).feature() % 128 == 0 && fused_prims.size() == 1 && fused_prims.front().is_type<activation>() &&
+                fused_prims.front().typed_desc<activation>()->activation_function == activation_func::logistic) {
+                // TernOCL folds sigmoid alone; further fusion would disable its FC kernel.
+                return false;
+            }
+#endif
             if (std::any_of(fused_prims.begin(), fused_prims.end(), [](const fused_primitive_desc& f_desc) {
                     return f_desc.is_type<swiglu>();
                 })) {
@@ -618,7 +630,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             }
             auto in_dt = node.get_input_layout(0).data_type;
             return node.is_dynamic() || data_type_traits::is_i8_u8(in_dt);
-
         };
 
         auto gemm_supports_fusings = [](gemm_node& node) -> bool {
