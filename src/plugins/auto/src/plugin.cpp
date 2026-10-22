@@ -538,19 +538,25 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
             if (ov::DeviceIDParser(device.device_name).get_device_name() != "CPU")
                 warmup_candidates.push_back(&device);
         }
-        // The actual device is one of the non-CPU candidates, so at least two are needed to warm up anything.
-        if (is_cumulative || warmup_candidates.size() < 2) {
+        // The actual device may be the CPU, so one non-CPU candidate is enough as long as another device exists.
+        if (is_cumulative || warmup_candidates.empty() || auto_s_context->m_device_priorities_initial.size() < 2) {
             LOG_WARNING_TAG("compile_for_all is ignored: %s",
                             is_cumulative ? "not supported in cumulative mode" : "no other candidate device to compile");
             auto_s_context->m_compile_for_all = false;
-        } else {
-            const bool cache_configured =
-                std::any_of(warmup_candidates.begin(), warmup_candidates.end(), [this](const DeviceInformation* device) {
-                    return !CacheWarmupManager::get_cache_location(*get_core(), device->config).empty();
-                });
-            OPENVINO_ASSERT(cache_configured,
-                            ov::intel_auto::compile_for_all.name(),
-                            " requires ov::cache_dir or ov::cache_path to be set");
+        } else if (!std::any_of(warmup_candidates.begin(),
+                                warmup_candidates.end(),
+                                [this](const DeviceInformation* device) {
+                                    return !CacheWarmupManager::get_cache_location(*get_core(),
+                                                                                   device->config,
+                                                                                   device->device_name)
+                                                .empty();
+                                })) {
+            // A single non-CPU candidate is warmed up only if the CPU ends up as the actual device.
+            if (warmup_candidates.size() >= 2) {
+                OPENVINO_THROW(ov::intel_auto::compile_for_all.name(), " requires ov::cache_dir or ov::cache_path to be set");
+            }
+            LOG_WARNING_TAG("compile_for_all is ignored: neither ov::cache_dir nor ov::cache_path is set");
+            auto_s_context->m_compile_for_all = false;
         }
     }
     auto_s_context->m_schedule_policy = load_config.get_property(ov::intel_auto::schedule_policy);

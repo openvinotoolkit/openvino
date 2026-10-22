@@ -16,9 +16,25 @@
 #include <vector>
 
 #include "include/auto_unit_test.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/runtime/compilation_context.hpp"
 
 using namespace ov::mock_auto_plugin;
+
+namespace cache_warmup_test {
+class ThrowOnCloneRelu : public ov::op::v0::Relu {
+public:
+    OPENVINO_OP("ThrowOnCloneRelu", "test", ov::op::v0::Relu);
+    ThrowOnCloneRelu() = default;
+    explicit ThrowOnCloneRelu(const ov::Output<ov::Node>& arg) : ov::op::v0::Relu(arg) {}
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector&) const override {
+        OPENVINO_THROW("clone is not supported");
+    }
+};
+}  // namespace cache_warmup_test
 
 namespace {
 bool wait_until(const std::function<bool()>& condition,
@@ -294,4 +310,139 @@ TEST_F(AutoCacheWarmupTest, failedActualDeviceIsNotWarmedUp) {
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     EXPECT_EQ(actual_count.load(), 1);
     EXPECT_EQ(retry_count.load(), 1);
+}
+
+TEST_F(AutoCacheWarmupTest, warmsUpOtherDeviceWhenCpuIsActualDevice) {
+    set_global_cache("test_cache_dir");
+    set_devices({"GPU.0", cpu_device});
+    on_compile(cpu_device, [this]() -> ov::SoPtr<ov::ICompiledModel> {
+        return {mockIExeNet, {}};
+    });
+    std::atomic<int> warmup_count{0};
+    auto warmup_compiled_model = make_compiled_model();
+    on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        warmup_count++;
+        return {warmup_compiled_model, {}};
+    });
+    config.insert(ov::intel_auto::compile_for_all(true));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    EXPECT_TRUE(wait_until([&] {
+        return warmup_count.load() == 1;
+    }));
+}
+
+TEST_F(AutoCacheWarmupTest, singleNonCpuCandidateWithoutCacheIsIgnored) {
+    set_global_cache("");
+    set_devices({"GPU.0", cpu_device});
+    on_compile(cpu_device, [this]() -> ov::SoPtr<ov::ICompiledModel> {
+        return {mockIExeNet, {}};
+    });
+    on_compile("GPU.0", [this]() -> ov::SoPtr<ov::ICompiledModel> {
+        return {mockIExeNetActual, {}};
+    });
+    config.insert(ov::intel_auto::compile_for_all(true));
+    OV_ASSERT_NO_THROW(plugin->compile_model(model, config));
+}
+
+TEST_F(AutoCacheWarmupTest, skipsDeviceWithCachingDisabled) {
+    set_global_cache("test_cache_dir");
+    set_devices({cpu_device, "GPU.0", "NPU", actual_device});
+    metaDevices[2].config = ov::AnyMap{{ov::cache_dir.name(), std::string{}}};
+    ON_CALL(*plugin, parse_meta_devices(_, _)).WillByDefault(Return(metaDevices));
+    use_default_startup_compilation();
+    std::atomic<int> gpu_count{0};
+    std::atomic<int> npu_count{0};
+    auto warmup_compiled_model = make_compiled_model();
+    on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        gpu_count++;
+        return {warmup_compiled_model, {}};
+    });
+    on_compile("NPU", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        npu_count++;
+        return {warmup_compiled_model, {}};
+    });
+    config.insert(ov::intel_auto::compile_for_all(true));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    EXPECT_TRUE(wait_until([&] {
+        return gpu_count.load() == 1;
+    }));
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    EXPECT_EQ(npu_count.load(), 0);
+}
+
+TEST_F(AutoCacheWarmupTest, usesDeviceScopedCacheSetting) {
+    set_global_cache("");
+    ON_CALL(*core, get_property(StrEq("GPU.0"), StrEq(ov::cache_dir.name()), _))
+        .WillByDefault(Return(ov::Any(std::string("device_cache_dir"))));
+    ON_CALL(*core, get_property(StrEq(actual_device), StrEq(ov::cache_dir.name()), _))
+        .WillByDefault(Return(ov::Any(std::string("device_cache_dir"))));
+    set_devices({cpu_device, "GPU.0", actual_device});
+    use_default_startup_compilation();
+    std::atomic<int> warmup_count{0};
+    auto warmup_compiled_model = make_compiled_model();
+    on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        warmup_count++;
+        return {warmup_compiled_model, {}};
+    });
+    config.insert(ov::intel_auto::compile_for_all(true));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    EXPECT_TRUE(wait_until([&] {
+        return warmup_count.load() == 1;
+    }));
+}
+
+TEST_F(AutoCacheWarmupTest, warmsUpPrivateModelSnapshot) {
+    set_global_cache("test_cache_dir");
+    set_devices({cpu_device, "GPU.0", actual_device});
+    use_default_startup_compilation();
+    std::mutex captured_mutex;
+    std::shared_ptr<const ov::Model> captured_model;
+    auto warmup_compiled_model = make_compiled_model();
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.0")),
+                          _))
+        .WillByDefault(::testing::Invoke(
+            [&](const std::shared_ptr<const ov::Model>& compiled, const std::string&, const ov::AnyMap&) {
+                std::lock_guard<std::mutex> lock(captured_mutex);
+                captured_model = compiled;
+                return ov::SoPtr<ov::ICompiledModel>{warmup_compiled_model, {}};
+            }));
+    config.insert(ov::intel_auto::compile_for_all(true));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    ASSERT_TRUE(wait_until([&] {
+        std::lock_guard<std::mutex> lock(captured_mutex);
+        return captured_model != nullptr;
+    }));
+    std::lock_guard<std::mutex> lock(captured_mutex);
+    EXPECT_NE(captured_model, model);
+}
+
+TEST_F(AutoCacheWarmupTest, modelCloneFailureIsReportedToCaller) {
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 2, 2});
+    auto relu = std::make_shared<cache_warmup_test::ThrowOnCloneRelu>(parameter);
+    auto result = std::make_shared<ov::op::v0::Result>(relu);
+    auto uncloneable_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter});
+    set_global_cache("test_cache_dir");
+    set_devices({cpu_device, "GPU.0", actual_device});
+    std::atomic<int> compile_count{0};
+    for (const auto& device : {cpu_device, std::string("GPU.0"), actual_device}) {
+        on_compile(device, [&]() -> ov::SoPtr<ov::ICompiledModel> {
+            compile_count++;
+            return {mockIExeNetActual, {}};
+        });
+    }
+    config.insert(ov::intel_auto::compile_for_all(true));
+
+    // The snapshot is taken before any compilation starts, so the failure reaches the caller.
+    EXPECT_THROW(plugin->compile_model(uncloneable_model, config), ov::Exception);
+    EXPECT_EQ(compile_count.load(), 0);
 }
