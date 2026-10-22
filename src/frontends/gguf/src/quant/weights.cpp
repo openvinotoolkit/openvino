@@ -15,19 +15,25 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <map>
 #include <mutex>
+#include <set>
 #include <vector>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/util/common_util.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 
 namespace ov::frontend::gguf {
 
@@ -234,6 +240,13 @@ std::shared_ptr<ov::Node> make_compressed(const WeightTensors& tensors, ov::elem
                                                               scales_node->output(0),
                                                               zp_node ? zp_node->output(0) : ov::Output<ov::Node>{},
                                                               final_shape_node->output(0));
+    if (zp_node && zp_node->get_shape().empty()) {
+        auto multiply = result.get_node_shared_ptr();
+        if (auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(multiply)) {
+            multiply = reshape->get_input_node_shared_ptr(0);
+        }
+        multiply->get_input_node_shared_ptr(0)->get_rt_info()["gguf_u2_zero_point_shape"] = scale_shape;
+    }
     return std::make_shared<ov::op::v0::Convert>(result, ov::element::f32);
 }
 
@@ -384,6 +397,92 @@ bool q4_k_f16_zero_point_enabled() {
 }
 
 }  // namespace
+
+void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model) {
+    const auto nodes = model->get_ordered_ops();
+    if (std::none_of(nodes.begin(), nodes.end(), [](const std::shared_ptr<ov::Node>& node) {
+            return node->get_rt_info().count("gguf_u2_zero_point_shape") != 0;
+        })) {
+        return;
+    }
+    ov::OutputVector activations;
+    for (const auto& node : nodes) {
+        if (const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node))
+            activations.push_back(matmul->input_value(0));
+    }
+    ov::OutputVector probes;
+    for (const auto& activation : activations) {
+        probes.push_back(std::make_shared<ov::op::v1::Multiply>(
+            activation, ov::op::v0::Constant::create(activation.get_element_type(), {}, {1})));
+    }
+    auto activation_model = std::make_shared<ov::Model>(probes, model->get_parameters())->clone();
+    ov::pass::SharedOpOptimization().run_on_model(activation_model);
+    std::map<ov::Output<ov::Node>, ov::Output<ov::Node>> shared_activations;
+    for (size_t i = 0; i < activations.size(); ++i)
+        shared_activations[activations[i]] = activation_model->get_results()[i]->get_input_node_shared_ptr(0)->input_value(0);
+    struct Projection {
+        std::shared_ptr<ov::op::v1::Subtract> subtract;
+        ov::Shape shape;
+    };
+    std::map<ov::Output<ov::Node>, std::vector<Projection>> projections;
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node);
+        if (!matmul)
+            continue;
+        auto weight = matmul->get_input_node_shared_ptr(1);
+        while (ov::is_type<ov::op::v0::Convert>(weight) || ov::is_type<ov::op::v1::Reshape>(weight) ||
+               ov::is_type<ov::op::v1::Transpose>(weight)) {
+            weight = weight->get_input_node_shared_ptr(0);
+        }
+        const auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(weight);
+        if (!multiply)
+            continue;
+        const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(multiply->get_input_node_shared_ptr(0));
+        if (!subtract)
+            continue;
+        const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(subtract->get_input_node_shared_ptr(0));
+        if (!convert || convert->get_input_element_type(0) != ov::element::u2)
+            continue;
+        const auto& rt_info = subtract->get_rt_info();
+        const auto shape = rt_info.find("gguf_u2_zero_point_shape");
+        auto input = shared_activations.at(matmul->input_value(0));
+        while (ov::is_type<ov::op::v0::Convert>(input.get_node_shared_ptr()))
+            input = input.get_node_shared_ptr()->input_value(0);
+        projections[input].push_back(
+            {subtract, shape == rt_info.end() ? ov::Shape{} : shape->second.as<ov::Shape>()});
+    }
+    std::set<ov::Node*> grouped;
+    for (const auto& [input, group] : projections) {
+        for (const auto& projection : group) {
+            if (projection.shape.empty())
+                grouped.insert(projection.subtract.get());
+        }
+    }
+    bool changed;
+    do {
+        changed = false;
+        for (const auto& [input, group] : projections) {
+            if (std::none_of(group.begin(), group.end(), [&](const Projection& projection) {
+                    return grouped.count(projection.subtract.get()) != 0;
+                })) {
+                continue;
+            }
+            for (const auto& projection : group)
+                changed |= grouped.insert(projection.subtract.get()).second;
+        }
+    } while (changed);
+    // Keep shared-input projections uniformly grouped when one needs the code-3 fallback.
+    for (const auto& [input, group] : projections) {
+        for (const auto& projection : group) {
+            if (projection.shape.empty() || !grouped.count(projection.subtract.get()))
+                continue;
+            auto zp = ov::op::v0::Constant::create(ov::element::u8, projection.shape, {1});
+            projection.subtract->input(1).replace_source_output(
+                std::make_shared<ov::op::v0::Convert>(zp, projection.subtract->get_element_type()));
+            projection.subtract->get_rt_info().erase("gguf_u2_zero_point_shape");
+        }
+    }
+}
 
 void notify_lossy_weight_approximation(LossyWeightApproximation kind) {
     // Written to std::cerr, NOT OPENVINO_WARN: the latter expands to a no-op unless the build sets

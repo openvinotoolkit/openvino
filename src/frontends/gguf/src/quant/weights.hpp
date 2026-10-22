@@ -13,9 +13,12 @@
 
 namespace ov {
 class Node;
+class Model;
 }
 
 namespace ov::frontend::gguf {
+
+void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model);
 
 // Element type of the zero-point constant for an asymmetric quantized weight.
 // Q2_0 always uses u8. The raw-byte Q8_0_C requantization path separately uses temporary f16

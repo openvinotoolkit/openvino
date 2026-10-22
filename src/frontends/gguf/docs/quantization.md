@@ -86,6 +86,9 @@ byte per 128 weights. Their native storage is identical, at `35/128` bytes per w
 per group. For `u2` weights containing only codes 0, 1 and 2, the frontend emits one scalar
 zero-point Constant of 1 instead of a grouped Constant. The table includes the extracted
 per-group tensor storage. Code 3 retains the grouped Constant and the existing GPU fallback.
+Projections sharing an activation input retain grouped zero points if any projection needs
+that fallback, including a singleton group. This keeps their layouts compatible with
+horizontal fusion without changing plugins; all-ternary projection groups remain scalar.
 
 ## Floating-point formats
 
