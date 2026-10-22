@@ -1,0 +1,6 @@
+{
+  "component": "cpu",
+  "files": [
+    "runtime/lib/aarch64/libopenvino_arm_cpu_plugin.so"
+  ]
+}

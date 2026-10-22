@@ -1,0 +1,6 @@
+{
+  "component": "core_dev_pkgconfig",
+  "files": [
+    "runtime/lib/aarch64/pkgconfig/openvino.pc"
+  ]
+}

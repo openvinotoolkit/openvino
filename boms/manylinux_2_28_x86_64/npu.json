@@ -1,0 +1,6 @@
+{
+  "component": "npu",
+  "files": [
+    "runtime/lib/intel64/libopenvino_intel_npu_plugin.so"
+  ]
+}

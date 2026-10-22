@@ -1,0 +1,6 @@
+{
+  "component": "pytorch",
+  "files": [
+    "runtime/bin/intel64/Debug/openvino_pytorch_frontendd.dll"
+  ]
+}
