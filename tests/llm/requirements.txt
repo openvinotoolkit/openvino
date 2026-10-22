@@ -1,11 +1,12 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
-optimum-intel[nncf] @ git+https://github.com/huggingface/optimum-intel.git@main
+optimum-intel[tests,nncf]==2.2.0
+# Keep the llm-test-openvino test pins without its incompatible Optimum Intel 2.0 and huggingface-hub 1.22 pins.
 whowhatbench @ git+https://github.com/openvinotoolkit/openvino.genai.git@master#subdirectory=tools/who_what_benchmark
 torch==2.11.0
 torchvision==0.26.0
 torchaudio==2.11.0
-transformers[sentencepiece]==5.10.4
-sentence-transformers==5.6.1
+transformers[sentencepiece]==5.5.4
+sentence-transformers==5.3.0
 tqdm==4.70.0
 pytest
 pytest-html
