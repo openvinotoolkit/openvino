@@ -63,7 +63,7 @@ ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_in
                                                      bool allow_xattention,
                                                      bool allow_adaptive_rkv,
                                                      bool allow_qq_bias,
-                                                     bool draft_model)
+                                                     bool is_draft_model)
     : m_options{use_per_layer_block_indices_inputs,
                 use_score_outputs,
                 allow_score_aggregation,
@@ -71,13 +71,13 @@ ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_in
                 allow_xattention,
                 allow_adaptive_rkv,
                 allow_qq_bias,
-                draft_model} {}
+                is_draft_model} {}
 
 bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToPagedAttention);
 
     // A draft model reads the target model's KV cache through its inputs and has no state of its own.
-    OPENVINO_ASSERT(m_options.draft_model || !model->get_variables().empty(),
+    OPENVINO_ASSERT(m_options.is_draft_model || !model->get_variables().empty(),
                     "Model is supposed to be stateful, cannot perform "
                     "the SDPAToPagedAttention transformation. "
                     "For proper conversion run: optimum-cli export openvino --task text-generation-with-past instead "
@@ -158,7 +158,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                              // nodes are in the expected form before running
                                                              // PagedGatedDeltaNetFusion.
     auto ssm_fusion = manager.register_pass<SelectiveSSMFusion>();
-    if (m_options.draft_model) {
+    if (m_options.is_draft_model) {
         manager.register_pass<Gemma4MTPStateManagementPattern>(m_params, params_to_remove);
     } else {
         manager.register_pass<StateManagementPattern>(m_params, m_results, m_options, var_ids_to_remove);

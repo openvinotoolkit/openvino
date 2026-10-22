@@ -29,7 +29,7 @@ struct Options {
     bool allow_xattention;
     bool allow_adaptive_rkv;
     bool allow_qq_bias;
-    bool draft_model;
+    bool is_draft_model;
 };
 
 template <typename NodeT, typename VectorT>
@@ -166,7 +166,7 @@ public:
                                   bool allow_xattention = false,
                                   bool allow_adaptive_rkv = false,
                                   bool allow_qq_bias = false,
-                                  bool draft_model = false);
+                                  bool is_draft_model = false);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
