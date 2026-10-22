@@ -433,8 +433,7 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
         const auto down_weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2)).data_type;
         const bool all_u2 = weight_dt == ov::element::u2 && up_weight_dt == ov::element::u2 && down_weight_dt == ov::element::u2;
         const size_t sg = (info.arch >= gpu_arch::xe2) ? 32u : 16u;
-        // Mirrors FAKE_GROUP_SIZE in moe_3gemm_swiglu_mlp.cl, which also takes the down group size;
-        // checking gate/up alone let a smaller down group through to a branch that does not exist.
+        // Mirrors FAKE_GROUP_SIZE in moe_3gemm_swiglu_mlp.cl, which also depends on the down group size.
         const size_t fake_gs = std::min({gate_up_group_size, down_group_size, size_t{128}});
         const size_t min_fake_gs = all_u2 ? sg : 2 * sg;
         OPENVINO_ASSERT(fake_gs >= min_fake_gs,
