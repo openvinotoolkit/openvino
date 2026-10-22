@@ -6,6 +6,7 @@
 
 #include "../util.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/node_util.hpp"
 #include "openvino/opsets/opset13.hpp"
@@ -35,6 +36,14 @@ auto match_down_up_convert_subgraph_after_lpt = [](const ov::Output<ov::Node>& i
 
     return downconvert;
 };
+
+constexpr size_t kPastKeyInput = static_cast<size_t>(ov::op::internal::GroupQueryAttentionInputs::PAST_KEY);
+constexpr size_t kPastValueInput = static_cast<size_t>(ov::op::internal::GroupQueryAttentionInputs::PAST_VALUE);
+
+bool is_empty_param(const ov::Output<ov::Node>& output) {
+    return ov::is_type<ov::op::v0::Parameter>(output.get_node()) && output.get_partial_shape().is_static() &&
+           ov::shape_size(output.get_shape()) == 0;
+}
 
 // diagnostics warnings on OPENVINO_MATCHER_PASS_RTTI() definition: visibility hidden
 #ifdef __GNUC__
@@ -113,6 +122,49 @@ public:
     }
 };
 
+class RemoveEmptyGQAPastInputs : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::RemoveEmptyGQAPastInputs");
+
+    using Context = RemoveEmptyKVTensors::Context;
+
+    RemoveEmptyGQAPastInputs(Context::Ref ctx) {
+        // GQA has a variable number of inputs, so the past inputs are checked by a node predicate.
+        auto gqa = opp::wrap_type<ov::op::internal::GroupQueryAttention>(opp::op::Predicate(
+            [](const ov::Output<ov::Node>& output) {
+                const auto node = output.get_node();
+                for (size_t input_pos : {kPastKeyInput, kPastValueInput}) {
+                    if (!is_empty_param(node->input_value(input_pos))) {
+                        return false;
+                    }
+                }
+                return true;
+            },
+            "has_empty_past_param"));
+
+        auto callback = [=](opp::Matcher& m) {
+            auto matched_gqa = m.get_match_root();
+            bool changed = false;
+            for (size_t input_pos : {kPastKeyInput, kPastValueInput}) {
+                const auto past_output = matched_gqa->input_value(input_pos);
+                if (!is_empty_param(past_output)) {
+                    continue;
+                }
+                auto past = ov::as_type_ptr<ov::op::v0::Parameter>(past_output.get_node_shared_ptr());
+                // An empty Constant marks the GQA past as absent, i.e. an empty KV cache.
+                auto empty = std::make_shared<ov::op::v0::Constant>(past->get_element_type(), past->get_shape());
+                empty->set_friendly_name(past->get_friendly_name());
+                ov::copy_runtime_info(past, empty);
+                ov::replace_node(past, empty);
+                ctx.get().old_params.push_back(past);
+                changed = true;
+            }
+            return changed;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(gqa, "RemoveEmptyGQAPastInputs"), std::move(callback));
+    }
+};
+
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop
 #endif
@@ -121,6 +173,7 @@ bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
     ov::pass::GraphRewrite rewr;
     RemoveEmptyKVTensors::Context ctx;
     rewr.add_matcher<RemoveEmptyKVTensors>(std::ref(ctx));
+    rewr.add_matcher<RemoveEmptyGQAPastInputs>(std::ref(ctx));
     rewr.run_on_model(model);
     for (auto old_param : ctx.old_params) {
         model->remove_parameter(old_param);

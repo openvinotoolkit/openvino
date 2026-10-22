@@ -131,8 +131,12 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto Q = get_input(GQAInputs::QUERY);
     auto K = get_input(GQAInputs::KEY);
     auto V = get_input(GQAInputs::VALUE);
-    auto past_key = get_input(GQAInputs::PAST_KEY);
-    auto past_value = get_input(GQAInputs::PAST_VALUE);
+    const bool has_past = has_input(GQAInputs::PAST_KEY);
+    ov::Output<ov::Node> past_key, past_value;
+    if (has_past) {
+        past_key = get_input(GQAInputs::PAST_KEY);
+        past_value = get_input(GQAInputs::PAST_VALUE);
+    }
     auto seqlens_k = get_input(GQAInputs::SEQLENS_K);
 
     // Quantized KV cache (com.microsoft spec): past/present KV are i8/u8/f8e4m3 and are dequantized before the
@@ -141,7 +145,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto kv_cache_bit_width = node->get_kv_cache_bit_width();
     const auto k_quant_type = node->get_k_quant_type();
     const auto v_quant_type = node->get_v_quant_type();
-    const auto kv_cache_type = past_key.get_element_type();
+    const auto kv_cache_type = node->get_output_element_type(1);
     ov::Output<ov::Node> k_scale, v_scale;
 
     // Get k_scale and v_scale from their actual input indices.
@@ -259,6 +263,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // zero-capacity past (an absent ONNX past or an empty cache) has nothing to write into, so it grows by
     // concatenation instead. Same rule as the op's present shape inference.
     const auto is_static_input = node->has_fixed_kv_capacity();
+    const bool empty_past =
+        !has_past || (past_key.get_partial_shape()[2].is_static() && past_key.get_partial_shape()[2].get_length() == 0);
 
     // Quantize-on-write: when the cache is quantized, quantize the (post-RoPE) current K/V into the cache type
     // before appending them, so the assembled present cache stays quantized and the past bytes are preserved
@@ -285,10 +291,15 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         V = past_value;
         present_k = past_key;
         present_v = past_value;
+    } else if (empty_past) {
+        // With no past tokens, the current K/V already are the complete present cache.
+        present_k = K;
+        present_v = V;
     } else if (node->get_sliding_window_cache()) {
         // Windowed KV cache (capacity C, rolled with front eviction). end_before/end_after are the resident
         // row counts before/after appending the S new tokens (see windowed_cache_end).
-        const auto capacity = get_dimensions(past_key.get_node_shared_ptr(), {2});
+        auto past_key_shape = register_new_node<v3::ShapeOf>(past_key);
+        const auto capacity = get_dimensions(past_key_shape, {2});
         const auto capacity_scalar = register_new_node<v0::Squeeze>(capacity);
         const auto abs_past_scalar = register_new_node<v0::Squeeze>(past_seqlen);  // P
         const auto abs_total_scalar = register_new_node<v0::Squeeze>(seqlens_1d);  // P + S
@@ -306,7 +317,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
         const auto zeros =
             register_new_node<v3::Broadcast>(register_new_node(v0::Constant::create(kv_cache_type, ov::Shape{}, {0})),
-                                             register_new_node<v3::ShapeOf>(past_key));
+                                             past_key_shape);
 
         if (static_single_token) {
             // present = [survivors, new, zeros] left-aligned in the C buffer: the last kept = end_after - S
@@ -465,7 +476,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         V = dequantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, T);
     }
 
-    const auto concat_kv_len = get_dimensions(K.get_node_shared_ptr(), {2});
+    const auto concat_kv_len = get_dimensions(register_new_node<v3::ShapeOf>(K), {2});
     const auto concat_kv_len_scalar = register_new_node<v0::Squeeze>(concat_kv_len);
 
     // Broadcast KV if grouped query attention
