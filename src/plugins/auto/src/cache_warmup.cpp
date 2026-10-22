@@ -216,7 +216,9 @@ bool CacheWarmupManager::is_blob_cached(const ov::ICore& core,
     if (cache_location.empty() || cache_location.extension() == ".bin" || (!model && model_path.empty())) {
         return false;
     }
-    const auto compile_config = core.create_compile_config(ov::DeviceIDParser(device_name).get_device_name(), config);
+    const auto base_name = ov::DeviceIDParser(device_name).get_device_name();
+    const auto compile_config =
+        core.create_compile_config(base_name, core.get_supported_property(base_name, config));
     const auto blob_id = model ? ov::ModelCache::compute_hash(model, compile_config)
                                : ov::ModelCache::compute_hash(model_path, compile_config);
     return ov::util::file_exists(cache_location / (blob_id + ".blob"));

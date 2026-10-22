@@ -1075,10 +1075,9 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                 if (parsed.get_device_name().find("CPU") != std::string::npos)
                     continue;
                 // check if cached model exists for other devices
-                const auto dev_properties = get_core()->get_supported_property(parsed.get_device_name(), properties);
                 const bool is_blob_file_exist = CacheWarmupManager::is_blob_cached(*get_core(),
                                                                                    parsed.get_device_name(),
-                                                                                   dev_properties,
+                                                                                   properties,
                                                                                    model,
                                                                                    model_path,
                                                                                    cache_location);
