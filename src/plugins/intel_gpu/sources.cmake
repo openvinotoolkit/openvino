@@ -145,6 +145,7 @@ set(GPU_PLUGIN_OPS_SOURCES
 )
 
 set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/batch_replicated_branches.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/bcast_and_pad_zp_buffers.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/binary_conv_to_conv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/clamp_fp16_output.cpp
