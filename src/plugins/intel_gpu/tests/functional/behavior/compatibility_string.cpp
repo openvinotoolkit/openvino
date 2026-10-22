@@ -76,7 +76,21 @@ TEST_F(CompatibilityStringGPU, PreviousBlobLayoutRequirementsAreUnsupported) {
     const auto blob_version = requirements.find("blob=3");
     ASSERT_NE(blob_version, std::string::npos);
     requirements.replace(schema_version, std::string("meta=1.1").size(), "meta=1.0");
-    requirements.erase(blob_version, std::string("blob=3").size());
+    // Remove the whole "blob=3" token together with a single adjacent delimiter to keep the
+    // descriptor well-formed (avoid ";;" or leading ';' like "desc=[;rt=...]").
+    constexpr const char* blob_token = "blob=3";
+    const auto blob_len = std::strlen(blob_token);
+    auto erase_pos = blob_version;
+    auto erase_len = blob_len;
+    if (erase_pos + erase_len < requirements.size() && requirements[erase_pos + erase_len] == ';') {
+        // Prefer erasing the trailing delimiter: "blob=3;"
+        ++erase_len;
+    } else if (erase_pos > 0 && requirements[erase_pos - 1] == ';') {
+        // Otherwise erase the leading delimiter: ";blob=3"
+        --erase_pos;
+        ++erase_len;
+    }
+    requirements.erase(erase_pos, erase_len);
 
     ov::CompatibilityCheck result = ov::CompatibilityCheck::NOT_APPLICABLE;
     OV_ASSERT_NO_THROW(result = core.get_property(ov::test::utils::DEVICE_GPU,
