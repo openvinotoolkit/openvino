@@ -6707,11 +6707,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            ),
                          fully_connected_gpu_u2_validation::GetTestCaseName);
 
-// The fixture above pins "fully_connected_gpu_bfyx_ref", so it never compiles the u2 branches in
-// fully_connected_gpu_bf_tiled.cl -- which is where COMPRESSED_WEIGHTS_UINT2 and the
-// FILTER_ELEMENTS_PER_BYTE / COMPRESSED_WEIGHTS_INT4 jit constants live. This fixture forces the
-// optimized kernel instead. Before the fix those branches keyed on a macro no C++ emitter ever
-// defined, so the u2 bf_tiled program did not build at all.
+// The fixture above pins "fully_connected_gpu_bfyx_ref"; this one forces fully_connected_gpu_bf_tiled.
 class fully_connected_gpu_u2_bf_tiled : public ::testing::TestWithParam<std::tuple<int, int, int, int, bool>> {
 public:
     static std::string GetTestCaseName(const testing::TestParamInfo<std::tuple<int, int, int, int, bool>>& obj) {
@@ -6723,9 +6719,8 @@ public:
     }
 };
 
-// Shared by the parameterized suite and the osv64_isv2 case below. The two differ only in which of
-// the two u2 weights packings bf_tiled repacks into, and pinning that packing is the point: a shape
-// that quietly fell back to the other one would still produce correct numbers and cover nothing.
+// The expected weights packing is asserted: a shape that fell back to the other packing would still
+// produce correct numbers and cover nothing.
 static void run_fc_u2_bf_tiled(int batch_num,
                                int ifm_num,
                                int ofm_num,
@@ -6791,8 +6786,7 @@ static void run_fc_u2_bf_tiled(int batch_num,
 
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    // optimize_data enables allowStaticInputReordering, without which UpdateWeightsParams never
-    // runs and the bf_tiled kernel gets un-repacked weights.
+    // Without optimize_data the weights are not repacked for bf_tiled.
     config.set_property(ov::intel_gpu::optimize_data(true));
     ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl};
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
@@ -6812,9 +6806,7 @@ static void run_fc_u2_bf_tiled(int batch_num,
     ASSERT_EQ(impl->get_kernel_name(), "fully_connected_gpu_bf_tiled")
         << "forcing did not take effect; this test would not cover the u2 bf_tiled branches";
 
-    // u2 has two weights packings (bf_tiled.cpp:1106-1116) and reorder_weights_int4 has a separate
-    // INT2_PACKED branch for each. Which one runs is decided by a device-dependent heuristic, so
-    // assert it rather than infer it from the shape.
+    // The packing is chosen by a device-dependent heuristic, so assert it rather than infer it.
     auto weights_reorder = impl->get_weights_reorder_params();
     ASSERT_NE(weights_reorder, nullptr) << "u2 weights are always repacked by reorder_weights_int4";
     ASSERT_EQ(weights_reorder->get_output_layout().format, expected_weights_format);
@@ -6865,10 +6857,8 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            std::make_tuple(4, 256, 128, 64, true)),
                          fully_connected_gpu_u2_bf_tiled::GetTestCaseName);
 
-// The second u2 weights packing. is_weight_horizontal() requires OFM > IFM * 3 and
-// OFM / 4 > execution_units_count * SIMD * 1.5, so the shape has to be derived from the device:
-// any fixed OFM large enough for this GPU would silently fall back to os_iyx_osv16 on a bigger one,
-// and the test would keep passing while covering nothing.
+// is_weight_horizontal() depends on the EU count, so the shape is derived from the device; a fixed
+// OFM would fall back to os_iyx_osv16 on a bigger GPU.
 TEST(fully_connected_gpu_u2_bf_tiled_osv64, horizontal_weights) {
     constexpr size_t simd = 16;
     const size_t min_num_threads = get_test_engine().get_device_info().execution_units_count * simd;

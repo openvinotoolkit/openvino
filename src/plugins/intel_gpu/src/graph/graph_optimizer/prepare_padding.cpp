@@ -25,7 +25,6 @@ void prepare_padding::run(program& p) {
         auto& weight_node = node->get_dependency(1);
         if (weight_node.is_constant()) {
             auto weight_layout = weight_node.get_output_layout(false);
-            // 4 values are packed per byte for u2 weights, 2 values per byte for u4/i4 weights
             const size_t alignment = weight_layout.data_type == cldnn::data_types::u2 ? 4 : 2;
             const auto const_shape = weight_layout.get_partial_shape().to_shape();
             OPENVINO_ASSERT(!const_shape.empty(), "Data padding for int4 type data with an odd innermost dimension does not support zero dimension.");

@@ -41,7 +41,6 @@ ReorderWeightsKernelInt4::DispatchData ReorderWeightsKernelInt4::SetDefault(cons
 
     const auto& output = params.output;
 
-    // Number of packed values per byte (2 for int4/uint4, 4 for uint2)
     const size_t values_per_byte = (output.GetDType() == WeightsType::UINT2) ? 4 : 2;
 
     // Divide one of the dimensions by the number of values per byte to save with byte granularity
@@ -55,8 +54,7 @@ ReorderWeightsKernelInt4::DispatchData ReorderWeightsKernelInt4::SetDefault(cons
         dispatchData.gws = { Align(output.OFM().v, 64) / 2, output.IFM().v, 1 };
     } else if (output.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
         if (output.GetDType() == WeightsType::UINT2) {
-            // u2: each output byte packs a k-pair of two output features,
-            // so a 64-wide k-pair line holds 32 bytes
+            // A u2 byte packs a k-pair of two OFMs, so a 64-OFM line is 32 bytes.
             dispatchData.gws = { Align(output.OFM().v, 64) / 2, output.IFM().v / 2, 1 };
         } else {
             dispatchData.gws = { Align(output.OFM().v, 64), output.IFM().v / 2, 1 };
@@ -95,7 +93,6 @@ JitConstants ReorderWeightsKernelInt4::GetJitConstants(const reorder_weights_par
 
         const auto input_inner_most_dim = idims.at(input_inner_most_idx).LogicalDimPadded();
         const auto output_inner_most_dim = odims.at(output_inner_most_idx).LogicalDimPadded();
-        // Number of packed values per byte (2 for int4/uint4, 4 for uint2)
         const size_t values_per_byte = (output.GetDType() == WeightsType::UINT2) ? 4 : 2;
         OPENVINO_ASSERT(input_inner_most_dim % values_per_byte != 0 && output_inner_most_dim % values_per_byte == 0,
                         "Reorder weight i4 kernel for data padding only supports"
@@ -122,7 +119,6 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
         size_t input_inner_most_idx  = idims.size() - p.original_input_rank;
         size_t output_inner_most_idx = odims.size() - p.original_output_rank;
 
-        // Number of packed values per byte (2 for int4/uint4, 4 for uint2)
         const size_t values_per_byte = (output.GetDType() == WeightsType::UINT2) ? 4 : 2;
 
         bool has_pads_for_input_dims = std::any_of(idims.begin(), idims.end(), [](const kernel_selector::Tensor::Dim& d) {
@@ -146,8 +142,6 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
                     && output.LogicalSize() == output.OFM().v * output.IFM().v),
                     "Reorder weight i4 only supports 2D input/output, except when adding padding for the same shape(WeightsLayout::oiyx).");
 
-    // u2 packed weights are supported only for repacking to os_iyx_osv16 / os_is_yx_osv64_isv2
-    // and for plain/transposed oiyx
     if (output.GetDType() == WeightsType::UINT2) {
         bool supported_u2_case = input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_iyx_osv16;
         supported_u2_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2;

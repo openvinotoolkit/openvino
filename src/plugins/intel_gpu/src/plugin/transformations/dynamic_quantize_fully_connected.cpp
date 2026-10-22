@@ -50,10 +50,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             return placeholder;
         };
 
-        // u2 (2-bit) weights: no kernel implements i8 activation x u2 weights
-        // (oneDNN has no u2 support, and fully_connected_gpu_bfyx_ref is not
-        // dynamic-quantization aware). Keep the f16 activation path, which is
-        // served by fully_connected_gpu_bf_tiled with native u2 decompression.
+        // No FC kernel takes i8 activations with u2 weights; keep the f16 activation path.
         if (m_fc->get_input_element_type(1) == ov::element::u2) {
             GPU_DEBUG_LOG << "Dynamic quantization: skipped for u2 weights FC " << m_fc->get_friendly_name() << std::endl;
             return false;

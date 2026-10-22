@@ -353,14 +353,11 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
-    // 2-bit packed weights are supported only with IFM aligned to 4 (values per byte)
     if (wt == WeightsType::UINT2 && (weights.IFM().v % 4 != 0)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
-    // u2 packed weights are supported only in the default tiled kernel with os_iyx_osv16 or
-    // os_is_yx_osv64_isv2 weights layout, neither of which supports swiglu fusion
-    // (it requires os_is_yx_osv32_isv2 layout, which can't be produced for u2)
+    // swiglu fusion needs os_is_yx_osv32_isv2, which u2 weights are not repacked to.
     if (wt == WeightsType::UINT2 && is_swiglu_fused(fc_params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
@@ -455,9 +452,7 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
             return false;
         }
 
-        // u2 weights are not dyn-quantizable, but the SLM kernel supports them in the non-dyn-quantize
-        // path with fixed tiling (TILE_IFM 2 / TILE_K 4): each per-lane staged weight load is a single
-        // byte (4 u2 values), which matches both the os_iyx_osv16 and the os_is_yx_osv64_isv2 u2 packings.
+        // u2 is not dyn-quantizable; SLM takes it only with TILE_K 4, so each staged load is one whole byte.
         const bool is_u2_weights = params.compressed && params.weights.GetDType() == WeightsType::UINT2;
         if (!is_dyn_quantable_type && !is_u2_weights) {
             return false;
@@ -465,8 +460,7 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
         if (is_u2_weights && (tparams.tile_ifm != 2 || tparams.tile_k != 4)) {
             return false;
         }
-        // The SLM leftover path fetches weights with the non-SLM per-lane windows, which don't
-        // line up with whole u2 bytes for TILE_OFM 2; only allow SLM when there are no leftovers.
+        // The SLM leftover path uses the non-SLM fetch windows, which split u2 bytes at TILE_OFM 2.
         if (is_u2_weights && params.weights.IFM().v % (tparams.tile_ifm * simd) != 0) {
             return false;
         }
@@ -486,12 +480,8 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     }
 
     if (params.compressed && params.weights.GetDType() == WeightsType::UINT2) {
-        // In the default (non-SLM) kernel, u2 packed weights are only correct with tilings whose
-        // per-lane packed read windows line up with whole packed bytes:
-        //  - os_iyx_osv16: a byte holds 4 consecutive IFM values of one output feature, so
-        //    TILE_OFM must be 1 and TILE_K a multiple of 4 (TILE_K_OFM a whole number of bytes).
-        //  - os_is_yx_osv64_isv2: a byte holds a k-pair of two output features 16 apart, which
-        //    only lines up with TILE_OFM 4 / TILE_K 2 fetch windows (same tiling as u4).
+        // Per-lane read windows must cover whole u2 bytes: an os_iyx_osv16 byte holds 4 IFM values of one
+        // OFM, an os_is_yx_osv64_isv2 byte holds a k-pair of two OFMs 16 apart.
         if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
             if (tparams.tile_ofm != 4 || tparams.tile_k != 2)
                 return false;
@@ -540,14 +530,7 @@ FullyConnected_bf_tiled::tune_params FullyConnected_bf_tiled::GetAutoTuneParams(
     bool swiglu_fused = is_swiglu_fused(params);
 
     if (params.weights.GetDType() == WeightsType::UINT2) {
-        // u2 packed weights are supported in two weights layouts:
-        //  - os_iyx_osv16: each packed byte holds 4 consecutive IFM values of a single output
-        //    feature. The default kernel reads TILE_K_OFM packed bytes per work-item, so
-        //    TILE_K * TILE_OFM == 4 (a single byte) is the only byte-aligned configuration and
-        //    decode keeps TILE_OFM == 1.
-        //  - os_is_yx_osv64_isv2: each packed byte holds a k-pair (2 IFM values) of two output
-        //    features 16 apart, which lines up with the TILE_OFM 4 / TILE_K 2 fetch windows
-        //    (the same fast decode tiling as u4, optionally with OUTER_OFM 2).
+        // Tilings must satisfy the byte alignment rules in VerifyTuneParams.
         const bool is_osv64_isv2 = params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2;
         if (!params.is_shape_agnostic && batch == 1) {
             if (is_osv64_isv2) {
@@ -556,9 +539,6 @@ FullyConnected_bf_tiled::tune_params FullyConnected_bf_tiled::GetAutoTuneParams(
             }
             return selector.Default(tune_params(1, 1, 4, 4, 1, 1, 1, EXE_MODE_DEFAULT));
         }
-        // For large batches the SLM kernel is supported with fixed tiling (TILE_B 8 / TILE_OFM 2 /
-        // TILE_IFM 2 / TILE_K 4): its per-lane weight staging loads a single byte (4 u2 values)
-        // per read, which matches both u2 packings.
         if (preferred_kernel_type != KernelType::DEFAULT)
             selector.Case(tune_params(8, 2, 2, 4, 1, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
         if (is_osv64_isv2)
@@ -769,9 +749,8 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 
     bool add_decompress_scale_post_op = false;
     WeightsType weights_dt = params.weights.GetDType();
-    // u2 reuses the u4 compressed code paths; only the packing density differs. These must be jit
-    // constants rather than #defines in the .cl body: kernels are concatenated into one batched
-    // OpenCL program, and only jit constants get an automatic #undef appended after each kernel.
+    // u2 reuses the u4 code paths. Jit constants, not #defines in the .cl: only jit constants are
+    // #undef'd between kernels of a batched program.
     jit.AddConstant(MakeJitConstant("FILTER_ELEMENTS_PER_BYTE", weights_dt == WeightsType::UINT2 ? 4 : 2));
     if (weights_dt == WeightsType::UINT2) {
         jit.AddConstant(MakeJitConstant("COMPRESSED_WEIGHTS_INT4", 1));
@@ -849,10 +828,6 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
                 jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load));
             }
         } else if (weights_dt == WeightsType::UINT2) {
-            // u2 packs 4 values per byte: each per-lane staged weight load is a single byte.
-            // In os_iyx_osv16 the byte holds 4 consecutive IFM values of one output feature;
-            // in os_is_yx_osv64_isv2 it holds a k-pair of two output features 16 apart, and the
-            // second staged byte (next 32-byte k-pair line) completes the TILE_K 4 window.
             OPENVINO_ASSERT((params.weights.GetLayout() == WeightsLayout::os_iyx_osv16 || params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) &&
                                 block_read_size == 4,
                             "[GPU] Unsupported weights layout or block size for u2 SLM kernel configuration");
@@ -1125,12 +1100,10 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params& pa
     } else if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16 &&
                (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) &&
                fc_params.weights.GetDType() == WeightsType::UINT2 && is_weight_horizontal(fc_params, output_f)) {
-        // Large N + small K case (horizontal weight): same as u4, use [osv64_isv2] + TILE_OFM 4 for batch 1
-        // (repacked by reorder_weights_int4, which supports u2 -> os_is_yx_osv64_isv2)
+        // Horizontal weight: same as u4.
         weights_layout = WeightsLayout::os_is_yx_osv64_isv2;
     } else if (fc_params.compressed && fc_params.weights.GetDType() == WeightsType::UINT2 &&
                (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_iyx_osv16)) {
-        // u2 packed weights are supported only in os_iyx_osv16/os_is_yx_osv64_isv2 layouts (repacked by reorder_weights_int4)
         weights_layout = WeightsLayout::os_iyx_osv16;
     } else if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16 &&
                (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) &&
