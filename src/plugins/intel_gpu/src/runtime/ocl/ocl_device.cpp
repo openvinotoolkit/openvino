@@ -84,12 +84,17 @@ gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
 }
 #endif
 
-int driver_dev_id() {
+int driver_dev_id(const cl::Device& device) {
     const std::vector<int> unused_ids = {0x4905, 0x4906, 0x4907, 0x4908};
     std::vector<int> result;
 
 #ifdef _WIN32
     {
+        cl_device_pci_bus_info_khr pci_info{};
+        const bool has_pci_info =
+            clGetDeviceInfo(device.get(), CL_DEVICE_PCI_BUS_INFO_KHR, sizeof(pci_info), &pci_info, nullptr) == CL_SUCCESS &&
+            pci_info.pci_domain == 0;
+        std::vector<int> matched_result;
         const GUID* device_classes[] = {&GUID_DEVCLASS_DISPLAY, &GUID_DEVCLASS_COMPUTEACCELERATOR};
         for (const GUID* device_class : device_classes) {
             HDEVINFO device_info_set = SetupDiGetClassDevsA(device_class, NULL, NULL, DIGCF_PRESENT);
@@ -109,15 +114,35 @@ int driver_dev_id() {
                 }
 
                 char* vendor_pos = std::strstr(buf, "VEN_");
-                if (vendor_pos != NULL && std::stoi(vendor_pos + 4, NULL, 16) == 0x8086) {
-                    char* device_pos = strstr(vendor_pos, "DEV_");
-                    if (device_pos != NULL) {
-                        result.push_back(std::stoi(device_pos + 4, NULL, 16));
+                if (vendor_pos == NULL || std::stoi(vendor_pos + 4, NULL, 16) != 0x8086) {
+                    continue;
+                }
+                char* device_pos = std::strstr(vendor_pos, "DEV_");
+                if (device_pos == NULL) {
+                    continue;
+                }
+                const int device_id = std::stoi(device_pos + 4, NULL, 16);
+                result.push_back(device_id);
+                if (has_pci_info) {
+                    DWORD bus = 0;
+                    DWORD address = 0;
+                    DWORD property_type = 0;
+                    if (SetupDiGetDeviceRegistryPropertyA(device_info_set, &devinfo_data, SPDRP_BUSNUMBER, &property_type,
+                                                         reinterpret_cast<BYTE*>(&bus), sizeof(bus), nullptr) &&
+                        property_type == REG_DWORD &&
+                        SetupDiGetDeviceRegistryPropertyA(device_info_set, &devinfo_data, SPDRP_ADDRESS, &property_type,
+                                                         reinterpret_cast<BYTE*>(&address), sizeof(address), nullptr) &&
+                        property_type == REG_DWORD && bus == pci_info.pci_bus &&
+                        HIWORD(address) == pci_info.pci_device && LOWORD(address) == pci_info.pci_function) {
+                        matched_result.push_back(device_id);
                     }
                 }
             }
 
             SetupDiDestroyDeviceInfoList(device_info_set);
+        }
+        if (!matched_result.empty()) {
+            result = std::move(matched_result);
         }
     }
 #elif defined(__linux__)
@@ -151,11 +176,7 @@ int driver_dev_id() {
 
     std::sort(result.begin(), result.end());
     result.erase(std::unique(result.begin(), result.end()), result.end());
-
-    if (result.size() != 1) {
-        return 0;
-    }
-    return result.front();
+    return result.size() == 1 ? result.front() : 0;
 }
 
 device_type get_device_type(const cl::Device& device) {
@@ -197,7 +218,7 @@ bool get_imad_support(const cl::Device& device) {
 
     if (get_device_type(device) == device_type::integrated_gpu) {
         const std::vector<int> imad_ids = {0x9A40, 0x9A49, 0x9A59, 0x9AD9, 0x9A60, 0x9A68, 0x9A70, 0x9A78, 0x9A7F, 0x9AF8, 0x9AC0, 0x9AC9};
-        int dev_id = driver_dev_id();
+        int dev_id = driver_dev_id(device);
         if (dev_id == 0) {
             return false;
         }
@@ -328,7 +349,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
                         0};
     } else {
         info.gfx_ver = {0, 0, 0};
-        info.device_id = driver_dev_id();
+        info.device_id = driver_dev_id(device);
         info.num_slices = 0;
         info.num_sub_slices_per_slice = 0;
         info.num_eus_per_sub_slice = 0;
