@@ -248,9 +248,10 @@ architectures, and build variants can each have their own baseline. The platform
 inside the artifact is only an artifact layout detail; it is not repeated in the GOLD path.
 
 Run it from **Actions → Initialize GOLD BOM Baseline → Run workflow**, selecting the target
-branch first. Enter a JSON array of successful build run IDs from that same branch or from
-PRs targeting it, covering the configurations to initialize. For PR runs,
-the source commit must still belong to the PR; rerun builds after a force-push if necessary.
+branch first. Enter a JSON array of successful build run IDs from the same repository,
+covering the configurations to initialize. Both PR runs and branch runs are accepted, 
+regardless of their source or target branch.
+The branch selected for initialization only determines where the GOLD BOM PR is created.
 For example:
 
 ```json

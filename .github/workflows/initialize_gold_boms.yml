@@ -53,46 +53,13 @@ jobs:
 
           while IFS= read -r run_id; do
             run_info=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}")
-            if ! jq -e '.status == "completed" and .conclusion == "success"' <<< "$run_info" >/dev/null; then
-              echo "::error::Workflow run ${run_id} must be completed successfully."
+            if ! jq -e --arg repository "$GITHUB_REPOSITORY" \
+              '.repository.full_name == $repository' <<< "$run_info" >/dev/null; then
+              echo "::error::Workflow run ${run_id} must belong to repository ${GITHUB_REPOSITORY}."
               exit 1
             fi
-
-            if [[ "$(jq -r '.event' <<< "$run_info")" == "pull_request" ]]; then
-              # Fork PR runs can have an empty pull_requests array in the Actions API.
-              source_head=$(jq -r '.head_repository.owner.login + ":" + .head_branch' <<< "$run_info")
-              source_sha=$(jq -r '.head_sha' <<< "$run_info")
-              candidate_prs=$(gh api --method GET --paginate \
-                "repos/${GITHUB_REPOSITORY}/pulls" \
-                -f state=all -f base="$TARGET_BRANCH" -f head="$source_head" -f per_page=100 \
-                --jq '.[]')
-              matching_prs=$(jq -sr --argjson run "$run_info" --arg repository "$GITHUB_REPOSITORY" \
-                --arg branch "$TARGET_BRANCH" '
-                  .[] | select(
-                    .base.repo.full_name == $repository and .base.ref == $branch and
-                    .head.repo.full_name == $run.head_repository.full_name and
-                    .head.ref == $run.head_branch
-                  ) | .number
-                ' <<< "$candidate_prs")
-              associated_pr=""
-              while IFS= read -r pr_number; do
-                [[ -z "$pr_number" ]] && continue
-                pr_commits=$(gh api --paginate \
-                  "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/commits?per_page=100" --jq '.[].sha')
-                if grep -Fxq "$source_sha" <<< "$pr_commits"; then
-                  associated_pr="$pr_number"
-                  break
-                fi
-              done <<< "$matching_prs"
-              if [[ -z "$associated_pr" ]]; then
-                echo "::error::Run ${run_id} must belong to a PR targeting ${TARGET_BRANCH}, and its source commit must still be part of that PR."
-                exit 1
-              fi
-              echo "::notice::Using BOM artifacts from PR #${associated_pr}, run ${run_id}."
-            elif ! jq -e --arg branch "$TARGET_BRANCH" --arg repository "$GITHUB_REPOSITORY" \
-              '.head_branch == $branch and .head_repository.full_name == $repository' \
-              <<< "$run_info" >/dev/null; then
-              echo "::error::Workflow run ${run_id} does not belong to target branch ${TARGET_BRANCH}."
+            if ! jq -e '.status == "completed" and .conclusion == "success"' <<< "$run_info" >/dev/null; then
+              echo "::error::Workflow run ${run_id} must be completed successfully."
               exit 1
             fi
 
@@ -100,7 +67,7 @@ jobs:
               "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100" \
               --jq '.artifacts[] | select(.name | startswith("bom_")) | .name')
             if [[ -z "$artifact_names" ]]; then
-              echo "::error::Workflow run ${run_id} has no BOM artifacts."
+              echo "::error::The provided workflow run ${run_id} does not contain the required BOM artifacts. Verify that you provided the workflow run ID (not a job ID) of a build workflow containing artifacts whose names start with 'bom_'. Check https://github.com/${GITHUB_REPOSITORY}/actions/runs/${run_id} under Summary > Artifacts."
               exit 1
             fi
 
