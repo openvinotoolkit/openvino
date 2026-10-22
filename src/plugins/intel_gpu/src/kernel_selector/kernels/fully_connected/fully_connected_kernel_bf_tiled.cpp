@@ -485,13 +485,9 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
         if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
             if (tparams.tile_ofm != 4 || tparams.tile_k != 2)
                 return false;
-            if (tparams.outer_ofm == 2 && !is_suitable_outer_ofm(params, output_f))
-                return false;
-            return true;
+            return tparams.outer_ofm != 2 || is_suitable_outer_ofm(params, output_f);
         }
-        if (tparams.tile_ofm != 1 || tparams.tile_k % 4 != 0)
-            return false;
-        return true;
+        return tparams.tile_ofm == 1 && tparams.tile_k % 4 == 0;
     }
 
     // Reject tile sizes that are guaranteed to spill out of registers.
