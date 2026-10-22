@@ -577,6 +577,20 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
         ov::frontend::gguf::FrontEnd frontend;
         frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
         auto model = frontend.convert(frontend.load(temporary.path));
+        if (std::string(family).find("qwen35") == 0 || std::string(family) == "bonsai2-hadamard") {
+            size_t gates = 0;
+            for (const auto& node : model->get_ordered_ops()) {
+                const auto& name = node->get_friendly_name();
+                for (const std::string suffix : {"_blk.3.attn_gate", "_blk.3.attn_gate_sig", "_blk.3.kqv_gated"}) {
+                    if (name.size() >= suffix.size() &&
+                        name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0) {
+                        ++gates;
+                        EXPECT_EQ(node->get_output_partial_shape(0).rank(), 3) << name;
+                    }
+                }
+            }
+            EXPECT_EQ(gates, 3);
+        }
         check_batched_decode(model);
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::SDPAToPagedAttention>();

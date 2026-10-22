@@ -280,9 +280,28 @@ std::string attention(GraphEmitter& e,
     // multiplied elementwise into the merged attention output before the wo projection.
     if (cfg.has_attn_gate) {
         e.add_weight(p + "attn_gate.weight");
-        auto gate = e.add_op("GGML_OP_MUL_MAT", p + "attn_gate", {p + "attn_gate.weight", attn_norm});
+        auto gate = e.add_op("GGML_OP_MUL_MAT",
+                             p + "attn_gate",
+                             {p + "attn_gate.weight", attn_norm},
+                             0,
+                             {{"activation_rank", cfg.is_qwen35 ? 3 : 4}});
         gate = e.add_op("GGML_UNARY_OP_SIGMOID", p + "attn_gate_sig", {gate});
-        attn_2d = e.add_op("GGML_OP_MUL", p + "kqv_gated", {attn_2d, gate});
+        if (cfg.is_qwen35) {
+            const auto gate_attention =
+                e.add_op("GGML_OP_RESHAPE",
+                         p + "kqv_gate_input",
+                         {attn_2d},
+                         6,
+                         {{"reshape_target", std::vector<int64_t>{0, -1, q_width}}, {"special_zero", true}});
+            const auto gated = e.add_op("GGML_OP_MUL", p + "kqv_gated", {gate_attention, gate});
+            attn_2d = e.add_op("GGML_OP_RESHAPE",
+                               p + "kqv_gated_4d",
+                               {gated},
+                               6,
+                               {{"reshape_target", std::vector<int64_t>{0, 1, -1, q_width}}, {"special_zero", true}});
+        } else {
+            attn_2d = e.add_op("GGML_OP_MUL", p + "kqv_gated", {attn_2d, gate});
+        }
     }
 
     // output projection (+ optional bias)

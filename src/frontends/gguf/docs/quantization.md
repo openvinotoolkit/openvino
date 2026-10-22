@@ -168,6 +168,11 @@ dense rotation Constant and reduces arithmetic from quadratic to `O(block_size *
 intermediate activation buffers still depend on device compilation. See
 [Bonsai and Bonsai-2](supported_models.md#bonsai-and-bonsai-2).
 
+Qwen3.5 attention gates use rank-3 projections and elementwise gating, restoring rank 4 before
+the attention output projection. This keeps a supported dynamic GPU FC fallback when the gate's
+fused post-ops are outside TernOCL's epilogues. The reshape follows the Hadamard transform so its
+activation work can still be shared with Q/K/V; weight codes, scales and arithmetic are unchanged.
+
 ## Integer formats
 
 ### Q4_0
