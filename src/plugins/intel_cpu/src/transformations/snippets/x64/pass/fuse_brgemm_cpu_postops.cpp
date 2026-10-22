@@ -4,6 +4,7 @@
 
 #include "fuse_brgemm_cpu_postops.hpp"
 
+#include <algorithm>
 #include <common/c_types_map.hpp>
 #include <cstddef>
 #include <limits>
@@ -31,6 +32,7 @@
 #include "openvino/op/relu.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -116,6 +118,20 @@ pass::FuseConvert::FuseConvert() {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto convert = pattern_map.at(m_convert).get_node_shared_ptr();
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
+
+        // Brgemm output is f32 and Convert reduces it to bf16/f16. If the Convert is consumed only by elementwise ops,
+        // those ops are executed in f32 anyway: PropagatePrecision inserts Convert back to f32 before them and the pair
+        // is removed by RemoveConverts at the end of the pipeline. Fusing the Convert into Brgemm would force a lower
+        // output precision and leave an unremovable rounding of the intermediate result, so the fusion is skipped.
+        const auto& convert_consumers = convert->get_output_target_inputs(0);
+        if (brgemm->get_output_element_type(0) == ov::element::f32 &&
+            snippets::utils::any_of(convert->get_output_element_type(0), ov::element::bf16, ov::element::f16) &&
+            std::all_of(convert_consumers.begin(), convert_consumers.end(), [](const ov::Input<ov::Node>& input) {
+                return ov::op::util::is_unary_elementwise_arithmetic(input.get_node()) ||
+                       ov::op::util::is_binary_elementwise_arithmetic(input.get_node());
+            })) {
+            return false;
+        }
 
         // Ticket 165567: In case of AMX, brgemm may require two kernels: main and tail.
         // Intermediate results must be stored in the output buffer for accumulation with tail kernel results.
