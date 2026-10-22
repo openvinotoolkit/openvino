@@ -92,9 +92,11 @@ protected:
 
 private:
     // Access required to set the section type instance ID
+    // TODO remove what is unnecessary.
     friend class BlobWriter;
     friend class BlobWriterInterface;
     friend class BlobReader;
+    friend class BlobSectionsRegistry;
 
     /**
      * @note Only BlobWriters & BlobReaders should be allowed to manipulate the section ID. This is because the
