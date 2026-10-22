@@ -232,6 +232,9 @@ ov::Output<ov::Node> pad_media_placeholders(const ov::Model& model, const ov::Ou
 bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     using namespace ov::op;
 
+    if (find_parameter(model, "dspark_ctx_feat"))
+        return false;
+
     for (const auto& output : model->outputs()) {
         if (output.get_names().count("embeddings"))
             return false;
@@ -245,10 +248,14 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto token_len_per_seq = find_parameter(model, "token_len_per_seq");
     const bool has_recurrent_states = model->get_rt_info().count(gguf_recurrent_states_key()) != 0;
     const auto operations = model->get_ops();
+    const auto architecture = model->get_rt_info().find("gguf_architecture");
+    const bool lfm2 =
+        architecture != model->get_rt_info().end() &&
+        (architecture->second.as<std::string>() == "lfm2" || architecture->second.as<std::string>() == "lfm2moe");
     const bool batchable_recurrent =
-        has_recurrent_states && std::any_of(operations.begin(), operations.end(), [](const auto& node) {
-            return ov::is_type<internal::GatedDeltaNet>(node);
-        });
+        has_recurrent_states && (lfm2 || std::any_of(operations.begin(), operations.end(), [](const auto& node) {
+                                     return ov::is_type<internal::GatedDeltaNet>(node);
+                                 }));
     const bool recurrent_only = !inp_pos && !self_kq_mask && has_recurrent_states;
     if (!inp_tokens || (!recurrent_only && !self_kq_mask)) {
         return false;
