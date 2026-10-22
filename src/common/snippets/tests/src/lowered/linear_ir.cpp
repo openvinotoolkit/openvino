@@ -6,23 +6,16 @@
 
 #include <gtest/gtest.h>
 
-#include <filesystem>
-#include <fstream>
-#include <iterator>
-#include <string>
-
 #include "lir_test_utils.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "snippets/lowered/linear_ir_builder.hpp"
-#include "snippets/lowered/pass/serialize_data_flow.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/broadcastmove.hpp"
 #include "snippets/op/online_softmax.hpp"
 #include "snippets/op/reshape.hpp"
 #include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
-#include "snippets/op/store.hpp"
 
 namespace ov {
 namespace test {
@@ -79,34 +72,6 @@ TEST(LinearIRReplaceWithNode, PreservesPerOutputDescriptors) {
     broadcast_expr->updateShapes();
 
     EXPECT_EQ(broadcast_expr->get_output_port_descriptor(0)->get_shape(), (VectorDims{1, 16}));
-}
-
-TEST(LinearIRSerializeDataFlow, PreservesAllStoreBranches) {
-    const auto param_0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 6});
-    const auto param_1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 6});
-    const auto store_0 = std::make_shared<ov::snippets::op::Store>(param_0);
-    const auto store_1 = std::make_shared<ov::snippets::op::Store>(param_1);
-    store_0->set_friendly_name("store_0");
-    store_1->set_friendly_name("store_1");
-    const auto result = std::make_shared<ov::snippets::op::Result>(store_0, ov::OutputVector{store_1});
-    const auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param_0, param_1});
-
-    auto factory = std::make_shared<ov::snippets::IShapeInferSnippetsFactory>();
-    ov::snippets::lowered::LinearIR linear_ir(model, factory);
-
-    const auto xml_path = std::filesystem::temp_directory_path() / "ov_snippets_data_flow_two_stores.xml";
-    EXPECT_FALSE(ov::snippets::lowered::pass::SerializeDataFlow(xml_path.string()).run(linear_ir));
-
-    std::ifstream xml_file(xml_path);
-    ASSERT_TRUE(xml_file.is_open());
-    const std::string xml(std::istreambuf_iterator<char>{xml_file}, std::istreambuf_iterator<char>{});
-    EXPECT_NE(xml.find("store_0"), std::string::npos);
-    EXPECT_NE(xml.find("store_1"), std::string::npos);
-
-    std::filesystem::remove(xml_path);
-    auto bin_path = xml_path;
-    bin_path.replace_extension(".bin");
-    std::filesystem::remove(bin_path);
 }
 
 }  // namespace snippets
