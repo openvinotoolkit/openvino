@@ -1197,7 +1197,7 @@ TEST_P(NPUVMRuntimeCAPITest, ExecuteCompiledModelWithCmdQueueConfig_v2) {
     destroyMemRefs(outputArgs);
 }
 
-const std::vector<std::string> devices = {"NPU.4000", "NPU.5010"};
+const std::vector<std::string> devices = {"NPU.4000", "NPU.5010", "NPU.6010"};
 
 const std::vector<std::string> interpreterModels = {
         // E#214461: Temporarily disabled because IR is unavailable in CI environment.
