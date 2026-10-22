@@ -403,6 +403,24 @@ class TestPooling(PytorchLayerTest):
         np.testing.assert_allclose(actual, scripted(example).numpy(), rtol=1e-3, atol=1e-3)
         assert actual.dtype == np.float16
 
+    @pytest.mark.parametrize("is_dynamic_shapes", [False, True])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool_oversized_fp32_cancellation(self, is_dynamic_shapes, ie_device, precision, ir_version):
+        if ie_device != "CPU":
+            pytest.skip("FP32 cancellation regression is checked on CPU")
+
+        model, _ = self.create_model("avg_pool2d", kernel_size=(3, 2), stride=(2, 2),
+                                     padding=0, ceil_mode=True)
+        example = torch.tensor([[[[1e8, -1e8], [1, 1]]]], dtype=torch.float32)
+        scripted = torch.jit.trace(model, example)
+        shape = ov.PartialShape([-1] * 4 if is_dynamic_shapes else list(example.shape))
+        ov_model = ov.convert_model(scripted, example_input=(example,), input=[shape])
+        compiled = ov.Core().compile_model(ov_model, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+        actual = compiled((example.numpy(),))[compiled.outputs[0]]
+        np.testing.assert_allclose(actual, [[[[0.5]]]], rtol=1e-6, atol=1e-6)
+        np.testing.assert_allclose(actual, scripted(example).numpy(), rtol=1e-6, atol=1e-6)
+
     @pytest.mark.parametrize("input_shape", [[1, 3, 15, 15, 15], [3, 15, 15, 15]])
     @pytest.mark.parametrize("params", d3_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])

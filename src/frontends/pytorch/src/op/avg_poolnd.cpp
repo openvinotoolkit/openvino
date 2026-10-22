@@ -16,7 +16,6 @@
 #include "openvino/op/less.hpp"
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
@@ -55,36 +54,28 @@ Output<Node> pool_with_short_axes(const NodeContext& context,
 
     const auto pool_short_axis = [&](const Output<Node>& short_input) -> Output<Node> {
         auto axes = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {static_cast<int64_t>(axis + 2)}));
-        const bool integral = short_input.get_element_type().is_integral();
-        Output<Node> reduced;
-        if (integral) {
-            reduced = context.mark_node(std::make_shared<v1::ReduceSum>(short_input, axes, true));
-        } else {
-            reduced = context.mark_node(std::make_shared<v1::ReduceMean>(short_input, axes, true));
-        }
         auto reduced_kernel = kernel;
         auto reduced_strides = strides;
         reduced_kernel[axis] = 1;
         reduced_strides[axis] = 1;
         auto pooled = pool_with_short_axes(context,
-                                           reduced,
+                                           short_input,
                                            reduced_strides,
                                            pads,
                                            reduced_kernel,
                                            exclude_pad,
                                            rounding_type,
-                                           axis + 1);
-        if (integral) {
-            // Defer truncating division until all axes are pooled; never round i64 values through f64.
-            auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(short_input));
-            auto index =
-                context.mark_node(v0::Constant::create(element::i64, Shape{}, {static_cast<int64_t>(axis + 2)}));
-            auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
-            auto extent = context.mark_node(std::make_shared<v8::Gather>(shape, index, zero));
-            auto divisor = context.mark_node(std::make_shared<v1::ConvertLike>(extent, short_input));
-            pooled = context.mark_node(std::make_shared<v1::Divide>(pooled, divisor, false));
-        }
-        return pooled;
+                                           0);
+        auto reduced = context.mark_node(std::make_shared<v1::ReduceSum>(pooled, axes, true));
+        // Divide only after the remaining axes are pooled to preserve cross-axis cancellation.
+        // ConvertLike keeps the divisor's type tied to inputs whose scripted dtype is unresolved.
+        auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(short_input));
+        auto index =
+            context.mark_node(v0::Constant::create(element::i64, Shape{}, {static_cast<int64_t>(axis + 2)}));
+        auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
+        auto extent = context.mark_node(std::make_shared<v8::Gather>(shape, index, zero));
+        auto divisor = context.mark_node(std::make_shared<v1::ConvertLike>(extent, short_input));
+        return context.mark_node(std::make_shared<v1::Divide>(reduced, divisor, false));
     };
 
     const auto shape = input.get_partial_shape();
@@ -215,11 +206,18 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
     // unpadded axis cannot produce a valid output. Leave those cases on the usual path.
     if (use_short_axis_pooling) {
         auto pool_input = input;
-        if (input_type == element::f16 || input_type == element::bf16) {
-            // Avoid rounding intermediate averages before the remaining spatial axes are pooled.
-            pool_input = context.mark_node(std::make_shared<v0::Convert>(input, element::f32));
+        if (input_type == element::f16 || input_type == element::bf16 || input_type == element::f32) {
+            // Accumulate decomposed windows in f64 to preserve cancellation across pooled axes.
+            pool_input = context.mark_node(std::make_shared<v0::Convert>(input, element::f64));
         }
-        res = pool_with_short_axes(context, pool_input, strides, pads, kernel, !count_include_pad, rounding_type, 0);
+        res = pool_with_short_axes(context,
+                       pool_input,
+                       strides,
+                       pads,
+                       kernel,
+                       !count_include_pad,
+                       rounding_type,
+                                   0);
         if (pool_input.get_element_type() != input_type) {
             res = context.mark_node(std::make_shared<v0::Convert>(res, input_type));
         }
