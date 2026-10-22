@@ -154,6 +154,7 @@ Table of Contents
 * :doc:`PriorBox <../operation-specs/detection/prior-box-8>`
 * :doc:`Proposal <../operation-specs/detection/proposal-4>`
 * :doc:`PSROIPooling <../operation-specs/detection/psroi-pooling-1>`
+* :doc:`QSAPrepare <../operation-specs/sequence/qsa-prepare-17>`
 * :doc:`RandomUniform <../operation-specs/generation/random-uniform-8>`
 * :doc:`Range <../operation-specs/generation/range-4>`
 * :doc:`RDFT <../operation-specs/signals/rdft-9>`

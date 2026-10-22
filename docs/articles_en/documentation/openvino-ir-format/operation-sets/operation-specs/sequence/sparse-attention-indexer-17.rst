@@ -32,7 +32,7 @@ output is consumed by :doc:`SparseAttention <sparse-attention-17>`. It covers:
   which score one compressed entry per ``4`` tokens (``key_block_size = 4``,
   ``token_budget = 4 * index_topk``). Their block keys come from a learned, softmax-gated pooling
   computed by regular operations of the graph instead of
-  :doc:`QSAPrepare <../internal/qsa-prepare>`. DeepSeek-V4 attends to the selected compressed entries rather
+  :doc:`QSAPrepare <qsa-prepare-17>`. DeepSeek-V4 attends to the selected compressed entries rather
   than to the tokens of the selected blocks: *SparseAttention* covers it with ``causal = false`` and
   ``key_block_size = 1`` over the window and compressed entries (see its note *DeepSeek-V4*).
 
@@ -65,7 +65,7 @@ represented by one index key (``block_index_keys``). For every query token,
 
 The operation is weight-free: the index projection and the normalization and rotation of the index
 query are computed by regular operations of the graph, and the pooling, normalization and rotation
-of the block keys by :doc:`QSAPrepare <../internal/qsa-prepare>`. They are passed in through ``index_query`` and
+of the block keys by :doc:`QSAPrepare <qsa-prepare-17>`. They are passed in through ``index_query`` and
 ``block_index_keys``.
 
 **Selection heads.** By default a query token gets one selection, shared by all attention heads that
@@ -220,7 +220,7 @@ Qwen3.8-Flash-Next, that gives ``Hi`` query heads and one key head of size ``Di`
 * ``index_query``: the query heads, RMS-normalized with ``q_layernorm`` and rotated with the same
   (M-)RoPE and positions as the main attention query. Regular operations of the graph compute it
   (*RMS* with the weight ``1 + w``, *RoPE*), as for the query of the main attention.
-* ``block_index_keys``: computed by :doc:`QSAPrepare <../internal/qsa-prepare>`. The raw key head of every token
+* ``block_index_keys``: computed by :doc:`QSAPrepare <qsa-prepare-17>`. The raw key head of every token
   (before normalization and rotation) is mean-pooled over each complete block of ``key_block_size``
   tokens, RMS-normalized with ``k_layernorm``, and rotated with the (M-)RoPE position of the first
   token of the block.

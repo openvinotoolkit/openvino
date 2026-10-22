@@ -10,7 +10,7 @@ PagedQSAPrepare
 
 **Category**: *Internal*
 
-**Short description**: *PagedQSAPrepare* is the paged variant of :doc:`QSAPrepare <qsa-prepare>`.
+**Short description**: *PagedQSAPrepare* is the paged variant of :doc:`QSAPrepare <../sequence/qsa-prepare-17>`.
 It processes the raw index keys of the tokens of several sequences packed into one batch and updates
 in place the paged block index keys from which :doc:`PagedSparseAttentionIndexer <paged-sparse-attention-indexer>` selects.
 

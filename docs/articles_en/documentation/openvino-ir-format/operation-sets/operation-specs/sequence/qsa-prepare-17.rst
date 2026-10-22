@@ -3,10 +3,10 @@ QSAPrepare
 
 
 .. meta::
-  :description: Learn about QSAPrepare - builds the block index keys of Qwen Sparse Attention by
+  :description: Learn about QSAPrepare-17 - builds the block index keys of Qwen Sparse Attention by
                 pooling, normalizing and rotating the raw index keys of every complete key block.
 
-**Versioned name**: *QSAPrepare*
+**Versioned name**: *QSAPrepare-17*
 
 **Category**: *Sequence processing*
 
@@ -21,8 +21,8 @@ passed in from small caches, so that only the blocks completed by the new tokens
 
 *QSAPrepare* is the first stage of a QSA layer in a model with
 *ScaledDotProductAttention*-style caches. The graph flow is *QSAPrepare* ->
-:doc:`SparseAttentionIndexer <../sequence/sparse-attention-indexer-17>` -> :doc:`SparseAttention <../sequence/sparse-attention-17>`; the paged
-counterpart is :doc:`PagedQSAPrepare <paged-qsa-prepare>`. It covers the key compression of the
+:doc:`SparseAttentionIndexer <sparse-attention-indexer-17>` -> :doc:`SparseAttention <sparse-attention-17>`; the paged
+counterpart is :doc:`PagedQSAPrepare <../internal/paged-qsa-prepare>`. It covers the key compression of the
 engines: the "compress K" part of the ``qsa_prepare`` kernel of vLLM and the pooling, normalization
 and rotation of the block keys in ``build_qsa_top_k`` of llama.cpp.
 
@@ -54,7 +54,7 @@ the normalization and the rotation are done for at most one block per decode ste
 state grows with the number of past tokens except the block keys.
 
 **Batches with padding.** The sequences of a batch are aligned to the right (left padding), as for
-:doc:`SparseAttentionIndexer <../sequence/sparse-attention-indexer-17>`: sequence ``n`` has ``key_length[n]`` valid key tokens, past
+:doc:`SparseAttentionIndexer <sparse-attention-indexer-17>`: sequence ``n`` has ``key_length[n]`` valid key tokens, past
 and current, the last ones of all its key positions. Its blocks start at its first valid token:
 block ``b`` is formed by its valid tokens ``b * key_block_size .. b * key_block_size + key_block_size - 1``,
 and ``block_index_keys[n, b]`` is the key of that block. Of its ``key_length[n]`` valid tokens,
@@ -169,7 +169,7 @@ Properties that follow from the definition:
      keys of the tokens of the incomplete block, oldest first; the other rows are fake and zero in the
      output. ``past_incomplete_rope`` and ``incomplete_rope`` are valid only if that number is not zero.
 
-   See the note *Padding layout* of :doc:`SparseAttentionIndexer <../sequence/sparse-attention-indexer-17>` for the query axis and an
+   See the note *Padding layout* of :doc:`SparseAttentionIndexer <sparse-attention-indexer-17>` for the query axis and an
    example:
 
    .. code-block:: text
@@ -303,7 +303,7 @@ kept in ``past_incomplete_rope``.
 .. code-block:: xml
    :force:
 
-    <layer id="1" name="qsa_prepare" type="QSAPrepare" version="extension">
+    <layer id="1" name="qsa_prepare" type="QSAPrepare" version="opset17">
         <data key_block_size="4" epsilon="1e-06"/>
         <input>
             <port id="0" precision="BF16"> <!-- raw_index_keys of the new token -->
