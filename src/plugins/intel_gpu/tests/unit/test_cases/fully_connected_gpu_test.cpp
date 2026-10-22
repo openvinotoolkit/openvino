@@ -7234,9 +7234,8 @@ TEST(fully_connected_gpu_ternocl_int2_dynamic, non_ternary_zero_point_falls_back
     ASSERT_NE(net->get_primitive("fc_prim")->get_impl()->get_kernel_name(), "ternocl_int2");
 }
 
-// Batch-1 FC on the GEMV kernel with u2 weights. Unlike the int4 GEMV cases above these do not skip
-// discrete or IMMAD devices: no oneDNN FC implementation takes u2, so GEMV is what u2 decode runs on
-// there.
+// Batch-1 FC on the GEMV kernel with u2 weights. Not skipped on discrete/IMMAD devices: no oneDNN FC
+// takes u2, so GEMV runs there too.
 enum class fc_gemv_zp { none, grouped, scalar };
 
 struct fc_gemv_case {
@@ -7388,6 +7387,6 @@ INSTANTIATE_TEST_SUITE_P(
         // group that does not cover whole 64-value windows.
         fc_gemv_case{data_types::u2, 160, 256, 32, fc_gemv_zp::none, 0.0f, false, false, false},
         fc_gemv_case{data_types::u2, 512, 256, 32, fc_gemv_zp::scalar, 1.5f, false, false, false},
-        // u4 with an integer scalar zp through the same zp variable, now a half instead of a char.
+        // u4 with an integer scalar zp through the same (half) zp variable.
         fc_gemv_case{data_types::u4, 512, 256, 128, fc_gemv_zp::scalar, 8.0f, false, true, true}),
     fully_connected_gpu_u2_gemv::GetTestCaseName);

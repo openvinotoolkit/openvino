@@ -196,8 +196,7 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
         jit.AddConstant(MakeJitConstant("WEI_UINT4", 0));
         jit.AddConstant(MakeJitConstant("WEI_U2", 0));
     } else if (params.weights.GetDType() == WeightsType::UINT2) {
-        // unsigned like u4, but 4 values per byte; WEI_UINT4 stays 0 so the signed-int4
-        // sign-extension branch is not taken either
+        // WEI_UINT4 stays 0, which also keeps u2 off the signed-int4 sign-extension branch.
         jit.AddConstant(MakeJitConstant("WEI_UINT4", 0));
         jit.AddConstant(MakeJitConstant("WEI_U2", 1));
     } else {
@@ -234,9 +233,7 @@ KernelsData FullyConnected_GEMV::GetTunedKernelsDataByIndex(const Params& params
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
     if (fc_params.weights.GetDType() == WeightsType::UINT2) {
-        // u2 has one implemented layout here; skip the int4 heuristics entirely so a
-        // horizontal or swiglu-shaped weight cannot land on an osv32/osv64 packing the
-        // u2 path does not decode.
+        // Skip the int4 heuristics: they can pick osv32/osv64, which the u2 path does not decode.
         weights_layout = WeightsLayout::os_iyx_osv16;
     } else if (is_swiglu_fused(fc_params)) {
         weights_layout = WeightsLayout::os_is_yx_osv32_isv2;
@@ -266,8 +263,7 @@ KernelsData FullyConnected_GEMV::GetTunedKernelsDataByIndex(const Params& params
         weights_layout = WeightsLayout::os_iyx_osv16;
     }
 
-    // Keeping an already-reordered layout must not drag u2 onto osv32/osv64, which it
-    // cannot decode. Validate() already rejects those, so this is belt and braces.
+    // Keeping an already-reordered layout must not move u2 onto osv32/osv64.
     if (fc_params.weights.GetDType() != WeightsType::UINT2 &&
         ((fc_params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) ||
          (fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) ||

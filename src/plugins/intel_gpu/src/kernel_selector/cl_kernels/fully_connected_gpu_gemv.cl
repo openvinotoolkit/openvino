@@ -46,9 +46,8 @@
 #    define DECOMPRESSION_GROUP_SIZE 128
 #endif
 
-// u2 packs 4 values per byte instead of 2, so one 16-byte per-lane block read spans 64 K
-// values rather than 32, and both the K alignment and the input tile double accordingly.
-// Only the OSV16 layout is implemented for u2; the kernel selector rejects the others.
+// u2: 4 values per byte, so a 16-byte per-lane block read spans 64 K values (K alignment and input
+// tile double). OSV16 only; the kernel selector rejects the other layouts.
 #if WEI_U2 && !KERNEL_LAYOUT_OS_IS_YX_OSV16
 #    error "fully_connected_gpu_gemv.cl - u2 weights are only supported in the OSV16 layout"
 #endif
@@ -95,8 +94,7 @@ inline int FUNC(get_4bit_weight_index_no_isv)(int k, int n, int K, int N, int OS
     return (n / OSV) * (OSV * K / 2) + (k / 2) * OSV;
 }
 
-// Same addressing as the 4-bit variant with 4 values per byte instead of 2: a byte holds
-// K values k..k+3 of a single output feature, and the OSV features of a group are adjacent.
+// A byte holds K values k..k+3 of a single output feature.
 inline int FUNC(get_2bit_weight_index_no_isv)(int k, int n, int K, int N, int OSV) {
     return (n / OSV) * (OSV * K / 4) + (k / 4) * OSV;
 }
@@ -146,10 +144,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
     FUNC_CALL(thread_task_splitter)(SCALE_GROUP_NUM, thr_num, thr_id, &gk0, &gk1);
 
 #    if DECOMPRESSION_ZP_SCALAR
-    // half, not char: a scalar zero point is not necessarily an integer. The symmetric 4-level grid
-    // {-1.5,-0.5,+0.5,+1.5}*scale is w = (q - 1.5)*scale, and (char)1.5 silently truncates to 1,
-    // which would corrupt every weight without failing anything. The OSV64_ISV2 branch below
-    // already used half; these two did not.
+    // half, not char: a scalar zero point may be fractional (1.5 for the symmetric 4-level grid).
     half zp_scalar_value = (half)(DECOMPRESSION_ZP_VALUE);
 #    endif
 
@@ -193,16 +188,12 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
 #    endif
 
 #    if WEI_U2
-        // The same 256-byte per-subgroup block read as the 4-bit path, but 4 values per byte
-        // means it spans 64 K values instead of 32, so the input tile is 4 wide and each byte
-        // yields four weight vectors instead of two.
+        // The 4-bit path's 256-byte block read spans 64 K values here, so the input tile is 4 wide.
         __attribute__((opencl_unroll_hint(2))) for (int g = 0; g < DECOMPRESSION_GROUP_SIZE; g += 64, B += 16 * 16) {
             GEMV_INPUT_VEC_TYPE input_value = GEMV_INPUT_BLOCK_READ(A, g);
             uchar16 bx16 = as_uchar16(TO_GEMV_FILTER_PACKED_VEC_TYPE(GEMV_FILTER_BLOCK_READ(B, 0)));
 
-            // LSB-first inside the byte, matching cvt_uint2x4_to_uint8x4 in int2_utils.cl:
-            // bits[1:0] is K value k, [3:2] is k+1, [5:4] is k+2, [7:6] is k+3, all of the same
-            // output feature. Lane L holds byte L + 16*J, i.e. feature L, K values 4J..4J+3.
+            // LSB-first, as in cvt_uint2x4_to_uint8x4. Lane L holds byte L + 16*J: feature L, K 4J..4J+3.
             GEMV_FILTER_VEC_TYPE q0 = TO_GEMV_FILTER_VEC_TYPE(bx16 & (uchar16)0x3) - zpx16;
             GEMV_FILTER_VEC_TYPE q1 = TO_GEMV_FILTER_VEC_TYPE((bx16 >> (uchar16)2) & (uchar16)0x3) - zpx16;
             GEMV_FILTER_VEC_TYPE q2 = TO_GEMV_FILTER_VEC_TYPE((bx16 >> (uchar16)4) & (uchar16)0x3) - zpx16;
@@ -318,10 +309,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
     FUNC_CALL(thread_task_splitter)(SCALE_GROUP_NUM, thr_num, thr_id, &gk0, &gk1);
 
 #    if DECOMPRESSION_ZP_SCALAR
-    // half, not char: a scalar zero point is not necessarily an integer. The symmetric 4-level grid
-    // {-1.5,-0.5,+0.5,+1.5}*scale is w = (q - 1.5)*scale, and (char)1.5 silently truncates to 1,
-    // which would corrupt every weight without failing anything. The OSV64_ISV2 branch below
-    // already used half; these two did not.
+    // half, not char: a scalar zero point may be fractional (1.5 for the symmetric 4-level grid).
     half zp_scalar_value = (half)(DECOMPRESSION_ZP_VALUE);
 #    endif
 
