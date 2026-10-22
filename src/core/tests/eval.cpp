@@ -31,7 +31,6 @@
 #include "openvino/op/cos.hpp"
 #include "openvino/op/cosh.hpp"
 #include "openvino/op/cum_sum.hpp"
-#include "openvino/reference/cum_sum.hpp"
 #include "openvino/op/erf.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/fake_convert.hpp"
@@ -66,6 +65,7 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/reference/cum_sum.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "sequence_generator.hpp"
 #include "utils/eval_utils.hpp"
@@ -4286,9 +4286,11 @@ TEST(eval, reference_cum_sum_axis_out_of_range_no_access) {
     EXPECT_EQ(out, std::vector<float>(6, -1.f));
     ov::reference::cumsum<float, int64_t>(in.data(), -9, out.data(), shape, true, true);
     EXPECT_EQ(out, std::vector<float>(6, -1.f));
-    ov::reference::cumsum<float, int64_t>(in.data(), std::numeric_limits<int64_t>::min(), out.data(), shape, false, false);
+    const auto min_axis = std::numeric_limits<int64_t>::min();
+    const auto max_axis = std::numeric_limits<int64_t>::max();
+    ov::reference::cumsum<float, int64_t>(in.data(), min_axis, out.data(), shape, false, false);
     EXPECT_EQ(out, std::vector<float>(6, -1.f));
-    ov::reference::cumsum<float, int64_t>(in.data(), std::numeric_limits<int64_t>::max(), out.data(), shape, false, false);
+    ov::reference::cumsum<float, int64_t>(in.data(), max_axis, out.data(), shape, false, false);
     EXPECT_EQ(out, std::vector<float>(6, -1.f));
     float s_in = 1.f, s_out = -1.f;
     ov::reference::cumsum<float, int64_t>(&s_in, 0, &s_out, Shape{}, false, false);
@@ -4296,19 +4298,17 @@ TEST(eval, reference_cum_sum_axis_out_of_range_no_access) {
 }
 
 TEST(eval, reference_cum_sum_zero_length_axis_no_store) {
-    float sentinel_in[1] = {7.f};
-    float sentinel_out[1] = {-1.f};
+    float s_in[1] = {7.f};
+    float s_out[1] = {-1.f};
     for (const bool exclusive : {false, true}) {
         for (const bool reverse : {false, true}) {
-            ov::reference::cumsum<float, int64_t>(sentinel_in, 1, sentinel_out, Shape{4, 0, 8}, exclusive, reverse);
-            EXPECT_EQ(sentinel_out[0], -1.f);
-            ov::reference::cumsum<float, int64_t>(sentinel_in, 1, sentinel_out, Shape{1000000, 2, 0}, exclusive, reverse);
-            EXPECT_EQ(sentinel_out[0], -1.f);
+            ov::reference::cumsum<float, int64_t>(s_in, 1, s_out, Shape{4, 0, 8}, exclusive, reverse);
+            EXPECT_EQ(s_out[0], -1.f);
+            ov::reference::cumsum<float, int64_t>(s_in, 1, s_out, Shape{1000000, 2, 0}, exclusive, reverse);
+            EXPECT_EQ(s_out[0], -1.f);
         }
     }
 }
-
-
 
 TEST(eval, invalid_shape) {
     auto p1 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2});

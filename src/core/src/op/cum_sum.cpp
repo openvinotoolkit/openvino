@@ -36,6 +36,7 @@ bool evaluate(TensorVector& outputs, const TensorVector& inputs, const bool excl
 
     // Validate that the normalized axis is within [0, rank) on the core evaluate / constant-folding
     // path, matching the CPU plugin node check (src/plugins/intel_cpu/src/nodes/cum_sum.cpp).
+    // Not ov::util::try_normalize_axis(): that helper treats axis == 0 as valid for rank-0 scalars.
     // The shared reference kernel (reference/cum_sum.hpp) also checks bounds defensively; asserting
     // here surfaces a descriptive ov::Exception during constant folding when the axis is out of
     // range.

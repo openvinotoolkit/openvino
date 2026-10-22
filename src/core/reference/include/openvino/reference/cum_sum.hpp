@@ -16,7 +16,9 @@ void cumsum(const T* arg, const P axis, T* out, const Shape& tensor_shape, const
     // Guard against an axis outside [0, rank) (including rank-0 shapes and negative axes that
     // remain out of range after normalization) before indexing tensor_shape or forming iterator
     // ranges, and return early when any dimension is zero so no elements are read or written on
-    // an empty tensor. This reference kernel is shared across backends.
+    // an empty tensor. Direct callers (or any non-float types reaching this reference kernel
+    // directly) no-op when axis is out of range or tensor_elements == 0, whereas CumSum::evaluate()
+    // asserts on out-of-range axes.
     const auto rank = tensor_shape.size();
     size_t normalized_axis = 0;
     if constexpr (std::is_unsigned_v<P>) {
