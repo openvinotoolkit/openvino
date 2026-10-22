@@ -20,6 +20,9 @@
 namespace ov::runtime::hsm {
 inline namespace v1 {
 
+// No encoder needed: #model_id_tag is inline, so the id goes straight into #IWriter::add_section() as
+// `ov::util::as_memory_view(id)`.
+
 /**
  * @brief Recovers the id written by #wrap_model_id().
  * @param section Section whose #Section::view() is read.
