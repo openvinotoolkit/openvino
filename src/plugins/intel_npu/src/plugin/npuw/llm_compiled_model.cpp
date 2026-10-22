@@ -29,6 +29,7 @@
 #include "npuw_transformations/replace_deepstack_scatter_with_add.hpp"
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
+#include "npuw_transformations/rewrite_gqa_attention_mask.hpp"
 #include "npuw_transformations/right_align_mask_slice_for_conv.hpp"
 #include "npuw_transformations/shrink_sliding_window_kv_cache.hpp"
 #include "npuw_transformations/slice_out_embeds.hpp"
@@ -992,6 +993,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
         ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
     }
+
+    // Decomposed GroupQueryAttention masks only encode causality; make them honour the padded
+    // `attention_mask` input that LLMInferRequest fills for the static KV buffers.
+    LOG_DEBUG("Try rewrite decomposed GroupQueryAttention mask to apply attention_mask, if it exists.");
+    ov::npuw::RewriteGQAAttentionMask().run_on_model(kvcache_model);
 
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
