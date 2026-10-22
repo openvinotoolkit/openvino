@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-22-03-30-46-000-39711580201",
+  "timestamp": "2026-10-22T03:30:46Z",
+  "run_id": "39711580201",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39711580201",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "178d03e210433f32af080aab3e05562e238c5ee2",
+  "pr_number": "39021",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39021",
+  "author": "jade-cho",
+  "category": "External Service",
+  "title": "OpenVINO JS API electron e2e test times out when npm install stalls on npm registry audit 503",
+  "signature": "npm install timeout in electron e2e test due to npm registry audit endpoint 503 Service Unavailable|External Service",
+  "signature_hash": "09126916fe54469f",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO JS API (24) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "electron-app.test.js 'should install dependencies' times out after 50000ms while npm install is still running"
+    },
+    {
+      "name": "OpenVINO JS API (26) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "electron-app.test.js 'should install dependencies' times out after 50000ms while npm install is still running"
+    },
+    {
+      "name": "OpenVINO JS API (22) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "electron-app.test.js 'should install dependencies' times out after 50000ms while npm install is still running"
+    }
+  ],
+  "key_errors": [
+    "1) E2E testing for OpenVINO as an Electron dependency.\n       should install dependencies:\n     Error: Timeout of 50000ms exceeded. For async tests and hooks, ensure \"done()\" is called; if returning a Promise, ensure it resolves. (/__w/openvino/openvino/src/bindings/js/node/tests/e2e/electron-app.test.js)",
+    "npm silly audit bulk request failed undefined\nnpm http fetch POST 503 https://registry.npmjs.org/-/npm/v1/security/audits/quick 120032ms\nnpm verbose audit error HttpErrorGeneral: 503 Service Unavailable - POST https://registry.npmjs.org/-/npm/v1/security/audits/quick - Service Unavailable",
+    "exec error: Error: Command failed: cd demo-electron-app-project && npm install\nnpm error enoent Could not read package.json: Error: ENOENT: no such file or directory, open '.../demo-electron-app-project/package.json'"
+  ],
+  "root_cause": "The mocha test 'should install dependencies' in electron-app.test.js has a 50000ms (50s) timeout, but the npm install it runs performs an implicit 'npm audit' security check (POST to registry.npmjs.org/-/npm/v1/security/audits/quick). In all three failing job shards the npmjs.org audit endpoint returned HTTP 503 Service Unavailable only after a ~120 second timeout, which is already more than double the test's 50s mocha timeout. The test callback never fires in time, mocha reports 'Timeout of 50000ms exceeded', and the suite proceeds to the 'after' hook which deletes demo-electron-app-project while the still-running npm install process is using it, producing the secondary 'ENOENT package.json' error once npm eventually resolves. This is an external-service outage (npmjs.org audit API 503s) rather than a change in the merged GEMM/HostPayload PR, which touches only GPU microkernel C++ code unrelated to the JS bindings.",
+  "reproduction_steps": "cd src/bindings/js/node && cp -r tests/e2e/demo-electron-app demo-electron-app-project && cd demo-electron-app-project && time npm install (reproduces only when registry.npmjs.org/-/npm/v1/security/audits/quick is slow/returns 503; not reliably reproducible locally since it depends on npm registry availability).",
+  "recommended_actions": [
+    "Pass --no-audit (or set npm config audit=false) for the 'npm install' invocation in demo-electron-app-project to avoid the slow/flaky audit API call entirely.",
+    "Increase the mocha `this.timeout(...)` for the 'should install dependencies' test (e.g., to 120000ms or more) to tolerate slow registry responses.",
+    "Guard the 'after' cleanup hook so it does not delete demo-electron-app-project while a child npm install process may still be running after a test timeout (e.g., kill the exec'd process on timeout before removing the directory).",
+    "Consider caching/vendoring node_modules for the demo-electron-app e2e test to avoid depending on live npm registry calls in CI."
+  ],
+  "prevention_strategies": "Disable npm audit in CI-only install commands (`npm install --no-audit --no-fund`) wherever a test enforces a tight timeout, and prefer explicit per-step timeouts generous enough to absorb third-party registry latency spikes. Track npmjs.org outages as a known flaky-infra cause separate from code regressions.",
+  "historical_context": "No prior pattern record exists in the post-commit knowledge base for this exact signature (npm registry audit 503 causing electron e2e npm install timeout); this is the first recorded occurrence."
+}

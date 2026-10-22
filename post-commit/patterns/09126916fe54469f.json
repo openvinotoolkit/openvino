@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "npm install timeout in electron e2e test due to npm registry audit endpoint 503 Service Unavailable|External Service",
+  "signature_hash": "09126916fe54469f",
+  "title": "OpenVINO JS API electron e2e test times out when npm install stalls on npm registry audit 503",
+  "category": "External Service",
+  "count": 1,
+  "first_seen": "2026-10-22T03:30:46Z",
+  "last_seen": "2026-10-22T03:30:46Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/39711580201"
+  ],
+  "affected_commits": [
+    "178d03e210433f32af080aab3e05562e238c5ee2"
+  ],
+  "recent_timestamps": [
+    "2026-10-22T03:30:46Z"
+  ]
+}
