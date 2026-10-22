@@ -120,8 +120,12 @@ def _check_range(array: np.ndarray, type: Type) -> None:
         low, high = -8, 7
     else:
         low, high = 0, (1 << type.bitwidth) - 1
-    if np.min(array) < low or np.max(array) > high:
-        raise RuntimeError(f'The values of array "{array}" are out of the {type.get_type_name()} range [{low}, {high}]')
+    min_value, max_value = np.min(array), np.max(array)
+    if min_value < low or max_value > high:
+        raise RuntimeError(
+            f"The values of the {array.dtype} array with shape {array.shape} (min {min_value}, max {max_value}) "
+            f"are out of the {type.get_type_name()} range [{low}, {high}]"
+        )
 
 
 def _pack_linear(array: np.ndarray, bits: int) -> np.ndarray:
