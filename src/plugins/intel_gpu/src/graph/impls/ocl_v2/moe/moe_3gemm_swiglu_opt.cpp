@@ -2834,8 +2834,8 @@ public:
         auto& engine = instance.get_network().get_engine();
         cldnn::event::ptr ret = events.empty() ? nullptr : events[0];
 
-        const size_t lws = 256;
-        const auto round_up = [lws](size_t v) {
+        static constexpr size_t lws = 256;
+        const auto round_up = [](size_t v) {
             return (v + lws - 1) / lws * lws;
         };
         for (int i = 0; i < 3 && !skip_routed; i++) {
