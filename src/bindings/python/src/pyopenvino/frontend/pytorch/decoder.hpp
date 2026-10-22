@@ -148,10 +148,6 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
         PYBIND11_OVERRIDE_PURE(ov::OutputVector, TorchDecoder, convert, context);
     }
 
-    ov::PartialShape get_input_complete_shape(size_t index) const override {
-        PYBIND11_OVERRIDE(ov::PartialShape, TorchDecoder, get_input_complete_shape, index);
-    }
-
     InputSequences get_input_sequences() const override {
         PYBIND11_OVERRIDE(InputSequences, TorchDecoder, get_input_sequences);
     }
