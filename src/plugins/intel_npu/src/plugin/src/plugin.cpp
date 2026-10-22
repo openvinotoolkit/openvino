@@ -604,8 +604,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         return compiledModel;
     }
 
-    BlobSource blobSource(stream, _logger.level());
+    reader.has_value() ? reader : ;
     try {
+        const auto reader = ov::runtime::hsm::Reader::open(stream);
+        if (reader.has_value()) {
+            return import_model(reader, localProperties);
+        }
+
+        BlobSource blobSource(stream, _logger.level());
         return import_model(blobSource, localProperties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(FAILED_IMPORT_MODEL_PREFACE, ex.what());
@@ -632,8 +638,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         return compiledModel;
     }
 
-    BlobSource blobSource(compiledBlob, _logger.level());
     try {
+        const auto reader = ov::runtime::hsm::Reader::open(stream);
+        if (reader.has_value()) {
+            return import_model(reader, localProperties);
+        }
+
+        BlobSource blobSource(compiledBlob, _logger.level());
         return import_model(blobSource, localProperties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(FAILED_IMPORT_MODEL_PREFACE, ex.what());
@@ -642,7 +653,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     }
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource, ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(
+    const std::variant<std::reference_wrapper<ov::runtime::hsm::Reader>, std::reference_wrapper<BlobSource>>&
+        readerOrSource,
+    ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(BlobSource)");
     _logger.trace("Importing a compiled model using a BlobSource object");
 
@@ -653,7 +667,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
         _propertiesManager->getMergedConfigAndUnknownProperties(properties, ConfigMergeMode::Import);
 
     std::unique_ptr<IBlobFormatImporter> blobFormatImporter = blob_format_importer_factory::create(
-        blobSource,
+        readerOrSource,
         runtimeConfig.get<DISABLE_VERSION_CHECK>() ? true : runtimeConfig.get<IMPORT_RAW_BLOB>(),
         runtimeConfig.has<MODEL_PTR>() ? runtimeConfig.get<MODEL_PTR>().lock() : nullptr,
         _backend,
@@ -676,7 +690,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
                                            shared_from_this(),
                                            device,
                                            graph,
-                                           blobFormatImporter->create_blob_writer(),
+                                           blobFormatImporter->get_blob_sections_registry(),
                                            blobFormatImporter->get_config(),
                                            unknownProperties);
 }

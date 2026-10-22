@@ -75,7 +75,7 @@ public:
      *
      * @return The BlobSectionsRegistry if the imported compiled model is not a "raw blob". "nullptr" otherwise.
      */
-    virtual std::shared_ptr<BlobSectionsRegistry> create_blob_writer() = 0;
+    virtual std::shared_ptr<BlobSectionsRegistry> get_blob_sections_registry() = 0;
 
     Config get_config() const;
 
@@ -146,7 +146,7 @@ namespace blob_format_importer_factory {
 /**
  * @brief Identifies the blob format used for the given blob and creates the corresponding importer for it.
  *
- * @param npu_formatted_blob The target blob.
+ * @param reader_or_source TODO
  * @param is_raw_blob Flag indicating whether or not the whole blob is just a compiler main schedule.
  * @param original_model A potential source of weights for the weights separation feature if necessary. Can be
  * `nullptr`.
@@ -156,7 +156,8 @@ namespace blob_format_importer_factory {
  * level, weights path, decryption callbacks.
  * @return An importer object of the type that corresponds to the format of the blob.
  */
-std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
+std::unique_ptr<IBlobFormatImporter> create(const std::variant<std::reference_wrapper<ov::runtime::hsm::Reader>,
+                                                               std::reference_wrapper<BlobSource>>& reader_or_source,
                                             const bool is_raw_blob,
                                             const std::shared_ptr<const ov::Model>& original_model,
                                             const ov::SoPtr<IEngineBackend>& backend,
