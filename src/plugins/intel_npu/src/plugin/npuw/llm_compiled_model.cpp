@@ -26,6 +26,7 @@
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
 #include "npuw_transformations/propagate_slice.hpp"
 #include "npuw_transformations/remove_token_type_ids.hpp"
+#include "npuw_transformations/replace_count_based_mask.hpp"
 #include "npuw_transformations/replace_deepstack_scatter_with_add.hpp"
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
@@ -1108,6 +1109,21 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             .run_on_model(lm_head_model);
     }
 
+    // ORT-exported GQA models derive the attention mask from the token COUNT instead of
+    // token POSITIONS, which only holds when the static windows carry no padding - see
+    // replace_count_based_mask.hpp.  Both stages violate that, so the rewrite is applied
+    // to the prefill model AND to every generate variant.  Must run after ReshapeToStatic
+    // (it needs static S/T) and before partitioning (the folded per-layer function does
+    // not receive attention_mask).  No-op on models that do not match the pattern.
+    if (m_cfg.get<::intel_npu::NPUW_LLM_REPLACE_COUNT_MASK>()) {
+        LOG_DEBUG("Replace count-based attention mask in the prefill model");
+        ov::npuw::ReplaceCountBasedMask().run_on_model(prefill_model);
+        for (auto& model_variant : generate_model_variants) {
+            LOG_DEBUG("Replace count-based attention mask in a generate variant");
+            ov::npuw::ReplaceCountBasedMask().run_on_model(model_variant);
+        }
+    }
+
     const auto prefill_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
     const auto generate_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>();
     const bool prefill_attn_dyn = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::DYNAMIC;
@@ -2054,6 +2070,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN, get),
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
+                          BIND(npuw::llm::replace_count_mask, NPUW_LLM_REPLACE_COUNT_MASK, get),
                           BIND(npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8, get),
                           BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
                           BIND(npuw::llm::enable_block_based_kv_cache, NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE, get),
