@@ -137,22 +137,6 @@ struct npu_vm_runtime_fntbl {
     }
 };
 
-std::shared_ptr<ov::Model> createMaxPoolModel() {
-    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
-                                                         ov::PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
-    input->set_friendly_name("input1");
-
-    auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input, ov::Strides{1, 1}, ov::Shape{0, 0}, ov::Shape{0, 0},
-                                                         ov::Shape{1, 1}, ov::op::RoundingType::FLOOR,
-                                                         ov::op::PadType::EXPLICIT);
-    maxpool->set_friendly_name("MaxPool_2");
-
-    auto result = std::make_shared<ov::op::v0::Result>(maxpool);
-    result->set_friendly_name("output");
-
-    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "MaxPool");
-}
-
 namespace {
 
 std::string formatCheckedPaths(const std::vector<std::filesystem::path>& paths) {
@@ -196,6 +180,22 @@ std::filesystem::path resolveExistingPathOrThrow(const std::filesystem::path& in
 
     throw std::runtime_error("Cannot open " + resourceDescription + ": " + inputPath.string() +
                              ". Checked paths: " + formatCheckedPaths(candidatePaths));
+}
+
+std::shared_ptr<ov::Model> createMaxPoolModel() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                         ov::PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
+    input->set_friendly_name("input1");
+
+    auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input, ov::Strides{1, 1}, ov::Shape{0, 0}, ov::Shape{0, 0},
+                                                         ov::Shape{1, 1}, ov::op::RoundingType::FLOOR,
+                                                         ov::op::PadType::EXPLICIT);
+    maxpool->set_friendly_name("MaxPool_2");
+
+    auto result = std::make_shared<ov::op::v0::Result>(maxpool);
+    result->set_friendly_name("output");
+
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "MaxPool");
 }
 
 }  // namespace
