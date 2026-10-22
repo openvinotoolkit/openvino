@@ -18,6 +18,7 @@
 #include <map>
 #include <mutex>
 #include <set>
+#include <tuple>
 #include <vector>
 
 #include "openvino/core/except.hpp"
@@ -25,15 +26,19 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/decompositions/low_precision_dequantize.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/util/common_util.hpp"
-#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 
 namespace ov::frontend::gguf {
 
@@ -396,6 +401,75 @@ bool q4_k_f16_zero_point_enabled() {
     return enabled;
 }
 
+class ActivationGroups {
+public:
+    size_t get(const ov::Output<ov::Node>& output) {
+        if (const auto found = m_ids.find(output); found != m_ids.end())
+            return found->second;
+        const auto node = output.get_node_shared_ptr();
+        if (!node->get_control_dependencies().empty() || !node->get_control_dependents().empty())
+            return m_ids[output] = m_next++;
+        if (const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(node)) {
+            const auto& shape = reshape->get_input_partial_shape(0);
+            const auto pattern = ov::as_type_ptr<ov::op::v0::Constant>(reshape->get_input_node_shared_ptr(1));
+            if (pattern && shape.rank().is_static() && shape == output.get_partial_shape() &&
+                (shape.is_static() ||
+                 (shape.size() > 0 && std::all_of(shape.begin() + 1, shape.end(), [](const ov::Dimension& dim) {
+                      return dim.is_static();
+                  }))))
+                return m_ids[output] = get(reshape->input_value(0));
+        }
+        std::vector<int64_t> attributes;
+        bool comparable = true;
+        if (const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(node))
+            attributes.push_back(reshape->get_special_zero());
+        else if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
+            if (convert->get_input_element_type(0) == convert->get_element_type())
+                return m_ids[output] = get(convert->input_value(0));
+            attributes.push_back(static_cast<int64_t>(static_cast<ov::element::Type_t>(convert->get_element_type())));
+        } else if (const auto shape = ov::as_type_ptr<ov::op::v3::ShapeOf>(node))
+            attributes.push_back(static_cast<int64_t>(static_cast<ov::element::Type_t>(shape->get_output_type())));
+        else if (const auto split = ov::as_type_ptr<ov::op::v1::Split>(node))
+            attributes.push_back(split->get_num_splits());
+        else if (const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(node))
+            attributes.push_back(concat->get_axis());
+        else if (ov::is_type<ov::op::v1::Add>(node) || ov::is_type<ov::op::v1::Subtract>(node) ||
+                 ov::is_type<ov::op::v1::Multiply>(node) || ov::is_type<ov::op::v1::Divide>(node)) {
+            const auto binary = ov::as_type_ptr<ov::op::util::BinaryElementwiseArithmetic>(node);
+            attributes = {static_cast<int64_t>(binary->get_autob().m_type), binary->get_autob().m_axis};
+        } else
+            comparable = ov::is_type<ov::op::v1::Transpose>(node);
+        if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
+            auto& constants = m_constants[{constant->get_element_type(), constant->get_shape()}];
+            for (const auto& [value, id] : constants) {
+                if (std::memcmp(value->get_data_ptr(), constant->get_data_ptr(), constant->get_byte_size()) == 0)
+                    return m_ids[output] = id;
+            }
+            const auto id = m_next++;
+            constants.emplace_back(constant, id);
+            return m_ids[output] = id;
+        }
+        if (!comparable || !node->get_control_dependencies().empty() || !node->get_control_dependents().empty())
+            return m_ids[output] = m_next++;
+        std::vector<size_t> inputs;
+        for (const auto& input : node->input_values())
+            inputs.push_back(get(input));
+        const auto key = std::make_tuple(node->get_type_info(), output.get_index(), inputs, attributes);
+        auto [found, inserted] = m_operations.emplace(key, m_next);
+        if (inserted)
+            ++m_next;
+        return m_ids[output] = found->second;
+    }
+
+private:
+    size_t m_next = 0;
+    std::map<ov::Output<ov::Node>, size_t> m_ids;
+    std::map<std::pair<ov::element::Type, ov::Shape>,
+             std::vector<std::pair<std::shared_ptr<ov::op::v0::Constant>, size_t>>>
+        m_constants;
+    std::map<std::tuple<ov::DiscreteTypeInfo, size_t, std::vector<size_t>, std::vector<int64_t>>, size_t> m_operations;
+};
+
 }  // namespace
 
 void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model) {
@@ -405,29 +479,13 @@ void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model) {
         })) {
         return;
     }
-    ov::OutputVector activations;
-    for (const auto& node : nodes) {
-        if (const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node))
-            activations.push_back(matmul->input_value(0));
-    }
-    ov::OutputVector probes;
-    for (const auto& activation : activations) {
-        probes.push_back(std::make_shared<ov::op::v1::Multiply>(
-            activation,
-            ov::op::v0::Constant::create(activation.get_element_type(), {}, {1})));
-    }
-    auto activation_model = std::make_shared<ov::Model>(probes, model->get_parameters())->clone();
-    ov::pass::SharedOpOptimization().run_on_model(activation_model);
-    std::map<ov::Output<ov::Node>, ov::Output<ov::Node>> shared_activations;
-    for (size_t i = 0; i < activations.size(); ++i)
-        shared_activations[activations[i]] =
-            activation_model->get_results()[i]->get_input_node_shared_ptr(0)->input_value(0);
+    ActivationGroups activations;
     struct Projection {
         std::shared_ptr<ov::op::v1::Subtract> subtract;
         ov::Shape shape;
     };
-    std::map<ov::Output<ov::Node>, std::vector<Projection>> projections;
-    for (const auto& node : model->get_ordered_ops()) {
+    std::map<size_t, std::vector<Projection>> projections;
+    for (const auto& node : nodes) {
         const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node);
         if (!matmul)
             continue;
@@ -447,10 +505,11 @@ void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model) {
             continue;
         const auto& rt_info = subtract->get_rt_info();
         const auto shape = rt_info.find("gguf_u2_zero_point_shape");
-        auto input = shared_activations.at(matmul->input_value(0));
+        auto input = matmul->input_value(0);
         while (ov::is_type<ov::op::v0::Convert>(input.get_node_shared_ptr()))
             input = input.get_node_shared_ptr()->input_value(0);
-        projections[input].push_back({subtract, shape == rt_info.end() ? ov::Shape{} : shape->second.as<ov::Shape>()});
+        projections[activations.get(input)].push_back(
+            {subtract, shape == rt_info.end() ? ov::Shape{} : shape->second.as<ov::Shape>()});
     }
     std::set<ov::Node*> grouped;
     for (const auto& [input, group] : projections) {

@@ -15,14 +15,17 @@
 #include <cstring>
 #include <vector>
 
+#include "node_context.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/subtract.hpp"
 #include "quant/weights.hpp"
+#include "utils.hpp"
 
 using namespace ov_gguf_test;
 
@@ -177,69 +180,155 @@ TEST(GGUFWeight, PreservesPQ2CodeThreeFallback) {
 
 TEST(GGUFWeight, MixedU2ProjectionsKeepGroupedZeroPoints) {
     using namespace ov::frontend::gguf;
-    for (const size_t count : {2, 3}) {
-        for (const bool grouped_first : {false, true}) {
-            for (const bool singleton : {false, true}) {
-                SCOPED_TRACE(::testing::Message() << count << ":" << grouped_first << ":" << singleton);
-                const size_t k = singleton ? 128 : 256;
-                auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
-                                                                     ov::PartialShape{-1, static_cast<int64_t>(k)});
-                input->output(0).get_tensor().set_names({"input"});
-                ov::OutputVector outputs;
-                std::vector<std::shared_ptr<ov::op::v1::Subtract>> subtracts;
-                for (size_t i = 0; i < count; ++i) {
-                    const bool fallback = i == (grouped_first ? 0 : count - 1);
-                    const size_t n = singleton && fallback ? 1 : 15;
-                    WeightTensors tensors{ov::Tensor(ov::element::u2, {n, k}),
-                                          ov::Tensor(ov::element::f16, {n, k / 128}),
-                                          ov::Tensor(ov::element::u8, {n, k / 128})};
-                    std::memset(tensors.weight.data(), fallback ? 0xff : 0x55, tensors.weight.get_byte_size());
-                    std::fill_n(tensors.scales.data<ov::float16>(), tensors.scales.get_size(), ov::float16(0.125f));
-                    std::memset(tensors.zero_point.data(), 1, tensors.zero_point.get_byte_size());
-                    auto weight = make_weight_node(tensors, GGUF_TYPE_PQ2_0);
-                    auto weight_model = std::make_shared<ov::Model>(ov::OutputVector{weight}, ov::ParameterVector{});
-                    for (const auto& node : weight_model->get_ops()) {
-                        if (auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(node))
-                            subtracts.push_back(subtract);
+    for (const bool mixed_inputs : {false, true}) {
+        for (const size_t count : {2, 3}) {
+            for (const bool grouped_first : {false, true}) {
+                for (const bool singleton : {false, true}) {
+                    SCOPED_TRACE(::testing::Message()
+                                 << count << ":" << grouped_first << ":" << singleton << ":" << mixed_inputs);
+                    const size_t k = singleton ? 128 : 256;
+                    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
+                                                                         ov::PartialShape{-1, static_cast<int64_t>(k)});
+                    input->output(0).get_tensor().set_names({"input"});
+                    ov::OutputVector outputs;
+                    std::vector<std::shared_ptr<ov::op::v1::Subtract>> subtracts;
+                    for (size_t i = 0; i < count; ++i) {
+                        const bool fallback = i == (grouped_first ? 0 : count - 1);
+                        const size_t n = singleton && fallback ? 1 : 15;
+                        WeightTensors tensors{ov::Tensor(ov::element::u2, {n, k}),
+                                              ov::Tensor(ov::element::f16, {n, k / 128}),
+                                              ov::Tensor(ov::element::u8, {n, k / 128})};
+                        std::memset(tensors.weight.data(), fallback ? 0xff : 0x55, tensors.weight.get_byte_size());
+                        std::fill_n(tensors.scales.data<ov::float16>(), tensors.scales.get_size(), ov::float16(0.125f));
+                        std::memset(tensors.zero_point.data(), 1, tensors.zero_point.get_byte_size());
+                        auto weight = make_weight_node(tensors, GGUF_TYPE_PQ2_0);
+                        auto weight_model =
+                            std::make_shared<ov::Model>(ov::OutputVector{weight}, ov::ParameterVector{});
+                        for (const auto& node : weight_model->get_ops()) {
+                            if (auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(node))
+                                subtracts.push_back(subtract);
+                        }
+                        auto activation = std::make_shared<ov::op::v1::Reshape>(
+                            input,
+                            ov::op::v0::Constant::create(ov::element::i64,
+                                                         {2},
+                                                         std::vector<int64_t>{-1, static_cast<int64_t>(k)}),
+                            false);
+                        const ov::Output<ov::Node> projection_input =
+                            mixed_inputs && fallback ? input->output(0) : activation->output(0);
+                        outputs.push_back(std::make_shared<ov::op::v0::MatMul>(projection_input, weight, false, true));
                     }
-                    auto activation = std::make_shared<ov::op::v1::Reshape>(
-                        input,
-                        ov::op::v0::Constant::create(ov::element::i64,
-                                                     {2},
-                                                     std::vector<int64_t>{-1, static_cast<int64_t>(k)}),
-                        false);
-                    outputs.push_back(std::make_shared<ov::op::v0::MatMul>(activation, weight, false, true));
+                    auto model = std::make_shared<ov::Model>(outputs, ov::ParameterVector{input});
+                    auto reference = model->clone();
+                    normalize_u2_zero_points(model);
+                    for (size_t i = 0; i < count; ++i) {
+                        const bool fallback = i == (grouped_first ? 0 : count - 1);
+                        const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(outputs[i].get_node_shared_ptr());
+                        EXPECT_EQ(ov::is_type<ov::op::v1::Reshape>(matmul->get_input_node_shared_ptr(0)),
+                                  !mixed_inputs || !fallback);
+                    }
+                    ASSERT_EQ(subtracts.size(), count);
+                    for (const auto& subtract : subtracts) {
+                        const auto convert =
+                            ov::as_type_ptr<ov::op::v0::Convert>(subtract->get_input_node_shared_ptr(1));
+                        ASSERT_TRUE(convert);
+                        const auto zp = ov::as_type_ptr<ov::op::v0::Constant>(convert->get_input_node_shared_ptr(0));
+                        ASSERT_TRUE(zp);
+                        ASSERT_EQ(zp->get_shape().size(), 3);
+                        EXPECT_EQ(zp->get_shape().back(), 1);
+                    }
+                    model->validate_nodes_and_infer_types();
+                    ov::Tensor data(ov::element::f32, {1, k});
+                    std::fill_n(data.data<float>(), k, 1.f);
+                    ov::Core core;
+                    const auto properties = ov::hint::inference_precision(ov::element::f32);
+                    auto actual = core.compile_model(model, "CPU", properties).create_infer_request();
+                    auto expected = core.compile_model(reference, "CPU", properties).create_infer_request();
+                    actual.set_input_tensor(data);
+                    expected.set_input_tensor(data);
+                    actual.infer();
+                    expected.infer();
+                    for (size_t output = 0; output < count; ++output) {
+                        const auto a = actual.get_output_tensor(output);
+                        const auto b = expected.get_output_tensor(output);
+                        ASSERT_EQ(a.get_size(), b.get_size());
+                        for (size_t i = 0; i < a.get_size(); ++i)
+                            EXPECT_FLOAT_EQ(a.data<const float>()[i], b.data<const float>()[i]);
+                    }
                 }
-                auto model = std::make_shared<ov::Model>(outputs, ov::ParameterVector{input});
-                auto reference = model->clone();
-                normalize_u2_zero_points(model);
-                ASSERT_EQ(subtracts.size(), count);
-                for (const auto& subtract : subtracts) {
-                    const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(subtract->get_input_node_shared_ptr(1));
-                    ASSERT_TRUE(convert);
-                    const auto zp = ov::as_type_ptr<ov::op::v0::Constant>(convert->get_input_node_shared_ptr(0));
-                    ASSERT_TRUE(zp);
-                    EXPECT_EQ(zp->get_shape().size(), 3);
-                    EXPECT_EQ(zp->get_shape().back(), 1);
+            }
+        }
+    }
+}
+
+TEST(GGUFWeight, HadamardProjectionGroupsPreserveDistinctActivations) {
+    using namespace ov::frontend::gguf;
+    for (const bool different_signs : {false, true}) {
+        for (const bool different_output : {false, true}) {
+            SCOPED_TRACE(::testing::Message() << different_signs << ":" << different_output);
+            auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 256});
+            auto split =
+                std::make_shared<ov::op::v1::Split>(input, ov::op::v0::Constant::create(ov::element::i64, {}, {1}), 2);
+            ov::OutputVector outputs;
+            std::vector<std::shared_ptr<ov::op::v1::Subtract>> subtracts;
+            for (size_t i = 0; i < 2; ++i) {
+                const auto x = split->output(different_output ? i : 0);
+                ov::Tensor signs(ov::element::f32, {128});
+                std::fill_n(signs.data<float>(), 128, 1.f);
+                signs.data<float>()[0] = different_signs && i == 1 ? -1.f : 1.f;
+                const auto decoder = std::make_shared<SingleOpDecoder>(
+                    "GGML_OP_MUL_MAT",
+                    std::vector<TensorDesc>{{"x", ov::element::f32, {-1, 128}}},
+                    std::vector<TensorDesc>{},
+                    TensorDesc{"y", ov::element::f32, {-1, 128}},
+                    std::map<std::string, ov::Any>{{"hadamard_block", int64_t{4}}, {"hadamard_signs", signs}});
+                auto tensor_map = std::make_shared<TensorMap>();
+                (*tensor_map)["x"] = x;
+                const auto activation = apply_hadamard(NodeContext(decoder, tensor_map), x);
+                WeightTensors tensors{ov::Tensor(ov::element::u2, {16, 128}),
+                                      ov::Tensor(ov::element::f16, {16, 1}),
+                                      ov::Tensor(ov::element::u8, {16, 1})};
+                std::memset(tensors.weight.data(), i == 0 ? 0xff : 0x99, tensors.weight.get_byte_size());
+                std::fill_n(tensors.scales.data<ov::float16>(), tensors.scales.get_size(), ov::float16(0.125f));
+                std::memset(tensors.zero_point.data(), 1, tensors.zero_point.get_byte_size());
+                const auto weight = make_weight_node(tensors, GGUF_TYPE_PQ2_0);
+                const auto weight_model = std::make_shared<ov::Model>(ov::OutputVector{weight}, ov::ParameterVector{});
+                for (const auto& node : weight_model->get_ordered_ops()) {
+                    if (const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(node))
+                        subtracts.push_back(subtract);
                 }
-                model->validate_nodes_and_infer_types();
-                ov::Tensor data(ov::element::f32, {1, k});
-                std::fill_n(data.data<float>(), k, 1.f);
-                ov::Core core;
-                const auto properties = ov::hint::inference_precision(ov::element::f32);
-                auto actual = core.compile_model(model, "CPU", properties).create_infer_request();
-                auto expected = core.compile_model(reference, "CPU", properties).create_infer_request();
-                actual.set_input_tensor(data);
-                expected.set_input_tensor(data);
-                actual.infer();
-                expected.infer();
-                for (size_t output = 0; output < count; ++output) {
-                    const auto a = actual.get_output_tensor(output);
-                    const auto b = expected.get_output_tensor(output);
-                    ASSERT_EQ(a.get_size(), b.get_size());
-                    for (size_t i = 0; i < a.get_size(); ++i)
-                        EXPECT_FLOAT_EQ(a.data<const float>()[i], b.data<const float>()[i]);
-                }
+                outputs.push_back(std::make_shared<ov::op::v0::MatMul>(activation, weight, false, true));
+            }
+            auto model = std::make_shared<ov::Model>(outputs, ov::ParameterVector{input});
+            const auto reference = model->clone();
+            std::map<std::shared_ptr<ov::Node>, ov::OutputVector> inputs;
+            for (const auto& node : model->get_ordered_ops())
+                inputs[node] = node->input_values();
+            normalize_u2_zero_points(model);
+            ASSERT_EQ(subtracts.size(), 2);
+            EXPECT_FALSE(subtracts[0]->get_input_shape(1).empty());
+            EXPECT_EQ(subtracts[1]->get_input_shape(1).empty(), different_signs || different_output);
+            for (const auto& [node, original_inputs] : inputs) {
+                if (!ov::is_type<ov::op::v1::Subtract>(node))
+                    EXPECT_EQ(node->input_values(), original_inputs);
+            }
+            ov::Tensor data(ov::element::f32, {2, 256});
+            for (size_t i = 0; i < data.get_size(); ++i)
+                data.data<float>()[i] = std::sin(static_cast<float>(i) * 0.1f);
+            ov::Core core;
+            const auto properties = ov::hint::inference_precision(ov::element::f32);
+            auto actual = core.compile_model(model, "CPU", properties).create_infer_request();
+            auto expected = core.compile_model(reference, "CPU", properties).create_infer_request();
+            actual.set_input_tensor(data);
+            expected.set_input_tensor(data);
+            actual.infer();
+            expected.infer();
+            for (size_t i = 0; i < 2; ++i) {
+                const auto a = actual.get_output_tensor(i);
+                const auto b = expected.get_output_tensor(i);
+                ASSERT_EQ(a.get_size(), b.get_size());
+                for (size_t j = 0; j < a.get_size(); ++j)
+                    EXPECT_FLOAT_EQ(a.data<const float>()[j], b.data<const float>()[j]);
             }
         }
     }
