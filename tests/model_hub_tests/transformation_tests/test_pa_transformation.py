@@ -12,7 +12,7 @@ import openvino as ov
 from models_hub_common.utils import retry
 import models_hub_common.utils as utils
 from sdpa2pa_ref_diff import ref_diff_map, ref_diff_map_optimizations, nodes_to_compare
-from env_marks import PA_MODEL_MARKS, with_env_marks
+from env_marks import PA_LEGACY_MODELS, with_env_marks
 import pytest
 import os
 import platform
@@ -183,7 +183,7 @@ PA_PRECOMMIT_TEST_CASES = [
     (OVModelForSeq2SeqLM, *model_info_tuple)
     for model_info_tuple in utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-enc-dec-models-precommit"))
 ]
-PA_PRECOMMIT_TEST_CASES = with_env_marks(PA_PRECOMMIT_TEST_CASES, PA_MODEL_MARKS, name_index=1, unpack=False)
+PA_PRECOMMIT_TEST_CASES = with_env_marks(PA_PRECOMMIT_TEST_CASES, PA_LEGACY_MODELS, name_index=1, unpack=False)
 
 def pa_test_idfn(entry):
     retval = ""

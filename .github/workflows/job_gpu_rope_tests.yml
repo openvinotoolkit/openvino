@@ -181,7 +181,7 @@ jobs:
           "
 
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py \
-            -m precommit \
+            -m "precommit and not transformations_legacy" \
             --html=${INSTALL_TEST_DIR}/TEST-gpu_rope_tests.html \
             --self-contained-html -v --tb=short -n 2
 

@@ -1,4 +1,2 @@
-optimum-intel==1.27.0
-# Pinned so the RoPE test does not inherit transformers from earlier CI steps;
-# models capped below this version are marked `optimum_intel_legacy`.
-transformers==4.55.4
+# RoPE tests run on the default transformation-test stack; add RoPE-specific pins here only if needed.
+-r transformations_actual.txt

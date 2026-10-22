@@ -1,0 +1,8 @@
+# Default stack for the transformation tests (PA, StatefulToStateless, RoPE): the latest optimum-intel and the
+# highest transformers it supports for most architectures (optimum-intel 2.2.0 caps llama & co. at 4.57.6).
+# Models that cannot run with it are marked `transformations_legacy` (see transformations_legacy.txt).
+optimum-intel==2.2.0
+transformers==4.57.6
+huggingface-hub>=0.34.0,<1.0
+# required by the remote code of tiny-random-baichuan2-13b
+accelerate==1.15.0

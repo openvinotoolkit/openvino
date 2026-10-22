@@ -1,9 +1,0 @@
-# optimum-intel required by transformation tests (PA, StatefulToStateless, etc.)
-# transformers 4.55.4: gpt-oss needs >=4.55.1, optimum-intel 1.27.0 caps chatglm/qwen at <=4.55.4.
-# Models capped lower are marked `optimum_intel_legacy` (see optimum_intel_legacy.txt),
-# the GPTQ model is marked `optimum_intel_gptq` (see optimum_intel_gptq.txt).
-transformers==4.55.4
-huggingface-hub>=0.34.0,<1.0
-optimum-intel==1.27.0
-optimum~=2.1.0; python_version < "3.12"
-autoawq==0.2.7; platform_system == "Linux" and platform_machine == "x86_64"
