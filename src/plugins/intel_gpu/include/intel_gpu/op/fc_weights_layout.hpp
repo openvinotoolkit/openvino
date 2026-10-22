@@ -31,6 +31,11 @@ inline FcWeightsLayout fc_default_weights_layout(bool transpose_b) {
     return transpose_b ? FcWeightsLayout::NK : FcWeightsLayout::KN;
 }
 
+// GNK implies transposed weights; NK / KN must match transpose_b.
+inline bool fc_weights_layout_is_consistent(FcWeightsLayout layout, bool transpose_b) {
+    return layout == FcWeightsLayout::GNK ? transpose_b : layout == fc_default_weights_layout(transpose_b);
+}
+
 // Single source of truth for logical N / K given the physical weight shape and layout.
 inline FcWeightDims fc_weight_dims(const ov::PartialShape& w, FcWeightsLayout layout) {
     OPENVINO_ASSERT(w.rank().is_static() && w.size() >= 2, "[GPU] FullyConnected weights need a static rank >= 2, got ", w);

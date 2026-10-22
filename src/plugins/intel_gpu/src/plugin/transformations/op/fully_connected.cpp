@@ -35,7 +35,7 @@ void FullyConnected::validate_and_infer_types() {
         ", expected at least 3.");
 
     NODE_VALIDATION_CHECK(this,
-        m_weights_layout == fc_default_weights_layout(m_transpose_b) || (m_weights_layout == FcWeightsLayout::GNK && m_transpose_b),
+        fc_weights_layout_is_consistent(m_weights_layout, m_transpose_b),
         "weights_layout ",
         to_string(m_weights_layout),
         " is inconsistent with transpose_b = ",

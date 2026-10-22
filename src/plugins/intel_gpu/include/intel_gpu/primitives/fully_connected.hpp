@@ -57,7 +57,7 @@ struct fully_connected : public primitive_base<fully_connected> {
           input_size(input_size),
           weights_rank(weights_rank),
           weights_transposed(weights_transposed),
-          weights_layout(weights_layout.value_or(ov::intel_gpu::op::fc_default_weights_layout(weights_transposed)))
+          weights_layout(resolve_weights_layout(weights_layout, weights_transposed))
     {}
 
     /// @brief Constructs fully connected layer.
@@ -80,7 +80,7 @@ struct fully_connected : public primitive_base<fully_connected> {
           input_size(input_size),
           weights_rank(weights_rank),
           weights_transposed(weights_transposed),
-          weights_layout(weights_layout.value_or(ov::intel_gpu::op::fc_default_weights_layout(weights_transposed)))
+          weights_layout(resolve_weights_layout(weights_layout, weights_transposed))
     {}
 
     /// @brief Constructs fully connected compressed layer.
@@ -116,7 +116,7 @@ struct fully_connected : public primitive_base<fully_connected> {
           weights_transposed(weights_transposed),
           transpose_b_scale(transpose_b_scale),
           transpose_b_zp(transpose_b_zp),
-          weights_layout(weights_layout.value_or(ov::intel_gpu::op::fc_default_weights_layout(weights_transposed))) {
+          weights_layout(resolve_weights_layout(weights_layout, weights_transposed)) {
         OPENVINO_ASSERT(!decompression_scale.empty(), "[GPU] Compressed fully connected requires at least decompression scale input");
     }
 
@@ -162,7 +162,7 @@ struct fully_connected : public primitive_base<fully_connected> {
           weights_transposed(weights_transposed),
           transpose_b_scale(transpose_b_scale),
           transpose_b_zp(transpose_b_zp),
-          weights_layout(weights_layout.value_or(ov::intel_gpu::op::fc_default_weights_layout(weights_transposed))) {
+          weights_layout(resolve_weights_layout(weights_layout, weights_transposed)) {
         if (activation_scale.is_valid()) {
             dynamic_quantized_activation = true;
         }
@@ -306,9 +306,20 @@ struct fully_connected : public primitive_base<fully_connected> {
             decompression_zero_point_scalar = std::optional<float>();
         }
         ib >> make_data(&weights_layout, sizeof(weights_layout));
+        OPENVINO_ASSERT(ov::intel_gpu::op::fc_weights_layout_is_consistent(weights_layout, weights_transposed),
+                        "[GPU] Loaded FullyConnected has inconsistent weights_layout");
     }
 
 protected:
+    static ov::intel_gpu::op::FcWeightsLayout resolve_weights_layout(const std::optional<ov::intel_gpu::op::FcWeightsLayout>& layout,
+                                                                    bool weights_transposed) {
+        const auto resolved = layout.value_or(ov::intel_gpu::op::fc_default_weights_layout(weights_transposed));
+        OPENVINO_ASSERT(ov::intel_gpu::op::fc_weights_layout_is_consistent(resolved, weights_transposed),
+                        "[GPU] FullyConnected weights_layout ", ov::intel_gpu::op::to_string(resolved),
+                        " is inconsistent with weights_transposed = ", weights_transposed);
+        return resolved;
+    }
+
     std::map<size_t, const input_info*> get_dependencies_map() const override {
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();

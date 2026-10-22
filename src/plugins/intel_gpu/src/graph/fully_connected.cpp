@@ -107,6 +107,10 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     auto weights_layout = *impl_param.weights_layout;
     auto weights_pshape = weights_layout.get_partial_shape();
     if (desc->weights_layout == ov::intel_gpu::op::FcWeightsLayout::GNK) {
+        // Legacy shape inference pads [G, N, gs] to bfyx [G, N, gs, 1].
+        if (desc->weights_rank == 3 && weights_pshape.size() == 4 && weights_pshape[3] == 1) {
+            weights_pshape = ov::PartialShape{weights_pshape[0], weights_pshape[1], weights_pshape[2]};
+        }
         const auto dims = ov::intel_gpu::op::fc_weight_dims(weights_pshape, desc->weights_layout);
         weights_pshape = ov::PartialShape{dims.N, dims.K};
         weights_layout.set_partial_shape(weights_pshape);

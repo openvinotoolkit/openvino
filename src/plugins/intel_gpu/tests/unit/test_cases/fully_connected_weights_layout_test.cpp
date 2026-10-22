@@ -179,6 +179,29 @@ TEST(fc_weights_layout, primitive_default_hash_and_serialization) {
     EXPECT_EQ(loaded.hash(), gnk.hash());
 }
 
+TEST(fc_weights_layout, primitive_rejects_inconsistent_layout) {
+    EXPECT_THROW(fully_connected("fc", input_info("in"), "w", "", 2, 2, true, FcWeightsLayout::KN), ov::Exception);
+    EXPECT_THROW(fully_connected("fc", input_info("in"), "w", "", 2, 2, false, FcWeightsLayout::NK), ov::Exception);
+    EXPECT_THROW(fully_connected("fc", input_info("in"), "w", "", 2, 3, false, FcWeightsLayout::GNK), ov::Exception);
+    EXPECT_THROW(fully_connected("fc", input_info("in"), "w", "", data_types::f16, 2, 2, true, FcWeightsLayout::KN), ov::Exception);
+    EXPECT_THROW(fully_connected("fc", input_info("in"), "w", "", data_types::f16, 2, 3, false, FcWeightsLayout::GNK), ov::Exception);
+}
+
+TEST(fc_weights_layout, gnk_legacy_shape_inference) {
+    auto& engine = get_test_engine();
+    const int64_t G = 2, N = 32, gs = 64, K = G * gs;
+    topology topo(input_layout("input", layout{ov::PartialShape{4, K}, data_types::f16, format::bfyx}));
+    // Legacy constant lowering pads [G, N, gs] to bfyx [G, N, gs, 1].
+    topo.add(data("weights", engine.allocate_memory({ov::PartialShape{G, N, gs, 1}, data_types::f16, format::bfyx})));
+    topo.add(fully_connected("fc", input_info("input"), "weights", "", data_types::f16, 2, 3, true, FcWeightsLayout::GNK));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
+    auto prog = program::build_program(engine, topo, config, false, true);
+    auto& fc = prog->get_node("fc").as<fully_connected>();
+    EXPECT_EQ(fc.get_output_layout().get_partial_shape(), (ov::PartialShape{4, N}));
+}
+
 TEST(fc_weights_layout, gnk_shape_inference_and_impl_rejection) {
     auto& engine = get_test_engine();
     const int64_t G = 2, N = 32, gs = 64, K = G * gs;
