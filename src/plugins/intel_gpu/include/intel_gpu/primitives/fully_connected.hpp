@@ -283,9 +283,9 @@ struct fully_connected : public primitive_base<fully_connected> {
         } else {
             ob << false;
         }
+        ob << make_data(&weights_layout, sizeof(weights_layout));
         ob << hadamard_block;
         ob << hadamard_signs;
-        ob << make_data(&weights_layout, sizeof(weights_layout));
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -316,9 +316,9 @@ struct fully_connected : public primitive_base<fully_connected> {
         } else {
             decompression_zero_point_scalar = std::optional<float>();
         }
+        ib >> make_data(&weights_layout, sizeof(weights_layout));
         ib >> hadamard_block;
         ib >> hadamard_signs;
-        ib >> make_data(&weights_layout, sizeof(weights_layout));
         OPENVINO_ASSERT(ov::intel_gpu::op::fc_weights_layout_is_consistent(weights_layout, weights_transposed),
                         "[GPU] Loaded FullyConnected has inconsistent weights_layout");
     }
