@@ -106,6 +106,7 @@ public:
         return new GcKernel(data, size, name, n_args, arg_types);
     }
 
+    // Called by the GC-generated code via gcGpuDestroyKernelName, the program owns the kernels.
     static void destroyKernel(Kernel* kernel) {
         delete kernel;
     }
@@ -341,6 +342,7 @@ public:
 
             const auto& layout = mem->get_layout();
             OPENVINO_ASSERT(cldnn::format::is_default_format(layout.format), "[GPU] Only plain layouts are supported by mlir_primitive '", instance.id(), "'");
+            OPENVINO_ASSERT(!layout.data_padding, "[GPU] mlir_primitive '", instance.id(), "', ", argument(), ": padded buffers are not supported");
             OPENVINO_ASSERT(mem->buffer_ptr() != nullptr, "[GPU] mlir_primitive '", instance.id(), "' requires USM buffers");
             OPENVINO_ASSERT(layout.data_type == type,
                             "[GPU] mlir_primitive '",
@@ -351,13 +353,11 @@ public:
                             layout.data_type,
                             " vs ",
                             type);
-            // create_subbuffer borrows; this slot keeps the parent alive.
             auto* held = rt.store_memory(mem);
 
             const auto& ps = layout.get_partial_shape();
             OPENVINO_ASSERT(ps.size() >= rank, "[GPU] mlir_primitive '", instance.id(), "': expected rank ", rank, ", got ", ps.size());
-            // A plain layout without inner padding is dense row-major, the outermost padding
-            // shifts the offset only, thus the strides are the trailing dimension products.
+            // A plain unpadded layout is dense row-major: the strides are the trailing dimension products.
             llvm::SmallVector<int64_t, 12> strides(ps.size());
             int64_t stride = 1;
             for (size_t i = ps.size(); i--;) {
@@ -372,20 +372,6 @@ public:
                                 " is not 1");
                 strides[i] = stride;
                 stride *= ps[i].get_length();
-            }
-
-            const auto& lower = layout.data_padding._lower_size;
-            const auto has_lower_padding = std::any_of(lower.begin(), lower.begin() + layout.format.dimension(), [](auto pad) {
-                return pad != 0;
-            });
-            if (const auto offset = has_lower_padding ? layout.get_linear_offset() : 0) {
-                // GC launch ignores the memref offset field; apply it as a USM subbuffer.
-                auto view_layout = layout;
-                view_layout.data_padding = {};
-                const auto bytes = offset * ov::element::Type(layout.data_type).size();
-                auto* engine = mem->get_engine();
-                OPENVINO_ASSERT(engine != nullptr, "[GPU] mlir_primitive '", instance.id(), "' memory has no engine");
-                held = rt.store_memory(engine->create_subbuffer(*mem, view_layout, bytes));
             }
 
             builder.storeMemref(
