@@ -578,8 +578,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
                                     referenceCompiledModel.create_infer_request());
                             }
                             const int requestSeedIndex = static_cast<int>(
-                                threadIdx * (compiledModels.size() * kRequestsPerModel) +
-                                modelIdx * kRequestsPerModel + reqIdx);
+                                threadIdx * (compiledModels.size() * requestsPerModel) +
+                                modelIdx * requestsPerModel + reqIdx);
                             const int startFrom = 100 + requestSeedIndex * kSeedSpacing + static_cast<int>(inferIdx);
                             inputs[threadIdx].emplace_back(makeInputTensor(model, shape, startFrom));
                             const size_t requestIdx = modelIdx * requestsPerModel + reqIdx;
