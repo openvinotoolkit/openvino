@@ -40,7 +40,7 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
         auto out_dt = out_layout.data_type;
         auto fc_prim = fc_node.get_primitive();
 
-        if (fc_prim->weights_layout == ov::intel_gpu::op::FcWeightsLayout::GNK) {
+        if (fc_prim->weights_layout == ov::intel_gpu::op::FcWeightsLayout::GNK || fc_prim->hadamard_block != 0) {
             LOG_AND_RETURN_FALSE(node);
         }
 
@@ -101,7 +101,7 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             }
         }
 
-        return true;
+        return is_supported_post_ops(node);
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {
