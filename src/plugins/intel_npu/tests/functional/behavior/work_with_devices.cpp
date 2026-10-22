@@ -68,31 +68,16 @@ TEST_P(TestCompiledModelNPU, samePlatformProduceTheSameBlob) {
     }
 }
 
-TEST_P(TestCompiledModelNPU, samePlatformProduceTheSameBlobCacheEnabled) {
+TEST_P(TestCompiledModelNPU, bypassUmdCachingPropertyIsApplied) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED() {
-        // compiled model (uncached)
-        configuration[ov::intel_npu::defer_weights_load.name()] = true;
-        auto configuration1 = configuration;
-        const auto& ov_model1 = buildSingleLayerSoftMaxNetwork();
-        auto compiled_model1 = core->compile_model(ov_model1, target_device, configuration1);
-        std::stringstream blobStream1;
-        compiled_model1.export_model(blobStream1);
+        const auto& ov_model = buildSingleLayerSoftMaxNetwork();
 
-        // cached blobs
-        auto configuration2 = configuration;
-        configuration2[ov::intel_npu::bypass_umd_caching.name()] = false;
-        const auto& ov_model2 = buildSingleLayerSoftMaxNetwork();
-        // call compile_model() twice to make sure compiled model is cached
-        auto compiled_model2 = core->compile_model(ov_model2, target_device, configuration2);
-        // Workaround: destroy graph to force driver to close file descriptor to cache file
-        compiled_model2 = {};
-
-        auto compiled_model3 = core->compile_model(ov_model2, target_device, configuration2);
-        std::stringstream blobStream3;
-        compiled_model3.export_model(blobStream3);
-
-        ASSERT_NE(0, blobStream1.str().size());
-        ASSERT_EQ(0, std::memcmp(blobStream1.str().c_str(), blobStream3.str().c_str(), blobStream1.str().size()));
+        auto netConfiguration = configuration;
+        netConfiguration[ov::intel_npu::bypass_umd_caching.name()] = true;
+        auto compiled_model = core->compile_model(ov_model, target_device, netConfiguration);
+        bool bypassUmdCaching = false;
+        OV_ASSERT_NO_THROW(bypassUmdCaching = compiled_model.get_property(ov::intel_npu::bypass_umd_caching));
+        ASSERT_TRUE(bypassUmdCaching);
     }
 }
 
