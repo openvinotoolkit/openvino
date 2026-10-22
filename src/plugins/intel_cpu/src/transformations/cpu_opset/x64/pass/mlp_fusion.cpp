@@ -162,6 +162,11 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
             // FakeQuantize, should skip fusion
             return false;
         }
+        // LLMMLPNode needs a static feature (hidden) size; the weights don't make the input's static.
+        const auto& src_shape = src.get_partial_shape();
+        if (src_shape.rank().is_dynamic() || src_shape[src_shape.size() - 1].is_dynamic()) {
+            return false;
+        }
         Output<Node> gate_proj_w;
         Output<Node> up_proj_w;
         Output<Node> down_proj_w;

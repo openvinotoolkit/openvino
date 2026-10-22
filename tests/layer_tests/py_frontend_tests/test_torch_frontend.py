@@ -3605,6 +3605,25 @@ def test_canonicalize_float_precision_leaves_f32_model_unchanged():
     assert summary(canonical) == summary(expected)
     assert [sorted(o.get_names()) for o in canonical.outputs] == [sorted(o.get_names()) for o in expected.outputs]
 
+
+class _SharedBf16Outputs(torch.nn.Module):
+    """Several outputs read the same bf16 tensor, next to one that doesn't."""
+
+    def forward(self, x):
+        y = torch.relu(x.to(torch.bfloat16))
+        return y, x.to(torch.bfloat16) * 2, y, y
+
+
+def test_canonicalize_float_precision_keeps_names_of_shared_outputs():
+    """Every Result reading the restored tensor keeps its type and tensor names."""
+    expected = _convert_f32_input(_SharedBf16Outputs(), None)
+    canonical = _convert_f32_input(_SharedBf16Outputs(), torch.bfloat16)
+    assert [o.get_element_type() for o in canonical.outputs] == [Type.bf16] * 4
+    names = [sorted(o.get_names()) for o in canonical.outputs]
+    assert all(names), f"outputs lost their names: {names}"
+    assert names == [sorted(o.get_names()) for o in expected.outputs]
+
+
 class _Bf16Arange(torch.nn.Module):
     def __init__(self):
         super().__init__()

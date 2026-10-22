@@ -64,11 +64,16 @@ def test_reload_weights_reaches_ov_model():
 
 @pytest.mark.precommit
 def test_clear_caches_drops_unpacked_moe_weights():
-    """The unpacked MoE expert copies are keyed by the packed weight's address, which in-place reloads keep."""
+    """The unpacked MoE expert copies and halves are keyed by the packed address, which in-place reloads keep."""
     from openvino.frontend.pytorch.torchdynamo import execute
     from openvino.frontend.pytorch.torchdynamo.vllm import fused_moe
 
     plain = torch.zeros(2, 4, 8)
-    fused_moe._unpacked_cache[(plain.data_ptr(), tuple(plain.shape), "amx")] = plain
+    key = (plain.data_ptr(), tuple(plain.shape), "amx")
+    fused_moe._unpacked_cache[key] = plain
+    halves = [plain[:, :2].contiguous(), plain[:, 2:].contiguous()]
+    for i, h in enumerate(halves):
+        fused_moe._half_cache[key + (i,)] = h
     execute.clear_caches()
     assert len(fused_moe._unpacked_cache) == 0
+    assert len(fused_moe._half_cache) == 0
