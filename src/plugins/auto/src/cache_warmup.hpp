@@ -64,8 +64,11 @@ public:
 
     void enqueue(std::shared_ptr<CacheWarmup> warmup);
 
-    // Cache location resolved like the Core does: ov::cache_dir / ov::cache_path in config, then the global setting.
-    static std::filesystem::path get_cache_location(const ov::ICore& core, const ov::AnyMap& config);
+    // Cache location resolved like the Core does: ov::cache_dir / ov::cache_path in config, then the setting of the
+    // device (when given), then the global one. An empty result means caching is disabled.
+    static std::filesystem::path get_cache_location(const ov::ICore& core,
+                                                    const ov::AnyMap& config,
+                                                    const std::string& device_name = {});
     static bool is_blob_cached(const ov::ICore& core,
                                const std::string& device_name,
                                const ov::AnyMap& config,

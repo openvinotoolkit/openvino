@@ -44,6 +44,8 @@ ov::AnyMap make_warmup_config(const ov::ICore& core, const DeviceInformation& de
 }
 }  // namespace
 
+// The caller may modify its model once compile_model() returns, so warm-up works on a private clone; a clone failure
+// propagates to the caller.
 CacheWarmup::CacheWarmup(CacheWarmupManager& manager,
                          std::weak_ptr<ov::ICore> core,
                          std::shared_ptr<const ov::Model> model,
@@ -51,7 +53,7 @@ CacheWarmup::CacheWarmup(CacheWarmupManager& manager,
                          std::string log_tag)
     : m_manager(manager),
       m_core(std::move(core)),
-      m_model(std::move(model)),
+      m_model(model ? model->clone() : nullptr),
       m_model_path(std::move(model_path)),
       m_log_tag(std::move(log_tag)) {}
 
@@ -99,7 +101,6 @@ void CacheWarmup::run() {
         model = std::move(m_model);
         devices = std::move(m_devices);
     }
-    std::shared_ptr<const ov::Model> model_snapshot;
     for (const auto& device : devices) {
         {
             std::lock_guard<std::mutex> lock(m_mutex);
@@ -112,21 +113,22 @@ void CacheWarmup::run() {
         try {
             if (auto core = m_core.lock()) {
                 const auto config = make_warmup_config(*core, device);
-                const auto cache_location = CacheWarmupManager::get_cache_location(*core, config);
-                if (CacheWarmupManager::is_blob_cached(*core,
-                                                       device.device_name,
-                                                       config,
-                                                       model,
-                                                       m_model_path,
-                                                       cache_location)) {
+                const auto cache_location =
+                    CacheWarmupManager::get_cache_location(*core, config, device.device_name);
+                if (cache_location.empty()) {
+                    LOG_INFO_TAG("cache pre-compilation skipped for device: %s, caching is disabled for it",
+                                 device.device_name.c_str());
+                } else if (CacheWarmupManager::is_blob_cached(*core,
+                                                              device.device_name,
+                                                              config,
+                                                              model,
+                                                              m_model_path,
+                                                              cache_location)) {
                     LOG_INFO_TAG("cache pre-compilation skipped for device: %s, cache blob already exists",
                                  device.device_name.c_str());
                 } else {
-                    if (model && !model_snapshot) {
-                        model_snapshot = model->clone();
-                    }
-                    auto compiled = model_snapshot ? core->compile_model(model_snapshot, device.device_name, config)
-                                                   : core->compile_model(m_model_path, device.device_name, config);
+                    auto compiled = model ? core->compile_model(model, device.device_name, config)
+                                          : core->compile_model(m_model_path, device.device_name, config);
                     LOG_INFO_TAG("cache pre-compilation finished for device: %s, compile time: %lf ms",
                                  device.device_name.c_str(),
                                  std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begin)
@@ -189,21 +191,31 @@ void CacheWarmupManager::worker_loop() {
     }
 }
 
-std::filesystem::path CacheWarmupManager::get_cache_location(const ov::ICore& core, const ov::AnyMap& config) {
+std::filesystem::path CacheWarmupManager::get_cache_location(const ov::ICore& core,
+                                                             const ov::AnyMap& config,
+                                                             const std::string& device_name) {
     if (const auto it = config.find(ov::cache_dir.name()); it != config.end()) {
         return ov::util::make_path(it->second.as<std::string>());
     }
     if (const auto it = config.find(ov::cache_path.name()); it != config.end()) {
         return it->second.as<std::filesystem::path>();
     }
-    try {
-        if (const auto cache_dir = core.get_property("", ov::cache_dir); !cache_dir.empty()) {
-            return ov::util::make_path(cache_dir);
+    const auto query = [&core](const std::string& scope) -> std::filesystem::path {
+        try {
+            if (const auto cache_dir = core.get_property(scope, ov::cache_dir); !cache_dir.empty()) {
+                return ov::util::make_path(cache_dir);
+            }
+            return core.get_property(scope, ov::cache_path);
+        } catch (const std::exception&) {
+            return {};
         }
-        return core.get_property("", ov::cache_path);
-    } catch (const ov::Exception&) {
-        return {};
+    };
+    if (!device_name.empty()) {
+        if (auto location = query(device_name); !location.empty()) {
+            return location;
+        }
     }
+    return query("");
 }
 
 bool CacheWarmupManager::is_blob_cached(const ov::ICore& core,
