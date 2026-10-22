@@ -197,6 +197,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/range_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/read_value_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/recurrent_cache_inst.h
+    ${CMAKE_CURRENT_LIST_DIR}/include/recurrent_cache_update_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/reduce_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/region_yolo_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/reorder_inst.h
@@ -285,6 +286,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/range.cpp
     ${CMAKE_CURRENT_LIST_DIR}/read_value.cpp
     ${CMAKE_CURRENT_LIST_DIR}/recurrent_cache.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/recurrent_cache_update.cpp
     ${CMAKE_CURRENT_LIST_DIR}/record_replay_session.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/region_yolo.cpp
@@ -337,6 +339,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/registry/range_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/reduce_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/recurrent_cache_impls.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/registry/recurrent_cache_update_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/registry.hpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/reorder_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/reshape_impls.cpp

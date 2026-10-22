@@ -331,6 +331,8 @@ REGISTER_FACTORY(internal, RecurrentStateGather);
 REGISTER_FACTORY(internal, RecurrentConvCache);
 REGISTER_FACTORY(internal, RecurrentGatedDeltaNet);
 REGISTER_FACTORY(internal, RecurrentStateUpdate);
+REGISTER_FACTORY(internal, RecurrentConvCacheUpdate);
+REGISTER_FACTORY(internal, RecurrentGatedDeltaNetUpdate);
 REGISTER_FACTORY(internal, SelectiveSSM);
 REGISTER_FACTORY(internal, PagedCausalConv1D);
 REGISTER_FACTORY(internal, GatherMatmul);

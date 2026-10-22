@@ -180,7 +180,9 @@ Operation Specifications
    ReadValue-3 <operation-specs/infrastructure/read-value-3>
    ReadValue-6 <operation-specs/infrastructure/read-value-6>
    RecurrentConvCache <operation-specs/internal/recurrent-conv-cache>
+   RecurrentConvCacheUpdate <operation-specs/internal/recurrent-conv-cache-update>
    RecurrentGatedDeltaNet <operation-specs/internal/recurrent-gated-delta-net>
+   RecurrentGatedDeltaNetUpdate <operation-specs/internal/recurrent-gated-delta-net-update>
    RecurrentStateGather <operation-specs/internal/recurrent-state-gather>
    RecurrentStateUpdate <operation-specs/internal/recurrent-state-update>
    ReLU-1 <operation-specs/activation/relu-1>

@@ -54,6 +54,7 @@
 #include "registry/implementation_manager.hpp"
 #include "registry/registry.hpp"
 #include "recurrent_cache_inst.h"
+#include "recurrent_cache_update_inst.h"
 #include "reorder_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
@@ -828,10 +829,11 @@ bool primitive_inst::try_bind_remote_permute_output(const layout& actual_layout)
 }
 
 bool primitive_inst::try_bind_recurrent_cache_output(const layout& actual_layout, size_t idx) {
-    // Qwen3.5 llama.cpp rotates immutable recurrent inputs and caller-owned cache
-    // outputs. Bind port 1 directly; the ordinary forward probe only handles port 0.
+    // Qwen3.5 llama.cpp binds caller-owned full-cache Results. Existing fused ops
+    // require disjoint input/output banks; Update ops additionally permit exact
+    // exclusive cache aliases. The ordinary forward probe only handles port 0.
     const bool cache_port =
-        idx == 1 && ((get_node().is_type<gated_delta_net>() && get_node().as<gated_delta_net>().get_primitive()->recurrent_cache_mode) ||
+        idx == 1 && (get_node().is_type<recurrent_cache_update>() || (get_node().is_type<gated_delta_net>() && get_node().as<gated_delta_net>().get_primitive()->recurrent_cache_mode) ||
                      (get_node().is_type<recurrent_cache>() && get_node().as<recurrent_cache>().get_primitive()->history > 0 && dependencies().size() == 9));
     if (!cache_port || !is_dynamic())
         return false;
@@ -854,9 +856,42 @@ bool primitive_inst::try_bind_recurrent_cache_output(const layout& actual_layout
             actual_layout.get_pitches() != target_layout.get_pitches() || actual_layout.get_linear_offset() != target_layout.get_linear_offset() ||
             actual_layout.bytes_count() > remote->size())
             continue;
+        const bool staged_update = get_node().is_type<recurrent_cache_update>();
+        const size_t cache_input = staged_update && get_node().as<recurrent_cache_update>().get_primitive()->history == 0 ? 3 : 0;
+        bool alias_cache = staged_update && get_network().get_engine().is_the_same_buffer(*input_memory_ptr(cache_input), *remote);
+        const primitive_inst* cache_root = dependencies().at(cache_input).first;
+        if (alias_cache) {
+            const auto& source_layout = input_memory_ptr(cache_input)->get_layout();
+            alias_cache = source_layout.data_type == actual_layout.data_type && source_layout.format == actual_layout.format &&
+                          source_layout.get_pitches() == actual_layout.get_pitches() && source_layout.get_linear_offset() == actual_layout.get_linear_offset();
+            // Only this new op may consume the original cache. Other graph readers retain
+            // immutable semantics; partial overlaps and unrelated input aliases fall back.
+            // llama.cpp views introduce optimized Reshapes between Parameter and
+            // cache input. Follow only exclusive, memory-identical alias steps;
+            // checking the immediate producer alone misses readers at the root.
+            const primitive_inst* consumer = this;
+            while (alias_cache) {
+                for (auto* reader : cache_root->get_user_insts()) {
+                    if (reader != consumer) {
+                        alias_cache = false;
+                        break;
+                    }
+                }
+                if (!alias_cache || !cache_root->can_be_optimized() || cache_root->dependencies().size() != 1)
+                    break;
+                auto* source = cache_root->dependencies().front().first;
+                if (!source->output_memory_ptr() ||
+                    !get_network().get_engine().is_the_same_buffer(*source->output_memory_ptr(), *remote))
+                    break;
+                consumer = cache_root;
+                cache_root = source;
+            }
+        }
         bool overlap = false;
         for (size_t input = 0; input < inputs_memory_count(); ++input) {
             auto memory = input_memory_ptr(input);
+            if (alias_cache && input == cache_input)
+                continue;
             if (!memory || !memory->buffer_ptr())
                 continue;
             const auto source = reinterpret_cast<uintptr_t>(memory->buffer_ptr());
@@ -868,6 +903,8 @@ bool primitive_inst::try_bind_recurrent_cache_output(const layout& actual_layout
         if (!overlap) {
             for (const auto& input_id : get_network().get_input_ids()) {
                 auto memory = get_network().get_primitive(input_id)->output_memory_ptr();
+                if (alias_cache && get_network().get_primitive(input_id).get() == cache_root)
+                    continue;
                 if (!memory || !memory->buffer_ptr())
                     continue;
                 const auto source = reinterpret_cast<uintptr_t>(memory->buffer_ptr());
@@ -878,8 +915,9 @@ bool primitive_inst::try_bind_recurrent_cache_output(const layout& actual_layout
                 }
             }
         }
-        // Cyclic/duplicate maps require original reads. Aliased callers retain
-        // private staging and final copy; never turn them into in-place kernels.
+        // Existing ops retain private staging and a final copy for aliases.
+        // Update ops gather original rows before writing and can reuse an
+        // exclusive, exactly matching cache allocation, including cyclic maps.
         if (overlap)
             continue;
         auto& engine = get_network().get_engine();
@@ -3218,7 +3256,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     // cache copy even when the caller binds device USM. Keep the private cache
     // staging allocation on device; CPU consumers still require lockable memory.
     const bool recurrent_cache_output =
-        idx == 1 && ((node.is_type<gated_delta_net>() && node.as<gated_delta_net>().get_primitive()->recurrent_cache_mode) ||
+        idx == 1 && (node.is_type<recurrent_cache_update>() || (node.is_type<gated_delta_net>() && node.as<gated_delta_net>().get_primitive()->recurrent_cache_mode) ||
                      (node.is_type<recurrent_cache>() && node.as<recurrent_cache>().get_primitive()->history > 0 && node.get_dependencies().size() == 9));
     auto use_lockable_memory = (is_output_buffer && !recurrent_cache_output && ov::intel_gpu::can_use_usm_host(_engine, total_output_bytes)) || is_cpu ||
                                has_any_cpu_user_not_shape_of(node.get_users()) || !_engine.supports_allocation(allocation_type::usm_device) ||

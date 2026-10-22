@@ -120,6 +120,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/floor_mod.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/recurrent_cache.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/recurrent_cache_update.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather_elements.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather_nd.cpp
