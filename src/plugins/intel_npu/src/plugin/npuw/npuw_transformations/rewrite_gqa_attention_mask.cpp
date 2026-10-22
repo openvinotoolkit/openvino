@@ -95,6 +95,32 @@ public:
                 return false;
             }
 
+            const auto& mask_shape = matched_less->get_output_partial_shape(0);
+            if (mask_shape.rank().is_dynamic() || mask_shape.rank().get_length() < 2) {
+                LOG_WARN("RewriteGQAAttentionMask: unexpected mask rank for " << matched_less->get_friendly_name()
+                                                                              << ", skipping");
+                return false;
+            }
+            const auto& query_length_dim = mask_shape[mask_shape.rank().get_length() - 2];
+            OPENVINO_ASSERT(query_length_dim.is_static() && query_length_dim.get_length() > 0,
+                            "RewriteGQAAttentionMask: query length must be static and positive");
+            const bool is_kvcache_model = query_length_dim.get_length() == 1;
+            ov::NodeVector new_nodes{attention_mask_bool};
+            std::shared_ptr<ov::Node> attn_mask = attention_mask_bool;
+            const auto rank = mask_shape.rank().get_length();
+            if (rank > 2) {
+                std::vector<int64_t> axes(rank - 2);
+                std::iota(axes.begin(), axes.end(), 1);
+                auto axes_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+                attn_mask = std::make_shared<ov::op::v0::Unsqueeze>(attention_mask_bool, axes_const);
+                new_nodes.insert(new_nodes.end(), {axes_const, attn_mask});
+            }
+            if (is_kvcache_model) {
+                ov::copy_runtime_info({matched_less, query->add, query->broadcast, query->transpose}, new_nodes);
+                matched_select->input(0).replace_source_output(attn_mask);
+                return true;
+            }
+
             // Clone Broadcast/Transpose instead of editing them in place: they may be shared by other masks.
             auto bcast_inputs = query->broadcast->input_values();
             bcast_inputs[0] = query->cumsum;
@@ -106,23 +132,6 @@ public:
             less_inputs[query_idx] = new_transpose;
             auto less_equal = std::make_shared<ov::op::v1::LessEqual>(less_inputs[0], less_inputs[1]);
 
-            const auto& mask_shape = less_equal->get_output_partial_shape(0);
-            if (mask_shape.rank().is_dynamic() || mask_shape.rank().get_length() < 2) {
-                LOG_WARN("RewriteGQAAttentionMask: unexpected mask rank for " << matched_less->get_friendly_name()
-                                                                              << ", skipping");
-                return false;
-            }
-            // attention_mask is [B, kv_len]; align it to [B, 1, ..., 1, kv_len] of the mask rank.
-            std::shared_ptr<ov::Node> attn_mask = attention_mask_bool;
-            ov::NodeVector new_nodes{attention_mask_bool};
-            const auto rank = mask_shape.rank().get_length();
-            if (rank > 2) {
-                std::vector<int64_t> axes(rank - 2);
-                std::iota(axes.begin(), axes.end(), 1);
-                auto axes_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
-                attn_mask = std::make_shared<ov::op::v0::Unsqueeze>(attention_mask_bool, axes_const);
-                new_nodes.insert(new_nodes.end(), {axes_const, attn_mask});
-            }
             auto logical_and = std::make_shared<ov::op::v1::LogicalAnd>(less_equal, attn_mask);
 
             new_broadcast->set_friendly_name(query->broadcast->get_friendly_name() + "/npuw_gqa_mask");
