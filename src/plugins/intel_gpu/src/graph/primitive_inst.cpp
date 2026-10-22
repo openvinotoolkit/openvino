@@ -285,9 +285,14 @@ void primitive_inst::check_memory_compatibility(const memory& mem, const layout&
 
 event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, size_t idx) {
     auto& eng = get_network().get_engine();
+    // A dynamic output bound at the same pointer may still change capacity, e.g. a smaller caller view.
+    const auto same_capacity = [&]() {
+        const auto& new_layout = mem_new->get_layout();
+        return new_layout.data_type == _outputs[idx]->get_layout().data_type && new_layout.get_linear_size() == _max_output_layout_count[idx];
+    };
     // skip all the buzz if no action actually required
     event::ptr ev = nullptr;
-    if (_outputs[idx] && eng.is_the_same_buffer(*mem_new, *_outputs[idx])) {
+    if (_outputs[idx] && eng.is_the_same_buffer(*mem_new, *_outputs[idx]) && (!is_dynamic() || same_capacity())) {
         // The remote permute alias is stored only for the primary output owned by this primitive.
         if (idx == 0)
             _remote_permute_output_alias.reset();
@@ -704,6 +709,13 @@ void primitive_inst::clear_output_memory() {
     _remote_permute_output_alias.reset();
 }
 
+void primitive_inst::release_and_clear_output_memory() {
+    if (_mem_allocated && _outputs[0])
+        get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), id(), get_network_id());
+    _mem_allocated = false;
+    clear_output_memory();
+}
+
 void primitive_inst::realloc_intermediates() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_intermediates: " + id()));
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
@@ -840,10 +852,53 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
     OPENVINO_ASSERT(past_tensor, "[GPU] Input memory is not prepared for stateless_kv node ", id());
     const auto present_tensor = result.output_memory_ptr();
     OPENVINO_ASSERT(present_tensor, "[GPU] Output memory of ", result.id(), " is not prepared for stateless_kv node ", id());
-    const auto is_same = _network.get_engine().is_the_same_buffer(*present_tensor, *past_tensor);
+    auto& engine = _network.get_engine();
+    const auto is_same = engine.is_the_same_buffer(*present_tensor, *past_tensor);
     const auto& present_layout = result._impl_params->get_output_layout();
-    if (mid_layout == present_layout) {
-        result.set_can_be_optimized(true);
+    const auto same_placement = [&]() {
+        return past_layout.data_type == mid_layout.data_type && past_layout.format == mid_layout.format &&
+               past_layout.get_pitches() == mid_layout.get_pitches() && past_layout.get_linear_offset() == mid_layout.get_linear_offset();
+    };
+    // The Result buffer may be a caller buffer that is also one of our inputs; check our own restrictions.
+    const auto aliases_restricted_input = [&]() {
+        const auto& deps = dependencies();
+        for (size_t i = 0; i < deps.size() && i < inputs_memory_count(); ++i) {
+            const auto dep_memory = input_memory_ptr(i);
+            if (!dep_memory || !engine.is_the_same_buffer(*present_tensor, *dep_memory))
+                continue;
+            for (const auto* dep = deps[i].first; dep != nullptr;) {
+                if (_runtime_memory_dependencies.contains(static_cast<uint32_t>(dep->get_node().get_unique_id())))
+                    return true;
+                dep = dep->can_be_optimized() && !dep->dependencies().empty() ? dep->dependencies().front().first : nullptr;
+            }
+        }
+        return false;
+    };
+    // Write present into a private buffer when the Result buffer can't hold our output in place:
+    // a different element type or format, a restricted input, or past whose elements would move.
+    const auto use_private_present = present_layout.data_type != mid_layout.data_type || present_layout.format != mid_layout.format ||
+                                     aliases_restricted_input() || (is_same && !same_placement());
+    auto kv_present = present_tensor;
+    auto& private_present = downcast<stateless_kv_inst>(*this).private_present();
+    if (use_private_present) {
+        const bool can_reuse = private_present && private_present->size() >= mid_layout.bytes_count();
+        auto& sp = *get_network().get_shape_predictor();
+        const auto prealloc = sp.predict_preallocation_shape(id(), mid_layout, can_reuse);
+        if (!can_reuse) {
+            auto alloc_layout = mid_layout;
+            if (prealloc.first && sp.can_preallocate(ov::shape_size(prealloc.second) * data_type_traits::size_of(mid_layout.data_type)))
+                alloc_layout = mid_layout.clone_with_other_shape(prealloc.second);
+            if (alloc_layout.bytes_count() < mid_layout.bytes_count())
+                alloc_layout = mid_layout;
+            private_present = engine.allocate_memory(alloc_layout, engine.get_preferred_memory_allocation_type(), false);
+        }
+        kv_present = engine.reinterpret_buffer(*private_present, mid_layout);
+        // The Result stays a real reorder and copies the private present into its own buffer.
+        result.set_can_be_optimized(false);
+    } else {
+        private_present.reset();
+        if (mid_layout == present_layout)
+            result.set_can_be_optimized(true);
     }
     GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_tensor->buffer_ptr() << "](" << past_tensor->get_layout().to_short_string() << ") and output["
                            << present_tensor->buffer_ptr() << "](" << present_tensor->get_layout().to_short_string() << ")(" << result.id()
@@ -855,8 +910,8 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
     if (_outputs[0]) {
         OPENVINO_ASSERT(!_mem_allocated, "stateless_kv should never allocate output[0] for itself");
     }
-    _outputs[0] = present_tensor;
-    _outputs[1] = get_network().get_engine().reinterpret_buffer(*present_tensor, target_layout);
+    _outputs[0] = kv_present;
+    _outputs[1] = engine.reinterpret_buffer(*kv_present, target_layout);
     this->_mem_allocated = false;
 }
 
@@ -905,7 +960,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         _remote_permute_output_alias.reset();
     }
 
-    if (users.size() == 1 && users.front()->get_node().is_type<reorder>() && users.front()->can_be_optimized()) {
+    // stateless_kv picks both outputs from its Result in realloc_outputs_for_stateless_kv().
+    if (!get_node().is_type<stateless_kv>() && users.size() == 1 && users.front()->get_node().is_type<reorder>() && users.front()->can_be_optimized()) {
         auto* reorder_inst = users.front();
         if (reorder_inst->is_output() && reorder_inst->output_memory_ptr() && get_network().has_output_remote_memory_ptr(reorder_inst->id()) &&
             get_network().get_engine().is_the_same_buffer(get_network().get_output_remote_memory(reorder_inst->id()), reorder_inst->output_memory())) {
@@ -1247,6 +1303,25 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         return;
     }
 
+    // binary_mul_inplace lets this FC's dst share the fused eltwise dep buffer (the post-op src1).
+    // A static node binds that alias when its output is allocated; a dynamic node has to bind it here.
+    if (actual_layouts.size() == 1 && get_node().get_preferred_impl_type() == impl_types::onednn) {
+        auto reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(get_node());
+        if (reused_eltwmem_idx != -1) {
+            const auto& eltw_inst = get_network().get_primitive(get_node().get_dependency(reused_eltwmem_idx).id());
+            auto eltw_mem = eltw_inst->output_memory_ptr();
+            if (eltw_mem && eltw_mem->get_mem_tracker() &&
+                eltw_mem->get_mem_tracker()->size() >= updated_layouts[0].get_linear_size() * dt_sizes_in_B[0]) {
+                if (_outputs[0]) {
+                    get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), id(), get_network_id());
+                }
+                _outputs[0] = eltw_mem->get_engine()->reinterpret_buffer(*eltw_mem, updated_layouts[0]);
+                _max_output_layout_count[0] = eltw_mem->get_mem_tracker()->size() / dt_sizes_in_B[0];
+                return;
+            }
+        }
+    }
+
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
         bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_linear_size() <= _max_output_layout_count[i]);
         std::pair<bool, ov::Shape> prealloc_info;
@@ -1470,7 +1545,31 @@ bool primitive_inst::use_async_compilation() {
             !_impls_factory->has(impl_types::onednn) && (get_node().get_selected_impl() != nullptr) && !get_node().get_selected_impl()->is_onednn();
     }
 
-    return (compile_conv_impls || compile_fc_impls || compile_gemm_impls ||
+    // Shape-agnostic simple_ref concat is slow; compile a static oneDNN impl for this supported case.
+    bool compile_concat_impls = false;
+    const auto& node = get_node();
+    if (node.is_type<concatenation>() && !can_be_optimized() && !node.is_runtime_skippable() && !node.is_in_shape_of_subgraph() &&
+        _impls_factory->has(impl_types::onednn) && node.get_selected_impl() != nullptr && node.get_selected_impl()->is_dynamic() &&
+        node.get_selected_impl()->get_kernel_name().find("concatenation_gpu_simple_ref") != std::string::npos &&
+        node.as<concatenation>().get_primitive()->axis == 1) {
+        const auto concat_output_type = node.get_output_layout().data_type;
+        const auto eligible_layout = [concat_output_type](const layout& candidate_layout) {
+            const auto& shape = candidate_layout.get_partial_shape();
+            const bool has_matching_int8_type = (concat_output_type == data_types::i8 || concat_output_type == data_types::u8) &&
+                                               candidate_layout.data_type == concat_output_type;
+            const bool is_planar_bfyx = candidate_layout.format == format::bfyx;
+            const bool has_static_non_batch_dims = shape.rank().is_static() && shape.size() == 4 &&
+                                                   shape[1].is_static() && shape[2].is_static() && shape[3].is_static();
+            const bool has_no_padding = !candidate_layout.data_padding && !candidate_layout.data_padding.is_dynamic();
+            return has_matching_int8_type && is_planar_bfyx && has_static_non_batch_dims && has_no_padding;
+        };
+        compile_concat_impls = eligible_layout(node.get_output_layout()) && eligible_layout(_impl_params->get_output_layout());
+        for (size_t i = 0; i < _impl_params->input_layouts.size() && compile_concat_impls; ++i) {
+            compile_concat_impls = eligible_layout(node.get_input_layout(i)) && eligible_layout(_impl_params->get_input_layout(i));
+        }
+    }
+
+    return (compile_conv_impls || compile_fc_impls || compile_gemm_impls || compile_concat_impls ||
             (get_node().is_type<softmax>() && (get_node().get_selected_impl() != nullptr) &&
              get_node().get_selected_impl()->get_kernel_name().find("softmax_gpu_ref") != std::string::npos));
 }
@@ -2293,7 +2392,13 @@ void primitive_inst::set_out_event(event::ptr&& ev) {
     _impl_params->out_event = ev;
 }
 
-void primitive_inst::reset_events() {
+void primitive_inst::reset_out_event() {
+    if (_impl_params->out_event) {
+        _impl_params->out_event->reset();
+    }
+}
+
+void primitive_inst::clear_events() {
     _impl_params->dep_events.clear();
     _impl_params->out_event = nullptr;
 }
@@ -2519,7 +2624,8 @@ void primitive_inst::prepare_primitive() {
                     // Use marker to ensure proper synchronization for both events and barriers
                     auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
                                                          : std::vector<event::ptr>{};
-                    add_dep_event(output->fill(get_network().get_stream(), dep_events));
+                    // Add dependency event for the output fill operation but do not sync with host
+                    add_dep_event(output->fill(get_network().get_stream(), dep_events, false));
                 }
             }
         }
@@ -2692,7 +2798,7 @@ primitive_inst::primitive_inst(network& network, const program_node& node, bool 
             }
         }
 
-        if (auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
+        if (auto reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
             // sum post-op can use the input buffer as the output buffer
             auto& eltw_node = node.get_dependency(reused_eltwmem_idx);
             const auto& eltw_inst = _network.get_primitive(eltw_node.id());
@@ -3294,9 +3400,11 @@ bool primitive_inst::is_valid_fusion() const {
         if (!get_node().get_selected_impl()) {
             LOG_AND_RETURN_FALSE(_node);
         }
+        // ternocl_int2 folds its fused chain into the GEMM epilogue itself (see its validate_impl).
         if (!data_type_traits::is_i8_u8(get_node().get_input_layout(0).data_type) &&
             (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") == std::string::npos) &&
-            (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bfyx_ref") == std::string::npos)) {
+            (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bfyx_ref") == std::string::npos) &&
+            (get_node().get_selected_impl()->get_kernel_name() != "ternocl_int2")) {
             LOG_AND_RETURN_FALSE(_node);
         }
     }
