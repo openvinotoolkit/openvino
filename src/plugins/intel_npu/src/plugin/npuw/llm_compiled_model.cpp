@@ -4,6 +4,7 @@
 #include "llm_compiled_model.hpp"
 
 #include <algorithm>
+#include <unordered_map>
 
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
@@ -36,6 +37,7 @@
 #include "npuw_transformations/shrink_sliding_window_kv_cache.hpp"
 #include "npuw_transformations/slice_out_embeds.hpp"
 #include "npuw_transformations/split_kvcache_into_blocks.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/ops.hpp"
@@ -566,6 +568,49 @@ public:
     }
 };
 
+// The fusion re-creates weight Constants as buffer-sharing reshapes without their weightless cache
+// attribute, which makes NPUW deep-copy every one of them. Same buffer means same file offset, so
+// put the attribute back on Constants which share a buffer with an original one.
+struct OriginalWeightAttr {
+    ov::WeightlessCacheAttribute attr;
+    std::size_t byte_size;
+};
+
+std::unordered_map<const void*, OriginalWeightAttr> collect_weightless_attrs(const std::shared_ptr<ov::Model>& model) {
+    std::unordered_map<const void*, OriginalWeightAttr> attrs;
+    for (const auto& op : model->get_ops()) {
+        auto c = ov::as_type_ptr<ov::op::v0::Constant>(op);
+        if (!c) {
+            continue;
+        }
+        const auto& rt_info = c->get_rt_info();
+        auto it = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+        if (it != rt_info.end()) {
+            attrs.emplace(c->get_data_ptr(),
+                          OriginalWeightAttr{it->second.as<ov::WeightlessCacheAttribute>(), c->get_byte_size()});
+        }
+    }
+    return attrs;
+}
+
+void restore_weightless_attrs(const std::shared_ptr<ov::Model>& model,
+                              const std::unordered_map<const void*, OriginalWeightAttr>& attrs) {
+    for (const auto& op : model->get_ops()) {
+        auto c = ov::as_type_ptr<ov::op::v0::Constant>(op);
+        if (!c) {
+            continue;
+        }
+        auto& rt_info = c->get_rt_info();
+        if (rt_info.count(ov::WeightlessCacheAttribute::get_type_info_static())) {
+            continue;
+        }
+        auto it = attrs.find(c->get_data_ptr());
+        if (it != attrs.end() && it->second.byte_size == c->get_byte_size()) {
+            rt_info[ov::WeightlessCacheAttribute::get_type_info_static()] = it->second.attr;
+        }
+    }
+}
+
 // Collapse the decomposed tiled-MoE expert subgraph (Tile + batched MatMul + ScatterElementsUpdate
 // routing) into single MOE/MOECompressed ops, so the NPU compiler can lower each MoE block to a
 // single dynamic-sparse kernel instead of partitioning the unrolled expert graph.
@@ -581,6 +626,8 @@ void apply_moe_fusion(const std::shared_ptr<ov::Model>& model) {
                                                                  ov::element::i8};
     const std::vector<ov::element::Type> supported_activation_types{ov::element::f32, ov::element::f16};
 
+    const auto original_attrs = collect_weightless_attrs(model);
+
     ov::pass::Manager manager("NPUW:MoEFusion");
     manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_weights_types);
     manager.register_pass<ov::pass::Validate>();
@@ -592,6 +639,7 @@ void apply_moe_fusion(const std::shared_ptr<ov::Model>& model) {
     manager.register_pass<CollapseRedundantReshapePair>();
     manager.register_pass<ov::pass::Validate>();
     manager.run_passes(model);
+    restore_weightless_attrs(model, original_attrs);
 }
 
 // Apply DEVICE_ROUTED MoE transformations to models
