@@ -3,6 +3,7 @@
 //
 
 #include <array>
+#include <utility>
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
@@ -54,42 +55,57 @@ TEST_P(MulticlassNmsDynamicConsumerGPUTest, OutputsFollowRuntimeBoxCount) {
     }
 
     auto request = compiled.create_infer_request();
-    const std::vector<size_t> box_counts = static_inputs ? std::vector<size_t>{10} :
-        (boxes_shape[1].get_min_length() == 0 ? std::vector<size_t>{10, 0, 4, 10, 1} : std::vector<size_t>{10, 4, 10, 1});
-    for (const size_t num_boxes : box_counts) {
-        SCOPED_TRACE(num_boxes);
-        ov::Tensor boxes_tensor(ov::element::f32, ov::Shape{1, num_boxes, 4});
-        ov::Tensor scores_tensor(ov::element::f32, ov::Shape{1, 1, num_boxes});
+    using InputSize = std::pair<size_t, size_t>;
+    const std::vector<InputSize> input_sizes = static_inputs ? std::vector<InputSize>{{1, 10}} :
+        (boxes_shape[1].get_min_length() == 0 ? std::vector<InputSize>{{1, 0}, {3, 0}, {2, 4}, {1, 10}, {2, 1}}
+                                             : std::vector<InputSize>{{1, 10}, {1, 4}, {1, 10}, {1, 1}});
+    for (const auto& [batch, num_boxes] : input_sizes) {
+        SCOPED_TRACE("batch=" + std::to_string(batch) + ", boxes=" + std::to_string(num_boxes));
+        ov::Tensor boxes_tensor(ov::element::f32, ov::Shape{batch, num_boxes, 4});
+        ov::Tensor scores_tensor(ov::element::f32, ov::Shape{batch, 1, num_boxes});
         auto boxes_data = boxes_tensor.data<float>();
         auto scores_data = scores_tensor.data<float>();
-        for (size_t i = 0; i < num_boxes; ++i) {
-            const float x = 2.f * static_cast<float>(i);
-            boxes_data[4 * i + 0] = x;
-            boxes_data[4 * i + 1] = 0.f;
-            boxes_data[4 * i + 2] = x + 1.f;
-            boxes_data[4 * i + 3] = 1.f;
-            scores_data[i] = static_cast<float>(i + 1) / 16.f;
+        for (size_t batch_idx = 0; batch_idx < batch; ++batch_idx) {
+            for (size_t i = 0; i < num_boxes; ++i) {
+                const float x = 2.f * static_cast<float>(batch_idx * num_boxes + i);
+                const auto box_offset = (batch_idx * num_boxes + i) * 4;
+                boxes_data[box_offset + 0] = x;
+                boxes_data[box_offset + 1] = 0.f;
+                boxes_data[box_offset + 2] = x + 1.f;
+                boxes_data[box_offset + 3] = 1.f;
+                scores_data[batch_idx * num_boxes + i] = static_cast<float>(i + 1) / 16.f;
+            }
         }
         request.set_input_tensor(0, boxes_tensor);
         request.set_input_tensor(1, scores_tensor);
         request.infer();
 
         const auto selected = request.get_output_tensor(2);
-        ASSERT_EQ(selected.get_shape(), (ov::Shape{1}));
-        ASSERT_EQ(selected.data<int32_t>()[0], static_cast<int32_t>(num_boxes));
+        ASSERT_EQ(selected.get_shape(), (ov::Shape{batch}));
+        for (size_t batch_idx = 0; batch_idx < batch; ++batch_idx) {
+            EXPECT_EQ(selected.data<int32_t>()[batch_idx], static_cast<int32_t>(num_boxes));
+        }
         const auto rows = request.get_output_tensor(0);
         const auto indices = request.get_output_tensor(1);
-        ASSERT_EQ(rows.get_shape(), (ov::Shape{num_boxes, 6}));
-        ASSERT_EQ(indices.get_shape(), (ov::Shape{num_boxes, 1}));
-        for (size_t row = 0; row < num_boxes; ++row) {
-            // Boxes do not overlap, so all are kept in descending score order.
-            const size_t box = num_boxes - 1 - row;
-            const float x = 2.f * static_cast<float>(box);
-            const std::array<float, 6> expected{0.f, static_cast<float>(box + 1) / 16.f, x, 0.f, x + 1.f, 1.f};
-            for (size_t col = 0; col < expected.size(); ++col) {
-                EXPECT_FLOAT_EQ(rows.data<float>()[row * 6 + col], expected[col] + 1.f);
+        ASSERT_EQ(rows.get_shape(), (ov::Shape{batch * num_boxes, 6}));
+        ASSERT_EQ(indices.get_shape(), (ov::Shape{batch * num_boxes, 1}));
+        for (size_t batch_idx = 0; batch_idx < batch; ++batch_idx) {
+            for (size_t row = 0; row < num_boxes; ++row) {
+                // Boxes do not overlap, so all are kept in descending score order.
+                const size_t box = num_boxes - 1 - row;
+                const float x = 2.f * static_cast<float>(batch_idx * num_boxes + box);
+                const size_t output_row = batch_idx * num_boxes + row;
+                const std::array<float, 6> expected{0.f,
+                                                    static_cast<float>(box + 1) / 16.f,
+                                                    x,
+                                                    0.f,
+                                                    x + 1.f,
+                                                    1.f};
+                for (size_t col = 0; col < expected.size(); ++col) {
+                    EXPECT_FLOAT_EQ(rows.data<float>()[output_row * 6 + col], expected[col] + 1.f);
+                }
+                EXPECT_FLOAT_EQ(indices.data<float>()[output_row], static_cast<float>(batch_idx * num_boxes + box));
             }
-            EXPECT_FLOAT_EQ(indices.data<float>()[row], static_cast<float>(box));
         }
     }
 }

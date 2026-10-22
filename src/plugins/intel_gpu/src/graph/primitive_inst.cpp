@@ -597,15 +597,6 @@ void primitive_inst::update_shape() {
         }
     }
 
-    // required to zero out the number of valid boxes (third output) when NMS is not executed
-    if (get_node().is_type<non_max_suppression>() || get_node().is_type<multiclass_nms>()) {
-        if (!_impl_params->output_layouts[0].count() && _outputs.size() == 3 && _outputs[2]) {
-            const bool out_of_order_queue = queue_type == QueueTypes::out_of_order;
-            auto dep_events =
-                out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)} : std::vector<event::ptr>{};
-            add_dep_event(_outputs[2]->fill(get_network().get_stream(), dep_events));
-        }
-    }
 }
 
 kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(const program_node& node, const kernel_impl_params& orig_impl_param) {
@@ -2468,6 +2459,16 @@ void primitive_inst::prepare_primitive() {
         }
 
         if (get_flag(ExecutionFlags::SKIP)) {
+            if ((get_node().is_type<non_max_suppression>() || get_node().is_type<multiclass_nms>()) &&
+                !_impl_params->output_layouts[0].count() && _outputs.size() == 3) {
+                realloc_if_needed(prev_execution_skipped);
+                OPENVINO_ASSERT(_outputs[2], "[GPU] Selected count output was not allocated for empty NMS output");
+                const bool out_of_order_queue = get_network().get_stream().get_queue_type() == QueueTypes::out_of_order;
+                auto dep_events = out_of_order_queue
+                                      ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
+                                      : std::vector<event::ptr>{};
+                add_dep_event(_outputs[2]->fill(get_network().get_stream(), dep_events));
+            }
             _update_shape_done_by_other = false;  // reset
             return;
         }
