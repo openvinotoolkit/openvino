@@ -1,0 +1,6 @@
+{
+  "component": "tensorflow",
+  "files": [
+    "runtime/bin/intel64/Debug/openvino_tensorflow_frontendd.dll"
+  ]
+}

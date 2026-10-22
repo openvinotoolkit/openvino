@@ -1,0 +1,6 @@
+{
+  "component": "paddle",
+  "files": [
+    "runtime/bin/intel64/Debug/openvino_paddle_frontendd.dll"
+  ]
+}

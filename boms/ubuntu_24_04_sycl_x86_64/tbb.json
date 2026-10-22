@@ -1,0 +1,22 @@
+{
+  "component": "tbb",
+  "files": [
+    "runtime/3rdparty/tbb/TBB-LICENSE",
+    "runtime/3rdparty/tbb/lib/libhwloc.so",
+    "runtime/3rdparty/tbb/lib/libhwloc.so.15",
+    "runtime/3rdparty/tbb/lib/libhwloc.so.15.6.4",
+    "runtime/3rdparty/tbb/lib/libtbb.so",
+    "runtime/3rdparty/tbb/lib/libtbb.so.12",
+    "runtime/3rdparty/tbb/lib/libtbb.so.12.13",
+    "runtime/3rdparty/tbb/lib/libtbbbind_2_5.so",
+    "runtime/3rdparty/tbb/lib/libtbbbind_2_5.so.3",
+    "runtime/3rdparty/tbb/lib/libtbbbind_2_5.so.3.13",
+    "runtime/3rdparty/tbb/lib/libtbbmalloc.so",
+    "runtime/3rdparty/tbb/lib/libtbbmalloc.so.2",
+    "runtime/3rdparty/tbb/lib/libtbbmalloc.so.2.13",
+    "runtime/3rdparty/tbb/lib/libtbbmalloc_proxy.so",
+    "runtime/3rdparty/tbb/lib/libtbbmalloc_proxy.so.2",
+    "runtime/3rdparty/tbb/lib/libtbbmalloc_proxy.so.2.13",
+    "runtime/3rdparty/tbb/lib/pkgconfig/tbb.pc"
+  ]
+}

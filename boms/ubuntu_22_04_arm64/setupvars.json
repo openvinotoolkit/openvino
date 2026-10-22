@@ -1,0 +1,6 @@
+{
+  "component": "setupvars",
+  "files": [
+    "setupvars.sh"
+  ]
+}
