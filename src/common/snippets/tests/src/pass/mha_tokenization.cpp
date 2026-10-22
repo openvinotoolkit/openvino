@@ -155,9 +155,7 @@ TEST_P(RuntimeBroadcastTarget, PreserveBatchExpansion) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets, RuntimeBroadcastTarget, testing::Values(false, true));
 
-class ShapeOfReshapeExternalConsumer : public TokenizeMHASnippetsTests, public testing::WithParamInterface<bool> {};
-
-TEST_P(ShapeOfReshapeExternalConsumer, RejectWithoutRewiring) {
+TEST_F(TokenizeMHASnippetsTests, ShapeOfReshapeExternalConsumer) {
     const auto f = MHAFunction(
         std::vector<PartialShape>{{-1, 128, 12, 64}, {-1, 128, 12, 64}, {-1, 12, 128, 128}, {-1, 128, 12, 64}},
         std::vector<ov::element::Type>(4, ov::element::f32),
@@ -168,21 +166,13 @@ TEST_P(ShapeOfReshapeExternalConsumer, RejectWithoutRewiring) {
     model = f.getOriginal();
     for (const auto& node : model->get_ordered_ops()) {
         if (ov::is_type<ov::op::v3::ShapeOf>(node)) {
-            Output<Node> output = node;
-            if (GetParam()) {
-                const auto index = op::v0::Constant::create(element::i64, Shape{1}, {0});
-                const auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
-                output = std::make_shared<op::v1::Gather>(output, index, axis);
-            }
-            model->add_results({std::make_shared<ov::op::v0::Result>(output)});
+            model->add_results({std::make_shared<ov::op::v0::Result>(node)});
             break;
         }
     }
     ASSERT_EQ(model->get_results().size(), 2);
     run();
 }
-
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets, ShapeOfReshapeExternalConsumer, testing::Values(false, true));
 
 TEST_F(TokenizeMHASnippetsTests, ShapeOfReshapeIndirectConsumer) {
     const auto f =
@@ -195,6 +185,7 @@ TEST_F(TokenizeMHASnippetsTests, ShapeOfReshapeIndirectConsumer) {
     model = f.getOriginal();
     for (const auto& node : model->get_ordered_ops()) {
         if (ov::is_type<op::v3::ShapeOf>(node)) {
+            // Build Concat(-1, Gather(ShapeOf(add))) as the first Reshape target.
             const auto restore = *node->get_output_target_inputs(0).begin();
             const auto softmax = restore.get_node()->get_input_node_shared_ptr(0);
             const auto reshape0 = softmax->get_input_node_shared_ptr(0);

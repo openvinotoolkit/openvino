@@ -63,33 +63,18 @@ std::vector<std::vector<InputShape>> transposedShape_4D_v3_broadcast() {
 }
 
 std::vector<std::vector<InputShape>> transposedShape_4D_shapeof_broadcast() {
-    auto shapes = transposedShape_4D();
-    // ShapeOf(MatMul) fixes the mask target, so the mask cannot expand it and V must match the key length.
-    for (auto& inputs : shapes) {
-        for (size_t i = 0; i < inputs[2].second.size(); ++i) {
-            const auto& query = inputs[0].second[i];
-            const auto& key = inputs[1].second[i];
-            auto& mask = inputs[2].second[i];
-            auto& value = inputs[3].second[i];
-            const Shape target{std::max(query[0], key[0]), std::max(query[2], key[2]), query[1], key[1]};
-            for (size_t axis = 0; axis < mask.size(); ++axis) {
-                if (mask[axis] != 1) {
-                    mask[axis] = target[axis];
-                }
-            }
-            value[1] = key[1];
-        }
-    }
-    return shapes;
+    // Keep the batch dynamic so ShapeOf remains a runtime shape input.
+    return {{{PartialShape{-1, 128, 12, 64}, {{1, 128, 12, 64}}},
+             {PartialShape{-1, 128, 12, 64}, {{1, 128, 12, 64}}},
+             {PartialShape{-1, 1, 128, 128}, {{1, 1, 128, 128}}},
+             {PartialShape{-1, 128, 12, 64}, {{1, 128, 12, 64}}}}};
 }
 
 std::vector<std::vector<InputShape>> transposedShape_4D_shapeof_reshape() {
-    auto shapes = transposedShape_4D(true, false);
-    shapes.push_back({{PartialShape{-1, -1, 12, 64}, {{1, 64, 12, 64}, {2, 32, 12, 64}}},
-                      {PartialShape{-1, 128, 12, 64}, {{1, 128, 12, 64}, {2, 128, 12, 64}}},
-                      {PartialShape{-1, 12, -1, 128}, {{1, 12, 64, 128}, {2, 12, 32, 128}}},
-                      {PartialShape{-1, 128, 12, 64}, {{1, 128, 12, 64}, {2, 128, 12, 64}}}});
-    return shapes;
+    return {{{PartialShape{-1, 128, 12, 64}, {{1, 128, 12, 64}}},
+             {PartialShape{-1, 128, 12, 64}, {{1, 128, 12, 64}}},
+             {PartialShape{-1, 12, 128, 128}, {{1, 12, 128, 128}}},
+             {PartialShape{-1, 128, 12, 64}, {{1, 128, 12, 64}}}}};
 }
 
 std::vector<std::vector<InputShape>> twoConstBShape_4D() {

@@ -5,21 +5,16 @@
 #include "snippets/pass/softmax_reshape_elimination.hpp"
 
 #include <algorithm>
-#include <cstdint>
 #include <memory>
-#include <vector>
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/node_output.hpp"
-#include "openvino/core/symbol.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/softmax.hpp"
-#include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
@@ -27,29 +22,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/utils/utils.hpp"
-
-namespace {
-bool is_last_dim_from_shape_of(const ov::Output<ov::Node>& pattern, const ov::Output<ov::Node>& source) {
-    const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(pattern.get_node_shared_ptr());
-    if (!concat || concat->get_axis() != 0 || concat->get_input_size() != 2) {
-        return false;
-    }
-
-    const auto& inputs = concat->inputs();
-    return std::any_of(inputs.cbegin(), inputs.cend(), [&source](const ov::Input<ov::Node>& input) {
-        const auto gather = ov::as_type_ptr<ov::op::util::GatherBase>(input.get_source_output().get_node_shared_ptr());
-        const auto shape_of =
-            gather ? ov::as_type_ptr<ov::op::util::ShapeOfBase>(gather->input_value(0).get_node_shared_ptr()) : nullptr;
-        if (!shape_of || shape_of->input_value(0) != source) {
-            return false;
-        }
-
-        const auto indices = ov::as_type_ptr<ov::op::v0::Constant>(gather->input_value(1).get_node_shared_ptr());
-        return indices && indices->cast_vector<std::int64_t>() ==
-                              std::vector<std::int64_t>{source.get_partial_shape().rank().get_length() - 1};
-    });
-}
-}  // namespace
+#include "transformations/symbolic_transformations/utils.hpp"
 
 bool ov::snippets::pass::SoftmaxReshapeElimination::eliminate(const std::shared_ptr<ov::op::v1::Reshape>& reshape0,
                                                               const std::shared_ptr<ov::Node>& softmax,
@@ -63,17 +36,12 @@ bool ov::snippets::pass::SoftmaxReshapeElimination::eliminate(const std::shared_
         return false;
     }
 
-    const auto dims_equal = [](const ov::Dimension& lhs, const ov::Dimension& rhs) {
-        return (lhs.is_static() && rhs.is_static() && lhs == rhs) ||
-               ov::symbol::are_equal(lhs.get_symbol(), rhs.get_symbol());
-    };
     const auto shape_of = ov::as_type_ptr<ov::op::util::ShapeOfBase>(reshape1->input_value(1).get_node_shared_ptr());
     const bool shape_of_input = shape_of && shape_of->input_value(0) == reshape0->input_value(0);
-    const bool shape_of_reduction_dim = is_last_dim_from_shape_of(reshape0->input_value(1), reshape0->input_value(0));
     const bool constant_patterns = ov::is_type<ov::op::v0::Constant>(reshape0->get_input_node_ptr(1)) &&
                                    ov::is_type<ov::op::v0::Constant>(reshape1->get_input_node_ptr(1));
     if (!shape_of_input && (!constant_patterns || input_shape != output_shape) &&
-        !std::equal(input_shape.begin(), input_shape.end(), output_shape.begin(), dims_equal)) {
+        !std::equal(input_shape.begin(), input_shape.end(), output_shape.begin(), ov::symbol::util::dims_are_equal)) {
         return false;
     }
 
@@ -85,8 +53,8 @@ bool ov::snippets::pass::SoftmaxReshapeElimination::eliminate(const std::shared_
 
     // An unknown reduction dimension is not proof that the reshape preserves it.
     const auto& in_last_dim = *input_shape.crbegin();
-    if ((!shape_of_reduction_dim && !dims_equal(in_last_dim, *softmax_shape.crbegin())) ||
-        (!shape_of_input && !dims_equal(in_last_dim, *output_shape.crbegin()))) {
+    if (!ov::symbol::util::dims_are_equal(in_last_dim, *softmax_shape.crbegin()) ||
+        (!shape_of_input && !ov::symbol::util::dims_are_equal(in_last_dim, *output_shape.crbegin()))) {
         return false;
     }
 

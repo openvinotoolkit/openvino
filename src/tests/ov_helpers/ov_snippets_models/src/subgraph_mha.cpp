@@ -4,6 +4,7 @@
 
 #include "subgraph_mha.hpp"
 
+#include <tuple>
 #include <utility>
 
 #include "common_test_utils/data_utils.hpp"
@@ -141,9 +142,7 @@ std::shared_ptr<ov::Model> init_mha_original(const std::vector<PartialShape>& in
         ov::Output<ov::Node> reshape0Const;
         ov::Output<ov::Node> reshape1Const;
         if (with_shape_of) {
-            const auto reshape_shapes = make_reshape_shapes(add, rank);
-            reshape0Const = reshape_shapes.first;
-            reshape1Const = reshape_shapes.second;
+            std::tie(reshape0Const, reshape1Const) = make_reshape_shapes(add, rank);
         } else {
             const auto shape_after_softmax = add->get_output_shape(0);
             const auto batch = std::accumulate(shape_after_softmax.cbegin(),
