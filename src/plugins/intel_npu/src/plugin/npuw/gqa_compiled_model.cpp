@@ -805,7 +805,7 @@ void ov::npuw::GQAInferRequest::ensure_inner_request_locked() const {
                   << inner_model->outputs().size() << " outputs");
 
         // Zero-initialize every dynamic-axis KV-cache/bias input's full capacity, once.
-        size_t zeroed_count = 0;
+        [[maybe_unused]] size_t zeroed_count = 0;  // only read by the developer-build GQA_TRACE below
         for (const auto& kv : m_compiled_model->m_dynamic_kv_cache_axes) {
             // Pre-C++20: structured bindings can't be captured by lambdas, so use a named local.
             const auto& name = kv.first;

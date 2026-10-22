@@ -35,6 +35,9 @@ size_t get_subgroup_size(gpu_arch arch) {
     }
 }
 
+// Host payload (cross-thread argument bytes) of the sdpa_micro kernel; needs ~140 bytes at least.
+constexpr int host_argument_bytes = 256;
+
 inline size_t get_d_max(size_t head_size) {
     for (size_t i = 32; i <= 1024; i *= 2) {
         if (head_size <= i) {
@@ -1533,11 +1536,14 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     }
 
     if (device_info.arch >= gpu_arch::xe_hpc) {
-        jit.make("PREFETCH_MASK", 1);
+        const int disabled_prefetch = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_micro_sdpa_disable_prefetch(), 0);
+        if (!(disabled_prefetch & 1))
+            jit.make("PREFETCH_MASK", 1);
         const bool enable_kv_prefetch = (!config.is_paged_attention || m_is_prefill) && !is_byte_packed_int4;
-        jit.make("PREFETCH_K0", enable_kv_prefetch);
-        jit.make("PREFETCH_K", enable_kv_prefetch);
-        jit.make("PREFETCH_V", enable_kv_prefetch);
+        const bool enable_k_prefetch = enable_kv_prefetch && ((disabled_prefetch & 2) == 0);
+        jit.make("PREFETCH_K0", enable_k_prefetch);
+        jit.make("PREFETCH_K", enable_k_prefetch);
+        jit.make("PREFETCH_V", enable_kv_prefetch && ((disabled_prefetch & 4) == 0));
         bool no_rem = d_full && v_full && k_full;
         jit.make("PREFETCH_REMAINDER", !no_rem);
         jit.make("PREFETCH_D_MAX", std::min<int64_t>(d_max, 64));
@@ -1905,6 +1911,9 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     hw_info.gmdid = device_info.ip_version;
     hw_info.systolicAvailable = device_info.supports_immad;
 
+    /* Host kernel facts: the microkernel registers must not overlap the host thread payload */
+    const micro::HostPayload host{static_cast<int>(get_subgroup_size(device_info.arch)), host_argument_bytes};
+
     /* Set up GEMMProblem structure for first GEMM: K^T * Q */
     micro::GEMMProblem problem;
     problem.Ta_ext = convert_type(K.data_type);
@@ -2054,7 +2063,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     /* Ask microkernel provider for microkernel */
     try {
-        gemm_kq = micro::select_gemm_microkernel(opts_kq, hw_info, sizes, problem_kq, reqs_kq);
+        gemm_kq = micro::select_gemm_microkernel(opts_kq, host, hw_info, sizes, problem_kq, reqs_kq);
     } catch (const std::runtime_error& ex) {
         GPU_DEBUG_TRACE_DETAIL << "Can't create KQ sdpa_micro kernel: " << ex.what() << "\n";
         throw;
@@ -2080,7 +2089,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
         /* Ask microkernel provider for microkernel */
         try {
-            gemm_kcq = micro::select_gemm_microkernel(opts_kq, hw_info, sizes, problem_kcq, reqs_kq);
+            gemm_kcq = micro::select_gemm_microkernel(opts_kq, host, hw_info, sizes, problem_kcq, reqs_kq);
         } catch (const std::runtime_error& ex) {
             GPU_DEBUG_TRACE_DETAIL << "Can't create KcQ sdpa_micro kernel: " << ex.what() << "\n";
             throw;
@@ -2212,7 +2221,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     };
     /* Ask microkernel provider for microkernel */
     try {
-        gemm_vs = micro::select_gemm_microkernel(opts_vs, hw_info, sizes, problem_vs, reqs_vs, adjust_vs);
+        gemm_vs = micro::select_gemm_microkernel(opts_vs, host, hw_info, sizes, problem_vs, reqs_vs, adjust_vs);
     } catch (const std::runtime_error& ex) {
         GPU_DEBUG_TRACE_DETAIL << "Can't create VS sdpa_micro kernel: " << ex.what() << "\n";
         throw;
@@ -2240,7 +2249,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
         /* Ask microkernel provider for microkernel */
         try {
-            gemm_vcs = micro::select_gemm_microkernel(opts_vs, hw_info, sizes, problem_vcs, reqs_vs, adjust_vs);
+            gemm_vcs = micro::select_gemm_microkernel(opts_vs, host, hw_info, sizes, problem_vcs, reqs_vs, adjust_vs);
         } catch (const std::runtime_error& ex) {
             GPU_DEBUG_TRACE_DETAIL << "Can't create VcS sdpa_micro kernel: " << ex.what() << "\n";
             throw;
