@@ -611,12 +611,7 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
     OV_ASSERT_NO_THROW(reqDynamic1.infer());
     OV_ASSERT_NO_THROW(reqReference1.infer());
     ASSERT_EQ(reqDynamic1.get_tensor(model->output()).get_shape(), makeOutputShape(selectedModelName, batchShape));
-    // NPU HostCompile runs in reduced (f16-class) precision while the TEMPLATE reference is f32.
-    ov::test::utils::compare(reqReference1.get_tensor(model->output()),
-                             reqDynamic1.get_tensor(model->output()),
-                             model->output().get_element_type(),
-                             0.02,
-                             0.02);
+    compareInferenceResult(model, reqDynamic1, reqReference1);
 
     ASSERT_EQ(countVMExecutions(logCapture.str()), 1u) << logCapture.str();
 }
