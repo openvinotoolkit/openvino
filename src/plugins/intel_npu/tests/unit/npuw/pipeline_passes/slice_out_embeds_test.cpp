@@ -6,8 +6,8 @@
 
 #include "llm_pass_test_fixture.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/slice.hpp"
 
 namespace {
 
@@ -15,10 +15,7 @@ using ov::test::npuw::RecordingFactory;
 
 class SliceOutEmbedsPassTest : public ov::test::npuw::LLMPassTestFixture {
 protected:
-    // Returns true iff the direct producer of the output_embeds Result is a v8::Slice.
-    // This is precisely what SliceOutEmbeds inserts; other Slice ops (e.g. from RoPE
-    // half-rotation) are NOT on this path and must not be counted.
-    static bool output_embeds_has_slice_producer(const std::shared_ptr<ov::Model>& model) {
+    static bool output_embeds_has_gather_producer(const std::shared_ptr<ov::Model>& model) {
         for (const auto& output : model->outputs()) {
             for (const auto& name : output.get_names()) {
                 if (name.find(ov::npuw::LLMCompiledModel::output_embeds) != std::string::npos) {
@@ -27,7 +24,7 @@ protected:
                     if (!result_node || result_node->inputs().empty())
                         return false;
                     auto producer = result_node->input(0).get_source_output().get_node_shared_ptr();
-                    return ov::is_type<ov::op::v8::Slice>(producer);
+                    return ov::is_type<ov::op::v8::Gather>(producer);
                 }
             }
         }
@@ -35,10 +32,7 @@ protected:
     }
 };
 
-// Test 1: When SHARED_HEAD=YES and MAX_GENERATION_TOKEN_LEN < MAX_PROMPT_LEN,
-// SliceOutEmbeds should insert a v8::Slice on the output_embeds path and the
-// resulting output shape should be {1, MAX_GENERATION_TOKEN_LEN, hidden_size}.
-TEST_F(SliceOutEmbedsPassTest, SliceIsInsertedWhenGenerationTokenLenIsLessThanPromptLen) {
+TEST_F(SliceOutEmbedsPassTest, SharedHeadUsesGatherWithInternalIndices) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -62,15 +56,11 @@ TEST_F(SliceOutEmbedsPassTest, SliceIsInsertedWhenGenerationTokenLenIsLessThanPr
         << "output_embeds shape is not static: " << embeds->get_partial_shape();
     EXPECT_EQ(embeds->get_shape(), (ov::Shape{1, 8, 64}));
 
-    // The direct producer of the output_embeds Result must be a v8::Slice (inserted by SliceOutEmbeds).
-    // Other v8::Slice ops (e.g. from HalfRotationRoPE halving) are intentionally not counted.
-    EXPECT_TRUE(output_embeds_has_slice_producer(prefill.model))
-        << "Expected a v8::Slice directly feeding output_embeds, but none was found";
+    EXPECT_TRUE(output_embeds_has_gather_producer(prefill.model));
+    EXPECT_TRUE(find_input(prefill.model, ov::npuw::util::kLogitsSelectionIndicesParamName).has_value());
 }
 
-// Test 2: When SHARED_HEAD=YES but MAX_GENERATION_TOKEN_LEN == MAX_PROMPT_LEN,
-// SliceOutEmbeds is a no-op: no Slice is inserted and the shape remains full.
-TEST_F(SliceOutEmbedsPassTest, SliceIsNotInsertedWhenGenerationTokenLenEqualsPromptLen) {
+TEST_F(SliceOutEmbedsPassTest, SharedHeadUsesGatherWhenGenerationTokenLenEqualsPromptLen) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -91,10 +81,30 @@ TEST_F(SliceOutEmbedsPassTest, SliceIsNotInsertedWhenGenerationTokenLenEqualsPro
         << "output_embeds shape is not static: " << embeds->get_partial_shape();
     EXPECT_EQ(embeds->get_shape(), (ov::Shape{1, 128, 64}));
 
-    // The direct producer of the output_embeds Result must NOT be a v8::Slice.
-    // (Other v8::Slices from RoPE etc. are irrelevant and deliberately ignored.)
-    EXPECT_FALSE(output_embeds_has_slice_producer(prefill.model))
-        << "Expected no v8::Slice directly feeding output_embeds when generation len == prompt len";
+    EXPECT_TRUE(output_embeds_has_gather_producer(prefill.model));
+    EXPECT_TRUE(find_input(prefill.model, ov::npuw::util::kLogitsSelectionIndicesParamName).has_value());
+}
+
+TEST_F(SliceOutEmbedsPassTest, ChunkedPrefillUsesGraphLastTokenSelection) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_SHARED_HEAD", "YES"},
+                                                      {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                                                      {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"},
+                                                      {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "1"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_sub_model(recorder, "_prefill");
+    const auto& lm_head = require_sub_model(recorder, "_lm_head");
+    const auto embeds = find_output(prefill.model, ov::npuw::LLMCompiledModel::output_embeds);
+    ASSERT_TRUE(embeds.has_value()) << "output_embeds output not found on prefill model";
+    ASSERT_TRUE(embeds->get_partial_shape().is_static());
+    EXPECT_EQ(embeds->get_shape(), (ov::Shape{1, 1, 64}));
+    EXPECT_TRUE(output_embeds_has_gather_producer(prefill.model));
+    EXPECT_TRUE(find_input(prefill.model, ov::npuw::util::kLogitsSelectionIndicesParamName).has_value());
+    EXPECT_EQ(lm_head.model->input(0).get_shape(), (ov::Shape{1, 1, 64}));
 }
 
 // Test 3: When SHARED_HEAD=NO, SliceOutEmbeds does not fire. The lm_head sub-model

@@ -114,4 +114,14 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
+// Propagates the runtime Gather created by SelectLastLogits upstream through
+// sequence-preserving operations. Unlike PropagateSliceUp, this pass recognizes
+// only the dedicated npuw_logits_selection_indices parameter and clones the
+// selected branch when the source has other consumers.
+class PropagateLogitsGatherUp : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::PropagateLogitsGatherUp");
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+};
+
 }  // namespace ov::npuw

@@ -31,6 +31,15 @@ struct Eagle3LayerNames {
 bool matchEagle3HiddenStatesString(const std::string& input);
 bool matchEagle3TreeMaskString(const std::string& input);
 
+namespace util {
+void pad_eagle3_hidden_state(const ov::SoPtr<ov::ITensor>& hidden_state,
+                             const ov::SoPtr<ov::ITensor>& padded_hidden_state);
+void copy_eagle3_chunk_output(const ov::SoPtr<ov::ITensor>& chunk_output,
+                              const ov::SoPtr<ov::ITensor>& accumulated_output,
+                              uint32_t chunk_token_count,
+                              uint32_t accumulated_offset);
+}  // namespace util
+
 // Model roles for Eagle3 speculative decoding
 enum class Eagle3ModelRole {
     None,    ///< Not an Eagle3 model

@@ -327,6 +327,7 @@ void PrefixCachingHelper::populate_attention_mask_for_restored_cache(const ov::S
     // Populate the attention mask for prefix caching:
     // num_restored_tokens have been prefilled already from cache
     // The calculated key/values blocks will be copied from cache to past k/v inputs for inference
+    std::fill_n(attn_mask_in_tensor->data<int64_t>(), attn_mask_in_tensor->get_size(), int64_t{0});
     std::copy_n(attention_mask->data<int64_t>(), num_restored_tokens, attn_mask_in_tensor->data<int64_t>());
 }
 
