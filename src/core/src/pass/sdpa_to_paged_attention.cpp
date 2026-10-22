@@ -159,7 +159,9 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                              // PagedGatedDeltaNetFusion.
     auto ssm_fusion = manager.register_pass<SelectiveSSMFusion>();
     if (m_options.is_draft_model) {
-        manager.register_pass<Gemma4MTPStateManagementPattern>(m_params, params_to_remove);
+        manager.register_pass<Gemma4MTPStateManagementPattern>(m_params,
+                                                               params_to_remove,
+                                                               m_options);
     } else {
         manager.register_pass<StateManagementPattern>(m_params, m_results, m_options, var_ids_to_remove);
     }

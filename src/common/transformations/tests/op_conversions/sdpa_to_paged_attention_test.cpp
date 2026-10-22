@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <set>
+
 #include "../common_optimizations/ssm_test_models.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
@@ -7578,7 +7580,7 @@ std::shared_ptr<ov::Model> make_sdpa_model(int full_v_head_size = full_head_size
         ParameterVector{inputs_embeds, attention_mask, full_key, full_value, sliding_key, sliding_value});
 }
 
-void run_pass(const std::shared_ptr<ov::Model>& model) {
+void run_pass(const std::shared_ptr<ov::Model>& model, const ov::pass::paged_attention::Options& options = {}) {
     pass::paged_attention::PaParams pa_params{model->get_parameters()};
     pa_params.add("max_context_len", element::i32, PartialShape{});
     pa_params.add("past_lens", element::i32, PartialShape{DYN});
@@ -7589,7 +7591,7 @@ void run_pass(const std::shared_ptr<ov::Model>& model) {
 
     ov::pass::Manager pass_manager;
     pass_manager.set_per_pass_validation(false);
-    pass_manager.register_pass<ov::pass::Gemma4MTPStateManagementPattern>(pa_params, params_to_remove);
+    pass_manager.register_pass<ov::pass::Gemma4MTPStateManagementPattern>(pa_params, params_to_remove, options);
     pass_manager.run_passes(model);
 
     // What SDPAToPagedAttention does once its patterns have run.
@@ -7707,7 +7709,8 @@ std::shared_ptr<ov::Model> make_pa_model(int full_v_head_size = full_head_size) 
     auto sliding_window_i32 = [&]() {
         auto window = makeConst(element::i64, ov::Shape{1, 1, 1, 1}, {sliding_window});
         auto squeeze = makeOP<v15::Squeeze>({window}, {{"allow_axis_skip", false}});
-        return makeOP<v0::Convert>({squeeze}, {{"destination_type", "i32"}});
+        auto converted = makeOP<v0::Convert>({squeeze}, {{"destination_type", "i32"}});
+        return makeOP<v1::Add>({converted, 1}, {numpy_broadcast});
     };
 
     OutputVector outputs;

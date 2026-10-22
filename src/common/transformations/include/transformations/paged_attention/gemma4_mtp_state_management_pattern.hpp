@@ -66,7 +66,8 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("Gemma4MTPStateManagementPattern");
 
     Gemma4MTPStateManagementPattern(ov::pass::paged_attention::PaParams& pa_params,
-                                    std::unordered_set<std::string>& params_to_remove);
+                                    std::unordered_set<std::string>& params_to_remove,
+                                    const ov::pass::paged_attention::Options& options);
 
 private:
     int m_layer_index = 0;

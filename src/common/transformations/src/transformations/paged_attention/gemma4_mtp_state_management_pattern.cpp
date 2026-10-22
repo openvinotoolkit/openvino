@@ -10,6 +10,7 @@
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -94,7 +95,8 @@ std::shared_ptr<ov::Node> kv_placeholder(const ov::Output<ov::Node>& total_token
 
 ov::pass::Gemma4MTPStateManagementPattern::Gemma4MTPStateManagementPattern(
     PaParams& pa_params,
-    std::unordered_set<std::string>& params_to_remove) {
+    std::unordered_set<std::string>& params_to_remove,
+    const ov::pass::paged_attention::Options& options) {
     MATCHER_SCOPE(Gemma4MTPStateManagementPattern);
 
     auto borrowed_kv_input = pattern::rank_equals(4) && pattern::has_static_dims({1, 3});
@@ -112,7 +114,10 @@ ov::pass::Gemma4MTPStateManagementPattern::Gemma4MTPStateManagementPattern(
         wrap_type<v13::ScaledDotProductAttention>({any_input(), k_to_sdpa, v_to_sdpa, mask_to_sdpa}) |
         wrap_type<v13::ScaledDotProductAttention>({any_input(), k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &params_to_remove](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS,
+                                          &pa_params,
+                                          &params_to_remove,
+                                          &options](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto sdpa_node = ov::as_type_ptr<v13::ScaledDotProductAttention>(m.get_match_root());
         if (!sdpa_node) {
@@ -189,13 +194,19 @@ ov::pass::Gemma4MTPStateManagementPattern::Gemma4MTPStateManagementPattern(
             if (offset->get_element_type() != element::i32) {
                 offset = std::make_shared<v0::Convert>(offset, element::i32);
             }
-            return offset;
+            // The matched mask allows abs(q-k) <= offset (inclusive), but PagedAttention's sliding_window is a
+            // window size, so the inclusive bound has to become a count.
+            return std::make_shared<v1::Add>(offset, v0::Constant::create(element::i32, Shape{}, {1}));
         }();
+
+        auto block_indices = options.use_per_layer_block_indices_inputs
+                ? pa_params.add("block_indices." + std::to_string(m_layer_index), element::i32, PartialShape{-1})
+                : pa_params["block_indices"];
 
         OutputVector pa_arguments = {q_to_pa, k_to_pa, v_to_pa, k_cache_param, v_cache_param};
         pa_arguments.push_back(past_lens_minus_one);
         pa_arguments.push_back(pa_params["subsequence_begins"]);
-        pa_arguments.push_back(pa_params["block_indices"]);
+        pa_arguments.push_back(block_indices);
         pa_arguments.push_back(pa_params["block_indices_begins"]);
         pa_arguments.push_back(scale);
         pa_arguments.push_back(sliding_window);
