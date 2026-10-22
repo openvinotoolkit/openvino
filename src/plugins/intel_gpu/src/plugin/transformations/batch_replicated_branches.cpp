@@ -453,6 +453,9 @@ bool get_branch_info(const ov::Output<ov::Node>& endpoint_output,
     bool has_relu = false;
     for (auto* raw_node : info.nodes) {
         const auto node = raw_node->shared_from_this();
+        if (!node->get_control_dependencies().empty() || !node->get_control_dependents().empty()) {
+            return false;
+        }
         if (const auto gather = ov::as_type_ptr<ov::op::v8::Gather>(node)) {
             gathers.push_back(gather);
         } else if (!is_batch_safe_operation(node, replica_count)) {

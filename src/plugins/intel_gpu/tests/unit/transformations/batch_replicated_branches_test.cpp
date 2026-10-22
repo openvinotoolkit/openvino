@@ -713,6 +713,30 @@ TEST(BatchReplicatedBranches, RejectsTypeRelaxedConcatRoot) {
     EXPECT_NE(dynamic_cast<ov::op::TypeRelaxedBase*>(concat.get()), nullptr);
 }
 
+TEST(BatchReplicatedBranches, RejectsControlDependentBranch) {
+    auto model = make_camera_model({0, 1, 2, 3});
+    std::shared_ptr<ov::op::v1::Convolution> convolution;
+    for (const auto& node : model->get_ordered_ops()) {
+        convolution = ov::as_type_ptr<ov::op::v1::Convolution>(node);
+        if (convolution) {
+            break;
+        }
+    }
+    ASSERT_NE(convolution, nullptr);
+
+    auto control_dependency = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {0.0f});
+    convolution->add_control_dependency(control_dependency);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
+    manager.run_passes(model);
+
+    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
+                                                      .get_node_shared_ptr()),
+              nullptr);
+    EXPECT_EQ(convolution->get_control_dependencies().size(), 1u);
+}
+
 TEST(BatchReplicatedBranches, RejectsUnknownRuntimeInfoWithoutThrowing) {
     auto model = make_camera_model({0, 1, 2, 3}, false, false, false, false, false,
                                    ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY), true);
