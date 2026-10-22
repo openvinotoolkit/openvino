@@ -44,7 +44,7 @@ inline FcWeightDims fc_weight_dims(const ov::PartialShape& w, FcWeightsLayout la
         OPENVINO_ASSERT(r == 3 && w[0].is_static() && w[2].is_static(), "[GPU] GNK FullyConnected weights must be [G, N, gs] with static G and gs, got ", w);
         const auto G = w[0].get_length();
         const auto gs = w[2].get_length();
-        return {w[1], ov::Dimension(G * gs), G, gs};
+        return {w[1], w[0] * w[2], G, gs};
     }
     }
     OPENVINO_THROW("[GPU] Unknown FullyConnected weights layout");
