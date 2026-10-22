@@ -31,7 +31,8 @@ void run_update_case(bool conv,
                      bool other_reader = false,
                      bool unrelated_overlap = false,
                      ov::element::Type cache_type = ov::element::f32,
-                     bool cache_view = false) {
+                     bool cache_view = false,
+                     bool host_usm = false) {
     constexpr int S = 12, H = 2, C = 7, history = 3;
     const int F = conv ? C * history : H * K * V;
     const size_t cache_port = conv ? 0 : 3;
@@ -165,7 +166,8 @@ void run_update_case(bool conv,
                     req.set_input_tensor(port, inputs[port]);
             }
             expected_req.infer();
-            auto remote = context.create_usm_device_tensor(cache_type, inputs[cache_port].get_shape());
+            auto remote = host_usm ? context.create_usm_host_tensor(cache_type, inputs[cache_port].get_shape())
+                                   : context.create_usm_device_tensor(cache_type, inputs[cache_port].get_shape());
             inputs[cache_port].copy_to(remote);
             req.set_input_tensor(cache_port, remote);
             auto other = context.create_usm_device_tensor(cache_type, remote.get_shape());
@@ -251,4 +253,44 @@ TEST(RecurrentCacheUpdateNative, ExclusiveReshapeCacheAlias) {
     // An independent root reader must still veto mutation through a view.
     run_update_case(true, ov::element::f16, ov::element::i32, 0, 0, 1, true, false, ov::element::f32, true);
     run_update_case(false, ov::element::f16, ov::element::i32, 128, 8, 3, true, false, ov::element::f32, true);
+}
+
+// Match llama.cpp's default FP32 cache reshapes with FP16 compute. Full-cache
+// precision reorders defeat direct USM binding even if numerical tests still pass.
+TEST(RecurrentCacheUpdateNative, Fp16InferencePreservesReshapedCachePrecision) {
+    using namespace ov;
+    auto cache = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 1, -1, 21});
+    auto rows = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1, 1, 1, -1});
+    auto data = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, -1, 7, -1});
+    auto shape = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, -1, 21});
+    auto view = std::make_shared<op::v1::Reshape>(cache, shape, false);
+    auto zero = op::v0::Constant::create(element::i32, Shape{1, 1, 1, 1}, {0});
+    auto offsets = op::v0::Constant::create(element::i32, Shape{1, 1, 1, 2}, {0, 0});
+    auto windows = op::v0::Constant::create(element::i32, Shape{1, 1, 1, 2}, {0, 0});
+    auto weights = op::v0::Constant::create(element::f16, Shape{1, 1, 7, 4}, {0.1f});
+    auto update = std::make_shared<op::internal::RecurrentConvCacheUpdate>(
+        OutputVector{view, rows, rows, zero, zero, offsets, data, windows, weights}, 3);
+    auto model = std::make_shared<Model>(OutputVector{update->output(0), update->output(1)},
+                                       ParameterVector{cache, rows, data});
+    Core core;
+    auto compiled = core.compile_model(model, "GPU", hint::inference_precision(element::f16));
+    auto runtime = compiled.get_runtime_model();
+    bool found = false;
+    for (const auto& node : runtime->get_ordered_ops()) {
+        const auto& info = node->get_rt_info();
+        auto type = info.find("layerType");
+        if (type == info.end() || type->second.as<std::string>() != "recurrent_cache_update")
+            continue;
+        ASSERT_EQ(node->get_input_element_type(0), element::f32);
+        ASSERT_EQ(compiled.output(1).get_element_type(), element::f32);
+        found = true;
+    }
+    ASSERT_TRUE(found);
+}
+
+// Integrated GPUs can expose caller cache storage as host USM. Apply the same
+// exclusive-alias contract without staging the full cache through device USM.
+TEST(RecurrentCacheUpdateNative, HostUsmExclusiveCacheAlias) {
+    run_update_case(true, ov::element::f16, ov::element::i32, 0, 0, 1, false, false, ov::element::f32, true, true);
+    run_update_case(false, ov::element::f16, ov::element::i32, 128, 8, 3, false, false, ov::element::f32, true, true);
 }

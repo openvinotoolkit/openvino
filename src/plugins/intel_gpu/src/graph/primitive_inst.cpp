@@ -851,7 +851,7 @@ bool primitive_inst::try_bind_recurrent_cache_output(const layout& actual_layout
         if (!remote || !get_network().get_engine().is_the_same_buffer(*remote, get_network().get_output_remote_memory(user->id())))
             continue;
         const auto& target_layout = user->_impl_params->get_output_layout();
-        if (!remote || remote->get_allocation_type() != allocation_type::usm_device || !target_layout.is_static() ||
+        if (!remote || (remote->get_allocation_type() != allocation_type::usm_device && remote->get_allocation_type() != allocation_type::usm_host) || !target_layout.is_static() ||
             actual_layout.data_type != target_layout.data_type || actual_layout.format != target_layout.format ||
             actual_layout.get_pitches() != target_layout.get_pitches() || actual_layout.get_linear_offset() != target_layout.get_linear_offset() ||
             actual_layout.bytes_count() > remote->size())

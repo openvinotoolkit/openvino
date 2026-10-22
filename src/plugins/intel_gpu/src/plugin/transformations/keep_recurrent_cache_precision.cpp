@@ -4,16 +4,29 @@
 #include "openvino/op/recurrent_cache.hpp"
 #include "openvino/op/recurrent_cache_update.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/op/reshape.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 namespace ov::intel_gpu {
 bool KeepRecurrentCachePrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
     bool changed = false;
+    auto protect_cache = [](const ov::Input<ov::Node>& input) {
+        ov::mark_as_precision_sensitive(input);
+        auto source = input.get_source_output().get_node_shared_ptr();
+        // llama.cpp flattens its FP32 cache through Reshapes. Protect those
+        // aliases too; marking only the consumer permits full-cache FP16 reorders.
+        while (ov::is_type<ov::op::v1::Reshape>(source)) {
+            ov::disable_conversion(source, ov::element::f16);
+            ov::mark_as_precision_sensitive(source->input(0));
+            source = source->input_value(0).get_node_shared_ptr();
+        }
+    };
     for (const auto& node : model->get_ordered_ops()) {
         if (ov::is_type<ov::op::internal::RecurrentGatedDeltaNetUpdate>(node) || ov::is_type<ov::op::internal::RecurrentGatedDeltaNet>(node)) {
-            ov::mark_as_precision_sensitive(node->input(3));
+            protect_cache(node->input(3));
             changed = true;
         }
         if (ov::is_type<ov::op::internal::RecurrentConvCacheUpdate>(node) || (ov::is_type<ov::op::internal::RecurrentConvCache>(node) && node->get_input_size() == 9)) {
-            ov::mark_as_precision_sensitive(node->input(0));
+            protect_cache(node->input(0));
             changed = true;
         }
     }

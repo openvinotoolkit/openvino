@@ -49,11 +49,13 @@ when only a few rows change.
 **GPU allocation and ordering**
 
 Distinct caller allocations retain immutable input semantics. For dynamic
-execution, identical input/output device-USM allocations can be bound directly
+execution, identical input/output device-USM or host-USM allocations can be bound directly
 when the cache has an exclusive graph reader and no other input overlaps the
 output. Memory-identical optimized Reshapes/views may connect the cache Parameter
 to the operation; the entire alias chain must be exclusive, including the root
-Parameter. An independent reader at any step disables direct alias execution.
+Parameter. The precision pass also preserves FP32 cache Reshape aliases when
+compute uses FP16, avoiding full-cache precision reorders before the operation.
+An independent reader at any step disables direct alias execution.
 Required active and nonidentity reorder sources are first captured in
 private device scratch. Scratch capacity is conservatively bounded by the
 active-map plus full extra-map lengths; skipping identity rows avoids transfers
