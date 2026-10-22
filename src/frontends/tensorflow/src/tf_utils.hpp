@@ -23,9 +23,7 @@
 #include "ov_tensorflow/tensor_shape.pb.h"
 #include "ov_tensorflow/types.pb.h"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 #define CF_MARKER_TAG "tf_cf_marker_tag"
 
@@ -118,6 +116,4 @@ void inject_body_model(std::shared_ptr<ov::Model> ov_model_to_inject,
                        const ov::OutputVector& ov_inputs,
                        ov::OutputVector& ov_outputs,
                        const std::vector<std::string>& ov_input_names = {});
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

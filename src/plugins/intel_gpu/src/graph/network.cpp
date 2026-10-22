@@ -12,6 +12,7 @@
 #include <set>
 #include <stack>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -30,6 +31,7 @@
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/lora.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/permute.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -48,6 +50,7 @@
 #include "program_helpers.h"
 #include "read_value_inst.h"
 #include "reshape_inst.h"
+#include "stateless_kv_inst.h"
 #include "to_string_utils.h"
 #ifdef GPU_DEBUG_CONFIG
 #    include <sys/stat.h>
@@ -60,6 +63,31 @@
 
 namespace cldnn {
 namespace {
+
+// Check if layouts are the same after expanding the lower-rank shape with ones
+bool compare_expanded_layout(layout left, layout right) {
+    auto left_shape = left.get_partial_shape();
+    auto right_shape = right.get_partial_shape();
+
+    // Fall back to strict equality for dynamic shapes
+    if (left_shape.rank().is_dynamic() || right_shape.rank().is_dynamic()) {
+        return left == right;
+    }
+
+    const size_t max_rank = std::max(left_shape.size(), right_shape.size());
+    auto expand_with_trailing_ones = [max_rank](ov::PartialShape& shape) {
+        while (shape.size() < max_rank) {
+            shape.push_back(ov::Dimension(1));
+        }
+    };
+    expand_with_trailing_ones(left_shape);
+    expand_with_trailing_ones(right_shape);
+
+    left.set_partial_shape(left_shape);
+    right.set_partial_shape(right_shape);
+
+    return left == right;
+}
 
 #ifdef GPU_DEBUG_CONFIG
 void dump_perf_data_raw(std::string dump_path, bool per_iter_mode, const std::list<std::shared_ptr<primitive_inst>>& exec_order) {
@@ -247,6 +275,7 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     validate_primitives();
     preallocate_shape_info_buffers();
     add_default_output_chains();
+    prepare_record_replay();
 }
 
 network::network(program::ptr program, bool is_internal, bool is_primary_stream)
@@ -369,6 +398,10 @@ void network::set_arguments() {
         if (!prim->is_dynamic()) {
             bool can_set_args = true;
             for (const auto& dep : prim->dependencies()) {
+                if (prim->is_output() && prim->type() == reorder::type_id() && dep.first->type() == stateless_kv::type_id()) {
+                    can_set_args = false;
+                    break;
+                }
                 // Skip set args for nodes with dynamic & optimized_out dependency
                 // This is needed to handle dynamic -> static cases like
                 // (dynamic) -> reshape -> (static) -> some_op
@@ -407,8 +440,16 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, boo
         CLDNN_ERROR_MESSAGE(id, "primitive " + id + " is not an input");
     }
     auto input = std::static_pointer_cast<input_layout_inst>(primitive_inst);
-    const bool was_unallocated = !input->output_memory_ptr();
+    const auto prev_mem = input->output_memory_ptr();
+    const bool was_unallocated = !prev_mem;
     auto ev = input->set_data(data, need_to_check_memory_to_set);
+
+    const auto new_mem = input->output_memory_ptr();
+    const bool same_buffer = prev_mem && new_mem &&
+                             get_engine().is_the_same_buffer(*prev_mem, *new_mem) &&
+                             compare_expanded_layout(prev_mem->get_layout(), new_mem->get_layout());
+    if (!same_buffer)
+        invalidate_recording();
 
     if (was_unallocated) {
         // The initial set_arguments() skipped nodes whose dep buffer was null —
@@ -435,7 +476,7 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, boo
 void network::add_default_output_chains() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("add_default_output_chains");
     for (auto& output : _outputs) {
-        add_output_chain(output);
+        _output_chains.emplace(output->id(), build_output_chain(output, false));
     }
 }
 
@@ -488,7 +529,7 @@ void network::calculate_weights_cache_capacity() {
     }
 }
 
-network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<primitive_inst>& p_inst) {
+std::vector<primitive_inst*> network::build_output_chain(std::shared_ptr<primitive_inst>& p_inst, bool is_remote) {
     std::vector<primitive_inst*> chain;
     std::stack<const primitive_inst*> candidates;
     auto& eng = get_engine();
@@ -543,6 +584,11 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
             add_mdata_chain(nc_cand);
         }
 
+        // A runtime-skippable permute may need to execute after its concrete shape is known.
+        // Keep a remote output bound to the permute without aliasing its input producer.
+        if (is_remote && cand->get_node().is_type<permute>() && cand->get_node().is_runtime_skippable())
+            continue;
+
         for (const auto& dep : cand->dependencies()) {
             if (dep.first->can_be_optimized()) {
                 candidates.push(dep.first);
@@ -562,7 +608,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
 
     std::sort(chain.begin(), chain.end());
     chain.erase(std::unique(chain.begin(), chain.end()), chain.end());
-    return _output_chains.insert({p_inst->id(), chain}).first;
+    return chain;
 }
 
 std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memory::ptr mem_new, bool is_remote) {
@@ -570,21 +616,42 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
     std::vector<event::ptr> ret_ev;
     std::shared_ptr<primitive_inst> p_inst = find_primitive(id);
 
+    const auto prev_out = p_inst->output_memory_ptr();
+    const bool same_buffer = prev_out && mem_new &&
+                                    get_engine().is_the_same_buffer(*prev_out, *mem_new) &&
+                                    compare_expanded_layout(prev_out->get_layout(), mem_new->get_layout());
+    if (!same_buffer)
+        invalidate_recording();
+
     auto iter = std::find(_outputs.begin(), _outputs.end(), p_inst);
     if (iter == _outputs.end()) {
         throw std::runtime_error("primitive: " + id + " is not a network output");
     }
 
-    if (is_remote) {
-        _output_remote_mem_ptrs[id] = mem_new;
+    auto& eng = get_engine();
+    // Remote outputs need a conservative chain because a runtime-skippable
+    // permute may become executable after shape inference.
+    // Build before invalidation: the chain is filtered by the output's current buffer.
+    auto& output_chains = is_remote ? _remote_output_chains : _output_chains;
+    auto o_iter = output_chains.find(id);
+    if (o_iter == output_chains.end()) {
+        o_iter = output_chains.emplace(id, build_output_chain(p_inst, is_remote)).first;
     }
 
-    auto& eng = get_engine();
-    // locate primitive chain for this output
-    // if no chain found - add it
-    auto o_iter = _output_chains.find(id);
-    if (o_iter == _output_chains.end()) {
-        o_iter = add_output_chain(p_inst);
+    if (is_remote && p_inst->is_dynamic()) {
+        const auto bound_it = _bound_user_output_memory.find(id);
+        if (bound_it == _bound_user_output_memory.end()) {
+            invalidate_ext_block_compute_nodes(id);
+        } else if (!eng.is_the_same_buffer(*bound_it->second, *mem_new) || bound_it->second->size() != mem_new->size()) {
+            release_user_output_memory(id);
+        }
+    }
+    if (is_remote) {
+        _output_remote_mem_ptrs[id] = mem_new;
+        _bound_user_output_memory[id] = mem_new;
+    } else {
+        _output_remote_mem_ptrs.erase(id);
+        _bound_user_output_memory.erase(id);
     }
 
     for (auto& prim : o_iter->second) {
@@ -599,6 +666,23 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
             prim->set_arguments();
         }
     }
+
+    if (is_remote) {
+        for (auto* prim : o_iter->second) {
+            if (!prim->get_node().is_type<permute>() || !prim->get_node().is_runtime_skippable() || prim->dependencies().empty())
+                continue;
+
+            // A remote-bound permute may later execute instead of skip after concrete shape inference.
+            // Invalidate its producer's current output lazily so realloc_outputs() can either borrow
+            // the new remote destination or allocate separate producer memory with the final layout.
+            auto producer = find_primitive(prim->dependencies().front().first->id());
+            if (producer->is_dynamic() && mem_new && !producer->can_be_optimized() && !producer->has_inner_networks() &&
+                (!producer->output_memory_ptr() || !eng.is_the_same_buffer(*producer->output_memory_ptr(), *mem_new))) {
+                producer->request_output_reallocation();
+            }
+        }
+    }
+
     return ret_ev;
 }
 
@@ -628,6 +712,65 @@ bool network::does_node_need_lockable_output(const primitive_id& id) const {
         return false;
     }
     return prim_inst->get_impl() ? prim_inst->get_impl()->is_cpu() : true;
+}
+
+bool network::may_alias(const primitive_id& output_id, const primitive_id& input_id) const {
+    const auto output = find_primitive(output_id);
+    const auto input = find_primitive(input_id);
+    if (!output->is_output() || !input->is_input())
+        return false;
+
+    // Processing order doesn't serialize independent readers of the input with the writer on an out-of-order queue.
+    if (get_stream().get_queue_type() == QueueTypes::out_of_order)
+        return false;
+
+    const auto input_pos_it = _exec_positions.find(input.get());
+    if (input_pos_it == _exec_positions.end())
+        return false;
+
+    // Walk back from the output to the primitives that actually write its buffer; none of them
+    // may be restricted from sharing a buffer with the input.
+    const auto input_uid = static_cast<uint32_t>(input->get_node().get_unique_id());
+    std::unordered_set<const primitive_inst*> visited;
+    std::stack<const primitive_inst*> pending;
+    pending.push(output.get());
+    while (!pending.empty()) {
+        const auto* inst = pending.top();
+        pending.pop();
+        if (!visited.insert(inst).second)
+            continue;
+        // A pure pass-through of the input is conservatively rejected.
+        if (inst == input.get())
+            return false;
+        // Relies on oooq_memory_dependencies to mark primitives that must not share memory with the input.
+        // Known gap: that pass skips the first non-constant node in processing order (usually an input). Will be fixed later.
+        if (inst->get_runtime_memory_dependencies().contains(input_uid))
+            return false;
+        // The input holds data from the start of execution, so anything running before it would
+        // overwrite data that its readers still need; restrictions only cover the range after it.
+        const auto pos_it = _exec_positions.find(inst);
+        if (pos_it == _exec_positions.end() || pos_it->second < input_pos_it->second)
+            return false;
+        const auto& node = inst->get_node();
+        if (!node.can_be_optimized() && !node.is_runtime_skippable())
+            continue;
+        // May borrow its buffer from a producer; if it still executes, it was already checked as a writer above.
+        const auto shape_deps = node.get_shape_infer_dependencies();
+        const auto& deps = inst->dependencies();
+        bool has_data_dep = false;
+        for (size_t i = 0; i < deps.size(); ++i) {
+            if (std::find(shape_deps.begin(), shape_deps.end(), i) != shape_deps.end())
+                continue;
+            // Restrictions are per node, so a buffer coming from a non-primary output can't be proven.
+            if (deps[i].second != 0)
+                return false;
+            pending.push(deps[i].first);
+            has_data_dep = true;
+        }
+        if (!has_data_dep)
+            return false;
+    }
+    return true;
 }
 
 std::string network::get_implementation_info(const primitive_id& id) const {
@@ -793,23 +936,15 @@ bool network::has_output_remote_memory_ptr(const primitive_id& id) const {
     return it != _output_remote_mem_ptrs.end();
 }
 
+bool network::is_output_remote_memory(const memory& mem) const {
+    return std::any_of(_output_remote_mem_ptrs.begin(), _output_remote_mem_ptrs.end(), [&](const auto& output) {
+        return output.second && get_engine().is_the_same_buffer(mem, *output.second);
+    });
+}
+
 void network::reset_output_remote_memory_ptrs() {
     if (!_output_remote_mem_ptrs.empty()) {
         _output_remote_mem_ptrs.clear();
-    }
-}
-
-void network::invalidate_output_memory_chain(const primitive_id& id) {
-    auto p_inst = find_primitive(id);
-    p_inst->clear_output_memory();
-
-    auto o_iter = _output_chains.find(id);
-    if (o_iter != _output_chains.end()) {
-        for (auto* prim : o_iter->second) {
-            if (prim != p_inst.get()) {
-                prim->clear_output_memory();
-            }
-        }
     }
 }
 
@@ -836,8 +971,8 @@ void network::invalidate_ext_block_compute_nodes(const primitive_id& output_id) 
         cursor = dep;
     }
     // cursor is now the compute node — clear its output so it re-acquires from ext_block
-    if (!cursor->has_inner_networks() && !cursor->can_be_optimized()) {
-        cursor->clear_output_memory();
+    if (!cursor->is_input() && !cursor->has_inner_networks() && !cursor->can_be_optimized()) {
+        cursor->release_and_clear_output_memory();
         GPU_DEBUG_TRACE_DETAIL << "[double-buffer] cleared output memory on compute node " << cursor->id() << std::endl;
     }
 }
@@ -852,14 +987,40 @@ void network::register_output_memory_block(const primitive_id& id, ov::intel_gpu
         }
         it->second = block;
     }
+    // Writers may still hold another request's memory; with unchanged shapes nothing else reallocates them.
+    invalidate_ext_block_compute_nodes(id);
+	
+    invalidate_recording();
 }
 
 void network::unregister_output_memory_block(const primitive_id& id) {
     auto it = _output_memory_blocks.find(id);
     if (it != _output_memory_blocks.end()) {
+        invalidate_recording();
         _output_memory_blocks.erase(it);
         invalidate_ext_block_compute_nodes(id);
     }
+}
+
+void network::release_user_output_memory(const primitive_id& id) {
+    auto bound_it = _bound_user_output_memory.find(id);
+    if (bound_it == _bound_user_output_memory.end())
+        return;
+    const auto bound = std::move(bound_it->second);
+    _bound_user_output_memory.erase(bound_it);
+
+    auto chain_it = _remote_output_chains.find(id);
+    if (chain_it != _remote_output_chains.end()) {
+        for (auto* prim : chain_it->second) {
+            // Only dynamic primitives re-acquire a cleared output; inputs keep their own binding.
+            if (!prim->is_dynamic() || prim->is_input() || prim->has_inner_networks())
+                continue;
+            if (prim->output_memory_ptr() && get_engine().is_the_same_buffer(*prim->output_memory_ptr(), *bound))
+                prim->clear_output_memory();
+        }
+    }
+    // Also covers a producer that borrowed the bound memory in realloc_outputs().
+    invalidate_ext_block_compute_nodes(id);
 }
 
 ov::intel_gpu::OutputMemoryBlock* network::get_output_memory_block(const primitive_id& id) const {
@@ -868,6 +1029,9 @@ ov::intel_gpu::OutputMemoryBlock* network::get_output_memory_block(const primiti
 }
 
 void network::clear_output_memory_blocks() {
+    if (!_output_memory_blocks.empty()) {
+        invalidate_recording();
+    }
     // Move map out first so _output_memory_blocks is empty even if invalidation throws.
     auto blocks = std::move(_output_memory_blocks);
     for (auto& [prim_id, block_ptr] : blocks) {
@@ -877,6 +1041,7 @@ void network::clear_output_memory_blocks() {
 
 void network::add_to_exec_order(const primitive_id& id) {
     auto inst = get_primitive(id);
+    _exec_positions.emplace(inst.get(), _exec_order.size());
     _exec_order.push_back(inst);
 }
 
@@ -955,32 +1120,54 @@ bool network::has_event(const primitive_id& id) const {
 }
 
 void network::execute_impl(const std::vector<event::ptr>& events) {
-    set_arguments();
-
-    // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
-    // since it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
-    // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287, 139931.
-    const bool needs_flushing = _is_dynamic;
-    const size_t flush_frequency = needs_flushing ? 16 : 0;
-    size_t executed_prims = 0;
-
-    for (auto& inst : _exec_order) {
-        NODE_DEBUG(*inst);
-        OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::intel_gpu_op, openvino::itt::handle(inst->id()));
-
-        inst->reset_events();
-
-        if (inst->is_input()) {
-            inst->add_dep_events(events);
+    bool is_recording = false;
+    if (_record_replay_session) {
+        if (_record_replay_session->replay(events, _exec_order)) {
+            return;
         }
+        _record_replay_session->begin_recording(events);
+        is_recording = true;
+    }
+    try {
+        set_arguments();
 
-        inst->prepare_primitive();
-        inst->execute();
+        // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
+        // since it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
+        // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287, 139931.
+        const bool needs_flushing = _is_dynamic;
+        const size_t flush_frequency = needs_flushing ? 16 : 0;
+        size_t executed_prims = 0;
 
-        executed_prims++;
-        if (needs_flushing && executed_prims % flush_frequency == 0) {
-            get_stream().flush();
+        for (auto& inst : _exec_order) {
+            NODE_DEBUG(*inst);
+            OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::intel_gpu_op, openvino::itt::handle(inst->id()));
+
+            inst->clear_events();
+
+            // Dependency events should not be recorded to the command list
+            // As they could propagate to the subsequent replay iteration
+            // Instead events were passed to begin_recording()
+            if (!is_recording && inst->is_input()) {
+                inst->add_dep_events(events);
+            }
+
+            inst->prepare_primitive();
+            inst->execute();
+
+            executed_prims++;
+            if (needs_flushing && executed_prims % flush_frequency == 0) {
+                get_stream().flush();
+            }
         }
+    } catch (...) {
+        if (is_recording) {
+            _record_replay_session->end_recording();
+            _record_replay_session->invalidate();
+        }
+        throw;
+    }
+    if (is_recording) {
+        _record_replay_session->end_recording();
     }
 
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
@@ -992,6 +1179,53 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     for (auto& inst : _exec_order) {
         inst->reset_flags();
     }
+}
+
+void network::invalidate_recording() {
+    if (_record_replay_session) {
+        _record_replay_session->invalidate();
+    }
+}
+
+void network::prepare_record_replay() {
+    bool use_record_replay = get_config().get_record_replay();
+    bool skip_model_check = GPU_DEBUG_VALUE_OR(get_config().get_record_replay_dynamic(), false);
+    bool should_use_record_replay = !_internal && (use_record_replay || skip_model_check);
+    if (!should_use_record_replay) {
+        return;
+    }
+    OPENVINO_ASSERT(_stream->get_recorder() != nullptr, "[GPU] Stream recording is not supported by the current stream implementation");
+    auto check_model_support = [this]() {
+        // Record & replay re-submits a fixed sequence of GPU commands.
+        // Only safe when recording iteration produces self-contained GPU command stream that remains valid across iterations.
+
+        // Event/barrier based synchronization can cause hangs during replay
+        if (_stream->get_queue_type() != QueueTypes::in_order || _stream->get_sync_method() != cldnn::SyncMethods::none)
+            return false;
+
+        // When model is dynamic it is not safe to fully skip prepare_primitive and execute logic on replay iterations
+        if (_is_dynamic)
+            return false;
+        // Variable state might invalidate recording when updated
+        if (!_variables_state_info.empty())
+            return false;
+        for (const auto& inst : _exec_order) {
+            // Inner network execution (loop/condition primitives) is based on host-side logic
+            if (inst->has_inner_networks())
+                return false;
+            // Check for any implementations that are not replay safe
+            const auto* impl = inst->get_impl();
+            if (impl == nullptr)
+                return false;
+            if (!impl->supports_replay())
+                return false;
+        }
+        return true;
+    };
+    if (!skip_model_check) {
+        OPENVINO_ASSERT(check_model_support(), "[GPU] Record and replay is not supported on the provided model");
+    }
+    _record_replay_session = std::make_shared<record_replay_session>(*_stream);
 }
 
 std::vector<primitive_id> network::get_input_ids() const {

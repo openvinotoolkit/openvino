@@ -20,10 +20,13 @@ namespace ov::npuw {
 // 3) Shrink the externalized mask width to the same post-concat KV width.
 // 4) Privatize and patch KV-length-dependent shape constants (Broadcast/Reshape) to prevent
 //    cross-layer shared-shape leakage from SWA layers into full attention layers.
+// 5) Prefix SWA past_key_values.N.key/value Parameter and present.N.key/value output names,
+//    so SWA-managed KV cache entries can be identified by name alone downstream.
 //
 // SWA contract:
-// - new_past = window_size
-// - new_kv_total = input_size + window_size
+// - new_past = window_size, rounded up so that input_size + new_past is a multiple of 16
+//   (NPU HW prefers 16-aligned KV lengths).
+// - new_kv_total = input_size + new_past.
 //
 // Pass ordering:
 // - Run after ReshapeToStatic.
@@ -34,11 +37,17 @@ class ShrinkSlidingWindowKVCache : public ov::pass::ModelPass {
     uint32_t m_kvcache_size;
     uint32_t m_input_size;
     KVAxesPosition m_kv_axes_position;
+    uint32_t m_window_size = 0;
 
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::ShrinkSlidingWindowKVCache");
     ShrinkSlidingWindowKVCache(uint32_t kvcache_size, uint32_t input_size, const KVAxesPosition& kv_axes_position);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+
+    // SWA window size detected by the last run_on_model() call, 0 if none.
+    uint32_t window_size() const {
+        return m_window_size;
+    }
 };
 
 }  // namespace ov::npuw

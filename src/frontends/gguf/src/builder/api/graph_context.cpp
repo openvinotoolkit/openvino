@@ -12,10 +12,9 @@
 #include "builder/api/graph_context_impl.hpp"
 #include "builder/blocks/ffn.hpp"
 #include "builder/blocks/gated_delta_net.hpp"
+#include "openvino/op/constant.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 using ov::element::f32;
 using ov::element::i32;
@@ -43,6 +42,7 @@ DecoderDimensions GgufGraphContext::configure_decoder(RopeMode rope, const Decod
     m_impl->check_open();
     OPENVINO_ASSERT(!m_impl->decoder, "[GGUF] decoder is already configured");
     auto normalized = decoder_config_from_meta(detail::MetadataAccess::get(metadata()).map);
+    m_impl->emitter.configure_hadamard(normalized);
     auto config = std::make_unique<DecoderConfig>(normalized, m_impl->build_ctx.weights->weights, rope, options);
     auto& graph = *m_impl->emitter.graph();
     graph.has_rope = true;
@@ -119,10 +119,23 @@ GgufValue GgufGraphContext::add_input(const std::string& name, ov::element::Type
     return GgufValue(name, e.value(name));
 }
 
+GgufValue GgufGraphContext::add_constant(const std::string& name, const ov::Tensor& value) {
+    m_impl->check_open();
+    auto& emitter = m_impl->emitter;
+    OPENVINO_ASSERT(
+        !emitter.graph()->values->count(name) && !emitter.has_weight(name) && !emitter.has_model_input(name),
+        "[GGUF] constant name is already used: ",
+        name);
+    emitter.add_extra_input_node(name, std::make_shared<ov::op::v0::Constant>(value));
+    return GgufValue(name, emitter.value(name));
+}
+
 GgufValue GgufGraphContext::build_inp_embd(const GgufValue& tok_embd) {
     OPENVINO_ASSERT(tok_embd, "[GGUF] build_inp_embd: the token embedding weight is missing");
     auto tokens = add_input("inp_tokens", i32, ov::PartialShape({1, 1, 1, D}));
-    return node("GGML_OP_GET_ROWS", {tok_embd, tokens});
+    auto embeddings = node("GGML_OP_GET_ROWS", {tok_embd, tokens});
+    embeddings.m_value.get_node_shared_ptr()->get_rt_info()["gguf.token_embedding"] = true;
+    return embeddings;
 }
 
 GgufValue GgufGraphContext::build_inp_pos() {
@@ -188,6 +201,24 @@ void GgufGraphContext::set_output(const GgufValue& logits) {
     m_impl->emitter.graph()->model_output_names.push_back(m_impl->value_name(logits));
 }
 
+void GgufGraphContext::set_primary_output(const GgufValue& value) {
+    m_impl->check_open();
+    auto& outputs = m_impl->emitter.graph()->model_output_names;
+    outputs.insert(outputs.begin(), m_impl->value_name(value));
+}
+
+void GgufGraphContext::set_output(const GgufValue& value, const std::string& name) {
+    m_impl->check_open();
+    auto& emitter = m_impl->emitter;
+    OPENVINO_ASSERT(!name.empty() && !emitter.graph()->values->count(name) && !emitter.has_weight(name),
+                    "[GGUF] output name is already used: ",
+                    name);
+    emitter.add_op("GGML_OP_CONT", name, {m_impl->value_name(value)}, 1, {{"op_case", 1}});
+    // The copy may be the source tensor itself; keep the names it already exposes.
+    emitter.value(name).get_tensor().add_names({name});
+    emitter.graph()->model_output_names.push_back(name);
+}
+
 void GgufGraphContext::set_sliding_window(int64_t tokens) {
     m_impl->check_open();
     OPENVINO_ASSERT(tokens > 0 && tokens <= std::numeric_limits<int>::max(),
@@ -216,6 +247,7 @@ void GgufGraphContext::add_recurrent_state(const GgufValue& input, const GgufVal
 
 std::shared_ptr<GgufGraph> GgufGraphContext::finish() {
     m_impl->check_open();
+    m_impl->emitter.validate_hadamard();
     const auto graph = m_impl->emitter.graph();
     OPENVINO_ASSERT(!graph->model_output_names.empty(), "[GGUF] graph has no outputs");
     std::set<std::string> available;
@@ -228,6 +260,7 @@ std::shared_ptr<GgufGraph> GgufGraphContext::finish() {
             OPENVINO_ASSERT(available.count(input), "[GGUF] node '", node.name, "' uses unknown value '", input, "'");
         }
         available.insert(node.output_name);
+        available.insert(node.extra_output_names.begin(), node.extra_output_names.end());
     }
     std::set<std::string> outputs;
     for (const auto& output : graph->model_output_names) {
@@ -238,6 +271,4 @@ std::shared_ptr<GgufGraph> GgufGraphContext::finish() {
     return graph;
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf
