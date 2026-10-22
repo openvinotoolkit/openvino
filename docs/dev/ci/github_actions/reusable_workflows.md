@@ -70,5 +70,13 @@ In the OpenVINO GitHub Actions CI, reusable workflows typically have:
 
 >**NOTE**: All workflows should be placed under [`./.github/workflows`](./../../../../.github/workflows) according to the [GitHub documentation](https://docs.github.com/en/actions/using-workflows/about-workflows#about-workflows).
 
+The Ubuntu 24.04 LLM accuracy jobs use [`job_genai.yml`](../../../../.github/workflows/job_genai.yml)
+to build an OpenVINO GenAI wheel from the target branch against the OpenVINO and tokenizers wheels
+produced by the same workflow run. The accuracy jobs install all three local wheels before installing
+the pinned dependencies from [`tests/llm/requirements.txt`](../../../../tests/llm/requirements.txt).
+The suite uses its own [`constraints.txt`](../../../../tests/llm/constraints.txt), retaining the shared
+dependency bounds but selecting PyTorch 2.11 and torchvision 0.26 to match the torchaudio dependency
+of WhoWhatBench's `releases/2026/4` branch. Other test suites keep the repository-wide PyTorch constraints.
+
 Since reusable workflows are structured and behave like jobs, you can refer to the [adding tests page](./adding_tests.md) to learn more about creating a job and
 use the information about the reusable workflows to transform a job into a reusable workflow.
