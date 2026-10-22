@@ -165,10 +165,8 @@ struct BaseModelConfig {
 /// for SDPA. Empty = default Gemma-4-style float construction; set to a builder
 /// like make_sliding_window_mask_phi3 to test the older boolean Phi3 pattern.
 /// Builder declarations live in model_builder_masks.hpp.
-using SlidingMaskFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&,
-                                                         const ov::Output<ov::Node>&,
-                                                         ov::element::Type,
-                                                         size_t)>;
+using SlidingMaskFn = std::function<
+    ov::Output<ov::Node>(const ov::Output<ov::Node>&, const ov::Output<ov::Node>&, ov::element::Type, size_t)>;
 
 /// Minimal standalone LoRA adapter model config (no attention/KV/RoPE).
 struct LoRAConfig : public BaseModelConfig {
@@ -198,17 +196,18 @@ struct LLMConfig : public BaseModelConfig {
     LongRopeSpec longrope;
 
     // MoE configuration (num_experts=0 means dense, no MoE)
-    size_t num_experts = 0;           ///< Total experts. 0 = dense model.
-    size_t num_experts_per_tok = 0;   ///< Top-K. 0 = default to 2.
-    size_t moe_intermediate_size = 0; ///< Expert FFN intermediate size. 0 = use intermediate_size.
-    MoEFactoryFn moe_factory;  ///< MoE topology (num_experts>0). Empty = GPT-OSS; make_qwen3_moe_ffn for Qwen3.
+    size_t num_experts = 0;            ///< Total experts. 0 = dense model.
+    size_t num_experts_per_tok = 0;    ///< Top-K. 0 = default to 2.
+    size_t moe_intermediate_size = 0;  ///< Expert FFN intermediate size. 0 = use intermediate_size.
+    MoEFactoryFn moe_factory;          ///< MoE topology (num_experts>0). Empty = GPT-OSS; make_qwen3_moe_ffn for Qwen3.
 
-    size_t sliding_window_size = 0;      ///< 0 = no sliding window. >0 = window size (Phi-3, Gemma 2/3)
+    size_t sliding_window_size = 0;  ///< 0 = no sliding window. >0 = window size (Phi-3, Gemma 2/3)
     /// 0 = uniform: every layer gets the same mask (all sliding if sliding_window_size > 0,
     /// else all full causal). N > 0 = N sliding layers per 1 full, alternating (Gemma 2: 1, Gemma 3: 5).
     size_t sliding_to_full_ratio = 0;
-    bool use_token_type_ids = false;     ///< Gemma 3 VLM: token_type_ids param (0=text/causal, 1=image/bidir)
-    SlidingMaskFn sliding_mask_fn;       ///< Empty = default float SWA (matches no NPUW pass; set make_sliding_window_mask_phi3 for Phi-3/Gemma-2/Gemma-3).
+    bool use_token_type_ids = false;  ///< Gemma 3 VLM: token_type_ids param (0=text/causal, 1=image/bidir)
+    SlidingMaskFn sliding_mask_fn;    ///< Empty = default float SWA (matches no NPUW pass; set
+                                      ///< make_sliding_window_mask_phi3 for Phi-3/Gemma-2/Gemma-3).
 
     /// LoRA adapter support: inject low-rank A/B/alpha tensors per adapted linear layer.
     /// 0 = no LoRA. >0 = inject LoRA with this max rank into adapted projections.
@@ -227,6 +226,12 @@ struct LLMConfig : public BaseModelConfig {
     /// Token mixer for linear layers (e.g. GatedDeltaNetMixer or ShortConvMixer). build_llm wires
     /// its seq_source/beam_idx. A new mixer type needs no build_llm change.
     std::shared_ptr<LinearMixer> linear_mixer;
+
+    // Support of LLM with multiple outputs: OmniThinker
+    bool add_hidden_states_output = false;
+    std::string hidden_states_output_name = "hidden_states";
+    bool add_pooled_output = false;
+    std::string pooled_output_name = "pooled_hidden_state";
 };
 
 struct WhisperConfig : public BaseModelConfig {
