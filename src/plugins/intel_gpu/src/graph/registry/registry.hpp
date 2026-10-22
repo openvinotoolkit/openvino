@@ -149,6 +149,7 @@ REGISTER_IMPLS(gated_mlp);
 REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
 REGISTER_IMPLS(gated_delta_net);
+REGISTER_IMPLS(recurrent_cache);
 REGISTER_IMPLS(selective_ssm);
 REGISTER_IMPLS(gemm);
 REGISTER_IMPLS(group_normalization);

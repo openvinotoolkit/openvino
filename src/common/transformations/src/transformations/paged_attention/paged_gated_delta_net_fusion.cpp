@@ -93,7 +93,9 @@ PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion(ov::pass::paged_attention::Pa
 
         const auto& pm = m.get_pattern_value_map();
         const auto gdn_node = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(pm.at(gdn).get_node_shared_ptr());
-        if (!gdn_node || gdn_node->get_output_size() != 2) {
+        // The llama.cpp cache-aware variant owns its reset/reorder/writeback contract.
+        if (!gdn_node || gdn_node->get_input_size() != 6 || gdn_node->get_output_size() != 2 ||
+            gdn_node->get_snapshot_count() != 1) {
             return false;
         }
 

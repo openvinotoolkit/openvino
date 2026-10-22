@@ -323,6 +323,11 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto gdn_node = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(pattern_map.at(gdn).get_node_shared_ptr());
+        // Cache-aware Qwen3.5 llama.cpp GDN derives from this type but has runtime
+        // reset/reorder/writeback inputs that a six-input reconstruction would discard.
+        if (!gdn_node || gdn_node->get_input_size() != 6) {
+            return false;
+        }
 
         auto l2_norm_q_eps_node = pattern_map.at(eps_q_const).get_node_shared_ptr();
         auto l2_norm_k_eps_node = pattern_map.at(eps_k_const).get_node_shared_ptr();
@@ -360,7 +365,8 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
                                                                          pattern_map.at(beta),
                                                                          true,
                                                                          q_l2_norm_eps,
-                                                                         k_l2_norm_eps);
+                                                                         k_l2_norm_eps,
+                                                                         gdn_node->get_snapshot_count());
         ov::copy_runtime_info(gdn_node, new_gdn);
         new_gdn->set_friendly_name(gdn_node->get_friendly_name());
         ov::replace_node(gdn_node, new_gdn);
@@ -470,7 +476,9 @@ ov::pass::FuseGroupedQueryIntoGDN::FuseGroupedQueryIntoGDN() {
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto gdn_node = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(pattern_map.at(gdn).get_node_shared_ptr());
-        if (!gdn_node) {
+        // Cache-aware Qwen3.5 llama.cpp GDN derives from this type but has runtime
+        // reset/reorder/writeback inputs that a six-input reconstruction would discard.
+        if (!gdn_node || gdn_node->get_input_size() != 6) {
             return false;
         }
 
@@ -507,7 +515,8 @@ ov::pass::FuseGroupedQueryIntoGDN::FuseGroupedQueryIntoGDN() {
                                                                          gdn_node->input_value(5),
                                                                          gdn_node->get_fuse_qk_l2norm(),
                                                                          gdn_node->get_q_l2_norm_eps(),
-                                                                         gdn_node->get_k_l2_norm_eps());
+                                                                         gdn_node->get_k_l2_norm_eps(),
+                                                                         gdn_node->get_snapshot_count());
         new_gdn->set_friendly_name(gdn_node->get_friendly_name());
         ov::copy_runtime_info(gdn_node, new_gdn);
         ov::replace_node(gdn_node, new_gdn);

@@ -100,6 +100,7 @@ set(GPU_PLUGIN_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/random_uniform.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/range.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/reduce.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/recurrent_cache.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/region_yolo.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/reorg_yolo.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/reshape.cpp
@@ -187,6 +188,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/indirect_kv_cache.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/keep_gqa_kv_scale_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/keep_moe_3gemm_const_precision.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/keep_recurrent_cache_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/keep_xattention_threshold_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/kv_cache_compression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/kv_cache_fusion.cpp

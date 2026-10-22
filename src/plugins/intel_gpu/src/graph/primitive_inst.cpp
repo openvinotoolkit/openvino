@@ -23,6 +23,7 @@
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "fully_connected_inst.h"
 #include "gather_inst.h"
+#include "gated_delta_net_inst.h"
 #include "gemm_inst.h"
 #include "graph_optimizer/prepare_buffer_fusing.h"
 #include "input_layout_inst.h"
@@ -52,6 +53,7 @@
 #include "read_value_inst.h"
 #include "registry/implementation_manager.hpp"
 #include "registry/registry.hpp"
+#include "recurrent_cache_inst.h"
 #include "reorder_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
@@ -825,6 +827,76 @@ bool primitive_inst::try_bind_remote_permute_output(const layout& actual_layout)
     return false;
 }
 
+bool primitive_inst::try_bind_recurrent_cache_output(const layout& actual_layout, size_t idx) {
+    // Qwen3.5 llama.cpp rotates immutable recurrent inputs and caller-owned cache
+    // outputs. Bind port 1 directly; the ordinary forward probe only handles port 0.
+    const bool cache_port =
+        idx == 1 && ((get_node().is_type<gated_delta_net>() && get_node().as<gated_delta_net>().get_primitive()->recurrent_cache_mode) ||
+                     (get_node().is_type<recurrent_cache>() && get_node().as<recurrent_cache>().get_primitive()->history > 0 && dependencies().size() == 9));
+    if (!cache_port || !is_dynamic())
+        return false;
+
+    for (auto* user : get_user_insts()) {
+        if (!user->is_output() || !user->get_node().is_type<reorder>() || !user->can_be_optimized() || user->dependencies().size() != 1 ||
+            user->dependencies().front().first != this || user->dependencies().front().second != static_cast<int32_t>(idx) ||
+            !get_network().has_output_remote_memory_ptr(user->id()))
+            continue;
+        if (!user->_update_shape_done_by_other) {
+            user->update_shape();
+            user->_update_shape_done_by_other = true;
+        }
+        auto remote = user->output_memory_ptr();
+        if (!remote || !get_network().get_engine().is_the_same_buffer(*remote, get_network().get_output_remote_memory(user->id())))
+            continue;
+        const auto& target_layout = user->_impl_params->get_output_layout();
+        if (!remote || remote->get_allocation_type() != allocation_type::usm_device || !target_layout.is_static() ||
+            actual_layout.data_type != target_layout.data_type || actual_layout.format != target_layout.format ||
+            actual_layout.get_pitches() != target_layout.get_pitches() || actual_layout.get_linear_offset() != target_layout.get_linear_offset() ||
+            actual_layout.bytes_count() > remote->size())
+            continue;
+        bool overlap = false;
+        for (size_t input = 0; input < inputs_memory_count(); ++input) {
+            auto memory = input_memory_ptr(input);
+            if (!memory || !memory->buffer_ptr())
+                continue;
+            const auto source = reinterpret_cast<uintptr_t>(memory->buffer_ptr());
+            const auto destination = reinterpret_cast<uintptr_t>(remote->buffer_ptr());
+            overlap |= source <= destination ? destination - source < memory->size() : source - destination < actual_layout.bytes_count();
+        }
+        // A caller can also bind this Result over an unrelated graph input.
+        // Its independent readers may execute after this kernel on another branch.
+        if (!overlap) {
+            for (const auto& input_id : get_network().get_input_ids()) {
+                auto memory = get_network().get_primitive(input_id)->output_memory_ptr();
+                if (!memory || !memory->buffer_ptr())
+                    continue;
+                const auto source = reinterpret_cast<uintptr_t>(memory->buffer_ptr());
+                const auto destination = reinterpret_cast<uintptr_t>(remote->buffer_ptr());
+                if (source <= destination ? destination - source < memory->size() : source - destination < actual_layout.bytes_count()) {
+                    overlap = true;
+                    break;
+                }
+            }
+        }
+        // Cyclic/duplicate maps require original reads. Aliased callers retain
+        // private staging and final copy; never turn them into in-place kernels.
+        if (overlap)
+            continue;
+        auto& engine = get_network().get_engine();
+        const bool changed = !_outputs[idx] || !engine.is_the_same_buffer(*_outputs[idx], *remote);
+        if (changed && _outputs[idx] && !_remote_recurrent_cache_output_alias && get_node().get_program().get_config().get_enable_memory_pool()) {
+            get_network().get_memory_pool().release_memory(_outputs[idx].get(), get_node().get_unique_id(), get_node().id(), get_network_id());
+        }
+        _outputs[idx] = engine.reinterpret_buffer(*remote, actual_layout);
+        _remote_recurrent_cache_output_alias = _outputs[idx];
+        _max_output_layout_count[idx] = remote->size() / data_type_traits::size_of(actual_layout.data_type);
+        if (changed)
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+        return true;
+    }
+    return false;
+}
+
 void primitive_inst::realloc_outputs_for_stateless_kv() {
     const auto& users = get_user_insts();
     const auto output_it = std::find_if(users.begin(), users.end(), [](primitive_inst* user) {
@@ -1323,6 +1395,18 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     }
 
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
+        if (try_bind_recurrent_cache_output(actual_layouts[i], i))
+            continue;
+        if (i == 1 && _remote_recurrent_cache_output_alias) {
+            // A later call may bind an aliased, smaller or different output.
+            // Drop borrowed storage before the ordinary reuse path can select it.
+            if (_outputs[i] && get_network().get_engine().is_the_same_buffer(*_outputs[i], *_remote_recurrent_cache_output_alias)) {
+                _outputs[i].reset();
+                _max_output_layout_count[i] = 0;
+                set_flag(ExecutionFlags::MEMORY_CHANGED);
+            }
+            _remote_recurrent_cache_output_alias.reset();
+        }
         bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_linear_size() <= _max_output_layout_count[i]);
         std::pair<bool, ov::Shape> prealloc_info;
         if (get_node().is_type<kv_cache>() && i != 1) {
@@ -3129,7 +3213,14 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     bool is_cpu = node.get_selected_impl() ? node.get_selected_impl()->is_cpu() : node.get_preferred_impl_type() == impl_types::cpu;
 
     auto total_output_bytes = layout.bytes_count();
-    auto use_lockable_memory = (is_output_buffer && ov::intel_gpu::can_use_usm_host(_engine, total_output_bytes)) || is_cpu ||
+    // Qwen3.5 llama.cpp fused cache outputs stay on the GPU between calls. The
+    // ordinary iGPU output policy picks host USM, causing a full host-USM->device
+    // cache copy even when the caller binds device USM. Keep the private cache
+    // staging allocation on device; CPU consumers still require lockable memory.
+    const bool recurrent_cache_output =
+        idx == 1 && ((node.is_type<gated_delta_net>() && node.as<gated_delta_net>().get_primitive()->recurrent_cache_mode) ||
+                     (node.is_type<recurrent_cache>() && node.as<recurrent_cache>().get_primitive()->history > 0 && node.get_dependencies().size() == 9));
+    auto use_lockable_memory = (is_output_buffer && !recurrent_cache_output && ov::intel_gpu::can_use_usm_host(_engine, total_output_bytes)) || is_cpu ||
                                has_any_cpu_user_not_shape_of(node.get_users()) || !_engine.supports_allocation(allocation_type::usm_device) ||
                                (node.is_shape_infer_dep() && device_info.dev_type == device_type::integrated_gpu);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());

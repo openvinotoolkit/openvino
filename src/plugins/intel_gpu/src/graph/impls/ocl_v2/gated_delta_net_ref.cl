@@ -124,17 +124,53 @@ inline void FUNC(prepare_qk)(__global INPUT0_TYPE* q, __global INPUT1_TYPE* k, i
 }
 #endif
 
+#if CACHE_MODE
+// A single work item owns each cache element. Later source planes win overlapping writes.
+inline void FUNC(write_cache_state)(OPTIONAL_SHAPE_INFO_ARG __global OUTPUT1_TYPE* cache, const __global INPUT11_TYPE* control,
+                                    int b, int slot, int B, int valid, int h, int k, int v, float value) {
+    const int begin = control[INPUT11_GET_INDEX(0,0,0,0)];
+    const int sequences = control[INPUT11_GET_INDEX(0,0,0,1)];
+    const int stride = control[INPUT11_GET_INDEX(0,0,0,2)];
+    const int source = control[INPUT11_GET_INDEX(0,0,0,3)];
+    const int r = slot * B + b - source, N = valid * B - source;
+    if (r < 0 || r >= N) return;
+    const int dst = begin + (r / sequences) * stride + r % sequences;
+    for (int plane = r / sequences + 1; plane * sequences < N; ++plane) {
+        const int offset = dst - begin - plane * stride;
+        if (offset >= 0 && offset < sequences && plane * sequences + offset < N) return;
+    }
+    // Match the former materialized state tensor's rounding, followed by cache precision.
+    cache[OUTPUT1_GET_INDEX(0,0,dst,(h * V_HEAD_DIM + v) * K_HEAD_DIM + k)] =
+        (OUTPUT1_TYPE)((INPUT0_TYPE)value);
+}
+#endif
+
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(gated_delta_net_ref)
-(__global INPUT0_TYPE* q,
+(OPTIONAL_SHAPE_INFO_ARG __global INPUT0_TYPE* q,
  __global INPUT1_TYPE* k,
  __global INPUT2_TYPE* v,
  __global INPUT3_TYPE* initial_state,
  __global INPUT4_TYPE* g,
  __global INPUT5_TYPE* beta,
+#if CACHE_MODE
+ const __global INPUT6_TYPE* active_rows,
+ const __global INPUT7_TYPE* extra_rows,
+ const __global INPUT8_TYPE* reset_begin,
+ const __global INPUT9_TYPE* reset_length,
+ const __global INPUT10_TYPE* extra_offsets,
+ const __global INPUT11_TYPE* write_control,
+#endif
  __global OUTPUT_TYPE* output,
+#if CACHE_MODE
+ __global OUTPUT1_TYPE* updated_cache,
+#endif
 #if OUTPUT_STATE
  __global OUTPUT1_TYPE* output_state,
+#endif
+// llama.cpp Qwen3.5 MTP verification consumes these token-prefix states for cache_s rollback.
+#if OUTPUT_SNAPSHOTS
+ __global OUTPUT1_TYPE* snapshots,
 #endif
  int seq_len,
  int query_offset,
@@ -160,6 +196,45 @@ KERNEL(gated_delta_net_ref)
     const int Q_B_STRIDE = T_len * Q_T_STRIDE;
     const int K_B_STRIDE = T_len * K_T_STRIDE;
     const int V_B_STRIDE = T_len * V_T_STRIDE;
+#if CACHE_MODE
+    const int B = INPUT0_BATCH_NUM;
+    const int valid = min((int)SNAPSHOT_COUNT, T_len);
+    const int rb = reset_begin[INPUT8_OFFSET], re = rb + reset_length[INPUT9_OFFSET];
+    if (b >= B) {
+        const int dst = b - B;
+        const int begin = write_control[INPUT11_GET_INDEX(0,0,0,0)];
+        const int sequences = write_control[INPUT11_GET_INDEX(0,0,0,1)];
+        const int stride = write_control[INPUT11_GET_INDEX(0,0,0,2)];
+        const int source = write_control[INPUT11_GET_INDEX(0,0,0,3)];
+        const int N = valid * B - source;
+        // Updated rows are written directly by their recurrence owner below.
+        for (int plane = 0; plane * sequences < N; ++plane) {
+            const int offset = dst - begin - plane * stride;
+            if (offset >= 0 && offset < sequences && plane * sequences + offset < N) return;
+        }
+        const int eb = extra_offsets[INPUT10_GET_INDEX(0,0,0,0)];
+        const int es = extra_offsets[INPUT10_GET_INDEX(0,0,0,1)];
+        int row = dst;
+        if (dst >= eb && dst < eb + INPUT7_SIZE_X - es)
+            row = extra_rows[INPUT7_GET_INDEX(0,0,0,dst-eb+es)];
+        for (int k_idx = lid; k_idx < K_len; k_idx += SUBGROUP_SIZE)
+            for (int v_idx = 0; v_idx < V_BLOCK_SIZE; ++v_idx) {
+                const int iv = start_iv + v_idx;
+                if (iv < V_len) {
+                    const int f = (h * V_len + iv) * K_len + k_idx;
+                    float value = row >= rb && row < re ? 0.0f :
+                        convert_float(initial_state[INPUT3_GET_INDEX(0,0,row,f)]);
+                    updated_cache[OUTPUT1_GET_INDEX(0,0,dst,f)] = (OUTPUT1_TYPE)((INPUT0_TYPE)value);
+                }
+            }
+        return;
+    }
+    const int source_row = active_rows[INPUT6_GET_INDEX(0,0,0,b)];
+#define LOAD_STATE(k,v) (source_row >= rb && source_row < re ? 0.0f : \
+    convert_float((INPUT0_TYPE)initial_state[INPUT3_GET_INDEX(0,0,source_row,(h*V_len+(v))*K_len+(k))]))
+#else
+#define LOAD_STATE(k,v) convert_float(initial_state[STATE_BASE+(k)*V_len+(v)])
+#endif
     const int STATE_BASE = (b * H_len + h) * (K_len * V_len);
     const int group_size = H_len / HK_len;
     const int hk = h / group_size;
@@ -183,7 +258,7 @@ KERNEL(gated_delta_net_ref)
 #    pragma unroll
             for (int j = 0; j < 8; j++) {
                 int row_idx = lid * (K_HEAD_DIM / SUBGROUP_SIZE) + row_chunk * 8 + j;
-                lane_state[j] = convert_float(initial_state[STATE_BASE + row_idx * V_len + curr_iv]);
+                lane_state[j] = LOAD_STATE(row_idx, curr_iv);
             }
             h_state[v_idx][row_chunk] = lane_state;
         }
@@ -193,7 +268,7 @@ KERNEL(gated_delta_net_ref)
         for (int k_idx = 0; k_idx < K_len; k_idx++) {
             for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
                 int curr_iv = start_iv + v_idx;
-                h_state_f[v_idx][k_idx] = (curr_iv < V_len) ? convert_float(initial_state[STATE_BASE + k_idx * V_len + curr_iv]) : 0.0f;
+                h_state_f[v_idx][k_idx] = (curr_iv < V_len) ? LOAD_STATE(k_idx, curr_iv) : 0.0f;
             }
         }
     }
@@ -255,6 +330,23 @@ KERNEL(gated_delta_net_ref)
             for (int c = 0; c < K_CHUNKS; c++) {
                 float8 s = fma(b_k[c], (float8)(update_val), h_state[v_idx][c]);
                 h_state[v_idx][c] = s;
+#    if CACHE_MODE
+                if (T_len - 1 - t < SNAPSHOT_COUNT) {
+                    for (int j = 0; j < 8; ++j)
+                        FUNC(write_cache_state)(OPTIONAL_SHAPE_INFO_TENSOR updated_cache, write_control, b, T_len-1-t, B, valid,
+                                                h, lane_k_base+c*8+j, start_iv+v_idx, s[j]);
+                }
+#    endif
+#    if OUTPUT_SNAPSHOTS
+                if (T_len - 1 - t < SNAPSHOT_COUNT) {
+                    const int slot = T_len - 1 - t;
+#        pragma unroll
+                    for (int j = 0; j < 8; j++) {
+                        const int row_idx = lane_k_base + c * 8 + j;
+                        snapshots[OUTPUT1_GET_INDEX(slot, b, h, row_idx, start_iv + v_idx)] = (OUTPUT1_TYPE)(s[j]);
+                    }
+                }
+#    endif
                 dot_part_q += FUNC(dot8_fma)(s, b_q[c]);
             }
             dot_part_q_vec[v_idx] = dot_part_q;
@@ -317,6 +409,17 @@ KERNEL(gated_delta_net_ref)
                 float b_output = 0.0f;
                 for (int k_idx = 0; k_idx < K_len; k_idx++) {
                     h_state_f[v_idx][k_idx] += k_norm[k_idx] * update_val;
+#    if CACHE_MODE
+                    if (T_len - 1 - t < SNAPSHOT_COUNT)
+                        FUNC(write_cache_state)(OPTIONAL_SHAPE_INFO_TENSOR updated_cache, write_control, b, T_len-1-t, B, valid,
+                                                h, k_idx, curr_iv, h_state_f[v_idx][k_idx]);
+#    endif
+#    if OUTPUT_SNAPSHOTS
+                    if (T_len - 1 - t < SNAPSHOT_COUNT) {
+                        const int slot = T_len - 1 - t;
+                        snapshots[OUTPUT1_GET_INDEX(slot, b, h, k_idx, curr_iv)] = (OUTPUT1_TYPE)(h_state_f[v_idx][k_idx]);
+                    }
+#    endif
                     b_output = fma(h_state_f[v_idx][k_idx], q_norm[k_idx], b_output);
                 }
 
@@ -326,7 +429,8 @@ KERNEL(gated_delta_net_ref)
 #endif
     }
 
-#if (K_HEAD_DIM == 128 && (V_HEAD_DIM % V_BLOCK_SIZE == 0))
+#if !OUTPUT_SNAPSHOTS && !CACHE_MODE
+#    if (K_HEAD_DIM == 128 && (V_HEAD_DIM % V_BLOCK_SIZE == 0))
 // 4. WRITE BACK STATE BLOCK
 #    pragma unroll
     for (int row_chunk = 0; row_chunk < K_CHUNKS; row_chunk++) {
@@ -360,4 +464,5 @@ KERNEL(gated_delta_net_ref)
         }
     }
 #endif
+#endif  // !OUTPUT_SNAPSHOTS
 }
