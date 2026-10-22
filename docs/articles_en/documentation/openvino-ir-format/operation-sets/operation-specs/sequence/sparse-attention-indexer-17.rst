@@ -229,10 +229,10 @@ The graph flow of a QSA layer is *QSAPrepare* -> *SparseAttentionIndexer* ->
 :doc:`SparseAttention <sparse-attention-17>`, with the index query prepared next to
 *QSAPrepare* by *RMS* and *RoPE*. In a stateful model with
 *ScaledDotProductAttention*-style caches, two more states are kept next to the key and value
-caches: the raw index keys of the past tokens, with the shape ``[N, S, Di]``, and the block index
-keys of the past complete blocks, with the shape ``[N, B, Di]``, so that *QSAPrepare* computes only
-the blocks completed by the new tokens. The paged counterparts are
-:doc:`PagedQSAPrepare <../internal/paged-qsa-prepare>` -> :doc:`PagedSparseAttentionIndexer <../internal/paged-sparse-attention-indexer>` ->
+caches: the block index keys of the past complete blocks, with the shape ``[N, B, Di]``, and the
+raw index keys and the RoPE row of the past tokens of the incomplete block, with the fixed shapes
+``[N, key_block_size - 1, Di]`` and ``[N, 2 * Dr]``, so that *QSAPrepare* computes only the blocks
+completed by the new tokens. The paged counterpart of the attention is
 :doc:`PagedSparseAttention <../internal/paged-sparse-attention>`.
 
 **Relation to DeepSeek Sparse Attention (DSA)**
