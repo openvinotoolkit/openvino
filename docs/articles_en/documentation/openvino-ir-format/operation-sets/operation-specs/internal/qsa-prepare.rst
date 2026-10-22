@@ -149,7 +149,7 @@ Properties that follow from the definition:
   ``past_block_index_keys``, which has one row per complete block.
 * For DeepSeek Sparse Attention (``key_block_size = 1``), pooling over one token is the identity and
   the index key is a LayerNorm and a partial RoPE per token, computed by regular operations of the
-  graph; *QSAPrepare* is not needed.
+  graph; *QSAPrepare* is not needed and requires ``key_block_size >= 2``.
 
 .. note::
 
@@ -197,8 +197,10 @@ Properties that follow from the definition:
 * *key_block_size*
 
   * **Description**: number of consecutive key tokens that form one block. It must be equal to
-    *key_block_size* of the consuming *SparseAttentionIndexer*.
-  * **Range of values**: a positive integer
+    *key_block_size* of the consuming *SparseAttentionIndexer*. Single-token blocks
+    (``key_block_size = 1``, DeepSeek Sparse Attention) need no pooling and no *QSAPrepare*, see the
+    properties above.
+  * **Range of values**: an integer ``>= 2``
   * **Type**: ``int``
   * **Required**: *yes*
 
