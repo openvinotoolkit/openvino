@@ -87,13 +87,13 @@ ov_apply_patch(
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/protobuf")
 
 # Abseil 20250127 (bundled with protobuf 6.31) fails to build with some GCC
-# versions, e.g. the aarch64 cross toolchain: raw_hash_set::GetPolicyFunctions()
-# uses a 'static constexpr PolicyFunctions' whose 'get_hash_slot_fn()' compares a
-# function-template address against nullptr, which those GCCs reject in a constant
-# expression. Patch protobuf's abseil-cpp.cmake so the FetchContent'd Abseil gets
-# the source fix (static constexpr -> static const) applied at populate time.
-# This covers both this build and the native host_protoc build, which share the
-# same protobuf source tree.
+# versions (e.g. the aarch64 cross toolchain and RHEL8) because of two constexpr
+# issues: raw_hash_set::GetPolicyFunctions() compares a function-template address
+# against nullptr in a 'static constexpr', and ascii.cc's ValidateAsciiCasefold()
+# self-test hits an implementation-defined signed-char conversion. Patch
+# protobuf's abseil-cpp.cmake so the FetchContent'd Abseil gets the source fixes
+# applied at populate time. This covers both this build and the native
+# host_protoc build, which share the same protobuf source tree.
 ov_apply_patch(
     PATCH "${CMAKE_CURRENT_SOURCE_DIR}/patches/0003-protobuf-absl-apply-openvino-patch.patch"
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/protobuf")
