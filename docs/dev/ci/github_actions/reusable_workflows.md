@@ -75,7 +75,7 @@ to build an OpenVINO GenAI wheel from the target branch against the OpenVINO and
 produced by the same workflow run. The accuracy jobs install all three local wheels before installing
 the pinned dependencies from [`tests/llm/requirements.txt`](../../../../tests/llm/requirements.txt).
 The suite pins PyTorch 2.11, torchvision 0.26, and torchaudio 2.11 directly in its requirements to match
-WhoWhatBench's `releases/2026/4` branch. It does not include the shared constraints, which require a
+WhoWhatBench's `master` branch. It does not include the shared constraints, which require a
 conflicting PyTorch version. Other test suites keep the repository-wide constraints unchanged.
 
 Since reusable workflows are structured and behave like jobs, you can refer to the [adding tests page](./adding_tests.md) to learn more about creating a job and
