@@ -209,6 +209,10 @@ static constexpr Property<bool, ov::PropertyMutability::RW> disable_fc_swiglu_fu
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_gated_mlp_fusion{"GPU_DISABLE_GATED_MLP_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fake_alignment{"GPU_DISABLE_FAKE_ALIGNMENT"};
 static constexpr Property<bool, ov::PropertyMutability::RW> moe_disable_fusion{"GPU_MOE_DISABLE_FUSION"};
+static constexpr Property<bool, ov::PropertyMutability::RW> enable_ternocl_int2{"GPU_ENABLE_TERNOCL_INT2"};
+static constexpr Property<bool, ov::PropertyMutability::RW> ternocl_int2_int8_prefill{"GPU_TERNOCL_INT2_INT8_PREFILL"};
+static constexpr Property<bool, ov::PropertyMutability::RW> enable_hadamard_fc_fusion{"GPU_ENABLE_HADAMARD_FC_FUSION"};
+static constexpr Property<bool, ov::PropertyMutability::RW> enable_rms_rope_fusion{"GPU_ENABLE_RMS_ROPE_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> moe_use_micro_gemm_prefill{"GPU_MOE_USE_MICRO_GEMM_PREFILL"};
 static constexpr Property<bool, ov::PropertyMutability::RW> moe_use_gpu_mask_gen_prefill{"GPU_MOE_USE_GPU_MASK_GEN_PREFILL"};
 static constexpr Property<bool, ov::PropertyMutability::RW> moe_use_grouped_gemm_prefill{"GPU_MOE_USE_GROUPED_GEMM_PREFILL"};
