@@ -80,6 +80,7 @@ jobs:
       affected-components: '{"JS_API":true}'
       event-name: ${{ github.event_name }}
       os: 'ubuntu_22_04'
+      generate-bom: false
       build-js: true
       build-additional-python-packages: false
       build-debian-packages: false

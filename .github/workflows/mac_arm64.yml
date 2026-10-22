@@ -390,6 +390,14 @@ jobs:
           path: ${{ github.workspace }}/${{ env.MANIFEST_FILE }}
           if-no-files-found: 'error'
 
+  BOM_Tests:
+    name: BOM tests
+    needs: [Build, Smart_CI]
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    uses: ./.github/workflows/job_bom_tests.yml
+    with:
+      artifact-name: bom_macos_arm64
+
   Samples:
     needs: [ Build, Smart_CI ]
     if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}

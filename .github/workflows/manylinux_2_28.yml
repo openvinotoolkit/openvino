@@ -305,6 +305,14 @@ jobs:
           storage_root: ${{ env.ARTIFACTS_SHARE }}
           branch_name: ${{ inputs.target-branch }}
 
+  BOM_Tests:
+    name: BOM tests
+    needs: [Build, Smart_CI]
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    uses: ./.github/workflows/job_bom_tests.yml
+    with:
+      artifact-name: bom_manylinux_2_28_x86_64
+
   Python_API_Tests:
     name: Python API tests - Python ${{ matrix.python-version }}
     needs: [ Docker, Build, Smart_CI ]
@@ -344,7 +352,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_manylinux_2_28
-    needs: [Smart_CI, Build, Python_API_Tests, NodeJS_API_Tests]
+    needs: [Smart_CI, Build, BOM_Tests, Python_API_Tests, NodeJS_API_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

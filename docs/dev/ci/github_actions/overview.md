@@ -235,6 +235,9 @@ both successful or failed. To find artifacts for a pipeline, follow these steps:
 
 6. Click on the artifact name to download it.
 
+BOM artifacts (`bom_<configuration>`) describe the installed files of each CPack
+component. Post-build [BOM tests](./bom_tests.md) compare them with reviewed GOLD
+manifests to detect unapproved changes to the public package layout.
 
 ### Logs
 

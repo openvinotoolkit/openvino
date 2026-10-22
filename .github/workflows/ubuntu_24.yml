@@ -124,6 +124,14 @@ jobs:
             -DCPACK_GENERATOR=TGZ
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
+  BOM_Tests:
+    name: BOM tests
+    needs: [Build, Smart_CI]
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    uses: ./.github/workflows/job_bom_tests.yml
+    with:
+      artifact-name: bom_ubuntu_24_04_x86_64
+
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: [ Docker, Build, Smart_CI ]
@@ -315,7 +323,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_24
-    needs: [Smart_CI, Build, Debian_Packages, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers, LLM_Accuracy_CPU, LLM_Accuracy_iGPU]
+    needs: [Smart_CI, Build, BOM_Tests, Debian_Packages, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers, LLM_Accuracy_CPU, LLM_Accuracy_iGPU]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

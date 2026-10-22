@@ -1,0 +1,61 @@
+name: BOM tests
+
+on:
+  workflow_call:
+    inputs:
+      artifact-name:
+        description: 'Exact BOM artifact name; its bom_ prefix is stripped to select the GOLD configuration'
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  BOM_Tests:
+    name: BOM tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    env:
+      ARTIFACT_NAME: ${{ inputs.artifact-name }}
+      BOM_ARTIFACT_DIR: ${{ runner.temp }}/bom-tests/artifact
+      BOM_REPORT: ${{ runner.temp }}/bom-tests/TEST-bom.xml
+    steps:
+      - name: Checkout BOM comparator and GOLD references
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          sparse-checkout: |
+            .github/scripts/bom
+            boms
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+
+      - name: Download expected BOM artifact
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ env.BOM_ARTIFACT_DIR }}
+
+      - name: Compare BOM against GOLD
+        run: |
+          python .github/scripts/bom/compare.py \
+            --artifact-dir "$BOM_ARTIFACT_DIR" \
+            --gold-dir "$GITHUB_WORKSPACE/boms" \
+            --configuration "${ARTIFACT_NAME#bom_}" \
+            --report "$BOM_REPORT"
+
+      - name: Upload Test Results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-results-${{ inputs.artifact-name }}
+          path: ${{ env.BOM_REPORT }}
+          if-no-files-found: warn

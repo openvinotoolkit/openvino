@@ -124,6 +124,14 @@ jobs:
             -DENABLE_WHEEL=ON
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
+  BOM_Tests:
+    name: BOM tests
+    needs: [Build, Smart_CI]
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    uses: ./.github/workflows/job_bom_tests.yml
+    with:
+      artifact-name: bom_ubuntu_22_04_arm64
+
   Debian_Packages:
     name: Debian Packages
     needs: Build
@@ -287,7 +295,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_linux_arm64
-    needs: [Smart_CI, Build, Debian_Packages, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests,
+    needs: [Smart_CI, Build, BOM_Tests, Debian_Packages, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests,
             TensorFlow_Models_Tests, PyTorch_Models_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest

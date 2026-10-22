@@ -90,6 +90,11 @@ on:
         type: boolean
         required: false
         default: false
+      generate-bom:
+        description: 'Generate and upload CPack component BOM manifests'
+        type: boolean
+        required: false
+        default: true
       generate-gguf-fixtures:
         description: 'Whether to generate the GGUF per-architecture test fixtures from llama.cpp into the tests artifact. Off by default: only useful where this build feeds job_cxx_unit_tests.yml'
         type: boolean
@@ -249,7 +254,7 @@ jobs:
       - name: CMake configure - OpenVINO
         run: eval cmake ${{ env.CMAKE_OPTIONS }} -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
         env:
-          CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }}
+          CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }} -DENABLE_BOM_GENERATION=${{ inputs.generate-bom && 'ON' || 'OFF' }}
 
       - name: Clean sccache stats
         run: ${SCCACHE_PATH} --zero-stats
@@ -462,7 +467,7 @@ jobs:
 
       - name: Upload CPack component BOM
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        if: always()
+        if: ${{ always() && inputs.generate-bom }}
         with:
           name: bom_${{ inputs.os }}_${{ inputs.arch }}
           path: ${{ env.BUILD_DIR }}/bom
