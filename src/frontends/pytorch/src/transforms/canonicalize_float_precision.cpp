@@ -4,6 +4,9 @@
 
 #include "canonicalize_float_precision.hpp"
 
+#include <map>
+#include <utility>
+
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -135,7 +138,9 @@ bool CanonicalizeFloatPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
     model->validate_nodes_and_infer_types();
 
     // Give every output back its original type; move the tensor names onto
-    // the new Convert so the output port keeps them.
+    // the new Convert so the output port keeps them. Results that read the same
+    // tensor (`return y, y`) share one Convert: the names move only once.
+    std::map<std::pair<Output<Node>, element::Type>, Output<Node>> restored;
     const auto& results = model->get_results();
     for (size_t i = 0; i < results.size(); ++i) {
         auto source = results[i]->input_value(0);
@@ -143,10 +148,13 @@ bool CanonicalizeFloatPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
             continue;
         }
         changed = true;
-        const auto convert = std::make_shared<v0::Convert>(source, result_types[i]);
-        const auto names = source.get_names();
-        source.get_tensor().set_names({});
-        convert->output(0).get_tensor().set_names(names);
+        auto& convert = restored[{source, result_types[i]}];
+        if (!convert.get_node()) {
+            convert = std::make_shared<v0::Convert>(source, result_types[i])->output(0);
+            const auto names = source.get_names();
+            source.get_tensor().set_names({});
+            convert.get_tensor().set_names(names);
+        }
         results[i]->input(0).replace_source_output(convert);
     }
 
