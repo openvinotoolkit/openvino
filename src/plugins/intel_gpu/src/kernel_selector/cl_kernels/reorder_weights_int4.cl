@@ -7,7 +7,6 @@
 KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output) {
 #if defined(INPUT0_LAYOUT_OIYX) && defined(OUTPUT_LAYOUT_OIYX)
 #if INT2_PACKED
-    // 2-bit packed weights padding: gather 4 values per output byte, zero-fill the padded area
     const uint out_byte_offset = get_global_id(0);
     OUTPUT_TYPE out = 0x0;
     unroll_for (uint j = 0; j < 4; ++j) {
@@ -46,7 +45,6 @@ KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_
 #endif
 #elif defined(INPUT0_LAYOUT_IOYX) && defined(OUTPUT_LAYOUT_OIYX)
 #if INT2_PACKED
-    // 2-bit packed weights transpose: gather 4 values per output byte
     const uint out_byte_offset = get_global_id(0);
     OUTPUT_TYPE out = 0x0;
     unroll_for (uint j = 0; j < 4; ++j) {
@@ -197,9 +195,6 @@ KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_
     // f0_k0k1 f16_k0k1 | f1_k0k1 f17_k0k1 | ... | f15_k0k1 f31_k0k1 || f32_k0k1 f48_k0k1 | ... | f47_k0k1 f63_k0k1
     // f0_k2k3 f16_k2k3 | f1_k2k3 f17_k2k3 | ... | f15_k2k3 f31_k2k3 || f32_k2k3 f48_k2k3 | ... | f47_k2k3 f63_k2k3
     // ...
-    // This matches the bf_tiled fetch windows: for TILE_OFM 4 / TILE_K 2 a lane reads the bytes at
-    // positions sglid and sglid + 16 of each line; for the SLM kernel (TILE_OFM 2 / TILE_K 4) a lane
-    // reads position sglid of two consecutive lines.
     const unsigned o = (uint)get_global_id(0);   // 64-OFM block * 32 + byte position in the line
     const unsigned kb = (uint)get_global_id(1);  // k-pair index
 
@@ -212,8 +207,7 @@ KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_
     const uint input0_offset = GET_FILTER_INDEX(INPUT0, 0, o0, k, 0, 0);
     const uint input1_offset = GET_FILTER_INDEX(INPUT0, 0, o1, k, 0, 0);
 
-    // k is even and IFM is aligned to 4 (values per byte), so a k-pair never straddles
-    // an input byte boundary; extract the 2 u2 values (4 bits) of each output feature
+    // k is even and IFM is a multiple of 4, so a k-pair never straddles an input byte.
     INPUT0_TYPE in0 = (input[input0_offset / 4] >> ((input0_offset % 4) * 2)) & 0x0F;
     INPUT0_TYPE in1 = (input[input1_offset / 4] >> ((input1_offset % 4) * 2)) & 0x0F;
 

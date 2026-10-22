@@ -270,10 +270,8 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     const int power_of_two_for_simd = 5;
     const int power_of_two_for_osv = 6;
     const uint osv64_weight_base = (( (int) (out_f >> power_of_two_for_osv) ) << power_of_two_for_osv);
-    // Bytes per output feature column: IFM / values-per-byte (2 for u4, 4 for u2)
     const uint osv_weight_stride = (INPUT_ELEMENTS_COUNT / FILTER_ELEMENTS_PER_BYTE);
-    // u2 packs a k-pair of two output features per byte, so the upper 32-feature half of a
-    // 64-feature block starts 16 bytes (not 32) into each k-pair line
+    // A u2 byte packs two OFMs, so the upper 32-OFM half starts 16 bytes (not 32) into the line.
     const uint out_f_offset = (int)((out_f >> power_of_two_for_simd) & 0x1) * ((1u << power_of_two_for_osv) / FILTER_ELEMENTS_PER_BYTE);
     // out_f(32)  : 0  * osv_weight_stride + 32;
     // out_f(64)  : 64 * osv_weight_stride + 0;
@@ -404,8 +402,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
             #if FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
             #if COMPRESSED_WEIGHTS_UINT2
-            // u2: a k-pair line is 32 bytes, so each local_id's FILTER_LOAD_BLOCK_SIZE (4) values
-            // span 2 lines of 32 bytes (not 64)
+            // u2 k-pair lines are 32 bytes, not 64.
             uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE;
             #else
             uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE * 2;
@@ -424,7 +421,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 #elif FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
                 SLM_FILTER_PACKED_VEC wei_packed0 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, weights_idx);
                 #if COMPRESSED_WEIGHTS_UINT2
-                // u2: the second staged byte is in the next 32-byte k-pair line
                 SLM_FILTER_PACKED_VEC wei_packed1 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, (weights_idx + (FILTER_LOAD_BLOCK_SIZE * SIMD / 2)));
                 #else
                 SLM_FILTER_PACKED_VEC wei_packed1 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, (weights_idx + (FILTER_LOAD_BLOCK_SIZE * SIMD)));

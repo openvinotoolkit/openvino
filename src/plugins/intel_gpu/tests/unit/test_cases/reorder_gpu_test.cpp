@@ -5462,8 +5462,7 @@ void run_reorder_test_u2(data_types input_type,
     }
 }
 
-// 0x39 -> {1,2,3,0}, 0x1B -> {3,2,1,0}, 0xE4 -> {0,1,2,3}: 4 values per byte, LSB first, which is
-// the packing every u2 kernel in the plugin assumes.
+// 0x39 -> {1,2,3,0}, 0x1B -> {3,2,1,0}, 0xE4 -> {0,1,2,3}: 4 values per byte, LSB first.
 const std::vector<uint8_t> u2_packed_16 = {0x39, 0x1B, 0xE4, 0x00};
 const std::vector<ov::float16> u2_unpacked_16 = {1.0f, 2.0f, 3.0f, 0.0f, 3.0f, 2.0f, 1.0f, 0.0f,
                                                  0.0f, 1.0f, 2.0f, 3.0f, 0.0f, 0.0f, 0.0f, 0.0f};
