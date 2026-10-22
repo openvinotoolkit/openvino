@@ -314,15 +314,14 @@ TEST(HostFlashAttentionFromTest, SupportsAttentionSinkWithPostQKScale) {
     EXPECT_TRUE(result->_attention_scale_param_idx.has_value());
     EXPECT_TRUE(result->_attention_sink_param_idx.has_value());
     EXPECT_NE(result->_tile_param_index_map.find(ov::npuw::HFATileInputId::SCALE), result->_tile_param_index_map.end());
-    EXPECT_TRUE(
-        std::any_of(result->_tile_model->inputs().begin(), result->_tile_model->inputs().end(), [](const auto& input) {
-            return input.get_node()->get_friendly_name() == "SCALE";
-        }));
-    EXPECT_TRUE(std::any_of(result->_final_tile_model->inputs().begin(),
-                            result->_final_tile_model->inputs().end(),
-                            [](const auto& input) {
-                                return input.get_node()->get_friendly_name() == "SCALE";
-                            }));
+    const auto tile_inputs = result->_tile_model->inputs();
+    const auto final_tile_inputs = result->_final_tile_model->inputs();
+    EXPECT_TRUE(std::any_of(tile_inputs.begin(), tile_inputs.end(), [](const auto& input) {
+        return input.get_names().count("SCALE") != 0;
+    }));
+    EXPECT_TRUE(std::any_of(final_tile_inputs.begin(), final_tile_inputs.end(), [](const auto& input) {
+        return input.get_names().count("SCALE") != 0;
+    }));
 }
 
 TEST(HostFlashAttentionFromTest, EmbedsConstantPostQKScale) {
