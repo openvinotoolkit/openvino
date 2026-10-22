@@ -61,6 +61,7 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/paged_causal_conv1d_ref.hpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net_jit_utils.hpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_selective_ssm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/primitive_ocl_base.hpp
@@ -139,6 +140,8 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/paged_causal_conv1d_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net_ref.cl
+    ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net_short.cl
+    ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net_type_utils.cl
     ${CMAKE_CURRENT_LIST_DIR}/paged_selective_ssm_jit_precompute.cl
     ${CMAKE_CURRENT_LIST_DIR}/paged_selective_ssm_large_state.cl
     ${CMAKE_CURRENT_LIST_DIR}/paged_selective_ssm_opt.cl
