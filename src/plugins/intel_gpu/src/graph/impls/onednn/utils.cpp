@@ -177,7 +177,7 @@ dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
         case cldnn::data_types::f8e5m2: return dnnl::memory::data_type::f8_e5m2;
         case cldnn::data_types::f8e8m0: return dnnl::memory::data_type::e8m0;
         case cldnn::data_types::bf16: return dnnl::memory::data_type::bf16;
-        default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
+        default: OPENVINO_THROW("[GPU] Unsupported conversion from cldnn to onednn type");
     }
 }
 
@@ -308,8 +308,7 @@ int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
         case dnnl::memory::data_type::s32:
             return (offset * 4);
         default:
-            throw std::runtime_error(std::string("Unsupported offset for dnnl_data_type_t ")
-                    + dnnl_dt2str(static_cast<dnnl_data_type_t>(desc.get_data_type())));
+            OPENVINO_THROW("[GPU] Unsupported offset for dnnl_data_type_t ", dnnl_dt2str(static_cast<dnnl_data_type_t>(desc.get_data_type())));
     }
 }
 
