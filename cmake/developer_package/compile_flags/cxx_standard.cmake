@@ -19,8 +19,8 @@ endif()
 # ship it (e.g. RHEL 8) as part of the 2027.0 C++20 default switch.
 set(_ov_cxx20_floor_GNU 10)
 set(_ov_cxx20_floor_Clang 14)
-set(_ov_cxx20_floor_AppleClang 14)
-set(_ov_cxx20_floor_MSVC 19.30)
+set(_ov_cxx20_floor_AppleClang 13)
+set(_ov_cxx20_floor_MSVC 19.28)
 set(_ov_cxx20_floor_IntelLLVM 2024.2)
 
 if(DEFINED _ov_cxx20_floor_${CMAKE_CXX_COMPILER_ID})
@@ -28,8 +28,8 @@ if(DEFINED _ov_cxx20_floor_${CMAKE_CXX_COMPILER_ID})
 
     if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS _ov_cxx20_floor)
         message(FATAL_ERROR
-            "CMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD} requires ${CMAKE_CXX_COMPILER_ID} >= ${_ov_cxx20_floor}, "
-            "but found ${CMAKE_CXX_COMPILER_VERSION}.")
+            "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION} does not fully support C++20. "
+            "Minimum: ${CMAKE_CXX_COMPILER_ID} ${_ov_cxx20_floor}")
     endif()
 
     unset(_ov_cxx20_floor)
