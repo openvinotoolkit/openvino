@@ -32,7 +32,7 @@ constexpr std::string_view ANSI_GREEN = "\033[0;32m";
 constexpr std::string_view ANSI_CYAN = "\033[0;36m";
 constexpr std::string_view ANSI_WHITE = "\033[0;37m";
 
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
 
 std::optional<std::string_view> isEnvVarSet(std::string_view envVar) {
     const auto env = std::getenv(envVar.data());
@@ -112,12 +112,12 @@ LogLevel parseLogLevelString(std::string_view logLevelStr) {
     return LogLevel::None;
 }
 
-#endif  // defined(VPUX_DEVELOPER_BUILD)
+#endif  // defined(NPU_PLUGIN_DEVELOPER_BUILD)
 
 // Check whether terminal colors are enabled. By default, colors are enabled. For developer builds, the user can disable
 // colors by setting the NPU_VM_LOG_COLORS environment variable to "0"
 bool areColorsActive() {
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
     // std::call_once ensures thread-safe one-time initialization with minimal overhead on reads.
     std::call_once(areColorsActiveFlag, []() {
         bool value = true;
@@ -135,7 +135,7 @@ bool areColorsActive() {
 // shown. For developer builds, the user can enable full file paths by setting the NPU_VM_LOG_FULL_PATH environment
 // variable to a value that is not "0"
 bool showFullFilePath() {
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
     // std::call_once ensures thread-safe one-time initialization with minimal overhead on reads.
     std::call_once(showFullFilePathFlag, []() {
         bool value = false;
@@ -239,9 +239,9 @@ std::string makeTimestamp() {
 
 }  // namespace
 
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
 
-void intel_npu::vm::detail::resetLoggingCache() {
+void ov::intel_npu::vm::detail::resetLoggingCache() {
     // Reset cached values and reinitialize once_flags for testing.
     // Note: std::once_flag cannot be reset, so we destroy and recreate them using placement new.
     cachedLogLevel.reset();
@@ -258,12 +258,12 @@ void intel_npu::vm::detail::resetLoggingCache() {
     new (&filterStateFlag) std::once_flag();
 }
 
-#endif  // defined(VPUX_DEVELOPER_BUILD)
+#endif  // defined(NPU_PLUGIN_DEVELOPER_BUILD)
 
 // For developer builds, the effective log level can be set by the user through the NPU_VM_LOG_LEVEL or OV_NPU_LOG_LEVEL
 // environment variables. For non-developer builds, the log level is Info by default
 LogLevel ov::intel_npu::vm::detail::getEffectiveLogLevel() {
-#if !defined(VPUX_DEVELOPER_BUILD)
+#if !defined(NPU_PLUGIN_DEVELOPER_BUILD)
     return LogLevel::Info;
 #else
     // std::call_once ensures thread-safe one-time initialization with minimal overhead on reads.
@@ -284,7 +284,7 @@ LogLevel ov::intel_npu::vm::detail::getEffectiveLogLevel() {
 // which is done by matching the log source (file name / path and line) against a regex specified in the
 // NPU_VM_LOG_FILTER or IE_NPU_LOG_FILTER environment variables. For non-developer builds, all messages are printed
 bool ov::intel_npu::vm::detail::isLogIncludedInFilter([[maybe_unused]] const char* file, [[maybe_unused]] int line) {
-#if !defined(VPUX_DEVELOPER_BUILD)
+#if !defined(NPU_PLUGIN_DEVELOPER_BUILD)
     return true;
 #else
     const auto& filterState = getLogFilterState();

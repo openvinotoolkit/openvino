@@ -735,7 +735,7 @@ result_t ExecutionContext::initializeExecutionObjects(ze_context_handle_t contex
             (graphDdiTable->pfnCompilerIsOptionSupported(device, ZE_NPU_DRIVER_OPTIONS, "OPTIMIZED_DYNAMIC_STRIDES",
                                                          nullptr) == ZE_RESULT_SUCCESS);
 
-#if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD) || !defined(NDEBUG)
     auto updateExecutionModeFromEnvVariable = [&]() {
         if (_executionContextType == ExecutionContextType::V2) {
             const char* envVar = std::getenv("NPU_VM_RUNTIME_EXECUTION_MODE");
@@ -792,10 +792,10 @@ result_t ExecutionContext::initializeExecutionObjects(ze_context_handle_t contex
                 (_recordedCmdListReusable) ? HostSyncOjbectType::FENCE : HostSyncOjbectType::EVENT;
     }
 
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
     // forcing command list recording should not change _internalHostSyncObjectType
     const char* envVar = std::getenv("NPU_VM_RUNTIME_FORCE_CMD_LIST_RECORDING");
-    if (envVar != nullptr && OptionParser<bool>::parse(envVar)) {
+    if (envVar != nullptr && ::intel_npu::OptionParser<bool>::parse(envVar)) {
         _recordedCmdListReusable = false;
     }
 #endif

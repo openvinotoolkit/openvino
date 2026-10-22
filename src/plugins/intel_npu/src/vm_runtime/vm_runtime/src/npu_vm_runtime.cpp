@@ -222,7 +222,7 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeGetAPIVersi
 
     npu_vm_runtime_version_t version = NPU_VM_RUNTIME_VERSION_CURRENT;
 
-#if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD) || !defined(NDEBUG)
     // Debug purpose to verify old version of runtime interfaces
     // The env variable can be set to "V1.1" to force the runtime to use the old version.
     const char* envVar = std::getenv("NPU_VM_RUNTIME_VERSION");
@@ -809,10 +809,10 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecu
                                                  nullptr) == ZE_RESULT_SUCCESS;
         }
 
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
         const char* envVar = std::getenv("NPU_VM_RUNTIME_DISABLE_COUNTER_BASED_EVENT");
         if (envVar != nullptr) {
-            counterBasedEventSupported = !intel_npu::OptionParser<bool>::parse(envVar);
+            counterBasedEventSupported = !::intel_npu::OptionParser<bool>::parse(envVar);
         }
 #endif
     }

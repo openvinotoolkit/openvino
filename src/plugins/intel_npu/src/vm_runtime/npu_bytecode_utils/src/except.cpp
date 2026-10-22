@@ -14,7 +14,7 @@ using namespace ov;
                                                            const std::string& message) {
     std::ostringstream stream;
     stream
-#ifdef VPUX_DEVELOPER_BUILD
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
             << file << ":" << line << ": "
 #endif
             << message;

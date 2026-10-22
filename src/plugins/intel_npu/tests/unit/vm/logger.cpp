@@ -85,9 +85,9 @@ public:
 protected:
     void SetUp() override {
         _envLock = std::unique_lock<std::mutex>(envMutex());
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
         // Reset logging cache between test cases to ensure test isolation when env vars are changed
-        ::intel_npu::vm::detail::resetLoggingCache();
+        ov::intel_npu::vm::detail::resetLoggingCache();
 #endif
     }
 
@@ -109,7 +109,7 @@ void expectLogNotContains(std::string_view output, std::string_view unexpectedTe
 }
 
 TEST_F(VirtualMachineLoggerTest, FormatsDifferentArgumentTypes) {
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
     const ScopedEnvVar logLevel{"NPU_VM_LOG_LEVEL", "LOG_INFO"};
     const ScopedEnvVar logColors{"NPU_VM_LOG_COLORS", "0"};
 #endif
@@ -128,7 +128,7 @@ TEST_F(VirtualMachineLoggerTest, FormatsDifferentArgumentTypes) {
 }
 
 TEST_F(VirtualMachineLoggerTest, HandlesMissingAndExtraPlaceholders) {
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
     const ScopedEnvVar logLevel{"NPU_VM_LOG_LEVEL", "LOG_INFO"};
     const ScopedEnvVar logColors{"NPU_VM_LOG_COLORS", "0"};
 #endif
@@ -145,7 +145,7 @@ TEST_F(VirtualMachineLoggerTest, HandlesMissingAndExtraPlaceholders) {
 }
 
 TEST_F(VirtualMachineLoggerTest, SerializesNullCStringAsEmptyText) {
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
     const ScopedEnvVar logLevel{"NPU_VM_LOG_LEVEL", "LOG_INFO"};
     const ScopedEnvVar logColors{"NPU_VM_LOG_COLORS", "0"};
 #endif
@@ -162,7 +162,7 @@ TEST_F(VirtualMachineLoggerTest, SerializesNullCStringAsEmptyText) {
 }
 
 TEST_F(VirtualMachineLoggerTest, HonorsBuildLogLevelThresholds) {
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
     const ScopedEnvVar logLevel{"NPU_VM_LOG_LEVEL", "LOG_TRACE"};
     const ScopedEnvVar logColors{"NPU_VM_LOG_COLORS", "0"};
 #endif
@@ -177,7 +177,7 @@ TEST_F(VirtualMachineLoggerTest, HonorsBuildLogLevelThresholds) {
     });
 
 #if BUILD_LOG_LEVEL == 6  // 6 => Trace is enabled (all levels enabled)
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
     expectLogContains(output, "trace message");
 #else
     expectLogNotContains(output, "trace message");
@@ -187,7 +187,7 @@ TEST_F(VirtualMachineLoggerTest, HonorsBuildLogLevelThresholds) {
 #endif
 
 #if BUILD_LOG_LEVEL >= 5  // 5 => Debug and above are enabled
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
     expectLogContains(output, "debug message");
 #else
     expectLogNotContains(output, "debug message");
@@ -221,7 +221,7 @@ TEST_F(VirtualMachineLoggerTest, HonorsBuildLogLevelThresholds) {
 #endif
 }
 
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
 
 TEST_F(VirtualMachineLoggerTest, FormatsTimestampLevelSourceAndMessage) {
     const ScopedEnvVar logLevel{"NPU_VM_LOG_LEVEL", "LOG_INFO"};
@@ -390,6 +390,6 @@ TEST_F(VirtualMachineLoggerTest, DeveloperBuildCanEnableFullSourcePathInOutput) 
 #endif
 }
 
-#endif  // defined(VPUX_DEVELOPER_BUILD)
+#endif  // defined(NPU_PLUGIN_DEVELOPER_BUILD)
 
 }  // namespace

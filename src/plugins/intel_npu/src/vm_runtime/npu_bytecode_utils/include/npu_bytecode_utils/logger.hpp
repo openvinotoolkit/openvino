@@ -22,7 +22,7 @@
 // logs). For example, setting BUILD_LOG_LEVEL to 4 will include Info, Warn, Error, and Fatal messages, but exclude
 // Debug and Trace messages.
 //
-// For developer builds (i.e. when VPUX_DEVELOPER_BUILD is defined), the logging behavior can be further customized
+// For developer builds (i.e. when NPU_PLUGIN_DEVELOPER_BUILD is defined), the logging behavior can be further customized
 // through environment variables:
 // - NPU_VM_LOG_LEVEL or OV_NPU_LOG_LEVEL: Set the log level threshold (e.g. LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN,
 // LOG_ERROR, LOG_FATAL). If both are set, NPU_VM_LOG_LEVEL takes precedence.
@@ -53,7 +53,7 @@ enum class LogLevel : uint8_t {
 
 namespace detail {
 
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
 // Reset all logging caches. Intended for unit test isolation; not thread-safe and must not be called concurrently with
 // logging
 void resetLoggingCache();
