@@ -78,14 +78,22 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     relu_squared_ffn = arch == "jais2";
 
     // Per-architecture structure, auto-detected from the GGUF tensor table (layer 0).
-    has_qk_norm = has("blk.0.attn_q_norm.weight");
+    std::string attention_probe = "blk.0.";
+    for (int layer = 0; layer < n_layer; ++layer) {
+        const auto prefix = "blk." + std::to_string(layer) + ".";
+        if (has(prefix + "attn_q_norm.weight")) {
+            attention_probe = prefix;
+            break;
+        }
+    }
+    has_qk_norm = has(attention_probe + "attn_q_norm.weight");
     // q/k norm width: per-head (head_size, applied after reshape -> qwen3/hunyuan/gemma4)
     // vs full projection width (n_head*head_size, applied before reshape -> OLMoE).
     // For gemma4, norm width equals per-layer head_size (may differ by SWA/global); always
     // per-head. For OLMoE, norm width equals n_head*head_size. Detect by checking against
     // the global head_size; but for gemma4 override to per-head since it has mixed head sizes.
     if (has_qk_norm) {
-        const size_t qn = weights.at("blk.0.attn_q_norm.weight").get_shape()[0];
+        const size_t qn = weights.at(attention_probe + "attn_q_norm.weight").get_shape()[0];
         qk_norm_full = (arch != "gemma4") && (qn != static_cast<size_t>(head_size));
     }
     n_dense_lead = cfg_i("n_layer_dense_lead");
@@ -208,6 +216,9 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     logit_scale = cfg_f("logit_scale");
     attention_scale = cfg_f("attention_scale");            // 0 -> 1/sqrt(head_size)
     expert_weights_scale = cfg_f("expert_weights_scale");  // 0 -> 1.0 no-op
+    // llama.cpp's LFM2 MoE loader leaves the routing scale unset.
+    if (arch == "lfm2moe")
+        expert_weights_scale = 0.0f;
     // These llama.cpp builders require normalization independently of optional GGUF metadata.
     expert_weights_norm = options.normalize_expert_weights.value_or(
         arch == "hunyuan-moe" || arch == "minimax-m2" || arch == "qwen3moe" || arch == "qwen35moe" ||
@@ -318,6 +329,8 @@ bool DecoderConfig::layer_is_moe(int il) const {
 }
 
 bool DecoderConfig::layer_is_swa(int il) const {
+    if (arch == "lfm2" || arch == "lfm2moe")
+        return has_swa && layer_n_head_kv(il) > 0;
     if (!swa_layer_flags.empty()) {
         return il < static_cast<int>(swa_layer_flags.size()) && swa_layer_flags[il] != 0;
     }
