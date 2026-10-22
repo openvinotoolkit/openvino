@@ -59,10 +59,13 @@ private:
 //           state.set_state(t);
 //       }
 //   }
-// reset() returns the history to 0, i.e. an empty KV cache.
+// The value persists across infer() calls and must be set before every prefill chunk.
+// It starts as kUnset (-1), and so does it after reset(); a prefill with dynamic attention
+// fails if it still reads kUnset. Decode does not use it.
 class HistorySizeState final : public ov::IVariableState {
 public:
     static constexpr const char* name = "npuw_history_size";
+    static constexpr int64_t kUnset = -1;
 
     HistorySizeState() : ov::IVariableState(name) {
         m_state = ov::get_tensor_impl(ov::Tensor(ov::element::i64, ov::Shape{1}));
@@ -70,7 +73,7 @@ public:
     }
 
     void reset() override {
-        set(0);
+        set(kUnset);
     }
 
     // A copy, so mutating the returned tensor cannot change the history behind the request's back.
@@ -81,6 +84,7 @@ public:
     }
 
     void set_state(const ov::SoPtr<ov::ITensor>& newState) override {
+        OPENVINO_ASSERT(newState, "HistorySizeState expects a non-null tensor");
         OPENVINO_ASSERT(newState->get_element_type() == ov::element::i64, "HistorySizeState expects an int64 tensor");
         OPENVINO_ASSERT(newState->get_size() == 1, "HistorySizeState expects a single-element tensor");
         const auto value = newState->data<int64_t>()[0];

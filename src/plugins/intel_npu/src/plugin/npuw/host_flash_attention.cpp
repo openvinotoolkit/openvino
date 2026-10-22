@@ -1450,6 +1450,8 @@ Selector::Ptr PositionIDs::find(std::size_t original_query_length, const ov::ISy
 }
 
 void PositionIDs::prepare(int64_t past_len) {
+    NPUW_ASSERT((_case != Case::PREFILL || past_len >= 0) &&
+                "Prefill history size is unset: set the npuw_history_size state before infer()");
     const auto& iport = _rq.get().get_compiled_model()->inputs()[_position_ids_idx];
     const auto in_tensor = _rq.get().get_tensor(iport);
     const auto in_dims = in_tensor->get_shape();

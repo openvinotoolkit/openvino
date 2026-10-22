@@ -22,8 +22,8 @@ ov::SoPtr<ov::ITensor> make_history(const ov::Shape& shape, int64_t value) {
 TEST(HistorySizeStateTest, NameAndInitialValue) {
     ov::npuw::HistorySizeState state;
     EXPECT_EQ(state.get_name(), "npuw_history_size");
-    EXPECT_EQ(state.get(), 0);
-    EXPECT_EQ(state.get_state()->data<int64_t>()[0], 0);
+    EXPECT_EQ(state.get(), ov::npuw::HistorySizeState::kUnset);
+    EXPECT_EQ(state.get_state()->data<int64_t>()[0], -1);
 }
 
 TEST(HistorySizeStateTest, SetStateUpdatesHistory) {
@@ -39,11 +39,11 @@ TEST(HistorySizeStateTest, InternalSetterIsVisibleThroughGetState) {
     EXPECT_EQ(state.get_state()->data<int64_t>()[0], 512);
 }
 
-TEST(HistorySizeStateTest, ResetReturnsToZero) {
+TEST(HistorySizeStateTest, ResetMarksHistoryUnset) {
     ov::npuw::HistorySizeState state;
     state.set(64);
     state.reset();
-    EXPECT_EQ(state.get(), 0);
+    EXPECT_EQ(state.get(), ov::npuw::HistorySizeState::kUnset);
 }
 
 // The caller's tensor must not be aliased: later changes to it, or to the tensor returned
@@ -68,6 +68,7 @@ TEST(HistorySizeStateTest, SetStateRejectsInvalidTensors) {
     EXPECT_ANY_THROW(state.set_state(ov::get_tensor_impl(wrong_type)));
     EXPECT_ANY_THROW(state.set_state(make_history(ov::Shape{2}, 1)));
     EXPECT_ANY_THROW(state.set_state(make_history(ov::Shape{1}, -1)));
+    EXPECT_ANY_THROW(state.set_state(ov::SoPtr<ov::ITensor>{}));
 
     EXPECT_EQ(state.get(), 7) << "a rejected set_state must leave the history untouched";
 }

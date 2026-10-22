@@ -228,6 +228,8 @@ ov::npuw::runtime::attention::Selector::Ptr ov::npuw::runtime::attention::Positi
 }
 
 void ov::npuw::runtime::attention::PositionIDs::prepare(int64_t past_len) {
+    NPUW_ASSERT((m_case != Case::PREFILL || past_len >= 0) &&
+                "Prefill history size is unset: set the npuw_history_size state before infer()");
     const auto& iport = m_rq.get_compiled_model()->inputs()[m_position_ids_idx];
     const auto in_tensor = m_rq.get_tensor(iport);
     const auto in_dims = in_tensor->get_shape();
