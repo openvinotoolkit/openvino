@@ -28,7 +28,10 @@ struct SDPAOpt : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::sdpa::opt")
     explicit SDPAOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
-    [[nodiscard]] static bool supports_micro_sdpa(const kernel_impl_params& params);
+    // allow_scalar_mask enables a single-element runtime attention mask for the sdpa_ocl kernel
+    // (the ocl variant reads the one value and adds it to every logit). The sdpa_micro kernel does
+    // not support such a mask, so callers must pass true only when they intend to use sdpa_ocl.
+    [[nodiscard]] static bool supports_micro_sdpa(const kernel_impl_params& params, bool allow_scalar_mask = false);
     [[nodiscard]] static bool has_per_channel_compressed_kv(const kernel_impl_params& params);
     // Asymmetric planar compressed KV whose zero-point buffer is bf16: the layout the oneDNN micro SDPA
     // stage cannot handle, so it has to run on the regular sdpa_opt stages instead.
@@ -76,6 +79,10 @@ struct SDPAOpt : public ImplementationManager {
             desc->quantization_attributes.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
         const bool combine_scales_and_zp = desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
 
+        // Lane independent: this looks only at supports_micro_sdpa(), never at SDPAOclGenerator::supported(). When the ocl lane
+        // refuses a compressed op, opt still gets it (planar asymmetric) and, if this is false, SDPARef does, so no impl
+        // disappears, but the op is silently demoted. A passing compressed test is therefore not proof of the ocl lane;
+        // check which kernel was dispatched.
         auto p = node.get_kernel_impl_params();
         if (has_per_channel_compressed_kv(*p) && !supports_micro_sdpa(*p)) {
             return false;
