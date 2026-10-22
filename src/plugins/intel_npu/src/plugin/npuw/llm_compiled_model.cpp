@@ -693,6 +693,8 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
         ov::npuw::ReshapeToStatic(max_generation_token_len, kv_size, axes, m_max_lora_rank, whisper_lhs_seq_size)
             .run_on_model(generate_variant);
 
+        ov::npuw::RewriteGQAAttentionMask().run_on_model(generate_variant);
+
         if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
             // Must run after ReshapeToStatic, before OptimizeValueTensors (V-tensor optimization).
             // No-op (returns false) for models without sliding-window attention layers.
@@ -994,11 +996,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
     }
 
-    // Decomposed GroupQueryAttention masks only encode causality; make them honour the padded
-    // `attention_mask` input that LLMInferRequest fills for the static KV buffers.
-    LOG_DEBUG("Try rewrite decomposed GroupQueryAttention mask to apply attention_mask, if it exists.");
-    ov::npuw::RewriteGQAAttentionMask().run_on_model(kvcache_model);
-
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
@@ -1065,6 +1062,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                   true)
             .run_on_model(prefill_model);
     }
+    ov::npuw::RewriteGQAAttentionMask().run_on_model(prefill_model);
     LOG_DEBUG("Make kvcache model with static shapes");
 
     if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {

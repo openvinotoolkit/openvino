@@ -25,8 +25,9 @@ namespace ov::npuw {
 //                                                              ^
 //   attention_mask -> Convert(boolean) -> [Unsqueeze] ---------+
 //
-// i.e. the Add on the query branch is removed, Less becomes LessEqual and the result is
-// AND-ed with `attention_mask` before feeding the Select condition.
+// Run after static reshaping. If the mask's penultimate dimension is greater than 1,
+// remove the original Add and use LessEqual AND attention_mask (prefill).
+// If it equals 1, connect the boolean attention_mask directly to Select (KVCache).
 class RewriteGQAAttentionMask : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::RewriteGQAAttentionMask");
