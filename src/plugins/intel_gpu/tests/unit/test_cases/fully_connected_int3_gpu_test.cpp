@@ -9,6 +9,7 @@
 #include <intel_gpu/primitives/reorder.hpp>
 
 #include "fully_connected_inst.h"
+#include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
@@ -35,6 +36,8 @@ struct Int3FcParams {
     bool fused_eltwise;
     // Scale and zero point in fbyx, as constant transposes leave them.
     bool transposed_decompression = false;
+    // With fused_eltwise: swish of the FC times the eltwise input (the gate of a SwiGLU) instead of their sum.
+    bool swish_mul = false;
 };
 
 class fully_connected_int3_gpu_tests : public ::testing::Test {
@@ -105,7 +108,12 @@ public:
                                                             : (is_3d ? ov::PartialShape{p.batch, rows_list[0], p.ofm} : ov::PartialShape{rows_list[0], p.ofm}),
                                                  data_types::f16,
                                                  format::bfyx}));
-                topology.add(eltwise("eltw", {input_info("fc_prim"), input_info("eltw_data")}, eltwise_mode::sum));
+                if (p.swish_mul) {
+                    topology.add(activation("swish", input_info("fc_prim"), activation_func::swish, {1.0f, 0.0f}));
+                    topology.add(eltwise("eltw", {input_info("swish"), input_info("eltw_data")}, eltwise_mode::prod));
+                } else {
+                    topology.add(eltwise("eltw", {input_info("fc_prim"), input_info("eltw_data")}, eltwise_mode::sum));
+                }
             } else {
                 // A second user keeps the output reorder from being fused, so the FC stays internal and gets
                 // fake-aligned row counts as in a real model.
@@ -371,6 +379,14 @@ TEST_F(fully_connected_int3_gpu_tests, dynamic_3d_fused_eltwise_static_impls_v2)
     auto p = with(base, 1, 1);
     p.fused_eltwise = true;
     run(p, true, false, {40, 130, 300}, {}, true);
+}
+
+// The gate of a SwiGLU: the v2 epilogue computes the fused swish itself, ahead of the 2D block eltwise input.
+TEST_F(fully_connected_int3_gpu_tests, dynamic_3d_fused_swish_mul_static_impls_v2) {
+    auto p = with(base, 1, 1);
+    p.fused_eltwise = true;
+    p.swish_mul = true;
+    run(p, true, false, {40, 130}, {}, true);
 }
 
 TEST_F(fully_connected_int3_gpu_tests, dynamic_fused_eltwise_static_impls_v2_k_above_n) {

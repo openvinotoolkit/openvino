@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "activation_inst.h"
 #include "common_utils/jitter.hpp"
 #include "fully_connected_inst.h"
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
@@ -443,9 +444,11 @@ protected:
 };
 
 // The v2 epilogue reads eltwise inputs shaped exactly like the output (f16, dense, plain, static) as 2D blocks
-// instead of per element; on PTL that takes 7-13% off the FCs with such an input. A dynamic impl keeps the
-// per-element loads, which also cover inputs that turn out to broadcast. V2_FUSED_OPS_TILED is FUSED_OPS with
-// those inputs read from the blocks.
+// instead of per element; on PTL that takes 7-13% off the FCs with such an input, on LNL 5-7% at 128 rows. A
+// dynamic impl keeps the per-element loads, which also cover inputs that turn out to broadcast.
+// V2_FUSED_OPS_TILED is FUSED_OPS with those inputs read from the blocks, and with a Swish of the GEMM result (the
+// gate of a SwiGLU) in native math: the precise exp and its range checks take as long as the loads (7% of the
+// gate FC on LNL at 128 rows).
 JitConstants make_v2_elt_tile_jit_constants(const RuntimeParams& params) {
     JitConstants jit;
     if (params.is_dynamic()) {
@@ -484,7 +487,15 @@ JitConstants make_v2_elt_tile_jit_constants(const RuntimeParams& params) {
         } else {
             fused_ops += "FUSED_OP" + op + "_LOAD";
         }
-        fused_ops += " FUSED_OP" + op + "_ACTION ";
+        const auto* act = fd.is_type<activation>() ? fd.get_typed_fuse_params<ActivationFuseParams>()->_desc.get() : nullptr;
+        if (act && act->activation_function == activation_func::swish && fd.inputs.size() == 1 && fd.inputs[0].m_type == FusedInputType::ORIGINAL) {
+            // x * sigmoid(beta * x) of the float accumulator; native_exp overflowing to inf gives 0, the limit.
+            const JitTerm swish{"(activated * native_recip(1.0f + native_exp(-" + JitTerm{act->additional_params.a}.str() + " * activated)))"};
+            fused_ops += " " + gen.get_output_type().str() + " " + gen.get_output_var_name(JitTerm{"activated"}, i).str() + " = " +
+                         gen.convert_to_output_type(swish).str() + "; ";
+        } else {
+            fused_ops += " FUSED_OP" + op + "_ACTION ";
+        }
     }
     if (tiles == 0) {
         return jit;
@@ -575,7 +586,7 @@ protected:
             }
             FusedOpsConfiguration conf = {"", idx_order, "activated", ov::element::f32, 1};
             jit.add(make_fused_ops_jit_constants(params, {conf}));
-            if (m_cfg.v2 && params.get_device_info().arch >= gpu_arch::xe3) {
+            if (m_cfg.v2) {
                 jit.add(make_v2_elt_tile_jit_constants(params));
             }
         }
