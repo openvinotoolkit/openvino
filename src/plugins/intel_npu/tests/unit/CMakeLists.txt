@@ -177,6 +177,12 @@ install(TARGETS ${TARGET_NAME}
         EXCLUDE_FROM_ALL
 )
 
+if(CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT ENABLE_DEVELOPER_BUILD)
+    target_compile_options(${TARGET_NAME} PRIVATE -DBUILD_LOG_LEVEL=4)
+else()
+    target_compile_options(${TARGET_NAME} PRIVATE -DBUILD_LOG_LEVEL=6)
+endif()
+
 target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/executor_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/should_use_host_compile_interpreter_test.cpp
@@ -232,5 +238,5 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_infer_utils_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/make_tensor_slice_bounds_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_topology_test.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/vm/buffer.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/vm/buffer.cpp
 )
