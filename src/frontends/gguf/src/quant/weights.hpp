@@ -14,7 +14,7 @@
 namespace ov {
 class Node;
 class Model;
-}
+}  // namespace ov
 
 namespace ov::frontend::gguf {
 

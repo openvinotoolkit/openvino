@@ -413,13 +413,15 @@ void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model) {
     ov::OutputVector probes;
     for (const auto& activation : activations) {
         probes.push_back(std::make_shared<ov::op::v1::Multiply>(
-            activation, ov::op::v0::Constant::create(activation.get_element_type(), {}, {1})));
+            activation,
+            ov::op::v0::Constant::create(activation.get_element_type(), {}, {1})));
     }
     auto activation_model = std::make_shared<ov::Model>(probes, model->get_parameters())->clone();
     ov::pass::SharedOpOptimization().run_on_model(activation_model);
     std::map<ov::Output<ov::Node>, ov::Output<ov::Node>> shared_activations;
     for (size_t i = 0; i < activations.size(); ++i)
-        shared_activations[activations[i]] = activation_model->get_results()[i]->get_input_node_shared_ptr(0)->input_value(0);
+        shared_activations[activations[i]] =
+            activation_model->get_results()[i]->get_input_node_shared_ptr(0)->input_value(0);
     struct Projection {
         std::shared_ptr<ov::op::v1::Subtract> subtract;
         ov::Shape shape;
@@ -448,8 +450,7 @@ void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model) {
         auto input = shared_activations.at(matmul->input_value(0));
         while (ov::is_type<ov::op::v0::Convert>(input.get_node_shared_ptr()))
             input = input.get_node_shared_ptr()->input_value(0);
-        projections[input].push_back(
-            {subtract, shape == rt_info.end() ? ov::Shape{} : shape->second.as<ov::Shape>()});
+        projections[input].push_back({subtract, shape == rt_info.end() ? ov::Shape{} : shape->second.as<ov::Shape>()});
     }
     std::set<ov::Node*> grouped;
     for (const auto& [input, group] : projections) {

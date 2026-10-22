@@ -182,8 +182,8 @@ TEST(GGUFWeight, MixedU2ProjectionsKeepGroupedZeroPoints) {
             for (const bool singleton : {false, true}) {
                 SCOPED_TRACE(::testing::Message() << count << ":" << grouped_first << ":" << singleton);
                 const size_t k = singleton ? 128 : 256;
-                auto input = std::make_shared<ov::op::v0::Parameter>(
-                    ov::element::f32, ov::PartialShape{-1, static_cast<int64_t>(k)});
+                auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
+                                                                     ov::PartialShape{-1, static_cast<int64_t>(k)});
                 input->output(0).get_tensor().set_names({"input"});
                 ov::OutputVector outputs;
                 std::vector<std::shared_ptr<ov::op::v1::Subtract>> subtracts;
@@ -204,7 +204,9 @@ TEST(GGUFWeight, MixedU2ProjectionsKeepGroupedZeroPoints) {
                     }
                     auto activation = std::make_shared<ov::op::v1::Reshape>(
                         input,
-                        ov::op::v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{-1, static_cast<int64_t>(k)}),
+                        ov::op::v0::Constant::create(ov::element::i64,
+                                                     {2},
+                                                     std::vector<int64_t>{-1, static_cast<int64_t>(k)}),
                         false);
                     outputs.push_back(std::make_shared<ov::op::v0::MatMul>(activation, weight, false, true));
                 }
@@ -254,8 +256,8 @@ TEST(GGUFWeight, TernaryProjectionsKeepScalarZeroPoints) {
         std::memset(tensors.weight.data(), 0x55, tensors.weight.get_byte_size());
         std::fill_n(tensors.scales.data<ov::float16>(), tensors.scales.get_size(), ov::float16(0.125f));
         std::memset(tensors.zero_point.data(), 1, tensors.zero_point.get_byte_size());
-        outputs.push_back(std::make_shared<ov::op::v0::MatMul>(
-            input, make_weight_node(tensors, GGUF_TYPE_PTQ1_0), false, true));
+        outputs.push_back(
+            std::make_shared<ov::op::v0::MatMul>(input, make_weight_node(tensors, GGUF_TYPE_PTQ1_0), false, true));
     }
     auto model = std::make_shared<ov::Model>(outputs, ov::ParameterVector{input});
     normalize_u2_zero_points(model);
