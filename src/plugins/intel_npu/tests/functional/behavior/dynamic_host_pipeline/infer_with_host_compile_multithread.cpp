@@ -315,6 +315,55 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
     }
 }
 
+// Negative control for the per-request seed spacing: distinct requests must produce outputs that differ by
+// more than the comparison tolerance, so comparing one request's NPU output against another request's
+// reference is rejected. This guards the concurrency checks against silently accepting cross-request swaps.
+TEST_P(InferWithHostCompileMultithreadTests, MT_CrossRequestOutputMismatchIsRejected) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    auto referenceModel = createModelByName(selectedModelName);
+    const ov::Shape shape = makeInputShape(referenceModel, 1, false);
+    ov::CompiledModel referenceCompiledModel;
+    try {
+        referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();
+    }
+
+    const auto cfg = makeConfig(/*sharedQueue=*/true);
+    auto model = createModelByName(selectedModelName);
+    ov::CompiledModel compiledModel;
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device, cfg));
+
+    auto npuRequestA = compiledModel.create_infer_request();
+    auto referenceRequestA = referenceCompiledModel.create_infer_request();
+    auto referenceRequestB = referenceCompiledModel.create_infer_request();
+
+    const auto inputA = makeInputTensor(model, shape, 100);
+    const auto inputB = makeInputTensor(model, shape, 100 + kSeedSpacing);
+    npuRequestA.set_input_tensor(0, inputA);
+    referenceRequestA.set_input_tensor(0, inputA);
+    referenceRequestB.set_input_tensor(0, inputB);
+
+    OV_ASSERT_NO_THROW(npuRequestA.infer());
+    OV_ASSERT_NO_THROW(referenceRequestA.infer());
+    OV_ASSERT_NO_THROW(referenceRequestB.infer());
+
+    const auto npuOutputA = npuRequestA.get_output_tensor(0);
+    const auto referenceOutputA = referenceRequestA.get_output_tensor(0);
+    const auto referenceOutputB = referenceRequestB.get_output_tensor(0);
+    const auto outputType = npuOutputA.get_element_type();
+
+    // Matching request pair stays within the NPU-calibrated tolerance.
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(referenceOutputA, npuOutputA, outputType, 0.02, 0.02));
+
+    // The other request's reference must be rejected, proving the comparison still detects swapped outputs.
+    ASSERT_THROW(ov::test::utils::compare(referenceOutputB, npuOutputA, outputType, 0.02, 0.02), ov::Exception);
+}
+
 TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateRequestAndInfer) {
     std::cout << "[Manual LOG]Setting up test: (1)MT_SingleCompileParallelCreateRequestAndInfer "  << std::endl;
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
