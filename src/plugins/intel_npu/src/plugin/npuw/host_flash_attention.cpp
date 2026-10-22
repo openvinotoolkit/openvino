@@ -1494,17 +1494,10 @@ HistorySize::HistorySize(std::size_t original_query_length) : _original_query_le
 }
 
 void HistorySize::prepare(int64_t past_len) {
-    switch (_case) {
-    case Case::GENERATE:
-        _past_length = past_len;
-        break;
-    case Case::PREFILL:
-        // Same chunk rounding as PositionIDs, which takes its prefill past from past_len too
-        _past_length = ((past_len + _original_query_length - 1) / _original_query_length) * _original_query_length;
-        break;
-    default:
-        NPUW_ASSERT(false && "Reached the unreachable code");
-    }
+    // Same chunk rounding as PositionIDs, which takes its prefill past from past_len too.
+    // HFA is prefill-only; for a query length of 1 (GENERATE, rejected by the HFA runtime) the
+    // rounding is the identity.
+    _past_length = ((past_len + _original_query_length - 1) / _original_query_length) * _original_query_length;
 }
 
 int64_t HistorySize::context_length() const {
