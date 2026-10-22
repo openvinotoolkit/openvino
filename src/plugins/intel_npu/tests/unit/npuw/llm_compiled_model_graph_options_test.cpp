@@ -111,6 +111,20 @@ protected:
     std::shared_ptr<ov::IPlugin> m_plugin;
 };
 
+TEST_F(LLMCompiledModelGraphOptionsTest, SparseMoEPreservesExpertFoldingForSmallModels) {
+    RecordingFactory recorder;
+    auto props = base_props();
+    props["NPUW_LLM_GENERATE_MOE_HINT"] = "HOST_ROUTED";
+    props["NPUW_LLM_PREFILL_MOE_HINT"] = "HOST_ROUTED";
+    props["NPUW_ONLINE_KEEP_BLOCKS_TAGGED"] = "attn";
+    const auto model = ov::test::npuw::build_qwen3_moe_llm_test_model();
+    auto compiled = std::make_unique<ov::npuw::LLMCompiledModel>(model, m_plugin, props, recorder.make_factory());
+    const auto& prefill = require_call_containing(recorder, "_prefill");
+    EXPECT_EQ(prefill.props.at("NPUW_ONLINE_KEEP_BLOCKS_TAGGED").as<std::string>(), "attn,expert");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    EXPECT_EQ(generate.props.at("NPUW_ONLINE_KEEP_BLOCKS_TAGGED").as<std::string>(), "attn,expert");
+}
+
 TEST_F(LLMCompiledModelGraphOptionsTest, SharedHeadAddsHeadModelAndSlicesPrefillEmbeds) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
