@@ -843,33 +843,24 @@ TEST_F(TransformationTestsF, Convert2GatherMatmulMoeBlockToMoeOp_restores_output
     model_ref = build_2gemm_bgm_to_moe_reference_model(true, true);
 }
 
-// Compressed (GatherMatmulCompressed) variants. Every builder above produces PLAIN GatherMatmul
-// with f32 weights, so the entire compressed half of the callback -- the weight-dtype admission
-// gate, the scalar-zp normalization, the group_size unification and the per-channel scale/zp
-// broadcast -- is unreachable from the tests in this file. The models below exist to reach it.
+// Compressed (GatherMatmulCompressed) variants: the builders above produce plain GatherMatmul only, which never
+// reaches the compressed branch of the callback.
 
 namespace {
 
-// The compressed branch only inspects weight dtypes and scale/zp shapes, so the smallest shapes
-// that still express the interesting cases are enough. gate/up carry 4 scale groups over K=16 and
-// down carries 2 over K=8, i.e. both sides must unify to the same group_size of 4 -- a single G
-// everywhere would not exercise that.
+// gate/up carry 4 scale groups over K=16 and down 2 over K=8, so both must unify to group_size 4.
 constexpr size_t kE = 2;
 constexpr size_t kHidden = 16;
 constexpr size_t kInter = 8;
 constexpr size_t kTopk = 2;
 constexpr size_t kGroupSize = 4;
 
-// An absent optional input. GatherMatmul itself spells a missing bias this way; note it has to be
-// the 2-argument Constant ctor, since Constant::create cannot produce a dynamic element type.
+// An absent optional input. Constant::create cannot produce a dynamic element type, hence the 2-argument ctor.
 std::shared_ptr<ov::Node> absent_input() {
     return std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0});
 }
 
-// Quantized values are never dequantized by these tests, but they must still be distinct per
-// element so that a wrong broadcast/expansion is visible rather than masked by a uniform fill.
-// Constant::create range-checks every element, and u2 holds only 0..3, so the pattern is clamped
-// to whatever the requested type can actually represent.
+// Distinct per-element values so a wrong expansion is visible, clamped to the type's range (u2 holds 0..3).
 std::shared_ptr<ov::Node> int_const(ov::element::Type dt, const ov::Shape& shape, int32_t base = 0) {
     const int32_t hi =
         dt.bitwidth() < 8 ? static_cast<int32_t>((1u << (dt.bitwidth() - (dt.is_signed() ? 1 : 0))) - 1) : 127;
@@ -904,10 +895,8 @@ struct CompressedMoeSpec {
     ov::element::Type zp_dt = ov::element::dynamic;
 };
 
-// Same topology as build_3gemm_bgm_model, with the three GatherMatmul replaced by
-// GatherMatmulCompressed. The Parameter stays f32 on purpose: the router MatMul below multiplies
-// by an f32 Constant and v0::MatMul requires both operands to share an element type, so making
-// the Parameter f16 throws inside this builder before the pass ever runs.
+// Same topology as build_3gemm_bgm_model with GatherMatmulCompressed. The Parameter stays f32: the router
+// MatMul multiplies it by an f32 Constant and v0::MatMul needs matching element types.
 std::shared_ptr<ov::Model> build_3gemm_bgm_compressed_model(const CompressedMoeSpec& spec) {
     using namespace ov;
 
@@ -942,8 +931,7 @@ std::shared_ptr<ov::Model> build_3gemm_bgm_compressed_model(const CompressedMoeS
     auto down_scale = scale_const(Shape{kE, kHidden, spec.down_G});
 
     const bool has_zp = spec.zp_dt != element::dynamic;
-    // 10/11/12 rather than 0..3: a zp of 0 is indistinguishable from the symmetric case, and T6
-    // asserts on the expanded values.
+    // Non-zero zps: a zp of 0 is indistinguishable from the symmetric case.
     auto gate_zp = has_zp ? int_const(spec.zp_dt, Shape{kE, kInter, spec.gate_G}, 10) : absent_input();
     auto up_zp = has_zp ? int_const(spec.zp_dt, Shape{kE, kInter, spec.up_G}, 11) : absent_input();
     auto down_zp = has_zp ? int_const(spec.zp_dt, Shape{kE, kHidden, spec.down_G}, 12) : absent_input();
@@ -991,10 +979,7 @@ std::shared_ptr<MOECompressed> run_3gemm_compressed(const std::shared_ptr<ov::Mo
 
 }  // namespace
 
-// C6. Uniform i8 is the one and only dtype the admission gate regressed: upstream has no gate in
-// the compressed branch at all, so an i8 MoE layer fused before this PR and stopped fusing on it.
-// After the fix the accepted uniform set is exactly the set the producing pass can emit
-// (supported_compressed_weights_types_with_u2 = {u4, i4, i8, u8, u2}).
+// Uniform i8 must still fuse: the accepted uniform set is every dtype the producing pass can emit.
 TEST(Convert3GatherMatmulMoeBlockToMoeOpCompressed, uniform_i8_fuses) {
     CompressedMoeSpec spec;
     spec.gate_dt = spec.up_dt = spec.down_dt = ov::element::i8;
@@ -1014,10 +999,8 @@ TEST(Convert3GatherMatmulMoeBlockToMoeOpCompressed, uniform_i8_fuses) {
     EXPECT_FALSE(cfg.has_zp);
 }
 
-// C6. The full admission table. Uniform is allowed for every dtype the producer can emit; mixing
-// is allowed within {u2, u4, u8}, which is what moe_3gemm's per-GEMM dispatch actually decodes,
-// provided gate and up agree on whether they are u4 -- they share one SLM activation copy whose
-// layout (interleaved for u4, plain otherwise) is picked from the gate dtype.
+// Admission table: uniform for every dtype the producer can emit; mixed only within {u2, u4, u8},
+// provided gate and up agree on being u4 (they share one SLM activation copy laid out by the gate dtype).
 struct DtypeGateParams {
     ov::element::Type gate_dt;
     ov::element::Type up_dt;
@@ -1055,7 +1038,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              DtypeGateParams{ov::element::i4, ov::element::i4, ov::element::i4, true},
                              DtypeGateParams{ov::element::u8, ov::element::u8, ov::element::u8, true},
                              DtypeGateParams{ov::element::i8, ov::element::i8, ov::element::i8, true},
-                             // Mixed within {u2, u8}: the combinations the real NNCF mixed-precision models produce.
+                             // Mixed within {u2, u8}: decoded per GEMM.
                              DtypeGateParams{ov::element::u2, ov::element::u8, ov::element::u2, true},
                              DtypeGateParams{ov::element::u8, ov::element::u2, ov::element::u8, true},
                              DtypeGateParams{ov::element::u2, ov::element::u2, ov::element::u8, true},
@@ -1078,17 +1061,13 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              // Not producible by the pipeline today; documents that the gate is a whitelist.
                              DtypeGateParams{ov::element::f16, ov::element::f16, ov::element::f16, false}));
 
-// C7. A per-channel zp coexisting with a group-wise GEMM sends the zp through
-// broadcast_per_channel_scale, whose per-element memcpy uses Type::size() -- which rounds a
-// sub-byte type up to a whole byte. Without the guard the expansion reads past the constant and
-// interleaves neighbouring channels, and the result still passes MOECompressed validation, so the
-// layer fuses with silently wrong zero points. The fix declines instead.
+// A per-channel sub-byte zp next to a group-wise GEMM must not be expanded: Type::size() rounds sub-byte types
+// up to a byte, so the copy would interleave channels and still pass validation. The pass must decline.
 TEST(Convert3GatherMatmulMoeBlockToMoeOpCompressed, subbyte_per_channel_zp_declines) {
     CompressedMoeSpec spec;
     spec.gate_dt = spec.up_dt = spec.down_dt = ov::element::u4;
     spec.zp_dt = ov::element::u4;
-    // gate/up per-channel (G == 1) against a group-wise down: group_size comes out of down as 4,
-    // so gate/up must be expanded from 1 group to 4 -- that is the call the guard now rejects.
+    // gate/up per-channel (G == 1) against a group-wise down: gate/up would need expanding from 1 group to 4.
     spec.gate_G = 1;
     spec.up_G = 1;
 
@@ -1099,9 +1078,7 @@ TEST(Convert3GatherMatmulMoeBlockToMoeOpCompressed, subbyte_per_channel_zp_decli
     EXPECT_EQ(count_ops_of_type<GatherMatmulCompressed>(model), 3);
 }
 
-// C7 negative control: the same shape with byte-wide zps is legitimately expandable, and this is
-// the only test that asserts the expansion arithmetic rather than just that it was skipped.
-// Green on both sides of the fix.
+// Control: the same shape with byte-wide zps is expandable; this checks the expansion arithmetic.
 TEST(Convert3GatherMatmulMoeBlockToMoeOpCompressed, u8_per_channel_zp_expands) {
     CompressedMoeSpec spec;
     spec.gate_dt = spec.up_dt = spec.down_dt = ov::element::u8;
