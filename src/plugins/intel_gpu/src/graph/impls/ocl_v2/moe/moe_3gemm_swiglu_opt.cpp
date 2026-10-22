@@ -679,29 +679,20 @@ protected:
     }
 };
 
-// Native u2 grouped GEMM for prefill: consumes the u2 expert weights directly, so the u4
-// unpack scratch (twice the size of the u2 expert weights) is not needed at all. One instantiation per
-// GEMM because K and N differ between gate/up (K=hidden, N=inter) and down (K=inter, N=hidden),
-// and the kernel sizes its SLM staging buffer from K at compile time.
-//
-// This exists because neither alternative works: oneDNN's JIT GEMM generator (gemmstone) has no
-// 2-bit type and hard-codes at most 2 elements per byte, and the batched GEMV is one work-group
-// per (token, expert) pair so it re-reads an expert's weights once per token.
+// Native u2 grouped GEMM for prefill (no u4 unpack scratch). One instantiation per GEMM: K and N
+// differ between gate/up and down, and the kernel sizes its SLM staging from K at compile time.
 class MoE3GemmSwigluU2Gemm : public KernelGenerator {
 public:
     // gemm_idx: 0 = gate, 1 = up, 2 = down.
     explicit MoE3GemmSwigluU2Gemm(int gemm_idx) : KernelGenerator("moe_3gemm_swiglu_mlp", "u2_gemm_" + std::to_string(gemm_idx)), m_gemm_idx(gemm_idx) {}
 
-    // Tokens staged in SLM per work-group. The whole point of the kernel: one weight byte read
-    // (and one shift/mask dequant) feeds TILE_M FMAs, taking weight arithmetic intensity from
-    // 2 to 2*TILE_M MACs/byte. Bounded by SLM: TILE_M * K * sizeof(half) must stay under 64 KB,
-    // i.e. TILE_M <= 16 at K=2048.
+    // Tokens staged in SLM per work-group: one weight byte read feeds TILE_M FMAs.
+    // TILE_M * K * sizeof(half) must stay under 64 KB.
     static constexpr int TILE_M = 8;
 
-    // ---- DPAS variant (see the long comment on the kernel) ----
-    // Sub-group size 16 is mandatory, not a tuning knob: intel_sub_group_f16_f16_matrix_mad_k16
-    // compiles at the xe2+ default of 32 and silently returns wrong results there. It therefore
-    // gets its own macro; the DPAS kernel never reads SUBGROUP_SIZE.
+    // ---- DPAS variant ----
+    // Sub-group size 16 is mandatory: intel_sub_group_f16_f16_matrix_mad_k16 compiles at the xe2+
+    // default of 32 but returns wrong results, so the DPAS kernel never reads SUBGROUP_SIZE.
     static constexpr int DPAS_SG = 16;
     static constexpr int DPAS_MSUB = 4;                   // float8 accumulators per sub-group
     static constexpr int DPAS_N_SG = 16;                  // sub-groups per work-group
@@ -733,12 +724,9 @@ public:
         return dpas_stage_ok(hidden_size, inter_size, gate_up_gs) && dpas_stage_ok(inter_size, hidden_size, down_gs);
     }
 
-    // The FMA fallback picks its inner-loop variant from ELEMS_PER_LANE = FAKE_GROUP_SIZE /
-    // SUBGROUP_SIZE and only implements 1, 2 and 4. The remaining value, 8 -- reachable on
-    // pre-xe2 hardware, where SUBGROUP_SIZE is 16, once both group sizes are >= 128 -- is an
-    // #error in moe_3gemm_swiglu_mlp.cl, i.e. a failed OpenCL build at model load rather than a
-    // fallback. Mirror the kernel's arithmetic (including its min-with-128 clamp) here so the
-    // impl can decline the native path while it still has one.
+    // The FMA variant implements ELEMS_PER_LANE (FAKE_GROUP_SIZE / SUBGROUP_SIZE) 1, 2 and 4 only;
+    // 8 is an #error in the kernel. Mirror its arithmetic (incl. the min-with-128 clamp) so the
+    // impl declines the native path instead.
     static bool fma_supported(gpu_arch arch, size_t gate_up_gs, size_t down_gs) {
         const size_t sg = (arch >= gpu_arch::xe2) ? 32u : 16u;
         const size_t fake_gs = std::min({gate_up_gs, down_gs, size_t{128}});
@@ -789,9 +777,7 @@ protected:
             const bool zp_scalar = zp_layout.count() == 1;
             jit.make("U2_GEMM_ZP_SCALAR", zp_scalar ? 1 : 0);
             if (!zp_scalar) {
-                // The kernel unpacks the zp 4 per byte. A u8 zp behind u2 weights would be read at
-                // a quarter of its true stride and produce plausible-looking garbage, so refuse it
-                // here instead of at the end of an eval run.
+                // The kernel unpacks the zp 4 per byte; a u8 zp would be read at a quarter of its stride.
                 OPENVINO_ASSERT(zp_layout.data_type == ov::element::u2, "Per-group zp for a u2 MoE GEMM must be u2 (4 per byte), got ", zp_layout.data_type);
                 const size_t per_expert = n * (k / group_size);
                 OPENVINO_ASSERT(per_expert != 0 && zp_layout.count() % per_expert == 0,
@@ -1284,17 +1270,12 @@ public:
     unpack_src_key _u2_unpack_shared_weight_key[4];
     unpack_src_key _u2_unpack_shared_zp_key[4];
 
-    // The native u2 GEMM may only serve a layer whose three expert GEMMs are ALL u2. `_weights_u2`
-    // is the OR of the three (ctor), so using it here would feed a u8/u4 weight buffer to a kernel
-    // that reads a u2 expert stride (N*K/4) and unpacks every byte into four 2-bit values — silent
-    // garbage on any mixed-precision layer, which is exactly what the per-GEMM-dtype (A3) work
-    // exists to support. The unpack decision in execute() and the routing decision in
-    // exec_prefill_grouped_gemm() must use this same predicate: if they disagree, a mixed layer
-    // ends up on the oneDNN u4 path with routed weights that were never unpacked.
-    //
-    // `arch` is a parameter rather than a cached flag so that the compiler enforces the agreement:
-    // the kernel does not build for every (arch, group_size) pair, and when it does not the impl
-    // must decline here and let the unpack + grouped GEMM path run.
+    // The native u2 GEMM may only serve a layer whose three expert GEMMs are ALL u2 (`_weights_u2`
+    // is their OR): it reads a u2 expert stride and unpacks every byte into four 2-bit values.
+    // The unpack decision in execute() and the routing in exec_prefill_grouped_gemm() must use this
+    // same predicate, or a mixed layer reaches the u4 path with routed weights never unpacked.
+    // `arch` is a parameter because the kernel does not build for every (arch, group_size) pair;
+    // then the impl must decline here and let the unpack + grouped GEMM path run.
     bool use_native_u2_prefill(gpu_arch arch) const {
         return _gemm_weights_u2[0] && _gemm_weights_u2[1] && _gemm_weights_u2[2] &&
                MoE3GemmSwigluU2Gemm::supported(arch,
@@ -1425,13 +1406,8 @@ public:
         }
         if (_weights_u2 || has_u2_shared_weights()) {
             add_stage(u2_unpack, params);
-            // Native u2 GEMM stages. Registered alongside the unpack so the impl can fall back
-            // to the unpack + u4 grouped GEMM path if the native kernel fails at runtime.
-            //
-            // Registered under the same predicate that decides whether they are ever dispatched.
-            // Under the OR, a mixed layer such as {u2, u8, u2} also registers the stage for its u8
-            // GEMM, and building that stage asserts on a per-group zp that is not u2 -- so the
-            // model fails to load rather than quietly compiling a kernel nobody calls.
+            // Native u2 GEMM stages, registered under the same predicate that decides whether they
+            // are dispatched: under the OR, a mixed layer would build a stage for its non-u2 GEMM.
             if (use_native_u2_prefill(info.arch)) {
                 add_stage(u2_gemm_gate, params);
                 add_stage(u2_gemm_up, params);
@@ -2776,19 +2752,13 @@ public:
         return _gemm_weights_u2[gemm_idx] ? _u2_unpack_zp[gemm_idx] : scratch.moe_fusion_wei_addr.zp[gemm_idx];
     }
 
-    // Builds the work-block list for the native u2 GEMM and uploads it.
-    //
-    // The gathered token buffer is already sorted by expert, but a work-group must never
-    // straddle an expert boundary (it would apply one expert's weights to another's tokens).
-    // So each active expert contributes ceil(n_e / TILE_M) blocks of {expert_id, token_start,
-    // n_tokens}; a short final block is handled by the kernel's n_tokens guard rather than by
-    // padding memory. Returns the number of blocks.
+    // Builds and uploads the work-block list for the native u2 GEMM; returns the block count.
+    // A work-group must never straddle an expert boundary, so each active expert contributes
+    // ceil(n_e / TILE_M) blocks; the kernel guards the ragged last block with n_tokens.
     int build_u2_gemm_blocks(typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                              const std::vector<int32_t>& experts_id_cpu,
                              const std::vector<int32_t>& tokens_lens_per_expert_cpu) {
-        // 32 rows for the DPAS variant (4 float8 accumulators), 8 for the FMA one. The kernel
-        // guards the ragged final block with n_tokens, so a short block costs nothing but a few
-        // masked-off accumulator slots.
+        // 32 rows for the DPAS variant (4 float8 accumulators), 8 for the FMA one.
         const int tile_m = use_u2_dpas(instance.get_impl_params()->get_device_info().arch) ? MoE3GemmSwigluU2Gemm::DPAS_TILE_M : MoE3GemmSwigluU2Gemm::TILE_M;
         std::vector<int32_t> blocks;
         blocks.reserve(static_cast<size_t>(tokens_lens_per_expert_cpu.size()) * 3);
@@ -2836,7 +2806,7 @@ public:
         // Fail loudly rather than silently decoding a u4/u8 buffer as u2.
         OPENVINO_ASSERT(_gemm_weights_u2[gemm_idx], "moe_3gemm native u2 GEMM invoked on a non-u2 weight, gemm_idx=", gemm_idx);
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
-        // The raw u2 weights, NOT the u4 unpack scratch — that is the entire point.
+        // The raw u2 weights, NOT the u4 unpack scratch.
         const auto& wei = scratch.moe_fusion_wei_addr.weight[gemm_idx];
         const auto& scale = scratch.moe_fusion_wei_addr.scale[gemm_idx];
         // INT2_SYM still emits a (scalar) zp; fall back to the weight buffer as a dummy binding
@@ -2844,15 +2814,9 @@ public:
         const auto& zp = scratch.moe_fusion_wei_addr.zp[gemm_idx] ? scratch.moe_fusion_wei_addr.zp[gemm_idx] : wei;
 
         if (use_u2_dpas(instance.get_impl_params()->get_device_info().arch)) {
-            // Split N back across work-groups. The FMA variant sweeps all of N inside one
-            // work-group because repeating its SLM staging per N block was worse; with the staging
-            // gone that trade reverses, and narrow N tiles now lose only because each work-group
-            // re-reads the activation tile from L2. 256 channels per work-group is close to the
-            // full-N speed while still leaving enough work-groups to load-balance.
-            //
-            // Dimension order is load-bearing: get_group_id(0) is the N tile so it varies fastest
-            // and the work-groups sharing an activation tile stay co-resident in L2, while
-            // get_group_id(2) comes out as the block index.
+            // Unlike the FMA variant, split N across work-groups: there is no SLM staging to repeat.
+            // get_group_id(0) is the N tile so it varies fastest and the work-groups sharing an
+            // activation tile stay co-resident in L2.
             constexpr size_t sg = MoE3GemmSwigluU2Gemm::DPAS_SG;
             constexpr size_t n_sg = MoE3GemmSwigluU2Gemm::DPAS_N_SG;
             constexpr size_t n_per_wg = MoE3GemmSwigluU2Gemm::DPAS_N_PER_WG;

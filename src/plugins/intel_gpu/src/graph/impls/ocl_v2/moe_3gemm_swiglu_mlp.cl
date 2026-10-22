@@ -1496,10 +1496,8 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
 #    endif
 }
 
-// mlp_reduce is the fallback group: it is selected when none of the specific *_ENABLE flags are
-// set. The condition must exclude U2_GEMM_ENABLE explicitly rather than being a bare #else,
-// because a group after #else cannot be an #elif (C99/OpenCL C 6.10.1) and because mlp_reduce
-// needs MOE_DTYPE / HIDDEN_SIZE / MAX_TOPK, none of which are defined for the u2 GEMM build.
+// Fallback group. It must exclude U2_GEMM_ENABLE explicitly rather than be a bare #else: mlp_reduce
+// needs MOE_DTYPE / HIDDEN_SIZE / MAX_TOPK, none of which the u2 GEMM build defines.
 #elif !defined(U2_GEMM_ENABLE)
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(const __global MOE_DTYPE* x,  // [token_num * REDUCE_COUNT, HIDDEN_SIZE]
                                                                              __global MOE_DTYPE* y) {      // [token_num, HIDDEN_SIZE]
@@ -1523,32 +1521,16 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(con
 
 #elif defined(U2_GEMM_ENABLE)
 
-// Native u2 grouped GEMM for prefill. Replaces "unpack u2 -> u4 scratch, then run the u4
-// oneDNN grouped matmul", which costs permanent device memory of twice the u2 expert weights
-// plus a one-time unpack.
+// Native u2 grouped GEMM for prefill, instead of unpacking u2 into a u4 scratch for the oneDNN
+// grouped matmul (permanent device memory of twice the u2 expert weights).
+// Not micro-gemm: oneDNN's GEMM generator has no 2-bit type. Not the batched GEMV: mlp_gate_up is
+// one work-group per (token, expert), so it re-reads an expert's weights once per routed token.
 //
-// Why a hand-written kernel rather than the micro-gemm path: micro-gemm hands the weight
-// dtype to oneDNN's JIT GEMM generator (gemmstone), whose Type has no 2-bit entry and whose
-// address arithmetic hard-codes "at most 2 elements per byte" (is4()/perByte()/log2PerByte(),
-// with subByteCheck() stubbing anything narrower). Adding u2 there means modifying vendored
-// oneDNN. Raising batched_gemv_threshold does not work either: mlp_gate_up is one work-group
-// per (token, expert) pair, so M tokens routed to one expert re-read that expert's weights M
-// times — the GEMV amortizes nothing along M.
+// Addressing and dequant follow gate_up_gemv_n2x_u2; SLM holds TILE_M tokens instead of one.
 //
-// This kernel is deliberately a minimal extension of the *verified* gate_up_gemv_n2x_u2: the
-// weight/scale/zp addressing and the dequant sequence are reproduced verbatim, and the only
-// structural change is that SLM holds TILE_M tokens instead of one. A single
-// intel_sub_group_block_read_uc of weights then feeds TILE_M FMAs, and the shift/mask dequant
-// is likewise paid once per TILE_M instead of once per token.
-//
-// Addressing note: the scale expression below is S[n + group * N], i.e. group-major, while the IR
-// constant is [E, N, G] -- MOECompressed::validate_and_infer_types takes num_groups from dim 2, so
-// deriving the index from the declared shape would give n * G + group instead. What reconciles them
-// is prepare_quantization.cpp's reorder_decompression_param_to_byfx(), which inserts a bfyx->byfx
-// reorder on every scale and zp input of this node when dim 2 > 1, so the buffer the kernel is
-// handed is already group-major. That reorder is skipped when G == 1, where the two expressions
-// coincide anyway, and under OTD -- which is why the impl rejects u2 + OTD outright rather than
-// silently reading a channel-major buffer with this expression.
+// Scales and zps are indexed group-major (S[n + group * N]) although the IR constant is [E, N, G]:
+// prepare_quantization's reorder_decompression_param_to_byfx() reorders them when G > 1 (for
+// G == 1 both coincide). That reorder is skipped under OTD, so the impl rejects u2 + OTD.
 //
 // Dispatch (work-groups never straddle an expert boundary):
 //   global = [num_blocks, SUBGROUP_SIZE, U2_GEMM_N / N_BLOCK]
@@ -1559,28 +1541,15 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(con
 #    if defined(U2_DPAS_ENABLE)
 
 // ---------------------------------------------------------------------------------------------
-// DPAS (systolic) variant.
-//
-// The FMA variant below is correct but occupancy-bound: it stages TILE_M*K halfs of activations
-// in SLM, which at large K exceeds the 32 KB SLM granule, so only a few work-groups fit per Xe
-// core. Its cost tracks SLM residency rather than the algorithm.
-//
-// So this variant does not tile the SLM staging - it deletes it. Operand roles are rotated so that
-// nothing but the zero-point row sums needs to be shared:
-//   lane            = output channel  (was: a slice of K, folded by sub_group_reduce_add)
+// DPAS (systolic) variant. The FMA variant below stages TILE_M*K activations in SLM, which limits
+// occupancy at large K; this one stages none:
+//   lane            = output channel
 //   acc component   = token row
-//   weights -> `b`  = one uint of the [E, N, K] u2 buffer per lane per k16 step. 16 consecutive K
-//                     of one channel is exactly 4 bytes of the existing layout, so the weights
-//                     feed the systolic array with no transpose, no SLM and no repacking.
+//   weights -> `b`  = 16 consecutive K of one channel = 4 bytes of the [E, N, K] u2 layout, so no
+//                     transpose, SLM or repacking
 //   activations -> `a` = read straight from global with a block2d load.
-// SLM use becomes small and independent of K, occupancy is no longer SLM-bound, and the
-// sub_group_reduce_add and the single-lane scalar stores both disappear.
 //
-// The resulting kernel is bound by weight bandwidth, not ALU, which is why no further dequant
-// cleverness (k-permuted unpack, int8 DPAS) is implemented here.
-//
-// Do not "optimise" the M tile upward: 48 and 64 rows are slower than 32 despite halving weight
-// re-reads.
+// Do not raise the M tile: 48 and 64 rows are slower than 32.
 
 #        define U2_MTILE    ((U2_MSUB) * 8)
 #        define U2_NUM_G    ((U2_GEMM_K) / (U2_GEMM_GROUP_SIZE))
@@ -1598,9 +1567,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(con
 #        if (U2_GEMM_N) % (U2_N_PER_WG) != 0
 #            error "u2 DPAS GEMM needs U2_GEMM_N % (U2_N_SG * 16) == 0"
 #        endif
-// The zero point is either a folded per-tensor scalar (INT2_SYM) or per (group, channel) u2
-// (INT2_ASYM), and which one is a per-GEMM property: a mixed layer can pair a scalar gate with a
-// per-group down. This kernel is instantiated once per GEMM, so the host answers it per instance.
+// The zero point is a folded scalar (INT2_SYM) or per (group, channel) u2 (INT2_ASYM), per GEMM.
 #        if HAS_ZP && !defined(U2_GEMM_ZP_SCALAR)
 #            error "u2 DPAS GEMM: the host must define U2_GEMM_ZP_SCALAR (0/1) whenever HAS_ZP"
 #        endif
@@ -1633,9 +1600,8 @@ __attribute__((intel_reqd_sub_group_size(U2_DPAS_SG))) KERNEL(moe_u2_gemm)(
     const __global uchar* weight = wei_ptr + (size_t)expert_id * ((size_t)N * K / 4);
     const __global half* scales = scale_ptr + (size_t)expert_id * ((size_t)N * K / U2_GEMM_GROUP_SIZE);
 
-    // The only SLM left. Per token, per quant group, the plain sum of activations, for the
-    // zero-point correction. NOTE this is the FULL sum: unlike the FMA variant there is no
-    // sub_group_reduce_add afterwards, so it must NOT be pre-divided by the subgroup size.
+    // Per token and quant group, the activation sum for the zp correction. Unlike the FMA variant
+    // no sub_group_reduce_add follows, so it is NOT pre-divided by the subgroup size.
     __local float xg[U2_MTILE * U2_NUM_G];
     {
         const int lid = sgid * (U2_DPAS_SG) + lane;
@@ -1671,13 +1637,8 @@ __attribute__((intel_reqd_sub_group_size(U2_DPAS_SG))) KERNEL(moe_u2_gemm)(
     // Folded per-tensor zp: the whole correction factor is loop-invariant.
     const float zeff = 256.0f * (4.0f + convert_float(((const __global MOE_ZP_SCALAR_DT*)zp_ptr)[0]));
 #        else
-    // Per (group, channel) zp. Layout is [E, G, N] with N innermost -- byfx, which
-    // prepare_quantization.cpp applies to the zp exactly as to the scales -- and u2-packed 4 per
-    // byte, LSB-first: the same layout and packing gate_up_gemv_n2x_u2 indexes. lane == output
-    // channel, so this sub-group's 16 channels live in 4 consecutive bytes and each lane extracts
-    // its own 2-bit field. N % 4 == 0 (N is a multiple of U2_N_SG * 16) is what makes it legal to
-    // add the group-row offset and the channel offset separately. zeff itself is per group and is
-    // therefore computed inside the group loop below.
+    // Per (group, channel) zp: [E, G, N] (byfx, like the scales), u2-packed 4 per byte, LSB-first.
+    // N % 4 == 0 lets the group-row and channel offsets be added separately.
     const __global uchar* zps = zp_ptr + (size_t)expert_id * ((size_t)N * (U2_NUM_G) / 4);
     const int zshift = ((n0 + lane) & 3) * 2;
 #        endif
@@ -1694,14 +1655,10 @@ __attribute__((intel_reqd_sub_group_size(U2_DPAS_SG))) KERNEL(moe_u2_gemm)(
 
     for (int g = 0; g < U2_NUM_G; g++) {
         // lane == channel, so this group's 16 scales are contiguous: one block read.
-        // Indexing is S[group * N + n], copied from gate_up_gemv_n2x_u2 rather than derived from
-        // the IR const shape - see the note on the FMA variant below.
         const float sf = convert_float(as_half(intel_sub_group_block_read_us(
             (const __global ushort*)(scales + (size_t)g * N + n0))));
 
 #        if HAS_ZP && !U2_GEMM_ZP_SCALAR
-        // One byte load and two ALU ops per quant group, against U2_GEMM_GROUP_SIZE/16 DPAS ops.
-        // The correction already sits in per-lane registers (g8), so a per-channel zeff is free.
         // Byte index (g*N + n0 + lane)/4, split into g*N/4 + (n0+lane)/4 because N % 4 == 0.
         const float zeff =
             256.0f * (4.0f + convert_float((zps[(size_t)g * N / 4 + ((n0 + lane) >> 2)] >> zshift) & 0x3));
@@ -1769,7 +1726,6 @@ __attribute__((intel_reqd_sub_group_size(U2_DPAS_SG))) KERNEL(moe_u2_gemm)(
         }
     }
 
-    // lane == channel, so a whole 16-channel row goes out in one block write.
     unroll_for(int i = 0; i < U2_MSUB; i++) {
         unroll_for(int m = 0; m < 8; m++) {
             const int row = i * 8 + m;
@@ -1790,10 +1746,8 @@ __attribute__((intel_reqd_sub_group_size(U2_DPAS_SG))) KERNEL(moe_u2_gemm)(
 #    if (U2_GEMM_GROUP_SIZE) % FAKE_GROUP_SIZE != 0
 #        error "U2_GEMM_GROUP_SIZE must be a multiple of FAKE_GROUP_SIZE"
 #    endif
-// This kernel has no ELEMS_PER_LANE 8 branch (reachable at SUBGROUP_SIZE 16 with group_size >= 128).
-// MoE3GemmSwigluU2Gemm::fma_supported() keeps the host from selecting this variant there, so this
-// is the backstop for the two drifting apart: reject loudly instead of silently taking a
-// wrong-width branch.
+// No ELEMS_PER_LANE 8 branch (SUBGROUP_SIZE 16 with group_size >= 128); the host's fma_supported()
+// avoids it, and this is the backstop.
 #    if ELEMS_PER_LANE != 1 && ELEMS_PER_LANE != 2 && ELEMS_PER_LANE != 4
 #        error "u2 GEMM supports ELEMS_PER_LANE 1, 2 or 4 only"
 #    endif
@@ -1810,8 +1764,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(moe_u2_gemm)(
     const __global half* scale_ptr,   // per-group f16 scales
     const __global uchar* zp_ptr,     // scalar zp (INT2_SYM) or per-group u2 [E, G, N] (INT2_ASYM)
     const __global int* blocks,       // [num_blocks * 3] {expert_id, token_start, n_tokens}
-    // Output last: execute_stage() binds every INPUT descriptor before any OUTPUT one, so the
-    // kernel signature has to list all read-only buffers first.
+    // Output last: execute_stage() binds every INPUT descriptor before any OUTPUT one.
     __global half* c_ptr) {           // [total_gathered, U2_GEMM_N]
     const int id_local = get_sub_group_local_id();
     const int block_idx = get_group_id(0);
@@ -1826,8 +1779,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(moe_u2_gemm)(
     const __global uchar* weight = wei_ptr + (size_t)expert_id * ((size_t)N * K / 4);
     const __global half* scales = scale_ptr + (size_t)expert_id * ((size_t)N * K / U2_GEMM_GROUP_SIZE);
 #    if HAS_ZP && !U2_GEMM_ZP_SCALAR
-    // Per (group, channel) zp: N * (K/group_size) entries per expert, u2-packed 4 per byte, in the
-    // same [E, G, N] byfx layout as the scales.
+    // Per (group, channel) zp, in the same [E, G, N] byfx layout as the scales.
     const __global uchar* zps = zp_ptr + (size_t)expert_id * (((size_t)N * (K / U2_GEMM_GROUP_SIZE)) / 4);
 #    endif
 
@@ -1866,21 +1818,15 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(moe_u2_gemm)(
             for (int e = 0; e < FAKE_GROUP_SIZE; e++) {
                 acc += convert_float(x2[m * K + gk * FAKE_GROUP_SIZE + e]);
             }
-            // Pre-divide by SUBGROUP_SIZE, exactly as the gold reference does at its
-            // "xg_sum[i] = x_group_sum / SUBGROUP_SIZE" line. The zp correction term
-            // (xg_sum * zp) is subtracted inside EVERY lane and only afterwards folded by
-            // sub_group_reduce_add, so it would otherwise be counted SUBGROUP_SIZE times.
+            // Pre-divided: the zp term is subtracted in every lane before sub_group_reduce_add.
             xg_sum[idx] = acc / (float)SUBGROUP_SIZE;
         }
         barrier(CLK_LOCAL_MEM_FENCE);
 #    endif
     }
 
-    // Sweep the whole N range from inside one work-group rather than dispatching a separate
-    // work-group per N block. The SLM staging above (TILE_M*K halfs plus the xg_sum reduction)
-    // depends only on the token block, so dispatching N/(SUBGROUP_NUM*N_BLOCK) work-groups over
-    // the same tokens repeated that staging once per N block, which made prefill slower than the
-    // unpack path. Total FLOPs are unchanged; only the redundant staging goes away.
+    // Sweep all of N in one work-group: the SLM staging depends only on the token block, and a
+    // work-group per N block would repeat it.
     const int n_per_wg = SUBGROUP_NUM * N_BLOCK;
     for (int n_super = 0; n_super < U2_GEMM_N; n_super += n_per_wg) {
     const int n_start = n_super + (int)get_local_id(2) * N_BLOCK;
@@ -1934,9 +1880,8 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(moe_u2_gemm)(
             w1[2] = DEQUANT_2BIT(b2, 4);
             w1[3] = DEQUANT_2BIT(b2, 6);
 #    elif ELEMS_PER_LANE == 2
-            // Two lanes share one packed byte. Keep the per-lane scalar load: a subgroup block
-            // read would make lanes >= FAKE_GROUP_SIZE/4 read past the tile and fault at the end
-            // of the weights buffer (CL_OUT_OF_RESOURCES), same as in the GEMV.
+            // Two lanes share one packed byte. Scalar load: a subgroup block read would make lanes
+            // >= FAKE_GROUP_SIZE/4 read past the end of the weights buffer.
             const uchar b = B[gk * FAKE_GROUP_SIZE / 4 + (id_local >> 1)];
             const uchar b2 = B[(K / 4) + gk * FAKE_GROUP_SIZE / 4 + (id_local >> 1)];
             const int wshift = (id_local & 1) * 4;
@@ -1953,7 +1898,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(moe_u2_gemm)(
             w1[0] = DEQUANT_2BIT(b2, wshift);
 #    endif
 
-            // --- Reuse those weights across every staged token: this is the entire win ---
+            // --- Reuse those weights across every staged token ---
             unroll_for(int m = 0; m < TILE_M; m++) {
                 const __local half* xrow = x2 + m * K + gk * FAKE_GROUP_SIZE;
                 half p0 = (half)0;
