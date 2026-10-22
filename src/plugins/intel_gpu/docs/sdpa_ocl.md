@@ -579,7 +579,11 @@ subgroup reductions instead of an SLM tile plus an alpha rescale. Almost nothing
   count, so M = 8 costs the same MACs per cycle as M = 1. The host caps M by a live-register
   estimate: on gemma-4's head-512 layers M = 8 spilled 34432 bytes and ran 3.14x slower than
   `pa_sdpa_opt`, while M = 1 spilled nothing. The response was monotone in M at every `SG_PER_WG`
-  tested, and "the largest M that does not spill" reproduced the measured optimum.
+  tested, and "the largest M that does not spill" reproduced the measured optimum. M rounds the kv
+  group up to a power of two (kv group 3 -> M = 4): the surplus row is masked like a leftover and never
+  stored, so a group that is not a power of two takes one workgroup per kv head instead of two and
+  reads each K/V page once. phi-4-mini (24/8) at 4K, against M = 2 with the same `SG_PER_WG`: i8 0.90x,
+  u4 0.70x of the GENERATE device time, with identical generated tokens.
 - `live_grf_estimate()` counts the arrays that stay live across the KQ loop. It was calibrated on
   gemma-4 (u4 BY_CHANNEL, M in {1, 2, 4, 8} x `SG_PER_WG` in {8, 16}, head 512 and 256) and tracks
   spill volume monotonically (head 512 at `SG_PER_WG` 8 scores 136/164/220/332 against 0/6400/15936/
@@ -587,13 +591,24 @@ subgroup reductions instead of an SLM tile plus an alpha rescale. Almost nothing
   not spill, (16, M = 2) scores 126 and spills 640. So it is a coarse gate, and the budget of 112
   brackets the measured optimum instead of sitting at 128: head 512 at `SG_PER_WG` 16 wants M = 1
   (100) and rejects M = 2 (126, 34% slower), head 256 wants M = 2 (94), and llama's head 128 at
-  M = 4 scores 104. `SDPA_OCL_DECODE_M` bypasses the cap but not the local-memory clamp (half the
-  arena), which guards the build.
-- `SG_PER_WG` is 16 when there are at least 16 V head-dim tiles and 8 otherwise. One subgroup is
-  one thread, and at 8 the kernel had a quarter of `pa_sdpa_opt`'s threads per Xe core: on gemma-4
-  at M = 1, 16 was 2.07x faster at head 512 and 1.26x at head 256, and 4 was 2.2x slower. With
-  fewer V tiles the surplus subgroups split the key axis instead, which adds the `slm_out` staging
-  and a barrier; that is why an earlier sweep found 16 neutral or worse at head 128. `SG_PER_WG`
+  M = 4 scores 104 with an i8 cache. A u4 cache reads four K tiles at a time and scores 124 there, so 8
+  subgroups drop to M = 2 although M = 4 did not spill on B70 (16 subgroups score 106). Changing
+  `SG_PER_WG` therefore changes M too; read both back from the dispatch (`LWS` dim 1 is `SG_PER_WG`,
+  `GWS` dim 1 is `SG_PER_WG` x head groups) before attributing a timing to either. `SDPA_OCL_DECODE_M`
+  bypasses the cap but not the local-memory clamp (half the arena), which guards the build.
+- `SG_PER_WG` is 16 when there are at least 16 V head-dim tiles, and for a u4 cache at head 64 or 128
+  when 16 subgroups still get M >= 4; 8 otherwise. One subgroup is one thread, and at 8 the kernel had a
+  quarter of `pa_sdpa_opt`'s threads per Xe core: on gemma-4 at M = 1, 16 was 2.07x faster at head 512
+  and 1.26x at head 256, and 4 was 2.2x slower. With fewer V tiles the surplus subgroups split the key
+  axis instead, which adds the `slm_out` staging and a barrier, and 16 doubles the threads a partition
+  needs, which costs a wave once the GPU is full. So 16 pays only where a workgroup is slow (the u4
+  dequant; u4 is the default cache of a paged-attention model with 4-bit weights) and only at M >= 4,
+  where 16 subgroups need no more threads per partition than 8 subgroups at M = 2 (the u4 head-128
+  default before, as its register estimate rejects M = 4 at 8). GENERATE device time on B70 against the
+  previous choice: u4 head 64 (lfm2.5, llama-3.2-1b, minicpm4) 0.45-0.51x at 1-6 partitions and 0.83x at
+  17-18; u4 head 128 llama-3.1-8b 0.82x/0.79x at 1K/4K, qwen3-8b 0.77x at 8K, phi-4-mini 0.82x at 1K and
+  4K (with the rounded-up M). i8 loses with 16 once the GPU is full (head 64 1.26x and head 128 1.29x at
+  4K, against 0.85-0.89x at 1K), and head 96 measured mixed, so they keep 8. `SG_PER_WG`
   must divide `SEQ_LEN_PARTITION_SIZE / SUBGROUP_SIZE` and not exceed the subgroup size.
 - The cache is f16, i8 or u4. i8 only among the 8-bit types: the dequant widens the byte as signed,
   as `kv_cache_update` wrote it, so a u8 cache would decode with the wrong sign. i4 is rejected. qq_bias
@@ -775,3 +790,8 @@ Each needs its own measured change.
   where a shift would do.
 - The S*V block trim past `k_chunk` and the Vc prefetch are u4 only (`IS_PA_K_U4 &&
   PA_CUR_KV_F16`) and were never measured on i8 BY_CHANNEL MIXED.
+- `sdpa_ocl_decode` compiles one `SG_PER_WG`, but which value wins depends on the partition count. With
+  an i8 cache 16 subgroups took 0.85-0.89x the GENERATE device time of 8 at 1-5 partitions and
+  1.26-1.29x at 16-17 (heads 64 and 128, B70), so i8 keeps 8 and gives up the short-context gain.
+  Building both variants and choosing per dispatch from `num_of_partitions` against the device's
+  thread count would keep both.
