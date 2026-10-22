@@ -299,15 +299,21 @@ class _(TransformConverterBase):
         if transform.interpolation not in resize_mode_map.keys():
             raise ValueError(f"Interpolation mode {transform.interpolation} is not supported.")
 
-        target_h, target_w = _setup_size(transform.size, "Incorrect size type for Resize operation")
+        size = transform.size
+        # torchvision treats Resize([n]) the same as Resize(n): the smaller edge is scaled to n
+        if isinstance(size, (list, tuple)) and len(size) == 1:
+            size = size[0]
 
-        if isinstance(transform.size, int):
-            # rescale the smaller image edge
+        target_h, target_w = _setup_size(size, "Incorrect size type for Resize operation")
+
+        if isinstance(size, int):
+            # rescale the smaller image edge, keeping the aspect ratio
             current_h, current_w = meta["image_dimensions"]
+            # multiply before dividing, as torchvision's _compute_resized_output_size does
             if current_h > current_w:
-                target_h = int(transform.size * (current_h / current_w))
+                target_h = int(size * current_h / current_w)
             elif current_w > current_h:
-                target_w = int(transform.size * (current_w / current_h))
+                target_w = int(size * current_w / current_h)
 
         ppp.input(input_idx).tensor().set_layout(Layout("NCHW"))
 
