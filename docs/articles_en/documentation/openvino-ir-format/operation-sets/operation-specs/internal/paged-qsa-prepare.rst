@@ -64,8 +64,7 @@ rejected speculative or MTP draft tokens) by passing a smaller ``past_lens``, th
 that are no longer complete are recomputed from the raw keys when the blocks are completed again.
 
 **Ordering with PagedSparseAttentionIndexer.** The output of *PagedQSAPrepare* is ``pa_block_index_keys`` itself,
-the same buffer after the update, or ``index_key_cache`` if ``pa_block_index_keys`` is empty
-(``key_block_size = 1``). It is connected to the ``pa_block_index_keys`` input of
+the same buffer after the update. It is connected to the ``pa_block_index_keys`` input of
 *PagedSparseAttentionIndexer*, so the data dependency makes the selection read the block keys of the new tokens.
 
 *PagedQSAPrepare* provides functionality according to the following pseudo-code using ``numpy``:
@@ -76,8 +75,8 @@ the same buffer after the update, or ``index_key_cache`` if ``pa_block_index_key
     def PagedQSAPrepare(index_key, index_key_cache, pa_block_index_keys, index_block_rope_cache, past_lens,
                         subsequence_begins, block_indices, block_indices_begins, k_norm_weight, rope_cos, rope_sin, *,
                         key_block_size, epsilon=1e-6):
-        Bs, Di = index_key_cache.shape[1], index_key_cache.shape[2]
         r = key_block_size
+        Bs, Di = pa_block_index_keys.shape[1] * r, index_key.shape[1]
         Dr = rope_cos.shape[-1] if rope_cos.size else 0
 
         def slot(s, pos):            # physical block and offset of the token at position pos of sequence s
@@ -89,13 +88,17 @@ the same buffer after the update, or ``index_key_cache`` if ``pa_block_index_key
             for t in range(t_begin, t_end):
                 pos = past + t - t_begin
                 blk, off = slot(s, pos)
-                index_key_cache[blk, off] = index_key[t]
+                if index_key_cache.size:                        # empty only for key_block_size = 1
+                    index_key_cache[blk, off] = index_key[t]
                 if Dr and pos % r == 0:
                     index_block_rope_cache[blk, off // r] = numpy.concatenate([rope_cos[t], rope_sin[t]])
             # 2. compute the key of every block completed by the new tokens: pool, normalize, rotate
-            #    (not with an empty pa_block_index_keys: single-token blocks, the keys are in index_key_cache)
-            for b in range(past // r, (past + t_end - t_begin) // r) if pa_block_index_keys.size else ():
-                k = numpy.stack([index_key_cache[slot(s, b * r + j)] for j in range(r)]).astype(numpy.float32).mean(axis=0)
+            for b in range(past // r, (past + t_end - t_begin) // r):
+                if index_key_cache.size:
+                    k = numpy.stack([index_key_cache[slot(s, b * r + j)] for j in range(r)])
+                    k = k.astype(numpy.float32).mean(axis=0)
+                else:                                           # key_block_size = 1: block b is the new token b
+                    k = index_key[t_begin + b - past].astype(numpy.float32)
                 if k_norm_weight.size:
                     k = k / numpy.sqrt((k * k).mean() + epsilon) * k_norm_weight
                 blk, off = slot(s, b * r)
@@ -106,14 +109,14 @@ the same buffer after the update, or ``index_key_cache`` if ``pa_block_index_key
                     rotated = numpy.concatenate([-x[Dr // 2:], x[:Dr // 2]])
                     k = numpy.concatenate([x * cos + rotated * sin, k[Dr:]])
                 pa_block_index_keys[blk, i] = k
-        # the same tensor, updated in place; with key_block_size = 1 and an empty pa_block_index_keys, index_key_cache
-        return pa_block_index_keys if pa_block_index_keys.size else index_key_cache
+        return pa_block_index_keys                              # the same tensor, updated in place
 
 Properties that follow from the definition:
 
-* For every sequence, ``pa_block_index_keys`` holds after the call the ``block_index_keys`` that
-  *QSAPrepare* computes from all raw keys of the sequence, independently of how the tokens were split
-  into inference calls and of the physical block assignment.
+* For every sequence, ``pa_block_index_keys`` holds after the call the block index keys of
+  *QSAPrepare* computed from all raw keys of the sequence (for ``key_block_size = 1`` the pooling over
+  one token is the identity), independently of how the tokens were split into inference calls and of
+  the physical block assignment.
 * The normalization (``x / sqrt(mean(x^2) + epsilon) * weight``, with ``weight = 1 + w`` for
   Qwen3.8-Flash-Next), the rotation (rotate-half on the first ``Dr`` dimensions, ``cos`` / ``sin``
   given per new token with M-RoPE already resolved) and their precision are the ones of
@@ -121,9 +124,9 @@ Properties that follow from the definition:
 * For DeepSeek Sparse Attention (``key_block_size = 1``) every block is complete as soon as its token
   is processed. The graph computes the final per-token index keys itself (LayerNorm and partial
   RoPE) and passes them as ``index_key`` with empty ``k_norm_weight``, ``rope_cos``, ``rope_sin`` and
-  ``index_block_rope_cache``; the operation then only writes them into the paged cache. The block keys
-  are then the keys written to ``index_key_cache``, so ``pa_block_index_keys`` may be an empty tensor:
-  the host allocates one cache, and the output is ``index_key_cache``.
+  ``index_block_rope_cache``; the operation then only writes them into ``pa_block_index_keys``. As a
+  block is complete with its token, no raw key is read back, so ``index_key_cache`` may be an empty
+  tensor: the host allocates only ``pa_block_index_keys``.
 
 
 **Attributes**
@@ -156,15 +159,13 @@ Properties that follow from the definition:
 * **0**: ``index_key`` - 2D tensor of type *T* and shape ``[T, Di]``: the raw index key of every new
   token, before normalization and rotation, packed across all sequences. **Required.**
 
-* **1**: ``index_key_cache`` - 3D tensor of type *T_cache* and shape ``[B, Bs, Di]``: the raw index
-  keys of the cached tokens, updated in place. **Required.**
+* **1**: ``index_key_cache`` - 3D tensor of type *T_cache* and shape ``[B, Bs, Di]``, or an empty
+  tensor: the raw index keys of the cached tokens, updated in place. With single-token blocks a block
+  is complete with its token and no raw key is read back, so it may then be empty.
+  **Required (empty tensor allowed if and only if key_block_size = 1).**
 
 * **2**: ``pa_block_index_keys`` - 3D tensor of type *T_cache* and shape
-  ``[B, Bs / key_block_size, Di]``: the keys of the complete blocks, updated in place. With
-  single-token blocks the block keys are the keys of the tokens, already written to
-  ``index_key_cache``, so this cache would duplicate it: it may then be empty, with empty
-  ``k_norm_weight``, ``rope_cos``, ``rope_sin`` and ``index_block_rope_cache``, and output 0 is
-  ``index_key_cache``. **Required (empty tensor allowed if and only if key_block_size = 1).**
+  ``[B, Bs / key_block_size, Di]``: the keys of the complete blocks, updated in place. **Required.**
 
 * **3**: ``index_block_rope_cache`` - 3D tensor of type *T_cache* and shape
   ``[B, Bs / key_block_size, 2 * Dr]``, or an empty tensor: ``rope_cos`` concatenated with
@@ -198,14 +199,13 @@ Properties that follow from the definition:
 **Outputs**
 
 * **0**: ``pa_block_index_keys`` - 3D tensor of type *T_cache* and shape
-  ``[B, Bs / key_block_size, Di]``: input 2 after the update, the same buffer, or ``index_key_cache``
-  (input 1) after the update if input 2 is empty (``key_block_size = 1``). It is connected to the
+  ``[B, Bs / key_block_size, Di]``: input 2 after the update, the same buffer. It is connected to the
   ``pa_block_index_keys`` input of *PagedSparseAttentionIndexer*.
 
 .. note::
 
    ``index_key_cache`` (input 1), ``pa_block_index_keys`` (input 2) and ``index_block_rope_cache``
-   (input 3) are updated in place as a side effect. Their initial content does not matter: every row
+   (input 3), if not empty, are updated in place as a side effect. Their initial content does not matter: every row
    is written before it is read.
 
 
