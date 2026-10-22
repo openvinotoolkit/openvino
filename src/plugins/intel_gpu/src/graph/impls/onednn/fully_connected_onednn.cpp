@@ -44,19 +44,6 @@ struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
         return std::max<int64_t>(0, base + (transpose_b_param ? logical_rank - 1 : logical_rank - 2));
     }
 
-    // Grouped mask for per-group scale/zp. [G, 1] (or [1, G] when transposed) carries one value per group
-    // that is broadcast over all output channels, so the OC bit must be dropped from the mask.
-    static int get_grouped_mask(const layout& param_layout, bool transpose_b_param, size_t weights_rank, int grouped, int per_oc) {
-        const auto rank = static_cast<int64_t>(param_layout.get_partial_shape().size());
-        if (rank <= 1)
-            return grouped;
-        const auto ifm_idx = get_ifm_dim_idx(param_layout, transpose_b_param, weights_rank);
-        const auto oc_idx = transpose_b_param ? ifm_idx - 1 : ifm_idx + 1;
-        if (oc_idx < 0 || oc_idx >= rank)
-            return grouped;
-        return param_layout.get_dim(oc_idx) == 1 ? (grouped & ~per_oc) : grouped;
-    }
-
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::fully_connected_onednn)
 
 private:
@@ -323,8 +310,7 @@ public:
             } else if (ngroups == 1) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _ds_data_type);
             } else {
-                const auto mask = get_grouped_mask(scale_layout, transpose_b_scale, weight_rank, grouped, per_oc);
-                _attrs->set_scales(DNNL_ARG_WEIGHTS, mask, {_ds_group_size, 1}, _ds_data_type, false, qmode);
+                _attrs->set_scales(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _ds_data_type, false, qmode);
             }
         }
 
@@ -342,8 +328,7 @@ public:
                     if (ngroups == 1) {
                         _attrs->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _dzp_data_type);
                     } else {
-                        const auto mask = get_grouped_mask(dzp_layout, transpose_b_zp, weight_rank, grouped, per_oc);
-                        _attrs->set_zero_points(DNNL_ARG_WEIGHTS, mask, {_ds_group_size, 1}, _dzp_data_type, false, qmode);
+                        _attrs->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _dzp_data_type, false, qmode);
                     }
                 }
             }
@@ -438,8 +423,7 @@ public:
                     // Example:
                     // input[32, 6, 2088], W_t[32, 5760, 2088], scale[32, 1, 5760]
                     // set scale group as [32, 2088, 1]
-                    const auto mask = get_grouped_mask(scale_layout, prim->transpose_b_scale, weight_rank, grouped, per_oc);
-                    attr->set_scales(DNNL_ARG_WEIGHTS, mask, {group_size, 1}, ds_data_type, false, qmode);
+                    attr->set_scales(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, ds_data_type, false, qmode);
                 }
             }
 
@@ -460,8 +444,7 @@ public:
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
                         // should use {K, 1} for the group size + per tensor mask for 3d
-                        const auto mask = get_grouped_mask(dzp_layout, prim->transpose_b_zp, weight_rank, grouped, per_oc);
-                        attr->set_zero_points(DNNL_ARG_WEIGHTS, mask, {group_size, 1}, dzp_data_type, false, qmode);
+                        attr->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, dzp_data_type, false, qmode);
                     }
                 }
             }
