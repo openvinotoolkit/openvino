@@ -1609,11 +1609,9 @@ TEST(moe_3gemm_expert_mask, shape_predictor_overflow_regression) {
 // ============================================================================
 // Mixed weight dtypes across the three expert GEMMs.
 //
-// The decode kernels took one weight dtype, expert stride and zp stride from the gate GEMM and
-// applied them to all three, so a layer with gate/up at u8 and down at u4 decoded down as u8:
-// wrong output, no error. Each GEMM is now decoded with its own dtype. gate and up still have to
-// agree on whether they are u4, because they read one SLM copy of the activations whose layout the
-// gate dtype picks; down stages its own copy and is free.
+// Each GEMM must be decoded with its own dtype. gate and up still have to agree on whether they are
+// u4, because they read one SLM copy of the activations whose layout the gate dtype picks; down
+// stages its own copy and is free.
 //
 // The reference uses the exact dequantized weights, so the tolerance only has to absorb f16
 // accumulation, and a GEMM decoded with the other dtype's stride is far outside it.
@@ -1789,8 +1787,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              // Batched GEMV (MTP-style token counts).
                              MoeMixedDtypeParams{4, false, true},
                              MoeMixedDtypeParams{16, true, false},
-                             // Just above the 32-token batched-GEMV threshold: the prefill GEMM path, which
-                             // already took each GEMM's dtype; kept so a regression there is caught too.
+                             // Just above the 32-token batched-GEMV threshold: the prefill GEMM path.
                              MoeMixedDtypeParams{33, false, true},
                              MoeMixedDtypeParams{33, true, false}),
                          moe_3gemm_compressed_gpu_mixed_dtype::GetTestCaseName);

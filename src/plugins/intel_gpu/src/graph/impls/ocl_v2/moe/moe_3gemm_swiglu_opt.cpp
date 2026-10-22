@@ -429,8 +429,7 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     // Smaller values have no kernel branch and would silently produce wrong results.
     {
         const size_t sg = (info.arch >= gpu_arch::xe2) ? 32u : 16u;
-        // Mirrors FAKE_GROUP_SIZE in moe_3gemm_swiglu_mlp.cl, which also takes the down group size;
-        // checking gate/up alone let a smaller down group through to a branch that does not exist.
+        // Mirrors FAKE_GROUP_SIZE in moe_3gemm_swiglu_mlp.cl, which also depends on the down group size.
         const size_t fake_gs = std::min({gate_up_group_size, down_group_size, size_t{128}});
         OPENVINO_ASSERT(fake_gs >= 2 * sg,
                         "MoE GEMV kernel does not support group_size=",

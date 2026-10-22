@@ -86,9 +86,8 @@ inline float moe_mlp_fast_erf(float x) {
 #    define DEQUANT_8BIT(v)    convert_half(v)
 #endif
 
-// Per-GEMM helpers (mixed-dtype MoE): per-expert byte strides given a compression code DT
-// (0=u4/i4, 1=u8/i8, 2=f16) and group size GS. N*K equals INTERMEDIATE_SIZE*HIDDEN_SIZE for all
-// three GEMMs, so one product serves gate/up/down.
+// Per-expert byte strides for compression code DT (0=u4/i4, 1=u8/i8, 2=f16) and group size GS.
+// N*K is INTERMEDIATE_SIZE*HIDDEN_SIZE for all three GEMMs.
 #define MOE_WEI_PROD (INTERMEDIATE_SIZE * HIDDEN_SIZE)
 #define MOE_EXPERT_WEI_BYTES(DT) ((DT) == 0 ? (MOE_WEI_PROD) / 2 : (MOE_WEI_PROD))
 #define MOE_EXPERT_ZP_BYTES(DT, GS) ((DT) == 0 ? (MOE_WEI_PROD) / 2 / (GS) : (MOE_WEI_PROD) / (GS))
@@ -478,7 +477,6 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     bool is_shared = false;
 #    endif
 
-    // Per-GEMM strides (gate and up may differ in dtype).
     const int gate_expert_wei_size = MOE_EXPERT_WEI_BYTES(GATE_WEIGHT_DT);
     const int up_expert_wei_size = MOE_EXPERT_WEI_BYTES(UP_WEIGHT_DT);
     const int expert_scale_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;  // f16 scale, dtype-independent
@@ -629,7 +627,6 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     // shared_gate_out[token_idx] is consumed by the next kernel (mlp_down) — no barrier needed here.
 #    endif
 
-    // Dispatch up (silu=false) then gate (silu=true) by each projection's own dtype.
 #    if UP_WEIGHT_DT == 0
     gate_up_gemv_n2x_u4(up_weight, up_scale, up_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, false);
 #    elif UP_WEIGHT_DT == 1
@@ -1005,7 +1002,6 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     bool is_shared = false;
 #    endif
 
-    // Per-GEMM strides for the down projection.
     const int expert_wei_size = MOE_EXPERT_WEI_BYTES(DOWN_WEIGHT_DT);
     const int expert_scale_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / DOWN_GROUP_SIZE;  // f16 scale, dtype-independent
     const int down_zp_stride = MOE_EXPERT_ZP_BYTES(DOWN_WEIGHT_DT, DOWN_GROUP_SIZE);
