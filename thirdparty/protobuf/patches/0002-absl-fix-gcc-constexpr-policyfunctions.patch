@@ -1,0 +1,26 @@
+Subject: [PATCH] container: avoid constexpr function-address compare in GetPolicyFunctions
+
+Abseil's raw_hash_set::GetPolicyFunctions() initializes a
+`static constexpr PolicyFunctions value`. One of its members is
+`get_hash_slot_fn<hasher>()`, which compares the address of the function
+template `TypeErasedApplyToSlotFn<...>` against nullptr. Some GCC versions
+(notably the aarch64-linux-gnu GCC 11 cross toolchain) refuse to treat that
+function-address comparison as a core constant expression, so the
+`static constexpr` initializer fails to compile:
+
+    hash_policy_traits.h:163:54: error:
+      '(... TypeErasedApplyToSlotFn<...> == 0)' is not a constant expression
+
+Making `value` a `static const` instead of `static constexpr` keeps the exact
+same semantics (a function-local static initialized once) but no longer forces
+constant evaluation of the function-address comparison, so it compiles on the
+affected compilers while remaining correct everywhere else.
+--- a/absl/container/internal/raw_hash_set.h
++++ b/absl/container/internal/raw_hash_set.h
+@@ -4100,5 +4100,5 @@
+   static const PolicyFunctions& GetPolicyFunctions() {
+-    static constexpr PolicyFunctions value = {
++    static const PolicyFunctions value = {
+         sizeof(slot_type),
+         // TODO(b/328722020): try to type erase
+         // for standard layout and alignof(Hash) <= alignof(CommonFields).
