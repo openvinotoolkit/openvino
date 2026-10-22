@@ -73,8 +73,9 @@ bool GroupQueryAttentionDecomposition::prepare_compressed_kv(const std::shared_p
     const auto kv_cache_bit_width = node->get_kv_cache_bit_width();
     const auto key_quant_type = node->get_k_quant_type();
     const auto value_quant_type = node->get_v_quant_type();
+    // Without immad, per-channel KV quntize is not working so skip for now
     if ((kv_cache_bit_width != 8 && kv_cache_bit_width != 4) || key_type != value_type || !is_supported_compressed_kv_type(key_type) ||
-        key_quant_type == GQAQuantType::PER_TENSOR || value_quant_type == GQAQuantType::PER_TENSOR)
+        key_quant_type == GQAQuantType::PER_TENSOR || value_quant_type == GQAQuantType::PER_TENSOR || !m_sdpa_support_immad)
         return false;
 
     auto& compressed_kv = metadata.compressed_kv.emplace();
@@ -139,7 +140,7 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
 
     const bool need_qk_output = node->get_qk_output() != ov::op::internal::GroupQueryAttentionQKOutput::NONE;
     const bool use_explicit_attention = node->get_softcap() > 0.0f || need_qk_output;
-    bool can_fuse_transpose_v = m_sdpa_support_transpose_v && !use_explicit_attention;
+    bool can_fuse_transpose_v = m_sdpa_support_immad && !use_explicit_attention;
     // The explicit attention chain consumes plain (dequantized) K/V, so skip the compressed-KV SDPA form.
     if (!use_explicit_attention) {
         // covers ExpandBroadcastReshapeSDPAFusion, gpu sdpa supports broadcast natively

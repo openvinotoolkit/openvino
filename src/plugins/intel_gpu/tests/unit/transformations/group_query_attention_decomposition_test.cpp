@@ -537,6 +537,24 @@ TEST(GQADecompositionTest, per_channel_kv_uses_compressed_sdpa) {
     EXPECT_EQ(sdpa->input_value(num_data_inputs + 1).get_partial_shape(), ov::PartialShape({1, kv_num_heads, 1, head_size}));
 }
 
+TEST(GQADecompositionTest, per_channel_kv_without_immad_uses_decompressed_sdpa) {
+    GQAConfig cfg;
+    cfg.kv_cache_bit_width = 8;
+    cfg.kv_quant = QuantType::PER_CHANNEL;
+    cfg.out_quant = QuantType::PER_CHANNEL;
+    cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.should_fuse_transpose_v = false;
+
+    const auto sdpa = decompose_and_get_sdpa(cfg);
+
+    ASSERT_NE(sdpa, nullptr);
+    EXPECT_FALSE(sdpa->get_kv_compressed());
+    ASSERT_EQ(sdpa->get_input_size(), 3u) << "Q, dequantized K, dequantized V";
+    EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::f32);
+    EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::f32);
+}
+
 TEST(GQADecompositionTest, compressed_kv_preserves_optional_inputs) {
     GQAConfig cfg;
     cfg.kv_cache_bit_width = 8;
