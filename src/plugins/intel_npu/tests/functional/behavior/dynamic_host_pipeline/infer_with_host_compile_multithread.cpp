@@ -342,26 +342,32 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CrossRequestOutputMismatchIsReje
     auto referenceRequestA = referenceCompiledModel.create_infer_request();
     auto referenceRequestB = referenceCompiledModel.create_infer_request();
 
-    const auto inputA = makeInputTensor(model, shape, 100);
-    const auto inputB = makeInputTensor(model, shape, 100 + kSeedSpacing);
-    npuRequestA.set_input_tensor(0, inputA);
-    referenceRequestA.set_input_tensor(0, inputA);
-    referenceRequestB.set_input_tensor(0, inputB);
+    // The priority-change phases run 8 concurrent requests over the band {100 .. 100 + 7 * kSeedSpacing}.
+    // Check both the low and high adjacent pairs so a swap is caught anywhere in the band, not only at the
+    // responsive low end - a high end that saturated Tanh would silently accept swapped outputs.
+    for (const int baseline : {100, 100 + 6 * kSeedSpacing}) {
+        const auto inputA = makeInputTensor(model, shape, baseline);
+        const auto inputB = makeInputTensor(model, shape, baseline + kSeedSpacing);
+        npuRequestA.set_input_tensor(0, inputA);
+        referenceRequestA.set_input_tensor(0, inputA);
+        referenceRequestB.set_input_tensor(0, inputB);
 
-    OV_ASSERT_NO_THROW(npuRequestA.infer());
-    OV_ASSERT_NO_THROW(referenceRequestA.infer());
-    OV_ASSERT_NO_THROW(referenceRequestB.infer());
+        OV_ASSERT_NO_THROW(npuRequestA.infer());
+        OV_ASSERT_NO_THROW(referenceRequestA.infer());
+        OV_ASSERT_NO_THROW(referenceRequestB.infer());
 
-    const auto npuOutputA = npuRequestA.get_output_tensor(0);
-    const auto referenceOutputA = referenceRequestA.get_output_tensor(0);
-    const auto referenceOutputB = referenceRequestB.get_output_tensor(0);
-    const auto outputType = npuOutputA.get_element_type();
+        const auto npuOutputA = npuRequestA.get_output_tensor(0);
+        const auto referenceOutputA = referenceRequestA.get_output_tensor(0);
+        const auto referenceOutputB = referenceRequestB.get_output_tensor(0);
+        const auto outputType = npuOutputA.get_element_type();
 
-    // Matching request pair stays within the NPU-calibrated tolerance.
-    OV_ASSERT_NO_THROW(ov::test::utils::compare(referenceOutputA, npuOutputA, outputType, 0.02, 0.02));
+        // Matching request pair stays within the NPU-calibrated tolerance.
+        OV_ASSERT_NO_THROW(ov::test::utils::compare(referenceOutputA, npuOutputA, outputType, 0.02, 0.02));
 
-    // The other request's reference must be rejected, proving the comparison still detects swapped outputs.
-    ASSERT_THROW(ov::test::utils::compare(referenceOutputB, npuOutputA, outputType, 0.02, 0.02), ov::Exception);
+        // The other request's reference must be rejected, proving swaps are detectable across the band.
+        ASSERT_THROW(ov::test::utils::compare(referenceOutputB, npuOutputA, outputType, 0.02, 0.02),
+                     std::runtime_error);
+    }
 }
 
 TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateRequestAndInfer) {
@@ -451,6 +457,10 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
             referenceRequests.emplace_back(referenceCompiledModel.create_infer_request());
         }
 
+        // All three priority phases must stay inside the same Tanh-responsive input band: after the 1/128
+        // normalization large baselines saturate Tanh, collapsing outputs to a constant and hiding
+        // cross-request swaps. Each phase only permutes the per-thread assignment of that band so a request's
+        // data still changes after the priority switch.
         std::vector<ov::Tensor> firstInputs;
         firstInputs.reserve(kThreadCount);
         for (size_t i = 0; i < kThreadCount; ++i) {
@@ -472,7 +482,9 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
         std::vector<ov::Tensor> secondInputs;
         secondInputs.reserve(kThreadCount);
         for (size_t i = 0; i < kThreadCount; ++i) {
-            secondInputs.emplace_back(makeInputTensor(model, shape, static_cast<int>(10000 + i * kSeedSpacing)));
+            // Same responsive band as the first phase, reversed per thread.
+            secondInputs.emplace_back(
+                makeInputTensor(model, shape, static_cast<int>(100 + (kThreadCount - 1 - i) * kSeedSpacing)));
             requests[i].set_input_tensor(0, secondInputs.back());
             referenceRequests[i].set_input_tensor(0, secondInputs.back());
         }
@@ -490,7 +502,9 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
         std::vector<ov::Tensor> thirdInputs;
         thirdInputs.reserve(kThreadCount);
         for (size_t i = 0; i < kThreadCount; ++i) {
-            thirdInputs.emplace_back(makeInputTensor(model, shape, static_cast<int>(20000 + i * kSeedSpacing)));
+            // Same responsive band, rotated by half for a third distinct per-thread assignment.
+            const size_t rotated = (i + kThreadCount / 2) % kThreadCount;
+            thirdInputs.emplace_back(makeInputTensor(model, shape, static_cast<int>(100 + rotated * kSeedSpacing)));
             requests[i].set_input_tensor(0, thirdInputs.back());
             referenceRequests[i].set_input_tensor(0, thirdInputs.back());
         }
