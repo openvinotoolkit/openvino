@@ -56,7 +56,9 @@ struct condition_impl : typed_primitive_impl<condition> {
 
         std::vector<event::ptr> output_events;
         if (can_skip_subgraph) {
-            for (const auto& [out_idx, output_id] : branch.output_map) {
+            for (const auto& output_mapping : branch.output_map) {
+                const auto out_idx = output_mapping.first;
+                const auto& output_id = output_mapping.second;
                 auto output_it = std::find_if(branch.inner_program->get_outputs().begin(),
                                               branch.inner_program->get_outputs().end(),
                                               [&](const program_node* output) { return output->id() == output_id; });
