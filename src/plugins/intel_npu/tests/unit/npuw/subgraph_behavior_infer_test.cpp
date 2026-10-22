@@ -895,6 +895,61 @@ TEST_F(SubgraphBehaviorInferTest, DynAttnPrologueRejectsOutOfRangeMaskIdx) {
     OV_EXPECT_THROW_HAS_SUBSTRING(request->infer(), ov::Exception, "mask_idx");
 }
 
+TEST_F(SubgraphBehaviorInferTest, DynAttnPrologueRejectsMaskIdxInClosureGap) {
+    auto model = ov::test::npuw::build_dynamic_attention_llm_model();
+
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props());
+
+    ov::npuw::compiled::Attention* dynamic = nullptr;
+    std::size_t body_idx = 0;
+    for (std::size_t idx = 0; idx < compiled->m_compiled_submodels.size(); ++idx) {
+        auto& desc = compiled->m_compiled_submodels[idx];
+        if (desc.compiled_model) {
+            if (auto* found = ov::npuw::attn::get_compiled_dynamic(desc.pipeline.context)) {
+                dynamic = found;
+                body_idx = idx;
+                break;
+            }
+        }
+    }
+    ASSERT_NE(dynamic, nullptr) << "No compiled submodel carried a Dynamic attention state";
+
+    auto& body = compiled->m_compiled_submodels[body_idx];
+    const auto param_base = body.param_base;
+    auto extended_model = body.compiled_model->get_runtime_model()->clone();
+    ov::test::npuw::ModelBuilder mb;
+    auto extra_param = mb.parameter(ov::element::f32, ov::PartialShape{1}, "__closure_gap_probe__");
+    extended_model->add_parameters({extra_param});
+    body.compiled_model = ov::SoPtr<ov::ICompiledModel>{std::make_shared<FakeSubCompiledModel>(extended_model, plugin)};
+
+    ov::Tensor fake_closure_tensor(ov::element::f32, ov::Shape{1});
+    for (auto& desc : compiled->m_compiled_submodels) {
+        if (ov::npuw::attn::get_compiled_dynamic(desc.pipeline.context) == dynamic) {
+            auto& closure = desc.closure.unsafe_get();
+            closure.closure.push_back(fake_closure_tensor);
+            closure.closure_uid.push_back(-1);
+            closure.is_remote.push_back(false);
+        }
+    }
+
+    // Valid mask_idx must stay within [0, param_base); param_base itself is out of range and
+    // should trigger the assertion.
+    dynamic->mask_idx = param_base;
+
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+    for (const auto& input : compiled->inputs()) {
+        ov::Tensor tensor(input.get_element_type(), input.get_shape());
+        std::memset(tensor.data(), 0, tensor.get_byte_size());
+        request->set_tensor(input, ov::get_tensor_impl(tensor));
+    }
+    OV_EXPECT_THROW_HAS_SUBSTRING(request->infer(), ov::Exception, "mask_idx");
+}
+
 // Regression test for "Cannot find tensor for port" on the first inference of an LLM imported
 // from CACHE_DIR with chunked prefill (PYRAMID prefill attention). The pyramid variants are
 // separate compiled models with their own infer requests; every port bound on a variant request
