@@ -12,8 +12,10 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <type_traits>
 
 #include "openvino/runtime/hsm_format.hpp"
+#include "openvino/runtime/hsm_reader.hpp"
 
 namespace ov::test {
 namespace hsm = ov::runtime::hsm;
@@ -27,43 +29,39 @@ constexpr WireId sample_wire{0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01};
 constexpr uint64_t max_id = std::numeric_limits<uint64_t>::max();
 constexpr WireId max_wire{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-ov::util::MemoryView view_of(const WireId& wire) {
-    return {reinterpret_cast<const std::byte*>(wire.data()), wire.size()};
-}
+static_assert(std::is_convertible_v<decltype(&hsm::decode_model_id), hsm::SectionDecoder<uint64_t>>,
+              "decode_model_id must be usable as a SectionDecoder<uint64_t>.");
 
-void expect_wraps_to(const uint64_t& id, const WireId& expected) {
-    const auto wrapped = hsm::wrap_model_id(id);
-    ASSERT_EQ(wrapped.size(), expected.size());
-    EXPECT_EQ(std::memcmp(wrapped.data(), expected.data(), expected.size()), 0);
+hsm::Section inline_section(const WireId& wire) {
+    hsm::ManifestEntry entry{};
+    entry.tag = hsm::model_id_tag;
+    std::copy(wire.begin(), wire.end(), entry.inline_bytes.begin());
+    return hsm::Section{entry};
 }
 
 }  // namespace
 
-TEST(HsmModelIdSectionTest, wrap_emits_the_little_endian_wire_bytes) {
-    expect_wraps_to(sample_id, sample_wire);
-    expect_wraps_to(max_id, max_wire);
-    expect_wraps_to(0, WireId{});
+TEST(HsmModelIdSectionTest, decode_reads_the_little_endian_wire_bytes) {
+    EXPECT_EQ(hsm::decode_model_id(inline_section(sample_wire)), sample_id);
+    EXPECT_EQ(hsm::decode_model_id(inline_section(max_wire)), max_id);
+    EXPECT_EQ(hsm::decode_model_id(inline_section(WireId{})), 0u);
 }
 
-TEST(HsmModelIdSectionTest, unwrap_reads_the_little_endian_wire_bytes) {
-    EXPECT_EQ(hsm::unwrap_model_id(view_of(sample_wire)), sample_id);
-    EXPECT_EQ(hsm::unwrap_model_id(view_of(max_wire)), max_id);
-    EXPECT_EQ(hsm::unwrap_model_id(view_of(WireId{})), 0u);
+TEST(HsmModelIdSectionTest, decode_rejects_a_section_with_a_different_tag_id) {
+    hsm::ManifestEntry entry{};
+    entry.tag = hsm::SectionTag::make(hsm::model, /*is_inline=*/true);
+    std::copy(sample_wire.begin(), sample_wire.end(), entry.inline_bytes.begin());
+
+    EXPECT_FALSE(hsm::decode_model_id(hsm::Section{entry}).has_value());
 }
 
-TEST(HsmModelIdSectionTest, unwrap_ignores_the_zero_fill_of_a_full_inline_slot) {
-    // An inline payload reads back as the whole slot, zero-filled past the bytes actually written.
-    std::array<uint8_t, sizeof(hsm::ManifestEntry{}.inline_bytes)> slot{};
-    std::copy(sample_wire.begin(), sample_wire.end(), slot.begin());
+TEST(HsmModelIdSectionTest, decode_rejects_a_pointer_mode_section) {
+    hsm::ManifestEntry entry{};
+    entry.tag = hsm::SectionTag::make(hsm::model_id, /*is_inline=*/false);
+    entry.size = sample_wire.size();
+    const hsm::Section section{entry, {reinterpret_cast<const std::byte*>(sample_wire.data()), sample_wire.size()}};
 
-    EXPECT_EQ(hsm::unwrap_model_id({reinterpret_cast<const std::byte*>(slot.data()), slot.size()}), sample_id);
-}
-
-TEST(HsmModelIdSectionTest, unwrap_rejects_a_payload_too_short_to_hold_an_id) {
-    const std::array<std::byte, sizeof(uint64_t) - 1> too_short{};
-
-    EXPECT_FALSE(hsm::unwrap_model_id({too_short.data(), too_short.size()}).has_value());
-    EXPECT_FALSE(hsm::unwrap_model_id({}).has_value());
+    EXPECT_FALSE(hsm::decode_model_id(section).has_value());
 }
 
 }  // namespace ov::test
