@@ -977,6 +977,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         return;
     }
 
+    bool output_0_bound_to_ext_block = false;
     // Forward probe: walk through single-user optimized chains to find an output
     // node with an external output memory block (ext_block).  If found, use the
     // ext_block memory directly so this node's kernel writes into it, achieving
@@ -988,13 +989,18 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             auto* next = cursor->get_user_insts().front();
             if (next->is_output()) {
                 auto* ext_block = get_network().get_output_memory_block(next->id());
-                if (ext_block) {
+                const bool is_nms = get_node().is_type<non_max_suppression>() || get_node().is_type<multiclass_nms>();
+                if (ext_block && !(is_nms && actual_layouts[0].count() == 0)) {
                     ext_block->resize(actual_layouts[0]);
                     _outputs[0] = ext_block->memory();
                     _max_output_layout_count[0] = _outputs[0]->get_mem_tracker()->size() / cldnn::data_type_traits::size_of(actual_layouts[0].data_type);
                     GPU_DEBUG_TRACE_DETAIL << id() << ": use ext output memory block via forward probe -> " << next->id() << " - "
                                            << actual_layouts[0].get_linear_size() << "/" << _max_output_layout_count[0] << std::endl;
                     GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("ext_output_block_via_forward_probe");
+                    if (get_node().is_type<non_max_suppression>() || get_node().is_type<multiclass_nms>()) {
+                        output_0_bound_to_ext_block = true;
+                        break;
+                    }
                     return;
                 }
                 break;  // output node without ext_block — stop probing
@@ -1315,6 +1321,9 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     }
 
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
+        if (output_0_bound_to_ext_block && i == 0) {
+            continue;
+        }
         bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_linear_size() <= _max_output_layout_count[i]);
         std::pair<bool, ov::Shape> prealloc_info;
         if (get_node().is_type<kv_cache>() && i != 1) {
@@ -1339,7 +1348,10 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         // GPU kernel writes into directly, avoiding an extra GPU->Host copy after execution.
         if (is_output()) {
             auto* ext_block = get_network().get_output_memory_block(id());
-            if (ext_block) {
+            const bool is_empty_nms_output =
+                i == 0 && actual_layouts[i].count() == 0 &&
+                (get_node().is_type<non_max_suppression>() || get_node().is_type<multiclass_nms>());
+            if (ext_block && !is_empty_nms_output) {
                 ext_block->resize(updated_params.output_layouts[i]);
                 _outputs[i] = get_network().get_engine().reinterpret_buffer(*ext_block->memory(), actual_layouts[i]);
                 _max_output_layout_count[i] = ext_block->memory()->get_mem_tracker()->size() / cldnn::data_type_traits::size_of(actual_layouts[i].data_type);

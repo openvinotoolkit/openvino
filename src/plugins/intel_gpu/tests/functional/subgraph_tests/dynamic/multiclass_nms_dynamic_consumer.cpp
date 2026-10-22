@@ -110,6 +110,47 @@ TEST_P(MulticlassNmsDynamicConsumerGPUTest, OutputsFollowRuntimeBoxCount) {
     }
 }
 
+TEST(MulticlassNmsDynamicConsumerGPU, OutputZeroOnlyHandlesEmptyFirstInference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    auto boxes = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 4});
+    auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, -1});
+    auto nms = std::make_shared<ov::op::v9::MulticlassNms>(boxes, scores,
+                                                           ov::op::v9::MulticlassNms::Attributes());
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{nms->output(0)}, ov::ParameterVector{boxes, scores});
+
+    ov::Core core;
+    auto compiled = core.compile_model(model,
+                                       ov::test::utils::DEVICE_GPU,
+                                       ov::hint::inference_precision(ov::element::f32));
+    auto request = compiled.create_infer_request();
+    for (const size_t batch : {size_t{1}, size_t{3}}) {
+        ov::Tensor boxes_tensor(ov::element::f32, ov::Shape{batch, 0, 4});
+        ov::Tensor scores_tensor(ov::element::f32, ov::Shape{batch, 1, 0});
+        request.set_input_tensor(0, boxes_tensor);
+        request.set_input_tensor(1, scores_tensor);
+        ASSERT_NO_THROW(request.infer()) << "empty input batch=" << batch;
+        EXPECT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{0, 6}));
+    }
+
+    ov::Tensor boxes_tensor(ov::element::f32, ov::Shape{2, 4, 4});
+    ov::Tensor scores_tensor(ov::element::f32, ov::Shape{2, 1, 4});
+    for (size_t batch = 0; batch < 2; ++batch) {
+        for (size_t box = 0; box < 4; ++box) {
+            const auto box_offset = (batch * 4 + box) * 4;
+            const float x = static_cast<float>(batch * 8 + box * 2);
+            boxes_tensor.data<float>()[box_offset + 0] = x;
+            boxes_tensor.data<float>()[box_offset + 1] = 0.f;
+            boxes_tensor.data<float>()[box_offset + 2] = x + 1.f;
+            boxes_tensor.data<float>()[box_offset + 3] = 1.f;
+            scores_tensor.data<float>()[batch * 4 + box] = 0.9f - static_cast<float>(box) * 0.1f;
+        }
+    }
+    request.set_input_tensor(0, boxes_tensor);
+    request.set_input_tensor(1, scores_tensor);
+    ASSERT_NO_THROW(request.infer());
+    EXPECT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{8, 6}));
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsDynamicConsumer_GPU,
                          MulticlassNmsDynamicConsumerGPUTest,
                          testing::Values(MulticlassNmsConsumerParams{{1, {1, 10}, 4}, {1, 1, {1, 10}}},
