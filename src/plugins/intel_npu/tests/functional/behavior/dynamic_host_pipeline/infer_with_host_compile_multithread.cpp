@@ -551,6 +551,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
             const auto& shape = useAltShape ? shapeSmall : shapeLarge;
             runConcurrentlyAsync(
                 kThreadCount,
+                // kRequestsPerModel is captured by reference: MSVC drops by-value captures of constexpr locals,
+                // which breaks its runtime uses below (C3493).
                 [model,
                  &compiledModels,
                  &referenceCompiledModel,
@@ -558,7 +560,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
                  &referenceRequests,
                  &inputs,
                  &shape,
-                 kRequestsPerModel,
+                 &kRequestsPerModel,
                  inferIdx](size_t threadIdx) {
                     if (requests[threadIdx].empty()) {
                         requests[threadIdx].reserve(compiledModels.size() * kRequestsPerModel);
