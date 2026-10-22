@@ -17,6 +17,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <cmath>
@@ -40,7 +41,7 @@ FuseGatedMLP::FuseGatedMLP() {
     auto mul = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_0, mul_1});
     auto mm_down = wrap_type<ov::op::v0::MatMul>({mul, w_down});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
         auto down = ov::as_type_ptr<ov::op::v0::MatMul>(pm.at(mm_down).get_node_shared_ptr());
         auto up = ov::as_type_ptr<ov::op::v0::MatMul>(pm.at(mm_up).get_node_shared_ptr());
