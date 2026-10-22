@@ -1300,7 +1300,9 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         } else {
             required_buffer_size = (updated_layouts[i].get_linear_size());
         }
-        const bool small_buffer = !get_node().is_type<kv_cache>() && _max_output_layout_count[i] * dt_sizes_in_B[i] <= reclaim_min_size;
+        // Bit width, not dt_sizes_in_B: that one rounds sub-byte types up to 1 byte
+        const size_t max_output_bytes = (_max_output_layout_count[i] * ov::element::Type(actual_layouts[i].data_type).bitwidth() + 7) >> 3;
+        const bool small_buffer = !get_node().is_type<kv_cache>() && max_output_bytes <= reclaim_min_size;
         if (required_buffer_size * 10 < _max_output_layout_count[i] && !small_buffer) {
             reclaim = true;
         }
