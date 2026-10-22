@@ -3,7 +3,6 @@
 //
 
 #include <gmock/gmock.h>
-#include <gtest/gtest.h>
 
 #include <cstdint>
 #include <filesystem>
@@ -53,6 +52,16 @@ static_assert(ov::util::align_region(64, 32, 64).m_gap == 0);
 static_assert(ov::util::align_region(65, 32, 64).m_address == 64);
 static_assert(ov::util::align_region(65, 32, 64).m_length == 33);
 static_assert(ov::util::align_region(65, 32, 64).m_gap == 1);
+
+static_assert(ov::util::MemoryView{}.empty());
+static_assert(ov::util::MemoryView{}.data() == nullptr);
+static_assert(ov::util::MemoryView{}.size() == 0);
+
+constexpr std::byte memory_view_bytes[4]{};
+static_assert(ov::util::MemoryView{nullptr, 0}.empty());
+static_assert(ov::util::MemoryView{nullptr, sizeof(memory_view_bytes)}.empty());
+static_assert(ov::util::MemoryView{memory_view_bytes, 0}.empty());
+static_assert(!ov::util::MemoryView{memory_view_bytes, sizeof(memory_view_bytes)}.empty());
 
 using AlignSizeUpTest = testing::Test;
 
@@ -179,6 +188,36 @@ TEST_F(AlignedAllocTest, size_too_big_for_alignment_returns_null) {
 
 TEST_F(AlignedAllocTest, free_nullptr_is_noop) {
     EXPECT_NO_FATAL_FAILURE(util::aligned_free(nullptr));
+}
+
+using MemoryViewTest = testing::Test;
+
+TEST_F(MemoryViewTest, default_constructed_view_is_empty) {
+    const util::MemoryView view;
+    EXPECT_TRUE(view.empty());
+    EXPECT_EQ(nullptr, view.data());
+    EXPECT_EQ(0u, view.size());
+}
+
+TEST_F(MemoryViewTest, zero_size_with_valid_pointer_is_empty) {
+    const std::byte b{};
+    const util::MemoryView view{&b, 0};
+    EXPECT_TRUE(view.empty());
+}
+
+TEST_F(MemoryViewTest, non_zero_size_with_nullptr_is_empty) {
+    const util::MemoryView view{nullptr, 4};
+    EXPECT_TRUE(view.empty());
+}
+
+TEST_F(MemoryViewTest, non_zero_size_with_valid_pointer_is_not_empty) {
+    const std::array<std::byte, 4> bytes{};
+    const util::MemoryView view{bytes.data(), 4};
+    EXPECT_FALSE(view.empty());
+    EXPECT_EQ(bytes.data(), view.data());
+    EXPECT_EQ(4u, view.size());
+    EXPECT_EQ(view.data(), view.begin());
+    EXPECT_EQ(view.data() + view.size(), view.end());
 }
 
 }  // namespace ov::test

@@ -76,12 +76,8 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto softcap = softcap_attr > 0.0f ? softcap_attr : 0.0f;
     const auto smooth_softmax = node.get_attribute_value<int64_t>("smooth_softmax", 0);
     const auto qk_output = node.get_attribute_value<int64_t>("qk_output", 0);
-
-    // Reject spec inputs whose semantics are not implemented by the OpenVINO decomposition.
-    FRONT_END_OP_CONVERSION_CHECK(
-        !common::is_input_valid(onnx_op_inputs, 14) && !common::is_input_valid(onnx_op_inputs, 15),
-        "GroupQueryAttention: q_norm_weight/k_norm_weight (QK-Norm) inputs are not "
-        "supported.");
+    // QK-Norm (q_norm_weight/k_norm_weight, inputs 14/15) is forwarded as-is; the op validates the pairing.
+    const auto qk_norm_epsilon = node.get_attribute_value<float>("qk_norm_epsilon", 1e-6f);
 
     // Reject spec attributes whose semantics are not implemented by the OpenVINO decomposition.
     FRONT_END_OP_CONVERSION_CHECK(causal == 0 || causal == 1,
@@ -102,7 +98,7 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                   local_window_size,
                                   ".");
     // A windowed KV cache requires a real sliding window (local_window_size > 0), matching the ONNX Runtime
-    // precondition. batch > 1 is not handled by this decomposition (see the batch_size == 1 check below).
+    // precondition. The windowed cache is single-batch (the op rejects a static batch_size > 1).
     // Multi-token steps (ORT's "staging" regime) are supported: the decomposition selects the staging vs.
     // in-place cache-write branch from the runtime past/total length, mirroring ORT's PlanWindowedKvCache,
     // so a static multi-token shape is not rejected here.
@@ -127,9 +123,15 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                           ".");
         }
     }
-    // qk_output (spec: emit the QxK' matrix before/after softmax as a 4th `output_qk` output) is not
-    // produced by this decomposition. Reject a non-default value rather than silently dropping the output.
-    FRONT_END_OP_CONVERSION_CHECK(qk_output == 0, "GroupQueryAttention: qk_output is not supported.");
+    // qk_output: 0 = none, 1 = scores before softmax, 2 = after softmax, emitted as the 4th output `output_qk`.
+    // As in ONNX Runtime, the attribute and the output must be set together.
+    FRONT_END_OP_CONVERSION_CHECK(qk_output >= 0 && qk_output <= 2,
+                                  "GroupQueryAttention: qk_output must be 0, 1 or 2, got ",
+                                  qk_output,
+                                  ".");
+    const bool has_output_qk = node.get_outputs_size() > 3 && !node.get_output_names()[3].get().empty();
+    FRONT_END_OP_CONVERSION_CHECK((qk_output != 0) == has_output_qk,
+                                  "GroupQueryAttention: the output_qk output and qk_output != 0 must be set together.");
 
     if (0 != do_rotary) {
         constexpr size_t cos_cache_index = 7;
@@ -275,20 +277,23 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     // smooth_softmax's ONNX schema default is -1, not 0, yet ORT's own CPU/CUDA kernels enable it only when
     // the value is exactly 1. Comparing == 1 (not != 0) keeps a graph that never set the attribute from
     // silently getting the smooth-softmax sink path.
-    return std::make_shared<internal::GroupQueryAttention>(ov_op_inputs,
-                                                           num_heads,
-                                                           kv_num_heads,
-                                                           scale,
-                                                           do_rotary,
-                                                           rotary_interleaved,
-                                                           kv_cache_bit_width,
-                                                           k_quant_type,
-                                                           v_quant_type,
-                                                           local_window_size,
-                                                           sliding_window_cache != 0,
-                                                           smooth_softmax == 1,
-                                                           causal != 0,
-                                                           softcap)
+    return std::make_shared<internal::GroupQueryAttention>(
+               ov_op_inputs,
+               num_heads,
+               kv_num_heads,
+               scale,
+               do_rotary,
+               rotary_interleaved,
+               kv_cache_bit_width,
+               k_quant_type,
+               v_quant_type,
+               local_window_size,
+               sliding_window_cache != 0,
+               smooth_softmax == 1,
+               causal != 0,
+               softcap,
+               qk_norm_epsilon,
+               static_cast<internal::GroupQueryAttentionQKOutput>(qk_output))
         ->outputs();
 }
 

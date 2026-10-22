@@ -307,7 +307,7 @@ void remove_redundant_reorders::run(program& p) {
         if (dep_node.get_preferred_impl_type() == impl_types::onednn && !no_output_optimization) {
             for (auto& fused_op : dep_node.get_fused_primitives()) {
                 if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
-                    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(dep_node, fused_op);
+                    auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(dep_node, fused_op);
                     if (fusing_type == add_fusing_type::sum) {
                         no_output_optimization |= true;
                         break;
