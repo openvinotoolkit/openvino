@@ -49,8 +49,7 @@ if(NOT MSVC)
     )
 endif()
 
-# TODO
 ov_developer_package_export_targets(TARGET ${TARGET_NAME}
     INSTALL_INCLUDE_DIRECTORIES
-        ${CMAKE_CURRENT_SOURCE_DIR}/include>)
+        ${CMAKE_CURRENT_SOURCE_DIR}/include)
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

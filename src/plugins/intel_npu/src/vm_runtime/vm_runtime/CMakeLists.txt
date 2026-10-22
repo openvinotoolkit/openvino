@@ -65,7 +65,6 @@ target_include_directories(${TARGET_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
-# TODO
 ov_developer_package_export_targets(TARGET ${TARGET_NAME}
     INSTALL_INCLUDE_DIRECTORIES
-        ${CMAKE_CURRENT_SOURCE_DIR}/include>)
+        ${CMAKE_CURRENT_SOURCE_DIR}/include)
