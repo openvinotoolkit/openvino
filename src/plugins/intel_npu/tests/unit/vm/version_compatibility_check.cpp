@@ -13,7 +13,7 @@
 #include <cstdint>
 #include <vector>
 
-using namespace intel_npu::vm;
+using namespace ov::intel_npu::vm;
 
 namespace {
 

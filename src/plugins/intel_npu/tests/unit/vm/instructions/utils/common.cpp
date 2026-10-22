@@ -9,8 +9,6 @@
 #include "vm_runtime/virtual_machine.h"
 #include "vm_value_helpers.hpp"
 
-#include <llvm/Support/FormatVariadic.h>
-
 #include <gtest/gtest.h>
 
 #include <climits>
@@ -48,16 +46,14 @@ std::string expectedToString(const std::variant<int64_t, double>& expected) {
 namespace utils {
 
 std::ostream& operator<<(std::ostream& os, const TwoOperandInstructionParams& params) {
-    os << llvm::formatv("{ opcode={0}, src={1}, expected={2} }", static_cast<uint16_t>(params.opcode), params.src,
-                        expectedToString(params.expected))
-                    .str();
+    os << "{ opcode=" << static_cast<uint16_t>(params.opcode) << ", src=" << params.src
+       << ", expected=" << expectedToString(params.expected) << " }";
     return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const ThreeOperandInstructionParams& params) {
-    os << llvm::formatv("{ opcode={0}, lhs={1}, rhs={2}, expected={3} }", static_cast<uint16_t>(params.opcode),
-                        params.lhs, params.rhs, expectedToString(params.expected))
-                    .str();
+    os << "{ opcode=" << static_cast<uint16_t>(params.opcode) << ", lhs=" << params.lhs << ", rhs=" << params.rhs
+       << ", expected=" << expectedToString(params.expected) << " }";
     return os;
 }
 
@@ -69,18 +65,18 @@ int64_t utils::f64Bits(double v) {
     return bits;
 }
 
-intel_npu::vm::Type utils::getInt64Type() {
-    return intel_npu::vm::Type{intel_npu::vm::IntegerType{sizeof(int64_t) * CHAR_BIT, true}};
+ov::intel_npu::vm::Type utils::getInt64Type() {
+    return ov::intel_npu::vm::Type{ov::intel_npu::vm::IntegerType{sizeof(int64_t) * CHAR_BIT, true}};
 }
 
-intel_npu::vm::Type utils::getF32Type() {
-    return intel_npu::vm::Type{
-            intel_npu::vm::FloatType{sizeof(float) * CHAR_BIT, intel_npu::vm::FloatTypeFormat::IEEE754}};
+ov::intel_npu::vm::Type utils::getF32Type() {
+    return ov::intel_npu::vm::Type{
+            ov::intel_npu::vm::FloatType{sizeof(float) * CHAR_BIT, ov::intel_npu::vm::FloatTypeFormat::IEEE754}};
 }
 
-intel_npu::vm::Type utils::getF64Type() {
-    return intel_npu::vm::Type{
-            intel_npu::vm::FloatType{sizeof(double) * CHAR_BIT, intel_npu::vm::FloatTypeFormat::IEEE754}};
+ov::intel_npu::vm::Type utils::getF64Type() {
+    return ov::intel_npu::vm::Type{
+            ov::intel_npu::vm::FloatType{sizeof(double) * CHAR_BIT, ov::intel_npu::vm::FloatTypeFormat::IEEE754}};
 }
 
 void utils::expectF64Eq(double actual, double expected) {
@@ -107,7 +103,7 @@ void utils::expectF32Eq(float actual, float expected) {
 
 npu_vm_result utils::VirtualMachineInstructionTest::loadEntrypoint(const std::vector<uint8_t>& bytecode,
                                                                    const char* funcName) {
-    if (const auto status = npu_vm_parse_module(bytecode.data(), bytecode.size(), &module); status != NPU_VM_SUCCESS) {
+    if (const auto status = npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module); status != NPU_VM_SUCCESS) {
         return status;
     }
     if (const auto status = npu_vm_get_function_info(module, funcName, &funcInfo); status != NPU_VM_SUCCESS) {
@@ -164,8 +160,8 @@ TEST_P(VirtualMachineTwoOperandInstructionTest, Execute) {
                             .build();
     ASSERT_EQ(loadEntrypoint(bytecode, funcName), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> args = {intel_npu::vm::makeI64(params.src)};
-    std::vector<npu_vm_value> results = {isFp ? intel_npu::vm::makeF64(0.0) : intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> args = {ov::intel_npu::vm::makeI64(params.src)};
+    std::vector<npu_vm_value> results = {isFp ? ov::intel_npu::vm::makeF64(0.0) : ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(funcName, args, results), NPU_VM_SUCCESS);
 
     expectResultEq(results.at(0), params.expected);
@@ -191,8 +187,8 @@ TEST_P(VirtualMachineThreeOperandInstructionTest, Execute) {
                             .build();
     ASSERT_EQ(loadEntrypoint(bytecode, funcName), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> args = {intel_npu::vm::makeI64(params.lhs), intel_npu::vm::makeI64(params.rhs)};
-    std::vector<npu_vm_value> results = {isFp ? intel_npu::vm::makeF64(0.0) : intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> args = {ov::intel_npu::vm::makeI64(params.lhs), ov::intel_npu::vm::makeI64(params.rhs)};
+    std::vector<npu_vm_value> results = {isFp ? ov::intel_npu::vm::makeF64(0.0) : ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(funcName, args, results), NPU_VM_SUCCESS);
 
     expectResultEq(results.at(0), params.expected);

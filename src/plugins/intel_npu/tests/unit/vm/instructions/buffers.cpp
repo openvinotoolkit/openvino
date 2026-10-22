@@ -9,14 +9,14 @@
 #include "vm_runtime/virtual_machine.h"
 #include "vm_value_helpers.hpp"
 
-#include <llvm/ADT/ScopeExit.h>
+//#include <llvm/ADT/ScopeExit.h>
 
 #include <gtest/gtest.h>
 
 #include <cstdint>
 #include <vector>
 
-using namespace intel_npu::vm;
+using namespace ov::intel_npu::vm;
 using namespace utils;
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers)
@@ -47,7 +47,7 @@ TEST_F(VirtualMachineInstructionTest, BufferCreateGetDim) {
     ASSERT_EQ(loadEntrypoint(bytecode, NPU_VM_MAIN_INFERENCE_FUNCTION_NAME), NPU_VM_SUCCESS);
 
     std::vector<npu_vm_value> args = {};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0), intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0), ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(NPU_VM_MAIN_INFERENCE_FUNCTION_NAME, args, results), NPU_VM_SUCCESS);
 
     EXPECT_EQ(results.at(0).i64, 4);
@@ -90,7 +90,7 @@ TEST_F(VirtualMachineInstructionTest, BufferSubviewMatchesRequestedSizes) {
     ASSERT_EQ(loadEntrypoint(bytecode, NPU_VM_MAIN_INFERENCE_FUNCTION_NAME), NPU_VM_SUCCESS);
 
     std::vector<npu_vm_value> args = {};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0), intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0), ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(NPU_VM_MAIN_INFERENCE_FUNCTION_NAME, args, results), NPU_VM_SUCCESS);
 
     EXPECT_EQ(results.at(0).i64, 2);
@@ -127,7 +127,7 @@ TEST_F(VirtualMachineInstructionTest, BufferStoreExecutes) {
     const auto bytecode = BytecodeBuilder{}.addFunction(function).build();
     ASSERT_EQ(loadEntrypoint(bytecode, NPU_VM_MAIN_INFERENCE_FUNCTION_NAME), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> args = {intel_npu::vm::makeI64(static_cast<int64_t>(0x123456789ABCDEF))};
+    std::vector<npu_vm_value> args = {ov::intel_npu::vm::makeI64(static_cast<int64_t>(0x123456789ABCDEF))};
     std::vector<npu_vm_value> results = {};
     EXPECT_EQ(callWithResults(NPU_VM_MAIN_INFERENCE_FUNCTION_NAME, args, results), NPU_VM_SUCCESS);
 }
@@ -141,7 +141,7 @@ TEST_F(VirtualMachineInstructionTest, BufferStoreAndLoadRoundTripsValue) {
     constexpr int16_t kElemI64TypeIndex = 0;
     constexpr int16_t kValueParamReg = 9;
     constexpr int16_t kLoadedValueReg = 7;
-    const auto storedValue = intel_npu::vm::makeI64(static_cast<int64_t>(0x123456789ABCDEF));
+    const auto storedValue = ov::intel_npu::vm::makeI64(static_cast<int64_t>(0x123456789ABCDEF));
 
     auto function = BytecodeBuilder::FunctionBuilder(NPU_VM_MAIN_INFERENCE_FUNCTION_NAME,
                                                      /*numGeneralRegisters=*/10,
@@ -167,7 +167,7 @@ TEST_F(VirtualMachineInstructionTest, BufferStoreAndLoadRoundTripsValue) {
     ASSERT_EQ(loadEntrypoint(bytecode, NPU_VM_MAIN_INFERENCE_FUNCTION_NAME), NPU_VM_SUCCESS);
 
     std::vector<npu_vm_value> args = {storedValue};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0)};
     EXPECT_EQ(callWithResults(NPU_VM_MAIN_INFERENCE_FUNCTION_NAME, args, results), NPU_VM_SUCCESS);
 
     EXPECT_EQ(results.at(0).i64, storedValue.i64);
@@ -200,8 +200,8 @@ TEST_F(VirtualMachineInstructionTest, BufferCreateGetDimDynamicShape) {
     const auto bytecode = BytecodeBuilder{}.addFunction(function).build();
     ASSERT_EQ(loadEntrypoint(bytecode, NPU_VM_MAIN_INFERENCE_FUNCTION_NAME), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> args = {intel_npu::vm::makeI64(7), intel_npu::vm::makeI64(11)};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0), intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> args = {ov::intel_npu::vm::makeI64(7), ov::intel_npu::vm::makeI64(11)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0), ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(NPU_VM_MAIN_INFERENCE_FUNCTION_NAME, args, results), NPU_VM_SUCCESS);
 
     EXPECT_EQ(results.at(0).i64, 7);
@@ -258,9 +258,9 @@ TEST_F(VirtualMachineInstructionTest, BufferSubviewDynamicOffsetReturnsRequested
     const auto bytecode = BytecodeBuilder{}.addFunction(function).build();
     ASSERT_EQ(loadEntrypoint(bytecode, NPU_VM_MAIN_INFERENCE_FUNCTION_NAME), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> args = {intel_npu::vm::makeI64(100), intel_npu::vm::makeI64(31)};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0), intel_npu::vm::makeI64(0),
-                                         intel_npu::vm::makeI64(0), intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> args = {ov::intel_npu::vm::makeI64(100), ov::intel_npu::vm::makeI64(31)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0), ov::intel_npu::vm::makeI64(0),
+                                         ov::intel_npu::vm::makeI64(0), ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(NPU_VM_MAIN_INFERENCE_FUNCTION_NAME, args, results), NPU_VM_SUCCESS);
 
     EXPECT_EQ(results.at(0).i64, 1);
@@ -304,7 +304,7 @@ TEST_F(VirtualMachineInstructionTest, BufferViewMatchesRequestedShape) {
     ASSERT_EQ(loadEntrypoint(bytecode, NPU_VM_MAIN_INFERENCE_FUNCTION_NAME), NPU_VM_SUCCESS);
 
     std::vector<npu_vm_value> args = {};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0), intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0), ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(NPU_VM_MAIN_INFERENCE_FUNCTION_NAME, args, results), NPU_VM_SUCCESS);
 
     EXPECT_EQ(results.at(0).i64, 2);
@@ -345,8 +345,8 @@ TEST_F(VirtualMachineInstructionTest, BufferViewDynamicShapeMatchesRuntimeValues
     const auto bytecode = BytecodeBuilder{}.addFunction(function).build();
     ASSERT_EQ(loadEntrypoint(bytecode, NPU_VM_MAIN_INFERENCE_FUNCTION_NAME), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> args = {intel_npu::vm::makeI64(4), intel_npu::vm::makeI64(4)};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0), intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> args = {ov::intel_npu::vm::makeI64(4), ov::intel_npu::vm::makeI64(4)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0), ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(NPU_VM_MAIN_INFERENCE_FUNCTION_NAME, args, results), NPU_VM_SUCCESS);
 
     EXPECT_EQ(results.at(0).i64, 4);
@@ -383,7 +383,7 @@ TEST_F(VirtualMachineInstructionTest, BufferViewWithNonZeroByteOffset) {
     ASSERT_EQ(loadEntrypoint(bytecode, NPU_VM_MAIN_INFERENCE_FUNCTION_NAME), NPU_VM_SUCCESS);
 
     std::vector<npu_vm_value> args = {};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(NPU_VM_MAIN_INFERENCE_FUNCTION_NAME, args, results), NPU_VM_SUCCESS);
 
     EXPECT_EQ(results.at(0).i64, 2);
@@ -448,7 +448,7 @@ TEST_F(VirtualMachineInstructionTest, BufferStoreLoadGetDimAndSubviewCompose) {
     ASSERT_EQ(loadEntrypoint(bytecode, NPU_VM_MAIN_INFERENCE_FUNCTION_NAME), NPU_VM_SUCCESS);
 
     std::vector<npu_vm_value> args = {};
-    auto results = std::vector<npu_vm_value>(3, intel_npu::vm::makeI64(0));
+    auto results = std::vector<npu_vm_value>(3, ov::intel_npu::vm::makeI64(0));
     ASSERT_EQ(callWithResults(NPU_VM_MAIN_INFERENCE_FUNCTION_NAME, args, results), NPU_VM_SUCCESS);
 
     // Source dim 1 of the 2x3 buffer
@@ -473,7 +473,7 @@ TEST_F(VirtualMachineInstructionTest, BufferCopyIntoMemRefParameterMatchesByteco
     constexpr int64_t kStoredValue = 0x123456789ABCDEF;
     constexpr int16_t kOutputParamReg = 7;
 
-    intel_npu::vm::BufferType bufferType{};
+    ov::intel_npu::vm::BufferType bufferType{};
     bufferType.dataTypeIndex = kElemI64TypeIndex;
     bufferType.rank = 1;
     bufferType.shape = {kNumElements};
@@ -487,7 +487,7 @@ TEST_F(VirtualMachineInstructionTest, BufferCopyIntoMemRefParameterMatchesByteco
 
     auto function = BytecodeBuilder::FunctionBuilder(NPU_VM_MAIN_INFERENCE_FUNCTION_NAME,
                                                      /*numGeneralRegisters=*/8,
-                                                     /*paramTypes=*/{intel_npu::vm::Type{bufferType}},
+                                                     /*paramTypes=*/{ov::intel_npu::vm::Type{bufferType}},
                                                      /*resultTypes=*/{},
                                                      /*isEntrypoint=*/true)
                             .setImm(/*dst=*/1, /*imm=*/kNumElements)
@@ -511,10 +511,6 @@ TEST_F(VirtualMachineInstructionTest, BufferCopyIntoMemRefParameterMatchesByteco
     // Destroy on scope exit so a failing assertion below does not leak the memref
     npu_vm_runtime_mem_ref_handle_t outputMemRef = nullptr;
     ASSERT_EQ(npuVMRuntimeCreateMemRef(/*dimsCount=*/1, &outputMemRef), NPU_VM_RUNTIME_RESULT_SUCCESS);
-    const llvm::scope_exit memRefGuard([&outputMemRef]() {
-        EXPECT_EQ(npuVMRuntimeDestroyMemRef(outputMemRef), NPU_VM_RUNTIME_RESULT_SUCCESS);
-    });
-
     ASSERT_EQ(npuVMRuntimeSetMemRef(outputMemRef, output.data(), output.data(), /*offset=*/0, sizes.data(),
                                     strides.data(), /*dimsCount=*/1),
               NPU_VM_RUNTIME_RESULT_SUCCESS);
@@ -525,6 +521,8 @@ TEST_F(VirtualMachineInstructionTest, BufferCopyIntoMemRefParameterMatchesByteco
 
     EXPECT_EQ(npu_vm_infer(engine, &params), NPU_VM_SUCCESS);
     EXPECT_EQ(output.at(0), kStoredValue);
+
+    EXPECT_EQ(npuVMRuntimeDestroyMemRef(outputMemRef), NPU_VM_RUNTIME_RESULT_SUCCESS);
 }
 
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers)

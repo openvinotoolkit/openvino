@@ -9,8 +9,6 @@
 #include "vm_runtime/virtual_machine.h"
 #include "vm_value_helpers.hpp"
 
-#include <llvm/Support/FormatVariadic.h>
-
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 #include <common_test_utils/test_common.hpp>
@@ -27,7 +25,7 @@
 #include <string>
 #include <vector>
 
-using namespace intel_npu::vm;
+using namespace ov::intel_npu::vm;
 using namespace utils;
 
 namespace {
@@ -48,7 +46,7 @@ struct JmpSelectTestParams {
     int64_t expected;
 
     [[maybe_unused]] friend std::ostream& operator<<(std::ostream& os, const JmpSelectTestParams& params) {
-        os << llvm::formatv("{ input={0}, expected={1} }", params.input, params.expected).str();
+        os << "{ input=" << params.input << ", expected=" << params.expected << " }";
         return os;
     }
 };
@@ -100,10 +98,10 @@ struct AssertInstructionParams {
     std::optional<int64_t> expectedResult;
 
     [[maybe_unused]] friend std::ostream& operator<<(std::ostream& os, const AssertInstructionParams& params) {
-        os << llvm::formatv("{ condition={0}, messageIndex={1}, expectedStatus={2}, expectedResult={3} }",
-                            params.condition, params.messageIndex, static_cast<uint32_t>(params.expectedStatus),
-                            params.expectedResult.has_value() ? std::to_string(*params.expectedResult) : "none")
-                        .str();
+        os << "{ condition=" << params.condition << ", messageIndex=" << params.messageIndex
+           << ", expectedStatus=" << static_cast<uint32_t>(params.expectedStatus) << ", expectedResult="
+           << (params.expectedResult.has_value() ? std::to_string(*params.expectedResult) : "none")
+           << " }";
         return os;
     }
 };
@@ -163,8 +161,8 @@ TEST_P(VirtualMachineCallInstructionTest, Execute) {
 
     ASSERT_EQ(loadEntrypoint(bytecode, entryFuncName), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> parameters = {intel_npu::vm::makeI64(params.lhs), intel_npu::vm::makeI64(params.rhs)};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> parameters = {ov::intel_npu::vm::makeI64(params.lhs), ov::intel_npu::vm::makeI64(params.rhs)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(entryFuncName, parameters, results), NPU_VM_SUCCESS);
     EXPECT_EQ(results.at(0).i64, std::get<int64_t>(params.expected));
 }
@@ -203,8 +201,8 @@ TEST_P(VirtualMachineCallInstructionTest, ExecuteTwice) {
                     .build();
     ASSERT_EQ(loadEntrypoint(bytecode, entryFuncName), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> parameters = {intel_npu::vm::makeI64(params.lhs), intel_npu::vm::makeI64(params.rhs)};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> parameters = {ov::intel_npu::vm::makeI64(params.lhs), ov::intel_npu::vm::makeI64(params.rhs)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(entryFuncName, parameters, results), NPU_VM_SUCCESS);
     EXPECT_EQ(results.at(0).i64, std::get<int64_t>(params.expected) + params.lhs);
 }
@@ -254,8 +252,8 @@ TEST_P(VirtualMachineCallInstructionTest, ExecuteTwiceDifferentFunctions) {
                                   .build();
     ASSERT_EQ(loadEntrypoint(bytecode, entryFuncName), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> parameters = {intel_npu::vm::makeI64(params.lhs), intel_npu::vm::makeI64(params.rhs)};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> parameters = {ov::intel_npu::vm::makeI64(params.lhs), ov::intel_npu::vm::makeI64(params.rhs)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(entryFuncName, parameters, results), NPU_VM_SUCCESS);
     EXPECT_EQ(results.at(0).i64, std::get<int64_t>(params.expected) * params.lhs);
 }
@@ -304,8 +302,8 @@ TEST_F(VirtualMachineCallInstructionTest, CallChainThreeLevelsDeepPropagatesResu
 
     ASSERT_EQ(loadEntrypoint(bytecode, entryFuncName), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> parameters = {intel_npu::vm::makeI64(20), intel_npu::vm::makeI64(22)};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> parameters = {ov::intel_npu::vm::makeI64(20), ov::intel_npu::vm::makeI64(22)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(entryFuncName, parameters, results), NPU_VM_SUCCESS);
     EXPECT_EQ(results.at(0).i64, 42);
 }
@@ -334,8 +332,8 @@ TEST_F(VirtualMachineCallInstructionTest, RetvRoutesMultipleResultsToCallerDesti
 
     ASSERT_EQ(loadEntrypoint(bytecode, entryFuncName), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> parameters = {intel_npu::vm::makeI64(7), intel_npu::vm::makeI64(9)};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0), intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> parameters = {ov::intel_npu::vm::makeI64(7), ov::intel_npu::vm::makeI64(9)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0), ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(entryFuncName, parameters, results), NPU_VM_SUCCESS);
     EXPECT_EQ(results.at(0).i64, 9);
     EXPECT_EQ(results.at(1).i64, 7);
@@ -394,16 +392,16 @@ TEST_F(VirtualMachineCallInstructionTest, SelfRecursiveFunctionComputesTriangula
     };
     for (const auto& testCase : {RecursionCase{0, 0}, RecursionCase{1, 1}, RecursionCase{5, 15}, RecursionCase{10, 55},
                                  RecursionCase{1000, 500500}}) {
-        std::vector<npu_vm_value> parameters = {intel_npu::vm::makeI64(testCase.n)};
-        std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(-1)};
+        std::vector<npu_vm_value> parameters = {ov::intel_npu::vm::makeI64(testCase.n)};
+        std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(-1)};
         ASSERT_EQ(callWithResults(funcName, parameters, results), NPU_VM_SUCCESS) << "n=" << testCase.n;
         EXPECT_EQ(results.at(0).i64, testCase.expected) << "n=" << testCase.n;
         ASSERT_EQ(npu_vm_reset_state(engine, /*resetExecutionContext=*/false), NPU_VM_SUCCESS);
     }
 
     const auto overMaxDepthTestCase = 1001;
-    std::vector<npu_vm_value> parameters = {intel_npu::vm::makeI64(overMaxDepthTestCase)};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(-1)};
+    std::vector<npu_vm_value> parameters = {ov::intel_npu::vm::makeI64(overMaxDepthTestCase)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(-1)};
     ASSERT_NE(callWithResults(funcName, parameters, results), NPU_VM_SUCCESS) << "n=" << overMaxDepthTestCase;
 }
 
@@ -436,8 +434,8 @@ TEST_P(VirtualMachineJmpTest, SelectJmp) {
                                   .build();
     ASSERT_EQ(loadEntrypoint(bytecode, funcName), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> parameters = {intel_npu::vm::makeI64(GetParam().input)};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> parameters = {ov::intel_npu::vm::makeI64(GetParam().input)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(funcName, parameters, results), NPU_VM_SUCCESS);
     EXPECT_EQ(results.at(0).i64, GetParam().expected);
 }
@@ -465,8 +463,8 @@ TEST_P(VirtualMachineJETest, ConditionalJump) {
                                   .build();
     ASSERT_EQ(loadEntrypoint(bytecode, funcName), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> parameters = {intel_npu::vm::makeI64(GetParam().input)};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> parameters = {ov::intel_npu::vm::makeI64(GetParam().input)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(funcName, parameters, results), NPU_VM_SUCCESS);
     EXPECT_EQ(results.at(0).i64, GetParam().expected);
 }
@@ -493,8 +491,8 @@ TEST_P(VirtualMachineJNETest, ConditionalJump) {
                                   .build();
     ASSERT_EQ(loadEntrypoint(bytecode, funcName), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> parameters = {intel_npu::vm::makeI64(GetParam().input)};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> parameters = {ov::intel_npu::vm::makeI64(GetParam().input)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(funcName, parameters, results), NPU_VM_SUCCESS);
     EXPECT_EQ(results.at(0).i64, GetParam().expected);
 }
@@ -539,8 +537,8 @@ TEST_P(VirtualMachineJmpBackwardTest, BackwardJump) {
                                   .build();
     ASSERT_EQ(loadEntrypoint(bytecode, funcName), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> parameters = {intel_npu::vm::makeI64(GetParam().input)};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> parameters = {ov::intel_npu::vm::makeI64(GetParam().input)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(funcName, parameters, results), NPU_VM_SUCCESS);
     EXPECT_EQ(results.at(0).i64, GetParam().expected);
 }
@@ -578,7 +576,7 @@ TEST_F(VirtualMachineJmpInstructionTest, JmpForwardOffsetExceedsInt16Range) {
     const auto bytecode = BytecodeBuilder{}.addFunction(fb).build();
     ASSERT_EQ(loadEntrypoint(bytecode, funcName), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(funcName, /*args=*/{}, results), NPU_VM_SUCCESS);
     EXPECT_EQ(results.at(0).i64, 1);
 }
@@ -720,8 +718,8 @@ TEST_P(VirtualMachineAssertInstructionTest, Execute) {
                     .build();
     ASSERT_EQ(loadEntrypoint(bytecode, funcName), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> parameters = {intel_npu::vm::makeI64(params.condition)};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(-1)};
+    std::vector<npu_vm_value> parameters = {ov::intel_npu::vm::makeI64(params.condition)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(-1)};
     const auto status = callWithResults(funcName, parameters, results);
 
     EXPECT_EQ(status, params.expectedStatus);

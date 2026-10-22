@@ -9,8 +9,6 @@
 #include "npu_bytecode_utils/type_section.hpp"
 #include "vm_runtime/virtual_machine.h"
 
-#include <llvm/Support/FormatVariadic.h>
-
 #include <gtest/gtest.h>
 
 #include <climits>
@@ -39,9 +37,9 @@ constexpr double NAN_F64 = std::numeric_limits<double>::quiet_NaN();
 
 int64_t f64Bits(double v);
 
-intel_npu::vm::Type getInt64Type();
-intel_npu::vm::Type getF32Type();
-intel_npu::vm::Type getF64Type();
+ov::intel_npu::vm::Type getInt64Type();
+ov::intel_npu::vm::Type getF32Type();
+ov::intel_npu::vm::Type getF64Type();
 
 // Compares a floating-point result against an expected value, tolerating NaN payload differences
 // and checking the sign of infinities
@@ -79,7 +77,7 @@ protected:
 };
 
 struct TwoOperandInstructionParams {
-    intel_npu::vm::OpCode opcode;
+    ov::intel_npu::vm::OpCode opcode;
     int64_t src;
     std::variant<int64_t, double> expected;
 
@@ -87,7 +85,7 @@ struct TwoOperandInstructionParams {
 };
 
 struct ThreeOperandInstructionParams {
-    intel_npu::vm::OpCode opcode;
+    ov::intel_npu::vm::OpCode opcode;
     int64_t lhs;
     int64_t rhs;
     std::variant<int64_t, double> expected;

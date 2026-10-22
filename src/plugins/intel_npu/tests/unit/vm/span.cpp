@@ -14,7 +14,7 @@
 #include <numeric>
 #include <type_traits>
 
-using namespace intel_npu::vm;
+using namespace ov::intel_npu::vm;
 
 namespace {
 

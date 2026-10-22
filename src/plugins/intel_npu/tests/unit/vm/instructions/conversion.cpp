@@ -10,8 +10,6 @@
 #include "vm_runtime/virtual_machine.h"
 #include "vm_value_helpers.hpp"
 
-#include <llvm/Support/FormatVariadic.h>
-
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 #include <common_test_utils/test_common.hpp>
@@ -26,16 +24,16 @@
 #include <string>
 #include <vector>
 
-using namespace intel_npu::vm;
+using namespace ov::intel_npu::vm;
 using namespace utils;
 
 namespace {
 
-std::string typeToStr(const intel_npu::vm::Type& type) {
-    const auto typeCode = intel_npu::vm::getTypeCode(type);
-    const auto bitWidth = intel_npu::vm::getBitWidth(type);
+std::string typeToStr(const ov::intel_npu::vm::Type& type) {
+    const auto typeCode = ov::intel_npu::vm::getTypeCode(type);
+    const auto bitWidth = ov::intel_npu::vm::getBitWidth(type);
     switch (typeCode) {
-    case intel_npu::vm::TypeCode::INTEGER: {
+    case ov::intel_npu::vm::TypeCode::INTEGER: {
         if (bitWidth == sizeof(int8_t) * CHAR_BIT) {
             return "INT8";
         } else if (bitWidth == sizeof(int16_t) * CHAR_BIT) {
@@ -48,7 +46,7 @@ std::string typeToStr(const intel_npu::vm::Type& type) {
             return "INT";
         }
     }
-    case intel_npu::vm::TypeCode::FLOAT: {
+    case ov::intel_npu::vm::TypeCode::FLOAT: {
         if (bitWidth == sizeof(float) * CHAR_BIT) {
             return "FP32";
         } else if (bitWidth == sizeof(double) * CHAR_BIT) {
@@ -57,20 +55,20 @@ std::string typeToStr(const intel_npu::vm::Type& type) {
             return "FP";
         }
     }
-    case intel_npu::vm::TypeCode::OPAQUE:
+    case ov::intel_npu::vm::TypeCode::OPAQUE:
         return "OPAQUE" + std::to_string(bitWidth) + "b";
     default:
         return "UNKNOWN";
     }
 }
 
-std::string valueToStr(const npu_vm_value& value, const intel_npu::vm::Type& type) {
+std::string valueToStr(const npu_vm_value& value, const ov::intel_npu::vm::Type& type) {
     std::ostringstream ss;
-    const auto typeCode = intel_npu::vm::getTypeCode(type);
-    if (typeCode == intel_npu::vm::TypeCode::INTEGER) {
+    const auto typeCode = ov::intel_npu::vm::getTypeCode(type);
+    if (typeCode == ov::intel_npu::vm::TypeCode::INTEGER) {
         ss << value.i64;
-    } else if (typeCode == intel_npu::vm::TypeCode::FLOAT) {
-        const auto bitWidth = intel_npu::vm::getBitWidth(type);
+    } else if (typeCode == ov::intel_npu::vm::TypeCode::FLOAT) {
+        const auto bitWidth = ov::intel_npu::vm::getBitWidth(type);
         if (bitWidth == sizeof(float) * CHAR_BIT) {
             ss << value.f32;
         } else {
@@ -84,16 +82,15 @@ std::string valueToStr(const npu_vm_value& value, const intel_npu::vm::Type& typ
 
 struct ConvertInstructionParams {
     OpCode opcode;
-    intel_npu::vm::Type srcType;
-    intel_npu::vm::Type dstType;
+    ov::intel_npu::vm::Type srcType;
+    ov::intel_npu::vm::Type dstType;
     npu_vm_value src;
     npu_vm_value expected;
 
     [[maybe_unused]] friend std::ostream& operator<<(std::ostream& os, const ConvertInstructionParams& params) {
-        os << llvm::formatv("{ opcode={0}, srcType={1}, dstType={2}, src={3}, expected={4} }",
-                            static_cast<uint16_t>(params.opcode), typeToStr(params.srcType), typeToStr(params.dstType),
-                            valueToStr(params.src, params.srcType), valueToStr(params.expected, params.dstType))
-                        .str();
+        os << "{ opcode=" << static_cast<uint16_t>(params.opcode) << ", srcType=" << typeToStr(params.srcType)
+           << ", dstType=" << typeToStr(params.dstType) << ", src=" << valueToStr(params.src, params.srcType)
+           << ", expected=" << valueToStr(params.expected, params.dstType) << " }";
         return os;
     }
 };
@@ -112,25 +109,25 @@ public:
 };
 
 ConvertInstructionParams intToInt(OpCode op, int64_t src, int64_t expected) {
-    return {op, getInt64Type(), getInt64Type(), intel_npu::vm::makeI64(src), intel_npu::vm::makeI64(expected)};
+    return {op, getInt64Type(), getInt64Type(), ov::intel_npu::vm::makeI64(src), ov::intel_npu::vm::makeI64(expected)};
 }
 ConvertInstructionParams intToF32(OpCode op, int64_t src, float expected) {
-    return {op, getInt64Type(), getF32Type(), intel_npu::vm::makeI64(src), intel_npu::vm::makeF32(expected)};
+    return {op, getInt64Type(), getF32Type(), ov::intel_npu::vm::makeI64(src), ov::intel_npu::vm::makeF32(expected)};
 }
 ConvertInstructionParams intToF64(OpCode op, int64_t src, double expected) {
-    return {op, getInt64Type(), getF64Type(), intel_npu::vm::makeI64(src), intel_npu::vm::makeF64(expected)};
+    return {op, getInt64Type(), getF64Type(), ov::intel_npu::vm::makeI64(src), ov::intel_npu::vm::makeF64(expected)};
 }
 ConvertInstructionParams f32ToInt(OpCode op, float src, int64_t expected) {
-    return {op, getF32Type(), getInt64Type(), intel_npu::vm::makeF32(src), intel_npu::vm::makeI64(expected)};
+    return {op, getF32Type(), getInt64Type(), ov::intel_npu::vm::makeF32(src), ov::intel_npu::vm::makeI64(expected)};
 }
 ConvertInstructionParams f32ToF64(OpCode op, float src, double expected) {
-    return {op, getF32Type(), getF64Type(), intel_npu::vm::makeF32(src), intel_npu::vm::makeF64(expected)};
+    return {op, getF32Type(), getF64Type(), ov::intel_npu::vm::makeF32(src), ov::intel_npu::vm::makeF64(expected)};
 }
 ConvertInstructionParams f64ToInt(OpCode op, double src, int64_t expected) {
-    return {op, getF64Type(), getInt64Type(), intel_npu::vm::makeF64(src), intel_npu::vm::makeI64(expected)};
+    return {op, getF64Type(), getInt64Type(), ov::intel_npu::vm::makeF64(src), ov::intel_npu::vm::makeI64(expected)};
 }
 ConvertInstructionParams f64ToF32(OpCode op, double src, float expected) {
-    return {op, getF64Type(), getF32Type(), intel_npu::vm::makeF64(src), intel_npu::vm::makeF32(expected)};
+    return {op, getF64Type(), getF32Type(), ov::intel_npu::vm::makeF64(src), ov::intel_npu::vm::makeF32(expected)};
 }
 
 }  // namespace
@@ -158,11 +155,11 @@ TEST_P(VirtualMachineConvertInstructionTest, Execute) {
     std::vector<npu_vm_value> results = {resultInit};
     ASSERT_EQ(callWithResults(funcName, args, results), NPU_VM_SUCCESS);
 
-    const auto dstTypeCode = intel_npu::vm::getTypeCode(params.dstType);
-    if (dstTypeCode == intel_npu::vm::TypeCode::INTEGER) {
+    const auto dstTypeCode = ov::intel_npu::vm::getTypeCode(params.dstType);
+    if (dstTypeCode == ov::intel_npu::vm::TypeCode::INTEGER) {
         EXPECT_EQ(results.at(0).i64, params.expected.i64);
     } else {
-        const auto dstBitWidth = intel_npu::vm::getBitWidth(params.dstType);
+        const auto dstBitWidth = ov::intel_npu::vm::getBitWidth(params.dstType);
         if (dstBitWidth == sizeof(float) * CHAR_BIT) {
             expectF32Eq(results.at(0).f32, params.expected.f32);
         } else {

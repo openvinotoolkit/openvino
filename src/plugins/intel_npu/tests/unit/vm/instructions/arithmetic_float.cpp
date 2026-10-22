@@ -9,8 +9,6 @@
 #include "vm_runtime/virtual_machine.h"
 #include "vm_value_helpers.hpp"
 
-#include <llvm/Support/FormatVariadic.h>
-
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 #include <common_test_utils/test_common.hpp>
@@ -25,7 +23,8 @@
 #include <string>
 #include <vector>
 
-using namespace intel_npu::vm;
+using namespace ov;
+using namespace ov::intel_npu::vm;
 using namespace utils;
 
 namespace {
@@ -36,9 +35,8 @@ struct RoundF64Params {
     double expected;
 
     [[maybe_unused]] friend std::ostream& operator<<(std::ostream& os, const RoundF64Params& params) {
-        os << llvm::formatv("{ src={0}, flag={1}, expected={2} }", params.src, static_cast<int16_t>(params.flag),
-                            params.expected)
-                        .str();
+        os << "{ src=" << params.src << ", flag=" << static_cast<int16_t>(params.flag)
+           << ", expected=" << params.expected << " }";
         return os;
     }
 };
@@ -73,8 +71,8 @@ TEST_P(VirtualMachineRoundF64Test, Execute) {
 
     double srcDouble{};
     std::memcpy(&srcDouble, &params.src, sizeof(srcDouble));
-    std::vector<npu_vm_value> args = {intel_npu::vm::makeF64(srcDouble)};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeF64(0.0)};
+    std::vector<npu_vm_value> args = {ov::intel_npu::vm::makeF64(srcDouble)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeF64(0.0)};
     ASSERT_EQ(callWithResults(funcName, args, results), NPU_VM_SUCCESS);
 
     expectF64Eq(results.at(0).f64, params.expected);

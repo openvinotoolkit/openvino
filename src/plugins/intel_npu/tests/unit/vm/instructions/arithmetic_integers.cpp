@@ -6,8 +6,6 @@
 #include "npu_bytecode_utils/instructions.hpp"
 #include "utils/common.hpp"
 
-#include <llvm/Support/FormatVariadic.h>
-
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 #include <common_test_utils/test_common.hpp>
@@ -19,7 +17,7 @@
 #include <limits>
 #include <string>
 
-using namespace intel_npu::vm;
+using namespace ov::intel_npu::vm;
 using namespace utils;
 
 INSTANTIATE_TEST_SUITE_P(AddI64, VirtualMachineThreeOperandInstructionTest,

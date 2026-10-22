@@ -9,8 +9,6 @@
 #include "vm_runtime/virtual_machine.h"
 #include "vm_value_helpers.hpp"
 
-#include <llvm/Support/FormatVariadic.h>
-
 #include <common_test_utils/test_common.hpp>
 
 #include <climits>
@@ -27,7 +25,7 @@
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 
-using namespace intel_npu::vm;
+using namespace ov::intel_npu::vm;
 using namespace utils;
 
 namespace {
@@ -48,11 +46,10 @@ struct CmpInstructionParams {
     }
 
     [[maybe_unused]] friend std::ostream& operator<<(std::ostream& os, const CmpInstructionParams& params) {
-        os << llvm::formatv("{ opcode={0}, lhs={1}, rhs={2}, predicate={3}, isSigned={4}, expected={5} }",
-                            static_cast<uint16_t>(params.opcode), params.lhs, params.rhs,
-                            static_cast<uint16_t>(params.predicate),
-                            params.isSigned.has_value() ? std::to_string(*params.isSigned) : "none", params.expected)
-                        .str();
+        os << "{ opcode=" << static_cast<uint16_t>(params.opcode) << ", lhs=" << params.lhs << ", rhs=" << params.rhs
+           << ", predicate=" << static_cast<uint16_t>(params.predicate)
+           << ", isSigned=" << (params.isSigned.has_value() ? std::to_string(*params.isSigned) : "none")
+           << ", expected=" << params.expected << "}";
         return os;
     }
 };
@@ -114,8 +111,8 @@ TEST_P(VirtualMachineComparisonInstructionTest, Execute) {
                     .build();
     ASSERT_EQ(loadEntrypoint(bytecode, funcName), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> args = {intel_npu::vm::makeI64(params.lhs), intel_npu::vm::makeI64(params.rhs)};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> args = {ov::intel_npu::vm::makeI64(params.lhs), ov::intel_npu::vm::makeI64(params.rhs)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(funcName, args, results), NPU_VM_SUCCESS);
     EXPECT_EQ(static_cast<bool>(results.at(0).i64), params.expected);
 }

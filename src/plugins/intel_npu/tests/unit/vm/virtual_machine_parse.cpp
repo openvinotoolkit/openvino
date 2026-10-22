@@ -15,7 +15,7 @@
 #include <memory>
 #include <vector>
 
-using namespace intel_npu::vm;
+using namespace ov::intel_npu::vm;
 
 namespace {
 
@@ -59,7 +59,7 @@ std::vector<uint8_t> makeBytecodeWithDuplicateTypeSections() {
 TEST(VirtualMachineParseTest, RejectsDuplicateTypeSections) {
     npu_vm_module* module{nullptr};
     const auto bytecode = makeBytecodeWithDuplicateTypeSections();
-    auto status = npu_vm_parse_module(bytecode.data(), bytecode.size(), &module);
+    auto status = npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module);
     EXPECT_FALSE(status == NPU_VM_SUCCESS);
     if (status == NPU_VM_SUCCESS) {
         npu_vm_destroy_module(module);

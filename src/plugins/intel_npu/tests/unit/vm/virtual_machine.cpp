@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-using namespace intel_npu::vm;
+using namespace ov::intel_npu::vm;
 using namespace utils;
 
 constexpr auto ENTRY_FUNC_NAME = "main";
@@ -74,17 +74,17 @@ protected:
 
 TEST_F(VirtualMachineApiTest, ParseReturnsInvalidNullPointerForNullModulePointer) {
     const auto bytecode = makeValidBytecode();
-    EXPECT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), nullptr), NPU_VM_ERROR_INVALID_NULL_POINTER);
+    EXPECT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), nullptr), NPU_VM_ERROR_INVALID_NULL_POINTER);
 }
 
 TEST_F(VirtualMachineApiTest, ParseSucceedsForValidBytecode) {
     const auto bytecode = makeValidBytecode();
-    EXPECT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    EXPECT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
 }
 
 TEST_F(VirtualMachineApiTest, ParseFailsForInvalidBytecode) {
     const std::array<uint8_t, 4> badBytecode{0x01, 0x02, 0x03, 0x04};
-    EXPECT_EQ(npu_vm_parse_module(badBytecode.data(), badBytecode.size(), &module), NPU_VM_ERROR_UNKNOWN);
+    EXPECT_EQ(npu_vm_parse_module(badBytecode.data(), static_cast<uint32_t>(badBytecode.size()), &module), NPU_VM_ERROR_UNKNOWN);
 }
 
 TEST_F(VirtualMachineApiTest, DestroyModuleReturnsInvalidNullPointerForNullModule) {
@@ -94,25 +94,25 @@ TEST_F(VirtualMachineApiTest, DestroyModuleReturnsInvalidNullPointerForNullModul
 TEST_F(VirtualMachineApiTest, DestroyModuleSucceedsForValidModule) {
     const auto bytecode = makeValidBytecode();
     npu_vm_module* localModule{nullptr};
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &localModule), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &localModule), NPU_VM_SUCCESS);
     ASSERT_NE(localModule, nullptr);
     EXPECT_EQ(npu_vm_destroy_module(localModule), NPU_VM_SUCCESS);
 }
 
 TEST_F(VirtualMachineApiTest, PrintSucceedsForValidBytecode) {
     const auto bytecode = makeValidBytecode();
-    EXPECT_EQ(npu_vm_print(bytecode.data(), bytecode.size(), /*print_full=*/false, /*indent_level=*/0), NPU_VM_SUCCESS);
+    EXPECT_EQ(npu_vm_print(bytecode.data(), static_cast<uint32_t>(bytecode.size()), /*print_full=*/false, /*indent_level=*/0), NPU_VM_SUCCESS);
 }
 
 TEST_F(VirtualMachineApiTest, PrintFailsForInvalidBytecode) {
     const std::array<uint8_t, 2> badBytecode{0x0A, 0x0B};
-    EXPECT_EQ(npu_vm_print(badBytecode.data(), badBytecode.size(), /*print_full=*/false, /*indent_level=*/0),
+    EXPECT_EQ(npu_vm_print(badBytecode.data(), static_cast<uint32_t>(badBytecode.size()), /*print_full=*/false, /*indent_level=*/0),
               NPU_VM_ERROR_UNKNOWN);
 }
 
 TEST_F(VirtualMachineApiTest, GetFunctionInfoReturnsInvalidNullPointerForNullInputs) {
     const auto bytecode = makeValidBytecode();
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
 
     npu_vm_function_info* info{nullptr};
     EXPECT_EQ(npu_vm_get_function_info(nullptr, ADD_FUNC_NAME, &info), NPU_VM_ERROR_INVALID_NULL_POINTER);
@@ -122,7 +122,7 @@ TEST_F(VirtualMachineApiTest, GetFunctionInfoReturnsInvalidNullPointerForNullInp
 
 TEST_F(VirtualMachineApiTest, GetFunctionInfoReturnsNotFoundForMissingFunction) {
     const auto bytecode = makeValidBytecode();
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
 
     npu_vm_function_info* info{nullptr};
     EXPECT_EQ(npu_vm_get_function_info(module, MISSING_FUNC_NAME, &info), NPU_VM_ERROR_FUNCTION_NOT_FOUND);
@@ -130,7 +130,7 @@ TEST_F(VirtualMachineApiTest, GetFunctionInfoReturnsNotFoundForMissingFunction) 
 
 TEST_F(VirtualMachineApiTest, GetFunctionInfoReturnsFunctionSignature) {
     const auto bytecode = makeValidBytecode();
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
 
     npu_vm_function_info* info{nullptr};
     ASSERT_EQ(npu_vm_get_function_info(module, ADD_FUNC_NAME, &info), NPU_VM_SUCCESS);
@@ -147,7 +147,7 @@ TEST_F(VirtualMachineApiTest, GetFunctionInfoReturnsFunctionSignature) {
 
 TEST_F(VirtualMachineApiTest, GetFunctionInfoReturnsBufferSignature) {
     const auto bytecode = makeValidBytecode();
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
 
     npu_vm_function_info* info{nullptr};
     ASSERT_EQ(npu_vm_get_function_info(module, BUFFER_IDENTITY_FUNC_NAME, &info), NPU_VM_SUCCESS);
@@ -161,7 +161,7 @@ TEST_F(VirtualMachineApiTest, GetFunctionInfoReturnsBufferSignature) {
 
 TEST_F(VirtualMachineApiTest, GetFunctionInfoReturnsUnsignedIntegerSignature) {
     const auto bytecode = makeValidBytecode();
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
 
     npu_vm_function_info* info{nullptr};
     ASSERT_EQ(npu_vm_get_function_info(module, UINT32_IDENTITY_FUNC_NAME, &info), NPU_VM_SUCCESS);
@@ -192,7 +192,7 @@ TEST_F(VirtualMachineApiTest, DestroyEngineReturnsInvalidNullPointerForNullEngin
 
 TEST_F(VirtualMachineApiTest, LoadModuleReturnsInvalidNullPointerForNullEngineOrModule) {
     const auto bytecode = makeValidBytecode();
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_new_engine(&engine), NPU_VM_SUCCESS);
 
     EXPECT_EQ(npu_vm_load_module(nullptr, /*moduleParams*/ nullptr, module), NPU_VM_ERROR_INVALID_NULL_POINTER);
@@ -204,7 +204,7 @@ TEST_F(VirtualMachineApiTest, LoadModuleSucceedsForValidEngineAndModule) {
     npu_vm_module* localModule{nullptr};
     npu_vm_engine* localEngine{nullptr};
 
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &localModule), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &localModule), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_new_engine(&localEngine), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_load_module(localEngine, /*moduleParams*/ nullptr, localModule), NPU_VM_SUCCESS);
 
@@ -218,7 +218,7 @@ TEST_F(VirtualMachineApiTest, ResetStateReturnsInvalidNullPointerForNullEngine) 
 
 TEST_F(VirtualMachineApiTest, ResetStateSucceedsForValidEngine) {
     const auto bytecode = makeValidBytecode();
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_new_engine(&engine), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_load_module(engine, /*moduleParams*/ nullptr, module), NPU_VM_SUCCESS);
     EXPECT_EQ(npu_vm_reset_state(engine, /*resetExecutionContext=*/false), NPU_VM_SUCCESS);
@@ -226,7 +226,7 @@ TEST_F(VirtualMachineApiTest, ResetStateSucceedsForValidEngine) {
 }
 
 TEST_F(VirtualMachineApiTest, CallReturnsInvalidNullPointerForNullEngineOrName) {
-    npu_vm_value arg = intel_npu::vm::makeI64(1);
+    npu_vm_value arg = ov::intel_npu::vm::makeI64(1);
     EXPECT_EQ(npu_vm_call(nullptr, ENTRY_FUNC_NAME, 1, &arg), NPU_VM_ERROR_INVALID_NULL_POINTER);
     ASSERT_EQ(npu_vm_new_engine(&engine), NPU_VM_SUCCESS);
     EXPECT_EQ(npu_vm_call(engine, nullptr, 1, &arg), NPU_VM_ERROR_INVALID_NULL_POINTER);
@@ -234,7 +234,7 @@ TEST_F(VirtualMachineApiTest, CallReturnsInvalidNullPointerForNullEngineOrName) 
 
 TEST_F(VirtualMachineApiTest, CallReturnsFunctionNotFoundForMissingFunction) {
     const auto bytecode = makeValidBytecode();
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_new_engine(&engine), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_load_module(engine, /*moduleParams*/ nullptr, module), NPU_VM_SUCCESS);
     EXPECT_EQ(npu_vm_call(engine, MISSING_FUNC_NAME, 0, nullptr), NPU_VM_ERROR_FUNCTION_NOT_FOUND);
@@ -242,66 +242,66 @@ TEST_F(VirtualMachineApiTest, CallReturnsFunctionNotFoundForMissingFunction) {
 
 TEST_F(VirtualMachineApiTest, CallExecutesFunctionWithoutResults) {
     const auto bytecode = makeValidBytecode();
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_new_engine(&engine), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_load_module(engine, /*moduleParams*/ nullptr, module), NPU_VM_SUCCESS);
     EXPECT_EQ(npu_vm_call(engine, ENTRY_FUNC_NAME, 0, nullptr), NPU_VM_SUCCESS);
 }
 
 TEST_F(VirtualMachineApiTest, CallWithResultsReturnsInvalidNullPointerForNullEngineOrName) {
-    const std::array<npu_vm_value, 2> args = {intel_npu::vm::makeI64(1), intel_npu::vm::makeI64(2)};
-    npu_vm_value result = intel_npu::vm::makeI64(0);
-    EXPECT_EQ(npu_vm_call_with_results(nullptr, ADD_FUNC_NAME, args.size(), args.data(), 1, &result),
+    const std::array<npu_vm_value, 2> args = {ov::intel_npu::vm::makeI64(1), ov::intel_npu::vm::makeI64(2)};
+    npu_vm_value result = ov::intel_npu::vm::makeI64(0);
+    EXPECT_EQ(npu_vm_call_with_results(nullptr, ADD_FUNC_NAME, static_cast<uint32_t>(args.size()), args.data(), 1, &result),
               NPU_VM_ERROR_INVALID_NULL_POINTER);
     ASSERT_EQ(npu_vm_new_engine(&engine), NPU_VM_SUCCESS);
-    EXPECT_EQ(npu_vm_call_with_results(engine, nullptr, args.size(), args.data(), 1, &result),
+    EXPECT_EQ(npu_vm_call_with_results(engine, nullptr, static_cast<uint32_t>(args.size()), args.data(), 1, &result),
               NPU_VM_ERROR_INVALID_NULL_POINTER);
 }
 
 TEST_F(VirtualMachineApiTest, CallWithResultsReturnsFunctionCallFailedForSignatureMismatch) {
     const auto bytecode = makeValidBytecode();
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_new_engine(&engine), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_load_module(engine, /*moduleParams*/ nullptr, module), NPU_VM_SUCCESS);
     // Note: Function expects two arguments, but only one is provided
-    const std::array<npu_vm_value, 1> args = {intel_npu::vm::makeI64(1)};
-    npu_vm_value result = intel_npu::vm::makeI64(0);
-    EXPECT_EQ(npu_vm_call_with_results(engine, ADD_FUNC_NAME, args.size(), args.data(), 1, &result),
+    const std::array<npu_vm_value, 1> args = {ov::intel_npu::vm::makeI64(1)};
+    npu_vm_value result = ov::intel_npu::vm::makeI64(0);
+    EXPECT_EQ(npu_vm_call_with_results(engine, ADD_FUNC_NAME, static_cast<uint32_t>(args.size()), args.data(), 1, &result),
               NPU_VM_ERROR_FUNCTION_CALL_FAILED);
 }
 
 TEST_F(VirtualMachineApiTest, CallWithResultsExecutesFunctionAndWritesResults) {
     const auto bytecode = makeValidBytecode();
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_new_engine(&engine), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_load_module(engine, /*moduleParams*/ nullptr, module), NPU_VM_SUCCESS);
 
     constexpr int64_t firstArg = 10;
     constexpr int64_t secondArg = 11;
-    const std::array<npu_vm_value, 2> args = {intel_npu::vm::makeI64(firstArg), intel_npu::vm::makeI64(secondArg)};
-    npu_vm_value result = intel_npu::vm::makeI64(0);
-    ASSERT_EQ(npu_vm_call_with_results(engine, ADD_FUNC_NAME, args.size(), args.data(), 1, &result), NPU_VM_SUCCESS);
+    const std::array<npu_vm_value, 2> args = {ov::intel_npu::vm::makeI64(firstArg), ov::intel_npu::vm::makeI64(secondArg)};
+    npu_vm_value result = ov::intel_npu::vm::makeI64(0);
+    ASSERT_EQ(npu_vm_call_with_results(engine, ADD_FUNC_NAME, static_cast<uint32_t>(args.size()), args.data(), 1, &result), NPU_VM_SUCCESS);
     EXPECT_EQ(result.i64, firstArg + secondArg);
 }
 
 TEST_F(VirtualMachineApiTest, CallWithResultsSucceedsForTwoConsecutiveCallsWithDifferentArguments) {
     const auto bytecode = makeValidBytecode();
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_new_engine(&engine), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_load_module(engine, /*moduleParams*/ nullptr, module), NPU_VM_SUCCESS);
 
     {
-        const std::array<npu_vm_value, 2> args = {intel_npu::vm::makeI64(2), intel_npu::vm::makeI64(3)};
-        npu_vm_value result = intel_npu::vm::makeI64(0);
-        ASSERT_EQ(npu_vm_call_with_results(engine, ADD_FUNC_NAME, args.size(), args.data(), 1, &result),
+        const std::array<npu_vm_value, 2> args = {ov::intel_npu::vm::makeI64(2), ov::intel_npu::vm::makeI64(3)};
+        npu_vm_value result = ov::intel_npu::vm::makeI64(0);
+        ASSERT_EQ(npu_vm_call_with_results(engine, ADD_FUNC_NAME, static_cast<uint32_t>(args.size()), args.data(), 1, &result),
                   NPU_VM_SUCCESS);
         EXPECT_EQ(result.i64, 5);
     }
     ASSERT_EQ(npu_vm_reset_state(engine, /*resetExecutionContext=*/false), NPU_VM_SUCCESS);
     {
-        const std::array<npu_vm_value, 2> args = {intel_npu::vm::makeI64(10), intel_npu::vm::makeI64(20)};
-        npu_vm_value result = intel_npu::vm::makeI64(0);
-        ASSERT_EQ(npu_vm_call_with_results(engine, ADD_FUNC_NAME, args.size(), args.data(), 1, &result),
+        const std::array<npu_vm_value, 2> args = {ov::intel_npu::vm::makeI64(10), ov::intel_npu::vm::makeI64(20)};
+        npu_vm_value result = ov::intel_npu::vm::makeI64(0);
+        ASSERT_EQ(npu_vm_call_with_results(engine, ADD_FUNC_NAME, static_cast<uint32_t>(args.size()), args.data(), 1, &result),
                   NPU_VM_SUCCESS);
         EXPECT_EQ(result.i64, 30);
     }
@@ -309,7 +309,7 @@ TEST_F(VirtualMachineApiTest, CallWithResultsSucceedsForTwoConsecutiveCallsWithD
 
 TEST_F(VirtualMachineApiTest, CallWithResultsRoundTripsUnsignedValuesIncludingAboveSignedMax) {
     const auto bytecode = makeValidBytecode();
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_new_engine(&engine), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_load_module(engine, /*moduleParams*/ nullptr, module), NPU_VM_SUCCESS);
 
@@ -330,15 +330,15 @@ TEST_F(VirtualMachineApiTest, CallWithResultsRoundTripsUnsignedValuesIncludingAb
 
 TEST_F(VirtualMachineApiTest, CallWithResultsSupportsBufferArgumentAndResult) {
     const auto bytecode = makeValidBytecode();
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_new_engine(&engine), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_load_module(engine, /*moduleParams*/ nullptr, module), NPU_VM_SUCCESS);
 
     std::array<uint8_t, 16> inputBuffer{};
     std::iota(inputBuffer.begin(), inputBuffer.end(), 0);  // Fill with sample data {0, 1, 2, ..., 15}
-    npu_vm_value arg = intel_npu::vm::makeBuffer(inputBuffer.data(), static_cast<uint32_t>(inputBuffer.size()));
+    npu_vm_value arg = ov::intel_npu::vm::makeBuffer(inputBuffer.data(), static_cast<uint32_t>(inputBuffer.size()));
     std::array<uint8_t, 16> outputBuffer{};  // Pre-allocated output buffer
-    npu_vm_value result = intel_npu::vm::makeBuffer(outputBuffer.data(), static_cast<uint32_t>(outputBuffer.size()));
+    npu_vm_value result = ov::intel_npu::vm::makeBuffer(outputBuffer.data(), static_cast<uint32_t>(outputBuffer.size()));
     ASSERT_EQ(npu_vm_call_with_results(engine, BUFFER_IDENTITY_FUNC_NAME, 1, &arg, 1, &result), NPU_VM_SUCCESS);
     EXPECT_NE(result.buffer.data, nullptr);
     EXPECT_EQ(result.buffer.size, inputBuffer.size());
@@ -347,14 +347,14 @@ TEST_F(VirtualMachineApiTest, CallWithResultsSupportsBufferArgumentAndResult) {
 
 TEST_F(VirtualMachineApiTest, CallWithResultsSupportsBufferArgumentAndInternallyAllocatedResult) {
     const auto bytecode = makeValidBytecode();
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_new_engine(&engine), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_load_module(engine, /*moduleParams*/ nullptr, module), NPU_VM_SUCCESS);
 
     std::array<uint8_t, 16> inputBuffer{};
     std::iota(inputBuffer.begin(), inputBuffer.end(), 0);  // Fill with sample data {0, 1, 2, ..., 15}
-    npu_vm_value arg = intel_npu::vm::makeBuffer(inputBuffer.data(), static_cast<uint32_t>(inputBuffer.size()));
-    npu_vm_value result = intel_npu::vm::makeBuffer(nullptr, 0);
+    npu_vm_value arg = ov::intel_npu::vm::makeBuffer(inputBuffer.data(), static_cast<uint32_t>(inputBuffer.size()));
+    npu_vm_value result = ov::intel_npu::vm::makeBuffer(nullptr, 0);
     ASSERT_EQ(npu_vm_call_with_results(engine, BUFFER_IDENTITY_FUNC_NAME, 1, &arg, 1, &result), NPU_VM_SUCCESS);
     EXPECT_NE(result.buffer.data, nullptr);
     EXPECT_EQ(result.buffer.size, inputBuffer.size());
@@ -365,29 +365,29 @@ TEST_F(VirtualMachineApiTest, CallWithResultsSupportsBufferArgumentAndInternally
 
 TEST_F(VirtualMachineApiTest, CallWithResultsFailsIfPreAllocatedBufferResultIsTooSmall) {
     const auto bytecode = makeValidBytecode();
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_new_engine(&engine), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_load_module(engine, /*moduleParams*/ nullptr, module), NPU_VM_SUCCESS);
 
     std::array<uint8_t, 16> inputBuffer{};
     std::iota(inputBuffer.begin(), inputBuffer.end(), 0);  // Fill with sample data {0, 1, 2, ..., 15}
-    npu_vm_value arg = intel_npu::vm::makeBuffer(inputBuffer.data(), static_cast<uint32_t>(inputBuffer.size()));
+    npu_vm_value arg = ov::intel_npu::vm::makeBuffer(inputBuffer.data(), static_cast<uint32_t>(inputBuffer.size()));
     std::array<uint8_t, 8> outputBuffer{};  // Pre-allocated output buffer that is too small
-    npu_vm_value result = intel_npu::vm::makeBuffer(outputBuffer.data(), static_cast<uint32_t>(outputBuffer.size()));
+    npu_vm_value result = ov::intel_npu::vm::makeBuffer(outputBuffer.data(), static_cast<uint32_t>(outputBuffer.size()));
     EXPECT_EQ(npu_vm_call_with_results(engine, BUFFER_IDENTITY_FUNC_NAME, 1, &arg, 1, &result),
               NPU_VM_ERROR_FUNCTION_CALL_FAILED);
 }
 
 TEST_F(VirtualMachineApiTest, CallWithResultsFailsIfBufferResultIsNullAndSizeIsNonZero) {
     const auto bytecode = makeValidBytecode();
-    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), bytecode.size(), &module), NPU_VM_SUCCESS);
+    ASSERT_EQ(npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_new_engine(&engine), NPU_VM_SUCCESS);
     ASSERT_EQ(npu_vm_load_module(engine, /*moduleParams*/ nullptr, module), NPU_VM_SUCCESS);
 
     std::array<uint8_t, 16> inputBuffer{};
     std::iota(inputBuffer.begin(), inputBuffer.end(), 0);  // Fill with sample data {0, 1, 2, ..., 15}
-    npu_vm_value arg = intel_npu::vm::makeBuffer(inputBuffer.data(), static_cast<uint32_t>(inputBuffer.size()));
-    npu_vm_value result = intel_npu::vm::makeBuffer(nullptr, 16);  // Invalid: null data pointer but non-zero size
+    npu_vm_value arg = ov::intel_npu::vm::makeBuffer(inputBuffer.data(), static_cast<uint32_t>(inputBuffer.size()));
+    npu_vm_value result = ov::intel_npu::vm::makeBuffer(nullptr, 16);  // Invalid: null data pointer but non-zero size
     EXPECT_EQ(npu_vm_call_with_results(engine, BUFFER_IDENTITY_FUNC_NAME, 1, &arg, 1, &result),
               NPU_VM_ERROR_FUNCTION_CALL_FAILED);
 }

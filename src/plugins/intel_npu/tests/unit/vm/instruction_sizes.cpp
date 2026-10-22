@@ -11,7 +11,7 @@
 #include <cstring>
 #include <vector>
 
-using namespace intel_npu::vm;
+using namespace ov::intel_npu::vm;
 namespace {
 
 std::vector<uint8_t> encodeInstruction(OpCode opcode, const std::vector<int16_t>& operands) {

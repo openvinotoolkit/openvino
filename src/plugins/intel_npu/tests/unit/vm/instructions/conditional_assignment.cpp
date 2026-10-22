@@ -9,8 +9,6 @@
 #include "vm_runtime/virtual_machine.h"
 #include "vm_value_helpers.hpp"
 
-#include <llvm/Support/FormatVariadic.h>
-
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 #include <common_test_utils/test_common.hpp>
@@ -25,7 +23,7 @@
 #include <string>
 #include <vector>
 
-using namespace intel_npu::vm;
+using namespace ov::intel_npu::vm;
 using namespace utils;
 
 namespace {
@@ -41,9 +39,8 @@ struct SelectInstructionParams {
     }
 
     [[maybe_unused]] friend std::ostream& operator<<(std::ostream& os, const SelectInstructionParams& params) {
-        os << llvm::formatv("{ condition={0}, trueValue={1}, falseValue={2}, expected={3} }", params.condition,
-                            params.trueValue, params.falseValue, params.expected)
-                        .str();
+        os << "{ condition=" << params.condition << ", trueValue=" << params.trueValue
+           << ", falseValue=" << params.falseValue << ", expected=" << params.expected << " }";
         return os;
     }
 };
@@ -79,10 +76,10 @@ TEST_P(VirtualMachineSelectInstructionTest, Execute) {
                     .build();
     ASSERT_EQ(loadEntrypoint(bytecode, funcName), NPU_VM_SUCCESS);
 
-    std::vector<npu_vm_value> args = {intel_npu::vm::makeI64(params.condition),
-                                      intel_npu::vm::makeI64(params.trueValue),
-                                      intel_npu::vm::makeI64(params.falseValue)};
-    std::vector<npu_vm_value> results = {intel_npu::vm::makeI64(0)};
+    std::vector<npu_vm_value> args = {ov::intel_npu::vm::makeI64(params.condition),
+                                      ov::intel_npu::vm::makeI64(params.trueValue),
+                                      ov::intel_npu::vm::makeI64(params.falseValue)};
+    std::vector<npu_vm_value> results = {ov::intel_npu::vm::makeI64(0)};
     ASSERT_EQ(callWithResults(funcName, args, results), NPU_VM_SUCCESS);
     EXPECT_EQ(results.at(0).i64, params.expected);
 }

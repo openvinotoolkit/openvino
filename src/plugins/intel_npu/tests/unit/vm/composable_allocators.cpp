@@ -17,9 +17,9 @@
 #include <cstring>
 #include <vector>
 
-using namespace intel_npu::vm;
-using intel_npu::vm::test::AllocCounters;
-using intel_npu::vm::test::CountingLeaf;
+using namespace ov::intel_npu::vm;
+using ov::intel_npu::vm::test::AllocCounters;
+using ov::intel_npu::vm::test::CountingLeaf;
 
 namespace {
 
