@@ -153,7 +153,8 @@
 #    define SV_NEEDS_OUTPUT_REDUCTION 1
 #endif
 #if (KV_HEADS_GROUP_SIZE % Q_PER_WG) != 0
-// The last workgroup of a kv group has fewer than Q_PER_WG real heads (e.g. kv group 7 with M 4).
+// The last workgroup of a kv group has fewer than Q_PER_WG real heads (e.g. kv group 7 with M 4, or kv
+// group 3 with M 4, where the only workgroup has a surplus row).
 #    define HAS_HEAD_LEFTOVERS 1
 // Row m's q-head, clamped the same way the Q load clamps it: a leftover slot must not index past the
 // last head, and nothing it computes is ever stored.
@@ -218,9 +219,10 @@
 // M is the DPAS repeat count, which the ISA encodes only as 1/2/4/8.
 #    error "sdpa_ocl_decode.cl: Q_PER_WG must be 1, 2, 4 or 8"
 #endif
-#if Q_PER_WG > KV_HEADS_GROUP_SIZE
-// Heads beyond the kv group belong to a different K/V page, so they cannot share this read.
-#    error "sdpa_ocl_decode.cl: Q_PER_WG must not exceed KV_HEADS_GROUP_SIZE"
+#if Q_PER_WG >= 2 * KV_HEADS_GROUP_SIZE
+// Heads beyond the kv group belong to a different K/V page, so they cannot share this read. M may round
+// the group up to the next power of two (kv group 3 -> M 4); the surplus rows are leftovers, never stored.
+#    error "sdpa_ocl_decode.cl: Q_PER_WG must be below twice KV_HEADS_GROUP_SIZE"
 #endif
 #if HEAD_ITERS != ((KV_HEADS_GROUP_SIZE + Q_PER_WG - 1) / Q_PER_WG)
 // Host and kernel must agree, or the dim-1 decode below lands on the wrong head.
