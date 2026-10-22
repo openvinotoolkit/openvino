@@ -24,7 +24,7 @@ ov::PartialShape get_default_shape(ov::PartialShape given_shape) {
             auto interval = dimention.get_interval();
             if (interval.contains(default_value)) {
                 new_shape.push_back(default_value);
-            } else if ((int64_t) default_value > interval.get_max_val()) {
+            } else if (static_cast<int64_t>(default_value) > interval.get_max_val()) {
                 new_shape.push_back(interval.get_max_val());
             } else {
                 new_shape.push_back(interval.get_min_val());
