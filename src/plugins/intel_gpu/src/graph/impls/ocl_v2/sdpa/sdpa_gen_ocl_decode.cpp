@@ -100,21 +100,22 @@ size_t slm_bytes_for(size_t m, size_t sg_per_wg, size_t v_head_size) {
     return slm_p + slm_out + slm_max_sum;
 }
 
-size_t q_per_wg_for(const RuntimeParams& params, const decode_config& c) {
+size_t q_per_wg_for(const RuntimeParams& params, const decode_config& c, size_t sg_per_wg) {
     const auto desc = params.typed_desc<paged_attention>();
     const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
-    const size_t sg_per_wg = SDPAOclDecodeGenerator::get_sg_per_wg(desc->v_head_size);
 
-    // M is the DPAS repeat count, which the ISA encodes only as 1/2/4/8.
-    size_t m = std::min<size_t>(8, kv_group_size);
-    while (m > 1 && (m & (m - 1)) != 0) {
-        m &= m - 1;  // clear the lowest set bit until only the top one is left
+    // M is the DPAS repeat count, which the ISA encodes only as 1/2/4/8. The kv group is rounded UP, so a
+    // group that is not a power of two still fits one workgroup (kv group 3 -> M 4): the surplus row is a
+    // masked leftover, and each K/V page is read once per kv head instead of once per half group.
+    size_t m = 1;
+    while (m < std::min<size_t>(8, kv_group_size)) {
+        m *= 2;
     }
 
     // The override bypasses the register cap, so configurations the heuristic rejects stay reachable, but
     // not the local-memory clamp, which guards the build.
     const auto requested = static_cast<size_t>(env_int("SDPA_OCL_DECODE_M", 0));
-    const bool forced = requested >= 1 && requested <= 8 && (requested & (requested - 1)) == 0 && requested <= kv_group_size;
+    const bool forced = requested >= 1 && requested <= 8 && (requested & (requested - 1)) == 0 && requested < 2 * kv_group_size;
     if (forced) {
         m = requested;
     } else {
@@ -133,18 +134,19 @@ size_t q_per_wg_for(const RuntimeParams& params, const decode_config& c) {
     return m;
 }
 
-}  // namespace
-
-size_t SDPAOclDecodeGenerator::get_q_per_wg(const RuntimeParams& params) {
-    return q_per_wg_for(params, make_decode_config(params));
-}
-
-size_t SDPAOclDecodeGenerator::get_sg_per_wg(size_t v_head_size) {
+size_t sg_per_wg_for(const RuntimeParams& params, const decode_config& c) {
     // One subgroup is one thread, and thread-level parallelism is what this kernel was short of, but 16 only
     // pays with at least 16 V head-dim tiles: past V_TILES the surplus subgroups split the keys, which adds
-    // the slm_out staging and a barrier ("sdpa_ocl_decode" in the docs).
-    const size_t v_tiles = v_head_size / subgroup_size;
-    size_t value = (v_tiles >= 16) ? 16 : 8;
+    // the slm_out staging and a barrier ("sdpa_ocl_decode" in the docs). Below that, 16 pays only where a
+    // workgroup is slow (the u4 dequant) and does not multiply the workgroups: at M >= 4 a partition costs
+    // no more threads than 8 subgroups at M = 2. Measured for u4 head 64 and 128; i8 and the other heads
+    // lose with 16 once the GPU is full, so they keep 8.
+    const auto desc = params.typed_desc<paged_attention>();
+    const size_t v_tiles = desc->v_head_size / subgroup_size;
+    size_t value = 8;
+    if (v_tiles >= 16 || (c.kv_u4 && (v_tiles == 4 || v_tiles == 8) && q_per_wg_for(params, c, 16) >= 4)) {
+        value = 16;
+    }
 
     // Tuning override; 0 or unset means not requested, an illegal value falls back to 8.
     if (const auto requested = static_cast<size_t>(env_int("SDPA_OCL_DECODE_SG_PER_WG", 0)); requested != 0) {
@@ -157,6 +159,17 @@ size_t SDPAOclDecodeGenerator::get_sg_per_wg(size_t v_head_size) {
         return 8;
     }
     return value;
+}
+
+}  // namespace
+
+size_t SDPAOclDecodeGenerator::get_sg_per_wg(const RuntimeParams& params) {
+    return sg_per_wg_for(params, make_decode_config(params));
+}
+
+size_t SDPAOclDecodeGenerator::get_q_per_wg(const RuntimeParams& params) {
+    const auto c = make_decode_config(params);
+    return q_per_wg_for(params, c, sg_per_wg_for(params, c));
 }
 
 // paged_attention::by_channel_token_major_readable() replays the checks below that do not depend on the
@@ -237,13 +250,13 @@ JitConstants SDPAOclDecodeGenerator::get_jit_constants(const RuntimeParams& para
     const auto c = make_decode_config(params);
 
     jit.make("SUBGROUP_SIZE", subgroup_size);
-    const size_t sg_per_wg = get_sg_per_wg(desc->v_head_size);
+    const size_t sg_per_wg = sg_per_wg_for(params, c);
     jit.make("SG_PER_WG", sg_per_wg);
     jit.make("SEQ_LEN_PARTITION_SIZE", pa_seq_len_partition_size);
     jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention::block_size);
 
     const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
-    const size_t q_per_wg = q_per_wg_for(params, c);
+    const size_t q_per_wg = q_per_wg_for(params, c, sg_per_wg);
     jit.make("Q_PER_WG", q_per_wg);
     jit.make("HEAD_ITERS", ceil_div(kv_group_size, q_per_wg));
     jit.make("SV_DIM_SGS", get_sv_dim_sgs(sg_per_wg, desc->v_head_size / subgroup_size));
@@ -340,7 +353,7 @@ DispatchDataFunc SDPAOclDecodeGenerator::get_dispatch_data_func() const {
 
         // One query token per sequence in GENERATE, so dim 0 of the query is the sequence count.
         const size_t total_tokens = params.input_layouts[PagedAttentionInputIdx::QUERY].get_partial_shape()[0].get_length();
-        const size_t sg_per_wg = SDPAOclDecodeGenerator::get_sg_per_wg(desc->v_head_size);
+        const size_t sg_per_wg = SDPAOclDecodeGenerator::get_sg_per_wg(params);
 
         // The head axis is head groups: one workgroup covers Q_PER_WG q-heads of a kv head.
         const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
