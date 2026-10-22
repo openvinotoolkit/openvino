@@ -250,6 +250,12 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
         }
     }
 
+    const auto expected_cache_type = cfg.kv_cache_bit_width ? cfg.cache_type : ov::element::f32;
+    EXPECT_EQ(key->output(0).get_element_type(), expected_cache_type);
+    EXPECT_EQ(key->output(1).get_element_type(), expected_cache_type);
+    EXPECT_EQ(value->output(0).get_element_type(), expected_cache_type);
+    EXPECT_EQ(value->output(1).get_element_type(), expected_cache_type);
+
     const bool fused_transpose_v = cfg.transpose_v && cfg.should_fuse_transpose_v && !need_qk_output;
     const auto present_key_source = model->output(1).get_node()->input_value(0);
     auto present_value_source = model->output(2).get_node()->input_value(0);
@@ -267,23 +273,30 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
     EXPECT_EQ(key->get_concat_axis(), 2);
     EXPECT_EQ(value->get_concat_axis(), fused_transpose_v ? 3 : 2);
     EXPECT_EQ(key->input_value(0).get_node_shared_ptr(), parameters[3]);
-    EXPECT_EQ(key->input_value(1).get_node_shared_ptr(), parameters[1]);
+    const auto expect_current_kv = [&](const ov::Output<ov::Node>& current, const std::shared_ptr<ov::Node>& original) {
+        if (cfg.kv_cache_bit_width) {
+            EXPECT_EQ(current.get_element_type(), cfg.cache_type);
+        } else {
+            EXPECT_EQ(current.get_node_shared_ptr(), original);
+        }
+    };
+    expect_current_kv(key->input_value(1), parameters[1]);
     if (fused_transpose_v) {
         const auto value_transpose = ov::as_type_ptr<ov::op::v1::Transpose>(value->input_value(1).get_node_shared_ptr());
         ASSERT_NE(value_transpose, nullptr);
         const auto value_transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(value_transpose->input_value(1).get_node_shared_ptr());
         ASSERT_NE(value_transpose_order, nullptr);
         EXPECT_THAT(value_transpose_order->cast_vector<int64_t>(), ::testing::ElementsAre(0, 1, 3, 2));
-        EXPECT_EQ(value_transpose->input_value(0).get_node_shared_ptr(), parameters[2]);
+        expect_current_kv(value_transpose->input_value(0), parameters[2]);
     } else if (cfg.transpose_v) {
         // Unfused: the past value Transpose is kept and feeds the cache directly.
         const auto past_value_transpose = ov::as_type_ptr<ov::op::v1::Transpose>(value->input_value(0).get_node_shared_ptr());
         ASSERT_NE(past_value_transpose, nullptr);
         EXPECT_EQ(past_value_transpose->input_value(0).get_node_shared_ptr(), parameters[4]);
-        EXPECT_EQ(value->input_value(1).get_node_shared_ptr(), parameters[2]);
+        expect_current_kv(value->input_value(1), parameters[2]);
     } else {
         EXPECT_EQ(value->input_value(0).get_node_shared_ptr(), parameters[4]);
-        EXPECT_EQ(value->input_value(1).get_node_shared_ptr(), parameters[2]);
+        expect_current_kv(value->input_value(1), parameters[2]);
     }
     EXPECT_EQ(key->input_value(2).get_node_shared_ptr(), value->input_value(2).get_node_shared_ptr());
 
@@ -366,6 +379,67 @@ TEST(GQADecompositionTest, softcap_transpose_v_not_fused) {
     const auto output_transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(output_transpose->input_value(1).get_node_shared_ptr());
     ASSERT_NE(output_transpose_order, nullptr);
     EXPECT_THAT(output_transpose_order->cast_vector<int64_t>(), ::testing::ElementsAre(0, 1, 3, 2));
+}
+
+TEST(GQADecompositionTest, int4_per_tensor_kv_with_transpose_v_is_not_fused) {
+    GQAConfig cfg;
+    cfg.kv_cache_bit_width = 4;
+    cfg.kv_quant = QuantType::PER_TENSOR;
+    cfg.out_quant = QuantType::PER_TENSOR;
+    cfg.transpose_v = true;
+    cfg.should_fuse_transpose_v = true;
+
+    const auto model = decompose_gqa_model(cfg);
+    std::shared_ptr<ov::intel_gpu::op::SDPA> sdpa;
+    std::vector<std::shared_ptr<ov::intel_gpu::op::StatelessKV>> statelesskvs;
+    for (const auto& node : model->get_ordered_ops()) {
+        EXPECT_FALSE(ov::is_type<ov::op::internal::GroupQueryAttention>(node));
+        if (auto current_sdpa = ov::as_type_ptr<ov::intel_gpu::op::SDPA>(node)) {
+            ASSERT_EQ(sdpa, nullptr);
+            sdpa = current_sdpa;
+        }
+        if (auto stateless_kv = ov::as_type_ptr<ov::intel_gpu::op::StatelessKV>(node)) {
+            statelesskvs.emplace_back(std::move(stateless_kv));
+        }
+    }
+
+    ASSERT_NE(sdpa, nullptr);
+    expect_sdpa_kv_not_broadcast(sdpa);
+    EXPECT_FALSE(sdpa->get_kv_compressed());
+    ASSERT_EQ(sdpa->get_input_size(), 3u);
+    EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::f32);
+    EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::f32);
+
+    ASSERT_EQ(statelesskvs.size(), 2u);
+    for (const auto& stateless_kv : statelesskvs) {
+        EXPECT_EQ(stateless_kv->get_concat_axis(), 2);
+    }
+
+    const auto present_value_source = model->output(2).get_node()->input_value(0);
+    const auto output_transpose = ov::as_type_ptr<ov::op::v1::Transpose>(present_value_source.get_node_shared_ptr());
+    ASSERT_NE(output_transpose, nullptr);
+    const auto output_transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(output_transpose->input_value(1).get_node_shared_ptr());
+    ASSERT_NE(output_transpose_order, nullptr);
+    EXPECT_THAT(output_transpose_order->cast_vector<int64_t>(), ::testing::ElementsAre(0, 1, 3, 2));
+}
+
+TEST(GQADecompositionTest, int4_per_channel_kv_with_transpose_v_is_fused) {
+    GQAConfig cfg;
+    cfg.kv_cache_bit_width = 4;
+    cfg.kv_quant = QuantType::PER_CHANNEL;
+    cfg.out_quant = QuantType::PER_CHANNEL;
+    cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.transpose_v = true;
+    cfg.should_fuse_transpose_v = true;
+
+    expect_stateless_kv_cache_connections(cfg);
+
+    const auto sdpa = decompose_and_get_sdpa(cfg);
+    ASSERT_NE(sdpa, nullptr);
+    ASSERT_TRUE(sdpa->get_kv_compressed());
+    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::u4);
+    EXPECT_THAT(sdpa->get_input2_transpose_order(), ::testing::ElementsAre(0, 1, 3, 2));
 }
 
 // A mask produced by make_attention_mask() is a rank-4 broadcastable tensor.
