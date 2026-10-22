@@ -218,6 +218,10 @@ class TestPooling(PytorchLayerTest):
 
         scripted = torch.jit.script(aten_avg_pool2d_empty_padding())
         ov_model = ov.convert_model(scripted, input=[ov.PartialShape([-1] * 4)])
+        # TorchScript provides no dtype metadata; resolve the dynamic input type as the layer-test
+        # harness does before compiling, and verify ConvertLike follows that resolved type.
+        ov_model.input(0).get_node().set_element_type(ov.Type.f32)
+        ov_model.validate_nodes_and_infer_types()
         compiled = ov.Core().compile_model(ov_model, ie_device)
         data = torch.arange(16, dtype=torch.float32).reshape(1, 1, 4, 4)
         # Empty padding retains OpenVINO's existing zero-padding default.

@@ -8,6 +8,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
@@ -80,7 +81,7 @@ Output<Node> pool_with_short_axes(const NodeContext& context,
                 context.mark_node(v0::Constant::create(element::i64, Shape{}, {static_cast<int64_t>(axis + 2)}));
             auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
             auto extent = context.mark_node(std::make_shared<v8::Gather>(shape, index, zero));
-            auto divisor = context.mark_node(std::make_shared<v0::Convert>(extent, short_input.get_element_type()));
+            auto divisor = context.mark_node(std::make_shared<v1::ConvertLike>(extent, short_input));
             pooled = context.mark_node(std::make_shared<v1::Divide>(pooled, divisor, false));
         }
         return pooled;
