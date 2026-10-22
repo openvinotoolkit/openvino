@@ -135,6 +135,28 @@ int64_t get_ifm_dim_idx(const layout& param_layout, bool transpose_b_param, size
     return std::max<int64_t>(0, base + (transpose_b_param ? logical_rank - 1 : logical_rank - 2));
 }
 
+int64_t get_compressed_weights_rank(const layout& weights_layout) {
+    const auto& shape = weights_layout.get_partial_shape();
+    const auto rank = std::count_if(shape.begin(), shape.end(), [](const ov::Dimension& d) {
+        return d.get_length() > 1;
+    });
+    return std::max<int64_t>(2, rank);
+}
+
+std::pair<int64_t, int64_t> get_scale_groups(const layout& weights_layout,
+                                             const layout& scale_layout,
+                                             bool weights_transposed,
+                                             bool transpose_b_scale) {
+    const auto weights_rank = get_compressed_weights_rank(weights_layout);
+    const int64_t ifm = weights_layout.get_dim(weights_transposed ? weights_rank - 1 : weights_rank - 2);
+    const int64_t ngroups = scale_layout.get_dim(get_ifm_dim_idx(scale_layout, transpose_b_scale, weights_rank));
+    return {ngroups, ngroups != 0 ? ifm / ngroups : ifm};
+}
+
+bool is_supported_scale_group(int64_t ngroups, int64_t group_size) {
+    return group_size == 1 || ngroups == 1 || group_size % 16 == 0;
+}
+
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target) {
     if (dims.size() == target.dimension()) {
         auto tag = convert_data_format(target);

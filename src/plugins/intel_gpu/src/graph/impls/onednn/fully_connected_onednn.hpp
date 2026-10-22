@@ -8,7 +8,6 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
-#include <algorithm>
 #include <memory>
 #include <cmath>
 
@@ -87,21 +86,12 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                 }
             }
 
-            // u2 has no OCL fallback, so an unsupported scale group_size must be rejected here
-            // (selection time) rather than left to crash the runtime OPENVINO_ASSERT in fully_connected_onednn.cpp.
+            // Reject u2 scale grouping oneDNN can't handle here, so another FC impl is selected instead.
             if (wei_dt == data_types::u2 && fc_prim->decompression_scale.is_valid()) {
-                auto weights_layout = fc_node.weights().get_output_layout(false);
-                auto weight_shape = weights_layout.get_partial_shape();
-                int64_t weight_rank = std::count_if(weight_shape.begin(), weight_shape.end(), [](ov::Dimension d) { return d.get_length() > 1; });
-                weight_rank = std::max<int64_t>(2, weight_rank);
-                const auto ifm_dim_idx = fc_prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
-                const auto ifm = weights_layout.get_dim(ifm_dim_idx);
-                const auto decompression_scale_idx = fc_prim->bias.is_valid() ? 3 : 2;
-                const auto scale_layout = fc_node.get_input_layout(decompression_scale_idx);
-                const auto scale_ifm_dim_idx = get_ifm_dim_idx(scale_layout, fc_prim->transpose_b_scale, weight_rank);
-                const auto ngroups = scale_layout.get_dim(scale_ifm_dim_idx);
-                const auto group_size = ngroups != 0 ? static_cast<int64_t>(ifm) / ngroups : ifm;
-                if (group_size != 1 && ngroups != 1 && group_size % 16 != 0) {
+                const auto& scale_layout = fc_node.get_input_layout(fc_prim->bias.is_valid() ? 3 : 2);
+                const auto groups = get_scale_groups(fc_node.weights().get_output_layout(false), scale_layout,
+                                                     fc_prim->weights_transposed, fc_prim->transpose_b_scale);
+                if (!is_supported_scale_group(groups.first, groups.second)) {
                     LOG_AND_RETURN_FALSE(node);
                 }
             }

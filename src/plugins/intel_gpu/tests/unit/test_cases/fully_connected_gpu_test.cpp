@@ -5749,17 +5749,17 @@ TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_large_n_dynamic_b1_
     this->test_compressed_int4_scale_large_n_gemv(false, true, 1, false, false);
 }
 
-// Primitive-level test for UINT2 (2-bit) compressed weights, oneDNN-only (no OCL fallback for u2).
+// Primitive-level test for UINT2 (2-bit) compressed weights on the oneDNN path.
 TEST(fully_connected_gpu, compressed_u2_weights_immad) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
-    // Input: 1x4 (batch=1, ifm=4)
+    // Input: 1x4 (batch=1, ifm=4), distinct per-lane values so a wrong 2-bit lane order is detected
     // Weights: 2x4 packed as u2 (4 values/byte, low-to-high bit order):
     //   ofm0 = [1, 2, 3, 0] -> byte 0x39, ofm1 = [3, 1, 0, 2] -> byte 0x87
     // Scale: 1.0 per output channel, so decompressed weight == raw u2 value
-    // Expected output: ofm0 = 1+2+3+0 = 6, ofm1 = 3+1+0+2 = 6
+    // Expected output: ofm0 = 1*1+2*2+3*4+0*8 = 17, ofm1 = 3*1+1*2+0*4+2*8 = 21
     const int32_t batch_num = 1, ifm_num = 4, ofm_num = 2;
 
     auto input_ps = ov::PartialShape{ batch_num, 1, ifm_num };
@@ -5767,7 +5767,7 @@ TEST(fully_connected_gpu, compressed_u2_weights_immad) {
     auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u2, format::bfyx });
     auto scale_mem = engine.allocate_memory({ {ofm_num, 1}, data_types::f16, format::bfyx });
 
-    set_values(input_mem, std::vector<ov::float16>{1, 1, 1, 1});
+    set_values(input_mem, std::vector<ov::float16>{1, 2, 4, 8});
     set_values(weights_mem, std::vector<uint8_t>{0x39, 0x87});
     set_values(scale_mem, std::vector<ov::float16>{1, 1});
 
@@ -5793,12 +5793,11 @@ TEST(fully_connected_gpu, compressed_u2_weights_immad) {
     cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
 
     ASSERT_EQ(output_ptr.size(), size_t(ofm_num));
-    EXPECT_NEAR(static_cast<float>(output_ptr[0]), 6.0f, 1e-2f);
-    EXPECT_NEAR(static_cast<float>(output_ptr[1]), 6.0f, 1e-2f);
+    EXPECT_NEAR(static_cast<float>(output_ptr[0]), 17.0f, 1e-2f);
+    EXPECT_NEAR(static_cast<float>(output_ptr[1]), 21.0f, 1e-2f);
 }
 
-// Primitive-level test for UINT2 (2-bit) decompression zero-point, oneDNN-only (no OCL fallback for u2).
-// Primitive-level test for UINT2 (2-bit) decompression zero-point, oneDNN-only (no OCL fallback for u2).
+// Primitive-level test for UINT2 (2-bit) decompression zero-point on the oneDNN path.
 // Zero point dtype is u8 (not u2): the oneDNN u2 kernel cannot unpack a packed-u2 zero-point tensor
 // (OpenCL build failure assigning __global u2 to __private int), so u2 is excluded from
 // is_zp_compressed in fully_connected_onednn.hpp and only wider zp dtypes are supported.
@@ -5808,10 +5807,10 @@ TEST(fully_connected_gpu, compressed_u2_weights_zp_immad) {
         return;
 
     // Weights unchanged from compressed_u2_weights_immad: ofm0 = [1, 2, 3, 0], ofm1 = [3, 1, 0, 2]
-    // Zero point: zp0 = 0, zp1 = 1
+    // Zero point: zp0 = 0, zp1 = 1; input = [1, 2, 4, 8]
     // Decompressed weight = (raw - zp) * scale (scale == 1):
-    //   ofm0 = [1, 2, 3, 0] - 0 = [1, 2, 3, 0] -> sum = 6
-    //   ofm1 = [3, 1, 0, 2] - 1 = [2, 0, -1, 1] -> sum = 2
+    //   ofm0 = [1, 2, 3, 0] - 0 = [1, 2, 3, 0]  -> 1+4+12+0 = 17
+    //   ofm1 = [3, 1, 0, 2] - 1 = [2, 0, -1, 1] -> 2+0-4+8 = 6
     const int32_t batch_num = 1, ifm_num = 4, ofm_num = 2;
 
     auto input_ps = ov::PartialShape{ batch_num, 1, ifm_num };
@@ -5820,7 +5819,7 @@ TEST(fully_connected_gpu, compressed_u2_weights_zp_immad) {
     auto scale_mem = engine.allocate_memory({ {ofm_num, 1}, data_types::f16, format::bfyx });
     auto zp_mem = engine.allocate_memory({ {ofm_num, 1}, data_types::u8, format::bfyx });
 
-    set_values(input_mem, std::vector<ov::float16>{1, 1, 1, 1});
+    set_values(input_mem, std::vector<ov::float16>{1, 2, 4, 8});
     set_values(weights_mem, std::vector<uint8_t>{0x39, 0x87});
     set_values(scale_mem, std::vector<ov::float16>{1, 1});
     set_values(zp_mem, std::vector<uint8_t>{0, 1});
@@ -5848,15 +5847,12 @@ TEST(fully_connected_gpu, compressed_u2_weights_zp_immad) {
     cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
 
     ASSERT_EQ(output_ptr.size(), size_t(ofm_num));
-    EXPECT_NEAR(static_cast<float>(output_ptr[0]), 6.0f, 1e-2f);
-    EXPECT_NEAR(static_cast<float>(output_ptr[1]), 2.0f, 1e-2f);
+    EXPECT_NEAR(static_cast<float>(output_ptr[0]), 17.0f, 1e-2f);
+    EXPECT_NEAR(static_cast<float>(output_ptr[1]), 6.0f, 1e-2f);
 }
 
-// Regression test for the CI crash in smoke_MatMulCompressedWeights_corner_cases_basic
-// (weights_shape=[16,32], group_size=4, u2, no zero point). u2 has no OCL fallback, so oneDNN's
-// "group_size % 16 == 0" requirement must be rejected at implementation-selection time (compile),
-// not left to crash the runtime assert during inference. With the fix, a different implementation
-// (decompressing the constant u2 weights ahead of time) handles this case instead.
+// u2 with a scale group_size oneDNN can't handle (smoke_MatMulCompressedWeights_corner_cases_basic:
+// weights [16,32], group_size=4) must be routed to a non-oneDNN impl at selection and stay correct.
 TEST(fully_connected_gpu, compressed_u2_weights_unaligned_group_size) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
@@ -5871,12 +5867,13 @@ TEST(fully_connected_gpu, compressed_u2_weights_unaligned_group_size) {
     auto scale_mem = engine.allocate_memory({ {ofm_num, num_groups}, data_types::f16, format::bfyx });
 
     tests::random_generator rg(GET_SUITE_NAME);
-    set_values(input_mem, rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f));
-    std::vector<uint8_t> packed_weights(ofm_num * ifm_num / 4);
-    for (auto& b : packed_weights)
-        b = static_cast<uint8_t>(rg.generate_random_1d<uint8_t>(1, 0, 4)[0]);
+    auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f);
+    set_values(input_mem, input_data);
+    // k=1 so every byte value 0..255 can occur, exercising all four 2-bit lanes
+    auto packed_weights = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 4, 0, 255, 1);
     set_values(weights_mem, packed_weights);
-    set_values(scale_mem, rg.generate_random_1d<ov::float16>(ofm_num * num_groups, 0.5f, 2.0f));
+    auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * num_groups, 0.5f, 2.0f);
+    set_values(scale_mem, scale_data);
 
     auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, 2, 2);
 
@@ -5888,15 +5885,31 @@ TEST(fully_connected_gpu, compressed_u2_weights_unaligned_group_size) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-
-    // Before the fix this crashed the process with ov::AssertFailure during execute().
-    // After the fix, construction and execution both complete normally.
     network network(engine, topology, config);
     network.set_input_data("input", input_mem);
+
+    auto fc_impl = network.get_primitive("fc_prim")->get_impl();
+    ASSERT_TRUE(fc_impl != nullptr);
+    ASSERT_FALSE(fc_impl->is_onednn());
+
     auto outputs = network.execute();
     auto output_mem = outputs.begin()->second.get_memory();
     cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
     ASSERT_EQ(output_ptr.size(), size_t(batch_num * ofm_num));
+
+    for (int n = 0; n < batch_num; ++n) {
+        for (int ofm = 0; ofm < ofm_num; ++ofm) {
+            float ref = 0.0f;
+            for (int ifm = 0; ifm < ifm_num; ++ifm) {
+                const int w_idx = ofm * ifm_num + ifm;
+                const uint8_t w = (packed_weights[w_idx / 4] >> ((w_idx % 4) * 2)) & 0x3;
+                const float scale = static_cast<float>(scale_data[ofm * num_groups + ifm / group_size]);
+                ref += static_cast<float>(input_data[n * ifm_num + ifm]) * static_cast<float>(w) * scale;
+            }
+            const float out = static_cast<float>(output_ptr[n * ofm_num + ofm]);
+            ASSERT_NEAR(out, ref, 0.1f + 0.01f * std::fabs(ref)) << "Mismatch at b=" << n << " ofm=" << ofm;
+        }
+    }
 }
 
 // Test weight zp for INT8 ASYM
