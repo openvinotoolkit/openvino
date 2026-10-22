@@ -26,8 +26,7 @@ public:
      */
     RuntimeRequirements(const std::map<SectionID, std::string>& sections_requirements,
                         const CRE& cre,
-                        const std::unordered_map<SectionID, SectionType>& section_id_to_type,
-                        const ov::log::Level log_level = ov::log::Level::WARNING);
+                        const std::unordered_map<SectionID, SectionType>& section_id_to_type);
 
     std::map<SectionID, std::string> get_sections_requirements() const;
 

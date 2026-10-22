@@ -39,18 +39,18 @@ void BatchSizeSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
 ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> BatchSizeSection::decode =
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BatchSizeSection::decode");
+    const Logger logger("BatchSizeSection", Logger::global().level());
 
     const size_t section_length = section.size();
-    OPENVINO_ASSERT(section_length == sizeof(int64_t),
-                    "BatchSizeSection: incorrect section length ",
-                    section_length,
-                    ". Expected: ",
-                    sizeof(int64_t));
+    if (section_length != sizeof(int64_t)) {
+        logger.error("Incorrect section length %zu. Expected: %zu", section_length, sizeof(int64_t));
+        return std::nullopt;
+    }
 
     int64_t batch_size;
     section.read(&batch_size);
 
-    Logger("BatchSizeSection", Logger::global().level()).debug("Read batch size %lu", batch_size);
+    logger.debug("Read batch size %lu", batch_size);
 
     return std::make_shared<BatchSizeSection>(batch_size, Logger::global().level());
 };

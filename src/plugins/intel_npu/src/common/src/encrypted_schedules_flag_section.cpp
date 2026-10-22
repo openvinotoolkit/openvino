@@ -40,18 +40,18 @@ bool EncryptedSchedulesFlagSection::get_flag() const {
 ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> EncryptedSchedulesFlagSection::decode =
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "EncryptedSchedulesFlagSection::decode");
+    const Logger logger("EncryptedSchedulesFlagSection", Logger::global().level());
 
     const size_t section_length = section.size();
-    OPENVINO_ASSERT(section_length == sizeof(bool),
-                    "EncryptedSchedulesFlagSection: incorrect section length ",
-                    section_length,
-                    ". Expected: ",
-                    sizeof(bool));
+    if (section_length != sizeof(bool)) {
+        logger.error("Incorrect section length %zu. Expected: %zu", section_length, sizeof(bool));
+        return std::nullopt;
+    }
 
     bool flag;
     section.read(&flag);
 
-    Logger("EncryptedSchedulesFlagSection", Logger::global().level()).debug("Read the encryption flag %d", flag);
+    logger.debug("Read the encryption flag %d", flag);
 
     return std::make_shared<EncryptedSchedulesFlagSection>(flag, Logger::global().level());
 };

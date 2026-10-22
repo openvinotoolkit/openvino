@@ -67,11 +67,12 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> IOLayoutsSection::de
     const Logger logger("IOLayoutsSection", Logger::global().level());
 
     const size_t section_length = section.size();
-    OPENVINO_ASSERT(section_length >= MINIMUM_LAYOUTS_SECTION_SIZE,
-                    "The length of the IOLayouts section is too small. Received: ",
-                    section_length,
-                    ". Minimum expected: ",
-                    MINIMUM_LAYOUTS_SECTION_SIZE);
+    if (section_length < MINIMUM_LAYOUTS_SECTION_SIZE) {
+        logger.error("The length of the IOLayouts section is too small. Received: %zu. Minimum expected: %zu",
+                     section_length,
+                     MINIMUM_LAYOUTS_SECTION_SIZE);
+        return std::nullopt;
+    }
 
     size_t offset = 0;
     uint32_t number_of_input_layouts;
@@ -83,9 +84,10 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> IOLayoutsSection::de
 
     const size_t max_layouts =
         (section_length - sizeof(number_of_input_layouts) - sizeof(number_of_output_layouts)) / SIZE_OF_LAYOUT_SIZE;
-    OPENVINO_ASSERT(
-        number_of_input_layouts <= max_layouts && number_of_output_layouts <= max_layouts - number_of_input_layouts,
-        "The number of I/O layouts exceeds the limit of the section");
+    if (number_of_input_layouts > max_layouts || number_of_output_layouts > max_layouts - number_of_input_layouts) {
+        logger.error("The number of I/O layouts exceeds the limit of the section");
+        return std::nullopt;
+    }
 
     logger.debug("Reading %lu input layouts and %lu output layouts", number_of_input_layouts, number_of_output_layouts);
 
@@ -100,8 +102,10 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> IOLayoutsSection::de
         for (uint32_t layout_index = 0; layout_index < number_of_layouts; ++layout_index) {
             section.read(offset, sizeof(string_length), &string_length);
             offset += sizeof(string_length);
-            OPENVINO_ASSERT(string_length <= section_length - offset,
-                            "The size of at least one layout exceeds the limit of the section");
+            if (string_length > section_length - offset) {
+                logger.error("The size of at least one layout exceeds the limit of the section");
+                OPENVINO_THROW("");
+            }
 
             std::string layout_string(string_length, 0);
             section.read(offset, string_length, const_cast<char*>(layout_string.c_str()));
@@ -122,9 +126,18 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> IOLayoutsSection::de
         return layouts;
     };
 
-    const std::vector<ov::Layout> input_layouts = read_n_layouts(number_of_input_layouts, "Input");
-    const std::vector<ov::Layout> output_layouts = read_n_layouts(number_of_output_layouts, "Output");
-    OPENVINO_ASSERT(section_length - offset == 0, "Failed to read the whole content of the section");
+    std::vector<ov::Layout> input_layouts, output_layouts;
+    try {
+        input_layouts = read_n_layouts(number_of_input_layouts, "Input");
+        output_layouts = read_n_layouts(number_of_output_layouts, "Output");
+    } catch (const std::exception&) {
+        return std::nullopt;
+    }
+
+    if (section_length - offset != 0) {
+        logger.error("Failed to read the whole content of the section");
+        return std::nullopt;
+    }
     return std::make_shared<IOLayoutsSection>(input_layouts, output_layouts, Logger::global().level());
 };
 

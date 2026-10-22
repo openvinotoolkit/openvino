@@ -250,20 +250,28 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFInitSchedulesSect
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::decode");
     Logger logger("ELFInitSchedulesSection", Logger::global().level());
-    OPENVINO_ASSERT(section.size() >= MINIMUM_INIT_SCHEDULES_SECTION_SIZE, SECTION_TOO_SHORT_MESSAGE);
+    if (section.size() < MINIMUM_INIT_SCHEDULES_SECTION_SIZE) {
+        logger.error(SECTION_TOO_SHORT_MESSAGE.c_str());
+        return std::nullopt;
+    }
 
     uint16_t number_of_inits;
     size_t offset = section.size() - sizeof(number_of_inits);
     section.read(offset, sizeof(number_of_inits), &number_of_inits);
-    OPENVINO_ASSERT(number_of_inits <= (section.size() - sizeof(number_of_inits)) / SIZE_OF_INIT_SCHEDULE_SIZE,
-                    "The number of init schedules read from the blob is too great relative to the size of the section");
+    if (number_of_inits > (section.size() - sizeof(number_of_inits)) / SIZE_OF_INIT_SCHEDULE_SIZE) {
+        logger.error(
+            "The number of init schedules read from the blob is too great relative to the size of the section");
+        return std::nullopt;
+    }
 
     logger.debug("Parsed number of init schedules: %lu", number_of_inits);
 
     std::vector<ov::Tensor> init_schedules;
     if (number_of_inits == 0) {
-        OPENVINO_ASSERT(section.size() == MINIMUM_INIT_SCHEDULES_SECTION_SIZE,
-                        "Failed to read the whole content of the section");
+        if (section.size() != MINIMUM_INIT_SCHEDULES_SECTION_SIZE) {
+            logger.error("Failed to read the whole content of the section");
+            return std::nullopt;
+        }
         return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules), nullptr, logger.level());
     }
 
@@ -277,16 +285,20 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFInitSchedulesSect
         offset += sizeof(value);
         init_sizes.push_back(value);
 
-        OPENVINO_ASSERT(total_init_sizes <= total_init_sizes + value, "Integer overflow");
+        if (total_init_sizes > total_init_sizes + value) {
+            logger.error("Integer overflow");
+            return std::nullopt;
+        }
         total_init_sizes += value;
 
         logger.debug("Init schedule parsed size: %lu", value);
     }
 
     // TODO check the checks and their tests
-    OPENVINO_ASSERT(
-        total_init_sizes == section.size() - sizeof(number_of_inits) - number_of_inits * SIZE_OF_INIT_SCHEDULE_SIZE,
-        "The sum of the parsed init schedule sizes does not correspond to the current section size");
+    if (total_init_sizes != section.size() - sizeof(number_of_inits) - number_of_inits * SIZE_OF_INIT_SCHEDULE_SIZE) {
+        logger.error("The sum of the parsed init schedule sizes does not correspond to the current section size");
+        return std::nullopt;
+    }
 
     const ov::util::MemoryView content_view = section.view();
     offset = 0;
@@ -362,10 +374,15 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> DynamicScheduleSecti
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "DynamicScheduleSection::decode");
     // TODO more logs
 
+    const auto main_schedule_section = ELFMainScheduleSection::decode(section);
+    if (!main_schedule_section.has_value()) {
+        return std::nullopt;
+    }
+
     return std::make_shared<DynamicScheduleSection>(
-        std::dynamic_pointer_cast<ELFMainScheduleSection>(ELFMainScheduleSection::decode(section))->get_schedule(),
+        std::dynamic_pointer_cast<ELFMainScheduleSection>(main_schedule_section.value())->get_schedule(),
         nullptr,
-        Logger::global()::level());
+        Logger::global().level());
 };
 
 std::optional<std::string> DynamicScheduleSection::get_individual_compatibility_requirements() const {

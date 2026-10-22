@@ -174,37 +174,46 @@ RuntimeRequirements RuntimeRequirementsSection::get_runtime_requirements() const
     return m_runtime_requirements;
 }
 
-ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> BatchSizeSection::decode =
+ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> RuntimeRequirementsSection::decode =
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "RuntimeRequirementsSection::read");
-    Logger logger("RuntimeRequirementsSection", blob_reader.get_log_level());
+    Logger logger("RuntimeRequirementsSection", Logger::global().level());
 
     // TODO make sure the inclusion of a runtime requirements section is optional
-    const size_t section_length = blob_reader.get_total_section_size();
-    // TODO check manifest section lengths are not greater than the size of the NPU region
-    OPENVINO_ASSERT(section_length >= MINIMUM_RUNTIME_REQUIREMENTS_SIZE,
-                    "The runtime requirements section is too small");
+    const size_t section_length = section.size();
+    if (section_length < MINIMUM_RUNTIME_REQUIREMENTS_SIZE) {
+        logger.error("The runtime requirements section is too small");
+        return std::nullopt;
+    }
 
     // Use the parser
     std::string full_payload(section_length, 0);
-    blob_reader.read_into_buffer(full_payload.data(), section_length);
+    section.read(full_payload.data());
 
     compat::Parser::attr_map_type parsed_content;
     try {
         compat::Parser parser(full_payload, std::vector<std::string>());
         parsed_content = parser.getAttributes();
     } catch (const std::exception& ex) {
-        OPENVINO_THROW("The content of the runtime requirements section is malformed: ", ex.what());
+        logger.error("The content of the runtime requirements section is malformed: %s", ex.what());
+        return std::nullopt;
     }
 
-    OPENVINO_ASSERT(parsed_content.count(VERSION_KEY.data()), "Missing runtime requirements version");
-    OPENVINO_ASSERT(parsed_content.count(CRE_KEY.data()), "No CRE found within the runtime requirements");
+    if (!parsed_content.count(VERSION_KEY.data())) {
+        logger.error("Missing runtime requirements version");
+        return std::nullopt;
+    }
+    if (!parsed_content.count(CRE_KEY.data())) {
+        logger.error("No CRE found within the runtime requirements");
+        return std::nullopt;
+    }
 
     // Check the format version
     const MajorMinorVersion parsed_version = MajorMinorVersion::from_string(parsed_content.at(VERSION_KEY.data()));
-    OPENVINO_ASSERT(parsed_version == CURRENT_RUNTIME_REQUIREMENTS_VERSION,
-                    "Unsupported runtime requirements version: ",
-                    parsed_version);
+    if (parsed_version != CURRENT_RUNTIME_REQUIREMENTS_VERSION) {
+        logger.error("Unsupported runtime requirements version: %s", parsed_version.to_string());
+        return std::nullopt;
+    }
     parsed_content.erase(VERSION_KEY.data());
 
     // Parse the CRE
@@ -221,24 +230,26 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> BatchSizeSection::de
         logger.trace("Parsing the key %s", section_type_and_id_string.data());
 
         const auto [section_type, section_id] = section_type_and_id_from_string(section_type_and_id_string);
-        OPENVINO_ASSERT(section_id.has_value(),
-                        "Missing section ID. The keys within the NPU plugin runtime requirements should contain both "
-                        "section type and ID");
+        // TODO check you didn't forget any return nullopt
+        if (!section_id.has_value()) {
+            logger.error("Missing section ID. The keys within the NPU plugin runtime requirements should contain both "
+                         "section type and ID");
+            return std::nullopt;
+        }
+        if (sections_requirements.count(section_id.value()) || section_id_to_type.count(section_id.value())) {
+            logger.error("Found the same section ID more than once within the runtime requirements");
+            return std::nullopt;
+        }
 
-        OPENVINO_ASSERT(
-            !sections_requirements.count(section_id.value()) && !section_id_to_type.count(section_id.value()),
-            "Found the same section ID more than once within the runtime requirements");
         sections_requirements.emplace(section_id.value(), value);
         section_id_to_type.emplace(section_id.value(), section_type);
     }
 
-    OPENVINO_ASSERT(blob_reader.get_remaining_section_size() == 0, "Failed to read the whole content of the section");
-
     // TODO check all classes got their log levels right
     return std::make_shared<RuntimeRequirementsSection>(
-        RuntimeRequirements(sections_requirements, cre, section_id_to_type, logger.level()),
+        RuntimeRequirements(sections_requirements, cre, section_id_to_type),
         logger.level());
-}
+};
 
 bool is_runtime_requirements_format_v2(std::string_view runtime_requirements) {
     try {

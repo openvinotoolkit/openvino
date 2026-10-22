@@ -31,18 +31,18 @@ int32_t CompilerVersionSection::get_compiler_version() const {
 ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> CompilerVersionSection::decode =
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompilerVersionSection::decode");
+    const Logger logger("CompilerVersionSection", Logger::global().level());
 
     const size_t section_length = section.size();
-    OPENVINO_ASSERT(section_length == sizeof(int32_t),
-                    "CompilerVersionSection: incorrect section length ",
-                    section_length,
-                    ". Expected: ",
-                    sizeof(int32_t));
+    if (section_length != sizeof(int32_t)) {
+        logger.error("Incorrect section length %zu. Expected: %zu", section_length, sizeof(int32_t));
+        return std::nullopt;
+    }
 
     int32_t compiler_version;
     section.read(&compiler_version);
 
-    Logger("CompilerVersionSection", Logger::global().level()).debug("Read compiler version %lu", compiler_version);
+    logger.debug("Read compiler version %lu", compiler_version);
 
     return std::make_shared<CompilerVersionSection>(compiler_version, Logger::global().level());
 };
