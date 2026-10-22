@@ -91,6 +91,7 @@ using namespace ov::intel_npu::vm;
 
 namespace {
 ov::element::Type parsePrecision(const BytecodeReader& reader, size_t typeIndex) {
+    constexpr uint8_t int4Bitwidth = 4;
     constexpr uint8_t int8Bitwidth = 8;
     constexpr uint8_t int16Bitwidth = 16;
     constexpr uint8_t int32Bitwidth = 32;
@@ -109,6 +110,10 @@ ov::element::Type parsePrecision(const BytecodeReader& reader, size_t typeIndex)
     case TypeCode::FLOAT: {
         FloatType floatType{};
         NPU_VM_THROW_UNLESS(floatType.parseFrom(typeEntry), "Failed to parse float type for type index {}", typeIndex);
+
+        if (floatType.bitWidth == 4 && floatType.format == FloatTypeFormat::NF4) {
+            return ov::element::nf4;
+        }
 
         // Map float types using both bitwidth and format
         if (floatType.bitWidth == fp16Bitwidth) {
@@ -150,6 +155,8 @@ ov::element::Type parsePrecision(const BytecodeReader& reader, size_t typeIndex)
         // (i8, i16, i32, i64). If the actual signedness is critical, it must be inferred from context
         // (e.g., operations using the value) or preserved separately.
         switch (intType.bitWidth) {
+        case int4Bitwidth:
+            return (intType.isSigned) ? ov::element::i4 : ov::element::u4;
         case int8Bitwidth:
             return (intType.isSigned) ? ov::element::i8 : ov::element::u8;
         case int16Bitwidth:
