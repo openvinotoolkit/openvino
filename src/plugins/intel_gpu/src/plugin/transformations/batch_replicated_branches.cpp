@@ -386,7 +386,12 @@ bool equivalent_branch_nodes(const NodePtr& lhs,
     }
 
     if (is_constant(lhs) || is_constant(rhs)) {
-        return is_constant(lhs) && is_constant(rhs) && constants_equal(lhs, rhs);
+        if (!is_constant(lhs) || !is_constant(rhs) || !constants_equal(lhs, rhs)) {
+            return false;
+        }
+        lhs_to_rhs.emplace(lhs.get(), rhs);
+        rhs_to_lhs.emplace(rhs.get(), lhs);
+        return true;
     }
     if (!is_batch_safe_operation(lhs, replica_count) || !is_batch_safe_operation(rhs, replica_count)) {
         return false;
@@ -690,6 +695,10 @@ bool transform_camera_branches(const std::shared_ptr<ov::op::v0::Concat>& output
             return batched_camera;
         }
         if (is_constant(original)) {
+            if (const auto corresponding = corresponding_nodes.find(original.get());
+                corresponding != corresponding_nodes.end()) {
+                merge_fused_names(original, corresponding->second, original);
+            }
             return original;
         }
         const auto found = cloned_nodes.find(original.get());

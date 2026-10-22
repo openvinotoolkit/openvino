@@ -61,7 +61,8 @@ std::shared_ptr<ov::Model> make_camera_model(const std::vector<int64_t>& indices
                                              bool add_port_runtime_info = false,
                                              bool add_external_data_user = false,
                                              bool add_type_relaxed_branch = false,
-                                             bool add_type_relaxed_concat = false) {
+                                             bool add_type_relaxed_concat = false,
+                                             bool use_distinct_equal_weights = false) {
     const auto input_shape = dynamic_camera_height
                                  ? ov::PartialShape{1, 4, 3, ov::Dimension::dynamic(), 640}
                                  : ov::PartialShape{1, 4, 3, 480, 640};
@@ -110,8 +111,16 @@ std::shared_ptr<ov::Model> make_camera_model(const std::vector<int64_t>& indices
             gather->output(0).set_names({"camera_input_" + std::to_string(i)});
         }
         ov::Output<ov::Node> branch_weights = weights;
+        if (use_distinct_equal_weights) {
+            auto distinct_weights =
+                std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                        weights_shape,
+                                                        weights->cast_vector<float>());
+            distinct_weights->set_friendly_name("camera_weights_" + std::to_string(i));
+            branch_weights = distinct_weights;
+        }
         if (add_decompression_metadata) {
-            auto weight_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+            auto weight_convert = std::make_shared<ov::op::v0::Convert>(branch_weights, ov::element::f32);
             ov::mark_as_decompression(weight_convert);
             branch_weights = weight_convert;
         }
@@ -498,6 +507,51 @@ TEST(BatchReplicatedBranches, PreservesReplicaNamesForQueryModel) {
 
     for (const auto& name : convolution_names) {
         EXPECT_EQ(supported_nodes.count(name), 0u) << "Replica convolution was reported as supported: " << name;
+    }
+}
+
+TEST(BatchReplicatedBranches, PreservesDistinctEqualConstantNamesForQueryModel) {
+    auto model = make_camera_model({0, 1, 2, 3},
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   true);
+    std::vector<std::string> weight_names;
+    for (const auto& node : model->get_ops()) {
+        if (node->get_friendly_name().find("camera_weights_") == 0) {
+            weight_names.push_back(node->get_friendly_name());
+        }
+    }
+    ASSERT_EQ(weight_names.size(), 4u);
+
+    const auto supported_nodes = ov::get_supported_nodes(
+        model,
+        [](std::shared_ptr<ov::Model>& transformed_model) {
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::InitNodeInfo>();
+            manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
+            manager.run_passes(transformed_model);
+        },
+        [](const std::shared_ptr<ov::Node>& node) {
+            return !ov::is_type<ov::op::v1::Convolution>(node);
+        });
+
+    for (const auto& name : weight_names) {
+        EXPECT_EQ(supported_nodes.count(name), 0u) << "Replica weight was reported as supported: " << name;
     }
 }
 
