@@ -137,11 +137,11 @@ def _stash_weights_as_fp32_placeholders(module, supported, weight_attrs=("weight
     (or ``.device``) during tracing sees a plain FP32 tensor. This prevents the
     tracer from baking a 16-bit ``aten::to`` cast into the graph.
 
-    The placeholder shares a single-element storage (a broadcasted zero) so it
-    costs virtually no memory even for large weights, and it keeps the original
-    device so that ``x.to(module.weight.device)`` traces correctly.
-    Constant conversion resolves ``_openvino_orig_tensor`` to a deferred FP32
-    conversion of the original tensor, including for raw parameters and buffers.
+    Parameter placeholders use single-element storage and preserve scalar values.
+    Buffers retain real FP32 storage for in-place updates and layout-sensitive ops.
+    The original device is preserved for dtype/device introspection while tracing.
+    Constant conversion resolves parameter placeholders to a deferred FP32
+    conversion of the original tensor through ``_openvino_orig_tensor``.
     """
     for attr in weight_attrs:
         if attr.startswith(_ORIG_WEIGHT_ATTR_PREFIX):
@@ -157,11 +157,14 @@ def _stash_weights_as_fp32_placeholders(module, supported, weight_attrs=("weight
         setattr(module, stash_name, param)
         placeholder = placeholders.get(id(param)) if placeholders is not None else None
         if placeholder is None:
-            placeholder = torch.zeros((), dtype=torch.float32,
-                                      device=param.device).expand(param.shape)
+            if attr in module._buffers or param.numel() == 1:
+                placeholder = param.float()
+            else:
+                placeholder = torch.zeros((), dtype=torch.float32,
+                                          device=param.device).expand(param.shape)
             if isinstance(param, torch.nn.Parameter):
                 placeholder = torch.nn.Parameter(placeholder, requires_grad=False)
-            placeholder._openvino_orig_tensor = param
+                placeholder._openvino_orig_tensor = param
             if placeholders is not None:
                 placeholders[id(param)] = placeholder
         setattr(module, attr, placeholder)
@@ -169,7 +172,7 @@ def _stash_weights_as_fp32_placeholders(module, supported, weight_attrs=("weight
 
 def _restore_stashed_weights(module):
     """Restore the original parameters and buffers for a single module."""
-    stash_names = [n for n in list(module._parameters) + list(module.__dict__)
+    stash_names = [n for n in list(module._parameters) + list(module._buffers) + list(module.__dict__)
                    if n.startswith(_ORIG_WEIGHT_ATTR_PREFIX)]
     for stash_name in stash_names:
         attr = stash_name[len(_ORIG_WEIGHT_ATTR_PREFIX):]
