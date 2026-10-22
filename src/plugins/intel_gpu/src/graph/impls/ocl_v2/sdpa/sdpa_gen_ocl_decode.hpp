@@ -27,11 +27,11 @@ public:
 
     // Subgroups (threads) per workgroup, each owning SEQ_LEN_PARTITION_SIZE / SG_PER_WG keys of a partition.
     // Tuning override: SDPA_OCL_DECODE_SG_PER_WG.
-    [[nodiscard]] static size_t get_sg_per_wg(size_t v_head_size);
+    [[nodiscard]] static size_t get_sg_per_wg(const RuntimeParams& params);
 
-    // q-heads per workgroup (the DPAS M), which share every K/V page read: a power of two <= 8 and <= the kv
-    // group, capped so the live registers do not spill and so the local memory fits. Used by the jit and the
-    // dispatch. Tuning override: SDPA_OCL_DECODE_M.
+    // q-heads per workgroup (the DPAS M), which share every K/V page read: a power of two <= 8, the kv group
+    // rounded up (surplus rows are masked), capped so the live registers do not spill and so the local
+    // memory fits. Used by the jit and the dispatch. Tuning override: SDPA_OCL_DECODE_M.
     [[nodiscard]] static size_t get_q_per_wg(const RuntimeParams& params);
 
 protected:
