@@ -77,7 +77,7 @@ void CacheWarmup::start(const std::string& actual_device, const std::vector<Devi
             return;
         }
         m_devices = std::move(devices);
-        LOG_INFO_TAG("start cache pre-compilation for %zu device(s)", m_devices.size());
+        LOG_INFO_TAG("start cache pre-compilation for %lu device(s)", static_cast<unsigned long>(m_devices.size()));
     }
     m_manager.enqueue(shared_from_this());
 }
