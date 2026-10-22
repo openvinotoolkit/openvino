@@ -37,6 +37,8 @@ set(OV_AUTO_UNIT_TESTS_SRC
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/auto_compiled_model.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/auto_schedule.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/auto_schedule.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cache_warmup.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cache_warmup.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/common.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/compiled_model.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/compiled_model.hpp

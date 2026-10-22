@@ -9,8 +9,6 @@
 #include "auto_schedule.hpp"
 
 #include "async_infer_request.hpp"
-#include "openvino/runtime/compilation_context.hpp"
-#include "openvino/util/file_util.hpp"
 #include "plugin.hpp"
 
 // ------------------------------AutoSchedule----------------------------
@@ -83,6 +81,10 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
                                         m_context->m_model_priority,
                                         m_context->m_selection_policy,
                                         m_context->m_low_power_device);
+            // Keep at most the actual and the fallback compiled models alive.
+            if (m_cache_warmup) {
+                m_cache_warmup->stop();
+            }
             try {
                 m_compile_context[FALLBACKDEVICE].m_task();
                 // FALLBACKDEVICE need to be load again if infer failed, so reset promise here
@@ -120,6 +122,14 @@ void AutoSchedule::init() {
     }
     // initialize cpuHelpReleasetime
     m_cpuhelp_release_time = std::chrono::steady_clock::now();
+    if (m_context->m_compile_for_all) {
+        // Captured now since Plugin releases m_context->m_model once the actual device is ready.
+        m_cache_warmup = std::make_shared<CacheWarmup>(m_plugin->get_cache_warmup_manager(),
+                                                       m_context->m_ov_core,
+                                                       m_context->m_model,
+                                                       m_context->m_model_path,
+                                                       get_log_tag());
+    }
     std::string profilingTask = "AutoSchedule::AutoSchedule:AutoMode";
     // loadContext[ACTUALDEVICE] is always enabled,
     // when there is CPU and there are more than two devices, loadContext[CPU] is enabled
@@ -238,6 +248,7 @@ void AutoSchedule::init() {
         m_executor->run(m_compile_context[CPU].m_task);
         m_executor->run(m_compile_context[ACTUALDEVICE].m_task);
         auto recycleTask = [this]() mutable {
+            bool helper_released = false;
             wait_actual_compiled_model_ready();
             while (!m_exitflag && m_compile_context[ACTUALDEVICE].m_is_already) {
                 // handle the case of ACTUAL faster than CPU
@@ -293,12 +304,21 @@ void AutoSchedule::init() {
                     });
                     LOG_INFO_TAG("release all work requests of CPU_HELP");
                     m_worker_requests["CPU_HELP"].clear();
+                    if (m_context->m_hw_compiled_model._ptr == m_compile_context[CPU].m_compiled_model._ptr) {
+                        m_context->m_hw_compiled_model = m_compile_context[ACTUALDEVICE].m_compiled_model;
+                    }
                     m_compile_context[CPU].m_compiled_model._ptr.reset();
                     m_compile_context[CPU].m_compiled_model._so.reset();
                     m_compile_context[CPU].m_is_already = false;
                     LOG_INFO_TAG("helper released!!");
+                    helper_released = true;
                     break;
                 }
+            }
+            if (helper_released && m_cache_warmup) {
+                // Failed startup devices were already removed from the actual context's candidates.
+                m_cache_warmup->start(m_compile_context[ACTUALDEVICE].m_device_info.device_name,
+                                      m_compile_context[ACTUALDEVICE].m_meta_devices);
             }
         };
         m_executor->run(std::move(recycleTask));
@@ -331,150 +351,21 @@ void AutoSchedule::init() {
             m_infer_pipeline_tasks_device_specific.clear();
         }
     }
-    m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
-    // Trigger cache pre-compilation for the remaining candidate devices in background.
-    compile_for_all_other_devices_for_cache();
-}
-
-void AutoSchedule::compile_for_all_other_devices_for_cache() {
-    if (!m_context->m_compile_for_all) {
-        return;
-    }
-    // Snapshot device info under the mutex to avoid concurrent access.
-    DeviceInformation actual_device_info;
+    auto first_compiled_model = wait_first_compiled_model_ready();
     {
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
-        actual_device_info = m_compile_context[ACTUALDEVICE].m_device_info;
-    }
-    const std::string cache_dir = actual_device_info.config.count(ov::cache_dir.name())
-                                       ? actual_device_info.config[ov::cache_dir.name()].as<std::string>()
-                                       : m_context->m_ov_core->get_property("", ov::cache_dir);
-    if (cache_dir.empty()) {
-        LOG_INFO_TAG("Skip cache pre-compilation when cache dir is not set");
-        return;
-    }
-    // Keep the source model alive for the background tasks. The actual-device path may reset
-    // m_context->m_model once its compilation finishes, so capture a copy of the shared pointer.
-    const auto model = m_context->m_model;
-    const auto model_path = m_context->m_model_path;
-    if (!model && model_path.empty()) {
-        return;
-    }
-    const std::string& actual_device = actual_device_info.device_name;
-    std::vector<DeviceInformation> devices_to_precompile;
-    for (const auto& device : m_context->m_device_priorities_initial) {
-        // Skip the actual device and CPU (already handled by CPU_HELP).
-        if (device.device_name == actual_device || device.device_name.find("CPU") != std::string::npos) {
-            continue;
+        // The recycle task may have released CPU_HELP already; never pin its compiled model.
+        if (!m_compile_context[CPU].m_compiled_model._ptr &&
+            first_compiled_model._ptr != m_compile_context[ACTUALDEVICE].m_compiled_model._ptr) {
+            first_compiled_model = m_compile_context[ACTUALDEVICE].m_compiled_model;
         }
-        devices_to_precompile.push_back(device);
+        m_context->m_hw_compiled_model = first_compiled_model;
     }
-    if (devices_to_precompile.empty()) {
-        return;
+    if (m_cache_warmup && !m_compile_context[CPU].m_is_enabled && m_compile_context[ACTUALDEVICE].m_is_already) {
+        // Failed startup devices were already removed from the actual context's candidates.
+        m_cache_warmup->start(m_compile_context[ACTUALDEVICE].m_device_info.device_name,
+                              m_compile_context[ACTUALDEVICE].m_meta_devices);
     }
-    {
-        // Pre-register futures so an early foreground compile always has something to wait on.
-        std::lock_guard<std::mutex> lock(m_precompile_mutex);
-        for (const auto& device : devices_to_precompile) {
-            std::promise<void> promise;
-            m_precompile_futures[device.device_name] = promise.get_future().share();
-            m_precompile_promises[device.device_name] = std::move(promise);
-        }
-    }
-    if (!m_precompile_executor) {
-        // Single stream: precompile devices sequentially in priority order.
-        m_precompile_executor =
-            m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(ov::threading::IStreamsExecutor::Config{
-                "AutoDeviceCachePreCompilation",
-                1,
-                0 /*default threads per stream, workaround for ticket 62376*/});
-    }
-
-    m_precompile_executor->run([this, core = m_context->m_ov_core, devices_to_precompile, model, model_path] {
-        for (const auto& device : devices_to_precompile) {
-            auto notify_done = [this, &device]() {
-                std::lock_guard<std::mutex> lock(m_precompile_mutex);
-                auto promise_it = m_precompile_promises.find(device.device_name);
-                if (promise_it != m_precompile_promises.end()) {
-                    promise_it->second.set_value();
-                    m_precompile_promises.erase(promise_it);
-                }
-            };
-            // Clone before compiling; skip this device if cloning fails.
-            std::shared_ptr<ov::Model> model_snapshot;
-            if (model) {
-                try {
-                    model_snapshot = model->clone();
-                } catch (const std::exception& e) {
-                    LOG_WARNING_TAG("cache pre-compilation skipped for device: %s, failed to clone model: %s",
-                                  device.device_name.c_str(),
-                                  e.what());
-                    notify_done();
-                    continue;
-                } catch (...) {
-                    LOG_WARNING_TAG("cache pre-compilation skipped for device: %s, failed to clone model: unknown exception",
-                                  device.device_name.c_str());
-                    notify_done();
-                    continue;
-                }
-            }
-            // Wait for ACTUALDEVICE to settle, then skip this device if it was selected as the actual device.
-            if (m_compile_context[ACTUALDEVICE].m_future.valid()) {
-                m_compile_context[ACTUALDEVICE].m_future.wait();
-            }
-            {
-                std::lock_guard<std::mutex> lock(m_context->m_mutex);
-                if (device.device_name == m_compile_context[ACTUALDEVICE].m_device_info.device_name) {
-                    LOG_INFO_TAG("skip cache pre-compilation for device: %s, already compiled as the actual device",
-                                 device.device_name.c_str());
-                    notify_done();
-                    continue;
-                }
-            }
-            const auto compile_begin = std::chrono::steady_clock::now();
-            try {
-                // Follow the same model-source priority as the blob existence check: model first, then path.
-                SoCompiledModel precompile_model = model_snapshot
-                    ? core->compile_model(model_snapshot, device.device_name, device.config)
-                    : core->compile_model(model_path, device.device_name, device.config);
-                // The cache blob is generated during compilation; release the compiled model right away
-                // so we do not keep holding device resources.
-                precompile_model = {};
-                const auto compile_end = std::chrono::steady_clock::now();
-                const auto compile_ms = std::chrono::duration<double, std::milli>(compile_end - compile_begin).count();
-                LOG_INFO_TAG("cache pre-compilation finished for device: %s, compile time: %lf ms",
-                             device.device_name.c_str(),
-                             compile_ms);
-            } catch (const ov::Exception& e) {
-                const auto compile_end = std::chrono::steady_clock::now();
-                const auto compile_ms = std::chrono::duration<double, std::milli>(compile_end - compile_begin).count();
-                LOG_WARNING_TAG("cache pre-compilation failed for device: %s, %s",
-                              device.device_name.c_str(),
-                              e.what());
-                LOG_WARNING_TAG("cache pre-compilation time for device: %s: %lf ms",
-                              device.device_name.c_str(),
-                              compile_ms);
-            } catch (const std::exception& e) {
-                const auto compile_end = std::chrono::steady_clock::now();
-                const auto compile_ms = std::chrono::duration<double, std::milli>(compile_end - compile_begin).count();
-                LOG_WARNING_TAG("cache pre-compilation failed for device: %s, std::exception: %s",
-                              device.device_name.c_str(),
-                              e.what());
-                LOG_WARNING_TAG("cache pre-compilation time for device: %s: %lf ms",
-                              device.device_name.c_str(),
-                              compile_ms);
-            } catch (...) {
-                const auto compile_end = std::chrono::steady_clock::now();
-                const auto compile_ms = std::chrono::duration<double, std::milli>(compile_end - compile_begin).count();
-                LOG_WARNING_TAG("cache pre-compilation failed for device: %s, unknown exception",
-                              device.device_name.c_str());
-                LOG_WARNING_TAG("cache pre-compilation time for device: %s: %lf ms",
-                              device.device_name.c_str(),
-                              compile_ms);
-            }
-            notify_done();
-        }
-    });
 }
 
 void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) {
@@ -506,22 +397,6 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
             } catch (const ov::Exception&) {
                 LOG_DEBUG_TAG("cannot get MAX_NUM_THREADS from GPU");
             }
-        }
-    }
-    {
-        // Wait for this device's background pre-compile to finish instead of racing it.
-        std::shared_future<void> precompile_future;
-        {
-            std::lock_guard<std::mutex> lock(m_precompile_mutex);
-            auto it = m_precompile_futures.find(device);
-            if (it != m_precompile_futures.end()) {
-                precompile_future = it->second;
-            }
-        }
-        if (precompile_future.valid()) {
-            LOG_DEBUG_TAG("Device: [%s]: waiting for cache pre-compilation to finish before compiling on demand",
-                          device.c_str());
-            precompile_future.wait();
         }
     }
     try {
@@ -881,8 +756,8 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
 
 void AutoSchedule::release_dynamic_device_resources() {
     // large models make it unrealistic to keep every previously visited device's compiled model
-    // (and its device-side infer-request buffers) resident at once; compile_for_all_other_devices_for_cache()
-    // already populated the on-disk cache blob for the other candidates, so recompiling on a switch is cheap
+    // (and its device-side infer-request buffers) resident at once; the cache warm-up
+    // populates the on-disk cache blob for the other candidates, so recompiling on a switch is cheap
     for (auto&& compiled : m_dynamic_compiled_models) {
         LOG_DEBUG_TAG("[dynamic] releasing previously compiled model on device:%s to save memory",
                       compiled.first.c_str());
@@ -949,9 +824,9 @@ AutoSchedule::~AutoSchedule() {
         m_plugin->get_executor_manager()->clear("AutoDeviceAsyncCompile");
         m_executor.reset();
     }
-    if (m_precompile_executor) {
-        m_plugin->get_executor_manager()->clear("AutoDeviceCachePreCompilation");
-        m_precompile_executor.reset();
+    // After the recycle task has stopped, so no new warm-up can be queued.
+    if (m_cache_warmup) {
+        m_cache_warmup->stop();
     }
     if (m_plugin)
         m_plugin->unregister_priority(m_context->m_model_priority,

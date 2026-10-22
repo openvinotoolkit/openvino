@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "cache_warmup.hpp"
 #include "common.hpp"
 #include "compiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -96,6 +97,10 @@ public:
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
 
+    CacheWarmupManager& get_cache_warmup_manager() const {
+        return *m_cache_warmup_manager;
+    }
+
 private:
     std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::filesystem::path& model_path,
                                                            const std::shared_ptr<const ov::Model>& model,
@@ -123,6 +128,7 @@ private:
     PluginConfig m_plugin_config;
     std::once_flag m_telemetry_client_init_once;
     std::unique_ptr<device_monitor::TelemetryClient> m_telemetry_client;
+    std::unique_ptr<CacheWarmupManager> m_cache_warmup_manager = std::make_unique<CacheWarmupManager>();
 };
 
 }  // namespace auto_plugin

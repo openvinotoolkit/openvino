@@ -9,6 +9,7 @@
 
 #include "schedule.hpp"
 #include "async_infer_request.hpp"
+#include "cache_warmup.hpp"
 
 namespace ov {
 namespace auto_plugin {
@@ -46,17 +47,11 @@ private:
      * @note device is updated in place when the compilation falls back to another candidate device.
      */
     bool ensure_device_ready(DeviceInformation& device);
-    // Compile the model to the remaining candidate devices (excluding CPU and the actual
-    // device) purely to populate the cache blobs, then release the compiled models.
-    void compile_for_all_other_devices_for_cache();
     // Only one compiled model (and its worker infer request) is kept resident at a time in dynamic
     // mode: a switch away from it relies on the on-disk cache blob to recompile the new target fast.
     void release_dynamic_device_resources();
-    std::shared_ptr<ov::threading::IStreamsExecutor>                     m_precompile_executor;
-    // Per-device pre-compile completion signal; lets a foreground compile wait instead of racing it.
-    std::mutex                                                           m_precompile_mutex;
-    std::map<std::string, std::promise<void>>                            m_precompile_promises;
-    std::map<std::string, std::shared_future<void>>                      m_precompile_futures;
+    // Null unless ov::intel_auto::compile_for_all is enabled; set before any background task starts.
+    std::shared_ptr<CacheWarmup>                                         m_cache_warmup;
     size_t                                                               m_cpuhelp_infer_count = 0;
     double                                                               m_cpuhelp_fps = 0.0;
     mutable std::once_flag                                               m_oc;
