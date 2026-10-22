@@ -64,6 +64,27 @@ TEST_F(CompatibilityStringGPU, GenerateAndCheckSupported) {
     ASSERT_EQ(result, ov::CompatibilityCheck::SUPPORTED);
 }
 
+TEST_F(CompatibilityStringGPU, PreviousBlobLayoutRequirementsAreUnsupported) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
+
+    auto requirements = compiled_model.get_property(ov::runtime_requirements);
+    const auto schema_version = requirements.find("meta=1.1");
+    ASSERT_NE(schema_version, std::string::npos);
+    const auto blob_version = requirements.find("blob=3");
+    ASSERT_NE(blob_version, std::string::npos);
+    requirements.replace(schema_version, std::string("meta=1.1").size(), "meta=1.0");
+    requirements.erase(blob_version, std::string("blob=3").size());
+
+    ov::CompatibilityCheck result = ov::CompatibilityCheck::NOT_APPLICABLE;
+    OV_ASSERT_NO_THROW(result = core.get_property(ov::test::utils::DEVICE_GPU,
+                                                  ov::compatibility_check,
+                                                  {{ov::runtime_requirements.name(), requirements}}));
+    ASSERT_EQ(result, ov::CompatibilityCheck::UNSUPPORTED);
+}
+
 // A tampered descriptor is reported as UNSUPPORTED.
 TEST_F(CompatibilityStringGPU, TamperedRequirementsUnsupported) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();

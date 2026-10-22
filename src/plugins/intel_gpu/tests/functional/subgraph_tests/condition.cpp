@@ -262,6 +262,80 @@ TEST_P(ConditionMultiPortInputGPUTest, SkippedBranchPreservesDeclaredOutputOrder
     }
 }
 
+TEST_P(ConditionMultiPortInputGPUTest, SkippedBranchReinterpretsGrowingSecondaryOutput) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ScopedEnvVar new_shape_infer("OV_GPU_ALLOW_NEW_SHAPE_INFER", "1");
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 10});
+    auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{});
+    auto predicate = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{});
+    auto producer = std::make_shared<ov::op::v3::TopK>(data,
+                                                      k,
+                                                      1,
+                                                      ov::op::v3::TopK::Mode::MAX,
+                                                      ov::op::v3::TopK::SortType::SORT_VALUES,
+                                                      ov::element::i32);
+
+    auto make_body = [](const std::string& prefix) {
+        auto values = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, ov::Dimension(1, 10)});
+        auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, ov::Dimension(1, 10)});
+        auto values_result = std::make_shared<ov::op::v0::Result>(values);
+        auto indices_result = std::make_shared<ov::op::v0::Result>(indices);
+        values_result->set_friendly_name(prefix + "_values_result");
+        indices_result->set_friendly_name(prefix + "_indices_result");
+        return std::make_pair(std::make_shared<ov::Model>(ov::ResultVector{values_result, indices_result},
+                                                          ov::ParameterVector{values, indices}),
+                              std::make_pair(values_result, indices_result));
+    };
+
+    auto then_body = make_body("then");
+    auto else_body = make_body("else");
+    auto conditional = std::make_shared<ov::op::v8::If>(predicate);
+    conditional->set_then_body(then_body.first);
+    conditional->set_else_body(else_body.first);
+    conditional->set_input(producer->output(0),
+                            then_body.first->get_parameters()[0],
+                            else_body.first->get_parameters()[0]);
+    conditional->set_input(producer->output(1),
+                            then_body.first->get_parameters()[1],
+                            else_body.first->get_parameters()[1]);
+    conditional->set_output(then_body.second.first, else_body.second.first);
+    conditional->set_output(then_body.second.second, else_body.second.second);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{conditional->output(0), conditional->output(1)},
+                                             ov::ParameterVector{data, k, predicate});
+
+    ov::Core core;
+    auto compiled = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+    if (GetParam()) {
+        std::stringstream blob;
+        compiled.export_model(blob);
+        compiled = core.import_model(blob, ov::test::utils::DEVICE_GPU);
+    }
+    auto request = compiled.create_infer_request();
+    auto data_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 10});
+    for (size_t i = 0; i < 10; ++i)
+        data_tensor.data<float>()[i] = static_cast<float>(i + 1);
+    request.set_input_tensor(0, data_tensor);
+    auto k_tensor = ov::Tensor(ov::element::i64, ov::Shape{});
+    request.set_input_tensor(1, k_tensor);
+    auto condition = ov::Tensor(ov::element::boolean, ov::Shape{});
+    request.set_input_tensor(2, condition);
+
+    for (const int64_t top_k : {2, 8}) {
+        SCOPED_TRACE(top_k);
+        k_tensor.data<int64_t>()[0] = top_k;
+        condition.data<bool>()[0] = true;
+        request.infer();
+        auto values = request.get_output_tensor(0);
+        auto indices = request.get_output_tensor(1);
+        ASSERT_EQ(values.get_shape(), (ov::Shape{1, static_cast<size_t>(top_k)}));
+        ASSERT_EQ(indices.get_shape(), (ov::Shape{1, static_cast<size_t>(top_k)}));
+        for (size_t i = 0; i < static_cast<size_t>(top_k); ++i) {
+            EXPECT_FLOAT_EQ(values.data<float>()[i], static_cast<float>(10 - i));
+            EXPECT_EQ(indices.data<int32_t>()[i], static_cast<int32_t>(9 - i));
+        }
+    }
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_ConditionGPU,
                          ConditionMultiPortInputGPUTest,
                          testing::Values(false, true));
