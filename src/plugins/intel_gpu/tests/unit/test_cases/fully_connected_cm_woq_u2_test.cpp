@@ -1028,67 +1028,57 @@ TEST(fully_connected_cm_woq_u2_reorder, weights_not_transposed_no_reorder) {
     ASSERT_FALSE(r.zp_reordered);
 }
 
-// Dynamic M and a dynamic operand pass the static epilogue check, but at run time the operand can have fewer rows
-// than the output ([1, N] against M rows): an eltwise broadcast the kernels do not do (they would read past its
-// single row). Such shapes must run on another implementation; equal rows (and M = 1) stay on CM.
-class fully_connected_cm_woq_u2_epi_rows : public ::testing::TestWithParam<std::tuple<int64_t, int64_t>> {};
-
-TEST_P(fully_connected_cm_woq_u2_epi_rows, broadcast_operand_does_not_run_on_cm) {
+// A scalar zero point never reaches CM (it needs a per-group tensor); TernOCL, which does use one, checks the scale
+// layout in validate_impl, i.e. before select_preferred_formats could reorder it, so it must happen in prepare_quantization.
+TEST(fully_connected_cm_woq_u2_reorder, scalar_zero_point_reorders_in_prepare_quantization) {
     auto& engine = get_test_engine();
-    if (!cm_woq_u2_supported(engine))
-        GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
+    const int64_t N = 64, K = 256, G = K / 64;
+    topology topo(input_layout("input", layout{ov::PartialShape{16, K}, data_types::f16, format::bfyx}));
+    topo.add(data("weights", engine.allocate_memory({ov::PartialShape{N, K}, data_types::u2, format::bfyx})));
+    topo.add(data("scale", engine.allocate_memory({ov::PartialShape{N, G}, data_types::f16, format::bfyx})));
+    auto fc_prim = fully_connected("fc", input_info("input"), "weights", "", "scale", "", data_types::f16, 2, 2, true, true, true);
+    fc_prim.decompression_zero_point_scalar = 1;
+    topo.add(fc_prim);
 
-    const int64_t M = std::get<0>(GetParam());
-    const int64_t epi_rows = std::get<1>(GetParam());
-    const int64_t K = 320, N = 512;
-    tests::random_generator rg(GET_SUITE_NAME);
-    const auto w = make_weights(engine, K, N, ZpKind::tensor_u8, rg, static_cast<uint32_t>(M * 131 + epi_rows));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topo, config, false, true);
+    auto& fc = prog->get_node("fc").as<fully_connected>();
+    fc.get_output_layouts(false);
 
-    topology topo(input_layout("input", layout{ov::PartialShape{-1, K}, data_types::f16, format::bfyx}));
-    topo.add(input_layout("epi", layout{ov::PartialShape{-1, N}, data_types::f16, format::bfyx}));
-    add_weights(topo, "", w);
-    topo.add(make_fc("fc_prim", "input", "", ZpKind::tensor_u8, data_types::f16, 2, w.zp_scalar));
-    topo.add(eltwise("post", input_info("fc_prim"), input_info("epi"), eltwise_mode::sum));
-    topo.add(reorder("out", input_info("post"), format::bfyx, data_types::f16));
-    network::ptr net = get_network(engine, topo, woq_config(engine, {}), get_test_stream_ptr(), false);
-
-    const auto a = random_activations(static_cast<size_t>(M * K), static_cast<uint64_t>(M * 1000003 + K));
-    const auto t_half = random_activations(static_cast<size_t>(epi_rows * N), static_cast<uint64_t>(epi_rows * 7919 + N));
-    std::vector<float> t(t_half.size());
-    for (size_t i = 0; i < t.size(); i++)
-        t[i] = static_cast<float>(t_half[i]);
-
-    auto input_mem = engine.allocate_memory({ov::PartialShape{M, K}, data_types::f16, format::bfyx});
-    set_values(input_mem, a);
-    auto epi_mem = engine.allocate_memory({ov::PartialShape{epi_rows, N}, data_types::f16, format::bfyx});
-    set_values(epi_mem, t_half);
-    net->set_input_data("input", input_mem);
-    net->set_input_data("epi", epi_mem);
-    auto outputs = net->execute();
-
-    bool cm_ran = false;
-    for (const auto& id : net->get_executed_primitive_ids()) {
-        const auto impl = net->get_primitive(id)->get_impl();
-        cm_ran |= impl && impl->get_kernel_name().find("woq_u2") != std::string::npos;
-    }
-    EXPECT_EQ(cm_ran, epi_rows == M) << "M = " << M << ", operand rows = " << epi_rows;
-
-    HostEpi he;
-    he.kind = Epi::add;
-    he.row = epi_rows == 1;
-    he.t = &t;
-    check_rows(outputs.at("out").get_memory(), M, a, all_rows(M), w, false, he);
+    EXPECT_FALSE(defer_u2_decompression_reorder(fc));
+    program_wrapper::apply_opt_pass<prepare_quantization>(*prog);
+    EXPECT_TRUE(fc.get_dependency(2).is_type<reorder>());
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke,
-                         fully_connected_cm_woq_u2_epi_rows,
-                         ::testing::Values(std::make_tuple(int64_t{5}, int64_t{5}),
-                                           std::make_tuple(int64_t{1}, int64_t{1}),
-                                           std::make_tuple(int64_t{5}, int64_t{1}),
-                                           std::make_tuple(int64_t{40}, int64_t{1})),
-                         [](const testing::TestParamInfo<std::tuple<int64_t, int64_t>>& info) {
-                             return "M" + std::to_string(std::get<0>(info.param)) + "_operand_rows" + std::to_string(std::get<1>(info.param));
-                         });
+// Dynamic M and a dynamic operand pass the static epilogue check (both dims are merely "dynamic"), but at run time the
+// operand can have fewer rows than the output: an eltwise broadcast the kernels do not do, they would read past its
+// single row. support_shapes() re-runs the check on the concrete layouts, so this is the rule it relies on.
+TEST(fully_connected_cm_woq_u2_epi_operand, runtime_row_broadcast_is_rejected) {
+    constexpr int64_t N = 512;
+    auto f16 = [](const ov::PartialShape& s) {
+        return layout{s, data_types::f16, format::bfyx};
+    };
+    using ov::intel_gpu::cm::woq_u2_check_epi_operand;
+
+    // Why a runtime check is needed at all: dynamic against dynamic passes.
+    EXPECT_TRUE(woq_u2_check_epi_operand(f16({-1, N}), f16({-1, N}), N).empty());
+
+    // Same rows: runs on CM.
+    EXPECT_TRUE(woq_u2_check_epi_operand(f16({5, N}), f16({5, N}), N).empty());
+    EXPECT_TRUE(woq_u2_check_epi_operand(f16({2, 4, N}), f16({2, 4, N}), N).empty());
+    // A single output row may take a single-row operand (bias-like).
+    EXPECT_TRUE(woq_u2_check_epi_operand(f16({1, N}), f16({1, N}), N).empty());
+
+    // Fewer operand rows than output rows would be broadcast.
+    EXPECT_FALSE(woq_u2_check_epi_operand(f16({1, N}), f16({5, N}), N).empty());
+    EXPECT_FALSE(woq_u2_check_epi_operand(f16({1, N}), f16({40, N}), N).empty());
+    EXPECT_FALSE(woq_u2_check_epi_operand(f16({3, N}), f16({5, N}), N).empty());
+    EXPECT_FALSE(woq_u2_check_epi_operand(f16({1, 1, N}), f16({2, 4, N}), N).empty());
+    // Wrong width.
+    EXPECT_FALSE(woq_u2_check_epi_operand(f16({5, N / 2}), f16({5, N}), N).empty());
+}
 
 // ---- Native group-major (GNK) weights [G, N, 64] ----
 
