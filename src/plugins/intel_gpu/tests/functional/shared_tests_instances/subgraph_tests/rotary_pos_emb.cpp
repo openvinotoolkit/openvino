@@ -64,9 +64,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestLlama2,
 
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestRotateHalfWithoutTranspose,
                          RoPETestRotateHalfWithoutTranspose,
-                         ::testing::Combine(
-                            ::testing::Values(ov::element::f32),
-                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+          ::testing::Values(rope_params_rotate_half{ov::element::f32, ov::test::utils::DEVICE_GPU, false},
+                  rope_params_rotate_half{ov::element::f16, ov::test::utils::DEVICE_GPU, true}),
                          RoPETestRotateHalfWithoutTranspose::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,

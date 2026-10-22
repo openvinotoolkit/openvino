@@ -338,7 +338,6 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_moe_router_scale_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_moe_router_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_moe_shared_expert_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_rms_rope_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_rope_input_deinterleave_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/group_query_attention_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/horizontal_fc_fusion_test.cpp

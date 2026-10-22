@@ -14,6 +14,7 @@ using rope_params_2 = std::tuple<bool, ov::element::Type, std::string>;
 using rope_params_qwenvit = std::tuple<ov::element::Type, std::string, std::string>;
 using rope_params_chatglm = std::tuple<ov::element::Type, std::string, bool>;
 using rope_params_cohere = std::tuple<ov::element::Type, std::string, bool>;
+using rope_params_rotate_half = std::tuple<ov::element::Type, std::string, bool>;
 
 class RoPETestFlux : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
 private:
@@ -108,7 +109,8 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<rope_params_2>& obj);
 };
 
-class RoPETestRotateHalfWithoutTranspose : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
+class RoPETestRotateHalfWithoutTranspose : public SubgraphBaseTest,
+                                         public testing::WithParamInterface<rope_params_rotate_half> {
 private:
     ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1);
     ov::OutputVector makeCosSinCache(int max_position_embeddings, int rotary_ndims);
@@ -123,7 +125,7 @@ protected:
     void SetUp() override;
 
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<rope_params>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<rope_params_rotate_half>& obj);
 };
 
 class RoPETestLlama2Slice : public RoPETestLlama2StridedSlice {
