@@ -638,9 +638,10 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
         o_iter = output_chains.emplace(id, build_output_chain(p_inst, is_remote)).first;
     }
 
+    OPENVINO_ASSERT(mem_new != nullptr, "[GPU] Cannot set null output memory for ", id);
     if (is_remote && p_inst->is_dynamic()) {
         const auto bound_it = _bound_user_output_memory.find(id);
-        if (bound_it == _bound_user_output_memory.end()) {
+        if (bound_it == _bound_user_output_memory.end() || !bound_it->second) {
             invalidate_ext_block_compute_nodes(id);
         } else if (!eng.is_the_same_buffer(*bound_it->second, *mem_new) || bound_it->second->size() != mem_new->size()) {
             release_user_output_memory(id);
