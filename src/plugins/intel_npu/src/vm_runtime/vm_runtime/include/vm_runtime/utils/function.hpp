@@ -8,7 +8,7 @@
 #include "npu_bytecode_utils/managed_vector.hpp"
 #include "npu_bytecode_utils/span.hpp"
 #include "npu_bytecode_utils/type_section.hpp"
-#include "vm_export.hpp"
+#include "vm_runtime/vm_export.hpp"
 
 #include <cstddef>
 #include <cstdint>

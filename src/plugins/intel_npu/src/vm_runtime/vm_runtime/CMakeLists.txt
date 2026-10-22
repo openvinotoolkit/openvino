@@ -23,6 +23,7 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 add_library(${TARGET_NAME} SHARED ${SOURCES})
 add_library(openvino::intel_npu_vm_runtime ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME intel_npu_vm_runtime)
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 # To fix BinSkim scan issues in the CID package test nightly job
 # Limit LTCG to this library to avoid changing linker flags for other targets in the directory scope.
@@ -61,7 +62,7 @@ endif()
 
 target_include_directories(${TARGET_NAME}
     PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
 # TODO

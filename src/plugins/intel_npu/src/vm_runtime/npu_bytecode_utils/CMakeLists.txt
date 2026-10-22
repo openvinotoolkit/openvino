@@ -22,6 +22,7 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 add_library(${TARGET_NAME} STATIC ${SOURCES})
 add_library(openvino::intel_npu_bytecode_utils ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME intel_npu_bytecode_utils)
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT ENABLE_DEVELOPER_BUILD)
     target_compile_options(${TARGET_NAME} PRIVATE -DBUILD_LOG_LEVEL=4)
@@ -36,7 +37,7 @@ target_link_libraries(${TARGET_NAME}
 
 target_include_directories(${TARGET_NAME}
     PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
 # Prevents warning about unused parameters in NPU plugin logger header:

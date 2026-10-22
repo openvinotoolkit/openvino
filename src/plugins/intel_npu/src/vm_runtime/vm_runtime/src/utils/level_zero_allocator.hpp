@@ -5,7 +5,7 @@
 #pragma once
 
 #include "allocator_core.hpp"
-#include "vm_export.hpp"
+#include "vm_runtime/vm_export.hpp"
 
 #include <intel_npu/utils/utils.hpp>
 

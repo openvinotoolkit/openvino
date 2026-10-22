@@ -16,7 +16,7 @@
 #include "utils/buffer.hpp"
 #include "utils/buffer_metadata.hpp"
 #include "utils/call_frame.hpp"
-#include "utils/function.hpp"
+#include "vm_runtime/utils/function.hpp"
 #include "utils/host_allocator.hpp"
 #include "utils/kernel_execution.hpp"
 #include "utils/level_zero_allocator.hpp"

@@ -5,7 +5,7 @@
 #include "parameters.hpp"
 #include "buffer.hpp"
 #include "buffer_metadata.hpp"
-#include "function.hpp"
+#include "vm_runtime/utils/function.hpp"
 #include "math.hpp"
 #include "npu_bytecode_utils/logger.hpp"
 #include "npu_bytecode_utils/print_utils.hpp"

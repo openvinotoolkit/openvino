@@ -3,7 +3,7 @@
 //
 
 #include "call_frame.hpp"
-#include "function.hpp"
+#include "vm_runtime/utils/function.hpp"
 #include "npu_bytecode_utils/except.hpp"
 
 #include <cstdint>

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "function.hpp"
+#include "vm_runtime/utils/function.hpp"
 #include "npu_bytecode_utils/bytecode_reader.hpp"
 #include "npu_bytecode_utils/instructions.hpp"
 #include "npu_bytecode_utils/logger.hpp"

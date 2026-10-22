@@ -6,7 +6,7 @@
 
 #include "buffer.hpp"
 #include "buffer_metadata.hpp"
-#include "function.hpp"
+#include "vm_runtime/utils/function.hpp"
 #include "vm_runtime/npu_vm_runtime.hpp"
 
 #include <cstdint>

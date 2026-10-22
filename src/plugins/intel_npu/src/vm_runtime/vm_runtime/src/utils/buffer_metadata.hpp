@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "vm_export.hpp"
+#include "vm_runtime/vm_export.hpp"
 
 #include <cstdint>
 #include <optional>
