@@ -389,6 +389,12 @@ bool equivalent_branch_nodes(const NodePtr& lhs,
         if (!is_constant(lhs) || !is_constant(rhs) || !constants_equal(lhs, rhs)) {
             return false;
         }
+        const auto lhs_it = lhs_to_rhs.find(lhs.get());
+        const auto rhs_it = rhs_to_lhs.find(rhs.get());
+        if (lhs_it != lhs_to_rhs.end() || rhs_it != rhs_to_lhs.end()) {
+            return lhs_it != lhs_to_rhs.end() && rhs_it != rhs_to_lhs.end() && lhs_it->second == rhs &&
+                   rhs_it->second == lhs;
+        }
         lhs_to_rhs.emplace(lhs.get(), rhs);
         rhs_to_lhs.emplace(rhs.get(), lhs);
         return true;
