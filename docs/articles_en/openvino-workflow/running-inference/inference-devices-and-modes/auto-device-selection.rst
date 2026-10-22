@@ -201,14 +201,16 @@ the following setup options:
 |                                              |                                                                    |
 |                                              | ``false``                                                          |
 |                                              |                                                                    |
-|                                              | Enables compiling the model to all candidate devices in the        |
-|                                              | background (in addition to the actual and CPU helper devices)      |
-|                                              | to populate cache blobs for faster subsequent loading. Only        |
-|                                              | takes effect when a cache path (``ov::cache_path``) is             |
-|                                              | configured.                                                        |
+|                                              | Compiles the model to the remaining candidate devices in the       |
+|                                              | background, after the actual device is ready and the CPU helper is |
+|                                              | released, to populate cache blobs for faster device switching      |
+|                                              | later. Devices whose cache blob already exists are skipped.        |
 |                                              |                                                                    |
-|                                              | The peak memory usage can be approximately three times the model   |
-|                                              | size if ``ov::intel_auto::enable_startup_fallback`` is ``true``    |
+|                                              | Requires ``ov::cache_dir`` or ``ov::cache_path``; otherwise        |
+|                                              | compiling the model throws an exception.                           |
+|                                              |                                                                    |
+|                                              | At most two compiled models are held at the same time, so the peak |
+|                                              | memory usage does not exceed twice the compiled model size.        |
 |                                              |                                                                    |
 |                                              | The default value is ``false``.                                    |
 +----------------------------------------------+--------------------------------------------------------------------+

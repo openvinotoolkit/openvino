@@ -7,6 +7,7 @@
 
 #include "schedule.hpp"
 #include "async_infer_request.hpp"
+#include "cache_warmup.hpp"
 
 namespace ov {
 namespace auto_plugin {
@@ -31,16 +32,8 @@ private:
     SoCompiledModel wait_first_compiled_model_ready() override;
     void try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) override;
     bool select_other_device(const std::string& cur_dev_name) override;
-    // Compile the model to the remaining candidate devices (excluding CPU and the actual
-    // device) purely to populate the cache blobs, then release the compiled models.
-    void compile_for_all_other_devices_for_cache();
-    // True if ov::cache_dir or ov::cache_path is configured for the given device.
-    bool is_cache_configured(const DeviceInformation& device_info) const;
-    std::shared_ptr<ov::threading::IStreamsExecutor>                     m_precompile_executor;
-    // Per-device pre-compile completion signal; lets a foreground compile wait instead of racing it.
-    std::mutex                                                           m_precompile_mutex;
-    std::map<std::string, std::promise<void>>                            m_precompile_promises;
-    std::map<std::string, std::shared_future<void>>                      m_precompile_futures;
+    // Null unless ov::intel_auto::compile_for_all is enabled; set before any background task starts.
+    std::shared_ptr<CacheWarmup>                                         m_cache_warmup;
     size_t                                                               m_cpuhelp_infer_count = 0;
     double                                                               m_cpuhelp_fps = 0.0;
     mutable std::once_flag                                               m_oc;

@@ -25,18 +25,23 @@ ov::auto_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& 
       m_context(schedule_context),
       m_scheduler(scheduler) {
     m_inputs_outputs_from_hardware = (model == nullptr);
+    if (m_inputs_outputs_from_hardware) {
+        std::lock_guard<std::mutex> lock(m_context->m_mutex);
+        if (m_context->m_hw_compiled_model) {
+            m_hw_inputs = m_context->m_hw_compiled_model->inputs();
+            m_hw_outputs = m_context->m_hw_compiled_model->outputs();
+        } else {
+            m_inputs_outputs_from_hardware = false;
+        }
+    }
 }
 
 const std::vector<ov::Output<const ov::Node>>& ov::auto_plugin::CompiledModel::outputs() const {
-    if (m_inputs_outputs_from_hardware && m_context->m_hw_compiled_model)
-        return m_context->m_hw_compiled_model->outputs();
-    return ov::ICompiledModel::outputs();
+    return m_inputs_outputs_from_hardware ? m_hw_outputs : ov::ICompiledModel::outputs();
 }
 
 const std::vector<ov::Output<const ov::Node>>& ov::auto_plugin::CompiledModel::inputs() const {
-    if (m_inputs_outputs_from_hardware && m_context->m_hw_compiled_model)
-        return m_context->m_hw_compiled_model->inputs();
-    return ov::ICompiledModel::inputs();
+    return m_inputs_outputs_from_hardware ? m_hw_inputs : ov::ICompiledModel::inputs();
 }
 
 ov::auto_plugin::ISyncInferPtr ov::auto_plugin::CompiledModel::create_sync_infer_request() const {
