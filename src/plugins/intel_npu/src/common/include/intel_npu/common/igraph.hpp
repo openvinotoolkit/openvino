@@ -13,13 +13,14 @@
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
+#include "openvino/runtime/hsm_writer.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
 
-enum class BlobType : uint8_t { ELF, BYTECODE };
+enum class BlobType : uint8_t { ELF = 0, BYTECODE = 1 };
 
 enum class GraphKind : uint8_t { Weightful, Weightless, Dynamic };
 
@@ -40,14 +41,12 @@ public:
     IGraph() = default;
 
     /**
-     * @brief Writes the compiled model along with some metadata to the provided stream. The content of the stream can
-     * later be used for importing the model.
+     * @brief Writes the compiler main schedule to the provided stream.
      *
      * @param stream Where the content is placed
-     * @return A pair made of the size of the main binary object and an optional variable. The optional variable
-     * constitues the size of each init binary object if weights separation is enabled.
+     * @return The total size written into the stream
      */
-    virtual std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const;
+    virtual uint64_t export_main_blob(const ov::runtime::hsm::SectionSink& sink) const = 0;
 
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const;
 

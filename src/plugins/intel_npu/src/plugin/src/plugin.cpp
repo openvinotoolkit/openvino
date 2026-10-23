@@ -7,8 +7,14 @@
 #include <fstream>
 #include <numeric>
 
+#include "batch_size_section.hpp"
 #include "blob_format_importers.hpp"
 #include "compiled_model.hpp"
+#include "compiler_schedules_sections.hpp"
+#include "compiler_version_section.hpp"
+#include "driver_compiler_adapter.hpp"
+#include "intel_npu/common/blob_reader.hpp"
+#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
@@ -17,6 +23,7 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "io_layouts_section.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/gqa_compiled_model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -35,12 +42,12 @@ using namespace intel_npu;
 constexpr std::string_view NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
 constexpr std::string_view NO_BACKEND_MESSAGE = "No backend registered during model import";
 constexpr std::string_view NPUW_MODEL_IMPORTED_MESSAGE = "Finished importing the NPUW compiled model";
-constexpr std::string_view FAILED_IMPORT_MODEL_PREFACE = "Could not import the model:";
+constexpr std::string_view FAILED_IMPORT_MODEL_PREFACE = "Could not import the model: ";
 constexpr std::string_view IMPORT_MODEL_UNEXPECTED_FAILURE_MESSAGE = "Unexpected exception while importing the model";
 
 /**
- * @brief Just checks if there is any "WeightlessCacheAttribute" present in the model. In the negative case, an error is
- * thrown. The weights separation flow in its current state cannot work without this attribuite.
+ * @brief Just checks if there is any "WeightlessCacheAttribute" present in the model. In the negative case, an
+ * error is thrown. The weights separation flow in its current state cannot work without this attribuite.
  */
 void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov::Model>& model) {
     if (!model) {
@@ -155,10 +162,9 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(ENABLE_CPU_PINNING);
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    // NPUW properties are requested by OV Core during caching and
-    // have no effect on the NPU plugin. But we still need to enable
-    // those for OV Core to query. Note: do this last to not filter
-    // them out. register npuw caching properties
+    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still
+    // need to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching
+    // properties
     for_each_exposed_npuw_option([&](auto tag) {
         using Opt = typename decltype(tag)::type;
         REGISTER_OPTION(Opt);
@@ -244,6 +250,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
     update_global_properties(properties);
 
+    // Created at this stage to allow functions to register blob sections on the fly
+    auto blobSectionsRegistry = std::make_shared<BlobSectionsRegistry>();
+
     // Before going any further: if
     // ... 1 - NPUW mode is activated
     // ... 2 - this request is NOT coming from NPUW,
@@ -311,9 +320,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // Read the default or explicit compilation mode so automatic and user-selected HostCompile take the same path.
     // HostCompile dynamic models retain their dynamic dimensions for the VM runtime instead of plugin debatching.
-    const bool useDynamicGraphForDynamicModel = model->is_dynamic() &&
-                                                compilerType == ov::intel_npu::CompilerType::PLUGIN &&
-                                                localConfig.get<COMPILATION_MODE>().find("HostCompile_Interpreter") == 0;
+    const bool useDynamicGraphForDynamicModel =
+        model->is_dynamic() && compilerType == ov::intel_npu::CompilerType::PLUGIN &&
+        localConfig.get<COMPILATION_MODE>().find("HostCompile_Interpreter") == 0;
 
     // Handle batch mode configuration
     std::optional<ov::Dimension> originalBatch = std::nullopt;
@@ -444,15 +453,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     adapterDesc.bypassCache = !localConfig.get<CACHE_DIR>().empty() || localConfig.get<BYPASS_UMD_CACHING>();
     // Request secure compilation if blob encryption is requested
     adapterDesc.secureCompile = localConfig.has(ov::cache_encryption_callbacks.name()) &&
-                               localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
+                                localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
 
-    auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
+    auto compileWithConfig = [&](auto&& modelToCompile, const auto& config, const auto& blobSectionsRegistry) {
         if (!localConfig.get<ENABLE_WEIGHTLESS>()) {
-            return compiler->compile(modelToCompile, config, adapterDesc);
+            return compiler->compile(modelToCompile, config, adapterDesc, blobSectionsRegistry);
         }
 
         check_weightless_cache_attribute_occurrence(model);
-        return compiler->compileWS(std::move(modelToCompile), config, adapterDesc);
+        return compiler->compileWS(std::move(modelToCompile), config, adapterDesc, blobSectionsRegistry);
     };
 
     try {
@@ -492,7 +501,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             compilerConfig.update(ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT);
         }
 
-        graph = compileWithConfig(std::move(modelToCompile), compilerConfig);
+        graph = compileWithConfig(std::move(modelToCompile), compilerConfig, blobSectionsRegistry);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -507,6 +516,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             // Initial batch setup for static cases
             graph->set_batch_size(batch.value());
         }
+
+        blobSectionsRegistry->register_section(std::make_shared<BatchSizeSection>(batch.value(), _logger.level()));
     }
 
     if (localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
@@ -522,14 +533,33 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                         shared_from_this(),
                                                         device,
                                                         graph,
+                                                        blobSectionsRegistry,
                                                         localConfig,
-                                                        unknownProperties,
-                                                        batch);
+                                                        unknownProperties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
         OPENVINO_THROW("Unexpected exception thrown upon attempting to create the \"CompiledModel\" object");
     }
+
+    blobSectionsRegistry->register_section(
+        std::make_shared<CompilerVersionSection>(localConfig.get<COMPILER_VERSION>(), _logger.level()));
+
+    // Registed the IO layouts section
+    std::vector<ov::Layout> inputLayouts;
+    std::vector<ov::Layout> outputLayouts;
+
+    for (const ov::Output<const ov::Node>& nodeOutput : compiledModel->inputs()) {
+        inputLayouts.push_back(
+            std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
+    }
+    for (const ov::Output<const ov::Node>& nodeOutput : compiledModel->outputs()) {
+        outputLayouts.push_back(
+            std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+    }
+
+    blobSectionsRegistry->register_section(
+        std::make_shared<IOLayoutsSection>(std::move(inputLayouts), std::move(outputLayouts), _logger.level()));
 
     ++_compiledModelLoadCounter;
     OV_ITT_TASK_SKIP(PLUGIN_COMPILE_MODEL);
@@ -574,8 +604,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         return compiledModel;
     }
 
-    BlobSource blobSource(stream, _logger.level());
+    reader.has_value() ? reader : ;
     try {
+        const auto reader = ov::runtime::hsm::Reader::open(stream);
+        if (reader.has_value()) {
+            return import_model(reader, localProperties);
+        }
+
+        BlobSource blobSource(stream, _logger.level());
         return import_model(blobSource, localProperties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(FAILED_IMPORT_MODEL_PREFACE, ex.what());
@@ -602,8 +638,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         return compiledModel;
     }
 
-    BlobSource blobSource(compiledBlob, _logger.level());
     try {
+        const auto reader = ov::runtime::hsm::Reader::open(stream);
+        if (reader.has_value()) {
+            return import_model(reader, localProperties);
+        }
+
+        BlobSource blobSource(compiledBlob, _logger.level());
         return import_model(blobSource, localProperties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(FAILED_IMPORT_MODEL_PREFACE, ex.what());
@@ -612,7 +653,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     }
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource, ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(
+    const std::variant<std::reference_wrapper<ov::runtime::hsm::Reader>, std::reference_wrapper<BlobSource>>&
+        readerOrSource,
+    ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(BlobSource)");
     _logger.trace("Importing a compiled model using a BlobSource object");
 
@@ -623,9 +667,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
         _propertiesManager->getMergedConfigAndUnknownProperties(properties, ConfigMergeMode::Import);
 
     std::unique_ptr<IBlobFormatImporter> blobFormatImporter = blob_format_importer_factory::create(
-        blobSource,
+        readerOrSource,
         runtimeConfig.get<DISABLE_VERSION_CHECK>() ? true : runtimeConfig.get<IMPORT_RAW_BLOB>(),
         runtimeConfig.has<MODEL_PTR>() ? runtimeConfig.get<MODEL_PTR>().lock() : nullptr,
+        _backend,
+        _compilerOptionSupportHelper,
         runtimeConfig);
 
     std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, runtimeConfig.get<DEVICE_ID>());
@@ -636,8 +682,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
     }
 
     const std::shared_ptr<IGraph> graph =
-        blobFormatImporter->create_graph(_backend,
-                                         "net" + std::to_string(_compiledModelLoadCounter++),
+        blobFormatImporter->create_graph("net" + std::to_string(_compiledModelLoadCounter++),
                                          device->getName(),
                                          get_core());
 
@@ -645,9 +690,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
                                            shared_from_this(),
                                            device,
                                            graph,
+                                           blobFormatImporter->get_blob_sections_registry(),
                                            blobFormatImporter->get_config(),
-                                           unknownProperties,
-                                           graph->get_batch_size());
+                                           unknownProperties);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,

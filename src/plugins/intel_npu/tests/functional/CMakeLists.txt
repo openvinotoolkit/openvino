@@ -42,12 +42,14 @@ ov_add_test_target(
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/async_infer_request.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiled_model.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiled_model_property_manager.cpp"
-  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/blob_source.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_option_support_helper.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/plugin_property_manager.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/runtime_requirements_validation.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_schedule_instance_evaluator.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/remote_context.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/transformations.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/io_layouts_section.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/executor.cpp"
   LINK_LIBRARIES
   ${OPTIONAL_FUNC_TESTS_LIBS}
