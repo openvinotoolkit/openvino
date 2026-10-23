@@ -55,7 +55,6 @@ private:
                                                 int ndims);
 
 protected:
-    ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1);
     ov::OutputVector makeCosSinCache(int max_position_embeddings, int rotary_ndims);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
@@ -72,7 +71,6 @@ private:
                                                  ov::element::Type element_type);
 
 protected:
-    ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
 
@@ -110,7 +108,6 @@ public:
 
 class RoPETestRotateHalfWithoutTranspose : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
 private:
-    ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1);
     ov::OutputVector makeCosSinCache(int max_position_embeddings, int rotary_ndims);
     std::shared_ptr<ov::Model> buildROPE_RotateHalfWithoutTranspose(int batch,
                                                                     int seq_length,
@@ -215,7 +212,6 @@ private:
                                                  ov::element::Type element_type);
 
 protected:
-    ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
 

@@ -43,6 +43,20 @@ using namespace ov;
 namespace ov {
 namespace test {
 
+namespace {
+
+ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1) {
+    auto tensor = ov::Tensor(ov::element::i32, shape);
+    auto* ptr = static_cast<int32_t*>(tensor.data());
+    for (size_t i = 0; i < tensor.get_size(); i++) {
+        ptr[i] = start;
+        start += step;
+    }
+    return tensor;
+}
+
+}  // namespace
+
 std::shared_ptr<ov::Model> RoPETestFlux::build_rope_flux(int batch,
                                                          int seq_length,
                                                          int num_head,
@@ -303,16 +317,6 @@ std::shared_ptr<ov::Model> RoPETestLlama2StridedSlice::buildROPE_Llama2(int batc
     return std::make_shared<ov::Model>(ov::OutputVector{add_Add}, ov::ParameterVector{input, pos_id_end, pos_ids});
 }
 
-ov::Tensor RoPETestLlama2StridedSlice::create_i32_tensor(const ov::Shape& shape, int start, int step) {
-    auto tensor = ov::Tensor(ov::element::i32, shape);
-    auto* ptr = static_cast<int32_t*>(tensor.data());
-    for (size_t i = 0; i < tensor.get_size(); i++) {
-        ptr[i] = start;
-        start += step;
-    }
-    return tensor;
-}
-
 void RoPETestLlama2StridedSlice::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     const auto& funcInputs = function->inputs();
 
@@ -451,16 +455,6 @@ std::shared_ptr<ov::Model> RoPETestChatGLMStridedSlice::buildROPE_ChatGLM(int ba
     auto cat_Concat_425 = makeOP<opset1::Concat>({flatten_Reshape_421, slice_Slice_363}, {{"axis", -1}});
     return std::make_shared<ov::Model>(ov::OutputVector{cat_Concat_425},
                                        ov::ParameterVector{input, cos_sin_cache, position_ids});
-}
-
-ov::Tensor RoPETestChatGLMStridedSlice::create_i32_tensor(const ov::Shape& shape, int start, int step) {
-    auto tensor = ov::Tensor(ov::element::i32, shape);
-    auto* ptr = static_cast<int32_t*>(tensor.data());
-    for (size_t i = 0; i < tensor.get_size(); i++) {
-        ptr[i] = start;
-        start += step;
-    }
-    return tensor;
 }
 
 void RoPETestChatGLMStridedSlice::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -833,16 +827,6 @@ std::shared_ptr<ov::Node> makeRotateHalf(const ov::Output<ov::Node>& rope_input,
     return makeOP<ov::op::v1::Add>({mul_Multiply, mul_Multiply_463}, {{"auto_broadcast", "numpy"}});
 }
 
-ov::Tensor make_i32_tensor(const ov::Shape& shape, int start, int step = 1) {
-    auto tensor = ov::Tensor(ov::element::i32, shape);
-    auto* ptr = static_cast<int32_t*>(tensor.data());
-    for (size_t i = 0; i < tensor.get_size(); i++) {
-        ptr[i] = start;
-        start += step;
-    }
-    return tensor;
-}
-
 }  // namespace
 
 std::shared_ptr<ov::Model> RoPETestRotateHalfWithoutTranspose::buildROPE_RotateHalfWithoutTranspose(
@@ -926,10 +910,6 @@ std::shared_ptr<ov::Model> RoPETestRotateHalfRMS::buildROPE_RotateHalfRMS(int ba
     return std::make_shared<ov::Model>(ov::OutputVector{add_Add}, ov::ParameterVector{input, pos_ids});
 }
 
-ov::Tensor RoPETestRotateHalfWithoutTranspose::create_i32_tensor(const ov::Shape& shape, int start, int step) {
-    return make_i32_tensor(shape, start, step);
-}
-
 void RoPETestRotateHalfWithoutTranspose::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     const auto& funcInputs = function->inputs();
 
@@ -986,7 +966,7 @@ void RoPETestRotateHalfRMS::generate_inputs(const std::vector<ov::Shape>& target
     in_data.range = 2;
     in_data.resolution = 32768;
     ov::Tensor t_input = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), input_shape, in_data);
-    ov::Tensor t_position_ids = make_i32_tensor(ov::Shape({1, input_shape[2]}), position_id_start);
+    ov::Tensor t_position_ids = create_i32_tensor(ov::Shape({1, input_shape[2]}), position_id_start);
 
     inputs.clear();
     inputs.insert({funcInputs[0].get_node_shared_ptr(), t_input});
@@ -1398,16 +1378,6 @@ std::shared_ptr<ov::Model> RoPETestChatGLM2DRoPEStridedSlice::buildROPE_ChatGLM(
     auto cat_Concat_425 = makeOP<opset1::Concat>({flatten_Reshape_421, slice_Slice_363}, {{"axis", -1}});
     return std::make_shared<ov::Model>(ov::OutputVector{cat_Concat_425},
                                        ov::ParameterVector{input, cos_sin_cache, position_ids});
-}
-
-ov::Tensor RoPETestChatGLM2DRoPEStridedSlice::create_i32_tensor(const ov::Shape& shape, int start, int step) {
-    auto tensor = ov::Tensor(ov::element::i32, shape);
-    auto* ptr = static_cast<int32_t*>(tensor.data());
-    for (size_t i = 0; i < tensor.get_size(); i++) {
-        ptr[i] = start;
-        start += step;
-    }
-    return tensor;
 }
 
 void RoPETestChatGLM2DRoPEStridedSlice::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
