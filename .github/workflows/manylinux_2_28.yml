@@ -71,7 +71,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_test\":{\"ubuntu_22_04_x64_py313\":\"mock\"},\"ov_test\":{\"ubuntu_22_04_x64\":\"mock\"},\"ov_test\":{\"ubuntu_22_04_x64_py314\":\"mock\"},\"ov_test\":{\"ubuntu_24_04_x64\":\"mock\"},\"ov_test\":{\"fedora_33\":\"mock\"},\"ov_build\":{\"manylinux_2_28\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_test\":{\"ubuntu_22_04_x64_py313\":\"mock\"},\"ov_test\":{\"ubuntu_22_04_x64\":\"mock\"},\"ov_test\":{\"ubuntu_22_04_x64_py314\":\"mock\"},\"ov_test\":{\"ubuntu_22_04_x64_py315\":\"mock\"},\"ov_test\":{\"ubuntu_22_04_x64_py315t\":\"mock\"},\"ov_test\":{\"ubuntu_24_04_x64\":\"mock\"},\"ov_test\":{\"fedora_33\":\"mock\"},\"ov_build\":{\"manylinux_2_28\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -88,6 +88,8 @@ jobs:
             ov_test/ubuntu_22_04_x64
             ov_test/ubuntu_22_04_x64_py314
             ov_test/ubuntu_22_04_x64_py314t
+            ov_test/ubuntu_22_04_x64_py315
+            ov_test/ubuntu_22_04_x64_py315t
             ov_test/ubuntu_24_04_x64
             ov_test/fedora_33
           registry: 'openvinogithubactions.azurecr.io'
@@ -187,23 +189,23 @@ jobs:
         env:
           CXXFLAGS: "-Wno-dangling-reference" # bug in gcc-14: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=107532
 
-      - name: Build Python API (Python 3.11-3.14t)
+      - name: Build Python API (Python 3.11-3.15t)
         run: |
-          SUPPORTED_PYTHON_VERSIONS=("3.11" "3.12" "3.13" "3.14" "3.14t")
+          SUPPORTED_PYTHON_VERSIONS=("3.11" "3.12" "3.13" "3.14" "3.14t" "3.15" "3.15t")
           for PY_VER in "${SUPPORTED_PYTHON_VERSIONS[@]}"; do
 
             py_build_dir=${{ github.workspace }}/build_py${PY_VER}
-            simpler_python_version=$(echo $PY_VER | sed -e 's/\.//g')
+            simpler_python_version=$(echo $PY_VER | sed -e 's/\.//g' -e 's/t$//')
 
-            if [ "$PY_VER" == "3.14t" ]; then
-              python_path=/opt/python/cp314-cp314t/bin/python3
+            if [[ $PY_VER == *t ]]; then
+              python_path=/opt/python/cp${simpler_python_version}-cp${simpler_python_version}t/bin/python3
             else
               python_path=/opt/python/cp${simpler_python_version}-cp${simpler_python_version}/bin/python3
             fi
 
             ${python_path} -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
-            if [[ $PY_VER == "3.14t" ]]; then
+            if [[ $PY_VER == *t ]]; then
               /usr/bin/cmake -DPython3_EXECUTABLE=${python_path} -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DENABLE_GIL_PYTHON_API=OFF -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${py_build_dir}
             else
               /usr/bin/cmake -DPython3_EXECUTABLE=${python_path} -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${py_build_dir}
@@ -315,6 +317,10 @@ jobs:
             image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_py314 }}
           - python-version: "3.14t"
             image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_py314t }}
+          - python-version: "3.15"
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_py315 }}
+          - python-version: "3.15t"
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_py315t }}
     with:
       runner: 'aks-linux-4-cores-16gb'
       image: ${{ matrix.image }}
