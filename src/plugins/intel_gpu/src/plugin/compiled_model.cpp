@@ -7,8 +7,12 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/core/version.hpp"
+#include "openvino/core/memory_util.hpp"
+#include "openvino/util/memory.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/runtime/engine_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
@@ -16,6 +20,7 @@
 
 #include <sstream>
 #include <sys/types.h>
+#include <vector>
 
 namespace ov::intel_gpu {
 
@@ -51,7 +56,8 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
 CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
-                             const ExecutionConfig& config)
+                             const ExecutionConfig& config,
+                             ov::internal::WeightSharingCtxPtr weightSharingContext)
     : ov::ICompiledModel(model, plugin, context, create_task_executor(plugin, config), nullptr),
       m_context(context),
       m_config(config),
@@ -60,9 +66,11 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
       m_model_name(model->get_friendly_name()),
       m_inputs(ov::ICompiledModel::inputs()),
       m_outputs(ov::ICompiledModel::outputs()),
-      m_loaded_from_cache(false) {
+      m_loaded_from_cache(false),
+      m_weight_sharing_context(std::move(weightSharingContext)) {
     m_runtime_requirements = build_runtime_requirements(m_context->get_engine().get_device_info());
-    auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
+    auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0, m_weight_sharing_context);
+    m_weight_sharing_source_buffers = graph_base->get_weight_sharing_source_buffers();
     for (uint16_t n = 0; n < m_config.get_num_streams(); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
@@ -73,7 +81,8 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
                              const ExecutionConfig& config,
-                             const bool loaded_from_cache)
+                             const bool loaded_from_cache,
+                             ov::internal::WeightSharingCtxPtr weightSharingContext)
     : ov::ICompiledModel(nullptr,
                          plugin,
                          context,
@@ -82,7 +91,8 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_loaded_from_cache(loaded_from_cache) {
+    , m_loaded_from_cache(loaded_from_cache)
+    , m_weight_sharing_context(std::move(weightSharingContext)) {
     // The compiled blob starts (after ov::CacheMode) with a magic-guarded, versioned
     // compatibility descriptor. Any rejection below throws ov::Exception;
     // So the caller (cache layer / OV EP) catches it and recompiles instead of consuming a bad blob.
@@ -188,6 +198,14 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     }
 
     auto graph_base = std::make_shared<Graph>(ib, context, m_config, 0);
+    // Graph serialization already preserves its finalized ExecutionConfig. Propagate resolved
+    // compilation options to the compiled-model config so get_property() reflects the imported graph.
+    const auto kv_cache_precision = graph_base->get_config().get_kv_cache_precision();
+    if (kv_cache_precision != ov::element::dynamic) {
+        m_config.set_user_property({ov::hint::kv_cache_precision(kv_cache_precision)}, OptionVisibility::RELEASE);
+    }
+    const auto group_size = graph_base->get_config().get_dynamic_quantization_group_size();
+    m_config.set_user_property({ov::hint::dynamic_quantization_group_size(group_size)}, OptionVisibility::RELEASE);
     for (uint16_t n = 0; n < m_config.get_num_streams(); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
@@ -273,6 +291,14 @@ void CompiledModel::export_model(std::ostream& model) const {
     }
 
     get_graph(0)->export_model(ob);
+    if (!ob.is_encrypted() && m_config.get_enable_zero_copy_cache_load()) {
+        const auto pad =
+            ov::util::align_padding_size(static_cast<size_t>(ov::util::get_system_page_size()), ob.get_offset());
+        if (pad > 0) {
+            std::vector<uint8_t> zeros(pad, 0);
+            ob << cldnn::make_data(zeros.data(), zeros.size());
+        }
+    }
     ob.flush();
 }
 
@@ -281,13 +307,15 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 }
 
 std::string CompiledModel::build_runtime_requirements(const cldnn::device_info& info) {
-    // v1 GPU compatibility descriptor: meta=<schema>;ov=<major.minor.patch>;desc=[<device props>].
+    // v2 GPU compatibility descriptor: meta=<schema>;ov=<major.minor.patch>;desc=[<device props>].
     // The desc fields are the device properties that invalidate a compiled blob if changed:
-    //   driver (owns the kernel binaries), ip (GFX IP hardware version), eus (execution units).
+    //   rt (compile-time runtime - OCL/ZE store incompatible kernel binaries), driver (owns the
+    //   kernel binaries), ip (GFX IP hardware version), eus (execution units).
     std::ostringstream ss;
     ss << "meta=1.0"
        << ";ov=" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH
-       << ";desc=[driver=" << info.driver_version
+       << ";desc=[rt=" << cldnn::get_runtime_cache_tag()
+       << ";driver=" << info.driver_version
        << ";ip=" << info.gfx_ver.major << "." << static_cast<uint32_t>(info.gfx_ver.minor) << "."
        << static_cast<uint32_t>(info.gfx_ver.revision)
        << ";eus=" << info.execution_units_count << "]";
@@ -352,8 +380,9 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
     if (name == ov::optimal_number_of_infer_requests) {
         unsigned int nr = m_config.get_num_streams();
-        if (m_config.get_performance_mode() != ov::hint::PerformanceMode::LATENCY)
+        if (m_config.get_performance_mode() != ov::hint::PerformanceMode::LATENCY) {
             nr *= 2;
+        }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {nr};
     }
     if (name == ov::execution_devices) {

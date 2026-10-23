@@ -22,9 +22,10 @@
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "openvino/util/pp.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
-#ifdef __linux__
-# include <dlfcn.h>
+#if defined(__linux__) || defined(__APPLE__)
+#    include <dlfcn.h>
 #endif
 
 #if defined(__unix__) && !defined(__ANDROID__)
@@ -59,10 +60,16 @@ std::string layer_type_name_ID(const std::shared_ptr<ov::Node>& op) {
     return layer_type_name_ID(op.get());
 }
 
+
+ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config, ov::internal::WeightSharingCtxPtr weight_sharing_ctx) :
+    ProgramBuilder(model, engine, config, nullptr, nullptr, false, weight_sharing_ctx) {
+}
+
 ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config,
                                std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                                std::shared_ptr<cldnn::ICompilationContext> compilation_context,
-                               bool is_inner_program)
+                               bool is_inner_program,
+                               ov::internal::WeightSharingCtxPtr weight_sharing_ctx)
     : m_model(model)
     , m_config(config)
     , m_engine(engine)
@@ -70,11 +77,15 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     , m_task_executor(task_executor)
     , m_compilation_context(compilation_context)
     , m_is_inner_program(is_inner_program) {
+    // Remember weight sharing context for the program builder, so that it can be used to share weights across multiple compiled models
+    m_weight_sharing_ctx = weight_sharing_ctx;
+
     // Constant GPU uploads use the engine before cldnn::program ctor syncs config to the engine.
     m_engine.set_enable_large_allocations(m_config.get_enable_large_allocations());
 
-    if (m_task_executor == nullptr)
+    if (m_task_executor == nullptr) {
         m_task_executor = cldnn::program::make_task_executor(m_config);
+    }
 
     if (m_compilation_context == nullptr) {
         m_compilation_context = cldnn::program::make_compilation_context(m_config);
@@ -88,7 +99,7 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
         (LPCSTR)CustomLayer::LoadFromFile,
         &nModule);
     GetModuleFileName(nModule, mpath, sizeof(mpath));
-#elif __linux__
+#elif defined(__linux__) || defined(__APPLE__)
     Dl_info dl_info;
     dladdr(reinterpret_cast<void *>(CustomLayer::LoadFromFile), &dl_info);
     const char* mpath = dl_info.dli_fname;
@@ -108,6 +119,9 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     CustomLayer::LoadFromFile(config_path, m_custom_layers, true);
     auto custom_layers_config = m_config.get_config_file();
     CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
+
+    // Run symbolic shape propagation because GPU plugin relies on this information. (currently, for binary_mul_inplace)
+    ov::pass::SymbolicPropagation().run_on_model(model);
 
     auto ops = model->get_ordered_ops();
 
@@ -186,8 +200,9 @@ bool ProgramBuilder::is_op_supported(const std::shared_ptr<ov::Node>& op) {
         // 2. We also check parameters of each operation, which means we have more
         //    reliable results of QueryNetwork call.
         prepare_build();
-        if (!data_types_are_supported(op.get()))
+        if (!data_types_are_supported(op.get())) {
             return false;
+        }
 
         CreateSingleLayerPrimitive(op);
         cleanup_build();
@@ -320,8 +335,9 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     if (id != prim_id) {
         primitive_ids[prim_id] = prim_id;
 
-        if (!multi_output_case)
+        if (!multi_output_case) {
             prim->origin_op_type_name = prim->type_string();
+        }
     }
 
     if (this->m_config.get_enable_profiling() && should_profile) {
@@ -346,6 +362,10 @@ int64_t ProgramBuilder::get_result_index(const ov::Output<ov::Node>& value) cons
 
 int64_t ProgramBuilder::get_result_index(const ov::Output<const ov::Node>& value) const {
     return m_model->get_result_index(value);
+}
+
+void ProgramBuilder::register_weight_sharing_source_buffer(std::shared_ptr<ov::AlignedBuffer> source) {
+    m_weight_sharing_source_buffers.insert(source);
 }
 
 void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size_t> valid_inputs_count) {

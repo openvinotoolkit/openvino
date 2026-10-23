@@ -13,12 +13,12 @@
 #include "resample_inst.h"
 #include "reshape_inst.h"
 #include "rms_inst.h"
+#include "scaled_dot_product_attention_inst.h"
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
 #include "select_inst.h"
 #include "condition_inst.h"
 #include "strided_slice_inst.h"
-#include <sstream>
 
 #include "gated_mlp_inst.h"
 #include "gemm_inst.h"
@@ -166,10 +166,11 @@ int64_t cldnn::get_convolution_channel_count(const convolution_node& conv_node, 
         auto weights_layout = conv_node.weights().get_output_layout();
         if (weights_layout.is_static()) {
             const auto& shape = weights_layout.get_partial_shape();
-            if (is_input)
+            if (is_input) {
                 channel_count = shape[conv_node.get_groups() > 1 ? 2 : 1].get_length();
-            else
+            } else {
                 channel_count = shape[conv_node.get_groups() > 1 ? 1 : 0].get_length();
+            }
         }
     }
     return channel_count;
@@ -208,7 +209,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         for (auto& fused_op : next.get_fused_primitives()) {
             if (fused_op.is_type<eltwise>()) {
                 auto out_layout = next.get_output_layout();
-                auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(next, fused_op);
+                auto add_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(next, fused_op);
                 if (add_type == add_fusing_type::sum && prev.get_output_layout().format != out_layout.format)
                     return false;
             }
@@ -1162,10 +1163,11 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     }
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
-        if (input_layout.get_partial_shape().size() <= 4)
+        if (input_layout.get_partial_shape().size() <= 4) {
             expected_format = format::b_fs_yx_fsv16;
-        else if (input_layout.get_partial_shape().size() == 5)
+        } else if (input_layout.get_partial_shape().size() == 5) {
             expected_format = format::b_fs_zyx_fsv16;
+        }
         return expected_format;
     }
 
@@ -1178,10 +1180,11 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
         if (use_onednn_impls && i8_u8_input) {
             // It is here because of post operation condition for onednn.
             // Use fsv32 for onednn friendliness.
-            if (node.get_input_layout(0).get_rank() == 4)
+            if (node.get_input_layout(0).get_rank() == 4) {
                 expected_format = cldnn::format::b_fs_yx_fsv32;
-            else
+            } else {
                 expected_format = cldnn::format::b_fs_zyx_fsv32;
+            }
         } else if (input_layout.get_rank() == 4 && input_layout.feature() == 1 &&
                    input_layout.spatial(0) == 1 && weights_layout.spatial(0) == 1 &&
                    weights_layout.spatial(1) >= 256 && activation_only_fusion) {
@@ -1200,10 +1203,11 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
         } else if ((_optimization_attributes.b_fs_zyx_fsv16_network != 0) &&
                 convolution_b_fs_zyx_fsv16_opt(input_layout, output_layout, weights_layout, prim)) {
             if ((output_layout.data_type == data_types::f32 && output_layout.batch() % 16 == 0) ||
-                (output_layout.data_type == data_types::f16 && output_layout.batch() % 32 == 0))
+                (output_layout.data_type == data_types::f16 && output_layout.batch() % 32 == 0)) {
                 expected_format = cldnn::format::bs_fs_zyx_bsv16_fsv16;
-            else
+            } else {
                 expected_format = cldnn::format::b_fs_zyx_fsv16;
+            }
 
         } else if (output_layout.format == format::bfzyx) {
             expected_format = cldnn::format::bfzyx;
@@ -1243,10 +1247,11 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
             expected_format = cldnn::format::bs_fs_yx_bsv16_fsv16;
         } else if (layout_optimizer::convolution_bfyx_opt(output_layout, weights_layout, prim) || _output_size_handling_enabled || node.get_transposed()) {
             {
-                if (output_layout.format == format::b_fs_zyx_fsv16 || output_layout.format == format::bs_fs_zyx_bsv16_fsv16)
+                if (output_layout.format == format::b_fs_zyx_fsv16 || output_layout.format == format::bs_fs_zyx_bsv16_fsv16) {
                     expected_format = cldnn::format::bfzyx;
-                else
+                } else {
                     expected_format = cldnn::format::bfyx;
+                }
             }
         } else {
             expected_format = cldnn::format::yxfb;
@@ -1264,10 +1269,11 @@ format layout_optimizer::get_expected_format(deconvolution_node const& node) {
     auto expected_format = output_layout.format;
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
-        if (input_layout.get_partial_shape().size() <= 4)
+        if (input_layout.get_partial_shape().size() <= 4) {
             expected_format = format::b_fs_yx_fsv16;
-        else if (input_layout.get_partial_shape().size() == 5)
+        } else if (input_layout.get_partial_shape().size() == 5) {
             expected_format = format::b_fs_zyx_fsv16;
+        }
         return expected_format;
     }
 
@@ -1282,10 +1288,11 @@ format layout_optimizer::get_expected_format(deconvolution_node const& node) {
     } else if ((_optimization_attributes.b_fs_zyx_fsv16_network != 0) &&
         deconvolution_b_fs_zyx_fsv16_opt(output_layout, weights_layout, prim)) {
         if ((output_layout.data_type == data_types::f32 && expected_shape[0] % 16 == 0) ||
-            (output_layout.data_type == data_types::f16 && expected_shape[0] % 32 == 0))
+            (output_layout.data_type == data_types::f16 && expected_shape[0] % 32 == 0)) {
             expected_format = cldnn::format::bs_fs_zyx_bsv16_fsv16;
-        else
+        } else {
             expected_format = cldnn::format::b_fs_zyx_fsv16;
+        }
     } else if (((_optimization_attributes.b_fs_yx_fsv16_network) != 0) &&
                deconvolution_b_fs_yx_fsv16_opt(output_layout, weights_layout, prim)) {
         auto input_shape = input_layout.get_shape();
@@ -1293,10 +1300,11 @@ format layout_optimizer::get_expected_format(deconvolution_node const& node) {
         auto output_features = expected_shape[1];
         float f_cost = static_cast<float>(input_features * output_features) / (align_to(input_features, 16) * align_to(output_features, 16));
         float stride_cost = 1 / static_cast<float>(prim->stride[prim->stride.size() - 1]);
-        if (f_cost * stride_cost > 0.1f)
+        if (f_cost * stride_cost > 0.1f) {
             expected_format = cldnn::format::b_fs_yx_fsv16;
-        else
+        } else {
             expected_format = cldnn::format::bfyx;
+        }
     }
     return expected_format;
 }
@@ -1309,12 +1317,13 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
         bool all_users_gemm = (!node.get_users().empty());
 
         for (const auto* user : node.get_users()) {
-            if (user->is_type<reorder>() || user->is_type<reshape>())
+            if (user->is_type<reorder>() || user->is_type<reshape>()) {
                 all_users_gemm &= only_gemm_users(*user);
-            else if (user->is_type<gemm>())
+            } else if (user->is_type<gemm>()) {
                 all_users_gemm &= true;
-            else
+            } else {
                 return false;
+            }
         }
 
         return all_users_gemm;
@@ -1462,11 +1471,24 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         // if the resample is in the last part of the network and there are no users using blocked format,
         // it is better to reorder to bfyx before resample is done.
         // Skip all user format check when node is dynamic. It could cause endless recursive call in get_preferred_foramt()
-        if (!node.is_dynamic() && all_users_simple_format_until_output(node, node, 0, 10)) {
-            const auto& dim = format::dimension(node.get_output_layout().format);
-            expected = format::get_default_format(dim, false, false);
-        } else {
-            expected = format::any;
+        // A rank-changing user (e.g. reshape, gather) may query this resample's preferred format again while its users are
+        // being checked, which would restart the user check and recurse endlessly. Such a re-entrant query returns any.
+        expected = format::any;
+        if (!node.is_dynamic()) {
+            const bool is_reentrant = !_resample_users_check_in_progress.insert(&node).second;
+            if (!is_reentrant) {
+                struct in_progress_guard {
+                    std::unordered_set<const program_node*>& nodes;
+                    const program_node* node;
+                    ~in_progress_guard() {
+                        nodes.erase(node);
+                    }
+                } guard{_resample_users_check_in_progress, &node};
+                if (all_users_simple_format_until_output(node, node, 0, 10)) {
+                    const auto& dim = format::dimension(node.get_output_layout().format);
+                    expected = format::get_default_format(dim, false, false);
+                }
+            }
         }
     } else if (node.is_type<permute>()) {
         if (node.get_dependencies().size() == 1 && node.get_dependencies().front().first->is_type<convolution>()) {
@@ -1609,6 +1631,7 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
     enable_onednn_for<reorder>();
     enable_onednn_for<moe_gemm>();
     enable_onednn_for<grouped_matmul>();
+    enable_onednn_for<scaled_dot_product_attention>();
 }
 
 bool layout_optimizer::has_all_enabled_onednn_impls_optimization_attribute() {

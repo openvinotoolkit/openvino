@@ -10,6 +10,7 @@
 #endif
 #include "impls/ocl_v2/utils/kernels_db.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
+#include "intel_gpu/runtime/engine_configuration.hpp"
 #include "openvino/util/pp.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
@@ -22,7 +23,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/file_util.hpp"
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <sdkddkver.h>
 #ifdef NTDDI_WIN10_RS5
 #include <appmodel.h>
@@ -235,6 +236,9 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             std::string full_code = options + " " + _device->get_info().driver_version;
             full_code += _device->get_info().dev_name;
+            // Partition the kernel cache per runtime: OCL and ZE store incompatible native
+            // binaries, so their .cl_cache files must never share a hash (wrong-format load).
+            full_code += get_runtime_cache_tag();
             for (auto& ss : b.source)
                 full_code += ss;
 
@@ -272,6 +276,29 @@ kernels_cache::kernels_cache(engine& engine,
     , _config(config)
     , _prog_id(prog_id)
     , batch_headers(std::move(batch_headers)) { }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// GRF size in bytes of the device. It is needed to locate the end of the host kernel thread payload when checking that
+// the microkernel registers do not overlap it. Listed explicitly (no default) so that a new architecture is flagged by -Wswitch.
+static int get_grf_bytes(gpu_arch arch) {
+    switch (arch) {
+    case gpu_arch::gen9:
+    case gpu_arch::gen11:
+    case gpu_arch::xe_lp:
+    case gpu_arch::xe_hp:
+    case gpu_arch::xe_hpg:
+        return 32;
+    case gpu_arch::xe_hpc:
+    case gpu_arch::xe2:
+    case gpu_arch::xe3:
+    case gpu_arch::xe3p:
+        return 64;
+    case gpu_arch::unknown:
+        break;
+    }
+    OPENVINO_THROW("[GPU] Unknown GRF size for GPU architecture ", static_cast<int>(arch));
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU
 
 void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& compiled_kernels) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::build_batch");
@@ -332,8 +359,13 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
             OPENVINO_ASSERT(batch.kernels_counter == 1 && kernels.size() == 1);
             std::vector<uint8_t> binary = kernels[0]->get_binary();
             kernels.clear();
-            // Update binary and rebuild kernel
-            gemmstone::microkernel::fuse(binary, combined_source.c_str());
+            // Update binary and rebuild kernel.
+            // Passing grfBytes enables validation of the microkernel registers against the host kernel thread payload;
+            // fuse() throws if they overlap. Returns false if the payload could not be checked.
+            const int grf_bytes = get_grf_bytes(_device->get_info().arch);
+            if (!gemmstone::microkernel::fuse(binary, combined_source.c_str(), grf_bytes)) {
+                GPU_DEBUG_LOG << "[GPU] Microkernels were fused, but their registers could not be checked against the host kernel payload" << std::endl;
+            }
             _builder->build_kernels(binary.data(), binary.size(), KernelFormat::NATIVE_BIN, "", kernels);
 #else  // ENABLE_ONEDNN_FOR_GPU
             OPENVINO_THROW("[GPU] Can't compile kernel w/ microkernels as onednn is not available");
@@ -413,7 +445,7 @@ void kernels_cache::build_all() {
     // build_batch crashes randomly when threaded while running from a Microsoft Store app
     // it seems to be a bug in Intel's graphics driver, disabling threading is a work around
     auto use_threads{true};
-#if defined(WIN32) && defined(NTDDI_WIN10_RS5)
+#if defined(_WIN32) && defined(NTDDI_WIN10_RS5)
     UINT32 length{0};
     auto error_code{GetCurrentPackageFullName(&length, nullptr)};
     // If we get this error, it means we're a regular desktop application, and we can use threads

@@ -182,6 +182,7 @@ REGISTER_IMPLS(shape_of);
 REGISTER_IMPLS(strided_slice);
 REGISTER_IMPLS(tile);
 REGISTER_IMPLS(col2im);
+REGISTER_IMPLS(msda);
 REGISTER_IMPLS(vl_sdpa);
 REGISTER_IMPLS(moe_3gemm_fused_compressed);
 REGISTER_IMPLS(moe_router_fused);
@@ -191,6 +192,9 @@ REGISTER_IMPLS(moe_gemm);
 REGISTER_IMPLS(moe_scatter_reduction);
 REGISTER_IMPLS(moe_gather);
 REGISTER_IMPLS(gather_matmul);
+#ifdef ENABLE_MLIR_FOR_GPU
+REGISTER_IMPLS(mlir_primitive);
+#endif
 REGISTER_IMPLS(grouped_matmul);
 
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);
@@ -217,6 +221,7 @@ REGISTER_DEFAULT_IMPLS(gather_elements, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(generate_proposals, OCL_S);
 REGISTER_DEFAULT_IMPLS(grid_sample, OCL_S);
 REGISTER_DEFAULT_IMPLS(kv_cache, OCL_S, OCL_D);
+REGISTER_DEFAULT_IMPLS(stateless_kv, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(lrn, OCL_S);
 REGISTER_DEFAULT_IMPLS(multiclass_nms, OCL_S);
 REGISTER_DEFAULT_IMPLS(multinomial, OCL_S);

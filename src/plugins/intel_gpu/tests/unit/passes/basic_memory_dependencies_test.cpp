@@ -183,8 +183,8 @@ TEST(basic_memory_dependencies, optimized_resample_to_onednn_sum_reuse_correctne
     for (const auto& fused_desc : conv3_node.get_fused_primitives()) {
         if (!fused_desc.is_type<eltwise>() || !fused_desc.has_outer_dep())
             continue;
-        const auto add_fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(conv3_node, fused_desc);
-        if (add_fusing_type != onednn_add_fusing_helpers::add_fusing_type::sum)
+        const auto add_fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(conv3_node, fused_desc);
+        if (add_fusing_type != onednn_eltwise_fusing_helpers::add_fusing_type::sum)
             continue;
         const auto outer_dep_idx = static_cast<size_t>(fused_desc.outer_dep_start_idx);
         if (outer_dep_idx >= conv3_node.get_dependencies().size())
@@ -198,7 +198,7 @@ TEST(basic_memory_dependencies, optimized_resample_to_onednn_sum_reuse_correctne
         << "ICNet pattern requires eltwise(sum) fused INTO conv3 with resample as outer dep";
 
     // conv3 should expose a valid reused eltwise mem idx pointing to resample.
-    int conv3_reused_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(conv3_node);
+    int conv3_reused_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(conv3_node);
     ASSERT_GE(conv3_reused_idx, 0);
     auto conv3_inst = net.get_primitive("conv3");
     ASSERT_LT(static_cast<size_t>(conv3_reused_idx), conv3_inst->dependencies().size());

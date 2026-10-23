@@ -81,19 +81,22 @@ static bool get_mmap_file_info(const void* addr, std::filesystem::path& out_path
     return true;
 #else
     std::ifstream maps_file("/proc/self/maps");
-    if (!maps_file.is_open())
+    if (!maps_file.is_open()) {
         return false;
+    }
     const auto addr_val = reinterpret_cast<uintptr_t>(addr);
     std::string line;
     while (std::getline(maps_file, line)) {
         // Format: start-end perms offset dev inode [pathname]
         std::istringstream iss(line);
         std::string addr_range, perms, offset_str, dev, inode_str;
-        if (!(iss >> addr_range >> perms >> offset_str >> dev >> inode_str))
+        if (!(iss >> addr_range >> perms >> offset_str >> dev >> inode_str)) {
             continue;
+        }
         const auto dash = addr_range.find('-');
-        if (dash == std::string::npos)
+        if (dash == std::string::npos) {
             continue;
+        }
         uintptr_t range_start = 0, range_end = 0;
         try {
             range_start = static_cast<uintptr_t>(std::stoull(addr_range.substr(0, dash), nullptr, 16));
@@ -101,17 +104,20 @@ static bool get_mmap_file_info(const void* addr, std::filesystem::path& out_path
         } catch (...) {
             continue;
         }
-        if (addr_val < range_start || addr_val >= range_end)
+        if (addr_val < range_start || addr_val >= range_end) {
             continue;
+        }
         // Skip whitespace after inode to reach the optional pathname field.
         // Use getline instead of operator>> to handle paths that contain spaces.
         std::string pathname;
         std::getline(iss >> std::ws, pathname);
-        if (pathname.empty())
+        if (pathname.empty()) {
             return false;  // anonymous mapping (no pathname)
+        }
         std::filesystem::path path(pathname);
-        if (!path.is_absolute())
+        if (!path.is_absolute()) {
             return false;  // special region like [heap], [stack], [vdso]
+        }
         out_path = path;
         std::streamoff map_offset = 0;
         try {
@@ -268,11 +274,13 @@ void ParallelMemStreamBuf::parallel_copy(char* dst, const char* src, size_t size
                 std::memcpy(dst + offset, src + offset, copy_size);
             });
         } catch (...) {
-            for (auto& t : workers)
+            for (auto& t : workers) {
                 t.join();
+            }
             const size_t done = i * chunk_size;
-            if (done < size)
+            if (done < size) {
                 std::memcpy(dst + done, src + done, size - done);
+            }
             return;
         }
     }

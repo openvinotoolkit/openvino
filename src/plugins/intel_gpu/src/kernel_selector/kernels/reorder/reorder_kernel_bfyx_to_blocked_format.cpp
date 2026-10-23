@@ -189,10 +189,6 @@ JitConstants ReorderKernel_bfyx_to_blocked_format::GetJitConstants(const reorder
     jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
     jit.AddConstant(MakeJitConstant("FSV_ALIGNMENT", fsv_alignment));
 
-    if (params.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
-        jit.AddConstant(MakeJitConstant("FS_B_YX_FSV", 1));
-    }
-
     const bool is_double_blocked = params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
         params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv32 ||
         params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 ||
