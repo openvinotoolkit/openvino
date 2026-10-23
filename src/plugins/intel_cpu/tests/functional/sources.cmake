@@ -457,6 +457,7 @@ set(CPU_FUNC_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/adaptive_pooling.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/batch_norm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/batch_to_space.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/bevpool_v2.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/binary_convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/broadcast.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/bucketize.cpp
