@@ -317,7 +317,7 @@ void AutoSchedule::init() {
     {
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
         // The recycle task may have released CPU_HELP already; never pin its compiled model.
-        if (!m_compile_context[CPU].m_compiled_model._ptr &&
+        if (!m_compile_context[CPU].m_is_already &&
             first_compiled_model._ptr != m_compile_context[ACTUALDEVICE].m_compiled_model._ptr) {
             first_compiled_model = m_compile_context[ACTUALDEVICE].m_compiled_model;
         }
