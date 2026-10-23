@@ -52,6 +52,9 @@
 #include "reshape_inst.h"
 #include "stateless_kv_inst.h"
 #include "to_string_utils.h"
+#ifdef ENABLE_MLIR_FOR_GPU
+#    include "plugin/transformations/mlir/interface/gpu_runtime.hpp"
+#endif
 #ifdef GPU_DEBUG_CONFIG
 #    include <sys/stat.h>
 
@@ -276,6 +279,11 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     preallocate_shape_info_buffers();
     add_default_output_chains();
     prepare_record_replay();
+#ifdef ENABLE_MLIR_FOR_GPU
+    if (ov::intel_gpu::mlir::MLIRGpuRuntime::create) {
+        _gc_runtime = ov::intel_gpu::mlir::MLIRGpuRuntime::create(*_stream, _engine);
+    }
+#endif
 }
 
 network::network(program::ptr program, bool is_internal, bool is_primary_stream)
