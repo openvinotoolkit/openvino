@@ -109,7 +109,7 @@ TEST_F(TokenizeMHASnippetsTests, ShapeOfExternalConsumer) {
 class RuntimeBroadcastTarget : public TokenizeMHASnippetsTests, public testing::WithParamInterface<bool> {};
 
 TEST_P(RuntimeBroadcastTarget, PreserveBatchExpansion) {
-    const auto make_parameters = [this]() {
+    const auto make_parameters = []() {
         return ParameterVector{
             std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(4)),
             std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(4)),
@@ -118,7 +118,7 @@ TEST_P(RuntimeBroadcastTarget, PreserveBatchExpansion) {
             std::make_shared<op::v0::Parameter>(GetParam() ? element::f32 : element::i64,
                                                 GetParam() ? PartialShape::dynamic(4) : PartialShape{4})};
     };
-    const auto make_broadcast = [this](const ParameterVector& params) {
+    const auto make_broadcast = [](const ParameterVector& params) {
         const Output<Node> target =
             GetParam() ? Output<Node>(std::make_shared<op::v3::ShapeOf>(params[4])) : params[4]->output(0);
         return std::make_shared<op::v3::Broadcast>(params[2], target, op::BroadcastType::NUMPY);
