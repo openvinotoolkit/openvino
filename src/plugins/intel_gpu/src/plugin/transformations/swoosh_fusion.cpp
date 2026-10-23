@@ -26,6 +26,8 @@
 namespace ov::intel_gpu {
 namespace {
 
+namespace swoosh_constants = op::swoosh_constants;
+
 bool get_scalar_constant(const ov::Output<ov::Node>& output, float& value) {
     auto constant = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
     return constant && ov::shape_size(constant->get_shape()) > 0 &&
@@ -102,7 +104,7 @@ SwooshFusion::SwooshFusion() {
             return false;
         }
 
-        const float expected_slope = ov::is_type<ov::op::v1::Subtract>(body) ? 0.08f : -0.08f;
+        const float expected_slope = ov::is_type<ov::op::v1::Subtract>(body) ? swoosh_constants::slope : -swoosh_constants::slope;
         if (!matches_constant(slope, expected_slope, data_type)) {
             return false;
         }
@@ -114,10 +116,10 @@ SwooshFusion::SwooshFusion() {
             return false;
         }
 
-        const bool is_swoosh_l = matches_constant(shift, -4.0f, data_type) &&
-                                 matches_constant(final_bias, -0.035f, data_type);
-        const bool is_swoosh_r = matches_constant(shift, -1.0f, data_type) &&
-                                 matches_constant(final_bias, -0.3132616877555847f, data_type);
+        const bool is_swoosh_l =
+            matches_constant(shift, -swoosh_constants::swoosh_l_offset, data_type) && matches_constant(final_bias, -swoosh_constants::swoosh_l_bias, data_type);
+        const bool is_swoosh_r =
+            matches_constant(shift, -swoosh_constants::swoosh_r_offset, data_type) && matches_constant(final_bias, -swoosh_constants::swoosh_r_bias, data_type);
         if (!is_swoosh_l && !is_swoosh_r) {
             return false;
         }
@@ -127,8 +129,8 @@ SwooshFusion::SwooshFusion() {
             return false;
         }
 
-        const float offset = is_swoosh_l ? 4.0f : 1.0f;
-        const float bias = is_swoosh_l ? 0.035f : 0.3132616877555847f;
+        const float offset = is_swoosh_l ? swoosh_constants::swoosh_l_offset : swoosh_constants::swoosh_r_offset;
+        const float bias = is_swoosh_l ? swoosh_constants::swoosh_l_bias : swoosh_constants::swoosh_r_bias;
         auto swoosh = std::make_shared<ov::intel_gpu::op::Swoosh>(direct_input, offset, bias);
         swoosh->set_friendly_name(root->get_friendly_name());
         ov::copy_runtime_info({root, body, scaled, select, equal, softplus, shifted}, swoosh);

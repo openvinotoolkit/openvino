@@ -14,8 +14,8 @@ Swoosh::Swoosh(const ov::Output<Node>& data, float offset, float bias)
 }
 
 void Swoosh::validate_and_infer_types() {
-    const bool is_swoosh_l = m_offset == 4.0f && m_bias == 0.035f;
-    const bool is_swoosh_r = m_offset == 1.0f && m_bias == 0.3132616877555847f;
+    const bool is_swoosh_l = m_offset == swoosh_constants::swoosh_l_offset && m_bias == swoosh_constants::swoosh_l_bias;
+    const bool is_swoosh_r = m_offset == swoosh_constants::swoosh_r_offset && m_bias == swoosh_constants::swoosh_r_bias;
     OPENVINO_ASSERT(is_swoosh_l || is_swoosh_r, "Unsupported Swoosh constants");
     OPENVINO_ASSERT(get_input_element_type(0).is_real(), "Swoosh requires a floating-point input");
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));

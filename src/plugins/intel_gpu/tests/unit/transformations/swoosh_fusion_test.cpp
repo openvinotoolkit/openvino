@@ -24,6 +24,8 @@
 
 namespace {
 
+namespace swoosh_constants = ov::intel_gpu::op::swoosh_constants;
+
 struct SwooshDecomposition {
     std::shared_ptr<ov::op::v0::Parameter> input;
     std::shared_ptr<ov::op::v4::SoftPlus> softplus;
@@ -76,9 +78,7 @@ SwooshDecomposition build_swoosh(float shift,
         select_softplus = std::make_shared<ov::op::v4::SoftPlus>(shifted);
     }
     auto select = std::make_shared<ov::op::v1::Select>(equal, select_shifted, select_softplus);
-    auto slope = ov::op::v0::Constant::create(data_type,
-                                              constant_shape,
-                                              {constant_value(canonical_body ? -0.08f : 0.08f)});
+    auto slope = ov::op::v0::Constant::create(data_type, constant_shape, {constant_value(canonical_body ? -swoosh_constants::slope : swoosh_constants::slope)});
     std::shared_ptr<ov::op::v0::Parameter> scale_input = decomposition.input;
     if (options.use_different_scale_input) {
         scale_input = std::make_shared<ov::op::v0::Parameter>(data_type, input_shape);
@@ -116,64 +116,68 @@ std::shared_ptr<ov::intel_gpu::op::Swoosh> run_fusion(const std::shared_ptr<ov::
 }  // namespace
 
 TEST(SwooshFusionTest, FusesSwooshL) {
-    auto decomposition = build_swoosh(-4.0f, -0.035f);
+    auto decomposition = build_swoosh(-swoosh_constants::swoosh_l_offset, -swoosh_constants::swoosh_l_bias);
     auto swoosh = run_fusion(decomposition.model);
 
     ASSERT_NE(swoosh, nullptr);
-    EXPECT_FLOAT_EQ(swoosh->get_offset(), 4.0f);
-    EXPECT_FLOAT_EQ(swoosh->get_bias(), 0.035f);
+    EXPECT_FLOAT_EQ(swoosh->get_offset(), swoosh_constants::swoosh_l_offset);
+    EXPECT_FLOAT_EQ(swoosh->get_bias(), swoosh_constants::swoosh_l_bias);
     EXPECT_EQ(swoosh->get_input_node_shared_ptr(0), decomposition.input);
 }
 
 TEST(SwooshFusionTest, FusesSwooshR) {
-    auto decomposition = build_swoosh(-1.0f, -0.3132616877555847f);
+    auto decomposition = build_swoosh(-swoosh_constants::swoosh_r_offset, -swoosh_constants::swoosh_r_bias);
     auto swoosh = run_fusion(decomposition.model);
 
     ASSERT_NE(swoosh, nullptr);
-    EXPECT_FLOAT_EQ(swoosh->get_offset(), 1.0f);
-    EXPECT_FLOAT_EQ(swoosh->get_bias(), 0.3132616877555847f);
+    EXPECT_FLOAT_EQ(swoosh->get_offset(), swoosh_constants::swoosh_r_offset);
+    EXPECT_FLOAT_EQ(swoosh->get_bias(), swoosh_constants::swoosh_r_bias);
 }
 
 TEST(SwooshFusionTest, FusesCanonicalizedAddBody) {
-    auto decomposition = build_swoosh(-4.0f, -0.035f, false, true);
+    auto decomposition = build_swoosh(-swoosh_constants::swoosh_l_offset, -swoosh_constants::swoosh_l_bias, false, true);
     EXPECT_NE(run_fusion(decomposition.model), nullptr);
 }
 
 TEST(SwooshFusionTest, FusesReversedCommutativeInputs) {
     SwooshBuildOptions options;
     options.reverse_commutative_inputs = true;
-    auto decomposition = build_swoosh(-4.0f, -0.035f, false, true, ov::element::f32, {-1, 128}, {}, false, options);
+    auto decomposition =
+        build_swoosh(-swoosh_constants::swoosh_l_offset, -swoosh_constants::swoosh_l_bias, false, true, ov::element::f32, {-1, 128}, {}, false, options);
     EXPECT_NE(run_fusion(decomposition.model), nullptr);
 }
 
 TEST(SwooshFusionTest, RejectsDifferentScaleInput) {
     SwooshBuildOptions options;
     options.use_different_scale_input = true;
-    auto decomposition = build_swoosh(-4.0f, -0.035f, false, false, ov::element::f32, {-1, 128}, {}, false, options);
+    auto decomposition =
+        build_swoosh(-swoosh_constants::swoosh_l_offset, -swoosh_constants::swoosh_l_bias, false, false, ov::element::f32, {-1, 128}, {}, false, options);
     EXPECT_EQ(run_fusion(decomposition.model), nullptr);
 }
 
 TEST(SwooshFusionTest, RejectsDifferentSelectShiftedInput) {
     SwooshBuildOptions options;
     options.use_different_select_shifted = true;
-    auto decomposition = build_swoosh(-4.0f, -0.035f, false, false, ov::element::f32, {-1, 128}, {}, false, options);
+    auto decomposition =
+        build_swoosh(-swoosh_constants::swoosh_l_offset, -swoosh_constants::swoosh_l_bias, false, false, ov::element::f32, {-1, 128}, {}, false, options);
     EXPECT_EQ(run_fusion(decomposition.model), nullptr);
 }
 
 TEST(SwooshFusionTest, RejectsDifferentSelectSoftplusInput) {
     SwooshBuildOptions options;
     options.use_different_select_softplus = true;
-    auto decomposition = build_swoosh(-4.0f, -0.035f, false, false, ov::element::f32, {-1, 128}, {}, false, options);
+    auto decomposition =
+        build_swoosh(-swoosh_constants::swoosh_l_offset, -swoosh_constants::swoosh_l_bias, false, false, ov::element::f32, {-1, 128}, {}, false, options);
     EXPECT_EQ(run_fusion(decomposition.model), nullptr);
 }
 
 TEST(SwooshFusionTest, RejectsUnsupportedConstants) {
-    auto decomposition = build_swoosh(-4.0f, -0.04f);
+    auto decomposition = build_swoosh(-swoosh_constants::swoosh_l_offset, -0.04f);
     EXPECT_EQ(run_fusion(decomposition.model), nullptr);
 }
 
 TEST(SwooshFusionTest, RejectsExternallyVisibleIntermediate) {
-    auto decomposition = build_swoosh(-4.0f, -0.035f, true);
+    auto decomposition = build_swoosh(-swoosh_constants::swoosh_l_offset, -swoosh_constants::swoosh_l_bias, true);
     EXPECT_EQ(run_fusion(decomposition.model), nullptr);
 }
 
@@ -187,19 +191,14 @@ TEST(SwooshFusionTest, RejectsEmptyConstantWithoutCrashing) {
 }
 
 TEST(SwooshFusionTest, RejectsShapeExpandingSplatConstants) {
-    auto decomposition = build_swoosh(-4.0f,
-                                      -0.035f,
-                                      false,
-                                      false,
-                                      ov::element::f32,
-                                      ov::PartialShape{},
-                                      ov::Shape{2});
+    auto decomposition =
+        build_swoosh(-swoosh_constants::swoosh_l_offset, -swoosh_constants::swoosh_l_bias, false, false, ov::element::f32, ov::PartialShape{}, ov::Shape{2});
     EXPECT_EQ(run_fusion(decomposition.model), nullptr);
 }
 
 TEST(SwooshFusionTest, FusesZipformerShapedSplatConstants) {
-    auto decomposition = build_swoosh(-4.0f,
-                                      -0.035f,
+    auto decomposition = build_swoosh(-swoosh_constants::swoosh_l_offset,
+                                      -swoosh_constants::swoosh_l_bias,
                                       false,
                                       false,
                                       ov::element::f32,
@@ -209,8 +208,8 @@ TEST(SwooshFusionTest, FusesZipformerShapedSplatConstants) {
 }
 
 TEST(SwooshFusionTest, RejectsF16RoundedConstantsInF32Graph) {
-    auto decomposition = build_swoosh(-4.0f,
-                                      -0.035f,
+    auto decomposition = build_swoosh(-swoosh_constants::swoosh_l_offset,
+                                      -swoosh_constants::swoosh_l_bias,
                                       false,
                                       false,
                                       ov::element::f32,
@@ -221,10 +220,14 @@ TEST(SwooshFusionTest, RejectsF16RoundedConstantsInF32Graph) {
 }
 
 TEST(SwooshFusionTest, FusesF16ConstantsInF16Graph) {
-    auto decomposition = build_swoosh(-4.0f,
-                                      -0.035f,
-                                      false,
-                                      false,
-                                      ov::element::f16);
+    auto decomposition = build_swoosh(-swoosh_constants::swoosh_l_offset, -swoosh_constants::swoosh_l_bias, false, false, ov::element::f16);
     EXPECT_NE(run_fusion(decomposition.model), nullptr);
+}
+
+TEST(SwooshConstantsTest, PreservesOriginalValues) {
+    EXPECT_EQ(swoosh_constants::slope, 0.08f);
+    EXPECT_EQ(swoosh_constants::swoosh_l_offset, 4.0f);
+    EXPECT_EQ(swoosh_constants::swoosh_l_bias, 0.035f);
+    EXPECT_EQ(swoosh_constants::swoosh_r_offset, 1.0f);
+    EXPECT_EQ(swoosh_constants::swoosh_r_bias, 0.3132616877555847f);
 }

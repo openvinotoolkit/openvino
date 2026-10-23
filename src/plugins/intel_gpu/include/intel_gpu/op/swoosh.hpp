@@ -8,6 +8,14 @@
 
 namespace ov::intel_gpu::op {
 
+namespace swoosh_constants {
+inline constexpr float slope = 0.08f;
+inline constexpr float swoosh_l_offset = 4.0f;
+inline constexpr float swoosh_l_bias = 0.035f;
+inline constexpr float swoosh_r_offset = 1.0f;
+inline constexpr float swoosh_r_bias = 0.3132616877555847f;
+}  // namespace swoosh_constants
+
 class Swoosh : public ov::op::Op {
 public:
     OPENVINO_OP("Swoosh", "ie_internal_opset");

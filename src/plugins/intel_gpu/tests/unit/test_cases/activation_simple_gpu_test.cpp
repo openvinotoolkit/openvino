@@ -2,24 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "random_generator.hpp"
-
-#include <intel_gpu/primitives/input_layout.hpp>
+#include <algorithm>
+#include <cmath>
 #include <intel_gpu/primitives/activation.hpp>
+#include <intel_gpu/primitives/concatenation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
-#include <intel_gpu/primitives/select.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
-#include <intel_gpu/primitives/concatenation.hpp>
-#include <intel_gpu/primitives/permute.hpp>
+#include <intel_gpu/primitives/select.hpp>
+#include <limits>
+
 #include "activation_inst.h"
 #include "graph/impls/ocl/primitive_base.hpp"
-
-#include <cmath>
-#include <algorithm>
-#include <limits>
+#include "intel_gpu/op/swoosh.hpp"
+#include "random_generator.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -708,19 +708,21 @@ void test_swoosh_activation(float offset, float bias, float tolerance) {
         const float input_value = static_cast<float>(typed_input[i]);
         const float shifted = input_value - offset;
         const float softplus = std::max(shifted, 0.0f) + std::log1p(std::exp(-std::abs(shifted)));
-        const float expected = softplus - 0.08f * input_value - bias;
+        const float expected = softplus - ov::intel_gpu::op::swoosh_constants::slope * input_value - bias;
         ASSERT_NEAR(expected, static_cast<float>(output_ptr[i]), tolerance);
     }
 }
 
 TEST(activation_f32_fw_gpu, swoosh_l_and_r) {
-    test_swoosh_activation<data_types::f32, float>(4.0f, 0.035f, 1e-5f);
-    test_swoosh_activation<data_types::f32, float>(1.0f, 0.313261687f, 1e-5f);
+    namespace constants = ov::intel_gpu::op::swoosh_constants;
+    test_swoosh_activation<data_types::f32, float>(constants::swoosh_l_offset, constants::swoosh_l_bias, 1e-5f);
+    test_swoosh_activation<data_types::f32, float>(constants::swoosh_r_offset, constants::swoosh_r_bias, 1e-5f);
 }
 
 TEST(activation_f16_fw_gpu, swoosh_l_and_r) {
-    test_swoosh_activation<data_types::f16, ov::float16>(4.0f, 0.035f, 4e-2f);
-    test_swoosh_activation<data_types::f16, ov::float16>(1.0f, 0.313261687f, 4e-2f);
+    namespace constants = ov::intel_gpu::op::swoosh_constants;
+    test_swoosh_activation<data_types::f16, ov::float16>(constants::swoosh_l_offset, constants::swoosh_l_bias, 4e-2f);
+    test_swoosh_activation<data_types::f16, ov::float16>(constants::swoosh_r_offset, constants::swoosh_r_bias, 4e-2f);
 }
 
 TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {

@@ -2,18 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cinttypes>
-
 #include "jitter.h"
-#include "kernel_selector_utils.h"
-#include "tensor_type.h"
-#include <string>
+
+#include <activation/activation_kernel_base.h>
+#include <eltwise/eltwise_kernel_base.h>
+#include <quantize/quantize_kernel_params.h>
+
+#include <cinttypes>
 #include <memory>
+#include <string>
 #include <utility>
 
-#include <quantize/quantize_kernel_params.h>
-#include <eltwise/eltwise_kernel_base.h>
-#include <activation/activation_kernel_base.h>
+#include "intel_gpu/op/swoosh.hpp"
+#include "kernel_selector_utils.h"
+#include "tensor_type.h"
 
 namespace {
 class JitTerm {
@@ -1371,7 +1373,8 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             auto bias = disable_type_conversion ? "n"_jit : to_type("n"_jit);
             const JitTerm shifted = input - offset;
             const JitTerm softplus = max_func(shifted, zero) + log(one + exp(neg(abs_func(shifted))));
-            const JitTerm slope = disable_type_conversion ? "0.08"_jit : to_type("0.08"_jit);
+            const JitTerm slope_literal{std::to_string(ov::intel_gpu::op::swoosh_constants::slope)};
+            const JitTerm slope = disable_type_conversion ? slope_literal : to_type(slope_literal);
             jitConstants.AddConstant(MakeJitConstant(
                     macro_def,
                     (softplus - slope * input - bias).str()));
