@@ -549,9 +549,16 @@ TEST(prepare_primitive_fusing, eltwise_fusing_residual_connection) {
     net.set_input_data("conv_input", conv_input_mem);
     net.set_input_data("elt1_input", elt_input_mem);
 
-    net.execute();
+    auto read_output = [&](const std::map<primitive_id, network_output>& outputs) {
+        auto mem = outputs.at("reorder").get_memory();
+        mem_lock<float, mem_lock_type::read> lock(mem, get_test_stream());
+        return std::vector<float>(lock.data(), lock.data() + mem->get_layout().count());
+    };
+
+    const auto fused_ref = read_output(net.execute());
     const auto& conv_inst = net.get_primitive("conv");
     ASSERT_FALSE(conv_inst->has_unfused_subgraph());
+    ASSERT_FALSE(conv_inst->use_unfused_subgraph());
 
     // Invalid => unfusion
     auto conv_input_data2 = rg.generate_random_4d<ov::float16>(1, 3, 3, 3, -1, 1);
@@ -561,6 +568,15 @@ TEST(prepare_primitive_fusing, eltwise_fusing_residual_connection) {
     net.set_input_data("elt1_input", elt_input_mem);
     net.execute();
     ASSERT_TRUE(conv_inst->has_unfused_subgraph());
+    ASSERT_TRUE(conv_inst->use_unfused_subgraph());
+
+    // Valid again => fused primitive is used while the unfused subgraph stays cached
+    net.set_input_data("conv_input", conv_input_mem);
+    net.set_input_data("elt1_input", elt_input_mem);
+    const auto fused_again = read_output(net.execute());
+    ASSERT_TRUE(conv_inst->has_unfused_subgraph());
+    ASSERT_FALSE(conv_inst->use_unfused_subgraph());
+    ASSERT_EQ(fused_ref, fused_again);
 }
 
 TEST(prepare_primitive_fusing, fuse_constant_transposes_removal_check) {
