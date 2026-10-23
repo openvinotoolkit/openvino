@@ -152,6 +152,8 @@ constexpr char kExpectedOobIndexMessage[] = "CPU closure index is out of range";
 constexpr char kExpectedClosureUidSizeMessage[] = "closure_uid size does not match closure size";
 constexpr char kExpectedIsRemoteSizeMessage[] = "is_remote size does not match closure size";
 constexpr char kExpectedLazyClosureSizeMessage[] = "lazy_closure size does not match closure size";
+constexpr char kExpectedScalesSizeMessage[] = "scales size does not match closure size";
+constexpr char kExpectedZeropsSizeMessage[] = "zerops size does not match closure size";
 constexpr char kExpectedCpuCountMismatchMessage[] = "CPU closure ids count does not match CPU closure tensor count";
 constexpr char kExpectedNonCpuCountMismatchMessage[] = "non-CPU closure ids count does not match non-CPU tensor count";
 constexpr char kExpectedNonCpuOobIndexMessage[] = "non-CPU closure index is out of range";
@@ -223,13 +225,15 @@ std::string make_blob_with_oob_cpu_closure_id(bool is_weightless) {
     return blob;
 }
 
-// Builds a blob that stops right after closure_size, with is_remote/closure_uid sized to
-// (mis)match closure_size as requested. The importer is expected to throw before reading
+// Builds a blob that stops right after closure_size, with is_remote/closure_uid/scales/zerops sized
+// to (mis)match closure_size as requested. The importer is expected to throw before reading
 // any further fields, so no closure/cpu-id payload needs to be written.
 std::string make_blob_with_metadata_size(bool is_weightless,
                                          std::size_t closure_size,
                                          std::size_t is_remote_size,
-                                         std::size_t closure_uid_size) {
+                                         std::size_t closure_uid_size,
+                                         std::size_t scales_size = 0u,
+                                         std::size_t zerops_size = 0u) {
     using namespace ov::npuw::s11n;
 
     WeightsContext ctx(is_weightless, {});
@@ -243,8 +247,8 @@ std::string make_blob_with_metadata_size(bool is_weightless,
     std::vector<int64_t> closure_uid(closure_uid_size, -1);
     writer & is_remote & closure_uid;
 
-    std::vector<ov::Tensor> scales;
-    std::vector<ov::Tensor> zerops;
+    std::vector<ov::Tensor> scales(scales_size, ov::Tensor(ov::element::f32, ov::Shape{1u}));
+    std::vector<ov::Tensor> zerops(zerops_size, ov::Tensor(ov::element::f32, ov::Shape{1u}));
     if (is_weightless) {
         serialize_weightless(writer, scales, ctx);
         serialize_weightless(writer, zerops, ctx);
@@ -2347,6 +2351,63 @@ TEST(SerializationTest, ReconstructClosureRejectsMismatchedClosureMetadata) {
                                   kExpectedIsRemoteSizeMessage);
 }
 
+TEST(SerializationTest, ReconstructClosureRejectsMismatchedScalesMetadata) {
+    auto compiled = ov::npuw::CompiledModelDescSerializationAccess::make_serialized_compiled_model();
+    auto& submodel = ov::npuw::CompiledModelDescSerializationAccess::append_submodel(*compiled);
+
+    submodel.replaced_by = 0;
+    auto& closure = submodel.closure.get();
+    closure.closure.resize(1);
+    closure.closure[0] = ov::Tensor(ov::element::f32, ov::Shape{1});
+    closure.is_remote.resize(1, false);
+    closure.closure_uid.resize(1, -1);
+    submodel.scales.resize(2, ov::Tensor(ov::element::f32, ov::Shape{1}));
+    submodel.zerops.resize(2, ov::Tensor(ov::element::f32, ov::Shape{1}));
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::CompiledModelDescSerializationAccess::run_reconstruct_closure(*compiled),
+                                  ov::Exception,
+                                  kExpectedScalesSizeMessage);
+}
+
+TEST(SerializationTest, ReconstructClosureAcceptsAlignedScalesAndZerops) {
+    auto compiled = ov::npuw::CompiledModelDescSerializationAccess::make_serialized_compiled_model();
+    auto& submodel = ov::npuw::CompiledModelDescSerializationAccess::append_submodel(*compiled);
+
+    submodel.replaced_by = 0;
+    auto& closure = submodel.closure.get();
+    closure.closure.resize(1);
+    closure.closure[0] = ov::Tensor(ov::element::f32, ov::Shape{1});
+    closure.is_remote.resize(1, false);
+    closure.closure_uid.resize(1, -1);
+    submodel.scales.resize(1, ov::Tensor(ov::element::f32, ov::Shape{1}));
+    submodel.zerops.resize(1, ov::Tensor(ov::element::f32, ov::Shape{1}));
+
+    EXPECT_NO_THROW(ov::npuw::CompiledModelDescSerializationAccess::run_reconstruct_closure(*compiled));
+}
+
+TEST(SerializationTest, FinalizeWeightsBankRejectsMismatchedZeropsMetadata) {
+    auto compiled = ov::npuw::CompiledModelDescSerializationAccess::make_serialized_compiled_model();
+    auto& submodel = ov::npuw::CompiledModelDescSerializationAccess::append_submodel(*compiled);
+
+    submodel.replaced_by = 0;
+    auto& closure = submodel.closure.get();
+    closure.closure.resize(1);
+    closure.closure[0] = ov::Tensor(ov::element::f32, ov::Shape{1});
+    closure.is_remote.resize(1, false);
+    closure.closure_uid.resize(1, -1);
+    submodel.lazy_closure.resize(1);
+    submodel.scales.resize(1, ov::Tensor(ov::element::f32, ov::Shape{1}));
+    submodel.zerops.resize(2, ov::Tensor(ov::element::f32, ov::Shape{1}));
+
+    ov::npuw::CompiledModelDescSerializationAccess::set_weights_bank(
+        *compiled,
+        std::make_shared<ov::npuw::weights::Bank>(nullptr, "CPU", "test-bank"));
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::CompiledModelDescSerializationAccess::run_finalize_and_wait(*compiled),
+                                  ov::Exception,
+                                  kExpectedZeropsSizeMessage);
+}
+
 TEST(SerializationTest, FinalizeWeightsBankRejectsMismatchedLazyClosureMetadata) {
     auto compiled = ov::npuw::CompiledModelDescSerializationAccess::make_serialized_compiled_model();
     auto& submodel = ov::npuw::CompiledModelDescSerializationAccess::append_submodel(*compiled);
@@ -2481,6 +2542,96 @@ TEST(SerializationTest, CompiledModelDesc_rejects_is_remote_size_mismatch_weight
         ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
         ov::Exception,
         kExpectedIsRemoteSizeMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_scales_size_mismatch_weightful) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(false, {});
+    const auto malformed_blob = make_blob_with_metadata_size(false,
+                                                             /*closure_size=*/2u,
+                                                             /*is_remote_size=*/2u,
+                                                             /*closure_uid_size=*/2u,
+                                                             /*scales_size=*/1u,
+                                                             /*zerops_size=*/2u);
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedScalesSizeMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_scales_size_mismatch_weightless) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(true, {});
+    const auto malformed_blob = make_blob_with_metadata_size(true,
+                                                             /*closure_size=*/2u,
+                                                             /*is_remote_size=*/2u,
+                                                             /*closure_uid_size=*/2u,
+                                                             /*scales_size=*/1u,
+                                                             /*zerops_size=*/2u);
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedScalesSizeMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_missing_zerops_for_scaled_closure_weightful) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(false, {});
+    const auto malformed_blob = make_blob_with_metadata_size(false,
+                                                             /*closure_size=*/2u,
+                                                             /*is_remote_size=*/2u,
+                                                             /*closure_uid_size=*/2u,
+                                                             /*scales_size=*/2u,
+                                                             /*zerops_size=*/0u);
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedZeropsSizeMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_missing_zerops_for_scaled_closure_weightless) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(true, {});
+    const auto malformed_blob = make_blob_with_metadata_size(true,
+                                                             /*closure_size=*/2u,
+                                                             /*is_remote_size=*/2u,
+                                                             /*closure_uid_size=*/2u,
+                                                             /*scales_size=*/2u,
+                                                             /*zerops_size=*/0u);
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedZeropsSizeMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_missing_scales_for_zeropped_closure_weightful) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(false, {});
+    const auto malformed_blob = make_blob_with_metadata_size(false,
+                                                             /*closure_size=*/2u,
+                                                             /*is_remote_size=*/2u,
+                                                             /*closure_uid_size=*/2u,
+                                                             /*scales_size=*/0u,
+                                                             /*zerops_size=*/2u);
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedScalesSizeMessage);
 }
 
 TEST(SerializationTest, CompiledModelDesc_rejects_weightless_cpu_closure_count_mismatch) {
