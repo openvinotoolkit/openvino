@@ -63,11 +63,11 @@ std::vector<TRShape> shape_infer(const SparseAttention* op,
     // Batch size, shared by all the data and selection inputs
     if (is_out_rank_static) {
         for (size_t i = 1; i < 5; ++i) {
-            NODE_SHAPE_INFER_CHECK(op,
-                                   input_shapes,
-                                   input_shapes[i].rank().is_dynamic() ||
-                                       TDim::merge(out_shape[0], out_shape[0], input_shapes[i][0]),
-                                   "The batch dimension of all the inputs must be the same.");
+            NODE_SHAPE_INFER_CHECK(
+                op,
+                input_shapes,
+                input_shapes[i].rank().is_dynamic() || TDim::merge(out_shape[0], out_shape[0], input_shapes[i][0]),
+                "The batch dimension of all the inputs must be the same.");
         }
     }
 

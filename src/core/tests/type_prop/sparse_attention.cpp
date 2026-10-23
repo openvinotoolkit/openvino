@@ -158,8 +158,7 @@ TEST_F(TypePropSparseAttentionTest, interval_dimensions) {
                             param(element::i32, PartialShape{-1, 1, -1}),
                             4);
 
-    EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape{Dimension(2, 4), 24, Dimension(2, 8), Dimension(16, 32)}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension(2, 4), 24, Dimension(2, 8), Dimension(16, 32)}));
 }
 
 TEST_F(TypePropSparseAttentionTest, dynamic_rank_query) {

@@ -46,8 +46,7 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
     const auto& past_incomplete_raw_keys_shape = input_shapes[6];
     const auto& past_incomplete_rope_shape = input_shapes[7];
 
-    const auto has_rope =
-        !qsa_prepare_input_disabled(rope_cos_shape) && !qsa_prepare_input_disabled(rope_sin_shape);
+    const auto has_rope = !qsa_prepare_input_disabled(rope_cos_shape) && !qsa_prepare_input_disabled(rope_sin_shape);
     const auto is_raw_keys_rank_static = raw_index_keys_shape.rank().is_static();
 
     NODE_SHAPE_INFER_CHECK(op,
