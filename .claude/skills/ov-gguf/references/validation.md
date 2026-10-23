@@ -179,15 +179,19 @@ Keep full XML, logs and inventories on disk. Return tested revisions and runtime
 completed/remaining cases, exact selected counts/skips, grouped failure signatures, reproduction
 commands and artifact paths. Aim for at most 1,500 tokens of aggregate output per routine tool call
 (including batched results) or worker report; read larger excerpts only for a concrete
-investigation. Use [summarize_tests.py](../scripts/summarize_tests.py) for GTest/pytest XML:
+investigation. From the repository root, install the helper's dependencies once, then use
+[summarize_tests.py](../scripts/summarize_tests.py) for GTest/pytest XML:
 
 ```bash
-python summarize_tests.py tests.xml --output test-summary.json --process-exit <test-exit-code>
+python -m pip install -r .claude/skills/ov-gguf/scripts/requirements.txt
+python .claude/skills/ov-gguf/scripts/summarize_tests.py tests.xml --output test-summary.json --process-exit <test-exit-code>
 ```
 
 The helper retains full failure/skip details in JSON and prints bounded counts/signatures.
 Its exit status reports parsing success; test acceptance still requires the test process
 status, required coverage and original numerical gates.
+XML entity declarations are rejected and recorded in `parse_errors`, with exit status `2`,
+while other valid reports are still summarized.
 
 Send checkpoints for completion, failure, missing prerequisites
 or a material state change. Distinguish selected skips from filtered or unregistered suites and disclose

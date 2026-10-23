@@ -8,7 +8,9 @@ from collections import Counter
 import json
 from pathlib import Path
 import re
-import xml.etree.ElementTree as ET
+
+import defusedxml.ElementTree as ET
+from defusedxml.common import DefusedXmlException
 
 
 def signature(message):
@@ -61,7 +63,7 @@ def main():
     for path in args.reports:
         try:
             reports.append(summarize(path))
-        except (OSError, ET.ParseError) as error:
+        except (OSError, ET.ParseError, DefusedXmlException) as error:
             errors.append({"path": str(path), "error": str(error)})
     counts = Counter()
     groups = Counter()
