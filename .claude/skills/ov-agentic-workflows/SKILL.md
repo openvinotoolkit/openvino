@@ -137,6 +137,9 @@ General, applies to any agentic workflow:
 
 Known pitfalls from existing workflows (check whether they still apply, and add new ones as you find
 them — see below):
+- **PR comment collapsibles** (`ci-doctor`) — keep the overview visible and use a separate
+  collapsed-by-default `<details>` block per pipeline. HTML-escape dynamic `<summary>` text and leave
+  blank lines around the Markdown body. This GitHub-only formatting must not leak into Teams reports.
 - **Teams markdown** (`ci-doctor-mq`) — Adaptive Cards render a limited subset; use `~~~` (tilde)
   fences for log excerpts, no raw HTML (`<details>`, `<br>`, `<table>`).
 - **Signature hashing** (`ci-doctor-mq`) — the pattern hash must stay job-agnostic (normalized error +
