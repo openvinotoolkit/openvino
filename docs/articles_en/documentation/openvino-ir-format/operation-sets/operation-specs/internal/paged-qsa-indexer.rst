@@ -45,14 +45,17 @@ main PagedAttention page table and are passed as explicit inputs:
   ``phys = block_indices[block_indices_begins[s] + pos // page_size]``. The second dimension is the configurable
   index-key head count ``H_ik``. This is full-history storage, not a per-sequence ring: it removes ring wraparound,
   capacity sizing, and cross-block slot-alias hazards, at the cost of memory proportional to the full sequence.
-- ``indexer_rope_cache`` ``[num_blocks, page_size / compress_ratio, indexer_rotary_dim]``: the RoPE coefficients
-  of each QSA block's first logical token, stored as one interleaved row ``(cos_0, sin_0, cos_1, sin_1, ...)``
-  and addressed through the same page table and at the same per-page granularity as ``summary_cache``. Written
+- ``indexer_rope_cache`` ``[num_blocks, page_size / compress_ratio, 2 * indexer_rotary_dim]``: the RoPE
+  coefficients of each QSA block's first logical token, stored as one row that interleaves its ``rope_cos`` and
+  ``rope_sin`` rows, ``(cos_0, sin_0, cos_1, sin_1, ...)``, and addressed through the same page table and at the
+  same per-page granularity as
+  ``summary_cache``. Written
   once, when that first token is processed (which may be an earlier invocation than the one that completes the
   block), and read back once when the block completes to rotate its summary. Only one row per block is kept, not
   one per raw key.
-- ``rope_cos`` / ``rope_sin`` ``[tokens, indexer_rotary_dim / 2]``: per-token NEOX (rotate-half) RoPE
-  coefficients of the current tokens, row ``t`` aligned with ``q_idx`` row ``t``. They are the same per-token
+- ``rope_cos`` / ``rope_sin`` ``[tokens, indexer_rotary_dim]``: per-token rotate-half RoPE coefficients of the
+  current tokens in the Hugging Face layout (``cat(freqs, freqs)``, both halves equal), row ``t`` aligned with
+  ``q_idx`` row ``t``. They are the same per-token
   cos/sin consumed by the main attention RoPE, so the indexer shares its RoPE coordinates (including any mRoPE or
   other multi-axis position scheme, resolved by the producer) and needs neither ``position_ids`` nor a
   position-indexed rotary table. A query is rotated with its own row; the row of a block's first token is copied
@@ -175,13 +178,18 @@ where :math:`\bar{k}_{b,\mathrm{kv}(h)} =
 \mathrm{RoPE}_{\rho(b\cdot r)}(\mathrm{RMSNorm}(\tfrac{1}{r}\sum_{j=0}^{r-1} k_{b\cdot r + j,\mathrm{kv}(h)}))`
 is the per-index-key-head block summary key and :math:`\rho(p)` is the ``(rope_cos, rope_sin)`` row of the token at
 logical position :math:`p`, as recorded in ``indexer_rope_cache``. Queries use :math:`\rho` of their own token.
-The rotation is NEOX rotate-half over the first :math:`R = \mathrm{indexer\_rotary\_dim}` channels, computed in
-``fp32``:
+The rotation is the split-half (rotate-half) RoPE of Hugging Face Transformers over the first
+:math:`R = \mathrm{indexer\_rotary\_dim}` channels, computed in ``fp32``; the channels after :math:`R` are not
+rotated:
 
 .. math::
 
-    x'_j = x_j \cos_j - x_{j + R/2} \sin_j, \quad x'_{j + R/2} = x_{j + R/2} \cos_j + x_j \sin_j,
-    \quad 0 \le j < R/2
+    x' = x \odot \cos + \mathrm{rotate\_half}(x) \odot \sin, \quad
+    \mathrm{rotate\_half}(x) = (-x_{R/2}, \ldots, -x_{R-1}, x_0, \ldots, x_{R/2-1})
+
+with ``cos`` and ``sin`` the ``R``-wide ``rope_cos``/``rope_sin`` row. In Hugging Face RoPE both halves of a row are
+equal, so this is :math:`x'_j = x_j \cos_j - x_{j + R/2} \sin_j`,
+:math:`x'_{j + R/2} = x_{j + R/2} \cos_j + x_j \sin_j` for :math:`0 \le j < R/2`.
 
 The ReLU is applied *per index-query head before reduction over
 heads*, matching the QSA scoring semantics. Under QSA (:math:`H_{iq} = 4`, :math:`H_{ik} = 1`,
@@ -256,12 +264,12 @@ multiplication.
         return x / np.sqrt(np.mean(x * x, axis=-1, keepdims=True) + eps) * w.astype(np.float32)
 
     def apply_partial_rope(x, cos, sin, rotary_dim):
-        # NEOX rotate-half over the first rotary_dim channels, in fp32; cos/sin: [..., rotary_dim // 2]
+        # Hugging Face rotate-half over the first rotary_dim channels, in fp32; cos/sin: [..., rotary_dim]
         half = rotary_dim // 2
         x = x.astype(np.float32)
-        x1, x2 = x[..., :half].copy(), x[..., half:rotary_dim].copy()
-        x[..., :half] = x1 * cos - x2 * sin
-        x[..., half:rotary_dim] = x2 * cos + x1 * sin
+        r = x[..., :rotary_dim].copy()
+        rotated = np.concatenate([-r[..., half:], r[..., :half]], axis=-1)
+        x[..., :rotary_dim] = r * cos + rotated * sin
         return x
 
     def seq_of_token(t, subsequence_begins):
@@ -278,14 +286,14 @@ multiplication.
                           eps, scale):
         # q_idx:            [tokens, H_iq * D_idx]   (raw external projection; norm/RoPE applied here)
         # k_idx:            [tokens, H_ik * D_idx]   (raw external projection)
-        # rope_cos, rope_sin: [tokens, indexer_rotary_dim // 2]  (per-token NEOX coefficients)
+        # rope_cos, rope_sin: [tokens, indexer_rotary_dim]  (per-token rotate-half coefficients)
         # q_norm_weight, k_norm_weight: [D_idx]
         # block_indices:    [total_logical_blocks]   logical -> physical block map (shared with main PA)
         # block_indices_begins: [num_sequences + 1]  split pointers into block_indices (len == total_logical_blocks)
         # subsequence_begins:   [num_sequences + 1]  split pointers into the token stream (len == tokens)
         # past_lens:        [num_sequences]  (logical length of each sequence before this step)
         # indexer_raw_k_cache: [num_blocks, H_ik, page_size, D_idx] (full history, shared page table)
-        # indexer_rope_cache: [num_blocks, page_size // r, indexer_rotary_dim], interleaved (cos_j, sin_j)
+        # indexer_rope_cache: [num_blocks, page_size // r, 2 * indexer_rotary_dim], interleaved (cos_j, sin_j)
         # summary_cache:    [num_blocks, H_ik, page_size // r, D_idx]
         # returns: sel_indices [tokens, H_sel, K_max]  (int32; -1 = pad), K_max = block_topk
         #          sel_count   [tokens, H_sel]         (int32)
@@ -295,6 +303,7 @@ multiplication.
         Hik = k_idx.shape[1] // indexer_head_dim      # index-key heads, derived from the shape
         Hsel = h_sel
         r = compress_ratio
+        Dr = indexer_rotary_dim
         Kmax = block_topk
         G = Hiq // Hik                                # index-query heads per index-key head
         spp = page_size // r                          # block slots per physical page
@@ -327,7 +336,7 @@ multiplication.
                                      .astype(np.float32), axis=1).astype(k_idx.dtype)  # [Hik, Di]
                     nb = rms_norm(pooled, k_norm_weight, eps)                     # [Hik, Di]
                     row = indexer_rope_cache[phys, slot, :]
-                    bar = apply_partial_rope(nb, row[0::2], row[1::2], indexer_rotary_dim)
+                    bar = apply_partial_rope(nb, row[0::2], row[1::2], Dr)
                     summary_cache[phys, :, slot, :] = bar                         # [Hik, Di]
 
         # 2. Score the causally-valid complete blocks per selection head (grouped per-query-head reduction).
@@ -401,8 +410,8 @@ multiplication.
   * **Description**: RoPE dimension used by the indexer (partial rotary). Only the first
     ``indexer_rotary_dim`` channels of each query head and block summary are rotated; the trailing
     ``indexer_head_dim - indexer_rotary_dim`` channels are passed through unrotated. ``rope_cos`` / ``rope_sin``
-    carry ``indexer_rotary_dim / 2`` coefficients per token; an ``indexer_rope_cache`` row carries
-    ``indexer_rotary_dim`` interleaved values. Because ``rope_cos`` / ``rope_sin`` are shared with the main
+    carry ``indexer_rotary_dim`` coefficients per token; an ``indexer_rope_cache`` row carries
+    ``2 * indexer_rotary_dim`` interleaved values ``(cos_0, sin_0, cos_1, sin_1, ...)``. Because ``rope_cos`` / ``rope_sin`` are shared with the main
     attention RoPE, this equals the main attention rotary dimension.
   * **Type**: ``int``
   * **Required**: *yes*
@@ -456,13 +465,14 @@ multiplication.
   raw-K cache at the logical token position. **Required.**
 
 * **2**: ``rope_cos``
-  A 2D tensor of type *T* with shape ``[tokens, indexer_rotary_dim / 2]``. ``rope_cos[t, j]`` is the cosine of
-  NEOX (rotate-half) frequency ``j`` for token ``t``, rotating channels ``j`` and ``j + indexer_rotary_dim / 2``.
+  A 2D tensor of type *T* with shape ``[tokens, indexer_rotary_dim]``. ``rope_cos[t, :]`` is the rotate-half RoPE
+  cosine of token ``t`` for the first ``indexer_rotary_dim`` channels, in the Hugging Face layout
+  (``cat(freqs, freqs)``, both halves equal).
   Intended to be the same per-token cosine tensor consumed by the main attention RoPE; the operation does not
   recompute angles, so producers should evaluate them in ``fp32`` before any cast to *T*. **Required.**
 
 * **3**: ``rope_sin``
-  A 2D tensor of type *T* with shape ``[tokens, indexer_rotary_dim / 2]``; the sine counterpart of ``rope_cos``
+  A 2D tensor of type *T* with shape ``[tokens, indexer_rotary_dim]``; the sine counterpart of ``rope_cos``
   with the same layout. **Required.**
 
 * **4**: ``q_norm_weight``
@@ -501,9 +511,10 @@ multiplication.
   head count is configurable, never hard-coded to ``1``. Updated in place. **Required.**
 
 * **11**: ``indexer_rope_cache``
-  A 3D tensor of type *T* with shape ``[num_blocks, page_size // compress_ratio, indexer_rotary_dim]``.
+  A 3D tensor of type *T* with shape ``[num_blocks, page_size // compress_ratio, 2 * indexer_rotary_dim]``.
   One row per QSA block holding the RoPE coefficients of that block's first logical token, interleaved as
-  ``(cos_0, sin_0, cos_1, sin_1, ...)``, i.e. ``row[2j] = rope_cos[t, j]`` and ``row[2j + 1] = rope_sin[t, j]``.
+  ``(cos_0, sin_0, cos_1, sin_1, ...)``, i.e. ``row[2j] = rope_cos[t, j]`` and ``row[2j + 1] = rope_sin[t, j]``
+  for ``0 <= j < indexer_rotary_dim``.
   Addressed through the same page table as ``summary_cache``: physical page
   ``block_indices[block_indices_begins[s] + pos // page_size]``, slot
   ``(pos // compress_ratio) % (page_size // compress_ratio)``. Written once, in whichever invocation appends the
@@ -556,11 +567,11 @@ the generalized multi-selection-head form.
   equals ``H_ik``, and dim 0 equals ``num_blocks`` (shared with the main KV ``key_cache`` dim 0).
 * ``indexer_raw_k_cache`` dim 0 equals ``num_blocks`` (shared with main KV cache), dim 1 equals ``H_ik``, and dim 2
   equals ``page_size``; it stores raw K for the full logical history, with no ring-capacity attribute.
-* ``rope_cos`` and ``rope_sin`` both have shape ``[tokens, indexer_rotary_dim / 2]``, with dim 0 equal to the
+* ``rope_cos`` and ``rope_sin`` both have shape ``[tokens, indexer_rotary_dim]``, with dim 0 equal to the
   ``q_idx`` dim 0.
 * ``indexer_rope_cache`` dim 0 equals ``num_blocks`` (shared with the main KV cache and ``indexer_raw_k_cache``),
   dim 1 equals ``page_size // compress_ratio`` (shared with ``summary_cache``) and dim 2 equals
-  ``indexer_rotary_dim``; it must be writable and stores one row per completed-or-pending block, not a per-token
+  ``2 * indexer_rotary_dim``; it must be writable and stores one row per completed-or-pending block, not a per-token
   or ring-capacity tensor.
 * ``sel_indices`` last dimension ``K_max`` equals ``block_topk``; ``sel_count[t, sh] == min(block_topk, n_complete)``
   per query, hence ``<= K_max``. The valid
@@ -599,11 +610,11 @@ all four index-query heads participate in the single selection head's score.
            <port id="1">   <!-- k_idx: [tokens, H_ik*D_idx] -->
                <dim>1</dim><dim>128</dim>
            </port>
-           <port id="2">   <!-- rope_cos: [tokens, rotary_dim/2] -->
-               <dim>1</dim><dim>32</dim>
+           <port id="2">   <!-- rope_cos: [tokens, rotary_dim] -->
+               <dim>1</dim><dim>64</dim>
            </port>
-           <port id="3">   <!-- rope_sin: [tokens, rotary_dim/2] -->
-               <dim>1</dim><dim>32</dim>
+           <port id="3">   <!-- rope_sin: [tokens, rotary_dim] -->
+               <dim>1</dim><dim>64</dim>
            </port>
            <port id="4">   <!-- q_norm_weight: [D_idx] -->
                <dim>128</dim>
@@ -626,8 +637,8 @@ all four index-query heads participate in the single selection head's score.
            <port id="10">  <!-- indexer_raw_k_cache: [num_blocks, H_ik, page_size, D_idx] -->
                <dim>1</dim><dim>1</dim><dim>16</dim><dim>128</dim>
            </port>
-           <port id="11">  <!-- indexer_rope_cache: [num_blocks, page_size//r, rotary_dim], writable -->
-               <dim>1</dim><dim>4</dim><dim>64</dim>
+           <port id="11">  <!-- indexer_rope_cache: [num_blocks, page_size//r, 2*rotary_dim], writable -->
+               <dim>1</dim><dim>4</dim><dim>128</dim>
            </port>
            <port id="12">  <!-- summary_cache: [num_blocks, H_ik, page_size//r, D_idx] -->
                <dim>1</dim><dim>1</dim><dim>4</dim><dim>128</dim>
