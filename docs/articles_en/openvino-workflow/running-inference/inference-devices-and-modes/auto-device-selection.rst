@@ -168,7 +168,9 @@ the following setup options:
 |                                              |                                                                    |
 |                                              | Enables/disables CPU as acceleration (or the helper device) in the |
 |                                              | beginning. The default value is ``true``, indicating that CPU is   |
-|                                              | used as acceleration by default.                                   |
+|                                              |                                                                    |
+|                                              | As a trade-off, two model instances will be kept, resulting in     |
+|                                              | additional memory usage of approximately one model’s size.         |
 +----------------------------------------------+--------------------------------------------------------------------+
 | ``ov::intel_auto::enable_runtime_fallback``  | **Values**:                                                        |
 |                                              |                                                                    |
@@ -192,6 +194,25 @@ the following setup options:
 |                                              | plugin for AUTO cumulative mode.                                   |
 |                                              |                                                                    |
 |                                              | The default value is ``DEVICE_PRIORITY``.                          |
++----------------------------------------------+--------------------------------------------------------------------+
+| ``ov::intel_auto::compile_for_all``          | **Values**:                                                        |
+|                                              |                                                                    |
+|                                              | ``true``                                                           |
+|                                              |                                                                    |
+|                                              | ``false``                                                          |
+|                                              |                                                                    |
+|                                              | Compiles the model to the remaining candidate devices in the       |
+|                                              | background, after the actual device is ready and the CPU helper is |
+|                                              | released, to populate cache blobs for faster device switching      |
+|                                              | later. Devices whose cache blob already exists are skipped.        |
+|                                              |                                                                    |
+|                                              | Requires ``ov::cache_dir`` or ``ov::cache_path``; otherwise        |
+|                                              | compiling the model throws an exception.                           |
+|                                              |                                                                    |
+|                                              | At most two compiled models are held at the same time, so the peak |
+|                                              | memory usage does not exceed twice the compiled model size.        |
+|                                              |                                                                    |
+|                                              | The default value is ``false``.                                    |
 +----------------------------------------------+--------------------------------------------------------------------+
 
 Inference with AUTO is configured similarly to when device plugins are used:

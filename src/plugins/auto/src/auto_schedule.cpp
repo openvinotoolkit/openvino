@@ -3,11 +3,12 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include <algorithm>
+#include <chrono>
+
 #include "auto_schedule.hpp"
 
 #include "async_infer_request.hpp"
-#include "openvino/runtime/compilation_context.hpp"
-#include "openvino/util/file_util.hpp"
 #include "plugin.hpp"
 
 // ------------------------------AutoSchedule----------------------------
@@ -56,6 +57,10 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
                                         m_context->m_model_priority,
                                         m_context->m_selection_policy,
                                         m_context->m_low_power_device);
+            // Keep at most the actual and the fallback compiled models alive.
+            if (m_cache_warmup) {
+                m_cache_warmup->stop();
+            }
             try {
                 m_compile_context[FALLBACKDEVICE].m_task();
                 // FALLBACKDEVICE need to be load again if infer failed, so reset promise here
@@ -86,6 +91,14 @@ void AutoSchedule::init() {
     }
     // initialize cpuHelpReleasetime
     m_cpuhelp_release_time = std::chrono::steady_clock::now();
+    if (m_context->m_compile_for_all) {
+        // Captured now since Plugin releases m_context->m_model once the actual device is ready.
+        m_cache_warmup = std::make_shared<CacheWarmup>(m_plugin->get_cache_warmup_manager(),
+                                                       m_context->m_ov_core,
+                                                       m_context->m_model,
+                                                       m_context->m_model_path,
+                                                       get_log_tag());
+    }
     std::string profilingTask = "AutoSchedule::AutoSchedule:AutoMode";
     // loadContext[ACTUALDEVICE] is always enabled,
     // when there is CPU and there are more than two devices, loadContext[CPU] is enabled
@@ -204,6 +217,7 @@ void AutoSchedule::init() {
         m_executor->run(m_compile_context[CPU].m_task);
         m_executor->run(m_compile_context[ACTUALDEVICE].m_task);
         auto recycleTask = [this]() mutable {
+            bool helper_released = false;
             wait_actual_compiled_model_ready();
             while (!m_exitflag && m_compile_context[ACTUALDEVICE].m_is_already) {
                 // handle the case of ACTUAL faster than CPU
@@ -259,12 +273,21 @@ void AutoSchedule::init() {
                     });
                     LOG_INFO_TAG("release all work requests of CPU_HELP");
                     m_worker_requests["CPU_HELP"].clear();
+                    if (m_context->m_hw_compiled_model._ptr == m_compile_context[CPU].m_compiled_model._ptr) {
+                        m_context->m_hw_compiled_model = m_compile_context[ACTUALDEVICE].m_compiled_model;
+                    }
                     m_compile_context[CPU].m_compiled_model._ptr.reset();
                     m_compile_context[CPU].m_compiled_model._so.reset();
                     m_compile_context[CPU].m_is_already = false;
                     LOG_INFO_TAG("helper released!!");
+                    helper_released = true;
                     break;
                 }
+            }
+            if (helper_released && m_cache_warmup) {
+                // Failed startup devices were already removed from the actual context's candidates.
+                m_cache_warmup->start(m_compile_context[ACTUALDEVICE].m_device_info.device_name,
+                                      m_compile_context[ACTUALDEVICE].m_meta_devices);
             }
         };
         m_executor->run(std::move(recycleTask));
@@ -290,7 +313,21 @@ void AutoSchedule::init() {
             m_infer_pipeline_tasks_device_specific.clear();
         }
     }
-    m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
+    auto first_compiled_model = wait_first_compiled_model_ready();
+    {
+        std::lock_guard<std::mutex> lock(m_context->m_mutex);
+        // The recycle task may have released CPU_HELP already; never pin its compiled model.
+        if (!m_compile_context[CPU].m_is_already &&
+            first_compiled_model._ptr != m_compile_context[ACTUALDEVICE].m_compiled_model._ptr) {
+            first_compiled_model = m_compile_context[ACTUALDEVICE].m_compiled_model;
+        }
+        m_context->m_hw_compiled_model = std::move(first_compiled_model);
+    }
+    if (m_cache_warmup && !m_compile_context[CPU].m_is_enabled && m_compile_context[ACTUALDEVICE].m_is_already) {
+        // Failed startup devices were already removed from the actual context's candidates.
+        m_cache_warmup->start(m_compile_context[ACTUALDEVICE].m_device_info.device_name,
+                              m_compile_context[ACTUALDEVICE].m_meta_devices);
+    }
 }
 
 void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) {
@@ -506,6 +543,10 @@ AutoSchedule::~AutoSchedule() {
         // it's necessary to wait the compile model threads to stop here.
         m_plugin->get_executor_manager()->clear("AutoDeviceAsyncCompile");
         m_executor.reset();
+    }
+    // After the recycle task has stopped, so no new warm-up can be queued.
+    if (m_cache_warmup) {
+        m_cache_warmup->stop();
     }
     if (m_plugin)
         m_plugin->unregister_priority(m_context->m_model_priority,

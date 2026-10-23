@@ -531,6 +531,34 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     auto_s_context->m_log_tag = get_device_name();
     auto_s_context->m_model_precision = model_precision;
     auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
+    auto_s_context->m_compile_for_all = load_config.get_property(ov::intel_auto::compile_for_all);
+    if (auto_s_context->m_compile_for_all) {
+        std::vector<const DeviceInformation*> warmup_candidates;
+        for (const auto& device : auto_s_context->m_device_priorities_initial) {
+            if (ov::DeviceIDParser(device.device_name).get_device_name() != "CPU")
+                warmup_candidates.push_back(&device);
+        }
+        // The actual device may be the CPU, so one non-CPU candidate is enough as long as another device exists.
+        if (is_cumulative || warmup_candidates.empty() || auto_s_context->m_device_priorities_initial.size() < 2) {
+            LOG_WARNING_TAG("compile_for_all is ignored: %s",
+                            is_cumulative ? "not supported in cumulative mode" : "no other candidate device to compile");
+            auto_s_context->m_compile_for_all = false;
+        } else if (!std::any_of(warmup_candidates.begin(),
+                                warmup_candidates.end(),
+                                [this](const DeviceInformation* device) {
+                                    return !CacheWarmupManager::get_cache_location(*get_core(),
+                                                                                   device->config,
+                                                                                   device->device_name)
+                                                .empty();
+                                })) {
+            // A single non-CPU candidate is warmed up only if the CPU ends up as the actual device.
+            if (warmup_candidates.size() >= 2) {
+                OPENVINO_THROW(ov::intel_auto::compile_for_all.name(), " requires ov::cache_dir or ov::cache_path to be set");
+            }
+            LOG_WARNING_TAG("compile_for_all is ignored: neither ov::cache_dir nor ov::cache_path is set");
+            auto_s_context->m_compile_for_all = false;
+        }
+    }
     auto_s_context->m_schedule_policy = load_config.get_property(ov::intel_auto::schedule_policy);
     auto_s_context->m_mtx = m_mtx;
     auto_s_context->m_priority_map = m_priority_map;
@@ -541,10 +569,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     scheduler->launch(auto_s_context);
     ov::SoPtr<ov::IRemoteContext> device_context;
     try {
-        OPENVINO_ASSERT(auto_s_context->m_hw_compiled_model, "no valid compiled model available");
-        device_context = auto_s_context->m_hw_compiled_model->get_context();
+        SoCompiledModel hw_compiled_model;
+        {
+            std::lock_guard<std::mutex> lock(auto_s_context->m_mutex);
+            hw_compiled_model = auto_s_context->m_hw_compiled_model;
+        }
+        OPENVINO_ASSERT(hw_compiled_model, "no valid compiled model available");
+        device_context = hw_compiled_model->get_context();
         if (!device_context._so)
-            device_context._so = auto_s_context->m_hw_compiled_model._so;
+            device_context._so = hw_compiled_model._so;
     } catch (ov::NotImplemented&) {
         LOG_INFO_TAG("underlying hardware does not support hardware context");
     }
@@ -1039,32 +1072,23 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
         std::vector<std::string> devices_to_be_merged =
             m_plugin_config.parse_priorities_devices(priorities.as<std::string>());
         std::size_t num_blob_files = 0;
-        std::string cache_dir = properties.count(ov::cache_dir.name())
-                                    ? properties.at(ov::cache_dir.name()).as<std::string>()
-                                    : get_core()->get_property("", ov::cache_dir);
+        const auto cache_location = CacheWarmupManager::get_cache_location(*get_core(), properties);
         bool if_need_cache_check =
-            !is_cumulative_tput && enable_startup_cpu && (model || !model_path.empty()) && !cache_dir.empty();
+            !is_cumulative_tput && enable_startup_cpu && (model || !model_path.empty()) && !cache_location.empty();
         if (if_need_cache_check) {
             for (auto&& device : devices_to_be_merged) {
                 ov::DeviceIDParser parsed{device};
                 if (parsed.get_device_name().find("CPU") != std::string::npos)
                     continue;
                 // check if cached model exists for other devices
-                auto dev_properties = get_core()->get_supported_property(parsed.get_device_name(), properties);
-                dev_properties = get_core()->create_compile_config(parsed.get_device_name(), dev_properties);
-                std::string blobId;
-
-                if (model)
-                    blobId = ov::ModelCache::compute_hash(model, dev_properties);
-                else
-                    blobId = ov::ModelCache::compute_hash(model_path, dev_properties);
-                const auto cached_model_path = ov::util::make_path(cache_dir) / (blobId + ".blob");
-                bool is_blob_file_exist = ov::util::file_exists(cached_model_path);
+                const bool is_blob_file_exist = CacheWarmupManager::is_blob_cached(*get_core(),
+                                                                                   parsed.get_device_name(),
+                                                                                   properties,
+                                                                                   model,
+                                                                                   model_path,
+                                                                                   cache_location);
                 num_blob_files += is_blob_file_exist;
-                LOG_DEBUG_TAG("device: %s %s cached blob: %s ",
-                              device.c_str(),
-                              is_blob_file_exist ? "found" : "not found",
-                              ov::util::path_to_string(cached_model_path).c_str());
+                LOG_DEBUG_TAG("device: %s %s cached blob", device.c_str(), is_blob_file_exist ? "found" : "not found");
             }
 
             if (enable_startup_cpu && num_blob_files) {
