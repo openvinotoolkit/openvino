@@ -152,7 +152,16 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
             }
 
             // The gate half feeds the activation: gate at split output(0) is the normal layout, otherwise swapped.
-            auto gate_src = pattern_map.at(mlp_gate_act).get_node_shared_ptr()->input_value(0);
+            const auto act = pattern_map.at(mlp_gate_act);
+            auto gate_src = act.get_node_shared_ptr()->input_value(0);
+            // LLMMLP takes "up" from the other weight half, so the Multiply's other operand must be exactly that
+            // half of the same split (not the gate half again, nor a separate up projection).
+            const auto mul = pattern_map.at(mlp_gated_up).get_node_shared_ptr();
+            const auto up_src = mul->input_value(0) == act ? mul->input_value(1) : mul->input_value(0);
+            if (gate_src.get_node() != split.get() || up_src.get_node() != split.get() ||
+                gate_src.get_index() == up_src.get_index()) {
+                return false;
+            }
             gate_up_type = (gate_src.get_index() == 0) ? LLMMLPNode::GATE_UP_TYPE::COMBINED_GATE_UP
                                                        : LLMMLPNode::GATE_UP_TYPE::COMBINED_UP_GATE;
         }
