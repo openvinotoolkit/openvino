@@ -147,6 +147,13 @@ def main():
         ),
     )
     args = parser.parse_args()
+    # The short run needs max_tokens >= 1 (vLLM rejects 0), and the steady
+    # window needs at least one token, so check before loading any engine.
+    if not 0 < args.skip_warmup_tokens < args.max_new_tokens:
+        parser.error(
+            f"need 0 < --skip-warmup-tokens < --max-new-tokens, got "
+            f"{args.skip_warmup_tokens} and {args.max_new_tokens}"
+        )
 
     mm_kwargs = {"limit_mm_per_prompt": {"image": 0, "video": 0, "audio": 0}} if args.disable_mm else {}
 
