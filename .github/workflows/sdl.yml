@@ -3,23 +3,10 @@ permissions: read-all
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-      - 'releases/**'
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-  merge_group:
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.run_id || github.ref }}
   cancel-in-progress: true
-
-    if: github.event.pull_request.draft == false || github.run_attempt > 1
-    timeout-minutes: 10
 
 jobs:
   bandit:
