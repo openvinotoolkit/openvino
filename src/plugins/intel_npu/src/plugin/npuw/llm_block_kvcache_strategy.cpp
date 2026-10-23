@@ -12,6 +12,7 @@
 #include "llm_infer_base_request.hpp"
 #include "llm_infer_request.hpp"
 #include "llm_longrope_kv.hpp"
+#include "llm_prefix_caching.hpp"
 #include "logging.hpp"
 #include "util.hpp"
 
@@ -501,6 +502,9 @@ void LLMBlockKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<ov::I
                     "NPUW: the LongRoPE mode changed but the block KV cache is not initialized.");
 
     std::vector<ov::npuw::longrope::KeyBlock> blocks;
+    // A block the prefix cache also holds must keep its keys, so it gets a private copy first.
+    // The request still points at the old tensor and has to be rebound afterwards.
+    bool rebind_needed = false;
     for (const auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
         auto& manager = layer_managers.key_manager;
         if (!manager) {
@@ -529,6 +533,7 @@ void LLMBlockKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<ov::I
                             " tokens where the LongRoPE mode change expects at least ",
                             live,
                             ".");
+            rebind_needed |= manager->make_block_private(block_id);
             blocks.push_back({manager->get_block_tensor(block_id), first, live});
         }
     }
@@ -540,7 +545,12 @@ void LLMBlockKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<ov::I
                                                    num_cached_tokens,
                                                    m_req.m_first_position_id,
                                                    to_long);
-    refresh_key_tail_bindings(request);
+    if (rebind_needed && request == m_req.m_kvcache_request) {
+        // Rebinding also re-copies every tail, so a separate refresh would be redundant.
+        on_generate_kv_init();
+    } else {
+        refresh_key_tail_bindings(request);
+    }
 }
 
 // Continuing a prefill on the block pool truncates metadata only, since blocks
@@ -628,6 +638,141 @@ void LLMBlockKVCacheStrategy::continue_prefill(uint32_t keep, uint32_t delta_len
             layer_managers.value_manager->truncate_allocated(keep_blocks);
         }
     }
+}
+
+// ============================================================================
+// Prefix caching
+// ============================================================================
+
+void LLMBlockKVCacheStrategy::apply_cached_prefix_blocks(const std::vector<std::shared_ptr<KVBlock>>& blocks) {
+    OPENVINO_ASSERT(!m_kv_cache_block_managers.empty(), "Prefix cache restore: block managers are not initialized.");
+
+    // Validate everything before touching the pool, so a failure leaves it unchanged.
+    std::vector<const PrefixBlockBlockKV*> prefix_blocks;
+    prefix_blocks.reserve(blocks.size());
+    for (const auto& kv_block : blocks) {
+        const auto* prefix_block = dynamic_cast<const PrefixBlockBlockKV*>(kv_block.get());
+        OPENVINO_ASSERT(prefix_block, "Prefix cache restore: a cached block was not produced by the block KV cache.");
+        prefix_blocks.push_back(prefix_block);
+    }
+    for (const auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+        for (const auto* manager : {layer_managers.key_manager.get(), layer_managers.value_manager.get()}) {
+            if (!manager) {
+                continue;
+            }
+            OPENVINO_ASSERT(manager->get_allocated_blocks().empty(),
+                            "Prefix cache restore: layer ",
+                            layer_idx,
+                            " already holds blocks; the restore must precede the first prefill chunk.");
+            OPENVINO_ASSERT(manager->num_free_blocks() >= prefix_blocks.size(),
+                            "Prefix cache restore: not enough free blocks for ",
+                            prefix_blocks.size(),
+                            " cached blocks.");
+        }
+        for (const auto* prefix_block : prefix_blocks) {
+            const auto ref_it = prefix_block->get_layer_refs().find(layer_idx);
+            OPENVINO_ASSERT(ref_it != prefix_block->get_layer_refs().end() &&
+                                (!layer_managers.key_manager || ref_it->second.key_tensor) &&
+                                (!layer_managers.value_manager || ref_it->second.value_tensor),
+                            "Prefix cache restore: a cached block has no KV for layer ",
+                            layer_idx);
+        }
+    }
+
+    // Ascending token order: each injection appends to the layer's allocation sequence, which
+    // is what binds the block to its numbered port.
+    for (const auto* prefix_block : prefix_blocks) {
+        for (auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+            const auto& ref = prefix_block->get_layer_refs().at(layer_idx);
+            if (layer_managers.key_manager) {
+                layer_managers.key_manager->allocate_block_with_tensor(ref.key_tensor, ref.num_tokens);
+            }
+            if (layer_managers.value_manager) {
+                layer_managers.value_manager->allocate_block_with_tensor(ref.value_tensor, ref.num_tokens);
+            }
+        }
+    }
+    LOG_DEBUG("Prefix cache restore: injected " << prefix_blocks.size() << " cached blocks per layer.");
+}
+
+// Runs after infer() and before on_prefill_chunk_done(). A full, block-aligned chunk always
+// takes the zero-copy path, so the model has already written the block into the pool.
+// Returns nullptr when the pool does not hold the complete block, so it is simply not cached.
+std::shared_ptr<KVBlock> LLMBlockKVCacheStrategy::make_prefix_block(size_t block_token_start,
+                                                                    size_t out_token_offset,
+                                                                    size_t block_size,
+                                                                    const std::vector<uint64_t>& token_hashes) {
+    OPENVINO_ASSERT(out_token_offset == 0u,
+                    "Prefix cache store: block KV caches only full chunks, got output offset ",
+                    out_token_offset);
+    OPENVINO_ASSERT(block_size == m_block_size && block_token_start % m_block_size == 0u,
+                    "Prefix cache store: block (start=",
+                    block_token_start,
+                    ", size=",
+                    block_size,
+                    ") does not match the KV block size ",
+                    m_block_size);
+    // Position of the block within the sequence; the pool's physical block_id is looked up from it.
+    const size_t block_idx = block_token_start / m_block_size;
+
+    const auto find_full_block = [&](const KVCacheBlockManager* manager) -> std::optional<uint32_t> {
+        const auto allocated = manager->get_allocated_blocks();
+        if (block_idx >= allocated.size() || manager->get_block_tokens(allocated[block_idx]) != m_block_size) {
+            return std::nullopt;
+        }
+        return allocated[block_idx];
+    };
+
+    // Resolve every layer before touching any block, so a declined block marks nothing as shared.
+    struct LayerBlockIds {
+        std::optional<uint32_t> key;
+        std::optional<uint32_t> value;
+    };
+    std::unordered_map<uint32_t, LayerBlockIds> pool_blocks;
+    for (const auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+        LayerBlockIds ids;
+        if (layer_managers.key_manager) {
+            ids.key = find_full_block(layer_managers.key_manager.get());
+            if (!ids.key) {
+                LOG_WARN("Prefix cache store: layer "
+                         << layer_idx << " has no completely written key block at position " << block_idx
+                         << ", not caching it");
+                return nullptr;
+            }
+        }
+        if (layer_managers.value_manager) {
+            ids.value = find_full_block(layer_managers.value_manager.get());
+            if (!ids.value) {
+                LOG_WARN("Prefix cache store: layer "
+                         << layer_idx << " has no completely written value block at position " << block_idx
+                         << ", not caching it");
+                return nullptr;
+            }
+        }
+        pool_blocks.emplace(layer_idx, ids);
+    }
+
+    auto block = std::make_shared<PrefixBlockBlockKV>(block_size);
+    block->set_token_start(block_token_start);
+
+    for (auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+        const auto& ids = pool_blocks.at(layer_idx);
+        BlockKVRef ref;
+        ref.num_tokens = m_block_size;
+        // The pool must not reuse a tensor the cache holds as scratch memory in a later conversation.
+        if (ids.key) {
+            ref.key_tensor = layer_managers.key_manager->get_block_tensor(*ids.key);
+            layer_managers.key_manager->mark_block_shared(*ids.key);
+        }
+        if (ids.value) {
+            ref.value_tensor = layer_managers.value_manager->get_block_tensor(*ids.value);
+            layer_managers.value_manager->mark_block_shared(*ids.value);
+        }
+        block->add_layer_ref(layer_idx, std::move(ref));
+    }
+
+    block->add_block(token_hashes, {});
+    return block;
 }
 
 // ============================================================================
@@ -940,6 +1085,7 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
     namespace uu = ov::npuw::util;
     auto& kvcache_desc = m_req.m_npuw_llm_compiled_model->m_kvcache_desc;
     auto& compiled = request->get_compiled_model();
+    bool rebind_needed = false;
 
     for (std::size_t i = LLMInferBaseRequest::layer_ids::kStartOutputKVCacheLayers; i < compiled->outputs().size();
          ++i) {
@@ -982,6 +1128,11 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
                             "Failed to allocate block for KV cache — pool exhausted");
         }
         allocated_blocks = block_manager->get_allocated_blocks();
+        // Rare: normal decoding only appends past the prompt, never into a cached block. It takes a
+        // generate step rewound into the prompt (stored-tokens state or position_ids set back).
+        for (uint32_t block_idx = start_block_idx; block_idx <= end_block_idx; ++block_idx) {
+            rebind_needed |= block_manager->make_block_private(allocated_blocks[block_idx]);
+        }
 
         // Write tokens across blocks.
         // The first block may be partially filled: start writing at (start_pos % block_size).
@@ -1000,6 +1151,11 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
             block_manager->update_block_tokens(block_id, write_end);
         }
         OPENVINO_ASSERT(tokens_written == num_tokens, "Mismatch: wrote ", tokens_written, " but expected ", num_tokens);
+    }
+
+    // The prefill ports are rebound at the start of every chunk; the generate ports are not.
+    if (rebind_needed && request == m_req.m_kvcache_request) {
+        on_generate_kv_init();
     }
 }
 
