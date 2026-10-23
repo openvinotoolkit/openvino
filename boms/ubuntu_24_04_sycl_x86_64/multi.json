@@ -1,6 +1,0 @@
-{
-  "component": "multi",
-  "files": [
-    "runtime/lib/intel64/libopenvino_auto_plugin.so"
-  ]
-}

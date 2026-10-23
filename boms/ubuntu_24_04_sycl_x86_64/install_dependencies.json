@@ -1,6 +1,0 @@
-{
-  "component": "install_dependencies",
-  "files": [
-    "install_dependencies/install_openvino_dependencies.sh"
-  ]
-}

@@ -5,6 +5,7 @@
 
 import argparse
 from dataclasses import dataclass
+from html import escape
 import json
 from pathlib import Path
 import re
@@ -21,7 +22,6 @@ DOCUMENTATION_URL = (
 class Result:
     name: str
     failure: str = ""
-    skipped: str = ""
 
 
 class ManifestError(ValueError):
@@ -86,7 +86,7 @@ def compare(artifact_dir: Path, gold_dir: Path, configuration: str) -> list[Resu
                 results.append(Result(component, failure=str(error)))
         results.append(Result(
             "gold-configuration",
-            skipped=f"No GOLD BOM configuration exists at {baseline}; there is nothing to compare. "
+            failure=f"No GOLD BOM configuration exists at {baseline}; package layout cannot be verified. "
             "Initialize the configuration's GOLD BOMs through a reviewed PR.",
         ))
         return results
@@ -148,7 +148,7 @@ def report_results(results: list[Result], configuration: str, report: Path) -> i
     failures = sum(bool(result.failure) for result in results)
     suite = ET.Element(
         "testsuite", name=f"BOM {configuration}", tests=str(len(results)),
-        failures=str(failures), errors="0", skipped=str(sum(bool(result.skipped) for result in results)),
+        failures=str(failures), errors="0", skipped="0",
     )
     for result in results:
         case = ET.SubElement(suite, "testcase", classname=f"bom.{configuration}", name=result.name)
@@ -156,15 +156,33 @@ def report_results(results: list[Result], configuration: str, report: Path) -> i
             message = f"{configuration}/{result.name}: {result.failure}\nDocumentation: {DOCUMENTATION_URL}"
             annotation("error", message)
             ET.SubElement(case, "failure", message=f"BOM check failed: {result.name}").text = message
-        elif result.skipped:
-            message = f"{result.skipped}\nDocumentation: {DOCUMENTATION_URL}"
-            annotation("warning", message)
-            ET.SubElement(case, "skipped", message=message)
         else:
             print(f"PASS: {configuration}/{result.name}")
     report.parent.mkdir(parents=True, exist_ok=True)
     ET.ElementTree(suite).write(report, encoding="utf-8", xml_declaration=True)
-    print(f"BOM tests: {len(results)} checks, {failures} failures. Report: {report}")
+    html_report = report.with_suffix(".html")
+    rows = []
+    for result in results:
+        status = "FAIL" if result.failure else "PASS"
+        rows.append(
+            f'<tr class="{status.lower()}"><td>{escape(result.name)}</td><td>{status}</td>'
+            f"<td><pre>{escape(result.failure)}</pre></td></tr>"
+        )
+    html_report.write_text(
+        '<!DOCTYPE html>\n<html lang="en"><head><meta charset="utf-8">'
+        f"<title>BOM tests: {escape(configuration)}</title>"
+        "<style>body{font-family:sans-serif;margin:2rem}table{border-collapse:collapse;width:100%}"
+        "th,td{border:1px solid #aaa;padding:.5rem;text-align:left;vertical-align:top}"
+        "pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:0}"
+        ".fail{background:#ffe0e0}.pass{background:#e0ffe0}</style></head><body>"
+        f"<h1>BOM tests: {escape(configuration)}</h1>"
+        f"<p>{len(results)} checks, {failures} failures.</p>"
+        f'<p><a href="{DOCUMENTATION_URL}">BOM documentation and baseline update instructions</a></p>'
+        "<table><thead><tr><th>Check</th><th>Status</th><th>Details</th></tr></thead><tbody>"
+        + "".join(rows) + "</tbody></table></body></html>\n",
+        encoding="utf-8",
+    )
+    print(f"BOM tests: {len(results)} checks, {failures} failures. Reports: {report}, {html_report}")
     return int(failures > 0)
 
 

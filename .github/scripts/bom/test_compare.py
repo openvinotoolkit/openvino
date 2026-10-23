@@ -60,12 +60,12 @@ class BomTests(unittest.TestCase):
         (self.artifact / "windows").mkdir()
         self.assertIn("exactly one platform", self.compare()[0].failure)
 
-    def test_missing_configuration_warns_and_skips(self):
+    def test_missing_configuration_fails(self):
         self.manifest(self.generated)
         self.baseline.rmdir()
         result = self.compare()
-        self.assertTrue(result[-1].skipped)
-        self.assertFalse(any(item.failure for item in result))
+        self.assertIn("No GOLD BOM configuration", result[-1].failure)
+        self.assertIn("Initialize", result[-1].failure)
 
     def test_missing_configuration_does_not_hide_invalid_manifest(self):
         self.manifest(self.generated).write_text("{", encoding="utf-8")
@@ -143,17 +143,39 @@ class BomTests(unittest.TestCase):
         self.assertIn(compare.DOCUMENTATION_URL, output.getvalue())
         self.assertIn("added%0Aremoved", output.getvalue())
 
-    def test_skipped_baseline_produces_warning_and_successful_exit(self):
+    def test_missing_baseline_produces_failure_reports_and_nonzero_exit(self):
+        self.manifest(self.generated)
+        self.baseline.rmdir()
         output = io.StringIO()
         with redirect_stdout(output):
             status = compare.report_results(
-                [compare.Result("gold", skipped="Missing baseline")], self.configuration, self.root / "bom.xml",
+                self.compare(), self.configuration, self.root / "bom.xml",
             )
-        self.assertEqual(status, 0)
-        self.assertIn("::warning::", output.getvalue())
+        self.assertEqual(status, 1)
+        self.assertIn("::error::", output.getvalue())
         suite = ET.parse(self.root / "bom.xml").getroot()
-        self.assertEqual(suite.get("skipped"), "1")
-        self.assertIsNotNone(suite.find("testcase/skipped"))
+        self.assertEqual(suite.get("skipped"), "0")
+        self.assertEqual(suite.get("failures"), "1")
+        self.assertIsNone(suite.find("testcase/skipped"))
+        self.assertIn("No GOLD BOM configuration", suite.find("testcase/failure").text)
+        self.assertIn("No GOLD BOM configuration", (self.root / "bom.html").read_text(encoding="utf-8"))
+
+    def test_html_contains_all_checks_and_escapes_external_text(self):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            compare.report_results(
+                [compare.Result("core<script>", failure="Added:\n<script>alert(1)</script>&"),
+                 compare.Result("samples")],
+                'config<&"', self.root / "bom.xml",
+            )
+        html = (self.root / "bom.html").read_text(encoding="utf-8")
+        self.assertIn("core&lt;script&gt;", html)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;&amp;", html)
+        self.assertNotIn("<script>", html)
+        self.assertIn("config&lt;&amp;&quot;", html)
+        self.assertIn("<td>FAIL</td>", html)
+        self.assertIn("<td>PASS</td>", html)
+        self.assertIn(compare.DOCUMENTATION_URL, html)
 
     def test_cli_exit_status_and_no_baseline_modifications(self):
         self.manifest(self.generated, files=["new"])
@@ -170,6 +192,12 @@ class BomTests(unittest.TestCase):
         self.assertEqual(golden.read_bytes(), before)
         self.manifest(self.generated, files=["old"])
         self.assertEqual(subprocess.run(command, capture_output=True).returncode, 0)
+        self.assertTrue((self.root / "bom.html").is_file())
+        golden.unlink()
+        self.baseline.rmdir()
+        result = subprocess.run(command, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("No GOLD BOM configuration", result.stdout)
 
 
 if __name__ == "__main__":

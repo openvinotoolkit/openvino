@@ -1,6 +1,0 @@
-{
-  "component": "ov_node_addon",
-  "files": [
-    "runtime/lib/intel64/ov_node_addon.node"
-  ]
-}

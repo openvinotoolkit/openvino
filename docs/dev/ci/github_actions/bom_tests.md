@@ -76,7 +76,7 @@ The checks run in this order:
    directory with component JSON manifests. Missing, empty, or malformed
    artifacts fail the test.
 2. Find `boms/<configuration>` in the checked-out revision. If the entire
-   configuration is missing, emit a warning and skip the baseline comparison.
+   configuration is missing, fail the test and request baseline initialization.
    Generated manifests must still be valid.
 3. Compare component names. All new and removed components are reported as
    failures, with instructions to add or remove the corresponding GOLD JSON
@@ -87,8 +87,12 @@ The checks run in this order:
    Invalid manifests also fail the test.
 
 The comparison collects failures rather than stopping at the first changed
-component. Diagnostics include a link to this page. A JUnit XML artifact records
-the comparison results, including failures and skipped baseline comparisons.
+component. Diagnostics include a link to this page. The
+`test-results-bom_<configuration>` artifact contains `TEST-bom.xml` (JUnit) and
+`TEST-bom.html`, uploaded even when the comparison fails. Download the artifact
+and open the HTML report in a browser to see every check, its status, and the
+full list of added and removed paths. Missing GOLD configurations are failures,
+not skipped checks, in both reports and make the job fail.
 
 Coverage and Linux Level Zero builds are excluded from BOM tests because they
 are special-purpose, non-product builds whose packages are not distributed
@@ -120,8 +124,7 @@ The test never overwrites GOLD manifests automatically.
 
 A new platform, architecture, or build configuration can be added on any
 development or release branch. Its first build has no GOLD baseline, so the BOM
-job warns and skips comparison rather than treating an absent configuration as
-an approved existing layout.
+job fails until the configuration's baseline is added through a reviewed PR.
 
 Use the separately provided
 [Initial GOLD BOM baseline workflow](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/ci/github_actions/overview.md#initial-gold-bom-baseline)

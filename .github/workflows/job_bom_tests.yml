@@ -37,12 +37,14 @@ jobs:
           python-version: '3.11'
 
       - name: Download expected BOM artifact
+        id: download
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: ${{ inputs.artifact-name }}
           path: ${{ runner.temp }}/bom-tests/artifact
 
       - name: Compare BOM against GOLD
+        id: compare
         run: |
           python .github/scripts/bom/compare.py \
             --artifact-dir "$RUNNER_TEMP/bom-tests/artifact" \
@@ -50,10 +52,36 @@ jobs:
             --configuration "${ARTIFACT_NAME#bom_}" \
             --report "$RUNNER_TEMP/bom-tests/TEST-bom.xml"
 
+      - name: Explain BOM test failure
+        if: ${{ failure() }}
+        env:
+          DOWNLOAD_OUTCOME: ${{ steps.download.outcome }}
+          COMPARE_OUTCOME: ${{ steps.compare.outcome }}
+          BOM_DOCS: https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/ci/github_actions/bom_tests.md
+        run: |
+          configuration="${ARTIFACT_NAME#bom_}"
+          if [[ "$DOWNLOAD_OUTCOME" == "failure" ]]; then
+            message="Could not download required BOM artifact '$ARTIFACT_NAME'. Check that the Build job generated and uploaded it."
+          elif [[ "$COMPARE_OUTCOME" == "failure" ]]; then
+            message="BOM check failed for '$configuration'. Review the comparison errors and download 'test-results-$ARTIFACT_NAME' for XML/HTML reports. If boms/$configuration is missing, initialize its GOLD baseline. For intentional component/file additions, removals or renames, update the affected GOLD JSON files in this PR; otherwise fix the packaging regression."
+          else
+            message="BOM test setup failed for '$configuration'. Check the failed step above and fix it before rerunning the job."
+          fi
+          echo "::error::$message Documentation: $BOM_DOCS"
+          {
+            echo "## BOM tests failed: $configuration"
+            echo
+            echo "$message"
+            echo
+            echo "[BOM documentation and update instructions]($BOM_DOCS)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload Test Results
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-results-${{ inputs.artifact-name }}
-          path: ${{ runner.temp }}/bom-tests/TEST-bom.xml
+          path: |
+            ${{ runner.temp }}/bom-tests/TEST-bom.xml
+            ${{ runner.temp }}/bom-tests/TEST-bom.html
           if-no-files-found: warn
