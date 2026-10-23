@@ -213,6 +213,7 @@ TEST(NPUExecutorTests, AdaptiveModeGrowsForQueuedWork) {
     std::condition_variable cv;
     bool release = false;
     int started = 0;
+    int completed = 0;
 
     auto blockingTask = [&] {
         {
@@ -225,6 +226,9 @@ TEST(NPUExecutorTests, AdaptiveModeGrowsForQueuedWork) {
         cv.wait(lock, [&] {
             return release;
         });
+
+        ++completed;
+        cv.notify_all();
     };
 
     exec->run(blockingTask);
@@ -242,6 +246,14 @@ TEST(NPUExecutorTests, AdaptiveModeGrowsForQueuedWork) {
         release = true;
     }
     cv.notify_all();
+
+    // Wait for both tasks to observe release and finish before this frame's
+    // stack variables (m, cv, release) go out of scope; otherwise the worker
+    // threads may still read them, causing a stack-use-after-scope.
+    EXPECT_TRUE(wait_until([&] {
+        std::lock_guard<std::mutex> lock(m);
+        return completed == 2;
+    }));
 }
 
 TEST(NPUExecutorTests, FixedModeDoesNotUseMoreThanConfiguredWorkers) {
