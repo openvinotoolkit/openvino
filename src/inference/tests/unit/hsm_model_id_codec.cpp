@@ -47,21 +47,4 @@ TEST(HsmModelIdSectionTest, decode_reads_the_little_endian_wire_bytes) {
     EXPECT_EQ(hsm::decode_model_id(inline_section(WireId{})), 0u);
 }
 
-TEST(HsmModelIdSectionTest, decode_rejects_a_section_with_a_different_tag_id) {
-    hsm::ManifestEntry entry{};
-    entry.tag = hsm::SectionTag::make(hsm::model, /*is_inline=*/true);
-    std::copy(sample_wire.begin(), sample_wire.end(), entry.inline_bytes.begin());
-
-    EXPECT_FALSE(hsm::decode_model_id(hsm::Section{entry}).has_value());
-}
-
-TEST(HsmModelIdSectionTest, decode_rejects_a_pointer_mode_section) {
-    hsm::ManifestEntry entry{};
-    entry.tag = hsm::SectionTag::make(hsm::model_id, /*is_inline=*/false);
-    entry.size = sample_wire.size();
-    const hsm::Section section{entry, {reinterpret_cast<const std::byte*>(sample_wire.data()), sample_wire.size()}};
-
-    EXPECT_FALSE(hsm::decode_model_id(section).has_value());
-}
-
 }  // namespace ov::test

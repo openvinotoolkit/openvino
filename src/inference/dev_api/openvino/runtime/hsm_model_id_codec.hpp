@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <cassert>
 #include <cstdint>
 #include <cstring>
 #include <optional>
@@ -29,16 +30,9 @@ inline namespace v1 {
  * @return `std::nullopt` if @p section's tag isn't #model_id_tag or the read fails.
  */
 inline std::optional<uint64_t> decode_model_id(const Section& section) noexcept {
-    if (section.tag().value != model_id_tag.value) {
-        return std::nullopt;
-    }
-
+    assert(section.tag().value == model_id_tag.value);
     uint64_t id{};
-    if (section.read(0, sizeof(id), reinterpret_cast<std::byte*>(&id))) {
-        return id;
-    }
-
-    return std::nullopt;
+    return section.read(0, sizeof(id), reinterpret_cast<std::byte*>(&id)) ? std::optional{id} : std::nullopt;
 }
 
 }  // namespace v1

@@ -170,13 +170,13 @@ private:
 
 /** @brief Non-owning byte view of @p value's object representation; @p value must outlive the view. */
 template <typename T>
-MemoryView as_memory_view(const T& value) noexcept {
+MemoryView as_memory_view(T& value) noexcept {
     static_assert(std::is_trivially_copyable_v<T>, "as_memory_view requires a trivially copyable type");
     return {reinterpret_cast<const std::byte*>(&value), sizeof(T)};
 }
 
 template <typename T>
-MemoryView as_memory_view(const T&&) = delete;
+MemoryView as_memory_view(T&&) = delete;
 
 /**
  * @brief Capability: hints for managing a buffer's physical-memory residency.
