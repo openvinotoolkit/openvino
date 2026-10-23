@@ -323,6 +323,22 @@ TEST_F(MaskLinearAttentionPaddingTest, DynamicShapesAreLeftUntouched) {
     EXPECT_EQ(model->get_ops().size(), ops_before);
 }
 
+// The Concat infers a rank-3 output from x alone when the past conv state has a dynamic rank.
+TEST_F(MaskLinearAttentionPaddingTest, RankDynamicConvStateLeavesModelUntouched) {
+    auto model = make_static(stateless(ov::test::npuw::build_hybrid_llm_test_model()), 8u);
+    const auto past = find_param(model, "cache_params.past.conv.0");
+    ASSERT_TRUE(past);
+    past->set_partial_shape(ov::PartialShape::dynamic());
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    ASSERT_EQ(state_consumer<ov::op::v0::Concat>(past).get_node()->get_output_partial_shape(0).size(), 3u);
+
+    const auto ops_before = model->get_ops().size();
+    bool rewritten = true;
+    ASSERT_NO_THROW(rewritten = ov::npuw::MaskLinearAttentionPadding().run_on_model(model));
+    EXPECT_FALSE(rewritten);
+    EXPECT_EQ(model->get_ops().size(), ops_before);
+}
+
 // A partial chunk padded on the left must leave exactly the same conv/ssm state and the same
 // logits as the same tokens processed in a chunk of their own length, for a non-zero carried state.
 // The conv state is checked both in its original [B, C, K] layout and re-laid out as [B, K, C], and the

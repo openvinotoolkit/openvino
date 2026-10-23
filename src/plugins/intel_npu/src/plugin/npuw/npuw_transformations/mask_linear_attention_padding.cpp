@@ -88,10 +88,13 @@ std::optional<ConvSite> match_conv(const std::shared_ptr<ov::Node>& node) {
     }
     const auto state_param = ov::as_type_ptr<opv0::Parameter>(state.get_node_shared_ptr());
 
+    // The output rank does not prove the input ranks: one rank-dynamic input is enough to infer it.
     const auto& history = concat->get_input_partial_shape(0);
     const auto& tokens = concat->get_input_partial_shape(1);
-    if (history[kSeqAxis].is_dynamic() || tokens[kSeqAxis].is_dynamic()) {
-        return std::nullopt;
+    for (const auto& shape : {history, tokens}) {
+        if (shape.rank().is_dynamic() || shape.size() != 3 || shape[kSeqAxis].is_dynamic()) {
+            return std::nullopt;
+        }
     }
     return ConvSite{concat,
                     static_cast<size_t>(history[kSeqAxis].get_length()),
