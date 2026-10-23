@@ -200,6 +200,7 @@ static constexpr Property<int32_t, ov::PropertyMutability::RW> dump_batch_limit{
 static constexpr Property<std::set<int64_t>, ov::PropertyMutability::RW> dump_iterations{"GPU_DUMP_ITERATIONS"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> host_time_profiling{"GPU_HOST_TIME_PROFILING"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> impls_cache_capacity{"GPU_IMPLS_CACHE_CAPACITY"};
+static constexpr Property<size_t, ov::PropertyMutability::RW> output_reclaim_min_size{"GPU_OUTPUT_RECLAIM_MIN_SIZE"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_async_compilation{"GPU_DISABLE_ASYNC_COMPILATION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_runtime_buffer_fusing{"GPU_DISABLE_RUNTIME_BUFFER_FUSING"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_memory_reuse{"GPU_DISABLE_MEMORY_REUSE"};
