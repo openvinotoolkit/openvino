@@ -17,9 +17,12 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -166,6 +169,49 @@ bool has_node_type(const std::shared_ptr<const ov::Model>& model, const std::str
 using DynamicQuantizeParams = std::tuple<bool, bool, size_t, bool>;
 
 class DynamicQuantizeTransformPipelineTest : public testing::TestWithParam<DynamicQuantizeParams> {};
+
+class WeightlessConstantTransformPipelineTest : public testing::TestWithParam<bool> {};
+
+TEST_P(WeightlessConstantTransformPipelineTest, RestoresMetadataOnlyForUnchangedBytes) {
+    auto& engine = get_test_engine();
+    auto context = std::make_shared<ov::intel_gpu::RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::offload_ratio(10));
+
+    auto source = v0::Constant::create(element::i32, Shape{2, 2}, {1, 2, 3, 4});
+    const auto& attribute_type = ov::WeightlessCacheAttribute::get_type_info_static();
+    source->get_rt_info()[attribute_type] = ov::WeightlessCacheAttribute(4 * sizeof(int64_t), 64, element::i64);
+    std::shared_ptr<ov::Node> transformed;
+    if (GetParam()) {
+        auto order = v0::Constant::create(element::i64, Shape{2}, {1, 0});
+        transformed = std::make_shared<ov::op::v1::Transpose>(source, order);
+    } else {
+        auto shape = v0::Constant::create(element::i64, Shape{1}, {4});
+        transformed = std::make_shared<ov::op::v1::Reshape>(source, shape, false);
+    }
+    auto model = std::make_shared<ov::Model>(OutputVector{transformed}, ParameterVector{});
+    ov::intel_gpu::TransformationsPipeline pipeline(config, context);
+    pipeline.apply(model);
+
+    auto folded = ov::as_type_ptr<v0::Constant>(model->get_results().front()->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(folded, nullptr);
+    const std::vector<int32_t> expected = GetParam() ? std::vector<int32_t>{1, 3, 2, 4}
+                                                  : std::vector<int32_t>{1, 2, 3, 4};
+    EXPECT_EQ(folded->cast_vector<int32_t>(), expected);
+    const auto& runtime_info = folded->get_rt_info();
+    EXPECT_NE(runtime_info.find("otd_bin_offset"), runtime_info.end());
+    EXPECT_EQ(runtime_info.count(attribute_type), GetParam() ? 0u : 1u);
+    if (!GetParam()) {
+        const auto& restored = runtime_info.at(attribute_type).as<ov::WeightlessCacheAttribute>();
+        EXPECT_EQ(restored.bin_offset, 64u);
+        EXPECT_EQ(restored.original_dtype, element::i64);
+        EXPECT_EQ(restored.original_size, 4 * sizeof(int64_t));
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_WeightlessConstant,
+                         WeightlessConstantTransformPipelineTest,
+                         testing::Bool());
 
 TEST_P(DynamicQuantizeTransformPipelineTest, HandlesWeightLayout) {
     auto& engine = get_test_engine();

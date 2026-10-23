@@ -7,11 +7,13 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstring>
 #include <deque>
 #include <limits>
 #include <memory>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include <type_traits>
@@ -563,7 +565,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     // WeightlessCacheAttribute. Unlike WCA (is_copyable()=false), plain ov::Any values
     // are automatically propagated by copy_runtime_info through all transformations.
     // This allows moe.cpp to find bin offsets even when WCA is lost.
-    if (config.get_offload_ratio() > 0 && config.get_offload_ratio() < 100) {
+    const bool otd_enabled = config.get_offload_ratio() > 0 && config.get_offload_ratio() < 100;
+    std::unordered_map<size_t, std::pair<std::shared_ptr<ov::op::v0::Constant>, ov::WeightlessCacheAttribute>> original_constants;
+    if (otd_enabled) {
         // First stamp WCA on constants with mmap descriptors but no WCA yet
         for (const auto& op : func->get_ops()) {
             auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
@@ -591,6 +595,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             auto it = rt.find(ov::WeightlessCacheAttribute::get_type_info_static());
             if (it != rt.end()) {
                 const auto& wca = it->second.as<ov::WeightlessCacheAttribute>();
+                original_constants.emplace(wca.bin_offset, std::make_pair(const_node, wca));
                 const_node->get_rt_info()["otd_bin_offset"] = static_cast<int64_t>(wca.bin_offset);
             }
         }
@@ -1969,6 +1974,30 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
         manager.register_pass<ov::pass::Validate>();
         manager.run_passes(func);
+    }
+
+    if (otd_enabled) {
+        const auto& weightless_attr = ov::WeightlessCacheAttribute::get_type_info_static();
+        for (const auto& op : func->get_ops()) {
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op);
+            if (!constant || constant->get_rt_info().count(weightless_attr) != 0u)
+                continue;
+            const auto offset_it = constant->get_rt_info().find("otd_bin_offset");
+            if (offset_it == constant->get_rt_info().end())
+                continue;
+            const auto offset = static_cast<size_t>(offset_it->second.as<int64_t>());
+            const auto original_it = original_constants.find(offset);
+            if (original_it == original_constants.end())
+                continue;
+            const auto& original = original_it->second.first;
+            if (constant->get_element_type() != original->get_element_type() ||
+                constant->get_byte_size() != original->get_byte_size() ||
+                (constant->get_byte_size() != 0 &&
+                 std::memcmp(constant->get_data_ptr(), original->get_data_ptr(), constant->get_byte_size()) != 0)) {
+                continue;
+            }
+            constant->get_rt_info()[weightless_attr] = original_it->second.second;
+        }
     }
 }
 }  // namespace ov::intel_gpu
