@@ -306,8 +306,12 @@ def get_binary_tensors(binary_paths: list[str], info: AppInputInfo, batch_sizes:
                     raise Exception(
                         f"File {binary_filename} contains {binary_file_bit_size} bites but model expects {blob_bit_size}")
                 from_file = np.fromfile(binary_filename, dtype)
+                if info.element_type.bitwidth >= 8:
+                    from_file = from_file.reshape(shape)
                 if info.layout.has_name("N"):
-                    binaries[[None] * info.layout.get_index_by_name("N") + [b]] = from_file[b]
+                    batch_axis = info.layout.get_index_by_name("N") % len(shape)
+                    batch_slice = (slice(None),) * batch_axis + (b,)
+                    binaries[batch_slice] = from_file[batch_slice]
                 else:
                     binaries = from_file
             else:
