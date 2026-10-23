@@ -128,13 +128,31 @@ def _orig_weight(module, attr):
     return getattr(module, _ORIG_WEIGHT_ATTR_PREFIX + attr, getattr(module, attr, None))
 
 
+class _FP32ParameterPlaceholder(torch.Tensor):
+    @classmethod
+    def __torch_function__(cls, func, types, args=(), kwargs=None):
+        if func in (torch.Tensor.shape.__get__, torch.Tensor.size, torch.Tensor.numel,
+                    torch.numel, torch.Tensor.stride, torch.Tensor.storage_offset):
+            with torch._C.DisableTorchFunctionSubclass():
+                return func(*args, **(kwargs or {}))
+        if func is torch.view_as_complex:
+            return _view_as_complex(*args, **(kwargs or {}))
+        if torch.jit.is_tracing() and func in (
+                torch.Tensor.item, torch.Tensor.__float__, torch.Tensor.__int__, torch.Tensor.__complex__,
+                torch.Tensor.__index__, torch.Tensor.__bool__, torch.Tensor.tolist,
+                torch.Tensor.numpy, torch.Tensor.is_nonzero, torch.is_nonzero):
+            raise RuntimeError("Cannot extract Python scalars from FP32 parameter placeholders during tracing. "
+                               "Use tensor operations instead.")
+        return super().__torch_function__(func, types, args, kwargs)
+
+
 def _stash_weights_as_fp32_placeholders(module, supported, weight_attrs=("weight", "bias"), placeholders=None):
     """Replace a module's 16-bit weight tensors with FP32 placeholders.
 
     The real 16-bit tensors are stashed under ``_openvino_orig_<attr>`` so the
     extension ``convert`` callback can still emit them as the graph constant
     (via ``_orig_weight``), while model code that reads ``module.weight.dtype``
-    (or ``.device``) during tracing sees a plain FP32 tensor. This prevents the
+    (or ``.device``) during tracing sees an FP32 tensor. This prevents the
     tracer from baking a 16-bit ``aten::to`` cast into the graph.
 
     Parameter placeholders use single-element storage and preserve scalar values.
@@ -162,6 +180,7 @@ def _stash_weights_as_fp32_placeholders(module, supported, weight_attrs=("weight
             else:
                 placeholder = torch.zeros((), dtype=torch.float32,
                                           device=param.device).expand(param.shape)
+                placeholder = torch.Tensor._make_subclass(_FP32ParameterPlaceholder, placeholder)
             if isinstance(param, torch.nn.Parameter):
                 placeholder = torch.nn.Parameter(placeholder, requires_grad=False)
                 placeholder._openvino_orig_tensor = param
@@ -187,6 +206,19 @@ _bmm_extension = ModuleExtension(
     evaluate=lambda module, *args, **kwargs: _fp32_tensor(
         args[0].shape[0], args[0].shape[1], args[1].shape[2], device=args[0].device)
 )
+
+
+def _evaluate_view_as_complex(module, x):
+    if x.ndim == 0 or x.shape[-1] != 2:
+        raise RuntimeError("Tensor must have a last dimension of size 2")
+    value = torch.view_as_complex(torch.zeros(2, dtype=x.dtype, device=x.device)).expand(x.shape[:-1])
+    return torch.Tensor._make_subclass(_FP32ParameterPlaceholder, value)
+
+
+_view_as_complex = _create_function_wrapper(ModuleExtension(
+    None, "aten::view_as_complex",
+    convert=lambda module, target_op, input: target_op(input),
+    evaluate=_evaluate_view_as_complex))
 
 
 # Thread-safe, reference-counted storage for patched torch functions.

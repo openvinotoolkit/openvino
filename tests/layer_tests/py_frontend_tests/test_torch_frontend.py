@@ -990,31 +990,48 @@ def test_make_16bit_traceable_restores_shared_weights(buffer_class, persistent):
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("operation", ["copy", "complex"])
-def test_make_16bit_traceable_buffer_layout(dtype, operation):
+@pytest.mark.parametrize("operation,parameter", [("copy", False), ("complex", False), ("complex", True),
+                                               ("complex_keyword", True), ("reshape", True)])
+def test_make_16bit_traceable_tensor_layout(dtype, operation, parameter):
     from openvino import convert_model, compile_model
     from openvino.frontend.pytorch import patch_model
 
     class Model(torch.nn.Module):
         def __init__(self):
             super().__init__()
-            self.register_buffer("cache", torch.arange(8).reshape(4, 2).to(dtype))
+            value = torch.arange(8).reshape(4, 2).to(dtype)
+            if parameter:
+                self.cache = torch.nn.Parameter(value, requires_grad=False)
+            else:
+                self.register_buffer("cache", value)
 
         def forward(self, x):
             if operation == "copy":
                 self.cache.copy_(x)
                 return x + self.cache
-            values = torch.view_as_complex(self.cache)
+            if operation == "reshape" and self.cache.size(0) == 4:
+                return x + self.cache.view(self.cache.numel()).reshape(self.cache.shape)
+            values = torch.view_as_complex(input=self.cache) if operation == "complex_keyword" else \
+                torch.view_as_complex(self.cache)
             return x + values.real.unsqueeze(-1) + values.imag.unsqueeze(-1)
 
     model = Model().eval()
     original = model.cache
     example = torch.arange(8, dtype=torch.float32).reshape(4, 2) + 1
-    expected = example * 2 if operation == "copy" else example + original.float().sum(-1, keepdim=True)
+    if operation == "copy":
+        expected = example * 2
+    elif operation == "reshape":
+        expected = example + original.float()
+    else:
+        expected = example + original.float().sum(-1, keepdim=True)
     try:
         patch_model.__make_16bit_traceable(model)
-        assert model.cache.is_contiguous()
-        torch.testing.assert_close(model(example), expected)
+        if parameter:
+            assert model.cache.untyped_storage().nbytes() <= 8
+            assert model(example).shape == expected.shape
+        else:
+            assert model.cache.is_contiguous()
+            torch.testing.assert_close(model(example), expected)
         with torch.no_grad():
             converted = convert_model(model, example_input=(example,))
         result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
@@ -1059,6 +1076,42 @@ def test_make_16bit_traceable_scalar_value(dtype, shape, parameter):
     finally:
         patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
     assert model.scale is original
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("extraction", ["indexed_item", "sum_item", "float", "complex", "bool"])
+def test_make_16bit_traceable_rejects_parameter_scalar_extraction(dtype, extraction):
+    from openvino import convert_model
+    from openvino.frontend.pytorch import patch_model
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.scales = torch.nn.Parameter(torch.tensor([2, 3], dtype=dtype), requires_grad=False)
+
+        def forward(self, x):
+            if extraction == "indexed_item":
+                scale = self.scales[0].item()
+            elif extraction == "sum_item":
+                scale = self.scales.sum().item()
+            elif extraction == "float":
+                scale = float(self.scales[0])
+            elif extraction == "complex":
+                scale = complex(self.scales[0]).real
+            else:
+                scale = bool(self.scales[0])
+            return x * scale
+
+    model = Model().eval()
+    original = model.scales
+    try:
+        patch_model.__make_16bit_traceable(model)
+        with pytest.raises(RuntimeError, match="Cannot extract Python scalars from FP32 parameter placeholders"):
+            convert_model(model, example_input=(torch.ones(4),))
+    finally:
+        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
+    assert model.scales is original
 
 
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
