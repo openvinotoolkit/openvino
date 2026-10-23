@@ -20,6 +20,7 @@
 #include "host_mask_catalogue_models.hpp"
 #include "model_builder_masks.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
+#include "npuw_transformations/propagate_slice.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_or.hpp"
@@ -1303,6 +1304,27 @@ TEST(HFAHostMaskTest, FactoryBuildsThreeTilesOnlyForHostMask) {
     }
 }
 
+TEST(HFAHostMaskTest, FactoryUsesOriginalPrefillLengthForSlicedQuery) {
+    for (bool fused : {false, true}) {
+        auto model = build_sdpa_model();
+        model->get_parameters().front()->set_partial_shape({1, NUM_HEADS, 1, HEAD_DIM});
+        model->get_parameters().back()->set_partial_shape({1, 1, 1, QUERY_SIZE + PAST_LEN});
+        for (const auto& node : model->get_ops()) {
+            if (node->get_friendly_name() == "matmul2.0") {
+                node->get_rt_info()[ov::npuw::NPUW_ORIGINAL_QUERY_LENGTH_RT_KEY] = QUERY_SIZE;
+            }
+        }
+        model->validate_nodes_and_infer_types();
+        auto hfa = ov::npuw::function::HostFlashAttention::from(model, fused);
+        ASSERT_TRUE(hfa);
+        EXPECT_EQ(hfa->_query_size, QUERY_SIZE);
+        EXPECT_EQ(hfa->_past_tile_size, QUERY_SIZE);
+        EXPECT_EQ(hfa->_final_tile_size, QUERY_SIZE);
+        EXPECT_EQ(hfa->_tile_model->input(0).get_shape(), (ov::Shape{1, NUM_HEADS, 1, HEAD_DIM}));
+        EXPECT_EQ(hfa->_final_tile_model->input(6).get_shape(), (ov::Shape{1, 1, 1, QUERY_SIZE}));
+    }
+}
+
 TEST(HFAHostMaskTest, FactoryFindsRowThroughReshapeConvert) {
     using namespace ov;
     auto model = build_sdpa_model();
@@ -1405,6 +1427,49 @@ TEST(HFAHostMaskTest, CatalogueF1ExpandedGatherIsReplaced) {
 TEST(HFAHostMaskTest, CatalogueGemma3nRelativeRowsAreReplaced) {
     namespace catalogue = ov::test::npuw::host_mask_catalogue;
     expect_catalogue_mask_replaced(catalogue::Family::F1, catalogue::Layout::Gemma3n);
+}
+
+TEST(HFAHostMaskTest, PropagatedQuerySuffixPreservesMaskEligibility) {
+    using namespace ov;
+    namespace catalogue = ov::test::npuw::host_mask_catalogue;
+    for (int64_t kind : {npuw::NPUW_SDPA_MASK_CAUSAL, int64_t{8}, int64_t{25}}) {
+        SCOPED_TRACE(kind);
+        std::shared_ptr<Model> model;
+        auto sdpa = make_host_pass_model(model, kind, kind < 0 ? catalogue::Family::F1 : catalogue::Family::F2);
+        if (kind < 0) {
+            sdpa->get_rt_info().erase(npuw::NPUW_SDPA_MASK_RT_KEY);
+            npuw::DetectAttentionMask().run_on_model(model);
+        }
+        auto mask_result = std::make_shared<op::v0::Result>(sdpa->input_value(3));
+        model->add_results({mask_result});
+        auto result = model->get_results().front();
+        auto suffix = std::make_shared<op::v8::Slice>(sdpa,
+                                                      catalogue::vector({7}),
+                                                      catalogue::vector({8}),
+                                                      catalogue::vector({1}),
+                                                      catalogue::vector({2}));
+        result->input(0).replace_source_output(suffix);
+        model->validate_nodes_and_infer_types();
+
+        npuw::PropagateSliceUp().run_on_model(model);
+        model->remove_result(mask_result);
+
+        auto sliced = as_type_ptr<op::v13::ScaledDotProductAttention>(result->get_input_node_shared_ptr(0));
+        ASSERT_NE(sliced, nullptr);
+        ASSERT_EQ(sliced->get_input_shape(0), (Shape{1, 2, 1, 4}));
+        EXPECT_EQ(npuw::find_propagated_original_query_length(sliced), std::optional<size_t>{8});
+        const auto annotation = sliced->get_rt_info().find(npuw::NPUW_SDPA_MASK_RT_KEY);
+        ASSERT_NE(annotation, sliced->get_rt_info().end());
+        EXPECT_EQ(annotation->second.as<int64_t>(), kind);
+        const auto mask = sliced->input_value(3);
+        EXPECT_FALSE(npuw::replace_hfa_host_mask(model, false));
+        EXPECT_EQ(sliced->input_value(3), mask);
+        EXPECT_EQ(npuw::replace_hfa_host_mask(model, true), kind != 8);
+        EXPECT_EQ(npuw::has_hfa_host_mask(model), kind != 8);
+        if (kind == 8) {
+            EXPECT_EQ(sliced->input_value(3), mask);
+        }
+    }
 }
 
 TEST(HFAHostMaskTest, DetectedF1NestedMatrixGatherKeepsGraphMask) {
