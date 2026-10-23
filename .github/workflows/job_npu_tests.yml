@@ -103,11 +103,11 @@ jobs:
 
       # --- TensorFlow ---------------------------------------------------------
       - name: Install TF Models tests requirements
-        if: fromJSON(inputs.affected-components).TF_FE.test
+        if: fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.affected-components).TF_FE.test
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_tensorflow
 
       - name: TensorFlow Models Tests - NPU compile-only (convert_model)
-        if: fromJSON(inputs.affected-components).TF_FE.test
+        if: fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.affected-components).TF_FE.test
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
@@ -115,7 +115,7 @@ jobs:
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_convert_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
 
       - name: TensorFlow Models Tests - NPU compile-only (read_model)
-        if: ${{ !cancelled() && fromJSON(inputs.affected-components).TF_FE.test }}
+        if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.affected-components).TF_FE.test) }}
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
@@ -124,11 +124,11 @@ jobs:
 
       # --- JAX ----------------------------------------------------------------
       - name: Install JAX Models tests requirements
-        if: ${{ !cancelled() && fromJSON(inputs.affected-components).JAX_FE.test }}
+        if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.affected-components).JAX_FE.test) }}
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_jax
 
       - name: JAX/Flax Models Tests - NPU compile-only
-        if: ${{ !cancelled() && fromJSON(inputs.affected-components).JAX_FE.test }}
+        if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.affected-components).JAX_FE.test) }}
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
@@ -138,7 +138,7 @@ jobs:
       # --- PyTorch (runs after TF/JAX within the same leg) --------------------
       # Group A: torchvision + timm + edsr share compatible deps (installed together).
       - name: Install PyTorch tests requirements (group A - torchvision/timm/edsr)
-        if: ${{ !cancelled() && fromJSON(inputs.affected-components).PyTorch_FE.test }}
+        if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.affected-components).PyTorch_FE.test) }}
         run: |
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch `
             -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\torchvision.txt `
@@ -146,7 +146,7 @@ jobs:
             -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\edsr.txt
 
       - name: PyTorch Models Tests - NPU compile-only (group A)
-        if: ${{ !cancelled() && fromJSON(inputs.affected-components).PyTorch_FE.test }}
+        if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.affected-components).PyTorch_FE.test) }}
         shell: cmd
         env:
           OP_REPORT_FILE: "${{ env.INSTALL_TEST_DIR }}\\TEST-pt_npu_unsupported_ops_${{ matrix.npu-platform }}.log"
@@ -160,7 +160,7 @@ jobs:
 
       # Group B: hf_transformers + easyocr + gfpgan + tpsmm share compatible deps.
       - name: Install PyTorch tests requirements (group B - hf_transformers/easyocr/gfpgan/tpsmm)
-        if: ${{ !cancelled() && fromJSON(inputs.affected-components).PyTorch_FE.test }}
+        if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.affected-components).PyTorch_FE.test) }}
         run: |
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch `
             -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\hf_transformers.txt `
@@ -169,7 +169,7 @@ jobs:
             -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\tpsmm.txt
 
       - name: PyTorch Models Tests - NPU compile-only (group B)
-        if: ${{ !cancelled() && fromJSON(inputs.affected-components).PyTorch_FE.test }}
+        if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.affected-components).PyTorch_FE.test) }}
         shell: cmd
         env:
           OP_REPORT_FILE: "${{ env.INSTALL_TEST_DIR }}\\TEST-pt_npu_unsupported_ops_${{ matrix.npu-platform }}.log"

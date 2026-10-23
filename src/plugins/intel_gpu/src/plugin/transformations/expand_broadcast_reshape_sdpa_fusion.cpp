@@ -358,7 +358,14 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
         auto order_c = sdpa->get_input2_transpose_order();
         auto order_d = sdpa->get_output_transpose_order();
 
-        auto sdpa_new = std::make_shared<op::SDPA>(data_inputs, sdpa->get_causal(), order_a, order_b, order_c, order_d);
+        auto sdpa_new = std::make_shared<op::SDPA>(data_inputs,
+                               sdpa->get_causal(),
+                               order_a,
+                               order_b,
+                               order_c,
+                               order_d,
+                               ov::element::dynamic,
+                               sdpa->get_causal_mask_alignment());
 
         sdpa_new->set_friendly_name(sdpa->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa_new);

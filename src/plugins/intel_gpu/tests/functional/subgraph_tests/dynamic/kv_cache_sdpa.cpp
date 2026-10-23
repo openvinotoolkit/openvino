@@ -47,13 +47,19 @@ public:
 #endif
         auto core = ov::test::utils::PluginCache::get().core();
 
-        ov::AnyMap properties = {ov::hint::inference_precision(ov::element::f16),
+        if (p.model_element_type == ov::element::bf16) {
+            const auto capabilities = core->get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+            if (std::find(capabilities.cbegin(), capabilities.cend(), ov::intel_gpu::capability::HW_MATMUL) == capabilities.cend())
+                GTEST_SKIP();
+        }
+
+        ov::AnyMap properties = {ov::hint::inference_precision(p.model_element_type),
                                  ov::intel_gpu::hint::enable_sdpa_optimization(true)};
 
         if (p.compressed) {
             properties.emplace(ov::hint::kv_cache_precision(ov::element::i8));
         } else {
-            properties.emplace(ov::hint::kv_cache_precision(ov::element::f16));
+            properties.emplace(ov::hint::kv_cache_precision(p.model_element_type));
         }
 
         const size_t n_heads = 16;
@@ -408,6 +414,63 @@ std::vector<Params> get_test_params() {
 
     // Compressed beam search (batch > 1 exercises indirect sdpa_opt path on IMMAD)
     p.push_back({with_rearrange, with_mask, !with_scale, causal, compressed, 2, ov::element::Type_t::f16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
+
+    // BF16 mirrors of the f16 coverage above (exercises sdpa_micro.cl and sdpa_opt.cl for bf16).
+    p.push_back({with_rearrange, !with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::bf16, 10, 1, 64, 64, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
+    p.push_back({!with_rearrange, with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
+    p.push_back({!with_rearrange, with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {1, 2, 0, 3}});
+
+    // Multi heads
+    p.push_back({with_rearrange, !with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::bf16, 10, 1, 128, 64, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::bf16, 10, 4, 128, 96, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::bf16, 5, 1, 96, 128, 1, {0, 2, 1, 3}});
+    p.push_back({!with_rearrange, with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::bf16, 10, 4, 128, 96, 1, {0, 2, 1, 3}});
+    p.push_back({!with_rearrange, with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::bf16, 19, 4, 192, 64, 1, {1, 2, 0, 3}});
+
+    // Beam search
+    p.push_back({with_rearrange, !with_mask, !with_scale, !causal, !compressed, 2, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, !with_mask, !with_scale, !causal, !compressed, 4, ov::element::Type_t::bf16, 5, 16, 64, 64, 1, {0, 2, 1, 3}});
+
+    p.push_back({with_rearrange, !with_mask, !with_scale, !causal, !compressed, 2, ov::element::Type_t::bf16, 10, 4, 128, 64, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, !with_mask, !with_scale, !causal, !compressed, 4, ov::element::Type_t::bf16, 5, 16, 192, 96, 1, {0, 2, 1, 3}});
+
+    // Compressed
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::bf16, 10, 1, 64, 64, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {1, 2, 0, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::bf16, 10, 4, 128, 96, 1, {1, 2, 0, 3}});
+
+    // Compressed beam search (batch > 1 exercises indirect sdpa_opt path on IMMAD)
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 2, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
+
+    /* -- causal mask -- */
+
+    p.push_back({with_rearrange, !with_mask, !with_scale, causal, !compressed, 1, ov::element::Type_t::bf16, 10, 1, 64, 64, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, causal, !compressed, 1, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, causal, !compressed, 1, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
+    p.push_back({!with_rearrange, with_mask, !with_scale, causal, !compressed, 1, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, causal, !compressed, 1, ov::element::Type_t::bf16, 10, 4, 128, 64, 1, {0, 2, 1, 3}});
+    p.push_back({!with_rearrange, with_mask, !with_scale, causal, !compressed, 1, ov::element::Type_t::bf16, 5, 4, 64, 96, 1, {0, 1, 2, 3}});
+
+    // Beam search
+    p.push_back({with_rearrange, !with_mask, !with_scale, causal, !compressed, 2, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, !with_mask, !with_scale, causal, !compressed, 4, ov::element::Type_t::bf16, 5, 16, 64, 64, 1, {0, 2, 1, 3}});
+    p.push_back({with_rearrange, !with_mask, !with_scale, causal, !compressed, 2, ov::element::Type_t::bf16, 10, 4, 96, 64, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, !with_mask, !with_scale, causal, !compressed, 4, ov::element::Type_t::bf16, 5, 16, 96, 64, 1, {0, 2, 1, 3}});
+
+    // Compressed
+    p.push_back({with_rearrange, with_mask, !with_scale, causal, compressed, 1, ov::element::Type_t::bf16, 10, 1, 64, 64, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, causal, compressed, 1, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, causal, compressed, 1, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, causal, compressed, 1, ov::element::Type_t::bf16, 10, 4, 128, 96, 1, {1, 2, 0, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, causal, compressed, 1, ov::element::Type_t::bf16, 10, 4, 128, 64, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, causal, compressed, 1, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {1, 2, 0, 3}});
+
+    // Compressed beam search (batch > 1 exercises indirect sdpa_opt path on IMMAD)
+    p.push_back({with_rearrange, with_mask, !with_scale, causal, compressed, 2, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
 
     return p;
 }

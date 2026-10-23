@@ -33,10 +33,12 @@ struct SDPAOpt : public ImplementationManager {
         static constexpr std::array supported_q_types = {
             ov::element::f32,
             ov::element::f16,
+            ov::element::bf16,
         };
         static constexpr std::array supported_kv_types = {
             ov::element::f32,
             ov::element::f16,
+            ov::element::bf16,
             ov::element::i8,
         };
         const auto& q_layout = node.get_input_layout(ScaledDotProductAttentionInputIdx::QUERY);

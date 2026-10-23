@@ -21,13 +21,13 @@
 namespace ov::intel_gpu {
 
 DisableFP16CompForQwenImageGatedResidualPattern::DisableFP16CompForQwenImageGatedResidualPattern() {
+    using namespace ov::pass;
     using namespace ov::pass::pattern;
 
-    auto outer_split_out0 = wrap_type<ov::op::v1::VariadicSplit>({any_input(), any_input(), any_input()}, output_index_matches(0));
-    auto outer_split_out1 = wrap_type<ov::op::v1::VariadicSplit>({any_input(), any_input(), any_input()}, output_index_matches(1));
-    auto outer_split = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{outer_split_out0, outer_split_out1});
-    auto inner_split = wrap_type<ov::op::v1::VariadicSplit>({outer_split, any_input(), any_input()}, output_index_matches(2));
-    auto gate = wrap_type<ov::op::v0::Unsqueeze>({inner_split, any_input()}, type_matches(element::f32));
+    auto outer_split = wrap_type_strict_index<ov::op::v1::VariadicSplit>({any_input(), any_input(), any_input()});
+    auto outer_split_out = outer_split->output(0) | outer_split->output(1);
+    auto inner_split = wrap_type_strict_index<ov::op::v1::VariadicSplit>({outer_split_out, any_input(), any_input()});
+    auto gate = wrap_type<ov::op::v0::Unsqueeze>({inner_split->output(2), any_input()}, type_matches(element::f32));
 
     auto branch_matmul = wrap_type<ov::op::v0::MatMul>({any_input(), any_input()}, type_matches(element::f32));
     auto linear_add0 = wrap_type<ov::op::v1::Add>({branch_matmul, any_input()}, type_matches(element::f32));

@@ -16,7 +16,16 @@
 
 #include "include/batch_headers/generic_vector_ops.cl"
 #include "include/batch_headers/sdpa_utils.cl"
+#include "include/batch_headers/bf16_utils.cl"
 #include "include/batch_headers/tile_ops.cl"
+
+#if INPUT0_IS_BF16
+#define KV_SLM_T ushort
+#define tile_copy_S_to_kv(t, t_new) tile_copy_to_bf16x2(t, t_new)
+#else
+#define KV_SLM_T half
+#define tile_copy_S_to_kv(t, t_new) tile_copy_to_half2(t, t_new)
+#endif
 
 /* The quantization parameter may be unique for each token/element */
 #define QUANTIZE_2D 2
@@ -80,11 +89,23 @@ DECLARE_2D_TILE_COPY_REBLOCK(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
         ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
         ugemm_vs_c_type_nblock1, a_tile_type_half, SUBGROUP_SIZE,
         ugemm_vs_sg_tile_m, 1, 1, ugemm_vs_sg_tile_n)
+#if INPUT0_IS_BF16
+DECLARE_2D_TILE_COPY_REBLOCK_TO_BF16BITS(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
+        ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
+        ugemm_vs_c_type_nblock1, a_tile_type_half, SUBGROUP_SIZE,
+        ugemm_vs_sg_tile_m, 1, 1, ugemm_vs_sg_tile_n)
+#endif
 #else
 DECLARE_2D_TILE_COPY_REBLOCK(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
         ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
         ugemm_vs_c_type_nblock1, a_tile_type_half, SUBGROUP_SIZE,
         ugemm_vs_sg_tile_m, 8, 1, ugemm_vs_sg_tile_n / 8)
+#if INPUT0_IS_BF16
+DECLARE_2D_TILE_COPY_REBLOCK_TO_BF16BITS(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
+        ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
+        ugemm_vs_c_type_nblock1, a_tile_type_half, SUBGROUP_SIZE,
+        ugemm_vs_sg_tile_m, 8, 1, ugemm_vs_sg_tile_n / 8)
+#endif
 #endif
 
 DECLARE_2D_TILE_VREDUCE(s_tile_type, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
@@ -228,6 +249,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         #if !IS_GQA_SINGLE_TOKEN
             causal_k = min(k, past_len + (int)wg_j0 + ugemm_kq_wg_tile_n);
         #endif
+    #elif !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+        const int causal_offset = max(0, k - q);
+        causal_k = min(k, causal_offset + (int)wg_j0 + ugemm_kq_wg_tile_n);
     #else
         causal_k = min(k, (int)wg_j0 + ugemm_kq_wg_tile_n);
     #endif
@@ -310,7 +334,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         uint ldvc = HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
         #if IS_KV_COMPRESSED_PA
             #if IS_INT4_KV_CACHE
-                // INT4 K BY_CHANNEL: scale stride = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE bytes / 2 in f16 elements
+                // INT4 BY_CHANNEL: scale stride = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE bytes / 2 in f16 elements
                 uint ldkq = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE / 2;
                 // INT4 V per-token: scale stride = ADJUSTED_V_HEAD_SIZE bytes / 2 in f16 elements
                 uint ldvq = ADJUSTED_V_HEAD_SIZE / 2;
@@ -357,8 +381,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     local char slm[Q_slm_size + S_slm_size + S_sum_slm_size + S_max_slm_size
             + ugemm_slm_size];
 
-    local half *Q_slm = (local half *)&slm[0];
-    local half *S_slm = (local half *)&slm[Q_slm_size];
+    local KV_SLM_T *Q_slm = (local KV_SLM_T *)&slm[0];
+    local KV_SLM_T *S_slm = (local KV_SLM_T *)&slm[Q_slm_size];
     local float *S_sum_slm = (local float *)&slm[Q_slm_size + S_slm_size];
     local float *S_max_slm
             = (local float *)&slm[Q_slm_size + S_slm_size + S_sum_slm_size];
@@ -946,7 +970,13 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_elementwise(S_tile, mask_scale_op);
 #elif WITH_ATTN_MASK
         mask_tile_type_float mask_tile_float;
+#if INPUT0_IS_BF16
+        // Mask buffer holds bf16 values but the kernel reads it as half*;
+        // reinterpret the 16-bit values as bf16 bits when converting to float.
+        tile_copy_bf16bits_to_float(mask_tile, mask_tile_float);
+#else
         tile_copy(mask_tile, mask_tile_float);
+#endif
 #ifdef LOG_2_E_MUL_SCALE
 #define unscale(x) ((x)*iscale)
         tile_elementwise(mask_tile_float, unscale);
@@ -982,6 +1012,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             col_offset += k - q;
             causal_q_begin += k - q;
         #endif
+    #elif !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+        col_offset += k - q;
+        causal_q_begin += k - q;
     #endif
 
     #if HAS_TOKEN_TYPE_IDS && IS_PAGED_ATTENTION && IS_PREFILL
@@ -1192,7 +1225,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         }
 #endif
 
-        /* Convert to half, VNNI format */
+        /* Convert to KV compute type (half or bf16), VNNI format */
         s_tile_type_half2 S_tile_half2;
 #ifdef PA_INTEGRITY_CHECK  // CODE FOR DEBUGGING
         /* Snapshot softmax'd S to S_check_slm before packing to VNNI.
@@ -1219,7 +1252,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             }
         }
 #endif
-        tile_copy_to_half2(S_tile, S_tile_half2);
+        tile_copy_S_to_kv(S_tile, S_tile_half2);
 
         /* Store to SLM, in packed format */
         tile_store_t_sys_src2(S_tile_half2, (local uint *)S_slm,
@@ -1347,7 +1380,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 }
             #endif
             uint s_block_num = kb0 / PAGED_ATTENTION_BLOCK_SIZE;
-            local half *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
+            local KV_SLM_T *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
             uint v_block_num = (k0 + kb0) / PAGED_ATTENTION_BLOCK_SIZE;
             global VAL_DATA_T *Vb0 = V + KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + v_block_num];
             int kb_chunk = min(k_chunk - kb0, PAGED_ATTENTION_BLOCK_SIZE);
@@ -1438,7 +1471,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         for (; kb0 < k_chunk; kb0 += k_chunk) {
             global QRY_DATA_T *Vb0 = Vc + ldvc * (k0 + kb0 - past_lens[gws_mapping]);
             uint s_block_num = kb0 / PAGED_ATTENTION_BLOCK_SIZE;
-            local half *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
+            local KV_SLM_T *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
             int kb_chunk = k_chunk - kb0;
 
             a_tile_type A_tile1 = ugemm_vcs(
@@ -1508,9 +1541,13 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     tile_elementwise(A_scale_tile, native_vrecip);
     tile_hbroadcast_mul(&A_tile, A_scale_tile);
 
-    /* Convert to half precision and store */
+    /* Convert and store */
     a_tile_type_half A_tile_half;
+#if INPUT0_IS_BF16
+    tile_copy_reblock_to_bf16bits(A_tile, &A_tile_half);
+#else
     tile_copy_reblock(A_tile, &A_tile_half);
+#endif
 
     uint sg_i0_vs = sg_i_vs * ugemm_vs_sg_tile_m;
     uint sg_j0_vs = sg_j_vs * ugemm_vs_sg_tile_n + wg_j0;
