@@ -17,6 +17,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_max.hpp"
@@ -45,12 +46,6 @@ namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 enum class InputType : int { Q, K, V, SDPA };
 enum class SinksSliceType : int { None, Slice, StridedSlice };
-
-namespace {
-// Additive mask value a where-style mask is fused into: half of the lowest f16 value, used for every
-// supported score type.
-const float kAdditiveMaskValue = static_cast<float>(std::numeric_limits<ov::float16>::lowest()) / 2.0f;
-}  // namespace
 
 class SDPA {
 public:
@@ -279,10 +274,12 @@ public:
             mask_input = v0::Constant::create(m_type, {}, {0.f});
         } else {
             if (with_select_mask) {
-                // The where-style mask is fused as the additive attention mask.
+                // The fused SDPA masks the Select's excluded entries out with an additive -inf mask,
+                // built the same way ScaledDotProductAttentionDecomposition builds one.
                 auto zero = v0::Constant::create(m_type, Shape{}, {0.f});
-                auto mask_value = v0::Constant::create(m_type, Shape{}, {kAdditiveMaskValue});
-                mask_input = make_shared<op::v1::Select>(m_cond, zero, mask_value);
+                auto minus_inf = v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()});
+                auto mask_value = ov::op::util::make_try_fold<op::v1::ConvertLike>(minus_inf, zero);
+                mask_input = std::make_shared<op::v1::Select>(m_cond, zero, mask_value, op::AutoBroadcastType::NUMPY);
             }
             auto mask_input_ps = mask_input->get_output_partial_shape(0);
             auto mask_input_rank = mask_input_ps.size();
@@ -1979,4 +1976,26 @@ TEST_F(TransformationTestsF, SDPAFusionTest_SelectMaskThroughReshape) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+// A where-style mask that already fills with -inf is the case where the fused form is equivalent even for a
+// fully masked row: the Select itself produces NaN there, so -inf -inf masking changes nothing.
+TEST_F(TransformationTestsF, SDPAFusionTest_SelectMaskInfiniteSentinel) {
+    const auto param = explicit_transpose_4d(1, 4, 8, 8, 32, 32, {4, 8, 8}, 1.0f);
+    const float minus_inf = -std::numeric_limits<float>::infinity();
+
+    SDPA sdpa(f32, param.q_shape, param.k_shape, param.v_shape);
+    SDPA sdpa_ref(f32, param.q_shape, param.k_shape, param.v_shape);
+
+    sdpa.set_select_mask(param.mask_shape, Shape{}, {minus_inf});
+    sdpa_ref.set_select_mask(param.mask_shape, Shape{}, {minus_inf});
+
+    sdpa.create_pattern_sdpa(/*transpose_b=*/true);
+    model = sdpa.build_model();
+    manager.register_pass<ov::pass::SDPAFusion>();
+
+    sdpa_ref.create_reference_sdpa();
+    model_ref = sdpa_ref.build_model();
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }

@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 
+#include <limits>
 #include <memory>
 
 #include "itt.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_max.hpp"
@@ -316,12 +318,9 @@ static std::shared_ptr<ov::Node> get_scale(std::shared_ptr<ov::Node> scale_patte
     }
 }
 
-// Sentinel floor: the highest of the lowest representable values of the supported score precisions
-// (f16), so a masked-out value saturated to finfo.min of any of them, or a true -inf, passes. NaN is
-// rejected.
-constexpr float kMaskSentinelMax = -65504.0f;
-
-constexpr double kAdditiveMaskValue = kMaskSentinelMax / 2.0;
+// A where-style mask means "mask out" when its fill value is at most f16's lowest, i.e. the dtype minimum
+// of any supported score type, or a true -inf. NaN is rejected. The value itself is not reused.
+constexpr float kMaskSentinelThreshold = -65504.0f;
 
 static std::shared_ptr<ov::Node> get_additive_mask(const std::shared_ptr<v1::Select>& select, Matcher& matcher) {
     const auto score_type = select->get_input_element_type(1);
@@ -336,14 +335,15 @@ static std::shared_ptr<ov::Node> get_additive_mask(const std::shared_ptr<v1::Sel
     if (!sentinel || ov::shape_size(sentinel->get_shape()) != 1)
         return nullptr;
     // A true -inf passes this comparison as well; NaN does not, so it is rejected.
-    if (!(sentinel->cast_vector<float>()[0] <= kMaskSentinelMax))
+    if (!(sentinel->cast_vector<float>()[0] <= kMaskSentinelThreshold))
         return nullptr;
 
     auto zero = v0::Constant::create(score_type, ov::Shape{}, {0.0});
-    auto mask_value = v0::Constant::create(score_type, ov::Shape{}, {kAdditiveMaskValue});
+    auto minus_inf = v0::Constant::create(ov::element::f32, ov::Shape{}, {-std::numeric_limits<float>::infinity()});
+    auto mask_value = op_util::make_try_fold<v1::ConvertLike>(minus_inf, zero);
     auto mask =
         std::make_shared<v1::Select>(select->input_value(0), zero, mask_value, ov::op::AutoBroadcastType::NUMPY);
-    ov::copy_runtime_info(matcher.get_matched_nodes(), {zero, mask_value, mask});
+    ov::copy_runtime_info(matcher.get_matched_nodes(), {zero, minus_inf, mask_value, mask});
     return mask;
 }
 

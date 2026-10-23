@@ -523,7 +523,8 @@ struct SelectMaskTestParams {
 
 std::shared_ptr<ov::Model> build_select_mask_attention(const ov::element::Type& in_type,
                                                        float sentinel,
-                                                       SelectMaskVariant variant) {
+                                                       SelectMaskVariant variant,
+                                                       float scale_value = 0.125f) {
     const bool pdpd = variant == SelectMaskVariant::PdpdBroadcast;
     const bool has_query_matmul = variant != SelectMaskVariant::NoQueryMatmul;
     const bool has_value_matmul = variant == SelectMaskVariant::FullAttention || pdpd;
@@ -539,7 +540,7 @@ std::shared_ptr<ov::Model> build_select_mask_attention(const ov::element::Type& 
             in_type, ov::Shape{1, kSelectMaskHeads, kSelectMaskHeadDim, kSelectMaskSeqLen});
         params.push_back(query);
         params.push_back(key);
-        const auto scale = ov::op::v0::Constant::create(in_type, ov::Shape{}, {0.125f});
+        const auto scale = ov::op::v0::Constant::create(in_type, ov::Shape{}, {scale_value});
         scores = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::MatMul>(query, key), scale);
     } else {
         const auto plain_scores = std::make_shared<ov::op::v0::Parameter>(
@@ -672,7 +673,9 @@ protected:
     }
 };
 
-TEST_F(SDPASelectMaskFullyMasked, RowsStayFinite) {
+// A fully masked row gets -inf in every entry, so its Softmax is NaN. That is the behaviour the fused
+// SDPA shares with an SDPA boolean attention mask, and it is what this test pins.
+TEST_F(SDPASelectMaskFullyMasked, FullyMaskedRowIsNaN) {
     compile_model();
     std::vector<ov::Shape> input_shapes;
     for (const auto& param : function->get_parameters())
@@ -681,9 +684,77 @@ TEST_F(SDPASelectMaskFullyMasked, RowsStayFinite) {
     infer();
 
     ov::test::CheckNumberOfNodesWithType(compiledModel, kSdpaLayerType, 1);
+
+    // With the -inf mask every entry of a fully masked row underflows, so the row is 0/0 rather than
+    // the all-equal row the unfused Select would produce. Pin that instead of leaving it undefined.
     const auto output = inferRequest.get_output_tensor(0);
+    ASSERT_GT(output.get_size(), 0);
+    const auto* data = output.data<const ov::float16>();
     for (size_t i = 0; i < output.get_size(); ++i)
-        ASSERT_TRUE(std::isfinite(static_cast<float>(output.data<const ov::float16>()[i]))) << "index " << i;
+        ASSERT_TRUE(std::isnan(static_cast<float>(data[i]))) << "element " << i << " is not NaN";
+}
+
+// Regression for masks whose masked-out scores are far above the surviving ones: a finite additive mask
+// would let such an entry dominate the Softmax, while the -inf mask keeps it excluded.
+class SDPASelectMaskLargeMaskedScores : public ov::test::SubgraphBaseStaticTest {
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        function = build_select_mask_attention(ov::element::f16,
+                                               kSelectMaskSentinel,
+                                               SelectMaskVariant::FullAttention,
+                                               /*scale_value=*/1.0f);
+        functionRefs = function->clone();
+        abs_threshold = 0.025f;
+        rel_threshold = 0.025f;
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& func_inputs = function->get_parameters();
+        // Parameter order of build_select_mask_attention(FullAttention): Q, K, V, mask.
+        for (size_t i = 0; i < func_inputs.size(); ++i) {
+            const auto& param = func_inputs[i];
+            const auto shape = targetInputStaticShapes[i];
+            if (param->get_element_type() == ov::element::boolean) {
+                ov::Tensor mask(ov::element::boolean, shape);
+                auto* data = mask.data<bool>();
+                // Keep the first column, mask out the rest, so no row is fully masked.
+                for (size_t j = 0; j < mask.get_size(); ++j)
+                    data[j] = (j % static_cast<size_t>(kSelectMaskSeqLen)) == 0;
+                inputs.insert({param, mask});
+            } else {
+                ov::Tensor tensor(param->get_element_type(), shape);
+                auto* data = tensor.data<ov::float16>();
+                for (size_t j = 0; j < tensor.get_size(); ++j) {
+                    if (i == 0) {
+                        // Q: constant 25, which keeps the raw Q*K product inside the f16 range.
+                        data[j] = ov::float16(25.f);
+                    } else if (i == 1) {
+                        // K: 0 in the attending column, 25 elsewhere, so the raw dot product is
+                        // 64*25*25 = 40000, still below the f16 maximum, and this test scales by 1.0.
+                        // The masked-out score is therefore 40000 against 0 for the attending one: a finite
+                        // -32752 mask would bring it to 7248 and let it dominate the Softmax, while -inf keeps
+                        // it excluded.
+                        const bool attending = (j % static_cast<size_t>(kSelectMaskSeqLen)) == 0;
+                        data[j] = attending ? ov::float16(0.f) : ov::float16(25.f);
+                    } else {
+                        // V: constant per sequence position, so a wrong attention distribution changes the
+                        // output and the regression cannot pass on an accidental value match.
+                        const size_t seq_pos = (j / static_cast<size_t>(kSelectMaskHeadDim)) %
+                                               static_cast<size_t>(kSelectMaskSeqLen);
+                        data[j] = ov::float16(1.f + static_cast<float>(seq_pos));
+                    }
+                }
+                inputs.insert({param, tensor});
+            }
+        }
+    }
+};
+
+TEST_F(SDPASelectMaskLargeMaskedScores, MatchesDecomposedGraph) {
+    run();  // compares against the unfused reference graph
+    ov::test::CheckNumberOfNodesWithType(compiledModel, kSdpaLayerType, 1);
 }
 
 const std::vector<SelectMaskTestParams> select_mask_test_params = {
