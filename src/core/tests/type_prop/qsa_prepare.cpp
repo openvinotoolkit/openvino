@@ -119,8 +119,10 @@ TEST_F(TypePropQSAPrepareTest, dynamic_rank_raw_index_keys) {
                             param(element::f32, PartialShape{1, 128}),
                             4);
 
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, -1, -1}));
-    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{-1, 3, -1}));
+    // The batch and the head size are still recovered from the other inputs.
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, -1, 128}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 3, 128}));
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 128}));
 }
 
 TEST_F(TypePropQSAPrepareTest, symbols_propagation) {

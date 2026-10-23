@@ -87,7 +87,7 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
         head_size = raw_index_keys_shape[2];
     }
 
-    if (past_block_index_keys_shape.rank().is_static() && is_raw_keys_rank_static) {
+    if (past_block_index_keys_shape.rank().is_static()) {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                TDim::merge(batch, batch, past_block_index_keys_shape[0]),
@@ -98,7 +98,7 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
                                "The head size of raw_index_keys and past_block_index_keys must be the same.");
     }
 
-    if (past_incomplete_raw_keys_shape.rank().is_static() && is_raw_keys_rank_static) {
+    if (past_incomplete_raw_keys_shape.rank().is_static()) {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                TDim::merge(batch, batch, past_incomplete_raw_keys_shape[0]),
@@ -117,8 +117,7 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
                                past_incomplete_raw_keys_shape[1]);
     }
 
-    if (!qsa_prepare_input_disabled(k_norm_weight_shape) && k_norm_weight_shape.rank().is_static() &&
-        is_raw_keys_rank_static) {
+    if (!qsa_prepare_input_disabled(k_norm_weight_shape) && k_norm_weight_shape.rank().is_static()) {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                TDim::merge(head_size, head_size, k_norm_weight_shape[0]),
