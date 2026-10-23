@@ -350,6 +350,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/kv_cache_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/lora_horizontal_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/move_fc_reshape_to_weights.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/normalize_l2_last_axis_to_feature_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/optimize_subsequent_reshapes_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/preserve_single_selective_ssm_output_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/reduce_fc_dimensions_test.cpp
