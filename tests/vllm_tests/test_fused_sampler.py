@@ -177,3 +177,70 @@ def test_fused_sampler_logprobs_zero(fused_sampler, logprobs_mode):
     out = sampler(logits, _metadata(1.0, 50, 0.9, seed=3, max_num_logprobs=0))
     assert out.logprobs_tensors is not None
     assert torch.isfinite(out.logprobs_tensors.logprobs[:, 0]).all()
+
+
+@pytest.mark.precommit
+def test_fused_sampler_keeps_topk_ties(fused_sampler):
+    """Logits tied with the k-th largest all stay samplable, as in vLLM's top-k (topk alone keeps only some)."""
+    sampler = Sampler()
+    tied = [11, 22, 33, 44]
+    logits = torch.full((1, VOCAB), -10.0)
+    logits[0, 5] = 3.0
+    logits[0, tied] = 2.0
+    seen = set()
+    for seed in range(40):
+        expected, _ = _reference(logits, 1.0, 2, None, seed)
+        got, _ = sampler.sample(logits.clone(), _metadata(1.0, 2, None, seed))
+        assert not fused_sampler, "fused sampler fell back to vLLM's sampler"
+        assert int(got[0]) == expected, f"seed {seed}: fused sampled {int(got[0])}, vLLM sampled {expected}"
+        seen.add(int(got[0]))
+    assert set(tied) <= seen, f"tied tokens never sampled: {sorted(set(tied) - seen)}"
+
+
+@pytest.mark.precommit
+def test_fused_sampler_tie_overflow_falls_back(fused_sampler):
+    """More k-th ties than the fused top-k window holds: hand the step to vLLM rather than drop some."""
+    sampler = Sampler()
+    logits = torch.full((1, VOCAB), -10.0)
+    logits[0, 5] = 3.0
+    logits[0, 100:400] = 2.0
+    for seed in range(3):
+        expected, _ = _reference(logits, 1.0, 2, None, seed)
+        got, _ = sampler.sample(logits.clone(), _metadata(1.0, 2, None, seed))
+        assert int(got[0]) == expected
+    assert len(fused_sampler) == 3, "tie overflow did not fall back"
+
+
+@pytest.mark.precommit
+def test_fused_sampler_fp64_gumbel_falls_back(fused_sampler):
+    """use_fp64_gumbel asks for float64 noise, which the fused path doesn't draw."""
+    sampler = Sampler(use_fp64_gumbel=True)
+    sampler.sample(torch.randn(1, VOCAB), _metadata(0.7, 50, 0.9, seed=0))
+    assert len(fused_sampler) == 1, "fused sampler ignored use_fp64_gumbel"
+
+
+@pytest.mark.precommit
+def test_fused_sampler_failure_restores_default_rng(monkeypatch):
+    """A failed fused call must leave the default CPU RNG as it found it, so the fallback draws what vLLM would."""
+    monkeypatch.setenv("OV_FUSED_SAMPLER_MIN_VOCAB", "1")
+    monkeypatch.delenv("OV_DISABLE_FUSED_SAMPLER", raising=False)
+    monkeypatch.delenv("OV_NATIVE_SAMPLER", raising=False)
+    states = []
+
+    def _fallback(self, logits, sampling_metadata, logprobs_mode_override=None):
+        states.append(torch.get_rng_state())
+        return torch.zeros(1, dtype=torch.int64), None
+
+    def _broken(*args):
+        raise RuntimeError("injected fused sampler failure")
+
+    monkeypatch.setattr(Sampler, "sample", _fallback)
+    monkeypatch.setattr(Sampler, "_ov_fused_installed", False, raising=False)
+    ov_sampler.install()
+    monkeypatch.setattr(ov_sampler, "_OV_SAMPLE_COMPILED", _broken)
+    torch.manual_seed(123)
+    logits = torch.randn(1, VOCAB)
+    expected_state = torch.get_rng_state()
+    Sampler().sample(logits, _metadata(0.7, 50, 0.9))
+    assert len(states) == 1, "the injected failure did not reach the fallback"
+    assert torch.equal(states[0], expected_state), "fused attempt advanced the default RNG before the fallback"
