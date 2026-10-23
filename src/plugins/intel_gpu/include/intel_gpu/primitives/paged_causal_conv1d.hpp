@@ -40,6 +40,7 @@ struct paged_causal_conv1d : public primitive_base<paged_causal_conv1d> {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, hidden_size);
         seed = hash_combine(seed, kernel_size);
+        seed = hash_combine(seed, dilation);
         return seed;
     }
 
@@ -49,23 +50,28 @@ struct paged_causal_conv1d : public primitive_base<paged_causal_conv1d> {
         }
 
         auto rhs_casted = downcast<const paged_causal_conv1d>(rhs);
-        return hidden_size == rhs_casted.hidden_size && kernel_size == rhs_casted.kernel_size;
+        return hidden_size == rhs_casted.hidden_size && kernel_size == rhs_casted.kernel_size &&
+               dilation == rhs_casted.dilation;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<paged_causal_conv1d>::save(ob);
         ob << hidden_size;
         ob << kernel_size;
+        ob << dilation;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<paged_causal_conv1d>::load(ib);
         ib >> hidden_size;
         ib >> kernel_size;
+        ib >> dilation;
     }
 
     size_t hidden_size = 0;
+    // Causal window: (num_taps-1)*dilation+1. Equals conv_weight's raw tap count K only when dilation==1.
     size_t kernel_size = 0;
+    size_t dilation = 1;
 };
 
 }  // namespace cldnn
