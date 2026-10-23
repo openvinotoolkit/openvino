@@ -16,6 +16,7 @@ set(SNIPPETS_TESTS_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/loop.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/move_scalar_to_consumer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/optimize_domain.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/pass_pipeline.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/serialize_data_flow.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/set_buffer_reg_group.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/split_loops.cpp
