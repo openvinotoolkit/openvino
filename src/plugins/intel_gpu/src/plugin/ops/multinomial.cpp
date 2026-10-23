@@ -78,15 +78,7 @@ static void CreateMultinomialOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
     p.add_primitive(*op, slice_axis_prim);
 
     const cldnn::primitive_id slice {layer_type_name_ID(op) + "_slice"};
-    cldnn::slice slice_prim {
-        slice,
-        { cumsum,
-            slice_start,
-            slice_stop,
-            slice_step,
-            slice_axis
-        }
-    };
+    cldnn::slice slice_prim{slice, {cumsum, slice_start, slice_stop, slice_step, slice_axis}, true, true, true};
     p.add_primitive(*op, slice_prim);
 
     const cldnn::primitive_id cdf {layer_type_name_ID(op) + "_cdf"};
