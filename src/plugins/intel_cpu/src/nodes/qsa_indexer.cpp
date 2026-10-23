@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <utility>
@@ -32,12 +33,7 @@ namespace ov::intel_cpu::node {
 namespace {
 
 using InputIdx = ov::intel_cpu::QSAIndexer::InputIdx;
-
-/// @brief Fixed output order of ov::intel_cpu::QSAIndexer (not part of the op's public API).
-struct OutputIdx {
-    static constexpr size_t SEL_INDICES = 0;  ///< [B, H_sel, L, block_topk]
-    static constexpr size_t SEL_COUNT = 1;    ///< [B, H_sel, L]
-};
+using OutputIdx = ov::intel_cpu::QSAIndexer::OutputIdx;
 
 float rms_inv_scale(const float* x, size_t n, float eps) {
     float sumsq = 0.0F;
@@ -122,7 +118,8 @@ void QSAIndexer::initSupportedPrimitiveDescriptors() {
     // bf16) was negotiated upstream -- the reference kernel reads/writes all of them through
     // load_row_f32()/store_row_f32() rather than hardcoding f32. KEY_LENGTH stays i32 --
     // reordering it to f32 would numerically convert the index values instead of reinterpreting
-    // them. The two outputs are always i32.
+    // them. sel_indices/sel_count are always i32; each state output has the precision of its
+    // state input and never shares memory with it (inPlace == -1): the update is out-of-place.
     std::vector<PortConfigurator> inPortConfigs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
         const bool is_i32_port = i == InputIdx::KEY_LENGTH;
@@ -132,6 +129,17 @@ void QSAIndexer::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> outPortConfigs = {
         PortConfigurator{LayoutType::ncsp, ov::element::i32, getOutputShapeAtPort(OutputIdx::SEL_INDICES), false, -1},
         PortConfigurator{LayoutType::ncsp, ov::element::i32, getOutputShapeAtPort(OutputIdx::SEL_COUNT), false, -1}};
+    static constexpr std::pair<size_t, size_t> state_ports[] = {
+        {InputIdx::SUMMARY_CACHE, OutputIdx::SUMMARY_CACHE},
+        {InputIdx::PAST_INCOMPLETE_RAW_K, OutputIdx::PAST_INCOMPLETE_RAW_K},
+        {InputIdx::PAST_INCOMPLETE_ROPE, OutputIdx::PAST_INCOMPLETE_ROPE}};
+    for (const auto& [in_port, out_port] : state_ports) {
+        outPortConfigs.emplace_back(LayoutType::ncsp,
+                                    getOriginalInputPrecisionAtPort(in_port),
+                                    getOutputShapeAtPort(out_port),
+                                    false,
+                                    -1);
+    }
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref);
 }
 
@@ -156,9 +164,12 @@ void QSAIndexer::execute_typed() {
     PlainTensor key_length(getSrcMemoryAtPort(InputIdx::KEY_LENGTH));
     PlainTensor q_norm_weight(getSrcMemoryAtPort(InputIdx::Q_NORM_WEIGHT));
     PlainTensor k_norm_weight(getSrcMemoryAtPort(InputIdx::K_NORM_WEIGHT));
-    PlainTensor summary_cache(getSrcMemoryAtPort(InputIdx::SUMMARY_CACHE));
-    PlainTensor past_incomplete_raw_k(getSrcMemoryAtPort(InputIdx::PAST_INCOMPLETE_RAW_K));
-    PlainTensor past_incomplete_rope(getSrcMemoryAtPort(InputIdx::PAST_INCOMPLETE_ROPE));
+    // State inputs are read-only; the updated state lives in the matching outputs.
+    PlainTensor past_incomplete_raw_k_in(getSrcMemoryAtPort(InputIdx::PAST_INCOMPLETE_RAW_K));
+    PlainTensor past_incomplete_rope_in(getSrcMemoryAtPort(InputIdx::PAST_INCOMPLETE_ROPE));
+    PlainTensor summary_cache(getDstMemoryAtPort(OutputIdx::SUMMARY_CACHE));
+    PlainTensor past_incomplete_raw_k(getDstMemoryAtPort(OutputIdx::PAST_INCOMPLETE_RAW_K));
+    PlainTensor past_incomplete_rope(getDstMemoryAtPort(OutputIdx::PAST_INCOMPLETE_ROPE));
     PlainTensor sel_indices(getDstMemoryAtPort(OutputIdx::SEL_INDICES));
     PlainTensor sel_count(getDstMemoryAtPort(OutputIdx::SEL_COUNT));
 
@@ -170,6 +181,15 @@ void QSAIndexer::execute_typed() {
     const size_t G = H_iq / H_ik;
 
     const auto* key_length_p = key_length.ptr<int32_t>();
+
+    // summary_cache is the only state that is partially updated (new blocks are appended, earlier
+    // ones are kept), so its output starts as a copy of the input. The two incomplete-block
+    // buffers are fully rewritten per row below and need no initial copy.
+    const auto summary_cache_in_mem = getSrcMemoryAtPort(InputIdx::SUMMARY_CACHE);
+    const auto summary_cache_out_mem = getDstMemoryAtPort(OutputIdx::SUMMARY_CACHE);
+    const auto summary_row_bytes = B != 0 ? summary_cache_in_mem->getSize() / B : 0;
+    const auto* summary_cache_src = summary_cache_in_mem->getDataAs<const uint8_t>();
+    auto* summary_cache_dst = summary_cache_out_mem->getDataAs<uint8_t>();
 
     std::vector<float> q_norm_weight_f32(D_idx);
     load_row_f32(q_norm_weight, D_idx, q_norm_weight_f32.data());
@@ -188,13 +208,17 @@ void QSAIndexer::execute_typed() {
 
     const auto& cpu_parallel = context->getCpuParallel();
     cpu_parallel->parallel_for(B, [&](size_t b) {
+        std::memcpy(summary_cache_dst + b * summary_row_bytes,
+                    summary_cache_src + b * summary_row_bytes,
+                    summary_row_bytes);
+
         const int64_t key_len = key_length_p[b];
         // Every per-row quantity is derived from this call's own key_length/L alone -- no
         // cross-call running counter is kept (see QSAIndexer's class comment).
         const int64_t past_n = std::max<int64_t>(0, key_len - L);
         const int64_t current_n = key_len - past_n;  // == min(L, key_len)
         const int64_t num_padding_n = L - current_n;
-        const int64_t c_n = past_n % r;               // valid rows already sitting in the tail buffer
+        const int64_t c_n = past_n % r;  // valid rows already sitting in the tail buffer
         const int64_t num_cached_blocks_n = past_n / r;
 
         std::vector<float> q_normed(H_iq * D_idx);
@@ -218,11 +242,11 @@ void QSAIndexer::execute_typed() {
 
         for (int64_t p = 0; p < c_n; p++) {
             for (size_t h = 0; h < H_ik; h++) {
-                load_row_f32(past_incomplete_raw_k, D_idx, pending_row_ptr(p, h), b, h, p);
+                load_row_f32(past_incomplete_raw_k_in, D_idx, pending_row_ptr(p, h), b, h, p);
             }
         }
         if (c_n > 0) {
-            load_row_f32(past_incomplete_rope, 2 * rotary_dim, block_ref_cos_sin.data(), b);
+            load_row_f32(past_incomplete_rope_in, 2 * rotary_dim, block_ref_cos_sin.data(), b);
         }
 
         int64_t running_block_idx = num_cached_blocks_n;
@@ -252,7 +276,9 @@ void QSAIndexer::execute_typed() {
                 // c_n < r guarantees pending_pos == 0 only ever occurs when c_n == 0, i.e. this is
                 // genuinely a fresh block (not one seeded from the tail) -- safe to overwrite.
                 std::copy(rope_cos_buf.begin(), rope_cos_buf.end(), block_ref_cos_sin.begin());
-                std::copy(rope_sin_buf.begin(), rope_sin_buf.end(), block_ref_cos_sin.begin() + static_cast<ptrdiff_t>(rotary_dim));
+                std::copy(rope_sin_buf.begin(),
+                          rope_sin_buf.end(),
+                          block_ref_cos_sin.begin() + static_cast<ptrdiff_t>(rotary_dim));
             }
             for (size_t h = 0; h < H_ik; h++) {
                 load_row_f32(k_idx, D_idx, pending_row_ptr(pos_in_block, h), b, l, h);

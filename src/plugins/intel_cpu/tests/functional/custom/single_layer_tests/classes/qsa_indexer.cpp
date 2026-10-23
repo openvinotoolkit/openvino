@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <unordered_map>
 #include <vector>
 
@@ -14,8 +15,8 @@
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/parameter.hpp"
-#include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
 #include "openvino/op/result.hpp"
+#include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
 
 namespace {
 
@@ -91,7 +92,7 @@ void rmsnorm_partial_rope(const float* src,
 // new_spec/qsa-prepare-17.rst's padding-aware prepare+selection pseudocode directly -- NOT a copy
 // of the CPU node's PlainTensor-based indexing/control flow. `summary_cache`/`past_raw_k`/
 // `past_rope` are caller-owned state threaded in by reference across sequential calls, mirroring
-// the production op's writable-in-place caches.
+// the production op's state (fed back from the op's state outputs).
 struct QSAIndexerOracle {
     size_t h_iq = 0;
     size_t h_ik = 0;
@@ -155,7 +156,8 @@ struct QSAIndexerOracle {
                 return pending_rows.data() + (static_cast<size_t>(pos_in_block) * h_ik + h) * d_idx;
             };
             auto past_raw_k_ptr = [&](size_t h, int64_t p) {
-                return past_raw_k.data() + ((b * h_ik + h) * static_cast<size_t>(r - 1) + static_cast<size_t>(p)) * d_idx;
+                return past_raw_k.data() +
+                       ((b * h_ik + h) * static_cast<size_t>(r - 1) + static_cast<size_t>(p)) * d_idx;
             };
             auto summary_ptr = [&](size_t h, int64_t block) {
                 return summary_cache.data() + ((b * h_ik + h) * summary_cap + static_cast<size_t>(block)) * d_idx;
@@ -195,8 +197,8 @@ struct QSAIndexerOracle {
                 if (pos_in_block == 0) {
                     std::copy(rope_cos_buf.begin(), rope_cos_buf.end(), block_ref_cos_sin.begin());
                     std::copy(rope_sin_buf.begin(),
-                             rope_sin_buf.end(),
-                             block_ref_cos_sin.begin() + static_cast<ptrdiff_t>(rotary_dim));
+                              rope_sin_buf.end(),
+                              block_ref_cos_sin.begin() + static_cast<ptrdiff_t>(rotary_dim));
                 }
                 for (size_t h = 0; h < h_ik; h++) {
                     std::copy_n(&k_idx[((b * L + lu) * h_ik + h) * d_idx], d_idx, pending_ptr(pos_in_block, h));
@@ -343,23 +345,30 @@ void QSAIndexerLayerCPUTest::SetUp() {
         m_calls.push_back(CallSpec{7, key_length});
     }
 
-    auto p_q_idx = std::make_shared<ov::op::v0::Parameter>(
-        m_data_precision,
-        ov::PartialShape{static_cast<int64_t>(m_batch), -1, static_cast<int64_t>(m_h_iq), static_cast<int64_t>(m_didx)});
-    auto p_k_idx = std::make_shared<ov::op::v0::Parameter>(
-        m_data_precision,
-        ov::PartialShape{static_cast<int64_t>(m_batch), -1, static_cast<int64_t>(m_h_ik), static_cast<int64_t>(m_didx)});
+    auto p_q_idx = std::make_shared<ov::op::v0::Parameter>(m_data_precision,
+                                                           ov::PartialShape{static_cast<int64_t>(m_batch),
+                                                                            -1,
+                                                                            static_cast<int64_t>(m_h_iq),
+                                                                            static_cast<int64_t>(m_didx)});
+    auto p_k_idx = std::make_shared<ov::op::v0::Parameter>(m_data_precision,
+                                                           ov::PartialShape{static_cast<int64_t>(m_batch),
+                                                                            -1,
+                                                                            static_cast<int64_t>(m_h_ik),
+                                                                            static_cast<int64_t>(m_didx)});
     auto p_rope_cos = std::make_shared<ov::op::v0::Parameter>(
-        m_data_precision, ov::PartialShape{static_cast<int64_t>(m_batch), -1, static_cast<int64_t>(m_rotary_dim)});
+        m_data_precision,
+        ov::PartialShape{static_cast<int64_t>(m_batch), -1, static_cast<int64_t>(m_rotary_dim)});
     auto p_rope_sin = std::make_shared<ov::op::v0::Parameter>(
-        m_data_precision, ov::PartialShape{static_cast<int64_t>(m_batch), -1, static_cast<int64_t>(m_rotary_dim)});
+        m_data_precision,
+        ov::PartialShape{static_cast<int64_t>(m_batch), -1, static_cast<int64_t>(m_rotary_dim)});
     auto p_key_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{m_batch});
     auto p_q_norm_weight = std::make_shared<ov::op::v0::Parameter>(m_data_precision, ov::Shape{m_didx});
     auto p_k_norm_weight = std::make_shared<ov::op::v0::Parameter>(m_data_precision, ov::Shape{m_didx});
     auto p_summary_cache =
         std::make_shared<ov::op::v0::Parameter>(m_data_precision, ov::Shape{m_batch, m_h_ik, m_summary_cap, m_didx});
-    auto p_past_raw_k = std::make_shared<ov::op::v0::Parameter>(
-        m_data_precision, ov::Shape{m_batch, m_h_ik, m_compress_ratio - 1, m_didx});
+    auto p_past_raw_k =
+        std::make_shared<ov::op::v0::Parameter>(m_data_precision,
+                                                ov::Shape{m_batch, m_h_ik, m_compress_ratio - 1, m_didx});
     auto p_past_rope = std::make_shared<ov::op::v0::Parameter>(m_data_precision, ov::Shape{m_batch, 2 * m_rotary_dim});
 
     p_q_idx->set_friendly_name("q_idx");
@@ -392,11 +401,15 @@ void QSAIndexerLayerCPUTest::SetUp() {
                              p_summary_cache,
                              p_past_raw_k,
                              p_past_rope};
+    using OutputIdx = ov::intel_cpu::QSAIndexer::OutputIdx;
     auto qsa_indexer_v2 = std::make_shared<ov::intel_cpu::QSAIndexer>(args, config);
 
     function = std::make_shared<ov::Model>(
-        ov::ResultVector{std::make_shared<ov::op::v0::Result>(qsa_indexer_v2->output(0)),
-                        std::make_shared<ov::op::v0::Result>(qsa_indexer_v2->output(1))},
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(qsa_indexer_v2->output(OutputIdx::SEL_INDICES)),
+                         std::make_shared<ov::op::v0::Result>(qsa_indexer_v2->output(OutputIdx::SEL_COUNT)),
+                         std::make_shared<ov::op::v0::Result>(qsa_indexer_v2->output(OutputIdx::SUMMARY_CACHE)),
+                         std::make_shared<ov::op::v0::Result>(qsa_indexer_v2->output(OutputIdx::PAST_INCOMPLETE_RAW_K)),
+                         std::make_shared<ov::op::v0::Result>(qsa_indexer_v2->output(OutputIdx::PAST_INCOMPLETE_ROPE))},
         ov::ParameterVector{p_q_idx,
                             p_k_idx,
                             p_rope_cos,
@@ -472,6 +485,14 @@ std::vector<ov::Tensor> QSAIndexerLayerCPUTest::run_call(const CallSpec& call, s
         }
     }
 
+    // The op must not update its state inputs in place: snapshot them to check afterwards.
+    std::vector<ov::Tensor> state_in_snapshot;
+    for (const auto* state : {&m_summary_cache_tensor, &m_past_raw_k_tensor, &m_past_rope_tensor}) {
+        ov::Tensor snapshot{state->get_element_type(), state->get_shape()};
+        state->copy_to(snapshot);
+        state_in_snapshot.push_back(std::move(snapshot));
+    }
+
     m_infer_request.infer();
 
     std::vector<ov::Tensor> outs;
@@ -502,8 +523,8 @@ std::vector<ov::Tensor> QSAIndexerLayerCPUTest::run_call(const CallSpec& call, s
                                     call.key_length,
                                     read_tensor_to_f32(t_q_idx),
                                     read_tensor_to_f32(t_k_idx),
-                                    rope_cos_data,
-                                    rope_sin_data,
+                                    read_tensor_to_f32(t_rope_cos),
+                                    read_tensor_to_f32(t_rope_sin),
                                     read_tensor_to_f32(m_q_norm_weight_tensor),
                                     read_tensor_to_f32(m_k_norm_weight_tensor));
     m_oracle_summary_cache = std::move(oracle.summary_cache);
@@ -515,7 +536,29 @@ std::vector<ov::Tensor> QSAIndexerLayerCPUTest::run_call(const CallSpec& call, s
     std::copy(expected.sel_indices.begin(), expected.sel_indices.end(), expected_sel_indices.data<int32_t>());
     std::copy(expected.sel_count.begin(), expected.sel_count.end(), expected_sel_count.data<int32_t>());
 
-    compare({expected_sel_indices, expected_sel_count}, outs);
+    ov::Tensor expected_summary_cache(m_data_precision, m_summary_cache_tensor.get_shape());
+    ov::Tensor expected_past_raw_k(m_data_precision, m_past_raw_k_tensor.get_shape());
+    ov::Tensor expected_past_rope(m_data_precision, m_past_rope_tensor.get_shape());
+    write_f32_to_tensor(expected_summary_cache, m_oracle_summary_cache);
+    write_f32_to_tensor(expected_past_raw_k, m_oracle_past_raw_k);
+    write_f32_to_tensor(expected_past_rope, m_oracle_past_rope);
+
+    compare({expected_sel_indices, expected_sel_count, expected_summary_cache, expected_past_raw_k, expected_past_rope},
+            outs);
+
+    // State inputs are untouched (bitwise)...
+    const std::vector<const ov::Tensor*> state_in = {&m_summary_cache_tensor,
+                                                     &m_past_raw_k_tensor,
+                                                     &m_past_rope_tensor};
+    for (size_t i = 0; i < state_in.size(); i++) {
+        EXPECT_EQ(0,
+                  std::memcmp(state_in[i]->data(), state_in_snapshot[i].data(), state_in_snapshot[i].get_byte_size()))
+            << "state input " << i << " was modified in place";
+    }
+    // ...and the state outputs are what the outside Assign feeds into the next call.
+    m_summary_cache_tensor = outs[ov::intel_cpu::QSAIndexer::OutputIdx::SUMMARY_CACHE];
+    m_past_raw_k_tensor = outs[ov::intel_cpu::QSAIndexer::OutputIdx::PAST_INCOMPLETE_RAW_K];
+    m_past_rope_tensor = outs[ov::intel_cpu::QSAIndexer::OutputIdx::PAST_INCOMPLETE_ROPE];
     return outs;
 }
 
@@ -528,12 +571,14 @@ void QSAIndexerLayerCPUTest::run() {
     m_past_raw_k_tensor = make_zero_tensor(m_data_precision, ov::Shape{m_batch, m_h_ik, m_compress_ratio - 1, m_didx});
     m_past_rope_tensor = make_zero_tensor(m_data_precision, ov::Shape{m_batch, 2 * m_rotary_dim});
 
-    m_q_norm_weight_tensor = ov::test::utils::create_and_fill_tensor(m_data_precision,
-                                                                     ov::Shape{m_didx},
-                                                                     ov::test::utils::InputGenerateData(0.5, 1000, 1000, 6));
-    m_k_norm_weight_tensor = ov::test::utils::create_and_fill_tensor(m_data_precision,
-                                                                     ov::Shape{m_didx},
-                                                                     ov::test::utils::InputGenerateData(0.5, 1000, 1000, 7));
+    m_q_norm_weight_tensor =
+        ov::test::utils::create_and_fill_tensor(m_data_precision,
+                                                ov::Shape{m_didx},
+                                                ov::test::utils::InputGenerateData(0.5, 1000, 1000, 6));
+    m_k_norm_weight_tensor =
+        ov::test::utils::create_and_fill_tensor(m_data_precision,
+                                                ov::Shape{m_didx},
+                                                ov::test::utils::InputGenerateData(0.5, 1000, 1000, 7));
 
     m_oracle_summary_cache.assign(m_batch * m_h_ik * m_summary_cap * m_didx, 0.0F);
     m_oracle_past_raw_k.assign(m_batch * m_h_ik * (m_compress_ratio - 1) * m_didx, 0.0F);

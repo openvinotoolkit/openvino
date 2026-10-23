@@ -41,7 +41,15 @@ void check_i32_input(const ov::Node* node, size_t idx, const char* name, int64_t
 
 void check_shape(const ov::Node* node, size_t idx, const char* name, const ov::PartialShape& expected) {
     const auto& ps = node->get_input_partial_shape(idx);
-    NODE_VALIDATION_CHECK(node, ps.compatible(expected), node->get_type_name(), " expects ", name, " shaped ", expected, ", got ", ps);
+    NODE_VALIDATION_CHECK(node,
+                          ps.compatible(expected),
+                          node->get_type_name(),
+                          " expects ",
+                          name,
+                          " shaped ",
+                          expected,
+                          ", got ",
+                          ps);
 }
 
 // Each port is validated independently, not merged into one shared type: the CPU kernel
@@ -145,9 +153,9 @@ void QSAIndexer::validate_and_infer_types() {
                           "QSAIndexer expects a rank-4 [B, L, H_iq, D_idx] q_idx input, got ",
                           q_idx_ps);
     NODE_VALIDATION_CHECK(this,
-                           k_idx_ps.rank().is_dynamic() || k_idx_ps.size() == 4,
-                           "QSAIndexer expects a rank-4 [B, L, H_ik, D_idx] k_idx input, got ",
-                           k_idx_ps);
+                          k_idx_ps.rank().is_dynamic() || k_idx_ps.size() == 4,
+                          "QSAIndexer expects a rank-4 [B, L, H_ik, D_idx] k_idx input, got ",
+                          k_idx_ps);
     check_float_inputs(this,
                        {InputIdx::Q_IDX,
                         InputIdx::K_IDX,
@@ -183,14 +191,21 @@ void QSAIndexer::validate_and_infer_types() {
     // buffer, not a capacity-bearing cache. Bp is purely caller-managed (grown via Concat each
     // call, batch-max sized) -- only N/H_ik/D_idx are shape-consistency-checked here.
     check_shape(this, InputIdx::SUMMARY_CACHE, "summary_cache", ov::PartialShape{batch, h_ik, -1, di});
-    check_shape(this, InputIdx::PAST_INCOMPLETE_RAW_K, "past_incomplete_raw_k", ov::PartialShape{batch, h_ik, tail_len, di});
+    check_shape(this,
+                InputIdx::PAST_INCOMPLETE_RAW_K,
+                "past_incomplete_raw_k",
+                ov::PartialShape{batch, h_ik, tail_len, di});
     check_shape(this, InputIdx::PAST_INCOMPLETE_ROPE, "past_incomplete_rope", ov::PartialShape{batch, rope_tail});
 
     if (q_idx_ps.rank().is_static() && q_idx_ps.size() == 4 && q_idx_ps[2].is_static() && h_ik.is_static()) {
         const auto h_iq = static_cast<size_t>(q_idx_ps[2].get_length());
         const auto h_ik_value = static_cast<size_t>(h_ik.get_length());
-        NODE_VALIDATION_CHECK(this, h_ik_value != 0 && h_iq % h_ik_value == 0, "QSAIndexer: H_iq must be a positive multiple of H_ik.");
-        NODE_VALIDATION_CHECK(this, m_config.h_sel == 1 || m_config.h_sel == h_ik_value, "QSAIndexer: h_sel must be 1 or H_ik.");
+        NODE_VALIDATION_CHECK(this,
+                              h_ik_value != 0 && h_iq % h_ik_value == 0,
+                              "QSAIndexer: H_iq must be a positive multiple of H_ik.");
+        NODE_VALIDATION_CHECK(this,
+                              m_config.h_sel == 1 || m_config.h_sel == h_ik_value,
+                              "QSAIndexer: h_sel must be 1 or H_ik.");
     }
 
     const ov::PartialShape sel_indices_ps{batch,
@@ -199,9 +214,19 @@ void QSAIndexer::validate_and_infer_types() {
                                           ov::Dimension(static_cast<int64_t>(m_config.block_topk))};
     const ov::PartialShape sel_count_ps{batch, ov::Dimension(static_cast<int64_t>(m_config.h_sel)), length};
 
-    set_output_size(2);
-    set_output_type(0, element::i32, sel_indices_ps);
-    set_output_type(1, element::i32, sel_count_ps);
+    set_output_size(OutputIdx::COUNT);
+    set_output_type(OutputIdx::SEL_INDICES, element::i32, sel_indices_ps);
+    set_output_type(OutputIdx::SEL_COUNT, element::i32, sel_count_ps);
+    // The state updates are out-of-place: each state output mirrors its input.
+    set_output_type(OutputIdx::SUMMARY_CACHE,
+                    get_input_element_type(InputIdx::SUMMARY_CACHE),
+                    get_input_partial_shape(InputIdx::SUMMARY_CACHE));
+    set_output_type(OutputIdx::PAST_INCOMPLETE_RAW_K,
+                    get_input_element_type(InputIdx::PAST_INCOMPLETE_RAW_K),
+                    get_input_partial_shape(InputIdx::PAST_INCOMPLETE_RAW_K));
+    set_output_type(OutputIdx::PAST_INCOMPLETE_ROPE,
+                    get_input_element_type(InputIdx::PAST_INCOMPLETE_ROPE),
+                    get_input_partial_shape(InputIdx::PAST_INCOMPLETE_ROPE));
 }
 
 std::shared_ptr<Node> QSAIndexer::clone_with_new_inputs(const ov::OutputVector& new_args) const {

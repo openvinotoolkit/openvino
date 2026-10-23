@@ -23,9 +23,11 @@ namespace ov::intel_cpu {
 /// its own between calls, unlike `QSAIndexer`'s `past_lens`.
 ///
 /// Reads no page table and owns no opaque runtime state: its logical cache state is three
-/// caller-owned writable dense tensors (`summary_cache`, `past_incomplete_raw_k`,
-/// `past_incomplete_rope`), mutated in place. `summary_cache` grows across calls (caller-managed,
-/// batch-max sized); `past_incomplete_raw_k`/`past_incomplete_rope` are FIXED size
+/// caller-owned dense tensors (`summary_cache`, `past_incomplete_raw_k`, `past_incomplete_rope`).
+/// The update is NOT in place: the inputs are never modified, and the updated values of the three
+/// states are produced as outputs (same shape/type as the matching input) so that an outside
+/// Assign can write them back to the variables. `summary_cache` grows across calls
+/// (caller-managed, batch-max sized); `past_incomplete_raw_k`/`past_incomplete_rope` are FIXED size
 /// (`key_block_size - 1` rows / one row respectively) and fully overwritten every call.
 ///
 /// \ingroup ov_ops_cpp_api
@@ -33,21 +35,36 @@ class QSAIndexer : public ov::op::Op {
 public:
     OPENVINO_OP("QSAIndexer", "cpu_plugin_opset");
 
-    /// @brief Fixed input order of the QSAIndexer op. All stateful/writable-in-place cache
-    /// ports are grouped at the end, after every plain-data/weight input.
+    /// @brief Fixed input order of the QSAIndexer op. All state cache ports are grouped at
+    /// the end, after every plain-data/weight input.
     struct InputIdx {
-        static constexpr size_t Q_IDX = 0;                    ///< [B, L, H_iq, D_idx]
-        static constexpr size_t K_IDX = 1;                    ///< [B, L, H_ik, D_idx], may include left-padding rows
-        static constexpr size_t ROPE_COS = 2;                 ///< [B or 1, L, indexer_rotary_dim]
-        static constexpr size_t ROPE_SIN = 3;                 ///< [B or 1, L, indexer_rotary_dim]
-        static constexpr size_t KEY_LENGTH = 4;               ///< [B] i32, read-only; total valid length after this call
-        static constexpr size_t Q_NORM_WEIGHT = 5;            ///< [D_idx]
-        static constexpr size_t K_NORM_WEIGHT = 6;            ///< [D_idx]
-        static constexpr size_t SUMMARY_CACHE = 7;            ///< [B, H_ik, Bp, D_idx], writable in place
-        static constexpr size_t PAST_INCOMPLETE_RAW_K = 8;    ///< [B, H_ik, key_block_size - 1, D_idx], writable in place, fixed size
-        static constexpr size_t PAST_INCOMPLETE_ROPE = 9;     ///< [B, 2 * indexer_rotary_dim], rope_cos then rope_sin of the incomplete block's first token, writable in place, fixed size
+        static constexpr size_t Q_IDX = 0;          ///< [B, L, H_iq, D_idx]
+        static constexpr size_t K_IDX = 1;          ///< [B, L, H_ik, D_idx], may include left-padding rows
+        static constexpr size_t ROPE_COS = 2;       ///< [B or 1, L, indexer_rotary_dim]
+        static constexpr size_t ROPE_SIN = 3;       ///< [B or 1, L, indexer_rotary_dim]
+        static constexpr size_t KEY_LENGTH = 4;     ///< [B] i32, read-only; total valid length after this call
+        static constexpr size_t Q_NORM_WEIGHT = 5;  ///< [D_idx]
+        static constexpr size_t K_NORM_WEIGHT = 6;  ///< [D_idx]
+        static constexpr size_t SUMMARY_CACHE = 7;  ///< [B, H_ik, Bp, D_idx], state input
+        static constexpr size_t PAST_INCOMPLETE_RAW_K =
+            8;  ///< [B, H_ik, key_block_size - 1, D_idx], state input, fixed size
+        static constexpr size_t PAST_INCOMPLETE_ROPE =
+            9;  ///< [B, 2 * indexer_rotary_dim], rope_cos then rope_sin of the incomplete block's first token, state
+                ///< input, fixed size
 
         static constexpr size_t COUNT = 10;
+    };
+
+    /// @brief Fixed output order of the QSAIndexer op. The three state outputs are the updated
+    /// values of the matching state inputs (same shape and element type).
+    struct OutputIdx {
+        static constexpr size_t SEL_INDICES = 0;            ///< [B, H_sel, L, block_topk] i32
+        static constexpr size_t SEL_COUNT = 1;              ///< [B, H_sel, L] i32
+        static constexpr size_t SUMMARY_CACHE = 2;          ///< updated summary_cache
+        static constexpr size_t PAST_INCOMPLETE_RAW_K = 3;  ///< updated past_incomplete_raw_k
+        static constexpr size_t PAST_INCOMPLETE_ROPE = 4;   ///< updated past_incomplete_rope
+
+        static constexpr size_t COUNT = 5;
     };
 
     struct Config {

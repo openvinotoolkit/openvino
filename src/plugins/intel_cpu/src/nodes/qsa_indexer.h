@@ -24,10 +24,12 @@ namespace ov::intel_cpu::node {
 /// are all derived per row from `key_length` and this call's window length alone, so divergent
 /// per-row batches and intra-call left-padding are handled without any extra persisted state.
 /// `past_incomplete_raw_k` / `past_incomplete_rope` are FIXED-size (not growing) caller-owned
-/// writable tensors holding the current incomplete block's raw rows / reference RoPE
-/// coefficients; they are fully overwritten every call rather than grown. All floating-point data
+/// state tensors holding the current incomplete block's raw rows / reference RoPE coefficients;
+/// they are fully rewritten every call rather than grown. The three state inputs
+/// (`summary_cache`, `past_incomplete_raw_k`, `past_incomplete_rope`) are never modified: the
+/// updated states are written to dedicated outputs for an outside Assign to consume. All floating-point data
 /// ports may be negotiated as f32, f16, or bf16 independently; compute is always performed in
-/// fp32. The two outputs (`sel_indices`, `sel_count`) are always i32.
+/// fp32. `sel_indices`/`sel_count` are always i32; the three state outputs keep their input's precision.
 class QSAIndexer : public Node {
 public:
     QSAIndexer(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);

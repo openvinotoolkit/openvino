@@ -29,7 +29,7 @@ using QSAIndexerLayerTestParams =
     std::tuple<std::string, ov::element::Type, size_t, size_t, size_t, size_t, QSAIndexerScenario>;
 
 class QSAIndexerLayerCPUTest : public testing::WithParamInterface<QSAIndexerLayerTestParams>,
-                                 virtual public SubgraphBaseTest {
+                               virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<QSAIndexerLayerTestParams>& obj);
 
@@ -68,7 +68,7 @@ private:
     ov::Tensor m_k_norm_weight_tensor;
 
     // Independent (host-vector based) oracle state, persisted across the calls in m_calls --
-    // mirrors the production op's three writable-in-place caches, but is never read from the
+    // mirrors the production op's three state tensors (fed back from its state outputs), but is never read from the
     // compiled model's own tensors.
     std::vector<float> m_oracle_summary_cache;
     std::vector<float> m_oracle_past_raw_k;
