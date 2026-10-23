@@ -142,6 +142,9 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_ConditionGPUTest_static/StaticConditionLayerGPUTest.CompareWithRefs/IS=\(3.6\)_netPRC=i8_ifCond=PARAM_targetDevice=GPU_.*)"),
             // Use weight from model not from path hint
             std::regex(R"(.*compile_from_weightless_blob.*)"),
+            // Issue: https://github.com/openvinotoolkit/openvino/issues/38584, offloaded MoE output after a non-mmap
+            // read differs from the resident model
+            std::regex(R"(.*smoke_MoEOffload/MoEOffloadFromIRFile.InferWithOffloadRatioMatchesResident/mmap=false.*)"),
 
 #if defined(_WIN32)
             // by calc abs_threshold with expected value
@@ -198,6 +201,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_3D_weight.*)"));
             // MoE patterns are not supported on the platforms without immad (fusion transformation are disabled)
             patterns.push_back(std::regex(R"(.*smoke_MoE3GemmCompressedFusion.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MoEOffload.*)"));
             // Ticket 183099: enable after GroupedMatMul support on GPU
             patterns.push_back(std::regex(R"(.*smoke_GroupedMatMul.*)"));
             // Dynamic quantization of fp8 and mxfp8 models supported only through oneDNN (disabled for non-systolic platforms)
