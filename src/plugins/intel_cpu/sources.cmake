@@ -425,6 +425,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/psroi_pooling.h
     ${CPU_SRC_DIR}/nodes/qkv_proj.cpp
     ${CPU_SRC_DIR}/nodes/qkv_proj.h
+    ${CPU_SRC_DIR}/nodes/qsa_indexer.cpp
+    ${CPU_SRC_DIR}/nodes/qsa_indexer.h
     ${CPU_SRC_DIR}/nodes/random_uniform.cpp
     ${CPU_SRC_DIR}/nodes/random_uniform.hpp
     ${CPU_SRC_DIR}/nodes/range.cpp
@@ -843,6 +845,8 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/interaction.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/llm_mlp.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/llm_mlp.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qsa_indexer.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qsa_indexer.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qkv_proj.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qkv_proj.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/convert_to_interaction.cpp

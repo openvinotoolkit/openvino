@@ -76,6 +76,7 @@
 #include "nodes/priorbox_clustered.h"
 #include "nodes/proposal.h"
 #include "nodes/psroi_pooling.h"
+#include "nodes/qsa_indexer.h"
 #include "nodes/random_uniform.hpp"
 #include "nodes/range.h"
 #include "nodes/rdft.h"
@@ -254,6 +255,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(SelectiveSSM, Type::SelectiveSSM);
     INTEL_CPU_NODE(PagedSelectiveSSM, Type::PagedSelectiveSSM);
     INTEL_CPU_NODE(PagedCausalConv1D, Type::PagedCausalConv1D);
+    INTEL_CPU_NODE(node::QSAIndexer, Type::QSAIndexer);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);
