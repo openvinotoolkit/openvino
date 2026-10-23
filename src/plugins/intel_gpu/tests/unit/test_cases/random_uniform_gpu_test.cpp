@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "test_name_utils.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/random_uniform.hpp>
@@ -86,7 +87,7 @@ struct PrintToStringParamName {
             << "_max_value_" << param.param.max_val
             << "_global_seed_" << param.param.global_seed
             << "_op_seed_" << param.param.op_seed;
-        return buf.str();
+        return tests::sanitize_test_name(buf.str());
     }
 
 };
@@ -99,7 +100,7 @@ std::string PrintToStringParamName::operator()(const testing::TestParamInfo<Rand
         << "_max_value_" << static_cast<float>(param.param.max_val)
         << "_global_seed_" << param.param.global_seed
         << "_op_seed_" << param.param.op_seed;
-    return buf.str();
+    return tests::sanitize_test_name(buf.str());
 }
 
 template<>
@@ -110,7 +111,7 @@ std::string PrintToStringParamName::operator()(const testing::TestParamInfo<Rand
         << "_max_value_" << static_cast<float>(param.param.max_val)
         << "_global_seed_" << param.param.global_seed
         << "_op_seed_" << param.param.op_seed;
-    return buf.str();
+    return tests::sanitize_test_name(buf.str());
 }
 
 using random_uniform_gpu_test_i32 = random_uniform_gpu_test<int32_t>;

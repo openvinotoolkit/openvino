@@ -7,6 +7,7 @@
 #include <intel_gpu/primitives/istft.hpp>
 
 #include "test_utils.h"
+#include "test_name_utils.hpp"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -97,7 +98,7 @@ public:
         result << "_normalizedr=" << param.normalized;
         result << "_length=" << param.length;
         result << "_" << param.testcaseName;
-        return result.str();
+        return tests::sanitize_test_name(result.str());
     }
 
     struct ISTFTInferenceParams {

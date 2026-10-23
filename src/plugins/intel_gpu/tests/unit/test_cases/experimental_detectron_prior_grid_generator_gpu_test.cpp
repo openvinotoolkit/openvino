@@ -9,6 +9,7 @@
 #include <string>
 
 #include "test_utils.h"
+#include "test_name_utils.hpp"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -208,7 +209,7 @@ struct PrintToStringParamName {
         buf << " priors tensor " << param.param.priorsTensor.to_string() << " h " << param.param.h << " w "
             << param.param.w << " strideX " << param.param.strideX << " strideY " << param.param.strideY << " flatten "
             << param.param.flatten << " is_caching_test " << param.param.is_caching_test;
-        return buf.str();
+        return tests::sanitize_test_name(buf.str());
     }
 };
 

@@ -13,6 +13,7 @@
 #include "paged_gated_delta_net_inst.h"
 #include "random_generator.hpp"
 #include "test_utils.h"
+#include "test_name_utils.hpp"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -376,21 +377,21 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
         std::string subseq_tokens_str;
         for (size_t i = 0; i < info.param.subsequence_tokens.size(); i++) {
             if (i > 0)
-                subseq_tokens_str += "-";
+                subseq_tokens_str += "x";
             subseq_tokens_str += std::to_string(info.param.subsequence_tokens[i]);
         }
 
         std::string past_lens_str;
         for (size_t i = 0; i < info.param.past_lens.size(); i++) {
             if (i > 0)
-                past_lens_str += "-";
+                past_lens_str += "x";
             past_lens_str += std::to_string(info.param.past_lens[i]);
         }
 
         std::string cache_intervals_str;
         for (size_t i = 0; i < info.param.cache_intervals.size(); i++) {
             if (i > 0)
-                cache_intervals_str += "-";
+                cache_intervals_str += "x";
             cache_intervals_str += std::to_string(info.param.cache_intervals[i]);
         }
 
@@ -399,7 +400,7 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
                              std::to_string(info.param.head_size);
         if (info.param.is_caching_test)
             result += "_cached";
-        return result;
+        return tests::sanitize_test_name(result);
     }
 };
 

@@ -10,6 +10,7 @@
 #include <intel_gpu/runtime/memory.hpp>
 
 #include "test_utils.h"
+#include "test_name_utils.hpp"
 
 using namespace cldnn;
 using namespace tests;
@@ -184,7 +185,7 @@ public:
         if (!test_inputs.test_name.empty())
             result << "_TN=" << test_inputs.test_name;
 
-        return result.str();
+        return tests::sanitize_test_name(result.str());
     }
 };
 

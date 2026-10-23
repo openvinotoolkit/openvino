@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "test_name_utils.hpp"
 
 #include "intel_gpu/runtime/format.hpp"
 
@@ -92,7 +93,7 @@ public:
             res += " { " + std::to_string(block.first) + ", " + std::to_string(block.second) + "}";
         }
 
-        return res;
+        return tests::sanitize_test_name(res);
     }
  };
 
@@ -235,3 +236,26 @@ INSTANTIATE_TEST_SUITE_P(smoke, find_format_test,
         {{0, 1, 2, 3},          {},                       false,     true,      false,     false,       false,    format::any}
     }),
     find_format_test::PrintToString);
+
+// Regression test for the sanitizer used by parameterized test name generators above:
+// if it stops stripping gtest filter metacharacters, per-test filtered runs in GPU CI
+// can again report success without executing any tests (see test_name_utils.hpp).
+TEST(test_name_utils, sanitize_test_name_replaces_gtest_filter_metacharacters) {
+    EXPECT_EQ(tests::sanitize_test_name("KeepTopK=-1"), "KeepTopK=neg1");
+    EXPECT_EQ(tests::sanitize_test_name("[b:1,f:2]"), "[b_1,f_2]");
+    EXPECT_EQ(tests::sanitize_test_name("a*b?c"), "astarbdync");
+    EXPECT_EQ(tests::sanitize_test_name("-:*?"), "neg_stardyn");
+
+    // Names that are already filter-safe must be returned unchanged.
+    const std::string safe = "format_b_fs_yx_fsv16_axis_2_seed_42";
+    EXPECT_EQ(tests::sanitize_test_name(safe), safe);
+
+    // No sanitized name may still contain a gtest filter metacharacter.
+    for (const std::string& name : std::initializer_list<std::string>{"KeepTopK=-1", "[b:1,f:2]", "a*b?c", safe}) {
+        const std::string sanitized = tests::sanitize_test_name(name);
+        for (const char meta : {'-', ':', '*', '?'}) {
+            EXPECT_EQ(sanitized.find(meta), std::string::npos)
+                << "sanitized name '" << sanitized << "' still contains '" << meta << "'";
+        }
+    }
+}
