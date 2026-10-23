@@ -14,6 +14,7 @@
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "util.hpp"
 
 namespace ov {
 namespace npuw {
@@ -108,6 +109,11 @@ struct HostFlashAttention {
     // though the actual per-call Q is now physically 1.
     std::size_t _query_size = 0;
 
+    // Order of the KV Concat inputs.  With KVOrder::PresentFirst the present tile occupies
+    // the first _tile_size mask columns and the past cache follows, so the final (present)
+    // tile runs at mask offset 0 - after all regular past tiles.
+    ov::npuw::util::KVOrder _kv_order = ov::npuw::util::KVOrder::PastFirst;
+
     // Context size (extracted from K concat output shape - kv_cache_size dimension)
     // Represents the total KV cache length available for attention computation
     std::size_t _context_size = 0;
@@ -167,6 +173,9 @@ struct HostFlashAttentionInfo {
     std::size_t _query_size = 0u;  // query length for tile_size/PREFILL-GENERATE/context_length logic
                                    // (original, pre-slice length if PropagateSliceUp touched this SDPA)
     std::size_t _context_size = 0u;
+
+    // See function::HostFlashAttention::_kv_order.
+    ov::npuw::util::KVOrder _kv_order = ov::npuw::util::KVOrder::PastFirst;
 
     // Sequence dimension indices for K and V tensors in the original SDPA model
     // These indicate which dimension is the sequence/cache dimension in past_key and past_value tensors
@@ -516,16 +525,26 @@ class PositionIDs final : public Selector {
     std::size_t _position_ids_idx = 0u;
     int64_t _current_length = 0;
     int64_t _past_length = 0;
-    std::size_t _original_query_length = 0u;  // original query length before PropagateSliceUp
+    // KV granularity of a single call: the number of present-KV slots the final tile
+    // consumes (HostFlashAttention::_final_tile_size).  Equal to the original (pre
+    // PropagateSliceUp) query length for the usual layout, but not when Q is GQA-grouped.
+    std::size_t _tile_size = 0u;
+    // With KVOrder::PresentFirst the caller-supplied history length is unreliable (the
+    // graph is driven externally, not by LLMInferRequest) and the past length is derived
+    // from the position ids instead - see prepare().
+    ov::npuw::util::KVOrder _kv_order = ov::npuw::util::KVOrder::PastFirst;
 
     std::reference_wrapper<const ov::ISyncInferRequest> _rq;
 
-    PositionIDs(std::size_t param_idx, std::size_t original_query_length, const ov::ISyncInferRequest& rq);
+    PositionIDs(std::size_t param_idx,
+                std::size_t tile_size,
+                ov::npuw::util::KVOrder kv_order,
+                const ov::ISyncInferRequest& rq);
     void prepare(int64_t past_len) override;
     int64_t context_length() const override;
 
 public:
-    static Selector::Ptr find(std::size_t original_query_length, const ov::ISyncInferRequest& rq);
+    static Selector::Ptr find(std::size_t tile_size, ov::npuw::util::KVOrder kv_order, const ov::ISyncInferRequest& rq);
 };
 
 }  // namespace host_flash_attention
