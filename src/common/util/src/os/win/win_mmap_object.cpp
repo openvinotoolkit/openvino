@@ -316,14 +316,14 @@ public:
 
     void hint_prefetch(size_t offset, size_t size) noexcept override;
 
-    void hint_prefetch_async(size_t offset, size_t size) override;
+    std::shared_future<void> hint_prefetch_async(size_t offset, size_t size) override;
 
 private:
     /**
-     * @brief Adopts futures detached from a util::PrefetchToken, reaping already-finished ones so
-     * the pending list doesn't grow unbounded across repeated hint_prefetch_async() calls.
+     * @brief Adopts the handle returned by util::vm_prefetch_async(), reaping already-finished ones
+     * so the pending list doesn't grow unbounded across repeated hint_prefetch_async() calls.
      */
-    void adopt_pending_prefetch(std::vector<std::future<void>>&& tasks);
+    void adopt_pending_prefetch(std::shared_future<void> task);
 
     /** @brief Joins all outstanding background prefetch tasks. Must run before any teardown that
      *  unmaps or frees the view, since a detached task may still be touching those pages. */
@@ -399,9 +399,9 @@ private:
      */
     std::mutex m_slot_mutex;
 
-    // Tasks adopted from hint_prefetch_async()'s token; joined before unmapping (see ~MapHolder).
+    // Handles shared with hint_prefetch_async()'s caller; joined before unmapping (see ~MapHolder).
     std::mutex m_pending_prefetch_mutex;
-    std::vector<std::future<void>> m_pending_prefetch;
+    std::vector<std::shared_future<void>> m_pending_prefetch;
 };
 
 LONG NTAPI MmapVehRegistry::veh(PEXCEPTION_POINTERS ep) {
@@ -801,20 +801,22 @@ util::AlignedRegion clamp_align_region(const void* data, size_t mapping_size, si
 
 }  // namespace
 
-void MapHolder::adopt_pending_prefetch(std::vector<std::future<void>>&& tasks) {
+void MapHolder::adopt_pending_prefetch(std::shared_future<void> task) {
+    if (!task.valid()) {
+        return;
+    }
     std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
-    // Reap already-finished futures so the vector doesn't grow without bound across repeated
+    // Reap already-finished handles so the vector doesn't grow without bound across repeated
     // hint_prefetch_async() calls over this mapping's lifetime.
     m_pending_prefetch.erase(std::remove_if(m_pending_prefetch.begin(),
                                             m_pending_prefetch.end(),
-                                            [](std::future<void>& task) {
-                                                return !task.valid() || task.wait_for(std::chrono::seconds(0)) ==
-                                                                            std::future_status::ready;
+                                            [](std::shared_future<void>& pending) {
+                                                return !pending.valid() ||
+                                                       pending.wait_for(std::chrono::seconds(0)) ==
+                                                           std::future_status::ready;
                                             }),
                              m_pending_prefetch.end());
-    m_pending_prefetch.insert(m_pending_prefetch.end(),
-                              std::make_move_iterator(tasks.begin()),
-                              std::make_move_iterator(tasks.end()));
+    m_pending_prefetch.push_back(std::move(task));
 }
 
 void MapHolder::wait_for_pending_prefetch() noexcept {
@@ -837,14 +839,16 @@ void MapHolder::hint_prefetch(size_t offset, size_t size) noexcept {
     }
 }
 
-void MapHolder::hint_prefetch_async(size_t offset, size_t size) {
+std::shared_future<void> MapHolder::hint_prefetch_async(size_t offset, size_t size) {
     if (const auto region = util::clamp_align_region(m_data, m_size, offset, size);
         region.m_length > util::default_parallel_io_threshold) {
-        auto token = util::vm_prefetch_async(reinterpret_cast<void*>(region.m_address),
-                                             region.m_length,
-                                             util::prefetch_thread_count(region.m_length));
-        adopt_pending_prefetch(token.detach());
+        auto future = util::vm_prefetch_async(reinterpret_cast<void*>(region.m_address),
+                                              region.m_length,
+                                              util::prefetch_thread_count(region.m_length));
+        adopt_pending_prefetch(future);
+        return future;
     }
+    return {};
 }
 
 std::pair<char*, char*> MapHolder::compute_evict_range(size_t offset, size_t size) const noexcept {
