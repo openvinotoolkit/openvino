@@ -16,6 +16,20 @@ if(NOT TARGET LevelZero::LevelZero)
         INTERFACE_INCLUDE_DIRECTORIES "${LEVEL_ZERO_INCLUDE_DIR}")
 endif()
 
+# OpenCL is used only to get the Level Zero context on drivers with Level Zero - OpenCL interoperability (LEO)
+if(NOT TARGET OpenCL::OpenCL)
+    find_package(OpenCL QUIET)
+    if(NOT TARGET OpenCL::OpenCL)
+        message(STATUS "hello_remote_tensor SKIPPED: OpenCL headers and library are required")
+        return()
+    endif()
+endif()
+set(hello_remote_tensor_opencl OpenCL::OpenCL)
+if(TARGET OpenCL::NewHeaders)
+    # OpenVINO source build: Khronos headers bundled with OpenVINO
+    list(APPEND hello_remote_tensor_opencl OpenCL::NewHeaders)
+endif()
+
 ov_add_sample(NAME hello_remote_tensor
               SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
-              DEPENDENCIES format_reader ie_samples_utils LevelZero::LevelZero)
+              DEPENDENCIES format_reader ie_samples_utils LevelZero::LevelZero ${hello_remote_tensor_opencl})

@@ -13,6 +13,10 @@
 #include <vector>
 
 // clang-format off
+#ifndef CL_TARGET_OPENCL_VERSION
+#    define CL_TARGET_OPENCL_VERSION 300
+#endif
+#include <CL/cl.h>
 #include <level_zero/ze_api.h>
 
 #include "openvino/openvino.hpp"
@@ -110,6 +114,35 @@ void* get_usm_pointer(const ov::RemoteTensor& tensor) {
     return pointer;
 }
 
+// cl_context query of the Level Zero - OpenCL interoperability (LEO) driver feature.
+constexpr cl_context_info cl_l0_context_handle = 0x42B0;
+
+ze_context_handle_t get_level_zero_context(const ov::AnyMap& context_params) {
+    const auto type = context_params.at(ov::intel_gpu::context_type.name()).as<ov::intel_gpu::ContextType>();
+    // The current GPU API uses the OCL_CONTEXT key also for the native handle of a ZE context.
+    void* handle = context_params.at(ov::intel_gpu::ocl_context.name()).as<void*>();
+    OPENVINO_ASSERT(handle != nullptr, "The GPU plugin returned a null context handle");
+
+    if (type == ov::intel_gpu::ContextType::ZE) {
+        return static_cast<ze_context_handle_t>(handle);
+    }
+    OPENVINO_ASSERT(type == ov::intel_gpu::ContextType::OCL, "Unsupported GPU context type: ", type);
+
+    // With LEO the GPU plugin runs on Level Zero but its default context is an OpenCL context created
+    // on top of the plugin's Level Zero context. This is the only OpenCL call in the sample.
+    ze_context_handle_t ze_context = nullptr;
+    const cl_int result = clGetContextInfo(static_cast<cl_context>(handle),
+                                           cl_l0_context_handle,
+                                           sizeof(ze_context),
+                                           &ze_context,
+                                           nullptr);
+    OPENVINO_ASSERT(result == CL_SUCCESS && ze_context != nullptr,
+                    "Cannot get a Level Zero context from the GPU plugin's OpenCL context (OpenCL error ",
+                    result,
+                    "). The driver does not support Level Zero - OpenCL interoperability (LEO).");
+    return ze_context;
+}
+
 }  // namespace
 
 /**
@@ -144,17 +177,9 @@ int tmain(int argc, tchar* argv[]) {
         ov::Core core;
 
         // -------- Step 2. Get the Level Zero context of the GPU plugin --------
+        // The default context is ZE, or OCL on drivers with Level Zero - OpenCL interoperability (LEO).
         auto context = core.get_default_context(device_name);
-        const auto context_params = context.get_params();
-        OPENVINO_ASSERT(context_params.at(ov::intel_gpu::context_type.name()).as<ov::intel_gpu::ContextType>() ==
-                            ov::intel_gpu::ContextType::ZE,
-                        "This sample requires a pure Level Zero GPU context. Use a GPU plugin built with "
-                        "GPU_RT_TYPE=ZE and a driver configuration without OpenCL/LEO interoperability.");
-
-        // The current GPU API uses the legacy OCL_CONTEXT key even for a context of type ZE.
-        const auto ze_context =
-            static_cast<ze_context_handle_t>(context_params.at(ov::intel_gpu::ocl_context.name()).as<void*>());
-        OPENVINO_ASSERT(ze_context != nullptr, "The GPU plugin returned a null Level Zero context");
+        const auto ze_context = get_level_zero_context(context.get_params());
 
         // -------- Step 3. Read a model --------
         slog::info << "Loading model files: " << model_path << slog::endl;
