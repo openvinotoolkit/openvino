@@ -30,7 +30,7 @@ Repository rules (AGENTS.md): builds/GPU tests/benchmarks are **run by the user*
 - KQ: subgroup tile `kq_sg_tile_keys(16|32) × kq_sg_tile_queries`, WG array `pwk × pwq`. wgTK = tile_keys*pwk, wgTQ = tile_queries*pwq, `sg_per_wg = pwk*pwq`. S*V re-partitions the same subgroups as `(sv_sg_per_wg_scores × sv_sg_per_wg_values)`.
 - Dispatch: `LWS={SG, sg_per_wg, 1}`, one WG per head, PA query-block stride = the jitted wgTQ (host/jit/dispatch derive it together through `make_problem`).
 - The key axis is a reduction: pwk subgroups merge via SLM atomic max + `S_sum_slm` → the larger the subgroup/k0 tile, the more merge·barrier overhead.
-- SLM = `D_MAX*wgTQ*2 + wgTK*wgTQ*2 + wgTQ*pwk*4 + wgTQ*4` (default h128 = 17536 B). Xe2 128KiB / xe_hpg 64KiB, WG ≤ 1024 work-items.
+- SLM = `D_MAX*wgTQ*2 + wgTK*wgTQ*2 + wgTQ*pwk*4 + wgTQ*4` (default h128 = 17536 B). Xe2 128KiB / xe_hpg 64KiB, WG ≤ 1024 work-items — **≤ 512 at 256GRF** (16 x 4 SG16 subgroups at 256GRF = `CL_INVALID_WORK_GROUP_SIZE`, B70 MEASURED; `tiling_fits_device` does not know this).
 
 ## 3. Invariants that silently produce wrong output (check for every config candidate)
 1. `sv_tile_values * sv_per_wg_values >= vd_max`. 2. `sv_tile_scores * sv_per_wg_scores == wgTQ`.
@@ -50,7 +50,8 @@ Repository rules (AGENTS.md): builds/GPU tests/benchmarks are **run by the user*
 7. Do not generalize across shapes: do not turn one shape's result into a law; find the discriminator (e.g. `V_TILES`). Before changing a default, check for regressions in prefill/mixed/decode and other heads·dtypes·archs.
 
 ## 5. Rules confirmed by measurement (device/source in chapter 1)
-- **GRF**: Xe2 default is 128. `SDPA_OCL_256GRF=1` halves the thread count, making the default tile +25% slower (B70 llama-3.1-8b) and +47% slower at head 72. It only pays off **when paired** with a large tile blocked by spill (sv_sg_tile_scores ≥ 64) (256GRF + tq32/pwk4/pwq2 = 1,794,065 ns vs micro 1,930,454, B70 f16 q=4096). xe_hpg always uses 256GRF.
+- **PA PREFILL per head size (2026-10-23, chapter 1 §6.6)**: mirror the reference's **workgroup** tile, not only its subgroup tile — K/V is re-read `seq / wgTQ` times. Shipped on Xe2 with 256GRF + the pipelined loop: d_max 64 (16,64,8,2), 128 (16,64,16,2), 256 (16,32,8,4) = micro's WGs; 512 (16,16,8,4) = 128 x 64 (micro's 256 x 64 needs tile_keys 32). With `MICRO_MATH`, only micro's key tile gives micro-identical output. A constant kernel gap grows with prompt length in e2e → measure prefill at 2K..32K.
+- **GRF**: Xe2 default is 128 (PA PREFILL at d_max 64-512 uses 256 since 2026-10-23). `SDPA_OCL_256GRF=1` halves the thread count, making the default tile +25% slower (B70 llama-3.1-8b) and +47% slower at head 72. It only pays off **when paired** with a large tile blocked by spill (sv_sg_tile_scores ≥ 64) (256GRF + tq32/pwk4/pwq2 = 1,794,065 ns vs micro 1,930,454, B70 f16 q=4096). xe_hpg always uses 256GRF.
 - **occupancy% (cliloader) can be inversely correlated with speed** → do not use as a metric. "Static message count / loads per unit of work" alone is also a wrong metric (gpt-oss: 4096 total subgroups was optimal, 2048 lost).
 - **The WG-size axis and the k0-tile axis are independent** and shape-dependent: key-reduction overhead (large sg_per_wg, large wgTK = slow) vs thread starvation (small sg_per_wg = slow). On PA prefill q=1024 head128, sg16/wgTQ64/wgTK64 (A') beats sg8, sg4 (2.27M vs 2.80M/3.89M ns, B70).
 - **MIXED (cache+current)**: narrow the key tile (wgK 64) and keep the threads (sg16). Because of the WG barrier, everyone pays the slower side's cost on the boundary k0 tile. Reducing sg collapses performance (372k vs 146k ns).

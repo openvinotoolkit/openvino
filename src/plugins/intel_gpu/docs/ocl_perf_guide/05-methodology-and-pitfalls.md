@@ -128,6 +128,9 @@ The `NEG_*` groups are negative controls that **must FAIL** (`SDPA_OCL_BIDIR=0`,
 | E14 | **`SDPA_OCL_NO_GETENV` build** (ON by default since 2026-10-19) | every `SDPA_OCL_*` env knob is a silent no-op; a sweep measures the default N times | build a separate install with `-DSDPA_OCL_NO_GETENV=OFF` and `cmake --install <build> --prefix <dir>`, then switch it back ON; confirm a production install by `strings libopenvino_intel_gpu_plugin.so \| grep ^SDPA_OCL_` matching the baseline, and a new `.cl` by a unique string such as a changed `#error` text |
 | E15 | **arm names that are prefixes of each other** in result globs | `tgt_r*.log` also matched `tgt_rebaseB_r*.log`, so one arm's statistics silently contained the other arm (sample count doubled) | match `<arm>_r[0-9]*`; check the per-arm sample count |
 | E16 | **git-lfs post-commit hook during a rebase** | about 7 s per replayed commit; a 98-commit rebase took about 10 min and outlived a 300 s tool timeout | run it in the background; keep a backup branch; drop uncommitted work first (save it as a patch and check that the save path exists) |
+| E17 | **A reboot drops the clock pin** (2026-10-23) | min_freq back to 400; every number of the next 3 hours was unpinned and the user asked for a full re-measure (19 models) | read `/sys/class/drm/card1/device/tile0/gt0/freq0/{min,max}_freq` before each session and append it to every summary (`test/longctx/mc.sh`) |
+| E18 | **The dumped `clintercept_report.txt` is truncated** when a second process of the same run writes the same dump dir | per-kernel totals silently low | parse the "Device Performance Timing" block of cliloader's **stderr** in the run log (`test/longctx/kern_an.py`) |
+| E19 | **Tiling env overrides hit every head size** | on a mixed-head model (gemma-4: head 256 + 512 + an encoder SDPA) a sweep also changes the other layers, and the e2e/total moves the wrong way | classify the cliloader lines (heads = GWS1/LWS1, per-hash call counts = layers x prefills; `test/longctx/g4_an.py`) and read only the target group |
 
 ---
 
@@ -164,6 +167,8 @@ The `NEG_*` groups are negative controls that **must FAIL** (`SDPA_OCL_BIDIR=0`,
 | Repetitions | For kernels with few calls (prefill 2 per invocation) the mean is noise -> **MIN/median over N runs** (e.g. 8). `-n 1 -ic 4` is 62+2 prefill calls, ~2 min | 〃 |
 | Real-model harness | Wrap `benchmark.py -d GPU.1 -m <model> -n 1 -ic 4 -pf <jsonl>` in `cliloader` and `grep -E "sdpa_(ocl\|micro)__prefill"`. e2e 1st token uses `-n 3 -ic 256` | 〃 |
 | Interpreting results | SDPA prefill is ~10-15% of the 1st token latency (llama-3.1-8b: 69.8/475 ms) -> a 7% kernel improvement = ~0.9% e2e. **The kernel level is the optimization metric; e2e barely moves** | 〃 |
+| Prompt length (2026-10-23) | Attention grows with the square of the prompt, the rest linearly: qwen3-8b attention was 13% of the first token at 2K and 66% at 32K, so a **constant** 1.4x kernel gap became +2% .. +24% e2e. Sweep prefill at 2K/4K/8K/16K/32K, per kernel and e2e | memory:sdpa-ocl-longctx-prefill |
+| Output oracle for real models | llm_bench `Result MD5` per iteration is deterministic across runs (seeded). With `TEST_USE_SDPA_OCL_DECODE=0` GENERATE runs master's kernels, so the prefill change alone decides: equal to master 20/20 = micro-identical. Needs a positive control (old tiling differs 15/20) and a master-vs-master run first (qwen3.5/3.6 master varies between runs -> oracle void; then check new ⊆ master's set). Not expected to match with a window/sink/token types (`MICRO_MATH` excluded) | 〃 |
 | Is a value a "total" or "per call" | In the notes, values in the hundreds of millions of ns are the **sum of device time** over the whole run; thousands to millions of ns are per call. Distinguished per table | each note |
 | Accuracy | Record a ref-check PASS with every performance A/B. But when the performance-only mode `SDPA_SKIP_REF_CHECK=1` is used, accuracy is a separate gate | kq-tile-keys note |
 | xe_hpg performance comparison (S7+ guidance) | On the same Release build/DG2/driver/inputs/cache state, **current OCL vs the current actual micro/opt** (check the actual stage, not the name). OCL/control are **separate processes** that differ only in `TEST_USE_SDPA_OCL`. Distinguish device kernel time / the whole primitive pipeline / E2E. Separate diagnostic runs (dump/verbose) from timing runs. If the variance is larger than the difference, withhold judgement. Static values (ocloc spill, tile, SLM) are not time or actual spill | memory:sdpa-ocl-xe-hpg-s7-performance §4 |
@@ -252,13 +257,22 @@ Format: number. Situation -> wrong hypothesis/mistake -> fact/cause -> rule.
 27. **`sg_ij` uniformity** (side finding from minicpm4, not fixed): micro uses `sub_group_broadcast(get_local_id(1), 0)`, sdpa_ocl the raw `get_local_id(1)` -> subgroup block read/write addresses and broadcast indices must be subgroup-uniform. `NUM_HEAD_SIZE_GROUPS` (`pa_kv_cache_update_ref.cl:227`) is an unparenthesised macro (the current uses are safe by accident; it truncates to 1 at head 320).
 28. **Refactor scope verdict**: prove in units of "observable behaviour", not code changes. SHA instead of `HEAD`, no snapshot `--force`, and `corpus <dir>` **deletes** `<dir>/configs`, so rerunning r0/r1 with a different base destroys the proof reference point.
 
-### C. Tool/process pitfalls are in 5.3 (E1-E16) and 5.4
+### C. Tool/process pitfalls are in 5.3 (E1-E19) and 5.4
 
 ### D. Attribution errors found on 2026-10-22 (numbering continues after #28)
 
 29. **lfm2.5 2nd token slower than the reference build** (memory:lfm25-decode-gap-rms-rope-sg16): the suspect was the branch's kernels or host code. A diff of the most common per-decode-step enqueue sequence (LD_PRELOAD shim) showed 196 vs 184 kernels: 12 extra per-head q/k `rms` kernels, because the branch base predated the upstream FuseRMSRoPE pass. Controls on both sides: the reference with `OV_GPU_ENABLE_RMS_ROPE_FUSION=0` reproduced the branch's sequence, and the branch with the pass ported and its decode kernel disabled produced the reference's exact MD5. The host-API census per token was otherwise identical. **Rule: for a branch-vs-reference gap, diff the per-step kernel sequence and the host-API census before touching kernels; a missing upstream commit is a suspect.**
 30. **"16 subgroups make head-128 decode 0.8x"** (memory:sdpa-ocl-decode-sg-m-rule): the SG knob also moved M from 2 to 4 through the register estimate (u4 reads four K tiles per message). Separate SG x M sweeps showed that 16 subgroups alone are 1.18x slower at 4K when M cannot grow (phi-4-mini). **Rule: after setting a knob, read every derived parameter back from the dispatch (LWS/GWS/SLM) before attributing.**
 31. **"i8 BY_CHANNEL cache"** (memory:pa-kv-cache-u4-default-4bit): every measured model had 4-bit weights and therefore a u4 cache. A head-64 rule measured on u4 (16 subgroups 0.45-0.51x) was shipped for all caches and made i8 head 64 1.26x slower at 4K. **Rule: state the cache the model actually uses, and measure each cache type before generalising a tiling rule.**
+
+### E. Attribution notes from 2026-10-23 (long-prompt TTFT)
+
+32. **"sdpa_ocl gets slower with longer prompts"**: the per-call kernel ratio was constant from 4K to 32K; the e2e gap grew only with
+    attention's share. Fix the kernel ratio, then read e2e per length (memory:sdpa-ocl-longctx-prefill).
+33. **qwen3.6-35b-a3b e2e new/master 0.73-0.91, not monotonic**: master also runs a `ref_matmul` (82 ms at 2K .. 775 ms at 16K per
+    prefill) that the branch does not; unrelated to attention. Attribute against the branch before the change ("old" arm: 0.992 .. 0.874).
+34. **gemma-4 32-key d512 tile, "no e2e gain"** (sweep): the env override also put the head-256 layers on that tile (528 -> 815 us per
+    call), cancelling the head-512 gain (8,610 -> 7,232 us). Read per-group lines (E19).
 
 ---
 
