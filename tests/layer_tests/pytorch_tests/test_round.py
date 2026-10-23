@@ -90,3 +90,109 @@ class TestRoundScalar(PytorchLayerTest):
         else:
             self._prepare_input = self._prepare_input_float
         self._test(*self.create_model(input_type), ie_device, precision, ir_version, trace_model=True)
+
+
+class TestRoundDecimals(PytorchLayerTest):
+    # torch.round(x, decimals=...) was previously converted as a plain integer round: the
+    # decimals value (TorchScript scalar input / FX aten.round.decimals kwarg) was ignored.
+    def _prepare_input(self, dtype="float32"):
+        import numpy as np
+        # includes half-way ties and negatives to exercise HALF_TO_EVEN and sign handling
+        input = np.array([1.234, 2.567, -1.256, 0.05, 3.449, 0.5, 1.5, 2.5,
+                          -0.5, -1.5, 6.5, 1234.0, 1250.0, 2.675], dtype=dtype)
+        return (input,)
+
+    def create_model(self, decimals):
+        import torch
+
+        class aten_round_decimals(torch.nn.Module):
+            def __init__(self, decimals):
+                super().__init__()
+                self.decimals = decimals
+
+            def forward(self, x):
+                return torch.round(x, decimals=self.decimals)
+
+        return aten_round_decimals(decimals), "aten::round"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("decimals", [1, 2, -1])
+    @pytest.mark.parametrize("dtype", ["float32", "float64"])
+    def test_round_decimals(self, decimals, dtype, ie_device, precision, ir_version):
+        self._test(*self.create_model(decimals), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"dtype": dtype})
+
+
+class TestRoundDecimalsLowPrecision(PytorchLayerTest):
+    # torch evaluates the rounding kernel in opmath_t, so half and bfloat16 inputs are widened to
+    # float before the scaling with 10^decimals. Scaling them in the input type instead overflows
+    # (f16 1000 with decimals=2 became inf instead of staying 1000) and loses the digits that the
+    # rounding is supposed to keep.
+    def _prepare_input(self):
+        import numpy as np
+        # 65504 is the largest finite float16: scaling it (or 1000 with decimals=2) in float16
+        # overflows instead of rounding, which is what the widening to float protects against.
+        # The small values stay below the rounding threshold of the negative decimals, so they
+        # have to come back as zeros.
+        input = np.array([1000.0, 2000.0, 1234.0, 65504.0, -1000.0, 0.5, 1.5, 2.5, -2.5, 1e-4],
+                         dtype=np.float32)
+        return (input,)
+
+    def create_model(self, decimals, torch_dtype):
+        import torch
+
+        class aten_round_decimals(torch.nn.Module):
+            def __init__(self, decimals, torch_dtype):
+                super().__init__()
+                self.decimals = decimals
+                self.torch_dtype = torch_dtype
+
+            def forward(self, x):
+                return torch.round(x.to(self.torch_dtype), decimals=self.decimals).to(torch.float32)
+
+        return aten_round_decimals(decimals, torch_dtype), "aten::round"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("decimals", [1, 2, -1, -8])
+    @pytest.mark.parametrize("torch_dtype", ["float16", "bfloat16"])
+    def test_round_decimals_low_precision(self, decimals, torch_dtype, ie_device, precision, ir_version):
+        import torch
+
+        torch_dtype = {"float16": torch.float16, "bfloat16": torch.bfloat16}[torch_dtype]
+        self._test(*self.create_model(decimals, torch_dtype), ie_device, precision, ir_version)
+
+
+class TestRoundDecimalsOut(PytorchLayerTest):
+    # aten::round(self, decimals, out) passes data, decimals and out as three inputs, which the
+    # translator rejected before parsing; the decimals and out combination is a valid overload.
+    def _prepare_input(self, dtype="float32"):
+        import numpy as np
+        input = np.array([1.234, 2.567, -1.256, 0.05, 3.449, 0.5, 1.5, 2.5,
+                          -0.5, -1.5, 6.5, 1234.0, 1250.0, 2.675], dtype=dtype)
+        return (input, np.zeros_like(input))
+
+    def create_model(self, decimals):
+        import torch
+
+        class aten_round_decimals_out(torch.nn.Module):
+            def __init__(self, decimals):
+                super().__init__()
+                self.decimals = decimals
+
+            def forward(self, x, y):
+                return torch.round(x, decimals=self.decimals, out=y), y
+
+        return aten_round_decimals_out(decimals), "aten::round"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("decimals", [1, 2, -1])
+    @pytest.mark.parametrize("dtype", ["float32", "float64"])
+    def test_round_decimals_out(self, decimals, dtype, ie_device, precision, ir_version):
+        self._test(*self.create_model(decimals), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"dtype": dtype})
