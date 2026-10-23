@@ -44,12 +44,12 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
     const auto rope_disabled = qsa_prepare_input_disabled(op, 3);
     const auto is_raw_keys_rank_static = raw_index_keys_shape.rank().is_static();
 
-    NODE_SHAPE_INFER_CHECK(op,
-                           input_shapes,
-                           qsa_prepare_input_disabled(op, 4) == rope_disabled &&
-                               qsa_prepare_input_disabled(op, 7) == rope_disabled,
-                           "The inputs rope_cos, rope_sin and past_incomplete_rope must be empty constants "
-                           "together to disable the rotation.");
+    NODE_SHAPE_INFER_CHECK(
+        op,
+        input_shapes,
+        qsa_prepare_input_disabled(op, 4) == rope_disabled && qsa_prepare_input_disabled(op, 7) == rope_disabled,
+        "The inputs rope_cos, rope_sin and past_incomplete_rope must be empty constants "
+        "together to disable the rotation.");
 
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,

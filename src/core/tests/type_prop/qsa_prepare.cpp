@@ -127,7 +127,22 @@ TEST_F(TypePropQSAPrepareTest, empty_rope_parameter_does_not_disable_the_rotatio
                     HasSubstr("The shape of rope_cos and rope_sin must be 3D [N, L, Dr]."));
 }
 
-TEST_F(TypePropQSAPrepareTest, multi_dim_empty_k_norm_weight_is_rejected) {
+TEST_F(TypePropQSAPrepareTest, normalization_disabled_by_multi_dim_empty_constant) {
+    const auto op = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                            param(element::f32, PartialShape{1, 0, 128}),
+                            param(element::i32, PartialShape{1}),
+                            param(element::f32, PartialShape{1, 8, 64}),
+                            param(element::f32, PartialShape{1, 8, 64}),
+                            Constant::create(element::f32, Shape{1, 0}, std::vector<float>{}),
+                            param(element::f32, PartialShape{1, 3, 128}),
+                            param(element::f32, PartialShape{1, 128}),
+                            4);
+
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 3, 128}));
+}
+
+TEST_F(TypePropQSAPrepareTest, multi_dim_empty_k_norm_weight_parameter_is_rejected) {
+    // A [1, 0] Parameter is not an empty Constant, so the normalization stays enabled.
     OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{1, 8, 128}),
                                           param(element::f32, PartialShape{1, 0, 128}),
                                           param(element::i32, PartialShape{1}),

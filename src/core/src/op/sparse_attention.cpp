@@ -114,12 +114,12 @@ void SparseAttention::validate_and_infer_types() {
 
     if (input_count >= 7) {
         const auto& scale_et = get_input_element_type(6);
-        NODE_VALIDATION_CHECK(this,
-                              (scale_et.is_dynamic() || scale_et.is_real()) &&
-                                  element::Type::merge(data_et, data_et, scale_et),
-                              "The element type of scale must be a floating point type, the same as of query, key "
-                              "and value. Got: ",
-                              scale_et);
+        NODE_VALIDATION_CHECK(
+            this,
+            (scale_et.is_dynamic() || scale_et.is_real()) && element::Type::merge(data_et, data_et, scale_et),
+            "The element type of scale must be a floating point type, the same as of query, key "
+            "and value. Got: ",
+            scale_et);
     }
 
     // The sink logits are not scaled and may be kept in a higher precision than the activations.
