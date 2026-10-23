@@ -6,11 +6,13 @@
 
 #include <cassert>
 
+#include "openvino/core/except.hpp"
+
 namespace ov::runtime::hsm {
 inline namespace v1 {
 
 std::optional<uint64_t> decode_model_id(const Section& section) noexcept {
-    assert(section.tag().value == model_id_tag.value);
+    OPENVINO_DEBUG_ASSERT(section.tag().value == model_id_tag.value);
     uint64_t id{};
     return section.read(0, sizeof(id), &id) ? std::optional{id} : std::nullopt;
 }
