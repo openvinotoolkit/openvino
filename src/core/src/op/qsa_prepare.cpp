@@ -9,7 +9,7 @@
 
 namespace ov::op::v17 {
 
-QSAPrepare::QSAPrepare(const OutputVector& inputs, int64_t key_block_size, double epsilon)
+QSAPrepare::QSAPrepare(const OutputVector& inputs, int64_t key_block_size, float epsilon)
     : Op(inputs),
       m_key_block_size(key_block_size),
       m_epsilon(epsilon) {
@@ -25,7 +25,7 @@ QSAPrepare::QSAPrepare(const Output<Node>& raw_index_keys,
                        const Output<Node>& past_incomplete_raw_keys,
                        const Output<Node>& past_incomplete_rope,
                        int64_t key_block_size,
-                       double epsilon)
+                       float epsilon)
     : QSAPrepare(OutputVector{raw_index_keys,
                               past_block_index_keys,
                               key_length,
@@ -42,7 +42,7 @@ void QSAPrepare::validate_and_infer_types() {
     const auto input_count = get_input_size();
     NODE_VALIDATION_CHECK(this, input_count == 8, "The number of inputs must be 8. Got: ", input_count);
     NODE_VALIDATION_CHECK(this,
-                          m_epsilon > 0.0,
+                          m_epsilon > 0.0f,
                           "The attribute epsilon must be a positive floating point number. Got: ",
                           m_epsilon);
 

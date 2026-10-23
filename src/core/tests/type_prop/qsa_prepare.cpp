@@ -53,7 +53,7 @@ TEST_F(TypePropQSAPrepareTest, static_shapes_with_constant_key_length) {
                             4);
 
     EXPECT_EQ(op->get_key_block_size(), 4);
-    EXPECT_EQ(op->get_epsilon(), 1e-6);
+    EXPECT_EQ(op->get_epsilon(), 1e-6f);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_element_type(1), element::f32);
     EXPECT_EQ(op->get_output_element_type(2), element::f32);
@@ -309,7 +309,7 @@ TEST_F(TypePropQSAPrepareTest, incorrect_epsilon) {
                                           param(element::f32, PartialShape{1, 3, 128}),
                                           param(element::f32, PartialShape{1, 128}),
                                           4,
-                                          0.0),
+                                          0.0f),
                     NodeValidationFailure,
                     HasSubstr("The attribute epsilon must be a positive floating point number."));
 }

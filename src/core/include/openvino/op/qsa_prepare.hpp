@@ -31,7 +31,7 @@ public:
     ///               k_norm_weight, past_incomplete_raw_keys and past_incomplete_rope
     /// \param key_block_size Number of consecutive key tokens forming one key block
     /// \param epsilon Value added to the mean square in the RMS normalization
-    QSAPrepare(const OutputVector& inputs, int64_t key_block_size, double epsilon = 1e-6);
+    QSAPrepare(const OutputVector& inputs, int64_t key_block_size, float epsilon = 1e-6f);
 
     /// \brief Constructs a QSAPrepare operation.
     ///
@@ -54,7 +54,7 @@ public:
                const Output<Node>& past_incomplete_raw_keys,
                const Output<Node>& past_incomplete_rope,
                int64_t key_block_size,
-               double epsilon = 1e-6);
+               float epsilon = 1e-6f);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -67,15 +67,15 @@ public:
         m_key_block_size = key_block_size;
     }
 
-    double get_epsilon() const {
+    float get_epsilon() const {
         return m_epsilon;
     }
-    void set_epsilon(double epsilon) {
+    void set_epsilon(float epsilon) {
         m_epsilon = epsilon;
     }
 
 private:
     int64_t m_key_block_size = 2;
-    double m_epsilon = 1e-6;
+    float m_epsilon = 1e-6f;
 };
 }  // namespace ov::op::v17

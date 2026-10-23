@@ -31,7 +31,7 @@ TEST(attributes, qsa_prepare_v17) {
                                                  past_incomplete_raw_keys,
                                                  past_incomplete_rope,
                                                  4,
-                                                 1e-5);
+                                                 1e-5f);
     NodeBuilder builder(op,
                         {raw_index_keys,
                          past_block_index_keys,
