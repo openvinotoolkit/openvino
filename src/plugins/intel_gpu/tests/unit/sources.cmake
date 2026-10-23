@@ -322,6 +322,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_reduce_for_false_keepdims_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_reduce_scalar_output_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_fp16_compression_cumsum_sin_gen_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_fp16_compression_gaussian_topk_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_fp16_compression_rms_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_fp16_compression_sin_gen_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_fp16_compression_test.cpp
@@ -399,6 +400,8 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/disable_fp16_comp_direct_multiply_sin_cos.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/disable_fp16_comp_gated_residual.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/disable_fp16_comp_gated_residual.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/disable_fp16_comp_gaussian_topk.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/disable_fp16_comp_gaussian_topk.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/disable_fp16_comp_rms.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/disable_fp16_comp_rms.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/disable_fp16_comp_sin_gen.cpp
