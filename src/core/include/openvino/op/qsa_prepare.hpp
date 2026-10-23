@@ -44,7 +44,7 @@ public:
     /// \param past_incomplete_raw_keys Raw keys of the past tokens of the incomplete block,
     ///                                 shape [N, key_block_size - 1, Di]
     /// \param past_incomplete_rope RoPE cos and sin of the first token of the incomplete block,
-    ///                             shape [N, 2 * Dr], empty to disable the rotation
+    ///                             shape [N, 2 * Dr], empty if and only if rope_cos and rope_sin are
     QSAPrepare(const Output<Node>& raw_index_keys,
                const Output<Node>& past_block_index_keys,
                const Output<Node>& key_length,

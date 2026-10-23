@@ -199,6 +199,50 @@ TEST_F(TypePropQSAPrepareTest, incorrect_past_incomplete_rope_size) {
                     HasSubstr("The second dimension of past_incomplete_rope must be 2 * Dr."));
 }
 
+TEST_F(TypePropQSAPrepareTest, rope_cos_and_rope_sin_must_be_empty_together) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                                          param(element::f32, PartialShape{1, 0, 128}),
+                                          param(element::i32, PartialShape{1}),
+                                          param(element::f32, PartialShape{0}),
+                                          param(element::f32, PartialShape{1, 8, 64}),
+                                          param(element::f32, PartialShape{128}),
+                                          param(element::f32, PartialShape{1, 3, 128}),
+                                          param(element::f32, PartialShape{0}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The inputs rope_cos and rope_sin disable the rotation together"));
+}
+
+TEST_F(TypePropQSAPrepareTest, past_incomplete_rope_must_be_empty_with_the_rope_inputs) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                                          param(element::f32, PartialShape{1, 0, 128}),
+                                          param(element::i32, PartialShape{1}),
+                                          param(element::f32, PartialShape{0}),
+                                          param(element::f32, PartialShape{0}),
+                                          param(element::f32, PartialShape{128}),
+                                          param(element::f32, PartialShape{1, 3, 128}),
+                                          param(element::f32, PartialShape{1, 128}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The input past_incomplete_rope must be empty if and only if rope_cos and "
+                              "rope_sin are empty."));
+}
+
+TEST_F(TypePropQSAPrepareTest, past_incomplete_rope_must_not_be_empty_with_the_rotation) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                                          param(element::f32, PartialShape{1, 0, 128}),
+                                          param(element::i32, PartialShape{1}),
+                                          param(element::f32, PartialShape{1, 8, 64}),
+                                          param(element::f32, PartialShape{1, 8, 64}),
+                                          param(element::f32, PartialShape{128}),
+                                          param(element::f32, PartialShape{1, 3, 128}),
+                                          param(element::f32, PartialShape{0}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The input past_incomplete_rope must be empty if and only if rope_cos and "
+                              "rope_sin are empty."));
+}
+
 TEST_F(TypePropQSAPrepareTest, incorrect_data_element_type) {
     OV_EXPECT_THROW(std::ignore = make_op(param(element::i32, PartialShape{1, 8, 128}),
                                           param(element::i32, PartialShape{1, 0, 128}),
