@@ -107,6 +107,14 @@ ov_apply_patch(
     PATCH "${CMAKE_CURRENT_SOURCE_DIR}/patches/0004-protobuf-untyped-message-stdmap.patch"
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/protobuf")
 
+# protoc's Java generator keeps absl::flat_hash_map members of FieldGeneratorInfo /
+# OneofGeneratorInfo while those structs are only forward-declared. Abseil probes
+# trivial-type traits on the value_type at class instantiation, which needs the type
+# complete and breaks Clang + libstdc++. Include field_common.h to complete them.
+ov_apply_patch(
+    PATCH "${CMAKE_CURRENT_SOURCE_DIR}/patches/0005-protobuf-java-context-complete-types.patch"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/protobuf")
+
 add_subdirectory(${protobuf_dir} EXCLUDE_FROM_ALL)
 get_directory_property(protobuf_VERSION DIRECTORY ${protobuf_dir} DEFINITION protobuf_VERSION)
 
