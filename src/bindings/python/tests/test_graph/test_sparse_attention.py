@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino import Type, PartialShape
-from openvino.opset15 import parameter
+from openvino.opset15 import constant, parameter
+import numpy as np
 import openvino.opset17 as ov
 import pytest
 
@@ -121,7 +122,7 @@ def test_qsa_prepare_without_rotation():
     raw_index_keys = parameter([1, 8, 128], name="raw_index_keys", dtype=Type.f32)
     past_block_index_keys = parameter([1, 0, 128], name="past_block_index_keys", dtype=Type.f32)
     key_length = parameter([1], name="key_length", dtype=Type.i64)
-    empty = parameter([0], name="empty", dtype=Type.f32)
+    empty = constant(np.empty(0, dtype=np.float32))
     k_norm_weight = parameter([128], name="k_norm_weight", dtype=Type.f32)
     past_incomplete_raw_keys = parameter([1, 3, 128], name="past_incomplete_raw_keys", dtype=Type.f32)
     node = ov.qsa_prepare(raw_index_keys, past_block_index_keys, key_length, empty, empty,

@@ -16,7 +16,7 @@ namespace ov::op::v17 {
 /// tokens of the still incomplete block through `past_incomplete_raw_keys` / `past_incomplete_rope`,
 /// which the operation returns updated for the next call. The result feeds SparseAttentionIndexer.
 ///
-/// Inputs are positional and cannot be skipped; a feature is disabled by connecting an empty tensor.
+/// Inputs are positional and cannot be skipped; a feature is disabled by connecting an empty constant.
 ///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API QSAPrepare : public Op {
@@ -38,13 +38,13 @@ public:
     /// \param raw_index_keys Raw index key of every new token, shape [N, L, Di]
     /// \param past_block_index_keys Block index keys computed by the previous calls, shape [N, Bp, Di]
     /// \param key_length Number of valid key tokens of every sequence, shape [N] or [1]
-    /// \param rope_cos RoPE cos of every new token, shape [N, L, Dr], empty to disable the rotation
-    /// \param rope_sin RoPE sin of every new token, shape [N, L, Dr], empty to disable the rotation
-    /// \param k_norm_weight Scale of the block key normalization, shape [Di], empty to disable it
+    /// \param rope_cos RoPE cos of every new token, shape [N, L, Dr], empty constant to disable the rotation
+    /// \param rope_sin RoPE sin of every new token, shape [N, L, Dr], empty constant to disable the rotation
+    /// \param k_norm_weight Scale of the block key normalization, shape [Di], empty constant to disable it
     /// \param past_incomplete_raw_keys Raw keys of the past tokens of the incomplete block,
     ///                                 shape [N, key_block_size - 1, Di]
     /// \param past_incomplete_rope RoPE cos and sin of the first token of the incomplete block,
-    ///                             shape [N, 2 * Dr], empty if and only if rope_cos and rope_sin are
+    ///                             shape [N, 2 * Dr], empty constant if and only if rope_cos and rope_sin are
     QSAPrepare(const Output<Node>& raw_index_keys,
                const Output<Node>& past_block_index_keys,
                const Output<Node>& key_length,

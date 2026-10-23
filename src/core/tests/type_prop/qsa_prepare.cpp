@@ -19,6 +19,10 @@ protected:
     static std::shared_ptr<Parameter> param(element::Type et, const PartialShape& shape) {
         return std::make_shared<Parameter>(et, shape);
     }
+
+    static std::shared_ptr<Constant> disabled(element::Type et = element::f32) {
+        return Constant::create(et, Shape{0}, std::vector<float>{});
+    }
 };
 
 TEST_F(TypePropQSAPrepareTest, default_ctor) {
@@ -84,11 +88,11 @@ TEST_F(TypePropQSAPrepareTest, rotation_disabled_by_empty_rope) {
     const auto op = make_op(param(element::f32, PartialShape{1, 8, 128}),
                             param(element::f32, PartialShape{1, 0, 128}),
                             param(element::i32, PartialShape{1}),
-                            param(element::f32, PartialShape{0}),
-                            param(element::f32, PartialShape{0}),
+                            disabled(),
+                            disabled(),
                             param(element::f32, PartialShape{128}),
                             param(element::f32, PartialShape{1, 3, 128}),
-                            param(element::f32, PartialShape{0}),
+                            disabled(),
                             4);
 
     EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 0}));
@@ -100,7 +104,7 @@ TEST_F(TypePropQSAPrepareTest, normalization_disabled_by_empty_weight) {
                             param(element::i32, PartialShape{1}),
                             param(element::f32, PartialShape{1, 8, 64}),
                             param(element::f32, PartialShape{1, 8, 64}),
-                            param(element::f32, PartialShape{0}),
+                            disabled(),
                             param(element::f32, PartialShape{1, 3, 128}),
                             param(element::f32, PartialShape{1, 128}),
                             4);
@@ -108,47 +112,62 @@ TEST_F(TypePropQSAPrepareTest, normalization_disabled_by_empty_weight) {
     EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 3, 128}));
 }
 
-TEST_F(TypePropQSAPrepareTest, normalization_disabled_by_multi_dim_empty_weight) {
-    const auto op = make_op(param(element::f32, PartialShape{1, 8, 128}),
-                            param(element::f32, PartialShape{1, 0, 128}),
-                            param(element::i32, PartialShape{1}),
-                            param(element::f32, PartialShape{1, 8, 64}),
-                            param(element::f32, PartialShape{1, 8, 64}),
-                            param(element::f32, PartialShape{1, 0}),
-                            param(element::f32, PartialShape{1, 3, 128}),
-                            param(element::f32, PartialShape{1, 128}),
-                            4);
-
-    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 3, 128}));
+TEST_F(TypePropQSAPrepareTest, empty_rope_parameter_does_not_disable_the_rotation) {
+    // A [0] Parameter is not an empty Constant, so the rotation stays enabled.
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                                          param(element::f32, PartialShape{1, 0, 128}),
+                                          param(element::i32, PartialShape{1}),
+                                          param(element::f32, PartialShape{0}),
+                                          param(element::f32, PartialShape{0}),
+                                          param(element::f32, PartialShape{128}),
+                                          param(element::f32, PartialShape{1, 3, 128}),
+                                          param(element::f32, PartialShape{0}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The shape of rope_cos and rope_sin must be 3D [N, L, Dr]."));
 }
 
-TEST_F(TypePropQSAPrepareTest, possibly_empty_k_norm_weight_is_not_merged) {
-    const auto op = make_op(param(element::f32, PartialShape{1, 8, 128}),
-                            param(element::f32, PartialShape{1, 0, 128}),
-                            param(element::i32, PartialShape{1}),
-                            param(element::f32, PartialShape{1, 8, 64}),
-                            param(element::f32, PartialShape{1, 8, 64}),
-                            param(element::f32, PartialShape{Dimension(0, 64)}),
-                            param(element::f32, PartialShape{1, 3, 128}),
-                            param(element::f32, PartialShape{1, 128}),
-                            4);
-
-    // [0] is a valid specialization that disables the normalization, so the width is not merged with Di.
-    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 3, 128}));
+TEST_F(TypePropQSAPrepareTest, multi_dim_empty_k_norm_weight_is_rejected) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                                          param(element::f32, PartialShape{1, 0, 128}),
+                                          param(element::i32, PartialShape{1}),
+                                          param(element::f32, PartialShape{1, 8, 64}),
+                                          param(element::f32, PartialShape{1, 8, 64}),
+                                          param(element::f32, PartialShape{1, 0}),
+                                          param(element::f32, PartialShape{1, 3, 128}),
+                                          param(element::f32, PartialShape{1, 128}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The shape of k_norm_weight must be 1D [Di], or an empty constant"));
 }
 
-TEST_F(TypePropQSAPrepareTest, rope_that_may_specialize_to_empty_is_accepted) {
-    const auto op = make_op(param(element::f32, PartialShape{1, 8, 128}),
-                            param(element::f32, PartialShape{1, 0, 128}),
-                            param(element::i32, PartialShape{1}),
-                            param(element::f32, PartialShape{1, 8, -1}),
-                            param(element::f32, PartialShape{1, 8, -1}),
-                            param(element::f32, PartialShape{128}),
-                            param(element::f32, PartialShape{1, 3, 128}),
-                            param(element::f32, PartialShape{0}),
-                            4);
+TEST_F(TypePropQSAPrepareTest, possibly_empty_k_norm_weight_must_match_head_size) {
+    // An interval containing 0 is not an empty Constant, so the input is enabled.
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                                          param(element::f32, PartialShape{1, 0, 128}),
+                                          param(element::i32, PartialShape{1}),
+                                          param(element::f32, PartialShape{1, 8, 64}),
+                                          param(element::f32, PartialShape{1, 8, 64}),
+                                          param(element::f32, PartialShape{Dimension(0, 64)}),
+                                          param(element::f32, PartialShape{1, 3, 128}),
+                                          param(element::f32, PartialShape{1, 128}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The size of k_norm_weight must be equal to the head size of raw_index_keys."));
+}
 
-    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 3, 128}));
+TEST_F(TypePropQSAPrepareTest, dynamic_rope_must_not_be_mixed_with_a_disabled_state) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                                          param(element::f32, PartialShape{1, 0, 128}),
+                                          param(element::i32, PartialShape{1}),
+                                          param(element::f32, PartialShape{1, 8, -1}),
+                                          param(element::f32, PartialShape{1, 8, -1}),
+                                          param(element::f32, PartialShape{128}),
+                                          param(element::f32, PartialShape{1, 3, 128}),
+                                          disabled(),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("must be empty constants together to disable the rotation."));
 }
 
 TEST_F(TypePropQSAPrepareTest, rope_batch_may_broadcast) {
@@ -316,29 +335,28 @@ TEST_F(TypePropQSAPrepareTest, rope_cos_and_rope_sin_must_be_empty_together) {
     OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{1, 8, 128}),
                                           param(element::f32, PartialShape{1, 0, 128}),
                                           param(element::i32, PartialShape{1}),
-                                          param(element::f32, PartialShape{0}),
+                                          disabled(),
                                           param(element::f32, PartialShape{1, 8, 64}),
                                           param(element::f32, PartialShape{128}),
                                           param(element::f32, PartialShape{1, 3, 128}),
-                                          param(element::f32, PartialShape{0}),
+                                          disabled(),
                                           4),
                     NodeValidationFailure,
-                    HasSubstr("The inputs rope_cos and rope_sin disable the rotation together"));
+                    HasSubstr("must be empty constants together to disable the rotation."));
 }
 
 TEST_F(TypePropQSAPrepareTest, past_incomplete_rope_must_be_empty_with_the_rope_inputs) {
     OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{1, 8, 128}),
                                           param(element::f32, PartialShape{1, 0, 128}),
                                           param(element::i32, PartialShape{1}),
-                                          param(element::f32, PartialShape{0}),
-                                          param(element::f32, PartialShape{0}),
+                                          disabled(),
+                                          disabled(),
                                           param(element::f32, PartialShape{128}),
                                           param(element::f32, PartialShape{1, 3, 128}),
                                           param(element::f32, PartialShape{1, 128}),
                                           4),
                     NodeValidationFailure,
-                    HasSubstr("The input past_incomplete_rope must be empty if and only if rope_cos and "
-                              "rope_sin are empty."));
+                    HasSubstr("must be empty constants together to disable the rotation."));
 }
 
 TEST_F(TypePropQSAPrepareTest, past_incomplete_rope_must_not_be_empty_with_the_rotation) {
@@ -349,11 +367,10 @@ TEST_F(TypePropQSAPrepareTest, past_incomplete_rope_must_not_be_empty_with_the_r
                                           param(element::f32, PartialShape{1, 8, 64}),
                                           param(element::f32, PartialShape{128}),
                                           param(element::f32, PartialShape{1, 3, 128}),
-                                          param(element::f32, PartialShape{0}),
+                                          disabled(),
                                           4),
                     NodeValidationFailure,
-                    HasSubstr("The input past_incomplete_rope must be empty if and only if rope_cos and "
-                              "rope_sin are empty."));
+                    HasSubstr("must be empty constants together to disable the rotation."));
 }
 
 TEST_F(TypePropQSAPrepareTest, incorrect_data_element_type) {

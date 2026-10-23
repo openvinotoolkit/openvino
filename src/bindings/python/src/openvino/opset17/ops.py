@@ -126,18 +126,18 @@ def qsa_prepare(
     A block key is the mean of the raw index keys of the ``key_block_size`` consecutive key tokens
     of the block, RMS-normalized with ``k_norm_weight`` and rotated with the RoPE of the first token
     of the block. Only the blocks completed by the new tokens are computed. All inputs are
-    positional; a feature is disabled by connecting an empty tensor.
+    positional; a feature is disabled by connecting an empty constant.
 
     :param raw_index_keys: Raw index key of every new token, shape [N, L, Di].
     :param past_block_index_keys: Block index keys computed by the previous calls, shape [N, Bp, Di].
     :param key_length: Number of valid key tokens of every sequence, shape [N] or [1].
-    :param rope_cos: RoPE cos of every new token, shape [N, L, Dr]; empty disables the rotation.
-    :param rope_sin: RoPE sin of every new token, shape [N, L, Dr]; empty disables the rotation.
-    :param k_norm_weight: Scale of the block key normalization, shape [Di]; empty disables it.
+    :param rope_cos: RoPE cos of every new token, shape [N, L, Dr]; empty constant disables the rotation.
+    :param rope_sin: RoPE sin of every new token, shape [N, L, Dr]; empty constant disables the rotation.
+    :param k_norm_weight: Scale of the block key normalization, shape [Di]; empty constant disables it.
     :param past_incomplete_raw_keys: Raw keys of the past tokens of the incomplete block,
                                      shape [N, key_block_size - 1, Di].
     :param past_incomplete_rope: RoPE cos and sin of the first token of the incomplete block,
-                                 shape [N, 2 * Dr]; empty disables the rotation.
+                                 shape [N, 2 * Dr]; empty constant if and only if rope_cos and rope_sin are.
     :param key_block_size: Number of consecutive key tokens forming one key block, greater than 1.
     :param epsilon: Value added to the mean square in the RMS normalization.
     :param name: The optional name for the new output node.

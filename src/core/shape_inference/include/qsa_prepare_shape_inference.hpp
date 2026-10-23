@@ -4,36 +4,17 @@
 
 #pragma once
 
-#include <optional>
-
 #include "dimension_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/qsa_prepare.hpp"
 #include "utils.hpp"
 
 namespace ov::op::v17 {
-/// \brief An optional input of QSAPrepare is disabled by connecting a tensor with no elements.
+/// \brief Checks whether the optional input of QSAPrepare at the given port is disabled.
 ///
-/// Returns no value when the shape does not tell, so that a rule between two inputs is checked only
-/// when both of them are known.
-template <class TShape>
-std::optional<bool> qsa_prepare_input_empty(const TShape& shape) {
-    if (shape.rank().is_dynamic()) {
-        return std::nullopt;
-    }
-    auto is_known = true;
-    for (const auto& dim : shape) {
-        if (!dim.is_static()) {
-            is_known = false;
-        } else if (dim.get_length() == 0) {
-            return true;
-        }
-    }
-    return is_known ? std::optional<bool>(false) : std::nullopt;
-}
-
-/// \brief False only when two inputs are known to differ in emptiness.
-inline bool qsa_prepare_emptiness_match(const std::optional<bool>& lhs, const std::optional<bool>& rhs) {
-    return !lhs.has_value() || !rhs.has_value() || *lhs == *rhs;
+/// An optional input is disabled by an empty Constant.
+inline bool qsa_prepare_input_disabled(const Node* op, size_t port) {
+    return port < op->get_input_size() && ov::util::is_empty_constant_tensor(op->input_value(port));
 }
 
 template <class TShape, class TRShape = result_shape_t<TShape>>
@@ -59,27 +40,16 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
     const auto& past_incomplete_raw_keys_shape = input_shapes[6];
     const auto& past_incomplete_rope_shape = input_shapes[7];
 
-    const auto rope_cos_empty = qsa_prepare_input_empty(rope_cos_shape);
-    const auto rope_sin_empty = qsa_prepare_input_empty(rope_sin_shape);
-    const auto past_incomplete_rope_empty = qsa_prepare_input_empty(past_incomplete_rope_shape);
-    const auto k_norm_weight_empty = qsa_prepare_input_empty(k_norm_weight_shape);
-    // An unknown input counts as present for the output width and as absent for the validation, so that
-    // a shape which may still specialize to an empty tensor is never rejected.
-    const auto has_rope = !rope_cos_empty.value_or(false) && !rope_sin_empty.value_or(false);
-    const auto rope_enabled = !rope_cos_empty.value_or(true) && !rope_sin_empty.value_or(true);
+    const auto k_norm_weight_disabled = qsa_prepare_input_disabled(op, 5);
+    const auto rope_disabled = qsa_prepare_input_disabled(op, 3);
     const auto is_raw_keys_rank_static = raw_index_keys_shape.rank().is_static();
 
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
-                           qsa_prepare_emptiness_match(rope_cos_empty, rope_sin_empty),
-                           "The inputs rope_cos and rope_sin disable the rotation together, so they must be "
-                           "both empty or both non-empty.");
-    NODE_SHAPE_INFER_CHECK(op,
-                           input_shapes,
-                           qsa_prepare_emptiness_match(rope_cos_empty, past_incomplete_rope_empty) &&
-                               qsa_prepare_emptiness_match(rope_sin_empty, past_incomplete_rope_empty),
-                           "The input past_incomplete_rope must be empty if and only if rope_cos and rope_sin "
-                           "are empty.");
+                           qsa_prepare_input_disabled(op, 4) == rope_disabled &&
+                               qsa_prepare_input_disabled(op, 7) == rope_disabled,
+                           "The inputs rope_cos, rope_sin and past_incomplete_rope must be empty constants "
+                           "together to disable the rotation.");
 
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
@@ -95,13 +65,14 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
                            "The shape of key_length must be 1D [N] or [1].");
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
-                           k_norm_weight_empty.value_or(false) || k_norm_weight_shape.rank().compatible(1),
-                           "The shape of k_norm_weight must be 1D [Di] or an empty tensor.");
+                           k_norm_weight_disabled || k_norm_weight_shape.rank().compatible(1),
+                           "The shape of k_norm_weight must be 1D [Di], or an empty constant to disable "
+                           "the normalization.");
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            past_incomplete_raw_keys_shape.rank().compatible(3),
                            "The shape of past_incomplete_raw_keys must be 3D [N, key_block_size - 1, Di].");
-    if (rope_enabled) {
+    if (!rope_disabled) {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                rope_cos_shape.rank().compatible(3) && rope_sin_shape.rank().compatible(3),
@@ -149,8 +120,7 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
                                past_incomplete_raw_keys_shape[1]);
     }
 
-    if (k_norm_weight_shape.rank().is_static() && k_norm_weight_shape.rank().get_length() == 1 &&
-        !k_norm_weight_shape[0].compatible(0)) {
+    if (!k_norm_weight_disabled && k_norm_weight_shape.rank().is_static()) {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                TDim::merge(head_size, head_size, k_norm_weight_shape[0]),
@@ -158,8 +128,8 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
     }
 
     // Rotated dimensions, doubled by the cos / sin packing of the incomplete block RoPE row.
-    auto rotated_size = has_rope ? TDim(ov::util::dim::inf_bound) : TDim(0);
-    if (rope_enabled && rope_cos_shape.rank().is_static() && rope_sin_shape.rank().is_static()) {
+    auto rotated_size = rope_disabled ? TDim(0) : TDim(ov::util::dim::inf_bound);
+    if (!rope_disabled && rope_cos_shape.rank().is_static() && rope_sin_shape.rank().is_static()) {
         TDim merged;
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
@@ -178,7 +148,7 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
                                    "raw_index_keys.");
         }
         rotated_size = merged + merged;
-        // The RoPE inputs are numpy-broadcastable over the batch, so their batch is checked, not merged.
+        // The RoPE inputs broadcast over the batch, so the dimension is checked, not merged into it.
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                rope_cos_shape[0].compatible(1) || rope_cos_shape[0].compatible(batch),
