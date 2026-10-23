@@ -584,3 +584,51 @@ TEST(TransposeVTMQATest, smoke_GQA_ReshapeAsTranspose_MQA) {
     ASSERT_TRUE(ov::is_type<ov::op::v1::Transpose>(concat_v_input))
         << "concat port 1 should now be fed by a real Transpose; got: " << concat_v_input->get_type_name();
 }
+
+TEST(TransposeVTShapeComputeTest, smoke_GQA_ShapeOfVFeedsAttentionMask) {
+    const int64_t B = 1, kv_heads = 2, q_heads = 8, S = 8, D = 64;
+    const int64_t L = S + 1;
+
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::f32, ov::Shape{static_cast<size_t>(B), static_cast<size_t>(kv_heads), static_cast<size_t>(S), static_cast<size_t>(D)});
+    auto new_value = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::f32, ov::Shape{static_cast<size_t>(B), 1, static_cast<size_t>(kv_heads), static_cast<size_t>(D)});
+    auto transpose_order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(new_value, transpose_order);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{past_value, transpose}, 2);
+    auto unsqueeze_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(concat, unsqueeze_axes);
+    auto broadcast_shape = ov::op::v0::Constant::create(
+        ov::element::i64, ov::Shape{5}, std::vector<int64_t>{B, kv_heads, q_heads / kv_heads, L, D});
+    auto broadcast =
+        std::make_shared<ov::op::v3::Broadcast>(unsqueeze, broadcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+    auto reshape_shape = ov::op::v0::Constant::create(
+        ov::element::i64, ov::Shape{4}, std::vector<int64_t>{B, q_heads, L, D});
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(broadcast, reshape_shape, false);
+
+    auto value_shape = std::make_shared<ov::op::v3::ShapeOf>(concat);
+    auto kv_len = std::make_shared<ov::op::v8::Gather>(
+        value_shape,
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}),
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+    auto mask_shape = std::make_shared<ov::op::v0::Concat>(
+        ov::OutputVector{ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, 1, 1}), kv_len}, 0);
+    auto mask = std::make_shared<ov::op::v3::Broadcast>(
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.f}), mask_shape);
+    auto attention_scores = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::f32, ov::Shape{static_cast<size_t>(B), static_cast<size_t>(q_heads), 1, static_cast<size_t>(L)});
+    auto add = std::make_shared<ov::op::v1::Add>(attention_scores, mask);
+    auto softmax = std::make_shared<ov::op::v8::Softmax>(add, -1);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(softmax, reshape);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(matmul)},
+                                             ov::ParameterVector{past_value, new_value, attention_scores});
+
+    bool transposed = false;
+    ASSERT_NO_THROW(transposed = ov::npuw::util::OptimizeValueTensors(false).run_on_model(model));
+    ASSERT_TRUE(transposed);
+    ASSERT_EQ(concat->get_axis(), 3);
+    ASSERT_TRUE(ov::is_type<ov::op::v0::Constant>(kv_len->get_input_node_ptr(0)))
+        << "ShapeOf of the transposed V concat should be frozen to its original shape";
+    ASSERT_EQ(add->get_output_partial_shape(0), ov::PartialShape({B, q_heads, 1, L}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0), ov::PartialShape({B, q_heads, 1, D}));
+}

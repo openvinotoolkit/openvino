@@ -27,6 +27,34 @@ namespace {
 #    pragma GCC diagnostic ignored "-Wattributes"
 #endif
 
+// Transposing a V-tensor changes the physical layout of `out`, so any ShapeOf
+// reading it (e.g. the KV length feeding an attention mask) would observe swapped
+// dims. Replace such ShapeOf nodes with a Constant holding the original shape.
+// Only the ShapeOf directly attached to the transposed tensor is touched, so
+// unrelated shape subgraphs (e.g. the ones RoPE matchers rely on) stay intact.
+void freeze_shape_of_consumers(const ov::Output<ov::Node>& out) {
+    const auto& pshape = out.get_partial_shape();
+    if (pshape.is_dynamic()) {
+        return;
+    }
+    const auto shape = pshape.to_shape();
+    for (const auto& input : out.get_target_inputs()) {
+        auto shape_of = input.get_node()->shared_from_this();
+        ov::element::Type out_type;
+        if (auto so3 = ov::as_type_ptr<ov::op::v3::ShapeOf>(shape_of)) {
+            out_type = so3->get_output_type();
+        } else if (ov::is_type<ov::op::v0::ShapeOf>(shape_of)) {
+            out_type = ov::element::i64;
+        } else {
+            continue;
+        }
+        auto shape_const = ov::op::v0::Constant::create(out_type, ov::Shape{shape.size()}, shape);
+        shape_const->set_friendly_name(shape_of->get_friendly_name());
+        ov::copy_runtime_info(shape_of, shape_const);
+        ov::replace_node(shape_of, shape_const);
+    }
+}
+
 class TransposeValueTensors : public ov::pass::MatcherPass {
 public:
     struct Context {
@@ -48,6 +76,8 @@ protected:
         if (matched_concat->get_axis() != 3u) {
             auto param_shape = matched_param->get_partial_shape();
             NPUW_ASSERT(param_shape.size() == 4u);
+            freeze_shape_of_consumers(matched_param->output(0));
+            freeze_shape_of_consumers(matched_concat->output(0));
             // NB: Transpose Parameter that correspond to V-tensor it will
             // speed-up its multiplication with attention scores
             std::swap(param_shape[2], param_shape[3]);
