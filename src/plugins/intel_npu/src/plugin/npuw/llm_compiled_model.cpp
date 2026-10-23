@@ -32,6 +32,7 @@
 #include "npuw_transformations/replace_deepstack_scatter_with_add.hpp"
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
+#include "npuw_transformations/rewrite_gqa_attention_mask.hpp"
 #include "npuw_transformations/right_align_mask_slice_for_conv.hpp"
 #include "npuw_transformations/shrink_sliding_window_kv_cache.hpp"
 #include "npuw_transformations/slice_out_embeds.hpp"
@@ -719,6 +720,8 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
         ov::npuw::ReshapeToStatic(max_generation_token_len, kv_size, axes, m_max_lora_rank, whisper_lhs_seq_size)
             .run_on_model(generate_variant);
 
+        ov::npuw::RewriteGQAAttentionMask().run_on_model(generate_variant);
+
         if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
             // Must run after ReshapeToStatic, before OptimizeValueTensors (V-tensor optimization).
             // No-op (returns false) for models without sliding-window attention layers.
@@ -1094,6 +1097,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                   true)
             .run_on_model(prefill_model);
     }
+    ov::npuw::RewriteGQAAttentionMask().run_on_model(prefill_model);
     LOG_DEBUG("Make kvcache model with static shapes");
 
     if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
