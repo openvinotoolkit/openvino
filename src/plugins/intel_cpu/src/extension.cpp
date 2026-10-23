@@ -66,6 +66,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/xor.hpp"
+#include "openvino/op/sparse_attention.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 #include "ov_ops/fully_connected.hpp"
@@ -297,6 +298,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<TypeRelaxedExtension<ov::op::v5::NonMaxSuppression>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v8::PriorBox>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v9::NonMaxSuppression>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v17::SparseAttention>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::Brgemm>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::BroadcastLoad>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::BroadcastMove>>(),

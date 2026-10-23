@@ -353,6 +353,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax.cpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_sdpa_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_sdpa_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/transpose.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/transpose_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/xattention.hpp
@@ -483,6 +485,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/space_to_depth.h
     ${CPU_SRC_DIR}/nodes/sparse_fill_empty_rows.cpp
     ${CPU_SRC_DIR}/nodes/sparse_fill_empty_rows.h
+    ${CPU_SRC_DIR}/nodes/sparse_sdpa.cpp
+    ${CPU_SRC_DIR}/nodes/sparse_sdpa.h
     ${CPU_SRC_DIR}/nodes/split.cpp
     ${CPU_SRC_DIR}/nodes/split.h
     ${CPU_SRC_DIR}/nodes/stft.cpp
