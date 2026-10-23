@@ -649,6 +649,144 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_accuracy_test) {
     }
 }
 
+// Same graph the plugin builds for MatMul(x, Constant) under f16 inference: data(f32) -> permute -> Convert -> FC.
+// Here the transposed weight is shared by two FCs, as when one Linear layer is reused across unrolled steps.
+TEST(prepare_primitive_fusing, fuse_constant_transposes_shared_weights_accuracy) {
+    auto& engine = get_test_engine();
+    const int64_t ifm = 29;
+    const int64_t ofm = 64;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto weights_data = rg.generate_random_1d<float>(ifm * ofm, -1, 1);
+    auto input0_data = rg.generate_random_1d<ov::float16>(ifm, -1, 1);
+    auto input1_data = rg.generate_random_1d<ov::float16>(ifm, -1, 1);
+
+    auto weights = engine.allocate_memory({ov::PartialShape{ifm, ofm}, data_types::f32, format::bfyx});
+    auto input0 = engine.allocate_memory({ov::PartialShape{1, ifm}, data_types::f16, format::bfyx});
+    auto input1 = engine.allocate_memory({ov::PartialShape{1, ifm}, data_types::f16, format::bfyx});
+    set_values(weights, weights_data);
+    set_values(input0, input0_data);
+    set_values(input1, input1_data);
+
+    topology topology(
+        input_layout("input0", input0->get_layout()),
+        input_layout("input1", input1->get_layout()),
+        data("weights", weights),
+        permute("permute", input_info("weights"), {1, 0}),
+        reorder("convert", input_info("permute"), format::any, data_types::f16,
+                std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
+        fully_connected("fc0", input_info("input0"), "convert", "", data_types::f16),
+        fully_connected("fc1", input_info("input1"), "convert", "", data_types::f16),
+        reorder("out0", input_info("fc0"), format::bfyx, data_types::f32),
+        reorder("out1", input_info("fc1"), format::bfyx, data_types::f32)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    if (engine.get_device_info().supports_immad) {
+        ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc0", fc_impl}, {"fc1", fc_impl} }));
+    }
+
+    cldnn::network network(engine, topology, config);
+    network.set_input_data("input0", input0);
+    network.set_input_data("input1", input1);
+    auto outputs = network.execute();
+
+    auto check = [&](const primitive_id& out_id, const std::vector<ov::float16>& input_data) {
+        cldnn::mem_lock<float> output_ptr(outputs.at(out_id).get_memory(), get_test_stream());
+        ASSERT_EQ(output_ptr.size(), static_cast<size_t>(ofm));
+        for (int64_t o = 0; o < ofm; ++o) {
+            float ref = 0.f;
+            for (int64_t i = 0; i < ifm; ++i)
+                ref += static_cast<float>(input_data[i]) * weights_data[i * ofm + o];
+            ASSERT_NEAR(output_ptr[o], ref, 5e-2f) << out_id << " output " << o;
+        }
+    };
+    check("out0", input0_data);
+    check("out1", input1_data);
+}
+
+// FC with a 3D [1, ifm, ofm] or 4D [1, 1, ifm, ofm] constant weight whose last two dims are transposed, as built for
+// MatMul(x, Constant): f32 weights with an f16 hint, or FP16-compressed IR weights with an f32 hint.
+static void test_fuse_constant_transposes_nd_weights(size_t rank, data_types weights_dt, data_types compute_dt) {
+    auto& engine = get_test_engine();
+    const int64_t rows = 4;
+    const int64_t ifm = 16;
+    const int64_t ofm = 8;
+    const bool is_4d = rank == 4;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto weights_data = rg.generate_random_1d<float>(ifm * ofm, -1, 1);
+    auto input_data = rg.generate_random_1d<float>(rows * ifm, -1, 1);
+
+    auto weights = engine.allocate_memory({is_4d ? ov::PartialShape{1, 1, ifm, ofm} : ov::PartialShape{1, ifm, ofm}, weights_dt, format::bfyx});
+    auto input = engine.allocate_memory({is_4d ? ov::PartialShape{1, 1, rows, ifm} : ov::PartialShape{1, rows, ifm}, compute_dt, format::bfyx});
+    // Rounds f16-stored data in place so the reference uses the same values.
+    auto fill = [](memory::ptr mem, std::vector<float>& values) {
+        if (mem->get_layout().data_type == data_types::f16) {
+            std::vector<ov::float16> values_f16(values.begin(), values.end());
+            set_values(mem, values_f16);
+            values.assign(values_f16.begin(), values_f16.end());
+        } else {
+            set_values(mem, values);
+        }
+    };
+    fill(weights, weights_data);
+    fill(input, input_data);
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        permute("permute", input_info("weights"), is_4d ? std::vector<uint16_t>{0, 1, 3, 2} : std::vector<uint16_t>{0, 2, 1}),
+        reorder("convert", input_info("permute"), format::any, compute_dt,
+                std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
+        fully_connected("fc", input_info("input"), "convert", "", compute_dt, rank, rank),
+        reorder("out", input_info("fc"), format::bfyx, data_types::f32)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    if (engine.get_device_info().supports_immad) {
+        ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc", fc_impl} }));
+    }
+
+    cldnn::network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    const float tolerance = compute_dt == data_types::f16 ? 5e-2f : 1e-3f;
+    cldnn::mem_lock<float> output_ptr(outputs.at("out").get_memory(), get_test_stream());
+    ASSERT_EQ(output_ptr.size(), static_cast<size_t>(rows * ofm));
+    for (int64_t r = 0; r < rows; ++r) {
+        for (int64_t o = 0; o < ofm; ++o) {
+            float ref = 0.f;
+            for (int64_t i = 0; i < ifm; ++i)
+                ref += input_data[r * ifm + i] * weights_data[i * ofm + o];
+            ASSERT_NEAR(output_ptr[r * ofm + o], ref, tolerance) << "row " << r << " output " << o;
+        }
+    }
+}
+
+TEST(prepare_primitive_fusing, fuse_constant_transposes_3d_weights_accuracy) {
+    test_fuse_constant_transposes_nd_weights(3, data_types::f32, data_types::f16);
+}
+
+TEST(prepare_primitive_fusing, fuse_constant_transposes_4d_weights_accuracy) {
+    test_fuse_constant_transposes_nd_weights(4, data_types::f32, data_types::f16);
+}
+
+TEST(prepare_primitive_fusing, fuse_constant_transposes_3d_f16_weights_f32_accuracy) {
+    test_fuse_constant_transposes_nd_weights(3, data_types::f16, data_types::f32);
+}
+
+TEST(prepare_primitive_fusing, fuse_constant_transposes_4d_f16_weights_f32_accuracy) {
+    test_fuse_constant_transposes_nd_weights(4, data_types::f16, data_types::f32);
+}
+
 TEST(prepare_primitive_fusing, can_profiling_data_when_fuse_illegal) {
     auto& engine = get_test_engine();
     auto weights = engine.allocate_memory({ov::PartialShape{2, 10}, data_types::u8, format::bfyx});
