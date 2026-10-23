@@ -21,9 +21,8 @@
 #include "npuw_transformations/optimize_lincache_layout.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
 #include "openvino/op/loop.hpp"
-#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/select.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
@@ -189,15 +188,13 @@ TEST_F(MaskLinearAttentionPaddingTest, HybridModelIsRewrittenForAnyChunkLength) 
 
     for (const uint32_t chunk : {4u, 8u, 16u}) {
         auto model = make_static(base, chunk);
-        const auto matmuls_before = count_ops<ov::op::v0::MatMul>(model);
-        const auto selects_before = count_ops<ov::op::v1::Select>(model);
+        const auto scatters_before = count_ops<ov::op::v3::ScatterUpdate>(model);
 
         ASSERT_TRUE(ov::npuw::MaskLinearAttentionPadding().run_on_model(model)) << "chunk " << chunk;
         ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
 
-        // One history-shifting MatMul and one Select per conv state.
-        EXPECT_EQ(count_ops<ov::op::v0::MatMul>(model) - matmuls_before, n_conv) << "chunk " << chunk;
-        EXPECT_EQ(count_ops<ov::op::v1::Select>(model) - selects_before, n_conv) << "chunk " << chunk;
+        // One ScatterUpdate writing the history per conv state.
+        EXPECT_EQ(count_ops<ov::op::v3::ScatterUpdate>(model) - scatters_before, n_conv) << "chunk " << chunk;
 
         // g and beta of every recurrence Loop are masked.
         EXPECT_EQ(count_masked_loop_inputs(model), 2u * n_ssm) << "chunk " << chunk;
@@ -211,9 +208,9 @@ TEST_F(MaskLinearAttentionPaddingTest, ShortConvModelWithoutSsmIsRewritten) {
     ASSERT_GT(n_conv, 0u);
     ASSERT_EQ(count_inputs(model, "cache_params.past.ssm"), 0u);
 
-    const auto matmuls_before = count_ops<ov::op::v0::MatMul>(model);
+    const auto scatters_before = count_ops<ov::op::v3::ScatterUpdate>(model);
     ASSERT_TRUE(ov::npuw::MaskLinearAttentionPadding().run_on_model(model));
-    EXPECT_EQ(count_ops<ov::op::v0::MatMul>(model) - matmuls_before, n_conv);
+    EXPECT_EQ(count_ops<ov::op::v3::ScatterUpdate>(model) - scatters_before, n_conv);
 }
 
 TEST_F(MaskLinearAttentionPaddingTest, ModelWithoutLinearAttentionIsUntouched) {

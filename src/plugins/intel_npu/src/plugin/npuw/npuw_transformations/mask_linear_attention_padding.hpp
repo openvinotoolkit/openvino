@@ -25,11 +25,11 @@ namespace npuw {
 // The pass requires static shapes (it runs after ReshapeToStatic) and a prefill batch of 1.
 // All sequence lengths are read from the model, nothing is specific to a chunk size.
 //
-//   conv:  the Concat(past [B,C,K], x [B,C,L]) is followed by a Select that moves the history right
-//          in front of the first real token and zeroes the leading `pad` columns:
-//          [h0 h1 h2 h3 0 0 x2 x3] -> [0 0 h0 h1 h2 h3 x2 x3] (K=4, L=4, pad=2).
-//          The shifted history is history[B,C,K] x one-hot[K,K+L] (a tiny MatMul, no data-dependent
-//          Gather), selected for the first pad + K columns; the other columns are the Concat's.
+//   conv:  the Concat(past [B,C,K], x [B,C,L]) is followed by a ScatterUpdate that writes the history
+//          over the K columns right in front of the first real token, pad + [0, K):
+//          [h0 h1 h2 h3 0 0 x2 x3] -> [h0 h1 h0 h1 h2 h3 x2 x3] (K=4, L=4, pad=2).
+//          Only K columns are written, no second tensor of the Concat's size is computed. The leading `pad`
+//          columns are left as they are: they only feed the outputs of padded positions.
 //          `pad = L - sum(attention_mask[:, -L:])` is computed in the graph, so the chunk
 //          may be full (pad = 0, identity) or partial. Both the convolution and the present
 //          state, which is the last K columns of the Concat, consume the re-ordered tensor.
