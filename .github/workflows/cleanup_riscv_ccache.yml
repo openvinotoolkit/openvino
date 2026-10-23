@@ -1,0 +1,42 @@
+name: Cleanup RISC-V remote ccache
+on:
+  schedule:
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+
+permissions: read-all
+
+concurrency:
+  group: cleanup-riscv-remote-ccache
+  cancel-in-progress: false
+
+jobs:
+  Cleanup:
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    runs-on: aks-linux-medium
+    timeout-minutes: 60
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
+      volumes:
+        - /mount:/mount
+    defaults:
+      run:
+        shell: bash
+    env:
+      REMOTE_CACHE_DIR: /mount/caches/ccache/shared
+    steps:
+      - name: Install ccache
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ccache
+
+      - name: Evict stale and least recently used entries
+        run: |
+          if [[ ! -d "$REMOTE_CACHE_DIR" ]]; then
+            echo "RISC-V remote cache has not been populated yet."
+            exit 0
+          fi
+          du -sh "$REMOTE_CACHE_DIR"
+          find "$REMOTE_CACHE_DIR" -ignore_readdir_race -type f -mtime +30 -delete
+          ccache --trim-dir "$REMOTE_CACHE_DIR" --trim-max-size 300G --trim-method mtime
+          du -sh "$REMOTE_CACHE_DIR"

@@ -124,6 +124,12 @@ path in the Docker container where the resources will be available.
 
 To add new resources, contact a member of the CI team for assistance.
 
+### RISC-V Compiler Cache
+
+The RISC-V GNU build in [`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml)
+uses a shared ccache file storage on the shared drive. Old entries are cleaned up
+periodically by the [`cleanup_riscv_ccache.yml`](./../../../../.github/workflows/cleanup_riscv_ccache.yml) workflow.
+
 ## Cloud Storage via Azure Blob Storage
 
 This cache is used for sharing OpenVINO build artifacts between runs.
