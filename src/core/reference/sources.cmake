@@ -133,6 +133,7 @@ set(REFERENCE_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/gather_nd.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/gather_tree.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/gelu.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/gguf_dequantize.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/generate_proposal.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/greater.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/greater_eq.hpp

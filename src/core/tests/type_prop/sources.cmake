@@ -86,6 +86,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/gather_nd.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_tree.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gelu.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/gguf_dequantize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/generate_proposals.cpp
     ${CMAKE_CURRENT_LIST_DIR}/grid_sample.cpp
     ${CMAKE_CURRENT_LIST_DIR}/grn.cpp
