@@ -4,31 +4,88 @@
 
 #include "utils.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <memory>
+#include <numeric>
 #include <string>
 
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 namespace ov::frontend::gguf {
+
+ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::Node> input) {
+    const auto block = context.get_attribute<int64_t>("hadamard_block", 0);
+    if (block == 0)
+        return input;
+    using namespace ov::op;
+    const auto shape = input.get_partial_shape();
+    FRONT_END_OP_CONVERSION_CHECK(shape.rank().is_static() && shape.size() > 0 && shape[shape.size() - 1].is_static(),
+                                  "Hadamard requires a static feature width");
+    const auto width = shape[shape.size() - 1].get_length();
+    FRONT_END_OP_CONVERSION_CHECK(block > 0 && block <= 4096 && (block & (block - 1)) == 0 && width % block == 0,
+                                  "Invalid Hadamard block size/width");
+    const auto pattern = [&](const std::vector<int64_t>& dims) {
+        return v0::Constant::create(ov::element::i64, {dims.size()}, dims);
+    };
+    const auto original = std::make_shared<v3::ShapeOf>(input, ov::element::i64);
+    const auto heads = context.get_attribute<std::vector<int64_t>>("hadamard_gdn_heads", {});
+    if (!heads.empty()) {
+        FRONT_END_OP_CONVERSION_CHECK(heads.size() == 3 && heads[0] * heads[1] * heads[2] == width,
+                                      "Invalid Hadamard GDN feature order");
+        input = std::make_shared<v1::Reshape>(input, pattern({-1, heads[0], heads[1], heads[2]}), false);
+        input = std::make_shared<v1::Transpose>(input, pattern({0, 2, 1, 3}));
+        input = std::make_shared<v1::Reshape>(input, original, false);
+    }
+    const auto signs = context.get_attribute<ov::Tensor>("hadamard_signs", ov::Tensor{});
+    const bool inverse = context.get_attribute<bool>("hadamard_inverse", false);
+    ov::Output<ov::Node> sign_node;
+    if (signs) {
+        sign_node = std::make_shared<v0::Constant>(signs);
+        if (sign_node.get_element_type() != input.get_element_type())
+            sign_node = std::make_shared<v1::ConvertLike>(sign_node, input);
+    }
+    if (signs && !inverse)
+        input = std::make_shared<v1::Multiply>(input, sign_node);
+    const auto axis = v0::Constant::create(ov::element::i64, {}, {2});
+    for (int64_t stride = 1; stride < block; stride *= 2) {
+        auto grouped = std::make_shared<v1::Reshape>(input, pattern({-1, block / (2 * stride), 2, stride}), false);
+        auto halves = std::make_shared<v1::Split>(grouped, axis, 2);
+        auto sum = std::make_shared<v1::Add>(halves->output(0), halves->output(1));
+        auto difference = std::make_shared<v1::Subtract>(halves->output(0), halves->output(1));
+        input = std::make_shared<v0::Concat>(ov::OutputVector{sum, difference}, 2);
+    }
+    const auto scale = v0::Constant::create(input.get_element_type(), {}, {1.f / std::sqrt(static_cast<float>(block))});
+    input = std::make_shared<v1::Multiply>(input, scale);
+    input = std::make_shared<v1::Reshape>(input, original, false);
+    if (signs && inverse)
+        input = std::make_shared<v1::Multiply>(input, sign_node);
+    return input;
+}
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
     auto input_size = context.get_input_size();
@@ -53,14 +110,22 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> get_glu_inputs(const NodeC
         const auto half_dim = last_dim / 2;
 
         auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-        auto step = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-        auto start0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
-        auto stop0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {half_dim});
-        auto start1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {half_dim});
-        auto stop1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {2 * half_dim});
+        if (last_dim % 2 == 0) {
+            // VariadicSplit is the form GLUFusion matches.
+            auto lengths = ov::op::v0::Constant::create(ov::element::i64, {2}, {half_dim, half_dim});
+            auto split = std::make_shared<ov::op::v1::VariadicSplit>(combined, axis, lengths);
+            src0 = split->output(0);
+            src1 = split->output(1);
+        } else {
+            auto step = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+            auto start0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+            auto stop0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {half_dim});
+            auto start1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {half_dim});
+            auto stop1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {2 * half_dim});
 
-        src0 = std::make_shared<ov::op::v8::Slice>(combined, start0, stop0, step, axis);
-        src1 = std::make_shared<ov::op::v8::Slice>(combined, start1, stop1, step, axis);
+            src0 = std::make_shared<ov::op::v8::Slice>(combined, start0, stop0, step, axis);
+            src1 = std::make_shared<ov::op::v8::Slice>(combined, start1, stop1, step, axis);
+        }
     }
 
     if (context.get_attribute<bool>("swapped")) {
@@ -91,8 +156,21 @@ int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb) {
     return 0;
 }
 
-std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
-                                         const std::vector<int>& dims) {
+ov::Output<ov::Node> make_l2_norm(const ov::Output<ov::Node>& x, float eps) {
+    auto sum = std::make_shared<ov::op::v1::ReduceSum>(std::make_shared<ov::op::v1::Multiply>(x, x),
+                                                       ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}),
+                                                       true);
+    auto norm = std::make_shared<ov::op::v1::Maximum>(std::make_shared<ov::op::v0::Sqrt>(sum),
+                                                      ov::op::v0::Constant::create(ov::element::f32, {1}, {eps}));
+    return std::make_shared<ov::op::v1::Divide>(x, norm);
+}
+
+void name_output(const ov::Output<ov::Node>& out, const std::string& name) {
+    out.get_node_shared_ptr()->set_friendly_name(name);
+    out.get_node_shared_ptr()->output(0).set_names({name});
+}
+
+std::shared_ptr<ov::Node> gather_dims(const ov::Output<ov::Node>& shape, const std::vector<int>& dims) {
     using namespace ov::op;
     const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
     const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
@@ -100,7 +178,7 @@ std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::Shape
 }
 
 std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, const std::vector<int>& dims) {
-    return get_dimensions(std::make_shared<ov::op::v3::ShapeOf>(output), dims);
+    return gather_dims(std::make_shared<ov::op::v3::ShapeOf>(output), dims);
 }
 
 OutputVector rename_outputs_with_suffix(OutputVector outputs, const std::string& suffix) {
@@ -221,8 +299,22 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
     float mscale = attn_factor;
     if (imrope) {
         std::vector<int64_t> gather_indices(n_dims_half);
+        const auto& sections = rope_config.sections;
+        FRONT_END_GENERAL_CHECK(std::all_of(sections.begin(),
+                                            sections.end(),
+                                            [](int32_t s) {
+                                                return s >= 0;
+                                            }),
+                                "M-RoPE sections must be nonnegative");
+        // Four int32 counts always fit in 64 bits.
+        const int64_t total = std::accumulate(sections.begin(), sections.end(), int64_t{0});
         for (size_t j = 0; j < n_dims_half; j++) {
-            gather_indices[j] = j % 3;
+            const size_t sector = total ? j % static_cast<size_t>(total) : j;
+            gather_indices[j] = !total                                                             ? j % 3
+                                : sector % 3 == 1 && sector < 3 * static_cast<size_t>(sections[1]) ? 1
+                                : sector % 3 == 2 && sector < 3 * static_cast<size_t>(sections[2]) ? 2
+                                : sector % 3 == 0 && sector < 3 * static_cast<size_t>(sections[0]) ? 0
+                                                                                                   : 3;
             factor[j] = static_cast<float>(std::pow(theta_scale, j));
         }
         auto gather_indices_const =
