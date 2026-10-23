@@ -231,6 +231,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pyramid_attention.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/serialization.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/serialization.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/weights_context.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/weights_context.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/spatial.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/spatial.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/unfold_sync_infer_request.cpp
