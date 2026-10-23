@@ -8,8 +8,6 @@
 #include <cstdio>
 #include <cstring>
 #include <fstream>
-#include <iostream>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -55,8 +53,8 @@ void remove_unused_ids(std::vector<int>& ids) {
 }
 
 #ifdef _WIN32
-// Collects Intel device IDs of all present adapters into `all` and of those located at `pci` into `matched`.
-// Display adapters are enumerated last, so `all.back()` is the same ID as before MCDM adapters were supported.
+// Collects Intel device IDs of display adapters into `all` and of any adapters located at `pci` into `matched`.
+// Compute accelerators are used for location matching only, as the class also covers non-GPU devices like NPUs.
 void collect_ids(const std::optional<pci_bus_info>& pci, std::vector<int>& all, std::vector<int>& matched) {
     // SetupAPI exposes bus, device and function only, so a non-zero PCI domain cannot be matched
     const bool match_location = pci.has_value() && pci->pci_domain == 0;
@@ -65,9 +63,6 @@ void collect_ids(const std::optional<pci_bus_info>& pci, std::vector<int>& all, 
     for (const GUID* device_class : device_classes) {
         HDEVINFO device_info_set = SetupDiGetClassDevsA(device_class, NULL, NULL, DIGCF_PRESENT);
         if (device_info_set == INVALID_HANDLE_VALUE) {
-            std::cout << "[DBG][driver_dev_id] SetupDiGetClassDevsA failed for class "
-                      << (device_class == &GUID_DEVCLASS_DISPLAY ? "Display" : "ComputeAccelerator")
-                      << ", GetLastError=" << GetLastError() << std::endl;
             continue;
         }
 
@@ -82,22 +77,6 @@ void collect_ids(const std::optional<pci_bus_info>& pci, std::vector<int>& all, 
                 continue;
             }
 
-            // TEMP-DEBUG: dump every adapter seen by SetupAPI, including non-Intel ones
-            {
-                DWORD dbg_bus = 0;
-                DWORD dbg_address = 0;
-                DWORD dbg_type = 0;
-                const bool dbg_bus_ok = SetupDiGetDeviceRegistryPropertyA(device_info_set, &devinfo_data, SPDRP_BUSNUMBER, &dbg_type,
-                                                                          reinterpret_cast<BYTE*>(&dbg_bus), sizeof(dbg_bus), nullptr) != FALSE;
-                const bool dbg_addr_ok = SetupDiGetDeviceRegistryPropertyA(device_info_set, &devinfo_data, SPDRP_ADDRESS, &dbg_type,
-                                                                           reinterpret_cast<BYTE*>(&dbg_address), sizeof(dbg_address), nullptr) != FALSE;
-                std::cout << "[DBG][driver_dev_id] setup_class="
-                          << (device_class == &GUID_DEVCLASS_DISPLAY ? "Display" : "ComputeAccelerator") << " instance_id=" << buf
-                          << " bus=" << (dbg_bus_ok ? std::to_string(dbg_bus) : std::string("<n/a>"))
-                          << " device=" << (dbg_addr_ok ? std::to_string(HIWORD(dbg_address)) : std::string("<n/a>"))
-                          << " function=" << (dbg_addr_ok ? std::to_string(LOWORD(dbg_address)) : std::string("<n/a>")) << std::endl;
-            }
-
             char* vendor_pos = std::strstr(buf, "VEN_");
             if (vendor_pos == NULL || std::stoi(vendor_pos + 4, NULL, 16) != intel_vendor_id) {
                 continue;
@@ -107,7 +86,9 @@ void collect_ids(const std::optional<pci_bus_info>& pci, std::vector<int>& all, 
                 continue;
             }
             const int device_id = std::stoi(device_pos + 4, NULL, 16);
-            all.push_back(device_id);
+            if (device_class == &GUID_DEVCLASS_DISPLAY) {
+                all.push_back(device_id);
+            }
 
             if (match_location) {
                 DWORD bus = 0;
@@ -142,10 +123,7 @@ void collect_ids(const std::optional<pci_bus_info>& pci, std::vector<int>& all, 
 bool read_intel_device_id(const std::string& dev_base, int& device_id) {
     std::ifstream vendor_ifs(dev_base + "vendor");
     int ven_id = 0;
-    const bool dbg_vendor_ok = static_cast<bool>(vendor_ifs >> std::hex >> ven_id);
-    std::cout << "[DBG][driver_dev_id] sysfs " << dev_base << " vendor_read=" << dbg_vendor_ok << " vendor=0x" << std::hex << ven_id
-              << std::dec << std::endl;
-    if (!dbg_vendor_ok || ven_id != intel_vendor_id) {
+    if (!(vendor_ifs >> std::hex >> ven_id) || ven_id != intel_vendor_id) {
         return false;
     }
     std::ifstream device_ifs(dev_base + "device");
@@ -183,38 +161,18 @@ int driver_dev_id(const std::optional<pci_bus_info>& pci) {
 #if defined(_WIN32) || defined(__linux__)
     collect_ids(pci, all, matched);
 #endif
-    // TEMP-DEBUG
-    auto dbg_ids = [](const std::vector<int>& ids) {
-        std::ostringstream ss;
-        for (int id : ids) {
-            ss << "0x" << std::hex << id << std::dec << " ";
-        }
-        return ss.str();
-    };
-    std::cout << "[DBG][driver_dev_id] requested pci=";
-    if (pci.has_value()) {
-        std::cout << pci->pci_domain << ":" << pci->pci_bus << ":" << pci->pci_device << "." << pci->pci_function;
-    } else {
-        std::cout << "<none>";
-    }
-    std::cout << " all=[" << dbg_ids(all) << "] matched=[" << dbg_ids(matched) << "]" << std::endl;
-
     remove_unused_ids(all);
     remove_unused_ids(matched);
 
     if (!matched.empty() && all_equal(matched)) {
-        std::cout << "[DBG][driver_dev_id] result=" << dbg_ids({matched.front()}) << "(matched by PCI location)" << std::endl;
         return matched.front();
     }
     if (all.empty()) {
-        std::cout << "[DBG][driver_dev_id] result=0 (no Intel adapters found)" << std::endl;
         return 0;
     }
     if (all_equal(all)) {
-        std::cout << "[DBG][driver_dev_id] result=" << dbg_ids({all.front()}) << "(all adapters share one ID)" << std::endl;
         return all.front();
     }
-    std::cout << "[DBG][driver_dev_id] ambiguous, returning last: " << dbg_ids({all.back()}) << std::endl;
 
     char last_id[16];
     std::snprintf(last_id, sizeof(last_id), "0x%X", all.back());
