@@ -745,11 +745,12 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 
     bool add_decompress_scale_post_op = false;
     WeightsType weights_dt = params.weights.GetDType();
-    // u2 reuses the u4 code paths. Jit constants, not #defines in the .cl: only jit constants are
-    // #undef'd between kernels of a batched program.
+    // u2 shares the packed sub-byte code paths with u4/i4. Jit constants, not #defines in the .cl: only jit
+    // constants are #undef'd between kernels of a batched program.
     jit.AddConstant(MakeJitConstant("FILTER_ELEMENTS_PER_BYTE", weights_dt == WeightsType::UINT2 ? 4 : 2));
-    if (weights_dt == WeightsType::UINT2) {
-        jit.AddConstant(MakeJitConstant("COMPRESSED_WEIGHTS_INT4", 1));
+    if (params.compressed &&
+        (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4 || weights_dt == WeightsType::UINT2)) {
+        jit.AddConstant(MakeJitConstant("COMPRESSED_WEIGHTS_SUB_BYTE", 1));
     }
     if (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4 || weights_dt == WeightsType::UINT2) {
         tile_k_ofm_packed /= (weights_dt == WeightsType::UINT2) ? 4 : 2;
