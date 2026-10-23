@@ -51,6 +51,37 @@ TEST_F(TypePropSparseAttentionIndexerTest, static_shapes) {
     EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{2, 1, 7}));
 }
 
+TEST_F(TypePropSparseAttentionIndexerTest, batch_mismatch_with_dynamic_rank_index_query) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape::dynamic()),
+                                          param(element::f32, PartialShape{2, 2500, 128}),
+                                          param(element::i32, PartialShape{2}),
+                                          param(element::f32, PartialShape{3, 7, 4}),
+                                          4,
+                                          2048),
+                    NodeValidationFailure,
+                    HasSubstr("The batch dimension of index_query and index_weights must be the same."));
+}
+
+TEST_F(TypePropSparseAttentionIndexerTest, incorrect_key_length_size) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{2, 4, 7, 128}),
+                                          param(element::f32, PartialShape{2, 2500, 128}),
+                                          param(element::i32, PartialShape{3}),
+                                          4,
+                                          2048),
+                    NodeValidationFailure,
+                    HasSubstr("The size of key_length must be 1 or the batch dimension of index_query."));
+}
+
+TEST_F(TypePropSparseAttentionIndexerTest, single_element_key_length_applies_to_all_sequences) {
+    const auto op = make_op(param(element::f32, PartialShape{2, 4, 7, 128}),
+                            param(element::f32, PartialShape{2, 2500, 128}),
+                            param(element::i32, PartialShape{1}),
+                            4,
+                            2048);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 1, 7, 512}));
+}
+
 TEST_F(TypePropSparseAttentionIndexerTest, with_index_weights) {
     const auto op = make_op(param(element::f16, PartialShape{1, 64, 1, 128}),
                             param(element::f16, PartialShape{1, 10001, 128}),

@@ -6,11 +6,14 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
+
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov::test {
-using op::v0::Parameter;
+using op::v0::Constant, op::v0::Parameter;
 using testing::HasSubstr;
 
 class TypePropSparseAttentionTest : public TypePropOpTest<op::v17::SparseAttention> {
@@ -181,6 +184,80 @@ TEST_F(TypePropSparseAttentionTest, dynamic_element_type) {
                             4);
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
+}
+
+TEST_F(TypePropSparseAttentionTest, integer_scale_with_dynamic_data_types) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::dynamic, PartialShape{2, 24, 1, 64}),
+                                          param(element::dynamic, PartialShape{2, 2, 12, 64}),
+                                          param(element::dynamic, PartialShape{2, 2, 12, 32}),
+                                          param(element::i64, PartialShape{2, 1, 1, 4}),
+                                          param(element::i64, PartialShape{2, 1, 1}),
+                                          param(element::i64, PartialShape{2}),
+                                          param(element::i32, PartialShape{}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The element type of scale must be a floating point type"));
+}
+
+TEST_F(TypePropSparseAttentionTest, largest_query_block_size_needs_one_query_row) {
+    // ceil(L / query_block_size) must not overflow for an extreme block size.
+    const auto op = make_op(param(element::f32, PartialShape{1, 24, 8, 64}),
+                            param(element::f32, PartialShape{1, 2, 8, 64}),
+                            param(element::f32, PartialShape{1, 2, 8, 32}),
+                            param(element::i32, PartialShape{1, 1, 1, 4}),
+                            param(element::i32, PartialShape{1, 1, 1}),
+                            4,
+                            std::numeric_limits<int64_t>::max());
+
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 24, 8, 32}));
+}
+
+TEST_F(TypePropSparseAttentionTest, batch_mismatch_with_dynamic_rank_query) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape::dynamic()),
+                                          param(element::f32, PartialShape{2, 2, 12, 64}),
+                                          param(element::f32, PartialShape{3, 2, 12, 32}),
+                                          param(element::i32, PartialShape{2, 1, 5, 4}),
+                                          param(element::i32, PartialShape{2, 1, 5}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The batch dimension of all the inputs must be the same."));
+}
+
+TEST_F(TypePropSparseAttentionTest, key_length_value_exceeding_key_positions) {
+    const auto key_length = Constant::create(element::i64, Shape{2}, {12, 13});
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f16, PartialShape{2, 24, 1, 64}),
+                                          param(element::f16, PartialShape{2, 2, 12, 64}),
+                                          param(element::f16, PartialShape{2, 2, 12, 32}),
+                                          param(element::i64, PartialShape{2, 1, 1, 4}),
+                                          param(element::i64, PartialShape{2, 1, 1}),
+                                          key_length,
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The key_length values must be in [0, S], S = 12"));
+}
+
+TEST_F(TypePropSparseAttentionTest, incorrect_key_length_size) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f16, PartialShape{2, 24, 1, 64}),
+                                          param(element::f16, PartialShape{2, 2, 12, 64}),
+                                          param(element::f16, PartialShape{2, 2, 12, 32}),
+                                          param(element::i64, PartialShape{2, 1, 1, 4}),
+                                          param(element::i64, PartialShape{2, 1, 1}),
+                                          param(element::i64, PartialShape{3}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The size of key_length must be 1 or the batch dimension of the other inputs."));
+}
+
+TEST_F(TypePropSparseAttentionTest, single_element_key_length_applies_to_all_sequences) {
+    const auto op = make_op(param(element::f16, PartialShape{2, 24, 1, 64}),
+                            param(element::f16, PartialShape{2, 2, 12, 64}),
+                            param(element::f16, PartialShape{2, 2, 12, 32}),
+                            param(element::i64, PartialShape{2, 1, 1, 4}),
+                            param(element::i64, PartialShape{2, 1, 1}),
+                            param(element::i64, PartialShape{1}),
+                            4);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 24, 1, 32}));
 }
 
 TEST_F(TypePropSparseAttentionTest, symbols_propagation) {

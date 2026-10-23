@@ -62,7 +62,11 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
     const auto rope_cos_empty = qsa_prepare_input_empty(rope_cos_shape);
     const auto rope_sin_empty = qsa_prepare_input_empty(rope_sin_shape);
     const auto past_incomplete_rope_empty = qsa_prepare_input_empty(past_incomplete_rope_shape);
+    const auto k_norm_weight_empty = qsa_prepare_input_empty(k_norm_weight_shape);
+    // An unknown input counts as present for the output width and as absent for the validation, so that
+    // a shape which may still specialize to an empty tensor is never rejected.
     const auto has_rope = !rope_cos_empty.value_or(false) && !rope_sin_empty.value_or(false);
+    const auto rope_enabled = !rope_cos_empty.value_or(true) && !rope_sin_empty.value_or(true);
     const auto is_raw_keys_rank_static = raw_index_keys_shape.rank().is_static();
 
     NODE_SHAPE_INFER_CHECK(op,
@@ -91,13 +95,13 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
                            "The shape of key_length must be 1D [N] or [1].");
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
-                           k_norm_weight_shape.rank().compatible(1),
-                           "The shape of k_norm_weight must be 1D [Di].");
+                           k_norm_weight_empty.value_or(false) || k_norm_weight_shape.rank().compatible(1),
+                           "The shape of k_norm_weight must be 1D [Di] or an empty tensor.");
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            past_incomplete_raw_keys_shape.rank().compatible(3),
                            "The shape of past_incomplete_raw_keys must be 3D [N, key_block_size - 1, Di].");
-    if (has_rope) {
+    if (rope_enabled) {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                rope_cos_shape.rank().compatible(3) && rope_sin_shape.rank().compatible(3),
@@ -145,7 +149,8 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
                                past_incomplete_raw_keys_shape[1]);
     }
 
-    if (!qsa_prepare_input_empty(k_norm_weight_shape).value_or(false) && k_norm_weight_shape.rank().is_static()) {
+    if (k_norm_weight_shape.rank().is_static() && k_norm_weight_shape.rank().get_length() == 1 &&
+        !k_norm_weight_shape[0].compatible(0)) {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                TDim::merge(head_size, head_size, k_norm_weight_shape[0]),
@@ -154,13 +159,34 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
 
     // Rotated dimensions, doubled by the cos / sin packing of the incomplete block RoPE row.
     auto rotated_size = has_rope ? TDim(ov::util::dim::inf_bound) : TDim(0);
-    if (has_rope && rope_cos_shape.rank().is_static() && rope_sin_shape.rank().is_static()) {
+    if (rope_enabled && rope_cos_shape.rank().is_static() && rope_sin_shape.rank().is_static()) {
         TDim merged;
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                TDim::merge(merged, rope_cos_shape[2], rope_sin_shape[2]),
                                "The number of rotated dimensions of rope_cos and rope_sin must be the same.");
+        if (merged.is_static()) {
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   merged.get_length() % 2 == 0,
+                                   "The number of rotated dimensions must be even. Got: ",
+                                   merged);
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   !head_size.is_static() || merged.get_length() <= head_size.get_length(),
+                                   "The number of rotated dimensions must not exceed the head size of "
+                                   "raw_index_keys.");
+        }
         rotated_size = merged + merged;
+        // The RoPE inputs are numpy-broadcastable over the batch, so their batch is checked, not merged.
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               rope_cos_shape[0].compatible(1) || rope_cos_shape[0].compatible(batch),
+                               "The batch dimension of rope_cos must be 1 or the batch of raw_index_keys.");
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               rope_sin_shape[0].compatible(1) || rope_sin_shape[0].compatible(batch),
+                               "The batch dimension of rope_sin must be 1 or the batch of raw_index_keys.");
         if (is_raw_keys_rank_static) {
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
@@ -185,6 +211,11 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
 
     // The number of complete blocks of the longest sequence is known only from the key_length values.
     auto num_blocks = TDim(ov::util::dim::inf_bound);
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           key_length_shape.rank().is_dynamic() || key_length_shape[0].compatible(1) ||
+                               key_length_shape[0].compatible(batch),
+                           "The size of key_length must be 1 or the batch of raw_index_keys.");
     if (const auto key_lengths = get_input_const_data_as<TRShape, int64_t>(op, 2, ta)) {
         int64_t longest = 0;
         for (const auto& length : *key_lengths) {

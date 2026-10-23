@@ -108,6 +108,119 @@ TEST_F(TypePropQSAPrepareTest, normalization_disabled_by_empty_weight) {
     EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 3, 128}));
 }
 
+TEST_F(TypePropQSAPrepareTest, normalization_disabled_by_multi_dim_empty_weight) {
+    const auto op = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                            param(element::f32, PartialShape{1, 0, 128}),
+                            param(element::i32, PartialShape{1}),
+                            param(element::f32, PartialShape{1, 8, 64}),
+                            param(element::f32, PartialShape{1, 8, 64}),
+                            param(element::f32, PartialShape{1, 0}),
+                            param(element::f32, PartialShape{1, 3, 128}),
+                            param(element::f32, PartialShape{1, 128}),
+                            4);
+
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 3, 128}));
+}
+
+TEST_F(TypePropQSAPrepareTest, possibly_empty_k_norm_weight_is_not_merged) {
+    const auto op = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                            param(element::f32, PartialShape{1, 0, 128}),
+                            param(element::i32, PartialShape{1}),
+                            param(element::f32, PartialShape{1, 8, 64}),
+                            param(element::f32, PartialShape{1, 8, 64}),
+                            param(element::f32, PartialShape{Dimension(0, 64)}),
+                            param(element::f32, PartialShape{1, 3, 128}),
+                            param(element::f32, PartialShape{1, 128}),
+                            4);
+
+    // [0] is a valid specialization that disables the normalization, so the width is not merged with Di.
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 3, 128}));
+}
+
+TEST_F(TypePropQSAPrepareTest, rope_that_may_specialize_to_empty_is_accepted) {
+    const auto op = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                            param(element::f32, PartialShape{1, 0, 128}),
+                            param(element::i32, PartialShape{1}),
+                            param(element::f32, PartialShape{1, 8, -1}),
+                            param(element::f32, PartialShape{1, 8, -1}),
+                            param(element::f32, PartialShape{128}),
+                            param(element::f32, PartialShape{1, 3, 128}),
+                            param(element::f32, PartialShape{0}),
+                            4);
+
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 3, 128}));
+}
+
+TEST_F(TypePropQSAPrepareTest, rope_batch_may_broadcast) {
+    const auto op = make_op(param(element::f32, PartialShape{2, 8, 128}),
+                            param(element::f32, PartialShape{2, 0, 128}),
+                            param(element::i32, PartialShape{2}),
+                            param(element::f32, PartialShape{1, 8, 64}),
+                            param(element::f32, PartialShape{1, 8, 64}),
+                            param(element::f32, PartialShape{128}),
+                            param(element::f32, PartialShape{2, 3, 128}),
+                            param(element::f32, PartialShape{2, 128}),
+                            4);
+
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{2, 3, 128}));
+}
+
+TEST_F(TypePropQSAPrepareTest, incorrect_rope_batch) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{2, 8, 128}),
+                                          param(element::f32, PartialShape{2, 0, 128}),
+                                          param(element::i32, PartialShape{2}),
+                                          param(element::f32, PartialShape{3, 8, 64}),
+                                          param(element::f32, PartialShape{3, 8, 64}),
+                                          param(element::f32, PartialShape{128}),
+                                          param(element::f32, PartialShape{2, 3, 128}),
+                                          param(element::f32, PartialShape{2, 128}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The batch dimension of rope_cos must be 1 or the batch of raw_index_keys."));
+}
+
+TEST_F(TypePropQSAPrepareTest, odd_number_of_rotated_dimensions) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                                          param(element::f32, PartialShape{1, 0, 128}),
+                                          param(element::i32, PartialShape{1}),
+                                          param(element::f32, PartialShape{1, 8, 65}),
+                                          param(element::f32, PartialShape{1, 8, 65}),
+                                          param(element::f32, PartialShape{128}),
+                                          param(element::f32, PartialShape{1, 3, 128}),
+                                          param(element::f32, PartialShape{1, 130}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The number of rotated dimensions must be even."));
+}
+
+TEST_F(TypePropQSAPrepareTest, too_many_rotated_dimensions) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                                          param(element::f32, PartialShape{1, 0, 128}),
+                                          param(element::i32, PartialShape{1}),
+                                          param(element::f32, PartialShape{1, 8, 256}),
+                                          param(element::f32, PartialShape{1, 8, 256}),
+                                          param(element::f32, PartialShape{128}),
+                                          param(element::f32, PartialShape{1, 3, 128}),
+                                          param(element::f32, PartialShape{1, 512}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The number of rotated dimensions must not exceed the head size"));
+}
+
+TEST_F(TypePropQSAPrepareTest, incorrect_key_length_size) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{2, 8, 128}),
+                                          param(element::f32, PartialShape{2, 0, 128}),
+                                          Constant::create(element::i32, Shape{3}, {8, 8, 400}),
+                                          param(element::f32, PartialShape{2, 8, 64}),
+                                          param(element::f32, PartialShape{2, 8, 64}),
+                                          param(element::f32, PartialShape{128}),
+                                          param(element::f32, PartialShape{2, 3, 128}),
+                                          param(element::f32, PartialShape{2, 128}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The size of key_length must be 1 or the batch of raw_index_keys."));
+}
+
 TEST_F(TypePropQSAPrepareTest, dynamic_rank_raw_index_keys) {
     const auto op = make_op(param(element::f32, PartialShape::dynamic()),
                             param(element::f32, PartialShape{1, 0, 128}),
