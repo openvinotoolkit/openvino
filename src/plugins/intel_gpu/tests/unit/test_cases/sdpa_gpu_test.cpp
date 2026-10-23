@@ -736,6 +736,185 @@ INSTANTIATE_TEST_SUITE_P(
     sdpa_micro_prefetch_k_test::PrintToStringParamName
 );
 
+struct sdpa_mask_fill_params {
+    data_types dt;
+    float fill;
+    bool use_micro;
+    bool scalar_mask;
+};
+
+class sdpa_mask_fill_test : public ::testing::TestWithParam<sdpa_mask_fill_params> {
+public:
+    static std::string PrintToStringParamName(const testing::TestParamInfo<sdpa_mask_fill_params>& info) {
+        const auto& p = info.param;
+        std::string fill = std::isinf(p.fill) ? "neg_inf" : std::to_string(static_cast<int>(std::log10(-p.fill) * 100));
+        return std::string(p.dt == data_types::bf16 ? "bf16" : "f16") + "_fill_" + fill +
+               (p.use_micro ? "_micro" : "_opt") + (p.scalar_mask ? "_scalar_mask" : "_tensor_mask");
+    }
+
+protected:
+    template <typename T>
+    void run(const sdpa_mask_fill_params& p) {
+        auto& engine = get_test_engine();
+        const auto& device_info = engine.get_device_info();
+        if (p.use_micro && (!device_info.supports_immad || device_info.arch < cldnn::gpu_arch::xe_hpg))
+            GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
+
+        const size_t heads = 2, seq_q = 48, seq_kv = 64, head_size = 256;
+        const size_t valid_q = 32;
+        const size_t valid_kv = 40;
+        const ov::Shape q_shape{1, heads, seq_q, head_size};
+        const ov::Shape kv_shape{1, heads, seq_kv, head_size};
+        const ov::Shape mask_shape{1, 1, seq_q, seq_kv};
+
+        const layout q_layout(q_shape, p.dt, format::bfyx);
+        const layout kv_layout(kv_shape, p.dt, format::bfyx);
+        const layout mask_layout(mask_shape, p.dt, format::bfyx);
+        auto q_mem = engine.allocate_memory(q_layout);
+        auto k_mem = engine.allocate_memory(kv_layout);
+        auto v_mem = engine.allocate_memory(kv_layout);
+        auto mask_mem = engine.allocate_memory(mask_layout);
+
+        tests::random_generator rg;
+        rg.set_seed(GET_SUITE_NAME);
+        const auto q = rg.generate_random_1d<T>(ov::shape_size(q_shape), -1.0f, 1.0f);
+        const auto k = rg.generate_random_1d<T>(ov::shape_size(kv_shape), -1.0f, 1.0f);
+        const auto v = rg.generate_random_1d<T>(ov::shape_size(kv_shape), -1.0f, 1.0f);
+        std::vector<T> mask(ov::shape_size(mask_shape));
+        for (size_t i = 0; i < seq_q; ++i)
+            for (size_t j = 0; j < seq_kv; ++j)
+                mask[i * seq_kv + j] = (i >= valid_q || j >= valid_kv) ? T(p.fill) : T(0.0f);
+        set_values(q_mem, q);
+        set_values(k_mem, k);
+        set_values(v_mem, v);
+        set_values(mask_mem, mask);
+
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", kv_layout));
+        topo.add(input_layout("v", kv_layout));
+        topo.add(input_layout("mask", mask_layout));
+        auto sdpa_prim = scaled_dot_product_attention("sdpa",
+                                                      {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
+                                                      false, -1, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {}, false);
+        if (p.scalar_mask)
+            sdpa_prim.attn_mask_val = p.fill;
+        topo.add(sdpa_prim);
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f32));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::enable_sdpa_micro(p.use_micro));
+        auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
+        network->set_input_data("q", q_mem);
+        network->set_input_data("k", k_mem);
+        network->set_input_data("v", v_mem);
+        network->set_input_data("mask", mask_mem);
+        auto output = network->execute().at("result").get_memory();
+
+        // Make sure the kernel under test actually ran (the node description carries the entry point).
+        std::string sdpa_info;
+        for (const auto& info : network->get_primitives_info()) {
+            if (info.type_id == "scaled_dot_product_attention")
+                sdpa_info = network->get_primitive_info(info.original_id);
+        }
+        ASSERT_FALSE(sdpa_info.empty());
+        if (p.use_micro) {
+            ASSERT_NE(sdpa_info.find("sdpa_micro"), std::string::npos) << "sdpa_micro was not selected:\n" << sdpa_info;
+        } else {
+            ASSERT_EQ(sdpa_info.find("sdpa_micro"), std::string::npos) << "sdpa_micro was selected:\n" << sdpa_info;
+        }
+
+        cldnn::mem_lock<float, mem_lock_type::read> out(output, get_test_stream());
+        ASSERT_EQ(out.size(), ov::shape_size(q_shape));
+
+        const double scale = 1.0 / std::sqrt(static_cast<double>(head_size));
+        const double tol = p.dt == data_types::bf16 ? 2e-2 : 4e-3;
+        size_t checked_rows = 0;
+        for (size_t h = 0; h < heads; ++h) {
+            for (size_t i = 0; i < seq_q; ++i) {
+                const float* o = &out[(h * seq_q + i) * head_size];
+                const bool fully_masked = p.scalar_mask || i >= valid_q;
+                if (fully_masked) {
+                    // Any softmax output is a convex combination of the V rows.
+                    for (size_t d = 0; d < head_size; ++d) {
+                        ASSERT_TRUE(std::isfinite(o[d])) << "non-finite output in fully masked row h=" << h << " q=" << i << " d=" << d;
+                        float lo = std::numeric_limits<float>::max(), hi = std::numeric_limits<float>::lowest();
+                        for (size_t j = 0; j < seq_kv; ++j) {
+                            const float vv = static_cast<float>(v[(h * seq_kv + j) * head_size + d]);
+                            lo = std::min(lo, vv);
+                            hi = std::max(hi, vv);
+                        }
+                        ASSERT_GE(o[d], lo - tol) << "h=" << h << " q=" << i << " d=" << d;
+                        ASSERT_LE(o[d], hi + tol) << "h=" << h << " q=" << i << " d=" << d;
+                    }
+                    continue;
+                }
+                // Reference in double on the rounded inputs; masked keys contribute exactly zero.
+                std::vector<double> s(seq_kv);
+                double s_max = -std::numeric_limits<double>::infinity();
+                for (size_t j = 0; j < seq_kv; ++j) {
+                    double acc = 0.0;
+                    for (size_t d = 0; d < head_size; ++d)
+                        acc += static_cast<double>(q[(h * seq_q + i) * head_size + d]) *
+                               static_cast<double>(k[(h * seq_kv + j) * head_size + d]);
+                    s[j] = acc * scale + static_cast<double>(static_cast<float>(mask[i * seq_kv + j]));
+                    s_max = std::max(s_max, s[j]);
+                }
+                double sum = 0.0;
+                for (auto& x : s) {
+                    x = std::exp(x - s_max);
+                    sum += x;
+                }
+                for (size_t d = 0; d < head_size; ++d) {
+                    double ref = 0.0;
+                    for (size_t j = 0; j < seq_kv; ++j)
+                        ref += s[j] / sum * static_cast<double>(v[(h * seq_kv + j) * head_size + d]);
+                    ASSERT_TRUE(std::isfinite(o[d])) << "non-finite output in row h=" << h << " q=" << i << " d=" << d;
+                    ASSERT_NEAR(o[d], ref, tol) << "h=" << h << " q=" << i << " d=" << d;
+                }
+                ++checked_rows;
+            }
+        }
+        ASSERT_EQ(checked_rows, p.scalar_mask ? 0 : heads * valid_q);
+    }
+};
+
+TEST_P(sdpa_mask_fill_test, fully_masked_rows_stay_finite) {
+    const auto p = GetParam();
+    if (p.dt == data_types::bf16)
+        run<ov::bfloat16>(p);
+    else
+        run<ov::float16>(p);
+}
+
+constexpr float torch_mask_fill = -2.381976325057654e38f;
+constexpr float bf16_lowest = -3.3895313892515355e38f;
+constexpr float neg_inf = -std::numeric_limits<float>::infinity();
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_sdpa_mask_fill,
+    sdpa_mask_fill_test,
+    ::testing::Values(
+        // bf16: the fill survives the conversion and overflows once folded (original NaN report)
+        sdpa_mask_fill_params{data_types::bf16, torch_mask_fill, true, false},
+        sdpa_mask_fill_params{data_types::bf16, bf16_lowest, true, false},
+        sdpa_mask_fill_params{data_types::bf16, neg_inf, true, false},
+        sdpa_mask_fill_params{data_types::bf16, -1e4f, true, false},  // control: never overflowed
+        sdpa_mask_fill_params{data_types::bf16, torch_mask_fill, true, true},
+        sdpa_mask_fill_params{data_types::bf16, torch_mask_fill, false, false},
+        sdpa_mask_fill_params{data_types::bf16, neg_inf, false, false},
+        sdpa_mask_fill_params{data_types::bf16, torch_mask_fill, false, true},
+        // f16: f32 fills saturate to -65504 on conversion; only an explicit -inf mask overflows
+        sdpa_mask_fill_params{data_types::f16, -65504.0f, true, false},
+        sdpa_mask_fill_params{data_types::f16, neg_inf, true, false},
+        sdpa_mask_fill_params{data_types::f16, -65504.0f, true, true},
+        sdpa_mask_fill_params{data_types::f16, -65504.0f, false, false},
+        sdpa_mask_fill_params{data_types::f16, neg_inf, false, false}
+    ),
+    sdpa_mask_fill_test::PrintToStringParamName
+);
+
 // use_onednn_sdpa is a debug-caps-only option.
 #ifdef ENABLE_DEBUG_CAPS
 struct onednn_sdpa_test_params {
