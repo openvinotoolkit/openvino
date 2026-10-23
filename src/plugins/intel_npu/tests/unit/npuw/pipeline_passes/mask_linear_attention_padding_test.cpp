@@ -6,9 +6,11 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <functional>
+#include <limits>
 #include <map>
 #include <string>
 #include <tuple>
@@ -22,6 +24,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 
@@ -127,13 +130,53 @@ protected:
         return masked;
     }
 
+    // std::max(diff, NaN) keeps diff, so a non-finite output must fail the test explicitly.
     static float max_abs_diff(const ov::Tensor& a, const ov::Tensor& b) {
         EXPECT_EQ(a.get_shape(), b.get_shape());
         float diff = 0.f;
         for (size_t i = 0; i < a.get_size(); ++i) {
-            diff = std::max(diff, std::abs(a.data<float>()[i] - b.data<float>()[i]));
+            const float delta = std::abs(a.data<float>()[i] - b.data<float>()[i]);
+            if (!std::isfinite(delta)) {
+                ADD_FAILURE() << "non-finite value at element " << i << ": " << a.data<float>()[i] << " vs "
+                              << b.data<float>()[i];
+                return std::numeric_limits<float>::infinity();
+            }
+            diff = std::max(diff, delta);
         }
         return diff;
+    }
+
+    static bool cpu_available() {
+        const auto devices = ov::Core().get_available_devices();
+        return std::find(devices.begin(), devices.end(), "CPU") != devices.end();
+    }
+
+    static std::shared_ptr<ov::op::v0::Parameter> find_param(const std::shared_ptr<ov::Model>& model,
+                                                             const std::string& name) {
+        for (const auto& param : model->get_parameters()) {
+            if (param->get_output_tensor(0).get_names().count(name)) {
+                return param;
+            }
+        }
+        return nullptr;
+    }
+
+    // First consumer of the given type of a state parameter, looking through a single Transpose.
+    template <class T>
+    static ov::Input<ov::Node> state_consumer(const std::shared_ptr<ov::op::v0::Parameter>& param) {
+        for (const auto& target : param->output(0).get_target_inputs()) {
+            if (ov::is_type<T>(target.get_node())) {
+                return target;
+            }
+            if (ov::is_type<ov::op::v1::Transpose>(target.get_node())) {
+                for (const auto& next : target.get_node()->output(0).get_target_inputs()) {
+                    if (ov::is_type<T>(next.get_node())) {
+                        return next;
+                    }
+                }
+            }
+        }
+        throw std::runtime_error("no consumer of " + param->get_friendly_name());
     }
 };
 
@@ -180,6 +223,38 @@ TEST_F(MaskLinearAttentionPaddingTest, ModelWithoutLinearAttentionIsUntouched) {
     EXPECT_EQ(model->get_ops().size(), ops_before);
 }
 
+// Two Concats consuming the same past conv state and none consuming the other one: the number of
+// recognized sites matches the number of states, but a state is not covered.
+TEST_F(MaskLinearAttentionPaddingTest, ConvStateWithoutRecognizedSiteLeavesModelUntouched) {
+    auto model = make_static(stateless(ov::test::npuw::build_hybrid_llm_test_model()), 8u);
+    const auto first = find_param(model, "cache_params.past.conv.0");
+    const auto second = find_param(model, "cache_params.past.conv.1");
+    ASSERT_TRUE(first && second);
+    ASSERT_EQ(first->get_partial_shape(), second->get_partial_shape());
+
+    state_consumer<ov::op::v0::Concat>(second).replace_source_output(first->output(0));
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+
+    const auto ops_before = model->get_ops().size();
+    EXPECT_FALSE(ov::npuw::MaskLinearAttentionPadding().run_on_model(model));
+    EXPECT_EQ(model->get_ops().size(), ops_before);
+}
+
+TEST_F(MaskLinearAttentionPaddingTest, SsmStateWithoutRecognizedSiteLeavesModelUntouched) {
+    auto model = make_static(stateless(ov::test::npuw::build_hybrid_llm_test_model()), 8u);
+    const auto first = find_param(model, "cache_params.past.ssm.0");
+    const auto second = find_param(model, "cache_params.past.ssm.1");
+    ASSERT_TRUE(first && second);
+    ASSERT_EQ(first->get_partial_shape(), second->get_partial_shape());
+
+    state_consumer<ov::op::v5::Loop>(second).replace_source_output(first->output(0));
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+
+    const auto ops_before = model->get_ops().size();
+    EXPECT_FALSE(ov::npuw::MaskLinearAttentionPadding().run_on_model(model));
+    EXPECT_EQ(model->get_ops().size(), ops_before);
+}
+
 TEST_F(MaskLinearAttentionPaddingTest, DynamicShapesAreLeftUntouched) {
     auto model = stateless(ov::test::npuw::build_hybrid_llm_test_model());
     const auto ops_before = model->get_ops().size();
@@ -194,6 +269,9 @@ class MaskLinearAttentionPaddingNumericsTest : public MaskLinearAttentionPadding
                                                public ::testing::WithParamInterface<std::tuple<uint32_t, bool>> {};
 
 TEST_P(MaskLinearAttentionPaddingNumericsTest, PaddedChunkMatchesUnpaddedChunk) {
+    if (!cpu_available()) {
+        GTEST_SKIP() << "CPU plugin is required to execute the models";
+    }
     const uint32_t chunk = 8u;
     const auto [padding, relayout_conv] = GetParam();
     ASSERT_LT(padding, chunk);
@@ -243,6 +321,9 @@ INSTANTIATE_TEST_SUITE_P(PaddingLength,
                          ::testing::Combine(::testing::Values(1u, 3u, 7u), ::testing::Bool()));
 
 TEST_F(MaskLinearAttentionPaddingTest, FullChunkIsUnchanged) {
+    if (!cpu_available()) {
+        GTEST_SKIP() << "CPU plugin is required to execute the models";
+    }
     const uint32_t chunk = 8u;
     const auto base = stateless(ov::test::npuw::build_hybrid_llm_test_model());
     const auto past = make_lincache_past(make_static(base, chunk));
