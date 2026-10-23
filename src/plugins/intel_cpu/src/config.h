@@ -54,6 +54,7 @@ struct Config {
 
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
+    bool runSyncInferInCallerThread = false;
     SnippetsMode snippetsMode = SnippetsMode::Enable;
     std::string dumpToDot;
     std::string device_id;
@@ -110,6 +111,7 @@ struct Config {
     ov::intel_cpu::TbbPartitioner tbbPartitioner = ov::intel_cpu::TbbPartitioner::NONE;
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy;
     bool enableTensorParallel = false;
+    bool multiAppThreadSyncExecution = false;
     int streamsRankLevel = 1;
     int numSubStreams = 0;
     bool enableNodeSplit = false;
@@ -134,6 +136,8 @@ struct Config {
     bool DAZOn = false;
 
     void readProperties(const ov::AnyMap& prop, ModelType modelType = ModelType::Unknown);
+
+    void normalizeMultiAppThreadSyncExecution();
 
     void updateProperties();
 
