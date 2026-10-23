@@ -3,6 +3,8 @@
 #
 
 set(GPU_CM_IMPL_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/fully_connected_woq_u2.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/fully_connected_woq_u2.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/cm_attention_common.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/cm_pa_xe1.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/cm_pa_xe2.hpp
@@ -40,6 +42,8 @@ set(GPU_CM_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/pa_single_token_finalization.cm
     ${CMAKE_CURRENT_LIST_DIR}/pa_small_q.cm
     ${CMAKE_CURRENT_LIST_DIR}/pa_small_q_finalization.cm
+    ${CMAKE_CURRENT_LIST_DIR}/woq_u2_gemm_dual.cm
+    ${CMAKE_CURRENT_LIST_DIR}/woq_u2_gemm_dual_gemv.cm
     ${CMAKE_CURRENT_LIST_DIR}/xattn_find_block.cm
     ${CMAKE_CURRENT_LIST_DIR}/xattn_gemm_qk.cm
     ${CMAKE_CURRENT_LIST_DIR}/xattn_post_proc.cm

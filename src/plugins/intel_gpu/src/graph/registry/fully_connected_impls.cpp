@@ -18,6 +18,10 @@
 #    define OV_GPU_CREATE_INSTANCE_TERNOCL(...)
 #endif
 
+#if OV_GPU_WITH_CM
+    #include "impls/cm/fully_connected_woq_u2.hpp"
+#endif
+
 namespace ov::intel_gpu {
 
 using namespace cldnn;
@@ -34,6 +38,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<fully
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
         OV_GPU_CREATE_INSTANCE_TERNOCL(cldnn::ocl::TernoclInt2FCImplementationManager, shape_types::dynamic_shape)
         OV_GPU_CREATE_INSTANCE_TERNOCL(cldnn::ocl::TernoclInt2FCImplementationManager, shape_types::static_shape)
+        OV_GPU_CREATE_INSTANCE_CM(cm::FullyConnectedWoqU2ImplementationManager, shape_types::any)
         OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::FullyConnectedImplementationManager, shape_types::static_shape)
         OV_GPU_GET_INSTANCE_OCL(fully_connected, shape_types::static_shape,
             [](const program_node& node) {

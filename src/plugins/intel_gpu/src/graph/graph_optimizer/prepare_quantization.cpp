@@ -545,11 +545,12 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
     return true;
 }
 
-static void optimize_weights_decompression_parameters(fully_connected_node& fc_node, program& p) {
+std::vector<program_node*> cldnn::reorder_fc_decompression_params_if_needed(fully_connected_node& fc_node, program& p) {
     auto fc_prim = fc_node.get_primitive();
+    std::vector<program_node*> new_reorders;
     // Grouped scale/zp of non-transposed weights [K, N] are [K / G, N], so they already have the [groups, N] physical layout.
     if (!fc_prim->compressed_weights || !fc_prim->weights_transposed)
-        return;
+        return new_reorders;
 
     auto reorder_bfyx = [&](size_t dep_id, cldnn::format format) {
         auto& dep = fc_node.get_dependency(dep_id);
@@ -558,6 +559,7 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
         auto reorder_prim = std::make_shared<reorder>(dep.id() + "_reorder_" + fc_node.id(), dep.id(), target_layout);
         p.add_intermediate(reorder_prim, fc_node, dep_id, true);
         fc_node.get_dependency(dep_id).recalc_output_layout(false);
+        new_reorders.push_back(&fc_node.get_dependency(dep_id));
     };
 
     auto need_reorder = [&](size_t dep_id, size_t weight_rank, bool transpose_b_param) {
@@ -605,6 +607,15 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
             reorder_bfyx(decompression_zp_idx, format);
         }
     }
+    return new_reorders;
+}
+
+static void optimize_weights_decompression_parameters(fully_connected_node& fc_node, program& p) {
+    // u2: the scale/zp layout depends on the selected impl (CM needs bfyx [N, G]); decided in select_preferred_formats.
+    if (defer_u2_decompression_reorder(fc_node))
+        return;
+
+    reorder_fc_decompression_params_if_needed(fc_node, p);
 }
 
 // Reorder per-group scales/zp to byfx so physical layout is [E, G, N, 1] (N innermost for SIMD reads).
