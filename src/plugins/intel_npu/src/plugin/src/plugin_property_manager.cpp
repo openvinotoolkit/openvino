@@ -97,6 +97,16 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu
     }
 }
 
+// Platform -> PCI device IDs this plugin's compiler can compile for offline. Single source of truth
+// shared with backend/src/zero_device.cpp - see intel_npu::utils::getKnownPlatforms().
+std::vector<ov::CompilationTarget> getOfflineCompilationTargets() {
+    std::vector<ov::CompilationTarget> targets;
+    for (const auto& entry : intel_npu::utils::getKnownPlatforms()) {
+        targets.push_back({std::string(entry.platform), entry.deviceIds});
+    }
+    return targets;
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -480,6 +490,7 @@ void PluginPropertyManager::registerProperties() {
 
     registerConfigProperty(BYPASS_UMD_CACHING{}, true);
     registerConfigProperty(CACHE_DIR{}, true);
+    registerConfigProperty(COMPILATION_TARGET{}, true);
     registerConfigProperty(DEFER_WEIGHTS_LOAD{}, true);
     registerConfigProperty(MODEL_PRIORITY{}, true);
     registerConfigProperty(NUM_STREAMS{}, true);
@@ -808,6 +819,22 @@ void PluginPropertyManager::registerProperties() {
     }, readOnlySetter);
     register_property(ov::available_devices.name(), true, ov::PropertyMutability::RO, alwaysSupported, [this](const ov::AnyMap&) {
         return _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
+    }, readOnlySetter);
+    register_property(ov::offline_compilation_targets.name(), true, ov::PropertyMutability::RO, alwaysSupported, [](const ov::AnyMap& arguments) {
+        auto targets = getOfflineCompilationTargets();
+        // Filtering happens on the plugin's own table alone - independent of any device descriptor, so it
+        // stays answerable with no backend and no device present.
+        const auto platformIt = arguments.find(ov::intel_npu::platform.name());
+        if (platformIt != arguments.end()) {
+            const auto requestedPlatform = platformIt->second.as<std::string>();
+            targets.erase(std::remove_if(targets.begin(),
+                                         targets.end(),
+                                         [&requestedPlatform](const ov::CompilationTarget& target) {
+                                             return target.platform != requestedPlatform;
+                                         }),
+                          targets.end());
+        }
+        return targets;
     }, readOnlySetter);
     register_property(ov::hint::model.name(), true, ov::PropertyMutability::RW,
         [this](const ov::AnyMap&) {

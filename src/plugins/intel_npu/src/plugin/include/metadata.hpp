@@ -477,4 +477,40 @@ std::unique_ptr<MetadataBase> read_metadata_from(BlobSource& source);
 
 std::unique_ptr<MetadataBase> read_as_text(std::string_view input);
 
+/**
+ * @brief Magic bytes closing a blob container. Its last bytes differ from MAGIC_BYTES on purpose: plugins that do not
+ * know the container format reject it as a blob without NPU metadata.
+ */
+constexpr std::string_view CONTAINER_MAGIC_BYTES = "OVNPUC";
+
+/**
+ * @brief One complete NPU blob stored inside a container, exactly as it would be exported on its own.
+ */
+struct ContainerEntry {
+    /// Position of the entry relative to the beginning of the container
+    uint64_t offset;
+    uint64_t size;
+    /// Used to pick the entry the attached device can run. Empty if the entry has none.
+    std::string compatibilityDescriptor;
+};
+
+/**
+ * @brief Writes the directory and the footer of a container. The entries themselves are written by the caller.
+ * @details Container layout:
+ * [entry 0][padding][entry 1]...[entry N-1][directory][directory size (uint64_t)][CONTAINER_MAGIC_BYTES]
+ * Directory layout: version (uint32_t), entry count (uint64_t), then for each entry: offset (uint64_t), size
+ * (uint64_t), descriptor length (uint64_t), descriptor bytes.
+ */
+void write_container_directory(std::ostream& stream, const std::vector<ContainerEntry>& entries);
+
+/**
+ * @brief Reads the directory of a container.
+ * @details The container is expected to span from the current position of the cursor to the end of the source. The
+ * cursor is restored before returning.
+ *
+ * @return The entries, or `std::nullopt` if the source does not end with the container magic bytes.
+ * @throws ov::Exception if the source is a container, but its directory is invalid.
+ */
+std::optional<std::vector<ContainerEntry>> read_container_directory(BlobSource& source);
+
 }  // namespace intel_npu
