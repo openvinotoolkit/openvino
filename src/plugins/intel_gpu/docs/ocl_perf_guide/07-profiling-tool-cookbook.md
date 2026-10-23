@@ -43,6 +43,11 @@ TEST_USE_SDPA_OCL_HPG=1 PA_PERF_DEVICE_MEM=1 PA_PERF_ITERS=10 \
 - **Which cache did the model use?** 4-bit-weight PagedAttention models get a u4 KV cache by default. `OV_KV_CACHE_PRECISION=i8` forces i8; confirm that it took effect from the changed hash suffix of `pa_kv_cache_update_ref__<hash>` / `sdpa_ocl_decode__<hash>`.
 - **Host-API census.** `cliloader -h` counts every OpenCL call (`clSetKernelArg`, `clFlush`, USM allocations, memcpy) per process; dividing by the decode steps compares two builds per token. An LD_PRELOAD shim that timestamps `clEnqueueNDRangeKernel`/`clFinish`/`clFlush` and splits at syncs gives the per-step kernel sequence (`test/ttft32/shim/libclshim.so`).
 
+- **Parse stderr, not the dumped report, for real-model runs** (2026-10-23): with `CLI_DumpDir` the dumped `clintercept_report.txt` was
+  truncated/overwritten by a second process of the same llm_bench run, while the "Device Performance Timing" block printed to stderr was
+  complete. `test/longctx/kern_an.py` (per kernel family, ms per prefill, `LAYERS=`), `sdpa_an.py` (per-call us + REG/SLM/SPILL/GWS/LWS),
+  `g4_an.py` (splits a mixed-head model's sdpa lines by heads = GWS1/LWS1 and per-hash call counts).
+
 ### Kernel source/binary dump (getting the reference kernel exactly)
 
 ```bash

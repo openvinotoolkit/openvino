@@ -15,6 +15,7 @@ Details and evidence: `src/plugins/intel_gpu/docs/ocl_perf_guide/09-general-less
 5. **live range and GRF/occupancy** — 256 GRF halves occupancy. Never adopt on spill 0 alone.
 6. Only then tile/prefetch/SLM tuning. (Textbook tuning was within the last 10%.)
 7. If only short lengths are slow, it is a wave/prologue/pre-pass fixed cost → tiny geometry per length.
+   If the gap **grows** with length, first check whether the per-call kernel ratio is constant and only the kernel's share grows (attention is quadratic): qwen3-8b 1.4x at every length became +2%..+24% e2e (`docs/ocl_perf_guide/01` §6.6).
 8. If IGC sinks loads and latency is exposed, go native (vISA) — `xe-visa-inline-asm`.
 
 ## Design principles
@@ -23,6 +24,7 @@ Details and evidence: `src/plugins/intel_gpu/docs/ocl_perf_guide/09-general-less
 - Reducing branches is not the same as removing tail code: clamped whole-SV (always run fully + mask) can be faster, but KQ skip gives NaN under some lowerings.
 - Separate settings for small shapes (Q8/K64/128 GRF). Instead of one fixed tile, a `(head, Qheads, KVheads, max_len)` selection policy; for multiple sequences, select by the **maximum length**.
 - Head count and head size are independent axes — an improvement on one shape hides a defect on another.
+- Mirror the reference's **workgroup** tile per head size (K/V re-read = seq / wgTQ), then pipeline the loop like it (branchless exp, prefetch inside a split barrier, last-tile mask). Check every head size a model mixes (gemma-4: 256 + 512); one left on the old tile made the model 2.2x slower.
 - A pre-pass (external layout rearrangement) is for diagnosis; if replacing it is the goal, solve it inside the kernel (fixed cost 44–110 µs).
 - Measure HW facts first (DPAS 1 in-flight, L1 prefetch hurts, SLM 47.7 KB → occupancy halved).
 
