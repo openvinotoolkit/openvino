@@ -238,12 +238,22 @@ bool convert_function_precision(ov::pass::PassBase& pass,
                                 bool names_compatibility_mode) {
     bool is_output_precision_changed = false;
 
-    if (keep_sensitive_in_fp32 && precisions.count(element::f32) && precisions.at(element::f32) == element::f16) {
+    const auto fp32_target = precisions.count(element::f32) ? precisions.at(element::f32) : element::dynamic;
+    if (keep_sensitive_in_fp32 && (fp32_target == element::f16 || fp32_target == element::bf16)) {
         pass::Manager manager(pass.get_pass_config(), "KeepPrecisionSensitiveInFP32");
         // Mark subgraphs with disable_fp16_compression to keep them in FP32
         manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
         manager.register_pass<pass::AlignMixedFP32FP16Types>();
         manager.run_passes(f);
+
+        // The passes above tag nodes for f16 only; bf16 has fewer mantissa bits, so the same
+        // subgraphs must stay in f32.
+        if (fp32_target == element::bf16) {
+            for (const auto& node : f->get_ordered_ops()) {
+                if (is_conversion_disabled(node, element::f16))
+                    disable_conversion(node, element::bf16);
+            }
+        }
     }
 
     ov::element::TypeVector orig_result_types;
@@ -1353,6 +1363,10 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
             new_const = change_constant_precision<ov::element::Type_t::f32, ov::element::Type_t::f16>(constant);
         } else if (from == ov::element::f16 && to == ov::element::f32) {
             new_const = change_constant_precision<ov::element::Type_t::f16, ov::element::Type_t::f32>(constant);
+        } else if (from == ov::element::f32 && to == ov::element::bf16) {
+            new_const = change_constant_precision<ov::element::Type_t::f32, ov::element::Type_t::bf16>(constant);
+        } else if (from == ov::element::f16 && to == ov::element::bf16) {
+            new_const = change_constant_precision<ov::element::Type_t::f16, ov::element::Type_t::bf16>(constant);
         } else if (from == ov::element::boolean && to == ov::element::u8) {
             new_const = change_constant_precision<ov::element::Type_t::boolean, ov::element::Type_t::u8>(constant);
         } else if (from == ov::element::boolean && to == ov::element::i32) {
