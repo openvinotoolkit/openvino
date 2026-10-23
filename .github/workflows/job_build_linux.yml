@@ -31,6 +31,11 @@ on:
         description: 'A string of options passed to CMake'
         type: string
         required: true
+      sccache-dir:
+        description: 'Optional SCCACHE_DIR for the local sccache cache; default sccache location is used when empty'
+        type: string
+        required: false
+        default: ''
       build-js:
         description: 'Whether to build OpenVINO JS Bindings'
         type: boolean
@@ -158,6 +163,13 @@ jobs:
           echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
           echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
           echo "✓ Connection string loaded and masked"
+
+      - name: Set sccache directory
+        if: ${{ inputs.sccache-dir != '' }}
+        shell: bash
+        env:
+          SCCACHE_DIR_VALUE: ${{ inputs.sccache-dir }}
+        run: echo "SCCACHE_DIR=${SCCACHE_DIR_VALUE}" >> $GITHUB_ENV
 
       - name: Clone OpenVINO (with trace)
         if: ${{ inputs.os == 'fedora_29' }} # to debug ticket 160901
