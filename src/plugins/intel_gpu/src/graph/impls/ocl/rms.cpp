@@ -57,7 +57,8 @@ struct rms_impl : typed_primitive_impl_ocl<rms> {
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
-        return impl_params;
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+        return updated_impl_params;
     }
 
     kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
