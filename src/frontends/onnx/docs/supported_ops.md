@@ -128,7 +128,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |OptionalGetElement                                      |                        |18, 15                          |                                |
 |                        |OptionalHasElement                                      |                        |18, 15                          |                                |
 |                        |Or                                                      |1                       |7, 1                            |                                |
-|                        |PRelu                                                   |1                       |16, 9, 7, 6, 1                  |                                |
+|                        |PRelu                                                   |7, 1                    |16, 9, 7, 6, 1                  |                                |
 |                        |Pad                                                     |11, 1                   |21, 19, 18, 13, 11, 2, 1        |                                |
 |                        |Pow                                                     |1                       |15, 13, 12, 7, 1                |                                |
 |                        |QLinearConv                                             |10                      |10                              |                                |
