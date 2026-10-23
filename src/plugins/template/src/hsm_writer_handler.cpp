@@ -22,7 +22,7 @@ namespace ov::template_plugin {
 
 namespace {
 // Page-aligned start keeps the large sections mmap/DMA friendly; no slot padding, nothing follows that needs it.
-constexpr runtime::hsm::SectionAlignment page_alignment{util::min_page_alignment, 1};
+constexpr runtime::hsm::SectionAlignment page_alignment{util::min_page_alignment, 0};
 
 // Forwards written chunks to a sink (may be empty) and tracks the position for tellp(); never stores data.
 class ForwardingStreamBuf final : public std::streambuf {
