@@ -2,27 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/gated_residual.hpp"
+#include "intel_gpu/op/gated_residual.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/gated_residual.hpp"
 
-// NOTE: unlike most other gpu_opset ops in this directory, GatedResidual is lowered from
-// the base ov::op::internal::GatedResidual type
-// (src/core/dev_api/openvino/op/gated_residual.hpp) rather than from
-// ov::intel_gpu::op::GatedResidual directly. ov::intel_gpu::op::GatedResidual
-// ("gpu_opset") publicly inherits from it and adds no new fields/behavior, so
-// ProgramBuilder::CreateSingleLayerPrimitive's type_info->parent walk already dispatches
-// gpu_opset GatedResidual nodes to a factory registered for the base type - no separate
-// exact-match registration (and no
-// `using GatedResidual = ov::intel_gpu::op::GatedResidual;` alias hack, which would now
-// conflict with the real ov::op::internal::GatedResidual class) is needed. This lets
-// plain REGISTER_FACTORY_IMPL keep working unmodified, exactly like every other op in
-// this directory.
+namespace ov::op::internal {
+using GatedResidual = ov::intel_gpu::op::GatedResidual;
+}  // namespace ov::op::internal
 
 namespace ov::intel_gpu {
 
-static void CreateGatedResidualOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::GatedResidual>& op) {
+static void CreateGatedResidualOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::GatedResidual>& op) {
     validate_inputs_count(op, {3, 4, 5});
     const auto inputs = p.GetInputInfo(op);
     const auto layer_name = layer_type_name_ID(op);
