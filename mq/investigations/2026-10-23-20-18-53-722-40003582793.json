@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-23-20-18-53-722-40003582793",
+  "timestamp": "2026-10-23T20:18:53Z",
+  "run_id": "40003582793",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/40003582793",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "38825",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38825",
+  "author": "almilosz",
+  "category": "Code Issue",
+  "title": "smoke_ScatterUpdateGeneralPathOutOfRangeIndices tests fail - reference plugin doesn't throw on out-of-range indices",
+  "signature": "scatterupdatelayercpuerrorconditiontest throwsonoutofrangeindices expected exception ov exception not thrown generalpathoutofrangeindices|Code Issue",
+  "signature_hash": "e746e8e11c0fe156",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "4 ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices parametrized cases fail: calculate_refs() (TEMPLATE/interpreter reference) does not throw ov::Exception for out-of-range scatter indices, although the CPU plugin does."
+    }
+  ],
+  "key_errors": [
+    "C:\\...\\src\\plugins\\intel_cpu\\tests\\functional\\custom\\single_layer_tests\\scatter_update.cpp(145): error: Failed\nExpected exception ov::Exception\n[  FAILED  ] smoke_ScatterUpdateGeneralPathOutOfRangeIndices/ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices/f32_IS=[8.4]_[2.4]_TS=((8.4)_)_((2.4)_)_indices_shape=[2]_indices_values=(0.100000)axis=0_idx_precision=i64"
+  ],
+  "root_cause": "PR #38297 (merged 2026-10-13) added CPU-side bounds checks for ScatterUpdate/GatherND indices plus new ThrowsOnOutOfRangeIndices tests that assert BOTH the CPU plugin AND the reference/TEMPLATE computation (calculate_refs(), line 145 in scatter_update.cpp) throw ov::Exception for out-of-range indices. The CPU plugin now correctly throws (CPU_NODE_ASSERT in src/plugins/intel_cpu/src/nodes/scatter_update.cpp), but the shared reference implementation at src/core/reference/include/openvino/reference/scatter_update.hpp does contain an OPENVINO_ASSERT bounds check on slice_index against axis_size - this should throw too. The test uses the smoke_ScatterUpdateGeneralPathOutOfRangeIndices params (indices {0, 100000} on axis 0 of an {8,4} tensor), meaning get_plugin_outputs() throws (CPU-side) but calculate_refs() apparently does not raise, which is the actual failing assertion per the log. This points to a gap between the CPU_NODE_ASSERT path (checked per full index tensor via out_of_range_flags before the scatterUpdate() call) and the reference/interpreter backend used by calculate_refs(), which likely computes references through a different evaluation path (e.g. via SubgraphBaseTest's reference function using the CPU-compiled graph outputs as 'expected', or TEMPLATE plugin which may not wire OPENVINO_ASSERT failures into an expected ov::Exception in this harness). The failure is unrelated to the current PR #38825 (which only touches src/plugins/intel_npu/.../npu_skip_func_tests.xml and base_func_tests properties test files for WO (write-only) properties) - it is a pre-existing gap in test coverage/implementation introduced by #38297 on master, surfaced here because this merge-queue run rebases PR #38825 onto the latest master.",
+  "reproduction_steps": "1. Checkout openvinotoolkit/openvino at or after commit 2f44767919c2e0ea2a38b0d6dc68a5376e221bac.\n2. Build CPU plugin tests (ov_cpu_func_tests target).\n3. Run: ov_cpu_func_tests --gtest_filter=*smoke_ScatterUpdateGeneralPathOutOfRangeIndices*ThrowsOnOutOfRangeIndices*\n4. Observe calculate_refs() does not raise ov::Exception while get_plugin_outputs() (CPU) does.",
+  "recommended_actions": [
+    "Add a unit test for ov::reference::scatter_update() directly to confirm the OPENVINO_ASSERT bounds check in src/core/reference/include/openvino/reference/scatter_update.hpp actually fires for indices {0, 100000} on an axis of size 8.",
+    "Inspect how SubgraphBaseTest::calculate_refs() invokes the reference/interpreter backend for ScatterUpdate in src/tests/functional/shared_test_classes - confirm OPENVINO_ASSERT exceptions thrown during evaluation are not swallowed or converted to a non-ov::Exception type before reaching OV_EXPECT_THROW.",
+    "If the interpreter path for ScatterUpdate uses a different/older reference function without the bounds check, add the same bounds validation there.",
+    "Re-run the two newly introduced test suites (smoke_ScatterUpdate1DFastPathOutOfRangeIndices and smoke_ScatterUpdateGeneralPathOutOfRangeIndices) from PR #38297 in isolation on Windows to confirm reproducibility outside the merge queue.",
+    "Consider temporarily disabling/skipping the 4 failing General-path parametrized cases via skip_tests_config while the reference-path bug is fixed, to unblock the merge queue."
+  ],
+  "prevention_strategies": "When adding a new error-condition test that asserts both plugin and reference-computation throw (OV_EXPECT_THROW on both get_plugin_outputs() and calculate_refs()), explicitly verify in CI (or locally with a manual run of calculate_refs()) that the reference path actually throws before merging, since reference/interpreter evaluation paths are not always obviously covered by code review of the plugin-side fix alone.",
+  "historical_context": "No prior CI Doctor MQ investigation record referenced ScatterUpdate/scatter_update.cpp failures; this is the first recorded occurrence of this specific signature."
+}
