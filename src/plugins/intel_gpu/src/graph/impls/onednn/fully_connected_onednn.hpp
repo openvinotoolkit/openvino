@@ -84,7 +84,10 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                 const bool is_wei_compressed = one_of(wei_dt, {ov::element::Type_t::i4, ov::element::Type_t::u4, ov::element::Type_t::u8});
                 const bool is_zp_compressed = one_of(decompression_zp_dt, {ov::element::Type_t::i4, ov::element::Type_t::u4,
                                                     ov::element::Type_t::u8, ov::element::Type_t::i8});
-                if (!is_wei_compressed || !is_zp_compressed) {
+                // A floating-point zero point that prepare_quantization replaced by zp * scale for the static_sbzp mode
+                const bool is_zp_after_scale = fc_prim->decompression_zero_point_after_scale && decompression_zp_dt == in0_dt &&
+                                               one_of(out_dt, {data_types::f16, data_types::bf16, data_types::f32});
+                if (!is_wei_compressed || (!is_zp_compressed && !is_zp_after_scale)) {
                     LOG_AND_RETURN_FALSE(node);
                 }
             }
