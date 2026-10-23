@@ -25,11 +25,13 @@ converters; builders and validation differ. Registration or conversion alone nev
 | Add or port an architecture | [architectures.md](../../../src/frontends/gguf/docs/architectures.md) and the [family contract](references/validation.md#family-contract); [extensions.md](../../../src/frontends/gguf/docs/extensions.md) when shipping it as a plugin |
 | Add or replace an mmproj branch | [extensions.md](../../../src/frontends/gguf/docs/extensions.md#extend-mmproj-with-a-projector-component), then the graph contracts in [mmproj.md](../../../src/frontends/gguf/docs/mmproj.md) and [multimodal contracts](references/validation.md#multimodal-contracts) |
 | Missing ggml operation or `op_case` | [how_to_add_op.md](../../../src/frontends/gguf/docs/how_to_add_op.md) |
+| Validate generated text or quantized model quality | [WWB model validation](references/wwb.md); compare both backends with the same original-weight floating reference |
 | Wrong numbers | [debugging_accuracy.md](../../../src/frontends/gguf/docs/debugging_accuracy.md) |
 | GenAI/mmproj token, media or PA mismatch | [multimodal integration bisection](../../../src/frontends/gguf/docs/debugging_accuracy.md#multimodal-integration-bisection) and [multimodal contracts](references/validation.md#multimodal-contracts) |
 | Unsupported weight type | [quantization.md](../../../src/frontends/gguf/docs/quantization.md); the fix belongs in `src/quant/`, not a builder |
 | Build, run tests, regenerate fixtures | [testing.md](../../../src/frontends/gguf/docs/testing.md) |
 | Run or resume GGUF validation across OpenVINO, GenAI and llama.cpp | [validation.md](references/validation.md); use existing GHA workflows and focused local tests, preserving revisions, coverage and failures |
+| Preflight selected tests, fixtures or an overlay link | [executable checks](references/preflight.md); reject missing cases before a broad batch |
 
 ## Easy to miss
 
@@ -44,7 +46,8 @@ converters; builders and validation differ. Registration or conversion alone nev
   `GGUFArchConversion` skips without generated headers unless `OV_GGUF_REQUIRE_ARCH_FIXTURES=1`
   requires them; generate them with [gen_arch_fixtures.py](../../../src/frontends/gguf/tests/gen_arch_fixtures.py) `--fetch`.
   Check actual selected counts and skips; registration, conversion, decoder numerics and
-  GenAI media/API integration establish different levels of support.
+  GenAI media/API integration establish different levels of support. Enforce required IDs/counts
+  with the [coverage helper](references/preflight.md); zero selected tests are not a pass.
 - **References.** Layout-sensitive expectations come from real ggml CPU via a committed oracle under
   `tests/`, with several heads/tokens and unequal Q/KV dimensions; NumPy or single-head tests can
   share the bug. Do not tighten `expect_near` tolerances from an x86-only run.
@@ -56,8 +59,11 @@ converters; builders and validation differ. Registration or conversion alone nev
   explicit. Report quantized-CPU and represented-F32 comparisons separately and keep failed results.
   `GGML_OPENVINO_*` variables configure only the llama.cpp backend.
   Inspect tensor-type inventory rather than checkpoint names. Identical quantized weights do
-  not rule out CPU arithmetic differences; exact expansions isolate them but do not waive the
-  original parity gate. Shared exported-model layout does not imply identical media geometry.
+  not rule out CPU arithmetic differences; exact expansions isolate them. Use
+  [WWB](references/wwb.md) for quantized text-quality acceptance; token/logit divergence alone
+  does not block model support when graph and integration checks pass and WWB shows no material
+  additional loss versus llama.cpp. Retain numerical failures as diagnostics.
+  Shared exported-model layout does not imply identical media geometry.
 - **Shared changes.** Translator, VIEW/`op_case` or shared block changes rerun
   `GGUFArchitectureAccuracy`, `GGUFArchConversion` and the mmproj suites, not just the target model.
 - **Long runs.** Redirect output to a file, keep the launched PID and stop only that process. Large Q2
@@ -67,5 +73,6 @@ converters; builders and validation differ. Registration or conversion alone nev
   for overlays or multiple worktrees; version strings and `ldd` alone do not prove execution identity.
 - **Validation batches.** Extend shared-path regression checks to tokenizer, mask and PA changes
   with representative SDPA/PA/media/chat cases. The [validation guide](references/validation.md)
-  separates numerical parity, model quality and Optimum compatibility; a known arithmetic
-  difference remains a failed parity check unless the user changes the acceptance contract.
+  separates numerical parity, model quality and Optimum compatibility. Keep a failed parity
+  result even when WWB establishes acceptable quality; claim support for the measured model,
+  device, quantization and modality rather than requiring identical free-running tokens.

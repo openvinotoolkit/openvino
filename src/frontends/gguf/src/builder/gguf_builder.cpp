@@ -64,6 +64,9 @@ GraphBuilder load_gguf_builder(const std::string& file, const ArchRegistry& regi
     // Family detection is only a diagnostic fallback; it must not reject a registered family.
     const auto definition = registry.find(meta_view);
     if (!definition) {
+        OPENVINO_ASSERT(!is_qwen3_asr(meta_view),
+                        "[GGUF] native GGUF builder does not support the Qwen3 ASR subtype tagged "
+                        "'automatic-speech-recognition'. Register an ArchitectureExtension.");
         const auto kind = detect_model_kind(metadata);
         OPENVINO_ASSERT(kind == ModelKind::DECODER,
                         "[GGUF] no builder for ",

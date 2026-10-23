@@ -62,6 +62,11 @@ def main():
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--pid", type=int, default=os.getpid())
     args = parser.parse_args()
+    same_file = args.output.resolve() == args.expected.resolve()
+    if args.output.exists() and args.expected.exists():
+        same_file = same_file or os.path.samefile(args.output, args.expected)
+    if same_file:
+        parser.error("output must not overwrite the expected library manifest")
     record_identity(json.loads(args.expected.read_text()), args.output, args.pid)
 
 

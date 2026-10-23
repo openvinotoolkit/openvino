@@ -25,6 +25,10 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "ov_ops/gather_matmul.hpp"
+#include "transformations/rt_info/decompression.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
@@ -323,13 +327,82 @@ ov::Output<ov::Node> translate_mul_mat_id_generic(ov::Output<ov::Node> expert_we
     return result;
 }
 
+std::shared_ptr<ov::op::v0::Constant> half_expert_constant(const ov::Output<ov::Node>& weights) {
+    auto source = weights;
+    if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(source.get_node_shared_ptr())) {
+        if (convert->get_destination_type() != ov::element::f32) {
+            return nullptr;
+        }
+        source = convert->input_value(0);
+    }
+    auto constant = ov::as_type_ptr<ov::op::v0::Constant>(source.get_node_shared_ptr());
+    if (!constant ||
+        (source.get_element_type() != ov::element::f16 && source.get_element_type() != ov::element::bf16)) {
+        return nullptr;
+    }
+    const auto& shape = constant->get_shape();
+    if (shape.size() != 3 && (shape.size() != 4 || shape[0] != 1)) {
+        return nullptr;
+    }
+    return constant;
+}
+
+ov::Output<ov::Node> translate_mul_mat_id_half(std::shared_ptr<ov::op::v0::Constant> weights,
+                                               ov::Output<ov::Node> activations,
+                                               ov::Output<ov::Node> ids) {
+    auto shape = weights->get_shape();
+    if (shape.size() == 4) {
+        shape.erase(shape.begin());
+        weights = std::make_shared<ov::op::v0::Constant>(*weights, shape);
+    }
+    // Gather in storage precision so only selected experts are expanded to F32.
+    ov::enable_keep_const_precision(weights);
+    ov::disable_conversion(weights, weights->get_element_type(), ov::element::f32);
+    const auto ids_rank = static_cast<int>(ids.get_partial_shape().size());
+    auto ids_shape = std::make_shared<ov::op::v3::ShapeOf>(ids, ov::element::i64);
+    ids = std::make_shared<ov::op::v1::Reshape>(ids, gather_dims(ids_shape, {ids_rank - 2, ids_rank - 1}), false);
+    if (ids.get_element_type() != ov::element::i32 && ids.get_element_type() != ov::element::i64) {
+        ids = std::make_shared<ov::op::v0::Convert>(ids, ov::element::i32);
+    }
+    const auto acts_rank = static_cast<int>(activations.get_partial_shape().size());
+    if (acts_rank == 2) {
+        activations = std::make_shared<ov::op::v0::Unsqueeze>(activations, const_i64({0}));
+    } else if (acts_rank != 3) {
+        auto acts_shape = std::make_shared<ov::op::v3::ShapeOf>(activations, ov::element::i64);
+        activations = std::make_shared<ov::op::v1::Reshape>(
+            activations,
+            gather_dims(acts_shape, {acts_rank - 3, acts_rank - 2, acts_rank - 1}),
+            false);
+    }
+    auto selected =
+        std::make_shared<ov::op::v8::Gather>(weights,
+                                             ids,
+                                             ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
+    ov::disable_conversion(selected, weights->get_element_type(), ov::element::f32);
+    auto expanded_weights = std::make_shared<ov::op::v0::Convert>(selected, ov::element::f32);
+    ov::mark_as_decompression(expanded_weights);
+    ov::disable_constant_folding(expanded_weights);
+
+    auto ids_shape_2d = std::make_shared<ov::op::v3::ShapeOf>(ids, ov::element::i64);
+    auto acts_shape = std::make_shared<ov::op::v3::ShapeOf>(activations, ov::element::i64);
+    auto per_expert = activations_per_expert(activations, acts_shape, ids, ids_shape_2d);
+    auto expanded_acts = std::make_shared<ov::op::v0::Unsqueeze>(per_expert, const_i64({2}));
+    auto result = std::make_shared<ov::op::v0::MatMul>(expanded_acts, expanded_weights, false, true);
+    auto output_shape =
+        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{const_i64({1}),
+                                                              gather_dims(ids_shape_2d, {0, 1}),
+                                                              const_i64({static_cast<int64_t>(shape[1])})},
+                                             0);
+    return std::make_shared<ov::op::v1::Reshape>(result, output_shape, false);
+}
+
 }  // namespace
 
 // GGML_OP_MUL_MAT_ID: per-token MoE expert matmul. ids select which expert row of the weight
 // tensor each token uses; activations are gathered/broadcast accordingly and matmul'd. Dispatch:
 //   - packed MXFP4 experts -> on-graph dequant + per-expert matmul;
-//   - constant-backed experts (the real .gguf models) -> internal GatherMatmul (compressed,
-//     memory-bounded, one fused batched matmul);
+//   - plain half constants -> Gather in half precision + F32 MatMul;
+//   - other constant-backed experts -> internal GatherMatmul;
 //   - non-constant experts (single-op tests / dynamic) -> portable Gather + MatMul fallback.
 OutputVector translate_mul_mat_id(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
@@ -347,12 +420,10 @@ OutputVector translate_mul_mat_id(const NodeContext& context) {
                                           context.get_name());
     }
 
-    // The CPU GatherMatmul node requires constant-backed weights. Real .gguf models feed a
-    // (possibly compressed) Constant weight leaf -> use the fused GatherMatmul path (compressed,
-    // memory-bounded). A non-constant weights input (single-op tests, dynamic producers) can't use
-    // GatherMatmul on CPU, so fall back to the portable Gather + MatMul lowering.
     ov::Output<ov::Node> result;
-    if (ov::op::util::is_on_path<ov::op::v0::Constant>(expert_weights)) {
+    if (auto half_weights = half_expert_constant(expert_weights)) {
+        result = translate_mul_mat_id_half(std::move(half_weights), activations, ids);
+    } else if (ov::op::util::is_on_path<ov::op::v0::Constant>(expert_weights)) {
         result = translate_mul_mat_id_gathermatmul(expert_weights, activations, ids);
     } else {
         result = translate_mul_mat_id_generic(expert_weights, activations, ids);

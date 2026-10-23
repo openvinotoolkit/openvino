@@ -293,8 +293,12 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
 
     // The architecture and projector metadata select what the GenAI adapters change, including
     // adapters registered as transformation extensions.
-    if (builder)
+    if (builder) {
         resulting_model->get_rt_info()["gguf_architecture"] = builder->get_attribute("architecture");
+        const auto info = builder->get_attribute("model_rt_info");
+        for (const auto& [key, value] : info.as<ov::AnyMap>())
+            resulting_model->get_rt_info()[key] = value;
+    }
     if (!gguf_model_decoder->get_mmproj_config().empty()) {
         resulting_model->get_rt_info()["gguf_mmproj"] = gguf_model_decoder->get_mmproj_config();
     }

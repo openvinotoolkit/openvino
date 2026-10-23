@@ -11,10 +11,12 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <sstream>
 
 #include "op_table.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/extractimagepatches.hpp"
 #include "openvino/op/eye.hpp"
@@ -23,6 +25,7 @@
 #include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/topk.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "utils.hpp"
@@ -281,6 +284,57 @@ INSTANTIATE_TEST_SUITE_P(GGUFOps,
                          [](const ::testing::TestParamInfo<GgmlRefCase>& i) {
                              return std::string(i.param.name);
                          });
+
+TEST(GGUFOps, StepIncludesNeitherZeroNorNegativeValues) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_UNARY_OP_STEP")
+                     .input("x", ov::element::f32, {1, 5})
+                     .output("out", ov::element::f32, {1, 5})
+                     .build();
+    auto output = run_on_cpu(model, {{"x", make_f32_tensor({1, 5}, {-2.f, -0.f, 0.f, 1e-6f, 3.f})}});
+    expect_near(output, {0.f, 0.f, 0.f, 1.f, 1.f}, 0.f);
+}
+
+TEST(GGUFOps, ConvTranspose1DAccumulatesOverlappingTaps) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CONV_TRANSPOSE_1D")
+                     .input("w", ov::element::f32, {2, 1, 3})
+                     .input("x", ov::element::f32, {1, 2, 2})
+                     .output("out", ov::element::f32, {1, 1, 5})
+                     .attr<int64_t>("stride", 2)
+                     .build();
+    auto output = run_on_cpu(model,
+                             {{"w", make_f32_tensor({2, 1, 3}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f})},
+                              {"x", make_f32_tensor({1, 2, 2}, {1.f, 2.f, 3.f, 4.f})}});
+    expect_near(output, {13.f, 17.f, 39.f, 24.f, 30.f}, 0.f);
+}
+
+TEST(GGUFOps, ConvTranspose1DPreservesChannelsAndDynamicLength) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CONV_TRANSPOSE_1D")
+                     .input("w", ov::element::f16, {1, 2, 3})
+                     .input("x", ov::element::f32, {1, 1, -1})
+                     .output("out", ov::element::f32, {1, 2, -1})
+                     .attr<int64_t>("stride", 2)
+                     .build();
+    ov::Core core;
+    auto request =
+        core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32)).create_infer_request();
+    ov::Tensor weights(ov::element::f16, {1, 2, 3});
+    const std::vector<float> taps{1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+    std::transform(taps.begin(), taps.end(), weights.data<ov::float16>(), [](float value) {
+        return ov::float16(value);
+    });
+    request.set_tensor("w", weights);
+    request.set_tensor("x", make_f32_tensor({1, 1, 2}, {1.f, 2.f}));
+    request.infer();
+    ASSERT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, 2, 5}));
+    expect_near(request.get_output_tensor(), {1.f, 2.f, 5.f, 4.f, 6.f, 4.f, 5.f, 14.f, 10.f, 12.f}, 0.f);
+    request.set_tensor("x", make_f32_tensor({1, 1, 1}, {3.f}));
+    request.infer();
+    ASSERT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, 2, 3}));
+    expect_near(request.get_output_tensor(), {3.f, 6.f, 9.f, 12.f, 15.f, 18.f}, 0.f);
+}
 
 // Scale: out = in * scale + bias (scale/bias in op-params slots 0,1).
 TEST(GGUFOps, Scale) {
@@ -2810,6 +2864,95 @@ TEST(GGUFOps, MultimodalPoolingAndConvolution) {
                     .attr<std::vector<int64_t>>("conv_params", {2, 2, 0, 0, 1, 1})
                     .build();
     expect_near(run_on_cpu(conv, {{"x", x}, {"w", make_f32_tensor({1, 1, 2, 2}, {1, 2, 3, 4})}}), {44, 64}, 1e-6f);
+}
+
+TEST(GGUFOps, Conv2DF16Im2colRoundingSurvivesSerialization) {
+    // Reference: pointwise_conv_oracle.cpp, ggml CPU F32/F16 convolution.
+    const std::vector<float> x{1.0003f, -2.0006f, 0.3334f, 2.0006f, 0.7002f, -1.0003f};
+    const std::vector<float> w{1.0003f, 0.3334f, -0.7002f, 1.0003f};
+    std::vector<float> expected(6);
+    for (size_t oc = 0; oc < 2; ++oc) {
+        for (size_t t = 0; t < 3; ++t) {
+            expected[oc * 3 + t] = float(ov::float16(w[oc * 2])) * float(ov::float16(x[t])) +
+                                   float(ov::float16(w[oc * 2 + 1])) * float(ov::float16(x[3 + t]));
+        }
+    }
+    for (const auto& weight_type : {ov::element::f32, ov::element::f16}) {
+        SCOPED_TRACE(weight_type.get_type_name());
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_CONV_2D")
+                         .input("w", weight_type, {2, 2, 1, 1})
+                         .input("x", ov::element::f32, {1, 2, 1, 3})
+                         .output("out", ov::element::f32, {1, 2, 1, 3})
+                         .attr<std::vector<int64_t>>("conv_params", {1, 1, 0, 0, 1, 1})
+                         .attr<bool>("im2col_precision_f16", true)
+                         .build();
+        const std::map<std::string, ov::Tensor> inputs{
+            {"x", make_f32_tensor({1, 2, 1, 3}, x)},
+            {"w",
+             weight_type == ov::element::f32 ? make_f32_tensor({2, 2, 1, 1}, w) : make_f16_tensor({2, 2, 1, 1}, w)}};
+        const auto check_rounding = [&](const std::shared_ptr<ov::Model>& candidate) {
+            size_t protected_casts = 0;
+            for (const auto& node : candidate->get_ordered_ops()) {
+                if (ov::is_conversion_disabled(node, ov::element::f16, ov::element::f32)) {
+                    ++protected_casts;
+                    EXPECT_TRUE(ov::is_type<ov::op::v0::Convert>(node));
+                    EXPECT_EQ(node->get_input_element_type(0), ov::element::f32);
+                    EXPECT_EQ(node->get_output_element_type(0), ov::element::f16);
+                }
+            }
+            EXPECT_EQ(protected_casts, 2);
+            expect_near(run_on_cpu(candidate, inputs), expected, 1e-6f);
+        };
+        check_rounding(model);
+        std::stringstream xml, bin;
+        ov::pass::Serialize(xml, bin).run_on_model(model);
+        ov::Core core;
+        check_rounding(core.read_model(xml.str(), ov::Tensor{}));
+    }
+}
+
+TEST(GGUFOps, Conv2DF16Im2colRoundingRequiresOptInAndSupportedWeightType) {
+    const std::vector<float> x{1.0003f, -2.0006f, 0.3334f, 2.0006f, 0.7002f, -1.0003f};
+    const std::vector<float> w{1.0003f, 0.3334f, -0.7002f, 1.0003f};
+    for (int scenario = 0; scenario < 4; ++scenario) {
+        SCOPED_TRACE(scenario);
+        const bool depthwise = scenario == 2;
+        const auto weight_type = scenario == 3 ? ov::element::bf16 : ov::element::f32;
+        const ov::Shape weight_shape = depthwise ? ov::Shape{2, 1, 1, 1} : ov::Shape{2, 2, 1, 1};
+        auto builder = SingleOpBuilder()
+                           .op("GGML_OP_CONV_2D")
+                           .input("w", weight_type, weight_shape)
+                           .input("x", ov::element::f32, {1, 2, 1, 3})
+                           .output("out", ov::element::f32, {1, 2, 1, 3})
+                           .attr<std::vector<int64_t>>("conv_params", {1, 1, 0, 0, 1, 1});
+        if (scenario != 0)
+            builder.attr<bool>("im2col_precision_f16", scenario != 1);
+        builder.attr<bool>("depthwise", depthwise);
+        auto model = builder.build();
+        for (const auto& node : model->get_ordered_ops()) {
+            EXPECT_FALSE(ov::is_conversion_disabled(node, ov::element::f16, ov::element::f32));
+            EXPECT_NE(node->get_output_element_type(0), ov::element::f16);
+        }
+        std::vector<float> represented_w = depthwise ? std::vector<float>{w[0], w[3]} : w;
+        ov::Tensor weights(weight_type, weight_shape);
+        if (weight_type == ov::element::bf16) {
+            for (size_t i = 0; i < represented_w.size(); ++i) {
+                weights.data<ov::bfloat16>()[i] = ov::bfloat16(represented_w[i]);
+                represented_w[i] = float(weights.data<ov::bfloat16>()[i]);
+            }
+        } else {
+            std::copy(represented_w.begin(), represented_w.end(), weights.data<float>());
+        }
+        std::vector<float> expected(6);
+        for (size_t oc = 0; oc < 2; ++oc) {
+            for (size_t t = 0; t < 3; ++t) {
+                expected[oc * 3 + t] = depthwise ? represented_w[oc] * x[oc * 3 + t]
+                                                 : represented_w[oc * 2] * x[t] + represented_w[oc * 2 + 1] * x[3 + t];
+            }
+        }
+        expect_near(run_on_cpu(model, {{"x", make_f32_tensor({1, 2, 1, 3}, x)}, {"w", weights}}), expected, 1e-6f);
+    }
 }
 
 TEST(GGUFOps, GeluErf) {

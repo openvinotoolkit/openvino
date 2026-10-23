@@ -27,8 +27,9 @@ SINGLE_GRID = ("gemma3", "gemma3_fused", "gemma3_legacy", "idefics3", "janus_pro
 # Single-grid models rerun here on two grids with different token counts.
 REGRIDDED = ("qwen2.5vl_merger_grids", "resampler_grids")
 TWO_GRID = ("muse-glimmer", "pixtral", "pixtral_merge", "phi4", "lfm2", "lfm2_no_norm", "lfm2a", "gemma4v", "gemma4uv", "gemma4uv_low_contrast",
-            "gemma4ua", "gemma4v_one_sided", "minicpmv4_6", "gemma4a", "deepseekocr", "deepseekocr2",
-            "deepseekocr_resize", "deepseekocr_overview", "deepseekocr2_overview", *REGRIDDED)
+            "gemma4ua", "gemma4v_one_sided", "minicpmv4_6", "minicpmv4_7", "minicpmv4_7_4x", "qwen3a", "qwen3tts_spkenc", "gemma3nv", "gemma4a", "deepseekocr", "deepseekocr2",
+            "deepseekocr_resize", "deepseekocr_overview", "deepseekocr2_overview", "gemma3nv_attention",
+            "gemma3nv_uir", *REGRIDDED)
 
 
 def write_single_grid_model(path, projector, projection_width=6):
@@ -275,7 +276,7 @@ def single_grid_width(projector):
     return 128 if projector.startswith("resampler") else 12 if projector == "qwen3vl_merger" else 6
 
 
-VARIANTS = ("_resize", "_overview", "_one_sided", "_low_contrast")
+VARIANTS = ("_resize", "_overview", "_one_sided", "_low_contrast", "_4x", "_uir")
 # mmproj_ops_oracle output file -> test_data .npy name.
 OPS_EXPECTATIONS = {
     "window_input": "mmproj_window_input", "windows": "mmproj_windows", "restored": "mmproj_restored",
@@ -373,11 +374,17 @@ def write_grid_model(path, family):
         family = "lfm2"
     if family == "muse-glimmer":
         return write_muse_model(path)
+    if family == "qwen3tts_spkenc":
+        return write_speaker_model(path)
+    attention_fixture = family == "gemma3nv_attention"
+    if attention_fixture:
+        family = "gemma3nv"
     family, variants = split_variants(family, *VARIANTS)
+    uir = "_uir" in variants
     one_sided = "_one_sided" in variants
     low_contrast = "_low_contrast" in variants
-    audio = family in {"gemma4ua", "gemma4a"}
-    width, heads, hidden, output = 16, 2, 24, 12
+    audio = family in {"gemma4ua", "gemma4a", "qwen3a"}
+    width, heads, hidden, output = 16, 2, 24, 16 if family == "gemma3nv" else 12
     prefix, modality = ("a.", "audio") if audio else ("v.", "vision")
     w = gguf.GGUFWriter(path, "clip")
     t = TensorWriter(w, np.random.default_rng(2718))
@@ -391,7 +398,49 @@ def write_grid_model(path, family):
                         "projection_dim": output, "attention.head_count": heads}.items():
         w.add_uint32(key + name, value)
     w.add_float32(key + "attention.layer_norm_epsilon", 1e-5)
-    if family == "gemma4a":
+    if family == "gemma3nv":
+        w.add_uint32(key + "image_size", 256)
+        w.add_uint32(key + "patch_size", 1)
+        w.add_array(key + "image_mean", [0., 0., 0.])
+        w.add_array(key + "image_std", [1., 1., 1.])
+        tensor("v.conv_stem.conv.weight", (width, 3, 3, 3))
+        tensor("v.conv_stem.bn.weight", (width,), True)
+        for stage in range(4):
+            p = f"v.blk.{stage}.0."
+            if stage == 0:
+                tensor(p + "conv_exp.weight", (width, width, 3, 3))
+                tensor(p + "conv_pwl.weight", (width, width, 1, 1))
+                norm(p + "bn1", width, False)
+                norm(p + "bn2", width, False)
+            else:
+                if uir and stage == 1:
+                    w.add_tensor(p + "dw_start.conv.weight",
+                                 t.rng.normal(0, t.std, (width, 1, 3, 3)).astype(np.float16))
+                    norm(p + "dw_start.bn", width, False)
+                else:
+                    tensor(p + "pw_exp.conv.weight", (width, width, 1, 1))
+                w.add_tensor(p + "dw_mid.conv.weight", t.rng.normal(0, t.std, (width, 1, 3, 3)).astype(np.float16))
+                tensor(p + "pw_proj.conv.weight", (width, width, 1, 1))
+                norms = ("dw_mid.bn", "pw_proj.bn") if uir and stage == 1 else (
+                    "pw_exp.bn", "dw_mid.bn", "pw_proj.bn")
+                for name in norms:
+                    norm(p + name, width, False)
+        if attention_fixture:
+            p = "v.blk.3.1."
+            norm(p + "norm", width, False)
+            for name, channels in (("query", width), ("key", width // 2), ("value", width // 2)):
+                tensor(p + "attn." + name + ".proj.weight", (channels, width, 1, 1))
+                if name != "query":
+                    w.add_tensor(p + "attn." + name + ".down_conv.weight",
+                                 t.rng.normal(0, t.std, (width, 1, 3, 3)).astype(np.float16))
+                    norm(p + "attn." + name + ".norm", width, False)
+            tensor(p + "attn.output.proj.weight", (width, width, 1, 1))
+        tensor("v.msfa.ffn.pw_exp.conv.weight", (width, width * 2, 1, 1))
+        tensor("v.msfa.ffn.pw_proj.conv.weight", (width, width, 1, 1))
+        for name in ("v.msfa.ffn.pw_exp.bn", "v.msfa.ffn.pw_proj.bn", "v.msfa.norm", "mm.soft_emb_norm"):
+            norm(name, width, False)
+        linear("mm.input_projection", width, output, False)
+    elif family == "gemma4a":
         w.add_uint32(key + "num_mel_bins", 8)
         for i, (ci, co) in enumerate(((1, 4), (4, 8))):
             tensor(f"a.conv1d.{i}.weight", (co, ci, 3, 3))
@@ -419,13 +468,32 @@ def write_grid_model(path, family):
         linear("a.pre_encode.out", width, width)
         norm("mm.a.soft_emb_norm", width, False)
         linear("mm.a.input_projection", width, output, False)
+    elif family == "qwen3a":
+        w.add_uint32(key + "num_mel_bins", 128)
+        w.add_uint32(key + "projector.stack_factor", 1)
+        for i, (ci, co) in enumerate(((1, 4), (4, 8), (8, 8)), 1):
+            tensor(f"a.conv2d.{i}.weight", (co, ci, 3, 3))
+            tensor(f"a.conv2d.{i}.bias", (co,))
+        linear("a.conv_out", 128, width, False)
+        tensor("a.position_embd.weight", (1500, width))
+        for i in range(2):
+            p = f"a.blk.{i}."
+            norm(p + "ln1", width)
+            norm(p + "ln2", width)
+            for name in ("attn_q", "attn_k", "attn_v", "attn_out"):
+                linear(p + name, width, width, name != "attn_k")
+            linear(p + "ffn_up", width, hidden)
+            linear(p + "ffn_down", hidden, width)
+        norm("a.post_ln", width)
+        linear("mm.a.mlp.1", width, hidden)
+        linear("mm.a.mlp.2", hidden, output)
     elif audio:
         w.add_uint32(key + "num_mel_bins", 640)
         linear("mm.a.input_projection", 640, output, False)
     else:
         w.add_uint32(key + "image_size", 8)
         w.add_uint32(key + "patch_size", 24 if low_contrast else 2)
-        w.add_uint32(key + "projector.scale_factor", 4 if family == "minicpmv4_6" else 2)
+        w.add_uint32(key + "projector.scale_factor", 4 if family.startswith("minicpmv4_") and "_4x" not in variants else 2)
         w.add_uint32(key + "image_min_pixels", 16)
         w.add_uint32(key + "image_max_pixels", 4096)
         w.add_array(key + "image_mean", [.5, .5, .5])
@@ -504,16 +572,19 @@ def write_grid_model(path, family):
                 w.add_uint32(key + "spatial_merge_size", 2)
                 norm("mm.input_norm", width, False)
                 linear("mm.patch_merger", width * 4, width, False)
-        elif family == "minicpmv4_6":
+        elif family in {"minicpmv4_6", "minicpmv4_7"}:
             tensor("v.position_embd.weight", (4900, width))
             w.add_array(key + "wa_layer_indexes", [0])
             p = "v.vit_merger."
-            norm(p + "ln1", width)
-            for name in ("attn_q", "attn_k", "attn_v", "attn_out"):
-                linear(p + name, width, width)
-            norm(p + "ds_ln", width * 4)
-            linear(p + "ds_ffn_up", width * 4, hidden)
-            linear(p + "ds_ffn_down", hidden, width)
+            if "_4x" not in variants:
+                norm(p + "ln1", width)
+                for name in ("attn_q", "attn_k", "attn_v", "attn_out"):
+                    linear(p + name, width, width)
+                norm(p + "ds_ln", width * 4)
+                linear(p + "ds_ffn_up", width * 4, hidden)
+                linear(p + "ds_ffn_down", hidden, width)
+            if family == "minicpmv4_7":
+                tensor("v.tok_embd_sep", (4, output))
             norm("mm.input_norm", width * 4)
             linear("mm.up", width * 4, hidden)
             linear("mm.down", hidden, output)
@@ -545,6 +616,37 @@ def write_grid_model(path, family):
     return output
 
 
+def write_speaker_model(path):
+    w = gguf.GGUFWriter(path, "clip")
+    w.add_bool("clip.has_audio_encoder", True)
+    w.add_string("clip.audio.projector_type", "qwen3tts_spkenc")
+    for name, value in {"embedding_length": 8, "block_count": 3, "num_mel_bins": 128,
+                        "attention.head_count": 1, "feed_forward_length": 16, "projection_dim": 8}.items():
+        w.add_uint32("clip.audio." + name, value)
+    w.add_float32("clip.audio.attention.layer_norm_epsilon", 1e-5)
+    t = TensorWriter(w, np.random.default_rng(3141), std=.02)
+
+    def conv(name, inp, out, kernel=1):
+        t.tensor(name + ".weight", (out, inp, kernel))
+        t.tensor(name + ".bias", (out,))
+
+    conv("a.conv1d.0", 128, 16, 5)
+    for layer in range(1, 4):
+        p = f"a.blk.{layer}."
+        conv(p + "conv_pw1", 16, 16)
+        conv(p + "conv_pw2", 16, 16)
+        conv(p + "se_conv1", 16, 4)
+        conv(p + "se_conv2", 4, 16)
+        for branch in range(7):
+            conv(p + f"res2.{branch}", 2, 2, 3)
+    conv("a.conv_out", 48, 24)
+    conv("a.asp_tdnn", 72, 8)
+    conv("a.asp_attn", 8, 24)
+    conv("mm.a.fc", 48, 8)
+    finish(w)
+    return 8
+
+
 def grid_inputs(family, width, height):
     if family == "lfm2a":
         raw = np.random.default_rng(42).normal(.1, .4, (height, width)).astype(np.float32)
@@ -559,13 +661,15 @@ def grid_inputs(family, width, height):
         return raw, {"pixel_values": raw.transpose(2, 0, 1)[None], **muse_glimmer_indices(height // 2, width // 2, 3)}
     family, variants = split_variants(family, *VARIANTS)
     overview = "_overview" in variants
-    raw = np.random.default_rng(42).normal(.1, .4, (height, width) if family in {"gemma4ua", "gemma4a"} else (height, width, 3)).astype(np.float32)
+    raw = np.random.default_rng(42).normal(.1, .4, (height, width) if family in {"gemma4ua", "gemma4a", "qwen3a", "qwen3tts_spkenc"} else (height, width, 3)).astype(np.float32)
     if "_low_contrast" in variants:
         raw[:] = np.array([27, 29, 32], np.float32) / 255
     if family == "gemma4ua":
         return raw, {"waveform_frames": raw.T.reshape(1, 1, width, height)}
     if family == "gemma4a":
         return raw, {"features": raw.reshape(1, 1, height, width)}
+    if family in {"qwen3a", "qwen3tts_spkenc"}:
+        return raw, {"features": raw.reshape(1, height, 1, width)}
     if family.startswith("deepseekocr"):
         # Repeat a nonzero tile to keep large SAM-grid fixtures compact on disk.
         raw = np.tile(np.random.default_rng(42).normal(.1, .4, (16, 16, 3)).astype(np.float32), (height // 16, width // 16, 1))
@@ -600,14 +704,18 @@ def grid_inputs(family, width, height):
     if family.startswith(("pixtral", "gemma4")):
         result.update(position_x=cols.astype(np.int32).reshape(1, 1, 1, -1),
                       position_y=rows.astype(np.int32).reshape(1, 1, 1, -1))
-    if family == "minicpmv4_6":
+    if family in {"minicpmv4_6", "minicpmv4_7"}:
         result["position_ids"] = (70 * (70 * rows // h) + 70 * cols // w).astype(np.int32).reshape(1, 1, 1, -1)
         order = merge_window_order(h, w)
         result["window_indices"] = np.array(order, np.int32).reshape(1, 1, 1, -1)
         result["inverse_window_indices"] = np.argsort(order).astype(np.int32).reshape(1, 1, 1, -1)
         index = np.arange(h * w) // 4
         result["attention_mask"] = np.where(index[:, None] == index[None], 0, np.finfo(np.float32).min).astype(np.float32)[None, None]
-        for name, dh, dw in (("vit_merger", h, w), ("merger", h // 2, w // 2)):
+        mergers = (("merger", h, w),) if "_4x" in variants else (("vit_merger", h, w), ("merger", h // 2, w // 2))
+        if "_4x" in variants:
+            for key in ("window_indices", "inverse_window_indices", "attention_mask"):
+                result.pop(key)
+        for name, dh, dw in mergers:
             for i, (dy, dx) in enumerate(((0, 0), (0, 1), (1, 0), (1, 1))):
                 result[f"{name}.indices.{i}"] = np.array([(y + dy) * dw + x + dx
                     for y in range(0, dh, 2) for x in range(0, dw, 2)], np.int32).reshape(1, 1, 1, -1)
@@ -643,11 +751,16 @@ def two_grid_fixture(oracle, family):
             width_out = write_grid_model(path, family)
             sizes = {
                 "deepseekocr2": [(768, 768), (1024, 1024)],
+                "gemma3nv": [(256, 256), (256, 256)],
+                "gemma3nv_uir": [(256, 256), (256, 256)],
+                "gemma3nv_attention": [(256, 256), (256, 256)],
                 "deepseekocr2_overview": [(768, 768), (1024, 1024)],
                 "deepseekocr_resize": [(128, 128), (512, 512)],
                 "deepseekocr_overview": [(256, 256), (256, 256)],
                 "deepseekocr": [(256, 256), (256, 512)],
                 "gemma4a": [(49, 8), (101, 8)],
+                "qwen3a": [(100, 128), (200, 128)],
+                "qwen3tts_spkenc": [(24, 128), (37, 128)],
                 "lfm2a": [(49, 8), (101, 8)],
                 "gemma4ua": [(3, 640), (5, 640)],
                 "gemma4uv_low_contrast": [(96, 48), (48, 144)],

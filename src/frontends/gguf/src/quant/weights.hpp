@@ -22,8 +22,10 @@ namespace ov::frontend::gguf {
 // zero-points for its host dequantizer, including Q2_0 embedding/output tensors.
 // Q4_K and Q4_1 matmul weights are faithfully decoded and requantized to u4 with an integer
 // zero-point, which keeps the compressed-FullyConnected path available on CPU and GPU. Q5_K matmul
-// weights are requantized the same way to an 8-bit u8 grid. token_embd/output keep an f16 zero-point.
+// weights are requantized the same way to an 8-bit u8 grid. OV_GGUF_Q4_K_ZP_F16 selects fractional
+// f16 zero-points for all three formats. token_embd/output keep an f16 zero-point.
 ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType qtype);
+ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType qtype, bool fractional_zero_point);
 
 // A lossy weight approximation the frontend deliberately makes, reported to the user once so a
 // later accuracy investigation starts from the right place.

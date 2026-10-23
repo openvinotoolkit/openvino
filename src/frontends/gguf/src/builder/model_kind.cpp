@@ -43,7 +43,7 @@ ModelKind detect_model_kind(const std::unordered_map<std::string, GGUFMetaData>&
     if (meta_flag(metadata, "clip.has_vision_encoder")) {
         return ModelKind::VISION;
     }
-    if (meta_flag(metadata, "clip.has_audio_encoder")) {
+    if (meta_flag(metadata, "clip.has_audio_encoder") || meta_flag(metadata, "clip.has_gen_audio_encoder")) {
         return ModelKind::AUDIO;
     }
     return ModelKind::DECODER;

@@ -17,6 +17,10 @@ feature layers, whole-tensor QK norms, an odd frame count, one-sided clipping bo
 overview separators. Both suites compare the raw encoder and its `AdaptMmprojToGenAI` form
 with normalized MSE below `1e-5`.
 
+`gemma3nv_uir` exercises a MobileNet UIR block with depthwise-start convolution
+and no optional pointwise expansion. It compares native and GenAI-adapted features
+on two inputs against CPU revision `098ce526b546b5a190327c1da82929cee051b9ac`.
+
 The standalone op tests in `test_ops.cpp` read `../mmproj_*.npy`, `../vision_rope_expected.npy`
 and `../multimodal_imrope_expected.npy`: window partition, SAM relative positions,
 vision/interleaved RoPE, antialiased bilinear resize and 2D im2col.
@@ -58,6 +62,12 @@ shared by the generator and the model hub tests.
 See [testing](../../../docs/testing.md#real-checkpoints) for pytest commands, dependencies,
 oracle caches, and local-file lists, and [coverage limits](../../../docs/mmproj.md#validation-coverage)
 for checkpoint tolerance overrides and skipped cases.
+
+`qwen3tts_gen.npz` contains a tiny F32 predictor with two query heads, one KV head,
+16 codebooks, and the full waveform topology. `gen_qwen3tts_accuracy.py` regenerates it
+with `qwen3tts_oracle.cpp` against CPU revision `098ce526b546b5a190327c1da82929cee051b9ac`
+(`GGML_OPENVINO=OFF`). The regression checks exact sampled codes/feedback, full logits,
+two streaming chunks and reset of all 38 states at the existing `1e-5` NMSE gate.
 
 `lfm2` and `lfm2_no_norm` use the same pinned oracle revision above and the two-grid
 generator seed 2718. They cover SigLIP, resized positions, spatial unshuffle and the

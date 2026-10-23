@@ -14,6 +14,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater_eq.hpp"
@@ -30,6 +31,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
@@ -256,6 +258,64 @@ void muse_layout(const std::shared_ptr<ov::Model>& model, int64_t patch, int64_t
     squeeze_output(model);
 }
 
+void minicpm_layout(const std::shared_ptr<ov::Model>& model) {
+    const auto patch = metadata(model, "vision.patch_size");
+    const auto merge = metadata(model, "vision.merge");
+    auto pixels = new_input(ov::element::f32, {1, 3, patch, -1});
+    auto positions = new_input(ov::element::i64, {-1});
+    auto window_index = new_input(ov::element::i64, {-1});
+    auto merge_index = new_input(ov::element::i64, {-1});
+    auto grid = new_input(ov::element::i64, {2});
+    Value flat_positions = positions;
+    auto rows = std::make_shared<v8::Gather>(grid, i64({0}), scalar(0));
+    auto cols = std::make_shared<v8::Gather>(grid, i64({1}), scalar(0));
+    Value strip = reshape(pixels, i64({1, 3, patch, -1, patch}));
+    strip = std::make_shared<v1::Transpose>(strip, i64({0, 3, 1, 2, 4}));
+    auto packed = reshape(strip, i64({-1, 3 * patch * patch}));
+    replace_input(model, "pixel_values", image_from_patches(packed, rows, cols, patch, false));
+    replace_input(model, "position_ids", as_index(flat_positions));
+    for (int64_t i = 0; i < 4; ++i) {
+        auto index = std::make_shared<v8::Slice>(merge_index,
+                                                 i64({i}),
+                                                 std::make_shared<v3::ShapeOf>(merge_index),
+                                                 i64({4}),
+                                                 i64({0}));
+        replace_input(model, "merger.indices." + std::to_string(i), as_index(index));
+    }
+    if (merge == 4) {
+        replace_input(model, "window_indices", as_index(window_index));
+        auto count = std::make_shared<v3::ShapeOf>(window_index);
+        auto ordered = range(count);
+        auto inverse = std::make_shared<v3::ScatterUpdate>(ordered, window_index, ordered, scalar(0));
+        replace_input(model, "inverse_window_indices", as_index(inverse));
+        auto group = div(ordered, scalar(4));
+        auto query_group = std::make_shared<v0::Unsqueeze>(group, i64({1}));
+        auto key_group = std::make_shared<v0::Unsqueeze>(group, i64({0}));
+        auto mask = std::make_shared<v1::Select>(
+            std::make_shared<v1::Equal>(query_group, key_group),
+            v0::Constant::create(ov::element::f32, {}, {0.0f}),
+            v0::Constant::create(ov::element::f32, {}, {-std::numeric_limits<float>::infinity()}));
+        replace_input(model,
+                      "attention_mask",
+                      reshape(mask, std::make_shared<v0::Concat>(ov::OutputVector{i64({1, 1}), count, count}, 0)));
+        for (int64_t i = 0; i < 4; ++i) {
+            auto index = std::make_shared<v8::Slice>(window_index,
+                                                     i64({i}),
+                                                     std::make_shared<v3::ShapeOf>(window_index),
+                                                     i64({4}),
+                                                     i64({0}));
+            replace_input(model, "vit_merger.indices." + std::to_string(i), as_index(index));
+        }
+    }
+    add_inputs(model,
+               {{"pixel_values", pixels},
+                {"position_ids", positions},
+                {"window_index", window_index},
+                {"merge_index", merge_index},
+                {"patch_grid", grid}});
+    squeeze_output(model);
+}
+
 std::shared_ptr<ov::Model> single_output_model(const Value& output,
                                                const std::string& name,
                                                const ov::ParameterVector& inputs) {
@@ -366,7 +426,8 @@ Models adapt_mmproj(const std::shared_ptr<ov::Model>& model,
     if (layout == Layout::VISION_ENCODERS) {
         projector = model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"});
         OPENVINO_ASSERT(projector == "gemma3" || projector == "gemma4v" || projector == "gemma4uv" ||
-                            projector == "muse-glimmer" || projector == "qwen3vl_merger" || projector == "lfm2",
+                            projector == "muse-glimmer" || projector == "qwen3vl_merger" || projector == "gemma3nv" ||
+                            projector == "minicpmv4_7" || projector == "lfm2",
                         "[GGUF] no GenAI vision layout for mmproj projector '",
                         projector,
                         "'");
@@ -405,7 +466,9 @@ Models adapt_mmproj(const std::shared_ptr<ov::Model>& model,
         if (projector == "qwen3vl_merger") {
             vision_models = qwen_layout(model);
         } else {
-            if (projector == "gemma4v" || projector == "gemma4uv") {
+            if (projector == "minicpmv4_7") {
+                minicpm_layout(model);
+            } else if (projector == "gemma4v" || projector == "gemma4uv") {
                 gemma4_layout(model, metadata(model, "vision.patch_size"));
             } else if (projector == "muse-glimmer") {
                 muse_layout(model,

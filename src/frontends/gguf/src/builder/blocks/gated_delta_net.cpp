@@ -131,8 +131,45 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     std::string qkv_base = p + "attn_qkv", gate_base = p + "attn_gate", out_base = p + "ssm_out";
     std::string alpha_base = p + "ssm_alpha", beta_base = p + "ssm_beta";
     std::string conv_w = p + "ssm_conv1d.weight", a_w = p + "ssm_a", dt_w = p + "ssm_dt.bias";
-    bool gqa_grouped = false;
-    if (!e.has_hadamard() && H_v != H_k && H_v % H_k == 0) {
+    OPENVINO_ASSERT(H_v >= H_k && H_v % H_k == 0, "[GGUF] Gated-DeltaNet requires an integral V/K head ratio");
+    if (cfg.arch == "qwen3next" && !e.has_weight(qkv_base + ".weight")) {
+        const auto fused = p + "ssm_in";
+        const int64_t group_value = value_dim / H_k;
+        const int64_t group_width = 2 * S + 2 * group_value;
+        std::vector<int64_t> order;
+        for (const auto& range : std::array<std::pair<int64_t, int64_t>, 4>{std::make_pair(0, S),
+                                                                            {S, S},
+                                                                            {2 * S, group_value},
+                                                                            {2 * S + group_value, group_value}}) {
+            for (int64_t h = 0; h < H_k; ++h)
+                for (int64_t row = 0; row < range.second; ++row)
+                    order.push_back(h * group_width + range.first + row);
+        }
+        WeightTensors unpacked;
+        OPENVINO_ASSERT(transform_parts(e.weight_parts(fused),
+                                        unpacked,
+                                        [&](const ov::Tensor& t) {
+                                            return permute_row_blocks(t, 0, 1, order);
+                                        }),
+                        "[GGUF] unsupported legacy Qwen3-Next QKVZ layout");
+        const auto unpacked_base = fused + "_unpacked";
+        store_parts(e, unpacked_base, unpacked, e.weight_qtype(fused));
+        auto parts =
+            split_fused_qkv_extracted(unpacked_base, e.weights(), e.qtypes(), 2 * key_dim, value_dim, value_dim);
+        auto qkv_parts = concat_rows(parts[0].tensors, parts[1].tensors, parts[0].qtype, parts[1].qtype);
+        OPENVINO_ASSERT(qkv_parts, "[GGUF] cannot combine legacy Qwen3-Next QKV projections");
+        store_parts(e, qkv_base, *qkv_parts, parts[0].qtype);
+        store_parts(e, gate_base, parts[2].tensors, parts[2].qtype);
+    }
+    if (cfg.arch == "qwen3next" && !e.has_weight(beta_base + ".weight")) {
+        const auto fused = p + "ssm_ba";
+        OPENVINO_ASSERT(e.has_weight(fused + ".weight"), "[GGUF] Qwen3-Next beta/alpha projection is missing");
+        auto parts = split_interleaved_q_gate(fused, e.weights(), e.qtypes(), static_cast<size_t>(H_v / H_k));
+        for (size_t i = 0; i < parts.size(); ++i)
+            store_parts(e, i == 0 ? beta_base : alpha_base, parts[i].tensors, parts[i].qtype);
+    }
+    bool gqa_grouped = cfg.arch == "qwen3next";
+    if (!gqa_grouped && !e.has_hadamard() && H_v != H_k && H_v % H_k == 0) {
         const int64_t rep = H_v / H_k;
         std::vector<int64_t> src(H_v);
         for (int64_t n = 0; n < H_v; ++n) {
