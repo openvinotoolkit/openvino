@@ -73,11 +73,11 @@ std::shared_ptr<MatMulFunctionBase> TransposeMatMulFQ::get_builder(const std::ve
 }
 
 std::shared_ptr<MatMulFunctionBase> ExplicitTransposeMatMul::get_builder(const std::vector<ov::element::Type>& types) {
-    return std::make_shared<TransposeMatMulFunction>(inputDynamicShapes);
+    return std::make_shared<TransposeMatMulFunction>(inputDynamicShapes, types);
 }
 
 std::shared_ptr<MatMulFunctionBase> ExplicitTransposeMatMulBias::get_builder(const std::vector<ov::element::Type>& types) {
-    return std::make_shared<TransposeMatMulBiasFunction>(inputDynamicShapes);
+    return std::make_shared<TransposeMatMulBiasFunction>(inputDynamicShapes, types);
 }
 
 TEST_P(TransposeMatMul, CompareWithRefImpl) {
