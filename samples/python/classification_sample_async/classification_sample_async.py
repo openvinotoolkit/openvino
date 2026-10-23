@@ -97,21 +97,17 @@ def main() -> int:
     model = ppp.build()
 
     # --------------------------- Step 4. Set up input --------------------------------------------------------------------
-    # Read input images
-    images = []
+    # Read input images and resize each one to the model input dims right away,
+    # so only the small resized copies stay in memory
+    _, h, w, _ = model.input().shape
+    input_tensors = []
     for image_path in args.input:
         image = cv2.imread(image_path)
         if image is None:
             log.error(f'Failed to read the image: {image_path}')
             return -1
-        images.append(image)
-
-    # Resize images to model input dims
-    _, h, w, _ = model.input().shape
-    resized_images = (cv2.resize(image, (w, h)) for image in images)
-
-    # Add N dimension
-    input_tensors = (np.expand_dims(image, 0) for image in resized_images)
+        # Add N dimension
+        input_tensors.append(np.expand_dims(cv2.resize(image, (w, h)), 0))
 
 # --------------------------- Step 5. Loading model to the device -----------------------------------------------------
     log.info('Loading the model to the plugin')
