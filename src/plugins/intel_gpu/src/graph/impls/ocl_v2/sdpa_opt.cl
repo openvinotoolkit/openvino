@@ -2009,9 +2009,9 @@ KERNEL(sdpa_opt)(
                     }
                     unroll_for (uint key_row_idx = 0; key_row_idx < TARGET_SEQ_LEN_BLOCK_SIZE; ++key_row_idx) {
 #ifdef BEAM_TABLE_TYPE
-                        const INPUT1_TYPE key_packed = (sglid < K_HEAD_SIZE_LEFTOVER) ? key_input[sub_group_broadcast(key_offset, key_row_idx) + head_idx_index + sglid] : INPUT1_VAL_ZERO;
+                        const INPUT1_TYPE key_packed = (sglid < K_HEAD_SIZE_LEFTOVER && key_row_idx < seq_len_calc_size) ? key_input[sub_group_broadcast(key_offset, key_row_idx) + head_idx_index + sglid] : INPUT1_VAL_ZERO;
 #else
-                        const INPUT1_TYPE key_packed = (sglid < K_HEAD_SIZE_LEFTOVER) ? key_input[key_offset + key_row_idx * key_pitch + head_idx_index + sglid] : INPUT1_VAL_ZERO;
+                        const INPUT1_TYPE key_packed = (sglid < K_HEAD_SIZE_LEFTOVER && key_row_idx < seq_len_calc_size) ? key_input[key_offset + key_row_idx * key_pitch + head_idx_index + sglid] : INPUT1_VAL_ZERO;
 #endif
 #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                         KV_DEQUANT_TYPE key_val = (TO_KV_DEQUANT_TYPE(key_packed) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
