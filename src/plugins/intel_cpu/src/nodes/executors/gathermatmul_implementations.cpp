@@ -66,6 +66,7 @@ static const TypeMapping dnnlGatherMatmulTypeMapping {
     {{_f32,  _f32,         _any, _f32},                         {bypass(), bypass(), use<3>(), bypass()}},
     // compresses float weights which do not match input data precision
     {{_f32, _half_float, _any, _any},                           {bypass(), bypass(), use<0>(), use<0>()}},
+    {{_f32, _u2, _any, _any},                                  {bypass(), just<u8>(), use<0>(), use<0>()}},
     // compressed int weights with float activations
     {{_f32,  _u8 | _i8 | _u4 | _i4, _any, _any},                {bypass(), bypass(), use<0>(), use<0>()}},
     {{_bf16, _u8 | _i8 | _u4 | _i4, _any, _any},                {bypass(), bypass(), use<0>(), use<0>()},
