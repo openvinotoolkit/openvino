@@ -115,8 +115,9 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if argv.is_python_api_used:
         error_msg = f"output '{argv.output}' is incorrect, it should be string or a list/tuple of strings"
         assert isinstance(argv.output, (str, list, tuple)), error_msg
-        if isinstance(argv.output, list):
+        if isinstance(argv.output, (list, tuple)):
             assert check_iterable(argv.output, lambda x: isinstance(x, str)), error_msg
+            argv.output = list(argv.output)
         else:
             argv.output = [argv.output]
     else:
