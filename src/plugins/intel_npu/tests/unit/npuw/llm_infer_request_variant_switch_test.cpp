@@ -675,6 +675,10 @@ TEST_F(LLMInferRequestVariantSwitchTest, GenerateBuildsInternalMaskFromStaticCal
 // against the restored prefill model. This pins that name<->port round-trip through the real
 // production helpers.
 TEST_F(LLMInferRequestVariantSwitchTest, PrefillOtherOutsSeqDimTableRebuildsAgainstPrefillModel) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+
     auto prefill = LLMVariantSwitchTestAccess::prefill_compiled(compiled);
     ASSERT_NE(prefill, nullptr);
     const auto& prefill_outs = prefill->outputs();
