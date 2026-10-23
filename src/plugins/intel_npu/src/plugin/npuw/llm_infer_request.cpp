@@ -334,11 +334,13 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         m_generate_base_requests.push_back(base_req);
         register_generate_request(compiled_model->m_generate_compiled_variants[i]->wrap_async_infer_request(base_req));
     }
-    // Set default to the largest variant for backward compatibility
-    m_kvcache_request = m_generate_requests.back();
-    // Set ports to ensure tensors aren't empty during bind_past_kv()
-    m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
-    m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
+    if (compiled_model->has_generate()) {
+        // Set default to the largest variant for backward compatibility
+        m_kvcache_request = m_generate_requests.back();
+        // Set ports to ensure tensors aren't empty during bind_past_kv()
+        m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
+        m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
+    }
 
     m_prefill_base_request = compiled_model->m_prefill_compiled->create_base_infer_request();
     m_prefill_request = compiled_model->m_prefill_compiled->wrap_async_infer_request(m_prefill_base_request);
@@ -432,18 +434,21 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     // FIXME: "fixes"/workarounds caching import on CPU (also might be related to bf16 weights).
     // Unclear how it's related. Previously fill_tensor()
     // was in copy_kvcache() call. When it was removed, it broke the import accuracy.
+    // It zero-fills the generate model's past tensors, so a prefill-only model skips it.
     bool enable_cpu_wa = false;
     const auto& kvcache_compiled = m_npuw_llm_compiled_model->m_kvcache_compiled;
-    for (std::size_t idx = 0; idx < kvcache_compiled->num_submodels(); ++idx) {
-        if (ov::npuw::util::starts_with(kvcache_compiled->submodel_device(idx), "CPU")) {
-            enable_cpu_wa = true;
-            break;
+    if (compiled_model->has_generate()) {
+        for (std::size_t idx = 0; idx < kvcache_compiled->num_submodels(); ++idx) {
+            if (ov::npuw::util::starts_with(kvcache_compiled->submodel_device(idx), "CPU")) {
+                enable_cpu_wa = true;
+                break;
+            }
         }
-    }
-    ov::Any kvcache_weight_bank_alloc =
-        compiled_model->m_kvcache_compiled->get_property(ov::intel_npu::npuw::weights_bank_alloc.name());
-    if (kvcache_weight_bank_alloc.as<std::string>() == "CPU") {
-        enable_cpu_wa = true;
+        ov::Any kvcache_weight_bank_alloc =
+            compiled_model->m_kvcache_compiled->get_property(ov::intel_npu::npuw::weights_bank_alloc.name());
+        if (kvcache_weight_bank_alloc.as<std::string>() == "CPU") {
+            enable_cpu_wa = true;
+        }
     }
     if (enable_cpu_wa) {
         // Apply CPU workaround only for the largest variant since all variants share its past KV tensors
@@ -490,7 +495,10 @@ ov::npuw::PrefixCachingHelper* ov::npuw::LLMInferRequest::get_prefix_caching_hel
 
 std::string ov::npuw::LLMInferRequest::init_pre_alloc_device() {
     bool pre_alloc_on_npu = true;
-    const auto& kvcache_compiled = m_npuw_llm_compiled_model->m_kvcache_compiled;
+    // A prefill-only model keeps its KV cache in the prefill model.
+    const auto& kvcache_compiled = m_npuw_llm_compiled_model->has_generate()
+                                       ? m_npuw_llm_compiled_model->m_kvcache_compiled
+                                       : m_npuw_llm_compiled_model->m_prefill_compiled;
     for (std::size_t idx = 0; idx < kvcache_compiled->num_submodels(); ++idx) {
         if (!ov::npuw::util::starts_with(kvcache_compiled->submodel_device(idx), "NPU")) {
             pre_alloc_on_npu = false;
@@ -506,7 +514,9 @@ void ov::npuw::LLMInferRequest::init_past_name_lists() {
     m_lincache_past_names.clear();
     m_swa_past_names.clear();
 
-    for (const auto& input_port : m_kvcache_request->get_compiled_model()->inputs()) {
+    // A prefill-only model has no generate request, and its past inputs are the prefill model's.
+    const auto& past_request = m_npuw_llm_compiled_model->has_generate() ? m_kvcache_request : m_prefill_request;
+    for (const auto& input_port : past_request->get_compiled_model()->inputs()) {
         const auto& all_names = input_port.get_names();
         for (const auto& name : all_names) {
             if (ov::npuw::util::starts_with_past_lincache(name)) {
@@ -624,12 +634,14 @@ void ov::npuw::LLMInferRequest::apply_lora() {
             // the size of applied LoRA tensor from GenAI is 0
 
             auto prefill_lora_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name));
-            auto kvcach_lora_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(state_name));
 
             // Disable adapter by setting alpha to 0
             if (ov::npuw::util::matchLoRAMatMulAlphaString(state_name)) {
                 ov::npuw::util::fill_tensor_bytes(prefill_lora_in_tensor, 0u);
-                ov::npuw::util::fill_tensor_bytes(kvcach_lora_in_tensor, 0u);
+                if (m_npuw_llm_compiled_model->has_generate()) {
+                    auto kvcache_lora_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(state_name));
+                    ov::npuw::util::fill_tensor_bytes(kvcache_lora_in_tensor, 0u);
+                }
             }
         } else {
             // Generate with LoRA
@@ -685,7 +697,9 @@ void ov::npuw::LLMInferRequest::apply_lora() {
 
             // Set new tensor for inference
             m_prefill_request->set_tensor(m_prefill_in_ports.at(state_name), new_infer_tensor);
-            m_kvcache_request->set_tensor(m_kvcache_in_ports.at(state_name), new_infer_tensor);
+            if (m_npuw_llm_compiled_model->has_generate()) {
+                m_kvcache_request->set_tensor(m_kvcache_in_ports.at(state_name), new_infer_tensor);
+            }
         }
         variableState->clear_state_updated();
     }
@@ -714,6 +728,9 @@ void ov::npuw::LLMInferRequest::zero_prefill_staging() {
 }
 
 void ov::npuw::LLMInferRequest::bind_generate_variant(int64_t prompt_length) {
+    if (!m_npuw_llm_compiled_model->has_generate()) {
+        return;
+    }
     // The function internally calculates expected total tokens (prompt + min_response_len)
     m_kvcache_request = select_generate_request(prompt_length);
     m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
@@ -1600,6 +1617,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                ov::SoPtr<ov::ITensor> per_layer_inputs) {
     LOG_DEBUG("Calling inference for generate model...");
     LOG_BLOCK();
+    OPENVINO_ASSERT(m_npuw_llm_compiled_model->has_generate(), "The model was compiled prefill-only.");
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     uint32_t input_tokens_len = static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
     if (input_tokens_len > kvcache_desc.max_generation_token_len) {
@@ -1932,9 +1950,11 @@ void ov::npuw::LLMInferRequest::infer() {
     // The outcome of two items is that prefill and generate stages
     //    can be safely differentiated by start position id for
     //    both main and draft models for most of LLMs.
+    // A prefill-only model has no generate stage, so every call is a prefill.
     if (!continuation_cmd.has_value()) {
-        run_prefill = input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM] > 1 &&
-                      position_ids->data<int64_t>()[0] == m_first_position_id;
+        run_prefill = !m_npuw_llm_compiled_model->has_generate() ||
+                      (input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM] > 1 &&
+                       position_ids->data<int64_t>()[0] == m_first_position_id);
     }
 
     if (run_prefill) {

@@ -14,6 +14,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -213,10 +214,15 @@ protected:
                 {"NPUW_LLM_MIN_RESPONSE_LEN", "64"}};
     }
 
-    std::shared_ptr<ov::npuw::LLMCompiledModel> create_compiled_model(AliasInjectingFactory& factory) const {
+    std::shared_ptr<ov::npuw::LLMCompiledModel> create_compiled_model(AliasInjectingFactory& factory,
+                                                                      const ov::AnyMap& extra_props = {}) const {
+        auto props = base_props();
+        for (const auto& [key, value] : extra_props) {
+            props[key] = value;
+        }
         return std::make_shared<ov::npuw::LLMCompiledModel>(build_llm_test_model(),
                                                             m_plugin,
-                                                            base_props(),
+                                                            props,
                                                             factory.make_factory());
     }
 
@@ -313,6 +319,73 @@ TEST_F(LLMInferRequestPortNamesTest, LoraStateUsesMatchingTensorNameNotAnyName) 
         }
     }
     EXPECT_TRUE(found) << "No VariableState was registered under the LoRA-matching alias '" << kInjectedLoraName << "'";
+}
+
+// A reranker is compiled prefill-only. Its request has no generate variant, and still
+// registers every alias of the prefill ports and the LoRA states behind them.
+TEST_F(LLMInferRequestPortNamesTest, PrefillOnlyRequestRegistersEveryTensorName) {
+    AliasInjectingFactory factory(/*inject_lora_alias=*/true);
+    auto compiled = create_compiled_model(factory, {{"NPUW_TEXT_RERANK", "YES"}});
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_FALSE(compiled->has_generate());
+
+    ov::npuw::LLMInferRequest req(compiled);
+    EXPECT_TRUE(LLMPortNameRegistrationTestAccess::generate_requests(req).empty());
+
+    const auto& prefill = LLMPortNameRegistrationTestAccess::prefill_request(req);
+    ASSERT_NE(prefill, nullptr);
+    EXPECT_GT(expect_all_names_registered(prefill->get_compiled_model()->inputs(),
+                                          LLMPortNameRegistrationTestAccess::prefill_in_ports(req)),
+              1u);
+    EXPECT_GT(expect_all_names_registered(prefill->get_compiled_model()->outputs(),
+                                          LLMPortNameRegistrationTestAccess::prefill_out_ports(req)),
+              1u);
+
+    const auto& states = LLMPortNameRegistrationTestAccess::variable_states(req);
+    EXPECT_TRUE(std::any_of(states.begin(), states.end(), [](const ov::SoPtr<ov::IVariableState>& state) {
+        return state->get_name() == kInjectedLoraName;
+    }));
+}
+
+// Without a generate stage every infer is a new prompt. That includes the inputs the
+// position heuristic would route to generate: a single token, and a left-padded prompt whose
+// first position is not the first call's.
+TEST_F(LLMInferRequestPortNamesTest, PrefillOnlyRequestPrefillsEveryInfer) {
+    AliasInjectingFactory factory(/*inject_lora_alias=*/false);
+    auto compiled = create_compiled_model(factory, {{"NPUW_TEXT_RERANK", "YES"}});
+    ASSERT_NE(compiled, nullptr);
+    ov::npuw::LLMInferRequest req(compiled);
+
+    struct Prompt {
+        std::vector<int64_t> ids, mask, positions;
+    };
+    const std::vector<Prompt> prompts = {
+        {{11, 12, 13, 14, 15, 16}, {1, 1, 1, 1, 1, 1}, {0, 1, 2, 3, 4, 5}},
+        {{21}, {1}, {0}},
+        {{0, 0, 31, 32}, {0, 0, 1, 1}, {1, 1, 0, 1}},
+    };
+    const auto& inputs = req.get_inputs();
+    const auto bind = [&](const std::string& name, const std::vector<int64_t>& values) {
+        ov::Tensor tensor(ov::element::i64, ov::Shape{1, values.size()});
+        std::copy(values.begin(), values.end(), tensor.data<int64_t>());
+        req.set_tensor(ov::npuw::util::find_port_by_name(inputs, name).value(), ov::get_tensor_impl(tensor));
+    };
+    const auto& prefill = LLMPortNameRegistrationTestAccess::prefill_request(req);
+    const auto& prefill_ids_port = LLMPortNameRegistrationTestAccess::prefill_in_ports(req).at("input_ids");
+    const auto logits_port = ov::npuw::util::find_port_by_name(req.get_outputs(), "logits").value();
+
+    for (const auto& prompt : prompts) {
+        bind("input_ids", prompt.ids);
+        bind("attention_mask", prompt.mask);
+        bind("position_ids", prompt.positions);
+        ASSERT_NO_THROW(req.infer());
+
+        // The prefill stages a prompt right-aligned, so its tail holds this call's tokens.
+        const auto staged = prefill->get_tensor(prefill_ids_port);
+        const auto* tail = staged->data<int64_t>() + staged->get_size() - prompt.ids.size();
+        EXPECT_TRUE(std::equal(prompt.ids.begin(), prompt.ids.end(), tail));
+        EXPECT_NE(req.get_tensor(logits_port)._ptr, nullptr);
+    }
 }
 
 }  // namespace

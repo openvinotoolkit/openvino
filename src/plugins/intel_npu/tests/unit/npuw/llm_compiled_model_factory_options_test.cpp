@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <memory>
+#include <numeric>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -14,6 +15,7 @@
 
 #include "intel_npu/config/npuw.hpp"
 #include "llm_compiled_model_utils.hpp"
+#include "llm_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "moe_transformations/moe_topology.hpp"
 #include "openvino/op/constant.hpp"
@@ -28,6 +30,7 @@
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
+#include "util.hpp"
 #include "whisper/prepare_whisper_model.hpp"
 
 namespace {
@@ -333,6 +336,17 @@ TEST(LLMMoEAutoRoutingTest, RejectsExplicitDevicePrefillAndUnsupportedDecode) {
     EXPECT_THROW(ov::npuw::LLMCompiledModel(model, plugin, props, recorder.make_factory()), ov::Exception);
 }
 
+// A stage compiled for one CPU device, so a request built on it stages its KV cache on the
+// host. RecordingFactory stages report no device, which makes the request ask the stub
+// plugin for NPU tensors.
+class CpuSubCompiledModel final : public ov::test::npuw::MockSubCompiledModel {
+public:
+    using MockSubCompiledModel::MockSubCompiledModel;
+    std::size_t num_submodels() const override {
+        return 1;
+    }
+};
+
 class LLMCompiledModelFactoryOptionsTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -427,6 +441,17 @@ protected:
                 return candidate.find(name) != std::string::npos;
             });
         });
+    }
+
+    // A reranker compiles its prefill stage alone, with no generate variants.
+    std::shared_ptr<ov::npuw::LLMCompiledModel> compile_rerank(const std::shared_ptr<ov::Model>& model,
+                                                               ov::AnyMap extra_props,
+                                                               RecordingFactory& recorder) const {
+        extra_props["NPUW_TEXT_RERANK"] = "YES";
+        std::shared_ptr<ov::npuw::LLMCompiledModel> compiled = create_compiled_model(model, extra_props, recorder);
+        EXPECT_FALSE(compiled->has_generate());
+        EXPECT_EQ(recorder.count_contains("_kv"), 0u);
+        return compiled;
     }
 
     std::shared_ptr<ov::IPlugin> m_plugin;
@@ -564,19 +589,109 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, VisibleLlmPropertiesRoundTripThroughC
     EXPECT_EQ(compiled->get_property("NPUW_LLM_PREFILL_CHUNK_SIZE").as<uint64_t>(), 0u);
 }
 
-// The rerank tag only gates the batched wrapper at the entry point and must stay
-// out of the submodel configs.
-TEST_F(LLMCompiledModelFactoryOptionsTest, TextRerankTagKeptOutOfStageConfigs) {
+// A reranker only reads the logits of its prefill: it compiles the prefill and the shared
+// head, with no generate stage or response window, and keeps the rerank tag out of the stage
+// configs.
+TEST_F(LLMCompiledModelFactoryOptionsTest, TextRerankCompilesPrefillOnly) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(), {{"NPUW_TEXT_RERANK", "YES"}}, recorder));
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
+                                                     {{"NPUW_TEXT_RERANK", "YES"}, {"NPUW_LLM_SHARED_HEAD", "YES"}},
+                                                     recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto& prefill = require_call(recorder, "_prefill");
-    const auto& generate = require_call_containing(recorder, "_kv");
-    expect_missing_prop(prefill.props, "NPUW_TEXT_RERANK");
-    expect_missing_prop(generate.props, "NPUW_TEXT_RERANK");
+    EXPECT_FALSE(compiled->has_generate());
+    EXPECT_EQ(recorder.calls().size(), 2u);
+    EXPECT_EQ(recorder.count_contains("_kv"), 0u);
+    expect_missing_prop(require_call(recorder, "_prefill").props, "NPUW_TEXT_RERANK");
+    expect_missing_prop(require_call(recorder, "_lm_head").props, "NPUW_TEXT_RERANK");
+    EXPECT_EQ(compiled->get_property("NPUW_LLM_MIN_RESPONSE_LEN").as<uint32_t>(), 0u);
+}
+
+// A reranker is an LLM that never generates. Whatever inputs and caches the model has, it
+// compiles prefill-only and runs on the same request as any LLM.
+TEST_F(LLMCompiledModelFactoryOptionsTest, TextRerankRunsOnLlmRequest) {
+    struct Case {
+        std::string name;
+        std::shared_ptr<ov::Model> model;
+        ov::AnyMap props;
+    };
+    const std::vector<Case> cases = {
+        {"llm", build_llm_model(), {}},
+        {"token_type_ids", ov::test::npuw::build_token_type_ids_test_model(), {}},
+        {"per_layer_inputs", ov::test::npuw::build_per_layer_inputs_probe_model(), {}},
+        {"hybrid", ov::test::npuw::build_hybrid_llm_test_model(), {}},
+        {"lfm2", ov::test::npuw::build_lfm2_llm_test_model(), {}},
+        {"swa_shrink",
+         ov::test::npuw::build_sliding_window_test_model(32, 1),
+         {{"NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", "YES"}}},
+    };
+    for (const auto& c : cases) {
+        SCOPED_TRACE(c.name);
+        RecordingFactory recorder;
+        const auto compiled = compile_rerank(c.model, c.props, recorder);
+        EXPECT_NO_THROW(ov::npuw::LLMInferRequest request(compiled));
+    }
+}
+
+// GenAI turns dynamic LoRA adapters into states. A reranker exposes them as states of its
+// request, like any LLM, and they feed its prefill.
+TEST_F(LLMCompiledModelFactoryOptionsTest, TextRerankExposesLoraStates) {
+    auto cfg = ov::test::npuw::make_test_model_config();
+    cfg.lora_rank = 8;
+    cfg.lora_stateful = true;
+    ov::test::npuw::ModelBuilder builder;
+
+    RecordingFactory recorder;
+    const auto compiled = compile_rerank(builder.build_llm(cfg), {}, recorder);
+    ov::npuw::LLMInferRequest request(compiled);
+
+    const auto states = request.query_state();
+    EXPECT_TRUE(std::any_of(states.begin(), states.end(), [](const ov::SoPtr<ov::IVariableState>& state) {
+        return ov::npuw::util::matchLoRAMatMulAString(state->get_name());
+    }));
+}
+
+// The block KV cache splits the reranker's prefill cache into blocks, and every infer starts
+// a new prompt on them.
+TEST_F(LLMCompiledModelFactoryOptionsTest, TextRerankRunsOnBlockKvCache) {
+    const ov::AnyMap block_props = {{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                                    {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"},
+                                    {"NPUW_LLM_PREFILL_ATTENTION_HINT", "PYRAMID"},
+                                    {"NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE", "YES"}};
+    RecordingFactory recorder;
+    compile_rerank(build_llm_model(), block_props, recorder);
+    EXPECT_TRUE(has_input_name(require_call(recorder, "_prefill").model, "_block_"));
+
+    auto props = base_props();
+    merge_props(props, block_props);
+    props["NPUW_TEXT_RERANK"] = "YES";
+    const auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(
+        build_llm_model(),
+        m_plugin,
+        props,
+        [](const std::shared_ptr<ov::Model>& model,
+           const std::shared_ptr<const ov::IPlugin>& plugin,
+           const ov::AnyMap& stage_props) -> std::shared_ptr<ov::npuw::ICompiledModel_v0> {
+            return std::make_shared<CpuSubCompiledModel>(model, plugin, stage_props);
+        });
+    ov::npuw::LLMInferRequest request(compiled);
+    for (const size_t prompt_len : {40u, 8u}) {
+        ov::Tensor ids(ov::element::i64, {1, prompt_len});
+        ov::Tensor mask(ov::element::i64, {1, prompt_len});
+        ov::Tensor positions(ov::element::i64, {1, prompt_len});
+        std::fill_n(ids.data<int64_t>(), prompt_len, int64_t{1});
+        std::fill_n(mask.data<int64_t>(), prompt_len, int64_t{1});
+        std::iota(positions.data<int64_t>(), positions.data<int64_t>() + prompt_len, int64_t{0});
+        const auto& inputs = request.get_inputs();
+        request.set_tensor(ov::npuw::util::find_port_by_name(inputs, "input_ids").value(), ov::get_tensor_impl(ids));
+        request.set_tensor(ov::npuw::util::find_port_by_name(inputs, "attention_mask").value(),
+                           ov::get_tensor_impl(mask));
+        request.set_tensor(ov::npuw::util::find_port_by_name(inputs, "position_ids").value(),
+                           ov::get_tensor_impl(positions));
+        EXPECT_NO_THROW(request.infer()) << "prompt of " << prompt_len << " tokens";
+    }
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelAutoEnablesSwaShrinkAndPropagateSliceUp) {

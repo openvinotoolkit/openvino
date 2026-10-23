@@ -313,9 +313,11 @@ void LLMBlockKVCacheStrategy::on_reset(uint32_t next_prompt_length) {
     // on_initialize() and need no action.
     {
         set_dummy_tensors_to_request(m_req.m_prefill_request, m_prefill_classified_in_ports, m_dummy_tensors);
-        set_dummy_tensors_to_request(m_req.m_kvcache_request,
-                                     m_gen_classified_in_ports.at(m_req.m_kvcache_request),
-                                     m_dummy_tensors);
+        if (m_req.m_npuw_llm_compiled_model->has_generate()) {
+            set_dummy_tensors_to_request(m_req.m_kvcache_request,
+                                         m_gen_classified_in_ports.at(m_req.m_kvcache_request),
+                                         m_dummy_tensors);
+        }
     }
 
     // ── Step 3: propagate dummies into sub-requests ──────────────────────────────────
