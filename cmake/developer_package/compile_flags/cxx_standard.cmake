@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# Guards opt-in builds with CMAKE_CXX_STANDARD set above the project default (17).
-# Does nothing for the default C++17 build. Not a statement that C++20 is the new
-# default - it only fails fast when a compiler too old to parse C++20 is asked to.
+# Fails fast when the active compiler is too old to parse C++20 (the project default),
+# or whatever higher standard CMAKE_CXX_STANDARD is overridden to from the command line.
+# Does nothing when CMAKE_CXX_STANDARD is explicitly lowered below 20.
 
 if(NOT CMAKE_CXX_STANDARD GREATER_EQUAL 20)
     return()
@@ -16,7 +16,7 @@ if(NOT DEFINED CMAKE_CXX_SCAN_FOR_MODULES)
 endif()
 
 # CVS-190125: raise the GNU floor (currently 10) once OpenVINO drops the OSes that
-# ship it (e.g. RHEL 8) as part of the 2027.0 C++20 default switch.
+# ship it (e.g. RHEL 8).
 set(_ov_cxx20_floor_GNU 10)
 set(_ov_cxx20_floor_Clang 14)
 set(_ov_cxx20_floor_AppleClang 13)

@@ -101,7 +101,7 @@ endif()
 ####################################
 ## to use C++11; can overwritten via cmake command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)
-    set (CMAKE_CXX_STANDARD 17)
+    set (CMAKE_CXX_STANDARD 20)
     set (CMAKE_CXX_EXTENSIONS OFF)
     set (CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
@@ -115,10 +115,11 @@ if(CMAKE_CXX_STANDARD GREATER_EQUAL 20)
         set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
     endif()
 
+    # kept in sync with cmake/developer_package/compile_flags/cxx_standard.cmake
     set(_ov_samples_cxx20_floor_GNU 10)
     set(_ov_samples_cxx20_floor_Clang 14)
-    set(_ov_samples_cxx20_floor_AppleClang 14)
-    set(_ov_samples_cxx20_floor_MSVC 19.30)
+    set(_ov_samples_cxx20_floor_AppleClang 13)
+    set(_ov_samples_cxx20_floor_MSVC 19.28)
     set(_ov_samples_cxx20_floor_IntelLLVM 2024.2)
 
     if(DEFINED _ov_samples_cxx20_floor_${CMAKE_CXX_COMPILER_ID} AND
