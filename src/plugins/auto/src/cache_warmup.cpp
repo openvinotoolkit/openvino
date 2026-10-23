@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <optional>
 
 #include "openvino/runtime/compilation_context.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
@@ -200,22 +201,23 @@ std::filesystem::path CacheWarmupManager::get_cache_location(const ov::ICore& co
     if (const auto it = config.find(ov::cache_path.name()); it != config.end()) {
         return it->second.as<std::filesystem::path>();
     }
-    const auto query = [&core](const std::string& scope) -> std::filesystem::path {
+
+    const auto query = [&core](const std::string& scope) -> std::optional<std::filesystem::path> {
         try {
             if (const auto cache_dir = core.get_property(scope, ov::cache_dir); !cache_dir.empty()) {
                 return ov::util::make_path(cache_dir);
             }
-            return core.get_property(scope, ov::cache_path);
+            return std::filesystem::path(core.get_property(scope, ov::cache_path));
         } catch (const std::exception&) {
-            return {};
+            return std::nullopt;
         }
     };
     if (!device_name.empty()) {
-        if (auto location = query(device_name); !location.empty()) {
-            return location;
+        if (auto location = query(device_name)) {
+            return *location;
         }
     }
-    return query("");
+    return query("").value_or(std::filesystem::path{});
 }
 
 bool CacheWarmupManager::is_blob_cached(const ov::ICore& core,

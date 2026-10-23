@@ -70,11 +70,17 @@ protected:
     const std::string cpu_device = ov::test::utils::DEVICE_CPU;
     const std::string actual_device = "GPU.1";
 
+    // Like the Core, every device inherits the global setting unless it has its own.
     void set_global_cache(const std::string& cache_dir, const std::filesystem::path& cache_path = {}) {
-        ON_CALL(*core, get_property(StrEq(""), StrEq(ov::cache_dir.name()), _))
+        ON_CALL(*core, get_property(_, StrEq(ov::cache_dir.name()), _)).WillByDefault(Return(ov::Any(cache_dir)));
+        ON_CALL(*core, get_property(_, StrEq(ov::cache_path.name()), _)).WillByDefault(Return(ov::Any(cache_path)));
+    }
+
+    void set_device_cache(const std::string& device, const std::string& cache_dir) {
+        ON_CALL(*core, get_property(StrEq(device), StrEq(ov::cache_dir.name()), _))
             .WillByDefault(Return(ov::Any(cache_dir)));
-        ON_CALL(*core, get_property(StrEq(""), StrEq(ov::cache_path.name()), _))
-            .WillByDefault(Return(ov::Any(cache_path)));
+        ON_CALL(*core, get_property(StrEq(device), StrEq(ov::cache_path.name()), _))
+            .WillByDefault(Return(ov::Any(std::filesystem::path(cache_dir))));
     }
 
     // The last device is selected as the actual device.
@@ -374,12 +380,37 @@ TEST_F(AutoCacheWarmupTest, skipsDeviceWithCachingDisabled) {
     EXPECT_EQ(npu_count.load(), 0);
 }
 
+TEST_F(AutoCacheWarmupTest, skipsDeviceWithCachingDisabledInCore) {
+    set_global_cache("test_cache_dir");
+    set_device_cache("NPU", "");
+    set_devices({cpu_device, "GPU.0", "NPU", actual_device});
+    use_default_startup_compilation();
+    std::atomic<int> gpu_count{0};
+    std::atomic<int> npu_count{0};
+    auto warmup_compiled_model = make_compiled_model();
+    on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        gpu_count++;
+        return {warmup_compiled_model, {}};
+    });
+    on_compile("NPU", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        npu_count++;
+        return {warmup_compiled_model, {}};
+    });
+    config.insert(ov::intel_auto::compile_for_all(true));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    EXPECT_TRUE(wait_until([&] {
+        return gpu_count.load() == 1;
+    }));
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    EXPECT_EQ(npu_count.load(), 0);
+}
+
 TEST_F(AutoCacheWarmupTest, usesDeviceScopedCacheSetting) {
     set_global_cache("");
-    ON_CALL(*core, get_property(StrEq("GPU.0"), StrEq(ov::cache_dir.name()), _))
-        .WillByDefault(Return(ov::Any(std::string("device_cache_dir"))));
-    ON_CALL(*core, get_property(StrEq(actual_device), StrEq(ov::cache_dir.name()), _))
-        .WillByDefault(Return(ov::Any(std::string("device_cache_dir"))));
+    set_device_cache("GPU.0", "device_cache_dir");
+    set_device_cache(actual_device, "device_cache_dir");
     set_devices({cpu_device, "GPU.0", actual_device});
     use_default_startup_compilation();
     std::atomic<int> warmup_count{0};
