@@ -4,20 +4,30 @@
 
 #include <gtest/gtest.h>
 
+#include <map>
 #include <memory>
+#include <string>
+#include <utility>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include <openvino/core/model.hpp>
+#include <openvino/pass/manager.hpp>
+#include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/disable_precision_conversion.hpp>
 
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/sin.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "plugin/transformations/disable_fp16_comp_direct_multiply_sin_cos.hpp"
@@ -148,6 +158,60 @@ std::shared_ptr<ov::Model> make_direct_sin_cos_model(bool is_reference = false,
     return std::make_shared<ov::Model>(outputs, ov::ParameterVector{lhs, rhs});
 }
 
+// Rotary tables built at run time, feeding a rotation whose result a MatMul consumes.
+std::shared_ptr<ov::Model> make_rope_model(bool keep_x_cos_in_fp32 = false) {
+    auto positions = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 1});
+    auto inv_freq = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 16}, {0.01f});
+    auto phase = std::make_shared<ov::op::v1::Multiply>(positions, inv_freq);
+    auto sin = std::make_shared<ov::op::v0::Sin>(phase);
+    auto cos = std::make_shared<ov::op::v0::Cos>(phase);
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 16});
+    auto x_rot = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 16});
+    auto x_cos = std::make_shared<ov::op::v1::Multiply>(x, cos);
+    auto x_rot_sin = std::make_shared<ov::op::v1::Multiply>(x_rot, sin);
+    auto rotated = std::make_shared<ov::op::v1::Add>(x_cos, x_rot_sin);
+    auto weights = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{16, 16}, {0.1f});
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(rotated, weights);
+
+    phase->set_friendly_name("phase");
+    sin->set_friendly_name("sin");
+    cos->set_friendly_name("cos");
+    x_cos->set_friendly_name("x_cos");
+    x_rot_sin->set_friendly_name("x_rot_sin");
+    rotated->set_friendly_name("rotated");
+    matmul->set_friendly_name("matmul");
+    if (keep_x_cos_in_fp32)
+        ov::disable_conversion(x_cos, ov::element::f16);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{positions, x, x_rot});
+}
+
+// The pass, ConvertPrecision f32 -> f16 with the GPU pipeline's flags, then the restore pass that follows it there.
+void convert_to_f16(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::Manager manager;
+    manager.register_pass<DisableFP16CompForDirectMultiplySinCos>();
+    manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ov::element::f32, ov::element::f16}}, type_to_fuse_map{}, true, false, true);
+    manager.register_pass<RestoreFP32SinCosForFP32Consumers>();
+    manager.run_passes(model);
+}
+
+// Tables for phase = positions * 0.5, with Sin kept as an output so the pass matches.
+std::pair<std::shared_ptr<ov::op::v0::Parameter>, std::shared_ptr<ov::op::v0::Sin>> make_sin_cos_phase() {
+    auto positions = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1});
+    auto half = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.5f});
+    auto phase = std::make_shared<ov::op::v1::Multiply>(positions, half);
+    return {positions, std::make_shared<ov::op::v0::Sin>(phase)};
+}
+
+std::map<std::string, ov::element::Type> named_output_types(const std::shared_ptr<ov::Model>& model) {
+    std::map<std::string, ov::element::Type> types;
+    for (const auto& op : model->get_ops()) {
+        if (!ov::is_type_any_of<ov::op::v0::Parameter, ov::op::v0::Constant, ov::op::v0::Result, ov::op::v0::Convert>(op))
+            types[op->get_friendly_name()] = op->get_output_element_type(0);
+    }
+    return types;
+}
+
 class DisableFP16CompForQwenImageGatedResidualTest : public TransformationTestsF {
 protected:
     void SetUp() override {
@@ -213,4 +277,71 @@ TEST_F(DisableFP16CompForDirectMultiplySinCosTest, FP16_NoOp) {
 TEST_F(DisableFP16CompForDirectMultiplySinCosTest, MultipleCos) {
     model = make_direct_sin_cos_model(false, ov::element::f32, 2);
     model_ref = make_direct_sin_cos_model(true, ov::element::f32, 2);
+}
+
+TEST(DisableFP16CompForDirectMultiplySinCosPipelineTest, KeepsPhaseInFP32AndRotationInFP16) {
+    auto model = make_rope_model();
+    convert_to_f16(model);
+
+    const std::map<std::string, ov::element::Type> expected{{"phase", ov::element::f32},
+                                                            {"sin", ov::element::f32},
+                                                            {"cos", ov::element::f32},
+                                                            {"x_cos", ov::element::f16},
+                                                            {"x_rot_sin", ov::element::f16},
+                                                            {"rotated", ov::element::f16},
+                                                            {"matmul", ov::element::f16}};
+    ASSERT_EQ(named_output_types(model), expected);
+}
+
+TEST(DisableFP16CompForDirectMultiplySinCosPipelineTest, ConsumerAlreadyKeptInFP32ReadsTableDirectly) {
+    auto model = make_rope_model(true);
+    convert_to_f16(model);
+
+    std::shared_ptr<ov::Node> x_cos;
+    for (const auto& op : model->get_ops()) {
+        if (op->get_friendly_name() == "x_cos")
+            x_cos = op;
+    }
+    ASSERT_NE(x_cos, nullptr);
+    const auto cos_input = std::make_pair(x_cos->get_output_element_type(0), std::string(x_cos->get_input_node_ptr(1)->get_type_name()));
+    ASSERT_EQ(cos_input, std::make_pair(ov::element::Type(ov::element::f32), std::string("Cos")));
+}
+
+TEST(DisableFP16CompForDirectMultiplySinCosPipelineTest, ConsumerKeptInFP32ByConvertPrecisionReadsTableUnrounded) {
+    auto [positions, sin] = make_sin_cos_phase();
+    auto cos = std::make_shared<ov::op::v0::Cos>(sin->input_value(0));
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(cos, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1}, {1.0f}));
+    auto one = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+    auto eps = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1e-12f});
+    auto denominator = std::make_shared<ov::op::v1::Maximum>(std::make_shared<ov::op::v1::Subtract>(one, cos), eps);
+    auto reciprocal = std::make_shared<ov::op::v1::Divide>(one, denominator);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{reciprocal, matmul, sin}, ov::ParameterVector{positions});
+
+    const auto evaluate_reciprocal = [](const std::shared_ptr<ov::Model>& m) {
+        ov::Tensor input(ov::element::f32, ov::Shape{1, 1});
+        input.data<float>()[0] = 0.02f;
+        ov::TensorVector outputs;
+        for (const auto& output : m->outputs())
+            outputs.emplace_back(output.get_element_type(), output.get_shape());
+        OPENVINO_ASSERT(m->evaluate(outputs, ov::TensorVector{input}));
+        return outputs[0].data<float>()[0];
+    };
+    // The division stays in FP32; only the model output is compressed, so expect the FP32 result rounded to FP16.
+    const float expected = static_cast<float>(ov::float16(evaluate_reciprocal(model->clone())));
+    convert_to_f16(model);
+    const auto observed = std::make_pair(evaluate_reciprocal(model), matmul->get_output_element_type(0));
+    ASSERT_EQ(observed, std::make_pair(expected, ov::element::Type(ov::element::f16)));
+}
+
+TEST(DisableFP16CompForDirectMultiplySinCosPipelineTest, ConsumerKeptOnlyForF32ToF16ReadsTableDirectly) {
+    auto [positions, sin] = make_sin_cos_phase();
+    auto cos = std::make_shared<ov::op::v0::Cos>(sin->input_value(0));
+    auto product = std::make_shared<ov::op::v1::Multiply>(ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.0f}), cos);
+    ov::disable_conversion(product, ov::element::f32, ov::element::f16);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{product, sin}, ov::ParameterVector{positions});
+
+    convert_to_f16(model);
+    model->validate_nodes_and_infer_types();
+    const auto observed = std::make_pair(model->output(0).get_element_type(), std::string(product->get_input_node_ptr(1)->get_type_name()));
+    ASSERT_EQ(observed, std::make_pair(ov::element::Type(ov::element::f32), std::string("Cos")));
 }
