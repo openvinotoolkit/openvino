@@ -50,11 +50,13 @@ Related: DPAS/tiling `01-dpas-and-tiling.md`, numerics `03-numerics-softmax-quan
 - At the issue point use the **same surface/fixup/coordinates** as the actual read. A prefetch right before consumption is pure overhead (plain prefill lost about 11 us; removed).
 - Cost: about 8 instructions per prefetch (a64 descriptor setup). It has no destination register, so it provides MLP that occupancy cannot buy.
 - MIXED Vc prefetch (u4, right before softmax, `!from_cache && sg_i_sv==0`): -4.12% (B70 llama-3.2-1b, cliloader). Not measured on i8 BY_CHANNEL MIXED.
+- PA PREFILL V prefetch (`v_tile_prefetch`, cooperative 16r16x2c over this key tile's V rows inside the split S_max barrier, as micro): -4.5% at head 128 (qwen3-8b 8K), but **+10% at head 512** (128-key x 512-channel V tile = 128 KiB) → the profit depends on the tile's byte size; `v_prefetch` is a per-tiling flag (d_max <= 256). B70 pinned, ch02 §7.5.
 
 ## 5. Split barrier
 - Where to use it: independent work between `arrive` and `wait` that **does not read the SLM that barrier protects** (A_tile rescale by alpha `sdpa_ocl.cl:842-868`, V first-tile prefetch `sdpa_ocl_decode.cl:727-732`).
 - Do not change the barrier count/placement. A conditional skip (the `continue` in `SV_TRIM`) keeps the barrier outside the loop.
 - Measured standalone effect: 0.7%p of the 2.1% decode V prefetch gain. The standalone effect of the plain prefill split barrier is unmeasured (ASSUMED). `MAX_BARRIER_V_PREFETCH` was removed because its gain was unproven.
+- PA PREFILL (`MAX_SPLIT_BARRIER`, 2026-10-23): S_max barrier → arrive / V prefetch / wait: -4.5% on top of the prefetch, +5.4% when reverted (qwen3-8b 8K); 0% with nothing in the window (d_max 512). MEASURED, B70 pinned.
 
 ## 6. KV cache layout decisions
 - A K d-major page (`[head, block]`) has row=32 B < 64 B, so block read is impossible -> per-key SIMD-1 scalar gather. Switching to token-major `[block, head]` reuses the prefill geometry (ISA: head 128 mixed total ops -49%, gather 128->0).
