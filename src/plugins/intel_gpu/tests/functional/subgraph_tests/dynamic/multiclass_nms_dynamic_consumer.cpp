@@ -14,6 +14,8 @@
 #include "openvino/op/multiclass_nms.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -149,6 +151,61 @@ TEST(MulticlassNmsDynamicConsumerGPU, OutputZeroOnlyHandlesEmptyFirstInference) 
     request.set_input_tensor(1, scores_tensor);
     ASSERT_NO_THROW(request.infer());
     EXPECT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{8, 6}));
+}
+
+TEST(MulticlassNmsDynamicConsumerGPU, RemoteOutputHandlesEmptyAndNonemptyFirstInference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::Core core;
+    if (core.get_property(ov::test::utils::DEVICE_GPU, ov::device::type) != ov::device::Type::INTEGRATED) {
+        GTEST_SKIP() << "Caller-owned USM-host output requires an integrated GPU";
+    }
+    const auto caps = core.get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+    if (std::find(caps.begin(), caps.end(), ov::intel_gpu::capability::USM_MEMORY) == caps.end()) {
+        GTEST_SKIP() << "Caller-owned USM-host output requires USM support";
+    }
+
+    auto boxes = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 4});
+    auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, -1});
+    auto nms = std::make_shared<ov::op::v9::MulticlassNms>(boxes, scores,
+                                                           ov::op::v9::MulticlassNms::Attributes());
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{nms->output(0)}, ov::ParameterVector{boxes, scores});
+    auto remote_context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+    auto compiled = core.compile_model(model, remote_context, ov::hint::inference_precision(ov::element::f32));
+    auto gpu_context = compiled.get_context().as<ov::intel_gpu::ocl::ClContext>();
+
+    auto run_sequence = [&](const std::vector<std::pair<size_t, size_t>>& input_shapes) -> void {
+        auto request = compiled.create_infer_request();
+        auto remote_output = gpu_context.create_usm_host_tensor(ov::element::f32, ov::Shape{24, 6});
+        request.set_output_tensor(remote_output);
+
+        for (const auto& [batch, num_boxes] : input_shapes) {
+            ov::Tensor boxes_tensor(ov::element::f32, ov::Shape{batch, num_boxes, 4});
+            ov::Tensor scores_tensor(ov::element::f32, ov::Shape{batch, 1, num_boxes});
+            for (size_t batch_idx = 0; batch_idx < batch; ++batch_idx) {
+                for (size_t box = 0; box < num_boxes; ++box) {
+                    const auto box_offset = (batch_idx * num_boxes + box) * 4;
+                    const float x = static_cast<float>(batch_idx * 8 + box * 2);
+                    boxes_tensor.data<float>()[box_offset + 0] = x;
+                    boxes_tensor.data<float>()[box_offset + 1] = 0.f;
+                    boxes_tensor.data<float>()[box_offset + 2] = x + 1.f;
+                    boxes_tensor.data<float>()[box_offset + 3] = 1.f;
+                    scores_tensor.data<float>()[batch_idx * num_boxes + box] =
+                        0.9f - static_cast<float>(box) * 0.1f;
+                }
+            }
+            request.set_input_tensor(0, boxes_tensor);
+            request.set_input_tensor(1, scores_tensor);
+            ASSERT_NO_THROW(request.infer()) << "batch=" << batch << ", boxes=" << num_boxes;
+            const auto output = request.get_output_tensor();
+            EXPECT_EQ(output.get_shape(), (ov::Shape{batch * num_boxes, 6}));
+            ov::Tensor host_output(ov::element::f32, output.get_shape());
+            ASSERT_NO_THROW(output.copy_to(host_output));
+            EXPECT_EQ(host_output.get_size(), batch * num_boxes * 6);
+        }
+    };
+
+    run_sequence({{1, 0}, {3, 0}, {2, 4}});
+    run_sequence({{2, 4}, {3, 0}});
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsDynamicConsumer_GPU,

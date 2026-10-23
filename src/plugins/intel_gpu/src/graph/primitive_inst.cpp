@@ -939,11 +939,15 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     const auto& actual_layouts = updated_params.output_layouts;
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
 
+    const bool is_nms = get_node().is_type<non_max_suppression>() || get_node().is_type<multiclass_nms>();
+    bool output_0_bound_to_external_memory = false;
     if (try_bind_remote_permute_output(actual_layouts[0])) {
-        return;
+        if (!is_nms)
+            return;
+        output_0_bound_to_external_memory = true;
     }
 
-    if (_remote_permute_output_alias) {
+    if (_remote_permute_output_alias && !output_0_bound_to_external_memory) {
         if (_outputs[0] && get_network().get_engine().is_the_same_buffer(*_outputs[0], *_remote_permute_output_alias)) {
             clear_output_memory();
             _mem_allocated = false;
@@ -960,10 +964,16 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             if (actual_layouts[0].get_linear_size() <= reorder_inst->get_max_output_layout_count()) {
                 this->_outputs[0] = reorder_inst->_outputs[0];
                 GPU_DEBUG_TRACE_DETAIL << id() << ": use reorder user's remote tensor memory " << this->_outputs[0]->buffer_ptr() << std::endl;
-                return;
+                if (is_nms) {
+                    output_0_bound_to_external_memory = true;
+                } else {
+                    return;
+                }
             }
-            GPU_DEBUG_TRACE_DETAIL << reorder_inst->id() << " cannot be optimized for the mismatch between input layout and output layout" << std::endl;
-            reorder_inst->set_can_be_optimized(false);
+            if (!output_0_bound_to_external_memory) {
+                GPU_DEBUG_TRACE_DETAIL << reorder_inst->id() << " cannot be optimized for the mismatch between input layout and output layout" << std::endl;
+                reorder_inst->set_can_be_optimized(false);
+            }
         }
     }
 
@@ -977,7 +987,6 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         return;
     }
 
-    bool output_0_bound_to_ext_block = false;
     // Forward probe: walk through single-user optimized chains to find an output
     // node with an external output memory block (ext_block).  If found, use the
     // ext_block memory directly so this node's kernel writes into it, achieving
@@ -989,8 +998,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             auto* next = cursor->get_user_insts().front();
             if (next->is_output()) {
                 auto* ext_block = get_network().get_output_memory_block(next->id());
-                const bool is_nms = get_node().is_type<non_max_suppression>() || get_node().is_type<multiclass_nms>();
-                if (ext_block && !(is_nms && actual_layouts[0].count() == 0)) {
+                if (ext_block && (!is_nms || actual_layouts[0].count() != 0)) {
                     ext_block->resize(actual_layouts[0]);
                     _outputs[0] = ext_block->memory();
                     _max_output_layout_count[0] = _outputs[0]->get_mem_tracker()->size() / cldnn::data_type_traits::size_of(actual_layouts[0].data_type);
@@ -998,7 +1006,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                                            << actual_layouts[0].get_linear_size() << "/" << _max_output_layout_count[0] << std::endl;
                     GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("ext_output_block_via_forward_probe");
                     if (get_node().is_type<non_max_suppression>() || get_node().is_type<multiclass_nms>()) {
-                        output_0_bound_to_ext_block = true;
+                        output_0_bound_to_external_memory = true;
                         break;
                     }
                     return;
@@ -1321,7 +1329,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     }
 
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
-        if (output_0_bound_to_ext_block && i == 0) {
+        if (output_0_bound_to_external_memory && i == 0) {
             continue;
         }
         bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_linear_size() <= _max_output_layout_count[i]);
