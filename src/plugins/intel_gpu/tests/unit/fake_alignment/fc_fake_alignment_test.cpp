@@ -216,26 +216,60 @@ INSTANTIATE_TEST_SUITE_P(smoke, fully_connected_fake_align_test,
             layout{ov::PartialShape{264, 1, 511}, data_types::f16, format::bfyx},                      // fake_aligned input layout_dgpu
             layout{ov::PartialShape{264, 1, 800}, data_types::f16, format::bfyx}                       // fake_aligned output layout_dgpu
         },
-        // 4-bit weights with up to 4 rows are not padded on iGPU: the padded shape would select
-        // the 256-GRF systolic gemm instead of the 128-GRF dot kernel that covers 2..4 rows
-        {
-            layout{ov::PartialShape{3, 1024}, data_types::f16, format::bfyx},                         // input_layout
-            layout{ov::PartialShape{1000, 1024}, data_types::i4, format::bfyx},                        // weight layout
-            data_types::f16,
-            layout{ov::PartialShape{3, 1024}, data_types::f16, format::bfyx},                         // fake_aligned input layout_igpu
-            layout{ov::PartialShape{3, 1000}, data_types::f16, format::bfyx},                         // fake_aligned output layout_igpu
-            layout{ov::PartialShape{8, 1024}, data_types::f16, format::bfyx},                         // fake_aligned input layout_dgpu
-            layout{ov::PartialShape{8, 1000}, data_types::f16, format::bfyx}                          // fake_aligned output layout_dgpu
-        },
-        {
-            layout{ov::PartialShape{5, 1024}, data_types::f16, format::bfyx},                         // input_layout
-            layout{ov::PartialShape{1000, 1024}, data_types::i4, format::bfyx},                        // weight layout
-            data_types::f16,
-            layout{ov::PartialShape{16, 1024}, data_types::f16, format::bfyx},                        // fake_aligned input layout_igpu
-            layout{ov::PartialShape{16, 1000}, data_types::f16, format::bfyx},                        // fake_aligned output layout_igpu
-            layout{ov::PartialShape{8, 1024}, data_types::f16, format::bfyx},                         // fake_aligned input layout_dgpu
-            layout{ov::PartialShape{8, 1000}, data_types::f16, format::bfyx}                          // fake_aligned output layout_dgpu
-        },
+    }));
+
+struct fc_fake_align_int4_small_batch_params {
+    int64_t rows;
+    int64_t aligned_rows_xmx_igpu;
+    int64_t aligned_rows_igpu;  // integrated GPU without XMX
+    int64_t aligned_rows_dgpu;
+};
+
+class fully_connected_fake_align_int4_small_batch_test : public testing::TestWithParam<fc_fake_align_int4_small_batch_params> {};
+
+// 4-bit weights with 2..4 rows are not padded on integrated GPUs with XMX: the padded shape would select the
+// 256-GRF systolic gemm instead of the 128-GRF dot kernel that covers 2..4 rows. Integrated GPUs without XMX
+// do not run the FC on oneDNN and keep the padding. 512 input features keep the 1-row case away from the
+// vector-by-matrix early return, so it reaches the 2..4 row check.
+TEST_P(fully_connected_fake_align_int4_small_batch_test, fake_alignment) {
+    auto p = GetParam();
+
+    auto& engine = get_test_engine();
+
+    auto input_layout_prim = std::make_shared<input_layout>("input", layout{ov::PartialShape{p.rows, 512}, data_types::f16, format::bfyx});
+    auto weight_layout_prim = std::make_shared<input_layout>("weight", layout{ov::PartialShape{1000, 512}, data_types::i4, format::bfyx});
+    auto fully_connected_prim = std::make_shared<fully_connected>("output", input_info("input"), "weight", "", data_types::f16, 2);
+
+    cldnn::program prog(engine);
+
+    auto& input_node = prog.get_or_create(input_layout_prim);
+    auto& weight_node = prog.get_or_create(weight_layout_prim);
+    auto& fully_connected_node = prog.get_or_create(fully_connected_prim);
+    program_wrapper::add_connection(prog, input_node, fully_connected_node);
+    program_wrapper::add_connection(prog, weight_node, fully_connected_node);
+
+    auto impl_param = fully_connected_node.get_kernel_impl_params();
+    impl_param->output_layouts[0] = fully_connected_inst::calc_output_layouts<ov::PartialShape>(fully_connected_node, *impl_param)[0];
+
+    auto updated_param = fully_connected_inst::get_fake_aligned_params(*impl_param);
+
+    const auto& device_info = engine.get_device_info();
+    auto aligned_rows = p.aligned_rows_dgpu;
+    if (device_info.dev_type == cldnn::device_type::integrated_gpu) {
+        aligned_rows = device_info.supports_immad ? p.aligned_rows_xmx_igpu : p.aligned_rows_igpu;
+    }
+    ASSERT_EQ(updated_param.get_input_layout(), (layout{ov::PartialShape{aligned_rows, 512}, data_types::f16, format::bfyx}));
+    ASSERT_EQ(updated_param.get_output_layout(), (layout{ov::PartialShape{aligned_rows, 1000}, data_types::f16, format::bfyx}));
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, fully_connected_fake_align_int4_small_batch_test,
+    testing::ValuesIn(std::vector<fc_fake_align_int4_small_batch_params>{
+        // rows, aligned rows on an XMX iGPU, on an iGPU without XMX, on a dGPU
+        {1, 16, 16, 8},
+        {2, 2, 16, 8},
+        {3, 3, 16, 8},
+        {4, 4, 16, 8},
+        {5, 16, 16, 8},
     }));
 
 class fully_connected_skip_fake_align_test : public testing::TestWithParam<fc_fake_align_params> {};
