@@ -110,7 +110,7 @@ struct QuantLayout {
     bool asymmetric;    // carries a per-group zero-point
 };
 
-std::optional<QuantLayout> quant_layout(uint32_t type) {
+std::optional<QuantLayout> quant_layout(uint32_t type, const std::string& name) {
     constexpr bool asymmetric = true;
     constexpr bool symmetric = false;
     switch (type) {
@@ -141,7 +141,8 @@ std::optional<QuantLayout> quant_layout(uint32_t type) {
     case GGUF_TYPE_Q5_1:
         return QuantLayout{ov::element::i8, 1, ov::element::f16, 32, asymmetric};
     case GGUF_TYPE_Q5_K:
-        return QuantLayout{ov::element::u8, 1, ov::element::f16, 32, asymmetric};
+        return native_q5_k_is_symmetric(name) ? QuantLayout{ov::element::i8, 1, ov::element::f16, 32, symmetric}
+                                              : QuantLayout{ov::element::u8, 1, ov::element::f16, 32, asymmetric};
     case GGUF_TYPE_MXFP4:
         return QuantLayout{ov::element::f4e2m1, 1, ov::element::f8e8m0, 32, symmetric};
     default:
@@ -582,7 +583,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
     };
 
     for (const auto& info : infos) {
-        if (const auto layout = quant_layout(info.type)) {
+        if (const auto layout = quant_layout(info.type, info.name)) {
             quant_sizes(info, *layout);
         }
     }
@@ -634,7 +635,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
         const std::string name_prefix =
             ov::util::ends_with(name, WEIGHT_SUFFIX) ? name.substr(0, name.length() - WEIGHT_SUFFIX.length()) : name;
 
-        const auto layout = quant_layout(ti.type);
+        const auto layout = quant_layout(ti.type, ti.name);
         if (!layout) {
             ov::Tensor loaded = extract_tensor_data(tensor, mapped);  // zero-copy mmap view
             const bool inserted = arrays.emplace(name, std::move(loaded)).second;
@@ -657,7 +658,9 @@ GGUFLoad get_gguf_data(const std::string& file) {
             zp = ov::Tensor(gguf_zero_point_type(name, static_cast<GgufTensorType>(ti.type)), scale_shape);
         }
 
-        if (ti.type == GGUF_TYPE_MXFP4) {
+        if (ti.type == GGUF_TYPE_Q5_K && !layout->asymmetric) {
+            gguf_fill_q5_k_i8(tensor, weights, scales);
+        } else if (ti.type == GGUF_TYPE_MXFP4) {
             gguf_fill_mxfp4(tensor, weights, scales);
         } else if (ti.type == GGUF_TYPE_Q2_0 || ti.type == GGUF_TYPE_PQ2_0 || ti.type == GGUF_TYPE_PTQ1_0) {
             gguf_fill_q2_0(tensor, weights, scales, zp);

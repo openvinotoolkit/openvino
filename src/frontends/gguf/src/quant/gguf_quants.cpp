@@ -3,6 +3,7 @@
 //
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -457,6 +458,42 @@ static void dequant_row_q6_k_f32(const uint8_t* row, size_t cols, float* y) {
             qh += 32;
             sc += 8;
         }
+    }
+}
+
+void gguf_fill_q5_k_i8(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales) {
+    constexpr size_t group_size = 32;
+    OPENVINO_ASSERT(tensor.type == GGUF_TYPE_Q5_K, "[GGUF] invalid Q5_K symmetric requantization group");
+    OPENVINO_ASSERT(tensor.num_weights % 256 == 0 && tensor.bsize / kQ5K_BLOCK_BYTES == tensor.num_weights / 256 &&
+                        tensor.bsize % kQ5K_BLOCK_BYTES == 0,
+                    "[GGUF] invalid Q5_K symmetric requantization payload");
+    OPENVINO_ASSERT(weights.get_element_type() == ov::element::i8 && weights.get_size() == tensor.num_weights &&
+                        scales.get_element_type() == ov::element::f16 &&
+                        scales.get_size() == tensor.num_weights / group_size,
+                    "[GGUF] invalid Q5_K symmetric requantization buffers");
+    auto* dst = weights.data<int8_t>();
+    auto* scale_data = scales.data<ov::float16>();
+    ov::parallel_for(tensor.num_weights / 256, [&](size_t block) {
+        std::array<float, 256> values;
+        dequant_row_q45_k_f32<true>(tensor.weights_data + block * kQ5K_BLOCK_BYTES, 256, values.data());
+        for (size_t offset = 0; offset < 256; offset += group_size) {
+            float amax = 0.0f;
+            for (size_t k = offset; k < offset + group_size; ++k) {
+                OPENVINO_ASSERT(std::isfinite(values[k]), "[GGUF] cannot requantize non-finite Q5_K values");
+                amax = std::max(amax, std::fabs(values[k]));
+            }
+            const ov::float16 scale_f16(amax / 127.0f);
+            const float scale = static_cast<float>(scale_f16);
+            OPENVINO_ASSERT(std::isfinite(scale), "[GGUF] Q5_K symmetric scale exceeds f16 range");
+            scale_data[(block * 256 + offset) / group_size] = scale_f16;
+            for (size_t k = offset; k < offset + group_size; ++k) {
+                const float code = scale > 0.0f ? std::round(values[k] / scale) : 0.0f;
+                dst[block * 256 + k] = static_cast<int8_t>(std::clamp(code, -127.0f, 127.0f));
+            }
+        }
+    });
+    if (tensor.num_weights != 0) {
+        notify_lossy_weight_approximation(LossyWeightApproximation::Q5_K_SYMMETRIC_REQUANT);
     }
 }
 
