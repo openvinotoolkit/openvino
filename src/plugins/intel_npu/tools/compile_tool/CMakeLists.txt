@@ -33,7 +33,7 @@ ov_add_target(TYPE EXECUTABLE
 
 set_target_properties(${TARGET_NAME} PROPERTIES
                       FOLDER intel_npu_tools
-                      CXX_STANDARD 17)
+                      CXX_STANDARD 20)
 
 # TODO: fix warnings and remove this exception
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
