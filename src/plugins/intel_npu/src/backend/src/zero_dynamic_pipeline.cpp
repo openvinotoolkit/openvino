@@ -260,8 +260,11 @@ void DynamicPipeline::push() {
     const bool commandQueueVersionChanged = (commandQueueDesc.key() != _command_queue->desc().key());
 
     const npu_vm_runtime_config_desc_t* runtimeConfig = nullptr;
+
     if (useV2Api) {
         if (commandQueueVersionChanged && commandQueueDesc.sharedCommonQueue()) {
+            // Retain the outgoing queue until a successful Execute2 migrates the runtime's fence off it.
+            _pending_command_queues.push_back(_command_queue);
             _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
         }
 
@@ -272,6 +275,8 @@ void DynamicPipeline::push() {
             _runtime_config_command_queue_desc_valid = true;
         }
     } else if (commandQueueVersionChanged) {
+        // v1 Fences own a shared_ptr to their queue, so the old queue outlives the fence recreation below;
+        // no extra retention is needed here (unlike the v2 runtime-owned fence migrated in Execute2).
         _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
 
         if (_sync_output_with_fences) {
@@ -307,6 +312,10 @@ void DynamicPipeline::push() {
         const ze_fence_handle_t fence = _sync_output_with_fences ? _fences.front()->handle() : nullptr;
         execute_vm_runtime(vmRuntime, dynamicArguments, commandLists->getHandles(), commandQueueHandle, fence, nullptr);
     }
+
+    // Execute above migrated the runtime's fence onto the current queue, so queues retained across earlier
+    // switches (including failed inferences) are no longer referenced and can be released.
+    _pending_command_queues.clear();
 
     _logger.debug("push - completed");
 }
@@ -541,6 +550,8 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
         if (use_npu_vm_runtime_v2_api(_apiVersion)) {
             const auto commandQueueDesc = _graph->get_command_queue_desc();
             if (commandQueueDesc.sharedCommonQueue() && commandQueueDesc.key() != _command_queue->desc().key()) {
+                // Retain the outgoing queue; the fence migrates only in a later successful Execute2.
+                _pending_command_queues.push_back(_command_queue);
                 _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
             }
         }
