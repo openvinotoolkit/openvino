@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
@@ -30,7 +31,10 @@ struct PaKVReorderImplementationManager : public cldnn::ImplementationManager {
             return false;
         }
 
-        return desc->has_xattention;
+        const auto& config = node.get_program().get_config();
+        const auto& kernel_selections = config.get_kernel_selection();
+        return desc->has_xattention ||
+               std::find(kernel_selections.begin(), kernel_selections.end(), ov::intel_gpu::KernelSelection::PA_CM) != kernel_selections.end();
     }
 };
 

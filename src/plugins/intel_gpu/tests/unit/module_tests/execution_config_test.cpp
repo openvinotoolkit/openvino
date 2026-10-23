@@ -164,6 +164,19 @@ TEST(execution_config, kv_cache_u4_weights_auto_detect_u4) {
     ASSERT_EQ(config.get_kv_cache_precision(), ov::element::u4);
 }
 
+TEST(execution_config, kv_cache_u4_weights_with_pa_cm_uses_i8) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto model = make_pa_matmul_model(ov::element::u4);
+
+    ExecutionConfig config;
+    config.set_user_property(ov::intel_gpu::kernel_selection(
+        std::vector<ov::intel_gpu::KernelSelection>{ov::intel_gpu::KernelSelection::PA_CM}));
+    config.finalize(ctx.get(), model.get());
+
+    ASSERT_EQ(config.get_kv_cache_precision(), ov::element::i8);
+}
+
 TEST(execution_config, kv_cache_i4_weights_auto_detect_u4) {
     auto& engine = get_test_engine();
     auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
@@ -246,6 +259,18 @@ TEST(execution_config, kv_cache_4bit_by_token_throws) {
     ASSERT_ANY_THROW(config.finalize(ctx.get(), model.get()));
 }
 
+TEST(execution_config, kv_cache_4bit_with_pa_cm_throws) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto model = make_pa_matmul_model(ov::element::u4);
+
+    ExecutionConfig config;
+    config.set_user_property(ov::intel_gpu::kernel_selection(
+        std::vector<ov::intel_gpu::KernelSelection>{ov::intel_gpu::KernelSelection::PA_CM}));
+    config.set_user_property(ov::hint::kv_cache_precision(ov::element::u4));
+
+    ASSERT_ANY_THROW(config.finalize(ctx.get(), model.get()));
+}
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl.hpp>
 

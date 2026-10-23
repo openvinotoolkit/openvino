@@ -26,6 +26,40 @@ namespace ov {
 namespace intel_gpu {
 
 /**
+ * @brief Available attention kernel backends.
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+enum class KernelSelection {
+    PA_CM = 0,  //!< Enable CM PagedAttention kernel backend
+};
+
+inline std::ostream& operator<<(std::ostream& os, const KernelSelection& selection) {
+    switch (selection) {
+    case KernelSelection::PA_CM:
+        return os << "PA_CM";
+    default:
+        OPENVINO_THROW("Unsupported attention mode");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, KernelSelection& selection) {
+    std::string str;
+    is >> str;
+    if (str == "PA_CM") {
+        selection = KernelSelection::PA_CM;
+    } else {
+        OPENVINO_THROW("Unsupported attention mode: ", str);
+    }
+    return is;
+}
+
+/**
+ * @brief Selects Intel GPU attention kernel backends.
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<std::vector<KernelSelection>> kernel_selection{"KERNEL_SELECTION"};
+
+/**
  * @brief Read-only property which defines size of memory in bytes available for the device. For iGPU it returns host
  * memory size, for dGPU - dedicated gpu memory size
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api

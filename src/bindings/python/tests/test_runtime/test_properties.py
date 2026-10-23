@@ -87,6 +87,12 @@ def test_properties_rw_base():
             ),
         ),
         (
+            intel_gpu.KernelSelection,
+            (
+                (intel_gpu.KernelSelection.PA_CM, "KernelSelection.PA_CM", 0),
+            ),
+        ),
+        (
             hints.SchedulingCoreType,
             (
                 (hints.SchedulingCoreType.ANY_CORE, "SchedulingCoreType.ANY_CORE", 0),
@@ -302,6 +308,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             hints.performance_mode,
             "PERFORMANCE_HINT",
             ((hints.PerformanceMode.LATENCY, hints.PerformanceMode.LATENCY),),
+        ),
+        (
+            intel_gpu.kernel_selection,
+            "KERNEL_SELECTION",
+            (([intel_gpu.KernelSelection.PA_CM], [intel_gpu.KernelSelection.PA_CM]),),
         ),
         (
             hints.enable_cpu_pinning,

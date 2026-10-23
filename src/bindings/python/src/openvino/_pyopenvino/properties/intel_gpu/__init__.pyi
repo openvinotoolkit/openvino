@@ -6,7 +6,18 @@ import typing
 """
 openvino.properties.intel_gpu submodule that simulates ov::intel_gpu
 """
-__all__: list[str] = ['CapabilityGPU', 'MemoryType', 'device_max_alloc_mem_size', 'device_total_mem_size', 'disable_winograd_convolution', 'enable_loop_unrolling', 'execution_units_count', 'hint', 'memory_statistics', 'uarch_version']
+__all__: list[str] = ['CapabilityGPU', 'KernelSelection', 'MemoryType', 'device_max_alloc_mem_size', 'device_total_mem_size', 'disable_winograd_convolution', 'enable_loop_unrolling', 'execution_units_count', 'hint', 'kernel_selection', 'memory_statistics', 'uarch_version']
+class KernelSelection:
+    PA_CM: typing.ClassVar[KernelSelection]
+    __members__: typing.ClassVar[dict[str, KernelSelection]]
+
+    @property
+    def name(self) -> str:
+        ...
+
+    @property
+    def value(self) -> int:
+        ...
 class CapabilityGPU:
     """
     openvino.properties.intel_gpu.CapabilityGPU submodule that simulates ov::intel_gpu::capability
@@ -36,6 +47,12 @@ def enable_loop_unrolling() -> str:
 def enable_loop_unrolling(arg0: bool) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 def execution_units_count() -> str:
+    ...
+@typing.overload
+def kernel_selection() -> str:
+    ...
+@typing.overload
+def kernel_selection(arg0: typing.Sequence[KernelSelection]) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 def memory_statistics() -> str:
     ...
