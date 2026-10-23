@@ -29,9 +29,10 @@ public:
 
     [[nodiscard]] std::string get_build_options(const kernel_impl_params& params) const override;
 
-    // Queries per workgroup (the KQ workgroup query tile). Paged attention must use exactly this as the
-    // blocked_indexes_start_and_gws_mapping stride, or part of every subsequence is left uncomputed.
-    static size_t get_query_block_size(const kernel_impl_params& params);
+    // Queries per workgroup (the KQ workgroup query tile) of the PREFILL (is_prefill) or MIXED stage. Paged attention
+    // must use exactly this as the blocked_indexes_start_and_gws_mapping stride, or part of every subsequence is left
+    // uncomputed.
+    static size_t get_query_block_size(const kernel_impl_params& params, bool is_prefill);
 
     // Whether a tiling exists for this (k_head_size, v_head_size) pair: KQ is tiled by k_head_size and the
     // S*V split by v_head_size, so the two need not be equal. Decidable from the descriptor and the arch,

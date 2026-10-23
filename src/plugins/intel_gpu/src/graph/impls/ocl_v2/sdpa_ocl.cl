@@ -658,6 +658,30 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         #endif
 
         float alpha[kq_query_blocks];
+#if CAUSAL_MASK_LAST_ONLY
+        // The workgroup's queries all lie in its last key tile (kq_wg_tile_keys >= kq_wg_tile_queries, both
+        // tile-aligned), so no key of an earlier tile is causally masked, and an earlier tile needs the mask loop
+        // below only while it holds a key the sliding window drops for the workgroup's last query. The maxima
+        // are taken in the same order either way.
+    #if SLIDING_WINDOW_SIZE
+        const bool tile_masked = last || (k0 + SLIDING_WINDOW_SIZE <= (int)wg_j0 + kq_wg_tile_queries - 1);
+    #else
+        const bool tile_masked = last;
+    #endif
+        if (!tile_masked) {
+            #pragma unroll
+            for (int qb = 0; qb < kq_query_blocks; ++qb) {
+                float lmax = -INFINITY;
+                #pragma unroll
+                for (int mb = 0; mb < kq_key_blocks; ++mb)
+                    #pragma unroll
+                    for (int mm = 0; mm < 8; ++mm)
+                        lmax = fmax(lmax, S_tile[mb][qb][mm]);
+                const int query = sg_j0_kq + qb * SUBGROUP_SIZE + lane;
+                __builtin_IB_atomic_max_local_f32(&S_max_slm[query], lmax);
+            }
+        } else
+#endif
         #pragma unroll
         for (int qb = 0; qb < kq_query_blocks; ++qb) {
             float lmax = -INFINITY;
@@ -763,8 +787,19 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             __builtin_IB_atomic_max_local_f32(&S_max_slm[query], lmax);
         }
 
+#if MAX_SPLIT_BARRIER
+        // Split, as sdpa_micro's: the V prefetch is issued while the other subgroups reach the barrier.
+        intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
+#else
         barrier(CLK_LOCAL_MEM_FENCE);
-
+#endif
+#if PREFETCH_V
+        // This tile's V, ahead of the softmax (sdpa_micro's PREFETCH_V placement).
+        FUNC_CALL(v_tile_prefetch)(V_b2d, VD_w_b2d, VD_h, VD_p, VD_x0, k0, (int)sg_ij);
+#endif
+#if MAX_SPLIT_BARRIER
+        intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
+#endif
 #if IS_PA_K_U4 && PA_CUR_KV_F16
         if (!from_cache && sg_i_sv == 0)
             FUNC_CALL(vc_prefetch)(Vc_b2d, VcD_w_b2d, VcD_h, VcD_p, VcD_x0, sg_j0_sv, dv, k0, k_chunk, past_len);
@@ -797,14 +832,27 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             #pragma unroll
             for (int mb = 0; mb < kq_key_blocks; ++mb) {
 #if MICRO_MATH
+    #if SOFTMAX_BRANCHLESS
+                // exp2 for every lane, then select: as a ternary IGC branches around the exp2 per (mb, qb)
+                // block, which keeps the blocks from interleaving. A !ok lane's value (NaN or 0) is replaced
+                // by the select, so the result is the ternary's.
+                float8 exp_tile = native_exp2((S_tile[mb][qb] - m_new) * scale);
+                exp_tile = select((float8)0.0f, exp_tile, (int8)(ok ? -1 : 0));
+    #else
                 float8 exp_tile = ok ? native_exp2((S_tile[mb][qb] - m_new) * scale) : (float8)0.0f;
+    #endif
                 // tile_vreduce_add in sdpa_micro accumulates keys in order, including
                 // across the two DPAS row blocks of each 16-key subgroup tile.
                 #pragma unroll
                 for (int mm = 0; mm < DPAS_ROWS; ++mm)
                     lsum += exp_tile[mm];
 #else
+    #if SOFTMAX_BRANCHLESS
+                float8 exp_tile = native_exp2(S_tile[mb][qb] * scale - m_log2);
+                exp_tile = select((float8)0.0f, exp_tile, (int8)(ok ? -1 : 0));
+    #else
                 float8 exp_tile = ok ? native_exp2(S_tile[mb][qb] * scale - m_log2) : (float8)0.0f;
+    #endif
                 lsum += exp_tile[0] + exp_tile[1] + exp_tile[2] + exp_tile[3]
                       + exp_tile[4] + exp_tile[5] + exp_tile[6] + exp_tile[7];
 #endif
