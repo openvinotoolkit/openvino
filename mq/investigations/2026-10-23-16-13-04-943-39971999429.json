@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-23-16-13-04-943-39971999429",
+  "timestamp": "2026-10-23T16:13:04Z",
+  "run_id": "39971999429",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39971999429",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39121",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39121",
+  "author": "michal-miotk",
+  "category": "Flaky Test",
+  "title": "TestKerasLSTM test_keras_lstm_flags_float32 numerical accuracy mismatch with dropout",
+  "signature": "test keras lstm flags numerical mismatch with dropout float32|Flaky Test",
+  "signature_hash": "a284d27dfee44614",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "test_keras_lstm_flags_float32[dropouts=(0.1, 0.3)] fails comparing IE vs framework results with Max diff 0.395"
+    }
+  ],
+  "key_errors": [
+    "E       AssertionError: Comparing with Framework failed: ie_res={'output_0': array([[-0. , 4.6220818, -0. ], [3.0858788, -0. , 3.0271246], [-0.8656374, 1.4798678, -3.5947566], [0. , 0. , 6.3414903]], dtype=float32)}; framework_res={'output_0': <tf.Tensor: shape=(4, 3), dtype=float32, numpy= array([[-0. , 4.6197658, -0. ], [3.0832906, -0. , 3.0295587], [-0.8369491, 1.4291174, -3.5884657], [0. , 0. , 6.736834 ]], dtype=float32)>}.",
+    "/home/runner/_work/openvino/openvino/install/tests/layer_tests/common/layer_test_class.py:111: AssertionError",
+    "Max diff is 0.3953437805175781"
+  ],
+  "root_cause": "This is a known, recurring flaky-test pattern (pattern a284d27dfee44614, seen 4 times total since 2026-08-27). The TensorFlow Keras LSTM layer test with dropout enabled (units=3, activation=relu, recurrent_activation=tanh, use_bias=False) compares OpenVINO CPU inference output against TensorFlow's reference output. The LSTM's internal dropout mask introduces randomness in the reference TF model between the conversion/tracing pass and the eager re-evaluation used for comparison, producing small numeric divergences (max diff ~0.4) that occasionally exceed the test's tolerance (custom_eps=5e-2 for non-FP32-exact paths). The failure is unrelated to the current PR #39121, which only touches src/plugins/intel_gpu/src/graph/network.cpp (a GPU-plugin null-pointer-dereference fix) and does not affect CPU TensorFlow frontend conversion or LSTM op lowering.",
+  "reproduction_steps": "Run locally: cd install/tests/layer_tests && pytest tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32 -k \"dropouts and 0.1\" -v (may require several repetitions to reproduce the flaky numeric mismatch since the dropout mask is non-deterministic).",
+  "recommended_actions": [
+    "Pin/seed the TensorFlow random dropout mask in test_keras_lstm_flags_float32 so the eager TF reference and the exported model use identical dropout masks.",
+    "Increase the comparison tolerance (custom_eps) specifically for LSTM-with-dropout parameterizations, or skip_framework-compare for dropout!=0 cases.",
+    "Track and fix upstream in openvino.tools.pot / layer_tests common framework so dropout layers are forced to eval mode (training=False) consistently on both sides of the comparison."
+  ],
+  "prevention_strategies": "Mark tests that use stochastic layers (Dropout, GaussianNoise, etc.) with an explicit deterministic seed before model tracing, and assert that framework and OpenVINO use the same seeded random state. Consider excluding dropout-enabled parameterizations from strict numeric comparison and instead verifying topology/shape as a smoke check.",
+  "historical_context": "This exact signature (a284d27dfee44614) has recurred 4 times (2026-08-27, 2026-09-21 x2 prior entries as count, now 2026-10-23), previously affecting PRs #38168, #37654, #37611. A related but distinct pattern (134f01149f41adcc) also covers general 'Comparing with Framework failed' LSTM accuracy flakiness recorded 3 times between 2026-06-26 and 2026-07-01. No permanent fix has landed yet; this remains an open, recurring CI flake unrelated to merge-queue PR content."
+}
