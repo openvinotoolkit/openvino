@@ -19,6 +19,9 @@ namespace ov::intel_gpu::ocl {
 
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 
+// Kernel used for MIXED stage with few query tokens per subsequence (speculative decoding)
+enum class GQAMultiTokensKernel : uint8_t { NONE = 0, SMALL_Q = 1, FALLBACK = 2 };
+
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     PagedAttentionStage stage;
     size_t num_of_partitions;
@@ -30,6 +33,7 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     size_t paged_attention_snap_kv_tokens;
     bool use_micro_sdpa = false;
     bool use_gqa_kernel = false;
+    GQAMultiTokensKernel gqa_multi_tokens_kernel = GQAMultiTokensKernel::NONE;
     size_t query_block_size = 16;
 };
 
