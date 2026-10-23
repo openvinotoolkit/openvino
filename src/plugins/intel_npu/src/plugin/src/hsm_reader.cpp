@@ -14,6 +14,11 @@ namespace {
 const ov::runtime::hsm::SectionTag RUNTIME_REQUIREMENTS_TAG =
     ov::runtime::hsm::SectionTag::make(static_cast<uint32_t>(SectionTypeCode::RUNTIME_REQUIREMENTS), false);
 
+// TODO comment mirrors writer conversion
+SectionID tag_reserved_bytes_to_section_id(const std::array<uint8_t, 4>& reserved_bytes) {
+    return SectionID(reserved_bytes.at(0) + (reserved_bytes.at(1) << 8));
+}
+
 }  // namespace
 
 namespace intel_npu::hsm {
@@ -65,7 +70,8 @@ BlobSectionsRegistry Reader::read(ov::runtime::hsm::Reader& base_reader) const {
                                manifest_entry.tag,
                                m_readers.at(static_cast<SectionTypeCode>(manifest_entry.tag.id())));
         if (parsed_section.has_value()) {
-            registry.register_section(parsed_section.value());
+            registry.register_section(parsed_section.value(),
+                                      tag_reserved_bytes_to_section_id(manifest_entry.tag_reserved));
         }
     }
 }

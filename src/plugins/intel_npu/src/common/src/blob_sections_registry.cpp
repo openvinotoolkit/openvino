@@ -19,15 +19,24 @@ BlobSectionsRegistry::BlobSectionsRegistry()
     : m_next_section_id(FIRST_AVAILABLE_SECTION_ID),
       m_logger("BlobSectionsRegistry", Logger::global().level()) {}
 
-SectionID BlobSectionsRegistry::register_section(const std::shared_ptr<ISection>& section) {
+SectionID BlobSectionsRegistry::register_section(const std::shared_ptr<ISection>& section,
+                                                 const std::optional<SectionID>& parsed_id) {
     OPENVINO_ASSERT(!section->get_id().has_value(),
                     "The given section has already been registered in a sections registry");
     const SectionType section_type = section->get_type();
 
     // TODO overflow checks
-    const SectionID section_id(m_next_section_id++);
+    const SectionID section_id = parsed_id.has_value() ? parsed_id.value() : SectionID(m_next_section_id++);
     OPENVINO_ASSERT(!m_ids_to_sections.count(section_id),
                     "The same section ID has been attributed to two distinct sections");
+
+    if (parsed_id.has_value()) {
+        // TODO error prone?
+        // Assume that the gap between m_next_section_id and parsed_id (if applicable) was already used within the
+        // parsed blob. Therefore, the next section ID should be updated accordingly.
+        const SectionID candidate(section->get_id()->get_id() + 1);
+        m_next_section_id = candidate.get_id() > m_next_section_id ? candidate.get_id() : m_next_section_id;
+    }
 
     section->set_id(section_id);
     m_write_queue.push(section);

@@ -24,11 +24,13 @@ public:
      * @brief Add a new blob section to the writing queue.
      *
      * @param section The section to be added in the writing queue.
+     * @param id TODO
      * @return The instance ID of the section. This number corresponds to the order within the writing queue and it is
      * used to distringuish between sections of the same type. This number is unique only among sections of the same
      * type.
      */
-    SectionID register_section(const std::shared_ptr<ISection>& section);
+    SectionID register_section(const std::shared_ptr<ISection>& section,
+                               const std::optional<SectionID>& parsed_id = std::nullopt);
 
     /**
      * @brief Retrieve a parsed section.
