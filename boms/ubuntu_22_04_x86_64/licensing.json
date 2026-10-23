@@ -1,0 +1,8 @@
+{
+  "component": "licensing",
+  "files": [
+    "licenses/onednn_third-party-programs.txt",
+    "licenses/onetbb_third-party-programs.txt",
+    "licenses/runtime-third-party-programs.txt"
+  ]
+}

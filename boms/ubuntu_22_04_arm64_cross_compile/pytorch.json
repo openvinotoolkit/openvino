@@ -1,0 +1,7 @@
+{
+  "component": "pytorch",
+  "files": [
+    "runtime/lib/aarch64/libopenvino_pytorch_frontend.so.2026.5.0",
+    "runtime/lib/aarch64/libopenvino_pytorch_frontend.so.2650"
+  ]
+}

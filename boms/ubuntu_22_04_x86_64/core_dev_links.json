@@ -1,0 +1,13 @@
+{
+  "component": "core_dev_links",
+  "files": [
+    "runtime/lib/intel64/libopenvino.so",
+    "runtime/lib/intel64/libopenvino_c.so",
+    "runtime/lib/intel64/libopenvino_gguf_frontend.so",
+    "runtime/lib/intel64/libopenvino_onnx_frontend.so",
+    "runtime/lib/intel64/libopenvino_paddle_frontend.so",
+    "runtime/lib/intel64/libopenvino_pytorch_frontend.so",
+    "runtime/lib/intel64/libopenvino_tensorflow_frontend.so",
+    "runtime/lib/intel64/libopenvino_tensorflow_lite_frontend.so"
+  ]
+}

@@ -282,6 +282,14 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
+      - name: Upload CPack component BOM
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: always()
+        with:
+          name: bom_manylinux_2_28_x86_64
+          path: ${{ env.BUILD_DIR }}/bom
+          if-no-files-found: 'error'
+
       - name: Store artifacts to a shared drive
         id: store_artifacts
         if: ${{ github.event_name != 'merge_group' }}
@@ -296,6 +304,14 @@ jobs:
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
           branch_name: ${{ inputs.target-branch }}
+
+  BOM_Tests:
+    name: BOM tests
+    needs: [Build, Smart_CI]
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    uses: ./.github/workflows/job_bom_tests.yml
+    with:
+      artifact-name: bom_manylinux_2_28_x86_64
 
   Python_API_Tests:
     name: Python API tests - Python ${{ matrix.python-version }}
@@ -336,7 +352,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_manylinux_2_28
-    needs: [Smart_CI, Build, Python_API_Tests, NodeJS_API_Tests]
+    needs: [Smart_CI, Build, BOM_Tests, Python_API_Tests, NodeJS_API_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

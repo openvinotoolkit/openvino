@@ -235,6 +235,9 @@ both successful or failed. To find artifacts for a pipeline, follow these steps:
 
 6. Click on the artifact name to download it.
 
+BOM artifacts (`bom_<configuration>`) describe the installed files of each CPack
+component. Post-build [BOM tests](./bom_tests.md) compare them with reviewed GOLD
+manifests to detect unapproved changes to the public package layout.
 ### Initial GOLD BOM baseline
 
 Missing GOLD BOMs can be proposed by the manual
@@ -263,9 +266,9 @@ are never overwritten. If all selected manifests already exist, the workflow fai
 creating a PR. For an existing configuration, developers must update changed BOMs manually in
 the PR that changes the packaged file list.
 
-When the regular BOM comparison is added, it should be configuration-specific. If the expected
-GOLD BOM is absent, there is no baseline to compare: the check should emit a warning with a link
-to this documentation and skip comparison for that BOM. This bootstrap workflow can then
+The regular BOM comparison is configuration-specific. If the expected
+GOLD BOM is absent, the check fails with an error and a link
+to this documentation. This bootstrap workflow can then
 initialize the missing BOM through a reviewed PR without changing existing baselines.
 
 ### Logs

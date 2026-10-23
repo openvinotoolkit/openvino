@@ -84,9 +84,17 @@ jobs:
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config"
 
+  BOM_Tests:
+    name: BOM tests
+    needs: [Build, Smart_CI]
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    uses: ./.github/workflows/job_bom_tests.yml
+    with:
+      artifact-name: bom_windows_vs2026_Release
+
   Overall_Status:
     name: ci/gha_overall_status_windows_vs2026
-    needs: [ Smart_CI, Build]
+    needs: [ Smart_CI, Build, BOM_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
