@@ -393,6 +393,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
                 }
 
                 auto fused = op_util::make_try_fold<v0::Concat>(inputs, 0);
+                fused->set_friendly_name(fused->get_friendly_name() + "/FusedMOEWeights");
 
                 if (needs_decompress) {
                     auto convert = std::make_shared<v0::Convert>(fused, target_type);
