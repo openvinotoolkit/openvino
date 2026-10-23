@@ -47,6 +47,8 @@ RUN apt-get update && \
         # For clang-tidy validation
         clang-format-18 \
         clang-tidy-18 \
+        # Fast linker used by the build (-fuse-ld=lld)
+        lld \
         && \
     rm -rf /var/lib/apt/lists/*
 
