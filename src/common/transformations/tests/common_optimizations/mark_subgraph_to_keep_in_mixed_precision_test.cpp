@@ -38,6 +38,32 @@ using namespace std;
 using namespace ov::opset10;
 
 namespace v0 = ov::op::v0;
+TEST(TransformationTests, MarkReciprocalSqrtWithEpsToKeepInMixedPrecision) {
+    for (const bool use_maximum : {false, true}) {
+        auto input = std::make_shared<Parameter>(element::f32, PartialShape{-1, -1, 2048});
+        auto square = std::make_shared<Power>(input, Constant::create(element::f32, Shape{}, {2.f}));
+        auto mean = std::make_shared<ReduceMean>(square, Constant::create(element::i64, Shape{1}, {-1}), true);
+        auto epsilon = Constant::create(element::f32, Shape{}, {1.e-5f});
+        std::shared_ptr<Node> stabilized;
+        if (use_maximum) {
+            stabilized = std::make_shared<Maximum>(mean, epsilon);
+        } else {
+            stabilized = std::make_shared<Add>(mean, epsilon);
+        }
+        auto sqrt = std::make_shared<Sqrt>(stabilized);
+        auto reciprocal = std::make_shared<Power>(sqrt, Constant::create(element::f32, Shape{}, {-1.f}));
+        auto normalized = std::make_shared<Multiply>(input, reciprocal);
+        auto model = std::make_shared<Model>(OutputVector{normalized}, ParameterVector{input});
+        pass::Manager manager;
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+        for (const auto& node : std::vector<std::shared_ptr<Node>>{square, mean, stabilized, sqrt,
+                                                                reciprocal, normalized}) {
+            EXPECT_TRUE(is_conversion_disabled(node, element::f16)) << node->get_friendly_name();
+        }
+    }
+}
+
 TEST(TransformationTests, keep_precission_sensitive_fp32_1) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
