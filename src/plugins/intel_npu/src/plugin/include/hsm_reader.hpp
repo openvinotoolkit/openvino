@@ -23,6 +23,8 @@ private:
     std::unordered_map<SectionType, ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>>> m_readers;
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> m_type_evaluators;
     std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> m_instance_evaluators;
+
+    Logger m_logger;
 };
 
 }  // namespace intel_npu::hsm

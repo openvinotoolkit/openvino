@@ -27,9 +27,9 @@ namespace {
 using namespace intel_npu;
 
 bool blob_contains_only_main_schedule(const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry) {
-    return (blobSectionsRegistry->count_registered_sections_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE) == 1) &&
-           !blobSectionsRegistry->count_registered_sections_of_type(SectionTypeCode::ELF_INIT_SCHEDULES) &&
-           !blobSectionsRegistry->count_registered_sections_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
+    return (blobSectionsRegistry->count_sections_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE) == 1) &&
+           !blobSectionsRegistry->count_sections_of_type(SectionTypeCode::ELF_INIT_SCHEDULES) &&
+           !blobSectionsRegistry->count_sections_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
 }
 
 }  // namespace

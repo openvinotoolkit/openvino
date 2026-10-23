@@ -11,6 +11,7 @@
 #include <unordered_set>
 
 #include "intel_npu/common/cre_token.hpp"
+#include "openvino/runtime/hsm_format.hpp"
 
 namespace intel_npu {
 
@@ -22,15 +23,16 @@ namespace intel_npu {
  * @note The size needs to be fixed (2 bytes) since this value is written inside the blob manifest
  */
 enum class SectionTypeCode : uint32_t {
-    UNKNOWN = 100,
-    RUNTIME_REQUIREMENTS = 3,  // Matches the tag ID used by the OV common code
-    ELF_MAIN_SCHEDULE = 101,
-    ELF_INIT_SCHEDULES = 102,
-    DYNAMIC_SCHEDULE = 103,
-    IO_LAYOUTS = 104,
-    BATCH_SIZE = 105,
-    ENCRYPTED_SCHEDULES_FLAG = 106,
-    COMPILER_VERSION = 107,
+    RUNTIME_REQUIREMENTS = static_cast<uint32_t>(
+        ov::runtime::hsm::Tags::runtime_requirements),  // Matches the tag ID used by the OV common code
+    UNKNOWN = ov::runtime::hsm::core_tag_id_range_end,
+    ELF_MAIN_SCHEDULE = ov::runtime::hsm::core_tag_id_range_end + 1,
+    ELF_INIT_SCHEDULES = ov::runtime::hsm::core_tag_id_range_end + 2,
+    DYNAMIC_SCHEDULE = ov::runtime::hsm::core_tag_id_range_end + 3,
+    IO_LAYOUTS = ov::runtime::hsm::core_tag_id_range_end + 4,
+    BATCH_SIZE = ov::runtime::hsm::core_tag_id_range_end + 5,
+    ENCRYPTED_SCHEDULES_FLAG = ov::runtime::hsm::core_tag_id_range_end + 6,
+    COMPILER_VERSION = ov::runtime::hsm::core_tag_id_range_end + 7,
 };
 
 /**
