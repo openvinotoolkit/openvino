@@ -103,4 +103,24 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeNotAppliedForSingleAxis) {
       ASSERT_TRUE(model->get_ops().size() >= compiled_model.get_runtime_model()->get_ops().size()); // decomposition not applied
 }
 
+TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeNotAppliedForLastAxisWithMaxEps) {
+  SKIP_IF_CURRENT_TEST_IS_DISABLED()
+  auto device_name = this->GetParam();
+
+  const float eps_value = 0.000099f;
+  const auto input = std::make_shared<ov::opset9::Parameter>(ov::element::f32, ov::PartialShape{3, 4, 5});
+  const auto axes_const = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+  const auto normalize_l2 = std::make_shared<ov::opset9::NormalizeL2>(input, axes_const, eps_value, ov::op::EpsMode::MAX);
+
+  const auto model = std::make_shared<ov::Model>(ov::OutputVector{normalize_l2}, ov::ParameterVector{input});
+
+  auto core = ov::Core();
+  ov::AnyMap config;
+  if (device_name == ov::test::utils::DEVICE_GPU)
+    config.insert(ov::hint::inference_precision(ov::element::f32));
+  const auto compiled_model = core.compile_model(model, device_name, config);
+
+  ASSERT_TRUE(model->get_ops().size() >= compiled_model.get_runtime_model()->get_ops().size()); // decomposition not applied
+}
+
 } // namespace ExecutionGraphTests
