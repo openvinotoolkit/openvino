@@ -90,6 +90,7 @@
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
 #include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
+#include "plugin/transformations/convert_matmul_to_fc_gguf.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
 #include "plugin/transformations/fuse_rope_input_deinterleave.hpp"
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
@@ -682,6 +683,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         manager.register_pass<ov::pass::TransposeMatMul>();
+
+        // Before constant folding, which would decode the GGUF blocks. The kernels quantize the activations to int8
+        // per 32 values, so dynamic quantization must allow that group size.
+        if (device_info.supports_imad && infer_precision == ov::element::f16 && config.get_dynamic_quantization_group_size() != 0 &&
+            config.get_dynamic_quantization_group_size_max() >= 32) {
+            manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnectedGGUF>();
+        }
 
         manager.register_pass<ov::pass::MarkDequantization>(std::vector<ov::element::Type>{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u2},
                                                             !device_info.supports_immad);

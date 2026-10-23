@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstdlib>
 
+#include "intel_gpu/op/fully_connected_gguf.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
 #include "intel_gpu/op/sdpa.hpp"
@@ -74,6 +75,11 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     }
 
     if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op)) {
+        return true;
+    }
+
+    // FullyConnectedGGUF reads its weights as [N, bytes]; the legacy shape infer would make them 4D.
+    if (ov::is_type<ov::intel_gpu::op::FullyConnectedGGUF>(op)) {
         return true;
     }
 
