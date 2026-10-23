@@ -8,8 +8,8 @@
 
 /*
  * Description:
- *     FallbackUnsupportedLPConvToFP16 detects quantized Convolution patterns with
- *     Convolution -> Multiply -> Add -> FakeQuantize that cannot execute as int8.
+ *     FallbackUnsupportedLPConvToFloat detects quantized Convolution patterns with
+ *     Convolution -> Multiply -> Add -> (Swish) -> FakeQuantize that cannot execute as int8.
  *
  *     The pass fires when either:
  *       1. The Convolution activation comes from a Subtract (zero-point dequantization),
@@ -90,16 +90,16 @@
  * After:
  *
  * +--------------+      +----------------+                             +--------------+
- * | Input (u8/i8)| ---> | Convert (f16)  | --------------------------> |              |
+ * | Input (u8/i8)| ---> | Convert (T)    | --------------------------> |              |
  * +--------------+      +----------------+                             | Convolution  |
  *                                                                      |              |
- * +---------------+      +----------------+      +------------------+  | (f16 act,    |
- * | Weights (i8)  | ---> | Convert (f16)  | ---> |     Multiply     |->| scaled f16   |
+ * +---------------+      +----------------+      +------------------+  | (T act,      |
+ * | Weights (i8)  | ---> | Convert (T)    | ---> |     Multiply     |->| scaled T     |
  * +---------------+      +----------------+      +--------+---------+  | weights)     |
  *                                                         ^            +------+-------+
  *                                                         |                   |
  * +--------------+      +----------------+      +---------+--------+          v
- * | DQ Scales    | ---> | Convert (f16)  | ---> |    Reshape       |   +------+------+
+ * | DQ Scales    | ---> | Convert (T)    | ---> |    Reshape       |   +------+------+
  * +--------------+      +----------------+      +------------------+   |     Add     |
  *                                                                      +------+------+
  *                                                                             |
@@ -114,15 +114,18 @@
  *                                                                      +-------------+
  *
  * Note:
- *     Convert(f16) nodes are inserted only when the corresponding input is not f16.
+ *     T is the floating Add output type: f16 or f32. Convert(T) is inserted only
+ *     when needed; the type-relaxed Conv output is also set to T to avoid reference
+ *     execution for mixed f16 inputs and f32 output. Activation Subtract is preserved;
+ *     optional Swish remains between Add and FakeQuantize.
  */
 
 namespace ov::intel_cpu {
 
-class FallbackUnsupportedLPConvToFP16 : public ov::pass::MatcherPass {
+class FallbackUnsupportedLPConvToFloat : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("FallbackUnsupportedLPConvToFP16");
-    FallbackUnsupportedLPConvToFP16();
+    OPENVINO_MATCHER_PASS_RTTI("FallbackUnsupportedLPConvToFloat");
+    FallbackUnsupportedLPConvToFloat();
 };
 
 }  // namespace ov::intel_cpu
