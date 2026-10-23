@@ -80,6 +80,7 @@ set(GPU_PLUGIN_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/moe.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/moe_offload_constant.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/moe_router_fused.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/msda.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/multiclass_nms.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/multinomial.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/mvn.cpp
