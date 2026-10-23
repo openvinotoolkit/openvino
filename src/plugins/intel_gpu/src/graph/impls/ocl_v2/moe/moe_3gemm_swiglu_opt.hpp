@@ -41,10 +41,11 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
             return false;
         }
 
-        // Only support weight: u4, i4, u8, i8
+        // Only support weight: u4, i4, u2, u8, i8
         static constexpr std::array supported_wei_type = {
             ov::element::u4,
             ov::element::i4,
+            ov::element::u2,
             ov::element::u8,
             ov::element::i8,
         };
@@ -62,12 +63,13 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
             return false;
         }
 
-        // Only support zp: u4, i4, u8, i8 (skip check for symmetric quantization where ZP is element::dynamic placeholder)
+        // Only support zp: u4, i4, u2, u8, i8 (skip check for symmetric quantization where ZP is element::dynamic placeholder)
         const auto& config = std::static_pointer_cast<const moe_3gemm_fused_compressed>(node.get_primitive())->_config;
         if (config.has_zp) {
             static constexpr std::array supported_zp_type = {
                 ov::element::u4,  // asym-quant type
                 ov::element::i4,  // sym-quant type
+                ov::element::u2,  // asym-quant type
                 ov::element::u8,  // asym-quant type
                 ov::element::i8,  // sym-quant type
             };
