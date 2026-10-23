@@ -53,6 +53,12 @@ openvino_options = {}
 if hasattr(torch._dynamo.config, "inline_inbuilt_nn_modules"):
     torch._dynamo.config.inline_inbuilt_nn_modules=False
 
+# Torch >= 2.13 ignores inline_inbuilt_nn_modules. Ask Dynamo to place
+# named parameters and buffers in TracingContext.params_flat anyway, so that
+# replace_params_with_constants() below can still freeze them into constants.
+if hasattr(torch._dynamo.config, "prepare_freezing"):
+    torch._dynamo.config.prepare_freezing=True
+
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs, options=None):
     if _get_aot_autograd(options):
