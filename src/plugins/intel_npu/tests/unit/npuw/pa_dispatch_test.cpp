@@ -22,7 +22,6 @@ namespace {
 
 using ov::npuw::pa::Dispatch;
 using ov::npuw::pa::validate_dispatch;
-using ov::npuw::pa::variants_serve;
 
 // A well-formed two-subsequence dispatch: 4 + 2 scheduled tokens on top of
 // 0 / 6 past tokens, a covering block table (block_size 4) and one sampled
@@ -172,7 +171,7 @@ TEST(PADispatchContract, ViolationNamesTheDispatch) {
 }
 
 // A dispatch shaped as N subsequences of the given scheduled lengths; only the
-// fields variants_serve reads are populated.
+// fields the chunk planning reads are populated.
 Dispatch make_dispatch_of(const std::vector<int32_t>& seq_lens) {
     Dispatch d;
     d.subsequence_begins = {0};
@@ -184,34 +183,6 @@ Dispatch make_dispatch_of(const std::vector<int32_t>& seq_lens) {
 }
 
 const std::vector<std::size_t> kChunkSizes = {1024u, 128u, 1u};
-
-TEST(PADispatchRouting, SingleSequenceDecodeServedByTheOneTokenVariant) {
-    EXPECT_TRUE(variants_serve(make_dispatch_of({1}), kChunkSizes));
-    EXPECT_FALSE(variants_serve(make_dispatch_of({1}), {1024u, 128u}));
-}
-
-TEST(PADispatchRouting, DecodeBatchRunsOneToOne) {
-    EXPECT_FALSE(variants_serve(make_dispatch_of({1, 1, 1, 1}), kChunkSizes));
-}
-
-TEST(PADispatchRouting, ShortPrefillRunsOneToOne) {
-    EXPECT_FALSE(variants_serve(make_dispatch_of({32, 32, 32, 32}), kChunkSizes));
-    EXPECT_FALSE(variants_serve(make_dispatch_of({127}), kChunkSizes));
-}
-
-TEST(PADispatchRouting, LongPrefillIsChunked) {
-    EXPECT_TRUE(variants_serve(make_dispatch_of({128}), kChunkSizes));
-    EXPECT_TRUE(variants_serve(make_dispatch_of({7638}), kChunkSizes));
-}
-
-TEST(PADispatchRouting, MixedDispatchWithOneLongSubsequenceIsChunked) {
-    EXPECT_TRUE(variants_serve(make_dispatch_of({1, 1, 200, 1}), kChunkSizes));
-}
-
-TEST(PADispatchRouting, NoVariantsOrNoTokensRunOneToOne) {
-    EXPECT_FALSE(variants_serve(make_dispatch_of({7638}), {}));
-    EXPECT_FALSE(variants_serve(make_dispatch_of({}), kChunkSizes));
-}
 
 using ov::npuw::pa::Chunk;
 using ov::npuw::pa::chunk_controls;
