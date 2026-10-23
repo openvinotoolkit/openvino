@@ -190,13 +190,6 @@ Example:
         </filters>
     </skip_config>
 
-    <skip_config>
-        <message>MODEL_PTR is reported as RW but cannot be set outside compiled model import</message>
-        <filters>
-            <filter>.*OVPropertiesDefaultSupportedTests.CanSetDefaultValueBackToPlugin.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E#116575 -->
     <skip_config>
         <message>NPU fails for `OVIterationChaining.Simple` tests</message>

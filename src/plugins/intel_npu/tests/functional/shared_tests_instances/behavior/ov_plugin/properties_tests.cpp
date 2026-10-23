@@ -102,6 +102,7 @@ const std::vector<std::string> ImmutableProperties{
     ov::device::pci_info.name(),
     ov::device::gops.name(),
     ov::device::type.name(),
+    ov::hint::model.name(),
 };
 
 const std::vector<ov::AnyMap> CorrectCompiledModelProperties = {
@@ -111,8 +112,6 @@ const std::vector<ov::AnyMap> CorrectCompiledModelProperties = {
     {{ov::hint::execution_mode.name(), ov::hint::ExecutionMode::PERFORMANCE}},
     {{ov::hint::num_requests.name(), 4u}},
     {{ov::hint::enable_cpu_pinning.name(), true}},
-    {{ov::hint::model.name(), std::shared_ptr<const ov::Model>(nullptr)}},
-    {{ov::hint::model.name(), std::shared_ptr<ov::Model>(nullptr)}}  // intentionally copied above to test constness
 };
 
 const std::vector<ov::AnyMap> IncorrectImmutableProperties = {
