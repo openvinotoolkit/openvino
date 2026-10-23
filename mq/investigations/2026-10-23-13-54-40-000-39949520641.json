@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-23-13-54-40-000-39949520641",
+  "timestamp": "2026-10-23T13:54:40Z",
+  "run_id": "39949520641",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39949520641",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39107",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39107",
+  "author": "wilson-seok",
+  "category": "Flaky Test",
+  "title": "PyTorch Layer Tests TestFill.test_fill crashes with Windows fatal exception: access violation",
+  "signature": "Windows fatal exception: access violation in test_full.py TestFill.test_fill on Windows PyTorch Layer Tests|Flaky Test",
+  "signature_hash": "82032dac8cba0148",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Pytorch Layer Tests / PyTorch Layer Tests",
+      "conclusion": "failure",
+      "symptom": "pytest process crashed with \"Windows fatal exception: access violation\" while running TestFill::test_fill, right after the previous test case PASSED"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregate status-check job failed because a dependent job (PyTorch Layer Tests) failed"
+    }
+  ],
+  "key_errors": [
+    "install\\tests\\layer_tests\\pytorch_tests\\test_full.py::TestFill::test_fill[... value_dtype:int32 - input_dtype:float64 - value:-1 - shape:[1, 2] ] \nWindows fatal exception: access violation\n\nThread 0x000011d4 (most recent call first):\n  File \"...\\pytorch_layer_test_class.py\", line 289 in _test\n  File \"...\\test_full.py\", line 144 in test_fill",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The PyTorch Layer Tests pytest process on the Windows runner crashed with a native 'Windows fatal exception: access violation' (equivalent of SIGSEGV) while executing TestFill::test_fill, immediately after the preceding parametrized case PASSED. The crash occurs deep inside the native PyTorch/OpenVINO interop stack reached via pytorch_layer_test_class.py:289 (_test) -> test_full.py:144 (test_fill), with no Python-level exception or assertion - consistent with memory corruption or an unguarded native pointer/buffer access during inference comparison rather than a deterministic logic bug in the PR under test. The PR (#39107) only changes a GPU OpenCL convolution kernel and its CPU-side test file; it does not touch the Windows PyTorch frontend/test harness, so the crash is unrelated to the PR's changes. This matches five prior 'Flaky Test' investigations in the repo-memory database describing intermittent Windows STATUS_ACCESS_VIOLATION crashes (0xC0000005) in unrelated test processes (benchmark_app, CoreThreadingTests, PyTorch FFT tests, EasyOCR NPU tests) on this same CI fleet, pointing to a known, pre-existing Windows-runner-level flakiness rather than a new regression.",
+  "reproduction_steps": "Not reliably reproducible locally - this is an intermittent native crash tied to the Windows CI runner environment. To attempt reproduction: on a Windows machine, build OpenVINO with the Release/VS2022 configuration, then run `pytest install/tests/layer_tests/pytorch_tests/test_full.py -k TestFill` repeatedly (the crash is intermittent and may require many iterations to reproduce).",
+  "recommended_actions": [
+    "Re-run the failed 'PyTorch Layer Tests' job; this failure category is a known transient Windows access-violation flake unrelated to PR #39107's GPU kernel change.",
+    "If the crash recurs consistently for TestFill::test_fill specifically (not just intermittently), file a tracking issue to investigate native memory safety in the PyTorch-to-OpenVINO conversion path exercised by TestFill on Windows.",
+    "Consider adding a Windows-specific retry/quarantine marker for test_full.py::TestFill if this signature keeps recurring across unrelated PRs."
+  ],
+  "prevention_strategies": "Track recurrence of 'Windows fatal exception: access violation' crashes across all PyTorch/C++ layer test jobs in the pattern database (as already done here); if the same signature or job recurs 3+ times within 12 hours, escalate per the merge-queue recurring-failure policy. Consider enabling Windows crash dump collection (e.g., via Watson/WER or faulthandler core dumps) uploaded as artifacts so future investigations can inspect the actual faulting address instead of only a bare stack frame with no native symbol information.",
+  "historical_context": "At least 5 prior investigations recorded similar Windows STATUS_ACCESS_VIOLATION / fatal exception crashes in otherwise-unrelated PRs: benchmark_app crashes (2026-07-07, 2026-07-13 x2), CoreThreadingTests.ReadModel crash (2026-07-08), PyTorch FFT Layer Tests crash in torch.randn (2026-07-14), and EasyOCR NPU Model Hub crash (2026-09-17) - all categorized 'Flaky Test' and judged unrelated to their respective PR diffs. This is the first occurrence of this exact signature (TestFill::test_fill), so a new pattern record is created rather than incrementing an existing one, though it is one instance of a broader recurring class of Windows access-violation flakiness."
+}

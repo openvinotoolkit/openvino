@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 295,
+  "total": 296,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2880,6 +2880,17 @@
       "category": "Code Issue",
       "signature_hash": "5f728509974fc6e1",
       "pr_number": "38655"
+    },
+    {
+      "investigation_id": "2026-10-23-13-54-40-000-39949520641",
+      "run_id": "39949520641",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39949520641",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-10-23T13:54:40Z",
+      "title": "PyTorch Layer Tests TestFill.test_fill crashes with Windows fatal exception: access violation",
+      "category": "Flaky Test",
+      "signature_hash": "82032dac8cba0148",
+      "pr_number": "39107"
     }
   ]
 }

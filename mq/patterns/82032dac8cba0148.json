@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "Windows fatal exception: access violation in test_full.py TestFill.test_fill on Windows PyTorch Layer Tests|Flaky Test",
+  "signature_hash": "82032dac8cba0148",
+  "title": "PyTorch Layer Tests TestFill.test_fill crashes with Windows fatal exception: access violation",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-10-23T13:54:40Z",
+  "last_seen": "2026-10-23T13:54:40Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/39949520641"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39107"
+  ],
+  "recent_timestamps": [
+    "2026-10-23T13:54:40Z"
+  ],
+  "rerun_search_string": "Windows fatal exception: access violation"
+}
