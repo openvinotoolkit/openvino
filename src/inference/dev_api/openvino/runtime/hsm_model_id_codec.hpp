@@ -9,14 +9,12 @@
 
 #pragma once
 
-#include <cassert>
 #include <cstdint>
-#include <cstring>
 #include <optional>
 
+#include "openvino/runtime/common.hpp"
 #include "openvino/runtime/hsm_format.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
-#include "openvino/util/memory.hpp"
 
 namespace ov::runtime::hsm {
 inline namespace v1 {
@@ -26,14 +24,12 @@ inline namespace v1 {
 
 /**
  * @brief Reads the model id from a #model_id_tag section.
- * @param section Section to decode.
- * @return `std::nullopt` if @p section's tag isn't #model_id_tag or the read fails.
+ * @note Layout: bytes [0, 8) hold the id as a native-endian (little-endian) `uint64_t`; the rest of the inline slot is
+ * ignored.
+ * @param section Section to decode; its tag must be #model_id_tag (debug-asserted).
+ * @return `std::nullopt` if the read fails.
  */
-inline std::optional<uint64_t> decode_model_id(const Section& section) noexcept {
-    assert(section.tag().value == model_id_tag.value);
-    uint64_t id{};
-    return section.read(0, sizeof(id), reinterpret_cast<std::byte*>(&id)) ? std::optional{id} : std::nullopt;
-}
+OPENVINO_RUNTIME_API std::optional<uint64_t> decode_model_id(const Section& section) noexcept;
 
 }  // namespace v1
 }  // namespace ov::runtime::hsm
