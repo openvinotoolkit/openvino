@@ -4,7 +4,6 @@
 
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
 
-#include <cstring>
 #include <limits>
 #include <utility>
 #include <vector>
@@ -14,6 +13,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -34,6 +34,7 @@
 #include "ov_ops/gather_matmul.hpp"
 #include "ov_ops/gather_matmul_compressed.hpp"
 #include "ov_ops/moe_compressed.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov::pass {
 
@@ -43,6 +44,7 @@ using ov::op::internal::MOECompressed;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
 namespace v4 = ov::op::v4;
 namespace v7 = ov::op::v7;
 namespace v8 = ov::op::v8;
@@ -52,6 +54,65 @@ static size_t weight_logical_K(const ov::Shape& shape) {
     OPENVINO_ASSERT(shape.size() == 3 || shape.size() == 4, "MOE weight must be rank 3 or 4, got rank ", shape.size());
     return shape.size() == 4 ? shape[2] * shape[3] : shape[2];
 }
+
+// A rank-0 zp is a folded per-tensor zero point. All-zero is symmetric and becomes the absent-zp constant. A non-zero
+// one is kept only if allow_nonzero: MOE validation exempts rank-0 inputs, and only the u2 kernels broadcast it.
+static bool normalize_scalar_zp(ov::Output<ov::Node>& zp, bool allow_nonzero) {
+    const auto& zp_shape = zp.get_partial_shape();
+    if (!zp_shape.is_static() || zp_shape.rank().get_length() != 0) {
+        return true;
+    }
+    const auto zp_const = ov::as_type_ptr<v0::Constant>(zp.get_node_shared_ptr());
+    if (!zp_const) {
+        return false;
+    }
+    // cast_vector is not meaningful on packed (u2/u4/i4) constants.
+    const auto zp_et = zp_const->get_element_type();
+    if (zp_et != ov::element::i8 && zp_et != ov::element::u8 && zp_et != ov::element::i32 &&
+        zp_et != ov::element::u32 && zp_et != ov::element::i64) {
+        return false;
+    }
+    for (const auto v : zp_const->cast_vector<int64_t>()) {
+        if (v != 0) {
+            return allow_nonzero;
+        }
+    }
+    zp = std::make_shared<v0::Constant>(ov::element::dynamic, ov::Shape{0});
+    return true;
+}
+
+// [E, N, 1] (or [E, N]) -> [E, N, K/group_size], each channel value repeated across groups.
+static bool broadcast_per_channel(ov::Output<ov::Node>& scale, size_t K, size_t group_size) {
+    const auto c = ov::as_type_ptr<v0::Constant>(scale.get_node_shared_ptr());
+    if (!c)
+        return false;
+    const auto s = c->get_shape();
+    if (s.size() < 2 || K % group_size != 0)
+        return false;
+    const size_t target_G = K / group_size;
+    if (target_G == 1)
+        return true;
+    // Packed sub-byte constants are left unfused.
+    if (c->get_element_type().bitwidth() < 8)
+        return false;
+    const auto channel_shape = v0::Constant::create(ov::element::i64, {3}, {s[0], s[1], size_t{1}});
+    const auto target_shape = v0::Constant::create(ov::element::i64, {3}, {s[0], s[1], target_G});
+    const auto expanded =
+        ov::op::util::make_try_fold<v3::Broadcast>(ov::op::util::make_try_fold<v1::Reshape>(c, channel_shape, false),
+                                                   target_shape);
+    const auto expanded_const = ov::as_type_ptr<v0::Constant>(expanded);
+    if (!expanded_const)
+        return false;
+    scale = expanded_const;
+    return true;
+}
+
+// Compressed weight dtypes the fused 3-GEMM MoE decodes.
+static const std::vector<ov::element::Type> moe_3gemm_weight_types = {ov::element::u2,
+                                                                      ov::element::u4,
+                                                                      ov::element::i4,
+                                                                      ov::element::u8,
+                                                                      ov::element::i8};
 
 Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
     MATCHER_SCOPE(Convert3GatherMatmulMoeBlockToMoeOp);
@@ -68,8 +129,9 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
     // Compressed BGM (6 inputs: A, B, indices, bias, scale, zp)
     auto gate_scale_m = pattern::any_input();
     auto gate_zp_m = pattern::any_input();
+    auto gate_wc_m = pattern::any_input(pattern::type_matches_any(moe_3gemm_weight_types));
     auto bgm_gate_6_m = pattern::wrap_type<GatherMatmulCompressed>(
-        {unsqueeze_m, gate_w_m, topk_indices_m, pattern::any_input(), gate_scale_m, gate_zp_m});
+        {unsqueeze_m, gate_wc_m, topk_indices_m, pattern::any_input(), gate_scale_m, gate_zp_m});
     // Or-pattern
     auto bgm_gate_m = bgm_gate_4_m | bgm_gate_6_m;
 
@@ -80,8 +142,9 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
     auto bgm_up_4_m = pattern::wrap_type<GatherMatmul>({unsqueeze_m, up_w_m, topk_indices_m, pattern::any_input()});
     auto up_scale_m = pattern::any_input();
     auto up_zp_m = pattern::any_input();
+    auto up_wc_m = pattern::any_input(pattern::type_matches_any(moe_3gemm_weight_types));
     auto bgm_up_6_m = pattern::wrap_type<GatherMatmulCompressed>(
-        {unsqueeze_m, up_w_m, topk_indices_m, pattern::any_input(), up_scale_m, up_zp_m});
+        {unsqueeze_m, up_wc_m, topk_indices_m, pattern::any_input(), up_scale_m, up_zp_m});
     auto bgm_up_m = bgm_up_4_m | bgm_up_6_m;
 
     auto swiglu_m = pattern::wrap_type<v1::Multiply>({swish_m, bgm_up_m});
@@ -90,8 +153,9 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
     auto bgm_down_4_m = pattern::wrap_type<GatherMatmul>({swiglu_m, down_w_m, topk_indices_m, pattern::any_input()});
     auto down_scale_m = pattern::any_input();
     auto down_zp_m = pattern::any_input();
+    auto down_wc_m = pattern::any_input(pattern::type_matches_any(moe_3gemm_weight_types));
     auto bgm_down_6_m = pattern::wrap_type<GatherMatmulCompressed>(
-        {swiglu_m, down_w_m, topk_indices_m, pattern::any_input(), down_scale_m, down_zp_m});
+        {swiglu_m, down_wc_m, topk_indices_m, pattern::any_input(), down_scale_m, down_zp_m});
     auto bgm_down_m = bgm_down_4_m | bgm_down_6_m;
 
     auto routing_m = pattern::any_input();
@@ -119,9 +183,13 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
 
         auto routing = pm.at(routing_m);
         auto topk_indices = pm.at(topk_indices_m);
-        auto gate_w = pm.at(gate_w_m);
-        auto up_w = pm.at(up_w_m);
-        auto down_w = pm.at(down_w_m);
+        const auto weight = [&](const std::shared_ptr<ov::Node>& plain_m,
+                                const std::shared_ptr<ov::Node>& compressed_m) {
+            return pm.count(compressed_m) ? pm.at(compressed_m) : pm.at(plain_m);
+        };
+        auto gate_w = weight(gate_w_m, gate_wc_m);
+        auto up_w = weight(up_w_m, up_wc_m);
+        auto down_w = weight(down_w_m, down_wc_m);
 
         // Extract expert_beta and detect activation type from the matched gate activation node.
         float expert_beta = 1.0f;
@@ -160,20 +228,18 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
         const bool is_compressed = is_gate_compressed;
 
         if (is_compressed) {
-            // moe_3gemm decodes mixed weight dtypes per GEMM only for {u2, u8}; anything else stays unfused.
+            // Each weight's dtype is checked by the pattern. Whether the three may differ spans all three inputs, so
+            // it is checked here: moe_3gemm decodes mixed dtypes per GEMM only for {u2, u8}.
             {
-                const auto gate_dt = pm.at(gate_w_m).get_element_type();
-                const auto up_dt = pm.at(up_w_m).get_element_type();
-                const auto down_dt = pm.at(down_w_m).get_element_type();
+                const auto gate_dt = gate_w.get_element_type();
+                const auto up_dt = up_w.get_element_type();
+                const auto down_dt = down_w.get_element_type();
                 const auto is_u2_or_u8 = [](ov::element::Type t) {
                     return t == ov::element::u2 || t == ov::element::u8;
                 };
-                const bool uniform_ok =
-                    (up_dt == gate_dt && down_dt == gate_dt) &&
-                    (gate_dt == ov::element::u2 || gate_dt == ov::element::u4 || gate_dt == ov::element::i4 ||
-                     gate_dt == ov::element::u8 || gate_dt == ov::element::i8);
-                const bool mixed_ok = is_u2_or_u8(gate_dt) && is_u2_or_u8(up_dt) && is_u2_or_u8(down_dt);
-                if (!(uniform_ok || mixed_ok)) {
+                const bool uniform = up_dt == gate_dt && down_dt == gate_dt;
+                const bool mixable = is_u2_or_u8(gate_dt) && is_u2_or_u8(up_dt) && is_u2_or_u8(down_dt);
+                if (!(uniform || mixable)) {
                     return false;
                 }
             }
@@ -181,38 +247,9 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
             auto up_zp = pm.at(up_zp_m);
             auto down_zp = pm.at(down_zp_m);
 
-            // A rank-0 zp is a folded per-tensor zero point. All-zero is symmetric and becomes the absent-zp constant.
-            // Non-zero is kept as is for u2 weights only: MOE validation exempts rank-0 inputs and only the u2 kernels
-            // broadcast it.
-            auto normalize_scalar_zp = [&](ov::Output<ov::Node>& zp, ov::element::Type wt) -> bool {
-                const auto& zp_shape = zp.get_partial_shape();
-                if (!zp_shape.is_static() || zp_shape.rank().get_length() != 0) {
-                    return true;
-                }
-                const auto zp_const = ov::as_type_ptr<v0::Constant>(zp.get_node_shared_ptr());
-                if (!zp_const) {
-                    return false;
-                }
-                // cast_vector is not meaningful on packed (u2/u4/i4) constants.
-                const auto zp_et = zp_const->get_element_type();
-                if (zp_et != ov::element::i8 && zp_et != ov::element::u8 && zp_et != ov::element::i32 &&
-                    zp_et != ov::element::u32 && zp_et != ov::element::i64) {
-                    return false;
-                }
-                for (const auto v : zp_const->cast_vector<int64_t>()) {
-                    if (v != 0) {
-                        if (wt != ov::element::u2) {
-                            return false;
-                        }
-                        return true;
-                    }
-                }
-                zp = std::make_shared<v0::Constant>(ov::element::dynamic, ov::Shape{0});
-                return true;
-            };
-            if (!normalize_scalar_zp(gate_zp, pm.at(gate_w_m).get_element_type()) ||
-                !normalize_scalar_zp(up_zp, pm.at(up_w_m).get_element_type()) ||
-                !normalize_scalar_zp(down_zp, pm.at(down_w_m).get_element_type())) {
+            if (!normalize_scalar_zp(gate_zp, gate_w.get_element_type() == ov::element::u2) ||
+                !normalize_scalar_zp(up_zp, up_w.get_element_type() == ov::element::u2) ||
+                !normalize_scalar_zp(down_zp, down_w.get_element_type() == ov::element::u2)) {
                 return false;
             }
             const size_t num_dynamic_zp = static_cast<size_t>(gate_zp.get_element_type() == ov::element::dynamic) +
@@ -236,8 +273,8 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
 
             // group_size derived from scales; weight_logical_K handles rank-3/4.
             const auto gate_K = weight_logical_K(weight_shape);
-            const auto up_K = weight_logical_K(pm.at(up_w_m).get_partial_shape().to_shape());
-            const auto down_K = weight_logical_K(pm.at(down_w_m).get_partial_shape().to_shape());
+            const auto up_K = weight_logical_K(up_w.get_partial_shape().to_shape());
+            const auto down_K = weight_logical_K(down_w.get_partial_shape().to_shape());
 
             auto scale_num_groups = [](const ov::Output<ov::Node>& scale) -> size_t {
                 const auto& ps = scale.get_partial_shape();
@@ -270,33 +307,8 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
                 }
             }
 
-            // [E, N, 1] (or [E, N]) -> [E, N, K/group_size], each channel value repeated across groups.
-            auto broadcast_per_channel_scale = [&](ov::Output<ov::Node>& scale, size_t K) -> bool {
-                const auto c = ov::as_type_ptr<v0::Constant>(scale.get_node_shared_ptr());
-                if (!c)
-                    return false;
-                const auto s = c->get_shape();
-                if (s.size() < 2 || K % group_size != 0)
-                    return false;
-                const size_t E = s[0];
-                const size_t N = s[1];
-                const size_t target_G = K / group_size;
-                if (target_G == 1)
-                    return true;
-                const auto et = c->get_element_type();
-                // Type::size() rounds sub-byte types up to a byte, so the per-element copy below would corrupt
-                // packed data.
-                if (et.bitwidth() < 8)
-                    return false;
-                const size_t esz = et.size();
-                const auto* src = static_cast<const char*>(c->get_data_ptr());
-                std::vector<char> buf(E * N * target_G * esz);
-                const size_t total = E * N * target_G;
-                for (size_t i = 0; i < total; ++i) {
-                    std::memcpy(buf.data() + i * esz, src + (i / target_G) * esz, esz);
-                }
-                scale = std::make_shared<v0::Constant>(et, ov::Shape{E, N, target_G}, buf.data());
-                return true;
+            const auto broadcast_per_channel_scale = [&](ov::Output<ov::Node>& scale, size_t K) {
+                return broadcast_per_channel(scale, K, group_size);
             };
             if (group_size != std::numeric_limits<size_t>::max()) {
                 if ((gate_G == 1 && !broadcast_per_channel_scale(gate_scale, gate_K)) ||
@@ -406,8 +418,13 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
     // Compressed BGM (6 inputs)
     auto gate_up_scale_m = pattern::any_input();
     auto gate_up_zp_m = pattern::any_input();
+    // GEMM2 lowers to cldnn::moe_gemm, whose only impl (oneDNN) does not take u2 weights.
+    const auto not_u2 = [](const ov::Output<ov::Node>& output) {
+        return output.get_element_type() != ov::element::u2;
+    };
+    auto gate_up_wc_m = pattern::any_input(not_u2);
     auto bgm_gate_up_6_m = pattern::wrap_type<GatherMatmulCompressed>(
-        {unsqueeze_m, gate_up_w_m, topk_indices_m, gate_up_bias_m, gate_up_scale_m, gate_up_zp_m});
+        {unsqueeze_m, gate_up_wc_m, topk_indices_m, gate_up_bias_m, gate_up_scale_m, gate_up_zp_m});
     auto bgm_gate_up_m = bgm_gate_up_4_m | bgm_gate_up_6_m;
 
     // Activation subgraph between gate_up and down BGMs
@@ -431,8 +448,9 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
     // Compressed BGM (6 inputs)
     auto down_scale_m = pattern::any_input();
     auto down_zp_m = pattern::any_input();
+    auto down_wc_m = pattern::any_input(not_u2);
     auto bgm_down_6_m = pattern::wrap_type<GatherMatmulCompressed>(
-        {multiply2_m, down_w_m, topk_indices_m, down_bias_m, down_scale_m, down_zp_m});
+        {multiply2_m, down_wc_m, topk_indices_m, down_bias_m, down_scale_m, down_zp_m});
     auto bgm_down_m = bgm_down_4_m | bgm_down_6_m;
 
     // No-op Reshape between Transpose and Unsqueeze remains in the graph because
@@ -464,9 +482,9 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
         auto routing_transpose_node = pm.at(routing_transpose_m).get_node_shared_ptr();
         ov::Output<ov::Node> routing = routing_transpose_node->input_value(0);
         auto topk_indices = pm.at(topk_indices_m);
-        auto gate_up_w = pm.at(gate_up_w_m);
+        auto gate_up_w = pm.count(gate_up_wc_m) ? pm.at(gate_up_wc_m) : pm.at(gate_up_w_m);
         auto gate_up_bias = pm.at(gate_up_bias_m);
-        auto down_w = pm.at(down_w_m);
+        auto down_w = pm.count(down_wc_m) ? pm.at(down_wc_m) : pm.at(down_w_m);
         auto down_bias = pm.at(down_bias_m);
 
         // Extract expert_beta from Swish beta
@@ -511,43 +529,11 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
 
         const bool is_compressed = is_gate_up_compressed;
         if (is_compressed) {
-            // GEMM2 lowers to cldnn::moe_gemm, whose only impl (oneDNN) does not take u2 weights.
-            if (pm.at(gate_up_w_m).get_element_type() == ov::element::u2 ||
-                pm.at(down_w_m).get_element_type() == ov::element::u2) {
-                return false;
-            }
             auto gate_up_zp = pm.at(gate_up_zp_m);
             auto down_zp = pm.at(down_zp_m);
 
-            // Same scalar-zp normalization as the 3-GEMM matcher above.
-            auto normalize_scalar_zp = [&](ov::Output<ov::Node>& zp, ov::element::Type wt) -> bool {
-                const auto& zp_shape = zp.get_partial_shape();
-                if (!zp_shape.is_static() || zp_shape.rank().get_length() != 0) {
-                    return true;
-                }
-                const auto zp_const = ov::as_type_ptr<v0::Constant>(zp.get_node_shared_ptr());
-                if (!zp_const) {
-                    return false;
-                }
-                // cast_vector is not meaningful on packed (u2/u4/i4) constants.
-                const auto zp_et = zp_const->get_element_type();
-                if (zp_et != ov::element::i8 && zp_et != ov::element::u8 && zp_et != ov::element::i32 &&
-                    zp_et != ov::element::u32 && zp_et != ov::element::i64) {
-                    return false;
-                }
-                for (const auto v : zp_const->cast_vector<int64_t>()) {
-                    if (v != 0) {
-                        if (wt != ov::element::u2) {
-                            return false;
-                        }
-                        return true;
-                    }
-                }
-                zp = std::make_shared<v0::Constant>(ov::element::dynamic, ov::Shape{0});
-                return true;
-            };
-            if (!normalize_scalar_zp(gate_up_zp, pm.at(gate_up_w_m).get_element_type()) ||
-                !normalize_scalar_zp(down_zp, pm.at(down_w_m).get_element_type())) {
+            // u2 never reaches this matcher, so a non-zero scalar zp always stays unfused.
+            if (!normalize_scalar_zp(gate_up_zp, false) || !normalize_scalar_zp(down_zp, false)) {
                 return false;
             }
             const size_t num_dynamic_zp = static_cast<size_t>(gate_up_zp.get_element_type() == ov::element::dynamic) +
@@ -569,7 +555,7 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
             auto down_scale = pm.at(down_scale_m);
 
             // group_size derived from scales; weight_logical_K handles rank-3/4.
-            const auto down_K = weight_logical_K(pm.at(down_w_m).get_partial_shape().to_shape());
+            const auto down_K = weight_logical_K(down_w.get_partial_shape().to_shape());
 
             auto scale_num_groups = [](const ov::Output<ov::Node>& scale) -> size_t {
                 const auto& ps = scale.get_partial_shape();
@@ -600,33 +586,8 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
                 }
             }
 
-            // [E, N, 1] (or [E, N]) -> [E, N, K/group_size], each channel value repeated across groups.
-            auto broadcast_per_channel_scale = [&](ov::Output<ov::Node>& scale, size_t K) -> bool {
-                const auto c = ov::as_type_ptr<v0::Constant>(scale.get_node_shared_ptr());
-                if (!c)
-                    return false;
-                const auto s = c->get_shape();
-                if (s.size() < 2 || K % group_size != 0)
-                    return false;
-                const size_t E = s[0];
-                const size_t N = s[1];
-                const size_t target_G = K / group_size;
-                if (target_G == 1)
-                    return true;
-                const auto et = c->get_element_type();
-                // Type::size() rounds sub-byte types up to a byte, so the per-element copy below would corrupt
-                // packed data.
-                if (et.bitwidth() < 8)
-                    return false;
-                const size_t esz = et.size();
-                const auto* src = static_cast<const char*>(c->get_data_ptr());
-                std::vector<char> buf(E * N * target_G * esz);
-                const size_t total = E * N * target_G;
-                for (size_t i = 0; i < total; ++i) {
-                    std::memcpy(buf.data() + i * esz, src + (i / target_G) * esz, esz);
-                }
-                scale = std::make_shared<v0::Constant>(et, ov::Shape{E, N, target_G}, buf.data());
-                return true;
+            const auto broadcast_per_channel_scale = [&](ov::Output<ov::Node>& scale, size_t K) {
+                return broadcast_per_channel(scale, K, group_size);
             };
             if (group_size != std::numeric_limits<size_t>::max()) {
                 if ((gate_up_G == 1 && !broadcast_per_channel_scale(gate_up_scale, hidden)) ||
