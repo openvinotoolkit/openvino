@@ -1,4 +1,4 @@
-name: Linux RISC-V (Ubuntu 22.04, Python 3.10)
+name: Linux RISC-V (Ubuntu 24.04, Python 3.12)
 on:
   schedule:
     # at 00:00 on Wednesday and Saturday
@@ -110,8 +110,8 @@ jobs:
         id: handle_docker
         with:
           images: |
-            ov_build/ubuntu_22_04_riscv
-            ov_test/ubuntu_22_04_riscv
+            ov_build/ubuntu_24_04_riscv
+            ov_test/ubuntu_24_04_riscv
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -125,7 +125,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_riscv }}
       volumes:
         - /mount:/mount
         - ${{ github.workspace }}:${{ github.workspace }}
@@ -138,7 +138,7 @@ jobs:
       BUILD_DIR: ${{ github.workspace }}/build
       INSTALL_DIR: ${{ github.workspace }}/openvino_install
       INSTALL_TEST_DIR: ${{ github.workspace }}/tests_install
-      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/gnu/${{ needs.Smart_CI.outputs.target_branch }}
+      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu24_riscv64/gnu/${{ needs.Smart_CI.outputs.target_branch }}
       CCACHE_DIR: ${{ github.workspace }}/ccache
       CCACHE_TEMPDIR: ${{ github.workspace }}/ccache_temp
       CCACHE_MAXSIZE: 2G
@@ -251,7 +251,7 @@ jobs:
     needs: [Smart_CI, Docker, Build]
     runs-on: aks-linux-4-cores-16gb
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_riscv }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_riscv }}
       volumes:
         - ${{ github.workspace }}:${{ github.workspace }}
     defaults:
