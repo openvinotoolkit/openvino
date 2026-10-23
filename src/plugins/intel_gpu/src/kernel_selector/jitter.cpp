@@ -1463,7 +1463,7 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
               s_hi,
               {cf("-0.000200214257"), cf("0.000100950558"), cf("0.00134934322"),
                cf("-0.00367342844"), cf("0.00573950773"), cf("-0.0076224613"),
-               cf("-0.00943887047"), cf("1.00167406"), cf("2.83297682")});
+               cf("0.00943887047"), cf("1.00167406"), cf("2.83297682")});
           const JitTerm poly = x * ternary(w.lt(cf("5.0")), p_lo, p_hi);
           // x = 0     -> poly yields 0 naturally.
           // |x| > 1   -> log of a negative produces NaN, propagated by poly.
