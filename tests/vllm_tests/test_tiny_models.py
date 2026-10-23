@@ -146,6 +146,8 @@ def test_openvino_matches_eager_tiny(case, tmp_path, monkeypatch):
     ov_tokens, ov_lps, layers = _generate(str(tmp_path), dtype, prompt, True, block_size)
 
     assert layers.get(ov_layer), f"{ov_layer} missing from the OV exec graphs: {layers}"
+    assert len(eager_tokens) == len(ov_tokens) == DECODE_STEPS, (
+        f"expected {DECODE_STEPS} tokens, got eager {len(eager_tokens)} and OV {len(ov_tokens)}")
     _assert_same_decode(eager_tokens, eager_lps, ov_tokens, ov_lps, tol)
 
 
@@ -155,6 +157,8 @@ def _assert_same_decode(eager_tokens, eager_lps, ov_tokens, ov_lps, tol):
     A near tie means each side ranks the other's token within `tol` of its own pick, so both tokens must appear in
     both sides' logprobs (vLLM always returns the sampled token's logprob alongside the top ones).
     """
+    lengths = (len(eager_tokens), len(eager_lps), len(ov_tokens), len(ov_lps))
+    assert len(set(lengths)) == 1 and lengths[0] > MIN_STEPS, f"token/logprob lengths {lengths}"
     for step, (eager_token, ov_token) in enumerate(zip(eager_tokens, ov_tokens)):
         if eager_token != ov_token:
             context = (f"step {step}: OV picked {ov_token}, eager {eager_token}\n"
@@ -185,7 +189,12 @@ def test_near_tie_acceptance():
         unsure_ov = ([2], [{2: -0.5, 1: -1.0, 7: -5.0}])
         _assert_same_decode(eager_tokens, eager_lps, match[0] + unsure_ov[0], match[1] + unsure_ov[1], tol=1e-3)
     with pytest.raises(AssertionError, match="after only"):
-        _assert_same_decode([1], eager_lps[-1:], tied[0], tied[1], tol=1e-3)
+        early = ([1] + match[0], eager_lps[-1:] + match[1])
+        _assert_same_decode(*early, tied[0] + match[0], tied[1] + match[1], tol=1e-3)
+    with pytest.raises(AssertionError, match="lengths"):
+        _assert_same_decode(eager_tokens, eager_lps, match[0], match[1], tol=1e-3)  # truncated OV output
+    with pytest.raises(AssertionError, match="lengths"):
+        _assert_same_decode([], [], [], [], tol=1e-3)
 
 
 def _routed_reference(tokens, w1, w3, w2, topk_weights, topk_ids, act):
