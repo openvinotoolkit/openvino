@@ -136,7 +136,7 @@ class _FP32ParameterPlaceholder(torch.Tensor):
             with torch._C.DisableTorchFunctionSubclass():
                 return func(*args, **(kwargs or {}))
         if func is torch.view_as_complex:
-            return _view_as_complex(*args, **(kwargs or {}))
+            return _view_as_complex(args[0] if args else kwargs["input"])
         if torch.jit.is_tracing() and func in (
                 torch.Tensor.item, torch.Tensor.__float__, torch.Tensor.__int__, torch.Tensor.__complex__,
                 torch.Tensor.__index__, torch.Tensor.__bool__, torch.Tensor.tolist,
@@ -208,16 +208,17 @@ _bmm_extension = ModuleExtension(
 )
 
 
-def _evaluate_view_as_complex(module, x):
-    if x.ndim == 0 or x.shape[-1] != 2:
+def _evaluate_view_as_complex(module, input_tensor):
+    if input_tensor.ndim == 0 or input_tensor.shape[-1] != 2:
         raise RuntimeError("Tensor must have a last dimension of size 2")
-    value = torch.view_as_complex(torch.zeros(2, dtype=x.dtype, device=x.device)).expand(x.shape[:-1])
+    value = torch.view_as_complex(torch.zeros(2, dtype=input_tensor.dtype,
+                                              device=input_tensor.device)).expand(input_tensor.shape[:-1])
     return torch.Tensor._make_subclass(_FP32ParameterPlaceholder, value)
 
 
 _view_as_complex = _create_function_wrapper(ModuleExtension(
     None, "aten::view_as_complex",
-    convert=lambda module, target_op, input: target_op(input),
+    convert=lambda module, target_op, input_tensor: target_op(input_tensor),
     evaluate=_evaluate_view_as_complex))
 
 
