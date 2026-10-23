@@ -108,7 +108,8 @@ uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offloa
                     continue;
 
                 const size_t resident_experts = std::max<size_t>(1, shape[0] * (100 - offload_ratio) / 100);
-                const uint64_t bytes_per_expert = constant_resident_bytes / shape[0] + (constant_resident_bytes % shape[0] != 0);
+                const uint64_t bytes_per_expert =
+                    constant_resident_bytes / shape[0] + (constant_resident_bytes % shape[0] != 0 ? 1 : 0);
                 constant_resident_bytes = bytes_per_expert * resident_experts;
             }
 
