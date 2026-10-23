@@ -226,7 +226,7 @@ TEST(add_onednn_optimization_attributes, sum_post_op_refused_for_own_input) {
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_immad)
-        return;
+        GTEST_SKIP() << "onednn sum post-ops are only selected on a device with immad";
 
     ASSERT_EQ(residual_chain_fusing_type(engine, 2), add_fusing_type::binary_per_tensor);
 }
