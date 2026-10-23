@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -941,10 +942,16 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         }
     }
 
-    // Update param if fake_alignment is available
-    auto updated_params = get_fake_aligned_params_if_possible(get_node(), *_impl_params);
+    // Update param if fake_alignment is available. For the types without a fake alignment the params would be a plain copy,
+    // so these nodes copy just the output layouts and build full params only if they allocate.
+    const bool use_fake_aligned_params = get_node().type()->has_fake_alignment();
+    // Both branches are prvalues, so nothing is copied (kernel_impl_params has no move constructor); the default one is cheap.
+    auto fake_aligned_params = use_fake_aligned_params ? get_fake_aligned_params_if_possible(get_node(), *_impl_params) : kernel_impl_params();
+    // A copy, not _impl_params->output_layouts itself: the code below enlarges these layouts to the allocation size (FC users'
+    // fake-aligned input, dynamic quantize scales, preallocation), while the users read _impl_params' layouts as their input shapes.
+    auto updated_output_layouts = use_fake_aligned_params ? fake_aligned_params.output_layouts : _impl_params->output_layouts;
 
-    const auto& actual_layouts = updated_params.output_layouts;
+    const auto& actual_layouts = updated_output_layouts;
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
 
     if (try_bind_remote_permute_output(actual_layouts[0])) {
@@ -1107,8 +1114,12 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
 
     // Update output layout with respect to FC's fake alignment
     auto updated_layouts = actual_layouts;
+    // A skipped node takes its input's memory right below and returns, so the sizing would be thrown away; its FC users
+    // then run update_shape() themselves.
+    const bool reuses_input_memory =
+        !get_node().is_type<concatenation>() && (get_node().is_runtime_skippable() || get_node().is_type<crop>()) && can_be_optimized();
     std::vector<cldnn::primitive_inst*> user_insts;
-    {
+    if (!reuses_input_memory) {
         const auto& user_insts_origin = get_user_insts();
         for (const auto& user : user_insts_origin) {
             auto uid = user->id();
@@ -1187,7 +1198,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                         GPU_DEBUG_TRACE_DETAIL << "update layout of dynamic quantize output[" << i << "] "
                                                << dyn_quan_layouts[i].to_short_string() << std::endl;
                         updated_layouts[i] = dyn_quan_layouts[i];
-                        updated_params.output_layouts[i] = dyn_quan_layouts[i];
+                        updated_output_layouts[i] = dyn_quan_layouts[i];
                     }
                 }
             }
@@ -1270,6 +1281,9 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     }
 
     int32_t tmp_prealloc_count = get_prealloc_iter_num();
+    // Small buffers are kept: when the shape alternates (e.g. LLM prefill <-> decode), reallocating them on every switch
+    // costs more host time than the memory it frees.
+    const size_t reclaim_min_size = get_config().get_output_reclaim_min_size();
     // If we allocated too large memory, reclaim the memory.
     for (size_t i = 0; i < updated_layouts.size(); ++i) {
         bool reclaim = false;
@@ -1286,7 +1300,10 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         } else {
             required_buffer_size = (updated_layouts[i].get_linear_size());
         }
-        if (required_buffer_size * 10 < _max_output_layout_count[i]) {
+        // Bit width, not dt_sizes_in_B: that one rounds sub-byte types up to 1 byte
+        const size_t max_output_bytes = (_max_output_layout_count[i] * ov::element::Type(actual_layouts[i].data_type).bitwidth() + 7) >> 3;
+        const bool small_buffer = !get_node().is_type<kv_cache>() && max_output_bytes <= reclaim_min_size;
+        if (required_buffer_size * 10 < _max_output_layout_count[i] && !small_buffer) {
             reclaim = true;
         }
         if (reclaim) {
@@ -1322,6 +1339,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         }
     }
 
+    // allocate_output() params of the nodes that don't use fake_aligned_params, built on the first allocation
+    std::optional<kernel_impl_params> alloc_params;
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
         bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_linear_size() <= _max_output_layout_count[i]);
         std::pair<bool, ov::Shape> prealloc_info;
@@ -1336,10 +1355,10 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], can_reuse_buffer, i, tmp_prealloc_count);
         }
         if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * (dt_sizes_in_B[i]))) {
-            updated_params.output_layouts[i] = updated_layouts[i].clone_with_other_shape(prealloc_info.second);
+            updated_output_layouts[i] = updated_layouts[i].clone_with_other_shape(prealloc_info.second);
         }
-        if (updated_params.output_layouts[i].get_linear_size() < updated_layouts[i].get_linear_size()) {
-            updated_params.output_layouts[i] = updated_layouts[i];
+        if (updated_output_layouts[i].get_linear_size() < updated_layouts[i].get_linear_size()) {
+            updated_output_layouts[i] = updated_layouts[i];
         }
 
         // Check for external output memory block (zero-copy dynamic output path).
@@ -1348,7 +1367,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         if (is_output()) {
             auto* ext_block = get_network().get_output_memory_block(id());
             if (ext_block) {
-                ext_block->resize(updated_params.output_layouts[i]);
+                ext_block->resize(updated_output_layouts[i]);
                 _outputs[i] = get_network().get_engine().reinterpret_buffer(*ext_block->memory(), actual_layouts[i]);
                 _max_output_layout_count[i] = ext_block->memory()->get_mem_tracker()->size() / cldnn::data_type_traits::size_of(actual_layouts[i].data_type);
                 GPU_DEBUG_TRACE_DETAIL << id() << ": ext output memory block for output[" << i << "] - " << actual_layouts[i].get_linear_size() << "/"
@@ -1383,10 +1402,16 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. " << std::endl;
             GPU_DEBUG_TRACE_DETAIL << " outputs[" << i << "] " << get_node().id() << " Current buffer_size=" << _max_output_layout_count[i]
                                    << " Requested buffer_size=" << updated_layouts[i].get_linear_size() << std::endl;
+            if (!use_fake_aligned_params && !alloc_params) {
+                alloc_params = *_impl_params;
+            }
+            // allocate_output() sizes the buffer from these params, so they must carry the edited layouts
+            auto& output_alloc_params = use_fake_aligned_params ? fake_aligned_params : *alloc_params;
+            output_alloc_params.output_layouts = updated_output_layouts;
             _outputs[i] = allocate_output(get_network().get_engine(),
                                           get_network().get_memory_pool(),
                                           *_node,
-                                          updated_params,
+                                          output_alloc_params,
                                           _runtime_memory_dependencies,
                                           get_network_id(),
                                           get_network().is_internal(),
@@ -1395,7 +1420,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                                           is_output_buffer(this, true),
                                           output_memory_ptr(i).get(),
                                           true);
-            _max_output_layout_count[i] = updated_params.output_layouts[i].get_linear_size();
+            _max_output_layout_count[i] = updated_output_layouts[i].get_linear_size();
             set_flag(ExecutionFlags::MEMORY_CHANGED);
             GPU_DEBUG_CODE(std::string memalloc_info);
             GPU_DEBUG_CODE(memalloc_info +=
@@ -3020,6 +3045,7 @@ void primitive_inst::update_weights() {
             reorder_inst->set_impl(reorder_impl->clone());
 
             cache.add(*reorder_kernel_params, reorder_impl->clone());
+            get_network().get_program()->add_static_impl_type(reorder_kernel_params->desc->type);
         }
 
         auto& stream = get_network().get_stream();
@@ -3529,31 +3555,45 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     auto& prog = *inst.get_network().get_program();
     auto& kernels_cache = prog.get_kernels_cache();
 
-    // Update param if fake_alignment is available
-    auto updated_params = inst.get_fake_aligned_params_if_possible(inst.get_node(), params);
-    // Change weights layout of `updated_params` to original one to have valid information
-    // in _impl->_weights_reorder_params about required weights format after impl selection
-    if (inst.get_node().is_type<fully_connected>() || inst.get_node().is_type<convolution>() || inst.get_node().is_type<deconvolution>()) {
-        const auto weights_idx = inst.get_node().get_primitive()->input.size();
-        const auto original_weights_memory = inst.dep_memory_ptr(weights_idx);
-        updated_params.weights_layout = optional_layout(original_weights_memory->get_layout());
-    }
+    // Static impl lookup/compilation params: fake-aligned if available, weights with the original layout, no dynamic pad masks
+    auto get_updated_params = [&inst, &params]() {
+        // Update param if fake_alignment is available
+        auto updated_params = inst.get_fake_aligned_params_if_possible(inst.get_node(), params);
+        // Change weights layout of `updated_params` to original one to have valid information
+        // in _impl->_weights_reorder_params about required weights format after impl selection
+        if (inst.get_node().is_type<fully_connected>() || inst.get_node().is_type<convolution>() || inst.get_node().is_type<deconvolution>()) {
+            const auto weights_idx = inst.get_node().get_primitive()->input.size();
+            const auto original_weights_memory = inst.dep_memory_ptr(weights_idx);
+            updated_params.weights_layout = optional_layout(original_weights_memory->get_layout());
+        }
 
-    for (auto& i : updated_params.input_layouts) {
-        i.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
-    }
-    for (auto& o : updated_params.output_layouts) {
-        o.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
-    }
+        for (auto& i : updated_params.input_layouts) {
+            i.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
+        }
+        for (auto& o : updated_params.output_layouts) {
+            o.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
+        }
+        return updated_params;
+    };
+
+    // Only types that were ever added to the static impls cache can hit it; the others (e.g. primitives that run a
+    // shape-agnostic impl) skip the lookup, and the params copy too unless an async compilation task needs it.
+    const bool lookup_static_impl = prog.has_static_impl_type(node->type());
+    const bool compile_async = use_async_compilation && ((inst.get_impl() != nullptr && inst.get_impl()->is_dynamic()) || inst.get_flag(ExecutionFlags::SHAPE_CHANGED));
+    const bool has_updated_params = lookup_static_impl || compile_async;
+    // Both branches are prvalues, so nothing is copied (kernel_impl_params has no move constructor); the default one is cheap.
+    auto updated_params = has_updated_params ? get_updated_params() : kernel_impl_params();
 
     // 1. If we have static impl in the cache - use it
-    auto cached_impl = m_static_impls_cache.get(updated_params);
-    if (cached_impl) {
-        return cached_impl->clone();
+    if (lookup_static_impl) {
+        auto cached_impl = m_static_impls_cache.get(updated_params);
+        if (cached_impl) {
+            return cached_impl->clone();
+        }
     }
 
     // 2. If async compilation is enabled and dynamic impl exists or shape changed - try to compile asynchronously
-    if (use_async_compilation && ((inst.get_impl() && inst.get_impl()->is_dynamic()) || inst.get_flag(ExecutionFlags::SHAPE_CHANGED))) {
+    if (compile_async) {
         auto& compilation_context = prog.get_compilation_context();
         compilation_context.push_task(updated_params, [&inst, &compilation_context, updated_params, find_impl]() {
             if (compilation_context.is_stopped()) {
@@ -3577,6 +3617,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
             }
             if (impl) {
                 cache.add(updated_params, std::move(impl));
+                _program.add_static_impl_type(updated_params.desc->type);
             }
         });
     }
@@ -3608,6 +3649,9 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     }
 
     // 6. Finally, if no impl found so far, we just enforce static impl compilation
+    if (!has_updated_params) {
+        updated_params = get_updated_params();
+    }
     auto static_impl = find_impl(node, updated_params, shape_types::static_shape);
     if (!static_impl) {
         auto stringify_layouts = [](const std::vector<layout>& layouts) {
@@ -3644,6 +3688,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
         auto kernels = kernels_cache.compile(updated_params, static_impl->get_kernels_source());
         static_impl->set_kernels(std::move(kernels));
         m_static_impls_cache.add(updated_params, static_impl->clone());
+        prog.add_static_impl_type(node->type());
     }
 
     return static_impl;
