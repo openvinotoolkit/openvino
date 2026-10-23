@@ -321,7 +321,7 @@ void AutoSchedule::init() {
             first_compiled_model._ptr != m_compile_context[ACTUALDEVICE].m_compiled_model._ptr) {
             first_compiled_model = m_compile_context[ACTUALDEVICE].m_compiled_model;
         }
-        m_context->m_hw_compiled_model = first_compiled_model;
+        m_context->m_hw_compiled_model = std::move(first_compiled_model);
     }
     if (m_cache_warmup && !m_compile_context[CPU].m_is_enabled && m_compile_context[ACTUALDEVICE].m_is_already) {
         // Failed startup devices were already removed from the actual context's candidates.
