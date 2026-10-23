@@ -47,6 +47,14 @@ struct paged_attention : public primitive_base<paged_attention> {
     static constexpr size_t block_size = 16;
     static constexpr size_t block_size_xattn = 256;
 
+    static size_t get_block_size(bool has_xattention) {
+        return has_xattention ? block_size_xattn : block_size;
+    }
+
+    size_t get_block_size() const {
+        return get_block_size(has_xattention);
+    }
+
     paged_attention() : primitive_base("", {}) {}
 
     paged_attention(const primitive_id& id,

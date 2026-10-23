@@ -651,6 +651,15 @@ void PagedAttnTestBase::prepare() {
         // so the runtime model always reports 32 for the CPU plugin.
         ASSERT_TRUE(runtime_model->has_rt_info(ov::exec_model_info::PAGED_ATTENTION_BLOCK_SIZE));
         EXPECT_EQ(runtime_model->get_rt_info<size_t>(ov::exec_model_info::PAGED_ATTENTION_BLOCK_SIZE), 32);
+
+        auto pa_nodes = ov::test::GetNodesWithTypes(runtime_model, {"PagedAttention"});
+        EXPECT_FALSE(pa_nodes.empty());
+        for (const auto& node : pa_nodes) {
+            const auto& rt_info = node->get_rt_info();
+            auto it = rt_info.find("block_size");
+            ASSERT_NE(it, rt_info.end());
+            EXPECT_EQ(it->second.as<std::string>(), "32");
+        }
     }
 }
 void PagedAttnTestBase::reset() {

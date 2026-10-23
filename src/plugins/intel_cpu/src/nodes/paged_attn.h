@@ -52,14 +52,13 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     static bool isQuantByChannel(Config::CacheQuantMode mode, ov::element::Type precision, bool isKey);
-    static size_t get_key_cache_params_size(ov::element::Type precision);
+    static size_t getKeyCacheParamsSize(const Config& cpuConfig);
     /**
      * @brief Returns the PagedAttention block size for the K-cache.
      * Reads compile-time input shape at port ID_KCACHE (where dim[2] is fixed by
      * ConvertPagedAttnInputs) and adjusts for any by-channel quantization parameter rows.
-     * Returns std::nullopt if dim[2] is dynamic/undefined.
      */
-    std::optional<size_t> get_block_size() const;
+    size_t getBlockSize() const;
 
 private:
     ov::element::Type getRuntimePrecision() const override;
