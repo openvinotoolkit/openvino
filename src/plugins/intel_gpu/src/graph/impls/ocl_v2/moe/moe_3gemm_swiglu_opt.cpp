@@ -19,6 +19,7 @@ using ov::intel_gpu::ocl::moe::ResidentExpertWeightProvider;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <algorithm>
+#    include <array>
 #    include <chrono>
 #    include <cstdint>
 #    include <fstream>
@@ -38,6 +39,7 @@ using ov::intel_gpu::ocl::moe::ResidentExpertWeightProvider;
 #    include "../utils/kernel_generator.hpp"
 #    include "common_utils/jitter.hpp"
 #    include "impls/onednn/grouped_matmul_helper.hpp"
+#    include "impls/onednn/utils.hpp"
 #    include "intel_gpu/graph/kernel_impl_params.hpp"
 #    include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #    include "intel_gpu/runtime/lru_cache.hpp"
@@ -56,29 +58,9 @@ using namespace ov::intel_gpu::ocl;
 // Bring shared onednn matmul wrappers into this anonymous namespace so existing call sites
 // that reference `onednn_matmul`, `onednn_linear`, etc. unqualified continue to compile after
 // the definitions moved to impls/onednn/grouped_matmul_helper.hpp.
+using cldnn::onednn::convert_data_type;
 using cldnn::onednn::onednn_linear;
 using cldnn::onednn::onednn_matmul;
-
-dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
-    switch (dt) {
-    case cldnn::data_types::f32:
-        return dnnl::memory::data_type::f32;
-    case cldnn::data_types::f16:
-        return dnnl::memory::data_type::f16;
-    case cldnn::data_types::i8:
-        return dnnl::memory::data_type::s8;
-    case cldnn::data_types::u8:
-        return dnnl::memory::data_type::u8;
-    case cldnn::data_types::i32:
-        return dnnl::memory::data_type::s32;
-    case cldnn::data_types::i4:
-        return dnnl::memory::data_type::s4;
-    case cldnn::data_types::u4:
-        return dnnl::memory::data_type::u4;
-    default:
-        throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
-    }
-}
 
 inline dnnl::algorithm moe_activation_to_dnnl_algo(ov::op::internal::MOE::Activation_type act) {
     switch (act) {
@@ -91,6 +73,14 @@ inline dnnl::algorithm moe_activation_to_dnnl_algo(ov::op::internal::MOE::Activa
         return dnnl::algorithm::eltwise_swish;
     }
 }
+
+// GEMM implementation of a token-count regime. Fixed at impl creation, see moe_3gemm_swiglu_opt_impl().
+enum class MoeGemmImpl : uint8_t {
+    batched_gemv,       // OCL batched GEMV kernels, decode only
+    micro_gemm,         // OCL micro-kernel GEMM, prefill only
+    grouped_gemm,       // one OneDNN grouped matmul per GEMM layer
+    per_expert_onednn,  // OneDNN matmul per activated expert, prefill only
+};
 
 class MoE3GemmSwigluGather : public KernelGenerator {
 public:
@@ -123,9 +113,15 @@ protected:
 
 class MoE3GemmSwigluPrefillMaskGen : public KernelGenerator {
 public:
-    MoE3GemmSwigluPrefillMaskGen() : KernelGenerator("moe_mask_gen", "prefill_mask_gen") {}
+    // use_grouped_gemm: experts_info_start_idx holds cumulative end-offsets for all experts (OneDNN grouped
+    // memory descriptor), and an extra row_lut output (inverse of tokens_per_expert) is written.
+    explicit MoE3GemmSwigluPrefillMaskGen(bool use_grouped_gemm = false)
+        : KernelGenerator("moe_mask_gen", use_grouped_gemm ? "grouped_mask_gen" : "prefill_mask_gen"),
+          m_use_grouped_gemm(use_grouped_gemm) {}
 
 protected:
+    bool m_use_grouped_gemm;
+
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
@@ -135,6 +131,11 @@ protected:
         jit.make("OUTPUT2_TYPE", "int");  // experts_id
         jit.make("OUTPUT3_TYPE", "int");  // tokens_lens_per_expert
         jit.make("OUTPUT4_TYPE", "int");  // num_actual_used_experts
+        if (m_use_grouped_gemm) {
+            jit.make("ONEDNN_GROUPED_GEMM_USED", 1);
+            jit.make("ROW_LUT_ENABLE", 1);
+            jit.make("OUTPUT5_TYPE", "int");  // row_lut
+        }
 
         const auto& config = desc->_config;
         jit.make("NUM_EXPERTS_PER_TOKEN", config.top_k);
@@ -594,6 +595,15 @@ static int64_t get_bytes_count(int64_t element_count, const cldnn::layout& layou
     return static_cast<int64_t>(ov::element::Type(layout.data_type).bitwidth()) * element_count / 8;
 }
 
+// A single zero point shared by all the experts, as a OneDNN host scalar
+static dnnl::memory make_host_scalar_zp(const memory::ptr& zp_mem, cldnn::stream& stream) {
+    const auto dt = zp_mem->get_layout().data_type;
+    OPENVINO_ASSERT(one_of(dt, {data_types::u8, data_types::i8}), "moe_3gemm: unsupported host scalar zero point type ", dt);
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock(zp_mem, stream);
+    const auto md = dnnl::memory::desc::host_scalar(convert_data_type(dt));
+    return dt == data_types::u8 ? dnnl::memory(md, lock[0]) : dnnl::memory(md, static_cast<int8_t>(lock[0]));
+}
+
 class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
@@ -621,6 +631,10 @@ public:
     Stage::Ptr grouped_gemm_prefill_gather = make_stage<MoE3GemmSwigluPrefillGather>(/*use_grouped_gemm=*/true);
     Stage::Ptr grouped_gemm_prefill_swiglu = make_stage<MoE3GemmSwigluPrefillSwiglu>(/*use_grouped_gemm=*/true);
     Stage::Ptr prefill_scatter_reduce_row_lut = make_stage<MoE3GemmSwigluPrefillScatterReduceRowLut>();
+    // Single-token decode of weight types without a batched GEMV kernel (u3) goes through grouped GEMM. The CPU mask gen
+    // would cost a host sync on topk in every MoE layer (~1 ms/token on Qwen3.6-35B-A3B int3). For one token the max rows
+    // per expert (the grouped GEMM dispatch hint) is known to be 1, so the masks can be built on the GPU instead.
+    Stage::Ptr grouped_gemm_mask_gen = make_stage<MoE3GemmSwigluPrefillMaskGen>(/*use_grouped_gemm=*/true);
 
     struct dnnl_weights {
         dnnl::memory weight;
@@ -904,7 +918,7 @@ public:
         // If unique experts exceed resident capacity, returns nullopt → caller falls back.
         auto lease = _weight_provider->try_acquire_simultaneous(raw_topk_ids, stream);
         if (!lease) {
-            GPU_DEBUG_TRACE_DETAIL << "exec_prefill_grouped_gemm OTD: unique experts exceed resident_slots=" << resident_slot_count()
+            GPU_DEBUG_TRACE_DETAIL << "exec_grouped_gemm_cpu_mask_gen OTD: unique experts exceed resident_slots=" << resident_slot_count()
                                    << ", falling back to per-expert onednn loop" << std::endl;
             if (auto* perf = moe_otd::get_perf_counters()) {
                 perf->grouped_fallbacks.fetch_add(1, std::memory_order_relaxed);
@@ -965,8 +979,8 @@ public:
     }
 
     bool should_pre_zero_output() {
-        // OTD may fallback to exec_prefill_onednn which accumulates via index_add
-        return !use_grouped_gemm_prefill || _weight_provider->is_offloaded();
+        // OTD may fallback to exec_per_expert_onednn_linear which accumulates via index_add
+        return prefill_impl != MoeGemmImpl::grouped_gemm || _weight_provider->is_offloaded();
     }
 
     bool should_validate_dnnl_weights() {
@@ -989,10 +1003,66 @@ public:
     std::shared_ptr<onednn_linear> _shared_gate_gate_proj;  // The scalar gate for shared expert
 
     // Instance-specific flags (not static to avoid race conditions)
-    bool use_micro_gemm_prefill = false;
-    bool use_gpu_mask_gen_prefill = false;
-    bool use_grouped_gemm_prefill = false;
-    size_t batched_gemv_threshold = 32;  // token_num <= threshold uses batched GEMV path
+    // Set by config: build the routing masks on the GPU for prefill, overriding the per-impl heuristic
+    bool force_gpu_mask_gen_prefill = false;
+    // Weight types without a batched GEMV OCL kernel (u3) run decode through OneDNN grouped GEMM instead
+    MoeGemmImpl decode_impl = MoeGemmImpl::batched_gemv;  // token_num <= batched_gemv_threshold
+    MoeGemmImpl prefill_impl = MoeGemmImpl::per_expert_onednn;
+    size_t batched_gemv_threshold = 32;
+
+    MoeGemmImpl select_impl(size_t token_num) const {
+        return token_num <= batched_gemv_threshold ? decode_impl : prefill_impl;
+    }
+
+    // Whether the routing masks are built on the GPU (no host wait on topk) or on the host.
+    bool should_use_gpu_mask_gen(MoeGemmImpl impl, size_t token_num) const {
+        switch (impl) {
+        case MoeGemmImpl::micro_gemm:
+            return force_gpu_mask_gen_prefill;
+        case MoeGemmImpl::grouped_gemm:
+            // OTD computes the expert lease on the host
+            if (_weight_provider->is_offloaded()) {
+                return false;
+            }
+            // GPU mask gen avoids the host sync on topk, but the host never sees the real max rows per expert, which the
+            // grouped GEMM needs as a dispatch hint, so token_num is used instead. That is exact for one token
+            // but oversizes the dispatch for more (25-token prefill: 452 vs 290 ms on Qwen3.6-35B-A3B int3).
+            return force_gpu_mask_gen_prefill || token_num == 1;
+        default:
+            return false;
+        }
+    }
+
+    // Whether the grouped GEMM GPU mask gen stage and its per-expert buffers are needed
+    bool needs_grouped_gpu_mask_gen() const {
+        return decode_impl == MoeGemmImpl::grouped_gemm || (prefill_impl == MoeGemmImpl::grouped_gemm && force_gpu_mask_gen_prefill);
+    }
+
+    // Single-token decode on the batched GEMV path uses none of the gather/scatter scratch buffers
+    bool needs_gather_scratch(size_t token_num) const {
+        return token_num > 1 || decode_impl == MoeGemmImpl::grouped_gemm;
+    }
+
+    static bool is_batched_gemv_supported(data_types weight_dt) {
+        return one_of(weight_dt, {data_types::u4, data_types::i4, data_types::u8, data_types::i8, data_types::f16});
+    }
+
+    // Weight types without a batched GEMV OCL kernel (u3) decode through OneDNN grouped GEMM instead
+    static MoeGemmImpl select_decode_impl(data_types weight_dt) {
+        return is_batched_gemv_supported(weight_dt) ? MoeGemmImpl::batched_gemv : MoeGemmImpl::grouped_gemm;
+    }
+
+    static MoeGemmImpl select_prefill_impl(const ExecutionConfig& config, data_types weight_dt, gpu_arch arch) {
+        // No batched GEMV kernel for this weight type: both decode and prefill go through OneDNN grouped GEMM
+        if (!is_batched_gemv_supported(weight_dt) || config.get_moe_use_grouped_gemm_prefill()) {
+            return MoeGemmImpl::grouped_gemm;
+        }
+        // micro_gemm is better than the per-expert onednn loop. Remove the weight limitation once it supports i8/u8.
+        if (config.get_moe_use_micro_gemm_prefill() && arch >= gpu_arch::xe2 && one_of(weight_dt, {data_types::u4, data_types::i4})) {
+            return MoeGemmImpl::micro_gemm;
+        }
+        return MoeGemmImpl::per_expert_onednn;
+    }
 
     moe_3gemm_swiglu_opt_impl() : PrimitiveImplOCL(moe_3gemm_swiglu_opt::get_type_info_static()) {}
     moe_3gemm_swiglu_opt_impl(const program_node& node, const RuntimeParams& params) : moe_3gemm_swiglu_opt_impl() {
@@ -1003,34 +1073,15 @@ public:
 
         const auto& config = params.get_program().get_config();
 
-        // micro_gemm is better than gemm, default to use it
-        use_micro_gemm_prefill = config.get_moe_use_micro_gemm_prefill();
         // gpu mask gen kernel performance is worse than cpu mask gen, default is off
-        use_gpu_mask_gen_prefill = config.get_moe_use_gpu_mask_gen_prefill();
+        force_gpu_mask_gen_prefill = config.get_moe_use_gpu_mask_gen_prefill();
 
-        auto& engine = params.prog->get_engine();
-        const auto& info = engine.get_device_info();
-        if (info.arch < gpu_arch::xe2) {
-            use_micro_gemm_prefill = false;
-        }
-        GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
-                               << ", arch=" << static_cast<int>(info.arch) << std::endl;
-
-        // Remove this limitation once micro_gemm kernels has supported i8/u8 weights.
         const auto& weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
-        if (weight_dt != data_types::u4 && weight_dt != data_types::i4 && use_micro_gemm_prefill) {
-            use_micro_gemm_prefill = false;
-        }
+        decode_impl = select_decode_impl(weight_dt);
+        prefill_impl = select_prefill_impl(config, weight_dt, params.prog->get_engine().get_device_info().arch);
 
-        // grouped_gemm path: single OneDNN grouped matmul per GEMM layer (all experts at once).
-        // micro_gemm takes priority; grouped_gemm falls back to onednn loop by default.
-        use_grouped_gemm_prefill = config.get_moe_use_grouped_gemm_prefill();
-        // grouped_gemm supersedes micro_gemm
-        if (use_grouped_gemm_prefill) {
-            use_micro_gemm_prefill = false;
-        }
-
-        GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_grouped_gemm_prefill=" << use_grouped_gemm_prefill << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): prefill_impl=" << static_cast<int>(prefill_impl)
+                               << ", decode_impl=" << static_cast<int>(decode_impl) << std::endl;
 
         batched_gemv_threshold = config.get_moe_batched_gemv_threshold();
         if (batched_gemv_threshold == 0) {
@@ -1052,10 +1103,13 @@ public:
         // Don't change the order of stages
         add_stage(gather, params);
         add_stage(scatter, params);
-        add_stage(mlp_gate_up, params);
-        add_stage(mlp_down, params);
-        add_stage(mlp_reduce, params);
-        if (use_micro_gemm_prefill) {
+        // The batched GEMV kernels have no code path for this weight type, so they are not built
+        if (decode_impl == MoeGemmImpl::batched_gemv) {
+            add_stage(mlp_gate_up, params);
+            add_stage(mlp_down, params);
+            add_stage(mlp_reduce, params);
+        }
+        if (prefill_impl == MoeGemmImpl::micro_gemm) {
             add_stage(prefill_mask_gen, params);
             add_stage(prefill_gather, params);
             add_stage(micro_gemm_gate, params);
@@ -1064,10 +1118,13 @@ public:
             add_stage(micro_gemm_down, params);
             add_stage(prefill_scatter_reduce, params);
         }
-        if (use_grouped_gemm_prefill) {
+        if (prefill_impl == MoeGemmImpl::grouped_gemm) {
             add_stage(grouped_gemm_prefill_gather, params);
             add_stage(grouped_gemm_prefill_swiglu, params);
             add_stage(prefill_scatter_reduce_row_lut, params);
+        }
+        if (needs_grouped_gpu_mask_gen()) {
+            add_stage(grouped_gemm_mask_gen, params);
         }
     }
 
@@ -1165,6 +1222,10 @@ public:
                     // zp shape: [ic / ic_group_size, oc], type: u4/i8
                     // Skip ZP memory allocation for symmetric quantization (has_zp=false) to save memory
                     if (cur_moe->_config.has_zp) {
+                        OPENVINO_ASSERT(moe_fusion_wei_addr.zp[i]->get_layout().count() != 1,
+                                        "moe_3gemm GEMM ",
+                                        i,
+                                        ": a zero point shared by all the experts is supported by the grouped GEMM only");
                         int64_t zp_offset = j * get_bytes_count(static_cast<int64_t>(dnnl_weights[i].ic) * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size,
                                                                 moe_fusion_wei_addr.zp[i]->get_layout());
                         dnnl_weights[i].zp = convert2dnnl(moe_fusion_wei_addr.zp[i],
@@ -1305,18 +1366,18 @@ public:
 
     void save(BinaryOutputBuffer& ob) const override {
         PrimitiveImplOCL::save(ob);
-        ob << use_micro_gemm_prefill;
-        ob << use_gpu_mask_gen_prefill;
-        ob << use_grouped_gemm_prefill;
+        ob << force_gpu_mask_gen_prefill;
+        ob << make_data(&prefill_impl, sizeof(prefill_impl));
+        ob << make_data(&decode_impl, sizeof(decode_impl));
     }
 
     void load(BinaryInputBuffer& ib) override {
         PrimitiveImplOCL::load(ib);
         // Read execution-path flags before init() so any future init() logic
         // that depends on them sees the deserialized (not default) values.
-        ib >> use_micro_gemm_prefill;
-        ib >> use_gpu_mask_gen_prefill;
-        ib >> use_grouped_gemm_prefill;
+        ib >> force_gpu_mask_gen_prefill;
+        ib >> make_data(&prefill_impl, sizeof(prefill_impl));
+        ib >> make_data(&decode_impl, sizeof(decode_impl));
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         auto cur_moe = impl_params->typed_desc<moe_3gemm_fused_compressed>();
         init(cur_moe);
@@ -1338,9 +1399,9 @@ public:
         cur_moe->_gate_up_group_size = _gate_up_group_size;
         cur_moe->_down_group_size = _down_group_size;
         cur_moe->_weight_provider = _weight_provider;  // shared across clones within the same network
-        cur_moe->use_micro_gemm_prefill = use_micro_gemm_prefill;
-        cur_moe->use_gpu_mask_gen_prefill = use_gpu_mask_gen_prefill;
-        cur_moe->use_grouped_gemm_prefill = use_grouped_gemm_prefill;
+        cur_moe->force_gpu_mask_gen_prefill = force_gpu_mask_gen_prefill;
+        cur_moe->prefill_impl = prefill_impl;
+        cur_moe->decode_impl = decode_impl;
         cur_moe->batched_gemv_threshold = batched_gemv_threshold;
         cur_moe->_activation_type = _activation_type;
         return cur_moe;
@@ -1378,10 +1439,10 @@ public:
         internal_buffers.emplace_back(index_layout, false);  // 5: expert_mask_batch
         internal_buffers.emplace_back(index_layout, false);  // 6: expert_mask_topk
 
-        GPU_DEBUG_TRACE_DETAIL << "[DEBUG] get_internal_buffer_descs(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
-                               << ", use_grouped_gemm_prefill=" << use_grouped_gemm_prefill << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "[DEBUG] get_internal_buffer_descs(): prefill_impl=" << static_cast<int>(prefill_impl)
+                               << ", decode_impl=" << static_cast<int>(decode_impl) << std::endl;
         // for micro_gemm: scatter_reduce via moe_scatter_reduction_opt (buffers all of 7-11)
-        if (use_micro_gemm_prefill && token_num > 1) {
+        if (prefill_impl == MoeGemmImpl::micro_gemm && token_num > 1) {
             layout layout_micro_gemm(ov::Shape{expert_num, token_num}, ov::element::i32, cldnn::format::bfyx);
             internal_buffers.emplace_back(layout_micro_gemm, false);  // 7: experts_ids for each activated expert
             internal_buffers.emplace_back(layout_micro_gemm, false);  // 8: token start offset idx (input gather tokens) for each activated expert
@@ -1392,13 +1453,16 @@ public:
             internal_buffers.emplace_back(layout_actual_used_expert_num, false);  // 11: actual_used_expert_num
         }
         // for grouped_gemm: scatter_reduce via moe_scatter_reduction_row_lut (13); gather uses 10, OneDNN desc uses 12
-        if (use_grouped_gemm_prefill && token_num > 1) {
+        if (prefill_impl == MoeGemmImpl::grouped_gemm && needs_gather_scratch(token_num)) {
             // Buffers 7-9 and 11 fed the base scatter_reduce kernel, which the grouped path replaced
-            // with the row_lut kernel. The slots stay to keep the shared indices, the storage does not.
+            // with the row_lut kernel. The slots stay to keep the shared indices, the storage does not,
+            // except 7 and 9, which the grouped GPU mask gen writes (one entry per activated expert).
             layout layout_unused(ov::Shape{1}, ov::element::i32, cldnn::format::bfyx);
-            internal_buffers.emplace_back(layout_unused, false);  // 7: activated expert ids (unused here)
+            layout layout_per_expert(ov::Shape{expert_num}, ov::element::i32, cldnn::format::bfyx);
+            const bool grouped_decode = needs_grouped_gpu_mask_gen();
+            internal_buffers.emplace_back(grouped_decode ? layout_per_expert : layout_unused, false);  // 7: activated expert ids
             internal_buffers.emplace_back(layout_unused, false);  // 8: token start offset per activated expert (unused here)
-            internal_buffers.emplace_back(layout_unused, false);  // 9: token len per activated expert (unused here)
+            internal_buffers.emplace_back(grouped_decode ? layout_per_expert : layout_unused, false);  // 9: token len per activated expert
             layout layout_token_idx(ov::Shape{token_num * max_topk}, ov::element::i32, cldnn::format::bfyx);
             internal_buffers.emplace_back(layout_token_idx, false);  // 10: flat token idx per expert (for gather)
             internal_buffers.emplace_back(layout_unused, false);     // 11: actual_used_expert_num (unused here)
@@ -1422,9 +1486,14 @@ public:
         scratch.y = intermediates_memories[MOE_INTERNAL_BUFFER_DOWN_OUTPUT];
         // Routing weights scratch buffer (used in prefill paths and reused as shared_gate_vals in batched GEMV)
         scratch.routing_weights = intermediates_memories[MOE_INTERNAL_BUFFER_ROUTING_WEIGHTS];
-        if (token_num > 1) {
+        if (needs_gather_scratch(token_num)) {
             scratch.x = intermediates_memories[MOE_INTERNAL_BUFFER_GATE_UP_INPUT];
             scratch.gate = intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT];
+        }
+        // Per-expert masks feed only the per-expert onednn loop; the sync-free grouped decode path does not need them
+        const bool grouped_decode = token_num <= batched_gemv_threshold && decode_impl == MoeGemmImpl::grouped_gemm;
+        const bool needs_expert_masks = !grouped_decode || _weight_provider->is_offloaded();
+        if (token_num > 1 && needs_expert_masks) {
             const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
             int expert_num = static_cast<int>(config.num_expert);
             scratch.expert_masks.resize(expert_num);
@@ -1592,7 +1661,7 @@ public:
             if (needs_fallback) {
                 // Cannot fit all experts simultaneously → fall back to per-expert onednn loop
                 instance.output_memory_ptr(0)->fill(stream, 0u);
-                return exec_prefill_onednn(events, stream, instance, scratch);
+                return exec_per_expert_onednn_linear(events, stream, instance, scratch);
             }
         }
         // OTD hook may have remapped expert IDs into scratch._expert_index_buffer
@@ -1733,7 +1802,7 @@ public:
             on_before_prefill(stream, instance, scratch, batch_mem_ptr, topk_count, needs_fallback);
             if (needs_fallback) {
                 instance.output_memory_ptr(0)->fill(stream, 0u);
-                return exec_prefill_onednn(events, stream, instance, scratch);
+                return exec_per_expert_onednn_linear(events, stream, instance, scratch);
             }
         }
 
@@ -2017,9 +2086,21 @@ public:
         dnnl::memory::desc up_zp_md;
         dnnl::memory::desc down_zp_md;
         bool has_zp = false;
+        // DNNL_ARG_HINT_MAX_GROUP_SIZE host scalar, its value is updated in place before each execute
+        dnnl::memory hint_mem;
+        // Execute args of one GEMM. Building them costs several dnnl::memory objects (each one queries the USM
+        // pointer type) per execute, so they are reused while all the buffer addresses they wrap stay the same:
+        // src, dst, grouped offsets, weights, scales, zero points.
+        struct exec_args {
+            std::array<const void*, 6> key{};
+            std::unordered_map<int, dnnl::memory> args;
+        };
+        std::array<exec_args, 3> args;  // gate, up, down
     };
     using grouped_kernel_lru = LruCache<int, std::shared_ptr<grouped_onednn_kernel>>;
     grouped_kernel_lru _grouped_kernels{128};
+    // Gate/up/down zero points shared by all the experts, passed to the grouped GEMM as host scalars (empty otherwise)
+    std::array<dnnl::memory, 3> _grouped_zp_host_scalars;
     onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
         // OTD: all slots have identical shape → cache by n_token only.
         // Non-OTD: cache by (n_token, expert_no) since each expert has fixed weight handles.
@@ -2140,6 +2221,19 @@ public:
 
         // Use the model config to determine ZP presence (symmetric vs asymmetric quantization)
         bool has_zp = config.has_zp;
+        // All the zero points share one dtype, which may differ from the weight dtype (u3 weights have u8 zp)
+        const auto zp_dt = has_zp ? convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_0))->get_layout().data_type)
+                                  : dnnl::memory::data_type::undef;
+        // The zero points are constants, so a shared one is read to the host only once
+        if (has_zp) {
+            const std::array<MOE3GemmInputIndex, 3> zp_inputs{MOE3GemmInputIndex::ZP_0, MOE3GemmInputIndex::ZP_1, MOE3GemmInputIndex::ZP_2};
+            for (size_t i = 0; i < zp_inputs.size(); i++) {
+                const auto& zp_mem = instance.input_memory_ptr(static_cast<size_t>(zp_inputs[i]));
+                if (!_grouped_zp_host_scalars[i] && zp_mem->get_layout().count() == 1) {
+                    _grouped_zp_host_scalars[i] = make_host_scalar_zp(zp_mem, instance.get_network().get_stream());
+                }
+            }
+        }
 
         int K_gu = _hidden_size;        // K for gate / up
         int N_gu = _intermediate_size;  // N for gate / up
@@ -2148,23 +2242,27 @@ public:
 
         // Helper: create one grouped matmul prim-desc [total_tokens, K]*W[E,K,N]->[total_tokens,N]
         // Weights layout in memory is [E, N, K] (stored transposed), expressed as acb over dims {E,K,N}.
-        auto make_pd = [&](int K, int N, int group_size, dnnl::memory::data_type w_dt) {
+        auto make_pd = [&](int K, int N, int group_size, dnnl::memory::data_type w_dt, size_t gemm_idx) {
             dnnl::primitive_attr attr;
             attr.set_fpmath_mode(dnnl::fpmath_mode::f16, true);
 
             bool has_k_groups = (group_size < K);
+            const bool zp_host_scalar = static_cast<bool>(_grouped_zp_host_scalars[gemm_idx]);
             if (has_k_groups) {
                 // per-expert(0) x per-K-group(1) x per-N-channel(2)
                 attr.set_scales(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {group_size, 1}, dnnl::memory::data_type::f16);
-                if (has_zp) {
-                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {group_size, 1}, w_dt);
+                if (has_zp && !zp_host_scalar) {
+                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {group_size, 1}, zp_dt);
                 }
             } else {
                 // per-expert(0) x per-N-channel(2), no K-grouping
                 attr.set_scales(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, dnnl::memory::data_type::f16);
-                if (has_zp) {
-                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, w_dt);
+                if (has_zp && !zp_host_scalar) {
+                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, zp_dt);
                 }
+            }
+            if (zp_host_scalar) {
+                attr.set_host_zero_point(DNNL_ARG_WEIGHTS, zp_dt);
             }
 
             // Grouped src/dst: tokens are grouped by expert along axis-0
@@ -2188,26 +2286,27 @@ public:
         auto gk = std::make_shared<grouped_onednn_kernel>();
         gk->has_zp = has_zp;
 
-        gk->gate_pd = make_pd(K_gu, N_gu, _gate_up_group_size, gw_dt);
+        gk->gate_pd = make_pd(K_gu, N_gu, _gate_up_group_size, gw_dt, 0);
         gk->gate_prim = dnnl::matmul(gk->gate_pd);
         gk->gate_scale_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, dnnl::memory::data_type::f16);
         if (has_zp) {
-            gk->gate_zp_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, gw_dt);
+            gk->gate_zp_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, zp_dt);
         }
 
-        gk->up_pd = make_pd(K_gu, N_gu, _gate_up_group_size, uw_dt);
+        gk->up_pd = make_pd(K_gu, N_gu, _gate_up_group_size, uw_dt, 1);
         gk->up_prim = dnnl::matmul(gk->up_pd);
         gk->up_scale_md = gk->gate_scale_md;
         if (has_zp) {
             gk->up_zp_md = gk->gate_zp_md;
         }
 
-        gk->down_pd = make_pd(K_d, N_d, _down_group_size, dw_dt);
+        gk->down_pd = make_pd(K_d, N_d, _down_group_size, dw_dt, 2);
         gk->down_prim = dnnl::matmul(gk->down_pd);
         gk->down_scale_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, dnnl::memory::data_type::f16);
         if (has_zp) {
-            gk->down_zp_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, dw_dt);
+            gk->down_zp_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, zp_dt);
         }
+        gk->hint_mem = dnnl::memory(dnnl::memory::desc::host_scalar(dnnl::memory::data_type::s32), int32_t{0});
 
         _grouped_kernels.add(key, gk);
         return *_grouped_kernels.get(key);
@@ -2227,10 +2326,10 @@ public:
     //     scratch.y = MLP(scratch.x, .gate/up/down) * scratch.routing_weights
     //     scatter(final_hidden, scratch.y, expert_mask.batch)
     //
-    cldnn::event::ptr exec_prefill_onednn(const std::vector<cldnn::event::ptr>& events,
-                                          cldnn::stream& stream,
-                                          typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                          scratch_buffers& scratch) {
+    cldnn::event::ptr exec_per_expert_onednn_linear(const std::vector<cldnn::event::ptr>& events,
+                                                    cldnn::stream& stream,
+                                                    typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                                    scratch_buffers& scratch) {
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         const auto& config = cur_moe->_config;
         auto& dnn_stream = stream.get_onednn_stream();
@@ -2329,7 +2428,7 @@ public:
     }
 
     // Third prefill path: OneDNN grouped GEMM (one matmul call per GEMM layer, all experts together).
-    // This avoids the per-expert loop of exec_prefill_onednn while keeping full weight-format
+    // This avoids the per-expert loop of exec_per_expert_onednn_linear while keeping full weight-format
     // compatibility (quantized or fp16 weights).
     //
     //  gather_by_expert(hidden_states, topk_id) -> scratch.x          [total, hidden]
@@ -2341,21 +2440,18 @@ public:
     //
     // Note: "total" = token_num * max_topk, sorted by expert assignment.
     //
-    cldnn::event::ptr exec_prefill_grouped_gemm(const std::vector<cldnn::event::ptr>& events,
-                                                cldnn::stream& stream,
-                                                typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                                scratch_buffers& scratch) {
-        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("moe_3gemm_swiglu_opt_impl::exec_prefill_grouped_gemm"));
+    cldnn::event::ptr exec_grouped_gemm_cpu_mask_gen(const std::vector<cldnn::event::ptr>& events,
+                                                     cldnn::stream& stream,
+                                                     typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                                     scratch_buffers& scratch) {
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("moe_3gemm_swiglu_opt_impl::exec_grouped_gemm_cpu_mask_gen"));
 
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         const auto& config = cur_moe->_config;
-        auto& dnn_stream = stream.get_onednn_stream();
 
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
         auto token_num = get_seq_len(hidden_states_layout);
-        auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         auto batch_mem_ptr = scratch.topk_id;
-        auto routing_mem_ptr = scratch.topk_weights;
         const auto& intermediates_memories = instance.get_intermediates_memories();
 
         OPENVINO_ASSERT(intermediates_memories.size() > MOE_INTERNAL_BUFFER_ROW_LUT,
@@ -2363,8 +2459,8 @@ public:
                         MOE_INTERNAL_BUFFER_ROW_LUT,
                         " (ROW_LUT) but only ",
                         intermediates_memories.size(),
-                        " buffers allocated. use_grouped_gemm_prefill=",
-                        use_grouped_gemm_prefill);
+                        " buffers allocated. prefill_impl=",
+                        static_cast<int>(prefill_impl));
 
         int num_total_experts = static_cast<int>(config.num_expert);
         int max_topk = static_cast<int>(config.top_k);
@@ -2405,7 +2501,7 @@ public:
                                     events)) {
             if (_weight_provider->is_offloaded()) {
                 // OTD: unique experts > capacity → explicit fallback to per-expert loop
-                return exec_prefill_onednn(events, stream, instance, scratch);
+                return exec_per_expert_onednn_linear(events, stream, instance, scratch);
             }
             // Non-OTD path: build mask from original expert IDs
             expert_mask_cpu expert_mask;
@@ -2440,7 +2536,7 @@ public:
             max_tokens_per_expert = *std::max_element(tokens_lens_per_expert_cpu.begin(), tokens_lens_per_expert_cpu.begin() + num_actually_used_experts);
         }
 
-        GPU_DEBUG_TRACE_DETAIL << "\nexec_prefill_grouped_gemm: token_num=" << token_num << ", total_gathered_tokens=" << total_gathered_tokens
+        GPU_DEBUG_TRACE_DETAIL << "\nexec_grouped_gemm_cpu_mask_gen: token_num=" << token_num << ", total_gathered_tokens=" << total_gathered_tokens
                                << ", max_tokens_per_expert=" << max_tokens_per_expert << ", num_actually_used_experts=" << num_actually_used_experts
                                << std::endl;
 
@@ -2449,6 +2545,26 @@ public:
             ->copy_from(stream, tokens_per_expert_cpu.data(), 0, 0, tokens_per_expert_cpu.size() * sizeof(tokens_per_expert_cpu[0]), true);
         intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS]
             ->copy_from(stream, grouped_offsets_cpu.data(), 0, 0, grouped_offsets_cpu.size() * sizeof(grouped_offsets_cpu[0]), true);
+
+        return exec_grouped_gemm_core(ret_event, stream, instance, scratch, max_tokens_per_expert);
+    }
+
+    // Steps 2-6 of the grouped GEMM path. Expects the gather token list, the grouped end-offsets and row_lut
+    // in the internal buffers, written by the CPU (exec_grouped_gemm_cpu_mask_gen) or GPU (exec_grouped_gemm_gpu_mask_gen) mask gen.
+    cldnn::event::ptr exec_grouped_gemm_core(cldnn::event::ptr ret_event,
+                                             cldnn::stream& stream,
+                                             typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                             scratch_buffers& scratch,
+                                             int max_tokens_per_expert) {
+        const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
+        auto& dnn_stream = stream.get_onednn_stream();
+
+        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
+        auto token_num = get_seq_len(hidden_states_layout);
+        auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
+        auto routing_mem_ptr = scratch.topk_weights;
+        const auto& intermediates_memories = instance.get_intermediates_memories();
+        int total_gathered_tokens = static_cast<int>(token_num) * static_cast<int>(config.top_k);
 
         // ----------------------------------------------------------------
         // Step 2: GPU gather – reorder input tokens sorted by expert
@@ -2483,44 +2599,46 @@ public:
         // Passed as DNNL_ARG_HINT_MAX_GROUP_SIZE to each grouped matmul execute(),
         // allowing the kernel to reduce per-expert workgroup dispatch without
         // recompiling the primitive.
-        auto hint_md = dnnl::memory::desc::host_scalar(dnnl::memory::data_type::s32);
-        dnnl::memory hint_mem(hint_md, static_cast<int32_t>(max_tokens_per_expert));
+        // The value is read on the host at execute(), so updating it in place does not affect GEMMs already submitted.
+        gk.hint_mem.set_host_scalar_value(static_cast<int32_t>(max_tokens_per_expert));
+        const auto& wei = scratch.moe_fusion_wei_addr;
+
+        // One grouped GEMM [total, K] * W[E,K,N] -> [total, N]. The execute args are rebuilt only when a wrapped buffer
+        // address changes, which for decode happens only on the first call.
+        auto exec_gemm = [&](size_t gemm_idx,
+                             dnnl::matmul& prim,
+                             const dnnl::matmul::primitive_desc& pd,
+                             const memory::ptr& src,
+                             const memory::ptr& dst,
+                             const dnnl::memory::desc& scale_md,
+                             const dnnl::memory::desc& zp_md) {
+            const auto& host_zp = _grouped_zp_host_scalars[gemm_idx];
+            const bool device_zp = gk.has_zp && !host_zp;
+            auto& cache = gk.args[gemm_idx];
+            const std::array<const void*, 6> key{src->buffer_ptr(),
+                                                 dst->buffer_ptr(),
+                                                 row_offsets->buffer_ptr(),
+                                                 wei.weight[gemm_idx]->buffer_ptr(),
+                                                 wei.scale[gemm_idx]->buffer_ptr(),
+                                                 device_zp ? wei.zp[gemm_idx]->buffer_ptr() : nullptr};
+            if (cache.args.empty() || cache.key != key) {
+                cache.args = {{DNNL_ARG_SRC, src->get_onednn_grouped_memory(pd.src_desc(), *row_offsets)},
+                              {DNNL_ARG_WEIGHTS, wei.weight[gemm_idx]->get_onednn_memory(pd.weights_desc())},
+                              {DNNL_ARG_DST, dst->get_onednn_grouped_memory(pd.dst_desc(), *row_offsets)},
+                              {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, wei.scale[gemm_idx]->get_onednn_memory(scale_md)},
+                              {DNNL_ARG_HINT_MAX_GROUP_SIZE, gk.hint_mem}};
+                if (gk.has_zp) {
+                    cache.args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, device_zp ? wei.zp[gemm_idx]->get_onednn_memory(zp_md) : host_zp});
+                }
+                cache.key = key;
+            }
+            prim.execute(dnn_stream, cache.args);
+        };
 
         // gate GEMM: [total, hidden] * W_gate[E,hidden,inter] -> [total, inter]
-        {
-            auto src_mem = scratch.x->get_onednn_grouped_memory(gk.gate_pd.src_desc(), *row_offsets);
-            auto dst_mem = scratch.gate->get_onednn_grouped_memory(gk.gate_pd.dst_desc(), *row_offsets);
-            auto w_mem = scratch.moe_fusion_wei_addr.weight[0]->get_onednn_memory(gk.gate_pd.weights_desc());
-            auto scale_mem = scratch.moe_fusion_wei_addr.scale[0]->get_onednn_memory(gk.gate_scale_md);
-
-            std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
-                                                       {DNNL_ARG_WEIGHTS, w_mem},
-                                                       {DNNL_ARG_DST, dst_mem},
-                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
-                                                       {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
-            if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[0]->get_onednn_memory(gk.gate_zp_md)});
-            }
-            gk.gate_prim.execute(dnn_stream, args);
-        }
-
+        exec_gemm(0, gk.gate_prim, gk.gate_pd, scratch.x, scratch.gate, gk.gate_scale_md, gk.gate_zp_md);
         // up GEMM: [total, hidden] * W_up[E,hidden,inter] -> [total, inter]
-        {
-            auto src_mem = scratch.x->get_onednn_grouped_memory(gk.up_pd.src_desc(), *row_offsets);
-            auto dst_mem = scratch.up->get_onednn_grouped_memory(gk.up_pd.dst_desc(), *row_offsets);
-            auto w_mem = scratch.moe_fusion_wei_addr.weight[1]->get_onednn_memory(gk.up_pd.weights_desc());
-            auto scale_mem = scratch.moe_fusion_wei_addr.scale[1]->get_onednn_memory(gk.up_scale_md);
-
-            std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
-                                                       {DNNL_ARG_WEIGHTS, w_mem},
-                                                       {DNNL_ARG_DST, dst_mem},
-                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
-                                                       {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
-            if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[1]->get_onednn_memory(gk.up_zp_md)});
-            }
-            gk.up_prim.execute(dnn_stream, args);
-        }
+        exec_gemm(1, gk.up_prim, gk.up_pd, scratch.x, scratch.up, gk.up_scale_md, gk.up_zp_md);
 
         // Step 4: SiLU(gate) * up -> scratch.gate  (OCL prefill_swiglu kernel, compiled with ONEDNN_GROUPED_GEMM_USED)
         // gate and up GEMMs are submitted to the same OCL queue as the OCL kernels;
@@ -2538,22 +2656,7 @@ public:
         }
 
         // down GEMM: [total, inter] * W_down[E,inter,hidden] -> [total, hidden]
-        {
-            auto src_mem = scratch.gate->get_onednn_grouped_memory(gk.down_pd.src_desc(), *row_offsets);
-            auto dst_mem = scratch.y->get_onednn_grouped_memory(gk.down_pd.dst_desc(), *row_offsets);
-            auto w_mem = scratch.moe_fusion_wei_addr.weight[2]->get_onednn_memory(gk.down_pd.weights_desc());
-            auto scale_mem = scratch.moe_fusion_wei_addr.scale[2]->get_onednn_memory(gk.down_scale_md);
-
-            std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
-                                                       {DNNL_ARG_WEIGHTS, w_mem},
-                                                       {DNNL_ARG_DST, dst_mem},
-                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
-                                                       {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
-            if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[2]->get_onednn_memory(gk.down_zp_md)});
-            }
-            gk.down_prim.execute(dnn_stream, args);
-        }
+        exec_gemm(2, gk.down_prim, gk.down_pd, scratch.gate, scratch.y, gk.down_scale_md, gk.down_zp_md);
 
         // Ensure all grouped GEMMs complete before scatter_reduce (OTD sync)
         on_after_grouped_gemm(stream);
@@ -2577,6 +2680,45 @@ public:
         }
 
         return ret_event;
+    }
+
+    // Grouped GEMM with GPU mask gen, used for single-token decode. The GPU mask gen writes the gather token list,
+    // the grouped end-offsets and row_lut straight into the internal buffers, so unlike the host mask gen of
+    // exec_grouped_gemm_cpu_mask_gen there is no host round-trip.
+    cldnn::event::ptr exec_grouped_gemm_gpu_mask_gen(const std::vector<cldnn::event::ptr>& events,
+                                                     cldnn::stream& stream,
+                                                     typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                                     scratch_buffers& scratch) {
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("moe_3gemm_swiglu_opt_impl::exec_grouped_gemm_gpu_mask_gen"));
+
+        const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
+        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
+        auto token_num = get_seq_len(hidden_states_layout);
+        const auto& intermediates_memories = instance.get_intermediates_memories();
+
+        const auto num_total_experts = static_cast<size_t>(config.num_expert);
+        const auto max_wgs = instance.get_impl_params()->get_device_info().max_work_group_size;
+        OPENVINO_ASSERT(num_total_experts <= max_wgs,
+                        "GPU mask gen runs one work-item per expert: num_expert=",
+                        num_total_experts,
+                        " exceeds max work-group size ",
+                        max_wgs);
+        auto ret_event = execute_stage(events,
+                                       instance,
+                                       *grouped_gemm_mask_gen,
+                                       {scratch.topk_id},
+                                       {intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT],
+                                        intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS],
+                                        intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS],
+                                        intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT],
+                                        intermediates_memories[MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM],
+                                        intermediates_memories[MOE_INTERNAL_BUFFER_ROW_LUT]},
+                                       {num_total_experts, 1, 1},
+                                       {num_total_experts, 1, 1},
+                                       false,
+                                       {static_cast<int>(token_num)});
+        // The top-k experts of a token are distinct, so an expert gets at most one row per token
+        return exec_grouped_gemm_core(ret_event, stream, instance, scratch, static_cast<int>(token_num));
     }
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
@@ -2613,7 +2755,8 @@ public:
 
         // Batched GEMV: for small token counts (including single token, MTP/speculative decoding),
         // use optimized GEMV kernels with batch dimension. Avoids gather/scatter overhead.
-        if (token_num <= batched_gemv_threshold) {
+        const MoeGemmImpl impl = select_impl(token_num);
+        if (impl == MoeGemmImpl::batched_gemv) {
             return exec_batched_gemv(events, instance, scratch, token_num);
         }
 
@@ -2622,14 +2765,12 @@ public:
         // The per-expert onednn loop uses index_add (accumulates into output).
         // The grouped_gemm scatter_reduce writes all token positions atomically
         // and does not require pre-zeroing — except in OTD mode where the
-        // fallback to exec_prefill_onednn (when unique_experts > lru slots)
+        // fallback to exec_per_expert_onednn_linear (when unique_experts > lru slots)
         // also accumulates via index_add.
-        if (!use_micro_gemm_prefill && should_pre_zero_output()) {
+        if (impl != MoeGemmImpl::micro_gemm && should_pre_zero_output()) {
             final_hidden_states_mem_ptr->fill(stream, 0u);
         }
-        // GPU mask gen is only supported for micro_gemm; both grouped_gemm and onednn loop
-        // always use CPU mask gen and therefore always need topk to be ready first.
-        const bool use_gpu_mask_gen = use_micro_gemm_prefill && use_gpu_mask_gen_prefill;
+        const bool use_gpu_mask_gen = should_use_gpu_mask_gen(impl, token_num);
         if (!use_gpu_mask_gen) {
             // Wait for input events (topk produced upstream by MoERouterFused)
             for (const auto& ev : events) {
@@ -2640,13 +2781,13 @@ public:
         }
 
         GPU_DEBUG_TRACE_DETAIL << "\nMoE3GemmFusedCompressed exec(): token_num=" << token_num << ", max_topk=" << static_cast<int>(config.top_k)
-                               << ", use_micro_gemm_prefill=" << use_micro_gemm_prefill << ", use_grouped_gemm_prefill=" << use_grouped_gemm_prefill
-                               << std::endl;
+                               << ", impl=" << static_cast<int>(impl) << std::endl;
         update_rt_params(instance);
-        if (use_micro_gemm_prefill) {
+        if (impl == MoeGemmImpl::micro_gemm) {
             ret_env = exec_prefill_micro_gemm(events, instance, scratch, use_gpu_mask_gen);
-        } else if (use_grouped_gemm_prefill) {
-            ret_env = exec_prefill_grouped_gemm(events, stream, instance, scratch);
+        } else if (impl == MoeGemmImpl::grouped_gemm) {
+            ret_env = use_gpu_mask_gen ? exec_grouped_gemm_gpu_mask_gen(events, stream, instance, scratch)
+                                       : exec_grouped_gemm_cpu_mask_gen(events, stream, instance, scratch);
             // In OTD mode the grouped_gemm path interleaves OCL kernels with OneDNN
             // grouped matmul on the same in-order queue. The framework's event-based
             // scheduling may proceed to subsequent graph nodes before scatter_reduce
@@ -2654,7 +2795,7 @@ public:
             // Flush the queue only in OTD mode to avoid impacting non-OTD perf.
             on_after_exec_sync(stream);
         } else {
-            ret_env = exec_prefill_onednn(events, stream, instance, scratch);
+            ret_env = exec_per_expert_onednn_linear(events, stream, instance, scratch);
         }
 
         if (_has_shared_expert) {
@@ -2665,10 +2806,10 @@ public:
             // same in-order OCL queue, so submission order guarantees execution order.
             // No explicit wait() is needed — the in-order queue serializes all GPU work,
             // and any subsequent primitive on the same queue will see the completed output.
-            if (use_grouped_gemm_prefill && ret_env) {
+            if (impl == MoeGemmImpl::grouped_gemm && ret_env) {
                 // ensure grouped GEMM fully completes before executing shared expert, which relies on its output being ready;
                 // For grouped_gemm path, scatter_reduce (OCL) is preceded by multiple OCL <--> OneDNN
-                // transitions inside exec_prefill_grouped_gemm. The implicit ordering between
+                // transitions inside exec_grouped_gemm_cpu_mask_gen. The implicit ordering between
                 // the OCL queue and OneDNN's stream cannot be relied upon across this many
                 // back-and-forth submissions, so the shared expert's down_proj sum post-op
                 // (which reads+writes final_hidden_states) can race with scatter_reduce.
