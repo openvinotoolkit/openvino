@@ -128,20 +128,42 @@ def _orig_weight(module, attr):
     return getattr(module, _ORIG_WEIGHT_ATTR_PREFIX + attr, getattr(module, attr, None))
 
 
-def _stash_weights_as_fp32_placeholders(module, supported, weight_attrs=("weight", "bias")):
+class _FP32ParameterPlaceholder(torch.Tensor):
+    @classmethod
+    def __torch_function__(cls, func, types, args=(), kwargs=None):
+        if func in (torch.Tensor.shape.__get__, torch.Tensor.size, torch.Tensor.numel,
+                    torch.numel, torch.Tensor.stride, torch.Tensor.storage_offset):
+            with torch._C.DisableTorchFunctionSubclass():
+                return func(*args, **(kwargs or {}))
+        if func is torch.view_as_complex:
+            return _view_as_complex(args[0] if args else kwargs["input"])
+        if torch.jit.is_tracing() and func in (
+                torch.Tensor.item, torch.Tensor.__float__, torch.Tensor.__int__, torch.Tensor.__complex__,
+                torch.Tensor.__index__, torch.Tensor.__bool__, torch.Tensor.tolist,
+                torch.Tensor.numpy, torch.Tensor.is_nonzero, torch.is_nonzero):
+            raise RuntimeError("Cannot extract Python scalars from FP32 parameter placeholders during tracing. "
+                               "Use tensor operations instead.")
+        return super().__torch_function__(func, types, args, kwargs)
+
+
+def _stash_weights_as_fp32_placeholders(module, supported, weight_attrs=("weight", "bias"), placeholders=None):
     """Replace a module's 16-bit weight tensors with FP32 placeholders.
 
     The real 16-bit tensors are stashed under ``_openvino_orig_<attr>`` so the
     extension ``convert`` callback can still emit them as the graph constant
     (via ``_orig_weight``), while model code that reads ``module.weight.dtype``
-    (or ``.device``) during tracing sees a plain FP32 tensor. This prevents the
+    (or ``.device``) during tracing sees an FP32 tensor. This prevents the
     tracer from baking a 16-bit ``aten::to`` cast into the graph.
 
-    The placeholder shares a single-element storage (a broadcasted zero) so it
-    costs virtually no memory even for large weights, and it keeps the original
-    device so that ``x.to(module.weight.device)`` traces correctly.
+    Parameter placeholders use single-element storage and preserve scalar values.
+    Buffers retain real FP32 storage for in-place updates and layout-sensitive ops.
+    The original device is preserved for dtype/device introspection while tracing.
+    Constant conversion resolves parameter placeholders to a deferred FP32
+    conversion of the original tensor through ``_openvino_orig_tensor``.
     """
     for attr in weight_attrs:
+        if attr.startswith(_ORIG_WEIGHT_ATTR_PREFIX):
+            continue
         param = getattr(module, attr, None)
         if not isinstance(param, torch.Tensor) or param.dtype not in supported:
             continue
@@ -151,14 +173,25 @@ def _stash_weights_as_fp32_placeholders(module, supported, weight_attrs=("weight
         # Keep the real 16-bit tensor reachable for `convert` (registered so
         # tracing can resolve the prim::GetAttr for it).
         setattr(module, stash_name, param)
-        placeholder = torch.zeros((), dtype=torch.float32,
-                                  device=param.device).expand(param.shape)
-        setattr(module, attr, torch.nn.Parameter(placeholder, requires_grad=False))
+        placeholder = placeholders.get(id(param)) if placeholders is not None else None
+        if placeholder is None:
+            if attr in module._buffers or param.numel() == 1:
+                placeholder = param.float()
+            else:
+                placeholder = torch.zeros((), dtype=torch.float32,
+                                          device=param.device).expand(param.shape)
+                placeholder = torch.Tensor._make_subclass(_FP32ParameterPlaceholder, placeholder)
+            if isinstance(param, torch.nn.Parameter):
+                placeholder = torch.nn.Parameter(placeholder, requires_grad=False)
+                placeholder._openvino_orig_tensor = param
+            if placeholders is not None:
+                placeholders[id(param)] = placeholder
+        setattr(module, attr, placeholder)
 
 
 def _restore_stashed_weights(module):
-    """Undo ``_stash_weights_as_fp32_placeholders`` for a single module."""
-    stash_names = [n for n in list(module._parameters) + list(module.__dict__)
+    """Restore the original parameters and buffers for a single module."""
+    stash_names = [n for n in list(module._parameters) + list(module._buffers) + list(module.__dict__)
                    if n.startswith(_ORIG_WEIGHT_ATTR_PREFIX)]
     for stash_name in stash_names:
         attr = stash_name[len(_ORIG_WEIGHT_ATTR_PREFIX):]
@@ -173,6 +206,20 @@ _bmm_extension = ModuleExtension(
     evaluate=lambda module, *args, **kwargs: _fp32_tensor(
         args[0].shape[0], args[0].shape[1], args[1].shape[2], device=args[0].device)
 )
+
+
+def _evaluate_view_as_complex(module, input_tensor):
+    if input_tensor.ndim == 0 or input_tensor.shape[-1] != 2:
+        raise RuntimeError("Tensor must have a last dimension of size 2")
+    value = torch.view_as_complex(torch.zeros(2, dtype=input_tensor.dtype,
+                                              device=input_tensor.device)).expand(input_tensor.shape[:-1])
+    return torch.Tensor._make_subclass(_FP32ParameterPlaceholder, value)
+
+
+_view_as_complex = _create_function_wrapper(ModuleExtension(
+    None, "aten::view_as_complex",
+    convert=lambda module, target_op, input_tensor: target_op(input_tensor),
+    evaluate=_evaluate_view_as_complex))
 
 
 # Thread-safe, reference-counted storage for patched torch functions.
@@ -623,7 +670,7 @@ def __make_16bit_traceable(model: torch.nn.Module,
 
     - Replace known list of modules with ModuleExtension.
     - Patch torch functions (bmm, baddbmm, etc.) for MoE and similar models.
-    - Convert other modules with weights to FP32.
+    - Expose FP32 placeholders for other parameters and buffers.
 
     For extension-backed modules (Linear/Embedding/Conv1D) the real 16-bit
     weight is stashed aside and ``module.weight``/``module.bias`` are replaced
@@ -638,6 +685,7 @@ def __make_16bit_traceable(model: torch.nn.Module,
     _patch_torch_functions()
 
     extensions, supported = _get_16bit_extensions(patch_condition)
+    placeholders = {}
     for name, module in model.named_modules():
         if has_been_patched(module, name, orig_forward_name):
             continue
@@ -645,14 +693,8 @@ def __make_16bit_traceable(model: torch.nn.Module,
             # Expose FP32 placeholders as .weight/.bias so dtype/device
             # introspection during tracing sees FP32; the real 16-bit tensor
             # is stashed and re-attached by the extension's convert callback.
-            _stash_weights_as_fp32_placeholders(module, supported)
+            _stash_weights_as_fp32_placeholders(module, supported, placeholders=placeholders)
             module_patcher(module, name, orig_forward_name, extensions)
         else:
-            for param in module.parameters(recurse=False):
-                if param.dtype in supported:
-                    log.debug("Casting parameter of module %s to float32", name)
-                    param.data = param.data.float()
-            for buf in module.buffers(recurse=False):
-                if buf.dtype in supported:
-                    log.debug("Casting buffer of module %s to float32", name)
-                    buf.data = buf.data.float()
+            weight_attrs = tuple(module._parameters) + tuple(module._buffers)
+            _stash_weights_as_fp32_placeholders(module, supported, weight_attrs, placeholders)
