@@ -40,8 +40,10 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context);
 // ov::op::internal::GatedDeltaNet for the device's fused kernel; a model using it is not
 // IR-serializable (see docs/runtime.md). The fused op only supports scalar gating, so the
 // per-key-dimension gating case (kda) uses the serializable Loop reference path below.
+// Optional operand 6 is the number of valid tokens in a padded static chunk; padded tokens must not
+// update the recurrent state.
 OutputVector translate_gated_delta_net(const NodeContext& context) {
-    num_inputs_check(context, 6, 6);
+    num_inputs_check(context, 6, 7);
 
     auto v_shape = context.get_input(2).get_partial_shape();  // [B, T, H_v, S_v]
     auto q_shape = context.get_input(0).get_partial_shape();  // [B, T, H_k, S_k]
@@ -107,7 +109,7 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     g = std::make_shared<ov::op::v0::Squeeze>(g, sq_axis_3);
     beta = std::make_shared<ov::op::v0::Squeeze>(beta, sq_axis_3);
 
-    if (context.has_input("chunk_valid_len")) {
+    if (context.get_input_size() == 7) {
         const auto& g_shape = g.get_partial_shape();
         FRONT_END_OP_CONVERSION_CHECK(
             g_shape.rank().is_static() && g_shape.rank().get_length() == 3 && g_shape[1].is_static(),
@@ -117,7 +119,7 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
         std::iota(positions.begin(), positions.end(), 0);
         auto valid = std::make_shared<ov::op::v1::Less>(
             ov::op::v0::Constant::create(ov::element::i64, {static_cast<size_t>(n_tokens)}, positions),
-            context.get_input("chunk_valid_len"));
+            context.get_input(6));
         auto mask = std::make_shared<ov::op::v0::Unsqueeze>(
             std::make_shared<ov::op::v0::Convert>(valid, g.get_element_type()),
             ov::op::v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{0, 2}));
@@ -150,7 +152,7 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
 // Serializable reference path: a recurrent OV Loop scan over the sequence built from core ops,
 // matching ggml's per-token gated delta update. Used for the kda case and as a portable fallback.
 static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
-    num_inputs_check(context, 6, 6);
+    num_inputs_check(context, 6, 7);
 
     auto q = context.get_input(0);
     auto k = context.get_input(1);
@@ -180,7 +182,7 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
         k = make_l2_norm(k, eps);
     }
 
-    if (context.has_input("chunk_valid_len")) {
+    if (context.get_input_size() == 7) {
         FRONT_END_OP_CONVERSION_CHECK(v_shape[1].is_static(),
                                       "GATED_DELTA_NET pad masking requires a static token dimension");
         const int64_t T = v_shape[1].get_length();
@@ -188,7 +190,7 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
         std::iota(positions.begin(), positions.end(), 0);
         auto valid = std::make_shared<ov::op::v1::Less>(
             ov::op::v0::Constant::create(ov::element::i64, {static_cast<size_t>(T)}, positions),
-            context.get_input("chunk_valid_len"));
+            context.get_input(6));
         auto mask = std::make_shared<ov::op::v1::Reshape>(
             std::make_shared<ov::op::v0::Convert>(valid, g.get_element_type()),
             ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, T, 1, 1}),

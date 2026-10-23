@@ -127,8 +127,10 @@ The frontend owns lowering for both ingestion paths. The llama.cpp adapter expos
 the existing decoder interface; it must not construct operation subgraphs or reinterpret frontend
 case numbers. The following attributes supplement facts that are not encoded as logical operands:
 
-- `rope_mode`: `normal`, `neox`, `imrope` or `vision`, ggml's rotation semantics. Its operand is an
-  already-materialized logical tensor.
+- `rope_mode`: `normal`, `neox`, `imrope`, `mrope` or `vision`, ggml's rotation semantics. Its operand is an
+  already-materialized logical tensor. Sectioned modes read `RopeConfig::sections`.
+- `GATED_DELTA_NET` takes an optional seventh operand, the number of valid tokens in a padded
+  static chunk; padded tokens then leave the recurrent state unchanged.
 - `has_mask`: whether FLASH_ATTN_EXT has a mask. An absent mask and present sinks otherwise look
   like a four-input masked operation after null source slots are removed.
 - `max_bias` and `kq_soft_cap`: separate FLASH_ATTN_EXT parameters, not interchangeable.

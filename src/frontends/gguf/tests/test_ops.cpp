@@ -2623,7 +2623,7 @@ ov::Tensor run_gdn_tneqd(bool force_ref, int64_t valid_len = -1, bool dynamic_to
                        .input("state", ov::element::f32, state_shp)
                        .output("out", ov::element::f32, {1, 1, (T + D) * B, D * H});
     if (valid_len >= 0) {
-        builder.extra_input("chunk_valid_len", ov::element::i64, {1});
+        builder.input("chunk_valid_len", ov::element::i64, {1});
     }
     auto model = builder.build();
     std::vector<float> state0((size_t)(H * D * D), 0.0f);
@@ -2657,11 +2657,21 @@ TEST(GGUFOps, GatedDeltaNetRefDynamicTokens) {
 }
 
 TEST(GGUFOps, GatedDeltaNetRefMasksStaticPadding) {
+    const auto unmasked = run_gdn_tneqd(/*force_ref=*/false);
     for (const int64_t valid_len : {int64_t{0}, int64_t{1}, int64_t{3}}) {
         auto fused = run_gdn_tneqd(/*force_ref=*/false, valid_len);
         auto reference = run_gdn_tneqd(/*force_ref=*/true, valid_len);
         ASSERT_EQ(fused.get_size(), reference.get_size());
         expect_near(reference, std::vector<float>(fused.data<float>(), fused.data<float>() + fused.get_size()), 1e-3f);
+        float max_diff = 0.0f;
+        for (size_t i = 0; i < fused.get_size(); ++i) {
+            max_diff = std::max(max_diff, std::abs(fused.data<float>()[i] - unmasked.data<float>()[i]));
+        }
+        if (valid_len < 3) {
+            EXPECT_GT(max_diff, 1e-3f) << "padding mask had no effect for valid_len " << valid_len;
+        } else {
+            EXPECT_LE(max_diff, 1e-3f);
+        }
     }
 }
 
@@ -3552,6 +3562,70 @@ TEST(GGUFOps, MultimodalRopeMatchesIndependentSections) {
         std::copy(values.begin(), values.end(), positions.data<int32_t>());
         auto actual = run_on_cpu(model, {{"data", make_f32_tensor({1, 2, 3, 64}, data)}, {"pos", positions}});
         expect_near(actual, load_npy<float>(vision ? "vision_rope_expected" : "multimodal_imrope_expected"));
+    }
+}
+
+// ggml_rope_multi (MROPE / IMROPE, ext_factor 0): neox pairing, per-plane positions, freq_scale and
+// attn_factor applied as in rope_yarn.
+TEST(GGUFOps, SectionedRopeAppliesScalingAndSections) {
+    const int64_t T = 2, H = 2, head = 16;
+    const int n_dims = 12, half = n_dims / 2;
+    const std::array<int32_t, 4> sections{2, 2, 1, 1};
+    const std::vector<int32_t> pos{3, 7, 11, 2, 5, 13, 17, 19};  // plane-major [t | h | w | e]
+    for (bool interleaved : {false, true}) {
+        RopeConfig config;
+        config.n_dims = n_dims;
+        config.n_ctx_orig = 4096;
+        config.freq_base = 10000.f;
+        config.freq_scale = 0.5f;
+        config.attn_factor = 0.8f;
+        config.beta_fast = 32.f;
+        config.beta_slow = 1.f;
+        config.sections = sections;
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_ROPE")
+                         .input("data", ov::element::f32, {1, T, H, head})
+                         .input("pos", ov::element::i32, {1, 1, 1, 4 * T})
+                         .output("out", ov::element::f32, {1, T, H, head})
+                         .attr<std::string>("rope_mode", interleaved ? "imrope" : "mrope")
+                         .attr<RopeConfig>("rope_config", config)
+                         .build();
+        std::vector<float> data(T * H * head);
+        for (size_t i = 0; i < data.size(); ++i)
+            data[i] = std::sin(float(i) * 0.37f);
+        std::vector<float> expected = data;
+        const int total = sections[0] + sections[1] + sections[2] + sections[3];
+        const float theta_scale = std::pow(config.freq_base, -2.f / n_dims);
+        for (int64_t t = 0; t < T; ++t) {
+            for (int j = 0; j < half; ++j) {
+                const int s = j % total;
+                int plane;
+                if (interleaved) {
+                    plane = s % 3 == 1 && s < 3 * sections[1]   ? 1
+                            : s % 3 == 2 && s < 3 * sections[2] ? 2
+                            : s % 3 == 0 && s < 3 * sections[0] ? 0
+                                                                : 3;
+                } else {
+                    plane = s < sections[0]                                 ? 0
+                            : s < sections[0] + sections[1]                 ? 1
+                            : s < sections[0] + sections[1] + sections[2]   ? 2
+                                                                            : 3;
+                }
+                const float theta = float(pos[plane * T + t]) * std::pow(theta_scale, float(j)) * config.freq_scale;
+                const float c = std::cos(theta) * config.attn_factor, sn = std::sin(theta) * config.attn_factor;
+                for (int64_t h = 0; h < H; ++h) {
+                    const size_t base = (t * H + h) * head;
+                    const float x0 = data[base + j], x1 = data[base + j + half];
+                    expected[base + j] = x0 * c - x1 * sn;
+                    expected[base + j + half] = x0 * sn + x1 * c;
+                }
+            }
+        }
+        ov::Tensor positions(ov::element::i32, {1, 1, 1, size_t(4 * T)});
+        std::copy(pos.begin(), pos.end(), positions.data<int32_t>());
+        auto actual = run_on_cpu(model, {{"data", make_f32_tensor({1, size_t(T), size_t(H), size_t(head)}, data)},
+                                         {"pos", positions}});
+        expect_near(actual, expected, 1e-4f);
     }
 }
 

@@ -257,7 +257,9 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
                                                            std::shared_ptr<ov::Node> inp_pos,
                                                            std::shared_ptr<ov::Node> rope_freqs_weight,
                                                            bool imrope,
-                                                           bool stateful) {
+                                                           bool stateful,
+                                                           bool mrope) {
+    const bool sectioned = imrope || mrope;
     if (stateful) {
         inp_pos =
             std::make_shared<ov::op::v0::Squeeze>(inp_pos, ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
@@ -265,7 +267,7 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
         auto pos_perm =
             std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{2, 1, 0});
         inp_pos = std::make_shared<ov::op::v1::Transpose>(inp_pos, pos_perm);
-    } else if (imrope) {
+    } else if (sectioned) {
         inp_pos = std::make_shared<ov::op::v0::Convert>(inp_pos, ov::element::f32);
         auto pos_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 0, 0, 4, -1});
         inp_pos = std::make_shared<ov::op::v1::Reshape>(inp_pos, pos_shape, true);
@@ -297,7 +299,7 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
 
     Output<Node> theta;
     float mscale = attn_factor;
-    if (imrope) {
+    if (sectioned) {
         std::vector<int64_t> gather_indices(n_dims_half);
         const auto& sections = rope_config.sections;
         FRONT_END_GENERAL_CHECK(std::all_of(sections.begin(),
@@ -308,21 +310,64 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
                                 "M-RoPE sections must be nonnegative");
         // Four int32 counts always fit in 64 bits.
         const int64_t total = std::accumulate(sections.begin(), sections.end(), int64_t{0});
+        FRONT_END_GENERAL_CHECK(imrope || total > 0, "M-RoPE requires position sections");
+        const int64_t sec_w = int64_t{sections[0]} + sections[1];
+        const int64_t sec_e = sec_w + sections[2];
         for (size_t j = 0; j < n_dims_half; j++) {
             const size_t sector = total ? j % static_cast<size_t>(total) : j;
-            gather_indices[j] = !total                                                             ? j % 3
-                                : sector % 3 == 1 && sector < 3 * static_cast<size_t>(sections[1]) ? 1
-                                : sector % 3 == 2 && sector < 3 * static_cast<size_t>(sections[2]) ? 2
-                                : sector % 3 == 0 && sector < 3 * static_cast<size_t>(sections[0]) ? 0
-                                                                                                   : 3;
+            if (imrope) {
+                gather_indices[j] = !total                                                             ? j % 3
+                                    : sector % 3 == 1 && sector < 3 * static_cast<size_t>(sections[1]) ? 1
+                                    : sector % 3 == 2 && sector < 3 * static_cast<size_t>(sections[2]) ? 2
+                                    : sector % 3 == 0 && sector < 3 * static_cast<size_t>(sections[0]) ? 0
+                                                                                                       : 3;
+            } else {
+                // ggml MROPE: contiguous t | h | w | e frequency blocks.
+                const auto s = static_cast<int64_t>(sector);
+                gather_indices[j] = s < sections[0] ? 0 : s < sec_w ? 1 : s < sec_e ? 2 : 3;
+            }
             factor[j] = static_cast<float>(std::pow(theta_scale, j));
         }
         auto gather_indices_const =
             std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{n_dims_half}, gather_indices);
         auto gather_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {4});
         inp_pos = std::make_shared<ov::op::v8::Gather>(inp_pos, gather_indices_const, gather_axis);
-        auto factor_const = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{n_dims_half}, factor);
-        theta = std::make_shared<ov::op::v1::Multiply>(inp_pos, factor_const);
+        Output<Node> factor_node =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{n_dims_half}, factor);
+        if (rope_freqs_weight) {
+            // The table may be wider than this op's rotation and carry leading unit axes.
+            auto rope_factors = std::make_shared<ov::op::v8::Slice>(
+                rope_freqs_weight,
+                ov::op::v0::Constant::create(ov::element::i64, {1}, {0}),
+                ov::op::v0::Constant::create(ov::element::i64, {1}, {static_cast<int64_t>(n_dims_half)}),
+                ov::op::v0::Constant::create(ov::element::i64, {1}, {1}),
+                ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}));
+            auto flat_factors = std::make_shared<ov::op::v1::Reshape>(
+                rope_factors,
+                ov::op::v0::Constant::create(ov::element::i64, {1}, {static_cast<int64_t>(n_dims_half)}),
+                false);
+            factor_node = std::make_shared<ov::op::v1::Divide>(factor_node, flat_factors);
+        }
+        Output<Node> theta_extrap = std::make_shared<ov::op::v1::Multiply>(inp_pos, factor_node);
+        Output<Node> theta_interp = theta_extrap;
+        if (freq_scale != 1.0f) {
+            theta_interp = std::make_shared<ov::op::v1::Multiply>(
+                theta_extrap,
+                ov::op::v0::Constant::create(ov::element::f32, {1}, {freq_scale}));
+        }
+        if (ext_factor == 0.0f) {
+            theta = theta_interp;
+        } else {
+            float corr_dims[2];
+            gguf_rope_yarn_corr_dims(n_dims, n_ctx_orig, freq_base, beta_fast, beta_slow, corr_dims);
+            auto ramp_mix = rope_yarn_ramp_mix(n_dims, corr_dims, ext_factor);
+            auto one = ov::op::v0::Constant::create(ov::element::f32, Shape{1, 1, 1, 1}, {1.0f});
+            auto one_minus_ramp = std::make_shared<ov::op::v1::Subtract>(one, ramp_mix);
+            theta =
+                std::make_shared<ov::op::v1::Add>(std::make_shared<ov::op::v1::Multiply>(theta_interp, one_minus_ramp),
+                                                  std::make_shared<ov::op::v1::Multiply>(theta_extrap, ramp_mix));
+            mscale *= (1.0f + 0.1f * std::log(1.0f / freq_scale));
+        }
     } else {
         float corr_dims[2];
         gguf_rope_yarn_corr_dims(n_dims, n_ctx_orig, freq_base, beta_fast, beta_slow, corr_dims);
@@ -381,7 +426,8 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
     Output<Node> cos_theta = std::make_shared<ov::op::v0::Cos>(theta);
     Output<Node> sin_theta = std::make_shared<ov::op::v0::Sin>(theta);
 
-    if (!imrope) {
+    // Sectioned modes skip a unit scale so their graph is unchanged for unscaled models.
+    if (!sectioned || mscale != 1.0f) {
         auto mscale_node = ov::op::v0::Constant::create(ov::element::f32, Shape{}, {mscale});
 
         cos_theta = std::make_shared<ov::op::v1::Multiply>(cos_theta, mscale_node);

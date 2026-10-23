@@ -56,14 +56,16 @@ OutputVector translate_rope(const NodeContext& context) {
     constexpr int TYPE_IMROPE = 2;
 
     constexpr int TYPE_VISION = 3;
+    constexpr int TYPE_MROPE = 4;
 
     const auto explicit_mode = context.get_attribute<std::string>("rope_mode", "normal");
     FRONT_END_CHECK_IMPLEMENTED(explicit_mode == "normal" || explicit_mode == "neox" || explicit_mode == "imrope" ||
-                                    explicit_mode == "vision",
+                                    explicit_mode == "mrope" || explicit_mode == "vision",
                                 "Unsupported ROPE mode: " + explicit_mode);
     const int mode = explicit_mode == "normal"   ? TYPE_NORMAL
                      : explicit_mode == "neox"   ? TYPE_NEOX
                      : explicit_mode == "imrope" ? TYPE_IMROPE
+                     : explicit_mode == "mrope"  ? TYPE_MROPE
                                                  : TYPE_VISION;
 
     if (mode == TYPE_VISION) {
@@ -141,14 +143,22 @@ OutputVector translate_rope(const NodeContext& context) {
                    << static_cast<const void*>(rope_freqs_weight.get()) << ':' << rope_config.n_dims << ':'
                    << rope_config.n_ctx_orig << ':' << rope_config.freq_base << ':' << rope_config.freq_scale << ':'
                    << rope_config.ext_factor << ':' << rope_config.attn_factor << ':' << rope_config.beta_fast << ':'
-                   << rope_config.beta_slow << ':' << (mode == TYPE_IMROPE);
+                   << rope_config.beta_slow << ':' << mode;
+            for (const auto section : rope_config.sections) {
+                stream << ':' << section;
+            }
             return stream.str();
         }();
         if (context.has_cached(key + "/sin") && context.has_cached(key + "/cos")) {
             sin_theta_node = context.get_cached(key + "/sin");
             cos_theta_node = context.get_cached(key + "/cos");
         } else {
-            auto sin_cos = make_sin_cos(rope_config, inp_pos, rope_freqs_weight, mode == TYPE_IMROPE);
+            auto sin_cos = make_sin_cos(rope_config,
+                                        inp_pos,
+                                        rope_freqs_weight,
+                                        mode == TYPE_IMROPE,
+                                        false,
+                                        mode == TYPE_MROPE);
             sin_theta_node = sin_cos.first;
             cos_theta_node = sin_cos.second;
             context.set_cached(key + "/sin", sin_theta_node);
@@ -290,7 +300,7 @@ OutputVector translate_rope(const NodeContext& context) {
             std::make_shared<ov::op::v1::Multiply>(rotated_half, sin_full));
         res = n_rot < head_dim ? std::make_shared<ov::op::v0::Concat>(ov::OutputVector{roped, pass_through}, -1)
                                : roped;
-    } else if (mode == TYPE_IMROPE) {
+    } else if (mode == TYPE_IMROPE || mode == TYPE_MROPE) {
         // Partial rotary (ggml n_dims < head_dim): only the first n_rot dims of every head are
         // rotated, the tail is passed through unchanged -- e.g. qwen3.5 has head_dim 256 but
         // rope.dimension_count 64. cos/sin carry width n_rot/2, so the rotated block must be
