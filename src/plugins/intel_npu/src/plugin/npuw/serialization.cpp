@@ -142,7 +142,11 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAtten
         info._tile_input_indices.k & info._tile_input_indices.v & info._tile_input_indices.mask &
         info._tile_input_indices.acc & info._tile_input_indices.max & info._tile_input_indices.d &
         info._tile_output_indices.acc & info._tile_output_indices.max & info._tile_output_indices.d &
-        var._past_tile_size & var._final_tile_size & var._can_use_tensor_view;
+        var._past_tile_size & var._final_tile_size & var._can_use_tensor_view &
+        info._sdpa_indices.past_key_scale_blocks & info._sdpa_indices.past_key_zp_blocks &
+        info._sdpa_indices.past_value_scale_blocks & info._sdpa_indices.past_value_zp_blocks &
+        info._tile_input_indices.k_scale & info._tile_input_indices.k_zp & info._tile_input_indices.v_scale &
+        info._tile_input_indices.v_zp;
     if (stream.input()) {
         // Port indices are model-specific but must fit in a sane range; SIZE_MAX indicates a corrupted blob.
         constexpr std::size_t kMaxPortIndex = static_cast<std::size_t>(std::numeric_limits<uint16_t>::max());
@@ -152,6 +156,15 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAtten
                 info._tile_input_indices.acc <= kMaxPortIndex && info._tile_input_indices.max <= kMaxPortIndex &&
                 info._tile_input_indices.d <= kMaxPortIndex,
             "HFA tile input index out of range in deserialized blob");
+        // The dequantization inputs are absent (kNoInput) unless the KV cache is int8-compressed.
+        constexpr auto kNoInput = ov::npuw::compiled::HostFlashAttentionInfo::kNoInput;
+        for (const auto idx : {info._tile_input_indices.k_scale,
+                               info._tile_input_indices.k_zp,
+                               info._tile_input_indices.v_scale,
+                               info._tile_input_indices.v_zp}) {
+            OPENVINO_ASSERT(idx == kNoInput || idx <= kMaxPortIndex,
+                            "HFA dequantization input index out of range in deserialized blob");
+        }
         OPENVINO_ASSERT(info._tile_output_indices.acc <= kMaxPortIndex &&
                             info._tile_output_indices.max <= kMaxPortIndex &&
                             info._tile_output_indices.d <= kMaxPortIndex,
