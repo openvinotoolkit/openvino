@@ -86,7 +86,7 @@ KERNEL(quantize_input)(
 #   error "fully_connected_gpu_bf_tiled.cl - TILE_K_OFM must be equal to TILE_K * TILE_OFM and at most 8"
 #endif
 
-#if COMPRESSED_WEIGHTS_INT4
+#if COMPRESSED_WEIGHTS_SUB_BYTE
 #   if TILE_K_OFM != TILE_K_OFM_PACKED * FILTER_ELEMENTS_PER_BYTE
 #       error "fully_connected_gpu_bf_tiled.cl - TILE_K_OFM must be divisible by the number of values packed per byte for compressed case"
 #   endif
@@ -100,7 +100,7 @@ KERNEL(quantize_input)(
 #       error "fully_connected_gpu_bf_tiled.cl - outer_ofm should be 2 when swiglu is fused"
 #   endif
 #endif
-#if TILE_K == 4 && COMPRESSED_WEIGHTS_INT4 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
+#if TILE_K == 4 && COMPRESSED_WEIGHTS_SUB_BYTE && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
     // Data stored in memory : f0k0k1|f16k0k1|f0k2k3|f16k2k3
     // => unpack as f0k0k1|f0k2k3|f16k0k1|f16k2k3 so that the weight access order is preserved
     #define UNPACK_INT4 UNPACK_INT4x2_OSV32_ISV2
@@ -146,7 +146,7 @@ KERNEL(quantize_input)(
 
 #define INPUT_ELEMENTS_COUNT IFM_SIZE
 
-#if IS_DYNAMIC && COMPRESSED_WEIGHTS_INT4
+#if IS_DYNAMIC && COMPRESSED_WEIGHTS_SUB_BYTE
 #pragma disable_includes_optimization
 #define FORCED_TILE_B 1
 #include "include/fully_connected_gpu_bf_tiled_common.cl"
@@ -242,7 +242,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     ACCUMULATOR_VEC_TYPE acc[TILE_B] = { };
     INPUT_VEC_TYPE       in_0[TILE_B] = { };
 
-    #if !USE_SLM || !COMPRESSED_WEIGHTS_INT4
+    #if !USE_SLM || !COMPRESSED_WEIGHTS_SUB_BYTE
         FILTER_VEC_TYPE wei = 0;
     #endif
 
@@ -254,7 +254,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     uint input_offset = out_b * TILE_IN_B_PITCH + INPUT0_OFFSET;
 #endif
 
-#if COMPRESSED_WEIGHTS_INT4
+#if COMPRESSED_WEIGHTS_SUB_BYTE
     #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
     const int power_of_two_for_simd = 4;
     const int power_of_two_for_osv = 5;
@@ -385,7 +385,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         //       It doesn't also show noticable performance improvement on tested configurations.
         ACCUMULATOR_VEC_TYPE acc_tmp[TILE_B] = { };
 
-        #if USE_SLM && COMPRESSED_WEIGHTS_INT4
+        #if USE_SLM && COMPRESSED_WEIGHTS_SUB_BYTE
             #if TILE_OFM != 2
             #error "FC bf_tiled kernel: can't use SLM optimization with TILE_OFM != 2"
             #endif
@@ -511,7 +511,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             barrier(CLK_LOCAL_MEM_FENCE);
         #endif
         unroll_for(uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K; ++ki) {
-            #if COMPRESSED_WEIGHTS_INT4
+            #if COMPRESSED_WEIGHTS_SUB_BYTE
                 #if USE_SLM
                     FILTER_VEC_TYPE wei = 0;
                     #define LOAD_FROM_SLM(vec2) vec2 = slm_wei_vec[wei_local_idx]; wei_local_idx += SIMD;
@@ -702,7 +702,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 FILTER_VEC_TYPE wei = 0;
             #endif
 
-            #if COMPRESSED_WEIGHTS_INT4
+            #if COMPRESSED_WEIGHTS_SUB_BYTE
                 FILTER_PACKED_VEC_TYPE wei_packed = FILTER_BLOCK_READ(weights, weights_offset);
                 wei = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
             #else
@@ -880,7 +880,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 // Dyc Quantize
 #if USE_SLM && DYNAMIC_QUANTIZE
 
-#if COMPRESSED_WEIGHTS_INT4
+#if COMPRESSED_WEIGHTS_SUB_BYTE
     #define SLM_WEIGHT_TYPE DQ_TYPE
 #else
     #define SLM_WEIGHT_TYPE FILTER_TYPE
@@ -958,7 +958,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
         uint input_offset = out_b * TILE_IN_B_PITCH + INPUT0_OFFSET;
     #endif
 
-    #if COMPRESSED_WEIGHTS_INT4
+    #if COMPRESSED_WEIGHTS_SUB_BYTE
         #if FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
             const int power_of_two_for_simd = 5;
             const int power_of_two_for_osv = 6;
@@ -1127,7 +1127,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
         __local uint* char_slm_weight = (__local uint*)wei_local_mem;
 
-        #if COMPRESSED_WEIGHTS_INT4
+        #if COMPRESSED_WEIGHTS_SUB_BYTE
             #if FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
                 uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE * 2;
             #else
@@ -1140,7 +1140,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
         // DQ_DECOMPRESSION_SCALE_POST_OP SHOULD be enabled for dynamic quantize FC : scale is ACCUMULATOR_VAL_ONE
         unroll_for(uint load_iter = 0; load_iter < FILTER_LOAD_ITERS; ++load_iter) {
-            #if COMPRESSED_WEIGHTS_INT4
+            #if COMPRESSED_WEIGHTS_SUB_BYTE
                 #if FILTER_LAYOUT_OS_IYX_OSV16
                     SLM_FILTER_PACKED_VEC wei_packed0 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, weights_idx);
                     SLM_FILTER_PACKED_VEC wei_packed1 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, (weights_idx + ((IFM_SIZE / FILTER_ELEMENTS_PER_BYTE) * 16)));
@@ -1501,7 +1501,7 @@ KERNEL(fc)(
         __local ACCUMULATOR_TYPE wei_local_mem[TILE_IFM * SIMD * TILE_OFM * SIMD];
     #endif
 #endif
-#if IS_DYNAMIC && COMPRESSED_WEIGHTS_INT4
+#if IS_DYNAMIC && COMPRESSED_WEIGHTS_SUB_BYTE
     const int batch_size = BATCH_SIZE;
     if (batch_size == 1) {
         FUNC_CALL(fc_bf_tiled_kernel_forced_tile_b1)(
