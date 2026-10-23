@@ -5,8 +5,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
+#include <atomic>
 #include <filesystem>
 #include <map>
+#include <optional>
 #include <string>
 
 #include "openvino/runtime/auto/properties.hpp"
@@ -231,7 +233,10 @@ public:
     SoCompiledModel                                m_hw_compiled_model;
     std::string                                    m_model_precision;
     DeviceSelectionPolicy                          m_selection_policy;
-    std::string                                    m_low_power_device;
+    std::optional<DeviceInformation>               m_low_power_device;
+    std::atomic<bool>                              m_low_power_device_unavailable = false;
+    // re-select the target device for every incoming inference, turned on by the resource aware selection properties
+    bool                                           m_dynamic_device_selection = false;
     // hold the resource of static variable to avoid the unexpected destruction.
     std::shared_ptr<std::mutex>                                          m_mtx;
     std::shared_ptr<std::map<unsigned int, std::list<std::string>>>      m_priority_map;
