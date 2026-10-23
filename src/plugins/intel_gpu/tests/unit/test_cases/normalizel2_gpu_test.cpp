@@ -8,6 +8,7 @@
 #include <iostream>
 #include <vector>
 
+#include "primitive_inst.h"
 #include "test_utils.h"
 
 using namespace cldnn;
@@ -213,3 +214,78 @@ TYPED_TEST(normalize_basic_cached, basic) {
     this->execute(true);
 }
 #endif
+
+namespace {
+template <typename InputType>
+void test_normalize_across_x(const tensor& shape, format::type input_format, bool caching) {
+    auto& engine = get_test_engine();
+    const auto data_type = ov::element::from<InputType>();
+    const size_t width = shape.spatial[0];
+    const size_t height = shape.spatial[1];
+    const size_t features = shape.feature[0];
+    auto input = engine.allocate_memory({data_type, format::bfyx, shape});
+    auto scales = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, static_cast<int32_t>(features), 1, 1}});
+    std::vector<InputType> values(input->count());
+    std::vector<float> scale_values(features);
+    for (size_t feature = 0; feature < features; ++feature) {
+        scale_values[feature] = 1.0f + 0.25f * static_cast<float>(feature % 5);
+    }
+    for (size_t index = 0; index < values.size(); ++index) {
+        const auto row = index / width;
+        const float value = row == 0 ? 0.0f : row == 1 ? 1e-4f : static_cast<float>(static_cast<int>(index % 23) - 11);
+        values[index] = static_cast<InputType>(value);
+    }
+    set_values(input, values);
+    set_values(scales, scale_values);
+
+    const float epsilon = std::numeric_limits<float>::epsilon();
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(data("scales", scales));
+    topology.add(reorder("formatted_input", input_info("input"), input_format, data_type));
+    topology.add(normalize("normalize", input_info("formatted_input"), "scales", false, epsilon, true));
+    topology.add(reorder("output", input_info("normalize"), format::bfyx, data_type));
+    auto network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), caching);
+    network->set_input_data("input", input);
+    ASSERT_EQ(network->get_primitive("normalize")->get_impl()->get_kernel_name(), "normalize_gpu_across_x");
+    auto output = network->execute().at("output").get_memory();
+    mem_lock<InputType, mem_lock_type::read> output_values(output, get_test_stream());
+    const float tolerance = data_type == ov::element::f16 ? 0.002f : 2e-6f;
+    for (size_t row = 0; row < values.size() / width; ++row) {
+        double sum = epsilon;
+        for (size_t column = 0; column < width; ++column) {
+            const float value = static_cast<float>(values[row * width + column]);
+            sum += static_cast<double>(value) * value;
+        }
+        const auto scale = scale_values[(row / height) % features];
+        for (size_t column = 0; column < width; ++column) {
+            const auto index = row * width + column;
+            const float expected = static_cast<float>(values[index]) / std::sqrt(sum) * scale;
+            ASSERT_NEAR(static_cast<float>(output_values[index]), expected, tolerance) << "index=" << index;
+        }
+    }
+}
+}  // namespace
+
+TEST(normalize_across_x, fp32_onnx_shape) {
+    test_normalize_across_x<float>(tensor{1, 512, 5120, 1}, format::bfyx, false);
+}
+
+TEST(normalize_across_x, fp16_onnx_shape) {
+    test_normalize_across_x<ov::float16>(tensor{1, 512, 5120, 1}, format::bfyx, false);
+}
+
+TEST(normalize_across_x, layouts_and_tail) {
+    for (auto input_format : {format::bfyx, format::byxf, format::yxfb, format::b_fs_yx_fsv16}) {
+        test_normalize_across_x<float>(tensor{2, 3, 17, 2}, input_format, false);
+        test_normalize_across_x<ov::float16>(tensor{2, 3, 17, 2}, input_format, false);
+    }
+}
+
+TEST(normalize_across_x, single_element_rows) {
+    test_normalize_across_x<float>(tensor{2, 3, 1, 2}, format::bfyx, false);
+}
+
+TEST(normalize_across_x, cached) {
+    test_normalize_across_x<float>(tensor{2, 3, 17, 2}, format::bfyx, true);
+}

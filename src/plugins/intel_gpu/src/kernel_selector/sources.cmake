@@ -461,6 +461,8 @@ set(GPU_KERNEL_SELECTOR_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/kernels/non_zero/gather_nonzero_params.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/normalize/normalize_kernel_across_spatial_ref.cpp
     ${CMAKE_CURRENT_LIST_DIR}/kernels/normalize/normalize_kernel_across_spatial_ref.h
+    ${CMAKE_CURRENT_LIST_DIR}/kernels/normalize/normalize_kernel_across_x.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/kernels/normalize/normalize_kernel_across_x.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/normalize/normalize_kernel_base.cpp
     ${CMAKE_CURRENT_LIST_DIR}/kernels/normalize/normalize_kernel_base.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/normalize/normalize_kernel_selector.cpp
@@ -931,6 +933,7 @@ set(GPU_KERNEL_SELECTOR_CL_KERNELS
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/mvn_gpu_ref_within_channels.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/non_max_suppression_gpu_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/normalize_gpu_across_spatial_ref.cl
+    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/normalize_gpu_across_x.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/normalize_gpu_within_spatial_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/one_hot_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/permute_bfzyx_to_bfyxz.cl

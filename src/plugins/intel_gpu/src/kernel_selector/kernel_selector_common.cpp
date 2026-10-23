@@ -291,6 +291,7 @@ std::string toString(NormalizeMode mode) {
     switch (mode) {
         case NormalizeMode::ACROSS_SPATIAL: return "ACROSS_SPATIAL";
         case NormalizeMode::WITHIN_SPATIAL: return "WITHIN_SPATIAL";
+        case NormalizeMode::ACROSS_X: return "ACROSS_X";
         default: return "";
     }
 }

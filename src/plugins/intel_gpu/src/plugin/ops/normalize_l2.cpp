@@ -10,6 +10,8 @@
 
 #include "intel_gpu/primitives/normalize.hpp"
 #include "intel_gpu/primitives/data.hpp"
+#include <plugin/transformations/normalize_l2_decomposition.hpp>
+#include "intel_gpu/primitives/reshape.hpp"
 
 namespace ov::intel_gpu {
 
@@ -24,10 +26,11 @@ static void CreateNormalizeL2Op(ProgramBuilder& p, const std::shared_ptr<ov::op:
 
     auto axis = const_axis->cast_vector<size_t>();
     bool across_spatial = axis.size() != 1 || axis[0] != 1;
+    const bool across_x = normalize_l2_supports_across_x(*op);
     float eps = op->get_eps();
 
     // WA for OVC outputting %.6f
-    if (eps == 0.0f) {
+    if (eps == 0.0f && !across_x) {
         eps = 1e-10f;
     }
 
@@ -47,13 +50,46 @@ static void CreateNormalizeL2Op(ProgramBuilder& p, const std::shared_ptr<ov::op:
     auto scalesName = layerName + "_cldnn_input_scales";
     p.add_primitive(*op, cldnn::data(scalesName, mem));
 
-    auto normPrim = cldnn::normalize(layerName,
-                                     inputs[0],
+    auto norm_input = inputs[0];
+    auto norm_name = layerName;
+    const bool reshape_rank3 = across_x && op->get_input_partial_shape(0).size() == 3;
+    if (reshape_rank3) {
+        const auto shape = op->get_input_shape(0);
+        const ov::Shape expanded_shape{shape[0], shape[1], 1, shape[2]};
+        const auto reshape_name = layerName + "_across_x_input";
+        if (p.use_new_shape_infer()) {
+            p.add_primitive(*op, cldnn::reshape(reshape_name,
+                                              norm_input,
+                                              false,
+                                              std::vector<int64_t>(expanded_shape.begin(), expanded_shape.end()),
+                                              ov::PartialShape(expanded_shape)));
+        } else {
+            p.add_primitive(*op, cldnn::reshape(reshape_name, norm_input, tensor_from_dims(expanded_shape)));
+        }
+        norm_input = cldnn::input_info(reshape_name);
+        norm_name += "_across_x";
+    }
+
+    auto normPrim = cldnn::normalize(norm_name,
+                                     norm_input,
                                      scalesName,
                                      across_spatial,
-                                     eps);
+                                     eps,
+                                     across_x);
 
     p.add_primitive(*op, normPrim);
+    if (reshape_rank3) {
+        const auto shape = op->get_output_shape(0);
+        if (p.use_new_shape_infer()) {
+            p.add_primitive(*op, cldnn::reshape(layerName,
+                                              cldnn::input_info(norm_name),
+                                              false,
+                                              std::vector<int64_t>(shape.begin(), shape.end()),
+                                              ov::PartialShape(shape)));
+        } else {
+            p.add_primitive(*op, cldnn::reshape(layerName, cldnn::input_info(norm_name), tensor_from_dims(shape)));
+        }
+    }
 }
 
 REGISTER_FACTORY_IMPL(v0, NormalizeL2);
