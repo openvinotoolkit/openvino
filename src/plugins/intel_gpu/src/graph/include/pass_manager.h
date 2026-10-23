@@ -15,6 +15,7 @@
 #include "concatenation_inst.h"
 #include "convolution_inst.h"
 #include "eltwise_inst.h"
+#include "fully_connected_inst.h"
 #include "intel_gpu/graph/program.hpp"
 #include "layout_optimizer.h"
 #include "lora_inst.h"
@@ -37,6 +38,16 @@ public:
 private:
     const std::string name;
 };
+
+// Reorders grouped FC decompression scale/zp for OCL/oneDNN; returns the inserted reorder nodes.
+std::vector<program_node*> reorder_fc_decompression_params_if_needed(fully_connected_node& fc_node, program& p);
+
+// u2 FCs whose scale/zp reorder waits for implementation selection (CM keeps them bfyx). A scalar zero point never
+// reaches CM (it needs a per-group tensor), so those, e.g. TernOCL, reorder in prepare_quantization as before.
+inline bool defer_u2_decompression_reorder(const fully_connected_node& fc_node) {
+    const auto& prim = fc_node.get_primitive();
+    return prim->compressed_weights && fc_node.get_input_layout(1).data_type == data_types::u2 && !prim->decompression_zero_point_scalar.has_value();
+}
 
 class pass_manager {
 public:

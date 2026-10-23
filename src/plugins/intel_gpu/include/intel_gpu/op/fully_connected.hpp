@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <optional>
+
+#include "intel_gpu/op/fc_weights_layout.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/op.hpp"
 
@@ -19,7 +22,8 @@ public:
                    const ov::Output<Node>& B,
                    const ov::Output<Node>& bias,
                    const ov::element::Type output_type = ov::element::dynamic,
-                   const bool transpose_b = true);
+                   const bool transpose_b = true,
+                   const std::optional<FcWeightsLayout>& weights_layout = std::nullopt);
 
     bool visit_attributes(ov::AttributeVisitor &visitor) override;
 
@@ -31,9 +35,13 @@ public:
 
     bool get_transpose_b() const { return m_transpose_b; }
 
+    FcWeightsLayout get_weights_layout() const { return m_weights_layout; }
+
 protected:
     ov::element::Type m_output_type;
     bool m_transpose_b = true;
+    // Defaults to NK / KN from transpose_b when not given.
+    FcWeightsLayout m_weights_layout = FcWeightsLayout::NK;
 };
 
 }   // namespace ov::intel_gpu::op
