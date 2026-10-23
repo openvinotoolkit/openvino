@@ -2,6 +2,14 @@
 
 OpenVINO GPU plugin can be compiled with **experimental** Level Zero support. When enabled, plugin will use Level Zero as GPU compute API instead of OpenCL.
 
+## Remote tensor sample
+
+The [Hello Remote Tensor C++ sample](../../../../samples/cpp/hello_remote_tensor/README.md)
+demonstrates image classification with GPU input and output buffers shared with
+Level Zero and explicit Level Zero memory transfers, without OpenCL API calls. It
+requires a pure ZE remote context; see the sample requirements for the LEO
+interoperability limitation.
+
 ## How to build with Level Zero support
 
 1. Configure cmake with the following additional option:
