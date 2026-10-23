@@ -274,8 +274,7 @@ bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode,
 }
 
 size_t PagedAttention::getKeyCacheParamsSize(const Config& cpuConfig) {
-    if (!isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true) ||
-        !cpuConfig.keyCachePrecision.is_integral()) {
+    if (!isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true)) {
         return 0;
     }
     // For by-channel quantized caches, ConvertPagedAttnInputs appends per-channel
@@ -283,9 +282,14 @@ size_t PagedAttention::getKeyCacheParamsSize(const Config& cpuConfig) {
     // u4: 2 rows x 2 sub-byte). Return that byte count so callers can subtract it
     // from dim[2] to recover the logical PA block size.
     const auto precision = cpuConfig.keyCachePrecision;
-    const size_t params_count = (precision == ov::element::i8) ? 1 : 2;
-    const size_t sub_byte_mult = (precision == ov::element::u4) ? 2 : 1;
-    return sizeof(float) * params_count * sub_byte_mult;
+    if (precision == ov::element::i8) {
+        return sizeof(float);
+    } else if (precision == ov::element::u8) {
+        return 2 * sizeof(float);
+    } else if (precision == ov::element::u4) {
+        return 2 * sizeof(float) * 2;
+    }
+    return 0;
 }
 
 size_t PagedAttention::getBlockSize() const {
@@ -302,10 +306,10 @@ size_t PagedAttention::getBlockSize() const {
                     "[CPU] PagedAttention K-cache block size dimension must be defined");
     size_t block_size = dims[2];
     const size_t key_params_size = getKeyCacheParamsSize(cpuConfig);
-    OPENVINO_ASSERT(block_size >= key_params_size,
+    OPENVINO_ASSERT(block_size > key_params_size,
                     "[CPU] PagedAttention K-cache dim[2] (",
                     block_size,
-                    ") is smaller than key params size (",
+                    ") must be greater than key params size (",
                     key_params_size,
                     ")");
     block_size -= key_params_size;
@@ -414,10 +418,10 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
         const auto& cpuConfig = context->getConfig();
         size_t block_size = inputs[K_CACHE_IDX]->getStaticDims()[2];
         const size_t key_params_size = getKeyCacheParamsSize(cpuConfig);
-        OPENVINO_ASSERT(block_size >= key_params_size,
+        OPENVINO_ASSERT(block_size > key_params_size,
                         "[CPU] PagedAttention K-cache dim[2] (",
                         block_size,
-                        ") is smaller than key params size (",
+                        ") must be greater than key params size (",
                         key_params_size,
                         ")");
         block_size -= key_params_size;
