@@ -1687,7 +1687,7 @@ public:
             // The sdpa_ocl value solves a tiling for the device, so it must not be asked for on the sdpa_micro lane.
             const auto backend = dpas_backend(stage);
             if (backend == DpasBackend::ocl)
-                return SDPAOclGenerator::get_query_block_size(params);
+                return SDPAOclGenerator::get_query_block_size(params, stage == PagedAttentionStage::PREFILL);
             if (backend == DpasBackend::micro)
                 return get_micro_tile_qsize(stage == PagedAttentionStage::PREFILL ? pa_sdpa_micro->kd : pa_sdpa_micro_mixed->kd);
         }

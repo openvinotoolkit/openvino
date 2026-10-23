@@ -38,6 +38,22 @@ SDPA_OCL_INLINE void FUNC(vc_prefetch)(const __global half *Vc_b2d, const int Vc
 }
 #endif
 
+#if PREFETCH_V
+// Workgroup-cooperative prefetch of the V rows of one key tile (kq_wg_tile_keys rows from k0): 16-row x 64 B
+// blocks dealt round-robin over the subgroups, as sdpa_micro's cooperative_prefetch_2d does. The surface
+// bounds clip rows past the last key and bytes past the head, as they do for the reads.
+SDPA_OCL_INLINE void FUNC(v_tile_prefetch)(const __global void *surf, const int w, const int h, const int p,
+                                           const int x0, const int k0, const int sg_ij) {
+    const int col_blocks = (V_HEAD_SIZE * 2 + 63) / 64;
+    const int n_blk = (kq_wg_tile_keys / 16) * col_blocks;
+    for (int blk = sg_ij; blk < n_blk; blk += sg_per_wg) {
+        const int rb = blk / col_blocks;
+        const int cb = blk - rb * col_blocks;
+        intel_sub_group_2d_block_prefetch_16b_16r16x2c((global void *)surf, w, h, p, (int2)(x0 + cb * 32, k0 + rb * 16));
+    }
+}
+#endif
+
 // ---- V tile of one cp block (DPAS_K keys): vb[cd] is the S*V B operand of value block cd,
 // f16 VNNI (dword key_pair packs keys 2*key_pair and 2*key_pair + 1, lane == value). Scratch arrays
 // belong to the caller, as for the K tiles.

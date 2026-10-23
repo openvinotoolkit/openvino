@@ -117,6 +117,11 @@
 #  error "sdpa_ocl.cl: kq_sg_tile_keys must be 16 or 32"
 #endif
 
+// V tile prefetch: 16-row x 64 B blocks of the 2D surface the f16 V reads use, so the input stage only.
+#if PREFETCH_V && (IS_PA_MIXED || !USE_2D_BLOCK_IO_KV || SG8)
+#  error "sdpa_ocl.cl: PREFETCH_V needs the 2D block f16 V input"
+#endif
+
 // Keys are counted in two units that are equal only on Xe2:
 //  DPAS_K (16)     keys per DPAS step: the S*V "cp" block (one 16-token cache page), the S_slm row length,
 //                  the row coordinate of the V/Vc reads.
@@ -187,6 +192,14 @@
 // get_arguments_desc(). token_type_ids covers the NEW tokens only, so it is indexed in local
 // coordinates (key = query_position_offset + local). GENERATE never reaches this kernel.
 #define BIDIR_MASK (HAS_TOKEN_TYPE_IDS && USE_BIDIR_MASK && IS_PAGED_ATTENTION)
+
+// Causal mask on the last key tile (and the sliding window's first tiles) only: needs every query of the
+// workgroup inside the last tile and no other mask that reaches earlier tiles (bidirectional groups, attention
+// masks, the MIXED query offset).
+#if CAUSAL_MASK_LAST_ONLY && (!IS_CAUSAL || BIDIR_MASK || WITH_ATTN_MASK || IS_PA_MIXED || CAUSAL_MASK_LOWER_RIGHT || \
+                              (kq_wg_tile_keys < kq_wg_tile_queries) || (kq_wg_tile_keys % kq_wg_tile_queries) != 0)
+#  error "sdpa_ocl.cl: CAUSAL_MASK_LAST_ONLY needs a plain causal PREFILL with kq_wg_tile_queries dividing kq_wg_tile_keys"
+#endif
 
 // A runtime-empty token_type_ids ("[B_token | 0]", no image tokens) is legal and the impl is
 // shape-agnostic, so every read is gated on the runtime count. USE_BIDIR_GATE=0
