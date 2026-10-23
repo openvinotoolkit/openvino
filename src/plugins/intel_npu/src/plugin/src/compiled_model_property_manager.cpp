@@ -7,10 +7,13 @@
 #include <sstream>
 
 #include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/common/runtime_requirements.hpp"
 #include "intel_npu/config/options.hpp"
 #include "metadata.hpp"
 
 namespace {
+
+using namespace intel_npu;
 
 inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -18,37 +21,19 @@ inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-std::string buildRuntimeRequirements(const std::shared_ptr<intel_npu::IGraph>& graph,
-                                     const std::optional<int64_t>& batchSize,
-                                     intel_npu::Logger& logger) {
-    OPENVINO_ASSERT(graph != nullptr, "Missing graph");
+std::string buildRuntimeRequirements(const std::shared_ptr<BlobWriter>& blobWriter, intel_npu::Logger& logger) {
+    // Build and use a "RuntimeRequirementsSection" to serialize the requirements
+    const RuntimeRequirements runtimeRequirements = blobWriter->build_runtime_requirements();
+    RuntimeRequirementsSection section(runtimeRequirements, logger.level());
 
-    auto compatibilityDescriptor = graph->get_compatibility_descriptor();
-    OPENVINO_ASSERT(compatibilityDescriptor.has_value(),
-                    "RUNTIME_REQUIREMENTS cannot be generated for this compiled model.");
-    const auto descriptorView = compatibilityDescriptor.value();
-    logger.debug("Runtime requirements from the graph %.*s length: %zu",
-                 static_cast<int>(descriptorView.size()),
-                 descriptorView.data(),
-                 descriptorView.size());
+    std::ostringstream result_stream;
+    BlobWriterInterface writeInterface(result_stream, 0, logger.level());
+    section.write(writeInterface);
 
-    std::ostringstream requirementsString;
-    intel_npu::Metadata<intel_npu::CURRENT_METADATA_VERSION>(0,
-                                                             intel_npu::CURRENT_OPENVINO_VERSION,
-                                                             std::nullopt,
-                                                             batchSize,
-                                                             std::nullopt,
-                                                             std::nullopt,
-                                                             std::nullopt,
-                                                             std::nullopt,
-                                                             compatibilityDescriptor)
-        .write_as_text(requirementsString);
+    const std::string result = result_stream.str();
+    logger.debug("Runtime requirements string: %s length: %zu", result, result.size());
 
-    logger.debug("Runtime requirements string: %s length: %zu",
-                 requirementsString.str().c_str(),
-                 requirementsString.str().length());
-
-    return requirementsString.str();
+    return result;
 }
 
 }  // namespace
@@ -59,12 +44,12 @@ CompiledModelPropertyManager::CompiledModelPropertyManager(const Config& config,
                                                            const ov::AnyMap& properties,
                                                            const std::shared_ptr<IDevice>& device,
                                                            const std::shared_ptr<IGraph>& graph,
-                                                           const std::optional<int64_t>& batchSize,
+                                                           const std::shared_ptr<BlobWriter>& blobWriter,
                                                            Logger& logger)
     : _config(config),
       _device(device),
       _graph(graph),
-      _batchSize(batchSize),
+      _blobWriter(blobWriter),
       _logger(logger) {
     registerProperties();
 
@@ -218,7 +203,10 @@ void CompiledModelPropertyManager::registerProperties() {
             OPENVINO_THROW("READ-ONLY configuration key");
         }
     );
-    register_property(ov::hint::execution_mode.name(), _config.has<EXECUTION_MODE_HINT>(), ov::PropertyMutability::RO,
+    register_property(
+        ov::hint::execution_mode.name(),
+        _config.has<EXECUTION_MODE_HINT>(),
+        ov::PropertyMutability::RO,
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::hint::execution_mode.name());
         },
@@ -227,10 +215,12 @@ void CompiledModelPropertyManager::registerProperties() {
         },
         [](const ov::Any&) {
             OPENVINO_THROW("READ-ONLY configuration key");
-        }
-    );
+        });
 
-    register_property(ov::hint::model_priority.name(), true, ov::PropertyMutability::RW,
+    register_property(
+        ov::hint::model_priority.name(),
+        true,
+        ov::PropertyMutability::RW,
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::hint::model_priority.name());
         },
@@ -242,9 +232,11 @@ void CompiledModelPropertyManager::registerProperties() {
             if (_graph != nullptr) {
                 _graph->set_model_priority(value.as<ov::hint::Priority>());
             }
-        }
-    );
-    register_property(ov::workload_type.name(), true, ov::PropertyMutability::RW,
+        });
+    register_property(
+        ov::workload_type.name(),
+        true,
+        ov::PropertyMutability::RW,
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::workload_type.name());
         },
@@ -256,9 +248,11 @@ void CompiledModelPropertyManager::registerProperties() {
             if (_graph != nullptr) {
                 _graph->set_workload_type(value.as<ov::WorkloadType>());
             }
-        }
-    );
-    register_property(ov::cache_encryption_callbacks.name(), true, ov::PropertyMutability::WO,
+        });
+    register_property(
+        ov::cache_encryption_callbacks.name(),
+        true,
+        ov::PropertyMutability::WO,
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::cache_encryption_callbacks.name());
         },
@@ -267,9 +261,11 @@ void CompiledModelPropertyManager::registerProperties() {
         },
         [this](const ov::Any& value) {
             _config.update(ov::cache_encryption_callbacks.name(), value);
-        }
-    );
-    register_property(ov::hint::model.name(), true, ov::PropertyMutability::RO,
+        });
+    register_property(
+        ov::hint::model.name(),
+        true,
+        ov::PropertyMutability::RO,
         [](const ov::AnyMap&) {
             return true;
         },
@@ -277,9 +273,11 @@ void CompiledModelPropertyManager::registerProperties() {
             std::shared_ptr<const ov::Model> model = _config.get<MODEL_PTR>().lock();
             return ov::Any(std::move(model));
         },
-        readOnlySetter
-    );
-    register_property(ov::model_name.name(), true, ov::PropertyMutability::RO,
+        readOnlySetter);
+    register_property(
+        ov::model_name.name(),
+        true,
+        ov::PropertyMutability::RO,
         [this](const ov::AnyMap&) {
             return _graph != nullptr;
         },
@@ -287,9 +285,11 @@ void CompiledModelPropertyManager::registerProperties() {
             OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
             return ov::Any(_graph->get_metadata().name);
         },
-        readOnlySetter
-    );
-    register_property(ov::optimal_number_of_infer_requests.name(), true, ov::PropertyMutability::RO,
+        readOnlySetter);
+    register_property(
+        ov::optimal_number_of_infer_requests.name(),
+        true,
+        ov::PropertyMutability::RO,
         [](const ov::AnyMap&) {
             return true;
         },
@@ -297,20 +297,26 @@ void CompiledModelPropertyManager::registerProperties() {
             if (!_device) {
                 return ov::Any(uint32_t{0});
             }
-            return ov::Any(utils::getOptimalNumberOfInferRequestsInParallel(_device->getName(), _config.get<PERFORMANCE_HINT>()));
+            return ov::Any(
+                utils::getOptimalNumberOfInferRequestsInParallel(_device->getName(), _config.get<PERFORMANCE_HINT>()));
         },
-        readOnlySetter
-    );
-    register_property(ov::execution_devices.name(), true, ov::PropertyMutability::RO,
+        readOnlySetter);
+    register_property(
+        ov::execution_devices.name(),
+        true,
+        ov::PropertyMutability::RO,
         [](const ov::AnyMap&) {
             return true;
         },
         [this](const ov::AnyMap&) {
-            return _device != nullptr ? decltype(ov::execution_devices)::value_type{"NPU.0"} : decltype(ov::execution_devices)::value_type{};
+            return _device != nullptr ? decltype(ov::execution_devices)::value_type{"NPU.0"}
+                                      : decltype(ov::execution_devices)::value_type{};
         },
-        readOnlySetter
-    );
-    register_property(ov::supported_properties.name(), true, ov::PropertyMutability::RO,
+        readOnlySetter);
+    register_property(
+        ov::supported_properties.name(),
+        true,
+        ov::PropertyMutability::RO,
         [](const ov::AnyMap&) {
             return true;
         },
@@ -323,17 +329,18 @@ void CompiledModelPropertyManager::registerProperties() {
             }
             return ov::Any(supportedProperties);
         },
-        readOnlySetter
-    );
-    register_property(ov::runtime_requirements.name(), true, ov::PropertyMutability::RO,
+        readOnlySetter);
+    register_property(
+        ov::runtime_requirements.name(),
+        true,
+        ov::PropertyMutability::RO,
         [this](const ov::AnyMap&) {
-            return  _graph != nullptr && _graph->get_compatibility_descriptor().has_value();
+            return _graph != nullptr && _graph->get_compatibility_descriptor().has_value();
         },
         [this](const ov::AnyMap&) {
-            return ov::Any(buildRuntimeRequirements(_graph, _batchSize, _logger));
+            return ov::Any(buildRuntimeRequirements(_blobWriter, _logger));
         },
-        readOnlySetter
-    );
+        readOnlySetter);
     // clang-format on
 }
 

@@ -36,6 +36,8 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/al/include
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/include
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/unit/npu/blob_format/mocks
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/behavior/npuw/test_engine/models
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/include/
             ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero
@@ -44,9 +46,13 @@ ov_add_test_target(
             # plugin/src
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/executor.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/batch_size_section.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/io_layouts_section.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_version_section.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/src/compiler_schedules_sections.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/blob_format_importers.cpp
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/blob_source.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_option_support_helper.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_schedule_instance_evaluator.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/transformations.cpp
             # npuw core
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/compiled_model.cpp
@@ -92,6 +98,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/attention.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/pyramid_attention.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/host_flash_attention.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/unit/npu/blob_format/mocks/mock_sections.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/kv_cache_compressed.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/perf.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/spatial.cpp
@@ -151,6 +158,8 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/behavior/npuw/test_engine/models/model_builder_weights.cpp
         LINK_LIBRARIES
             ${MANDATORY_UNIT_TESTS_LIBS}
+            openvino_npu_common
+            openvino_npu_compiler_adapter
         LABELS
             NPUW
 )
@@ -175,11 +184,29 @@ install(TARGETS ${TARGET_NAME}
 )
 
 target_sources(${TARGET_NAME} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/batch_size_section.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/io_layouts_section.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/encrypted_schedules_flag_section.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/compiler_version_section.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/section_type.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/section_id.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/cre_special_token.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/sections_string_conversions.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/isection_type_evaluator.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/supported_section_type_evaluator.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/single_section_instance_evaluator.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/compiler_schedule_instance_evaluator.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/elf_main_schedule_section.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/elf_init_schedules_section.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/dynamic_schedule_section.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/cre.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/executor_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/should_use_host_compile_interpreter_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/compiler_option_support_helper_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/device_helpers_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/option_support_cache_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/tensor_decryption.cpp
+
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/state_tensor_binding_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_graph_options_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_set_property_test.cpp

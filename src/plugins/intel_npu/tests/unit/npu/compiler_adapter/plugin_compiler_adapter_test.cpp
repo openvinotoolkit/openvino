@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "fake_vcl_compiler.hpp"
+#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
@@ -23,6 +24,7 @@
 
 using ::fake_vcl::FakeVCLCompiler;
 using ::intel_npu::AdapterDescriptor;
+using ::intel_npu::BlobWriter;
 using ::intel_npu::Config;
 using ::intel_npu::OptionsDesc;
 using ::intel_npu::PluginCompilerAdapter;
@@ -99,7 +101,7 @@ TEST_F(PluginCompilerAdapterTest, CompileProducesAGraphEvenWithoutADriver) {
     auto adapter = makeAdapter();
     auto config = makeConfig();
 
-    const auto graph = adapter->compile(makeModel(), config, AdapterDescriptor{});
+    const auto graph = adapter->compile(makeModel(), config, AdapterDescriptor{}, std::make_shared<BlobWriter>());
 
     ASSERT_NE(graph, nullptr);
     EXPECT_EQ(compiler->compileCalls, 1);
@@ -112,7 +114,8 @@ TEST_F(PluginCompilerAdapterTest, CompilePropagatesCompilerFailures) {
     auto adapter = makeAdapter();
     auto config = makeConfig();
 
-    EXPECT_THROW(adapter->compile(makeModel(), config, AdapterDescriptor{}), ov::Exception);
+    EXPECT_THROW(adapter->compile(makeModel(), config, AdapterDescriptor{}, std::make_shared<BlobWriter>()),
+                 ov::Exception);
 }
 
 TEST_F(PluginCompilerAdapterTest, CompileDefaultsToTheElfBlobType) {
@@ -120,7 +123,7 @@ TEST_F(PluginCompilerAdapterTest, CompileDefaultsToTheElfBlobType) {
     auto adapter = makeAdapter();
     auto config = makeConfig(std::string("DefaultHW"));
 
-    const auto graph = adapter->compile(makeModel(), config, AdapterDescriptor{});
+    const auto graph = adapter->compile(makeModel(), config, AdapterDescriptor{}, std::make_shared<BlobWriter>());
     ASSERT_NE(graph, nullptr);
 }
 
@@ -130,7 +133,8 @@ TEST_F(PluginCompilerAdapterTest, CompileWSDefaultsToOneShotWhenTheVersionIsUnse
     auto config = makeConfig();
     ASSERT_FALSE(config.has<::intel_npu::SEPARATE_WEIGHTS_VERSION>());
 
-    const auto graph = adapter->compileWS(makeWeightlessModel(), config, AdapterDescriptor{});
+    const auto graph =
+        adapter->compileWS(makeWeightlessModel(), config, AdapterDescriptor{}, std::make_shared<BlobWriter>());
 
     ASSERT_NE(graph, nullptr);
     EXPECT_EQ(compiler->compileWsOneShotCalls, 1);
@@ -145,7 +149,8 @@ TEST_F(PluginCompilerAdapterTest, CompileWSOneShotSplitsMainOffTheBack) {
     auto adapter = makeAdapter();
     auto config = makeConfig(std::nullopt, std::string("ONE_SHOT"));
 
-    const auto graph = adapter->compileWS(makeWeightlessModel(), config, AdapterDescriptor{});
+    const auto graph =
+        adapter->compileWS(makeWeightlessModel(), config, AdapterDescriptor{}, std::make_shared<BlobWriter>());
 
     ASSERT_NE(graph, nullptr);
     EXPECT_EQ(compiler->compileWsOneShotCalls, 1);
@@ -157,7 +162,8 @@ TEST_F(PluginCompilerAdapterTest, CompileWSOneShotToleratesASingleTensor) {
     auto adapter = makeAdapter();
     auto config = makeConfig(std::nullopt, std::string("ONE_SHOT"));
 
-    const auto graph = adapter->compileWS(makeWeightlessModel(), config, AdapterDescriptor{});
+    const auto graph =
+        adapter->compileWS(makeWeightlessModel(), config, AdapterDescriptor{}, std::make_shared<BlobWriter>());
 
     ASSERT_NE(graph, nullptr);
     EXPECT_EQ(compiler->compileWsOneShotCalls, 1);
@@ -169,7 +175,7 @@ TEST_F(PluginCompilerAdapterTest, CompileWSIterativeRequiresAGraphHandle) {
 
     // The iterative flow cannot work without a Level Zero graph handle.
     try {
-        adapter->compileWS(makeWeightlessModel(), config, AdapterDescriptor{});
+        adapter->compileWS(makeWeightlessModel(), config, AdapterDescriptor{}, std::make_shared<BlobWriter>());
         FAIL() << "Expected compileWS(ITERATIVE) to throw without a graph handle";
     } catch (const ov::Exception& error) {
         EXPECT_NE(std::string(error.what()).find("weights separation"), std::string::npos) << error.what();
