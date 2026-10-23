@@ -15,6 +15,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/subtract.hpp"
+#include "ov_ops/moe_compressed.hpp"
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
@@ -150,6 +151,74 @@ static std::shared_ptr<ov::Model> make_pa_matmul_model(ov::element::Type weight_
                             pa_xattn_threshold, pa_xattn_block_size, pa_xattn_stride,
                             pa_arkv_evict, pa_arkv_div_idx, pa_arkv_div_begins,
                             pa_token_type_ids, pa_qq_bias, pa_qq_bias_begins});
+}
+
+// Build a minimal model containing an internal MOECompressed operation.
+static std::shared_ptr<ov::Model> make_moe_model() {
+    const size_t num_experts = 4;
+    const size_t hidden_size = 128;
+    const size_t inter_size = 256;
+    const size_t group_size = 128;
+    const size_t top_k = 2;
+
+    ov::op::internal::MOECompressed::Config config{};
+    config.hidden_size = hidden_size;
+    config.inter_size = inter_size;
+    config.num_expert = num_experts;
+    config.num_shared_expert = 1;
+    config.top_k = top_k;
+    config.group_size = group_size;
+    config.has_zp = true;
+    config.out_type = ov::element::f16;
+
+    size_t group_num = hidden_size / group_size;
+    size_t group_num2 = inter_size / group_size;
+
+    ov::OutputVector inputs;
+
+    // 0: hidden_states [1, 1, hidden_size]
+    auto hidden = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, hidden_size});
+    inputs.push_back(hidden->output(0));
+
+    // 1: routing_weights [1, 1, top_k]
+    auto routing = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, top_k});
+    inputs.push_back(routing->output(0));
+
+    // 2: topk_indices [1, 1, top_k]
+    auto topk_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 1, top_k});
+    inputs.push_back(topk_idx->output(0));
+
+    auto make_const = [](ov::element::Type type, const ov::Shape& shape) {
+        return std::make_shared<ov::op::v0::Constant>(type, shape, 0);
+    };
+
+    // Routed experts (9 constants: gate/up/down x weight/scale/zp)
+    inputs.push_back(make_const(ov::element::u8, {num_experts, inter_size, group_size, group_num}));    // 3: w0_weight
+    inputs.push_back(make_const(ov::element::f16, {num_experts, inter_size, group_num, 1}));            // 4: w0_scale
+    inputs.push_back(make_const(ov::element::u8, {num_experts, inter_size, group_num, 1}));             // 5: w0_zp
+    inputs.push_back(make_const(ov::element::u8, {num_experts, inter_size, group_size, group_num}));    // 6: w1_weight
+    inputs.push_back(make_const(ov::element::f16, {num_experts, inter_size, group_num, 1}));            // 7: w1_scale
+    inputs.push_back(make_const(ov::element::u8, {num_experts, inter_size, group_num, 1}));             // 8: w1_zp
+    inputs.push_back(make_const(ov::element::u8, {num_experts, hidden_size, group_size, group_num2}));  // 9: w2_weight
+    inputs.push_back(make_const(ov::element::f16, {num_experts, hidden_size, group_num2, 1}));          // 10: w2_scale
+    inputs.push_back(make_const(ov::element::u8, {num_experts, hidden_size, group_num2, 1}));           // 11: w2_zp
+
+    // Shared experts (10 constants)
+    inputs.push_back(make_const(ov::element::u8, {1, inter_size, group_size, group_num}));              // 12: shared_gate_weight
+    inputs.push_back(make_const(ov::element::f16, {1, inter_size, group_num, 1}));                      // 13: shared_gate_scale
+    inputs.push_back(make_const(ov::element::u8, {1, inter_size, group_num, 1}));                       // 14: shared_gate_zp
+    inputs.push_back(make_const(ov::element::u8, {1, inter_size, group_size, group_num}));              // 15: shared_up_weight
+    inputs.push_back(make_const(ov::element::f16, {1, inter_size, group_num, 1}));                      // 16: shared_up_scale
+    inputs.push_back(make_const(ov::element::u8, {1, inter_size, group_num, 1}));                       // 17: shared_up_zp
+    inputs.push_back(make_const(ov::element::u8, {1, hidden_size, group_size, group_num2}));            // 18: shared_down_weight
+    inputs.push_back(make_const(ov::element::f16, {1, hidden_size, group_num2, 1}));                    // 19: shared_down_scale
+    inputs.push_back(make_const(ov::element::u8, {1, hidden_size, group_num2, 1}));                     // 20: shared_down_zp
+    inputs.push_back(make_const(ov::element::f16, {1, hidden_size}));                                   // 21: shared_gate_gate_weight
+
+    auto moe_node = std::make_shared<ov::op::internal::MOECompressed>(inputs, config);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{moe_node->output(0)},
+                                      ov::ParameterVector{hidden, routing, topk_idx});
 }
 
 TEST(execution_config, kv_cache_u4_weights_auto_detect_u4) {
@@ -293,4 +362,53 @@ TEST(execution_config, finish_after_enqueue_default_off) {
     GPU_DEBUG_IF(ov::intel_gpu::ExecutionConfig::get_finish_after_enqueue()) {
         GTEST_FAIL() << "finish_after_enqueue must default to OFF when OV_GPU_FINISH_AFTER_ENQUEUE is unset";
     }
+}
+
+TEST(execution_config, moe_offload_enables_weightless_by_default) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto model = make_moe_model();
+
+    ExecutionConfig config;
+    config.set_user_property(ov::intel_gpu::offload_ratio(20));
+    config.finalize(ctx.get(), model.get());
+
+    ASSERT_TRUE(config.get_enable_weightless());
+}
+
+TEST(execution_config, moe_offload_rejects_explicitly_disabled_weightless) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto model = make_moe_model();
+
+    ExecutionConfig config;
+    config.set_user_property(ov::intel_gpu::offload_ratio(20));
+    config.set_user_property(ov::enable_weightless(false));
+
+    ASSERT_ANY_THROW(config.finalize(ctx.get(), model.get()));
+}
+
+TEST(execution_config, moe_offload_rejects_optimize_speed_cache_mode) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto model = make_moe_model();
+
+    ExecutionConfig config;
+    config.set_user_property(ov::intel_gpu::offload_ratio(20));
+    config.set_user_property(ov::cache_mode(ov::CacheMode::OPTIMIZE_SPEED));
+
+    ASSERT_ANY_THROW(config.finalize(ctx.get(), model.get()));
+}
+
+TEST(execution_config, moe_offload_accepts_optimize_size_cache_mode) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto model = make_moe_model();
+
+    ExecutionConfig config;
+    config.set_user_property(ov::intel_gpu::offload_ratio(20));
+    config.set_user_property(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+    config.finalize(ctx.get(), model.get());
+
+    ASSERT_TRUE(config.get_enable_weightless());
 }
