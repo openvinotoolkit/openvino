@@ -1,0 +1,176 @@
+// Copyright (C) 2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// GR DPAS pipeline, stage 2/3: low-rank down projection (+ fused write gate).
+//
+//   T[token, l] = SiLU( (Rbar[token,:] . W_down[l,:]) / C )
+//   S[token, c] = 2 * sigmoid( (Rbar[token,:] . W_inject[c,:]) / C )   (optional)
+//
+// Token-major dpas: A = GR_DOWN_TM Rbar rows (plain 2D loads, two K16 slices per
+// message), B = W_down rows through a transposed d32 load, so dst[token][l] is already
+// in the output layout and goes out with 2D block stores - no register transpose and no
+// per-token scalar stores. One thread owns a GR_DOWN_TM x GR_DOWN_TN output tile.
+//
+// With GR_PRODUCE_WRITE_GATE the grid gets ONE extra column tile whose B surface is
+// W_inject (height C, the remaining rows read back as zeros). It shares its A rows with
+// the regular tiles of the same work-group, so the write gate costs no extra DRAM pass
+// over Rbar and no extra dispatch.
+//
+// GR_DOWN_KSPLIT > 1 (few tokens / decode): the work-group's KSPLIT threads split the
+// C*D reduction, partial tiles are summed through SLM and thread 0 runs the epilogue.
+// Without it a decode call streams all of W_down through only L/TN threads.
+//
+// JIT constants: GR_BRANCHES, GR_HIDDEN, GR_LOWRANK, GR_DOWN_TM, GR_DOWN_TN,
+//                GR_DOWN_KSPLIT, GR_PRODUCE_WRITE_GATE.
+// Dispatch (NX = L/GR_DOWN_TN + GR_PRODUCE_WRITE_GATE, NY = ceil(num_tokens/GR_DOWN_TM)):
+//   KSPLIT == 1: gws = [NX, NY, 1],          lws = [any divisor of NX, any divisor of NY, 1]
+//   KSPLIT >  1: gws = [NX * KSPLIT, NY, 1], lws = [KSPLIT, 1, 1]
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+#include "qsa_gr_common.hpp"
+#include "qsa_dpas_common.hpp"
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* rbar ATTR,      // [tokens, C*D]
+                                        const half* w_down ATTR,    // [L, C*D]
+#if GR_PRODUCE_WRITE_GATE
+                                        const half* w_inject ATTR,  // [C, C*D]
+#endif
+                                        half* t_out ATTR,           // [tokens, L]
+#if GR_PRODUCE_WRITE_GATE
+                                        half* write_gate_out ATTR,  // [tokens, C]
+#endif
+                                        uint32_t num_tokens) {
+    constexpr uint C = GR_BRANCHES;
+    constexpr uint CD = GR_BRANCHES * GR_HIDDEN;
+    constexpr uint L = GR_LOWRANK;
+    constexpr uint TM = GR_DOWN_TM;
+    constexpr uint TN = GR_DOWN_TN;
+    constexpr uint MT = TM / 8;
+    constexpr uint NT = TN / 16;
+    constexpr uint TML = TM < 32 ? TM : 32;  // A rows per 2D message (hardware max 32)
+    constexpr uint NL = TM / TML;
+    constexpr uint KS = 2 * QSA_REG_K;       // two K16 slices per A message (64 B rows)
+    constexpr uint KSPLIT = GR_DOWN_KSPLIT;
+    constexpr uint K_PER_THREAD = CD / KSPLIT;
+    static_assert(QSA_REG_N == 16, "GR DPAS requires 512-bit GRFs (Xe2+)");
+    static_assert(CD % KS == 0, "C*D must be a multiple of 32");
+    static_assert(CD % KSPLIT == 0 && K_PER_THREAD % KS == 0, "GR_DOWN_KSPLIT must split C*D into multiples of 32");
+    static_assert(L % 32 == 0, "GR_LOWRANK must be a multiple of 32 (64B T surface)");
+    static_assert(TM % 8 == 0 && TM % TML == 0, "GR_DOWN_TM must be a multiple of 8 (and of 32 above 32)");
+    static_assert(TN % 16 == 0 && L % TN == 0, "GR_DOWN_TN must be a multiple of 16 dividing L");
+    static_assert(C % 2 == 0 && C <= 16, "write gate stores half pairs from one N16 tile");
+
+#if GR_DOWN_KSPLIT > 1
+    constexpr uint TILE_BYTES = 8 * QSA_REG_N * (uint)sizeof(float);
+    cm_slm_init(KSPLIT * MT * NT * TILE_BYTES);
+    auto slm = cm_slm_alloc(KSPLIT * MT * NT * TILE_BYTES);
+    const uint kid = cm_local_id(0);
+    const uint jt = cm_group_id(0);
+#else
+    const uint kid = 0;
+    const uint jt = cm_global_id(0);
+#endif
+    const uint t0 = cm_global_id(1) * TM;
+    if (t0 >= num_tokens) {
+        return;
+    }
+#if GR_PRODUCE_WRITE_GATE
+    if (jt > L / TN) {
+        return;
+    }
+    const bool is_wgate = jt == L / TN;
+    const half* w = is_wgate ? w_inject : w_down;
+    const uint w_rows = is_wgate ? C : L;
+    const uint n0 = is_wgate ? 0 : jt * TN;
+#else
+    if (jt >= L / TN) {
+        return;
+    }
+    const half* w = w_down;
+    const uint w_rows = L;
+    const uint n0 = jt * TN;
+#endif
+
+    constexpr uint row_bytes = CD * (uint)sizeof(half);
+    lsc::block_2d_desc<half, 2, TML, QSA_REG_K> desc_a(const_cast<half*>(rbar), num_tokens - 1, row_bytes - 1, row_bytes - 1, 0, 0);
+    lsc::block_2d_desc<uint, 1, QSA_REG_N, QSA_REG_K / 2> desc_b(reinterpret_cast<uint*>(const_cast<half*>(w)),
+                                                                 w_rows - 1,
+                                                                 row_bytes - 1,
+                                                                 row_bytes - 1,
+                                                                 0,
+                                                                 0);
+
+    matrix<float, NT * MT, 8 * QSA_REG_N> acc = 0.0f;
+    const uint k_begin = kid * K_PER_THREAD;
+#if GR_PRODUCE_WRITE_GATE
+    if (is_wgate) {
+        // W_inject has only C rows: one N16 tile covers it.
+        qsa_dpas::token_gemm<TML, NL, MT, 1>(acc.select<MT, 1, 8 * QSA_REG_N, 1>(0, 0), desc_a, t0, desc_b, 0, QSA_REG_N, k_begin, k_begin + K_PER_THREAD);
+    } else
+#endif
+    {
+        qsa_dpas::token_gemm<TML, NL, MT, NT>(acc, desc_a, t0, desc_b, n0, QSA_REG_N, k_begin, k_begin + K_PER_THREAD);
+    }
+
+#if GR_DOWN_KSPLIT > 1
+#pragma unroll
+    for (uint i = 0; i < MT * NT; ++i) {
+#pragma unroll
+        for (uint q = 0; q < 2; ++q) {
+            cm_slm_block_write(slm, (kid * MT * NT + i) * TILE_BYTES + q * TILE_BYTES / 2, acc.row(i).select<4 * QSA_REG_N, 1>(q * 4 * QSA_REG_N));
+        }
+    }
+    cm_fence(CM_LOCAL_BARRIER);
+    cm_barrier();
+    if (kid != 0) {
+        return;
+    }
+    for (uint s = 1; s < KSPLIT; ++s) {
+#pragma unroll
+        for (uint i = 0; i < MT * NT; ++i) {
+            vector<float, 8 * QSA_REG_N> part;
+#pragma unroll
+            for (uint q = 0; q < 2; ++q) {
+                cm_slm_block_read(slm, (s * MT * NT + i) * TILE_BYTES + q * TILE_BYTES / 2, part.select<4 * QSA_REG_N, 1>(q * 4 * QSA_REG_N));
+            }
+            acc.row(i) += part;
+        }
+    }
+#endif
+
+    constexpr float inv_c = 1.0f / (float)C;
+#if GR_PRODUCE_WRITE_GATE
+    if (is_wgate) {
+#pragma unroll
+        for (uint m = 0; m < MT; ++m) {
+            matrix<float, 8, QSA_REG_N> logits = acc.row(m).format<float, 8, QSA_REG_N>();
+#pragma unroll
+            for (uint r = 0; r < 8; ++r) {
+                const uint tok = t0 + m * 8 + r;
+                if (tok < num_tokens) {
+                    vector<float, C> x = logits.row(r).select<C, 1>(0) * inv_c;
+                    vector<half, C> s = 2.0f * qsa_gr::sigmoid<C>(x);
+                    cm_ptr_store<int, C / 2>((int*)write_gate_out, tok * C * (uint)sizeof(half), s.format<int>());
+                }
+            }
+        }
+        return;
+    }
+#endif
+
+    constexpr uint t_bytes = L * (uint)sizeof(half);
+    lsc::block_2d_desc<half, 1, 8, QSA_REG_N> desc_t(t_out, num_tokens - 1, t_bytes - 1, t_bytes - 1, 0, 0);
+#pragma unroll
+    for (uint m = 0; m < MT; ++m) {
+        desc_t.set_block_y(t0 + m * 8);
+#pragma unroll
+        for (uint j = 0; j < NT; ++j) {
+            vector<float, 8 * QSA_REG_N> x = acc.row(j * MT + m) * inv_c;
+            vector<half, 8 * QSA_REG_N> t = x * qsa_gr::sigmoid<8 * QSA_REG_N>(x);  // SiLU
+            cm_store(desc_t.set_block_x(n0 + j * QSA_REG_N), t);
+        }
+    }
+}

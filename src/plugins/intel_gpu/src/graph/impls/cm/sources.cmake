@@ -10,8 +10,14 @@ set(GPU_CM_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/cm_sdpa_common.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/estimate.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/find_block.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/qsa_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/qsa_dpas_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/qsa_gr_common.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/sort.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/xattn_subseq_meta.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/gated_residual/gated_residual.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/gated_residual/gated_residual.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/gated_residual/gr_stage_events.hpp
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder.hpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_attention.cpp
@@ -33,6 +39,12 @@ set(GPU_CM_IMPL_SOURCES
 # the codegen custom commands below (tracked via DEPENDS for incremental builds).
 set(GPU_CM_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/cm_sdpa_vlen.cm
+    ${CMAKE_CURRENT_LIST_DIR}/gated_residual/gr_down_proj_dpas.cm
+    ${CMAKE_CURRENT_LIST_DIR}/gated_residual/gr_rbar_dpas.cm
+    ${CMAKE_CURRENT_LIST_DIR}/gated_residual/gr_read.cm
+    ${CMAKE_CURRENT_LIST_DIR}/gated_residual/gr_read_dpas.cm
+    ${CMAKE_CURRENT_LIST_DIR}/gated_residual/gr_up_proj_dpas.cm
+    ${CMAKE_CURRENT_LIST_DIR}/gated_residual/gr_write.cm
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_cache_reorder_ref.cm
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_cache_update_ref.cm
     ${CMAKE_CURRENT_LIST_DIR}/pa_multi_token.cm
@@ -50,4 +62,17 @@ set(GPU_CM_KERNEL_SOURCES
 set(GPU_CM_KERNEL_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/include/batch_headers/cm_xetla.h
     ${CMAKE_CURRENT_LIST_DIR}/include/xetla_lstm.h
+    # .hpp headers must be tracked too, otherwise kernels keep a stale inlined copy after a header edit.
+    ${CMAKE_CURRENT_LIST_DIR}/include/cm_attention_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/cm_pa_xe1.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/cm_pa_xe2.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/cm_qq_bias_mask.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/cm_sdpa_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/estimate.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/find_block.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/qsa_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/qsa_dpas_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/qsa_gr_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/sort.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/xattn_subseq_meta.hpp
 )

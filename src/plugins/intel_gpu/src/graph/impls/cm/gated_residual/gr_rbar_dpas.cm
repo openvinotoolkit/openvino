@@ -1,0 +1,85 @@
+// Copyright (C) 2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// GR DPAS pipeline, stage 1/3: branch-wise grouped RMSNorm -> Rbar in global memory.
+//
+// The norm is per (row, branch), so every (row, branch) pair is an independent thread:
+// no SLM reduction and no barrier. The whole D-wide branch row is kept in registers
+// (D <= 4096) and moved with wide 256 B messages; the kernel is purely DRAM-bound.
+// Rbar must live in global memory because the dpas stages read it through 2D block
+// loads, and a separate dispatch avoids the intra-work-group global round-trip race.
+//
+// JIT constants: GR_BRANCHES, GR_HIDDEN, GR_EPS, GR_NORM_GAIN_PLUS_ONE.
+// Dispatch: gws = [GR_BRANCHES, num_rows, 1], lws = [GR_BRANCHES, 1, 1].
+
+#include "qsa_gr_common.hpp"
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* residual ATTR,      // [num_rows, C*D]
+                                        const half* norm_weight ATTR,   // [C*D]
+                                        half* rbar_out ATTR,            // [num_rows, C*D]
+                                        uint32_t num_rows) {
+    constexpr uint C = GR_BRANCHES;
+    constexpr uint D = GR_HIDDEN;
+    constexpr uint CD = C * D;
+    static_assert(D % 16 == 0, "GR_HIDDEN must be a multiple of 16");
+
+    const uint c = cm_global_id(0);
+    const uint row = cm_global_id(1);
+    if (c >= C || row >= num_rows) {
+        return;
+    }
+    const uint base = row * CD + c * D;
+    const uint gbase = c * D;
+
+    if constexpr (D <= 4096) {
+        // Normalized in place so only the row (<= 128 GRFs at D=4096) stays live.
+        constexpr uint CH = (D % 128 == 0) ? 128 : 16;
+        vector<half, D> r;
+        qsa_gr::load_hv<D>(r, residual, base);
+        vector<float, 16> sq = 0.0f;
+#pragma unroll
+        for (uint d = 0; d < D; d += 16) {
+            vector<float, 16> f = r.select<16, 1>(d);
+            sq += f * f;
+        }
+        const float inv_rms = cm_rsqrt(cm_sum<float>(sq) * (1.0f / (float)D) + (float)GR_EPS);
+
+#pragma unroll
+        for (uint d0 = 0; d0 < D; d0 += CH) {
+            vector<half, CH> g;
+            qsa_gr::load_hv<CH>(g, norm_weight, gbase + d0);
+#pragma unroll
+            for (uint d = 0; d < CH; d += 16) {
+                vector<float, 16> gain = g.select<16, 1>(d);
+#if GR_NORM_GAIN_PLUS_ONE
+                gain = gain + 1.0f;
+#endif
+                vector<float, 16> f = r.select<16, 1>(d0 + d);
+                r.select<16, 1>(d0 + d) = f * inv_rms * gain;
+            }
+        }
+        qsa_gr::store_hv<D>(rbar_out, base, r);
+    } else {
+        // Wide branches: two passes, the second one re-reads the row from cache.
+        vector<float, 16> sq = 0.0f;
+        for (uint d = 0; d < D; d += 16) {
+            vector<float, 16> f = qsa_gr::load_h16(residual, base + d);
+            sq += f * f;
+        }
+        const float inv_rms = cm_rsqrt(cm_sum<float>(sq) * (1.0f / (float)D) + (float)GR_EPS);
+        for (uint d = 0; d < D; d += 16) {
+            vector<float, 16> f = qsa_gr::load_h16(residual, base + d);
+            vector<float, 16> gain = qsa_gr::load_h16(norm_weight, gbase + d);
+#if GR_NORM_GAIN_PLUS_ONE
+            gain = gain + 1.0f;
+#endif
+            vector<half, 16> o = f * inv_rms * gain;
+            qsa_gr::store_h16(rbar_out, base + d, o);
+        }
+    }
+}
