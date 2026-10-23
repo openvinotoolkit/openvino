@@ -15,7 +15,11 @@
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "ov_ops/rms.hpp"
 
 namespace {
@@ -129,9 +133,9 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     const ov::Output<ov::Node>& key,
     const ov::Output<ov::Node>& value,
     const ov::Output<ov::Node>& seqlens_1d,
-    const std::shared_ptr<ov::Node>& kv_seqlen,
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& kv_seqlen,
     const std::shared_ptr<ov::Node>& past_seqlen,
-    const ov::Output<ov::Node>& current_seqlen_scalar,
+    [[maybe_unused]] const ov::Output<ov::Node>& current_seqlen_scalar,
     KVCacheMetadata& metadata_) {
     using namespace ov::op;
     static const std::vector<int64_t> transpose_v_order{0, 1, 3, 2};
@@ -154,71 +158,74 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     }
 
     KVCacheOutputs outputs;
+    const bool sliding_window = node->get_sliding_window_cache();
+    const int64_t window_size = sliding_window ? node->get_local_window_size() : 0;
+    const auto make_stateless_kv = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current, int64_t concat_axis) {
+        return register_new_node<op::StatelessKV>(past, current, seqlens_1d, concat_axis, true, window_size);
+    };
 
-    if (!node->get_sliding_window_cache()) {
+    const auto key_cache = make_stateless_kv(past_key, key, 2);
 
-        const auto key_cache = register_new_node<op::StatelessKV>(past_key, key, seqlens_1d, 2, true);
-
-        const auto value_transpose_order = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, transpose_v_order));
-        const auto find_value_transpose = [](const ov::Output<ov::Node>& output) -> std::shared_ptr<v1::Transpose> {
-            const auto transpose = ov::as_type_ptr<v1::Transpose>(output.get_node_shared_ptr());
-            if (!transpose) {
-                return {};
-            }
-            const auto order = ov::as_type_ptr<v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
-            if (!order || order->cast_vector<int64_t>() != transpose_v_order) {
-                return {};
-            }
-            return transpose;
-        };
-
-        std::shared_ptr<v1::Transpose> past_value_transpose;
-        std::shared_ptr<v1::Transpose> present_value_transpose;
-        // explicit attention hard-coded layout so don't fuse
-        if (can_fuse_transpose_v) {
-            past_value_transpose = find_value_transpose(node->input_value(4));
-            if (node->output(2).get_target_inputs().size() == 1) {
-                const auto target = *node->output(2).get_target_inputs().begin();
-                present_value_transpose = find_value_transpose(target.get_node()->output(target.get_index()));
-            }
+    const auto value_transpose_order = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, transpose_v_order));
+    const auto find_value_transpose = [](const ov::Output<ov::Node>& output) -> std::shared_ptr<v1::Transpose> {
+        const auto transpose = ov::as_type_ptr<v1::Transpose>(output.get_node_shared_ptr());
+        if (!transpose) {
+            return {};
         }
-
-        std::shared_ptr<op::StatelessKV> value_cache;
-        if (past_value_transpose && present_value_transpose) {
-            metadata.transpose_v_order = transpose_v_order;
-            // Before: past_value -> Transpose -> GQA cache -> Transpose -> present_value.
-            // After:  past_value -------------------------> StatelessKV(axis=3) -> present_value.
-            //         current_value -> Transpose ----------^      (the output Transpose is bypassed)
-            const auto transposed_value = register_new_node<v1::Transpose>(value, value_transpose_order);
-            value_cache = register_new_node<op::StatelessKV>(past_value_transpose->input_value(0), transposed_value, seqlens_1d, 3, true);
-            present_value_transpose->output(0).replace(value_cache->output(0));
-        } else {
-            value_cache = register_new_node<op::StatelessKV>(past_value, value, seqlens_1d, 2, true);
+        const auto order = ov::as_type_ptr<v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
+        if (!order || order->cast_vector<int64_t>() != transpose_v_order) {
+            return {};
         }
+        return transpose;
+    };
 
-        outputs.present_key = key_cache->output(0);
-        outputs.present_value = value_cache->output(0);
-        if (need_qk_output) {
-            outputs.sdpa_key = key_cache->output(0);
-            outputs.sdpa_value = value_cache->output(0);
-        } else {
-            outputs.sdpa_key = key_cache->output(1);
-            outputs.sdpa_value = value_cache->output(1);
+    std::shared_ptr<v1::Transpose> past_value_transpose;
+    std::shared_ptr<v1::Transpose> present_value_transpose;
+    // explicit attention hard-coded layout so don't fuse
+    if (can_fuse_transpose_v) {
+        past_value_transpose = find_value_transpose(node->input_value(4));
+        if (node->output(2).get_target_inputs().size() == 1) {
+            const auto target = *node->output(2).get_target_inputs().begin();
+            present_value_transpose = find_value_transpose(target.get_node()->output(target.get_index()));
         }
-        outputs.mask_past_seqlen = past_seqlen;
-        outputs.bias_col_offset = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+    }
 
+    std::shared_ptr<op::StatelessKV> value_cache;
+    if (past_value_transpose && present_value_transpose) {
+        metadata.transpose_v_order = transpose_v_order;
+        // Before: past_value -> Transpose -> GQA cache -> Transpose -> present_value.
+        // After:  past_value -------------------------> StatelessKV(axis=3) -> present_value.
+        //         current_value -> Transpose ----------^      (the output Transpose is bypassed)
+        const auto transposed_value = register_new_node<v1::Transpose>(value, value_transpose_order);
+        value_cache = make_stateless_kv(past_value_transpose->input_value(0), transposed_value, 3);
+        present_value_transpose->output(0).replace(value_cache->output(0));
     } else {
-        outputs = ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(node,
-                                                                                past_key,
-                                                                                past_value,
-                                                                                key,
-                                                                                value,
-                                                                                seqlens_1d,
-                                                                                kv_seqlen,
-                                                                                past_seqlen,
-                                                                                current_seqlen_scalar,
-                                                                                metadata);
+        value_cache = make_stateless_kv(past_value, value, 2);
+    }
+
+    outputs.present_key = key_cache->output(0);
+    outputs.present_value = value_cache->output(0);
+    if (need_qk_output) {
+        outputs.sdpa_key = key_cache->output(0);
+        outputs.sdpa_value = value_cache->output(0);
+    } else {
+        outputs.sdpa_key = key_cache->output(1);
+        outputs.sdpa_value = value_cache->output(1);
+    }
+
+    const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+    if (sliding_window) {
+        // Must match StatelessKV's sdpa_front = max(0, P - window + 1).
+        const auto zero_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+        const auto window_minus_one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {window_size - 1}));
+        const auto past_scalar = register_new_node<v0::Squeeze>(past_seqlen);
+        const auto sdpa_front = register_new_node<v1::Maximum>(register_new_node<v1::Subtract>(past_scalar, window_minus_one), zero_scalar);
+        const auto resident_past = register_new_node<v1::Subtract>(past_scalar, sdpa_front);
+        outputs.mask_past_seqlen = register_new_node<v0::Unsqueeze>(resident_past, zero);
+        outputs.bias_col_offset = register_new_node<v0::Unsqueeze>(sdpa_front, zero);
+    } else {
+        outputs.mask_past_seqlen = past_seqlen;
+        outputs.bias_col_offset = zero;
     }
     return outputs;
 }
