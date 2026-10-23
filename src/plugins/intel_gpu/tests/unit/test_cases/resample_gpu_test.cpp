@@ -2055,7 +2055,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
     }
 
     template <typename T>
-    void compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
+    void compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt, float f32_rel_tolerance = 0.f) {
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = out_opt->get_layout();
 
@@ -2079,6 +2079,9 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
                             ASSERT_EQ(ref_out_offset, opt_out_offset);
                             if (std::is_same<T, ov::float16>::value || std::is_same<T, ov::bfloat16>::value) {
                                 ASSERT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
+                            } else if (f32_rel_tolerance > 0.f) {
+                                const float ref_val = static_cast<float>(ref_out_val);
+                                ASSERT_NEAR(static_cast<float>(opt_out_val), ref_val, f32_rel_tolerance * std::max(1.f, std::abs(ref_val)));
                             } else {
                                 ASSERT_EQ(opt_out_val, ref_out_val);
                             }
@@ -2132,7 +2135,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
 
         ExecutionConfig config_opt = get_test_default_config(engine);
         config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample_opt", "res_to_bfyx"}));
-        if (params.operation_type != resample::InterpolateOp::InterpolateMode::LINEAR_ONNX) {
+        if (params.operation_type != resample::InterpolateOp::InterpolateMode::LINEAR_ONNX || params.in_format == format::byxf) {
             config_opt.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample_opt", {params.in_format, "resample_opt"}} }));
         }
 
@@ -2147,10 +2150,15 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         if (!format::is_simple_data_format(params.in_format)) {
             ASSERT_FALSE(format::is_simple_data_format(result_opt.at("resample_opt").get_memory()->get_layout().format));
         }
+        if (params.in_format == format::byxf) {
+            ASSERT_EQ(result_opt.at("resample_opt").get_memory()->get_layout().format, format::byxf);
+        }
         if (check_result == true) {
             // Check data_types
             if (params.input_type == data_types::f32) {
-                compare_outputs<float>(output, output_opt);
+                // resample_opt and resample_ref compute linear weights in a different order.
+                const bool linear = params.operation_type == resample::InterpolateOp::InterpolateMode::LINEAR_ONNX;
+                compare_outputs<float>(output, output_opt, linear ? 1.e-4f : 0.f);
             } else if (params.input_type == data_types::f16) {
                 compare_outputs<ov::float16>(output, output_opt);
             } else if (params.input_type == data_types::bf16) {
@@ -2621,6 +2629,87 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_5d_3axes_simple,
                                 { data_types::bf16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
                             }
                         ));
+
+namespace {
+using InterpolateMode = resample::InterpolateOp::InterpolateMode;
+using CoordTransMode = resample::InterpolateOp::CoordinateTransformMode;
+using NearestMode = resample::InterpolateOp::NearestMode;
+
+resample_opt_random_test_params byxf_case(data_types dt,
+                                          tensor in,
+                                          tensor out,
+                                          InterpolateMode mode = InterpolateMode::NEAREST,
+                                          CoordTransMode ctm = CoordTransMode::ASYMMETRIC,
+                                          NearestMode nm = NearestMode::FLOOR) {
+    return {dt, in, out, 1, mode, 1, format::byxf, format::byxf, {}, {}, ctm, nm};
+}
+}  // namespace
+
+// byxf resample_opt (forced) vs bfyx resample_ref. Tensors are {b, f, x, y}; F selects VEC 1/2/4/8.
+INSTANTIATE_TEST_SUITE_P(
+    resample_opt_smoke_byxf,
+    resample_opt_random_test,
+    testing::ValuesIn(std::vector<resample_opt_random_test_params>{
+        byxf_case(data_types::f16, {1, 128, 13, 13}, {1, 128, 26, 26}),
+        byxf_case(data_types::f32, {1, 128, 13, 13}, {1, 128, 26, 26}),
+        byxf_case(data_types::bf16, {1, 128, 13, 13}, {1, 128, 26, 26}),
+        byxf_case(data_types::i8, {1, 128, 13, 13}, {1, 128, 26, 26}),
+        byxf_case(data_types::u8, {1, 128, 13, 13}, {1, 128, 26, 26}),
+
+        byxf_case(data_types::f16, {2, 16, 7, 9}, {2, 16, 14, 18}),
+        byxf_case(data_types::f16, {2, 48, 7, 9}, {2, 48, 14, 18}),
+        byxf_case(data_types::f16, {2, 96, 8, 8}, {2, 96, 16, 16}),
+        byxf_case(data_types::f16, {1, 192, 13, 13}, {1, 192, 20, 20}),
+        byxf_case(data_types::f16, {2, 640, 7, 9}, {2, 640, 14, 18}),
+        byxf_case(data_types::f16, {1, 1280, 1, 1}, {1, 1280, 2, 2}),
+        byxf_case(data_types::f16, {16, 32, 7, 9}, {16, 32, 21, 27}),
+        byxf_case(data_types::f16, {1, 32, 64, 64}, {1, 32, 128, 128}),
+
+        byxf_case(data_types::f16, {1, 128, 13, 13}, {1, 128, 20, 20}),
+        byxf_case(data_types::f16, {2, 256, 26, 26}, {2, 256, 13, 13}, InterpolateMode::NEAREST, CoordTransMode::HALF_PIXEL, NearestMode::ROUND_PREFER_FLOOR),
+        byxf_case(data_types::f16, {1, 128, 13, 13}, {1, 128, 26, 26}, InterpolateMode::NEAREST, CoordTransMode::HALF_PIXEL, NearestMode::ROUND_PREFER_FLOOR),
+        byxf_case(data_types::f16, {1, 128, 13, 13}, {1, 128, 26, 26}, InterpolateMode::NEAREST, CoordTransMode::HALF_PIXEL, NearestMode::ROUND_PREFER_CEIL),
+        byxf_case(data_types::f16, {1, 128, 13, 13}, {1, 128, 26, 26}, InterpolateMode::NEAREST, CoordTransMode::HALF_PIXEL, NearestMode::FLOOR),
+        byxf_case(data_types::f16, {1, 128, 13, 13}, {1, 128, 26, 26}, InterpolateMode::NEAREST, CoordTransMode::HALF_PIXEL, NearestMode::CEIL),
+        byxf_case(data_types::f16, {1, 128, 13, 13}, {1, 128, 26, 26}, InterpolateMode::NEAREST, CoordTransMode::HALF_PIXEL, NearestMode::SIMPLE),
+        byxf_case(data_types::f16,
+                  {1, 128, 13, 13},
+                  {1, 128, 26, 26},
+                  InterpolateMode::NEAREST,
+                  CoordTransMode::PYTORCH_HALF_PIXEL,
+                  NearestMode::ROUND_PREFER_FLOOR),
+        byxf_case(data_types::f16,
+                  {1, 128, 13, 13},
+                  {1, 128, 26, 26},
+                  InterpolateMode::NEAREST,
+                  CoordTransMode::TF_HALF_PIXEL_FOR_NN,
+                  NearestMode::ROUND_PREFER_FLOOR),
+        byxf_case(data_types::f16,
+                  {1, 128, 13, 13},
+                  {1, 128, 26, 26},
+                  InterpolateMode::NEAREST,
+                  CoordTransMode::ALIGN_CORNERS,
+                  NearestMode::ROUND_PREFER_FLOOR),
+        byxf_case(data_types::i8, {1, 16, 2, 2}, {1, 16, 3, 3}, InterpolateMode::NEAREST, CoordTransMode::ALIGN_CORNERS, NearestMode::ROUND_PREFER_FLOOR),
+        byxf_case(data_types::i8, {1, 16, 2, 2}, {1, 16, 3, 3}, InterpolateMode::NEAREST, CoordTransMode::ALIGN_CORNERS, NearestMode::ROUND_PREFER_CEIL),
+
+        byxf_case(data_types::f16, {1, 128, 13, 13}, {1, 128, 26, 26}, InterpolateMode::LINEAR_ONNX),
+        byxf_case(data_types::f16, {2, 640, 7, 9}, {2, 640, 13, 17}, InterpolateMode::LINEAR_ONNX, CoordTransMode::HALF_PIXEL),
+        byxf_case(data_types::f16, {1, 32, 16, 16}, {1, 32, 32, 32}, InterpolateMode::LINEAR_ONNX, CoordTransMode::ALIGN_CORNERS),
+        byxf_case(data_types::f16, {1, 64, 13, 13}, {1, 64, 26, 26}, InterpolateMode::LINEAR_ONNX, CoordTransMode::PYTORCH_HALF_PIXEL),
+        byxf_case(data_types::f32, {1, 32, 16, 16}, {1, 32, 32, 32}, InterpolateMode::LINEAR_ONNX, CoordTransMode::HALF_PIXEL),
+    }));
+
+// 16 * VEC_SIZE elements of at most 64 B: one work-item handles all feature slices of a pixel (generic nearest, linear_onnx, integral).
+INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_byxf_pixel_per_wi,
+                         resample_opt_random_test,
+                         testing::ValuesIn(std::vector<resample_opt_random_test_params>{
+                             byxf_case(data_types::f16, {2, 48, 7, 9}, {2, 48, 11, 13}),
+                             byxf_case(data_types::f16, {2, 96, 7, 9}, {2, 96, 13, 17}, InterpolateMode::LINEAR_ONNX, CoordTransMode::HALF_PIXEL),
+                             byxf_case(data_types::i8, {1, 48, 5, 4}, {1, 48, 10, 8}),
+                             byxf_case(data_types::f32, {1, 48, 6, 5}, {1, 48, 12, 10}),
+                             byxf_case(data_types::f16, {2, 160, 8, 8}, {2, 160, 16, 16}),
+                         }));
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST_P(resample_random_test, random_cached) {
@@ -3235,4 +3324,158 @@ TEST(resample_gpu, opt_nearest_fused_eltwise_builds) {
         }
         ASSERT_TRUE(found) << "Output " << v << " at " << i << " is not 0.5 * any input value.";
     }
+}
+
+namespace {
+// Dynamic input -> reorder(byxf) -> resample (nearest asymmetric/floor, scales) -> reorder(bfyx, f32) on one network,
+// executed for each shape and checked against a host reference.
+void test_byxf_resample_opt_dynamic(const std::vector<ov::Shape>& shapes, bool is_caching_test, float scale = 2.f) {
+    auto& engine = get_test_engine();
+    const auto feature = static_cast<int64_t>(shapes.front()[1]);
+    const ov::PartialShape in_pshape{ov::Dimension::dynamic(), feature, ov::Dimension::dynamic(), ov::Dimension::dynamic()};
+    topology topo(input_layout("input", layout{in_pshape, data_types::f16, format::bfyx}),
+                  reorder("to_byxf", input_info("input"), format::byxf, data_types::f16),
+                  resample("resample",
+                           input_info("to_byxf"),
+                           std::vector<int64_t>{},
+                           std::vector<float>{scale, scale},
+                           std::vector<int64_t>{2, 3},
+                           {},
+                           {},
+                           0,
+                           -0.75f,
+                           InterpolateMode::NEAREST,
+                           resample::InterpolateOp::ShapeCalcMode::SCALES,
+                           CoordTransMode::ASYMMETRIC,
+                           NearestMode::FLOOR),
+                  reorder("output", input_info("resample"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"resample", {format::byxf, ""}}}));
+    auto net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
+
+    for (const auto& shape : shapes) {
+        SCOPED_TRACE(ov::PartialShape(shape).to_string());
+        auto input = engine.allocate_memory({ov::PartialShape(shape), data_types::f16, format::bfyx});
+        std::vector<ov::float16> in_vals(ov::shape_size(shape));
+        for (size_t i = 0; i < in_vals.size(); ++i) {
+            in_vals[i] = ov::float16(static_cast<float>(static_cast<int>(i % 251) - 125) * 0.125f);
+        }
+        set_values(input, in_vals);
+        net->set_input_data("input", input);
+        auto outputs = net->execute();
+
+        ASSERT_EQ(net->get_output_layout("resample").format, format::byxf);
+        ASSERT_EQ(net->get_implementation_info("resample").rfind("resample_opt", 0), 0) << net->get_implementation_info("resample");
+
+        const auto out_shape = outputs.at("output").get_layout().get_shape();
+        const auto scaled = [scale](size_t dim) {
+            return static_cast<size_t>(std::floor(static_cast<float>(dim) * scale));
+        };
+        const auto in_coord = [scale](size_t out_dim) {
+            return static_cast<size_t>(std::floor(static_cast<float>(out_dim) / scale));
+        };
+        ASSERT_EQ(out_shape, ov::Shape({shape[0], shape[1], scaled(shape[2]), scaled(shape[3])}));
+        cldnn::mem_lock<float, mem_lock_type::read> out_ptr(outputs.at("output").get_memory(), get_test_stream());
+        size_t idx = 0;
+        for (size_t b = 0; b < out_shape[0]; ++b) {
+            for (size_t f = 0; f < out_shape[1]; ++f) {
+                for (size_t y = 0; y < out_shape[2]; ++y) {
+                    for (size_t x = 0; x < out_shape[3]; ++x, ++idx) {
+                        const size_t in_idx = ((b * shape[1] + f) * shape[2] + in_coord(y)) * shape[3] + in_coord(x);
+                        ASSERT_EQ(out_ptr[idx], static_cast<float>(in_vals[in_idx])) << "b " << b << " f " << f << " y " << y << " x " << x;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Dynamic-batch input -> reorder(byxf) -> resample (scales 2x) -> reorder(bfyx, f32) without any forcing, compared with the
+// same resample forced to bfyx. Returns the resample format and implementation info (kernel name).
+std::pair<format::type, std::string> run_resample_after_byxf_reorder(int64_t feature, InterpolateMode mode) {
+    auto& engine = get_test_engine();
+    const ov::Shape shape{2, static_cast<size_t>(feature), 9, 7};
+    auto make_topology = [&](format::type in_format) {
+        return topology(input_layout("input", layout{ov::PartialShape{ov::Dimension::dynamic(), feature, 9, 7}, data_types::f16, format::bfyx}),
+                        reorder("in_reorder", input_info("input"), in_format, data_types::f16),
+                        resample("resample",
+                                 input_info("in_reorder"),
+                                 std::vector<int64_t>{},
+                                 std::vector<float>{2.f, 2.f},
+                                 std::vector<int64_t>{2, 3},
+                                 {},
+                                 {},
+                                 0,
+                                 -0.75f,
+                                 mode,
+                                 resample::InterpolateOp::ShapeCalcMode::SCALES,
+                                 CoordTransMode::HALF_PIXEL,
+                                 NearestMode::ROUND_PREFER_FLOOR),
+                        reorder("output", input_info("resample"), format::bfyx, data_types::f32));
+    };
+
+    auto input = engine.allocate_memory({ov::PartialShape(shape), data_types::f16, format::bfyx});
+    std::vector<ov::float16> in_vals(ov::shape_size(shape));
+    for (size_t i = 0; i < in_vals.size(); ++i) {
+        in_vals[i] = ov::float16(static_cast<float>(static_cast<int>(i % 23) - 11) * 0.25f);
+    }
+    set_values(input, in_vals);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network net(engine, make_topology(format::byxf), config);
+    net.set_input_data("input", input);
+    auto output = net.execute().at("output").get_memory();
+
+    ExecutionConfig config_ref = config;
+    config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"resample", {format::bfyx, ""}}}));
+    network net_ref(engine, make_topology(format::bfyx), config_ref);
+    net_ref.set_input_data("input", input);
+    auto output_ref = net_ref.execute().at("output").get_memory();
+
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> ref_ptr(output_ref, get_test_stream());
+    const size_t count = ov::shape_size(shape) * 4;
+    for (size_t i = 0; i < count; ++i) {
+        EXPECT_NEAR(out_ptr[i], ref_ptr[i], 1e-2f) << "i " << i;
+    }
+
+    return {net.get_output_layout("resample").format, net.get_implementation_info("resample")};
+}
+}  // namespace
+
+TEST(resample_gpu, byxf_dynamic_shape_change) {
+    test_byxf_resample_opt_dynamic({{2, 320, 16, 16}, {1, 320, 7, 9}, {16, 320, 8, 8}, {3, 320, 64, 64}, {2, 320, 16, 16}}, false);
+}
+
+TEST(resample_gpu, byxf_dynamic_shape_change_cached) {
+    test_byxf_resample_opt_dynamic({{2, 320, 16, 16}, {1, 320, 7, 9}, {16, 320, 8, 8}}, true);
+}
+
+// Scale 2.2 maps 4x4 to 8x8 like scale 2: the input coordinate must follow the scale (floor(o / 2.2)), not the size ratio.
+TEST(resample_gpu, byxf_dynamic_non_integral_scale) {
+    test_byxf_resample_opt_dynamic({{1, 320, 4, 4}, {2, 320, 5, 3}}, false, 2.2f);
+}
+
+TEST(resample_gpu, byxf_after_byxf_reorder_nearest) {
+    const auto [fmt, impl_info] = run_resample_after_byxf_reorder(32, InterpolateMode::NEAREST);
+    ASSERT_EQ(fmt, format::byxf);
+    ASSERT_EQ(impl_info.rfind("resample_opt", 0), 0) << impl_info;
+}
+
+// The cases below have no fast byxf path, so byxf must not be offered (the resample stays out of byxf).
+TEST(resample_gpu, byxf_not_offered_feature_tail) {
+    ASSERT_NE(run_resample_after_byxf_reorder(24, InterpolateMode::NEAREST).first, format::byxf);
+}
+
+TEST(resample_gpu, byxf_not_offered_cubic) {
+    ASSERT_NE(run_resample_after_byxf_reorder(32, InterpolateMode::CUBIC).first, format::byxf);
+}
+
+TEST(resample_gpu, byxf_not_offered_linear) {
+    ASSERT_NE(run_resample_after_byxf_reorder(32, InterpolateMode::LINEAR).first, format::byxf);
 }

@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <algorithm>
 #include <string>
 
 #include "interpolate_shape_inference.hpp"
@@ -247,6 +248,39 @@ std::string resample_inst::to_string(const resample_node& node) {
     node_info->dump(primitive_description);
 
     return primitive_description.str();
+}
+
+bool resample_node::is_byxf_opt_supported() const {
+    using Mode = resample::InterpolateOp::InterpolateMode;
+    const auto& prim = get_primitive();
+    if (!one_of(prim->operation_type, {Mode::NEAREST, Mode::LINEAR_ONNX}) || prim->antialias != 0) {
+        return false;
+    }
+    const auto is_zero = [](size_t pad) {
+        return pad == 0;
+    };
+    if (!std::all_of(prim->pads_begin.begin(), prim->pads_begin.end(), is_zero) || !std::all_of(prim->pads_end.begin(), prim->pads_end.end(), is_zero)) {
+        return false;
+    }
+
+    const auto& in_layout = get_input_layout(0);
+    const auto out_layout = is_valid_output_layout(0) ? get_output_layout(0) : calc_output_layouts()[0];
+    const auto& in_shape = in_layout.get_partial_shape();
+    const auto& out_shape = out_layout.get_partial_shape();
+    if (in_shape.size() != 4 || out_shape.size() != 4) {
+        return false;
+    }
+    // Static F, 16-aligned (no feature tail in the sub-group block IO), and only spatial axes resized.
+    if (in_shape[1].is_dynamic() || in_shape[1] != out_shape[1] || in_shape[1].get_length() % 16 != 0) {
+        return false;
+    }
+    const bool batch_may_resize = prim->axes.empty() || std::find(prim->axes.begin(), prim->axes.end(), 0) != prim->axes.end();
+    if (batch_may_resize && (in_shape[0].is_dynamic() || in_shape[0] != out_shape[0])) {
+        return false;
+    }
+
+    const std::initializer_list<data_types> supported_types = {data_types::f16, data_types::bf16, data_types::f32, data_types::i8, data_types::u8};
+    return one_of(in_layout.data_type, supported_types) && one_of(out_layout.data_type, supported_types);
 }
 
 resample_inst::typed_primitive_inst(network& network, const resample_node& node) : parent(network, node) {}
