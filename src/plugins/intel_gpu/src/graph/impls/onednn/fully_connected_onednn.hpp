@@ -69,8 +69,9 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                          one_of(out_dt, {data_types::f16, data_types::bf16, data_types::f32, data_types::i32, data_types::i8, data_types::u8});
         bool compressed_case = fc_prim->compressed_weights &&
                                one_of(in0_dt, {data_types::f16, data_types::bf16, data_types::f32, data_types::i8, data_types::u8}) &&
-                               one_of(wei_dt, {data_types::u8, data_types::i8, data_types::u4, data_types::i4}) &&
-                               one_of(out_dt, {data_types::f16, data_types::bf16, data_types::f32, data_types::u8, data_types::i8});
+                               one_of(wei_dt, {data_types::u8, data_types::i8, data_types::u4, data_types::i4, data_types::u2}) &&
+                               one_of(out_dt, {data_types::f16, data_types::bf16, data_types::f32, data_types::u8, data_types::i8}) &&
+                               (wei_dt != data_types::u2 || in0_dt == data_types::f16);  // u2 oneDNN kernel requires f16 activations
         const bool fp_compressed_case = fc_prim->compressed_weights && one_of(in0_dt, {data_types::f8e4m3, data_types::f4e2m1, data_types::f8e5m2}) &&
                                         one_of(wei_dt, {data_types::f8e4m3, data_types::f4e2m1, data_types::f8e5m2}) && one_of(out_dt, {data_types::f16, data_types::f32});
         if (!f16f16_case && !bf16bf16_case && !f32f32_case && !u8s8_case && !compressed_case && !fp_compressed_case) {
@@ -81,10 +82,21 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             if (fc_prim->decompression_zero_point.is_valid()) {
                 const auto decompression_zp_idx = fc_prim->bias.is_valid() ? 4 : 3;
                 const auto decompression_zp_dt = fc_node.get_input_layout(decompression_zp_idx).data_type;
-                const bool is_wei_compressed = one_of(wei_dt, {ov::element::Type_t::i4, ov::element::Type_t::u4, ov::element::Type_t::u8});
+                const bool is_wei_compressed = one_of(wei_dt, {ov::element::Type_t::i4, ov::element::Type_t::u4, ov::element::Type_t::u8, ov::element::Type_t::u2});
+                // u2 zero-point excluded: oneDNN's u2 kernel cannot unpack a packed-u2 zero-point tensor
                 const bool is_zp_compressed = one_of(decompression_zp_dt, {ov::element::Type_t::i4, ov::element::Type_t::u4,
                                                     ov::element::Type_t::u8, ov::element::Type_t::i8});
                 if (!is_wei_compressed || !is_zp_compressed) {
+                    LOG_AND_RETURN_FALSE(node);
+                }
+            }
+
+            // Reject u2 scale grouping oneDNN can't handle here, so another FC impl is selected instead.
+            if (wei_dt == data_types::u2 && fc_prim->decompression_scale.is_valid()) {
+                const auto& scale_layout = fc_node.get_input_layout(fc_prim->bias.is_valid() ? 3 : 2);
+                const auto groups = get_scale_groups(fc_node.weights().get_output_layout(false), scale_layout,
+                                                     fc_prim->weights_transposed, fc_prim->transpose_b_scale);
+                if (!is_supported_scale_group(groups.first, groups.second)) {
                     LOG_AND_RETURN_FALSE(node);
                 }
             }
