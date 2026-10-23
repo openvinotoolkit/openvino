@@ -1,0 +1,66 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "X"
+    input: "SLOPE"
+    output: "Y"
+    op_type: "PRelu"
+  }
+  name: "test-model-prelu-1d-channel-bcast-opset6"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "SLOPE"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 6
+}

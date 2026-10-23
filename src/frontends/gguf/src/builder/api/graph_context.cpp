@@ -42,6 +42,7 @@ DecoderDimensions GgufGraphContext::configure_decoder(RopeMode rope, const Decod
     m_impl->check_open();
     OPENVINO_ASSERT(!m_impl->decoder, "[GGUF] decoder is already configured");
     auto normalized = decoder_config_from_meta(detail::MetadataAccess::get(metadata()).map);
+    m_impl->emitter.configure_hadamard(normalized);
     auto config = std::make_unique<DecoderConfig>(normalized, m_impl->build_ctx.weights->weights, rope, options);
     auto& graph = *m_impl->emitter.graph();
     graph.has_rope = true;
@@ -132,7 +133,9 @@ GgufValue GgufGraphContext::add_constant(const std::string& name, const ov::Tens
 GgufValue GgufGraphContext::build_inp_embd(const GgufValue& tok_embd) {
     OPENVINO_ASSERT(tok_embd, "[GGUF] build_inp_embd: the token embedding weight is missing");
     auto tokens = add_input("inp_tokens", i32, ov::PartialShape({1, 1, 1, D}));
-    return node("GGML_OP_GET_ROWS", {tok_embd, tokens});
+    auto embeddings = node("GGML_OP_GET_ROWS", {tok_embd, tokens});
+    embeddings.m_value.get_node_shared_ptr()->get_rt_info()["gguf.token_embedding"] = true;
+    return embeddings;
 }
 
 GgufValue GgufGraphContext::build_inp_pos() {
@@ -244,6 +247,7 @@ void GgufGraphContext::add_recurrent_state(const GgufValue& input, const GgufVal
 
 std::shared_ptr<GgufGraph> GgufGraphContext::finish() {
     m_impl->check_open();
+    m_impl->emitter.validate_hadamard();
     const auto graph = m_impl->emitter.graph();
     OPENVINO_ASSERT(!graph->model_output_names.empty(), "[GGUF] graph has no outputs");
     std::set<std::string> available;
