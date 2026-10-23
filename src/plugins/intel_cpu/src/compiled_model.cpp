@@ -25,6 +25,7 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
@@ -204,12 +205,15 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                     auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
                                            ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
                     auto cpuParallel = std::make_shared<CpuParallel>(m_cfg.tbbPartitioner);
-                    ctx = std::make_shared<GraphContext>(m_cfg,
-                                                         m_socketWeights[socketId],
-                                                         isQuantizedFlag,
-                                                         streamsExecutor,
-                                                         cpuParallel,
-                                                         m_sub_memory_manager);
+                    ctx = std::make_shared<GraphContext>(
+                        m_cfg,
+                        m_socketWeights[socketId],
+                        isQuantizedFlag,
+                        streamsExecutor,
+                        cpuParallel,
+                        m_sub_memory_manager,
+                        // an imported model has its weights already paged in by the deserializer
+                        m_loaded_from_cache ? 0 : ov::weight_sharing::PrefetchScheduler::get_lookahead());
                 }
 
                 const std::shared_ptr<const ov::Model> model = m_model;

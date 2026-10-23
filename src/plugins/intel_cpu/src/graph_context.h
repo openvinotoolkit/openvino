@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <vector>
@@ -37,10 +38,15 @@ public:
                  bool isGraphQuantized,
                  ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr,
                  std::shared_ptr<CpuParallel> cpuParallel = nullptr,
-                 std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
+                 std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr,
+                 size_t weightsPrefetchLookahead = 0);
 
     [[nodiscard]] const Config& getConfig() const {
         return m_config;
+    }
+
+    [[nodiscard]] size_t getWeightsPrefetchLookahead() const {
+        return m_weightsPrefetchLookahead;
     }
 
     [[nodiscard]] WeightsSharing::Ptr getWeightsCache() const {
@@ -130,6 +136,8 @@ private:
     std::shared_ptr<CpuParallel> m_cpuParallel = nullptr;
     // numa submemory manager
     std::shared_ptr<SubMemoryManager> m_subMemoryManager;
+    // 0 disables the mmap weights prefetch for this model and all its inner graphs
+    size_t m_weightsPrefetchLookahead = 0;
 
     int m_numNumaNodes = 1;
     int m_numaNodeId = 0;
