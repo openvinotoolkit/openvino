@@ -105,7 +105,7 @@ def _build_fused_sampler():
         keep_p = (cumprob - topk_softmax) < top_p.unsqueeze(-1)
         keep_p = keep_p | (col_idx == 0)
         keep = keep_k & keep_p
-        masked_vals = torch.where(keep, topk_vals, torch.full_like(topk_vals, -1e30))
+        masked_vals = torch.where(keep, topk_vals, torch.full_like(topk_vals, float("-inf")))
         probs = torch.softmax(masked_vals, dim=-1)
         gathered_noise = torch.gather(exp_noise, dim=-1, index=topk_idx)
         scores = probs / gathered_noise
