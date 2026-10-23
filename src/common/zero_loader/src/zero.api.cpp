@@ -4,6 +4,7 @@
 #define ZERO_API_KEEP_SYMBOLS_LIST_MACRO
 #include "openvino/zero_api.hpp"
 
+#include <atomic>
 #include <mutex>
 
 #include "openvino/util/file_util.hpp"
@@ -14,7 +15,24 @@
 #endif
 
 namespace ov {
+namespace {
+#ifdef OV_ZERO_LOADER_STATIC
+// Once switched, instances created later keep using ze_loader as well
+std::atomic<bool> use_dynamic_loader{false};
+#endif
+}  // namespace
+
 ZeroApi::ZeroApi() {
+#ifdef OV_ZERO_LOADER_STATIC
+    if (!use_dynamic_loader) {
+        load_static_loader();
+        return;
+    }
+#endif
+    load_dynamic_loader();
+}
+
+void ZeroApi::load_dynamic_loader() {
     const std::filesystem::path baseName = "ze_loader";
     auto libpath = ov::util::make_plugin_library_name({}, baseName);
 #if !defined(_WIN32) && !defined(ANDROID)
@@ -40,6 +58,29 @@ ZeroApi::ZeroApi() {
     symbols_list();
     weak_symbols_list();
 #undef symbol_statement
+}
+
+#ifdef OV_ZERO_LOADER_STATIC
+void ZeroApi::load_static_loader() {
+#    define symbol_statement(symbol) this->symbol = &::symbol;
+    symbols_list();
+    weak_symbols_list();
+#    undef symbol_statement
+}
+#endif
+
+bool ZeroApi::is_static_loader() const {
+    return lib == nullptr;
+}
+
+void ZeroApi::switch_to_dynamic_loader() {
+#ifdef OV_ZERO_LOADER_STATIC
+    if (!is_static_loader()) {
+        return;
+    }
+    use_dynamic_loader = true;
+    load_dynamic_loader();
+#endif
 }
 
 const std::shared_ptr<ZeroApi> ZeroApi::get_instance() {
