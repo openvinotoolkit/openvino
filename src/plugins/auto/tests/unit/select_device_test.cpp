@@ -201,8 +201,9 @@ public:
                                   const std::string& netPrecision,
                                   unsigned int priority,
                                   const ov::auto_plugin::DeviceSelectionPolicy& selection_policy,
-                                  const std::string& low_power_device) {
-                return plugin->Plugin::select_device(metaDevices, netPrecision, priority, selection_policy, low_power_device);
+                                  const std::string& low_power_device,
+                                  bool is_low_power_mode_active) {
+                return plugin->Plugin::select_device(metaDevices, netPrecision, priority, selection_policy, low_power_device, is_low_power_mode_active);
             });
         ON_CALL(*plugin, get_valid_device)
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
@@ -214,7 +215,7 @@ public:
 TEST_P(SelectDeviceTest, SelectDevice) {
     const auto& [netPrecision, devices, expect, throwExcept, enabledevice_priority, reverse] = this->GetParam();
 
-    EXPECT_CALL(*plugin, select_device(_, _, _, _, _)).Times(1);
+    EXPECT_CALL(*plugin, select_device(_, _, _, _, _, _)).Times(1);
     if (devices.size() >= 1) {
         EXPECT_CALL(*core, get_property(_, _, _)).Times(AtLeast(static_cast<int>(devices.size()) - 1));
     } else {
@@ -222,9 +223,9 @@ TEST_P(SelectDeviceTest, SelectDevice) {
     }
 
     if (throwExcept) {
-        ASSERT_THROW(plugin->select_device(devices, netPrecision, 0, {}, {}), ov::Exception);
+        ASSERT_THROW(plugin->select_device(devices, netPrecision, 0, {}, {}, false), ov::Exception);
     } else {
-        auto result = plugin->select_device(devices, netPrecision, 0, {}, {});
+        auto result = plugin->select_device(devices, netPrecision, 0, {}, {}, false);
         compare(result, expect);
     }
 }
@@ -329,7 +330,7 @@ protected:
 TEST_P(SelectDeviceWithUtilizationTest, selectDeviceWithUtilization) {
     // get Parameter
     std::string netPrecision = "FP32";
-    auto result = plugin->select_device(devices, netPrecision, 0, {threshold, {}}, {});
+    auto result = plugin->select_device(devices, netPrecision, 0, {threshold, {}}, {}, false);
     compare(result, selectedDeviceInfo);
 }
 
@@ -545,7 +546,7 @@ protected:
 
 TEST_P(SelectDeviceWithPerfCurveTableTest, selectDeviceWithPerfCurveTable) {
     std::string netPrecision = "FP32";
-    auto result = plugin->select_device(devices, netPrecision, 0, {{}, perfCurveTable}, {});
+    auto result = plugin->select_device(devices, netPrecision, 0, {{}, perfCurveTable}, {}, false);
     compare(result, selectedDeviceInfo);
     // m_priority_map is process-wide static state; clean up to avoid leaking into other suites.
     plugin->unregister_priority(0, result.unique_name);
@@ -659,7 +660,7 @@ TEST_F(SelectDeviceThresholdBeforePerfCurveTableTest, thresholdFiltersCandidates
     ov::intel_auto::PerfCurveTable perfCurveTable = {{"CPU", {{0, 0.f}, {100, 0.f}}},
                                                                         {"NPU", {{0, 100.f}, {100, 100.f}}}};
 
-    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, perfCurveTable}, {});
+    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, perfCurveTable}, {}, false);
     EXPECT_EQ(result.unique_name, "NPU_01");
     // m_priority_map is process-wide static state; clean up to avoid leaking into other suites.
     plugin->unregister_priority(0, result.unique_name);
@@ -673,7 +674,7 @@ TEST_F(SelectDeviceThresholdBeforePerfCurveTableTest, thresholdResultIsKeptWhenP
     // perf_curve_table covers only iGPU, so remaining candidates are selected by priority.
     ov::intel_auto::PerfCurveTable perfCurveTable = {{"iGPU", {{0, 0.f}, {100, 100.f}}}};
 
-    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, perfCurveTable}, {});
+    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, perfCurveTable}, {}, false);
     EXPECT_EQ(result.unique_name, "NPU_01");
     plugin->unregister_priority(0, result.unique_name);
 }
@@ -816,9 +817,9 @@ protected:
     std::string selectedUniqueName;
 };
 
+// Exercises low-power device selection via the is_low_power_mode_active flag.
 TEST_F(SelectDeviceWithLowPowerDevicePrecedenceTest, lowPowerDeviceOverridesThreshold) {
-    EXPECT_CALL(*plugin, get_low_power_mode()).WillOnce(Return(true));
-    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, {}}, "NPU");
+    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, {}}, "NPU", true);
     selectedUniqueName = result.unique_name;
     EXPECT_EQ(result.unique_name, "NPU_01");
 }
@@ -830,39 +831,27 @@ TEST_F(SelectDeviceWithLowPowerDevicePrecedenceTest, lowPowerDeviceMatchesViaBas
         .WillByDefault(RETURN_MOCK_VALUE(npuHwIdCapability));
     std::vector<DeviceInformation> devicesWithHwId = {{"CPU", {}, -1, "01", "CPU_01", 0},
                                                        {"NPU.5010", {}, -1, "01", "NPU_01", 0}};
-    EXPECT_CALL(*plugin, get_low_power_mode()).WillOnce(Return(true));
-    auto result = plugin->select_device(devicesWithHwId, netPrecision, 0, {thresholds, {}}, "NPU");
+    auto result = plugin->select_device(devicesWithHwId, netPrecision, 0, {thresholds, {}}, "NPU", true);
     selectedUniqueName = result.unique_name;
     EXPECT_EQ(result.unique_name, "NPU_01");
 }
 
 TEST_F(SelectDeviceWithLowPowerDevicePrecedenceTest, fallsBackToThresholdWhenNotInLowPowerMode) {
-    EXPECT_CALL(*plugin, get_low_power_mode()).WillOnce(Return(false));
-    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, {}}, "NPU");
+    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, {}}, "NPU", false);
     selectedUniqueName = result.unique_name;
     // threshold logic excludes the over-utilized NPU once low_power_device is not applicable.
     EXPECT_EQ(result.unique_name, "CPU_01");
 }
 
-TEST_F(SelectDeviceWithLowPowerDevicePrecedenceTest, unknownLowPowerModeTreatedAsNotLowPower) {
-    EXPECT_CALL(*plugin, get_low_power_mode()).WillOnce(Return(std::nullopt));
-    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, {}}, "NPU");
-    selectedUniqueName = result.unique_name;
-    EXPECT_EQ(result.unique_name, "CPU_01");
-}
-
 TEST_F(SelectDeviceWithLowPowerDevicePrecedenceTest, lowPowerDeviceNotInCandidateListFallsThrough) {
-    // get_low_power_mode() is not called when the preferred device is not a candidate.
-    EXPECT_CALL(*plugin, get_low_power_mode()).Times(0);
-    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, {}}, "GPU.0");
+    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, {}}, "GPU.0", true);
     selectedUniqueName = result.unique_name;
     EXPECT_EQ(result.unique_name, "CPU_01");
 }
 
-TEST_F(SelectDeviceWithLowPowerDevicePrecedenceTest, getLowPowerModeNotQueriedWhenLowPowerDeviceUnset) {
-    // Guarantees zero behavior/perf impact on all pre-existing callers that leave low_power_device empty.
-    EXPECT_CALL(*plugin, get_low_power_mode()).Times(0);
-    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, {}}, {});
+TEST_F(SelectDeviceWithLowPowerDevicePrecedenceTest, lowPowerDeviceIgnoredWhenUnset) {
+    // Empty low_power_device short-circuits regardless of is_low_power_mode_active.
+    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, {}}, {}, true);
     selectedUniqueName = result.unique_name;
     EXPECT_EQ(result.unique_name, "CPU_01");
 }
