@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <list>
 #include <map>
 #include <memory>
 #include <optional>
@@ -17,6 +18,13 @@
 
 namespace ov {
 namespace npuw {
+
+constexpr const char* NPUW_HFA_HOST_MASK_RT_KEY = "npuw_hfa_host_mask";
+constexpr const char* NPUW_HFA_HOST_MASK_WINDOW_RT_KEY = "npuw_hfa_host_mask_window";
+enum class HFAHostMaskKind : uint8_t { Causal };
+
+bool replace_hfa_host_mask(const std::shared_ptr<ov::Model>& model, bool enabled);
+bool has_hfa_host_mask(const std::shared_ptr<ov::Model>& model);
 
 // HFA Tile Model input tensor identifiers
 // Represents the input layout for Host Flash Attention tile models
@@ -87,6 +95,10 @@ namespace function {
 struct HostFlashAttention {
     // Tiled model for flash attention execution (regular tiles)
     std::shared_ptr<ov::Model> _tile_model;
+    std::shared_ptr<ov::Model> _masked_tile_model;
+    bool _host_mask = false;
+    HFAHostMaskKind _host_mask_kind = HFAHostMaskKind::Causal;
+    int64_t _host_mask_window = 0;
 
     // Final tiled model for flash attention execution (with division and transpose)
     std::shared_ptr<ov::Model> _final_tile_model;
@@ -215,10 +227,15 @@ struct HostFlashAttention {
 
     // Models to compile (will be cleared after compilation)
     std::shared_ptr<ov::Model> _tile_model_to_compile;
+    std::shared_ptr<ov::Model> _masked_tile_model_to_compile;
     std::shared_ptr<ov::Model> _final_tile_model_to_compile;
 
     // Compiled tile model for NPU execution (regular tiles)
     ov::SoPtr<ov::ICompiledModel> _compiled_tile_model;
+    ov::SoPtr<ov::ICompiledModel> _compiled_masked_tile_model;
+    bool _host_mask = false;
+    HFAHostMaskKind _host_mask_kind = HFAHostMaskKind::Causal;
+    int64_t _host_mask_window = 0;
 
     // Compiled FINAL tile model for NPU execution (with division and transpose)
     ov::SoPtr<ov::ICompiledModel> _compiled_final_tile_model;
@@ -245,6 +262,11 @@ struct HostFlashAttention {
         _tile_model_to_compile.reset();  // Free memory after compilation
     }
 
+    void set_compiled_masked_tile_model(ov::SoPtr<ov::ICompiledModel> compiled_model) {
+        _compiled_masked_tile_model = std::move(compiled_model);
+        _masked_tile_model_to_compile.reset();
+    }
+
     // Set the compiled FINAL tile model and clear the model to compile
     void set_compiled_final_tile_model(ov::SoPtr<ov::ICompiledModel> compiled_model) {
         _compiled_final_tile_model = std::move(compiled_model);
@@ -264,6 +286,31 @@ struct HostFlashAttention {
 
 namespace runtime {
 namespace host_flash_attention {
+
+enum class HostMaskTileAction { Skip, NoMask, Mask };
+
+std::vector<HostMaskTileAction> build_host_mask_map(const ov::ITensor& row, size_t past_length, size_t tile_length);
+
+struct HostMaskTileKey {
+    std::vector<uint8_t> visibility;
+    ov::element::Type dtype;
+    size_t query_size = 0;
+    size_t rows = 0;
+    bool final = false;
+    bool past_has_visible_column = true;
+
+    bool operator==(const HostMaskTileKey& other) const;
+};
+
+HostMaskTileKey make_host_mask_tile_key(const ov::ITensor& row,
+                                        size_t offset,
+                                        size_t tile_length,
+                                        size_t query_size,
+                                        size_t rows,
+                                        bool final,
+                                        const ov::element::Type& dtype,
+                                        bool past_has_visible_column = true);
+void fill_host_mask_tile(const HostMaskTileKey& key, const ov::SoPtr<ov::ITensor>& tile);
 
 // Key for HFA tiled attention mask cache
 struct HFATileMaskKey {
@@ -290,6 +337,13 @@ struct HFARuntimeContext {
     /// Memory allocator: (type, shape, device) -> tensor
     using AllocatorFn =
         std::function<ov::SoPtr<ov::ITensor>(const ov::element::Type&, const ov::Shape&, const std::string&)>;
+
+    static constexpr size_t kHostMaskPoolCapacity = 4;
+    std::list<std::pair<HostMaskTileKey, ov::SoPtr<ov::ITensor>>> m_host_mask_pool;
+    std::optional<std::vector<HostMaskTileAction>> m_host_mask_map;
+    ov::SoPtr<ov::ITensor> get_host_mask_tile(const HostMaskTileKey& key,
+                                              const std::string& device,
+                                              const AllocatorFn& allocator);
 
     /// State tensors for accumulation: acc, max, sum
     struct StateBuffers {
@@ -334,6 +388,9 @@ struct HFARuntimeContext {
     void initialize_mask_cache(const HFADesc& hfa_desc, const std::string& device_name, AllocatorFn allocator) {
         m_mask_tile_buffers.clear();
         m_final_mask_tile_buffer = {};
+        if (hfa_desc._host_mask) {
+            return;
+        }
 
         // _tile_input_indices.mask is built from final_tile_model only (see
         // build_tile_param_mapping), but create_hfa_tile_model always places the first 6 params
@@ -517,15 +574,21 @@ class PositionIDs final : public Selector {
     int64_t _current_length = 0;
     int64_t _past_length = 0;
     std::size_t _original_query_length = 0u;  // original query length before PropagateSliceUp
+    int64_t _host_mask_window = 0;
 
     std::reference_wrapper<const ov::ISyncInferRequest> _rq;
 
-    PositionIDs(std::size_t param_idx, std::size_t original_query_length, const ov::ISyncInferRequest& rq);
+    PositionIDs(std::size_t param_idx,
+                std::size_t original_query_length,
+                const ov::ISyncInferRequest& rq,
+                int64_t host_mask_window);
     void prepare(int64_t past_len) override;
     int64_t context_length() const override;
 
 public:
-    static Selector::Ptr find(std::size_t original_query_length, const ov::ISyncInferRequest& rq);
+    static Selector::Ptr find(std::size_t original_query_length,
+                              const ov::ISyncInferRequest& rq,
+                              int64_t host_mask_window = 0);
 };
 
 }  // namespace host_flash_attention

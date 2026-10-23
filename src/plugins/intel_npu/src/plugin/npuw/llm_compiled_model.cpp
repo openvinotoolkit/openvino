@@ -10,6 +10,7 @@
 #include "embedding/prepare_embedding_model.hpp"
 #include "embedding/redirect_new_kv_to_output.hpp"
 #include "embedding/remove_empty_kv_inputs.hpp"
+#include "host_flash_attention.hpp"
 #include "infer_request_utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "llm_compiled_model_utils.hpp"
@@ -1153,6 +1154,24 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     const bool prefill_attn_hfa = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::HFA;
     const bool generate_attn_hfa = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::HFA;
+
+    if (prefill_attn_hfa && m_use_chunk_prefill && !m_is_embedding) {
+        bool host_mask = false;
+        auto read_host_mask = [&](const ov::AnyMap& config) {
+            const auto it = config.find("NPUW_ATTN_HFA_HOST_MASK");
+            if (it != config.end()) {
+                host_mask = it->second.as<bool>();
+            }
+        };
+        if (prefill_config_opt) {
+            read_host_mask(prefill_config_opt->as<ov::AnyMap>());
+        }
+        read_host_mask(other_props);
+        if (prefill_config_addition) {
+            read_host_mask(prefill_config_addition->as<ov::AnyMap>());
+        }
+        ov::npuw::replace_hfa_host_mask(prefill_model, host_mask);
+    }
 
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
