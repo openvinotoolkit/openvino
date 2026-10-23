@@ -190,6 +190,7 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- C#198014 -->
     <skip_config>
         <message>MODEL_PTR is reported as RW but cannot be set outside compiled model import</message>
         <filters>
