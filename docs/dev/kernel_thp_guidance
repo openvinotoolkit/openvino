@@ -1,0 +1,86 @@
+OpenVINO Version
+Master Branch
+
+Operating System
+Ubuntu 22.04 (LTS)
+
+Device used for inference
+CPU
+
+OpenVINO installation
+PyPi
+
+Programming Language
+Python
+
+Hardware Architecture
+x86 (64 bits)
+
+Model used
+BERT/YOLO
+
+Model quantization
+Yes
+
+Target Platform
+My platform in use was the Intel Developer Cloud (IDC) with 8 GPUs and CPU cores connected.
+This issue was first observed from a workshop I was attending. I continued to resolve the issue after completing the workshop.
+
+Performance issue description
+Summary
+This pull request introduces documentation and system-level guidance relevant to a kernel-level performance fix that significantly improves inference throughput and memory efficiency in workloads using Hugging Face Transformers models (e.g., YOLOv5, BERT) with OpenVINO.
+
+During inference testing on Intel Developer Cloud using OpenVINO + ONNX Runtime backends, I observed performance degradation due to memory fragmentation caused by the kernel’s THP alignment logic (Linux kernel commit efa7df3e3bb5).
+
+Problem Statement
+The issue arises when anonymous memory mappings (e.g., model shards or tensor buffers) are forcibly aligned to 2MB (PMD boundary), creating artificial gaps between allocations and preventing Transparent Huge Page (THP) coalescence.
+
+This misalignment:
+
+Increases page faults
+Lowers cache/TLB performance
+Results in significantly higher latency and reduced throughput during inference
+Root Cause
+The kernel commit efa7df3e3bb5 enforced strict PMD alignment for anonymous memory regions ≥2MB.
+
+However, many AI inference workloads use dynamically-sized allocations (e.g., 1.5MB, 1.8MB), which don't benefit from this forced alignment and instead suffer from fragmentation.
+
+Fix (External Patch Reference)
+The fix I proposed and discussed on LKML adjusts this behavior:
+
+Only align memory mappings if their length is exactly divisible by PMD size.
+This prevents gaps, allows contiguous VMAs to merge, and enables THP coalescence via khugepaged.
+🔗 LKML Patch Discussion:
+https://lore.kernel.org/lkml/20231018113455.21723-1-vbabka@suse.cz/
+
+Impact on OpenVINO
+Latency and throughput regressions were observed during YOLOv5 inference with dynamic input sizes.
+The patched alignment logic resolved these issues, restoring >90% THP usage and improving throughput by up to 32x in test scenarios (batch size: 8–32, input length: 64–512 tokens).
+Hugging Face console also reported runtime allocation errors, which were resolved after the patch.
+Contribution Scope
+Since OpenVINO is not directly responsible for kernel behavior, this PR proposes:
+
+Documentation update or developer note (e.g., under performance tuning or inference best practices)
+Guidance for:
+Users deploying on custom Linux builds
+Developers benchmarking dynamic workloads with large model shards
+Kernel configuration awareness (especially for shared memory-based inference)
+I’m happy to align with the core developers to determine the best location (docs, contribs, runtime hinting, or even performance profiling flags).
+
+Checklist
+Root cause validated with kernel patch
+Linked commit and discussion on LKML
+Hugging Face + OpenVINO inference workloads evaluated
+Pending: formal benchmark data once access to Intel Developer Cloud is restored
+Please let me know how best to integrate this — whether it’s a doc section, test harness, or optimization toggle. Looking forward to collaborating further!
+
+Best, Siddhartha Sharma
+Intel Software Innovator | Linux Kernel Contributor
+
+Step-by-step reproduction
+Infer model shards and checkpoints to see the warning on display.
+
+Issue submission checklist
+ I'm reporting a performance issue. It's not a question.
+ I checked the problem with the documentation, FAQ, open issues, Stack Overflow, etc., and have not found a solution.
+ There is reproducer code and related data files such as images, videos, models, etc.
