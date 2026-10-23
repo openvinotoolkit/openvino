@@ -41,6 +41,8 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> EncryptedSchedulesFl
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "EncryptedSchedulesFlagSection::decode");
     const Logger logger("EncryptedSchedulesFlagSection", Logger::global().level());
+    OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG),
+                    "Logic error: the decoder received a section of the wrong type");
 
     const size_t section_length = section.size();
     if (section_length != sizeof(bool)) {

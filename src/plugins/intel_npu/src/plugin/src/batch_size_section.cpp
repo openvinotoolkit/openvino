@@ -38,10 +38,10 @@ void BatchSizeSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
 
 ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> BatchSizeSection::decode =
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
-    // TODO assert the tag of each section is correct
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BatchSizeSection::decode");
     const Logger logger("BatchSizeSection", Logger::global().level());
-    // OPENVINO_ASSERT(section.tag());
+    OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::BATCH_SIZE),
+                    "Logic error: the decoder received a section of the wrong type");
 
     const size_t section_length = section.size();
     if (section_length != sizeof(int64_t)) {

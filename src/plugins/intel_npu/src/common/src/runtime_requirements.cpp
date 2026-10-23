@@ -178,6 +178,8 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> RuntimeRequirementsS
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "RuntimeRequirementsSection::read");
     Logger logger("RuntimeRequirementsSection", Logger::global().level());
+    OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::RUNTIME_REQUIREMENTS),
+                    "Logic error: the decoder received a section of the wrong type");
 
     // TODO make sure the inclusion of a runtime requirements section is optional
     const size_t section_length = section.size();

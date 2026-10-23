@@ -65,6 +65,8 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> IOLayoutsSection::de
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "IOLayoutsSection::decode");
     const Logger logger("IOLayoutsSection", Logger::global().level());
+    OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::IO_LAYOUTS),
+                    "Logic error: the decoder received a section of the wrong type");
 
     const size_t section_length = section.size();
     if (section_length < MINIMUM_LAYOUTS_SECTION_SIZE) {

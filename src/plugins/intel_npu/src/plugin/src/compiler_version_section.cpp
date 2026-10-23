@@ -32,6 +32,8 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> CompilerVersionSecti
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompilerVersionSection::decode");
     const Logger logger("CompilerVersionSection", Logger::global().level());
+    OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::COMPILER_VERSION),
+                    "Logic error: the decoder received a section of the wrong type");
 
     const size_t section_length = section.size();
     if (section_length != sizeof(int32_t)) {
