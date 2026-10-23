@@ -126,6 +126,8 @@ bool requantize_q8_0_channelwise_faithful(const GgufTensor& tensor,
                                           int8_t* out_weights,
                                           ov::float16* out_scales);
 
+void gguf_fill_q5_k_i8(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
+
 // Test-only accessors for the per-row faithful K-quant dequant (see test_dequant_vs_ggml.cpp).
 void dequant_row_q4_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q5_k_f32_for_test(const uint8_t* row, size_t cols, float* y);

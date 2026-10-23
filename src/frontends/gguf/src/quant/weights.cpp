@@ -371,6 +371,10 @@ bool q4_k_f16_zero_point_enabled() {
 
 }  // namespace
 
+bool native_q5_k_is_symmetric(const std::string& name) {
+    return !is_embedding_or_output(name) && ov::util::ends_with(name, ".weight");
+}
+
 void notify_lossy_weight_approximation(LossyWeightApproximation kind) {
     // Written to std::cerr, NOT OPENVINO_WARN: the latter expands to a no-op unless the build sets
     // ENABLE_OPENVINO_DEBUG (cmake/features.cmake defaults it OFF), so in every shipped build it
@@ -382,6 +386,7 @@ void notify_lossy_weight_approximation(LossyWeightApproximation kind) {
     static std::once_flag requant_once;
     static std::once_flag zero_point_once;
     static std::once_flag q5_k_zero_point_once;
+    static std::once_flag q5_k_symmetric_once;
 
     switch (kind) {
     case LossyWeightApproximation::Q8_0_C_REQUANT:
@@ -399,6 +404,15 @@ void notify_lossy_weight_approximation(LossyWeightApproximation kind) {
                          "group-wise to OpenVINO u4. This adds a small quantization error, so results may differ "
                          "slightly from the original GGUF weights. The integer zero-point keeps decompression "
                          "foldable into a compressed FullyConnected operation. Reported once per process."
+                      << std::endl;
+        });
+        break;
+    case LossyWeightApproximation::Q5_K_SYMMETRIC_REQUANT:
+        std::call_once(q5_k_symmetric_once, [] {
+            std::cerr << "[GGUF] accuracy notice: Q5_K matrix weights are faithfully decoded and requantized "
+                         "to symmetric int8 with one f16 scale per 32 weights and no zero point. This adds "
+                         "quantization error, so results may differ from the original GGUF weights. "
+                         "Reported once per process."
                       << std::endl;
         });
         break;
@@ -436,7 +450,11 @@ std::shared_ptr<ov::Node> make_weight_node(const WeightTensors& tensors,
     OPENVINO_ASSERT(tensors.weight, "[GGUF] missing weight tensor: ", name);
     const auto format = get_weight_format(qtype);
     OPENVINO_ASSERT(!format.has_scales() || tensors.scales, "[GGUF] missing scales tensor: ", name);
-    OPENVINO_ASSERT(!format.has_zero_point() || tensors.zero_point, "[GGUF] missing zero-point tensor: ", name);
+    const bool q5_k_i8 =
+        qtype == GGUF_TYPE_Q5_K && tensors.weight.get_element_type() == ov::element::i8 && !tensors.zero_point;
+    OPENVINO_ASSERT(!format.has_zero_point() || tensors.zero_point || q5_k_i8,
+                    "[GGUF] missing zero-point tensor: ",
+                    name);
 
     std::shared_ptr<ov::Node> node;
     if (format.is_plain()) {
@@ -446,6 +464,18 @@ std::shared_ptr<ov::Node> make_weight_node(const WeightTensors& tensors,
         node = (w.get_element_type() == ov::element::f32)
                    ? std::static_pointer_cast<ov::Node>(cnst)
                    : std::make_shared<ov::op::v0::Convert>(cnst, ov::element::f32);
+    } else if (q5_k_i8) {
+        const auto& shape = tensors.weight.get_shape();
+        const auto& scale_shape = tensors.scales.get_shape();
+        OPENVINO_ASSERT(!shape.empty() && scale_shape.size() == shape.size() && shape.back() != 0 &&
+                            shape.back() % 32 == 0 && scale_shape.back() == shape.back() / 32 &&
+                            std::equal(shape.begin(), shape.end() - 1, scale_shape.begin()),
+                        "[GGUF] invalid Q5_K symmetric scale shape: ",
+                        name);
+        OPENVINO_ASSERT(tensors.scales.get_element_type() == ov::element::f16,
+                        "[GGUF] Q5_K symmetric scales must be f16: ",
+                        name);
+        node = make_compressed(tensors, ov::element::i8, false);
     } else if (format.fill == FillKind::MXFP4) {
         node = make_mxfp4(tensors);
     } else {
@@ -513,7 +543,14 @@ FusedQkvPart make_split_part(GgufTensorType qtype,
         part.tensors.scales = slice(get(weights, base + ".scales"));
     }
     if (format.has_zero_point()) {
-        part.tensors.zero_point = slice(get(weights, base + ".zp"));
+        const auto zp = weights.find(base + ".zp");
+        if (zp != weights.end()) {
+            part.tensors.zero_point = slice(zp->second);
+        } else {
+            OPENVINO_ASSERT(qtype == GGUF_TYPE_Q5_K && part.tensors.weight.get_element_type() == ov::element::i8,
+                            "[GGUF] missing zero-point tensor: ",
+                            base);
+        }
     }
     return part;
 }
