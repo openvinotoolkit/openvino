@@ -142,6 +142,7 @@ std::vector<Case> make_cases() {
         numeric_case<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>("NPUW_LLM_MIN_RESPONSE_LEN", "192", uint32_t{192}),
         numeric_case<::intel_npu::NPUW_LLM_MAX_LORA_RANK>("NPUW_LLM_MAX_LORA_RANK", "64", uint32_t{64}),
         bool_case<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>("NPUW_LLM_OPTIMIZE_V_TENSORS", "NO", false),
+        bool_case<::intel_npu::NPUW_LLM_OPTIMIZE_LINCACHE_LAYOUT>("NPUW_LLM_OPTIMIZE_LINCACHE_LAYOUT", "NO", false),
         bool_case<::intel_npu::NPUW_LLM_OPTIMIZE_FP8>("NPUW_LLM_OPTIMIZE_FP8", "YES", true),
         bool_case<::intel_npu::NPUW_LLM_CACHE_ROPE>("NPUW_LLM_CACHE_ROPE", "NO", false),
         enum_case<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>("NPUW_LLM_PREFILL_MOE_HINT", "HOST_ROUTED", "HOST_ROUTED"),
@@ -158,7 +159,7 @@ std::vector<Case> make_cases() {
             "NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS",
             "32",
             uint64_t{32}),
-        bool_case<::intel_npu::NPUW_LLM_ENABLE_CONTINUOUS_PREFILL>("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES", true),
+        bool_case<::intel_npu::NPUW_LLM_ENABLE_CONTINUOUS_PREFILL>("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "NO", false),
         enum_case<::intel_npu::NPUW_LLM_PREFILL_HINT>("NPUW_LLM_PREFILL_HINT", "STATIC", "STATIC"),
         enum_case<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>("NPUW_LLM_PREFILL_ATTENTION_HINT",
                                                                 "DYNAMIC",
@@ -213,6 +214,18 @@ TEST(NPUWConfigOptionsSmokeTest, AttentionHintDefaultsCanDifferPerOption) {
 
     EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>(), "PYRAMID");
     EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>(), "STATIC");
+}
+
+// The scoring tags are ordinary exposed options and must parse and survive a
+// config string round trip like any other.
+TEST(NPUWConfigOptionsSmokeTest, ScoringTagsSurviveConfigStringRoundTrip) {
+    const auto cfg = make_config({{"NPUW_TEXT_RERANK", "YES"}, {"NPUW_TEXT_EMBED", "YES"}});
+
+    ::intel_npu::Config restored(make_options_desc());
+    restored.fromString(cfg.toString());
+
+    EXPECT_TRUE(restored.get<::intel_npu::NPUW_TEXT_RERANK>());
+    EXPECT_TRUE(restored.get<::intel_npu::NPUW_TEXT_EMBED>());
 }
 
 }  // namespace

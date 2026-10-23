@@ -226,13 +226,14 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
 
         // Sub-byte Parameter weights can't be transposed at runtime (permute kernel doesn't support them).
         // Use non-transposed FC layout instead; requires XMX for the oneDNN path.
+        const std::shared_ptr<ov::Node> weights_key = pattern_map.count(weights_m) ? weights_m : std::shared_ptr<ov::Node>(weights_param_m);
         const bool is_parameter_compressed_weight = supports_immad &&
             is_compressed_weight &&
             !transpose_node &&
             !matmul->get_transpose_b() &&
-            pattern_map.count(weights_m) != 0 &&
-            ov::is_type<ov::op::v0::Parameter>(pattern_map.at(weights_m).get_node_shared_ptr()) &&
-            pattern_map.at(weights_m).get_element_type().bitwidth() < 8;
+            pattern_map.count(weights_key) != 0 &&
+            ov::is_type<ov::op::v0::Parameter>(pattern_map.at(weights_key).get_node_shared_ptr()) &&
+            pattern_map.at(weights_key).get_element_type().bitwidth() < 8;
 
         if (is_parameter_compressed_weight) {
             is_small_matmul = false;

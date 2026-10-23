@@ -1323,6 +1323,11 @@ class PagedAttentionOptImpl : public SDPAImplBase {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::PagedAttentionOptImpl)
 
+    // Dispatch (e.g. PREFILL vs MIXED stage) is decided by reading past_lens/subsequence_begins contents
+    bool supports_replay() const override {
+        return false;
+    }
+
     Stage::Ptr kv_cache_update = make_stage<KVCacheUpdateGenerator>();
     Stage::Ptr pa_single_token = make_stage<PagedAttentionGeneratorSingleToken>();
     Stage::Ptr pa_gqa_single_token = make_stage<PagedAttentionGeneratorGQASingleToken>();
@@ -1398,18 +1403,20 @@ public:
         auto& engine = params.get_program().get_engine();
         const auto desc = params.typed_desc<paged_attention>();
 
+        // Knob (OV_GPU_ENABLE_SDPA_MICRO=0): force PagedAttention onto the OCL sdpa_opt path
+        // instead of the oneDNN-derived micro kernel, for accuracy A/B without rebuilding.
+        if (!params.get_program().get_config().get_enable_sdpa_micro()) {
+            GPU_DEBUG_TRACE_DETAIL << "[GPU] PA micro SDPA kernel DISABLED via OV_GPU_ENABLE_SDPA_MICRO=0; "
+                                      "falling back to OCL paged_attention/sdpa_opt kernel.\n";
+            return false;
+        }
+
         if (params.get_device_info().supports_immad) {
             const auto supports_microkernels = cldnn::query_microkernels_supported(engine, params.get_program().get_config());
             if (params.get_device_info().arch < gpu_arch::xe_hpg || !supports_microkernels) {
                 return false;
             }
-            // WA: Disable micro SDPA on xe3p due to oneDNN micro-kernel accuracy / determinism
-            // issues (inf/nan, run-to-run nondeterminism in the generated systolic ugemm). Falls back to
-            // the OCL paged_attention path for all stages where micro SDPA is selectable (PREFILL / MIXED)
-            // and for all KV dtypes.
-            if (params.get_device_info().arch == gpu_arch::xe3p) {
-                return false;
-            }
+
         } else {
             return false;
         }
