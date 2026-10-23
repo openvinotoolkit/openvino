@@ -250,7 +250,7 @@ def test_init_with_roi_tensor():
     ov_tensor1 = ov.Tensor(array)
     ov_tensor2 = ov.Tensor(ov_tensor1, [0, 0, 24, 24], [1, 3, 48, 48])
     assert list(ov_tensor2.shape) == [1, 3, 24, 24]
-    assert ov_tensor2.element_type == ov_tensor2.element_type
+    assert ov_tensor1.element_type == ov_tensor2.element_type
     assert np.shares_memory(ov_tensor1.data, ov_tensor2.data)
     assert np.array_equal(ov_tensor1.data[0:1, :, 24:, 24:], ov_tensor2.data)
 
