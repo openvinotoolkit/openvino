@@ -90,7 +90,15 @@ CPU::CPU() {
                             if (cache_file.is_open()) {
                                 std::getline(cache_file, one_info);
                             } else {
-                                if ((cpu_index == core_1) && (n == 0)) {
+                                // A missing shared_cpu_list (n == 0) for an online CPU means the sysfs
+                                // topology is incomplete for the CPUs this process may run on. This
+                                // happens inside containers with a non-contiguous cpuset (e.g. an LXC
+                                // limited to cores 0,1,2,5,6,7): the masked cores have no
+                                // /sys/devices/system/cpu/cpuN/cache/... entries, so an empty string
+                                // would be stored and later parsed with std::stoi("") -> throws
+                                // "stoi". Bail out to the /proc/cpuinfo based fallback below, which
+                                // handles restricted CPU sets correctly.
+                                if (n == 0) {
                                     system_info_table.clear();
                                     return -1;
                                 }
