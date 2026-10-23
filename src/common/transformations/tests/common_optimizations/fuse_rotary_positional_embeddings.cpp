@@ -527,6 +527,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_PositiveSliceBoundsFused) 
 
 TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_NegativeSliceBoundsNormalizedFused) {
     disable_rt_info_check();
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
     model = make_rope_preprocess_model(-28, -8);
     manager.register_pass<ov::pass::RoPEFusionPreprocess>();
     model_ref = make_rope_fused_model(52, 72);
