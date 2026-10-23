@@ -59,8 +59,8 @@ inline void (FUNC_NAME)(
     uint input_offset = out_b * TILE_IN_B_PITCH + INPUT0_OFFSET;
 #endif
 
-#if COMPRESSED_WEIGHTS_INT4
-    uint weights_offset = out_f * (INPUT_ELEMENTS_COUNT / 2);
+#if COMPRESSED_WEIGHTS_SUB_BYTE
+    uint weights_offset = out_f * (INPUT_ELEMENTS_COUNT / FILTER_ELEMENTS_PER_BYTE);
 #else
     uint weights_offset = out_f * INPUT_ELEMENTS_COUNT;
 #endif
@@ -150,7 +150,7 @@ inline void (FUNC_NAME)(
         ACCUMULATOR_VEC_TYPE acc_tmp[FORCED_TILE_B] = { };
 
         unroll_for(uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K; ++ki) {
-            #if COMPRESSED_WEIGHTS_INT4
+            #if COMPRESSED_WEIGHTS_SUB_BYTE
                 FILTER_PACKED_VEC_TYPE wei_packed = FILTER_BLOCK_READ(weights, weights_offset);
                 wei = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
             #else
@@ -290,7 +290,7 @@ inline void (FUNC_NAME)(
         #undef LOAD_IN_0
         input_offset += TILE_IFM * SIMD - TILE_IN_B_PITCH * FORCED_TILE_B;
         unroll_for(uint ki = 0; ki < CEIL_DIV(LEFTOVER_IFM, TILE_K); ++ki) {
-            #if COMPRESSED_WEIGHTS_INT4
+            #if COMPRESSED_WEIGHTS_SUB_BYTE
                 FILTER_PACKED_VEC_TYPE wei_packed = FILTER_BLOCK_READ(weights, weights_offset);
                 wei = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
             #else
