@@ -10,6 +10,7 @@
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/runtime/debug_configuration.hpp>
 
+#include "impls/ocl_v2/sdpa/sdpa_gen_opt.hpp"
 #include "impls/ocl_v2/sdpa/sdpa_opt.hpp"
 #include "impls/ocl_v2/sdpa/sdpa_ref.hpp"
 #include "openvino/reference/scaled_dot_product_attention.hpp"
@@ -2404,6 +2405,104 @@ TEST(sdpa_gpu_custom, dynamic_mismatched_v_head_size) {
         ASSERT_NEAR(static_cast<float>(output_data[i]), static_cast<float>(ref_output_data[i]), 1e-3f)
             << "Mismatch at index " << i;
     }
+}
+
+TEST(sdpa_gpu_custom, static_mismatched_kv_head_size_multi_token_uses_sg_scale_factor_2) {
+    // The multi-token (prefill) SDPA kernel must keep using SG_SCALE_FACTOR=2 even when K and V
+    // head sizes differ (e.g. k_head_size=16, v_head_size=32).
+    // Unlike `dynamic_mismatched_v_head_size` above,  this test uses *static* shapes and multiple
+    // query tokens so sdpa_opt (not sdpa_ref) is  actually selected and dispatches through
+    // the multi-token kernel, allowing us to catch this kind of dispatch regression.
+    auto& engine = get_test_engine();
+
+    const ov::Shape q_shape{1, 4, 32, 16};   // batch=1, heads=4, seq_len=32, q_head_size=16
+    const ov::Shape k_shape{1, 4, 32, 16};   // k_head_size=16
+    const ov::Shape v_shape{1, 4, 32, 32};   // v_head_size=32 (mismatched vs k/q head size)
+    const size_t v_head_size = v_shape[3];
+
+    auto q_mem = engine.allocate_memory(layout(q_shape, data_types::f16, format::bfyx));
+    auto k_mem = engine.allocate_memory(layout(k_shape, data_types::f16, format::bfyx));
+    auto v_mem = engine.allocate_memory(layout(v_shape, data_types::f16, format::bfyx));
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto fill_random = [&](const memory::ptr& mem) {
+        auto data = rg.generate_random_1d<ov::float16>(mem->get_layout().count(), -1.0f, 1.0f);
+        set_values(mem, data);
+    };
+    fill_random(q_mem);
+    fill_random(k_mem);
+    fill_random(v_mem);
+
+    topology topology;
+    topology.add(input_layout("q", q_mem->get_layout()));
+    topology.add(input_layout("k", k_mem->get_layout()));
+    topology.add(input_layout("v", v_mem->get_layout()));
+    topology.add(scaled_dot_product_attention("sdpa",
+                                              {input_info("q"), input_info("k"), input_info("v")},
+                                              false,
+                                              -1,
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {},
+                                              false));
+    topology.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+    auto run_network = [&](bool force_ref) {
+        ExecutionConfig config = get_test_default_config(engine);
+        if (force_ref) {
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+                {"sdpa", {format::type::bfyx, "sdpa_ref"}}
+            }));
+        }
+        auto network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+        network->set_input_data("q", q_mem);
+        network->set_input_data("k", k_mem);
+        network->set_input_data("v", v_mem);
+        auto output = network->execute().at("result").get_memory();
+        return std::make_pair(network, output);
+    };
+
+    auto [network, output] = run_network(false);
+    auto [ref_network, ref_output] = run_network(true);
+
+    // With unforced implementation selection, this static, multi-token, mismatched K/V head-size
+    // shape must still be handled by the optimized sdpa_opt kernel (not fall back to sdpa_ref).
+    auto sdpa_inst = network->get_primitive("sdpa");
+    ASSERT_EQ(sdpa_inst->get_impl()->m_manager->get_type_info(), ov::intel_gpu::ocl::SDPAOpt::get_type_info_static());
+
+    // Correctness: sdpa_opt output must match the sdpa_ref output.
+    ASSERT_EQ(output->get_layout().get_shape(), ref_output->get_layout().get_shape());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_data(output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_output_data(ref_output, get_test_stream());
+    ASSERT_EQ(output_data.size(), ref_output_data.size());
+    for (size_t i = 0; i < output_data.size(); ++i) {
+        ASSERT_NEAR(static_cast<float>(output_data[i]), static_cast<float>(ref_output_data[i]), 1e-2f)
+            << "Mismatch at index " << i;
+    }
+
+    // Directly verify the restored dispatch logic: the multi-token kernel must still select
+    // SG_SCALE_FACTOR=2 for this head size, regardless of the (mismatched) K head size.
+    const auto sg_scale_factor =
+        ov::intel_gpu::ocl::get_sg_number_scale_factor(engine.get_device_info(), v_head_size, ov::intel_gpu::ocl::SDPAStage::MULTI_TOKENS);
+    ASSERT_EQ(sg_scale_factor, 2U);
+
+    // And verify this is actually what the multi-token dispatch-data function computes for the
+    // exact runtime parameters used by the executed instance, i.e. the generated OpenCL
+    // work-group uses a local Z-dimension of v_head_size * SG_SCALE_FACTOR (aligned to the
+    // subgroup size), not v_head_size * 1.
+    ov::intel_gpu::ocl::SDPAOptGeneratorMultiToken generator(/*indirect=*/false);
+    auto kd = generator.get_kernel_data(*sdpa_inst->get_impl_params());
+    kd.update_dispatch_data_func(*sdpa_inst->get_impl_params(), kd, nullptr);
+
+    const size_t subgroup_size = 16;
+    const size_t expected_local_z = align_to(v_head_size * 2, subgroup_size);
+    const size_t regressed_local_z = align_to(v_head_size * 1, subgroup_size);
+    ASSERT_EQ(kd.params.workGroups.local.size(), 3u);
+    ASSERT_EQ(kd.params.workGroups.local[2], expected_local_z);
+    ASSERT_NE(kd.params.workGroups.local[2], regressed_local_z);
 }
 
 TEST(sdpa_gpu_custom, different_rank_orders_dynamic_v_head_size_rejects_opt) {
