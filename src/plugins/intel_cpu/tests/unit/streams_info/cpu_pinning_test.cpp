@@ -39,6 +39,7 @@ public:
         test_data.input_cpu_pinning = ov::intel_cpu::check_cpu_pinning(test_data.input_cpu_pinning,
                                                                        test_data.input_changed,
                                                                        cpu_reservation,
+                                                                       test_data.input_proc_type_table,
                                                                        test_data.input_stream_info_table);
 
         ASSERT_EQ(test_data.output_cpu_pinning, test_data.input_cpu_pinning);
@@ -47,11 +48,51 @@ public:
 
 TEST_P(CpuPinningTests, CpuPinning) {}
 
+#if defined(__linux__)
+TEST(CpuPinningHybridTests, EnableDefaultPinningWithLpEcores) {
+    const std::vector<std::vector<int>> topologies = {
+        {16, 4, 8, 4, 0, 0, 0},
+        {24, 8, 12, 4, 0, 0, 0},
+        {6, 2, 0, 4, 0, 0, 0},
+    };
+    for (const auto& topology : topologies) {
+        const std::vector<std::vector<int>> proc_type_table = {topology};
+        const int efficient_type = topology[EFFICIENT_CORE_PROC] > 0 ? EFFICIENT_CORE_PROC : LP_EFFICIENT_CORE_PROC;
+        const int efficient_cores = topology[efficient_type];
+        const std::vector<std::vector<int>> streams = {
+            {1, ALL_PROC, topology[MAIN_CORE_PROC] + efficient_cores, 0, 0},
+            {0, MAIN_CORE_PROC, topology[MAIN_CORE_PROC], 0, 0},
+            {0, efficient_type, efficient_cores, 0, 0},
+        };
+        SCOPED_TRACE(::testing::PrintToString(topology));
+        EXPECT_TRUE(ov::intel_cpu::check_cpu_pinning(true, false, false, proc_type_table, streams));
+        EXPECT_TRUE(ov::intel_cpu::check_cpu_pinning(false, false, false, proc_type_table, streams));
+        EXPECT_TRUE(ov::intel_cpu::check_cpu_pinning(true, true, false, proc_type_table, streams));
+        EXPECT_FALSE(ov::intel_cpu::check_cpu_pinning(false, true, false, proc_type_table, streams));
+        EXPECT_TRUE(ov::intel_cpu::check_cpu_pinning(true, false, true, proc_type_table, streams));
+        EXPECT_FALSE(ov::intel_cpu::check_cpu_pinning(false, true, true, proc_type_table, streams));
+    }
+}
+
+TEST(CpuPinningHybridTests, PreserveLegacyDefaultWithoutLpEcores) {
+    const std::vector<std::vector<int>> proc_type_table = {{12, 4, 8, 0, 0, 0, 0}};
+    const std::vector<std::vector<int>> streams = {
+        {1, ALL_PROC, 12, 0, 0},
+        {0, MAIN_CORE_PROC, 4, 0, 0},
+        {0, EFFICIENT_CORE_PROC, 8, 0, 0},
+    };
+    EXPECT_FALSE(ov::intel_cpu::check_cpu_pinning(true, false, false, proc_type_table, streams));
+    EXPECT_TRUE(ov::intel_cpu::check_cpu_pinning(true, true, false, proc_type_table, streams));
+    EXPECT_FALSE(ov::intel_cpu::check_cpu_pinning(false, true, false, proc_type_table, streams));
+    EXPECT_TRUE(ov::intel_cpu::check_cpu_pinning(true, false, true, proc_type_table, streams));
+}
+#endif
+
 CpuPinningTestCase cpu_pinning_macos_mock_set_true = {
     true,                             // param[in]: simulated settting for cpu pinning property
     true,                             // param[in]: simulated settting for user changing cpu pinning property
     {},                               // param[in]: simulated setting for current cpu_mapping_table
-    {{40, 20, 0, 20, 0, 0}},          // param[in]: simulated setting for current proc_type_table
+    {{40, 20, 0, 0, 20, 0, 0}},       // param[in]: simulated setting for current proc_type_table
     {{1, MAIN_CORE_PROC, 20, 0, 0}},  // param[in]: simulated setting for current streams_info_table
     false,                            // param[expected out]: simulated setting for expected output
 };
@@ -59,7 +100,7 @@ CpuPinningTestCase cpu_pinning_macos_mock_set_false = {
     false,
     true,
     {},
-    {{40, 20, 0, 20, 0, 0}},
+    {{40, 20, 0, 0, 20, 0, 0}},
     {{1, MAIN_CORE_PROC, 20, 0, 0}},
     false,
 };
@@ -67,7 +108,7 @@ CpuPinningTestCase cpu_pinning_macos_mock_set_default = {
     true,
     false,
     {},
-    {{40, 20, 0, 20, 0, 0}},
+    {{40, 20, 0, 0, 20, 0, 0}},
     {{1, MAIN_CORE_PROC, 20, 0, 0}},
     false,
 };
@@ -96,7 +137,7 @@ CpuPinningTestCase cpu_pinning_win_mock_set_true = {
         {36, 0, 0, 36, MAIN_CORE_PROC, 36, -1},       {37, 0, 0, 37, MAIN_CORE_PROC, 37, -1},
         {38, 0, 0, 38, MAIN_CORE_PROC, 38, -1},       {39, 0, 0, 39, MAIN_CORE_PROC, 39, -1},
     },
-    {{40, 20, 0, 20, 0, 0}},
+    {{40, 20, 0, 0, 20, 0, 0}},
     {{1, MAIN_CORE_PROC, 20, 0, 0}},
     true,
 };
@@ -129,7 +170,7 @@ CpuPinningTestCase cpu_pinning_win_mock_set_true_2 = {
         {44, 1, 1, 44, MAIN_CORE_PROC, 44, -1}, {45, 1, 1, 45, MAIN_CORE_PROC, 45, -1},
         {46, 1, 1, 46, MAIN_CORE_PROC, 46, -1}, {47, 1, 1, 47, MAIN_CORE_PROC, 47, -1},
     },
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 0, 0}},
     true,
 };
@@ -158,7 +199,7 @@ CpuPinningTestCase cpu_pinning_win_mock_set_false = {
         {36, 0, 0, 36, MAIN_CORE_PROC, 36, -1},       {37, 0, 0, 37, MAIN_CORE_PROC, 37, -1},
         {38, 0, 0, 38, MAIN_CORE_PROC, 38, -1},       {39, 0, 0, 39, MAIN_CORE_PROC, 39, -1},
     },
-    {{40, 20, 0, 20, 0, 0}},
+    {{40, 20, 0, 0, 20, 0, 0}},
     {{1, MAIN_CORE_PROC, 20, 0, 0}},
     false,
 };
@@ -191,7 +232,7 @@ CpuPinningTestCase cpu_pinning_win_mock_set_false_2 = {
         {44, 1, 1, 44, MAIN_CORE_PROC, 44, -1}, {45, 1, 1, 45, MAIN_CORE_PROC, 45, -1},
         {46, 1, 1, 46, MAIN_CORE_PROC, 46, -1}, {47, 1, 1, 47, MAIN_CORE_PROC, 47, -1},
     },
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 0, 0}},
     false,
 };
@@ -220,7 +261,7 @@ CpuPinningTestCase cpu_pinning_win_mock_set_default = {
         {36, 0, 0, 36, MAIN_CORE_PROC, 36, -1},       {37, 0, 0, 37, MAIN_CORE_PROC, 37, -1},
         {38, 0, 0, 38, MAIN_CORE_PROC, 38, -1},       {39, 0, 0, 39, MAIN_CORE_PROC, 39, -1},
     },
-    {{40, 20, 0, 20, 0, 0}},
+    {{40, 20, 0, 0, 20, 0, 0}},
     {{1, MAIN_CORE_PROC, 20, 0, 0}},
     false,
 };
@@ -253,7 +294,7 @@ CpuPinningTestCase cpu_pinning_win_mock_set_default_2 = {
         {44, 1, 1, 44, MAIN_CORE_PROC, 44, -1}, {45, 1, 1, 45, MAIN_CORE_PROC, 45, -1},
         {46, 1, 1, 46, MAIN_CORE_PROC, 46, -1}, {47, 1, 1, 47, MAIN_CORE_PROC, 47, -1},
     },
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 0, 0}},
     false,
 };
@@ -282,7 +323,7 @@ CpuPinningTestCase cpu_pinning_linux_mock_set_true = {
         {36, 0, 0, 36, MAIN_CORE_PROC, 36, -1},       {37, 0, 0, 37, MAIN_CORE_PROC, 37, -1},
         {38, 0, 0, 38, MAIN_CORE_PROC, 38, -1},       {39, 0, 0, 39, MAIN_CORE_PROC, 39, -1},
     },
-    {{40, 20, 0, 20, 0, 0}},
+    {{40, 20, 0, 0, 20, 0, 0}},
     {{1, MAIN_CORE_PROC, 20, 0, 0}},
     true,
 };
@@ -315,7 +356,7 @@ CpuPinningTestCase cpu_pinning_linux_mock_set_true_2 = {
         {44, 1, 1, 44, MAIN_CORE_PROC, 44, -1}, {45, 1, 1, 45, MAIN_CORE_PROC, 45, -1},
         {46, 1, 1, 46, MAIN_CORE_PROC, 46, -1}, {47, 1, 1, 47, MAIN_CORE_PROC, 47, -1},
     },
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 0, 0}},
     true,
 };
@@ -344,7 +385,7 @@ CpuPinningTestCase cpu_pinning_linux_mock_set_false = {
         {36, 0, 0, 36, MAIN_CORE_PROC, 36, -1},       {37, 0, 0, 37, MAIN_CORE_PROC, 37, -1},
         {38, 0, 0, 38, MAIN_CORE_PROC, 38, -1},       {39, 0, 0, 39, MAIN_CORE_PROC, 39, -1},
     },
-    {{40, 20, 0, 20, 0, 0}},
+    {{40, 20, 0, 0, 20, 0, 0}},
     {{1, MAIN_CORE_PROC, 20, 0, 0}},
     false,
 };
@@ -377,7 +418,7 @@ CpuPinningTestCase cpu_pinning_linux_mock_set_false_2 = {
         {44, 1, 1, 44, MAIN_CORE_PROC, 44, -1}, {45, 1, 1, 45, MAIN_CORE_PROC, 45, -1},
         {46, 1, 1, 46, MAIN_CORE_PROC, 46, -1}, {47, 1, 1, 47, MAIN_CORE_PROC, 47, -1},
     },
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 0, 0}},
     false,
 };
@@ -406,7 +447,7 @@ CpuPinningTestCase cpu_pinning_linux_mock_set_default = {
         {36, 0, 0, 36, MAIN_CORE_PROC, 36, -1},       {37, 0, 0, 37, MAIN_CORE_PROC, 37, -1},
         {38, 0, 0, 38, MAIN_CORE_PROC, 38, -1},       {39, 0, 0, 39, MAIN_CORE_PROC, 39, -1},
     },
-    {{40, 20, 0, 20, 0, 0}},
+    {{40, 20, 0, 0, 20, 0, 0}},
     {{1, MAIN_CORE_PROC, 20, 0, 0}},
     true,
 };
@@ -425,7 +466,7 @@ CpuPinningTestCase cpu_pinning_linux_mock_set_default_2 = {
         {16, 0, 0, 10, EFFICIENT_CORE_PROC, 16, -1}, {17, 0, 0, 11, EFFICIENT_CORE_PROC, 17, -1},
         {18, 0, 0, 12, EFFICIENT_CORE_PROC, 18, -1}, {19, 0, 0, 13, EFFICIENT_CORE_PROC, 19, -1},
     },
-    {{20, 6, 8, 6, 0, 0}},
+    {{20, 6, 8, 0, 6, 0, 0}},
     {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
     false,
 };
@@ -458,7 +499,7 @@ CpuPinningTestCase cpu_pinning_linux_mock_set_default_3 = {
         {44, 1, 1, 44, MAIN_CORE_PROC, 44, -1}, {45, 1, 1, 45, MAIN_CORE_PROC, 45, -1},
         {46, 1, 1, 46, MAIN_CORE_PROC, 46, -1}, {47, 1, 1, 47, MAIN_CORE_PROC, 47, -1},
     },
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 0, 0}},
     true,
 };
