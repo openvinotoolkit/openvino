@@ -529,8 +529,10 @@ void detect_legacy_q2_layout(std::vector<GgufFile>& files) {
     std::vector<TensorInfo*> ambiguous_q2;
     bool legacy_g128 = false;
     for (auto& file : files) {
-        auto& [metadata, infos, mapped, alignment, data_off] = file;
-        const uint64_t fsize = mapped->size();
+        auto& infos = file.infos;
+        const auto alignment = file.alignment;
+        const auto data_off = file.data_off;
+        const uint64_t fsize = file.mapped->size();
         std::vector<uint64_t> offsets;
         for (const auto& ti : infos)
             offsets.push_back(ti.offset);
