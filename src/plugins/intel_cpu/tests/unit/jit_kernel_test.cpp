@@ -4,7 +4,12 @@
 
 #include <gtest/gtest.h>
 #include <kernels/x64/jit_kernel.hpp>
+#include <array>
+#include <cstdint>
 #include <random>
+
+#include "utils/bfloat16.hpp"
+#include "utils/cpp/bit_cast.hpp"
 
 using namespace ov::intel_cpu;
 using namespace dnnl::impl;
@@ -403,6 +408,78 @@ TEST(JitKernel, variable_load_and_store) {
         if (mayiuse(cpu_isa_t::sse41)) {
             kernel.test<4, 3, true>();
         }
+    }
+}
+
+struct jit_bf16_conversion_test_kernel {
+    static constexpr size_t vector_size = 8;
+
+    struct Params {
+        const float* src;
+        bfloat16_t* dst;
+    };
+
+    jit_bf16_conversion_test_kernel() {
+        _kernel.init();
+    }
+
+    void operator()(const Params& args) const {
+        _kernel(args);
+    }
+
+private:
+    class kernel_impl : public jit_test_kernel<Params> {
+        void generate() override {
+            preamble();
+
+            auto src_ptr = arg(&Params::src);
+            auto dst_ptr = arg(&Params::dst);
+            auto values = var<float[vector_size]>();
+
+            load(values, src_ptr, vector_size);
+            store(dst_ptr, values, vector_size);
+
+            postamble();
+        }
+    };
+
+    kernel_impl _kernel;
+};
+
+TEST(JitKernel, f32_to_bf16_generic_avx2_rounding_and_nan) {
+    // jit_kernel's load/store emitters use this selected ISA, while the BF16
+    // emitter uses native conversion only when AVX-512 BF16 or AVX2 VNNI-2 is
+    // available. Cap oneDNN with ONEDNN_MAX_CPU_ISA=AVX2 to reach its generic
+    // SIMD conversion branch on newer machines.
+    if (internal::get_current_isa() != cpu_isa_t::avx2 || mayiuse(cpu_isa_t::avx512_core_bf16) ||
+        mayiuse(cpu_isa_t::avx2_vnni_2)) {
+        GTEST_SKIP() << "Run with ONEDNN_MAX_CPU_ISA=AVX2 on an AVX2-capable x86 CPU to test the generic BF16 SIMD fallback";
+    }
+
+    const std::array<uint32_t, jit_bf16_conversion_test_kernel::vector_size> input_bits = {
+        0x3f808001U,  // just above the halfway point
+        0x3f808000U,  // tie; lower BF16 mantissa is even
+        0x3f818000U,  // tie; lower BF16 mantissa is odd
+        0x7f800001U,  // positive NaN with payload only in discarded bits
+        0xff800001U,  // negative NaN with payload only in discarded bits
+        0x7fc12345U,  // positive quiet NaN with retained payload
+        0xffc12345U,  // negative quiet NaN with retained payload
+        0x3f807fffU,  // just below the halfway point
+    };
+    const std::array<uint16_t, jit_bf16_conversion_test_kernel::vector_size> expected_bits = {
+        0x3f81, 0x3f80, 0x3f82, 0x7fc0, 0xffc0, 0x7fc1, 0xffc1, 0x3f80};
+
+    std::array<float, jit_bf16_conversion_test_kernel::vector_size> input{};
+    std::array<bfloat16_t, jit_bf16_conversion_test_kernel::vector_size> output{};
+    for (size_t i = 0; i < input.size(); ++i) {
+        input[i] = ov::intel_cpu::bit_cast<float>(input_bits[i]);
+    }
+
+    jit_bf16_conversion_test_kernel kernel;
+    kernel({input.data(), output.data()});
+
+    for (size_t i = 0; i < output.size(); ++i) {
+        EXPECT_EQ(output[i].to_bits(), expected_bits[i]) << "lane " << i;
     }
 }
 

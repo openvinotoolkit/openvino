@@ -5,6 +5,9 @@
 #include "graph/include/primitive_inst.h"
 #include "test_utils.h"
 
+#include <array>
+#include <cstdint>
+
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
@@ -106,6 +109,62 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
 
     for (int i = 0; i < 16; i++) {
         ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+TEST(custom_gpu_primitive_bf16, software_conversion_rounding_and_nan) {
+    auto& engine = get_test_engine();
+
+    constexpr size_t value_count = 8;
+    auto input = engine.allocate_memory({data_types::u32, format::bfyx, {1, 1, 1, value_count}});
+
+    const std::string kernel_code = R"__krnl(
+        #ifndef OPENVINO_TEST_BF16_SOFTWARE_FALLBACK_SELECTED
+        #error The production BF16 software fallback was not selected
+        #endif
+
+        __kernel void convert_bf16_software(const __global uint* input_bits, __global ushort* output_bits) {
+            const uint idx = get_global_id(0);
+            output_bits[idx] = _convert_bfloat16_as_ushort(as_float(input_bits[idx]));
+        }
+    )__krnl";
+    const std::vector<custom_gpu_primitive::arg_desc> parameters = {
+        {custom_gpu_primitive::arg_input, 0},
+        {custom_gpu_primitive::arg_output, 0},
+    };
+    const layout output_layout = {data_types::u16, format::bfyx, {1, 1, 1, value_count}};
+
+    topology topology;
+    topology.add(input_layout("input_bits", input->get_layout()));
+    topology.add(custom_gpu_primitive("bf16_software_conversion",
+                                      {input_info("input_bits")},
+                                      {kernel_code},
+                                      "convert_bf16_software",
+                                      parameters,
+                                      "-DOPENVINO_TEST_FORCE_BF16_SOFTWARE_CONVERSION=1",
+                                      {output_layout},
+                                      {value_count}));
+
+    set_values(input, {0x3f808001U,  // above halfway rounds up
+                       0x3f808000U,  // halfway, even mantissa stays
+                       0x3f818000U,  // halfway, odd mantissa rounds up
+                       0x3f807fffU,  // below halfway stays down
+                       0x7f800001U,  // positive signaling NaN, payload in discarded bits
+                       0xff800001U,  // negative signaling NaN, payload in discarded bits
+                       0x7fc12345U,  // positive quiet NaN with retained payload
+                       0xffc12345U});  // negative quiet NaN with retained payload
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input_bits", input);
+    const auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    const auto output = outputs.at("bf16_software_conversion").get_memory();
+    const std::array<uint16_t, value_count> expected_bits = {
+        0x3f81, 0x3f80, 0x3f82, 0x3f80, 0x7fc0, 0xffc0, 0x7fc1, 0xffc1};
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+    for (size_t i = 0; i < value_count; ++i) {
+        EXPECT_EQ(output_ptr[i], expected_bits[i]) << "lane " << i;
     }
 }
 

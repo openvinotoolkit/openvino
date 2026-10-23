@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <random>
 #include <sstream>
+#include <string>
 
 #include "common_test_utils/float_util.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
@@ -97,6 +98,12 @@ TEST(bfloat16, round_to_nearest_even) {
     bf_round = bfloat16::round_to_nearest_even(fvalue);
     EXPECT_EQ(bf_round, 0x3F85);
 
+    // Just above the halfway point must round up.
+    fstring = "0  01111111  000 0000 1000 0000 0000 0001";
+    fvalue = ov::test::utils::bits_to_float(fstring);
+    bf_round = bfloat16::round_to_nearest_even(fvalue);
+    EXPECT_EQ(bf_round, 0x3F81);
+
     fstring = "0  01111111  111 1111 1000 0000 0000 0000";
     fvalue = ov::test::utils::bits_to_float(fstring);
     bf_round = bfloat16::round_to_nearest_even(fvalue);
@@ -106,6 +113,43 @@ TEST(bfloat16, round_to_nearest_even) {
     fvalue = ov::test::utils::bits_to_float(fstring);
     bf_round = bfloat16::round_to_nearest_even(fvalue);
     EXPECT_EQ(bf_round, 0x3FFF);
+}
+
+struct BFloat16NaNTestCase {
+    std::string name;
+    const char* bits;
+    uint16_t expected;
+};
+
+class BFloat16NaNTest : public ::testing::TestWithParam<BFloat16NaNTestCase> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    NaNBitPatterns,
+    BFloat16NaNTest,
+    ::testing::Values(
+        // Signaling NaNs whose payload is entirely in the discarded low bits.
+        BFloat16NaNTestCase{"positive_signaling_low_payload", "0  11111111  000 0000 0000 0000 0000 0001", 0x7FC0},
+        BFloat16NaNTestCase{"negative_signaling_low_payload", "1  11111111  000 0000 0000 0000 0000 0001", 0xFFC0},
+        // NaN mantissas near the sign boundary must not carry into sign/exponent.
+        BFloat16NaNTestCase{"positive_nan_near_sign_boundary", "0  11111111  111 1111 1000 0000 0000 0000", 0x7FFF},
+        BFloat16NaNTestCase{"negative_nan_near_sign_boundary", "1  11111111  111 1111 1000 0000 0000 0000", 0xFFFF},
+        // Quiet NaNs retain their sign and the payload bits that fit in BF16.
+        BFloat16NaNTestCase{"positive_quiet_payload", "0  11111111  100 0001 0010 0011 0100 0101", 0x7FC1},
+        BFloat16NaNTestCase{"negative_quiet_payload", "1  11111111  100 0001 0010 0011 0100 0101", 0xFFC1}),
+    [](const testing::TestParamInfo<BFloat16NaNTestCase>& info) {
+        return info.param.name;
+    });
+
+TEST_P(BFloat16NaNTest, round_to_nearest_even_preserves_quiet_nan) {
+    const auto& test_case = GetParam();
+    const auto value = ov::test::utils::bits_to_float(test_case.bits);
+    const auto rounded = bfloat16::round_to_nearest_even(value);
+
+    EXPECT_EQ(rounded, test_case.expected);
+    EXPECT_EQ(rounded & 0x7F80U, 0x7F80U) << "expected a NaN exponent";
+    EXPECT_NE(rounded & 0x007FU, 0U) << "expected a non-zero NaN mantissa";
+    EXPECT_NE(rounded & 0x0040U, 0U) << "expected a quiet NaN";
+    EXPECT_EQ(bfloat16(value).to_bits(), test_case.expected);
 }
 
 TEST(bfloat16, to_float) {
