@@ -346,6 +346,7 @@ def flatten_inputs(inputs, names=None):
 def extract_input_info_from_example(args, inputs):
     try:
         from openvino.frontend.pytorch.utils import pt_to_ov_type_map  # pylint: disable=no-name-in-module,import-error
+        from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
@@ -386,6 +387,20 @@ def extract_input_info_from_example(args, inputs):
             by_name = {ex.name: ex for ex in input_arg if ex.name is not None}
             matched = [by_name.get(desc.name) for desc in args.input]
             used = {id(ex) for ex in matched if ex is not None}
+            if isinstance(args.input_model, TorchScriptPythonDecoder):
+                decoder = args.input_model
+                forward = getattr(decoder.pt_module, "forward", decoder.pt_module)
+                schema = getattr(forward, "schema", None)
+                if schema is not None and len(schema.arguments) == len(decoder.raw_inputs):
+                    # TorchScript schema names and graph debug names identify the same inputs.
+                    aliases = {value.debugName(): argument.name
+                               for argument, value in zip(schema.arguments, decoder.raw_inputs)}
+                    for i, desc in enumerate(args.input):
+                        if matched[i] is None:
+                            ex = by_name.get(aliases.get(desc.name))
+                            if ex is not None and id(ex) not in used:
+                                matched[i] = ex
+                                used.add(id(ex))
             leftover = [ex for ex in input_arg if id(ex) not in used]
             new_input = []
             for desc, ex in zip(args.input, matched):
