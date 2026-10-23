@@ -311,6 +311,13 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
     if (is_constant()) {
         ev = mem_new->copy_from(get_network().get_stream(), *_outputs[idx], false);
     } else {
+        // set_output_memory can replace a pooled producer allocation through
+        // a Result's optimized output chain. Its old pool record must lose
+        // this owner before the caller allocation replaces it.
+        if (_outputs[idx] && !eng.is_the_same_buffer(*_outputs[idx], *mem_new) &&
+            get_node().get_program().get_config().get_enable_memory_pool()) {
+            get_network().get_memory_pool().release_memory(_outputs[idx].get(), get_node().get_unique_id(), id(), get_network_id());
+        }
         _outputs[idx] = mem_new;
         _max_output_layout_count[idx] = mem_new->get_layout().get_linear_size();
         // Replacing the primary output means any borrowed remote permute view is no longer active.
@@ -1076,7 +1083,15 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         if (reorder_inst->is_output() && reorder_inst->output_memory_ptr() && get_network().has_output_remote_memory_ptr(reorder_inst->id()) &&
             get_network().get_engine().is_the_same_buffer(get_network().get_output_remote_memory(reorder_inst->id()), reorder_inst->output_memory())) {
             if (actual_layouts[0].get_linear_size() <= reorder_inst->get_max_output_layout_count()) {
+                // A growing caller output can replace a previously pooled
+                // allocation. Drop this primitive's pool ownership before
+                // borrowing the Result buffer, or old shapes stay resident.
+                if (_outputs[0] && !get_network().get_engine().is_the_same_buffer(*_outputs[0], *reorder_inst->_outputs[0]) &&
+                    get_node().get_program().get_config().get_enable_memory_pool()) {
+                    get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), id(), get_network_id());
+                }
                 this->_outputs[0] = reorder_inst->_outputs[0];
+                _max_output_layout_count[0] = reorder_inst->get_max_output_layout_count();
                 GPU_DEBUG_TRACE_DETAIL << id() << ": use reorder user's remote tensor memory " << this->_outputs[0]->buffer_ptr() << std::endl;
                 return;
             }
