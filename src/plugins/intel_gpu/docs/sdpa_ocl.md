@@ -58,7 +58,7 @@ Reachable configurations on Xe2 with XMX and no environment overrides:
 
 | Kernel | Default | With user settings | Compiled, not dispatched |
 |---|---|---|---|
-| `sdpa_ocl` | PA PREFILL f16 (MICRO_MATH=1); PA MIXED i8/u4 BY_CHANNEL token-major with raw f16 Kc/Vc; plain SDPA f16 prefill and single-token | PA MIXED f16 and i8 BY_TOKEN d-major; plain i8 KV compression (always asymmetric + planar); plain bf16; token-major f16/i8 BY_TOKEN (`OV_GPU_PA_K_TOKEN_MAJOR=1`) | d-major BY_CHANNEL MIXED, plain int4 |
+| `sdpa_ocl` | PA PREFILL f16 (MICRO_MATH=1 except `d_max` 512); PA MIXED i8/u4 BY_CHANNEL token-major with raw f16 Kc/Vc; plain SDPA f16 prefill and single-token | PA MIXED f16 and i8 BY_TOKEN d-major; plain i8 KV compression (always asymmetric + planar); plain bf16; token-major f16/i8 BY_TOKEN (`OV_GPU_PA_K_TOKEN_MAJOR=1`) | d-major BY_CHANNEL MIXED, plain int4 |
 | `sdpa_ocl_decode` | PA GENERATE i8/u4 BY_CHANNEL token-major | f16 and i8 BY_TOKEN (`OV_GPU_PA_K_TOKEN_MAJOR=1`) | — |
 
 ### xe_hpg bring-up (DG2, SG8)
@@ -252,7 +252,7 @@ follows the stage, which is why `get_query_block_size()` takes it.
 | 64 | 16 x 64, 8 x 2 | 128 x 128 | `xehpc_h64`, same | 53,760 B |
 | 128 | 16 x 64, 16 x 2 | 256 x 128 | `xehpc_h128`, same | 107,008 B |
 | 256 | 16 x 32, 8 x 4 | 128 x 128 | `xehpc_h256`, same | 102,912 B |
-| 512 | 16 x 16, 8 x 4 | 128 x 64 | `xehpc_h512`: 256 x 64 from 32-key tiles | 84,224 B |
+| 512 | 32 x 16, 8 x 4 | 256 x 64 | `xehpc_h512`, same | 100,608 B |
 
 At `d_max` 128 the 128 x 32 table tile reads every K/V row once per 32 queries, 4x as often as this tile, and its
 loop has a quarter of the DPAS per barrier. On qwen3-8b (32/8 heads, head 128, u4 cache, B70, 2800
@@ -310,20 +310,44 @@ head 256 with a 512-token window and 7 global layers of head 512) its 512 layers
 at 8K against `sdpa_micro`'s 9.15 ms (3.8x), and the first token was 2.27x master's at 32K. 256 GRF
 alone brought the table tile to 1.03x, and the 128 x 64 tile with the loop changes except `PREFETCH_V`
 to 0.94x. `PREFETCH_V` on its own made that tile 10% slower (a 128-key tile of 512-channel V rows is
-128 KiB), so `v_prefetch` is set for `d_max` <= 256 only. `xehpc_h512`'s 256 x 64 workgroup needs
-32-key subgroup tiles, or 16 x 4 subgroups of 16 keys = 1,024 work-items, which a 256 GRF kernel cannot
-dispatch (`CL_INVALID_WORK_GROUP_SIZE`). The tile keeps the table's 128-key workgroup and 64-value S*V
-tile, so the online-softmax rescale points and the accumulation order are the table's: the gemma-4-e2b
+128 KiB), so `v_prefetch` is set for `d_max` <= 256 only. That first tile was 128 x 64 because `xehpc_h512`'s
+256 x 64 workgroup needs 32-key subgroup tiles, then a known issue, or 16 x 4 subgroups of 16 keys = 1,024
+work-items, which a 256 GRF kernel cannot dispatch (`CL_INVALID_WORK_GROUP_SIZE`). It kept the table's 128-key
+workgroup and 64-value S*V tile, so the online-softmax rescale points and the accumulation order were the table's: the gemma-4-e2b
 32-token output MD5 equals the table tiling's in 20 of 20 runs, and `SDPA_OCL_MICRO_MATH=0`, which there
 changes only the 512 layers, changes it. Per call against `sdpa_micro` at 2K / 4K / 8K / 16K / 32K:
 1.006x / 0.956x / 0.931x / 0.962x / 1.012x.
+
+The `d_max` 512 tile is now `xehpc_h512`'s 256 x 64 from 32-key subgroup tiles, without `MICRO_MATH` (`micro_math`
+false in `solve_pa_prefill_tiling()`). `MICRO_MATH`'s second S*V accumulator cost the 128 x 64 tile 22% and the
+256 x 64 one 21-26%: per subgroup the output tile is 512 values x 64 queries / 32 subgroups = 64 GRF, `A_tile1` is
+another 64, and the ISA showed the S*V loop waiting on every V block read right after issuing it, where without
+`A_tile1` it reads V one or two key blocks ahead (loop 1,021 vs 790 instructions, spill 1,344 B vs 0, 128 x 64 tile).
+Splitting the S*V into value-block groups keeps the result and removes the spill but halves the independent DPAS
+chains: 2 groups 5.7% faster at 8K and 0.5% at 32K (3.7% slower at 32K on the 256 x 64 tile), 4 groups 16% slower, so
+not used. With `SDPA_OCL_MICRO_MATH=1` the 256 x 64 tile's output is bit-identical to `sdpa_micro`'s on the three
+windowless head 512 rows below (8.0 M elements), which rules out an indexing fault of the 32-key tiles there; without
+it 301 to 5,384 elements differ by at most 3.05e-5, against 10% of them with 128-key tiles. Error against the CPU
+reference is unchanged: max 1.2e-4 / 2.4e-4 (one f16 step). `{300, 457}` 8/2 and a sharp-softmax `{600}` 8/1 row
+(`logit_scale_gain` 128) were added; with the alpha rescale removed (128 x 64 tile) only the sharp row fails (0.09),
+the near-uniform softmax of the others stays under 2e-3. `PREFETCH_V` makes the 256 x 64 tile 2-13% slower. Per call
+against `sdpa_micro` (gemma-4-e2b, two rounds):
+
+| `d_max` 512 tile | 2K | 8K | 32K |
+|---|---|---|---|
+| 128 x 64, `MICRO_MATH` | 1.000x | 0.940x | 1.012x |
+| 128 x 64 | 0.788x | 0.733x | 0.816x |
+| 256 x 64, `MICRO_MATH` | 0.897x | 0.790x | 0.841x |
+| 256 x 64 | 0.718x | 0.644x | 0.694x |
 
 The daily models, B70 at 2800 MHz (llm_bench `-n 3`, 32 output tokens; kernel = `sdpa_ocl` / `sdpa_micro` PREFILL
 device time per prefill from cliloader; 2K / 4K / 8K / 16K / 32K prompts, gemma-2 to 8K and llama-2 to 4K by their
 context; before = this branch without these tilings). The MD5 column runs `TEST_USE_SDPA_OCL_DECODE=0`; equality is not
 expected with a window, a sink or token types, which `MICRO_MATH` excludes, and qwen3.5 / 3.6 already differ between two
 master runs. (b) master also runs a `ref_matmul` this branch does not; against the branch before these tilings it is
-0.992 / 0.988 / 0.972 / 0.948 / 0.874.
+0.992 / 0.988 / 0.972 / 0.948 / 0.874. (c) with the 256 x 64 `d_max` 512 tile; with the 128 x 64 one and `MICRO_MATH` the
+kernel column was 0.777/0.838/0.873/0.926/0.992 and 0.506/0.565/0.689/0.809/0.932, and the TTFT column, measured again
+in the same session, 0.970/0.981/0.977/0.979/0.977 and 0.886/0.904/0.931/0.940/0.960.
 
 | Model | Heads, head | Kernel vs `sdpa_micro` | TTFT vs master | Before, vs master | MD5 = master |
 |---|---|---|---|---|---|
@@ -344,18 +368,13 @@ master runs. (b) master also runs a `ref_matmul` this branch does not; against t
 | gemma-3-4b-it | 8/4, 256, window, token types | 0.543/0.554/0.555/0.655/0.580 | 0.927/0.966/0.928/0.928/0.904 | 0.946/0.964/0.953/0.965/0.972 | not expected |
 | qwen3.5-9b | 16/4, 256 (8 of 32 layers) | 0.831/0.820/0.816/0.807/0.827 | 0.989/0.994/0.991/0.984/0.970 | 0.991/1.004/1.011/1.023/1.054 | master varies |
 | qwen3.6-35b-a3b | 16/2, 256 (10 of 40 layers) | 0.822/0.824/0.809/0.809/0.823 | 0.796/0.867/0.913/0.734/0.905 (b) | 0.802/0.878/0.939/0.774/1.035 | master varies |
-| gemma-4-e2b-it | 8/1, 256 window + 512 | 0.777/0.838/0.873/0.926/0.992 | 0.968/0.985/0.982/0.977/0.979 | 1.032/1.104/1.249/1.592/2.271 | not expected |
-| gemma-4-26b-a4b-it | 16/8, 256 window + 512 | 0.506/0.565/0.689/0.809/0.932 | 0.886/0.909/0.934/0.938/0.959 | 0.931/1.014/1.197/1.519/2.203 | not expected |
+| gemma-4-e2b-it (c) | 8/1, 256 window + 512 | 0.703/0.699/0.669/0.661/0.697 | 0.966/0.966/0.954/0.927/0.888 | 1.030/1.115/1.252/1.588/2.260 | not expected |
+| gemma-4-26b-a4b-it (c) | 16/8, 256 window + 512 | 0.494/0.521/0.600/0.638/0.708 | 0.883/0.895/0.911/0.900/0.881 | 0.927/1.010/1.194/1.521/2.205 | not expected |
 
 Measured and not adopted, at 8K: K-tile prefetch (next tile +0.2%, first tile +0.4%), skipping the
 `k_mask` add (0%), reversed workgroup order to start the long query blocks first (0% at 8K, +0.7%
 at 32K), a 32 values x 16 scores S*V split as `sdpa_micro`'s (+4.7%), one load per row for the
-epilogue sums (+2%, +6.6% at 2K). At `d_max` 512, `xehpc_h512`'s own tiling (32 x 16 subgroup tiles, 8 x 4,
-one query block per subgroup) measured 0.89x / 0.79x / 0.84x `sdpa_micro` per call at 2K / 8K / 32K on
-gemma-4-e2b; it is not used while the `SDPA_OCL_KQ_TILE_KEYS=32` issue under "Known issues" is open.
-`SDPA_OCL_MICRO_MATH=0` on the shipped `d_max` 512 tile measured 0.78x / 0.73x / 0.81x and removed its 1,344 B spill (one
-round each); it changes the rounding of those layers, which this tile cannot make `sdpa_micro`'s anyway, and is left for a
-follow-up with its own accuracy check.
+epilogue sums (+2%, +6.6% at 2K).
 
 ### Kernel flow
 
@@ -377,7 +396,8 @@ follow-up with its own accuracy check.
 
 `MICRO_MATH=1` (PA PREFILL f16 without sink/alibi/sliding window/token_type_ids) reproduces
 `sdpa_micro`'s rounding: raw maxima subtracted before scaling, keys summed in order, and each S*V
-key tile accumulated from zero and added afterwards (`A_tile1`), as `ugemm_vs` does.
+key tile accumulated from zero and added afterwards (`A_tile1`), as `ugemm_vs` does. The `d_max` 512 PREFILL
+tile runs without it (see "Paged-attention PREFILL tiling").
 
 The alpha rescale selects `alpha[alpha_qb]` with a select chain: `alpha_qb` comes from `sg_ij`, a
 runtime value, and a runtime-indexed private array is moved to scratch. On the llama-3.2-1b MIXED
@@ -798,7 +818,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_Q_2D`, `_KV_2D`, `_A_2D`, `_K_I8_2D`, `_V_I8_2D` | Plain-SDPA block IO paths |
 | `SDPA_OCL_K_PA_2D`, `_V_PA_2D`, `_K_PA_I8_2D`, `_V_PA_I8_2D`, `_K_PA_1D`, `_V_PA_1D` | Cache page read paths (`0` = scalar gather, same dequant) |
 | `SDPA_OCL_PA_CUR_F16` | MIXED current tokens from Kc/Vc (`0` = from the cache) |
-| `SDPA_OCL_MICRO_MATH` | `0` disables `sdpa_micro` rounding on PA prefill |
+| `SDPA_OCL_MICRO_MATH` | `0` / `1` forces `sdpa_micro` rounding off / on for PA prefill (default on except the `d_max` 512 tile) |
 | `SDPA_OCL_BIDIR`, `SDPA_OCL_BIDIR_GATE` | Negative controls for the image-group mask and its empty-buffer gate |
 | `SDPA_OCL_DECODE_M`, `_SG_PER_WG`, `_PREFETCH`, `_K_2D`, `_V_2D` | Decode tuning and block IO paths |
 | `OV_GPU_PA_K_TOKEN_MAJOR`, `OV_GPU_PA_BY_CHANNEL_TOKEN_MAJOR` | K cache layout staging switches |
@@ -831,12 +851,15 @@ result is quoted.
   constant scale and never reach it. `paged_attention_runtime_scale_test` is skipped below Xe2 because of it.
 - `sdpa_micro` still jits `SCALE_DATA_T` as `half` (`sdpa_gen_micro.cpp`, `sdpa_micro.cl`), so a bf16 or
   f32 runtime scale input would be misread there. `sdpa_ocl` types the scale from its layout.
-- `SDPA_OCL_KQ_TILE_KEYS=32` gives wrong results when `kq_sg_per_wg_keys >= 4` and a subgroup has
-  two query blocks (`kq_sg_tile_queries = 32`): deterministically, the first query block is right
-  and the second is not. It survives every memory-path switch and `SDPA_OCL_256GRF=1`, so the fault
-  is in the indexing rather than the loads, and it has not been found. The tuned tables always use
-  16 keys, so only the override reaches it (last reproduced 2026-09-10 on
-  `paged_attention_test.basic/31`).
+- `SDPA_OCL_KQ_TILE_KEYS=32` gave wrong results when `kq_sg_per_wg_keys >= 4` and a subgroup had
+  two query blocks (`kq_sg_tile_queries = 32`): deterministically, the first query block was right
+  and the second was not (last reproduced 2026-09-10 on `paged_attention_test.basic/31`). It no
+  longer reproduces (2026-10-24): basic/31 and a sharp-softmax copy pass with the failing tilings
+  (32 x 32 subgroup tiles, 4 or 8 key subgroups, 1 or 2 query subgroups) with `MICRO_MATH` 0 and 1,
+  and the outputs differ by tiling only in rounding. The harness data predates the failure, so a
+  change between 2026-09-10 and 2026-09-25 fixed it; which one was not found. The `d_max` 512
+  PREFILL tile has used 32-key tiles since, checked bit for bit against `sdpa_micro` ("Paged-attention
+  PREFILL tiling").
 
 ### Latent
 
