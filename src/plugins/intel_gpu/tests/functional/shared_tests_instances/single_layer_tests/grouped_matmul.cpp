@@ -29,8 +29,8 @@ protected:
         const bool has_zero_point = (subtract_type != DecompressionType::empty);
 
         auto runtime_model = compiledModel.get_runtime_model();
-        auto nodes = ov::test::GetNodesWithTypes(runtime_model, {"FullyConnected", "grouped_matmul"});
-        ASSERT_FALSE(nodes.empty()) << "No FullyConnected or grouped_matmul node found in the runtime model";
+        auto nodes = ov::test::GetNodesWithTypes(runtime_model, {"FullyConnected", "grouped_matmul", "Gemm"});
+        ASSERT_FALSE(nodes.empty()) << "No FullyConnected, grouped_matmul, or Gemm node found in the runtime model";
 
         for (const auto& n : nodes) {
             const auto& rt = n->get_rt_info();
