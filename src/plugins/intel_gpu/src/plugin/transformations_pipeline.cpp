@@ -597,8 +597,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     }
 
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
-    const ov::element::TypeVector supported_woq_types =
-        {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u2};
+    // The int3 FC kernel quantizes activations to int8 in-kernel and needs SIMD16 DPAS (Xe2+). u3 weights are kept
+    // compressed only when dynamic quantization is allowed and the device is Xe2 or newer; otherwise they are
+    // decompressed and the f16 path is used (group size 0, GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX below the group
+    // size, or pre-Xe2 such as DG2).
+    const bool dyn_quan_allowed = config.get_dynamic_quantization_group_size() != 0 &&
+                                  config.get_dynamic_quantization_group_size_max() >= config.get_dynamic_quantization_group_size();
+    ov::element::TypeVector supported_woq_types = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u2};
+    if (dyn_quan_allowed && device_info.arch >= cldnn::gpu_arch::xe2) {
+        supported_woq_types.push_back(ov::element::u3);
+    }
     bool enableInt8;
     bool unroll_loop = config.get_enable_loop_unrolling();
     const bool disable_gated_mlp_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_gated_mlp_fusion(), true);
@@ -683,8 +691,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::TransposeMatMul>();
 
-        manager.register_pass<ov::pass::MarkDequantization>(std::vector<ov::element::Type>{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u2},
-                                                            !device_info.supports_immad);
+        manager.register_pass<ov::pass::MarkDequantization>(supported_woq_types, !device_info.supports_immad);
         if (config.get_use_onednn() && m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe3p) {
             manager.register_pass<ov::pass::MarkDequantization>(
                 std::vector<ov::element::Type>{ov::element::f8e4m3, ov::element::f8e5m2, ov::element::f4e2m1, ov::element::f8e8m0},
@@ -1884,6 +1891,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         return true;
                     }
                 }
+                // u3 FCs run on the ocl_v2 int3 FC, which quantizes activations in-kernel
+                // and cannot take DynamicQuantize output.
+                if (root->get_input_element_type(1) == ov::element::u3 && root->get_input_partial_shape(1).size() == 2) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: u3 weights are handled in-kernel"
+                                    << std::endl;
+                    return true;
+                }
+
                 uint64_t adj_group_size = dynamic_quantization_group_size;
                 const bool is_wei_i8u8 = cldnn::one_of(root->get_input_element_type(1), {ov::element::i8, ov::element::u8});
                 if (ov::intel_gpu::DynamicQuantizeFullyConnected::ShouldUseGs128(is_wei_i8u8, use_gs128_for_int8_per_token, adj_group_size, use_gs128_for_linear_attention)) {
