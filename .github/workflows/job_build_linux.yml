@@ -31,6 +31,11 @@ on:
         description: 'A string of options passed to CMake'
         type: string
         required: true
+      sccache-key-prefix:
+        description: 'Optional SCCACHE_AZURE_KEY_PREFIX override; the default prefix derived from os/arch/build-variant is used when empty'
+        type: string
+        required: false
+        default: ''
       build-js:
         description: 'Whether to build OpenVINO JS Bindings'
         type: boolean
@@ -139,7 +144,7 @@ jobs:
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/openvino/install/wheels
       DEVELOPER_PACKAGE_DIR: ${{ github.workspace }}/openvino/developer_package_install
       BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
-      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_Release
+      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.sccache-key-prefix != '' && inputs.sccache-key-prefix || format('{0}_{1}{2}_Release', inputs.os, inputs.arch, inputs.build-variant && format('_{0}', inputs.build-variant) || '') }}
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_release

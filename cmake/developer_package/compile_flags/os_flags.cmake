@@ -190,6 +190,22 @@ else()
     # Linker flags
     #
 
+    # lld is several times faster than GNU ld on this tree. CI images and
+    # cross builds keep their existing linker; an explicit CMAKE_LINKER_TYPE
+    # also wins. CMake 3.29+ maps LLD to -fuse-ld=lld for GNU/Clang.
+    if(NOT APPLE AND NOT EMSCRIPTEN
+            AND NOT CMAKE_CROSSCOMPILING
+            AND NOT DEFINED ENV{CI}
+            AND NOT DEFINED ENV{CI_BUILD_NUMBER}
+            AND NOT CMAKE_LINKER_TYPE
+            AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.29
+            AND (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR OV_COMPILER_IS_CLANG))
+        find_program(OV_LLD_LINKER NAMES ld.lld ld.lld-20 ld.lld-18 ld.lld-15 ld.lld-14)
+        if(OV_LLD_LINKER)
+            set(CMAKE_LINKER_TYPE "LLD" CACHE STRING "Linker type used for local builds")
+        endif()
+    endif()
+
     if(APPLE)
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,-dead_strip")
