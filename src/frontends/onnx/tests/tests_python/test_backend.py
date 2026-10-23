@@ -60,7 +60,6 @@ from tests import (
     xfail_issue_139936,
     xfail_issue_171767,
     xfail_issue_171771,
-    xfail_attention_onnx_version,
     xfail_attention_nan_robustness,
     xfail_issue_onnx122_linearattention,
     xfail_issue_onnx122_causalconv,
@@ -72,6 +71,13 @@ from tests import (
     xfail_issue_onnx122_newdtype,
     xfail_issue_onnx122_accuracy,
     xfail_issue_onnx122_cast_infinity,
+    xfail_issue_onnx123_swiglu,
+    xfail_issue_onnx123_celu,
+    xfail_issue_onnx123_mod,
+    xfail_issue_onnx123_bitshift,
+    xfail_issue_onnx123_bfloat16,
+    xfail_issue_onnx123_attention,
+    xfail_issue_onnx123_spacetodepth,
 )
 from tests.tests_python.utils.onnx_backend import OpenVinoTestBackend
 
@@ -509,53 +515,10 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_top_k_same_values_largest_cpu",
     ),
     (
-        xfail_attention_onnx_version,
-        # Pass locally with ONNX >= 1.23
-        "OnnxBackendNodeModelTest.test_attention_3d_attn_mask_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_causal_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_diff_heads_sizes_attn_mask_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_diff_heads_sizes_causal_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_diff_heads_sizes_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_diff_heads_sizes_scaled_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_diff_heads_sizes_softcap_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_diff_heads_with_past_and_present_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_gqa_attn_mask_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_gqa_causal_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_gqa_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_gqa_scaled_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_gqa_softcap_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_gqa_with_past_and_present_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_scaled_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_softcap_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_with_past_and_present_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_with_past_and_present_qk_matmul_bias_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_with_past_and_present_qk_matmul_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_with_past_and_present_qk_matmul_softcap_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_with_past_and_present_qk_matmul_softmax_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_gqa_attn_mask_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_gqa_causal_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_gqa_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_gqa_scaled_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_gqa_softcap_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_gqa_with_past_and_present_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_with_past_and_present_qk_matmul_bias_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_with_qk_matmul_bias_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_with_qk_matmul_softcap_cpu",
-    ),
-    (
-        xfail_attention_onnx_version,
-        # These 4 tests pass locally with ONNX >= 1.23
-        # They are skipped in CI because ONNX 1.18 does not provide correct reference values for opset-23/24 tests.
-        "OnnxBackendNodeModelTest.test_attention_23_fullymasked_qk_matmul_output_mode3_zero_cpu",
-        "OnnxBackendNodeModelTest.test_attention_24_fullymasked_qk_matmul_output_mode3_zero_cpu",
-        "OnnxBackendNodeModelTest.test_attention_24_qk_matmul_output_mode3_softmax_precision_cpu",
-        "OnnxBackendNodeModelTest.test_attention_23_boolmask_fullymasked_row_nan_robustness_cpu",
-    ),
-    (
         xfail_attention_nan_robustness,
         # expanded variants use the ONNX reference decomposition (not our translator) and do not yet pass.
         "OnnxBackendNodeModelTest.test_attention_23_boolmask_fullymasked_row_nan_robustness_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_attention_causal_boolmask_nan_robustness_expanded_cpu",
         "OnnxBackendNodeModelTest.test_attention_23_fullymasked_qk_matmul_output_mode3_zero_expanded_cpu",
         "OnnxBackendNodeModelTest.test_attention_24_fullymasked_qk_matmul_output_mode3_zero_expanded_cpu",
         "OnnxBackendNodeModelTest.test_attention_24_qk_matmul_output_mode3_softmax_precision_expanded_cpu",
@@ -744,7 +707,7 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_onnx122_cast_infinity,
-        # Plain float-width casts: ONNX 1.22 changed the reference so double/float ->
+        # Plain float-width casts: ONNX 1.22+ changed the reference so double/float ->
         # narrower-float overflow yields +/-inf, while the OV Cast saturates to +/-FLT_MAX.
         # Non-strict (infinity handling in OV core): tolerated whether they pass or fail.
         "OnnxBackendNodeModelTest.test_cast_DOUBLE_to_FLOAT_cpu",
@@ -762,7 +725,7 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_onnx122_accuracy,
-        # float8 Cast/CastLike variants and other ONNX 1.22 reference-data mismatches.
+        # float8 Cast/CastLike variants and other ONNX 1.22+ reference-data mismatches.
         "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT8E4M3FN_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT8E4M3FN_expanded_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT8E5M2_cpu",
@@ -782,6 +745,84 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_nonmaxsuppression_iou_threshold_boundary_cpu",
         "OnnxBackendNodeModelTest.test_range_bfloat16_type_positive_delta_cpu",
         "OnnxBackendNodeModelTest.test_range_bfloat16_type_positive_delta_expanded_cpu",
+    ),
+    (
+        xfail_issue_onnx123_swiglu,
+        # SwiGLU-28 is a new op in ONNX opset 28; the expanded variants decompose and pass.
+        "OnnxBackendNodeModelTest.test_swiglu_alpha_cpu",
+        "OnnxBackendNodeModelTest.test_swiglu_cpu",
+        "OnnxBackendNodeModelTest.test_swiglu_float16_cpu",
+    ),
+    (
+        xfail_issue_onnx123_celu,
+        # Celu-28 conversion fails for bfloat16/float16 inputs.
+        "OnnxBackendNodeModelTest.test_celu_bfloat16_cpu",
+        "OnnxBackendNodeModelTest.test_celu_bfloat16_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_celu_float16_cpu",
+    ),
+    (
+        xfail_issue_onnx123_mod,
+        # Mod-28 conversion fails for fmod float edge cases and mixed-sign fmod by zero.
+        "OnnxBackendNodeModelTest.test_mod_float_edge_cases_fmod_0_float16_cpu",
+        "OnnxBackendNodeModelTest.test_mod_float_edge_cases_fmod_0_float32_cpu",
+        "OnnxBackendNodeModelTest.test_mod_float_edge_cases_fmod_0_float64_cpu",
+        "OnnxBackendNodeModelTest.test_mod_float16_mixed_sign_fmod_0_cpu",
+        "OnnxBackendNodeModelTest.test_mod_float32_mixed_sign_fmod_0_cpu",
+        "OnnxBackendNodeModelTest.test_mod_float64_mixed_sign_fmod_0_cpu",
+    ),
+    (
+        xfail_issue_onnx123_bitshift,
+        # BitShift reference-data mismatch for overflow / negative / shift >= bit-width edge cases.
+        "OnnxBackendNodeModelTest.test_bitshift_left_int32_shift_ge_width_cpu",
+        "OnnxBackendNodeModelTest.test_bitshift_left_int8_overflow_cpu",
+        "OnnxBackendNodeModelTest.test_bitshift_left_int8_shift_ge_width_cpu",
+        "OnnxBackendNodeModelTest.test_bitshift_right_int32_negative_input_cpu",
+        "OnnxBackendNodeModelTest.test_bitshift_right_int32_negative_shift_cpu",
+        "OnnxBackendNodeModelTest.test_bitshift_right_int32_shift_ge_width_cpu",
+        "OnnxBackendNodeModelTest.test_bitshift_right_int8_negative_input_cpu",
+        "OnnxBackendNodeModelTest.test_bitshift_right_int8_negative_shift_cpu",
+        "OnnxBackendNodeModelTest.test_bitshift_right_int8_shift_ge_width_cpu",
+    ),
+    (
+        xfail_issue_onnx123_bfloat16,
+        # bfloat16 data-type handling / accuracy mismatch (dtype returned as uint16).
+        "OnnxBackendNodeModelTest.test_compress_bfloat16_cpu",
+        "OnnxBackendNodeModelTest.test_einsum_batch_matmul_bfloat16_cpu",
+        "OnnxBackendNodeModelTest.test_einsum_sum_bfloat16_cpu",
+        "OnnxBackendNodeModelTest.test_einsum_transpose_bfloat16_cpu",
+        "OnnxBackendNodeModelTest.test_onehot_with_bfloat16_values_cpu",
+        "OnnxBackendNodeModelTest.test_reversesequence_bfloat16_cpu",
+        "OnnxBackendNodeModelTest.test_unique_bfloat16_sorted_without_axis_cpu",
+    ),
+    (
+        xfail_issue_onnx123_attention,
+        # Attention accuracy mismatch for bfloat16 and local/sliding-window variants.
+        "OnnxBackendNodeModelTest.test_attention_3d_causal_bf16_cpu",
+        "OnnxBackendNodeModelTest.test_attention_3d_causal_bf16_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_attention_3d_local_window_cpu",
+        "OnnxBackendNodeModelTest.test_attention_4d_attn_mask_causal_bf16_cpu",
+        "OnnxBackendNodeModelTest.test_attention_4d_attn_mask_causal_bf16_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_attention_4d_causal_bf16_cpu",
+        "OnnxBackendNodeModelTest.test_attention_4d_causal_bf16_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_attention_4d_causal_nonpad_negative_offset_structural_empty_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_attention_4d_causal_padded_kv_bf16_cpu",
+        "OnnxBackendNodeModelTest.test_attention_4d_causal_padded_kv_bf16_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_attention_4d_padded_kv_bf16_cpu",
+        "OnnxBackendNodeModelTest.test_attention_4d_padded_kv_bf16_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_attention_bidirectional_window_cpu",
+        "OnnxBackendNodeModelTest.test_attention_local_window_cpu",
+        "OnnxBackendNodeModelTest.test_attention_local_window_ext_cache_rank2_mask_cpu",
+        "OnnxBackendNodeModelTest.test_attention_local_window_ext_cache_rank3_head_mask_cpu",
+        "OnnxBackendNodeModelTest.test_attention_local_window_ext_cache_rank4_batch_mask_cpu",
+        "OnnxBackendNodeModelTest.test_attention_local_window_gqa_rank4_mask_cpu",
+        "OnnxBackendNodeModelTest.test_attention_local_window_gqa_rank4_mask_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_attention_local_window_rank1_boolean_mask_cpu",
+        "OnnxBackendNodeModelTest.test_attention_local_window_with_past_cpu",
+    ),
+    (
+        xfail_issue_onnx123_spacetodepth,
+        # SpaceToDepth CRD mode reference-data mismatch.
+        "OnnxBackendNodeModelTest.test_spacetodepth_crd_mode_example_cpu",
     ),
 ]
 
