@@ -46,6 +46,10 @@ function(ov_apply_patch)
 
     get_filename_component(_patch_display "${ARG_PATCH}" NAME)
 
+    if(NOT ENABLE_THIRD_PARTY_PATCHING)
+        return()
+    endif()
+
     # Check whether the patch is already applied by attempting a dry-run reverse.
     # Exit code 0  → reverse applies cleanly → patch IS already applied → skip.
     # Exit code ≠ 0 → reverse fails           → patch is NOT yet applied → apply it.

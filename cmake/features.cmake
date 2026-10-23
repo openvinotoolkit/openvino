@@ -271,4 +271,6 @@ if (ENABLE_SNIPPETS_DEBUG_CAPS)
     add_definitions(-DSNIPPETS_DEBUG_CAPS)
 endif()
 
+ov_option(ENABLE_THIRD_PARTY_PATCHING "Enable third-party sources patching when strictly necessary" ON)
+
 ov_print_enabled_features()
