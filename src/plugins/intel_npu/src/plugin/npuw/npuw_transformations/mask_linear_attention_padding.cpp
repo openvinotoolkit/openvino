@@ -19,15 +19,12 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/equal.hpp"
 #include "openvino/op/exp.hpp"
-#include "openvino/op/less.hpp"
 #include "openvino/op/loop.hpp"
-#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/select.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
@@ -201,36 +198,17 @@ std::shared_ptr<opv0::Constant> i64_vector(int64_t value) {
     return i64_const({value}, ov::Shape{1});
 }
 
-// Shared by every conv state with the same history width and precision.
-struct ConvReorder {
-    ov::Output<ov::Node> shift;            // [K, K+L] one-hot, shift[i][j] = (j == pad + i)
-    ov::Output<ov::Node> in_shifted_part;  // [1,1,K+L] true for the first pad + K columns
-};
-
-// The reordered conv input is  [0 x pad | history (K) | real tokens]  of the same width K+L as the Concat.
-// Its first pad + K columns come from the history shifted right by `pad` (all zeros for the first
-// `pad` columns), computed as history[B,C,K] x one-hot[K,K+L] to avoid a data-dependent Gather;
-// the remaining columns are those of the Concat, which already holds the real tokens at the right place.
-ConvReorder make_conv_reorder(const ov::Output<ov::Node>& pad,
-                              size_t kernel,
-                              size_t seq_len,
-                              const ov::element::Type& type) {
-    const size_t width = kernel + seq_len;
-    std::vector<int64_t> columns(width);
-    for (size_t j = 0; j < width; ++j) {
-        columns[j] = static_cast<int64_t>(j);
-    }
-    std::vector<int64_t> rows(kernel);
+// Columns of the conv input that receive the history: pad + [0, K). The real tokens of the chunk start at
+// column K + pad of the Concat, so writing the history there puts it right in front of them:
+//   [h0 h1 h2 h3 | 0 0 x2 x3] -> [h0 h1 h0 h1 h2 h3 x2 x3]  (K = 4, L = 4, pad = 2).
+// The leading `pad` columns keep whatever they held: they only reach the convolution outputs of the padded
+// positions, which are identity steps for the ssm state and are masked out everywhere else.
+ov::Output<ov::Node> make_history_columns(const ov::Output<ov::Node>& pad, size_t kernel) {
+    std::vector<int64_t> offsets(kernel);
     for (size_t i = 0; i < kernel; ++i) {
-        rows[i] = static_cast<int64_t>(i);
+        offsets[i] = static_cast<int64_t>(i);
     }
-    const auto column = i64_const(columns, ov::Shape{1, width});
-    const auto target = std::make_shared<opv1::Add>(pad, i64_const(rows, ov::Shape{kernel, 1}));
-    const auto shift = std::make_shared<opv0::Convert>(std::make_shared<opv1::Equal>(column, target), type);
-
-    const auto history_end = std::make_shared<opv1::Add>(pad, i64_scalar(static_cast<int64_t>(kernel)));
-    const auto in_shifted_part = std::make_shared<opv1::Less>(i64_const(columns, ov::Shape{1, 1, width}), history_end);
-    return {shift->output(0), in_shifted_part->output(0)};
+    return std::make_shared<opv1::Add>(pad, i64_const(offsets, ov::Shape{kernel}))->output(0);
 }
 
 }  // namespace
@@ -304,19 +282,20 @@ bool ov::npuw::MaskLinearAttentionPadding::run_on_model(const std::shared_ptr<ov
     const auto valid_tokens = std::make_shared<opv1::ReduceSum>(chunk_mask, i64_const({0, 1}, ov::Shape{2}), false);
     const auto pad = std::make_shared<opv1::Subtract>(i64_scalar(len), valid_tokens);
 
-    std::map<std::pair<size_t, ov::element::Type_t>, ConvReorder> reorder_by_kernel;
+    std::map<size_t, ov::Output<ov::Node>> columns_by_kernel;
+    const auto seq_axis = i64_scalar(static_cast<int64_t>(kSeqAxis));
     for (const auto& site : conv_sites) {
-        const auto type = site.concat->get_output_element_type(0);
-        const auto key = std::make_pair(site.kernel, static_cast<ov::element::Type_t>(type));
-        auto reorder_it = reorder_by_kernel.find(key);
-        if (reorder_it == reorder_by_kernel.end()) {
-            reorder_it = reorder_by_kernel.emplace(key, make_conv_reorder(pad, site.kernel, *seq_len, type)).first;
+        auto columns_it = columns_by_kernel.find(site.kernel);
+        if (columns_it == columns_by_kernel.end()) {
+            columns_it = columns_by_kernel.emplace(site.kernel, make_history_columns(pad, site.kernel)).first;
         }
-        const auto& reorder = reorder_it->second;
 
+        // The history [B, C, K] is written over K columns of the Concat, nothing else of it is touched.
         const auto consumers = site.concat->output(0).get_target_inputs();
-        const auto shifted_history = std::make_shared<opv0::MatMul>(site.concat->input_value(0), reorder.shift);
-        const auto reordered = std::make_shared<opv1::Select>(reorder.in_shifted_part, shifted_history, site.concat);
+        const auto reordered = std::make_shared<ov::op::v3::ScatterUpdate>(site.concat,
+                                                                           columns_it->second,
+                                                                           site.concat->input_value(0),
+                                                                           seq_axis);
         reordered->set_friendly_name(site.concat->get_friendly_name() + "/pad_aware");
         for (auto consumer : consumers) {
             consumer.replace_source_output(reordered);
