@@ -1918,7 +1918,10 @@ public:
 
         if (p.token_type_ids.has_value()) {
             pam.token_type_ids = p.token_type_ids.value();
-            EXPECT_EQ(pam.token_type_ids.size(), static_cast<size_t>(pam.subsequence_descs.back().num_tokens + pam.subsequence_descs.back().past_len));
+            size_t num_token_types = 0;
+            for (const auto& subsequence_desc : pam.subsequence_descs)
+                num_token_types += static_cast<size_t>(subsequence_desc.num_tokens + subsequence_desc.past_len);
+            EXPECT_EQ(pam.token_type_ids.size(), num_token_types);
         }
 
         if (p.has_sink_input && p.sink_values.has_value()) {

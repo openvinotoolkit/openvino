@@ -7,6 +7,8 @@
 
 struct paged_attention_token_type_test_params : public paged_attention_test_params {
     test::TestData token_type_test_data;
+    // golden data of every subsequence when several are prefilled in one call
+    std::vector<test::TestData> packed_token_type_test_data;
 };
 
 class paged_attention_token_type_test : public PagedAttentionTest<paged_attention_token_type_test_params> {
@@ -99,6 +101,95 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type,
                          paged_attention_token_type_test,
                          ::testing::ValuesIn(make_token_type_test_params(test::PagedAttentionTokenTypeTestData::GetTestData())),
                          get_token_type_test_name);
+
+// Several PREFILL subsequences of different lengths and token types in one call. token_type_ids holds the
+// types of all subsequences back to back, so every subsequence must reproduce its own golden output.
+// Micro SDPA serves PREFILL on DPAS/XMX devices; a scores output rules it out, which covers sdpa_opt.
+class paged_attention_token_type_multi_subsequence_test : public paged_attention_token_type_test {};
+
+TEST_P(paged_attention_token_type_multi_subsequence_test, prefill) {
+    auto p = GetParam();
+
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+
+    pam.query_data.clear();
+    pam.key_data.clear();
+    pam.value_data.clear();
+    std::vector<float> expected_output;
+    for (const auto& data : p.packed_token_type_test_data) {
+        pam.query_data.push_back(to_float16(data.qData));
+        pam.key_data.push_back(to_float16(data.kData));
+        pam.value_data.push_back(to_float16(data.vData));
+        expected_output.insert(expected_output.end(), data.expectedOutput.begin(), data.expectedOutput.end());
+    }
+
+    auto result = run_gpu_inference(pam, p);
+
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    auto* impl = pa_inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+    const auto kernel_entries = impl->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
+    if (p.scores_mode != DISABLE_SCORES) {
+        EXPECT_NE(kernel_entries.find("sdpa_opt"), std::string::npos) << "Expected sdpa_opt for PREFILL with scores, got: " << kernel_entries;
+    } else if (tests::get_test_engine().get_device_info().supports_immad) {
+        EXPECT_NE(kernel_entries.find("sdpa_micro"), std::string::npos) << "Expected micro SDPA for PREFILL, got: " << kernel_entries;
+    }
+
+    compare_token_type_output(result.outputs.at("output_data").get_memory(), expected_output);
+}
+
+static std::vector<paged_attention_token_type_test_params> make_multi_subsequence_test_params() {
+    const auto test_data = test::PagedAttentionTokenTypeTestData::GetTestData();
+    auto find = [&](const std::string& name) {
+        const auto it = std::find_if(test_data.begin(), test_data.end(), [&](const test::TestData& data) {
+            return data.name == name;
+        });
+        OPENVINO_ASSERT(it != test_data.end(), "No token type test data named ", name);
+        return *it;
+    };
+    // subsequences of one call share the sliding window, so each group comes from one golden data set
+    const std::vector<std::vector<std::string>> groups = {
+        {"plain_casual", "middle_segment"},
+        {"middle_segment", "long_sequence"},
+        {"casual_indirectly", "long_chain_of_1s"},
+        {"all_type1", "middle_segment", "plain_casual"},
+        {"short_seq_in_middle", "two_small_image_groups"},
+        {"only_sliding_window", "long_input_with_mixed_token_types"},
+    };
+
+    std::vector<paged_attention_token_type_test_params> params;
+    for (const auto& group : groups) {
+        auto p = make_token_type_test_param(find(group[0]), ENABLE_FA_V2);
+        p.subsequences.clear();
+        p.token_type_ids = std::vector<int>{};
+        for (const auto& name : group) {
+            const auto data = find(name);
+            OPENVINO_ASSERT(data.slidingWindowSize == p.sliding_window_size, "Packed subsequences need one sliding window");
+            p.subsequences.push_back({static_cast<int>(data.tokenTypes.size()), 0});
+            p.token_type_ids->insert(p.token_type_ids->end(), data.tokenTypes.begin(), data.tokenTypes.end());
+            p.packed_token_type_test_data.push_back(data);
+        }
+        params.push_back(p);
+        p.scores_mode = ENABLE_SCORES;
+        params.push_back(p);
+    }
+    return params;
+}
+
+static std::string get_multi_subsequence_test_name(const testing::TestParamInfo<paged_attention_token_type_test_params>& obj) {
+    const auto& p = obj.param;
+    std::string name;
+    for (const auto& data : p.packed_token_type_test_data)
+        name += (name.empty() ? "" : "_and_") + data.name;
+    return name + "_SW" + std::to_string(p.sliding_window_size) + (p.scores_mode == DISABLE_SCORES ? "_DefaultKernel" : "_WithScores");
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type_multi_subsequence,
+                         paged_attention_token_type_multi_subsequence_test,
+                         ::testing::ValuesIn(make_multi_subsequence_test_params()),
+                         get_multi_subsequence_test_name);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 // Verify that micro SDPA is used for PREFILL when token_type_ids is present,

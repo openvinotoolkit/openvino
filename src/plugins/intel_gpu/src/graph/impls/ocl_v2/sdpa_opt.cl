@@ -1465,7 +1465,10 @@ KERNEL(sdpa_opt)(
 
     #if IS_PAGED_ATTENTION
         #if HAS_TOKEN_TYPE_IDS
-            const SEQ_RANGE bi_dir_range = FUNC_CALL(calc_bi_dir_seq_range)(token_type_ids, 
+            // token_type_ids covers all subsequences; the range search indexes it within this one
+            const __global int* subsequence_token_type_ids =
+                token_type_ids + subsequence_begins[gws_seq_indexes_correspondence[target_seq_dim]];
+            const SEQ_RANGE bi_dir_range = FUNC_CALL(calc_bi_dir_seq_range)(subsequence_token_type_ids,
                                                                             reduce_buffer,
                                                                             SOURCE_SEQ_LEN, 
                                                                             default_this_work_item_seq_range,
