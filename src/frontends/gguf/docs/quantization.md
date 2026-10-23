@@ -26,10 +26,11 @@ Sub-byte Constants remain packed: `u1` holds eight binary codes per byte, with t
 in the most significant bit. `u2` holds four codes per byte, and `i4`/`u4` hold two per byte,
 with the first element in the least significant bits. The loader's `u32` tensors for
 Q4_1/Q4_K are backing buffers for eight nibbles per word; their graph Constants use `u4`.
-Unpacking into `u2` or `i4` therefore does not mean allocating one byte per weight.
+`u3` stores a continuous LSB-first bitstream, with codes crossing byte boundaries.
+Unpacking into `u2`, `u3` or `i4` therefore does not mean allocating one byte per weight.
 
 The usual graph is `Convert -> [Subtract] -> Multiply -> Reshape -> Convert(F32)`. Decompression
-uses the scale's element type, normally F16. Q6_K and formats with fractional F16 zero points
+uses the scale's element type, normally F16. Q3_K, Q6_K and formats with fractional F16 zero points
 and code widths of at least four bits instead perform subtraction/multiplication in F32.
 Q8_K uses F32 scales and thus F32 arithmetic. MXFP4 uses an F16 multiply. A final F32 output
 does not undo rounding in earlier F16 operations, and does not imply that a full F32 weight
@@ -58,7 +59,7 @@ The type columns describe stored Constants; their decompression or Convert outpu
 | PQ2_0 | 128 | 34 | `u2` | `f16` | `u8` | `32 + 2 + 1` = 35 | +2.9% |
 | PTQ1_0 | 128 | 28 | `u2` | `f16` | `u8` | `32 + 2 + 1` = 35 | +25.0% |
 | Q2_K | 256 | 84 | `u2` | `f16` | `f16` | `64 + 32 + 32` = 128 | +52.4% |
-| Q3_K | 256 | 110 | `i4` | `f16` | — | `128 + 32` = 160 | +45.5% |
+| Q3_K | 256 | 110 | `u3` | `f16` | scalar `u8` = 4 | `96 + 32` = 128, plus one byte per tensor | +16.4%, excluding the scalar |
 | Q4_0 | 32 | 18 | `i4` | `f16` | — | `16 + 2` = 18 | 0% |
 | Q4_1, integer zero point | 32 | 20 | `u4` | `f16` | `u8` | `16 + 2 + 1` = 19 | -5.0% |
 | Q4_1, fractional zero point | 32 | 20 | `u4` | `f16` | `f16` | `16 + 2 + 2` = 20 | 0% |
@@ -190,11 +191,14 @@ affine scale/zero-point limitations described in [graph conventions](#storage-an
 A 256-weight block contains 32 high-mask bytes, 64 low-code bytes, 12 packed sub-scale bytes
 and an F16 scale `d`. Import reconstructs the signed three-bit code as
 `low_two_bits - (high_mask_bit ? 0 : 4)`, reorders it into logical element order, and stores
-it as `i4` (-4..3). Six-bit sub-scales are unpacked and centered by subtracting 32. Each
+it as `u3` after adding 4 (0..7). Six-bit sub-scales are unpacked and centered by subtracting 32. Each
 16-weight group receives an F16 scale `d * signed_sub_scale`.
 
-There is no code requantization, but three-bit codes widen to four bits and compact scale
-metadata becomes 16 F16 scales. Products stored as F16 can round or overflow.
+The graph subtracts a scalar `u8` zero point of 4 and multiplies by the group scale in F32.
+There is no code requantization; compact scale metadata becomes 16 F16 scales, which can
+round or overflow. Packed codes occupy 96 bytes per block instead of the former 128-byte
+`i4` representation. Device compilation may expand them to floating-point weights and
+increase compilation memory or reduce inference throughput; compressed execution is not guaranteed.
 
 ### Q6_K
 
@@ -287,7 +291,8 @@ currently differs as follows:
 |---|---|---|
 | Q4_1, Q5_1 | Full F32 Constant decoded with `d*q + m` before other format handling | 128 bytes per 32 weights: +540% for Q4_1, +433.3% for Q5_1 |
 | Q1_0, including embedding/output | Packed `u1` plus per-128 F16 scales, as in native loading | Requires plugin binary decompression support to remain packed at execution |
-| Quantized `token_embd.weight` / `output.weight`, except Q1_0 and the Q4_1/Q5_1 cases above | Channel-wise Q8_0_C: `i8` codes with one F16 scale per row | Additional lossy quantization; low-bit sources usually expand |
+| Q3_K, including embedding/output | Packed `u3` plus per-16 F16 scales and scalar offset 4, as in native loading | Device compilation may expand weights; compressed execution is not guaranteed |
+| Quantized `token_embd.weight` / `output.weight`, except Q1_0/Q3_K and the Q4_1/Q5_1 cases above | Channel-wise Q8_0_C: `i8` codes with one F16 scale per row | Additional lossy quantization; low-bit sources usually expand |
 | Q5_K ordinary matrices | The same channel-wise Q8_0_C representation | Additional lossy quantization; different scale grouping from native Q5_K |
 | Q4_K/Q5_K/Q6_K selected for Q8_0_C | Stream original F32-dequantized rows directly into channel-wise quantization | Per-worker F32 row scratch; avoids allocating a full temporary F32 matrix |
 | Rank greater than two MXFP4 experts | Packed `u8` blocks retaining scale/code interleaving; expert selection and decompression happen on the graph | Different graph layout; device fusion and temporary storage depend on expert execution |

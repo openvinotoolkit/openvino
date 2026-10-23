@@ -14,6 +14,7 @@
 
 #include "gguf.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "weights.hpp"
 
@@ -616,12 +617,12 @@ void fill_q5_1(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
 // Q3_K symmetric: super-block = 32(hmask) + 64(qs) + 12(scales 6-bit) + 2(f16 d) = 110 bytes.
 // 16 sub-blocks of 16; 3-bit values (2 low bits from qs, 1 inverted high bit from hmask) centered
 // to [-4..3]. Mirrors ggml dequantize_row_q3_K: kmask1/kmask2 scale interleave + strided qs order.
-// Output: i4 weights (2 per byte, low nibble first) + f16 scales (d * (scale6 - 32)). No zp.
+// Output: u3 codes (value + 4) + f16 scales (d * (scale6 - 32)).
 void fill_q3_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
     const uint64_t bytes_per_block = 32 + 64 + 12 + 2;  // 110
     const uint64_t n_super_block = tensor.bsize / bytes_per_block;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
-    auto weights = static_cast<uint8_t*>(weights_arr.data());  // packed i4 nibbles
+    auto weights = static_cast<uint8_t*>(weights_arr.data());
     auto scales = scales_arr.data<ov::element_type_traits<ov::element::f16>::value_type>();
     ov::parallel_for(n_super_block, [&](size_t i) {
         const uint8_t* block = data + i * bytes_per_block;
@@ -645,12 +646,11 @@ void fill_q3_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
         }
 
         // Unpack in ggml element order; the hmask bit is inverted (set means high bit 0).
-        uint8_t* wdst = weights + i * 128;
-        std::fill_n(wdst, 128, 0);
-        size_t out = 0;
+        uint8_t* wdst = weights + i * 96;
+        std::fill_n(wdst, 96, 0);
+        auto out = ov::element::iterator<ov::element::u3>(static_cast<void*>(wdst));
         const auto put = [&](int8_t c) {
-            wdst[out / 2] |= static_cast<uint8_t>((static_cast<uint8_t>(c) & 0xF) << ((out % 2) * 4));
-            ++out;
+            *out++ = static_cast<uint8_t>(c + 4);
         };
         uint8_t m = 1;
         for (int n = 0; n < 2; ++n) {
