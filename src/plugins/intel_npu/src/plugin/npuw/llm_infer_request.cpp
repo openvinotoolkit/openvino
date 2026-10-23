@@ -1414,6 +1414,9 @@ void ov::npuw::LLMInferRequest::sync_longrope_mode(const std::shared_ptr<ov::IAs
         m_llm_profile["longrope:rerotate_kv"].record([&]() {
             m_kvcache_strategy->rerotate_longrope_keys(request, in_ports, num_cached_tokens, is_long);
         });
+        // Re-rotated keys only approximate what a prefill computes, so the next turn
+        // runs a full prefill instead of continuing from them.
+        m_continuation.drop_watermark();
     }
 
     // Only now do the cached keys really belong to this mode.

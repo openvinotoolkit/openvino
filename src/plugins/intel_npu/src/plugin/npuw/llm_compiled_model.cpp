@@ -2046,8 +2046,12 @@ bool ov::npuw::LLMCompiledModel::can_continue_prefill() const {
     if (m_is_whisper || m_is_embedding || m_is_eagle) {
         return false;  // out of scope pipelines
     }
-    if (m_longrope_context_limit > 0u) {
-        return false;  // LongRoPE threshold can be crossed mid-generation
+    // A continued prefill must stay below the LongRoPE limit: only the delta reaches
+    // the plugin, so the kept prefix could not be recomputed with the long factors.
+    // A crossing during generate re-rotates the cache and the next turn falls back
+    // to a full prefill (see LLMInferRequest::sync_longrope_mode).
+    if (m_longrope_context_limit > 0u && m_kvcache_desc.max_prompt_size > m_longrope_context_limit) {
+        return false;
     }
     if (m_swa_window_size > 0u) {
         return false;
