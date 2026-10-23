@@ -217,6 +217,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #if IS_PAGED_ATTENTION
         const __global int* blocked_indexes_start_and_gws_mapping
+#if PA_MICRO_SPLITK
+        , global float *splitk_stats   /* [token][head][NPmax][2] = {m2 (log2-domain max), l (sum)} */
+        , global half *splitk_tmp_out  /* [token][NPmax][HEADS_NUM*HEAD_SIZE] normalized partial outputs */
+#endif
 #else
         int d, int k, int q
 #endif
@@ -360,6 +364,27 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     window_k0_begin = (window_k_begin / ugemm_kq_wg_tile_m) * ugemm_kq_wg_tile_m;
 #endif
 
+#if PA_MICRO_SPLITK
+    /* Split-K over the KV (context) dimension. WG p processes past keys [p*P, min((p+1)*P, past_len)),
+       the last partition additionally processes the new (current-step) keys up to causal_k.
+       NP == 1 -> output written directly as in the non-split kernel. */
+    const int splitk_p = (int)get_group_id(2);
+    const int splitk_np_max = sub_group_broadcast((int)get_num_groups(2), 0);
+    /* np_max == 1 -> split disabled by the host for this call (e.g. large q_len) */
+    /* Partition size P is derived from (past_len, np_max) so that the host can raise np_max for short contexts;
+       must match pa_sdpa_micro_splitk_finalization (paged_attention_opt.cl), which gets ugemm_kq_wg_tile_m as align. */
+    const int splitk_part = max((int)ugemm_kq_wg_tile_m,
+            ((past_len + splitk_np_max - 1) / splitk_np_max + ugemm_kq_wg_tile_m - 1) / ugemm_kq_wg_tile_m * ugemm_kq_wg_tile_m);
+    const int splitk_np = splitk_np_max > 1 ? max(1, (past_len + splitk_part - 1) / splitk_part) : 1;
+    if (splitk_p >= splitk_np)
+        return;
+    if (splitk_np > 1) {
+        window_k0_begin = max(window_k0_begin, splitk_p * splitk_part);
+        if (splitk_p < splitk_np - 1)
+            causal_k = min(causal_k, (splitk_p + 1) * splitk_part);
+    }
+#endif
+
     /* Leading dimension for matrices */
 #if IS_PAGED_ATTENTION
     #if IS_GQA_SINGLE_TOKEN
@@ -461,8 +486,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
        check. Layout: [k_row, q_col] row-major, ldb = ugemm_kq_wg_tile_n. */
     local float S_check_slm[ugemm_kq_wg_tile_m * ugemm_kq_wg_tile_n];
 #endif
-
-    const bool need_sum_barrier = (ugemm_vs_barrier_count == 0);
 
     /* Locate K/Q/V/A matrices within batch */
 #if IS_PAGED_ATTENTION
@@ -1544,10 +1567,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         /* Wait for S stores */
         intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
 
-        /* Last iteration: signal column sums are ready */
-        if (last && need_sum_barrier)
-            intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
-
         /* Accumulate A += V * S */
 #if IS_PAGED_ATTENTION && !IS_PREFILL
         int kb0 = 0;
@@ -1703,8 +1722,11 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     k0 += k_chunk;
     }
 
-    /* Wait for column sums to be ready */
-    if (need_sum_barrier) intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
+    /* Wait for column sums to be ready. The barrier is unconditional: in the PA MIXED
+       stage the last K iteration is clipped to the new tokens and runs ugemm_vcs only,
+       which reports no internal barrier, so nothing else orders the S_sum_slm store of
+       that iteration against the reads below. */
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     /* Load column sums from SLM + reduce in registers */
     a_scale_tile_type A_scale_tile, A_scale_tile_load;
@@ -1766,6 +1788,35 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
     uint sg_i0_vs = sg_i_vs * ugemm_vs_sg_tile_m;
     uint sg_j0_vs = sg_j_vs * ugemm_vs_sg_tile_n + wg_j0;
+
+#if PA_MICRO_SPLITK
+    if (splitk_np > 1) {
+        /* Per-query partition statistics: m2 = running max in log2 domain, l = sum of exp2(s*scale - m2). */
+        if (sg_ij == 0) {
+#ifdef LOG_2_E_MUL_SCALE
+            const float splitk_m2_scale = scale;
+#else
+            const float splitk_m2_scale = log2_e;
+#endif
+            for (int c0 = 0; c0 < ugemm_kq_wg_tile_n; c0 += SUBGROUP_SIZE) {
+                const int c = c0 + get_sub_group_local_id();
+                if (c < ugemm_kq_wg_tile_n && (int)wg_j0 + c < q) {
+                    float l = 0.0f;
+                    for (int sg1 = 0; sg1 < ugemm_kq_sg_per_wg_m; sg1++)
+                        l += S_sum_slm[sg1 * ugemm_kq_wg_tile_n + c];
+                    const float m2 = S_max_slm[c] * splitk_m2_scale;
+                    const uint tok = subsequence_begin + wg_j0 + c;
+                    const uint st_off = ((tok * HEADS_NUM + b0) * splitk_np_max + splitk_p) * 2;
+                    splitk_stats[st_off] = m2;
+                    splitk_stats[st_off + 1] = l;
+                }
+            }
+        }
+        /* Redirect the (normalized) partial output to the temporary buffer. */
+        A = splitk_tmp_out + ((size_t)subsequence_begin * splitk_np_max + splitk_p) * lda + b0 * HEAD_SIZE;
+        lda *= splitk_np_max;
+    }
+#endif
 
 #ifdef BLOCK_2D_A
     tile_store_block2d(A_tile_half, A, d, q, lda, sg_i0_vs, sg_j0_vs);

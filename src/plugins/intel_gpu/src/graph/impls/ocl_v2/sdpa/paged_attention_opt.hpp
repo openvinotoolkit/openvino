@@ -31,7 +31,37 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     bool use_micro_sdpa = false;
     bool use_gqa_kernel = false;
     size_t query_block_size = 16;
+    // Split-K for the MIXED-stage micro SDPA kernels: number of KV partitions (1 = no split).
+    size_t micro_splitk_partitions = 1;
+    // Partition alignment (K tile of the micro kernel); partition sizes are multiples of it.
+    size_t micro_splitk_align = 16;
 };
+
+// Split-K (KV partitioning) for the MIXED-stage micro SDPA kernels. It is applied to calls with small
+// per-sequence q_len (speculative decoding verify / draft steps) over long contexts, where the regular
+// grid (query blocks x heads) is too small to occupy the GPU.
+// Target KV partition size in tokens.
+constexpr size_t pa_micro_splitk_size = 1024;
+// Split-K is applied only if every subsequence has q_len <= this value.
+constexpr size_t pa_micro_splitk_max_q = 16;
+// Split-K is applied only if max_context_len >= this value.
+constexpr size_t pa_micro_splitk_min_ctx = 4096;
+// Internal buffer indices of the split-K partial results in the PA MIXED micro layout.
+enum class PaMicroSplitKBuffer : size_t { STATS = 4, TMP_OUT = 5 };
+// Placeholder size of those buffers when split-K is off; the kernel never dereferences them.
+constexpr size_t pa_micro_splitk_placeholder_bytes = 16;
+
+// Split-K is only supported for the plain MIXED micro path (no sinks, scores output, sliding window or
+// adaptive RKV, which would require extra handling or shift internal buffer indices).
+inline bool pa_micro_splitk_supported(const paged_attention& desc) {
+    return !desc.has_sink_input && !desc.has_scores_output() && desc.sliding_window == 0 && !desc.has_adaptive_rkv;
+}
+
+// Partial outputs are kept as half in the temporary buffer -> f16 query/output only.
+inline bool pa_micro_splitk_supported(const kernel_impl_params& params) {
+    const auto desc = params.typed_desc<paged_attention>();
+    return pa_micro_splitk_supported(*desc) && params.input_layouts[0].data_type == ov::element::f16 && params.output_layouts[0].data_type == ov::element::f16;
+}
 
 struct PagedAttentionOpt : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::paged_attention::opt")
