@@ -14,7 +14,6 @@ using rope_params_2 = std::tuple<bool, ov::element::Type, std::string>;
 using rope_params_qwenvit = std::tuple<ov::element::Type, std::string, std::string>;
 using rope_params_chatglm = std::tuple<ov::element::Type, std::string, bool>;
 using rope_params_cohere = std::tuple<ov::element::Type, std::string, bool>;
-using rope_params_rotate_half = std::tuple<ov::element::Type, std::string, bool>;
 
 class RoPETestFlux : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
 private:
@@ -109,8 +108,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<rope_params_2>& obj);
 };
 
-class RoPETestRotateHalfWithoutTranspose : public SubgraphBaseTest,
-                                         public testing::WithParamInterface<rope_params_rotate_half> {
+class RoPETestRotateHalfWithoutTranspose : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
 private:
     ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1);
     ov::OutputVector makeCosSinCache(int max_position_embeddings, int rotary_ndims);
@@ -125,7 +123,45 @@ protected:
     void SetUp() override;
 
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<rope_params_rotate_half>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<rope_params>& obj);
+};
+
+// Tests RoPE fusion for an RMS-normalized input whose cos/sin are computed from position ids inside the model.
+// Params: <inference precision and model element type, target device>
+//
+// Model (shapes: batch = 1, num_head = 4, ndims = 128, dynamic sequence length):
+//
+//   input [1, 4, ?, 128]                                 pos_ids [1, ?] (i32)
+//        |                                                    |
+//   RMS norm: input * 1 / sqrt(mean(input^2) + eps)      Unsqueeze -> Convert (element type)
+//        |                                                    |
+//   Multiply (scale = 1.25)                              MatMul (inv_freq [1, 64, 1])
+//        |                                                    |
+//    rope_input                                          Transpose -> Concat(x, x)
+//        |                                                    |
+//        |                                               +----+----+
+//        |                                               |         |
+//        |                                              Cos       Sin
+//        |                                               |         |
+//        |                                           Unsqueeze  Unsqueeze
+//        |                                               |         |
+//        |                                           cos_values  sin_values
+//        |                                               |         |
+//        +-----------------------------------------------+---------+
+//                                                        v
+//   output = rope_input * cos_values + rotate_half(rope_input) * sin_values
+//
+//   where rotate_half(x) = Concat(-x[..., 64:], x[..., :64])
+class RoPETestRotateHalfRMS : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
+private:
+    std::shared_ptr<ov::Model> buildROPE_RotateHalfRMS(int batch, int num_head, int ndims);
+
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    void SetUp() override;
+
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<rope_params>& obj);
 };
 
 class RoPETestLlama2Slice : public RoPETestLlama2StridedSlice {

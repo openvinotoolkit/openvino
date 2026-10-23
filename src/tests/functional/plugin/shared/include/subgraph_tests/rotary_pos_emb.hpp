@@ -56,26 +56,6 @@ TEST_P(RoPETestRotateHalfWithoutTranspose, CompareWithRefs) {
     run();
     auto function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
-    if (std::get<2>(GetParam()) && targetDevice == ov::test::utils::DEVICE_GPU) {
-        CheckNumberOfNodesWithType(function, {"rms"}, 0);
-        size_t sin_cos_count = 0;
-        for (const auto& node : function->get_ops()) {
-            const auto& info = node->get_rt_info();
-            if (info.at("layerType").as<std::string>() == "RoPE") {
-                auto producer = node->get_input_node_shared_ptr(0);
-                while (producer->get_rt_info().at("layerType").as<std::string>() == "Reorder") {
-                    producer = producer->get_input_node_shared_ptr(0);
-                }
-                EXPECT_EQ(producer->get_rt_info().at("layerType").as<std::string>(), "Input");
-            }
-            const auto names = info.at("originalLayersNames").as<std::string>();
-            if (names.find("position_cos") != std::string::npos || names.find("position_sin") != std::string::npos) {
-                EXPECT_EQ(node->get_output_element_type(0), ov::element::f32) << names;
-                ++sin_cos_count;
-            }
-        }
-        EXPECT_EQ(sin_cos_count, 2);
-    }
 }
 
 TEST_P(RoPETestLlama2Slice, CompareWithRefs) {

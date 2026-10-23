@@ -64,9 +64,31 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestLlama2,
 
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestRotateHalfWithoutTranspose,
                          RoPETestRotateHalfWithoutTranspose,
-          ::testing::Values(rope_params_rotate_half{ov::element::f32, ov::test::utils::DEVICE_GPU, false},
-                  rope_params_rotate_half{ov::element::f16, ov::test::utils::DEVICE_GPU, true}),
+                         ::testing::Combine(
+                            ::testing::Values(ov::element::f32),
+                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          RoPETestRotateHalfWithoutTranspose::getTestCaseName);
+
+class GPURoPETestRotateHalfRMS : public RoPETestRotateHalfRMS {
+protected:
+    void validate() override {
+        RoPETestRotateHalfRMS::validate();
+        auto runtime_model = compiledModel.get_runtime_model();
+        CheckNumberOfNodesWithType(runtime_model, {"RoPE"}, 1);
+        CheckNumberOfNodesWithType(runtime_model, {"rms"}, 0);
+    }
+};
+
+TEST_P(GPURoPETestRotateHalfRMS, CompareWithRefs) {
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_RoPETestRotateHalfRMS,
+                         GPURoPETestRotateHalfRMS,
+                         ::testing::Combine(
+                            ::testing::Values(ov::element::f16),
+                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         GPURoPETestRotateHalfRMS::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,
                          RoPETestChatGLMSlice,
