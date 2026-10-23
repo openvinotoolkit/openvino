@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -42,14 +43,16 @@ namespace opv8 = ov::op::v8;
 constexpr size_t kSeqAxis = 2;
 
 struct ConvSite {
-    std::shared_ptr<opv0::Concat> concat;  // Concat(past [B,C,K], x [B,C,L]) along the sequence axis
-    size_t kernel;                         // K, the width of the carried history
+    std::shared_ptr<opv0::Concat> concat;    // Concat(past [B,C,K], x [B,C,L]) along the sequence axis
+    size_t kernel;                           // K, the width of the carried history
+    std::shared_ptr<opv0::Parameter> state;  // the past conv state parameter the history comes from
 };
 
 struct SsmSite {
     std::shared_ptr<ov::op::v5::Loop> loop;
-    size_t gate_input;  // Loop input index of the per-token decay g
-    size_t beta_input;  // Loop input index of the per-token update gate beta
+    size_t gate_input;                       // Loop input index of the per-token decay g
+    size_t beta_input;                       // Loop input index of the per-token update gate beta
+    std::shared_ptr<opv0::Parameter> state;  // the past ssm state parameter the recurrence starts from
 };
 
 bool has_name(const ov::descriptor::Tensor& tensor, const char* kind, const std::string& past_or_present) {
@@ -84,13 +87,14 @@ std::optional<ConvSite> match_conv(const std::shared_ptr<ov::Node>& node) {
     if (!is_past_state(state, "conv")) {
         return std::nullopt;
     }
+    const auto state_param = ov::as_type_ptr<opv0::Parameter>(state.get_node_shared_ptr());
 
     const auto& history = concat->get_input_partial_shape(0);
     const auto& tokens = concat->get_input_partial_shape(1);
     if (history[kSeqAxis].is_dynamic() || tokens[kSeqAxis].is_dynamic()) {
         return std::nullopt;
     }
-    return ConvSite{concat, static_cast<size_t>(history[kSeqAxis].get_length())};
+    return ConvSite{concat, static_cast<size_t>(history[kSeqAxis].get_length()), state_param};
 }
 
 // The recurrence Loop of GatedDeltaNet: q, k, v are sliced as [B,H,L,D] and the two per-token scalars
@@ -130,7 +134,39 @@ std::optional<SsmSite> match_ssm(const std::shared_ptr<ov::Node>& node) {
     }
     const size_t gate = first_is_gate ? per_token_scalars[0].first : per_token_scalars[1].first;
     const size_t beta = first_is_gate ? per_token_scalars[1].first : per_token_scalars[0].first;
-    return SsmSite{loop, gate, beta};
+
+    std::shared_ptr<opv0::Parameter> state;
+    for (size_t i = 0; i < loop->get_input_size(); ++i) {
+        auto source = loop->input_value(i);
+        if (ov::is_type<opv0::Convert>(source.get_node())) {
+            source = source.get_node()->input_value(0);
+        }
+        if (is_past_state(source, "ssm")) {
+            if (state) {
+                return std::nullopt;
+            }
+            state = ov::as_type_ptr<opv0::Parameter>(source.get_node_shared_ptr());
+        }
+    }
+    if (!state) {
+        return std::nullopt;
+    }
+    return SsmSite{loop, gate, beta, state};
+}
+
+// True when the sites together consume every past state parameter of the given kind.
+template <class Sites>
+bool covers_all_states(const std::shared_ptr<ov::Model>& model, const char* kind, const Sites& sites) {
+    std::set<const ov::Node*> covered;
+    for (const auto& site : sites) {
+        covered.insert(site.state.get());
+    }
+    for (const auto& param : model->get_parameters()) {
+        if (has_name(param->get_output_tensor(0), kind, "past") && covered.count(param.get()) == 0) {
+            return false;
+        }
+    }
+    return true;
 }
 
 std::shared_ptr<opv0::Parameter> find_attention_mask(const std::shared_ptr<ov::Model>& model) {
@@ -210,10 +246,10 @@ bool ov::npuw::MaskLinearAttentionPadding::run_on_model(const std::shared_ptr<ov
             ssm_sites.push_back(*ssm);
         }
     }
-    if (conv_sites.size() != past_conv_count || ssm_sites.size() != past_ssm_count) {
-        LOG_WARN("MaskLinearAttentionPadding: recognized " << conv_sites.size() << "/" << past_conv_count
-                                                           << " conv and " << ssm_sites.size() << "/" << past_ssm_count
-                                                           << " ssm states, model left unchanged");
+    if (!covers_all_states(model, "conv", conv_sites) || !covers_all_states(model, "ssm", ssm_sites)) {
+        LOG_DEBUG("MaskLinearAttentionPadding: " << conv_sites.size() << " conv and " << ssm_sites.size()
+                                                 << " ssm sites do not cover all " << past_conv_count << " conv and "
+                                                 << past_ssm_count << " ssm states, model left unchanged");
         return false;
     }
 
@@ -228,13 +264,13 @@ bool ov::npuw::MaskLinearAttentionPadding::run_on_model(const std::shared_ptr<ov
     };
     for (const auto& site : conv_sites) {
         if (!accept_seq_len(site.concat->get_input_partial_shape(1)[kSeqAxis])) {
-            LOG_WARN("MaskLinearAttentionPadding: conv sequence length is dynamic or differs between layers");
+            LOG_DEBUG("MaskLinearAttentionPadding: conv sequence length is dynamic or differs between layers");
             return false;
         }
     }
     for (const auto& site : ssm_sites) {
         if (!accept_seq_len(site.loop->get_input_partial_shape(site.gate_input)[kSeqAxis])) {
-            LOG_WARN("MaskLinearAttentionPadding: ssm sequence length is dynamic or differs between layers");
+            LOG_DEBUG("MaskLinearAttentionPadding: ssm sequence length is dynamic or differs between layers");
             return false;
         }
     }
@@ -243,7 +279,7 @@ bool ov::npuw::MaskLinearAttentionPadding::run_on_model(const std::shared_ptr<ov
     if (!attention_mask || attention_mask->get_partial_shape().is_dynamic() ||
         attention_mask->get_partial_shape().size() != 2 ||
         static_cast<size_t>(attention_mask->get_partial_shape()[1].get_length()) < *seq_len) {
-        LOG_WARN("MaskLinearAttentionPadding: static rank-2 attention_mask is not found, model left unchanged");
+        LOG_DEBUG("MaskLinearAttentionPadding: static rank-2 attention_mask is not found, model left unchanged");
         return false;
     }
 
