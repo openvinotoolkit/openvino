@@ -1,0 +1,77 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/strides.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+
+namespace {
+
+class ConvolutionInPlaceCrop : virtual public ov::test::SubgraphBaseStaticTest {
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        configuration[ov::hint::inference_precision.name()] = ov::element::f32.get_type_name();
+
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                             ov::Shape{1, 256, 20, 20});
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                               ov::Shape{256, 128, 1, 1});
+        auto input_f32 = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
+        auto weights_f32 = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        auto split_lengths = ov::op::v0::Constant::create(ov::element::i64,
+                                                          ov::Shape{2},
+                                                          {128, 128});
+        auto split = std::make_shared<ov::op::v1::VariadicSplit>(input_f32,
+                                                                 axis,
+                                                                 split_lengths);
+        auto convolution = std::make_shared<ov::op::v1::Convolution>(split->output(1),
+                                                                     weights_f32,
+                                                                     ov::Strides{1, 1},
+                                                                     ov::CoordinateDiff{0, 0},
+                                                                     ov::CoordinateDiff{0, 0},
+                                                                     ov::Strides{1, 1});
+        convolution->set_friendly_name("convolution");
+
+        auto result = std::make_shared<ov::op::v0::Result>(convolution);
+        function = std::make_shared<ov::Model>(ov::ResultVector{result},
+                                               ov::ParameterVector{input, weights},
+                                               "ConvolutionInPlaceCrop");
+    }
+
+    void validate() override {
+        ov::test::SubgraphBaseStaticTest::validate();
+
+        const auto runtime_model = compiledModel.get_runtime_model();
+        ASSERT_NE(runtime_model, nullptr);
+        for (const auto& node : runtime_model->get_ordered_ops()) {
+            const auto& info = node->get_rt_info();
+            const auto layer_type = info.find(ov::exec_model_info::LAYER_TYPE);
+            const auto impl_type = info.find(ov::exec_model_info::IMPL_TYPE);
+            if (layer_type != info.end() &&
+                layer_type->second.as<std::string>() == "Convolution") {
+                ASSERT_NE(impl_type, info.end());
+                EXPECT_EQ(impl_type->second.as<std::string>(),
+                          "convolution_gpu_bfyx_os_iyx_osv16__f32");
+                return;
+            }
+        }
+        FAIL() << "Convolution node was not found in the runtime model";
+    }
+};
+
+TEST_F(ConvolutionInPlaceCrop, smoke_GPU_second_half_feature_crop_no_oob) {
+    run();
+}
+
+}  // namespace
