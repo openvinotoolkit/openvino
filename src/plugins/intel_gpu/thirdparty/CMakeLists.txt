@@ -87,6 +87,9 @@ if(ENABLE_ONEDNN_FOR_GPU)
         if(CMAKE_FIND_ROOT_PATH)
             list(APPEND onednn_gpu_cache_args "-DCMAKE_FIND_ROOT_PATH:STRING=${CMAKE_FIND_ROOT_PATH}")
         endif()
+        if(CMAKE_LINKER_TYPE)
+            list(APPEND onednn_gpu_cache_args "-DCMAKE_LINKER_TYPE:STRING=${CMAKE_LINKER_TYPE}")
+        endif()
 
         set(onednn_gpu_cxx_flags "${CMAKE_CXX_FLAGS}")
         if(NOT BUILD_SHARED_LIBS)
@@ -203,6 +206,12 @@ if(ENABLE_ONEDNN_FOR_GPU)
             # Build Step Options:
             BUILD_BYPRODUCTS ${onednn_lib_path}
             BUILD_ALWAYS ${ONEDNN_GPU_BUILD_ALWAYS}
+            # The nested Ninja does not share the parent job pool (CMake ignores
+            # JOB_SERVER_AWARE for the Ninja generator). Left alone it starts a
+            # second full -j and oversubscribes the machine for the whole oneDNN
+            # GPU build. The console pool runs this step alone, so the child can
+            # take every core without fighting the parent compile.
+            USES_TERMINAL_BUILD ON
             # Target Options:
             EXCLUDE_FROM_ALL ON
         )
