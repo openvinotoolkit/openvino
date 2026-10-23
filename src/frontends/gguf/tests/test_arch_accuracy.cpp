@@ -351,12 +351,20 @@ TEST_P(GGUFHadamardAccuracy, ButterflyPreservesSylvesterOrderSignsAndDynamicShap
     const auto y = ov::frontend::gguf::apply_hadamard(context, x);
     const auto model = std::make_shared<ov::Model>(ov::OutputVector{y}, ov::ParameterVector{x});
     size_t constant_bytes = 0;
+    size_t stages = 0;
     for (const auto& op : model->get_ordered_ops()) {
         EXPECT_NE(op->get_type_name(), std::string("MatMul"));
+        EXPECT_NE(op->get_type_name(), std::string("Split"));
+        EXPECT_NE(op->get_type_name(), std::string("Concat"));
+        if (op->get_type_name() == std::string("Gather")) {
+            ++stages;
+            EXPECT_EQ(op->get_output_partial_shape(0).rank(), 2);
+        }
         if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op))
             constant_bytes += constant->get_byte_size();
     }
-    EXPECT_LE(constant_bytes, signs.get_byte_size() + 1024);
+    EXPECT_EQ(stages, static_cast<size_t>(std::log2(block)));
+    EXPECT_LE(constant_bytes, signs.get_byte_size() + stages * block * 12 + 128);
     ov::Core core;
     auto compiled =
         core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32), ov::inference_num_threads(4));
@@ -417,6 +425,43 @@ INSTANTIATE_TEST_SUITE_P(
     GGUFHadamardAccuracy,
     ::testing::Combine(::testing::Values(int64_t{1}, int64_t{2}, int64_t{8}, int64_t{64}, int64_t{4096}),
                        ::testing::Bool()));
+
+TEST(GGUFHadamardTypes, ConstantsAreSharedWithinEachConversion) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/bonsai2-hadamard.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    FrontEnd frontend;
+    auto input_model = frontend.load(temporary.path);
+    const auto first = frontend.convert(input_model);
+    const auto second = frontend.convert(input_model);
+    const auto rotation_constants = [](const std::shared_ptr<ov::Model>& model) {
+        std::set<ov::Node*> constants;
+        size_t stages = 0;
+        for (const auto& node : model->get_ops()) {
+            if (node->get_type_name() != std::string("Gather") || node->get_input_partial_shape(0).rank() != 2)
+                continue;
+            const auto indices = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
+            if (!indices || indices->get_shape() != ov::Shape{8})
+                continue;
+            const auto values = indices->cast_vector<int64_t>();
+            const auto stride = values[0];
+            bool butterfly = stride > 0 && stride < 8 && (stride & (stride - 1)) == 0;
+            for (int64_t i = 0; i < 8; ++i)
+                butterfly &= values[i] == (i ^ stride);
+            if (butterfly) {
+                ++stages;
+                constants.insert(indices.get());
+            }
+        }
+        EXPECT_GT(stages, 3);
+        EXPECT_EQ(constants.size(), 3);
+        return constants;
+    };
+    const auto first_constants = rotation_constants(first);
+    const auto second_constants = rotation_constants(second);
+    for (auto* constant : first_constants)
+        EXPECT_EQ(second_constants.count(constant), 0);
+}
 
 TEST(GGUFDSparkAccuracy, NoncausalDraftBlocksMatchPrismCPU) {
     auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/dspark.npz");
@@ -554,6 +599,30 @@ TEST(GGUFMultimodalBackboneAdaptation, Lfm2SupportsBatchesAndBeamReordering) {
         EXPECT_EQ(attention, 2);
         EXPECT_EQ(convolution, 2);
         EXPECT_TRUE(model->get_sinks().empty());
+    }
+}
+
+TEST(GGUFMultimodalBackboneAdaptation, AttentionGatesPreserveBatchAndBeamShapes) {
+    for (const auto* family : {"muse-glimmer", "qwen35", "bonsai2-hadamard"}) {
+        SCOPED_TRACE(family);
+        const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
+        const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+        ov::frontend::gguf::FrontEnd frontend;
+        frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+        const auto model = frontend.convert(frontend.load(temporary.path));
+        size_t gates = 0;
+        for (const auto& node : model->get_ops()) {
+            const auto& name = node->get_friendly_name();
+            for (const std::string suffix : {".attn_gate", ".attn_gate_sig", ".kqv_gated"}) {
+                if (name.size() >= suffix.size() &&
+                    name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0) {
+                    ++gates;
+                    EXPECT_EQ(node->get_output_partial_shape(0).rank(), 3) << name;
+                }
+            }
+        }
+        EXPECT_GT(gates, 0);
+        check_batched_decode(model);
     }
 }
 

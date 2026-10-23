@@ -31,6 +31,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
@@ -431,6 +432,8 @@ public:
             attributes.push_back(static_cast<int64_t>(static_cast<ov::element::Type_t>(shape->get_output_type())));
         else if (const auto split = ov::as_type_ptr<ov::op::v1::Split>(node))
             attributes.push_back(split->get_num_splits());
+        else if (const auto gather = ov::as_type_ptr<ov::op::v8::Gather>(node))
+            attributes.push_back(gather->get_batch_dims());
         else if (const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(node))
             attributes.push_back(concat->get_axis());
         else if (ov::is_type<ov::op::v1::Add>(node) || ov::is_type<ov::op::v1::Subtract>(node) ||
