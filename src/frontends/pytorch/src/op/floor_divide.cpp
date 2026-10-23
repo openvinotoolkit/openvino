@@ -6,6 +6,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/floor.hpp"
+#include "transformations/rt_info/nonconvertible_divide.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::pytorch::op {
@@ -18,6 +19,8 @@ OutputVector translate_floor_divide(const NodeContext& context) {
     Output<Node> y;
     std::tie(x, y) = get_inputs_with_promoted_types(context, 0, 1);
     auto div = context.mark_node(std::make_shared<v1::Divide>(x, y, true));
+    // Multiplying by the reciprocal can land just below a whole quotient, which Floor then rounds down.
+    disable_divide_conversion(div);
     return {context.mark_node(std::make_shared<v0::Floor>(div))};
 };
 
