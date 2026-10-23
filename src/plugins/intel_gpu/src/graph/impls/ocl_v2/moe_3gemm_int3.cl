@@ -129,6 +129,31 @@ KERNEL(moe_int3_quantize)(
     }
 }
 
+#elif GATHER_QUANTIZED
+
+// The hidden states are quantized once per token; each gathered row copies the
+// int8 values (ROW_SIZE bytes) and the VARS_SIZE {scale, sum} floats of its token.
+KERNEL(moe_int3_gather_quantized)(
+    const __global char* quantized_tokens,
+    const __global float* token_vars,
+    const __global int* token_idx,
+    __global char* quantized_input,
+    __global float* quan_var)
+{
+    const uint i = (uint)get_global_id(0);
+    const uint row = (uint)get_global_id(1);
+    const int token = token_idx[row];
+    if (token < 0)
+        return;
+    if (i < ROW_SIZE / 16) {
+        const __global uint4* src = (const __global uint4*)(quantized_tokens + (size_t)token * ROW_SIZE);
+        __global uint4* dst = (__global uint4*)(quantized_input + (size_t)row * ROW_SIZE);
+        dst[i] = src[i];
+    }
+    if (i < VARS_SIZE)
+        quan_var[(size_t)row * VARS_SIZE + i] = token_vars[(size_t)token * VARS_SIZE + i];
+}
+
 #elif GEMM
 
 #pragma OPENCL EXTENSION cl_intel_subgroups : enable
