@@ -24,6 +24,8 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_base.hpp
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_bfyx_opt.cpp
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_bfyx_opt.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/group_normalization_byxf_opt.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/group_normalization_byxf_opt.hpp
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_fsv16.cpp
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_fsv16.hpp
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_ref.cpp
@@ -120,6 +122,7 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/gathermatmul_scatter.cl
     ${CMAKE_CURRENT_LIST_DIR}/gathermatmul_sort.cl
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_bfyx_opt.cl
+    ${CMAKE_CURRENT_LIST_DIR}/group_normalization_byxf_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_fsv16.cl
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/lora_horizontal_fused.cl

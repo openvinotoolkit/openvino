@@ -1526,6 +1526,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                                                                               cldnn::eltwise::type_id(),
                                                                               cldnn::fully_connected::type_id(),
                                                                               cldnn::gather::type_id(),
+                                                                              cldnn::group_normalization::type_id(),
                                                                               cldnn::input_layout::type_id(),
                                                                               cldnn::non_max_suppression::type_id(),
                                                                               cldnn::non_max_suppression_gather::type_id(),
@@ -1724,7 +1725,16 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        if (prim.is_in_data_flow() && (byxf_onednn_conv_whitelist.count(prim.type()) == 0)) {
+        bool is_byxf_onednn_conv_whitelisted = byxf_onednn_conv_whitelist.count(prim.type()) > 0;
+        if (prim.type() == cldnn::group_normalization::type_id()) {
+            // Same scope as the byxf group_normalization impl; otherwise it stays planar between byxf convolutions.
+            const auto& gn_in = prim.get_input_layout(0);
+            const auto& gn_out = prim.get_output_layout();
+            is_byxf_onednn_conv_whitelisted = gn_in.get_partial_shape().size() == 4 && gn_in.get_partial_shape()[1].is_static() &&
+                                              one_of(gn_in.data_type, {data_types::f16, data_types::f32}) &&
+                                              one_of(gn_out.data_type, {data_types::f16, data_types::f32});
+        }
+        if (prim.is_in_data_flow() && !is_byxf_onednn_conv_whitelisted) {
             total_non_byxf_onednn_conv_whitelist_layers++;
         }
         if (prim.type() == cldnn::scaled_dot_product_attention::type_id()) {
