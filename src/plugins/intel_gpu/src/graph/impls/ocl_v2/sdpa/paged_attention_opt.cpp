@@ -1338,7 +1338,7 @@ public:
     Stage::Ptr kv_cache_rotate = make_stage<KVCacheRotateGenerator>();
     Stage::Ptr pa_scores_calc = make_stage<PagedAttentionGeneratorScoresCalculation>();
     Stage::Ptr pa_diversity_calc = make_stage<AdaptiveRKVDiversityGenerator>();
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
     Stage::Ptr pa_sdpa_micro_mixed = make_stage<SDPAMicroGenerator>(false);
 #endif
@@ -1350,7 +1350,7 @@ public:
         const bool has_rotated_blocks = desc->has_rotated_blocks;
         const bool has_adaptive_rkv = desc->has_adaptive_rkv;
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         const bool use_micro_sdpa = supports_micro_sdpa(params);
         if (use_micro_sdpa) {
             add_stage(pa_sdpa_micro, params);
@@ -1379,7 +1379,7 @@ public:
         }
     }
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     bool valid_micro_stage(const PagedAttentionStage& stage) const {
         if (stage == PagedAttentionStage::PREFILL)
             return !pa_sdpa_micro->kd.micro_kernels.empty();
@@ -1521,7 +1521,7 @@ public:
             rt_params->paged_attention_snap_kv_tokens = 0;
         }
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         rt_params->use_micro_sdpa = can_use_micro_sdpa_for(params, rt_params->stage);
 #else
         rt_params->use_micro_sdpa = false;
@@ -1570,7 +1570,7 @@ public:
         }
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
             if (rt_params->use_micro_sdpa) {
                 res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
             } else
@@ -1584,7 +1584,7 @@ public:
             if (rt_params->use_gqa_kernel && !rt_params->use_micro_sdpa) {
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_gqa_single_token)};
             } else {
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
                 if (multi_tokens_mode && rt_params->use_micro_sdpa) {
                     res_event = {execute_stage(res_event, instance, pa_sdpa_micro_mixed)};
                 } else
@@ -1699,7 +1699,7 @@ public:
             num_of_partitions = ceil_div(max_context_len, partition_size);
         }
         bool can_use_micro_sdpa = false;
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         // Keep internal buffer layout decision aligned with execute() path.
         // If runtime params are already prepared, they are the source of truth.
         if (rt_params != nullptr && rt_params->num_of_partitions != 0) {
@@ -1791,7 +1791,7 @@ public:
             internal_buffers.emplace_back(total_tokens, softmax_accumulator_type, lockable, not_shareable);  // 9
         }
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         if (can_use_micro_sdpa) {
             const auto wg_tile_q = 8;  // This is set as the minimum size of query block for sharing between sdpa_micro_prefill and mixed.
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));

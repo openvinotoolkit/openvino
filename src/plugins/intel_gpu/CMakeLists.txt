@@ -13,6 +13,11 @@ include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
 # convert white-space separated string to list
 string(REPLACE " " ";" SYCL_EXTRA_FLAGS "${SYCL_EXTRA_FLAGS}")
 
+# Add the SYCL target flags for the GPU vendor.
+if(GPU_VENDOR STREQUAL "NVIDIA")
+    list(APPEND SYCL_EXTRA_FLAGS -fsycl-targets=nvptx64-nvidia-cuda)
+endif()
+
 if(OV_COMPILER_IS_INTEL_LLVM)
     # For windows we need to disable warning as error option to make FindSYCL.cmake work
     if (WIN32)
@@ -126,6 +131,18 @@ add_definitions(-DCL_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
 if(APPLE)
     add_definitions(-DCL_HPP_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
 endif()
+
+if(GPU_VENDOR STREQUAL "NVIDIA")
+    if(NOT GPU_RT_TYPE STREQUAL "SYCL")
+        message(FATAL_ERROR "GPU_VENDOR=NVIDIA requires GPU_RT_TYPE=SYCL")
+    endif()
+    if(NOT BUILD_SHARED_LIBS)
+        message(FATAL_ERROR "GPU_VENDOR=NVIDIA does not support static builds (BUILD_SHARED_LIBS=OFF) yet")
+    endif()
+endif()
+
+# GPU vendor the plugin is built for (not the vendor of the device found at runtime)
+add_compile_definitions(OV_GPU_VENDOR_${GPU_VENDOR})
 
 set(MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")

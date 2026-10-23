@@ -4,7 +4,7 @@
 
 #pragma once
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
@@ -103,4 +103,4 @@ static inline int alignment_for_ld(int ld) {
 
 #undef UNUSED
 
-#endif  // ENABLE_ONEDNN_FOR_GPU
+#endif  // OV_GPU_WITH_ONEDNN_MICROKERNELS

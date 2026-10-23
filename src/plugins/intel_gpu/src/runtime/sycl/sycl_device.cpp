@@ -4,7 +4,7 @@
 // Copyright (C) 2026 FUJITSU LIMITED
 //
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_VENDOR_INTEL)
 #ifndef NOMINMAX
 # define NOMINMAX
 #endif
@@ -56,7 +56,7 @@ namespace sycl {
 
 namespace {
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_VENDOR_INTEL)
 gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
     switch (gpu_arch) {
         case ngen::HW::Gen9: return gpu_arch::gen9;
@@ -294,7 +294,7 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
     info.num_ccs = 1;
 
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_VENDOR_INTEL)
     using namespace dnnl::impl::gpu::intel::jit;
     ngen::Product product = generator_t<ngen::HW::Unknown>::detectHWInfo(context, device);
     info.arch = convert_ngen_arch(ngen::getCore(product.family));
