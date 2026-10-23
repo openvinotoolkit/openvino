@@ -21,6 +21,7 @@
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
+#include "plugin/ops/moe_offload_constant.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/dispatch_probe.hpp"
@@ -296,6 +297,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto transformed_model = clone_and_transform_model(model, config, context);
 
     config.finalize(context.get(), transformed_model.get());
+
+    if (config.get_offload_ratio() > 0) {
+        validate_model_resident_constant_memory(*transformed_model,
+                                                config.get_offload_ratio(),
+                                                context->get_device().get_info().max_global_mem_size);
+    }
+
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
         return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config, weight_sharing_context);
@@ -321,6 +329,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
 
     config.finalize(context_impl.get(), transformed_model.get());
+
+    if (config.get_offload_ratio() > 0) {
+        validate_model_resident_constant_memory(*transformed_model,
+                                                config.get_offload_ratio(),
+                                                context_impl->get_device().get_info().max_global_mem_size);
+    }
+
 
     return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config, weight_sharing_context);
 }
