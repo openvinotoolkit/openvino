@@ -305,14 +305,21 @@ bool ov::npuw::MaskLinearAttentionPadding::run_on_model(const std::shared_ptr<ov
     if (!ssm_sites.empty()) {
         // [B, 1, L], broadcast over the heads of the per-token [B, H, L] scalars.
         const auto mask_per_token = std::make_shared<opv0::Unsqueeze>(chunk_mask, i64_vector(1));
+        // One mask per precision, shared by all the gates and betas of that precision.
+        std::map<ov::element::Type_t, ov::Output<ov::Node>> mask_by_type;
         for (const auto& site : ssm_sites) {
             for (const auto input_idx : {site.gate_input, site.beta_input}) {
                 const auto source = site.loop->input_value(input_idx);
-                ov::Output<ov::Node> mask = mask_per_token;
-                if (source.get_element_type() != mask.get_element_type()) {
-                    mask = std::make_shared<opv0::Convert>(mask, source.get_element_type());
+                const auto type = source.get_element_type();
+                auto mask_it = mask_by_type.find(type);
+                if (mask_it == mask_by_type.end()) {
+                    ov::Output<ov::Node> mask = mask_per_token;
+                    if (type != mask.get_element_type()) {
+                        mask = std::make_shared<opv0::Convert>(mask, type);
+                    }
+                    mask_it = mask_by_type.emplace(type, mask).first;
                 }
-                const auto masked = std::make_shared<opv1::Multiply>(source, mask);
+                const auto masked = std::make_shared<opv1::Multiply>(source, mask_it->second);
                 site.loop->input(input_idx).replace_source_output(masked);
             }
         }
