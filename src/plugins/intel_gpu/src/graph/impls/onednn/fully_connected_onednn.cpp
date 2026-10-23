@@ -263,11 +263,7 @@ public:
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         auto prim = impl_params->typed_desc<fully_connected>();
-        auto weights_layout = impl_params->get_input_layout(1);
-        const auto& weight_shape = weights_layout.get_partial_shape();
-        auto weight_rank = std::count_if(weight_shape.begin(), weight_shape.end(),
-            [](ov::Dimension d) { return d.get_length() > 1; });
-        weight_rank = std::max(static_cast<int64_t>(2), weight_rank);
+        const auto weight_rank = get_compressed_weights_rank(impl_params->get_input_layout(1));
 
         auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
         const auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();

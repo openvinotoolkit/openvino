@@ -5861,6 +5861,93 @@ TEST(fully_connected_gpu, compressed_u2_weights_unaligned_group_size) {
     }
 }
 
+// u2 with several scale (and optional zero-point) groups on the oneDNN path, checked against a CPU reference.
+static void test_compressed_u2_grouped_onednn(int32_t group_size, bool with_zp, bool is_caching_test) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    const int32_t batch_num = 4, ifm_num = 64, ofm_num = 32;
+    const int32_t num_groups = ifm_num / group_size;
+
+    auto input_ps = ov::PartialShape{ batch_num, ifm_num };
+    auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u2, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {ofm_num, num_groups}, data_types::f16, format::bfyx });
+    auto zp_mem = engine.allocate_memory({ {ofm_num, num_groups}, data_types::u8, format::bfyx });
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f);
+    set_values(input_mem, input_data);
+    auto packed_weights = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 4, 0, 255, 1);
+    set_values(weights_mem, packed_weights);
+    auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * num_groups, 0.5f, 2.0f);
+    set_values(scale_mem, scale_data);
+    auto zp_data = rg.generate_random_1d<uint8_t>(ofm_num * num_groups, 0, 3, 1);
+    if (!with_zp)
+        std::fill(zp_data.begin(), zp_data.end(), 0);
+    set_values(zp_mem, zp_data);
+
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", with_zp ? "zp" : "", data_types::f16, 2, 2);
+
+    topology topology;
+    topology.add(input_layout("input", input_mem->get_layout()));
+    topology.add(data("weights", weights_mem));
+    topology.add(data("scale", scale_mem));
+    if (with_zp)
+        topology.add(data("zp", zp_mem));
+    topology.add(fc_prim);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("input", input_mem);
+
+    auto fc_impl = network->get_primitive("fc_prim")->get_impl();
+    ASSERT_TRUE(fc_impl != nullptr);
+    ASSERT_TRUE(fc_impl->is_onednn());
+
+    auto outputs = network->execute();
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), size_t(batch_num * ofm_num));
+
+    for (int n = 0; n < batch_num; ++n) {
+        for (int ofm = 0; ofm < ofm_num; ++ofm) {
+            float ref = 0.0f;
+            for (int ifm = 0; ifm < ifm_num; ++ifm) {
+                const int w_idx = ofm * ifm_num + ifm;
+                const int g_idx = ofm * num_groups + ifm / group_size;
+                const int w = (packed_weights[w_idx / 4] >> ((w_idx % 4) * 2)) & 0x3;
+                const float w_dq = static_cast<float>(w - zp_data[g_idx]) * static_cast<float>(scale_data[g_idx]);
+                ref += static_cast<float>(input_data[n * ifm_num + ifm]) * w_dq;
+            }
+            const float out = static_cast<float>(output_ptr[n * ofm_num + ofm]);
+            ASSERT_NEAR(out, ref, 0.1f + 0.01f * std::fabs(ref)) << "Mismatch at b=" << n << " ofm=" << ofm;
+        }
+    }
+}
+
+TEST(fully_connected_gpu, compressed_u2_weights_grouped_scale_gs16_immad) {
+    test_compressed_u2_grouped_onednn(16, false, false);
+}
+
+TEST(fully_connected_gpu, compressed_u2_weights_grouped_scale_gs32_immad) {
+    test_compressed_u2_grouped_onednn(32, false, false);
+}
+
+TEST(fully_connected_gpu, compressed_u2_weights_grouped_scale_zp_gs16_immad) {
+    test_compressed_u2_grouped_onednn(16, true, false);
+}
+
+TEST(fully_connected_gpu, compressed_u2_weights_grouped_scale_zp_gs32_immad) {
+    test_compressed_u2_grouped_onednn(32, true, false);
+}
+
+TEST(fully_connected_gpu, compressed_u2_weights_grouped_scale_zp_gs32_immad_cached) {
+    test_compressed_u2_grouped_onednn(32, true, true);
+}
+
 // Test weight zp for INT8 ASYM
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128_large_input_1025) {
     this->test_comp_weight_scale_zp(true, 1025, 1792, 4608, 128, 128, 1, WzpMode::AsymmetricScalar, WeightMode::Bit8, TargetDevice::SkipDgpu);
