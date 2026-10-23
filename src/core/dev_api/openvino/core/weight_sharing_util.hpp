@@ -205,7 +205,11 @@ OPENVINO_API bool set_weight_source(Context& shared_context, const ov::op::v0::C
  * @param source_buffer Weight buffer to set as source.
  * @return Return true if source was set successfully, false otherwise.
  */
-OPENVINO_API bool set_runtime_weight_source(Context& shared_context, const WeightBuffer& source_buffer);
+OPENVINO_API bool set_runtime_weight_source(Context& shared_context,
+                                            const WeightBuffer& source_buffer,
+                                            const std::string& device = {});
+
+OPENVINO_API WeightSource get_runtime_weight_source(const Context& shared_context, size_t source_id);
 }  // namespace ov::weight_sharing
 
 namespace ov {

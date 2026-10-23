@@ -231,4 +231,5 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_infer_utils_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/make_tensor_slice_bounds_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_topology_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/weights_bank_test.cpp
 )
