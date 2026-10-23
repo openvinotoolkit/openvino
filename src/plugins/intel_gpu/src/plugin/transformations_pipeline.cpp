@@ -702,6 +702,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                                     ov::element::i4,
                                                                                     ov::element::i8,
                                                                                     ov::element::u8};
+            // u2 is offered only to the TiledMoeBlock -> GatherMatmul passes, and only when the fused MoE
+            // path runs. GroupedMatMulCompressed executes on oneDNN, which has no u2, and GatherMatmulCompressed
+            // has no u2 kernel of its own: with fusion disabled a u2 GatherMatmul would have nothing to run on.
+            std::vector<ov::element::Type> gather_matmul_weights_types = supported_compressed_weights_types;
+            if (!config.get_moe_disable_fusion()) {
+                gather_matmul_weights_types.push_back(ov::element::u2);
+            }
             manager.register_pass<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(
                 supported_compressed_weights_types);
 
@@ -711,10 +718,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (infer_precision == ov::element::f16) {
                 supported_activation_types.insert(supported_activation_types.end(), {ov::element::f32, ov::element::bf16});
             }
-            manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_compressed_weights_types,
+            manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(gather_matmul_weights_types,
                                                                                  supported_activation_types);
             manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(supported_activation_types,
-                                                                                         supported_compressed_weights_types);
+                                                                                         gather_matmul_weights_types);
             manager.register_pass<ov::intel_gpu::FuseMoERouter>(supported_activation_types);
 
             if (!config.get_moe_disable_fusion()) {
