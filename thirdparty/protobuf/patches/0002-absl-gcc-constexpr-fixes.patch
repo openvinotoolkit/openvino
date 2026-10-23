@@ -15,13 +15,14 @@ patches the fetched source.
    initialized function-local static) without forcing constant evaluation.
 
 2. strings/ascii.cc: the compile-time self-test
-   `static_assert(ValidateAsciiCasefold() == 0, ...)` evaluates AsciiInAZRange(),
-   whose `static_cast<signed char>(u)` with u > 127 is an implementation-defined
-   conversion that those GCCs reject in constexpr:
-     ascii.cc:252: error: non-constant condition for static assertion
-   Replacing it with a well-defined signed interpretation keeps identical
-   runtime values (and the compiler folds it back to a signed-byte compare)
-   while being valid in a constant expression.
+   `static_assert(ValidateAsciiCasefold() == 0, ...)` forces constant evaluation
+   of AsciiStrCaseFold, which performs several `static_cast<char>(v)` conversions
+   with v > 127. Those implementation-defined conversions are rejected in a
+   constant expression by some GCC versions (e.g. RHEL8):
+     ascii.cc: error: non-constant condition for static assertion
+     ascii.cc: error: overflow in constant expression
+   The self-test has no runtime effect (upstream Abseil CI already covers it), so
+   remove the ValidateAsciiCasefold() helper and its static_assert.
 --- a/absl/container/internal/raw_hash_set.h
 +++ b/absl/container/internal/raw_hash_set.h
 @@ -4100,5 +4100,5 @@
@@ -33,16 +34,31 @@ patches the fetched source.
          // for standard layout and alignof(Hash) <= alignof(CommonFields).
 --- a/absl/strings/ascii.cc
 +++ b/absl/strings/ascii.cc
-@@ -170,7 +170,11 @@
-   constexpr unsigned char sub = (ToUpper ? 'a' : 'A') - SCHAR_MIN;
-   constexpr signed char threshold = SCHAR_MIN + 26;  // 26 = alphabet size.
-   // Using unsigned arithmetic as overflows/underflows are well defined.
-   unsigned char u = c - sub;
-   // Using signed cmp, as SIMD unsigned cmp isn't available in many platforms.
--  return static_cast<signed char>(u) < threshold;
-+  // Avoid the implementation-defined unsigned->signed char conversion, which
-+  // some GCC versions reject as a non-constant expression in the compile-time
-+  // ValidateAsciiCasefold() self-test below.
-+  return (u < 0x80u ? static_cast<int>(u) : static_cast<int>(u) - 0x100) <
-+         threshold;
+@@ -228,27 +228,3 @@
  }
+ 
+-static constexpr size_t ValidateAsciiCasefold() {
+-  constexpr size_t num_chars = 1 + CHAR_MAX - CHAR_MIN;
+-  size_t incorrect_index = 0;
+-  char lowered[num_chars] = {};
+-  char uppered[num_chars] = {};
+-  for (unsigned int i = 0; i < num_chars; ++i) {
+-    uppered[i] = lowered[i] = static_cast<char>(i);
+-  }
+-  AsciiStrCaseFold<false>(&lowered[0], &lowered[0], num_chars);
+-  AsciiStrCaseFold<true>(&uppered[0], &uppered[0], num_chars);
+-  for (size_t i = 0; i < num_chars; ++i) {
+-    const char ch = static_cast<char>(i),
+-               ch_upper = ('a' <= ch && ch <= 'z' ? 'A' + (ch - 'a') : ch),
+-               ch_lower = ('A' <= ch && ch <= 'Z' ? 'a' + (ch - 'A') : ch);
+-    if (uppered[i] != ch_upper || lowered[i] != ch_lower) {
+-      incorrect_index = i > 0 ? i : num_chars;
+-      break;
+-    }
+-  }
+-  return incorrect_index;
+-}
+-
+-static_assert(ValidateAsciiCasefold() == 0, "error in case conversion");
+-
+ }  // namespace ascii_internal
