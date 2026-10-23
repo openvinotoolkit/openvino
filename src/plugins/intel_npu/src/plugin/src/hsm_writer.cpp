@@ -11,9 +11,6 @@ using namespace intel_npu;
 
 namespace {
 
-// TODO change this to the real value once available
-constexpr ov::runtime::hsm::DeviceId device_id = ov::runtime::hsm::private_device_id_range_start;
-
 ov::runtime::hsm::SectionTagReserved build_section_tag(const std::shared_ptr<ISection>& section) {
     OPENVINO_ASSERT(section->get_id().has_value());
     const SectionID id = section->get_id().value();
@@ -41,14 +38,17 @@ void Writer::write_to(std::ostream& stream) const {
     const auto deferred_writer = ov::runtime::hsm::DeferredWriter::open(stream);
     OPENVINO_ASSERT(deferred_writer.has_value(), "A blob writer could not be created. The stream may be invalid");
     // TODO add common sections when available
-    deferred_writer->add_section(device_id,
+    deferred_writer->add_section(ov::runtime::hsm::Devices::npu,
                                  build_section_tag(runtime_requirements_section),
                                  runtime_requirements_section,
                                  runtime_requirements_section->get_alignment());
 
     const std::queue<std::shared_ptr<ISection>> write_queue = m_blob_sections_registry->get_write_queue();
     for (const auto section : write_queue) {
-        deferred_writer->add_section(device_id, build_section_tag(section), section, section->get_alignment());
+        deferred_writer->add_section(ov::runtime::hsm::Devices::npu,
+                                     build_section_tag(section),
+                                     section,
+                                     section->get_alignment());
     }
 
     deferred_writer->finalize();

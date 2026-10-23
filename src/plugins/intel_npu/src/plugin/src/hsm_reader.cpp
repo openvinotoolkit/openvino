@@ -10,8 +10,6 @@ using namespace intel_npu;
 
 namespace {
 
-// TODO change this to the real value once available
-constexpr ov::runtime::hsm::DeviceId device_id = ov::runtime::hsm::private_device_id_range_start;
 const ov::runtime::hsm::SectionTag RUNTIME_REQUIREMENTS_TAG =
     ov::runtime::hsm::SectionTag::make(SectionTypeCode::RUNTIME_REQUIREMENTS, false);
 
@@ -31,12 +29,12 @@ Reader::Reader(
 BlobSectionsRegistry Reader::read(ov::runtime::hsm::Reader& base_reader) const {
     // TODO dedicated tags instead of sectin types?
     std::optional<RuntimeRequirements> runtime_requirements;
-    const size_t n_runtime_requirements = base_reader.count(device_id, );
+    const size_t n_runtime_requirements = base_reader.count(ov::runtime::hsm::Devices::npu, );
     OPENVINO_ASSERT(n_runtime_requirements < 2, "Found more than one runtime requirements section");
 
     if (n_runtime_requirements) {
         OPENVINO_ASSERT(m_readers.count(SectionTypeCode::RUNTIME_REQUIREMENTS), "No reader found for the manifest");
-        const auto decode_result = base_reader.decode(device_id,
+        const auto decode_result = base_reader.decode(ov::runtime::hsm::Devices::npu,
                                                       RUNTIME_REQUIREMENTS_TAG,
                                                       m_readers.at(SectionTypeCode::RUNTIME_REQUIREMENTS));
         OPENVINO_ASSERT(decode_result.has_value());

@@ -21,16 +21,16 @@ namespace intel_npu {
  * modified.
  * @note The size needs to be fixed (2 bytes) since this value is written inside the blob manifest
  */
-enum class SectionTypeCode : uint16_t {
+enum class SectionTypeCode : uint32_t {
     UNKNOWN = 100,
-    RUNTIME_REQUIREMENTS = 101,
-    ELF_MAIN_SCHEDULE = 102,
-    ELF_INIT_SCHEDULES = 103,
-    DYNAMIC_SCHEDULE = 104,
-    IO_LAYOUTS = 105,
-    BATCH_SIZE = 106,
-    ENCRYPTED_SCHEDULES_FLAG = 107,
-    COMPILER_VERSION = 108,
+    RUNTIME_REQUIREMENTS = 3,  // Matches the tag ID used by the OV common code
+    ELF_MAIN_SCHEDULE = 101,
+    ELF_INIT_SCHEDULES = 102,
+    DYNAMIC_SCHEDULE = 103,
+    IO_LAYOUTS = 104,
+    BATCH_SIZE = 105,
+    ENCRYPTED_SCHEDULES_FLAG = 106,
+    COMPILER_VERSION = 107,
 };
 
 /**
@@ -79,6 +79,6 @@ bool is_section_type(const std::shared_ptr<CREToken>& token);
 template <>
 struct std::hash<intel_npu::SectionType> {
     std::size_t operator()(const intel_npu::SectionType& type) const noexcept {
-        return std::hash<uint16_t>()(static_cast<uint16_t>(type.get_code()));
+        return std::hash<uint32_t>()(static_cast<uint32_t>(type.get_code()));
     }
 };
