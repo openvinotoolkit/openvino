@@ -340,6 +340,64 @@ TEST_F(GGUFShards, ExplicitListAllowsRenamedFilesInDifferentDirectoriesAndRevers
     OV_EXPECT_THROW(get_gguf_data(renamed), ov::Exception, testing::HasSubstr("explicit list"));
 }
 
+TEST_F(GGUFShards, LegacyGroup128PackingMatchesMergedFileAcrossShards) {
+    const auto oracle_bytes = load_npy<uint8_t>("pq2_0_qbytes");
+    const auto oracle_values = load_npy<float>("pq2_0_deq");
+    ASSERT_GE(oracle_bytes.size(), 34);
+    ASSERT_GE(oracle_values.size(), 128);
+    const std::vector<uint8_t> block(oracle_bytes.begin(), oracle_bytes.begin() + 34);
+    std::vector<uint8_t> large;
+    for (size_t i = 0; i < 16; ++i) {
+        large.insert(large.end(), block.begin(), block.end());
+    }
+    const auto merged_path = m_base + ".gguf";
+    m_paths.push_back(merged_path);
+    for (bool ambiguous_first : {false, true}) {
+        SCOPED_TRACE(ambiguous_first);
+        GgufWriter merged;
+        for (size_t index : {0, 1}) {
+            GgufWriter shard;
+            shard.kv_u16("split.no", static_cast<uint16_t>(index));
+            shard.kv_u16("split.count", 2);
+            shard.kv_i32("split.tensors.count", 2);
+            const bool ambiguous = (index == 0) == ambiguous_first;
+            const auto name = ambiguous ? "small.weight" : "large.weight";
+            const std::vector<uint64_t> dims{128, ambiguous ? 1u : 16u};
+            const auto& data = ambiguous ? block : large;
+            shard.raw_tensor(name, dims, GGUF_TYPE_Q2_0, data);
+            merged.raw_tensor(name, dims, GGUF_TYPE_Q2_0, data);
+            m_paths.push_back(path(index));
+            ASSERT_TRUE(shard.write(path(index)));
+        }
+        ASSERT_TRUE(merged.write(merged_path));
+        const auto reference = get_gguf_data(merged_path);
+        for (const auto& loaded : {get_gguf_data(path(0)),
+                                   get_gguf_data(path(1)),
+                                   get_gguf_data(std::vector<std::filesystem::path>{path(1), path(0)})}) {
+            for (const std::string stem : {"small", "large"}) {
+                EXPECT_EQ(std::get<2>(loaded).at(stem + ".qtype"), GGUF_TYPE_PQ2_0);
+                const auto& arrays = std::get<1>(loaded);
+                const auto& expected = std::get<1>(reference);
+                for (const auto& suffix : {".weight", ".scales", ".zp"}) {
+                    const auto& actual = arrays.at(stem + suffix);
+                    const auto& value = expected.at(stem + suffix);
+                    ASSERT_EQ(actual.get_element_type(), value.get_element_type());
+                    ASSERT_EQ(actual.get_shape(), value.get_shape());
+                    EXPECT_EQ(std::memcmp(actual.data(), value.data(), actual.get_byte_size()), 0);
+                }
+                const auto node = make_weight_node(
+                    {arrays.at(stem + ".weight"), arrays.at(stem + ".scales"), arrays.at(stem + ".zp")},
+                    GGUF_TYPE_PQ2_0);
+                const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+                const auto output = run_on_cpu(model, {});
+                for (size_t i = 0; i < output.get_size(); ++i) {
+                    EXPECT_FLOAT_EQ(output.data<float>()[i], oracle_values[i % 128]);
+                }
+            }
+        }
+    }
+}
+
 TEST_F(GGUFShards, ReportsMissingSibling) {
     ASSERT_NO_FATAL_FAILURE(write_shard(0, 0));
     OV_EXPECT_THROW(get_gguf_data(path(0)), ov::Exception, testing::HasSubstr("missing GGUF shard"));

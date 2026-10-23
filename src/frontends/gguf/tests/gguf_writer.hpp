@@ -123,6 +123,25 @@ public:
         ++m_n_tensors;
     }
 
+    void raw_tensor(const std::string& name,
+                    const std::vector<uint64_t>& dims,
+                    uint32_t type,
+                    const std::vector<uint8_t>& data) {
+        put_str(m_ti, name);
+        put(m_ti, static_cast<uint32_t>(dims.size()));
+        for (auto d : dims) {
+            put(m_ti, d);
+        }
+        put(m_ti, type);
+        put(m_ti, m_data_size);
+        m_data.insert(m_data.end(), data.begin(), data.end());
+        if (const auto padding = data.size() % kAlignment) {
+            m_data.resize(m_data.size() + kAlignment - padding, 0);
+        }
+        m_data_size = m_data.size();
+        ++m_n_tensors;
+    }
+
     bool write(const std::string& path) const {
         std::ofstream out(path, std::ios::binary);
         if (!out) {

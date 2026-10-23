@@ -525,62 +525,68 @@ GgufFile read_gguf_file(const std::filesystem::path& file) {
     return {std::move(metadata), std::move(infos), std::move(mapped), alignment, data_off};
 }
 
-void load_gguf_tensors(GgufFile& file,
-                       std::unordered_map<std::string, ov::Tensor>& arrays,
-                       std::unordered_map<std::string, GgufTensorType>& qtype) {
-    auto& [metadata, infos, mapped, alignment, data_off] = file;
-    const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
-    const uint64_t fsize = mapped->size();
-
-    // Older Prism files used the upstream Q2_0 id for group-128 payloads.
-    std::vector<uint64_t> offsets;
-    for (const auto& ti : infos)
-        offsets.push_back(ti.offset);
-    std::sort(offsets.begin(), offsets.end());
-    OPENVINO_ASSERT(data_off <= fsize && (offsets.empty() || offsets.back() <= fsize - data_off),
-                    "[load_gguf] tensor offset runs past EOF");
+void detect_legacy_q2_layout(std::vector<GgufFile>& files) {
     std::vector<TensorInfo*> ambiguous_q2;
     bool legacy_g128 = false;
-    for (auto& ti : infos) {
-        if (ti.type != GGUF_TYPE_Q2_0 || ti.dim[0] == 0)
-            continue;
-        const auto next = std::upper_bound(offsets.begin(), offsets.end(), ti.offset);
-        OPENVINO_ASSERT(data_off <= fsize && ti.offset <= fsize - data_off,
-                        "[load_gguf] tensor '",
-                        ti.name,
-                        "' offset runs past EOF");
-        const auto span = (next == offsets.end() ? fsize - data_off : *next) - ti.offset;
-        const auto size_for = [&](uint32_t type) {
-            const auto traits = type_traits(type);
-            uint64_t blocks = ti.dim[0] / traits.items_per_block;
-            for (uint32_t d = 1; d < ti.ndim; ++d) {
-                OPENVINO_ASSERT(ti.dim[d] == 0 || blocks <= std::numeric_limits<uint64_t>::max() / ti.dim[d],
+    for (auto& file : files) {
+        auto& [metadata, infos, mapped, alignment, data_off] = file;
+        const uint64_t fsize = mapped->size();
+        std::vector<uint64_t> offsets;
+        for (const auto& ti : infos)
+            offsets.push_back(ti.offset);
+        std::sort(offsets.begin(), offsets.end());
+        OPENVINO_ASSERT(data_off <= fsize && (offsets.empty() || offsets.back() <= fsize - data_off),
+                        "[load_gguf] tensor offset runs past EOF");
+        for (auto& ti : infos) {
+            if (ti.type != GGUF_TYPE_Q2_0 || ti.dim[0] == 0)
+                continue;
+            const auto next = std::upper_bound(offsets.begin(), offsets.end(), ti.offset);
+            OPENVINO_ASSERT(data_off <= fsize && ti.offset <= fsize - data_off,
+                            "[load_gguf] tensor '",
+                            ti.name,
+                            "' offset runs past EOF");
+            const auto span = (next == offsets.end() ? fsize - data_off : *next) - ti.offset;
+            const auto size_for = [&](uint32_t type) {
+                const auto traits = type_traits(type);
+                uint64_t blocks = ti.dim[0] / traits.items_per_block;
+                for (uint32_t d = 1; d < ti.ndim; ++d) {
+                    OPENVINO_ASSERT(ti.dim[d] == 0 || blocks <= std::numeric_limits<uint64_t>::max() / ti.dim[d],
+                                    "[load_gguf] tensor '",
+                                    ti.name,
+                                    "' byte count overflows");
+                    blocks *= ti.dim[d];
+                }
+                OPENVINO_ASSERT(blocks <= std::numeric_limits<uint64_t>::max() / traits.bytes_per_block,
                                 "[load_gguf] tensor '",
                                 ti.name,
                                 "' byte count overflows");
-                blocks *= ti.dim[d];
+                const auto bytes = blocks * traits.bytes_per_block;
+                return bytes <= span &&
+                       (bytes == span || ov::util::align_padding_size(alignment, bytes) == span - bytes);
+            };
+            const bool g64 = ti.dim[0] % 64 == 0 && size_for(GGUF_TYPE_Q2_0);
+            const bool g128 = ti.dim[0] % 128 == 0 && size_for(GGUF_TYPE_PQ2_0);
+            OPENVINO_ASSERT(g64 || g128, "[load_gguf] tensor '", ti.name, "' has invalid Q2_0 packing");
+            if (g64 && g128) {
+                ambiguous_q2.push_back(&ti);
+            } else if (g128) {
+                ti.type = GGUF_TYPE_PQ2_0;
+                legacy_g128 = true;
             }
-            OPENVINO_ASSERT(blocks <= std::numeric_limits<uint64_t>::max() / traits.bytes_per_block,
-                            "[load_gguf] tensor '",
-                            ti.name,
-                            "' byte count overflows");
-            const auto bytes = blocks * traits.bytes_per_block;
-            return bytes <= span && (bytes == span || ov::util::align_padding_size(alignment, bytes) == span - bytes);
-        };
-        const bool g64 = ti.dim[0] % 64 == 0 && size_for(GGUF_TYPE_Q2_0);
-        const bool g128 = ti.dim[0] % 128 == 0 && size_for(GGUF_TYPE_PQ2_0);
-        OPENVINO_ASSERT(g64 || g128, "[load_gguf] tensor '", ti.name, "' has invalid Q2_0 packing");
-        if (g64 && g128) {
-            ambiguous_q2.push_back(&ti);
-        } else if (g128) {
-            ti.type = GGUF_TYPE_PQ2_0;
-            legacy_g128 = true;
         }
     }
     if (legacy_g128) {
         for (auto* ti : ambiguous_q2)
             ti->type = GGUF_TYPE_PQ2_0;
     }
+}
+
+void load_gguf_tensors(GgufFile& file,
+                       std::unordered_map<std::string, ov::Tensor>& arrays,
+                       std::unordered_map<std::string, GgufTensorType>& qtype) {
+    auto& [metadata, infos, mapped, alignment, data_off] = file;
+    const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
+    const uint64_t fsize = mapped->size();
 
     // Validate file-controlled shapes before allocating repacked tensors.
     auto quant_sizes = [](const TensorInfo& ti, const QuantLayout& ql) -> std::array<size_t, 3> {
@@ -725,18 +731,17 @@ bool same_metadata(const GGUFMetaData& lhs, const GGUFMetaData& rhs) {
     if (lhs.index() != rhs.index()) {
         return false;
     }
-    return std::visit(
-        ov::util::VariantVisitor{[&](const auto& a) {
-            using T = std::decay_t<decltype(a)>;
-            const auto& b = std::get<T>(rhs);
-            if constexpr (std::is_same_v<T, ov::Tensor>) {
-                return a.get_element_type() == b.get_element_type() && a.get_shape() == b.get_shape() &&
-                       (a.get_byte_size() == 0 || std::memcmp(a.data(), b.data(), a.get_byte_size()) == 0);
-            } else {
-                return a == b;
-            }
-        }},
-        lhs);
+    return std::visit(ov::util::VariantVisitor{[&](const ov::Tensor& a) {
+                                                   const auto& b = std::get<ov::Tensor>(rhs);
+                                                   return a.get_element_type() == b.get_element_type() &&
+                                                          a.get_shape() == b.get_shape() &&
+                                                          (a.get_byte_size() == 0 ||
+                                                           std::memcmp(a.data(), b.data(), a.get_byte_size()) == 0);
+                                               },
+                                               [&](const auto& a) {
+                                                   return a == std::get<std::decay_t<decltype(a)>>(rhs);
+                                               }},
+                      lhs);
 }
 
 std::string split_suffix(uint64_t index, uint64_t count) {
@@ -796,6 +801,7 @@ GGUFLoad load_gguf_files(std::vector<GgufFile> files) {
     std::unordered_map<std::string, GgufTensorType> qtype;
     std::vector<std::shared_ptr<ov::MappedMemory>> mappings;
     mappings.reserve(files.size());
+    detect_legacy_q2_layout(files);
     for (auto& file : files) {
         load_gguf_tensors(file, arrays, qtype);
         mappings.push_back(std::move(file.mapped));
