@@ -90,14 +90,17 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
     auto mem_output_scale = p.get_engine().allocate_memory(scales_layout, false);
     auto mem_output_shift = p.get_engine().allocate_memory(scales_layout, false);
 
+    // Offset of element idx in a (possibly broadcast) range tensor. Each coordinate is wrapped to the
+    // tensor's own size (numpy-style broadcasting), and the layout computes the offset, so that 5D/6D
+    // range tensors are addressed correctly. A hand-written bfyx pitch formula used to misplace the
+    // x coordinate of 5D ranges (e.g. [C,1,1,1,KW] weight FakeQuantize ranges of a depthwise
+    // GroupConvolution) and read past the end of the buffer.
     auto get_offset_safe = [](const layout& l, const tensor& idx) -> tensor::value_type {
-        auto sizes = l.get_tensor();
-        auto pitches = l.get_pitches();
-
-        return (idx.batch[0] % sizes.batch[0])*pitches[0]
-                    + (idx.feature[0] % sizes.feature[0])*pitches[1]
-                    + (idx.spatial[1] % sizes.spatial[1])*pitches[2 + 0]   // y
-                    + (idx.spatial[0] % sizes.spatial[0])*pitches[2 + 1];  // x
+        const auto sizes = l.get_tensor();
+        tensor wrapped(0);
+        for (size_t i = 0; i < wrapped.raw.size(); ++i)
+            wrapped.raw[i] = idx.raw[i] % std::max<tensor::value_type>(sizes.raw[i], 1);
+        return static_cast<tensor::value_type>(l.get_linear_offset(wrapped));
     };
 
     auto lock_memory = [&stream] (memory::ptr memory, std::function<void(std::size_t, float)>& set_data,
@@ -187,29 +190,33 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
 
     for (int b = 0; b < scales_layout.batch(); b++) {
         for (int f = 0; f < scales_layout.feature(); f++) {
-            for (int y = 0; y < scales_layout.spatial(1); y++) {
-                for (int x = 0; x < scales_layout.spatial(0); x++) {
-                    auto idx = cldnn::tensor(format::bfyx, {b, f, y, x}, 0);
-                    auto s_offset = scales_layout.get_linear_offset(idx);
-                    float in_lo = get_data_input_low(get_offset_safe(mem_input_low->get_layout(), idx));
-                    float in_hi = get_data_input_high(get_offset_safe(mem_input_high->get_layout(), idx));
+            for (int w = 0; w < scales_layout.spatial(3); w++) {
+                for (int z = 0; z < scales_layout.spatial(2); z++) {
+                    for (int y = 0; y < scales_layout.spatial(1); y++) {
+                        for (int x = 0; x < scales_layout.spatial(0); x++) {
+                            auto idx = cldnn::tensor(format::bfwzyx, {b, f, w, z, y, x}, 0);
+                            auto s_offset = scales_layout.get_linear_offset(idx);
+                            float in_lo = get_data_input_low(get_offset_safe(mem_input_low->get_layout(), idx));
+                            float in_hi = get_data_input_high(get_offset_safe(mem_input_high->get_layout(), idx));
 
-                    float out_lo = get_data_output_low(get_offset_safe(mem_output_low->get_layout(), idx));
-                    float out_hi = get_data_output_high(get_offset_safe(mem_output_high->get_layout(), idx));
-                    float in_shift_basic = (static_cast<float>(levels) - 1.f) / (in_hi - in_lo);
-                    set_data_input_scale(s_offset, in_shift_basic);
-                    set_data_input_shift(s_offset, -in_lo * in_shift_basic);
-                    set_data_output_scale(s_offset, (out_hi - out_lo) / (static_cast<float>(levels) - 1.f));
-                    set_data_output_shift(s_offset, out_lo);
+                            float out_lo = get_data_output_low(get_offset_safe(mem_output_low->get_layout(), idx));
+                            float out_hi = get_data_output_high(get_offset_safe(mem_output_high->get_layout(), idx));
+                            float in_shift_basic = (static_cast<float>(levels) - 1.f) / (in_hi - in_lo);
+                            set_data_input_scale(s_offset, in_shift_basic);
+                            set_data_input_shift(s_offset, -in_lo * in_shift_basic);
+                            set_data_output_scale(s_offset, (out_hi - out_lo) / (static_cast<float>(levels) - 1.f));
+                            set_data_output_shift(s_offset, out_lo);
 
-                    if (get_data_output_scale(s_offset) != 1.0f) {
-                        need_post_scale = true;
-                    }
-                    if (get_data_output_shift(s_offset) != 0.0f) {
-                        need_post_shift = true;
-                    }
-                    if (get_data_input_scale(s_offset) < 0.0f) {
-                        has_negative_scales = true;
+                            if (get_data_output_scale(s_offset) != 1.0f) {
+                                need_post_scale = true;
+                            }
+                            if (get_data_output_shift(s_offset) != 0.0f) {
+                                need_post_shift = true;
+                            }
+                            if (get_data_input_scale(s_offset) < 0.0f) {
+                                has_negative_scales = true;
+                            }
+                        }
                     }
                 }
             }
