@@ -530,6 +530,33 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
     auto& lo = p.get_layout_optimizer();
 
+    constexpr size_t onednn_post_ops_limit = 32;
+    auto can_add_onednn_post_ops = [&](program_node& fused_node, size_t candidate_cost) {
+        if (!lo.is_primitive_implemented_for_onednn(fused_node))
+            return true;
+
+        size_t post_ops_count = 0;
+        const auto& fused_primitives = fused_node.get_fused_primitives();
+        for (size_t fused_idx = 0; fused_idx < fused_primitives.size(); fused_idx++) {
+            const auto& fused_desc = fused_primitives[fused_idx];
+            size_t cost = 0;
+            if (fused_desc.is_type<activation>() || fused_desc.is_type<eltwise>()) {
+                cost = 1;
+            } else if (fused_desc.is_type<quantize>()) {
+                const auto quantize_params = fused_desc.get_typed_fuse_params<QuantizeFuseParams>();
+                cost = quantize_params->onednn_ops_count(fused_idx + 1 < fused_primitives.size());
+            } else if (!fused_desc.is_type<dynamic_quantize>() && !fused_desc.is_type<reorder>()) {
+                return false;
+            }
+
+            if (cost > onednn_post_ops_limit - post_ops_count)
+                return false;
+            post_ops_count += cost;
+        }
+
+        return candidate_cost <= onednn_post_ops_limit - post_ops_count;
+    };
+
     const auto supports_immad = p.get_engine().get_device_info().supports_immad;
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
@@ -964,6 +991,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
             }
 
+            if (!can_add_onednn_post_ops(input, 1))
+                return;
+
             p.fuse_nodes(input, activation_node, &fusing_history);
         };
 
@@ -1082,6 +1112,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             should_fuse |= input_data.is_type<broadcast>() && broadcast_supports_fusings(input_data.as<broadcast>());
 
             if (!should_fuse)
+                return;
+
+            const auto quantize_params = std::dynamic_pointer_cast<QuantizeFuseParams>(quantize_node.get_fuse_params());
+            OPENVINO_ASSERT(quantize_params != nullptr);
+            if (!can_add_onednn_post_ops(input_data, quantize_params->onednn_ops_count(false)))
                 return;
 
             p.fuse_nodes(input_data, quantize_node, &fusing_history);
@@ -1392,6 +1427,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             }
 
             if (!merge_allowed)
+                return;
+
+            if (!can_add_onednn_post_ops(*fused_node, 1))
                 return;
 
             if (p.get_processing_order().get_processing_number(fused_node) <
