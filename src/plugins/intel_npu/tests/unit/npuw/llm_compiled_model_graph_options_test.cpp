@@ -296,9 +296,9 @@ TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillReportsOffWithPrefixCa
     EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
 }
 
-TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillReportsOffWithShrunkSlidingWindow) {
-    // A window-shrunk KV cache has no continuation path. The same model with the
-    // full KV cache keeps continuous prefill on.
+TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillIsOnWithSlidingWindow) {
+    // Sliding window models continue the prefill with the full KV cache and with
+    // the window-shrunk one.
     const auto compile_swa_model = [this](const std::string& shrink) {
         RecordingFactory recorder;
         auto props = base_props();
@@ -318,7 +318,7 @@ TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillReportsOffWithShrunkSl
 
     std::unique_ptr<ov::npuw::LLMCompiledModel> shrunk;
     ASSERT_NO_THROW(shrunk = compile_swa_model("YES"));
-    EXPECT_FALSE(shrunk->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
+    EXPECT_TRUE(shrunk->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
 }
 
 TEST(HybridModelBuilderTest, HybridLinearAttnModelBuilds) {
