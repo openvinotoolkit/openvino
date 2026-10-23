@@ -124,11 +124,15 @@ path in the Docker container where the resources will be available.
 
 To add new resources, contact a member of the CI team for assistance.
 
-### RISC-V Compiler Cache
+### Remote Storage Compiler Cache
 
-The RISC-V GNU build in [`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml)
-uses a shared ccache file storage on the shared drive. Old entries are cleaned up
-periodically by the [`cleanup_riscv_ccache.yml`](./../../../../.github/workflows/cleanup_riscv_ccache.yml) workflow.
+Builds can share compiled objects through ccache's remote storage on the shared drive
+by setting `CCACHE_SECONDARY_STORAGE` (or `CCACHE_REMOTE_STORAGE` on newer ccache)
+to `file:///mount/caches/ccache/shared`. The RISC-V GNU build in
+[`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml) is the pilot user.
+Old entries are evicted together with the rest of `/mount/caches/ccache` by the
+`Cleanup_ccache_lin` job in
+[`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml).
 
 ## Cloud Storage via Azure Blob Storage
 
