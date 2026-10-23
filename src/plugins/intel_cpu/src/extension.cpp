@@ -44,6 +44,7 @@
 #include "openvino/op/normalize_l2.hpp"
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/ngram_hash_function.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
@@ -217,6 +218,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::op::internal::SelectiveSSM>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::PagedSelectiveSSM>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::PagedCausalConv1D>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::NGramHashFunction>>(),
     // clang-format off
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::InteractionNode>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LLMMLPNode>>())

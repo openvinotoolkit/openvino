@@ -128,6 +128,7 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/mod.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/multiclass_nms.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/multinomial.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/ngram_hash_function.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/multiply.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/mvn.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/negative.cpp

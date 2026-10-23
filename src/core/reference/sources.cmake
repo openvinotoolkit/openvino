@@ -177,6 +177,7 @@ set(REFERENCE_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/multiply.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/mvn.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/negate.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/ngram_hash_function.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/nms_rotated.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/nms_rotated_util.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/non_max_suppression.hpp
