@@ -355,6 +355,10 @@ void dump_sincos_tensor(memory::ptr mem, const layout& data_layout, stream& stre
     const size_t bytes = std::min(mem->size(), data_layout.bytes_count());
     mem_lock<char, mem_lock_type::read> lock(mem, stream);
     std::ofstream file(filename, std::ios::binary);
+    if (!file) {
+        GPU_DEBUG_COUT << "Sin/Cos dump: failed to open " << filename << std::endl;
+        return;
+    }
     file.write(lock.data(), static_cast<std::streamsize>(bytes));
 }
 
