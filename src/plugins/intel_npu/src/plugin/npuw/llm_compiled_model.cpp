@@ -527,6 +527,9 @@ void apply_moe_config(ov::AnyMap& stage_config,
         LOG_INFO("MoE config for " << stage_name
                                    << " stage: FUSED (single MOECompressed op, device dynamic-sparse"
                                       " kernel)");
+        if (stage_name == "GENERATE") {
+            stage_config["NPUW_UNFOLD_IREQS"] = "YES";
+        }
     }
 }
 
