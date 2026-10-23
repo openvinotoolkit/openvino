@@ -235,23 +235,24 @@ multiplication.
         return x
 
     def paged_qsa_indexer(q_idx, k_idx, rope_cos, rope_sin,
-                          summary_cache, indexer_raw_k_cache, q_norm_weight, k_norm_weight,
+                          q_norm_weight, k_norm_weight,
                           block_indices, block_indices_begins,
-                          subsequence_begins, past_lens, indexer_rope_cache,
+                          subsequence_begins, past_lens,
+                          indexer_raw_k_cache, indexer_rope_cache, summary_cache,
                           *, compress_ratio, block_topk, h_sel,
                           indexer_rotary_dim, indexer_head_dim, page_size,
                           num_sequences, eps, scale):
         # q_idx:            [tokens, H_iq * D_idx]   (raw external projection; norm/RoPE applied here)
         # k_idx:            [tokens, H_ik * D_idx]   (raw external projection)
         # rope_cos, rope_sin: [tokens, indexer_rotary_dim // 2]  (per-token NEOX coefficients)
-        # summary_cache:    [num_blocks, H_ik, page_size // r, D_idx]
-        # indexer_raw_k_cache: [num_blocks, H_ik, page_size, D_idx] (full history, shared page table)
         # q_norm_weight, k_norm_weight: [D_idx]
         # block_indices:    [total_logical_blocks]   logical -> physical block map (shared with main PA)
         # block_indices_begins: [num_sequences + 1]  split pointers into block_indices (len == total_logical_blocks)
         # subsequence_begins:   [num_sequences + 1]  split pointers into the token stream (len == tokens)
         # past_lens:        [num_sequences]  (logical length of each sequence before this step)
+        # indexer_raw_k_cache: [num_blocks, H_ik, page_size, D_idx] (full history, shared page table)
         # indexer_rope_cache: [num_blocks, page_size // r, indexer_rotary_dim], interleaved (cos_j, sin_j)
+        # summary_cache:    [num_blocks, H_ik, page_size // r, D_idx]
         # returns: sel_indices [tokens, H_sel, K_max]  (int32; -1 = pad), K_max = block_topk
         #          sel_count   [tokens, H_sel]         (int32)
         tokens = q_idx.shape[0]
@@ -424,48 +425,42 @@ multiplication.
   A 2D tensor of type *T* with shape ``[tokens, indexer_rotary_dim / 2]``; the sine counterpart of ``rope_cos``
   with the same layout. **Required.**
 
-* **4**: ``summary_cache``
-  A 4D tensor of type *T* with shape ``[num_blocks, H_ik, page_size // compress_ratio, D_idx]``.
-  Mean-pooled + RMSNorm'ed + first-token-RoPE'ed summary keys of each completed block, addressed through the
-  shared main PA page table (``block_indices`` / ``block_indices_begins``). The ``H_ik`` head count is
-  configurable, never hard-coded to ``1``. Updated in place. **Required.**
+* **4**: ``q_norm_weight``
+  A 1D tensor of type *T* with shape ``[D_idx]``. RMSNorm weight for raw projected indexer queries. **Required.**
 
-* **5**: ``indexer_raw_k_cache``
+* **5**: ``k_norm_weight``
+  A 1D tensor of type *T* with shape ``[D_idx]``.
+  RMSNorm weight for pooled block keys. **Required.**
+
+* **6**: ``block_indices``
+  A 1D tensor of type *T_IND* with shape ``[total_logical_blocks]``.
+  The main PagedAttention logical-to-physical block map; also addresses ``indexer_raw_k_cache``,
+  ``summary_cache`` and ``indexer_rope_cache``. **Required.**
+
+* **7**: ``block_indices_begins``
+  A 1D tensor of type *T_IND* with shape ``[num_sequences + 1]``.
+  Splits ``block_indices`` among sequences: sequence ``s`` owns blocks
+  ``block_indices[block_indices_begins[s] : block_indices_begins[s+1]]``. **Required.**
+
+* **8**: ``subsequence_begins``
+  A 1D tensor of type *T_IND* with shape ``[num_sequences + 1]``.
+  Splits the token stream among sequences: sequence ``s`` uses tokens
+  ``[subsequence_begins[s] : subsequence_begins[s + 1]]``. **Required.**
+
+* **9**: ``past_lens``
+  A 1D tensor of type *T_IND* with shape ``[num_sequences]``.
+  Logical KV length of each sequence before this step. When Prefix Caching matches a prompt prefix, this is
+  advanced by the matched prefix length, so the op skips the cached prefix pages. The global logical position of a
+  token is ``past_lens[s] + (t - subsequence_begins[s])``. **Required.**
+
+* **10**: ``indexer_raw_k_cache``
   A 4D tensor of type *T* with shape ``[num_blocks, H_ik, page_size, D_idx]``.
   Full-history cache of projected, unnormalized, unrotated keys, addressed through the same ``block_indices`` /
   ``block_indices_begins`` page table as the main KV cache. For logical position ``pos``, the operation writes to physical
   page ``block_indices[block_indices_begins[s] + pos // page_size]`` and offset ``pos % page_size``. The ``H_ik``
   head count is configurable, never hard-coded to ``1``. Updated in place. **Required.**
 
-* **6**: ``q_norm_weight``
-  A 1D tensor of type *T* with shape ``[D_idx]``. RMSNorm weight for raw projected indexer queries. **Required.**
-
-* **7**: ``k_norm_weight``
-  A 1D tensor of type *T* with shape ``[D_idx]``.
-  RMSNorm weight for pooled block keys. **Required.**
-
-* **8**: ``block_indices``
-  A 1D tensor of type *T_IND* with shape ``[total_logical_blocks]``.
-  The main PagedAttention logical-to-physical block map; also addresses ``indexer_raw_k_cache``,
-  ``summary_cache`` and ``indexer_rope_cache``. **Required.**
-
-* **9**: ``block_indices_begins``
-  A 1D tensor of type *T_IND* with shape ``[num_sequences + 1]``.
-  Splits ``block_indices`` among sequences: sequence ``s`` owns blocks
-  ``block_indices[block_indices_begins[s] : block_indices_begins[s+1]]``. **Required.**
-
-* **10**: ``subsequence_begins``
-  A 1D tensor of type *T_IND* with shape ``[num_sequences + 1]``.
-  Splits the token stream among sequences: sequence ``s`` uses tokens
-  ``[subsequence_begins[s] : subsequence_begins[s + 1]]``. **Required.**
-
-* **11**: ``past_lens``
-  A 1D tensor of type *T_IND* with shape ``[num_sequences]``.
-  Logical KV length of each sequence before this step. When Prefix Caching matches a prompt prefix, this is
-  advanced by the matched prefix length, so the op skips the cached prefix pages. The global logical position of a
-  token is ``past_lens[s] + (t - subsequence_begins[s])``. **Required.**
-
-* **12**: ``indexer_rope_cache``
+* **11**: ``indexer_rope_cache``
   A 3D tensor of type *T* with shape ``[num_blocks, page_size // compress_ratio, indexer_rotary_dim]``.
   One row per QSA block holding the RoPE coefficients of that block's first logical token, interleaved as
   ``(cos_0, sin_0, cos_1, sin_1, ...)``, i.e. ``row[2j] = rope_cos[t, j]`` and ``row[2j + 1] = rope_sin[t, j]``.
@@ -475,11 +470,17 @@ multiplication.
   token with ``pos % compress_ratio == 0``, and read back once the block completes to rotate that block's summary.
   Updated in place. **Required.**
 
-Inputs 4, 5 and 12 are mutated in place. When they are model inputs, the bound tensors MUST be device-visible
+* **12**: ``summary_cache``
+  A 4D tensor of type *T* with shape ``[num_blocks, H_ik, page_size // compress_ratio, D_idx]``.
+  Mean-pooled + RMSNorm'ed + first-token-RoPE'ed summary keys of each completed block, addressed through the
+  shared main PA page table (``block_indices`` / ``block_indices_begins``). The ``H_ik`` head count is
+  configurable, never hard-coded to ``1``. Updated in place. **Required.**
+
+Inputs 10, 11 and 12 are mutated in place. When they are model inputs, the bound tensors MUST be device-visible
 storage of the exact port element type (e.g. a GPU RemoteTensor or USM host tensor); a runtime that would stage
 them through a host copy or precision conversion MUST reject the binding instead of silently dropping the update.
 A scheduler that copies, swaps or forks physical pages of the main KV cache (copy-on-write, beam search) MUST
-apply the same page operation to inputs 4, 5 and 12.
+apply the same page operation to inputs 10, 11 and 12.
 
 
 **Outputs**
@@ -565,32 +566,32 @@ all four index-query heads participate in the single selection head's score.
            <port id="3">   <!-- rope_sin: [tokens, rotary_dim/2] -->
                <dim>1</dim><dim>32</dim>
            </port>
-           <port id="4">   <!-- summary_cache: [num_blocks, H_ik, page_size//r, D_idx] -->
-               <dim>1</dim><dim>1</dim><dim>4</dim><dim>128</dim>
+           <port id="4">   <!-- q_norm_weight: [D_idx] -->
+               <dim>128</dim>
            </port>
-           <port id="5">   <!-- indexer_raw_k_cache: [num_blocks, H_ik, page_size, D_idx] -->
+           <port id="5">   <!-- k_norm_weight: [D_idx] -->
+               <dim>128</dim>
+           </port>
+           <port id="6">   <!-- block_indices: [total_logical_blocks] -->
+               <dim>1</dim>
+           </port>
+           <port id="7">   <!-- block_indices_begins: [num_sequences+1] -->
+               <dim>2</dim>
+           </port>
+           <port id="8">   <!-- subsequence_begins: [num_sequences+1] -->
+               <dim>2</dim>
+           </port>
+           <port id="9">   <!-- past_lens: [num_sequences] -->
+               <dim>1</dim>
+           </port>
+           <port id="10">  <!-- indexer_raw_k_cache: [num_blocks, H_ik, page_size, D_idx] -->
                <dim>1</dim><dim>1</dim><dim>16</dim><dim>128</dim>
            </port>
-           <port id="6">   <!-- q_norm_weight: [D_idx] -->
-               <dim>128</dim>
-           </port>
-           <port id="7">   <!-- k_norm_weight: [D_idx] -->
-               <dim>128</dim>
-           </port>
-           <port id="8">   <!-- block_indices: [total_logical_blocks] -->
-               <dim>1</dim>
-           </port>
-           <port id="9">   <!-- block_indices_begins: [num_sequences+1] -->
-               <dim>2</dim>
-           </port>
-           <port id="10">  <!-- subsequence_begins: [num_sequences+1] -->
-               <dim>2</dim>
-           </port>
-           <port id="11">  <!-- past_lens: [num_sequences] -->
-               <dim>1</dim>
-           </port>
-           <port id="12">  <!-- indexer_rope_cache: [num_blocks, page_size//r, rotary_dim], writable -->
+           <port id="11">  <!-- indexer_rope_cache: [num_blocks, page_size//r, rotary_dim], writable -->
                <dim>1</dim><dim>4</dim><dim>64</dim>
+           </port>
+           <port id="12">  <!-- summary_cache: [num_blocks, H_ik, page_size//r, D_idx] -->
+               <dim>1</dim><dim>1</dim><dim>4</dim><dim>128</dim>
            </port>
        </input>
        <output>
