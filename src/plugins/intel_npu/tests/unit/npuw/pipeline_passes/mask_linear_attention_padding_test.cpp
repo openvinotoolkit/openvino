@@ -21,6 +21,8 @@
 #include "npuw_transformations/kv_axes_position.hpp"
 #include "npuw_transformations/optimize_lincache_layout.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/exp.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/scatter_update.hpp"
@@ -130,6 +132,39 @@ protected:
         return masked;
     }
 
+    // Feeds the gate of every recurrence Loop in f16 and converts it back in the body right before Exp,
+    // the mixed-precision layout FuseGatedDeltaNet also accepts.
+    static void convert_gate_before_exp(const std::shared_ptr<ov::Model>& model) {
+        for (const auto& node : model->get_ordered_ops()) {
+            const auto loop = ov::as_type_ptr<ov::op::v5::Loop>(node);
+            if (!loop) {
+                continue;
+            }
+            const auto body = loop->get_function();
+            for (const auto& desc : loop->get_input_descriptions()) {
+                const auto param = body->get_parameters().at(desc->m_body_parameter_index);
+                const auto targets = param->output(0).get_target_inputs();
+                const bool is_gate = std::any_of(targets.begin(), targets.end(), [](const ov::Input<ov::Node>& t) {
+                    return ov::is_type<ov::op::v0::Exp>(t.get_node());
+                });
+                if (!is_gate) {
+                    continue;
+                }
+                const auto type = param->get_element_type();
+                param->set_element_type(ov::element::f16);
+                const auto back = std::make_shared<ov::op::v0::Convert>(param, type);
+                for (auto target : targets) {
+                    target.replace_source_output(back);
+                }
+                const auto source = loop->input_value(desc->m_input_index);
+                loop->input(desc->m_input_index)
+                    .replace_source_output(std::make_shared<ov::op::v0::Convert>(source, ov::element::f16));
+            }
+            body->validate_nodes_and_infer_types();
+        }
+        model->validate_nodes_and_infer_types();
+    }
+
     // Number of distinct tensors the masked g / beta Loop inputs are multiplied with.
     static size_t count_ssm_masks(const std::shared_ptr<ov::Model>& model) {
         std::set<ov::Output<ov::Node>> masks;
@@ -219,6 +254,17 @@ TEST_F(MaskLinearAttentionPaddingTest, HybridModelIsRewrittenForAnyChunkLength) 
     }
 }
 
+TEST_F(MaskLinearAttentionPaddingTest, GateConvertedBeforeExpIsRecognized) {
+    auto base = stateless(ov::test::npuw::build_hybrid_llm_test_model());
+    convert_gate_before_exp(base);
+    auto model = make_static(base, 8u);
+    const auto n_ssm = count_inputs(model, "cache_params.past.ssm");
+    ASSERT_GT(n_ssm, 0u);
+
+    ASSERT_TRUE(ov::npuw::MaskLinearAttentionPadding().run_on_model(model));
+    EXPECT_EQ(count_masked_loop_inputs(model), 2u * n_ssm);
+}
+
 TEST_F(MaskLinearAttentionPaddingTest, ShortConvModelWithoutSsmIsRewritten) {
     const auto base = stateless(ov::test::npuw::build_lfm2_llm_test_model());
     auto model = make_static(base, 8u);
@@ -279,21 +325,26 @@ TEST_F(MaskLinearAttentionPaddingTest, DynamicShapesAreLeftUntouched) {
 
 // A partial chunk padded on the left must leave exactly the same conv/ssm state and the same
 // logits as the same tokens processed in a chunk of their own length, for a non-zero carried state.
-// The conv state is checked both in its original [B, C, K] layout and re-laid out as [B, K, C].
+// The conv state is checked both in its original [B, C, K] layout and re-laid out as [B, K, C], and the
+// gate both in the precision of the model and converted from f16 right before Exp.
 class MaskLinearAttentionPaddingNumericsTest : public MaskLinearAttentionPaddingTest,
-                                               public ::testing::WithParamInterface<std::tuple<uint32_t, bool>> {};
+                                               public ::testing::WithParamInterface<std::tuple<uint32_t, bool, bool>> {
+};
 
 TEST_P(MaskLinearAttentionPaddingNumericsTest, PaddedChunkMatchesUnpaddedChunk) {
     if (!cpu_available()) {
         GTEST_SKIP() << "CPU plugin is required to execute the models";
     }
     const uint32_t chunk = 8u;
-    const auto [padding, relayout_conv] = GetParam();
+    const auto [padding, relayout_conv, f16_gate] = GetParam();
     ASSERT_LT(padding, chunk);
 
     auto base = stateless(ov::test::npuw::build_hybrid_llm_test_model());
     if (relayout_conv) {
         ASSERT_TRUE(ov::npuw::util::OptimizeLinCacheLayout().run_on_model(base));
+    }
+    if (f16_gate) {
+        convert_gate_before_exp(base);
     }
     const auto past = make_lincache_past(make_static(base, chunk));
 
@@ -333,7 +384,7 @@ TEST_P(MaskLinearAttentionPaddingNumericsTest, PaddedChunkMatchesUnpaddedChunk) 
 
 INSTANTIATE_TEST_SUITE_P(PaddingLength,
                          MaskLinearAttentionPaddingNumericsTest,
-                         ::testing::Combine(::testing::Values(1u, 3u, 7u), ::testing::Bool()));
+                         ::testing::Combine(::testing::Values(1u, 3u, 7u), ::testing::Bool(), ::testing::Bool()));
 
 TEST_F(MaskLinearAttentionPaddingTest, FullChunkIsUnchanged) {
     if (!cpu_available()) {
