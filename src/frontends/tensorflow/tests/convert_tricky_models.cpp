@@ -105,6 +105,21 @@ TEST(FrontEndConvertTrickyModels, undefined_input_shape) {
     }
 }
 
+TEST(FrontEndConvertTrickyModels, split_with_multiple_terminal_outputs) {
+    const auto model_path = "split_multiple_terminal_outputs/split_multiple_terminal_outputs.pbtxt";
+    const auto model = convert_model(model_path);
+    const auto results = model->get_results();
+    ASSERT_EQ(results.size(), 4);
+    for (size_t output_index = 0; output_index < results.size(); ++output_index) {
+        EXPECT_EQ(results[output_index]->input_value(0).get_names(),
+                  unordered_set<string>{"Split:" + to_string(output_index)});
+    }
+
+    const auto selected_output_model = convert_model(model_path, nullptr, {}, {}, {}, {}, {}, false, {"Split:1"});
+    ASSERT_EQ(selected_output_model->get_results().size(), 1);
+    EXPECT_EQ(selected_output_model->get_results()[0]->input_value(0).get_names(), unordered_set<string>{"Split:1"});
+}
+
 TEST(FrontEndConvertTrickyModels, simple_wide_and_deep) {
     shared_ptr<Model> model;
     try {
