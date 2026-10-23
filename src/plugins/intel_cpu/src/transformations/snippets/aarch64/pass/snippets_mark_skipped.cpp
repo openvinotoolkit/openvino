@@ -35,6 +35,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/util/convolution_backprop_base.hpp"
@@ -124,6 +125,16 @@ bool isSuitableConvolutionParent(const std::shared_ptr<const Node>& node) {
     const auto out = node->outputs();
     const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     return is_suitable_node && has_only_child;
+}
+bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node>& node) {
+    if (!ov::is_type<ov::op::v1::Subtract>(node) || node->get_users().size() != 1) {
+        return false;
+    }
+
+    const auto child = node->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+    const bool is_conv = ov::is_type<ov::op::v1::Convolution>(child);
+    auto zero_point_node = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));  // can be null
+    return is_conv && zero_point_node;
 }
 bool isSuitableBinaryConvolutionParent(const std::shared_ptr<const Node>& node) {
     const bool is_suitable_node = ov::is_type<ov::op::v1::BinaryConvolution>(node);
@@ -334,6 +345,9 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
             // Initiate fusing chain
             SetNodeFusingType(node, NodeFusingType::FusedWithConvolution);
             channelAxis = DEFAULT_AXIS;
+        } else if (isSuitableSubtractAsZeroPointsParent(node) || isSuitableConvert(node)) {
+            SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+            channelAxis = DEFAULT_AXIS;
         } else if (isSuitableBinaryConvolutionParent(node)) {
             SetNodeFusingType(node, NodeFusingType::FusedWithBinaryConvolution);
             channelAxis = DEFAULT_AXIS;
@@ -358,9 +372,6 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
                     channelAxis = DEFAULT_AXIS;
                 }
             }
-        } else if (isSuitableConvert(node)) {
-            SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
-            channelAxis = DEFAULT_AXIS;
         } else {
             for (const auto fusingChainType : getContinuableChains(node)) {
                 if (isSuitableChildForFusingBias(node, channelAxis)) {
