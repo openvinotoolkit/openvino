@@ -13,10 +13,22 @@ namespace kernel_selector {
 
 static constexpr size_t sub_group_size = 16;
 
+static size_t get_vec_size(const resample_params& params);
+static size_t get_feature_slices_per_wi(const resample_params& params);
+
 size_t ResampleKernelOpt::GetOptimalBlockSize(const resample_params& params) const {
+    size_t max_width = 16;
+    if (params.outputs[0].GetLayout() == DataLayout::byxf) {
+        // A work-item that covers whole pixels writes contiguous memory: about 1 KiB per work-item is the fastest.
+        // When several work-items share a pixel, 4 pixels per work-item is the fastest.
+        const auto& out = params.outputs[0];
+        const size_t wi_features = sub_group_size * get_vec_size(params) * get_feature_slices_per_wi(params);
+        const size_t pixel_bytes = out.Feature().v * BytesPerElement(out.GetDType());
+        max_width = wi_features == out.Feature().v ? std::clamp<size_t>(1024 / pixel_bytes, 4, 16) : 4;
+    }
     std::vector<size_t> block_width = { 16, 8, 4, 2, 1 };
     for (auto& w : block_width) {
-        if (params.outputs[0].X().v % w == 0) {
+        if (w <= max_width && params.outputs[0].X().v % w == 0) {
             return w;
         }
     }
@@ -52,6 +64,7 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
     k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
+    k.EnableInputLayout(DataLayout::byxf);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
@@ -59,6 +72,7 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
     k.EnableOutputLayout(DataLayout::fs_b_yx_fsv32);
+    k.EnableOutputLayout(DataLayout::byxf);
 
     // 5d formats
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
@@ -89,15 +103,60 @@ DeviceFeaturesKey ResampleKernelOpt::get_required_device_features_key(const Para
     return get_common_subgroups_device_features_key(params);
 }
 
+static bool is_byxf(const resample_params& params) {
+    return params.inputs[0].GetLayout() == DataLayout::byxf || params.outputs[0].GetLayout() == DataLayout::byxf;
+}
+
+// Nearest asymmetric/floor upsampling by integer factors: output (y, x) reads input (y / UPSAMPLE_Y, x / UPSAMPLE_X).
+// The output x-block must hold whole groups of UPSAMPLE_X outputs, so that each input pixel is read once.
+static bool is_byxf_integral_nearest(const resample_params& params, size_t x_block_size) {
+    const auto& in = params.inputs[0];
+    const auto& out = params.outputs[0];
+    if (!is_byxf(params) || params.resampleType != ResampleType::NEAREST_NEIGHBOR || params.coordTransMode != CoordinateTransformationMode::ASYMMETRIC ||
+        params.nearestMode != NearestMode::FLOOR || ResampleKernelBase::has_padding(params) || in.Batch().v != out.Batch().v ||
+        in.Feature().v != out.Feature().v || !is_integral_upsampling_ratio(out.X().v, in.X().v) || !is_integral_upsampling_ratio(out.Y().v, in.Y().v) ||
+        x_block_size % (out.X().v / in.X().v) != 0) {
+        return false;
+    }
+    // With SCALES the kernel maps by the scale value, which can differ from the size ratio (scale 2.2 on X = 4 gives 8).
+    if (params.shapeCalculationMode == ShapeCalculationMode::SCALES) {
+        for (size_t i = 0; i < params.axes.size(); ++i) {
+            if ((params.axes[i] == InterpolateAxis::X && params.scales[i] != static_cast<float>(out.X().v / in.X().v)) ||
+                (params.axes[i] == InterpolateAxis::Y && params.scales[i] != static_cast<float>(out.Y().v / in.Y().v))) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 static size_t get_vec_size(const resample_params &params) {
     if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
         return 2;
+    }
+    if (is_byxf(params)) {
+        // Features of a pixel are contiguous: use the widest sub-group block IO that divides F.
+        for (size_t vec = 8; vec > 1; vec /= 2) {
+            if (params.outputs[0].Feature().v % (sub_group_size * vec) == 0) {
+                return vec;
+            }
+        }
     }
     return 1;
 }
 
 static int get_feature_slice_size(const resample_params &params) {
     return static_cast<int>(16 * get_vec_size(params));
+}
+
+// When a sub-group writes at most one 64 B cache line per byxf pixel (16 * VEC_SIZE elements), one work-item handles
+// all feature slices of the pixel. Otherwise several work-items write parts of the same cache lines.
+static size_t get_feature_slices_per_wi(const resample_params& params) {
+    const auto& out = params.outputs[0];
+    if (!is_byxf(params) || sub_group_size * get_vec_size(params) * BytesPerElement(out.GetDType()) > 64) {
+        return 1;
+    }
+    return out.Feature().v / (sub_group_size * get_vec_size(params));
 }
 
 ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_selector::resample_params &arg) const {
@@ -122,6 +181,19 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
         auto opt_x_block_size = GetOptimalBlockSize(arg);
         if (out.X().v > 32 && opt_x_block_size == 1) {
             opt_x_block_size = GetOptimalDivisor(out.X().v, 32);
+        }
+
+        if (is_byxf(arg)) {
+            // Features fastest: neighboring sub-groups access adjacent parts of the same pixels.
+            // The fsv16 mapping below would walk pixels at stride F and is up to 13x slower for byxf.
+            const size_t features_per_wi = get_vec_size(arg) * get_feature_slices_per_wi(arg);
+            dispatchData.gws = {out.Feature().v / features_per_wi, CeilDiv(out.X().v, opt_x_block_size) * out.Y().v, out.Batch().v};
+            size_t lws0 = 256;
+            while (lws0 > sub_group_size && (dispatchData.gws[0] % lws0 != 0 || lws0 > arg.engineInfo.maxWorkGroupSize)) {
+                lws0 /= 2;
+            }
+            dispatchData.lws = {lws0, 1, 1};
+            return dispatchData;
         }
 
         if (dims == 5) {
@@ -163,6 +235,26 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
     const auto& output = params.outputs[0];
 
     const auto has_padding = ResampleKernelBase::has_padding(params);
+
+    if (is_byxf(params)) {
+        // A sub-group block access covers 16 * VEC_SIZE consecutive features of one pixel.
+        const bool feature_padded = input.Feature().pad.Total() != 0 || output.Feature().pad.Total() != 0;
+        const bool supported_type = params.resampleType == ResampleType::NEAREST_NEIGHBOR || params.resampleType == ResampleType::LINEAR_ONNX;
+        if (input.GetLayout() != output.GetLayout() || input.Feature().v % sub_group_size != 0 || feature_padded || !supported_type) {
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
+        // Fused-op aligned loads use the data lane/feature mapping, which only holds for byxf or broadcast inputs.
+        for (const auto& fused_op : params.fused_ops) {
+            for (const auto& t : fused_op.tensors) {
+                const bool scalar = t.LogicalSize() == 1;
+                const bool per_channel = t.Feature().v == output.Feature().v && t.LogicalSize() == output.Feature().v;
+                const bool byxf_tensor = t.GetLayout() == DataLayout::byxf && t.Feature().v == output.Feature().v;
+                if (!scalar && !per_channel && !byxf_tensor) {
+                    DO_NOT_USE_THIS_KERNEL(p.layerID);
+                }
+            }
+        }
+    }
 
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
@@ -223,6 +315,12 @@ JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params, b
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", opt_x_block_size));
     jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.outputs[0].X().v, opt_x_block_size)));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
+    jit.AddConstant(MakeJitConstant("FEATURE_SLICES_PER_WI", get_feature_slices_per_wi(params)));
+    if (is_byxf_integral_nearest(params, opt_x_block_size)) {
+        jit.AddConstant(MakeJitConstant("BYXF_INTEGRAL_NEAREST", 1));
+        jit.AddConstant(MakeJitConstant("UPSAMPLE_X", params.outputs[0].X().v / params.inputs[0].X().v));
+        jit.AddConstant(MakeJitConstant("UPSAMPLE_Y", params.outputs[0].Y().v / params.inputs[0].Y().v));
+    }
 
     const size_t vec_size = get_vec_size(params);
     jit.AddConstant(MakeJitConstant("FEATURE_SLICE_SIZE", get_feature_slice_size(params)));

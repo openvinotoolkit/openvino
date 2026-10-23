@@ -1534,6 +1534,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                                                                               cldnn::range::type_id(),
                                                                               cldnn::reduce::type_id(),
                                                                               cldnn::reorder::type_id(),
+                                                                              cldnn::resample::type_id(),
                                                                               cldnn::reshape::type_id(),
                                                                               cldnn::select::type_id(),
                                                                               cldnn::shape_of::type_id(),
@@ -1724,7 +1725,12 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        if (prim.is_in_data_flow() && (byxf_onednn_conv_whitelist.count(prim.type()) == 0)) {
+        bool is_byxf_onednn_conv_whitelisted = byxf_onednn_conv_whitelist.count(prim.type()) > 0;
+        if (prim.type() == cldnn::resample::type_id()) {
+            // Same scope as the byxf resample impl; other resamples would need reorders between byxf convolutions.
+            is_byxf_onednn_conv_whitelisted = prim.as<resample>().is_byxf_opt_supported();
+        }
+        if (prim.is_in_data_flow() && !is_byxf_onednn_conv_whitelisted) {
             total_non_byxf_onednn_conv_whitelist_layers++;
         }
         if (prim.type() == cldnn::scaled_dot_product_attention::type_id()) {
