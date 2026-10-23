@@ -44,6 +44,7 @@
 #include "openvino/pass/manager.hpp"
 #include "pass/lower_set_rows_stateless.hpp"
 #include "pass/prune_orphaned_parameters.hpp"
+#include "quant/weights.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/optimize_strided_slice.hpp"
@@ -398,6 +399,7 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
     }
 
     manager.run_passes(model);
+    normalize_u2_zero_points(model);
     return model;
 }
 

@@ -49,6 +49,53 @@ TEST(prepare_primitive_fusing, fuse_activation_to_fc_dyn) {
     ASSERT_FALSE(has_node_with_type<activation>(*prog));
 }
 
+TEST(prepare_primitive_fusing, preserve_ternary_fc_sigmoid_epilogue) {
+    auto& engine = get_test_engine();
+    for (size_t rank : {3, 4}) {
+        for (auto weights_type : {data_types::u2, data_types::u4}) {
+            for (auto function : {activation_func::logistic, activation_func::swish}) {
+                for (bool enable_ternocl : {false, true}) {
+                    SCOPED_TRACE(testing::Message() << "rank=" << rank << " weights=" << static_cast<int>(weights_type)
+                                                    << " activation=" << static_cast<int>(function) << " ternocl=" << enable_ternocl);
+                    const auto shape = rank == 3 ? ov::PartialShape{1, -1, 128} : ov::PartialShape{1, 1, -1, 128};
+                    const auto output_shape = rank == 3 ? ov::PartialShape{1, -1, 16} : ov::PartialShape{1, 1, -1, 16};
+                    auto weights = engine.allocate_memory({ov::PartialShape{16, 128}, weights_type, format::bfyx});
+                    auto scales = engine.allocate_memory({ov::PartialShape{16, 1}, data_types::f16, format::bfyx});
+                    auto fc = fully_connected("fc", input_info("input"), "weights", "", "scales", "", data_types::f16, rank);
+                    fc.decompression_zero_point_scalar = 1.0f;
+
+                    topology topology;
+                    topology.add(input_layout("input", {shape, data_types::f16, format::bfyx}));
+                    topology.add(input_layout("other", {output_shape, data_types::f16, format::bfyx}));
+                    topology.add(data("weights", weights));
+                    topology.add(data("scales", scales));
+                    topology.add(fc);
+                    topology.add(activation("act", input_info("fc"), function));
+                    topology.add(eltwise("mul", {input_info("act"), input_info("other")}, eltwise_mode::prod));
+                    topology.add(reorder("output", input_info("mul"), format::bfyx, data_types::f32));
+
+                    ExecutionConfig config = get_test_default_config(engine);
+                    config.set_property(ov::intel_gpu::allow_new_shape_infer(true), ov::intel_gpu::enable_ternocl_int2(enable_ternocl));
+                    auto prog = program::build_program(engine, topology, config, false, true);
+                    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+
+                    bool preserve_multiply = false;
+#ifdef OV_GPU_WITH_OCL_RT
+                    preserve_multiply = enable_ternocl && engine.get_device_info().supports_immad && engine.get_device_info().arch >= gpu_arch::xe2 &&
+                                        weights_type == data_types::u2 && function == activation_func::logistic;
+#endif
+                    ASSERT_FALSE(has_node(*prog, "act"));
+                    ASSERT_EQ(has_node(*prog, "mul"), preserve_multiply);
+                    const auto& fused = prog->get_node("fc").get_fused_primitives();
+                    ASSERT_EQ(fused.size(), preserve_multiply ? 1 : 2);
+                    ASSERT_TRUE(fused.front().is_type<activation>());
+                    EXPECT_EQ(fused.front().typed_desc<activation>()->activation_function, function);
+                }
+            }
+        }
+    }
+}
+
 // fp8 concatenation/scatter_update take a byte-copy kernel path that cannot run fused ops, so
 // prepare_primitive_fusing must not fuse an activation into an f8e4m3 scatter_update (unlike a
 // regular f16 cache, where the activation is fused).
