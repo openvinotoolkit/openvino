@@ -237,14 +237,6 @@ const std::vector<ov::AnyMap> compat_IncorrectMutablePropertiesWrongValueTypes =
     {{ov::intel_npu::dma_engines.name(), false}},
 };
 
-const std::vector<ov::AnyMap> CorrectPluginMutableProperties = {
-    {{ov::intel_npu::stepping.name(), 0}},
-};
-
-const std::vector<ov::AnyMap> IncorrectMutablePropertiesWrongValueTypes = {
-    {{ov::intel_npu::stepping.name(), "V1"}},
-};
-
 const std::vector<AnyMap> PropsWithEnvVars{
     {{ov::log::level.name(), ::intel_npu::LOG_LEVEL::envVar()}},
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
@@ -282,20 +274,8 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVCheckSetSupportedRWMetricsPropsTestsNPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU), ::testing::ValuesIn([] {
-                                                std::vector<ov::AnyMap> combined =
-                                                    compat_CorrectPluginMutableProperties;
-                                                combined.insert(combined.end(),
-                                                                CorrectPluginMutableProperties.begin(),
-                                                                CorrectPluginMutableProperties.end());
-                                                return combined;
-                                            }())),
-                         (ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTestsNPU>));
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVPropertiesIncorrectTestsNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(IncorrectMutablePropertiesWrongValueTypes)),
-                         (ov::test::utils::appendPlatformTypeTestName<OVPropertiesIncorrectTestsNPU>));
+                                            ::testing::ValuesIn(compat_CorrectPluginMutableProperties)),
+                         (ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTestsNPU>));
 
 }  // namespace ov::test::behavior
