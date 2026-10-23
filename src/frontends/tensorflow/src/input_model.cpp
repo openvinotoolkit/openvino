@@ -317,9 +317,9 @@ void InputModel::InputModelTFImpl::load_places() {
                     const auto num_split_value = num_split.as<int64_t>();
                     FRONT_END_GENERAL_CHECK(num_split_value > 0,
                                             "TensorFlow Split operation must have a positive number of outputs.");
-                    FRONT_END_GENERAL_CHECK(static_cast<std::uint64_t>(num_split_value) <=
-                                                std::numeric_limits<size_t>::max(),
-                                            "TensorFlow Split operation has too many outputs.");
+                    FRONT_END_GENERAL_CHECK(
+                        static_cast<std::uint64_t>(num_split_value) <= std::numeric_limits<size_t>::max(),
+                        "TensorFlow Split operation has too many outputs.");
                     output_count = static_cast<size_t>(num_split_value);
                     output_count_known = true;
                 }

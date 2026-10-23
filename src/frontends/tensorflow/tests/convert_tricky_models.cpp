@@ -112,12 +112,13 @@ TEST(FrontEndConvertTrickyModels, split_with_multiple_terminal_outputs) {
     ASSERT_EQ(results.size(), 4);
     for (size_t output_index = 0; output_index < results.size(); ++output_index) {
         EXPECT_EQ(results[output_index]->input_value(0).get_names(),
-                  unordered_set<string>{"Split:" + to_string(output_index)});
+                  std::unordered_set<std::string>{"Split:" + to_string(output_index)});
     }
 
     const auto selected_output_model = convert_model(model_path, nullptr, {}, {}, {}, {}, {}, false, {"Split:1"});
     ASSERT_EQ(selected_output_model->get_results().size(), 1);
-    EXPECT_EQ(selected_output_model->get_results()[0]->input_value(0).get_names(), unordered_set<string>{"Split:1"});
+    EXPECT_EQ(selected_output_model->get_results()[0]->input_value(0).get_names(),
+              std::unordered_set<std::string>{"Split:1"});
 }
 
 TEST(FrontEndConvertTrickyModels, simple_wide_and_deep) {
