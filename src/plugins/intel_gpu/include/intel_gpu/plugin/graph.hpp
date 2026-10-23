@@ -38,7 +38,7 @@ public:
         POSTPROC = 4
     };
 
-    Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id = 0);
+    Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id = 0, ov::internal::WeightSharingCtxPtr weight_sharing_ctx = nullptr);
     Graph(cldnn::BinaryInputBuffer& ib, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id = 0);
     Graph(std::shared_ptr<Graph> graph, uint16_t stream_id = 0);
     ~Graph();
@@ -78,8 +78,12 @@ public:
     std::mutex& get_mutex() { return m_infer_mutex; }
 
     bool use_external_queue() const;
-    std::optional<size_t> get_paged_attention_block_size() const {
+    std::optional<size_t> getPagedAttentionBlockSize() const {
         return m_paged_attention_block_size;
+    }
+
+    std::set<std::shared_ptr<ov::AlignedBuffer>> get_weight_sharing_source_buffers() const {
+        return m_weight_sharing_source_buffers;
     }
 
     std::vector<HostTimeProfilingEntry> host_exec_times;
@@ -102,6 +106,7 @@ private:
 
     std::map<size_t, cldnn::layout> m_input_layouts;
     std::optional<size_t> m_paged_attention_block_size;
+    std::set<std::shared_ptr<ov::AlignedBuffer>> m_weight_sharing_source_buffers;
 
     void build(std::shared_ptr<cldnn::program> program);
     std::shared_ptr<ov::Model> get_runtime_model(std::vector<cldnn::primitive_info>& pi, bool filter_const_primitives = true);

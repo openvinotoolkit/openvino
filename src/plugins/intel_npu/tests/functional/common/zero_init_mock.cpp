@@ -438,6 +438,7 @@ void ZeroInitStructsMock::destroyContextLocked() {
 }
 
 ZeroInitStructsMock::~ZeroInitStructsMock() {
+    (void)_context_options;  // intentionally unused, see declaration comment
     std::lock_guard<std::mutex> lock(_mutex);
     destroyContextLocked();
 }

@@ -56,6 +56,9 @@ GraphBuilder load_gguf_builder(const std::string& file, const ArchRegistry& regi
 
     const detail::MetadataStore meta_store{metadata};
     const GgufMetadata meta_view(meta_store);
+    if (meta_view.architecture() == "this model cannot be used as LLM, use it via --model-vocoder in TTS examples") {
+        metadata["general.architecture"] = std::string("lfm2.audio_vocoder");
+    }
 
     // Built-in and external definitions share selection, construction and postprocessing.
     // Family detection is only a diagnostic fallback; it must not reject a registered family.
