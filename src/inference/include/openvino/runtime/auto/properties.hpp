@@ -31,6 +31,13 @@ static constexpr Property<bool> enable_startup_fallback{"ENABLE_STARTUP_FALLBACK
 static constexpr Property<bool> enable_runtime_fallback{"ENABLE_RUNTIME_FALLBACK"};
 
 /**
+ * @brief auto device setting that enables compiling the model to the remaining candidate devices in the background,
+ * after the actual device is ready and the CPU helper is released, to populate cache blobs for faster device switching.
+ * Requires ov::cache_dir or ov::cache_path.
+ */
+static constexpr Property<bool> compile_for_all{"COMPILE_FOR_ALL"};
+
+/**
  * @brief Enum to define the policy of scheduling inference request to target device in cumulative throughput mode on
  * AUTO
  * @ingroup ov_runtime_cpp_prop_api
