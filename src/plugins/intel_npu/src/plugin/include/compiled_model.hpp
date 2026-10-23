@@ -11,6 +11,7 @@
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "merged_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
@@ -27,15 +28,16 @@ public:
      * @param plugin Pointer towards the NPU plugin instance
      * @param device Backend specific object through which inference requests can be created
      * @param graph Object holding the graph handle along with distinct fields for metadata
-     * @param config Custom configuration object
+     * @param mergedConfig The configuration of the compiled model: the runtime config, the compiler options the model
+     * was compiled with (used only for exposing the compile-time properties, empty if the model was imported) and the
+     * properties unknown to the plugin
      * @param batchSize Optional batch size value.
      */
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
-                  const Config& config,
-                  const ov::AnyMap& properties,
+                  const MergedConfig& mergedConfig,
                   const std::optional<int64_t>& batchSize);
 
     CompiledModel(const CompiledModel&) = delete;

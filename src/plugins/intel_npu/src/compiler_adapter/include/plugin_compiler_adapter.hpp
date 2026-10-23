@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
 #include <optional>
 
@@ -34,14 +35,15 @@ public:
                           std::shared_ptr<IVCLCompiler> compiler);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
-                                    const Config& config,
+                                    const CompilerProperties& compilerProperties,
                                     const AdapterDescriptor& adapterDesc) const override;
 
     std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model,
-                                      const Config& config,
+                                      const CompilerProperties& compilerProperties,
                                       const AdapterDescriptor& adapterDesc) const override;
 
-    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
+                              const CompilerProperties& compilerProperties) const override;
 
     std::vector<std::string> get_supported_options() const override;
 
