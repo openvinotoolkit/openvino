@@ -32,7 +32,7 @@ void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr outpu
 
     cldnn::mem_lock<T> src(input, get_test_stream());
     cldnn::mem_lock<T> dst(output, get_test_stream());
-    
+
     std::unique_ptr<cldnn::mem_lock<T>> weight;
     if (gamma) {
         weight = std::make_unique<cldnn::mem_lock<T>>(gamma, get_test_stream());
@@ -1207,7 +1207,7 @@ class rms_mxfp8_dynamic_quantize_test : public ::testing::TestWithParam<std::tup
 
 TEST_P(rms_mxfp8_dynamic_quantize_test, rms_test_bfyx_opt_mxfp8_dynamic_quantize) {
     auto& engine = get_test_engine();
-    const auto [data_size, quantization_dt, additional_fusion] = GetParam();
+    const auto& [data_size, quantization_dt, additional_fusion] = GetParam();
     const ov::Shape input_shape{1, 1, data_size};
     const auto epsilon = 1e-6f;
 
@@ -1234,8 +1234,8 @@ TEST_P(rms_mxfp8_dynamic_quantize_test, rms_test_bfyx_opt_mxfp8_dynamic_quantize
 
     ov::Shape scale_shape = input_shape;
     scale_shape.back() = input_shape.back() / 32;
-
-    auto make_topology = [&]() {
+    // copy additional_fusion to the lambda capture as capture struct bind is cpp20 extension
+    auto make_topology = [&, additional_fusion = additional_fusion]() {
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
         topology.add(data("gamma", gamma));
