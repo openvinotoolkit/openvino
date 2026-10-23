@@ -23,7 +23,8 @@
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
 
 ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToGroupedMatMulCompressed(
-    const std::vector<ov::element::Type>& supported_weights_types) {
+    const std::vector<ov::element::Type>& supported_weights_types,
+    const SupportsPredicate& supports_config) {
     using namespace ov::pass::pattern;
     using ov::op::internal::GroupedMatMulCompressed;
 
@@ -104,6 +105,18 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
                 new_gmm = GroupedMatMulCompressed::make_3d(data_value, gmm_input_b, gmm_input_scale, gmm_input_zp);
             } else {
                 new_gmm = GroupedMatMulCompressed::make_3d(data_value, gmm_input_b, gmm_input_scale);
+            }
+        }
+
+        if (supports_config) {
+            const size_t IC = *(weights_shape.rbegin());
+            const size_t OC = *(weights_shape.rbegin() + 1);
+            size_t G = 1;
+            if (grouped) {
+                G = has_transpose ? *(scale_shape.rbegin() + 2) : *(scale_shape.rbegin() + 1);
+            }
+            if (!supports_config(ov::as_type_ptr<GroupedMatMulCompressed>(new_gmm), IC, OC, G)) {
+                return false;
             }
         }
 
