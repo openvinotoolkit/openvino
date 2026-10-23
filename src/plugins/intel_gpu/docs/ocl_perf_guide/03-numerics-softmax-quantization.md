@@ -78,6 +78,20 @@ vstore4(as_uint4(PACK_SOFTMAX8(exp_tile)), 0, &S_slm[...]);   // P goes to SLM a
 | P precision in S_slm | P ∈ [0,1], so no f16 overflow. The denominator is the f32 sum before rounding while the numerator is the rounded P: ~5e-4 relative mismatch. micro has the same structure |
 | Single max source | `S_max_slm` is the running max that the subgroups merge with `__builtin_IB_atomic_max_local_f32`. Initial value is -INFINITY (or the sink) (`:319-327`) |
 
+### 1.4 Branchless exp (`SOFTMAX_BRANCHLESS`, PA PREFILL, 2026-10-23)
+
+`float8 exp_tile = ok ? native_exp2(...) : (float8)0.0f;` was compiled by IGC as a goto/join **around the exp2 of every (mb, qb) block**, so
+the blocks could not interleave. Replacement (both the `MICRO_MATH` and the default arm):
+
+```c
+float8 exp_tile = native_exp2((S_tile[mb][qb] - m_new) * scale);
+exp_tile = select((float8)0.0f, exp_tile, (int8)(ok ? -1 : 0));
+```
+
+- Bit-identical: `select` returns exactly what the ternary returned. When `!ok` (`m_new = -inf`) the exp2 of `S + inf` / NaN is computed
+  and **discarded by the select**, so no Inf/NaN escapes into `S_slm` or `lsum`.
+- MEASURED (B70 pinned): switching it off again costs +2.6% (qwen3-8b 8K, head 128); -2.9% at `d_max` 512 (gemma-4-e2b 8K).
+
 ### 1.3 Differences in decode (`sdpa_ocl_decode.cl`)
 
 - Keys are 1 per lane (`lane == key`), so max/sum take 2 subgroup reduces (`:667-700`). Each partition normalizes against its own max and
@@ -175,6 +189,31 @@ agree on `HAS_QQ_BIAS && IS_PA && !IS_PREFILL` (at one point the jit was hardcod
 Whether output 0 matches the reference (whether the reference produces NaN) was **not verified (ASSUMED)**.
 
 ---
+
+### 2.7 Last-tile-only causal mask (`CAUSAL_MASK_LAST_ONLY`, PA PREFILL, 2026-10-23)
+
+A workgroup's queries all lie in its **last** key tile when the WG query tile divides the WG key tile and both are aligned, so no earlier
+tile holds a causally masked key: non-last tiles skip the mask loop and only take the row maxima (same order -> bit-preserving).
+
+```c
+#if SLIDING_WINDOW_SIZE
+const bool tile_masked = last || (k0 + SLIDING_WINDOW_SIZE <= (int)wg_j0 + kq_wg_tile_queries - 1);
+#else
+const bool tile_masked = last;
+#endif
+```
+
+- The window term: an earlier tile still needs the mask while it holds a key the window drops for the workgroup's **last** query.
+- Host gate (`add_prefill_pipeline_jit()`): `!has_token_type_ids && wgTK % wgTQ == 0`; `sdpa_ocl_config.cl` `#error` with bidir, attn mask,
+  MIXED, lower-right or `wgTK < wgTQ`.
+- Without it IGC flattened the per-block `causal_block_clear` branch into 64 compares + 64 selects per subgroup per tile (more with the window).
+  MEASURED (B70 pinned): qwen3-8b 8K 7,218 -> 6,977 us (-3.3%; -4.2% at 32K); phi-4-mini 8K 4,813 -> 3,753 us (micro 4,191), 32K 68,485 -> 53,489.
+- **Trap: a window no prompt reaches.** phi-3.5/phi-4 carry the HF `sliding_window` 262144 into the PA op, so they count as SWA models:
+  `MICRO_MATH` is excluded and a `SLIDING_WINDOW_SIZE == 0` gate would drop the fast path (phi-4-mini was 1.12-1.16x micro until the
+  window-aware condition above, then 0.87-0.96x). Gate fast paths on what the window actually cuts, not on its presence.
+- Test design: the mask rows must be **uncompressed**. A compressed cache relaxes the PA test tolerance from 2e-3 to 25e-3 (u4 75e-3), and
+  a dropped window term PASSed there. Negative control (window term removed): `{1000}`/300, `{700,300}`/256, head 96 `{520}`/100, head 64
+  `{900}`/200, head 256/512 `{700}`/200 and the sink row FAIL; `{600}`/4096 and the windowless rows PASS.
 
 ## 3. Attention sink (gpt-oss)
 
@@ -476,6 +515,9 @@ the correct and the buggy configurations reach the same plateau → no informati
 | 18 | test data | hides errors | sharp copy case, LCG replay | §9.1 |
 | 19 | judging by an end-to-end metric | misdiagnosis from chaotic amplification | layer-0 + ULP | §9.2 |
 | 20 | switching the accumulator | switching to an f16 acc grows the error with length | keep the f32 acc (this codebase is all f32, no experiment changing it — **ASSUMED**) | — |
+| 21 | a window no prompt reaches (262144) | an "SWA" model loses `MICRO_MATH` and window-gated fast paths | gate on what the window cuts | §2.7 |
+| 22 | compressed-cache test tolerance (25e-3 / u4 75e-3) | a missing window mask PASSes | uncompressed rows + negative control for mask changes | §2.7 |
+| 23 | `ok ? exp2(..) : 0` | IGC goto/join per block, no interleave | exp2 then `select()` (bit-identical) | §1.4 |
 
 ---
 

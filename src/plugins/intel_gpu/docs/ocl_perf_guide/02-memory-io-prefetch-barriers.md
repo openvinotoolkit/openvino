@@ -297,6 +297,21 @@ Note: a 2D block prefetch needs no destination register, so it gives "memory-lev
 V_PREFETCH on 145,603 ns vs off 151,866 ns = **-4.1240%** (64 calls, `sdpa_ocl_mixed_..._sa`, SIMD16 REG128 SLM=17664, GWS[272x512x1], LWS[16x16x1]); micro 147,825 ns;
 **-8.23%** in total vs the first exact baseline 158,661 ns (`sdpa-ocl-mixed-exact-complete`, MEASURED). **Never measured on i8 BY_CHANNEL MIXED** (u4-only `#if`).
 
+### 7.5 PA PREFILL V prefetch (2026-10-23, B70 pinned 2800 MHz, per-call device time, `sdpa-ocl-longctx-prefill`)
+
+`v_tile_prefetch()` (`sdpa_ocl_v_load.cl`): after the S_max atomics, the workgroup cooperatively issues
+`intel_sub_group_2d_block_prefetch_16b_16r16x2c` over this key tile's V rows (`(wgTK/16) * ceil(V_HEAD_SIZE*2/64)` blocks, stepping by
+`sg_per_wg`), inside the split barrier window (§8), where `sdpa_micro` prefetches V. `PREFETCH_V` (`SDPA_OCL_V_PREFETCH`), PA PREFILL with
+2D K/V reads only; `#error` for MIXED / no 2D KV / SG8.
+
+| Shape | off | on | Note |
+|---|---|---|---|
+| qwen3-8b head 128, 8K, 256 x 128 tile (with branchless exp) | 7,914 us | 7,555 us (**-4.5%**) | then the split barrier: 7,218 |
+| gemma-4-e2b head 512, 8K, 128 x 64 tile (256GRF, alone) | 8,880 us | 9,762 us (**+10%**) | a 128-key tile of 512-channel V rows is 128 KiB |
+
+-> Prefetch profit depends on the tile's byte size: `v_prefetch` is a per-tiling flag, set at `d_max` <= 256 only. Why 128 KiB hurts
+(L1 capacity / prefetch queue) is **ASSUMED**, not profiled. K prefetch in the same place: next tile +0.2%, first tile +0.4%, both + V +3.6% (rejected).
+
 ### 7.4 Failed/invalid prefetch
 
 - In plain prefill, issuing the V prefetch inside the k0 iteration right before consuming the same tile: **about 11 us net loss** (right before consumption there is no compute to hide it behind; pure overhead). Code removed (the `#if 0` block just before `ddd9ab8ef4`, `sdpa_ocl.cl` history).
@@ -315,12 +330,13 @@ Actual code locations (current working tree):
 | `sdpa_ocl.cl:842` `intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE)` ... `:868` `intel_work_group_barrier_wait(...)` | arrive after the softmax `S_slm` write/`S_sum_slm`, **rescale A_tile by `alpha` in between** (when `!first`), then wait | overlaps the sync that lets pA be read only after every subgroup has written S_slm with the "A_tile rescale" compute |
 | `sdpa_ocl_decode.cl:727-732` | arrive -> `PREFETCH_V_TILE` x `min(PREFETCH_DIST, CHUNKS)` -> wait | fills the barrier wait after the slm_p/slm_sum writes with prefetches of the first V tiles (comment at `:721-722`) |
 | `sdpa_ocl_decode.cl:734` | `#else barrier(...)` (prefetch off) | |
+| `sdpa_ocl.cl` PA PREFILL, `MAX_SPLIT_BARRIER` (2026-10-23) | the S_max barrier becomes arrive -> `v_tile_prefetch` (§7.5) -> wait | as `sdpa_micro`: the V prefetch is issued while the other subgroups finish their atomics |
 
 Rules (based on code comments and notes):
 - Between arrive and wait, place only independent work that **does not read the SLM data that barrier protects** (alpha rescale works on the private A_tile, prefetch is unrelated to SLM).
 - Inside a split barrier, **do not change the number or placement of the barriers themselves**. MIXED's `SV_TRIM` skips blocks with `cp*DPAS_K >= k_chunk` via `continue` but keeps the barriers outside the loop (`sdpa_ocl.cl:891`, "the barriers stay outside").
 - The local fmax atomic (`__builtin_IB_atomic_max_local_f32`) and the split barrier also PASS on DG2 SG8 real hardware (S2 mini SDPA 36/36). `cl_intel_split_work_group_barrier`.
-- Measured effect: of the 2.1% decode V prefetch gain, **0.7%p** comes from issuing in the barrier window (MEASURED, `sdpa-ocl-decode-kernel`). No record that isolates the **standalone** effect of the plain prefill split barrier was found -> left as ASSUMED. The 4.12% of MIXED V_PREFETCH is issued right after a barrier and does not change the barrier itself ("no new barrier was created").
+- Measured effect: of the 2.1% decode V prefetch gain, **0.7%p** comes from issuing in the barrier window (MEASURED, `sdpa-ocl-decode-kernel`). No record that isolates the **standalone** effect of the plain prefill split barrier was found -> left as ASSUMED. PA PREFILL (MEASURED 2026-10-23, B70 pinned): qwen3-8b 8K 7,555 -> 7,218 us (-4.5%) on top of the V prefetch, +5.4% when switched off again; at `d_max` 512 with nothing in the window (no V prefetch) 0%. The 4.12% of MIXED V_PREFETCH is issued right after a barrier and does not change the barrier itself ("no new barrier was created").
 - Other history: the tk=32 correctness bug investigation put compiler ordering differences around the split barrier on the suspect list, but this was not proven (`sdpa-ocl-tk32-bug-hunt`, UNRESOLVED).
 
 ## 9. Scalar gather and the K cache layout (d-major -> token-major)
