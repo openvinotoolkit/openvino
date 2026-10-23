@@ -7,7 +7,17 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "low_precision/convolution.hpp"
+#include "low_precision/convolution_backprop_data.hpp"
+#include "low_precision/fold_convert.hpp"
+#include "low_precision/fuse_convert.hpp"
+#include "low_precision/group_convolution.hpp"
+#include "low_precision/low_precision.hpp"
+#include "low_precision/mat_mul.hpp"
+#include "low_precision/multiply_to_group_convolution.hpp"
+#include "low_precision/mvn.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/recurrent_cell.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
@@ -15,22 +25,30 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/group_normalization.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/validate.hpp"
 #include "ov_ops/moe_compressed.hpp"
 #include "ov_ops/rms.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
+#include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace v0 = ov::op::v0;
@@ -209,12 +227,14 @@ activations_scaling::EliminateScalarMul::EliminateScalarMul() {
     auto convert_m = pattern::optional<v0::Convert>(activation_m);
     auto scale_const_m = pattern::wrap_type<v0::Constant>(is_scalar_node);
     auto mul_m = pattern::wrap_type<v1::Multiply>({convert_m, scale_const_m});
-    auto mvn_m = pattern::wrap_type<v6::MVN>({mul_m, pattern::any_input()});
-    auto rms_m = pattern::wrap_type<ov::op::internal::RMS>({mul_m, pattern::any_input()}) |
-                 pattern::wrap_type<ov::op::internal::RMS>({mul_m});
+    // the normalization may be kept in f32
+    auto post_convert_m = pattern::optional<v0::Convert>(mul_m);
+    auto mvn_m = pattern::wrap_type<v6::MVN>({post_convert_m, pattern::any_input()});
+    auto rms_m = pattern::wrap_type<ov::op::internal::RMS>({post_convert_m, pattern::any_input()}) |
+                 pattern::wrap_type<ov::op::internal::RMS>({post_convert_m});
     auto group_norm_m =
-        pattern::wrap_type<v12::GroupNormalization>({mul_m, pattern::any_input(), pattern::any_input()});
-    auto shape_of_m = pattern::wrap_type<v3::ShapeOf>({mul_m});
+        pattern::wrap_type<v12::GroupNormalization>({post_convert_m, pattern::any_input(), pattern::any_input()});
+    auto shape_of_m = pattern::wrap_type<ov::op::util::ShapeOfBase>({post_convert_m});
     auto norm_m = mvn_m | rms_m | group_norm_m | shape_of_m;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
@@ -224,36 +244,44 @@ activations_scaling::EliminateScalarMul::EliminateScalarMul() {
             return false;
         }
 
-        auto scale_const = ov::as_type_ptr<v0::Constant>(pattern_map.at(scale_const_m).get_node_shared_ptr());
+        const auto scale_const = ov::as_type_ptr<v0::Constant>(pattern_map.at(scale_const_m).get_node_shared_ptr());
+        OPENVINO_ASSERT(scale_const && ov::shape_size(scale_const->get_shape()) == 1,
+                        "EliminateScalarMul: the scale is expected to be a scalar Constant");
+        const double scale = scale_const->cast_vector<double>()[0];
 
-        if (pattern_map.count(shape_of_m) == 0 && scale_const->cast_vector<float>()[0] < 1.f)
+        if (pattern_map.count(shape_of_m) == 0 && scale < 1.0)
             return false;
 
         auto activation = pattern_map.at(activation_m);
         auto norm = pattern_map.at(norm_m).get_node_shared_ptr();
 
+        if (pattern_map.count(post_convert_m)) {
+            // the Convert may have other consumers
+            auto convert = pattern_map.at(post_convert_m).get_node_shared_ptr();
+            // clone_with_new_inputs() doesn't copy rt_info
+            auto new_convert = convert->clone_with_new_inputs({activation});
+            ov::copy_runtime_info(convert, new_convert);
+            activation = new_convert->output(0);
+        }
+
         norm->input(0).replace_source_output(activation);
 
         if (pattern_map.count(rms_m)) {
             auto rms = ov::as_type_ptr<ov::op::internal::RMS>(pattern_map.at(rms_m).get_node_shared_ptr());
-            auto eps = rms->get_epsilon();
-            double scale_const_val = scale_const->cast_vector<double>()[0];
-            rms->set_epsilon(eps / scale_const_val / scale_const_val);
+            rms->set_epsilon(rms->get_epsilon() / scale / scale);
         } else if (pattern_map.count(group_norm_m)) {
             auto group_norm =
                 ov::as_type_ptr<v12::GroupNormalization>(pattern_map.at(group_norm_m).get_node_shared_ptr());
-            auto eps = group_norm->get_epsilon();
-            double scale_const_val = scale_const->cast_vector<double>()[0];
-            group_norm->set_epsilon(eps / scale_const_val / scale_const_val);
+            group_norm->set_epsilon(group_norm->get_epsilon() / scale / scale);
         } else if (pattern_map.count(mvn_m)) {
             auto mvn = ov::as_type_ptr<v6::MVN>(pattern_map.at(mvn_m).get_node_shared_ptr());
             auto eps_mode = mvn->get_eps_mode();
             auto eps = mvn->get_eps();
-            float scale_const_val = scale_const->cast_vector<float>()[0];
+            const auto scale_f = static_cast<float>(scale);
             if (eps_mode == ov::op::MVNEpsMode::INSIDE_SQRT) {
-                mvn->set_eps(eps / scale_const_val / scale_const_val);
+                mvn->set_eps(eps / scale_f / scale_f);
             } else {
-                mvn->set_eps(eps / scale_const_val);
+                mvn->set_eps(eps / scale_f);
             }
         }
 
@@ -383,6 +411,71 @@ activations_scaling::MoveDownScalarMul::MoveDownScalarMul() {
 
     auto m = std::make_shared<pattern::Matcher>(mul_a_m, "MoveDownScalarMul");
     this->register_matcher(m, callback);
+}
+
+ActivationsScaling::ActivationsScaling(float scale_factor, ov::element::Type scaled_prec)
+    : m_scale_factor(scale_factor),
+      m_scaled_prec(scaled_prec) {}
+
+bool ActivationsScaling::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(ActivationsScaling);
+    if (m_scale_factor <= 0.f)
+        return false;
+
+    using namespace ov::pass::low_precision;
+
+    // a copy keeps the caller's callbacks (e.g. plugin restrictions on MoveEltwiseUpThroughDataMovScalar),
+    // while the disables below don't leak to the caller
+    Manager manager(*get_pass_config(), "ActivationsScaling");
+    manager.set_per_pass_validation(false);
+    auto pass_config = manager.get_pass_config();
+
+    // keeps LPT's LinOpSequenceFusion prerequisite from fusing scale Multiplies into bias Adds
+    pass_config->disable<AddMultiplyFusion>();
+    pass_config->disable<RecurrentCellTransformation>();
+    pass_config->disable<MultiplyToGroupConvolutionTransformation>();
+    pass_config->disable<ConvolutionTransformation>();
+    pass_config->disable<ConvolutionBackpropDataTransformation>();
+    pass_config->disable<GroupConvolutionTransformation>();
+    pass_config->disable<MatMulTransformation>();
+    pass_config->disable<MVNTransformation>();
+
+    pass_config->set_callback<FoldConvertTransformation>([](const std::shared_ptr<const Node>& node) -> bool {
+        return ov::is_dequantization_node(node);
+    });
+    pass_config->set_callback<FuseConvertTransformation>([](const std::shared_ptr<const Node>& node) -> bool {
+        return ov::is_dequantization_node(node) || ov::is_type<v0::FakeQuantize>(node);
+    });
+
+    manager.register_pass<activations_scaling::ScaleDownSingleLayer>(m_scale_factor, m_scaled_prec);
+    manager.register_pass<SharedOpOptimization>();
+
+    pass_config->set_callback<activations_scaling::ScaleDownSingleLayer>(
+        [scaled_prec = m_scaled_prec](const std::shared_ptr<const Node>& node) -> bool {
+            return node->input(0).get_element_type() != scaled_prec;
+        });
+
+    // Move down scalar-multiply layers as much as possible
+    auto params = LayerTransformation::Params(false, m_scaled_prec, {m_scaled_prec}, true, true);
+    auto lpt_pass = manager.register_pass<LowPrecision>(std::vector<PrecisionsRestriction>{},
+                                                        std::vector<QuantizationGranularityRestriction>{},
+                                                        params);
+    lpt_pass->add_main<activations_scaling::EliminateScalarMul>();
+    lpt_pass->add_main<activations_scaling::MoveDownScalarMul>();
+
+    // Move up remained scalar-multiply layers
+    manager.register_pass<EliminateEltwise>();
+    manager.register_pass<activations_scaling::MulShareTransformation>();
+
+    const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {
+        v1::Reshape::get_type_info_static(),
+        v1::Transpose::get_type_info_static(),
+    };
+    manager.register_pass<MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
+    manager.register_pass<SharedOpOptimization>();
+    manager.register_pass<Validate>();
+
+    return manager.run_passes(model);
 }
 
 }  // namespace ov::pass

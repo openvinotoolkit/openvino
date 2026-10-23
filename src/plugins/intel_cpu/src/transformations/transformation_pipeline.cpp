@@ -21,6 +21,7 @@
 #include "low_precision/qdq_stripping.hpp"
 #include "low_precision/quantization_details.hpp"
 #include "nodes/fullyconnected.h"
+#include "nodes/rms_norm.h"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
@@ -64,6 +65,7 @@
 #include "openvino/pass/node_registry.hpp"
 #include "openvino/pass/validate.hpp"
 #include "selective_build.h"
+#include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/augru_cell_fusion.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
@@ -80,12 +82,14 @@
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/reshape_prelu.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/convert_precision.hpp"
+#include "transformations/cpu_opset/common/pass/decompose_rms_norm.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/disable_bf16_comp_ltx_rope.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
@@ -202,7 +206,6 @@
 #    include "low_precision/weightable_layer_transformation.hpp"
 #    include "nodes/llm_mlp.h"
 #    include "nodes/qkv_proj.h"
-#    include "nodes/rms_norm.h"
 #    include "onednn/dnnl.h"
 #    include "openvino/op/group_normalization.hpp"
 #    include "openvino/op/mish.hpp"
@@ -211,12 +214,10 @@
 #    include "openvino/op/subtract.hpp"
 #    include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
-#    include "transformations/common_optimizations/rms_fusion.hpp"
 #    include "transformations/common_optimizations/strided_slice_reshape_concat_fusion.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
 #    include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
-#    include "transformations/cpu_opset/common/pass/decompose_rms_norm.hpp"
 #    include "transformations/cpu_opset/x64/pass/convert_to_interaction.hpp"
 #    include "transformations/cpu_opset/x64/pass/mlp_fusion.hpp"
 #    include "transformations/cpu_opset/x64/pass/qkv_proj_fusion.hpp"
@@ -1142,6 +1143,41 @@ void Transformations::PostLpt() {
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionCohere);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
+    const bool activations_scaling =
+        config.inferencePrecision == ov::element::f16 && config.activationsScaleFactor > 0.F;
+#if defined(OPENVINO_ARCH_X86_64)
+    const bool fuse_rms = true;
+#else
+    // the RMSNorm node needs avx2+, so elsewhere RMS is fused only for ActivationsScaling and decomposed back below
+    const bool fuse_rms = activations_scaling;
+#endif
+    if (fuse_rms) {
+        // gamma-less fusion keeps the variance in f32 for bf16, which has no ConvertPrecision markup; under
+        // f16 the decomposed norm is already kept precise by ConvertPrecision, so fusing it there regresses it.
+        const bool enable_without_gamma = config.inferencePrecision != ov::element::f16;
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager,
+                                 ov::pass::RMSFusion,
+                                 false /* force_tail_convert */,
+                                 enable_without_gamma);
+    }
+    // before DecomposeRMSNorm: scale_up multiplies are dropped only in front of fused RMS
+    if (activations_scaling) {
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager,
+                                 ov::pass::ActivationsScaling,
+                                 config.activationsScaleFactor,
+                                 config.inferencePrecision);
+    }
+    if (fuse_rms) {
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
+        CPU_SET_CALLBACK_COMMON(
+            postLPTPassManager,
+            [](const std::shared_ptr<const ov::Node>& node) -> bool {
+                std::string errorMsg;
+                return node::RMSNorm::isSupportedOperation(node, errorMsg);
+            },
+            ov::intel_cpu::DecomposeRMSNorm);
+    }
+
 #if defined(OPENVINO_ARCH_X86_64)
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
     auto can_use_amx_bf16_int8 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
@@ -1189,22 +1225,6 @@ void Transformations::PostLpt() {
             QKVProjFusionPass2);
     }
 #endif  // OPENVINO_ARCH_X86_64
-
-    // gamma-less fusion keeps the variance in f32 for bf16, which has no ConvertPrecision markup; under
-    // f16 the decomposed norm is already kept precise by ConvertPrecision, so fusing it there regresses it.
-    [[maybe_unused]] const bool enable_without_gamma = config.inferencePrecision != ov::element::f16;
-    CPU_REGISTER_PASS_X64(postLPTPassManager,
-                          ov::pass::RMSFusion,
-                          false /* force_tail_convert */,
-                          enable_without_gamma);
-    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
-    CPU_SET_CALLBACK_X64(
-        postLPTPassManager,
-        [](const std::shared_ptr<const ov::Node>& node) -> bool {
-            std::string errorMsg;
-            return node::RMSNorm::isSupportedOperation(node, errorMsg);
-        },
-        ov::intel_cpu::DecomposeRMSNorm);
 
     // markup Rope Input when BF16/F16 inference.
     if (any_of(config.inferencePrecision, ov::element::bf16, ov::element::f16)) {
