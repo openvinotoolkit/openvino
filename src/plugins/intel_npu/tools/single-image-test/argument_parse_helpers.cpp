@@ -153,6 +153,16 @@ DEFINE_string(dataset, "NONE",
         "The dataset used to train the model. Useful for instances such as semantic segmentation to visualize "
         "the accuracy per-class");
 
+// for PixelLink post-processing ('pixellink' mode)
+DEFINE_string(pixellink_text_threshold, std::to_string(metric_defaults::pixellink_text_threshold),
+        "Text-pixel score cutoff for the 'pixellink' link-aware decoder. Can be a single value or per-layer.");
+DEFINE_string(pixellink_link_threshold, std::to_string(metric_defaults::pixellink_link_threshold),
+        "Link-score cutoff for the 'pixellink' link-aware decoder. Can be a single value or per-layer.");
+DEFINE_string(pixellink_nms_iou, std::to_string(metric_defaults::pixellink_nms_iou),
+        "Cross-scale NMS IoU threshold used inside the 'pixellink' decoder. Can be a single value or per-layer.");
+DEFINE_string(pixellink_image_size, "768,1152",
+        "Image size 'H,W' the 'pixellink' decoder maps the FPN grid strides back to (default 768,1152).");
+
 
 void utils::parseCommandLine(int argc, char* argv[]) {
     std::ostringstream usage;
