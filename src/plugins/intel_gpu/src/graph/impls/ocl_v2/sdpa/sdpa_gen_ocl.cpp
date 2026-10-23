@@ -36,6 +36,7 @@ struct sdpa_ocl_config_t {
     bool large_grf = false;         // compile with 256 GRF (get_build_options())
     bool prefill_pipeline = false;  // PA PREFILL loop changes measured with this tiling (add_prefill_pipeline_jit())
     bool v_prefetch = false;        // PA PREFILL V tile prefetch measured with this tiling (add_tensor_block_io_jit())
+    bool micro_math = true;         // PA PREFILL f16 sdpa_micro rounding with this tiling (add_micro_math_jit())
 
     int sg_per_wg() const {
         return kq_sg_per_wg_keys * kq_sg_per_wg_queries;
@@ -251,12 +252,12 @@ sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
     return config;
 }
 
-// PA PREFILL on Xe2 at d_max 64, 128 and 256: sdpa_micro's xehpc_h64 / xehpc_h128 / xehpc_h256 workgroups (128 / 256 /
-// 128 keys x 128 queries, 256 GRF) with the loop changes of add_prefill_pipeline_jit(). The table tiles read K/V once per
-// 64 / 32 / 32 queries, and were up to 1.08x / 1.40x / 1.09x slower than sdpa_micro on llama-3.2-1b / qwen3-8b /
-// gemma-2-9b ("Paged-attention PREFILL tiling" in the docs). At d_max 512 the table tile spilled at 128 GRF (3.8x
-// sdpa_micro on gemma-4-e2b); xehpc_h512's 256 x 64 workgroup needs 32-key subgroup tiles or 1024 work-items, which a
-// 256 GRF kernel cannot dispatch, so it is 128 x 64. False: keep the table tiling.
+// PA PREFILL on Xe2 at d_max 64, 128, 256 and 512: sdpa_micro's xehpc_h64 / xehpc_h128 / xehpc_h256 / xehpc_h512
+// workgroups (128 / 256 / 128 / 256 keys x 128 / 128 / 128 / 64 queries, 256 GRF) with the loop changes of
+// add_prefill_pipeline_jit(). The table tiles read K/V once per 64 / 32 / 32 / 32 queries, and were up to 1.08x / 1.40x /
+// 1.09x slower than sdpa_micro on llama-3.2-1b / qwen3-8b / gemma-2-9b; at d_max 512 the table tile spilled at 128 GRF
+// (3.8x sdpa_micro on gemma-4-e2b). xehpc_h512 needs 32-key subgroup tiles: 16-key ones would take 1024 work-items, which
+// a 256 GRF kernel cannot dispatch ("Paged-attention PREFILL tiling" in the docs). False: keep the table tiling.
 bool solve_pa_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_ocl_config_t& config) {
     if (arch != gpu_arch::xe2) {
         return false;
@@ -280,7 +281,8 @@ bool solve_pa_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_oc
         wide.kq_sg_per_wg_keys = 8;
         wide.kq_sg_per_wg_queries = 4;
         break;
-    case 512:  // 8 x 4 subgroups of 16 keys x 16 queries
+    case 512:  // 8 x 4 subgroups of 32 keys x 16 queries
+        wide.kq_sg_tile_keys = 32;
         wide.kq_sg_tile_queries = 16;
         wide.kq_sg_per_wg_keys = 8;
         wide.kq_sg_per_wg_queries = 4;
@@ -290,8 +292,11 @@ bool solve_pa_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_oc
     }
     wide.large_grf = true;
     wide.prefill_pipeline = true;
-    // A 128-key V tile of 512 channels is 128 KiB; prefetching it made the d_max 512 kernel 10% slower.
+    // The 256-key V tile of 512 channels is 256 KiB; prefetching it made the d_max 512 kernel 2-13% slower.
     wide.v_prefetch = d_max <= 256;
+    // At d_max 512 MICRO_MATH's second S*V accumulator is another 64 GRF, which leaves none for loading V ahead of the
+    // DPAS: it made the kernel 21-26% slower, though with this tile it gives sdpa_micro's result.
+    wide.micro_math = d_max != 512;
     if (!solve_sv_split(wide, vd_max) || !tiling_fits_device(arch, d_max, wide)) {
         return false;
     }
@@ -325,10 +330,12 @@ bool kq_override_requested() {
 }
 
 void read_kq_override(sdpa_ocl_config_t& config) {
-    // An override takes the 256 GRF compile and the PREFILL loop changes only from their own switches.
+    // An override takes the 256 GRF compile and the PREFILL loop changes only from their own switches, and MICRO_MATH
+    // as the table tilings do.
     config.large_grf = false;
     config.prefill_pipeline = false;
     config.v_prefetch = false;
+    config.micro_math = true;
     config.kq_sg_tile_keys = env_int("SDPA_OCL_KQ_TILE_KEYS", config.kq_sg_tile_keys);
     config.kq_sg_tile_queries = env_int("SDPA_OCL_KQ_TILE_QUERIES", config.kq_sg_tile_queries);
     config.kq_sg_per_wg_keys = env_int("SDPA_OCL_KQ_PER_WG_KEYS", config.kq_sg_per_wg_keys);
@@ -734,7 +741,7 @@ void add_sink_qq_bias_jit(JitConstants& jit, const jit_inputs& in) {
 }
 
 // sdpa_micro's softmax rounding, on PA PREFILL f16 without sink / alibi / sliding window / token_type_ids.
-// On by default; SDPA_OCL_MICRO_MATH=0 turns it off.
+// On by default where the tiling allows it (solve_pa_prefill_tiling()); SDPA_OCL_MICRO_MATH=0/1 forces it off / on.
 void add_micro_math_jit(JitConstants& jit, const jit_inputs& in) {
     if (!in.is_pa || !in.is_prefill || in.q.data_type != data_types::f16 || in.k.data_type != data_types::f16 || in.v.data_type != data_types::f16 ||
         in.out.data_type != data_types::f16) {
@@ -744,7 +751,7 @@ void add_micro_math_jit(JitConstants& jit, const jit_inputs& in) {
     if (desc->has_sink_input || desc->has_alibi || desc->sliding_window != 0 || desc->has_token_type_ids) {
         return;
     }
-    jit.make("MICRO_MATH", env_int("SDPA_OCL_MICRO_MATH", 1) == 0 ? 0 : 1);
+    jit.make("MICRO_MATH", env_int("SDPA_OCL_MICRO_MATH", in.problem.tiling.micro_math ? 1 : 0) == 0 ? 0 : 1);
 }
 
 // PA PREFILL loop changes, on by default with the tiling they were measured with (solve_pa_prefill_tiling()); each
