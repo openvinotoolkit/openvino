@@ -149,6 +149,22 @@ def test_fused_sampler_masked_logits(fused_sampler, allowed):
 
 
 @pytest.mark.precommit
+@pytest.mark.parametrize("allowed", [1, 3])
+def test_fused_sampler_masked_logits_far_negative(fused_sampler, allowed):
+    """Allowed logits below a finite mask value (-1e30) must still win over the filtered tokens."""
+    sampler = Sampler()
+    for seed in range(5):
+        keep = torch.randperm(VOCAB, generator=torch.Generator().manual_seed(seed))[:allowed]
+        masked = torch.full((1, VOCAB), float("-inf"))
+        masked[0, keep] = -1e31 * (1.0 + 0.1 * torch.arange(allowed, dtype=torch.float32))
+        expected, _ = _reference(masked, 0.9, 50, 0.9, seed)
+        got, _ = sampler.sample(masked.clone(), _metadata(0.9, 50, 0.9, seed))
+        assert not fused_sampler, "fused sampler fell back to vLLM's sampler"
+        assert int(got[0]) in keep.tolist()
+        assert int(got[0]) == expected
+
+
+@pytest.mark.precommit
 @pytest.mark.parametrize("logprobs_mode", ["raw_logprobs", "processed_logprobs"])
 def test_fused_sampler_logprobs_zero(fused_sampler, logprobs_mode):
     """logprobs=0 (max_num_logprobs == 0) still needs the sampled token's logprob.
