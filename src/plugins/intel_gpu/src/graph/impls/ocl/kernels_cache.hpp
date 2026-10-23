@@ -24,6 +24,13 @@
 
 namespace cldnn {
 
+// Re-expresses the sub-group size a kernel source asks for - REQD_SUB_GROUP_SIZE(x) or the equivalent
+// __attribute__((intel_reqd_sub_group_size(x))) - as a redefinition of _NV_SUB_GROUP_SIZE, which is what the NVIDIA
+// compatibility headers key their sub-group emulation off. The redefinition is emitted both at the top of the entry
+// and at each occurrence, and the 32 default is restored at the end so nothing leaks into the next kernel of the
+// batch. Sources that ask for no particular sub-group size are returned unchanged.
+std::string nvidia_replace_reqd_sub_group_size(const std::string& src);
+
 class kernels_cache {
 public:
     struct kernel_code {
@@ -54,6 +61,9 @@ public:
         size_t hash_value;
         uint32_t kernels_counter;
         source_code source;
+        // Number of leading entries of `source` that are headers rather than kernels. With the NVIDIA compatibility
+        // headers in place (see get_program_source()) this counts them as well: prelude | batch headers | overrides.
+        size_t header_count;
         source_code micro_headers;
         std::string options;
         bool dump_custom_program;
@@ -71,6 +81,7 @@ public:
               hash_value(0),
               kernels_counter(0),
               source({}),
+              header_count(0),
               options(_options),
               dump_custom_program(false),
               has_microkernels(false),
@@ -83,12 +94,17 @@ public:
                     "sdpa_utils"
                 };
                 for (const auto& kv : batch_headers) {
+                    // Skip NVIDIA-specific headers; get_program_source() adds the ones a batch needs, in the order
+                    // they need to be in, once the batch's kernels are known
+                    if (kv.first.rfind("nvidia/", 0) == 0)
+                        continue;
                     if (std::find(micro_kernel_include_names.begin(), micro_kernel_include_names.end(), kv.first) == micro_kernel_include_names.end()) {
                         source.push_back(kv.second);
                     } else {
                         micro_headers.push_back(kv.second);
                     }
                 }
+                header_count = source.size();
             }
         }
     };
@@ -112,10 +128,23 @@ private:
     void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>*) const;
     void build_batch(const batch_program& batch, compiled_kernels& compiled_kernels);
 
+    // NVIDIA compatibility headers added to every batch built for the NVIDIA SYCL backend, which compiles with
+    // clBuildProgram on the NVIDIA OpenCL runtime and launches the PTX through CUDA.
+    // The program is laid out as  prelude | batch headers | sg_overrides | kernels.
+    struct nvidia_compat_headers {
+        std::string prelude;
+        std::string sg_overrides;
+    };
+    // Selects the compatibility headers for a batch with the given sources. get_program_source() puts them into the
+    // batch's source ahead of hashing, so the cache key covers exactly the headers that get compiled.
+    nvidia_compat_headers get_nvidia_compat_headers(const source_code& sources) const;
+
     std::string get_cache_path() const;
     bool is_cache_enabled() const;
 
     bool _reuse_kernels = false;
+    // True for the NVIDIA SYCL backend, whose kernels need the compatibility headers.
+    bool _use_nvidia_compat = false;
 
 public:
     explicit kernels_cache(engine& engine,

@@ -1013,3 +1013,14 @@ set(GPU_KERNEL_SELECTOR_CL_KERNELS
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/unique_count_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/unique_gather_ref.cl
 )
+
+# NVIDIA OpenCL compatibility headers. Only the NVIDIA SYCL backend uses them, so
+# kernel_selector/CMakeLists.txt embeds them in the primitive DB (primitive_db_gen.py -nvidia)
+# and tracks them as codegen inputs only when GPU_VENDOR is NVIDIA.
+set(GPU_KERNEL_SELECTOR_NVIDIA_CL_KERNELS
+    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/nvidia/compat_common.cl
+    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/nvidia/compat_half.cl
+    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/nvidia/compat_sg.cl
+    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/nvidia/compat_sg_overrides.cl
+    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/nvidia/compat_wg.cl
+)
