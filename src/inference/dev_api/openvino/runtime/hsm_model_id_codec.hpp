@@ -24,7 +24,7 @@ inline namespace v1 {
 
 /**
  * @brief Reads the model id from a #model_id_tag section.
- * @note Layout: bytes [0, 8) hold the id as a native-endian (little-endian) `uint64_t`; the rest of the inline slot is
+ * @note Layout: bytes [0, 8) hold the id as a native-byte-order `uint64_t`; the rest of the inline slot is
  * ignored.
  * @param section Section to decode; its tag must be #model_id_tag (debug-asserted).
  * @return `std::nullopt` if the read fails.
