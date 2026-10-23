@@ -4,11 +4,15 @@
 
 #include "logging.hpp"
 
+#include <atomic>
+#include <cctype>
 #include <ctime>
+#include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <mutex>
 #include <sstream>
+#include <system_error>
 
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 
@@ -214,6 +218,62 @@ void ov::npuw::dump_output_list(const std::string& base_name, const std::vector<
     const auto olist_path = base_name + "_olist.txt";
     dump_file_list(olist_path, base_output_names);
     LOG_INFO("Wrote output list " << olist_path << "...");
+}
+
+void ov::npuw::dump_compile_options(const std::string& name,
+                                    const std::string& device,
+                                    const ov::AnyMap& config,
+                                    const std::string& dump_dir) {
+    static std::atomic<size_t> seq{0};
+    const auto escape = [](const std::string& in) {
+        std::string out;
+        for (const char c : in) {
+            if (c == '"' || c == '\\') {
+                out += '\\';
+                out += c;
+            } else if (c == '\n') {
+                out += "\\n";
+            } else {
+                out += c;
+            }
+        }
+        return out;
+    };
+    std::string safe = name;
+    for (auto& c : safe) {
+        if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-' && c != '.') {
+            c = '_';
+        }
+    }
+    const auto dump_path = std::filesystem::path(dump_dir) / ("npuw_" + std::to_string(seq++) + "_" + safe + ".json");
+    if (!dump_dir.empty()) {
+        std::error_code error;
+        std::filesystem::create_directories(dump_dir, error);
+        if (error) {
+            LOG_ERROR("Failed to create compile options dump directory " << dump_dir << ": " << error.message());
+            return;
+        }
+    }
+    std::ofstream out(dump_path);
+    if (!out.is_open()) {
+        LOG_ERROR("Failed to open compile options dump file for writing: " << dump_path.string());
+        return;
+    }
+    out << "{\n";
+    bool first = true;
+    for (const auto& [key, value] : config) {
+        std::ostringstream value_stream;
+        value.print(value_stream);
+        const auto text = value_stream.str().empty() ? "<unprintable>" : value_stream.str();
+        out << (first ? "" : ",\n") << "    \"" << escape(key) << "\": \"" << escape(text) << "\"";
+        first = false;
+    }
+    out << "\n}\n";
+    if (!out) {
+        LOG_ERROR("Failed to write compile options dump file: " << dump_path.string());
+        return;
+    }
+    LOG_INFO("Dumped compile options of " << name << " (" << device << ") to " << dump_path.string());
 }
 
 void ov::npuw::dump_failure(const std::shared_ptr<ov::Model>& model, const std::string& device, const char* extra) {
