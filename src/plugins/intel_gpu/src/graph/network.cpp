@@ -612,14 +612,14 @@ std::vector<primitive_inst*> network::build_output_chain(std::shared_ptr<primiti
 }
 
 std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memory::ptr mem_new, bool is_remote) {
+    OPENVINO_ASSERT(mem_new != nullptr, "[GPU] Cannot set null output memory for ", id);
     GPU_DEBUG_TRACE_DETAIL << "Set output " << id << " " << mem_new->get_layout().to_short_string() << std::endl;
     std::vector<event::ptr> ret_ev;
     std::shared_ptr<primitive_inst> p_inst = find_primitive(id);
 
     const auto prev_out = p_inst->output_memory_ptr();
-    const bool same_buffer = prev_out && mem_new &&
-                                    get_engine().is_the_same_buffer(*prev_out, *mem_new) &&
-                                    compare_expanded_layout(prev_out->get_layout(), mem_new->get_layout());
+    const bool same_buffer =
+        prev_out && get_engine().is_the_same_buffer(*prev_out, *mem_new) && compare_expanded_layout(prev_out->get_layout(), mem_new->get_layout());
     if (!same_buffer)
         invalidate_recording();
 
@@ -638,7 +638,6 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
         o_iter = output_chains.emplace(id, build_output_chain(p_inst, is_remote)).first;
     }
 
-    OPENVINO_ASSERT(mem_new != nullptr, "[GPU] Cannot set null output memory for ", id);
     if (is_remote && p_inst->is_dynamic()) {
         const auto bound_it = _bound_user_output_memory.find(id);
         if (bound_it == _bound_user_output_memory.end() || !bound_it->second) {
@@ -657,7 +656,7 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
 
     for (auto& prim : o_iter->second) {
         auto mem = mem_new;
-        if (!prim->is_dynamic() && mem_new && prim->output_memory_ptr()) {
+        if (!prim->is_dynamic() && prim->output_memory_ptr()) {
             mem = eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout());
         }
 
@@ -677,7 +676,7 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
             // Invalidate its producer's current output lazily so realloc_outputs() can either borrow
             // the new remote destination or allocate separate producer memory with the final layout.
             auto producer = find_primitive(prim->dependencies().front().first->id());
-            if (producer->is_dynamic() && mem_new && !producer->can_be_optimized() && !producer->has_inner_networks() &&
+            if (producer->is_dynamic() && !producer->can_be_optimized() && !producer->has_inner_networks() &&
                 (!producer->output_memory_ptr() || !eng.is_the_same_buffer(*producer->output_memory_ptr(), *mem_new))) {
                 producer->request_output_reallocation();
             }
