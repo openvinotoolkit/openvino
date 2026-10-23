@@ -161,6 +161,269 @@ class TestPooling(PytorchLayerTest):
         self._test(*self.create_model("avg_pool2d", **params, ceil_mode=ceil_mode, count_include_pad=count_include_pad),
                    ie_device, precision, ir_version, trace_model=True, freeze_model=False, dynamic_shapes=is_dynamic_shapes)
 
+    # PyTorch allows an avg_pool kernel larger than the input for 1D/2D pooling: with ceil_mode the sliding
+    # window is clipped to the input and a single averaged element is produced (e.g. HuggingFace EfficientNet
+    # uses nn.AvgPool2d(1280, ceil_mode=True) over a 7x7 feature map). (avg_pool3d rejects oversized kernels,
+    # so that case cannot occur.) ov::op::AvgPool requires the kernel to fit the (padded) data shape, so the
+    # frontend selects a reduction only for axes that are short at runtime.
+    @pytest.mark.parametrize("op_type,input_shape,kernel_size,padding", [
+        ("avg_pool1d", [1, 8, 7], 1280, 0),
+        ("avg_pool1d", [8, 7], 32, 0),
+        ("avg_pool2d", [1, 8, 7, 7], [1280, 1280], 0),
+        ("avg_pool2d", [1, 8, 7, 7], [9, 2], 0),
+        ("avg_pool2d", [8, 7, 7], [16, 16], 0),
+        ("avg_pool2d", [1, 8, 7, 8], [8, 2], [1, 0]),
+    ])
+    @pytest.mark.parametrize("count_include_pad", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
+    def test_avg_pool_oversized_kernel(self, op_type, input_shape, kernel_size, padding, count_include_pad,
+                                       ie_device, precision, ir_version):
+        self.input_tensor = self.random.randn(*input_shape)
+        self._test(*self.create_model(op_type, kernel_size=kernel_size, stride=None, padding=padding,
+                                       ceil_mode=True, count_include_pad=count_include_pad),
+                   ie_device, precision, ir_version, trace_model=True, freeze_model=False)
+
+    @pytest.mark.parametrize("kernel,stride,padding,error", [
+        ([2], [2, 2], [0, 0], "Expected kernel size"),
+        ([2, 2, 2], [2, 2], [0, 0], "Expected kernel size"),
+        ([2, 2], [2], [0, 0], "Expected strides size"),
+        ([2, 2], [2, 2, 2], [0, 0], "Expected strides size"),
+        ([2, 2], [2, 2], [0], "Expected padding size"),
+        ([2, 2], [2, 2], [0, 0, 0], "Expected padding size"),
+    ])
+    @pytest.mark.parametrize("is_dynamic_shapes", [False, True])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool2d_invalid_attribute_lengths(self, kernel, stride, padding, error, is_dynamic_shapes,
+                                                  ie_device, precision, ir_version):
+        model, _ = self.create_model("avg_pool2d", kernel_size=kernel, stride=stride, padding=padding,
+                                     ceil_mode=True)
+        # Script without executing: tracing would reject the malformed attributes in PyTorch first.
+        scripted = torch.jit.script(model)
+        shape = ov.PartialShape([-1] * 4 if is_dynamic_shapes else [1, 1, 4, 4])
+        with pytest.raises(ov.frontend.OpConversionFailure, match=error):
+            ov.convert_model(scripted, input=[shape])
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool2d_empty_padding(self, ie_device, precision, ir_version):
+        class aten_avg_pool2d_empty_padding(torch.nn.Module):
+            def forward(self, x):
+                return torch.nn.functional.avg_pool2d(x, [2, 2], [2, 2],
+                                                      torch.jit.annotate(list[int], []), True)
+
+        scripted = torch.jit.script(aten_avg_pool2d_empty_padding())
+        ov_model = ov.convert_model(scripted, input=[ov.PartialShape([-1] * 4)])
+        # TorchScript provides no dtype metadata; resolve the dynamic input type as the layer-test
+        # harness does before compiling, and verify ConvertLike follows that resolved type.
+        ov_model.input(0).get_node().set_element_type(ov.Type.f32)
+        ov_model.validate_nodes_and_infer_types()
+        compiled = ov.Core().compile_model(ov_model, ie_device)
+        data = torch.arange(16, dtype=torch.float32).reshape(1, 1, 4, 4)
+        # Empty padding retains OpenVINO's existing zero-padding default.
+        expected = torch.nn.functional.avg_pool2d(data, [2, 2], [2, 2], 0, True).numpy()
+        actual = compiled((data.numpy(),))[compiled.outputs[0]]
+        np.testing.assert_allclose(actual, expected, rtol=1e-4, atol=1e-4)
+
+    @pytest.mark.parametrize("is_dynamic_shapes", [False, True])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool2d_oversized_integer_kernel(self, is_dynamic_shapes, ie_device, precision, ir_version):
+        if ie_device != "CPU":
+            pytest.skip("Integer oversized avg-pool regression is checked on CPU")
+        self.input_tensor = np.array([[[[0, 0], [1, 3]]]], dtype=np.int64)
+        self._test(*self.create_model("avg_pool2d", kernel_size=(3, 3), stride=(2, 2), padding=0,
+                                      ceil_mode=True, count_include_pad=False),
+                   ie_device, precision, ir_version, trace_model=True, freeze_model=False,
+                   dynamic_shapes=is_dynamic_shapes)
+
+    @pytest.mark.parametrize("values,kernel,stride", [
+        ([[9007199254740993]], (1, 1), (1, 1)),
+        ([[2**63 - 1, -(2**63 - 1) + 256]], (1, 2), (1, 2)),
+        ([[2**63 - 1, -(2**63 - 1) + 256]], (2, 3), (2, 3)),
+        ([[2**63 - 1, -(2**63 - 1) + 256], [0, 0]], (3, 2), (2, 2)),
+        ([[-3, 0], [0, 0]], (3, 3), (2, 2)),
+        ([[2, 0, 0], [4, 0, 0]], (3, 4), (2, 4)),
+        ([[3, 0], [1, 0]], (3, 2), (2, 2)),
+    ])
+    @pytest.mark.parametrize("is_dynamic_shapes", [False, True])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool2d_large_i64(self, values, kernel, stride, is_dynamic_shapes,
+                                  ie_device, precision, ir_version):
+        model, _ = self.create_model("avg_pool2d", kernel_size=kernel, stride=stride, padding=0,
+                                     ceil_mode=True)
+        example = torch.tensor([[values]], dtype=torch.int64)
+        scripted = torch.jit.trace(model, example)
+        shape = ov.PartialShape([-1] * 4 if is_dynamic_shapes else list(example.shape))
+        ov_model = ov.convert_model(scripted, example_input=(example,), input=[shape])
+        # Check frontend integer semantics independently of device-specific precision lowering.
+        def check_integer_graph(model):
+            for node in model.get_ordered_ops():
+                assert all(not output.element_type.is_real() for output in node.outputs())
+                assert node.get_type_name() != "ReduceMean"
+                if node.get_type_name() == "If":
+                    check_integer_graph(node.get_then_body())
+                    check_integer_graph(node.get_else_body())
+
+        check_integer_graph(ov_model)
+        assert ov_model.output(0).element_type == ov.Type.i64
+        core = ov.Core()
+        if "TEMPLATE" in core.available_devices:
+            compiled = core.compile_model(ov_model, "TEMPLATE")
+            actual = compiled((example.numpy(),))[compiled.outputs[0]]
+            np.testing.assert_array_equal(actual, scripted(example).numpy())
+
+    @pytest.mark.parametrize("op_type,trace_shape,kernel,stride,other_shape", [
+        ("avg_pool1d", (1, 1, 7), 32, 32, (1, 1, 64)),
+        ("avg_pool1d", (1, 1, 64), 32, 32, (1, 1, 7)),
+        ("avg_pool2d", (1, 1, 7, 7), (32, 2), (32, 2), (1, 1, 64, 7)),
+        ("avg_pool2d", (1, 1, 64, 7), (32, 2), (32, 2), (1, 1, 7, 7)),
+        ("avg_pool2d", (1, 1, 7, 7), (32, 32), (32, 32), (1, 1, 64, 64)),
+        ("avg_pool2d", (1, 1, 64, 64), (32, 32), (32, 32), (1, 1, 7, 7)),
+    ])
+    @pytest.mark.parametrize("count_include_pad", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool_trace_reused_with_different_input(self, op_type, trace_shape, kernel, stride,
+                                                        other_shape, count_include_pad, ie_device,
+                                                        precision, ir_version):
+        # A fixed kernel must also work when the runtime shape crosses the kernel in either direction.
+        model, _ = self.create_model(op_type, kernel_size=kernel, stride=stride, padding=0,
+                                     ceil_mode=True, count_include_pad=count_include_pad)
+        example = torch.arange(np.prod(trace_shape), dtype=torch.float32).reshape(trace_shape)
+        scripted = torch.jit.trace(model, example)
+        ov_model = ov.convert_model(scripted, example_input=(example,),
+                                    input=[ov.PartialShape([-1] * len(trace_shape))])
+        compiled = ov.Core().compile_model(ov_model, ie_device, {"INFERENCE_PRECISION_HINT": "f32"})
+
+        for shape in (trace_shape, other_shape):
+            data = torch.arange(np.prod(shape), dtype=torch.float32).reshape(shape)
+            with torch.no_grad():
+                expected = scripted(data).numpy()
+            actual = compiled((data.numpy(),))[compiled.outputs[0]]
+            np.testing.assert_allclose(actual, expected, rtol=1e-4, atol=1e-4)
+            if op_type == "avg_pool1d" and shape[-1] == 64:
+                np.testing.assert_allclose(actual.flatten(), [15.5, 47.5])
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool_dynamic_unit_stride_skips_if(self, ie_device, precision, ir_version):
+        model, _ = self.create_model("avg_pool1d", kernel_size=3, stride=1, padding=0, ceil_mode=True)
+        example = torch.arange(4, dtype=torch.float32).reshape(1, 1, 4)
+        scripted = torch.jit.trace(model, example)
+        ov_model = ov.convert_model(scripted, example_input=(example,),
+                                    input=[ov.PartialShape([-1] * example.ndim)])
+
+        op_types = [node.get_type_name() for node in ov_model.get_ordered_ops()]
+        assert "AvgPool" in op_types, f"expected the ordinary AvgPool path; ops: {op_types}"
+        assert "If" not in op_types, f"unit-stride dynamic pooling must not create an If; ops: {op_types}"
+        assert ov_model.inputs[0].partial_shape[-1].is_dynamic
+
+        compiled = ov.Core().compile_model(ov_model, ie_device)
+        for length in (3, 4):
+            data = torch.arange(length, dtype=torch.float32).reshape(1, 1, length)
+            with torch.no_grad():
+                expected = scripted(data).numpy()
+            actual = compiled((data.numpy(),))[compiled.outputs[0]]
+            np.testing.assert_allclose(actual, expected, rtol=1e-4, atol=1e-4)
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool_invalid_short_input_fails(self, ie_device, precision, ir_version):
+        if ie_device != "CPU":
+            pytest.skip("runtime pooling error is checked on CPU")
+
+        model, _ = self.create_model("avg_pool1d", kernel_size=32, stride=8, padding=0, ceil_mode=True)
+        example = torch.arange(31, dtype=torch.float32).reshape(1, 1, 31)
+        scripted = torch.jit.trace(model, example)
+        ov_model = ov.convert_model(scripted, example_input=(example,),
+                                    input=[ov.PartialShape([-1] * example.ndim)])
+        compiled = ov.Core().compile_model(ov_model, "CPU")
+
+        valid = example[:, :, :25]
+        np.testing.assert_allclose(compiled((valid.numpy(),))[compiled.outputs[0]],
+                                   scripted(valid).numpy(), rtol=1e-4, atol=1e-4)
+
+        invalid = example[:, :, :24]
+        with pytest.raises(RuntimeError, match="Output size is too small"):
+            scripted(invalid)
+        with pytest.raises(RuntimeError, match="Kernel after dilation"):
+            compiled((invalid.numpy(),))
+
+    @pytest.mark.parametrize("stride", [2, 3, 4])
+    @pytest.mark.parametrize("is_dynamic_shapes", [False, True])
+    @pytest.mark.parametrize("dtype", [torch.float32, torch.int64])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool_empty_spatial_axis_fails(self, stride, is_dynamic_shapes, dtype,
+                                               ie_device, precision, ir_version):
+        if ie_device != "CPU":
+            pytest.skip("Runtime pooling error is checked on CPU")
+        model, _ = self.create_model("avg_pool1d", kernel_size=3, stride=stride, padding=0, ceil_mode=True)
+        example = torch.ones((1, 1, 3), dtype=dtype)
+        scripted = torch.jit.trace(model, example)
+        empty = example[:, :, :0]
+        with pytest.raises(RuntimeError):
+            scripted(empty)
+
+        if not is_dynamic_shapes:
+            with pytest.raises(RuntimeError, match="Kernel after dilation"):
+                ov.convert_model(scripted, example_input=(example,), input=[ov.PartialShape([1, 1, 0])])
+        else:
+            ov_model = ov.convert_model(scripted, example_input=(example,), input=[ov.PartialShape([1, 1, -1])])
+            compiled = ov.Core().compile_model(ov_model, "CPU")
+            with pytest.raises(RuntimeError, match="Kernel after dilation"):
+                compiled((empty.numpy(),))
+
+    @pytest.mark.parametrize("case", ["ones", "cancellation"])
+    @pytest.mark.parametrize("is_dynamic_shapes", [False, True])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool_oversized_fp16(self, case, is_dynamic_shapes, ie_device, precision, ir_version):
+        if ie_device != "CPU":
+            pytest.skip("FP16 precision regressions are checked on CPU")
+
+        if case == "ones":
+            kernel, stride = (4096, 4096), (4096, 4096)
+            example = torch.ones((1, 1, 7, 7), dtype=torch.float16)
+        else:
+            kernel, stride = (3, 2), (2, 2)
+            example = torch.tensor([[[[10000, -10000, 10000, -10000], [1, 1, 1, 1]]]], dtype=torch.float16)
+        model, _ = self.create_model("avg_pool2d", kernel_size=kernel, stride=stride,
+                                     padding=0, ceil_mode=True)
+        scripted = torch.jit.trace(model, example)
+        shape = ov.PartialShape([-1] * example.ndim if is_dynamic_shapes else list(example.shape))
+        ov_model = ov.convert_model(scripted, example_input=(example,),
+                                    input=[shape])
+        compiled = ov.Core().compile_model(ov_model, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+        actual = compiled((example.numpy(),))[compiled.outputs[0]]
+        np.testing.assert_allclose(actual, scripted(example).numpy(), rtol=1e-3, atol=1e-3)
+        assert actual.dtype == np.float16
+
+    @pytest.mark.parametrize("kernel", [(3, 2), (2, 3)])
+    @pytest.mark.parametrize("is_dynamic_shapes", [False, True])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool_oversized_fp32_cancellation(self, kernel, is_dynamic_shapes, ie_device, precision, ir_version):
+        if ie_device != "CPU":
+            pytest.skip("FP32 cancellation regression is checked on CPU")
+
+        model, _ = self.create_model("avg_pool2d", kernel_size=kernel, stride=(2, 2),
+                                     padding=0, ceil_mode=True)
+        example = torch.tensor([[[[1e8, -1e8], [1, 1]]]], dtype=torch.float32)
+        scripted = torch.jit.trace(model, example)
+        shape = ov.PartialShape([-1] * 4 if is_dynamic_shapes else list(example.shape))
+        ov_model = ov.convert_model(scripted, example_input=(example,), input=[shape])
+        compiled = ov.Core().compile_model(ov_model, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+        actual = compiled((example.numpy(),))[compiled.outputs[0]]
+        np.testing.assert_allclose(actual, [[[[0.5]]]], rtol=1e-6, atol=1e-6)
+        np.testing.assert_allclose(actual, scripted(example).numpy(), rtol=1e-6, atol=1e-6)
+
     @pytest.mark.parametrize("input_shape", [[1, 3, 15, 15, 15], [3, 15, 15, 15]])
     @pytest.mark.parametrize("params", d3_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
