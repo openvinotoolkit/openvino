@@ -65,6 +65,7 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/reference/cum_sum.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "sequence_generator.hpp"
 #include "utils/eval_utils.hpp"
@@ -4153,6 +4154,160 @@ TEST(eval, evaluate_cum_sum_v0_exclusive_reversed) {
     EXPECT_EQ(outputs[0].get_element_type(), data->get_element_type());
     EXPECT_EQ(outputs[0].get_shape(), data->get_shape());
     EXPECT_EQ(memcmp(outputs[0].data(), out_expected, sizeof(out_expected)), 0);
+}
+
+// CumSum axis bounds and zero-length axis dimension tests: verify that CumSum::evaluate throws
+// ov::Exception when the axis is outside [-rank, rank) or the data tensor is scalar (rank 0), and
+// that both CumSum::evaluate and ov::reference::cumsum handle a zero-length axis dimension without
+// reading or writing out of bounds.
+
+TEST(eval, evaluate_cum_sum_v0_axis_out_of_range_throws) {
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
+    auto axis = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{1}, {2});  // rank == 2, axis == rank
+    auto cs = make_shared<op::v0::CumSum>(data, axis);
+    auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
+
+    float input_values[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+    auto outputs = ov::TensorVector(1);
+    ASSERT_THROW(m->evaluate(outputs, {{ov::element::f32, {2, 3}, input_values}}), ov::Exception);
+}
+
+TEST(eval, evaluate_cum_sum_v0_axis_far_out_of_range_throws) {
+    float input_values[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+    for (const int64_t bad_axis : {int64_t{64}, std::numeric_limits<int64_t>::max()}) {
+        auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
+        auto axis = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{1}, {bad_axis});
+        auto cs = make_shared<op::v0::CumSum>(data, axis);
+        auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
+
+        auto outputs = ov::TensorVector(1);
+        ASSERT_THROW(m->evaluate(outputs, {{ov::element::f32, {2, 3}, input_values}}), ov::Exception);
+    }
+}
+
+TEST(eval, evaluate_cum_sum_v0_axis_negative_out_of_range_throws) {
+    float input_values[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+    for (const int64_t bad_axis : {int64_t{-3}, int64_t{-9}, std::numeric_limits<int64_t>::min()}) {
+        auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
+        auto axis = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{1}, {bad_axis});  // < -rank
+        auto cs = make_shared<op::v0::CumSum>(data, axis);
+        auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
+
+        auto outputs = ov::TensorVector(1);
+        ASSERT_THROW(m->evaluate(outputs, {{ov::element::f32, {2, 3}, input_values}}), ov::Exception);
+    }
+}
+
+TEST(eval, evaluate_cum_sum_v0_rank0_data_throws) {
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});  // rank 0: axis range is empty
+    auto axis = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{1}, {0});
+    auto cs = make_shared<op::v0::CumSum>(data, axis);
+    auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
+
+    float input_values[1] = {42.f};
+    auto outputs = ov::TensorVector(1);
+    ASSERT_THROW(m->evaluate(outputs, {{ov::element::f32, {}, input_values}}), ov::Exception);
+}
+
+TEST(eval, evaluate_cum_sum_v0_zero_length_axis_safe) {
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 0, 8});  // zero-length axis dim
+    auto axis = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{1}, {1});
+    auto cs = make_shared<op::v0::CumSum>(data, axis);
+    auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
+
+    auto outputs = ov::TensorVector(1);
+    ASSERT_TRUE(m->evaluate(outputs, {ov::Tensor(ov::element::f32, Shape{4, 0, 8})}));
+    EXPECT_EQ(outputs[0].get_shape(), (Shape{4, 0, 8}));
+    EXPECT_EQ(outputs[0].get_size(), 0u);  // no elements, no out-of-bounds store
+}
+
+TEST(eval, evaluate_cum_sum_v0_zero_length_axis_reverse_safe) {
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 0, 8});
+    auto axis = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{1}, {1});
+    auto cs = make_shared<op::v0::CumSum>(data, axis, /*exclusive*/ false, /*reverse*/ true);
+    auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
+
+    auto outputs = ov::TensorVector(1);
+    ASSERT_TRUE(m->evaluate(outputs, {ov::Tensor(ov::element::f32, Shape{4, 0, 8})}));
+    EXPECT_EQ(outputs[0].get_size(), 0u);
+}
+
+TEST(eval, evaluate_cum_sum_v0_zero_length_axis_exclusive_safe) {
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 0, 8});
+    auto axis = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{1}, {1});
+    auto cs = make_shared<op::v0::CumSum>(data, axis, /*exclusive*/ true, /*reverse*/ false);
+    auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
+
+    auto outputs = ov::TensorVector(1);
+    ASSERT_TRUE(m->evaluate(outputs, {ov::Tensor(ov::element::f32, Shape{4, 0, 8})}));
+    EXPECT_EQ(outputs[0].get_size(), 0u);
+}
+
+TEST(eval, evaluate_cum_sum_v0_negative_axis_in_range_still_correct) {
+    float input_values[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+    {
+        auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
+        auto axis = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{1}, {-1});  // valid: == axis 1
+        auto cs = make_shared<op::v0::CumSum>(data, axis);
+        auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
+
+        float out_expected[6] = {1.f, 3.f, 6.f, 4.f, 9.f, 15.f};
+        auto outputs = ov::TensorVector(1);
+        ASSERT_TRUE(m->evaluate(outputs, {{ov::element::f32, {2, 3}, input_values}}));
+        EXPECT_EQ(outputs[0].get_shape(), (Shape{2, 3}));
+        EXPECT_EQ(memcmp(outputs[0].data(), out_expected, sizeof(out_expected)), 0);
+    }
+    {
+        auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
+        auto axis = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{1}, {-2});  // valid: == -rank (axis 0)
+        auto cs = make_shared<op::v0::CumSum>(data, axis);
+        auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
+
+        float out_expected[6] = {1.f, 2.f, 3.f, 5.f, 7.f, 9.f};
+        auto outputs = ov::TensorVector(1);
+        ASSERT_TRUE(m->evaluate(outputs, {{ov::element::f32, {2, 3}, input_values}}));
+        EXPECT_EQ(outputs[0].get_shape(), (Shape{2, 3}));
+        EXPECT_EQ(memcmp(outputs[0].data(), out_expected, sizeof(out_expected)), 0);
+    }
+}
+
+// The reference kernel is header-only and is also called directly (template/INTERPRETER backend),
+// bypassing CumSum::evaluate. These tests exercise its own guards: an out-of-range axis or rank-0
+// data and a zero-length dimension must leave the (sentinel) output untouched and access nothing.
+TEST(eval, reference_cum_sum_axis_out_of_range_no_access) {
+    const Shape shape{2, 3};
+    std::vector<float> in{1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+    std::vector<float> out(6, -1.f);
+    ov::reference::cumsum<float, int64_t>(in.data(), 2, out.data(), shape, false, false);
+    EXPECT_EQ(out, std::vector<float>(6, -1.f));
+    ov::reference::cumsum<float, int64_t>(in.data(), 64, out.data(), shape, false, false);
+    EXPECT_EQ(out, std::vector<float>(6, -1.f));
+    ov::reference::cumsum<float, int64_t>(in.data(), -3, out.data(), shape, false, false);
+    EXPECT_EQ(out, std::vector<float>(6, -1.f));
+    ov::reference::cumsum<float, int64_t>(in.data(), -9, out.data(), shape, true, true);
+    EXPECT_EQ(out, std::vector<float>(6, -1.f));
+    const auto min_axis = std::numeric_limits<int64_t>::min();
+    const auto max_axis = std::numeric_limits<int64_t>::max();
+    ov::reference::cumsum<float, int64_t>(in.data(), min_axis, out.data(), shape, false, false);
+    EXPECT_EQ(out, std::vector<float>(6, -1.f));
+    ov::reference::cumsum<float, int64_t>(in.data(), max_axis, out.data(), shape, false, false);
+    EXPECT_EQ(out, std::vector<float>(6, -1.f));
+    float s_in = 1.f, s_out = -1.f;
+    ov::reference::cumsum<float, int64_t>(&s_in, 0, &s_out, Shape{}, false, false);
+    EXPECT_EQ(s_out, -1.f);
+}
+
+TEST(eval, reference_cum_sum_zero_length_axis_no_store) {
+    float s_in[1] = {7.f};
+    float s_out[1] = {-1.f};
+    for (const bool exclusive : {false, true}) {
+        for (const bool reverse : {false, true}) {
+            ov::reference::cumsum<float, int64_t>(s_in, 1, s_out, Shape{4, 0, 8}, exclusive, reverse);
+            EXPECT_EQ(s_out[0], -1.f);
+            ov::reference::cumsum<float, int64_t>(s_in, 1, s_out, Shape{1000000, 2, 0}, exclusive, reverse);
+            EXPECT_EQ(s_out[0], -1.f);
+        }
+    }
 }
 
 TEST(eval, invalid_shape) {
