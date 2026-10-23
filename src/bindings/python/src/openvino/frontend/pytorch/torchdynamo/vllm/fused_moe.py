@@ -73,8 +73,8 @@ def split_gate_up(packed, isa):
             return None
         half = plain.shape[1] // 2
         halves = [plain[:, :half].contiguous(), plain[:, half:].contiguous()]
-        for i, h in enumerate(halves):
-            _half_cache[key + (i,)] = h
+        for i, weight in enumerate(halves):
+            _half_cache[key + (i,)] = weight
     return halves
 
 
@@ -88,9 +88,9 @@ def moe_tiled(tokens, w1, w3, w2, topk_weights, topk_ids, act):
     import torch
     from torch.nn import functional
     experts, hidden = w1.shape[0], tokens.shape[1]
-    x = tokens.repeat(experts, 1).view(experts, -1, hidden)
-    gate = torch.bmm(x, w1.transpose(1, 2))
-    up = torch.bmm(x, w3.transpose(1, 2))
+    tiled = tokens.repeat(experts, 1).view(experts, -1, hidden)
+    gate = torch.bmm(tiled, w1.transpose(1, 2))
+    up = torch.bmm(tiled, w3.transpose(1, 2))
     if act == "silu":
         gated = functional.silu(gate) * up
     else:
