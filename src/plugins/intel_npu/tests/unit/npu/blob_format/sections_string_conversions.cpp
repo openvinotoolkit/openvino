@@ -15,7 +15,6 @@ using SectionsStringConversionsTest = ::testing::Test;
 TEST_F(SectionsStringConversionsTest, TypeAndIDToStringAllValidTypes) {
     ASSERT_EQ(section_type_and_id_to_string(SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS), SectionID(0)),
               "RUNTIME_REQUIREMENTS_0");
-    ASSERT_EQ(section_type_and_id_to_string(SectionType(SectionTypeCode::MANIFEST), SectionID(0)), "MANIFEST_0");
     ASSERT_EQ(section_type_and_id_to_string(SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE), SectionID(0)),
               "ELF_MAIN_SCHEDULE_0");
     ASSERT_EQ(section_type_and_id_to_string(SectionType(SectionTypeCode::ELF_INIT_SCHEDULES), SectionID(0)),
@@ -37,17 +36,17 @@ TEST_F(SectionsStringConversionsTest, UnknownTypeToString) {
 }
 
 TEST_F(SectionsStringConversionsTest, DifferentIDsToString) {
-    ASSERT_EQ(section_type_and_id_to_string(SectionType(SectionTypeCode::MANIFEST), SectionID(0)), "MANIFEST_0");
-    ASSERT_EQ(section_type_and_id_to_string(SectionType(SectionTypeCode::MANIFEST),
+    ASSERT_EQ(section_type_and_id_to_string(SectionType(SectionTypeCode::BATCH_SIZE), SectionID(0)), "BATCH_SIZE_0");
+    ASSERT_EQ(section_type_and_id_to_string(SectionType(SectionTypeCode::BATCH_SIZE),
                                             SectionID(std::numeric_limits<uint16_t>::max())),
-              "MANIFEST_" + std::to_string(std::numeric_limits<uint16_t>::max()));
+              "BATCH_SIZE_" + std::to_string(std::numeric_limits<uint16_t>::max()));
 }
 
 TEST_F(SectionsStringConversionsTest, ValidTypesAndIDsFromString) {
     ASSERT_EQ(section_type_and_id_from_string("RUNTIME_REQUIREMENTS_0"),
               std::make_pair(SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS), std::make_optional(SectionID(0))));
-    ASSERT_EQ(section_type_and_id_from_string("MANIFEST_0"),
-              std::make_pair(SectionType(SectionTypeCode::MANIFEST), std::make_optional(SectionID(0))));
+    ASSERT_EQ(section_type_and_id_from_string("BATCH_SIZE_0"),
+              std::make_pair(SectionType(SectionTypeCode::BATCH_SIZE), std::make_optional(SectionID(0))));
     ASSERT_EQ(section_type_and_id_from_string("ELF_MAIN_SCHEDULE_0"),
               std::make_pair(SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE), std::make_optional(SectionID(0))));
     ASSERT_EQ(section_type_and_id_from_string("ELF_INIT_SCHEDULES_0"),
@@ -63,43 +62,43 @@ TEST_F(SectionsStringConversionsTest, ValidTypesAndIDsFromString) {
     ASSERT_EQ(section_type_and_id_from_string("COMPILER_VERSION_0"),
               std::make_pair(SectionType(SectionTypeCode::COMPILER_VERSION), std::make_optional(SectionID(0))));
 
-    ASSERT_EQ(section_type_and_id_from_string("MANIFEST_" + std::to_string(std::numeric_limits<uint16_t>::max())),
-              std::make_pair(SectionType(SectionTypeCode::MANIFEST),
+    ASSERT_EQ(section_type_and_id_from_string("BATCH_SIZE_" + std::to_string(std::numeric_limits<uint16_t>::max())),
+              std::make_pair(SectionType(SectionTypeCode::BATCH_SIZE),
                              std::make_optional(SectionID(std::numeric_limits<uint16_t>::max()))));
 
-    ASSERT_EQ(section_type_and_id_from_string("manifest_0"),
-              std::make_pair(SectionType(SectionTypeCode::MANIFEST), std::make_optional(SectionID(0))));
+    ASSERT_EQ(section_type_and_id_from_string("batch_size_0"),
+              std::make_pair(SectionType(SectionTypeCode::BATCH_SIZE), std::make_optional(SectionID(0))));
 }
 
 TEST_F(SectionsStringConversionsTest, ValidTypeAndNoIDFromString) {
     const std::pair<SectionType, std::optional<SectionID>> result =
-        std::make_pair(SectionType(SectionTypeCode::MANIFEST), std::nullopt);
-    ASSERT_EQ(section_type_and_id_from_string("MANIFEST"), result);
+        std::make_pair(SectionType(SectionTypeCode::BATCH_SIZE), std::nullopt);
+    ASSERT_EQ(section_type_and_id_from_string("BATCH_SIZE"), result);
 }
 
 TEST_F(SectionsStringConversionsTest, InvalidTypesFromString) {
     const std::pair<SectionType, std::optional<SectionID>> result =
         std::make_pair(SectionType(SectionTypeCode::UNKNOWN), std::nullopt);
-    ASSERT_EQ(section_type_and_id_from_string("MANIFEST_"), result);
-    ASSERT_EQ(section_type_and_id_from_string("MANIFEST_a"), result);
-    ASSERT_EQ(section_type_and_id_from_string("MANIFEST_-1"), result);
-    ASSERT_EQ(section_type_and_id_from_string("MANIFEST_1.0"), result);
+    ASSERT_EQ(section_type_and_id_from_string("BATCH_SIZE_"), result);
+    ASSERT_EQ(section_type_and_id_from_string("BATCH_SIZE_a"), result);
+    ASSERT_EQ(section_type_and_id_from_string("BATCH_SIZE_-1"), result);
+    ASSERT_EQ(section_type_and_id_from_string("BATCH_SIZE_1.0"), result);
     ASSERT_EQ(section_type_and_id_from_string("MANIFES"), result);
     ASSERT_EQ(section_type_and_id_from_string("UNKNOWN"), result);
 }
 
 TEST_F(SectionsStringConversionsTest, InvalidIDsFromString) {
-    OV_EXPECT_THROW(section_type_and_id_from_string("MANIFEST_1000000000000000"), ov::Exception, _);
+    OV_EXPECT_THROW(section_type_and_id_from_string("BATCH_SIZE_1000000000000000"), ov::Exception, _);
 }
 
 TEST_F(SectionsStringConversionsTest, InvalidTypeValidIDFromString) {
     const std::pair<SectionType, std::optional<SectionID>> result =
         std::make_pair(SectionType(SectionTypeCode::UNKNOWN), std::make_optional(SectionID(0)));
-    ASSERT_EQ(section_type_and_id_from_string("MANIFEST_1.0_0"), result);
+    ASSERT_EQ(section_type_and_id_from_string("BATCH_SIZE_1.0_0"), result);
 }
 
 TEST_F(SectionsStringConversionsTest, ChainToStringFromString) {
     ASSERT_EQ(section_type_and_id_from_string(
-                  section_type_and_id_to_string(SectionType(SectionTypeCode::MANIFEST), SectionID(0))),
-              std::make_pair(SectionType(SectionTypeCode::MANIFEST), std::make_optional(SectionID(0))));
+                  section_type_and_id_to_string(SectionType(SectionTypeCode::BATCH_SIZE), SectionID(0))),
+              std::make_pair(SectionType(SectionTypeCode::BATCH_SIZE), std::make_optional(SectionID(0))));
 }

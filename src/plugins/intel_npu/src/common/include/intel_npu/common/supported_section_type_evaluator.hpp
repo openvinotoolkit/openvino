@@ -13,7 +13,6 @@ namespace intel_npu {
  */
 static inline const std::unordered_set<SectionType> ALREADY_SUPPORTED_SECTION_TYPES{
     SectionTypeCode::RUNTIME_REQUIREMENTS,
-    SectionTypeCode::MANIFEST,
     SectionTypeCode::ELF_MAIN_SCHEDULE,
     SectionTypeCode::ELF_INIT_SCHEDULES,
     SectionTypeCode::DYNAMIC_SCHEDULE,

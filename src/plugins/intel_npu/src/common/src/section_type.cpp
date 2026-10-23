@@ -12,7 +12,6 @@
 namespace {
 
 constexpr std::string_view RUNTIME_REQUIREMENTS_SECTION_NAME = "RUNTIME_REQUIREMENTS";
-constexpr std::string_view MANIFEST_SECTION_NAME = "MANIFEST";
 constexpr std::string_view ELF_MAIN_SCHEDULE_SECTION_NAME = "ELF_MAIN_SCHEDULE";
 constexpr std::string_view ELF_INIT_SCHEDULES_SECTION_NAME = "ELF_INIT_SCHEDULES";
 constexpr std::string_view DYNAMIC_SCHEDULE_SECTION_NAME = "DYNAMIC_SCHEDULE";
@@ -53,8 +52,6 @@ std::string SectionType::to_string() const {
     switch (m_code) {
     case SectionTypeCode::RUNTIME_REQUIREMENTS:
         return RUNTIME_REQUIREMENTS_SECTION_NAME.data();
-    case SectionTypeCode::MANIFEST:
-        return MANIFEST_SECTION_NAME.data();
     case SectionTypeCode::ELF_MAIN_SCHEDULE:
         return ELF_MAIN_SCHEDULE_SECTION_NAME.data();
     case SectionTypeCode::ELF_INIT_SCHEDULES:
@@ -82,9 +79,6 @@ SectionType SectionType::from_string(const std::string_view type) {
 
     if (type_upper == RUNTIME_REQUIREMENTS_SECTION_NAME) {
         return SectionTypeCode::RUNTIME_REQUIREMENTS;
-    }
-    if (type_upper == MANIFEST_SECTION_NAME) {
-        return SectionTypeCode::MANIFEST;
     }
     if (type_upper == ELF_MAIN_SCHEDULE_SECTION_NAME) {
         return SectionTypeCode::ELF_MAIN_SCHEDULE;

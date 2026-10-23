@@ -32,7 +32,7 @@ TEST_F(CRESpecialTokenTest, DifferentOperator) {
 }
 
 TEST_F(CRESpecialTokenTest, IsSpecialToken) {
-    const auto section_type = std::make_shared<SectionType>(SectionTypeCode::MANIFEST);
+    const auto section_type = std::make_shared<SectionType>(SectionTypeCode::BATCH_SIZE);
     const auto section_id = std::make_shared<SectionID>(0);
     const auto cre_special_token = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::AND);
     ASSERT_FALSE(is_cre_special_token(section_type));

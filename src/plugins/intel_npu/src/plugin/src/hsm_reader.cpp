@@ -54,6 +54,13 @@ BlobSectionsRegistry Reader::read(ov::runtime::hsm::Reader& base_reader) const {
             "The runtime requirements section was not found within the manifest. Proceeding without performing any "
             "compatibility checks");
     }
+
+    for (const ov::runtime::hsm::ManifestEntry& manifest_entry : base_reader.entries()) {
+        const std::shared_ptr<ISection> parsed_section =
+            base_reader.decode(manifest_entry.device,
+                               manifest_entry.tag,
+                               m_readers.at(SectionTypeCode::RUNTIME_REQUIREMENTS));
+    }
 }
 
 }  // namespace intel_npu::hsm
