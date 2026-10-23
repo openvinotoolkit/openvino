@@ -1753,13 +1753,22 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
         }
     };
 
+    // A function call carries no compiled model or pipeline state of its own: the ports a link
+    // addresses are those of the function body, which is also what its subrequest is created from
+    // and what the run time resolves them against. Resolving the replacement here is what makes the
+    // port checks below apply to function calls at all.
+    const auto real_desc_of = [&](const auto& link) -> const CompiledModelDesc& {
+        const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
+        return compiled->m_compiled_submodels.at(submodel_desc.replaced_by.value_or(link.first));
+    };
+
     const auto ensure_input_port_index =
         [&](const char* table_name, std::size_t owner_idx, const auto& link, bool allow_no_link) {
             ensure_submodel_index(table_name, owner_idx, "input", link, allow_no_link);
             if (link == CompiledModel::NO_LINK) {
                 return;
             }
-            const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
+            const auto& submodel_desc = real_desc_of(link);
             if (submodel_desc.compiled_model == nullptr) {
                 return;
             }
@@ -1789,7 +1798,7 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
             if (link == CompiledModel::NO_LINK) {
                 return;
             }
-            const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
+            const auto& submodel_desc = real_desc_of(link);
             if (submodel_desc.compiled_model != nullptr &&
                 link.second >= submodel_desc.compiled_model->outputs().size()) {
                 OPENVINO_THROW("Invalid ",
