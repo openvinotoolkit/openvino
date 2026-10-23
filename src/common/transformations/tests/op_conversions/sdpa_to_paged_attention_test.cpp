@@ -1198,6 +1198,76 @@ TEST_F(SDPAToPATest, SDPAToPA_Qwen7bChat_PositionIDsReplacerQwenPattern) {
     disable_rt_info_check();
 }
 
+TEST_F(TransformationTestsF, SDPAToPA_Granite_PositionIDsReplacer) {
+    {
+        auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{-1}, "position_ids");
+        auto unsqueezed_position_ids = std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i64, Shape{}, {-1}));
+
+        auto zero = v0::Constant::create(element::i64, Shape{}, {0});
+        auto one = v0::Constant::create(element::i64, Shape{}, {1});
+
+        // Original RoPE branch: Range + past length -> [1,1,N] positions.
+        auto hidden_states = std::make_shared<v0::Parameter>(element::f32, PartialShape{3, 1, 4});
+
+        auto shape = std::make_shared<v3::ShapeOf>(hidden_states);
+        auto current_length = std::make_shared<v8::Gather>(shape, one, zero);
+        auto current_length_i32 = std::make_shared<v0::Convert>(current_length, element::i32);
+
+        auto max_context_len = ov::test::utils::make_param(element::i32, PartialShape{}, "max_context_len");
+        auto past_length = std::make_shared<v1::Subtract>(max_context_len, current_length_i32);
+        auto past_length_i64 = std::make_shared<v0::Convert>(past_length, element::i64);
+
+        auto range = std::make_shared<v4::Range>(zero, current_length, one, element::i64);
+        auto positions = std::make_shared<v1::Add>(range, past_length_i64);
+        auto batch_positions = std::make_shared<v0::Unsqueeze>(positions, zero);
+        auto rotary_positions = std::make_shared<v0::Unsqueeze>(batch_positions, one);
+        auto converted = std::make_shared<v0::Convert>(rotary_positions, element::f32);
+        auto inv_freq = v0::Constant::create(element::f32, Shape{1, 2, 1}, {1.f, 0.1f});
+        auto matmul = std::make_shared<v0::MatMul>(inv_freq, converted);
+        auto transpose =
+            std::make_shared<v1::Transpose>(matmul, v0::Constant::create(element::i64, Shape{3}, {0, 2, 1}));
+        auto angles = std::make_shared<v0::Concat>(OutputVector{transpose, transpose}, -1);
+        auto cos = std::make_shared<v0::Cos>(angles);
+        auto sin = std::make_shared<v0::Sin>(angles);
+        auto unsq_cos = std::make_shared<v0::Unsqueeze>(cos, one);
+        auto unsq_sin = std::make_shared<v0::Unsqueeze>(sin, one);
+        model = std::make_shared<Model>(OutputVector{unsq_cos, unsq_sin},
+                                        ParameterVector{hidden_states, max_context_len});
+
+        manager.register_pass<pass::PositionIDsReplacerGranite>(unsqueezed_position_ids);
+        model->add_parameters({position_ids});
+    }
+
+    {
+        // Expected branch: preprocessed positions [3,1] -> [3,1,1], producing cos/sin [3,1,1,4].
+        auto hidden_states = std::make_shared<v0::Parameter>(element::f32, PartialShape{3, 1, 4});
+        auto max_context_len = ov::test::utils::make_param(element::i32, PartialShape{}, "max_context_len");
+        auto one = v0::Constant::create(element::i64, Shape{}, {1});
+
+        auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{-1}, "position_ids");
+        auto unsqueezed_position_ids = std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i64, Shape{}, {-1}));
+        auto rotary_positions = std::make_shared<v0::Unsqueeze>(unsqueezed_position_ids, one);
+        auto converted = std::make_shared<v0::Convert>(rotary_positions, element::f32);
+        auto inv_freq = v0::Constant::create(element::f32, Shape{1, 2, 1}, {1.f, 0.1f});
+        auto matmul = std::make_shared<v0::MatMul>(inv_freq, converted);
+        auto transpose =
+            std::make_shared<v1::Transpose>(matmul, v0::Constant::create(element::i64, Shape{3}, {0, 2, 1}));
+        auto angles = std::make_shared<v0::Concat>(OutputVector{transpose, transpose}, -1);
+        auto cos = std::make_shared<v0::Cos>(angles);
+        auto sin = std::make_shared<v0::Sin>(angles);
+        auto unsq_cos = std::make_shared<v0::Unsqueeze>(cos, one);
+        auto unsq_sin = std::make_shared<v0::Unsqueeze>(sin, one);
+        model_ref = std::make_shared<Model>(OutputVector{unsq_cos, unsq_sin},
+                                            ParameterVector{hidden_states, position_ids, max_context_len});
+    }
+
+    // TODO: align precisions, check the copying of "fuse_names" attr in SDPAToPagedAttention
+    // checking the graph structure and names, other checks are temporarily disabled:
+    comparator.disable(FunctionsComparator::PRECISIONS);
+    disable_result_friendly_names_check();
+    disable_rt_info_check();
+}
+
 TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacerLFM2_DequantStartBranch) {
     {
         auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
