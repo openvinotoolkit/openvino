@@ -100,7 +100,7 @@ std::optional<ConvSite> match_conv(const std::shared_ptr<ov::Node>& node) {
 }
 
 // The recurrence Loop of GatedDeltaNet: q, k, v are sliced as [B,H,L,D] and the two per-token scalars
-// g and beta as [B,H,L]. g is the one that goes through Exp inside the body.
+// g and beta as [B,H,L]. g is the one that goes through Exp (possibly after a Convert) inside the body.
 std::optional<SsmSite> match_ssm(const std::shared_ptr<ov::Node>& node) {
     const auto loop = ov::as_type_ptr<ov::op::v5::Loop>(node);
     if (!loop) {
@@ -123,10 +123,18 @@ std::optional<SsmSite> match_ssm(const std::shared_ptr<ov::Node>& node) {
         return std::nullopt;
     }
 
+    // The gate may be converted (e.g. f16 -> f32) right before Exp.
     auto feeds_exp = [](const std::shared_ptr<opv0::Parameter>& param) {
-        const auto targets = param->output(0).get_target_inputs();
-        return std::any_of(targets.begin(), targets.end(), [](const ov::Input<ov::Node>& target) {
+        const auto is_exp = [](const ov::Input<ov::Node>& target) {
             return ov::is_type<opv0::Exp>(target.get_node());
+        };
+        const auto targets = param->output(0).get_target_inputs();
+        return std::any_of(targets.begin(), targets.end(), [&](const ov::Input<ov::Node>& target) {
+            if (ov::is_type<opv0::Convert>(target.get_node())) {
+                const auto converted = target.get_node()->output(0).get_target_inputs();
+                return std::any_of(converted.begin(), converted.end(), is_exp);
+            }
+            return is_exp(target);
         });
     };
     const bool first_is_gate = feeds_exp(per_token_scalars[0].second);
