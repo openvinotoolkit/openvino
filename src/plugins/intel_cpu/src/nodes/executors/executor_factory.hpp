@@ -30,12 +30,12 @@ class ExecutorFactory {
 public:
     using ExecutorImplementationRef = std::reference_wrapper<const ExecutorImplementation<Attrs>>;
 
-    ExecutorFactory(Attrs attrs,
+    ExecutorFactory(const Attrs& attrs,
                     ExecutorContext::CPtr context,
                     const MemoryDescArgs& descriptors,
                     const MemoryFormatFilter& memoryFormatFilter = {},
                     const std::string& implementationPriority = {})
-        : m_attrs(std::move(attrs)),
+        : m_attrs(attrs),
           m_context(std::move(context)),
           m_suitableImplementations(filter(m_attrs, descriptors, memoryFormatFilter, implementationPriority)) {
         OPENVINO_ASSERT(!m_suitableImplementations.empty(), "No suitable implementations found");
