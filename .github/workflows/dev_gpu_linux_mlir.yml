@@ -175,7 +175,8 @@ jobs:
       LLVM_BUILD_TARGET: install
       LLVM_INSTALL_DIR: ${{ github.workspace }}/graph-compiler/externals/llvm/Release
       GC_INSTALL_DIR: ${{ github.workspace }}/graph-compiler/build/Release/install
-      LLVM_CACHE_DIR: /mount/caches/graph-compiler/llvm/ubuntu_24_04_x86_64_Release
+      # TODO: move to a dedicated shared mount once the runners provide one.
+      LLVM_CACHE_DIR: /mount/caches/ccache/graph-compiler/llvm/ubuntu_24_04_x86_64_Release
 
     steps:
       - name: Load SCCACHE_AZURE_CONNECTION_STRING from file
