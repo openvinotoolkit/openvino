@@ -144,7 +144,14 @@ class TFGraphNodeDecoder(DecoderBase):
         return None
 
     def get_attribute(self, name):
-        if name == "shape" or name == "_output_shapes":
+        if name == "_output_shapes":
+            if name not in self.m_node_def.attr:
+                return OVAny(None)
+            return OVAny([
+                PartialShape.dynamic() if shape.unknown_rank else PartialShape([dim.size for dim in shape.dim])
+                for shape in self.m_node_def.attr[name].list.shape
+            ])
+        if name == "shape":
             if self.m_node_def.attr["shape"].shape.unknown_rank:
                 return OVAny(PartialShape.dynamic())
             shape_dims = self.m_node_def.attr["shape"].shape.dim
