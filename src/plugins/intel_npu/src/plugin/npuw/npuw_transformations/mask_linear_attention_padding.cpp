@@ -45,6 +45,7 @@ constexpr size_t kSeqAxis = 2;
 struct ConvSite {
     std::shared_ptr<opv0::Concat> concat;    // Concat(past [B,C,K], x [B,C,L]) along the sequence axis
     size_t kernel;                           // K, the width of the carried history
+    size_t seq_len;                          // L, the number of tokens of the chunk
     std::shared_ptr<opv0::Parameter> state;  // the past conv state parameter the history comes from
 };
 
@@ -52,6 +53,7 @@ struct SsmSite {
     std::shared_ptr<ov::op::v5::Loop> loop;
     size_t gate_input;                       // Loop input index of the per-token decay g
     size_t beta_input;                       // Loop input index of the per-token update gate beta
+    size_t seq_len;                          // L, the number of tokens of the chunk
     std::shared_ptr<opv0::Parameter> state;  // the past ssm state parameter the recurrence starts from
 };
 
@@ -94,7 +96,10 @@ std::optional<ConvSite> match_conv(const std::shared_ptr<ov::Node>& node) {
     if (history[kSeqAxis].is_dynamic() || tokens[kSeqAxis].is_dynamic()) {
         return std::nullopt;
     }
-    return ConvSite{concat, static_cast<size_t>(history[kSeqAxis].get_length()), state_param};
+    return ConvSite{concat,
+                    static_cast<size_t>(history[kSeqAxis].get_length()),
+                    static_cast<size_t>(tokens[kSeqAxis].get_length()),
+                    state_param};
 }
 
 // The recurrence Loop of GatedDeltaNet: q, k, v are sliced as [B,H,L,D] and the two per-token scalars
@@ -134,6 +139,10 @@ std::optional<SsmSite> match_ssm(const std::shared_ptr<ov::Node>& node) {
     }
     const size_t gate = first_is_gate ? per_token_scalars[0].first : per_token_scalars[1].first;
     const size_t beta = first_is_gate ? per_token_scalars[1].first : per_token_scalars[0].first;
+    const auto& seq_dim = loop->get_input_partial_shape(gate)[kSeqAxis];
+    if (seq_dim.is_dynamic()) {
+        return std::nullopt;
+    }
 
     std::shared_ptr<opv0::Parameter> state;
     for (size_t i = 0; i < loop->get_input_size(); ++i) {
@@ -151,7 +160,7 @@ std::optional<SsmSite> match_ssm(const std::shared_ptr<ov::Node>& node) {
     if (!state) {
         return std::nullopt;
     }
-    return SsmSite{loop, gate, beta, state};
+    return SsmSite{loop, gate, beta, static_cast<size_t>(seq_dim.get_length()), state};
 }
 
 // True when the sites together consume every past state parameter of the given kind.
@@ -255,22 +264,22 @@ bool ov::npuw::MaskLinearAttentionPadding::run_on_model(const std::shared_ptr<ov
 
     // The sequence length of the chunk must be the same for all states.
     std::optional<size_t> seq_len;
-    auto accept_seq_len = [&](const ov::Dimension& dim) {
-        if (dim.is_dynamic() || (seq_len && *seq_len != static_cast<size_t>(dim.get_length()))) {
+    auto accept_seq_len = [&](size_t length) {
+        if (seq_len && *seq_len != length) {
             return false;
         }
-        seq_len = static_cast<size_t>(dim.get_length());
+        seq_len = length;
         return true;
     };
     for (const auto& site : conv_sites) {
-        if (!accept_seq_len(site.concat->get_input_partial_shape(1)[kSeqAxis])) {
-            LOG_DEBUG("MaskLinearAttentionPadding: conv sequence length is dynamic or differs between layers");
+        if (!accept_seq_len(site.seq_len)) {
+            LOG_DEBUG("MaskLinearAttentionPadding: conv sequence length differs between layers");
             return false;
         }
     }
     for (const auto& site : ssm_sites) {
-        if (!accept_seq_len(site.loop->get_input_partial_shape(site.gate_input)[kSeqAxis])) {
-            LOG_DEBUG("MaskLinearAttentionPadding: ssm sequence length is dynamic or differs between layers");
+        if (!accept_seq_len(site.seq_len)) {
+            LOG_DEBUG("MaskLinearAttentionPadding: ssm sequence length differs between layers");
             return false;
         }
     }
