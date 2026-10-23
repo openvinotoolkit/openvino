@@ -154,7 +154,7 @@ KERNEL(moe_int3_gather_quantized)(
         quan_var[(size_t)row * VARS_SIZE + i] = token_vars[(size_t)token * VARS_SIZE + i];
 }
 
-#elif GEMM
+#elif GEMM || GEMV
 
 #pragma OPENCL EXTENSION cl_intel_subgroups : enable
 #pragma OPENCL EXTENSION cl_intel_subgroups_short : enable
@@ -227,6 +227,8 @@ inline int FUNC(mad4)(char4 a, char4 b, int acc) {
     acc += (int)a.w * (int)b.w;
     return acc;
 }
+
+#if GEMM
 
 #if ROW_MODE
 #define SG_COUNT SG_K
@@ -473,6 +475,173 @@ KERNEL(moe_int3_gemm)(
 #endif  // ROW_MODE
 }
 
+#undef SG_COUNT
+
+#else  // GEMV
+
+// Decode GEMV of the routed experts on f16 activations, one work-group per
+// (token, top-k slot) pair and SGN * NB output columns: the batched GEMV path,
+// which reads the expert ids on the GPU and needs no gather or scatter. Lane l
+// owns granule l of every CHUNK-value run of K; the activations are staged
+// transposed in SLM (value j of granule l at j * SIMD + l), so each value is one
+// conflict-free SLM row for the subgroup, reused by all its weight rows.
+// GEMV_DOWN computes the down projection of act(gate) * up, scaled by the routing
+// weight; otherwise each subgroup computes NB gate and NB up columns and stores
+// act(gate) * up.
+#define CHUNK  (SIMD * K_CHUNK)
+#define NCHUNK (K_SIZE / CHUNK)
+#if (K_SIZE % CHUNK) != 0 || (WEI_GROUP_SIZE % K_CHUNK) != 0 || (N_SIZE % (SGN * NB)) != 0
+#   error "moe_3gemm_int3.cl - invalid GEMV configuration"
+#endif
+#if GEMV_DOWN
+#   define MATS 1
+#else
+#   define MATS 2
+#endif
+
+inline float FUNC(gemv_gate_activation)(float x) {
+#if GATE_ACT_GELU_ERF
+    return 0.5f * x * (1.0f + erf(x * 0.7071067811865475f));
+#elif GATE_ACT_GELU_TANH
+    return 0.5f * x * (1.0f + tanh(0.79788458347320556640625f * x * (1.0f + 0.044715f * x * x)));
+#else
+    return x / (1.0f + native_exp(-x));
+#endif
+}
+
+// Dot product of one granule with its 32 activations. Values i and i + 4 of each
+// group of eight sit in the low and high half of a nibble pair; or-ing them into
+// the mantissa of 1024.0 and subtracting 1024 gives them exactly as half2.
+inline float FUNC(u3_dot32)(uint3 w, const half* a) {
+    const uint f[4] = {w.s0, (w.s0 >> 24) | (w.s1 << 8), (w.s1 >> 16) | (w.s2 << 16), w.s2 >> 8};
+    const half2 bias = (half2)((half)1024.0f);
+    float acc = 0.0f;
+    unroll_for (uint q = 0; q < 4; ++q) {
+        const uint t = as_uint(FUNC_CALL(u3_spread8_nib)(f[q]));
+        half2 s = (half2)((half)0.0f);
+        unroll_for (uint i = 0; i < 4; ++i) {
+            const half2 v = as_half2(((t >> (4 * i)) & 0x000F000Fu) | 0x64006400u) - bias;
+            s = fma(v, (half2)(a[q * 8 + i], a[q * 8 + i + 4]), s);
+        }
+        acc += (float)s.s0 + (float)s.s1;
+    }
+    return acc;
+}
+
+REQD_SUB_GROUP_SIZE(SIMD)
+__attribute__((reqd_work_group_size(SIMD, SGN, 1)))
+KERNEL(moe_int3_gemv)(
+    const __global int* expert_list,        // [tokens, MAX_TOPK]
+    const __global uint* weights0,          // [E, N, K] u3: down, or gate
+    const __global half* scale0,            // [E, W_GROUPS_K, N]
+#if HAS_ZP
+    const __global ZP_TYPE* zp0,            // [E, W_GROUPS_K, N] or [1]
+#endif
+#if !GEMV_DOWN
+    const __global uint* weights1,          // up
+    const __global half* scale1,
+#if HAS_ZP
+    const __global ZP_TYPE* zp1,
+#endif
+#endif
+    const __global half* x,                 // gate/up: [tokens, K]; down: [tokens * MAX_TOPK, K]
+#if GEMV_DOWN
+    const __global half* routing_weights,   // [tokens * MAX_TOPK]
+#endif
+    __global half* y)                       // [tokens * MAX_TOPK, N]
+{
+    const uint lane = get_sub_group_local_id();
+    const uint sg = (uint)get_local_id(1);
+    const uint blocks = N_SIZE / (SGN * NB);
+    const uint pair = (uint)get_group_id(2) / blocks;
+    const uint n0 = (((uint)get_group_id(2) % blocks) * SGN + sg) * NB;
+    const uint expert = (uint)expert_list[pair];
+#if GEMV_DOWN
+    const __global half* xr = x + (size_t)pair * K_SIZE;
+#else
+    const __global half* xr = x + (size_t)(pair / MAX_TOPK) * K_SIZE;
+#endif
+
+    __local half xs[K_SIZE];
+    for (uint i = sg * SIMD + lane; i < K_SIZE; i += SIMD * SGN)
+        xs[(i / CHUNK) * CHUNK + (i % K_CHUNK) * SIMD + (i % CHUNK) / K_CHUNK] = xr[i];
+#if HAS_ZP
+    // Activation sum of each granule, for the zero point
+    __local float xsum[K_SIZE / K_CHUNK];
+    for (uint gi = sg * SIMD + lane; gi < K_SIZE / K_CHUNK; gi += SIMD * SGN) {
+        float s = 0.0f;
+        unroll_for (uint j = 0; j < K_CHUNK; ++j)
+            s += (float)xr[gi * K_CHUNK + j];
+        xsum[gi] = s;
+    }
+#endif
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    const __global uint* wm[MATS] = {weights0
+#if !GEMV_DOWN
+                                     , weights1
+#endif
+    };
+    const __global half* sm[MATS] = {scale0
+#if !GEMV_DOWN
+                                     , scale1
+#endif
+    };
+#if HAS_ZP
+    const __global ZP_TYPE* zm[MATS] = {zp0
+#if !GEMV_DOWN
+                                        , zp1
+#endif
+    };
+#endif
+
+    float acc[MATS][NB];
+    unroll_for (uint m = 0; m < MATS; ++m)
+        unroll_for (uint j = 0; j < NB; ++j)
+            acc[m][j] = 0.0f;
+
+    unroll_for (uint c = 0; c < NCHUNK; ++c) {
+        half a[K_CHUNK];
+        unroll_for (uint j = 0; j < K_CHUNK; ++j)
+            a[j] = xs[c * CHUNK + j * SIMD + lane];
+        const uint gi = c * SIMD + lane;
+        const uint wg = gi * K_CHUNK / WEI_GROUP_SIZE;
+#if HAS_ZP
+        const float asum = xsum[gi];
+#endif
+        unroll_for (uint m = 0; m < MATS; ++m) {
+            unroll_for (uint j = 0; j < NB; ++j) {
+                const uint n = n0 + j;
+                const uint3 w = vload3(gi, wm[m] + ((size_t)expert * N_SIZE + n) * CHUNKS_K * GRANULE_UINTS);
+                float d = FUNC_CALL(u3_dot32)(w, a);
+                const size_t sidx = ((size_t)expert * W_GROUPS_K + wg) * N_SIZE + n;
+#if ZP_SCALAR
+                d -= (float)zm[m][0] * asum;
+#elif HAS_ZP
+                d -= (float)zm[m][sidx] * asum;
+#endif
+                acc[m][j] = fma(d, (float)sm[m][sidx], acc[m][j]);
+            }
+        }
+    }
+
+    unroll_for (uint j = 0; j < NB; ++j) {
+#if GEMV_DOWN
+        const float out = sub_group_reduce_add(acc[0][j]) * (float)routing_weights[pair];
+#else
+        const float out = FUNC_CALL(gemv_gate_activation)(sub_group_reduce_add(acc[0][j])) * sub_group_reduce_add(acc[1][j]);
+#endif
+        if (lane == 0)
+            y[(size_t)pair * N_SIZE + n0 + j] = (half)out;
+    }
+}
+
+#undef CHUNK
+#undef NCHUNK
+#undef MATS
+
+#endif  // GEMM
+
 #undef SIMD
 #undef K_CHUNK
 #undef GRANULE_UINTS
@@ -480,6 +649,5 @@ KERNEL(moe_int3_gemm)(
 #undef CHUNKS_K
 #undef GROUPS_K
 #undef W_GROUPS_K
-#undef SG_COUNT
 
 #endif

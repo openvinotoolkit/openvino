@@ -613,7 +613,7 @@ struct Int3ProjectionShape {
     size_t n;
     size_t weight_groups;  // weight quantization groups per output channel
     size_t weight_group_size;
-    size_t group_size;     // activation quantization group, divides weight_group_size
+    size_t group_size;  // activation quantization group, divides weight_group_size
 };
 
 static size_t int3_weight_groups(const cldnn::layout& scale, size_t num_experts, size_t n) {
@@ -669,9 +669,7 @@ static size_t int3_max_tiles(size_t num_experts, size_t rows) {
 class MoE3GemmInt3Quantize : public KernelGenerator {
 public:
     // swiglu: quantize act(gate) * up for the down projection instead of the gathered hidden states
-    explicit MoE3GemmInt3Quantize(bool swiglu)
-        : KernelGenerator("moe_3gemm_int3", swiglu ? "quantize_swiglu" : "quantize"),
-          m_swiglu(swiglu) {}
+    explicit MoE3GemmInt3Quantize(bool swiglu) : KernelGenerator("moe_3gemm_int3", swiglu ? "quantize_swiglu" : "quantize"), m_swiglu(swiglu) {}
 
 protected:
     bool m_swiglu;
@@ -772,6 +770,62 @@ protected:
     }
 };
 
+// Batched GEMV decode of the u3 experts: work-groups of INT3_GEMV_SGN subgroups, each computing int3_gemv_nb()
+// output columns of one (token, top-k slot) pair; the lanes take 32-value granules of K_SIZE in runs of 512.
+constexpr size_t INT3_GEMV_SGN = 8;
+constexpr size_t INT3_GEMV_SIMD = 16;
+
+// The down projection has a short K, so each subgroup takes more columns to amortize staging the activations.
+static size_t int3_gemv_nb(Int3Projection proj) {
+    return proj == Int3Projection::DOWN ? 32 : 8;
+}
+
+static bool int3_gemv_supported(const Int3ProjectionShape& shape, Int3Projection proj) {
+    return shape.k % (INT3_GEMV_SIMD * 32) == 0 && shape.weight_group_size % 32 == 0 && shape.n % (INT3_GEMV_SGN * int3_gemv_nb(proj)) == 0;
+}
+
+class MoE3GemmInt3Gemv : public KernelGenerator {
+public:
+    explicit MoE3GemmInt3Gemv(Int3Projection proj)
+        : KernelGenerator("moe_3gemm_int3", proj == Int3Projection::DOWN ? "gemv_down" : "gemv_gate_up"),
+          m_proj(proj) {}
+
+protected:
+    Int3Projection m_proj;
+
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
+        const auto shape = get_int3_projection_shape(params, m_proj);
+        const auto zp_idx = static_cast<size_t>(m_proj == Int3Projection::DOWN ? MOE3GemmInputIndex::ZP_2 : MOE3GemmInputIndex::ZP_0);
+        jit.make("GEMV", 1);
+        jit.make("GEMV_DOWN", m_proj == Int3Projection::DOWN ? 1 : 0);
+        jit.make("K_SIZE", shape.k);
+        jit.make("N_SIZE", shape.n);
+        jit.make("WEI_GROUP_SIZE", shape.weight_group_size);
+        jit.make("HAS_ZP", config.has_zp ? 1 : 0);
+        jit.make("ZP_SCALAR", config.has_zp && params.get_input_layout(zp_idx).count() == 1 ? 1 : 0);
+        jit.make("ZP_TYPE", params.get_input_layout(zp_idx).data_type == ov::element::i8 ? "char" : "uchar");
+        jit.make("MAX_TOPK", config.top_k);
+        jit.make("SGN", INT3_GEMV_SGN);
+        jit.make("NB", int3_gemv_nb(m_proj));
+        if (config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
+            jit.make("GATE_ACT_GELU_TANH", 1);
+        } else if (config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
+            jit.make("GATE_ACT_GELU_ERF", 1);
+        }
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        return {};
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+    }
+};
+
 dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& dim, dnnl::memory::format_tag tag, int64_t offset = 0) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("convert2dnnl"));
     return ptr->get_onednn_memory(dnnl::memory::desc(dnnl::memory::dims(dim), convert_data_type(ptr->get_layout().data_type), tag), offset);
@@ -839,6 +893,8 @@ public:
     Stage::Ptr int3_gate_up_tiled = make_stage<MoE3GemmInt3Gemm>(Int3Projection::GATE_UP, /*row_mode=*/false);
     Stage::Ptr int3_down_row = make_stage<MoE3GemmInt3Gemm>(Int3Projection::DOWN, /*row_mode=*/true);
     Stage::Ptr int3_down_tiled = make_stage<MoE3GemmInt3Gemm>(Int3Projection::DOWN, /*row_mode=*/false);
+    Stage::Ptr int3_gemv_gate_up = make_stage<MoE3GemmInt3Gemv>(Int3Projection::GATE_UP);
+    Stage::Ptr int3_gemv_down = make_stage<MoE3GemmInt3Gemv>(Int3Projection::DOWN);
 
     struct dnnl_weights {
         dnnl::memory weight;
@@ -1296,6 +1352,13 @@ public:
                                                            moe_config.inter_size,
                                                            weight_groups(MOE3GemmInputIndex::SCALE_0, moe_config.inter_size),
                                                            weight_groups(MOE3GemmInputIndex::SCALE_2, moe_config.hidden_size));
+            // Few tokens decode through the u3 batched GEMV instead of the grouped GEMM path. The shared expert is
+            // only fused into the batched GEMV kernels of the other weight types.
+            if (use_int3_gemm && moe_config.num_shared_expert == 0 && params.get_input_layout(0).data_type == ov::element::f16 &&
+                int3_gemv_supported(get_int3_projection_shape(params, Int3Projection::GATE_UP), Int3Projection::GATE_UP) &&
+                int3_gemv_supported(get_int3_projection_shape(params, Int3Projection::DOWN), Int3Projection::DOWN)) {
+                decode_impl = MoeGemmImpl::batched_gemv;
+            }
         }
 
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): prefill_impl=" << static_cast<int>(prefill_impl)
@@ -1323,8 +1386,13 @@ public:
         add_stage(scatter, params);
         // The batched GEMV kernels have no code path for this weight type, so they are not built
         if (decode_impl == MoeGemmImpl::batched_gemv) {
-            add_stage(mlp_gate_up, params);
-            add_stage(mlp_down, params);
+            if (use_int3_gemm) {
+                add_stage(int3_gemv_gate_up, params);
+                add_stage(int3_gemv_down, params);
+            } else {
+                add_stage(mlp_gate_up, params);
+                add_stage(mlp_down, params);
+            }
             add_stage(mlp_reduce, params);
         }
         if (prefill_impl == MoeGemmImpl::micro_gemm) {
@@ -1708,7 +1776,7 @@ public:
                 const auto down = get_int3_projection_shape(params, Int3Projection::DOWN);
                 const size_t row_size = std::max(gate_up.k, down.k);
                 const size_t row_groups = std::max(gate_up.k / gate_up.group_size, down.k / down.group_size);
-                internal_buffers.emplace_back(layout(ov::Shape{max_batch, row_size}, ov::element::i8, cldnn::format::bfyx), false);  // 14
+                internal_buffers.emplace_back(layout(ov::Shape{max_batch, row_size}, ov::element::i8, cldnn::format::bfyx), false);         // 14
                 internal_buffers.emplace_back(layout(ov::Shape{max_batch, row_groups * 2}, ov::element::f32, cldnn::format::bfyx), false);  // 15
                 const size_t max_tiles = int3_max_tiles(expert_num, token_num * max_topk);
                 internal_buffers.emplace_back(layout(ov::Shape{max_tiles * 2}, ov::element::i32, cldnn::format::bfyx), false);  // 16
@@ -1900,6 +1968,14 @@ public:
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
         const size_t max_work_group_size = instance.get_impl_params()->get_device_info().max_work_group_size;
 
+        // The mlp_reduce local size must divide hidden_size: drivers may reject non-uniform work-groups (-54).
+        const size_t hidden_size = static_cast<size_t>(_hidden_size);
+        size_t reduce_lws = std::min(max_work_group_size, size_t{1024}) / subgroup_size * subgroup_size;
+        while (reduce_lws > 0 && hidden_size % reduce_lws != 0) {
+            reduce_lws -= subgroup_size;
+        }
+        OPENVINO_ASSERT(reduce_lws > 0, "MoE mlp_reduce: hidden_size=", hidden_size, " is not a multiple of SUBGROUP_SIZE=", subgroup_size);
+
         {
             const size_t topk_count = token_num * static_cast<size_t>(max_topk);
             bool needs_fallback = false;
@@ -1957,7 +2033,51 @@ public:
         }
 
         GPU_DEBUG_TRACE_DETAIL << "\nexec_batched_gemv(): token_num=" << token_num << ", max_topk=" << max_topk << ", has_shared=" << _has_shared_expert
-                               << std::endl;
+                               << ", use_int3_gemm=" << use_int3_gemm << std::endl;
+
+        if (use_int3_gemm) {
+            const auto& params = *instance.get_impl_params();
+            const bool has_zp = cur_moe->_config.has_zp;
+            const auto& wei = scratch.moe_fusion_wei_addr;
+            const size_t pairs = token_num * compute_experts;
+            const auto gemv = [&](Stage& stage, Int3Projection proj, std::vector<memory::ptr> inputs, memory::ptr output, const std::vector<event::ptr>& deps) {
+                const auto shape = get_int3_projection_shape(params, proj);
+                const size_t blocks = shape.n / (INT3_GEMV_SGN * int3_gemv_nb(proj));
+                return execute_stage(deps,
+                                     instance,
+                                     stage,
+                                     std::move(inputs),
+                                     {output},
+                                     {INT3_GEMV_SIMD, INT3_GEMV_SGN, pairs * blocks},
+                                     {INT3_GEMV_SIMD, INT3_GEMV_SGN, 1});
+            };
+            std::vector<memory::ptr> gate_up_inputs{batch_mem_ptr, wei.weight[0], wei.scale[0]};
+            if (has_zp) {
+                gate_up_inputs.push_back(wei.zp[0]);
+            }
+            gate_up_inputs.insert(gate_up_inputs.end(), {wei.weight[1], wei.scale[1]});
+            if (has_zp) {
+                gate_up_inputs.push_back(wei.zp[1]);
+            }
+            gate_up_inputs.push_back(hidden_states_mem_ptr);
+            auto ret_event = gemv(*int3_gemv_gate_up, Int3Projection::GATE_UP, gate_up_inputs, scratch.up, events);
+
+            std::vector<memory::ptr> down_inputs{batch_mem_ptr, wei.weight[2], wei.scale[2]};
+            if (has_zp) {
+                down_inputs.push_back(wei.zp[2]);
+            }
+            down_inputs.insert(down_inputs.end(), {scratch.up, routing_mem_ptr});
+            ret_event = gemv(*int3_gemv_down, Int3Projection::DOWN, down_inputs, scratch.y, {ret_event});
+
+            return execute_stage({ret_event},
+                                 instance,
+                                 *stage_reduce,
+                                 {scratch.y},
+                                 {final_hidden_states_mem_ptr},
+                                 {token_num, hidden_size},
+                                 {1, reduce_lws},
+                                 instance.needs_completion_event());
+        }
 
         {
             // scratch.up = up(x) * silu(gate(x)) for all (token, expert) pairs
@@ -1995,13 +2115,6 @@ public:
                                       {1, subgroup_size, SUBGROUP_NUM});
 
             // Per-token reduction: final[t] = sum(scratch.y[t * REDUCE_COUNT .. (t+1) * REDUCE_COUNT - 1])
-            // The local size must divide hidden_size: drivers may reject non-uniform work-groups (-54).
-            const size_t hidden_size = static_cast<size_t>(_hidden_size);
-            size_t reduce_lws = std::min(max_work_group_size, size_t{1024}) / subgroup_size * subgroup_size;
-            while (reduce_lws > 0 && hidden_size % reduce_lws != 0) {
-                reduce_lws -= subgroup_size;
-            }
-            OPENVINO_ASSERT(reduce_lws > 0, "MoE mlp_reduce: hidden_size=", hidden_size, " is not a multiple of SUBGROUP_SIZE=", subgroup_size);
             ret = execute_stage({ret_event},
                                 instance,
                                 *stage_reduce,
@@ -2861,7 +2974,8 @@ public:
 
         if (use_int3_gemm) {
             const int num_grouped_experts = get_num_grouped_experts(static_cast<int>(config.num_expert));
-            ret_event = exec_int3_grouped_gemm(ret_event, instance, scratch, total_gathered_tokens, max_tokens_per_expert, num_grouped_experts, int3_tile_count);
+            ret_event =
+                exec_int3_grouped_gemm(ret_event, instance, scratch, total_gathered_tokens, max_tokens_per_expert, num_grouped_experts, int3_tile_count);
         } else {
             ret_event = exec_onednn_grouped_gemm(ret_event, stream, instance, scratch, total_gathered_tokens, max_tokens_per_expert);
         }
@@ -2889,9 +3003,7 @@ public:
 
     // Tile list of the prefill u3 expert GEMMs: {expert, first row} of every INT3_TILE_ROWS-row tile that holds
     // rows, so the grid covers only experts with work. Returns the tile count.
-    size_t upload_int3_tiles(cldnn::stream& stream,
-                             typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                             const std::vector<int32_t>& grouped_offsets) {
+    size_t upload_int3_tiles(cldnn::stream& stream, typed_primitive_inst<moe_3gemm_fused_compressed>& instance, const std::vector<int32_t>& grouped_offsets) {
         std::vector<int32_t> tiles;
         int32_t begin = 0;
         for (size_t e = 0; e < grouped_offsets.size(); ++e) {

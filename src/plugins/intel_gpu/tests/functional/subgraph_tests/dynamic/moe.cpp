@@ -456,7 +456,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion,
                                             ::testing::Values(true)),   // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
 
-// u3 has no batched GEMV kernel: decode (<= 32 tokens) and prefill both run OneDNN grouped GEMM.
+// hidden_size 256 is too short for the u3 batched GEMV, so decode falls back to the grouped GEMM there;
+// hidden_size 2048 runs the batched GEMV for decode (<= 32 tokens).
 // Scalar zp is the NNCF int3 layout (symmetric u3 with zp = 4 for all experts).
 const std::vector<MoeTestShapeParams> moe_params_smoke_u3 = {
     {
