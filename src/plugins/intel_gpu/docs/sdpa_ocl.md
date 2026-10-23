@@ -353,6 +353,9 @@ at 32K), a 32 values x 16 scores S*V split as `sdpa_micro`'s (+4.7%), one load p
 epilogue sums (+2%, +6.6% at 2K). At `d_max` 512, `xehpc_h512`'s own tiling (32 x 16 subgroup tiles, 8 x 4,
 one query block per subgroup) measured 0.89x / 0.79x / 0.84x `sdpa_micro` per call at 2K / 8K / 32K on
 gemma-4-e2b; it is not used while the `SDPA_OCL_KQ_TILE_KEYS=32` issue under "Known issues" is open.
+`SDPA_OCL_MICRO_MATH=0` on the shipped `d_max` 512 tile measured 0.78x / 0.73x / 0.81x and removed its 1,344 B spill (one
+round each); it changes the rounding of those layers, which this tile cannot make `sdpa_micro`'s anyway, and is left for a
+follow-up with its own accuracy check.
 
 ### Kernel flow
 
@@ -857,6 +860,10 @@ result is quoted.
 - The duplicate-macro asserts in `common_utils/jitter.hpp` (`register_macro()` /
   `unregister_macro()`) are commented out on this branch. Restored, they let a Debug build catch a
   jit constant emitted twice.
+- `tiling_fits_device()` allows 1,024 work-items per group whatever the GRF mode, but a 256 GRF kernel
+  cannot dispatch that many: `SDPA_OCL_KQ_PER_WG_KEYS=16 SDPA_OCL_KQ_PER_WG_QUERIES=4` (64 subgroups) on a
+  PA PREFILL tiling compiled with 256 GRF fails at enqueue with `CL_INVALID_WORK_GROUP_SIZE` (B70,
+  gemma-4-e2b). The shipped tilings stay at 32 subgroups or fewer, so only an override reaches it.
 
 ### Test failures that predate the refactor
 

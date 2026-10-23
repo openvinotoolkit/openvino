@@ -231,6 +231,8 @@ Xe2 (SG16), `k_head_size == v_head_size`. All use `tile_keys=16`. Format: `(tile
   **Tier 2**: retry with KQ `(16, 4, 4)` (wgTK=64, wgTQ=64) → every affected pair resolves to `(16,8,2,8)`. This hole was not harmless: the MIXED fallback `pa_multi_token` read the token-major K as d-major and produced **NaN** (`sdpa_ocl.md` "Tiling").
 - **Mismatch between the current code and some memory notes**: `sdpa-ocl-mixed-kc-vc-split` says "config A (`d_max ≤ 64`: tq16/pwk4/pwq4)" ships, but the current code is the table above (pwk8); it was reverted in `6b0e442b09`. The table follows the code.
 - **The winning configs of §6 below (256GRF + tq32/pwk4/pwq2, A' = tq16/pwk4/pwq4) have not been promoted to defaults since 2026-07-30 (checked in the code).** Reachable only through env. Promoting them requires re-measuring with the §10 procedure.
+- **PA PREFILL on Xe2 leaves this table at `d_max` 64 / 128 / 256 / 512** (2026-10-23, `d05e5f18ae`): `solve_pa_prefill_tiling()` gives it
+  `sdpa_micro`'s PA prefill workgroup, 256GRF and the pipelined loop (§6.6). The table still covers MIXED, plain SDPA, `d_max` 32 and xe_hpg.
 
 ---
 
@@ -317,6 +319,44 @@ For B/C **ocloc predicted spill 0, yet they spill at runtime** (§7.3).
 
 ---
 
+### 6.6 PA PREFILL: `sdpa_micro`'s workgroup per head size (2026-10-23, B70 pinned 2800 MHz, cliloader `_prefill` device time, `sdpa-ocl-longctx-prefill`)
+
+Symptom: the first token of every model fell further behind master as the prompt grew (qwen3-8b e2e +2.0% at 2K -> +24.0% at 32K).
+The kernel ratio was **constant** (1.30x at 2K, 1.39-1.42x from 4K to 32K); only attention's share of the first token grew (13% at 2K ->
+66% at 32K, quadratic vs linear), so a 1K-prompt benchmark cannot show it (-> chapter 05, prompt-length sweep).
+Cause: the table tile (128 keys x 32 queries, REG128) reads every K/V row once per 32 queries — 4x as often as micro's 256 x 128 at
+head 128 — and does a quarter of the DPAS per barrier.
+
+| d_max | KQ (tk, tq, pwk, pwq) | WG keys x queries / SG | SLM B | `sdpa_micro` | kernel vs micro, pinned (model, 2K..32K) |
+|---|---|---|---|---|---|
+| 64 | 16, 64, 8, 2 | 128 x 128 / 16 | 53,760 | `xehpc_h64`, same WG | 0.85-0.88 (llama-3.2-1b), 0.76-0.89 (gpt-oss sink+window) |
+| 128 | 16, 64, 16, 2 | 256 x 128 / 32 | 107,008 | `xehpc_h128`, same | 1.008 -> 0.913 (qwen3-8b) |
+| 256 | 16, 32, 8, 4 | 128 x 128 / 32 | 102,912 | `xehpc_h256`, same | 0.774 (gemma-2-9b), 0.81-0.83 (qwen3.5-9b) |
+| 512 | 16, 16, 8, 4 | 128 x 64 / 32 | 84,224 | `xehpc_h512` = (32, 16, 8, 4), 256 x 64 | 1.006 / 0.956 / 0.931 / 0.962 / 1.012 (gemma-4-e2b) |
+
+- **Mirror the reference's workgroup tile, not only its subgroup tile**: K/V is re-read `seq / wgTQ` times and the per-barrier work is `wgTK x wgTQ`.
+- The tile alone was 1.03-1.14x micro at head 128; four loop changes took it to 0.91-0.93x (branchless exp, V prefetch, split S_max barrier,
+  last-tile mask; chapters 02 §7.5/§8, 03 §1.4/§2.7). Tile and loop are one tuning unit.
+- `MICRO_MATH` reproduces micro bit for bit only with micro's **key** tile (the online-softmax rescale points): d_max 64/128/256 give MD5 =
+  master 20/20 on every model without window/sink/token types. d_max 512's 128-key tile is not micro's 256 -> not micro-identical, but its
+  128-key WG and 64-value S*V tile equal the old table's -> MD5 equal to the table tiling 20/20 (positive control `SDPA_OCL_MICRO_MATH=0` differs).
+- **256GRF halves the dispatchable work-group**: 16 x 4 subgroups (1024 work-items) at 256GRF is `CL_INVALID_WORK_GROUP_SIZE` (-54, MEASURED),
+  although `tiling_fits_device()` allows 1024 (§14). Keep 256GRF tilings at <= 32 SG16 subgroups.
+
+d_max 512 sweep (gemma-4-e2b 8/1 heads, 7 global layers; per call, micro 680 us at 2K / 9,147-9,195 us at 8K; `test/longctx/g4_an.py`):
+
+| KQ tile | GRF | loop changes | 2K us | 8K us | Note |
+|---|---|---|---|---|---|
+| table (16, 16, 8, 2) | 128 | - | 2,341 | 34,411 | SPILL 11,648 (3.8x micro): the pre-2026-10-23 default |
+| table | 256 | - | 721 | 9,414 | SPILL 1,344 |
+| table | 256 | all four | 766 | 10,324 | V prefetch hurts at 512 (02 §7.5) |
+| **16, 16, 8, 4** | 256 | all but V prefetch | **680** | **8,585** | shipped (32K 1.012x micro) |
+| 16, 16, 8, 4 | 256 | all four | 696 | 8,869 | |
+| 16, 16, 16, 2 | 256 | all four | 759 | 9,731 | 256 x 32 |
+| 16, 16, 16, 4 | 256 | - | - | - | 1024 work-items -> -54 |
+| 16, 16, 4, 4 / 16, 32, 8, 2 | 256 | all four | 5,186 / 3,413 | 68,995 / 43,147 | SPILL 17,536 / 17,024 |
+| 32, 16, 8, 4 (micro's) | 256 | all but V prefetch | 607 | 7,232 | 0.79x micro (32K 135.6 vs 162.4 ms); **not shipped**: tile_keys 32 (§13) |
+
 ## 7. GRF mode and spill
 
 ### 7.1 How it is selected
@@ -324,6 +364,8 @@ For B/C **ocloc predicted spill 0, yet they spill at runtime** (§7.3).
   Decode uses `SDPA_OCL_DECODE_256GRF`. The Xe2 default **stays at 128GRF** (with the default tiles 256 is actually a loss, see below).
 - sdpa_micro always runs at REG256 when the microkernel asks for more than 128. So comparing ocl REG128 vs micro REG256 was unfair from the start, and **256GRF unblocked the large tiles that spill had been blocking**
   (every config with `sv_sg_tile_scores >= 64` spills 3.8-19KB at 128GRF, but has spill 0 at 256GRF).
+- Since 2026-10-23 PA PREFILL on Xe2 at `d_max` 64-512 compiles with 256GRF by default (`tiling.large_grf` from `solve_pa_prefill_tiling()`,
+  §6.6); `SDPA_OCL_256GRF` is now an int knob and `0` turns it off there.
 - GRF size: Xe2 64B, Xe-HPG 32B → DG2 256GRF = 8KB/thread = the same bytes as Xe2 128GRF. The thread count per EU is halved.
 
 ### 7.2 256GRF is not free (MEASURED)
@@ -523,6 +565,13 @@ The rest (Q staging `vload16` fallback, V `v_tile_gather`, alpha `sub_group_broa
 | decode u4 S8M4 (head 128, kv group 4) | 304.2 vs S8M2 219.8 at 32/1024 prompts | half the workgroups = lost parallelism at short context (yet the best config at 4K: 208.1) | B70 llama-3.1-8b, sg-m-rule |
 | decode u4 S16M2 (phi-4-mini, kv group 3) | 229.5 vs S8M2 195.1 at 4K | without a larger M, 16 subgroups double the threads per partition -> an extra wave; fixed by rounding M up | B70 phi-4-mini, sg-m-rule |
 | "16 subgroups make head-128 decode 0.8x" (first reading) | confounded | the register estimate also moved M from 2 to 4 | B70 llama-3.1-8b, sg-m-rule |
+| PA prefill head 128 (16, 64, 8, 2) = 128 x 128, 16 SG, 256GRF | 1.20x micro, SPILL 256 | the key tile must also be micro's (256) | B70 qwen3-8b, longctx |
+| PA prefill head 64 with micro's tile at REG128 | 2.05x, SPILL 5,952 | the tile needs 256GRF | B70 llama-3.2-1b, longctx |
+| PA prefill head 256 (16, 32, 4, 4) / (16, 16, 8, 4) / table + loop | 3.2x (SPILL 14,144) / 0.96x / 1.15x vs shipped 0.774x | | B70 gemma-2-9b, longctx |
+| PA prefill d_max 512 (16, 16, 16, 4) at 256GRF | CL_INVALID_WORK_GROUP_SIZE | 1024 work-items over the 256-GRF limit | B70 gemma-4-e2b, longctx |
+| PA prefill micro's S*V split (32 values x 16 scores) | +4.7% (qwen3-8b 8K) | | B70, longctx |
+| PA prefill epilogue S_sum one load per row | +2% (+6.6% at 2K) | | B70, longctx |
+| PA prefill reversed WG order (long query blocks first) | 0% / +0.7% at 32K | | B70, longctx |
 
 Reusable methods from the tk32 debugging: (1) run each env alone and in combination to isolate interactions, (2) force every optional fast path to scalar to separate indexing from memory ops,
 (3) decode the wrong output index as (token, head, dim) → tile coordinates, (4) **validate the analytic model on a working config first**, (5) confirm with a sentinel that the probe "really wrote".
@@ -536,6 +585,8 @@ Intel subgroup block reads are **strided**: component i of lane L is `p[i*SG + L
 - Config A of `sdpa-ocl-mixed-kc-vc-split` (`d_max ≤ 64`: pwk4/pwq4) is not in the current code (§5).
 - `SDPA_OCL_BLOCK_SKIP`, `SDPA_OCL_DKS_ACTIVE`, `SDPA_OCL_PA_CUR_GRAN/SIDE/SV_TRIM/V_PREFETCH`, `SDPA_OCL_MAX_BARRIER_V_PREFETCH` were removed by the 2026-09 refactor (not in the current doc's knob table). Do not treat these env vars from old notes as reusable knobs.
 - `kq_sg_tile_keys` currently allows only 16/32, enforced by `#error`.
+- `tiling_fits_device()` allows 1024 work-items whatever the GRF mode, but a 256GRF kernel cannot dispatch 1024 (§6.6). Only an env
+  override reaches it today (the shipped 256GRF tilings use <= 32 subgroups).
 - A note says the `TEST_USE_SDPA_OCL=0 (default)` comments at `sdpa_opt.cpp:~52`, `paged_attention_opt.cpp:~1413` contradict the code (sdpa_ocl is the default). Go by the code's behaviour.
 - Every absolute ns refers to the device on that line; B580 numbers are stale until re-measured on the B70.
 - §8.1's `get_sg_per_wg` rule and its line numbers are stale; the current rule is in §8.3 (uncommitted as of 2026-10-22). Notes written before 2026-10-22 that call the cache of a 4-bit model "i8" are wrong: it is u4 by default.
