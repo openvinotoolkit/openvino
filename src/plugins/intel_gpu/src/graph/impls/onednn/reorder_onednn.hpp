@@ -63,6 +63,12 @@ struct ReorderImplementationManager : public ImplementationManager {
             return false;
         }
 
+        const auto& reorder_node = node.as<reorder>();
+        // oneDNN reorder has no mean / per-feature subtract support
+        if (reorder_node.has_mean() || !reorder_node.get_primitive()->subtract_per_feature.empty()) {
+            return false;
+        }
+
         if (!one_of(input_fmt.value, supported_formats) || !one_of(output_fmt.value, supported_formats)) {
             return false;
         }
