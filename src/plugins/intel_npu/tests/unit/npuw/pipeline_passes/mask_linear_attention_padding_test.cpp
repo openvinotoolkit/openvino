@@ -12,6 +12,7 @@
 #include <functional>
 #include <limits>
 #include <map>
+#include <set>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -129,6 +130,22 @@ protected:
         return masked;
     }
 
+    // Number of distinct tensors the masked g / beta Loop inputs are multiplied with.
+    static size_t count_ssm_masks(const std::shared_ptr<ov::Model>& model) {
+        std::set<ov::Output<ov::Node>> masks;
+        for (const auto& node : model->get_ordered_ops()) {
+            if (auto loop = ov::as_type_ptr<ov::op::v5::Loop>(node)) {
+                for (const auto& desc : loop->get_input_descriptions()) {
+                    const auto source = loop->input_value(desc->m_input_index).get_node_shared_ptr();
+                    if (ov::is_type<ov::op::v1::Multiply>(source)) {
+                        masks.insert(source->input_value(1));
+                    }
+                }
+            }
+        }
+        return masks.size();
+    }
+
     // std::max(diff, NaN) keeps diff, so a non-finite output must fail the test explicitly.
     static float max_abs_diff(const ov::Tensor& a, const ov::Tensor& b) {
         EXPECT_EQ(a.get_shape(), b.get_shape());
@@ -198,6 +215,7 @@ TEST_F(MaskLinearAttentionPaddingTest, HybridModelIsRewrittenForAnyChunkLength) 
 
         // g and beta of every recurrence Loop are masked.
         EXPECT_EQ(count_masked_loop_inputs(model), 2u * n_ssm) << "chunk " << chunk;
+        EXPECT_EQ(count_ssm_masks(model), 1u) << "chunk " << chunk;
     }
 }
 
