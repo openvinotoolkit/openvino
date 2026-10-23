@@ -129,6 +129,7 @@ enum class Type : uint8_t {
     Unique,
     Ngram,
     ScaledDotProductAttention,
+    BlockSparseAttention,
     PagedAttention,
     PaKVReorder,
     RoPE,
