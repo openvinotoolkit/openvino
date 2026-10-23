@@ -144,6 +144,7 @@ def infer_with_pa(req, compiled, call_kwargs):
     if os.environ.get("OV_FAST_INFER", "0") == "0":
         return req.infer(call_kwargs, share_inputs=True, share_outputs=True)
 
+    import numpy as np
     import openvino as _ov
     try:
         _pc_key = id(compiled)
@@ -164,7 +165,14 @@ def infer_with_pa(req, compiled, call_kwargs):
             _slot = _bound[_pi_idx]
             if _val_id == _slot[0] and _slot[1] is not None:
                 continue  # already bound; ov.Tensor wrapper kept alive
-            _t = _val if isinstance(_val, _ov.Tensor) else _ov.Tensor(_val, shared_memory=True)
+            if isinstance(_val, _ov.Tensor):
+                _t = _val
+            elif _port.get_element_type() == _ov.Type.bf16 and getattr(_val, "dtype", None) == np.float16:
+                # execute._torch_to_numpy passes bf16 as float16 bits; wrap them
+                # (zero-copy) with the port's type, or set_tensor rejects f16.
+                _t = _ov.Tensor(_val, _val.shape, _ov.Type.bf16)
+            else:
+                _t = _ov.Tensor(_val, shared_memory=True)
             req.set_tensor(_port, _t)
             _slot[0] = _val_id
             _slot[1] = _t  # keep alive
