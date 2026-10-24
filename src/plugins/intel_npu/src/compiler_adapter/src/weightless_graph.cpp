@@ -609,6 +609,9 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
     if (_zeGraphExt == nullptr) {
         OPENVINO_THROW("Zero compiler adapter wasn't initialized");
     }
+    if (_zeroInitStruct == nullptr) {
+        OPENVINO_THROW("Zero init structure wasn't initialized");
+    }
 
     _initsCommandLists.at(initIndex) = std::make_unique<CommandList>(_zeroInitStruct);
     _initsFences.at(initIndex) = std::make_unique<Fence>(_initsCommandQueue);

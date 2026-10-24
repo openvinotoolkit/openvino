@@ -16,6 +16,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
@@ -358,7 +359,7 @@ KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVect
         pattern::optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, pattern::any_input()});
     auto multiply_pattern = pattern::wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pt_map = m.get_pattern_value_map();
         auto multiply = m.get_match_root();
 
@@ -418,7 +419,7 @@ MarkGatherSubgraph::MarkGatherSubgraph(const element::TypeVector& table_values_p
     auto axis = pattern::any_input(pattern::value_matches("0"));
     auto gather = pattern::wrap_type<op::v8::Gather>({data_convert, indices_convert, axis});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pm = m.get_pattern_map();
         auto gather_node = pm.at(gather);
         if (transformation_callback(gather_node)) {
