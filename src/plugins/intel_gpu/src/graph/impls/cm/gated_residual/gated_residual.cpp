@@ -25,8 +25,6 @@ using namespace cldnn;
 namespace {
 
 constexpr size_t gr_wg_size = 16;
-constexpr size_t gr_max_lowrank = 512;        // GR_LOWRANK is kept in registers by gr_read.cm
-constexpr size_t gr_max_total_width = 16384;  // C*D must fit into SLM as f16
 constexpr size_t gr_dpas_k_step = 32;         // K consumed per dpas loop step (two K16 slices)
 constexpr size_t gr_dpas_n = 16;              // dpas N axis == GRF width on Xe2
 constexpr size_t gr_down_tn = 32;             // low-rank columns per down-projection thread
@@ -40,13 +38,19 @@ constexpr auto get_gr_build_options() {
 /// call, cleared at the start of every call. thread_local because network execution can
 /// happen from different threads across tests/streams; TU-local (anonymous namespace)
 /// storage, exposed to other translation units only via the accessor function defined at
-/// the end of this file (see gr_stage_events.hpp - mirrors qsa.cpp's identical need).
+/// the end of this file (see gr_stage_events.hpp).
 thread_local std::vector<std::pair<std::string, event::ptr>> g_gr_stage_events;
 
 void record_stage_event(const char* name, const event::ptr& ev) {
+#ifdef GPU_DEBUG_CONFIG
+    // Test/profiling hook; release builds must not retain events past execute().
     if (ev != nullptr) {
         g_gr_stage_events.emplace_back(name, ev);
     }
+#else
+    (void)name;
+    (void)ev;
+#endif
 }
 
 size_t get_num_rows(const layout& l, size_t last_dim) {
@@ -721,20 +725,8 @@ bool GatedResidualCMImplementationManager::validate_impl(const cldnn::program_no
 
     const auto desc = node.as<cldnn::gated_residual>().get_primitive();
 
-    // First version: C == 4 only.
-    if (desc->hc_count != 4) {
+    if (!ov::intel_gpu::op::GatedResidual::is_geometry_supported(desc->mode, desc->hc_count, desc->hidden_size, desc->lowrank)) {
         return false;
-    }
-    if (desc->hidden_size == 0 || desc->hidden_size % 16 != 0) {
-        return false;
-    }
-    if (desc->hc_count * desc->hidden_size > gr_max_total_width) {
-        return false;
-    }
-    if (desc->mode != cldnn::gated_residual::Mode::WRITE) {
-        if (desc->lowrank == 0 || desc->lowrank % 16 != 0 || desc->lowrank > gr_max_lowrank) {
-            return false;
-        }
     }
 
     for (size_t i = 0; i < node.get_dependencies().size(); i++) {

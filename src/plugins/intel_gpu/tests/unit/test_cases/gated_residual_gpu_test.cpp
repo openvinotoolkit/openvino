@@ -27,8 +27,20 @@
 #include "gated_residual_inst.h"
 #include "impls/cm/gated_residual/gr_stage_events.hpp"
 #include "intel_gpu/op/gated_residual.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/runtime/core.hpp"
 #include "random_generator.hpp"
 #include "test_utils.h"
@@ -845,7 +857,7 @@ TEST(gated_residual_gpu_test, ov_model_write_mode_dynamic_rows_reuses_dispatch_d
 
 // --- roofline perf harness (token_size sweep) ------------------------------
 //
-// Companion to the QSA roofline harness in qsa_gpu_test.cpp: builds the production-shaped
+// Roofline harness: builds the production-shaped
 // READ/MIX network once per (phase, token_size), times repeated executions with GPU-side
 // profiling enabled, and prints one JSON line per measurement. These tests do not check
 // output values. Run with:
@@ -879,7 +891,7 @@ double executing_ms(const event::ptr& ev) {
 /// dispatch recorded via gr_stage_events.hpp. The systolic READ/FINAL_MIX path runs 3
 /// kernels (RBAR, down-proj, up-proj) behind one clDNN primitive, so
 /// `network::get_executed_primitives()` alone would only expose the last of them (see
-/// gr_stage_events.hpp / qsa_gpu_test.cpp's identical situation for QSA). `per_stage`, if
+/// gr_stage_events.hpp). `per_stage`, if
 /// given, receives each stage's mean time in dispatch order.
 double time_primitive_ms(network& net,
                          const std::string& primitive_id,
@@ -1032,5 +1044,121 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_roofline,
                                            gr_roofline_case{4096, false},
                                            gr_roofline_case{4096, true},
                                            gr_roofline_case{8192, false}));
+
+// Equivalence of the decomposed source graph and the fused kernel: the decomposed READ/MIX
+// model is compiled through the normal plugin pipeline (which must fuse it into a single
+// gated_residual node) and compared against the FP32 reference of the *decomposed* math.
+TEST(gated_residual_gpu_test, decomposed_read_graph_fuses_and_matches_reference) {
+    if (!cm_gr_available()) {
+        GTEST_SKIP() << "CM JIT / systolic GPU is required for gated_residual";
+    }
+
+    const size_t C = kBranches;
+    const size_t D = 64;
+    const size_t L = 32;
+    const size_t CD = C * D;
+    const float eps = 1e-5f;
+    const auto et = ov::element::f16;
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    const auto gain_w = random_vec(rg, CD, 0.25f);
+    const auto w_down = random_vec(rg, L * CD, 0.1f);
+    const auto w_up = random_vec(rg, CD * L, 0.1f);
+
+    auto i64 = [](std::vector<int64_t> v) {
+        return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{v.size()}, v);
+    };
+    auto scalar = [&](float v) {
+        return ov::op::v0::Constant::create(et, ov::Shape{}, {v});
+    };
+    auto f16_param = [&](const ov::Shape& shape) {
+        return std::make_shared<ov::op::v0::Parameter>(et, shape);
+    };
+
+    // Gain and weights are model inputs so ConstantFolding cannot fold the 1/C scale into W_down
+    // (real checkpoints keep their compressed weights opaque in the same way).
+    auto residual_p = std::make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{-1, static_cast<int64_t>(CD)});
+    auto gain_p = f16_param(ov::Shape{CD});
+    auto w_down_p = f16_param(ov::Shape{L, CD});
+    auto w_up_p = f16_param(ov::Shape{CD, L});
+    auto r3 = std::make_shared<ov::op::v1::Reshape>(residual_p, i64({-1, static_cast<int64_t>(C), static_cast<int64_t>(D)}), false);
+    auto sq = std::make_shared<ov::op::v1::Power>(r3, scalar(2.0f));
+    auto mean = std::make_shared<ov::op::v1::ReduceMean>(sq, i64({-1}), true);
+    auto rms = std::make_shared<ov::op::v0::Sqrt>(std::make_shared<ov::op::v1::Add>(mean, scalar(eps)));
+    auto inv_rms = std::make_shared<ov::op::v1::Divide>(scalar(1.0f), rms);
+    auto normalized = std::make_shared<ov::op::v1::Multiply>(r3, inv_rms);
+    auto normalized_flat = std::make_shared<ov::op::v1::Reshape>(normalized, i64({-1, static_cast<int64_t>(CD)}), false);
+    auto gain = std::make_shared<ov::op::v1::Add>(gain_p, scalar(1.0f));
+    auto rbar = std::make_shared<ov::op::v1::Multiply>(normalized_flat, gain);
+
+    auto low = std::make_shared<ov::op::v0::MatMul>(rbar, w_down_p, false, true);
+    auto act = std::make_shared<ov::op::v4::Swish>(std::make_shared<ov::op::v1::Multiply>(low, scalar(1.0f / static_cast<float>(C))));
+    auto up = std::make_shared<ov::op::v0::MatMul>(act, w_up_p, false, true);
+    auto weighted = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Sigmoid>(up), rbar);
+    auto weighted3 = std::make_shared<ov::op::v1::Reshape>(weighted, i64({-1, static_cast<int64_t>(C), static_cast<int64_t>(D)}), false);
+    auto mixed = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::ReduceSum>(weighted3, i64({1}), false),
+                                                        scalar(1.0f / static_cast<float>(C)));
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual_p, gain_p, w_down_p, w_up_p});
+
+    ov::Core core;
+    ov::CompiledModel compiled;
+    OV_ASSERT_NO_THROW(compiled = core.compile_model(model, "GPU"));
+    size_t fused_nodes = 0;
+    std::string runtime_layers;
+    for (const auto& op : compiled.get_runtime_model()->get_ops()) {
+        const auto it = op->get_rt_info().find("layerType");
+        const auto layer_type = it != op->get_rt_info().end() ? it->second.as<std::string>() : std::string("?");
+        fused_nodes += layer_type == "GatedResidual";
+        runtime_layers += layer_type + " ";
+    }
+    EXPECT_EQ(fused_nodes, 1u) << "decomposed READ graph was not fused into gated_residual; runtime layers: " << runtime_layers;
+
+    auto infer_request = compiled.create_infer_request();
+    auto fill = [](ov::Tensor tensor, const std::vector<float>& data) {
+        auto* dst = tensor.data<ov::float16>();
+        ASSERT_EQ(tensor.get_size(), data.size());
+        for (size_t i = 0; i < data.size(); i++) {
+            dst[i] = ov::float16(data[i]);
+        }
+    };
+    fill(infer_request.get_input_tensor(1), gain_w);
+    fill(infer_request.get_input_tensor(2), w_down);
+    fill(infer_request.get_input_tensor(3), w_up);
+    for (const size_t rows : {size_t{3}, size_t{64}, size_t{700}}) {
+        tests::random_generator input_rg;
+        input_rg.set_seed(static_cast<uint32_t>(rows));
+        const auto residual = random_vec(input_rg, rows * CD, 1.0f);
+        ov::Tensor residual_tensor(et, ov::Shape{rows, CD});
+        auto* dst = residual_tensor.data<ov::float16>();
+        for (size_t i = 0; i < residual.size(); i++) {
+            dst[i] = ov::float16(residual[i]);
+        }
+        infer_request.set_tensor(residual_p, residual_tensor);
+
+        // The model applies the gain as `1 + w`, so the reference sees the folded gain.
+        std::vector<float> gain_folded(gain_w);
+        for (auto& g : gain_folded) {
+            g += 1.0f;
+        }
+        gr_ref_params p;
+        p.rows = rows;
+        p.C = C;
+        p.D = D;
+        p.L = L;
+        p.eps = eps;
+        std::vector<float> ref_mixed;
+        std::vector<float> ref_gate;
+        reference_read(p, residual, gain_folded, w_down, w_up, nullptr, ref_mixed, ref_gate);
+
+        OV_ASSERT_NO_THROW(infer_request.infer());
+        const auto out_tensor = infer_request.get_output_tensor(0);
+        const auto* out = out_tensor.data<ov::float16>();
+        ASSERT_EQ(out_tensor.get_size(), ref_mixed.size());
+        for (size_t i = 0; i < ref_mixed.size(); i++) {
+            ASSERT_NEAR(static_cast<float>(out[i]), ref_mixed[i], 2e-2f) << "mixed mismatch at rows=" << rows << " index=" << i;
+        }
+    }
+}
 
 }  // namespace
