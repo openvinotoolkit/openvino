@@ -11,6 +11,12 @@
 #endif
 
 float __builtin_IB_atomic_max_local_f32(__local float *, float);
+#if PREFETCH_V_L3 && !defined(GPU_OCL_TILE_OPS_H)
+// tile_ops.cl's LSC prefetch builtin, with its cache control (enum LSC_LDCC there, compatible with uint) as a uint: the
+// codegen #undefs this file's macros after each kernel and a batch can hold several sdpa_ocl kernels, so an enum
+// defined here could not be guarded against redefinition, while a repeated compatible prototype is legal.
+extern void __builtin_IB_lsc_prefetch_global_uchar(const __global uchar *base, int immElemOff, uint cacheOpt);
+#endif
 
 #include "sdpa_ocl_config.cl"
 #include "sdpa_ocl_mask.cl"
@@ -796,6 +802,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #if PREFETCH_V
         // This tile's V, ahead of the softmax (sdpa_micro's PREFETCH_V placement).
         FUNC_CALL(v_tile_prefetch)(V_b2d, VD_w_b2d, VD_h, VD_p, VD_x0, k0, (int)sg_ij);
+#elif PREFETCH_V_L3
+        FUNC_CALL(v_tile_prefetch_l3)(V, VD_p, k0, k, (int)sg_ij);
 #endif
 #if MAX_SPLIT_BARRIER
         intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);

@@ -54,6 +54,23 @@ SDPA_OCL_INLINE void FUNC(v_tile_prefetch)(const __global void *surf, const int 
 }
 #endif
 
+#if PREFETCH_V_L3
+// L3-only prefetch of the same V rows: one byte address per 256 B line (the B70 L3 line), dealt over the workgroup's
+// lanes as sdpa_micro's cooperative_prefetch_2d does, rows clamped to the last key. A line requested more than once
+// costs L3 throughput (the 64 B wide block prefetch above asks for each line four times), and L1UC_L3C (2) keeps the
+// lines out of L1.
+SDPA_OCL_INLINE void FUNC(v_tile_prefetch_l3)(const __global VAL_DATA_T *V, const int VD_p, const int k0, const int k,
+                                              const int sg_ij) {
+    const int lines_per_row = (V_HEAD_SIZE * (int)sizeof(VAL_DATA_T) + 255) / 256;
+    const int n_lines = lines_per_row * kq_wg_tile_keys;
+    for (int i = sg_ij * SUBGROUP_SIZE + (int)get_sub_group_local_id(); i < n_lines; i += sg_per_wg * SUBGROUP_SIZE) {
+        const int row = min(k0 + i / lines_per_row, k - 1);
+        const int line = i % lines_per_row;
+        __builtin_IB_lsc_prefetch_global_uchar((const __global uchar *)V + (size_t)row * VD_p + line * 256, 0, 2u);
+    }
+}
+#endif
+
 // ---- V tile of one cp block (DPAS_K keys): vb[cd] is the S*V B operand of value block cd,
 // f16 VNNI (dword key_pair packs keys 2*key_pair and 2*key_pair + 1, lane == value). Scratch arrays
 // belong to the caller, as for the K tiles.
