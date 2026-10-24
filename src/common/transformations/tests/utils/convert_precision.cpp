@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+#include <limits>
 #include <memory>
 #include <queue>
 #include <string>
@@ -1657,6 +1659,111 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_U32ToI32) {
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_BoolToU8) {
     constant_convert_test(element::Type_t::boolean, element::Type_t::u8, true, 1);
     constant_convert_test(element::Type_t::boolean, element::Type_t::u8, false, 0);
+}
+
+namespace {
+// Runs ConvertPrecision on a bare Constant and returns the Constant left in the function. The
+// caller validates the element type as well: cast_vector<> casts the stored bytes on the fly, so a
+// values-only comparison cannot tell a converted constant from one left in its original precision.
+std::shared_ptr<opset4::Constant> run_convert_precision(element::Type_t type_from,
+                                                        element::Type_t type_to,
+                                                        const std::shared_ptr<opset4::Constant>& c) {
+    const auto original_friendly_name = c->get_friendly_name();
+    auto f = std::make_shared<Model>(OutputVector{c}, ParameterVector{});
+
+    pass::Manager manager;
+    manager.register_pass<pass::ConvertPrecision>(precisions_map{{type_from, type_to}});
+    manager.run_passes(f);
+
+    const auto ops = f->get_ordered_ops();
+    const auto constant = ov::as_type_ptr<opset4::Constant>(ops[0]);
+    // the conversion is folded into the Constant, which keeps its friendly name
+    EXPECT_EQ(constant ? constant->get_friendly_name() : std::string{}, original_friendly_name);
+    return constant;
+}
+
+std::shared_ptr<opset4::Constant> convert_constant_precision(element::Type_t type_from,
+                                                             element::Type_t type_to,
+                                                             const std::vector<float>& values) {
+    // Constant::create casts `values` to type_from (and range-checks them), so the source constant
+    // really holds type_from data instead of a reinterpretation of the float payload.
+    return run_convert_precision(type_from, type_to, opset4::Constant::create(type_from, Shape{values.size()}, values));
+}
+
+// For payloads Constant::create rejects, because its range check fails on NaN and infinities.
+template <typename T>
+std::shared_ptr<opset4::Constant> convert_constant_precision_raw(element::Type_t type_from,
+                                                                 element::Type_t type_to,
+                                                                 const std::vector<T>& values) {
+    auto c = std::make_shared<opset4::Constant>(type_from, Shape{values.size()}, values.data());
+    return run_convert_precision(type_from, type_to, c);
+}
+
+void constant_convert_float_test(element::Type_t type_from,
+                                 element::Type_t type_to,
+                                 const std::vector<float>& values,
+                                 const std::vector<float>& expected) {
+    const auto constant = convert_constant_precision(type_from, type_to, values);
+    ASSERT_NE(constant, nullptr) << "the constant is not a Constant node after ConvertPrecision";
+    ASSERT_EQ(constant->get_element_type(), type_to);
+
+    const auto actual = constant->cast_vector<float>();
+    ASSERT_EQ(actual.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); i++) {
+        EXPECT_EQ(actual[i], expected[i]) << "Elements with index " << i << " are not equal.";
+    }
+}
+}  // namespace
+
+// 1.001f has no bf16 representation (7 stored mantissa bits) and rounds to 1.0f, while f16 keeps
+// 1.00097656f - that difference tells the bf16 and f16 conversions apart. 1.0126953125f and 65504.f
+// sit above the bf16 midpoint so they must round up, which plain truncation would get wrong.
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_F32ToBF16) {
+    constant_convert_float_test(element::f32,
+                                element::bf16,
+                                {1.0f, -3.5f, 2.25f, 100.0f, 1.001f, 1.0126953125f, 65504.0f},
+                                {1.0f, -3.5f, 2.25f, 100.0f, 1.0f, 1.015625f, 65536.0f});
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_F32ToF16) {
+    constant_convert_float_test(element::f32,
+                                element::f16,
+                                {1.0f, -3.5f, 2.25f, 100.0f, 1.001f},
+                                {1.0f, -3.5f, 2.25f, 100.0f, 1.00097656f});
+}
+
+// Compressed models keep weights in f16, so f16 constants must convert to bf16 as well. Both extra
+// values are exactly representable in f16, so they exercise the same bf16 rounding as above.
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_F16ToBF16) {
+    constant_convert_float_test(element::f16,
+                                element::bf16,
+                                {1.0f, -3.5f, 2.25f, 100.0f, 1.001f, 1.0126953125f, 65504.0f},
+                                {1.0f, -3.5f, 2.25f, 100.0f, 1.0f, 1.015625f, 65536.0f});
+}
+
+// NaN must stay a quiet NaN: the bf16 rounding bias is added to the raw f32 bits, so a NaN payload
+// can carry into the sign bit - the f16 quiet NaN (0x7FFF) would otherwise become -0.0. Infinities
+// clamp to the bf16 range, matching the existing f32 -> f16 path.
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_ToBF16_SpecialValues) {
+    const auto nan = std::numeric_limits<float>::quiet_NaN();
+    const auto inf = std::numeric_limits<float>::infinity();
+    const std::vector<float> f32_values{nan, inf, -inf};
+    const std::vector<ov::float16> f16_values{std::numeric_limits<ov::float16>::quiet_NaN(),
+                                              std::numeric_limits<ov::float16>::infinity(),
+                                              -std::numeric_limits<ov::float16>::infinity()};
+
+    const auto check = [](const std::shared_ptr<opset4::Constant>& constant, const char* source) {
+        ASSERT_NE(constant, nullptr) << source;
+        ASSERT_EQ(constant->get_element_type(), element::bf16) << source;
+        const auto actual = constant->cast_vector<float>();
+        ASSERT_EQ(actual.size(), 3u) << source;
+        EXPECT_TRUE(std::isnan(actual[0])) << source << " NaN was not preserved";
+        EXPECT_EQ(actual[1], std::numeric_limits<ov::bfloat16>::max()) << source;
+        EXPECT_EQ(actual[2], std::numeric_limits<ov::bfloat16>::lowest()) << source;
+    };
+
+    check(convert_constant_precision_raw(element::f32, element::bf16, f32_values), "f32");
+    check(convert_constant_precision_raw(element::f16, element::bf16, f16_values), "f16");
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI8) {
