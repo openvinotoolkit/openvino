@@ -297,3 +297,31 @@ def test_invalid_bytes_replaced():
     check_bytes_based(tensor, string_data, to_flat=True)
     # Decoded:
     check_string_based(tensor, np.char.decode(string_data, encoding="utf=8", errors="replace"), to_flat=True)
+
+
+@pytest.mark.parametrize(
+    "shape",
+    [
+        ([0]),
+        ([0, 2]),
+        ([2, 0, 3]),
+    ],
+)
+def test_zero_element_string_tensor(shape):
+    tensor = ov.Tensor(type=ov.Type.string, shape=ov.Shape(shape))
+    assert tensor.get_size() == 0
+
+    bytes_arr = tensor.bytes_data
+    assert bytes_arr.shape == tuple(shape)
+    assert bytes_arr.dtype.kind == "S"
+
+    str_arr = tensor.str_data
+    assert str_arr.shape == tuple(shape)
+    assert str_arr.dtype.kind == "U"
+
+    with pytest.warns(RuntimeWarning) as w:
+        data_arr = tensor.data
+    assert "Data of string type will be copied! Please use dedicated properties" in str(w[0].message)
+    assert data_arr.shape == tuple(shape)
+    assert data_arr.dtype.kind == "S"
+
