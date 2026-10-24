@@ -71,6 +71,7 @@
 #include "nodes/paged_causal_conv1d.h"
 #include "nodes/paged_gated_delta_net.h"
 #include "nodes/paged_selective_ssm.h"
+#include "nodes/paged_qsa_indexer.h"
 #include "nodes/pooling.h"
 #include "nodes/priorbox.h"
 #include "nodes/priorbox_clustered.h"
@@ -267,6 +268,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(RMSNorm, Type::RMS);
     INTEL_CPU_NODE(node::QSAIndexer, Type::QSAIndexer);
     INTEL_CPU_NODE(SparseSDPA, Type::SparseSDPA);
+    INTEL_CPU_NODE(PagedQSAIndexer, Type::PagedQSAIndexer);
 #elif defined(OPENVINO_ARCH_ARM64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);

@@ -411,6 +411,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/paged_causal_conv1d.h
     ${CPU_SRC_DIR}/nodes/paged_gated_delta_net.cpp
     ${CPU_SRC_DIR}/nodes/paged_gated_delta_net.h
+    ${CPU_SRC_DIR}/nodes/paged_qsa_indexer.cpp
+    ${CPU_SRC_DIR}/nodes/paged_qsa_indexer.h
     ${CPU_SRC_DIR}/nodes/paged_selective_ssm.cpp
     ${CPU_SRC_DIR}/nodes/paged_selective_ssm.h
     ${CPU_SRC_DIR}/nodes/pooling.cpp

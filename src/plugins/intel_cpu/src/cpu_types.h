@@ -146,7 +146,8 @@ enum class Type : uint8_t {
     PagedSelectiveSSM,
     PagedCausalConv1D,
     QSAIndexer,
-    SparseSDPA
+    SparseSDPA,
+    PagedQSAIndexer
 };
 
 enum class Algorithm : uint8_t {

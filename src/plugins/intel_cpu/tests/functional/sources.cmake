@@ -280,6 +280,8 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/divide_pythondiv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/qsa_indexer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/paged_qsa_indexer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/paged_qsa_indexer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/sparse_sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/sparse_sdpa.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/common/sparse_sdpa.cpp
@@ -298,6 +300,7 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/matmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/mlas/matmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/mvn.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/paged_qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/pooling.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/quantized/convolution.cpp
