@@ -18,7 +18,8 @@
 #include "openvino/op/result.hpp"
 #include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
 
-namespace {
+namespace ov {
+namespace test {
 
 std::vector<float> read_tensor_to_f32(const ov::Tensor& t) {
     std::vector<float> out(t.get_size());
@@ -53,9 +54,13 @@ void write_f32_to_tensor(ov::Tensor& t, const std::vector<float>& data) {
 
 ov::Tensor make_zero_tensor(const ov::element::Type& precision, const ov::Shape& shape) {
     ov::Tensor t(precision, shape);
-    std::memset(t.data(), 0, t.get_byte_size());
+    if (t.get_byte_size() != 0) {
+        std::memset(t.data(), 0, t.get_byte_size());
+    }
     return t;
 }
+
+namespace {
 
 float rms_inv_scale(const float* x, size_t n, float eps) {
     float sumsq = 0.0F;
@@ -93,212 +98,186 @@ void rmsnorm_partial_rope(const float* src,
 // of the CPU node's PlainTensor-based indexing/control flow. `summary_cache`/`past_raw_k`/
 // `past_rope` are caller-owned state threaded in by reference across sequential calls, mirroring
 // the production op's state (fed back from the op's state outputs).
-struct QSAIndexerOracle {
-    size_t h_iq = 0;
-    size_t h_ik = 0;
-    size_t h_sel = 0;
-    size_t d_idx = 0;
-    size_t rotary_dim = 0;
-    int64_t r = 0;
-    size_t block_topk = 0;
-    float eps = 1e-6F;
-    float scale = 0.25F;
-    size_t summary_cap = 0;
+}  // namespace
 
-    std::vector<float> summary_cache;  // [B, h_ik, summary_cap, d_idx]
-    std::vector<float> past_raw_k;     // [B, h_ik, r - 1, d_idx]
-    std::vector<float> past_rope;      // [B, 2 * rotary_dim]
+QSAIndexerOracle::Output QSAIndexerOracle::run_call(size_t batch,
+                                                    int64_t length,
+                                                    const std::vector<int32_t>& key_length,
+                                                    const std::vector<float>& q_idx,
+                                                    const std::vector<float>& k_idx,
+                                                    const std::vector<float>& rope_cos,
+                                                    const std::vector<float>& rope_sin,
+                                                    const std::vector<float>& q_norm_weight,
+                                                    const std::vector<float>& k_norm_weight) {
+    const size_t group = h_iq / h_ik;
+    std::vector<size_t> kv_of_head(h_iq), sel_of_head(h_iq);
+    for (size_t h = 0; h < h_iq; h++) {
+        kv_of_head[h] = h / group;
+        sel_of_head[h] = (kv_of_head[h] * h_sel) / h_ik;
+    }
 
-    struct Output {
-        std::vector<int32_t> sel_indices;
-        std::vector<int32_t> sel_count;
-    };
+    Output out;
+    out.sel_indices.assign(batch * h_sel * static_cast<size_t>(length) * block_topk, -1);
+    out.sel_count.assign(batch * h_sel * static_cast<size_t>(length), 0);
 
-    Output run_call(size_t batch,
-                    int64_t length,
-                    const std::vector<int32_t>& key_length,
-                    const std::vector<float>& q_idx,
-                    const std::vector<float>& k_idx,
-                    const std::vector<float>& rope_cos,
-                    const std::vector<float>& rope_sin,
-                    const std::vector<float>& q_norm_weight,
-                    const std::vector<float>& k_norm_weight) {
-        const size_t group = h_iq / h_ik;
-        std::vector<size_t> kv_of_head(h_iq), sel_of_head(h_iq);
-        for (size_t h = 0; h < h_iq; h++) {
-            kv_of_head[h] = h / group;
-            sel_of_head[h] = (kv_of_head[h] * h_sel) / h_ik;
+    const size_t L = static_cast<size_t>(length);
+
+    for (size_t b = 0; b < batch; b++) {
+        const int64_t key_len = key_length[b];
+        const int64_t past_n = std::max<int64_t>(0, key_len - length);
+        const int64_t current_n = key_len - past_n;
+        const int64_t num_padding_n = length - current_n;
+        const int64_t c_n = past_n % r;
+        const int64_t num_cached_blocks_n = past_n / r;
+
+        std::vector<float> q_normed(h_iq * d_idx);
+        std::vector<float> rope_cos_buf(rotary_dim);
+        std::vector<float> rope_sin_buf(rotary_dim);
+        std::vector<float> block_ref_cos_sin(2 * rotary_dim, 0.0F);
+        std::vector<float> pooled(d_idx);
+        std::vector<float> summary_buf(d_idx);
+
+        std::vector<float> pending_rows(static_cast<size_t>(r) * h_ik * d_idx, 0.0F);
+        auto pending_ptr = [&](int64_t pos_in_block, size_t h) {
+            return pending_rows.data() + (static_cast<size_t>(pos_in_block) * h_ik + h) * d_idx;
+        };
+        auto past_raw_k_ptr = [&](size_t h, int64_t p) {
+            return past_raw_k.data() + ((b * h_ik + h) * static_cast<size_t>(r - 1) + static_cast<size_t>(p)) * d_idx;
+        };
+        auto summary_ptr = [&](size_t h, int64_t block) {
+            return summary_cache.data() + ((b * h_ik + h) * summary_cap + static_cast<size_t>(block)) * d_idx;
+        };
+
+        for (int64_t p = 0; p < c_n; p++) {
+            for (size_t h = 0; h < h_ik; h++) {
+                std::copy_n(past_raw_k_ptr(h, p), d_idx, pending_ptr(p, h));
+            }
+        }
+        if (c_n > 0) {
+            std::copy_n(past_rope.data() + b * 2 * rotary_dim, 2 * rotary_dim, block_ref_cos_sin.data());
         }
 
-        Output out;
-        out.sel_indices.assign(batch * h_sel * static_cast<size_t>(length) * block_topk, -1);
-        out.sel_count.assign(batch * h_sel * static_cast<size_t>(length), 0);
+        int64_t running_block_idx = num_cached_blocks_n;
 
-        const size_t L = static_cast<size_t>(length);
+        for (int64_t l = num_padding_n; l < length; l++) {
+            const int64_t v = l - num_padding_n;
+            const int64_t pending_pos = c_n + v;
+            const int64_t pos_in_block = pending_pos % r;
+            const size_t lu = static_cast<size_t>(l);
 
-        for (size_t b = 0; b < batch; b++) {
-            const int64_t key_len = key_length[b];
-            const int64_t past_n = std::max<int64_t>(0, key_len - length);
-            const int64_t current_n = key_len - past_n;
-            const int64_t num_padding_n = length - current_n;
-            const int64_t c_n = past_n % r;
-            const int64_t num_cached_blocks_n = past_n / r;
+            std::copy_n(&rope_cos[(b * L + lu) * rotary_dim], rotary_dim, rope_cos_buf.data());
+            std::copy_n(&rope_sin[(b * L + lu) * rotary_dim], rotary_dim, rope_sin_buf.data());
+            for (size_t h = 0; h < h_iq; h++) {
+                const float* src = &q_idx[((b * L + lu) * h_iq + h) * d_idx];
+                rmsnorm_partial_rope(src,
+                                     &q_normed[h * d_idx],
+                                     q_norm_weight.data(),
+                                     d_idx,
+                                     rotary_dim,
+                                     eps,
+                                     rope_cos_buf.data(),
+                                     rope_sin_buf.data());
+            }
 
-            std::vector<float> q_normed(h_iq * d_idx);
-            std::vector<float> rope_cos_buf(rotary_dim);
-            std::vector<float> rope_sin_buf(rotary_dim);
-            std::vector<float> block_ref_cos_sin(2 * rotary_dim, 0.0F);
-            std::vector<float> pooled(d_idx);
-            std::vector<float> summary_buf(d_idx);
+            if (pos_in_block == 0) {
+                std::copy(rope_cos_buf.begin(), rope_cos_buf.end(), block_ref_cos_sin.begin());
+                std::copy(rope_sin_buf.begin(),
+                          rope_sin_buf.end(),
+                          block_ref_cos_sin.begin() + static_cast<ptrdiff_t>(rotary_dim));
+            }
+            for (size_t h = 0; h < h_ik; h++) {
+                std::copy_n(&k_idx[((b * L + lu) * h_ik + h) * d_idx], d_idx, pending_ptr(pos_in_block, h));
+            }
 
-            std::vector<float> pending_rows(static_cast<size_t>(r) * h_ik * d_idx, 0.0F);
-            auto pending_ptr = [&](int64_t pos_in_block, size_t h) {
-                return pending_rows.data() + (static_cast<size_t>(pos_in_block) * h_ik + h) * d_idx;
-            };
-            auto past_raw_k_ptr = [&](size_t h, int64_t p) {
-                return past_raw_k.data() +
-                       ((b * h_ik + h) * static_cast<size_t>(r - 1) + static_cast<size_t>(p)) * d_idx;
-            };
-            auto summary_ptr = [&](size_t h, int64_t block) {
-                return summary_cache.data() + ((b * h_ik + h) * summary_cap + static_cast<size_t>(block)) * d_idx;
-            };
-
-            for (int64_t p = 0; p < c_n; p++) {
+            if (pos_in_block + 1 == r) {
                 for (size_t h = 0; h < h_ik; h++) {
-                    std::copy_n(past_raw_k_ptr(h, p), d_idx, pending_ptr(p, h));
-                }
-            }
-            if (c_n > 0) {
-                std::copy_n(past_rope.data() + b * 2 * rotary_dim, 2 * rotary_dim, block_ref_cos_sin.data());
-            }
-
-            int64_t running_block_idx = num_cached_blocks_n;
-
-            for (int64_t l = num_padding_n; l < length; l++) {
-                const int64_t v = l - num_padding_n;
-                const int64_t pending_pos = c_n + v;
-                const int64_t pos_in_block = pending_pos % r;
-                const size_t lu = static_cast<size_t>(l);
-
-                std::copy_n(&rope_cos[(b * L + lu) * rotary_dim], rotary_dim, rope_cos_buf.data());
-                std::copy_n(&rope_sin[(b * L + lu) * rotary_dim], rotary_dim, rope_sin_buf.data());
-                for (size_t h = 0; h < h_iq; h++) {
-                    const float* src = &q_idx[((b * L + lu) * h_iq + h) * d_idx];
-                    rmsnorm_partial_rope(src,
-                                         &q_normed[h * d_idx],
-                                         q_norm_weight.data(),
+                    std::fill(pooled.begin(), pooled.end(), 0.0F);
+                    for (int64_t p = 0; p < r; p++) {
+                        const float* src = pending_ptr(p, h);
+                        for (size_t d = 0; d < d_idx; d++) {
+                            pooled[d] += src[d];
+                        }
+                    }
+                    const float inv_r = 1.0F / static_cast<float>(r);
+                    for (float& val : pooled) {
+                        val *= inv_r;
+                    }
+                    rmsnorm_partial_rope(pooled.data(),
+                                         summary_buf.data(),
+                                         k_norm_weight.data(),
                                          d_idx,
                                          rotary_dim,
                                          eps,
-                                         rope_cos_buf.data(),
-                                         rope_sin_buf.data());
+                                         block_ref_cos_sin.data(),
+                                         block_ref_cos_sin.data() + rotary_dim);
+                    std::copy(summary_buf.begin(), summary_buf.end(), summary_ptr(h, running_block_idx));
                 }
+                running_block_idx += 1;
+            }
 
-                if (pos_in_block == 0) {
-                    std::copy(rope_cos_buf.begin(), rope_cos_buf.end(), block_ref_cos_sin.begin());
-                    std::copy(rope_sin_buf.begin(),
-                              rope_sin_buf.end(),
-                              block_ref_cos_sin.begin() + static_cast<ptrdiff_t>(rotary_dim));
-                }
-                for (size_t h = 0; h < h_ik; h++) {
-                    std::copy_n(&k_idx[((b * L + lu) * h_ik + h) * d_idx], d_idx, pending_ptr(pos_in_block, h));
-                }
-
-                if (pos_in_block + 1 == r) {
-                    for (size_t h = 0; h < h_ik; h++) {
-                        std::fill(pooled.begin(), pooled.end(), 0.0F);
-                        for (int64_t p = 0; p < r; p++) {
-                            const float* src = pending_ptr(p, h);
+            const int64_t n_complete = running_block_idx;
+            for (size_t sh = 0; sh < h_sel; sh++) {
+                size_t k = 0;
+                std::vector<int32_t> chosen;
+                if (n_complete > 0) {
+                    std::vector<std::pair<float, int32_t>> scores(static_cast<size_t>(n_complete));
+                    for (int64_t bidx = 0; bidx < n_complete; bidx++) {
+                        float score = 0.0F;
+                        for (size_t h = 0; h < h_iq; h++) {
+                            if (sel_of_head[h] != sh) {
+                                continue;
+                            }
+                            const float* summary = summary_ptr(kv_of_head[h], bidx);
+                            float dot = 0.0F;
                             for (size_t d = 0; d < d_idx; d++) {
-                                pooled[d] += src[d];
+                                dot += q_normed[h * d_idx + d] * summary[d];
                             }
+                            score += std::max(0.0F, dot);
                         }
-                        const float inv_r = 1.0F / static_cast<float>(r);
-                        for (float& val : pooled) {
-                            val *= inv_r;
-                        }
-                        rmsnorm_partial_rope(pooled.data(),
-                                             summary_buf.data(),
-                                             k_norm_weight.data(),
-                                             d_idx,
-                                             rotary_dim,
-                                             eps,
-                                             block_ref_cos_sin.data(),
-                                             block_ref_cos_sin.data() + rotary_dim);
-                        std::copy(summary_buf.begin(), summary_buf.end(), summary_ptr(h, running_block_idx));
+                        scores[static_cast<size_t>(bidx)] = {score * scale, static_cast<int32_t>(bidx)};
                     }
-                    running_block_idx += 1;
-                }
-
-                const int64_t n_complete = running_block_idx;
-                for (size_t sh = 0; sh < h_sel; sh++) {
-                    size_t k = 0;
-                    std::vector<int32_t> chosen;
-                    if (n_complete > 0) {
-                        std::vector<std::pair<float, int32_t>> scores(static_cast<size_t>(n_complete));
-                        for (int64_t bidx = 0; bidx < n_complete; bidx++) {
-                            float score = 0.0F;
-                            for (size_t h = 0; h < h_iq; h++) {
-                                if (sel_of_head[h] != sh) {
-                                    continue;
-                                }
-                                const float* summary = summary_ptr(kv_of_head[h], bidx);
-                                float dot = 0.0F;
-                                for (size_t d = 0; d < d_idx; d++) {
-                                    dot += q_normed[h * d_idx + d] * summary[d];
-                                }
-                                score += std::max(0.0F, dot);
-                            }
-                            scores[static_cast<size_t>(bidx)] = {score * scale, static_cast<int32_t>(bidx)};
-                        }
-                        k = std::min(block_topk, static_cast<size_t>(n_complete));
-                        std::partial_sort(scores.begin(),
-                                          scores.begin() + static_cast<ptrdiff_t>(k),
-                                          scores.end(),
-                                          [](const auto& a, const auto& bb) {
-                                              if (a.first != bb.first) {
-                                                  return a.first > bb.first;
-                                              }
-                                              return a.second < bb.second;
-                                          });
-                        chosen.resize(k);
-                        for (size_t i = 0; i < k; i++) {
-                            chosen[i] = scores[i].second;
-                        }
-                        std::sort(chosen.begin(), chosen.end());
-                    }
-                    auto* out_row = &out.sel_indices[((b * h_sel + sh) * L + lu) * block_topk];
+                    k = std::min(block_topk, static_cast<size_t>(n_complete));
+                    std::partial_sort(scores.begin(),
+                                      scores.begin() + static_cast<ptrdiff_t>(k),
+                                      scores.end(),
+                                      [](const auto& a, const auto& bb) {
+                                          if (a.first != bb.first) {
+                                              return a.first > bb.first;
+                                          }
+                                          return a.second < bb.second;
+                                      });
+                    chosen.resize(k);
                     for (size_t i = 0; i < k; i++) {
-                        out_row[i] = chosen[i];
+                        chosen[i] = scores[i].second;
                     }
-                    out.sel_count[(b * h_sel + sh) * L + lu] = static_cast<int32_t>(k);
+                    std::sort(chosen.begin(), chosen.end());
                 }
-            }
-
-            const int64_t rest = (c_n + current_n) - (running_block_idx - num_cached_blocks_n) * r;
-            for (int64_t p = 0; p < r - 1; p++) {
-                for (size_t h = 0; h < h_ik; h++) {
-                    const float* src = p < rest ? pending_ptr(p, h) : nullptr;
-                    if (src != nullptr) {
-                        std::copy_n(src, d_idx, past_raw_k_ptr(h, p));
-                    } else {
-                        std::fill_n(past_raw_k_ptr(h, p), d_idx, 0.0F);
-                    }
+                auto* out_row = &out.sel_indices[((b * h_sel + sh) * L + lu) * block_topk];
+                for (size_t i = 0; i < k; i++) {
+                    out_row[i] = chosen[i];
                 }
+                out.sel_count[(b * h_sel + sh) * L + lu] = static_cast<int32_t>(k);
             }
-            if (rest == 0) {
-                std::fill(block_ref_cos_sin.begin(), block_ref_cos_sin.end(), 0.0F);
-            }
-            std::copy(block_ref_cos_sin.begin(), block_ref_cos_sin.end(), past_rope.data() + b * 2 * rotary_dim);
         }
-        return out;
+
+        const int64_t rest = (c_n + current_n) - (running_block_idx - num_cached_blocks_n) * r;
+        for (int64_t p = 0; p < r - 1; p++) {
+            for (size_t h = 0; h < h_ik; h++) {
+                const float* src = p < rest ? pending_ptr(p, h) : nullptr;
+                if (src != nullptr) {
+                    std::copy_n(src, d_idx, past_raw_k_ptr(h, p));
+                } else {
+                    std::fill_n(past_raw_k_ptr(h, p), d_idx, 0.0F);
+                }
+            }
+        }
+        if (rest == 0) {
+            std::fill(block_ref_cos_sin.begin(), block_ref_cos_sin.end(), 0.0F);
+        }
+        std::copy(block_ref_cos_sin.begin(), block_ref_cos_sin.end(), past_rope.data() + b * 2 * rotary_dim);
     }
-};
-
-}  // namespace
-
-namespace ov {
-namespace test {
+    return out;
+}
 
 std::string QSAIndexerLayerCPUTest::getTestCaseName(const testing::TestParamInfo<QSAIndexerLayerTestParams>& obj) {
     const auto& [device, data_precision, h_iq, h_ik, h_sel, batch, scenario] = obj.param;
@@ -364,8 +343,12 @@ void QSAIndexerLayerCPUTest::SetUp() {
     auto p_key_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{m_batch});
     auto p_q_norm_weight = std::make_shared<ov::op::v0::Parameter>(m_data_precision, ov::Shape{m_didx});
     auto p_k_norm_weight = std::make_shared<ov::op::v0::Parameter>(m_data_precision, ov::Shape{m_didx});
-    auto p_summary_cache =
-        std::make_shared<ov::op::v0::Parameter>(m_data_precision, ov::Shape{m_batch, m_h_ik, m_summary_cap, m_didx});
+    // Only the blocks of the earlier calls: the op returns them grown by the blocks of this call.
+    auto p_summary_cache = std::make_shared<ov::op::v0::Parameter>(m_data_precision,
+                                                                   ov::PartialShape{static_cast<int64_t>(m_batch),
+                                                                                    static_cast<int64_t>(m_h_ik),
+                                                                                    -1,
+                                                                                    static_cast<int64_t>(m_didx)});
     auto p_past_raw_k =
         std::make_shared<ov::op::v0::Parameter>(m_data_precision,
                                                 ov::Shape{m_batch, m_h_ik, m_compress_ratio - 1, m_didx});
@@ -536,10 +519,19 @@ std::vector<ov::Tensor> QSAIndexerLayerCPUTest::run_call(const CallSpec& call, s
     std::copy(expected.sel_indices.begin(), expected.sel_indices.end(), expected_sel_indices.data<int32_t>());
     std::copy(expected.sel_count.begin(), expected.sel_count.end(), expected_sel_count.data<int32_t>());
 
-    ov::Tensor expected_summary_cache(m_data_precision, m_summary_cache_tensor.get_shape());
+    // The output holds the blocks of the longest row: max(key_length) / compress_ratio.
+    const size_t num_blocks = static_cast<size_t>(*std::max_element(call.key_length.begin(), call.key_length.end()) /
+                                                  static_cast<int64_t>(m_compress_ratio));
+    ov::Tensor expected_summary_cache(m_data_precision, ov::Shape{m_batch, m_h_ik, num_blocks, m_didx});
+    std::vector<float> expected_summary(m_batch * m_h_ik * num_blocks * m_didx);
+    for (size_t bh = 0; bh < m_batch * m_h_ik; bh++) {
+        std::copy_n(m_oracle_summary_cache.begin() + bh * m_summary_cap * m_didx,
+                    num_blocks * m_didx,
+                    expected_summary.begin() + bh * num_blocks * m_didx);
+    }
     ov::Tensor expected_past_raw_k(m_data_precision, m_past_raw_k_tensor.get_shape());
     ov::Tensor expected_past_rope(m_data_precision, m_past_rope_tensor.get_shape());
-    write_f32_to_tensor(expected_summary_cache, m_oracle_summary_cache);
+    write_f32_to_tensor(expected_summary_cache, expected_summary);
     write_f32_to_tensor(expected_past_raw_k, m_oracle_past_raw_k);
     write_f32_to_tensor(expected_past_rope, m_oracle_past_rope);
 
@@ -551,6 +543,9 @@ std::vector<ov::Tensor> QSAIndexerLayerCPUTest::run_call(const CallSpec& call, s
                                                      &m_past_raw_k_tensor,
                                                      &m_past_rope_tensor};
     for (size_t i = 0; i < state_in.size(); i++) {
+        if (state_in_snapshot[i].get_byte_size() == 0) {
+            continue;
+        }
         EXPECT_EQ(0,
                   std::memcmp(state_in[i]->data(), state_in_snapshot[i].data(), state_in_snapshot[i].get_byte_size()))
             << "state input " << i << " was modified in place";
@@ -567,7 +562,7 @@ void QSAIndexerLayerCPUTest::run() {
     compiledModel = core->compile_model(function, targetDevice, configuration);
     m_infer_request = compiledModel.create_infer_request();
 
-    m_summary_cache_tensor = make_zero_tensor(m_data_precision, ov::Shape{m_batch, m_h_ik, m_summary_cap, m_didx});
+    m_summary_cache_tensor = make_zero_tensor(m_data_precision, ov::Shape{m_batch, m_h_ik, 0, m_didx});
     m_past_raw_k_tensor = make_zero_tensor(m_data_precision, ov::Shape{m_batch, m_h_ik, m_compress_ratio - 1, m_didx});
     m_past_rope_tensor = make_zero_tensor(m_data_precision, ov::Shape{m_batch, 2 * m_rotary_dim});
 

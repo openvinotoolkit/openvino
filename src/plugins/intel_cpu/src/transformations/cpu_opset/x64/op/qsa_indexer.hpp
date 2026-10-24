@@ -25,10 +25,13 @@ namespace ov::intel_cpu {
 /// Reads no page table and owns no opaque runtime state: its logical cache state is three
 /// caller-owned dense tensors (`summary_cache`, `past_incomplete_raw_k`, `past_incomplete_rope`).
 /// The update is NOT in place: the inputs are never modified, and the updated values of the three
-/// states are produced as outputs (same shape/type as the matching input) so that an outside
-/// Assign can write them back to the variables. `summary_cache` grows across calls
-/// (caller-managed, batch-max sized); `past_incomplete_raw_k`/`past_incomplete_rope` are FIXED size
-/// (`key_block_size - 1` rows / one row respectively) and fully overwritten every call.
+/// states are produced as outputs so that an outside Assign can write them back to the variables.
+/// `summary_cache` follows the QSAPrepare-17 `block_index_keys` contract: the input holds the blocks
+/// of the earlier calls ([B, H_ik, Bp, D_idx]) and the output holds the blocks of the longest row after this
+/// call ([B, H_ik, max(key_length) / key_block_size, D_idx]), i.e. it grows without any caller-managed
+/// capacity (rows with fewer blocks are zero-filled past their last block). `past_incomplete_raw_k` /
+/// `past_incomplete_rope` are FIXED size (`key_block_size - 1` rows / one row respectively), fully overwritten
+/// every call, and keep their input shape.
 ///
 /// \ingroup ov_ops_cpp_api
 class QSAIndexer : public ov::op::Op {
@@ -45,7 +48,7 @@ public:
         static constexpr size_t KEY_LENGTH = 4;     ///< [B] i32, read-only; total valid length after this call
         static constexpr size_t Q_NORM_WEIGHT = 5;  ///< [D_idx]
         static constexpr size_t K_NORM_WEIGHT = 6;  ///< [D_idx]
-        static constexpr size_t SUMMARY_CACHE = 7;  ///< [B, H_ik, Bp, D_idx], state input
+        static constexpr size_t SUMMARY_CACHE = 7;  ///< [B, H_ik, Bp, D_idx], state input, blocks of earlier calls
         static constexpr size_t PAST_INCOMPLETE_RAW_K =
             8;  ///< [B, H_ik, key_block_size - 1, D_idx], state input, fixed size
         static constexpr size_t PAST_INCOMPLETE_ROPE =
@@ -56,13 +59,13 @@ public:
     };
 
     /// @brief Fixed output order of the QSAIndexer op. The three state outputs are the updated
-    /// values of the matching state inputs (same shape and element type).
+    /// values of the matching state inputs (same element type; summary_cache grows, see the class comment).
     struct OutputIdx {
         static constexpr size_t SEL_INDICES = 0;            ///< [B, H_sel, L, block_topk] i32
         static constexpr size_t SEL_COUNT = 1;              ///< [B, H_sel, L] i32
-        static constexpr size_t SUMMARY_CACHE = 2;          ///< updated summary_cache
-        static constexpr size_t PAST_INCOMPLETE_RAW_K = 3;  ///< updated past_incomplete_raw_k
-        static constexpr size_t PAST_INCOMPLETE_ROPE = 4;   ///< updated past_incomplete_rope
+        static constexpr size_t SUMMARY_CACHE = 2;          ///< [B, H_ik, max(key_length) / key_block_size, D_idx]
+        static constexpr size_t PAST_INCOMPLETE_RAW_K = 3;  ///< updated past_incomplete_raw_k (input shape)
+        static constexpr size_t PAST_INCOMPLETE_ROPE = 4;   ///< updated past_incomplete_rope (input shape)
 
         static constexpr size_t COUNT = 5;
     };

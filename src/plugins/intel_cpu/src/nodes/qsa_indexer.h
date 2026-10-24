@@ -27,10 +27,14 @@ namespace ov::intel_cpu::node {
 /// state tensors holding the current incomplete block's raw rows / reference RoPE coefficients;
 /// they are fully rewritten every call rather than grown. The three state inputs
 /// (`summary_cache`, `past_incomplete_raw_k`, `past_incomplete_rope`) are never modified: the
-/// updated states are written to dedicated outputs for an outside Assign to consume. All floating-point data
+/// updated states are written to dedicated outputs for an outside Assign to consume. `summary_cache` grows like
+/// QSAPrepare-17's `block_index_keys`: the output has max(key_length) / key_block_size blocks, so the output shape
+/// depends on the `key_length` values. All floating-point data
 /// ports may be negotiated as f32, f16, or bf16 independently; compute is always performed in
 /// fp32. `sel_indices`/`sel_count` are always i32; the three state outputs keep their input's precision.
 class QSAIndexer : public Node {
+    using InputIdx = ov::intel_cpu::QSAIndexer::InputIdx;
+
 public:
     QSAIndexer(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
@@ -40,6 +44,19 @@ public:
     }
     [[nodiscard]] bool needPrepareParams() const override {
         return false;
+    }
+    // summary_cache is empty on the first call (no earlier blocks), the node still has to run then.
+    [[nodiscard]] bool isExecutable() const override {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            if (i != InputIdx::SUMMARY_CACHE && isInputTensorAtPortEmpty(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    // The summary_cache output shape depends on the key_length values, not only on the input shapes.
+    [[nodiscard]] bool needShapeInfer() const override {
+        return true;
     }
     void executeDynamicImpl(const dnnl::stream& strm) override {
         execute(strm);

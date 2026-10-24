@@ -9,8 +9,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -26,6 +28,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 #include "utils/plain_tensor.hpp"
 
 namespace ov::intel_cpu::node {
@@ -97,10 +100,60 @@ void store_row_f32(const PlainTensor& t, size_t len, const float* src, Idx... id
     }
 }
 
+// Output shapes of QSAIndexer: everything follows the input shapes, but the summary_cache block count of the longest
+// row, which is read from the key_length values.
+class QSAIndexerShapeInfer : public ShapeInferEmptyPads {
+public:
+    explicit QSAIndexerShapeInfer(const ov::intel_cpu::QSAIndexer::Config& config) : m_config(config) {}
+
+    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        const auto& q_dims = input_shapes[InputIdx::Q_IDX].get();
+        const auto& summary_dims = input_shapes[InputIdx::SUMMARY_CACHE].get();
+        const size_t batch = q_dims[0];
+        const auto key_length = data_dependency.at(InputIdx::KEY_LENGTH);
+        const auto* key_length_p = key_length->getDataAs<const int32_t>();
+        int64_t longest = 0;
+        for (size_t b = 0; b < batch; b++) {
+            longest = std::max<int64_t>(longest, key_length_p[b]);
+        }
+        const auto num_blocks = static_cast<size_t>(longest / static_cast<int64_t>(m_config.compress_ratio));
+        return {{{batch, m_config.h_sel, q_dims[1], m_config.block_topk},
+                 {batch, m_config.h_sel, q_dims[1]},
+                 {batch, summary_dims[1], num_blocks, summary_dims[3]},
+                 input_shapes[InputIdx::PAST_INCOMPLETE_RAW_K].get(),
+                 input_shapes[InputIdx::PAST_INCOMPLETE_ROPE].get()},
+                ShapeInferStatus::success};
+    }
+
+    [[nodiscard]] port_mask_t get_port_mask() const override {
+        return 1U << InputIdx::KEY_LENGTH;
+    }
+
+private:
+    ov::intel_cpu::QSAIndexer::Config m_config;
+};
+
+class QSAIndexerShapeInferFactory : public ShapeInferFactory {
+public:
+    explicit QSAIndexerShapeInferFactory(const std::shared_ptr<ov::Node>& op) {
+        if (const auto qsa_indexer = ov::as_type_ptr<const ov::intel_cpu::QSAIndexer>(op)) {
+            m_config = qsa_indexer->get_config();
+        }
+    }
+
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<QSAIndexerShapeInfer>(m_config);
+    }
+
+private:
+    ov::intel_cpu::QSAIndexer::Config m_config;
+};
+
 }  // namespace
 
 QSAIndexer::QSAIndexer(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, NgraphShapeInferFactory(op)) {
+    : Node(op, context, QSAIndexerShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -182,12 +235,16 @@ void QSAIndexer::execute_typed() {
 
     const auto* key_length_p = key_length.ptr<int32_t>();
 
-    // summary_cache is the only state that is partially updated (new blocks are appended, earlier
-    // ones are kept), so its output starts as a copy of the input. The two incomplete-block
-    // buffers are fully rewritten per row below and need no initial copy.
+    // summary_cache is the only state that grows: its output starts as a copy of the blocks of the earlier calls
+    // (the input), followed by zeros, and the blocks completed by this call are written over them below.
     const auto summary_cache_in_mem = getSrcMemoryAtPort(InputIdx::SUMMARY_CACHE);
     const auto summary_cache_out_mem = getDstMemoryAtPort(OutputIdx::SUMMARY_CACHE);
-    const auto summary_row_bytes = B != 0 ? summary_cache_in_mem->getSize() / B : 0;
+    const size_t summary_blocks_in = summary_cache_in_mem->getStaticDims()[2];
+    const size_t summary_blocks_out = summary_cache_out_mem->getStaticDims()[2];
+    const size_t summary_block_bytes = D_idx * summary_cache_in_mem->getDesc().getPrecision().size();
+    const size_t summary_head_in_bytes = summary_blocks_in * summary_block_bytes;
+    const size_t summary_head_out_bytes = summary_blocks_out * summary_block_bytes;
+    const size_t summary_copy_bytes = std::min(summary_blocks_in, summary_blocks_out) * summary_block_bytes;
     const auto* summary_cache_src = summary_cache_in_mem->getDataAs<const uint8_t>();
     auto* summary_cache_dst = summary_cache_out_mem->getDataAs<uint8_t>();
 
@@ -208,9 +265,16 @@ void QSAIndexer::execute_typed() {
 
     const auto& cpu_parallel = context->getCpuParallel();
     cpu_parallel->parallel_for(B, [&](size_t b) {
-        std::memcpy(summary_cache_dst + b * summary_row_bytes,
-                    summary_cache_src + b * summary_row_bytes,
-                    summary_row_bytes);
+        for (size_t h = 0; h < H_ik; h++) {
+            auto* dst = summary_cache_dst + (b * H_ik + h) * summary_head_out_bytes;
+            const auto* src = summary_cache_src + (b * H_ik + h) * summary_head_in_bytes;
+            if (summary_copy_bytes != 0) {
+                std::memcpy(dst, src, summary_copy_bytes);
+            }
+            if (summary_head_out_bytes != summary_copy_bytes) {
+                std::memset(dst + summary_copy_bytes, 0, summary_head_out_bytes - summary_copy_bytes);
+            }
+        }
 
         const int64_t key_len = key_length_p[b];
         // Every per-row quantity is derived from this call's own key_length/L alone -- no
@@ -305,6 +369,12 @@ void QSAIndexer::execute_typed() {
                                          eps,
                                          block_ref_cos_sin.data(),
                                          block_ref_cos_sin.data() + rotary_dim);
+                    OPENVINO_ASSERT(static_cast<size_t>(running_block_idx) < summary_blocks_out,
+                                    "QSAIndexer: block ",
+                                    running_block_idx,
+                                    " does not fit the summary_cache output of ",
+                                    summary_blocks_out,
+                                    " blocks");
                     store_row_f32(summary_cache, D_idx, summary_buf.data(), b, h, running_block_idx);
                 }
                 running_block_idx += 1;

@@ -4,7 +4,9 @@
 
 #include "qsa_indexer.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <initializer_list>
 #include <memory>
 #include <string>
@@ -12,6 +14,7 @@
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "transformations/itt.hpp"
 
 namespace ov::intel_cpu {
@@ -186,10 +189,7 @@ void QSAIndexer::validate_and_infer_types() {
     check_i32_input(this, InputIdx::KEY_LENGTH, "key_length", 1);
     check_shape(this, InputIdx::KEY_LENGTH, "key_length", ov::PartialShape{batch});
 
-    // Unlike QSAIndexer, summary_cache's block-capacity axis (Bp) has no single raw-buffer
-    // capacity to independently derive it from: the per-row incomplete tail is a fixed-size
-    // buffer, not a capacity-bearing cache. Bp is purely caller-managed (grown via Concat each
-    // call, batch-max sized) -- only N/H_ik/D_idx are shape-consistency-checked here.
+    // summary_cache holds only the blocks of the earlier calls (Bp is free); the output carries all the blocks.
     check_shape(this, InputIdx::SUMMARY_CACHE, "summary_cache", ov::PartialShape{batch, h_ik, -1, di});
     check_shape(this,
                 InputIdx::PAST_INCOMPLETE_RAW_K,
@@ -217,10 +217,17 @@ void QSAIndexer::validate_and_infer_types() {
     set_output_size(OutputIdx::COUNT);
     set_output_type(OutputIdx::SEL_INDICES, element::i32, sel_indices_ps);
     set_output_type(OutputIdx::SEL_COUNT, element::i32, sel_count_ps);
-    // The state updates are out-of-place: each state output mirrors its input.
+    // The state updates are out-of-place: the incomplete-block outputs mirror their inputs.
+    // The blocks of the longest row: known only from the key_length values.
+    auto num_blocks = ov::Dimension::dynamic();
+    if (const auto key_length = ov::util::get_constant_from_source(input_value(InputIdx::KEY_LENGTH))) {
+        const auto lengths = key_length->cast_vector<int64_t>();
+        const auto longest = lengths.empty() ? int64_t{0} : *std::max_element(lengths.begin(), lengths.end());
+        num_blocks = ov::Dimension(std::max<int64_t>(longest, 0) / r);
+    }
     set_output_type(OutputIdx::SUMMARY_CACHE,
                     get_input_element_type(InputIdx::SUMMARY_CACHE),
-                    get_input_partial_shape(InputIdx::SUMMARY_CACHE));
+                    ov::PartialShape{batch, h_ik, num_blocks, di});
     set_output_type(OutputIdx::PAST_INCOMPLETE_RAW_K,
                     get_input_element_type(InputIdx::PAST_INCOMPLETE_RAW_K),
                     get_input_partial_shape(InputIdx::PAST_INCOMPLETE_RAW_K));
