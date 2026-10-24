@@ -133,6 +133,9 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
     if (t.get_element_type() != ov::element::string) {
         OPENVINO_THROW("Tensor's type must be a string!");
     }
+    if (t.get_size() == 0) {
+        return py::array(py::dtype("S1"), t.get_shape());
+    }
     auto data = t.data<std::string>();
 
     auto max_element = std::max_element(data, data + t.get_size(), [](const std::string& x, const std::string& y) {
@@ -167,6 +170,9 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
 py::array string_array_from_tensor(ov::Tensor&& t) {
     if (t.get_element_type() != ov::element::string) {
         OPENVINO_THROW("Tensor's type must be a string!");
+    }
+    if (t.get_size() == 0) {
+        return py::array(py::dtype("U1"), t.get_shape());
     }
     // Approach that is compact and faster than np.char.decode(tensor.data):
     auto data = t.data<std::string>();
