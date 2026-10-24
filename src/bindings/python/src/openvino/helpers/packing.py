@@ -120,8 +120,10 @@ def _check_range(array: np.ndarray, type: Type) -> None:
         low, high = -8, 7
     else:
         low, high = 0, (1 << type.bitwidth) - 1
-    min_value, max_value = np.min(array), np.max(array)
-    if min_value < low or max_value > high:
+    # Compare elementwise: np.min/np.max return NaN when any value is NaN, which would hide out-of-range values.
+    # NaN itself is left to the existing checks, as before.
+    if np.any((array < low) | (array > high)):
+        min_value, max_value = np.nanmin(array), np.nanmax(array)
         raise RuntimeError(
             f"The values of the {array.dtype} array with shape {array.shape} (min {min_value}, max {max_value}) "
             f"are out of the {type.get_type_name()} range [{low}, {high}]"
