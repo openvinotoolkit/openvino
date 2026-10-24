@@ -18,12 +18,12 @@ inline constexpr const char* in_place_cache_rt_key = "GPU_IN_PLACE_CACHE";
 /// `ov::op::internal::QSAIndexer` + `ov::op::internal::SparseSDPA`.
 ///
 /// The signature that identifies a QSA indexer is the same block score used by the
-/// legacy fused-op detector: `scores = ReduceSum(ReLU(MatMul(q_idx, k_block,
+/// legacy fused-op detector: `scores = ReduceSum(ReLU(MatMul(index_query, k_block,
 /// transpose_b)), axis=head) * 1/sqrt(Di)` followed by `TopK(scores, block_topk)`.
 ///
-/// The indexer state (`summary_cache`, `past_incomplete_raw_k`, `past_incomplete_rope`)
+/// The indexer state (`block_index_keys_cache`, `past_incomplete_raw_k`, `past_incomplete_rope`)
 /// follows QSAIndexer's functional state interface: the pass creates one f16 `Variable`
-/// per state tensor, reads it with a zero-initialized `ReadValue`, grows `summary_cache`
+/// per state tensor, reads it with a zero-initialized `ReadValue`, grows `block_index_keys_cache`
 /// on its sequence axis to `floor(key_length / r)` entries, and feeds the updated state
 /// outputs back with `Assign`. The decomposed source pattern must already keep the
 /// indexer's raw-key history in a `ReadValue`-backed `Variable` (what distinguishes a real
@@ -50,8 +50,8 @@ public:
 /// carries the page table (`block_indices`/`block_indices_begins`/`subsequence_begins`/
 /// `past_lens`) as plain inputs -- continuous-batching graphs never use `ReadValue` for
 /// this -- so those four tensors are reused verbatim for `PagedQSAIndexer`/`SparsePA`
-/// without being recreated. The indexer's own `summary_cache`/`indexer_raw_k_cache`/
-/// `indexer_rope_cache` are, like the dense case, modeled as brand-new tagged
+/// without being recreated. The indexer's own `block_index_keys_cache`/`index_key_cache`/
+/// `index_block_rope_cache` are, like the dense case, modeled as brand-new tagged
 /// `Parameter`s appended to the model (page geometry from `key_cache`), and
 /// `rope_cos`/`rope_sin` are the RoPE rows the source graph gathers for each token.
 /// Optional `PagedAttentionExtension` features (sliding window, alibi, sinks, xattention,

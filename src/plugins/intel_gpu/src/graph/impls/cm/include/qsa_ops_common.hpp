@@ -10,7 +10,7 @@
 // fused op's macros). Dense addressing is new: direct `(batch, logical_position)`
 // strides, no page table, no identity/degenerate paging -- the runtime stride is an
 // explicit kernel scalar, never a JIT-baked page-capacity constant, so a dense call
-// whose length is not a multiple of `compress_ratio` compiles and runs unchanged.
+// whose length is not a multiple of `key_block_size` compiles and runs unchanged.
 
 #ifndef ATTR
 #    define ATTR [[type("svmptr_t")]]

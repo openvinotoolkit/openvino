@@ -22,15 +22,15 @@ static void CreateQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
                     reason);
 
     using In = ov::op::internal::QSAIndexer::InputIdx;
-    OPENVINO_ASSERT(op->get_config().h_sel == 1, "[GPU] QSAIndexer '", layer_name, "': only h_sel == 1 is supported, got ", op->get_config().h_sel);
+    OPENVINO_ASSERT(op->get_config().num_selection_heads == 1, "[GPU] QSAIndexer '", layer_name, "': only num_selection_heads == 1 is supported, got ", op->get_config().num_selection_heads);
     OPENVINO_ASSERT(op->get_index_key_heads() == 1, "[GPU] QSAIndexer '", layer_name, "': only H_ik == 1 is supported, got ", op->get_index_key_heads());
-    for (size_t idx : {In::Q_IDX,
-                       In::K_IDX,
+    for (size_t idx : {In::INDEX_QUERY,
+                       In::RAW_INDEX_KEYS,
                        In::ROPE_COS,
                        In::ROPE_SIN,
                        In::Q_NORM_WEIGHT,
                        In::K_NORM_WEIGHT,
-                       In::SUMMARY_CACHE,
+                       In::BLOCK_INDEX_KEYS_CACHE,
                        In::PAST_INCOMPLETE_RAW_K,
                        In::PAST_INCOMPLETE_ROPE}) {
         OPENVINO_ASSERT(op->get_input_element_type(idx) == ov::element::f16,

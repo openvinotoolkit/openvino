@@ -8,7 +8,7 @@
 // always-visible causal tail + online softmax. Two ABI changes mandated by the new
 // SparsePA RST: (1) no output gate (that logic is external to this op), and (2) the
 // selection plan is consumed from this op's own producer-output layout (flat
-// `[total_q_blocks, K]`/`[total_q_blocks]` with `h_sel == 1`, `q_block_size == 1`, so
+// `[total_q_blocks, K]`/`[total_q_blocks]` with `num_selection_heads == 1`, `query_block_size == 1`, so
 // `total_q_blocks == tokens`).
 //
 // JIT constants: QSA_HEADS, QSA_KV_HEADS, QSA_K_HEAD_SIZE, QSA_V_HEAD_SIZE,

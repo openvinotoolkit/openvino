@@ -18,7 +18,7 @@
 namespace ov::intel_gpu::cm {
 
 /// @brief Internal (scratch) buffers owned by the PagedQSAIndexer implementation.
-/// sel_indices/sel_count are NOT internal buffers: the top-k finalize stage writes
+/// selected_block_indices/selected_block_count are NOT internal buffers: the top-k finalize stage writes
 /// directly into the primitive's own declared outputs.
 struct PagedQSAIndexerInternalBufIdx {
     static constexpr size_t INDEXER_Q = 0;      ///< f16 [num_tokens, H_iq, D_idx]

@@ -7,8 +7,8 @@
 // fused kernel: (1) no output gate at all (that logic is external to the new op, per the
 // split design), so q_head_stride is simply QSA_K_HEAD_SIZE (no runtime gate_delta/2x
 // stride), and (2) selected_blocks/selected_counts are read directly from this op's own
-// SEL_INDICES/SEL_COUNT inputs (flat [tokens, block_topk]/[tokens], h_sel == 1,
-// q_block_size == 1 already enforced), not an internal scratch buffer.
+// SEL_INDICES/SEL_COUNT inputs (flat [tokens, block_topk]/[tokens], num_selection_heads == 1,
+// query_block_size == 1 already enforced), not an internal scratch buffer.
 //
 // QK and PV run on cm_dpas over a 16-wide (head, token) tile instead of one query per
 // thread: N is filled with QSA_HEADS_PER_TILE heads x QSA_TOKENS_PER_TILE tokens (HT * TT

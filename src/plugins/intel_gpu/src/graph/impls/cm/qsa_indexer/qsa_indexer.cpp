@@ -35,7 +35,7 @@ QSAIndexerRuntimeParams* rt_of(ImplRuntimeParams* rt) {
     return p;
 }
 
-/// H_iq / H_ik, derived from the 4D [B, L, H, D_idx] q_idx/k_idx layouts (B/L may be dynamic).
+/// H_iq / H_ik, derived from the 4D [B, L, H, D_idx] index_query/raw_index_keys layouts (B/L may be dynamic).
 size_t index_heads_4d(const layout& l) {
     const auto& ps = l.get_partial_shape();
     OPENVINO_ASSERT(ps.rank().is_static() && ps.size() >= 3 && ps[2].is_static(),
@@ -44,17 +44,17 @@ size_t index_heads_4d(const layout& l) {
 }
 
 JitConstants make_jit(const std::shared_ptr<const qsa_indexer>& desc, const RuntimeParams& params) {
-    const auto h_iq = index_heads_4d(params.get_input_layout(QSAIn::Q_IDX));
+    const auto h_iq = index_heads_4d(params.get_input_layout(QSAIn::INDEX_QUERY));
 
     JitConstants jit;
     jit.make("QSA_IDX_QUERY_HEADS", h_iq);
     jit.make("QSA_IDX_HEAD_DIM", desc->indexer_head_dim);
     jit.make("QSA_IDX_ROTARY_DIM", desc->indexer_rotary_dim);
-    jit.make("QSA_COMPRESS_RATIO", desc->compress_ratio);
+    jit.make("QSA_COMPRESS_RATIO", desc->key_block_size);
     jit.make("QSA_BLOCK_TOPK", desc->block_topk);
     jit.make("QSA_ADDRESS_MODE", 1);
     jit.make("QSA_PREPARE_WG", h_iq + 1);
-    jit.add(make_jit_constant("QSA_IDX_NORM_EPS", desc->eps));
+    jit.add(make_jit_constant("QSA_IDX_NORM_EPS", desc->epsilon));
     jit.add(make_jit_constant("QSA_IDX_SCALE", ov::op::internal::QSAIndexer::effective_scale(desc->get_config())));
     return jit;
 }
@@ -97,11 +97,11 @@ size_t score_budget_bytes() {
 /// Whether every batch row in this call has exactly one query token. A shape-agnostic
 /// impl keeps both the decode and prefill stages and decides per call.
 bool is_decode_shape(const kernel_impl_params& params) {
-    const auto& q_idx_layout = params.get_input_layout(QSAIn::Q_IDX);
-    if (q_idx_layout.is_dynamic()) {
+    const auto& index_query_layout = params.get_input_layout(QSAIn::INDEX_QUERY);
+    if (index_query_layout.is_dynamic()) {
         return false;
     }
-    const auto& shape = q_idx_layout.get_shape();
+    const auto& shape = index_query_layout.get_shape();
     OPENVINO_ASSERT(shape.size() >= 2, "[GPU][CM] qsa_indexer: expected a rank-4 [B, L, H, D_idx] input");
     return shape[1] == 1;
 }
@@ -123,9 +123,9 @@ constexpr size_t topk_wg_size(bool decode) {
 /// f32 element capacity of BLOCK_SCORES. Static shapes only, so allocation and per-call
 /// chunk planning always agree. Only decode (score_partition + topk) is row-chunk aware.
 size_t score_scratch_elems(const kernel_impl_params& params, const qsa_indexer& desc) {
-    const auto& q_idx_shape = params.get_input_layout(QSAIn::Q_IDX).get_shape();
-    const auto tokens = std::max<size_t>(1, q_idx_shape[0] * q_idx_shape[1]);
-    const auto& summary_shape = params.get_input_layout(QSAIn::SUMMARY_CACHE).get_shape();
+    const auto& index_query_shape = params.get_input_layout(QSAIn::INDEX_QUERY).get_shape();
+    const auto tokens = std::max<size_t>(1, index_query_shape[0] * index_query_shape[1]);
+    const auto& summary_shape = params.get_input_layout(QSAIn::BLOCK_INDEX_KEYS_CACHE).get_shape();
     const auto max_blocks = std::max<size_t>(1, summary_shape[2]);
     if (!is_decode_shape(params)) {
         return tokens * max_blocks;
@@ -173,8 +173,8 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
         Arguments args;
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::Q_IDX});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::K_IDX});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEX_QUERY});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::RAW_INDEX_KEYS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::Q_NORM_WEIGHT});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::K_NORM_WEIGHT});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::ROPE_COS});
@@ -182,7 +182,7 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_INCOMPLETE_RAW_K});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_INCOMPLETE_ROPE});
-        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::SUMMARY_CACHE});
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::BLOCK_INDEX_KEYS_CACHE});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::PAST_INCOMPLETE_RAW_K});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::PAST_INCOMPLETE_ROPE});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::INDEXER_Q});
@@ -237,7 +237,7 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::INDEXER_Q});
-        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::SUMMARY_CACHE});
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::BLOCK_INDEX_KEYS_CACHE});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::BLOCK_SCORES});
         for (uint32_t i = 0; i < 4; i++) {
@@ -347,7 +347,7 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::INDEXER_Q});
-        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::SUMMARY_CACHE});
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::BLOCK_INDEX_KEYS_CACHE});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::BLOCK_SCORES});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
@@ -402,7 +402,7 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::INDEXER_Q});
-        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::SUMMARY_CACHE});
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::BLOCK_INDEX_KEYS_CACHE});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::BLOCK_SCORES});
         for (uint32_t i = 0; i < 7; i++) {
@@ -485,7 +485,7 @@ public:
     // constructor and copies only _order and the per-stage kernel data.
     static bool use_dpas_score(const kernel_impl_params& params) {
         const auto desc = params.typed_desc<qsa_indexer>();
-        const auto h_iq = index_heads_4d(params.get_input_layout(QSAIn::Q_IDX));
+        const auto h_iq = index_heads_4d(params.get_input_layout(QSAIn::INDEX_QUERY));
         return can_use_dpas_score(*desc, h_iq, params.get_device_info());
     }
 
@@ -494,10 +494,10 @@ public:
             return {};
         }
         const auto desc = params.typed_desc<qsa_indexer>();
-        const auto& q_idx_shape = params.get_input_layout(QSAIn::Q_IDX).get_shape();
-        const auto batch = std::max<size_t>(1, q_idx_shape[0]);
-        const auto seq_len = std::max<size_t>(1, q_idx_shape[1]);
-        const auto h_iq = index_heads_4d(params.get_input_layout(QSAIn::Q_IDX));
+        const auto& index_query_shape = params.get_input_layout(QSAIn::INDEX_QUERY).get_shape();
+        const auto batch = std::max<size_t>(1, index_query_shape[0]);
+        const auto seq_len = std::max<size_t>(1, index_query_shape[1]);
+        const auto h_iq = index_heads_4d(params.get_input_layout(QSAIn::INDEX_QUERY));
         const auto tokens = batch * seq_len;
 
         std::vector<BufferDescriptor> bufs;
@@ -544,21 +544,21 @@ public:
         const auto& params = *instance.get_impl_params();
         const auto desc = params.typed_desc<qsa_indexer>();
 
-        const auto& q_idx_layout = params.get_input_layout(QSAIn::Q_IDX);
-        const auto& q_idx_shape = q_idx_layout.get_shape();
-        const size_t batch = q_idx_shape[0];
-        const size_t seq_len = q_idx_shape[1];
+        const auto& index_query_layout = params.get_input_layout(QSAIn::INDEX_QUERY);
+        const auto& index_query_shape = index_query_layout.get_shape();
+        const size_t batch = index_query_shape[0];
+        const size_t seq_len = index_query_shape[1];
 
         rtp->batch = batch;
         rtp->seq_len = seq_len;
         rtp->num_tokens = batch * seq_len;
-        rtp->index_query_heads = index_heads_4d(q_idx_layout);
-        rtp->index_key_heads = index_heads_4d(params.get_input_layout(QSAIn::K_IDX));
-        rtp->summary_stride = params.get_input_layout(QSAIn::SUMMARY_CACHE).get_shape()[2];
+        rtp->index_query_heads = index_heads_4d(index_query_layout);
+        rtp->index_key_heads = index_heads_4d(params.get_input_layout(QSAIn::RAW_INDEX_KEYS));
+        rtp->summary_stride = params.get_input_layout(QSAIn::BLOCK_INDEX_KEYS_CACHE).get_shape()[2];
 
         // key_length stays in GPU memory: no host readback, so every size below is a bound from
         // shapes only and the kernels derive the real work (and drop the excess) from key_length.
-        const auto r = desc->compress_ratio;
+        const auto r = desc->key_block_size;
         rtp->prepare_blocks_per_row = (seq_len - 1) / r + 2;  // blocks spanned by <= L consecutive tokens
         rtp->prepare_wg_count = batch * rtp->prepare_blocks_per_row;
         const size_t max_blocks = std::max<size_t>(1, rtp->summary_stride);
@@ -581,7 +581,7 @@ private:
             stream.wait_for_events(events);
         }
         std::vector<event::ptr> deps = events;
-        static constexpr std::array<std::pair<size_t, size_t>, 3> state = {std::pair{QSAIn::SUMMARY_CACHE, QSAOut::SUMMARY_CACHE},
+        static constexpr std::array<std::pair<size_t, size_t>, 3> state = {std::pair{QSAIn::BLOCK_INDEX_KEYS_CACHE, QSAOut::BLOCK_INDEX_KEYS_CACHE},
                                                                            std::pair{QSAIn::PAST_INCOMPLETE_RAW_K, QSAOut::PAST_INCOMPLETE_RAW_K},
                                                                            std::pair{QSAIn::PAST_INCOMPLETE_ROPE, QSAOut::PAST_INCOMPLETE_ROPE}};
         const auto& params = *instance.get_impl_params();
@@ -595,7 +595,7 @@ private:
             const bool aliased = src == dst || (src->buffer_ptr() != nullptr && src->buffer_ptr() == dst->buffer_ptr());
             // An aliased summary is safe (prepare only appends to it); the incomplete-block
             // state is read and rewritten by different work-groups of one dispatch.
-            OPENVINO_ASSERT(!aliased || in == QSAIn::SUMMARY_CACHE, "[GPU][CM] qsa_indexer: incomplete-block state input and output must not alias");
+            OPENVINO_ASSERT(!aliased || in == QSAIn::BLOCK_INDEX_KEYS_CACHE, "[GPU][CM] qsa_indexer: incomplete-block state input and output must not alias");
             if (bytes == 0 || aliased) {
                 continue;
             }
@@ -627,20 +627,20 @@ bool QSAIndexerCMImplementationManager::validate_impl(const cldnn::program_node&
         return false;
     }
 
-    if (desc->h_sel != 1 || desc->indexer_head_dim % 16 != 0) {
+    if (desc->num_selection_heads != 1 || desc->indexer_head_dim % 16 != 0) {
         return false;
     }
     // B and L may be dynamic; only the head axes are needed statically.
-    const auto& q_idx_ps = node.get_input_layout(QSAIn::Q_IDX).get_partial_shape();
-    const auto& k_idx_ps = node.get_input_layout(QSAIn::K_IDX).get_partial_shape();
-    if (q_idx_ps.rank().is_dynamic() || q_idx_ps.size() != 4 || q_idx_ps[2].is_dynamic()) {
+    const auto& index_query_ps = node.get_input_layout(QSAIn::INDEX_QUERY).get_partial_shape();
+    const auto& raw_index_keys_ps = node.get_input_layout(QSAIn::RAW_INDEX_KEYS).get_partial_shape();
+    if (index_query_ps.rank().is_dynamic() || index_query_ps.size() != 4 || index_query_ps[2].is_dynamic()) {
         return false;
     }
-    if (k_idx_ps.rank().is_dynamic() || k_idx_ps.size() != 4 || k_idx_ps[2].is_dynamic() || k_idx_ps[2].get_length() != 1) {
+    if (raw_index_keys_ps.rank().is_dynamic() || raw_index_keys_ps.size() != 4 || raw_index_keys_ps[2].is_dynamic() || raw_index_keys_ps[2].get_length() != 1) {
         return false;
     }
 
-    if (node.get_input_layout(QSAIn::Q_IDX).data_type != ov::element::f16 || node.get_input_layout(QSAIn::K_IDX).data_type != ov::element::f16) {
+    if (node.get_input_layout(QSAIn::INDEX_QUERY).data_type != ov::element::f16 || node.get_input_layout(QSAIn::RAW_INDEX_KEYS).data_type != ov::element::f16) {
         return false;
     }
     return true;

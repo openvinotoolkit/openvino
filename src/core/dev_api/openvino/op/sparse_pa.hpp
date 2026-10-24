@@ -16,8 +16,11 @@ namespace ov::op::internal {
 /// Writes the current-step K/V into the caller-owned paged main KV cache (Q0), consumes
 /// an upstream Indexer's complete-block selection, derives each query's causal tail from
 /// its logical position, and performs sparse attention over the union (Q3). v1 only
-/// implements the `sel_indices`/`sel_count` plan form; `sel_block_mask` is not part of
-/// this op's ABI in this pass (see `sparse-pa.rst` for the full, future mask-only form).
+/// implements the `selected_block_indices`/`selected_block_count` plan form; `selected_block_mask` (the future
+/// mask-only form, see `sparse-pa.rst`) is an optional trailing input that the GPU lowering rejects.
+/// `scale` is a scalar input and `sinks` an input that must be empty (sinks are not supported).
+/// `qb_start` is an optional trailing input: only query_block_size == 1 is implemented, where it equals
+/// `subsequence_begins`. The op has 13..15 inputs; an empty tensor stands for an absent optional input.
 ///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API SparsePA : public ov::op::Op {
@@ -29,29 +32,32 @@ public:
         static constexpr size_t QUERY = 0;                 ///< [tokens, num_heads*k_head_size]
         static constexpr size_t KEY = 1;                   ///< [tokens, num_kv_heads*k_head_size], current step
         static constexpr size_t VALUE = 2;                 ///< [tokens, num_kv_heads*v_head_size], current step
-        static constexpr size_t KEY_CACHE = 3;             ///< [num_blocks, num_kv_heads, block_size, k_head_size], writable
-        static constexpr size_t VALUE_CACHE = 4;           ///< [num_blocks, num_kv_heads, block_size, v_head_size], writable
-        static constexpr size_t BLOCK_INDICES = 5;         ///< [total_logical_blocks]
-        static constexpr size_t BLOCK_INDICES_BEGINS = 6;  ///< [num_sequences+1]
-        static constexpr size_t SUBSEQUENCE_BEGINS = 7;    ///< [num_sequences+1]
-        static constexpr size_t PAST_LENS = 8;             ///< [num_sequences]
-        static constexpr size_t SEL_INDICES = 9;           ///< [total_q_blocks, h_sel, K_max]
-        static constexpr size_t SEL_COUNT = 10;            ///< [total_q_blocks, h_sel]
-        static constexpr size_t QB_START = 11;             ///< [num_sequences+1]
+        static constexpr size_t KEY_CACHE = 3;             ///< [num_blocks, num_kv_heads, page_size, k_head_size], writable; page_size = shape[2]
+        static constexpr size_t VALUE_CACHE = 4;           ///< [num_blocks, num_kv_heads, page_size, v_head_size], writable
+        static constexpr size_t PAST_LENS = 5;             ///< [num_sequences]
+        static constexpr size_t SUBSEQUENCE_BEGINS = 6;    ///< [num_sequences+1]
+        static constexpr size_t BLOCK_INDICES = 7;         ///< [total_logical_blocks]
+        static constexpr size_t BLOCK_INDICES_BEGINS = 8;  ///< [num_sequences+1]
+        static constexpr size_t SELECTED_BLOCK_INDICES = 9;           ///< [total_q_blocks, num_selection_heads, K_max]
+        static constexpr size_t SELECTED_BLOCK_COUNT = 10;            ///< [total_q_blocks, num_selection_heads]
+        static constexpr size_t SCALE = 11;                ///< scalar
+        static constexpr size_t SINKS = 12;                ///< [num_heads], or an empty tensor (no sinks)
+        static constexpr size_t QB_START = 13;             ///< optional [num_sequences+1]; absent means subsequence_begins (query_block_size == 1)
 
-        static constexpr size_t COUNT = 12;
+        static constexpr size_t SELECTED_BLOCK_MASK = 14;  ///< optional bool [total_q_blocks, num_selection_heads, max_k_blocks]
+
+        static constexpr size_t COUNT_MIN = 13;  ///< without QB_START and SELECTED_BLOCK_MASK
+        static constexpr size_t COUNT_MAX = 15;
     };
 
     struct Config {
         size_t num_heads = 0;
         size_t num_kv_heads = 0;
-        size_t h_sel = 1;            ///< 1, num_kv_heads, or num_heads
+        size_t num_selection_heads = 1;  ///< 1, num_kv_heads, or num_heads
         size_t k_head_size = 0;
         size_t v_head_size = 0;
-        size_t block_size = 0;       ///< PA_BLOCK_SIZE
-        size_t sel_block_size = 0;   ///< matches producer's compress_ratio; must divide block_size
-        size_t q_block_size = 1;     ///< v1 fixed at 1
-        float scale = 0.0f;
+        size_t key_block_size = 0;       ///< matches producer's key_block_size; must divide the page size
+        size_t query_block_size = 1;     ///< v1 fixed at 1
         bool causal = true;
     };
 
@@ -68,6 +74,12 @@ public:
     ov::element::Type get_output_type() const {
         return m_output_type;
     }
+
+    /// True unless the sinks input is a statically empty tensor.
+    bool has_sinks() const;
+
+    /// True when the optional selected_block_mask input is present and not statically empty.
+    bool has_selected_block_mask() const;
 
     static bool validate_config(const Config& config, std::string& reason);
 

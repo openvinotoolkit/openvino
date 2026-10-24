@@ -40,14 +40,21 @@ size_t token_pitch(const layout& l) {
     return shape[1];
 }
 
-JitConstants make_jit(const std::shared_ptr<const sparse_pa>& desc) {
+/// Tokens per physical page: dim 2 of key_cache (there is no block_size attribute).
+size_t page_size_of(const kernel_impl_params& params) {
+    const auto& ps = params.get_input_layout(SparsePAIn::KEY_CACHE).get_partial_shape();
+    OPENVINO_ASSERT(ps.size() == 4 && ps[2].is_static(), "[GPU][CM] sparse_pa: key_cache must have a static page_size dim");
+    return static_cast<size_t>(ps[2].get_length());
+}
+
+JitConstants make_jit(const std::shared_ptr<const sparse_pa>& desc, const RuntimeParams& params) {
     JitConstants jit;
     jit.make("QSA_HEADS", desc->num_heads);
     jit.make("QSA_KV_HEADS", desc->num_kv_heads);
     jit.make("QSA_K_HEAD_SIZE", desc->k_head_size);
     jit.make("QSA_V_HEAD_SIZE", desc->v_head_size);
-    jit.make("QSA_PAGE_SIZE", desc->block_size);
-    jit.make("QSA_COMPRESS_RATIO", desc->sel_block_size);
+    jit.make("QSA_PAGE_SIZE", page_size_of(params));
+    jit.make("QSA_COMPRESS_RATIO", desc->key_block_size);
     jit.add(make_jit_constant("QSA_SCALE", desc->scale));
     return jit;
 }
@@ -56,10 +63,10 @@ JitConstants make_jit(const std::shared_ptr<const sparse_pa>& desc) {
 // blocks), so it is added here only, not in the shared make_jit() above -- avoids
 // defining it twice with different values for the same compiled program.
 JitConstants make_jit_with_topk(const std::shared_ptr<const sparse_pa>& desc, const RuntimeParams& params) {
-    auto jit = make_jit(desc);
-    const auto& sel_ps = params.get_input_layout(SparsePAIn::SEL_INDICES).get_partial_shape();
+    auto jit = make_jit(desc, params);
+    const auto& sel_ps = params.get_input_layout(SparsePAIn::SELECTED_BLOCK_INDICES).get_partial_shape();
     OPENVINO_ASSERT(sel_ps.rank().is_static() && sel_ps.size() >= 2 && sel_ps[sel_ps.size() - 1].is_static(),
-                    "[GPU][CM] sparse_pa expects a rank>=2 sel_indices input with a static K_max");
+                    "[GPU][CM] sparse_pa expects a rank>=2 selected_block_indices input with a static K_max");
     jit.make("QSA_BLOCK_TOPK", sel_ps[sel_ps.size() - 1].get_length());
     return jit;
 }
@@ -161,7 +168,7 @@ size_t dpas_attention_workers(const sparse_pa& desc) {
 /// qsa.cpp's can_use_dpas_attention(): a compile-time property of the descriptor plus the
 /// GRF width. Falls back to the scalar sparse_attention_paged kernel when it does not
 /// hold.
-bool can_use_dpas_attention(const sparse_pa& desc, const cldnn::device_info& info) {
+bool can_use_dpas_attention(const sparse_pa& desc, size_t page_size, const cldnn::device_info& info) {
     if (info.arch < gpu_arch::xe2) {
         return false;
     }
@@ -171,10 +178,10 @@ bool can_use_dpas_attention(const sparse_pa& desc, const cldnn::device_info& inf
     if (desc.k_head_size * sizeof(ov::float16) < 64 || desc.v_head_size * sizeof(ov::float16) < 64) {
         return false;
     }
-    if (desc.sel_block_size % 2 != 0 || dpas_k_step % desc.sel_block_size != 0) {
+    if (desc.key_block_size % 2 != 0 || dpas_k_step % desc.key_block_size != 0) {
         return false;  // four QSA blocks must pack exactly one 16-token dpas K step
     }
-    if (desc.block_size % desc.sel_block_size != 0) {
+    if (page_size % desc.key_block_size != 0) {
         return false;  // a compressed block must not cross a KV page
     }
     return dpas_attention_workers(desc) != 0;
@@ -184,7 +191,7 @@ bool can_use_dpas_attention(const sparse_pa& desc, const cldnn::device_info& inf
 /// Mirrors qsa.cpp's can_use_gqa_dpas_attention(): preferred over the plain dpas kernel
 /// whenever it holds (no cross-token union, one KV read serves the whole n_rep group in
 /// one WG) - this is what matters for GQA ratios like Qwen4's Hq/Hkv = 12.
-bool can_use_gqa_dpas_attention(const sparse_pa& desc, const cldnn::device_info& info) {
+bool can_use_gqa_dpas_attention(const sparse_pa& desc, size_t page_size, const cldnn::device_info& info) {
     if (info.arch < gpu_arch::xe2) {
         return false;
     }
@@ -202,18 +209,18 @@ bool can_use_gqa_dpas_attention(const sparse_pa& desc, const cldnn::device_info&
     if (std::max(desc.k_head_size, desc.v_head_size) > 256) {
         return false;  // above the verified accumulator range
     }
-    if (desc.sel_block_size != 2 && desc.sel_block_size != 4 && desc.sel_block_size != 8 && desc.sel_block_size != 16) {
+    if (desc.key_block_size != 2 && desc.key_block_size != 4 && desc.key_block_size != 8 && desc.key_block_size != 16) {
         return false;
     }
-    if (desc.block_size == 0 || desc.block_size % desc.sel_block_size != 0) {
+    if (page_size == 0 || page_size % desc.key_block_size != 0) {
         return false;
     }
     return desc.causal;
 }
 
 /// Partitions behind SPLIT_ACC/SPLIT_ML and split_reduce for this config's decode producer.
-size_t decode_split_partitions(const sparse_pa& desc, const cldnn::device_info& info) {
-    return can_use_gqa_dpas_attention(desc, info) ? gqa_split_partitions : split_partitions;
+size_t decode_split_partitions(const sparse_pa& desc, size_t page_size, const cldnn::device_info& info) {
+    return can_use_gqa_dpas_attention(desc, page_size, info) ? gqa_split_partitions : split_partitions;
 }
 
 // ===========================================================================
@@ -230,7 +237,7 @@ protected:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        jit.add(make_jit(params.typed_desc<sparse_pa>()));
+        jit.add(make_jit(params.typed_desc<sparse_pa>(), params));
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
         return jit;
     }
@@ -302,8 +309,8 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SUBSEQUENCE_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::BLOCK_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::BLOCK_INDICES_BEGINS});
-        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SEL_INDICES});
-        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SEL_COUNT});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SELECTED_BLOCK_INDICES});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SELECTED_BLOCK_COUNT});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         for (uint32_t i = 0; i < 4; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
@@ -364,8 +371,8 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SUBSEQUENCE_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::BLOCK_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::BLOCK_INDICES_BEGINS});
-        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SEL_INDICES});
-        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SEL_COUNT});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SELECTED_BLOCK_INDICES});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SELECTED_BLOCK_COUNT});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         for (uint32_t i = 0; i < 4; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
@@ -438,8 +445,8 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SUBSEQUENCE_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::BLOCK_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::BLOCK_INDICES_BEGINS});
-        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SEL_INDICES});
-        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SEL_COUNT});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SELECTED_BLOCK_INDICES});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SELECTED_BLOCK_COUNT});
         if (m_split) {
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparsePAInternalBufIdx::SPLIT_ACC});
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparsePAInternalBufIdx::SPLIT_ML});
@@ -508,8 +515,8 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SUBSEQUENCE_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::BLOCK_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::BLOCK_INDICES_BEGINS});
-        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SEL_INDICES});
-        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SEL_COUNT});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SELECTED_BLOCK_INDICES});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SELECTED_BLOCK_COUNT});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparsePAInternalBufIdx::SPLIT_ACC});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparsePAInternalBufIdx::SPLIT_ML});
         for (uint32_t i = 0; i < 4; i++) {
@@ -554,8 +561,8 @@ protected:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        jit.add(make_jit(params.typed_desc<sparse_pa>()));
-        jit.make("QSA_SPLIT_PARTITIONS", decode_split_partitions(*params.typed_desc<sparse_pa>(), params.get_device_info()));
+        jit.add(make_jit(params.typed_desc<sparse_pa>(), params));
+        jit.make("QSA_SPLIT_PARTITIONS", decode_split_partitions(*params.typed_desc<sparse_pa>(), page_size_of(params), params.get_device_info()));
         jit.make("QSA_REDUCE_COLS", split_reduce_cols(params.typed_desc<sparse_pa>()->v_head_size));
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
         return jit;
@@ -642,10 +649,10 @@ public:
     // Recomputed rather than cached: make_deep_copy() rebuilds the impl with the default
     // constructor and copies only _order and the per-stage kernel data.
     static bool use_dpas_attention(const kernel_impl_params& params) {
-        return can_use_dpas_attention(*params.typed_desc<sparse_pa>(), params.get_device_info());
+        return can_use_dpas_attention(*params.typed_desc<sparse_pa>(), page_size_of(params), params.get_device_info());
     }
     static bool use_gqa_dpas_attention(const kernel_impl_params& params) {
-        return can_use_gqa_dpas_attention(*params.typed_desc<sparse_pa>(), params.get_device_info());
+        return can_use_gqa_dpas_attention(*params.typed_desc<sparse_pa>(), page_size_of(params), params.get_device_info());
     }
 
     // Split-selected-KV is only a decode fallback for configs without GQA-DPAS: on BMG
@@ -666,7 +673,7 @@ public:
         // equals the (small) sequence count, so this is cheap even at the full partition
         // width regardless of whether split actually fires for this particular call.
         const auto split_rows = is_decode_shape(params) ? tokens : size_t{1};
-        const auto partitions = decode_split_partitions(*desc, params.get_device_info());
+        const auto partitions = decode_split_partitions(*desc, page_size_of(params), params.get_device_info());
         bufs.emplace_back(split_rows * desc->num_heads * partitions * desc->v_head_size, ov::element::f32);  // SPLIT_ACC
         bufs.emplace_back(split_rows * desc->num_heads * partitions * 2, ov::element::f32);                  // SPLIT_ML
         return bufs;
@@ -742,7 +749,12 @@ bool SparsePACMImplementationManager::validate_impl(const cldnn::program_node& n
     }
 
     // v1 capability gate: only a single selection head is supported.
-    if (desc->h_sel != 1) {
+    if (desc->num_selection_heads != 1) {
+        return false;
+    }
+
+    const auto& key_cache_ps = node.get_input_layout(SparsePAIn::KEY_CACHE).get_partial_shape();
+    if (key_cache_ps.size() != 4 || !key_cache_ps[2].is_static() || key_cache_ps[2].get_length() % static_cast<int64_t>(desc->key_block_size) != 0) {
         return false;
     }
 
@@ -752,8 +764,8 @@ bool SparsePACMImplementationManager::validate_impl(const cldnn::program_node& n
             return false;
         }
     }
-    if (node.get_input_layout(SparsePAIn::SEL_INDICES).data_type != ov::element::i32 ||
-        node.get_input_layout(SparsePAIn::SEL_COUNT).data_type != ov::element::i32) {
+    if (node.get_input_layout(SparsePAIn::SELECTED_BLOCK_INDICES).data_type != ov::element::i32 ||
+        node.get_input_layout(SparsePAIn::SELECTED_BLOCK_COUNT).data_type != ov::element::i32) {
         return false;
     }
 

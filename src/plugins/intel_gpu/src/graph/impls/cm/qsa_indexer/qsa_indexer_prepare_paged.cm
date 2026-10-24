@@ -62,7 +62,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* q_idx ATTR,                 
     constexpr uint SUMMARIES_PER_PAGE = PAGE / R;
 
     static_assert(DI % 16 == 0, "indexer head dim must be a multiple of 16");
-    static_assert(PAGE % R == 0, "page_size must be divisible by compress_ratio");
+    static_assert(PAGE % R == 0, "page_size must be divisible by key_block_size");
     static_assert(HIQ + 1 <= WG, "one thread per index-query head plus one for the index key");
 
     const uint wg = cm_group_id(2);
@@ -121,7 +121,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* q_idx ATTR,                 
             if (p == block_start) {
                 // One row per block, not per token: this is the only row ever read back for
                 // this block. `page` also holds the block's summary slot, since
-                // page_size % compress_ratio == 0 keeps a block on one physical page.
+                // page_size % key_block_size == 0 keeps a block on one physical page.
                 vector<half, 2 * ROT> row;
                 row.select<ROT, 2>(0) = qsa::load_half_row<ROT>(rope_cos, token_idx * ROT);
                 row.select<ROT, 2>(1) = qsa::load_half_row<ROT>(rope_sin, token_idx * ROT);

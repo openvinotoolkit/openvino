@@ -32,16 +32,16 @@ SparseSDPARuntimeParams* rt_of(ImplRuntimeParams* rt) {
 }
 
 JitConstants make_jit(const std::shared_ptr<const sparse_sdpa>& desc, const RuntimeParams& params) {
-    const auto& sel_ps = params.get_input_layout(SparseSDPAIn::SEL_INDICES).get_partial_shape();
+    const auto& sel_ps = params.get_input_layout(SparseSDPAIn::SELECTED_BLOCK_INDICES).get_partial_shape();
     OPENVINO_ASSERT(sel_ps.rank().is_static() && sel_ps.size() >= 2 && sel_ps[sel_ps.size() - 1].is_static(),
-                    "[GPU][CM] sparse_sdpa expects a rank>=2 sel_indices input with a static K_max");
+                    "[GPU][CM] sparse_sdpa expects a rank>=2 selected_block_indices input with a static K_max");
 
     JitConstants jit;
     jit.make("QSA_HEADS", desc->num_heads);
     jit.make("QSA_KV_HEADS", desc->num_kv_heads);
     jit.make("QSA_K_HEAD_SIZE", desc->k_head_size);
     jit.make("QSA_V_HEAD_SIZE", desc->v_head_size);
-    jit.make("QSA_COMPRESS_RATIO", desc->sel_block_size);
+    jit.make("QSA_COMPRESS_RATIO", desc->key_block_size);
     jit.make("QSA_BLOCK_TOPK", sel_ps[sel_ps.size() - 1].get_length());
     jit.add(make_jit_constant("QSA_SCALE", desc->scale));
     return jit;
@@ -157,7 +157,7 @@ bool can_use_dpas_attention(const sparse_sdpa& desc, const cldnn::device_info& i
     if (desc.k_head_size * sizeof(ov::float16) < 64 || desc.v_head_size * sizeof(ov::float16) < 64) {
         return false;
     }
-    if (desc.sel_block_size % 2 != 0 || dpas_k_step % desc.sel_block_size != 0) {
+    if (desc.key_block_size % 2 != 0 || dpas_k_step % desc.key_block_size != 0) {
         return false;  // four QSA blocks must pack exactly one 16-token dpas K step
     }
     return dpas_attention_workers(desc) != 0;
@@ -184,7 +184,7 @@ bool can_use_gqa_dpas_attention(const sparse_sdpa& desc, const cldnn::device_inf
     if (std::max(desc.k_head_size, desc.v_head_size) > 256) {
         return false;
     }
-    if (desc.sel_block_size != 2 && desc.sel_block_size != 4 && desc.sel_block_size != 8 && desc.sel_block_size != 16) {
+    if (desc.key_block_size != 2 && desc.key_block_size != 4 && desc.key_block_size != 8 && desc.key_block_size != 16) {
         return false;
     }
     return desc.causal;
@@ -219,8 +219,8 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::QUERY});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::KEY});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::VALUE});
-        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_INDICES});
-        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_COUNT});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SELECTED_BLOCK_INDICES});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SELECTED_BLOCK_COUNT});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         for (uint32_t i = 0; i < 5; i++) {
@@ -278,8 +278,8 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::QUERY});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::KEY});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::VALUE});
-        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_INDICES});
-        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_COUNT});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SELECTED_BLOCK_INDICES});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SELECTED_BLOCK_COUNT});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         for (uint32_t i = 0; i < 5; i++) {
@@ -346,8 +346,8 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::QUERY});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::KEY});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::VALUE});
-        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_INDICES});
-        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_COUNT});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SELECTED_BLOCK_INDICES});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SELECTED_BLOCK_COUNT});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::KEY_LENGTH});
         if (m_split) {
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparseSDPAInternalBufIdx::SPLIT_ACC});
@@ -412,8 +412,8 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::QUERY});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::KEY});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::VALUE});
-        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_INDICES});
-        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_COUNT});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SELECTED_BLOCK_INDICES});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SELECTED_BLOCK_COUNT});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparseSDPAInternalBufIdx::SPLIT_ACC});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparseSDPAInternalBufIdx::SPLIT_ML});
@@ -655,7 +655,7 @@ bool SparseSDPACMImplementationManager::validate_impl(const cldnn::program_node&
     }
 
     // Every dense kernel adds the causal tail and applies the causal bound.
-    if (desc->h_sel != 1 || !desc->causal) {
+    if (desc->num_selection_heads != 1 || !desc->causal) {
         return false;
     }
 
@@ -665,7 +665,7 @@ bool SparseSDPACMImplementationManager::validate_impl(const cldnn::program_node&
             return false;
         }
     }
-    static constexpr std::array i32_inputs = {SparseSDPAIn::SEL_INDICES, SparseSDPAIn::SEL_COUNT, SparseSDPAIn::KEY_LENGTH};
+    static constexpr std::array i32_inputs = {SparseSDPAIn::SELECTED_BLOCK_INDICES, SparseSDPAIn::SELECTED_BLOCK_COUNT, SparseSDPAIn::KEY_LENGTH};
     for (auto idx : i32_inputs) {
         if (node.get_input_layout(idx).data_type != ov::element::i32) {
             return false;

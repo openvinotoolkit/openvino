@@ -38,7 +38,7 @@ struct QSAIndexerRuntimeParams : public ImplRuntimeParams {
     size_t chunk_row_end = 0;
     size_t index_query_heads = 0;
     size_t index_key_heads = 0;
-    size_t summary_stride = 0;  ///< summary_cache entries per batch element, floor(S_cap / r)
+    size_t summary_stride = 0;  ///< block_index_keys_cache entries per batch element, floor(S_cap / r)
 };
 
 /// @brief CM implementation of the QSAIndexer (non-paged) primitive: Q1 prepare + Q2

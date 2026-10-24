@@ -203,7 +203,7 @@ std::shared_ptr<ov::Node> find_ancestor_if(const ov::Output<ov::Node>& start,
     return nullptr;
 }
 
-/// The QSA indexer score pattern: scores = ReduceSum(ReLU(MatMul(q_idx, k_block,
+/// The QSA indexer score pattern: scores = ReduceSum(ReLU(MatMul(index_query, k_block,
 /// transpose_b)), axis=head) * 1/sqrt(Di); topk = TopK(scores, block_topk). Tolerates
 /// the reshape-before-ReLU / divide-instead-of-multiply / mask-before-TopK variants real
 /// checkpoint exports use.
@@ -707,7 +707,7 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
             continue;
         }
 
-        // compress_ratio `r`: the indexer's own from-scratch block-mean pooling.
+        // key_block_size `r`: the indexer's own from-scratch block-mean pooling.
         auto pool = find_descendant<ov::op::v1::ReduceMean>(raw_k_read_value->output(0), 60);
         if (!pool) {
             continue;
@@ -731,12 +731,12 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         }
 
         ov::op::internal::QSAIndexer::Config indexer_config{};
-        indexer_config.compress_ratio = r;
+        indexer_config.key_block_size = r;
         indexer_config.block_topk = static_cast<size_t>(sig.block_topk);
-        indexer_config.h_sel = 1;
+        indexer_config.num_selection_heads = 1;
         indexer_config.indexer_rotary_dim = facts.rope.rotary_dim;
         indexer_config.indexer_head_dim = Di;
-        indexer_config.eps = facts.eps;
+        indexer_config.epsilon = facts.eps;
         indexer_config.scale = 1.0f / std::sqrt(static_cast<float>(Di));
         std::string reason;
         // Di % 16: the GPU CM indexer kernels' own constraint (not part of the op contract).
@@ -746,11 +746,11 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         ov::op::internal::SparseSDPA::Config attn_config{};
         attn_config.num_heads = Hq;
         attn_config.num_kv_heads = Hkv;
-        attn_config.h_sel = 1;
+        attn_config.num_selection_heads = 1;
         attn_config.k_head_size = Dh;
         attn_config.v_head_size = Dv;
-        attn_config.sel_block_size = r;
-        attn_config.q_block_size = 1;
+        attn_config.key_block_size = r;
+        attn_config.query_block_size = 1;
         attn_config.causal = true;
         if (!ov::op::internal::SparseSDPA::validate_config(attn_config, reason)) {
             continue;
@@ -766,10 +766,10 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
 
         ov::Output<ov::Node> q_raw, k_raw;
         split_qk_projection(proj_out, facts.Hidx, Di, new_ops, q_raw, k_raw);
-        auto q_idx_in = std::make_shared<ov::op::v1::Reshape>(q_raw, i64c({0, 0, static_cast<int64_t>(facts.Hidx), static_cast<int64_t>(Di)}), true);
-        new_ops.push_back(q_idx_in);
-        auto k_idx_in = std::make_shared<ov::op::v1::Reshape>(k_raw, i64c({0, 0, 1, static_cast<int64_t>(Di)}), true);
-        new_ops.push_back(k_idx_in);
+        auto index_query_in = std::make_shared<ov::op::v1::Reshape>(q_raw, i64c({0, 0, static_cast<int64_t>(facts.Hidx), static_cast<int64_t>(Di)}), true);
+        new_ops.push_back(index_query_in);
+        auto raw_index_keys_in = std::make_shared<ov::op::v1::Reshape>(k_raw, i64c({0, 0, 1, static_cast<int64_t>(Di)}), true);
+        new_ops.push_back(raw_index_keys_in);
 
         auto proj_shape = std::make_shared<ov::op::v3::ShapeOf>(proj_out, ov::element::i64);
         new_ops.push_back(proj_shape);
@@ -796,7 +796,7 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         const auto [rope_cos, rope_sin] = gather_rope_rows(facts.rope, positions_bl, new_ops);
 
         // Indexer state through ReadValue/Assign (functional state interface). Each Variable
-        // starts as zeros of its batch-dependent shape; summary_cache grows on the sequence
+        // starts as zeros of its batch-dependent shape; block_index_keys_cache grows on the sequence
         // axis to floor(key_length / r) entries before the call.
         const auto& state_prefix = raw_k_read_value->get_variable_id();
         const auto di = static_cast<int64_t>(Di);
@@ -818,7 +818,7 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
             state_vars.push_back(var);
             return read;
         };
-        auto summary_read = read_state(ov::PartialShape{-1, 1, -1, di}, zeros({batch_dim, i64c({1}), i64c({0}), i64c({di})}), "_qsa_summary_cache");
+        auto summary_read = read_state(ov::PartialShape{-1, 1, -1, di}, zeros({batch_dim, i64c({1}), i64c({0}), i64c({di})}), "_qsa_block_index_keys_cache");
         auto raw_read = read_state(ov::PartialShape{-1, 1, static_cast<int64_t>(r) - 1, di},
                                    zeros({batch_dim, i64c({1}), i64c({static_cast<int64_t>(r) - 1}), i64c({di})}),
                                    "_qsa_past_incomplete_raw_k");
@@ -836,19 +836,19 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         using IndexerIn = ov::op::internal::QSAIndexer::InputIdx;
         using IndexerOut = ov::op::internal::QSAIndexer::OutputIdx;
         ov::OutputVector indexer_args(IndexerIn::COUNT);
-        indexer_args[IndexerIn::Q_IDX] = q_idx_in;
-        indexer_args[IndexerIn::K_IDX] = k_idx_in;
+        indexer_args[IndexerIn::INDEX_QUERY] = index_query_in;
+        indexer_args[IndexerIn::RAW_INDEX_KEYS] = raw_index_keys_in;
         indexer_args[IndexerIn::ROPE_COS] = rope_cos;
         indexer_args[IndexerIn::ROPE_SIN] = rope_sin;
         indexer_args[IndexerIn::KEY_LENGTH] = key_length;
         indexer_args[IndexerIn::Q_NORM_WEIGHT] = facts.q_norm_const;
         indexer_args[IndexerIn::K_NORM_WEIGHT] = facts.k_norm_const;
-        indexer_args[IndexerIn::SUMMARY_CACHE] = summary_grown;
+        indexer_args[IndexerIn::BLOCK_INDEX_KEYS_CACHE] = summary_grown;
         indexer_args[IndexerIn::PAST_INCOMPLETE_RAW_K] = raw_read;
         indexer_args[IndexerIn::PAST_INCOMPLETE_ROPE] = rope_read;
         auto qsa_indexer = std::make_shared<ov::op::internal::QSAIndexer>(indexer_args, indexer_config);
         new_ops.push_back(qsa_indexer);
-        for (const auto& [out, var] : {std::pair{IndexerOut::SUMMARY_CACHE, state_vars[0]},
+        for (const auto& [out, var] : {std::pair{IndexerOut::BLOCK_INDEX_KEYS_CACHE, state_vars[0]},
                                        std::pair{IndexerOut::PAST_INCOMPLETE_RAW_K, state_vars[1]},
                                        std::pair{IndexerOut::PAST_INCOMPLETE_ROPE, state_vars[2]}}) {
             auto assign = std::make_shared<ov::op::v6::Assign>(qsa_indexer->output(out), var);
@@ -860,8 +860,8 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         attn_args[ov::op::internal::SparseSDPA::InputIdx::QUERY] = query_in;
         attn_args[ov::op::internal::SparseSDPA::InputIdx::KEY] = key_in;
         attn_args[ov::op::internal::SparseSDPA::InputIdx::VALUE] = value_in;
-        attn_args[ov::op::internal::SparseSDPA::InputIdx::SEL_INDICES] = qsa_indexer->output(IndexerOut::SEL_INDICES);
-        attn_args[ov::op::internal::SparseSDPA::InputIdx::SEL_COUNT] = qsa_indexer->output(IndexerOut::SEL_COUNT);
+        attn_args[ov::op::internal::SparseSDPA::InputIdx::SELECTED_BLOCK_INDICES] = qsa_indexer->output(IndexerOut::SELECTED_BLOCK_INDICES);
+        attn_args[ov::op::internal::SparseSDPA::InputIdx::SELECTED_BLOCK_COUNT] = qsa_indexer->output(IndexerOut::SELECTED_BLOCK_COUNT);
         attn_args[ov::op::internal::SparseSDPA::InputIdx::KEY_LENGTH] = key_length;
         auto sparse_sdpa = std::make_shared<ov::op::internal::SparseSDPA>(attn_args, attn_config, sdpa->get_output_element_type(0));
         new_ops.push_back(sparse_sdpa);
@@ -998,7 +998,7 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         }
         const size_t Hq = Hq_Dh / Dh;
 
-        // compress_ratio `r`: the indexer's own from-scratch block-mean pooling (same
+        // key_block_size `r`: the indexer's own from-scratch block-mean pooling (same
         // proof as the dense case, just walked backward from idx_k since there is no
         // ReadValue anchor to search forward from in a paged/continuous-batching graph).
         auto pool = find_ancestor<ov::op::v1::ReduceMean>(idx_k, 60);
@@ -1024,13 +1024,12 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         }
 
         ov::op::internal::PagedQSAIndexer::Config indexer_config{};
-        indexer_config.compress_ratio = r;
+        indexer_config.key_block_size = r;
         indexer_config.block_topk = static_cast<size_t>(sig.block_topk);
-        indexer_config.h_sel = 1;
+        indexer_config.num_selection_heads = 1;
         indexer_config.indexer_rotary_dim = facts.rope.rotary_dim;
         indexer_config.indexer_head_dim = Di;
-        indexer_config.page_size = page_size;
-        indexer_config.eps = facts.eps;
+        indexer_config.epsilon = facts.eps;
         indexer_config.scale = 1.0f / std::sqrt(static_cast<float>(Di));
         std::string reason;
         // Di % 16: the GPU CM indexer kernels' own constraint (not part of the op contract).
@@ -1040,14 +1039,14 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         ov::op::internal::SparsePA::Config attn_config{};
         attn_config.num_heads = Hq;
         attn_config.num_kv_heads = Hkv;
-        attn_config.h_sel = 1;
+        attn_config.num_selection_heads = 1;
         attn_config.k_head_size = Dh;
         attn_config.v_head_size = Dv;
-        attn_config.block_size = page_size;
-        attn_config.sel_block_size = r;
-        attn_config.q_block_size = 1;
+        attn_config.key_block_size = r;
+        attn_config.query_block_size = 1;
         attn_config.causal = true;
-        if (!get_scalar_f32(scale_in, attn_config.scale)) {
+        float attn_scale = 0.0f;
+        if (!get_scalar_f32(scale_in, attn_scale)) {
             continue;
         }
         if (!ov::op::internal::SparsePA::validate_config(attn_config, reason)) {
@@ -1068,8 +1067,8 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
             new_ops.push_back(reshaped);
             return reshaped->output(0);
         };
-        auto q_idx_flat = flatten_tokens(q_raw, facts.Hidx);
-        auto k_idx_flat = flatten_tokens(k_raw, 1);
+        auto index_query_flat = flatten_tokens(q_raw, facts.Hidx);
+        auto raw_index_keys_flat = flatten_tokens(k_raw, 1);
 
         // ROPE_COS/ROPE_SIN [tokens, rd]: the rows the source graph gathers for each
         // token, so non-sequential (mRoPE) positions are preserved.
@@ -1083,31 +1082,31 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         const auto& cache_prefix = paged_attn->get_friendly_name();
         auto raw_k_cache = make_in_place_cache(ov::element::f16,
                                                ov::PartialShape{num_blocks, 1, static_cast<int64_t>(page_size), di},
-                                               cache_prefix + "_indexer_raw_k_cache");
-        auto summary_cache =
-            make_in_place_cache(ov::element::f16, ov::PartialShape{num_blocks, 1, summaries_per_page, di}, cache_prefix + "_indexer_summary_cache");
+                                               cache_prefix + "_index_key_cache");
+        auto block_index_keys_cache =
+            make_in_place_cache(ov::element::f16, ov::PartialShape{num_blocks, 1, summaries_per_page, di}, cache_prefix + "_indexer_block_index_keys_cache");
         auto rope_cache =
-            make_in_place_cache(ov::element::f16, ov::PartialShape{num_blocks, summaries_per_page, 2 * rd}, cache_prefix + "_indexer_rope_cache");
-        model->add_parameters({raw_k_cache, summary_cache, rope_cache});
+            make_in_place_cache(ov::element::f16, ov::PartialShape{num_blocks, summaries_per_page, 2 * rd}, cache_prefix + "_index_block_rope_cache");
+        model->add_parameters({raw_k_cache, block_index_keys_cache, rope_cache});
 
         ov::OutputVector indexer_args(ov::op::internal::PagedQSAIndexer::InputIdx::COUNT);
-        indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::Q_IDX] = q_idx_flat;
-        indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::K_IDX] = k_idx_flat;
+        indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::INDEX_QUERY] = index_query_flat;
+        indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::RAW_INDEX_KEYS] = raw_index_keys_flat;
         indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::ROPE_COS] = rope_cos;
         indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::ROPE_SIN] = rope_sin;
-        indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::SUMMARY_CACHE] = summary_cache;
-        indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::INDEXER_RAW_K_CACHE] = raw_k_cache;
+        indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::BLOCK_INDEX_KEYS_CACHE] = block_index_keys_cache;
+        indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::INDEX_KEY_CACHE] = raw_k_cache;
         indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::Q_NORM_WEIGHT] = facts.q_norm_const;
         indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::K_NORM_WEIGHT] = facts.k_norm_const;
         indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::BLOCK_INDICES] = block_indices_in;
         indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::BLOCK_INDICES_BEGINS] = block_indices_begins_in;
         indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::SUBSEQUENCE_BEGINS] = subsequence_begins_in;
         indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::PAST_LENS] = past_lens_in;
-        indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::INDEXER_ROPE_CACHE] = rope_cache;
+        indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::INDEX_BLOCK_ROPE_CACHE] = rope_cache;
         auto paged_indexer = std::make_shared<ov::op::internal::PagedQSAIndexer>(indexer_args, indexer_config);
         new_ops.push_back(paged_indexer);
 
-        ov::OutputVector attn_args(ov::op::internal::SparsePA::InputIdx::COUNT);
+        ov::OutputVector attn_args(ov::op::internal::SparsePA::InputIdx::COUNT_MIN);
         attn_args[ov::op::internal::SparsePA::InputIdx::QUERY] = query_in;
         attn_args[ov::op::internal::SparsePA::InputIdx::KEY] = key_in;
         attn_args[ov::op::internal::SparsePA::InputIdx::VALUE] = value_in;
@@ -1117,9 +1116,15 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         attn_args[ov::op::internal::SparsePA::InputIdx::BLOCK_INDICES_BEGINS] = block_indices_begins_in;
         attn_args[ov::op::internal::SparsePA::InputIdx::SUBSEQUENCE_BEGINS] = subsequence_begins_in;
         attn_args[ov::op::internal::SparsePA::InputIdx::PAST_LENS] = past_lens_in;
-        attn_args[ov::op::internal::SparsePA::InputIdx::SEL_INDICES] = paged_indexer->output(0);
-        attn_args[ov::op::internal::SparsePA::InputIdx::SEL_COUNT] = paged_indexer->output(1);
-        attn_args[ov::op::internal::SparsePA::InputIdx::QB_START] = subsequence_begins_in;
+        attn_args[ov::op::internal::SparsePA::InputIdx::SELECTED_BLOCK_INDICES] = paged_indexer->output(0);
+        attn_args[ov::op::internal::SparsePA::InputIdx::SELECTED_BLOCK_COUNT] = paged_indexer->output(1);
+        const auto scale_et = scale_in.get_element_type().is_real() ? scale_in.get_element_type() : ov::element::f32;
+        auto scale_const = ov::op::v0::Constant::create(scale_et, ov::Shape{}, std::vector<float>{attn_scale});
+        auto sinks_const = ov::op::v0::Constant::create(query_in.get_element_type(), ov::Shape{0}, std::vector<float>{});  // empty = no sinks
+        new_ops.push_back(scale_const);
+        new_ops.push_back(sinks_const);
+        attn_args[ov::op::internal::SparsePA::InputIdx::SCALE] = scale_const;
+        attn_args[ov::op::internal::SparsePA::InputIdx::SINKS] = sinks_const;
         auto sparse_pa = std::make_shared<ov::op::internal::SparsePA>(attn_args, attn_config, paged_attn->get_out_type(0));
         new_ops.push_back(sparse_pa);
 

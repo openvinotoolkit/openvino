@@ -31,8 +31,8 @@ public:
         static constexpr size_t QUERY = 0;        ///< [B, Hq, L, Dh]
         static constexpr size_t KEY = 1;          ///< [B, Hkv, S, Dh], dense history
         static constexpr size_t VALUE = 2;        ///< [B, Hkv, S, Dv], dense history
-        static constexpr size_t SEL_INDICES = 3;  ///< [B, h_sel, ceil(L/q_block_size), K_max]
-        static constexpr size_t SEL_COUNT = 4;    ///< [B, h_sel, ceil(L/q_block_size)]
+        static constexpr size_t SELECTED_BLOCK_INDICES = 3;  ///< [B, num_selection_heads, ceil(L/query_block_size), K_max]
+        static constexpr size_t SELECTED_BLOCK_COUNT = 4;    ///< [B, num_selection_heads, ceil(L/query_block_size)]
         static constexpr size_t KEY_LENGTH = 5;   ///< [B] i32, valid keys per batch row
         static constexpr size_t SCALE = 6;        ///< optional scalar or 1-element tensor
         static constexpr size_t SINKS = 7;        ///< optional [num_heads], requires SCALE
@@ -44,11 +44,11 @@ public:
     struct Config {
         size_t num_heads = 0;
         size_t num_kv_heads = 0;
-        size_t h_sel = 1;           ///< 1, num_kv_heads, or num_heads
+        size_t num_selection_heads = 1;           ///< 1, num_kv_heads, or num_heads
         size_t k_head_size = 0;
         size_t v_head_size = 0;
-        size_t sel_block_size = 0;  ///< matches producer's compress_ratio
-        size_t q_block_size = 1;    ///< v1 fixed at 1
+        size_t key_block_size = 0;  ///< matches producer's key_block_size
+        size_t query_block_size = 1;    ///< v1 fixed at 1
         bool causal = true;
     };
 

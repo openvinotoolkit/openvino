@@ -36,7 +36,7 @@ struct SparsePARuntimeParams : public ImplRuntimeParams {
 /// @brief CM implementation of the SparsePA primitive: Q0 (K/V cache write) + Q3
 /// (selected-block attention, automatically-derived causal tail). No internal scratch
 /// buffers: Q0 writes directly into the caller-owned KEY_CACHE/VALUE_CACHE inputs, and
-/// Q3 reads the paired Indexer's SEL_INDICES/SEL_COUNT inputs directly and writes
+/// Q3 reads the paired Indexer's SELECTED_BLOCK_INDICES/SELECTED_BLOCK_COUNT inputs directly and writes
 /// straight into the op's own output.
 struct SparsePACMImplementationManager : public cldnn::ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("cm::sparse_pa")

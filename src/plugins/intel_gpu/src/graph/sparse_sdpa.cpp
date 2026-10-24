@@ -43,10 +43,10 @@ std::string sparse_sdpa_inst::to_string(const sparse_sdpa_node& node) {
     json_composite info;
     info.add("num_heads", desc->num_heads);
     info.add("num_kv_heads", desc->num_kv_heads);
-    info.add("h_sel", desc->h_sel);
+    info.add("num_selection_heads", desc->num_selection_heads);
     info.add("k_head_size", desc->k_head_size);
     info.add("v_head_size", desc->v_head_size);
-    info.add("sel_block_size", desc->sel_block_size);
+    info.add("key_block_size", desc->key_block_size);
     info.add("causal", desc->causal);
     info.add("scale", desc->scale);
     node_info->add("sparse_sdpa_info", info);

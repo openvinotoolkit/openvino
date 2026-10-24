@@ -414,16 +414,16 @@ TEST(sparse_attention_fusion, dense_dynamic_causal_replaces_with_proven_inputs) 
     using In = ov::op::internal::QSAIndexer::InputIdx;
     using Out = ov::op::internal::QSAIndexer::OutputIdx;
     const auto& cfg = indexer->get_config();
-    EXPECT_EQ(cfg.compress_ratio, static_cast<size_t>(r));
+    EXPECT_EQ(cfg.key_block_size, static_cast<size_t>(r));
     EXPECT_EQ(cfg.block_topk, static_cast<size_t>(block_topk));
     EXPECT_EQ(cfg.indexer_head_dim, static_cast<size_t>(Di));
     EXPECT_EQ(cfg.indexer_rotary_dim, static_cast<size_t>(Rd));
-    EXPECT_NEAR(cfg.eps, eps, 1e-7f);
+    EXPECT_NEAR(cfg.epsilon, eps, 1e-7f);
 
-    // Dynamic B/L survive: q_idx is [B, L, Hidx, Di], outputs keep dynamic L.
-    EXPECT_EQ(indexer->get_input_partial_shape(In::Q_IDX), (ov::PartialShape{-1, -1, Hidx, Di}));
-    EXPECT_EQ(indexer->get_input_partial_shape(In::K_IDX), (ov::PartialShape{-1, -1, 1, Di}));
-    EXPECT_EQ(indexer->get_output_partial_shape(Out::SEL_INDICES), (ov::PartialShape{-1, 1, -1, block_topk}));
+    // Dynamic B/L survive: index_query is [B, L, Hidx, Di], outputs keep dynamic L.
+    EXPECT_EQ(indexer->get_input_partial_shape(In::INDEX_QUERY), (ov::PartialShape{-1, -1, Hidx, Di}));
+    EXPECT_EQ(indexer->get_input_partial_shape(In::RAW_INDEX_KEYS), (ov::PartialShape{-1, -1, 1, Di}));
+    EXPECT_EQ(indexer->get_output_partial_shape(Out::SELECTED_BLOCK_INDICES), (ov::PartialShape{-1, 1, -1, block_topk}));
 
     expect_norm_weight(indexer->input_value(In::Q_NORM_WEIGHT), 1.0f + q_gain_w);
     expect_norm_weight(indexer->input_value(In::K_NORM_WEIGHT), 1.0f);
@@ -459,7 +459,7 @@ TEST(sparse_attention_fusion, dense_dynamic_causal_replaces_with_proven_inputs) 
         ASSERT_NE(assign, nullptr);
         EXPECT_EQ(assign->get_variable_id(), read->get_variable_id());
     };
-    expect_state(In::SUMMARY_CACHE, Out::SUMMARY_CACHE, ov::PartialShape{-1, 1, -1, Di}, true);
+    expect_state(In::BLOCK_INDEX_KEYS_CACHE, Out::BLOCK_INDEX_KEYS_CACHE, ov::PartialShape{-1, 1, -1, Di}, true);
     expect_state(In::PAST_INCOMPLETE_RAW_K, Out::PAST_INCOMPLETE_RAW_K, ov::PartialShape{-1, 1, r - 1, Di}, false);
     expect_state(In::PAST_INCOMPLETE_ROPE, Out::PAST_INCOMPLETE_ROPE, ov::PartialShape{-1, 2 * Rd}, false);
 
@@ -467,7 +467,7 @@ TEST(sparse_attention_fusion, dense_dynamic_causal_replaces_with_proven_inputs) 
     EXPECT_EQ(attn_cfg.num_heads, static_cast<size_t>(Hq));
     EXPECT_EQ(attn_cfg.num_kv_heads, static_cast<size_t>(dense_kv_heads));
     EXPECT_EQ(attn_cfg.k_head_size, static_cast<size_t>(Dh));
-    EXPECT_EQ(attn_cfg.sel_block_size, static_cast<size_t>(r));
+    EXPECT_EQ(attn_cfg.key_block_size, static_cast<size_t>(r));
     EXPECT_EQ(sparse_sdpa->get_input_size(), ov::op::internal::SparseSDPA::InputIdx::COUNT_MIN);
 }
 
@@ -527,27 +527,31 @@ TEST(sparse_attention_fusion, paged_replaces_with_proven_inputs) {
 
     using In = ov::op::internal::PagedQSAIndexer::InputIdx;
     const auto& cfg = indexer->get_config();
-    EXPECT_EQ(cfg.compress_ratio, static_cast<size_t>(r));
-    EXPECT_EQ(cfg.page_size, static_cast<size_t>(page_size));
+    EXPECT_EQ(cfg.key_block_size, static_cast<size_t>(r));
     EXPECT_EQ(cfg.indexer_rotary_dim, static_cast<size_t>(Rd));
-    EXPECT_NEAR(cfg.eps, eps, 1e-7f);
+    EXPECT_NEAR(cfg.epsilon, eps, 1e-7f);
 
-    EXPECT_EQ(indexer->get_input_partial_shape(In::Q_IDX), (ov::PartialShape{-1, Hidx * Di}));
-    EXPECT_EQ(indexer->get_input_partial_shape(In::K_IDX), (ov::PartialShape{-1, Di}));
+    EXPECT_EQ(indexer->get_input_partial_shape(In::INDEX_QUERY), (ov::PartialShape{-1, Hidx * Di}));
+    EXPECT_EQ(indexer->get_input_partial_shape(In::RAW_INDEX_KEYS), (ov::PartialShape{-1, Di}));
     expect_rope_inputs<In>(indexer, g.indexer.positions.get(), RopeLayout::Halves);
     EXPECT_EQ(indexer->get_input_partial_shape(In::ROPE_COS), (ov::PartialShape{-1, Rd}));
     expect_norm_weight(indexer->input_value(In::Q_NORM_WEIGHT), 1.0f + q_gain_w);
 
-    expect_in_place_cache(indexer->input_value(In::INDEXER_RAW_K_CACHE), ov::element::f16);
-    expect_in_place_cache(indexer->input_value(In::SUMMARY_CACHE), ov::element::f16);
-    expect_in_place_cache(indexer->input_value(In::INDEXER_ROPE_CACHE), ov::element::f16);
-    EXPECT_EQ(indexer->get_input_partial_shape(In::INDEXER_RAW_K_CACHE), (ov::PartialShape{-1, 1, page_size, Di}));
-    EXPECT_EQ(indexer->get_input_partial_shape(In::INDEXER_ROPE_CACHE), (ov::PartialShape{-1, page_size / r, 2 * Rd}));
+    expect_in_place_cache(indexer->input_value(In::INDEX_KEY_CACHE), ov::element::f16);
+    expect_in_place_cache(indexer->input_value(In::BLOCK_INDEX_KEYS_CACHE), ov::element::f16);
+    expect_in_place_cache(indexer->input_value(In::INDEX_BLOCK_ROPE_CACHE), ov::element::f16);
+    EXPECT_EQ(indexer->get_input_partial_shape(In::INDEX_KEY_CACHE), (ov::PartialShape{-1, 1, page_size, Di}));
+    EXPECT_EQ(indexer->get_input_partial_shape(In::INDEX_BLOCK_ROPE_CACHE), (ov::PartialShape{-1, page_size / r, 2 * Rd}));
 
     const auto& attn_cfg = sparse_pa->get_config();
     EXPECT_EQ(attn_cfg.num_heads, static_cast<size_t>(Hq));
     EXPECT_EQ(attn_cfg.num_kv_heads, static_cast<size_t>(Hkv));
-    EXPECT_EQ(attn_cfg.block_size, static_cast<size_t>(page_size));
-    EXPECT_EQ(attn_cfg.sel_block_size, static_cast<size_t>(r));
-    EXPECT_FLOAT_EQ(attn_cfg.scale, 1.0f / std::sqrt(static_cast<float>(Dh)));
+    EXPECT_EQ(attn_cfg.key_block_size, static_cast<size_t>(r));
+
+    using Attn = ov::op::internal::SparsePA::InputIdx;
+    auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(sparse_pa->get_input_node_shared_ptr(Attn::SCALE));
+    ASSERT_NE(scale_const, nullptr);
+    EXPECT_FLOAT_EQ(scale_const->cast_vector<float>().at(0), 1.0f / std::sqrt(static_cast<float>(Dh)));
+    EXPECT_FALSE(sparse_pa->has_sinks());
+    EXPECT_EQ(sparse_pa->get_input_size(), Attn::COUNT_MIN);  // qb_start is omitted for query_block_size == 1
 }

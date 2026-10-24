@@ -28,18 +28,18 @@ static void CreatePagedQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov:
                     reason);
 
     using In = ov::op::internal::PagedQSAIndexer::InputIdx;
-    OPENVINO_ASSERT(op->get_config().h_sel == 1, "[GPU] PagedQSAIndexer '", layer_name, "': only h_sel == 1 is supported, got ", op->get_config().h_sel);
+    OPENVINO_ASSERT(op->get_config().num_selection_heads == 1, "[GPU] PagedQSAIndexer '", layer_name, "': only num_selection_heads == 1 is supported, got ", op->get_config().num_selection_heads);
     OPENVINO_ASSERT(op->get_index_key_heads() == 1,
                     "[GPU] PagedQSAIndexer '", layer_name, "': only H_ik == 1 is supported, got ", op->get_index_key_heads());
-    for (size_t idx : {In::Q_IDX,
-                       In::K_IDX,
+    for (size_t idx : {In::INDEX_QUERY,
+                       In::RAW_INDEX_KEYS,
                        In::ROPE_COS,
                        In::ROPE_SIN,
-                       In::SUMMARY_CACHE,
-                       In::INDEXER_RAW_K_CACHE,
+                       In::BLOCK_INDEX_KEYS_CACHE,
+                       In::INDEX_KEY_CACHE,
                        In::Q_NORM_WEIGHT,
                        In::K_NORM_WEIGHT,
-                       In::INDEXER_ROPE_CACHE}) {
+                       In::INDEX_BLOCK_ROPE_CACHE}) {
         OPENVINO_ASSERT(op->get_input_element_type(idx) == ov::element::f16,
                         "[GPU] PagedQSAIndexer '", layer_name, "': input ", idx, " must be f16, got ", op->get_input_element_type(idx));
     }

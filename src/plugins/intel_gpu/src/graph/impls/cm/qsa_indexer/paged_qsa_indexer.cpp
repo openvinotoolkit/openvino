@@ -25,6 +25,15 @@ using namespace cldnn;
 using QSAIn = ov::intel_gpu::op::PagedQSAIndexer::InputIdx;
 
 namespace {
+/// Tokens per physical page: dim 2 of index_key_cache (there is no page_size attribute).
+size_t page_size_of(const kernel_impl_params& params) {
+    const auto& ps = params.get_input_layout(QSAIn::INDEX_KEY_CACHE).get_partial_shape();
+    OPENVINO_ASSERT(ps.size() == 4 && ps[2].is_static(), "[GPU][CM] paged_qsa_indexer: index_key_cache must have a static page_size dim");
+    return static_cast<size_t>(ps[2].get_length());
+}
+}  // namespace
+
+namespace {
 
 PagedQSAIndexerRuntimeParams* rt_of(ImplRuntimeParams* rt) {
     auto* p = static_cast<PagedQSAIndexerRuntimeParams*>(rt);
@@ -40,18 +49,18 @@ size_t index_heads(const layout& l, size_t indexer_head_dim) {
 }
 
 JitConstants make_jit(const std::shared_ptr<const paged_qsa_indexer>& desc, const RuntimeParams& params) {
-    const auto h_iq = index_heads(params.get_input_layout(QSAIn::Q_IDX), desc->indexer_head_dim);
+    const auto h_iq = index_heads(params.get_input_layout(QSAIn::INDEX_QUERY), desc->indexer_head_dim);
 
     JitConstants jit;
     jit.make("QSA_IDX_QUERY_HEADS", h_iq);
     jit.make("QSA_IDX_HEAD_DIM", desc->indexer_head_dim);
     jit.make("QSA_IDX_ROTARY_DIM", desc->indexer_rotary_dim);
-    jit.make("QSA_COMPRESS_RATIO", desc->compress_ratio);
-    jit.make("QSA_PAGE_SIZE", desc->page_size);
+    jit.make("QSA_COMPRESS_RATIO", desc->key_block_size);
+    jit.make("QSA_PAGE_SIZE", page_size_of(params));
     jit.make("QSA_BLOCK_TOPK", desc->block_topk);
     jit.make("QSA_ADDRESS_MODE", 0);
     jit.make("QSA_PREPARE_WG", h_iq + 1);
-    jit.add(make_jit_constant("QSA_IDX_NORM_EPS", desc->eps));
+    jit.add(make_jit_constant("QSA_IDX_NORM_EPS", desc->epsilon));
     jit.add(make_jit_constant("QSA_IDX_SCALE", ov::op::internal::PagedQSAIndexer::effective_scale(desc->get_config())));
     return jit;
 }
@@ -94,7 +103,7 @@ size_t score_budget_bytes() {
 /// Whether every sequence in this call contributes exactly one query token. A
 /// shape-agnostic impl keeps both the decode and prefill stages and decides per call.
 bool is_decode_shape(const kernel_impl_params& params) {
-    const auto& q_layout = params.get_input_layout(QSAIn::Q_IDX);
+    const auto& q_layout = params.get_input_layout(QSAIn::INDEX_QUERY);
     const auto& past_lens_layout = params.get_input_layout(QSAIn::PAST_LENS);
     if (q_layout.is_dynamic() || past_lens_layout.is_dynamic()) {
         return false;
@@ -122,9 +131,9 @@ constexpr size_t topk_wg_size(bool decode) {
 /// (not the actual context), so decode with many sequences and a large pool is what the
 /// budget caps. Static shapes only, so allocation and per-call chunk planning agree.
 size_t score_scratch_elems(const kernel_impl_params& params, const paged_qsa_indexer& desc) {
-    const auto tokens = std::max<size_t>(1, params.get_input_layout(QSAIn::Q_IDX).get_shape()[0]);
-    const auto& kcache_shape = params.get_input_layout(QSAIn::INDEXER_RAW_K_CACHE).get_shape();
-    const auto max_blocks = std::max<size_t>(1, kcache_shape[0] * desc.page_size / desc.compress_ratio);
+    const auto tokens = std::max<size_t>(1, params.get_input_layout(QSAIn::INDEX_QUERY).get_shape()[0]);
+    const auto& kcache_shape = params.get_input_layout(QSAIn::INDEX_KEY_CACHE).get_shape();
+    const auto max_blocks = std::max<size_t>(1, kcache_shape[0] * page_size_of(params) / desc.key_block_size);
     if (!is_decode_shape(params)) {
         return tokens * max_blocks;
     }
@@ -136,7 +145,7 @@ size_t score_scratch_elems(const kernel_impl_params& params, const paged_qsa_ind
 /// Mirrors qsa.cpp's can_use_dpas_score(): a compile-time property of the descriptor plus
 /// the GRF width, stable across iterations. Falls back to the scalar qsa_indexer_score
 /// kernel when it does not hold.
-bool can_use_dpas_score(const paged_qsa_indexer& desc, size_t h_iq, const cldnn::device_info& info) {
+bool can_use_dpas_score(const paged_qsa_indexer& desc, size_t page_size, size_t h_iq, const cldnn::device_info& info) {
     if (info.arch < gpu_arch::xe2) {
         return false;  // REG_N is 8 on Xe1, the kernel assumes a 16-wide N axis
     }
@@ -146,7 +155,7 @@ bool can_use_dpas_score(const paged_qsa_indexer& desc, size_t h_iq, const cldnn:
     if (desc.indexer_head_dim * sizeof(ov::float16) < 64) {
         return false;  // 2D block load surface width minimum
     }
-    const auto summaries_per_page = desc.page_size / desc.compress_ratio;
+    const auto summaries_per_page = page_size / desc.key_block_size;
     if (summaries_per_page == 0 || (summaries_per_page % dpas_block_tile != 0 && dpas_block_tile % summaries_per_page != 0)) {
         return false;  // the A tile must be whole pages, or a whole tile must fit in a page
     }
@@ -175,8 +184,8 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
         Arguments args;
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::Q_IDX});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::K_IDX});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEX_QUERY});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::RAW_INDEX_KEYS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::Q_NORM_WEIGHT});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::K_NORM_WEIGHT});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::ROPE_COS});
@@ -185,9 +194,9 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUBSEQUENCE_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDICES_BEGINS});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_RAW_K_CACHE});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUMMARY_CACHE});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_ROPE_CACHE});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEX_KEY_CACHE});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDEX_KEYS_CACHE});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEX_BLOCK_ROPE_CACHE});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedQSAIndexerInternalBufIdx::INDEXER_Q});
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});
@@ -237,7 +246,7 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedQSAIndexerInternalBufIdx::INDEXER_Q});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUMMARY_CACHE});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDEX_KEYS_CACHE});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_LENS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUBSEQUENCE_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDICES});
@@ -350,7 +359,7 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedQSAIndexerInternalBufIdx::INDEXER_Q});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUMMARY_CACHE});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDEX_KEYS_CACHE});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_LENS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUBSEQUENCE_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDICES});
@@ -407,7 +416,7 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedQSAIndexerInternalBufIdx::INDEXER_Q});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUMMARY_CACHE});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDEX_KEYS_CACHE});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_LENS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUBSEQUENCE_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDICES});
@@ -492,8 +501,8 @@ public:
     // constructor and copies only _order and the per-stage kernel data.
     static bool use_dpas_score(const kernel_impl_params& params) {
         const auto desc = params.typed_desc<paged_qsa_indexer>();
-        const auto h_iq = index_heads(params.get_input_layout(QSAIn::Q_IDX), desc->indexer_head_dim);
-        return can_use_dpas_score(*desc, h_iq, params.get_device_info());
+        const auto h_iq = index_heads(params.get_input_layout(QSAIn::INDEX_QUERY), desc->indexer_head_dim);
+        return can_use_dpas_score(*desc, page_size_of(params), h_iq, params.get_device_info());
     }
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
@@ -501,8 +510,8 @@ public:
             return {};
         }
         const auto desc = params.typed_desc<paged_qsa_indexer>();
-        const auto tokens = std::max<size_t>(1, params.get_input_layout(QSAIn::Q_IDX).get_shape()[0]);
-        const auto h_iq = index_heads(params.get_input_layout(QSAIn::Q_IDX), desc->indexer_head_dim);
+        const auto tokens = std::max<size_t>(1, params.get_input_layout(QSAIn::INDEX_QUERY).get_shape()[0]);
+        const auto h_iq = index_heads(params.get_input_layout(QSAIn::INDEX_QUERY), desc->indexer_head_dim);
 
         std::vector<BufferDescriptor> bufs;
         bufs.emplace_back(tokens * h_iq * desc->indexer_head_dim, ov::element::f16);  // INDEXER_Q
@@ -550,22 +559,22 @@ public:
 
         // past_lens / subsequence_begins stay in GPU memory: every size here is an upper bound taken
         // from shapes, and the kernels resolve the real sequences (and drop the excess work).
-        const auto& q_layout = params.get_input_layout(QSAIn::Q_IDX);
+        const auto& q_layout = params.get_input_layout(QSAIn::INDEX_QUERY);
         const size_t num_seqs = params.get_input_layout(QSAIn::PAST_LENS).get_shape()[0];
         rtp->num_seqs = num_seqs;
         rtp->num_tokens = q_layout.get_shape()[0];
         rtp->index_query_heads = index_heads(q_layout, desc->indexer_head_dim);
-        rtp->index_key_heads = index_heads(params.get_input_layout(QSAIn::K_IDX), desc->indexer_head_dim);
+        rtp->index_key_heads = index_heads(params.get_input_layout(QSAIn::RAW_INDEX_KEYS), desc->indexer_head_dim);
 
         // Sequence i touches at most ceil(q_i / r) + 1 blocks, so all sequences together at most
         // tokens / r + 2 * num_seqs; and at most tokens / 16 + num_seqs score tiles.
-        const auto r = desc->compress_ratio;
+        const auto r = desc->key_block_size;
         rtp->prepare_wg_count = rtp->num_tokens / r + 2 * num_seqs;
         rtp->score_tile_count = rtp->num_tokens / dpas_query_tile + num_seqs;
 
         // No sequence can span more blocks than the page table lists.
         const size_t used_pages = params.get_input_layout(QSAIn::BLOCK_INDICES).get_shape()[0];
-        const size_t max_blocks = std::max<size_t>(1, used_pages * desc->page_size / r);
+        const size_t max_blocks = std::max<size_t>(1, used_pages * page_size_of(params) / r);
         rtp->max_blocks = max_blocks;
         rtp->num_partitions = std::max<size_t>(1, (max_blocks + score_partition_blocks - 1) / score_partition_blocks);
         // max_blocks <= the pool-wide stride the buffer was sized for, so a chunk can hold more
@@ -599,22 +608,22 @@ bool PagedQSAIndexerCMImplementationManager::validate_impl(const cldnn::program_
     }
 
     // v1 capability gate: only a single index-key head (H_ik == 1) and a single
-    // selection head (h_sel == 1) are supported by this scalar kernel set.
-    if (desc->h_sel != 1 || desc->indexer_head_dim % 16 != 0) {
+    // selection head (num_selection_heads == 1) are supported by this scalar kernel set.
+    if (desc->num_selection_heads != 1 || desc->indexer_head_dim % 16 != 0) {
         return false;
     }
     // The token axis may be dynamic; only the flattened head axis is needed statically.
-    const auto& q_idx_ps = node.get_input_layout(QSAIn::Q_IDX).get_partial_shape();
-    const auto& k_idx_ps = node.get_input_layout(QSAIn::K_IDX).get_partial_shape();
-    if (q_idx_ps.rank().is_dynamic() || q_idx_ps.size() < 2 || q_idx_ps[1].is_dynamic()) {
+    const auto& index_query_ps = node.get_input_layout(QSAIn::INDEX_QUERY).get_partial_shape();
+    const auto& raw_index_keys_ps = node.get_input_layout(QSAIn::RAW_INDEX_KEYS).get_partial_shape();
+    if (index_query_ps.rank().is_dynamic() || index_query_ps.size() < 2 || index_query_ps[1].is_dynamic()) {
         return false;
     }
-    if (k_idx_ps.rank().is_dynamic() || k_idx_ps.size() < 2 || k_idx_ps[1].is_dynamic() ||
-        static_cast<size_t>(k_idx_ps[1].get_length()) != desc->indexer_head_dim) {
+    if (raw_index_keys_ps.rank().is_dynamic() || raw_index_keys_ps.size() < 2 || raw_index_keys_ps[1].is_dynamic() ||
+        static_cast<size_t>(raw_index_keys_ps[1].get_length()) != desc->indexer_head_dim) {
         return false;
     }
 
-    if (node.get_input_layout(QSAIn::Q_IDX).data_type != ov::element::f16 || node.get_input_layout(QSAIn::K_IDX).data_type != ov::element::f16) {
+    if (node.get_input_layout(QSAIn::INDEX_QUERY).data_type != ov::element::f16 || node.get_input_layout(QSAIn::RAW_INDEX_KEYS).data_type != ov::element::f16) {
         return false;
     }
     return true;

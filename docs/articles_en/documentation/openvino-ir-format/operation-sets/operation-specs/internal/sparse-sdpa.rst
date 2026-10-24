@@ -4,7 +4,7 @@ SparseSDPA
 ==========
 
 .. meta::
-  :description: Learn about SparseSDPA - a unified, model-agnostic sparse attention operation that consumes a clean (sel_indices, sel_count) block-selection contract with 4D SDPA-aligned tensor layouts and performs online-softmax attention over the selected KV blocks without a physical page table.
+  :description: Learn about SparseSDPA - a unified, model-agnostic sparse attention operation that consumes a clean (selected_block_indices, selected_block_count) block-selection contract with 4D SDPA-aligned tensor layouts and performs online-softmax attention over the selected KV blocks without a physical page table.
 
 **Versioned name**: *SparseSDPA*
 
@@ -13,7 +13,7 @@ SparseSDPA
 **Short description**:
 The *SparseSDPA* operation performs sparse, selected-block multi-head attention over *contiguous,
 KVCache-managed* K/V tensors. It is a **model-agnostic plan consumer** over a strictly clean
-``(sel_indices, sel_count)`` block-selection contract from a *model-specific* producer (e.g. ``QSAIndexer``),
+``(selected_block_indices, selected_block_count)`` block-selection contract from a *model-specific* producer (e.g. ``QSAIndexer``),
 gathers the KV at the selected blocks, and applies online-softmax attention with GQA head
 mapping. It contains **no producer-leaked artifacts**: no ``index_weights``, no output gate, no RoPE/norm
 parameters, and no producer-side tail encoding. It is intentionally RoPE- and norm-free: all positional and normalization
@@ -38,8 +38,8 @@ set, with numerical consistency within a given tolerance (the online-softmax red
   layer),
 - dense, history-complete K and V cache tensors produced by a standard ``KVCache`` node, and
 - the clean selection produced by an upstream model-specific indexer: per-query-block, per-selection-head block
-  indices ``sel_indices`` and their valid counts ``sel_count``, plus the block granularities ``sel_block_size``
-  (:math:`B_k`) and ``q_block_size`` (:math:`B_q`).
+  indices ``selected_block_indices`` and their valid counts ``selected_block_count``, plus the block granularities ``key_block_size``
+  (:math:`B_k`) and ``query_block_size`` (:math:`B_q`).
 
 The operation:
 
@@ -67,18 +67,18 @@ a ``[B, H, L, S]`` boolean mask — the exact source of the bandwidth saving. Th
 The producer emits block-level selection in the same 4D language as the rest of the op, with the **first
 selection dimension equal to ``num_q_blocks``**:
 
-- ``sel_indices`` ``[B, H_sel, num_q_blocks, K_max]``: selected **complete-block** indices per query block per selection
-  head, as a **unique, strictly ascending** sequence in the contiguous prefix ``sel_indices[:sel_count]``,
-  entries past ``sel_count`` are ignored (a producer such as ``QSAIndexer`` sets them to ``-1``). Here
+- ``selected_block_indices`` ``[B, H_sel, num_q_blocks, K_max]``: selected **complete-block** indices per query block per selection
+  head, as a **unique, strictly ascending** sequence in the contiguous prefix ``selected_block_indices[:selected_block_count]``,
+  entries past ``selected_block_count`` are ignored (a producer such as ``QSAIndexer`` sets them to ``-1``). Here
   ``num_q_blocks = ceil(L / B_q)``.
-- ``sel_count`` ``[B, H_sel, num_q_blocks]``: number of selected complete blocks per query block per selection head;
+- ``selected_block_count`` ``[B, H_sel, num_q_blocks]``: number of selected complete blocks per query block per selection head;
   it never includes causal-tail tokens.
-- ``sel_block_size`` (attribute, :math:`B_k`): the number of tokens per selected KV block; the consumer gathers
+- ``key_block_size`` (attribute, :math:`B_k`): the number of tokens per selected KV block; the consumer gathers
   selected complete blocks of this size and independently adds the causal-tail tokens for each query.
-- ``q_block_size`` (attribute, :math:`B_q`, default ``1``): the number of query tokens that share one selection.
+- ``query_block_size`` (attribute, :math:`B_q`, default ``1``): the number of query tokens that share one selection.
 
 The op never re-derives the selected complete-block plan: it gathers exactly the complete blocks named in the
-valid prefix of ``sel_indices`` and counted by ``sel_count``. The causal tail is separate from that plan and is
+valid prefix of ``selected_block_indices`` and counted by ``selected_block_count``. The causal tail is separate from that plan and is
 always derived by the consumer when ``causal = true``. The op carries no ``index_weights``, no output gate, and no
 producer-side tail encoding. The plan is position-free: the consumer derives each query's right-aligned logical
 position :math:`q_{abs} = key\_length - L + l`, computes :math:`tail\_start = \lfloor(q_{abs}+1)/B_k\rfloor B_k`, and adds
@@ -92,7 +92,7 @@ Causality is split across the producer and the consumer:
 
 - **Producer (e.g. ``QSAIndexer``) — complete-block plan only.** The producer selects only complete,
   causally-valid blocks (block :math:`b` is eligible iff :math:`(b{+}1) \cdot B_k - 1 \le pos`). It does not emit
-  the causal diagonal or tail block, and the tail is not included in ``sel_count``.
+  the causal diagonal or tail block, and the tail is not included in ``selected_block_count``.
 - **Consumer (this op) — token-level fine filter (Token-level Precision).** The consumer is the final authority
   on token-level causality: it gathers the selected complete blocks, derives and adds the per-query tail span
   :math:`[\lfloor(q_{abs}+1)/B_k\rfloor B_k, q_{abs}]` (inclusive), where :math:`q_{abs}=key\_length-L+l`, and imposes
@@ -236,15 +236,15 @@ page table; the fused GPU primitive dispatch is shared.
     :force:
 
     def sparse_sdpa(query, key, value,
-                    sel_indices, sel_count, key_length,
+                    selected_block_indices, selected_block_count, key_length,
                     scale=None, sinks=None,
-                    *, num_heads, num_kv_heads, h_sel, k_head_size, v_head_size,
-                    sel_block_size, q_block_size=1, causal=True):
+                    *, num_heads, num_kv_heads, num_selection_heads, k_head_size, v_head_size,
+                    key_block_size, query_block_size=1, causal=True):
         # query:             [B, Hq, L, Dh]  (already projected/RMSNorm'ed/RoPE'ed)
         # key:               [B, Hkv, S, Dh]
         # value:             [B, Hkv, S, Dv]
-        # sel_indices:       [B, H_sel, num_q_blocks, K_max]   (int32; complete blocks only, -1 padded)
-        # sel_count:         [B, H_sel, num_q_blocks]           (int32; valid complete-block count)
+        # selected_block_indices:       [B, H_sel, num_q_blocks, K_max]   (int32; complete blocks only, -1 padded)
+        # selected_block_count:         [B, H_sel, num_q_blocks]           (int32; valid complete-block count)
         # key_length:        [B] int32; valid tokens per row (left-padded rows); S when a row has no padding
         # scale:             scalar optional; defaults to 1/sqrt(Dh)
         # sinks:             [Hq] optional; per-head sink logit, not multiplied by scale
@@ -252,11 +252,11 @@ page table; the fused GPU primitive dispatch is shared.
         Hkv = num_kv_heads
         S = key.shape[2]
         Dv = v_head_size
-        Bk = sel_block_size
-        Bq = q_block_size
+        Bk = key_block_size
+        Bq = query_block_size
         sc = scale if scale is not None else 1.0 / sqrt(Dh)
         num_q_blocks = ceil(L / Bq)                 # first selection dimension (== L when Bq == 1)
-        q_per_sel = Hq // h_sel                     # query heads per selection head (Hq % h_sel == 0)
+        q_per_sel = Hq // num_selection_heads                     # query heads per selection head (Hq % num_selection_heads == 0)
 
         q = query                                            # [B, Hq, L, Dh]
         out = zeros((B, Hq, L, Dv))
@@ -270,9 +270,9 @@ page table; the fused GPU primitive dispatch is shared.
             for qb in range(num_q_blocks):
                 l0 = qb * Bq
                 l1 = min(l0 + Bq, L)                          # query block row range [l0, l1)
-                for sh in range(h_sel):
-                    nblocks = sel_count[b, sh, qb]
-                    idx = sel_indices[b, sh, qb, :nblocks]    # [nblocks] logical block indices (unique, strictly ascending)
+                for sh in range(num_selection_heads):
+                    nblocks = selected_block_count[b, sh, qb]
+                    idx = selected_block_indices[b, sh, qb, :nblocks]    # [nblocks] logical block indices (unique, strictly ascending)
                     # Materialize positions of the selected complete-block tokens.
                     blk_base = idx * Bk                        # absolute KV start of each selected block
                     kpos = concat([blk_base[:, None] + arange(Bk)[None, :]], axis=-1).reshape(-1)
@@ -344,13 +344,13 @@ page table; the fused GPU primitive dispatch is shared.
   * **Type**: ``int``
   * **Required**: *yes*
 
-* *h_sel*
+* *num_selection_heads*
 
   * **Description**: Number of selection heads :math:`H_{sel}`, matching the producer. Must be ``1``,
     ``num_kv_heads``, or ``num_heads``.
   * **Type**: ``int``
   * **Required**: *yes*
-  * **Constraints**: ``h_sel`` is ``1``, ``num_kv_heads``, or ``num_heads``; ``num_heads % h_sel == 0``.
+  * **Constraints**: ``num_selection_heads`` is ``1``, ``num_kv_heads``, or ``num_heads``; ``num_heads % num_selection_heads == 0``.
 
 * *k_head_size*
 
@@ -364,21 +364,21 @@ page table; the fused GPU primitive dispatch is shared.
   * **Type**: ``int``
   * **Required**: *yes*
 
-* *sel_block_size*
+* *key_block_size*
 
   * **Description**: Number of tokens per selected KV block, :math:`B_k`, matching the producer's
-    ``compress_ratio``. The consumer gathers full blocks of this size; the causal-diagonal block may be
+    ``key_block_size``. The consumer gathers full blocks of this size; the causal-diagonal block may be
     partial, bounded by the query position inclusive.
   * **Type**: ``int``
   * **Required**: *yes*
 
-* *q_block_size*
+* *query_block_size*
 
   * **Description**: Number of query tokens sharing a single selection, :math:`B_q`. Default ``1`` (decode /
     per-token selection). When :math:`B_q > 1` (e.g. FlashVSR block sparse with :math:`B_q = 128`),
-    ``sel_indices``/``sel_count`` carry one selection per query block (first selection dimension
+    ``selected_block_indices``/``selected_block_count`` carry one selection per query block (first selection dimension
     ``num_q_blocks = ceil(L / B_q)``) and it is replicated across the :math:`B_q` rows. When :math:`B_q > 1`,
-    the history length must align: ``(S - L) % q_block_size == 0`` (so every query block maps to a whole number
+    the history length must align: ``(S - L) % query_block_size == 0`` (so every query block maps to a whole number
     of :math:`B_q`-aligned KV spans). Left-padding (``key_length[b] < S``) is not supported when :math:`B_q > 1`.
   * **Type**: ``int``
   * **Default value**: ``1``
@@ -409,15 +409,15 @@ page table; the fused GPU primitive dispatch is shared.
   A 4D tensor of type *T* with shape ``[B, Hkv, S, Dv]``.
   Dense value history of length :math:`S`. **Required.**
 
-* **3**: ``sel_indices``
+* **3**: ``selected_block_indices``
   A 4D tensor of type *T_IND* with shape ``[B, H_sel, num_q_blocks, K_max]``.
   Per-query-block, per-selection-head selected **complete-block** indices emitted by the upstream producer, where
   ``num_q_blocks = ceil(L / B_q)`` (equals ``L`` when ``B_q == 1``). In causal mode, the plan must not contain the
   current incomplete tail block; SparseSDPA derives that tail itself. The valid prefix has unique entries in
-  strictly ascending order; entries past ``sel_count`` are ignored (``QSAIndexer`` sets them to ``-1``).
+  strictly ascending order; entries past ``selected_block_count`` are ignored (``QSAIndexer`` sets them to ``-1``).
   **Required.**
 
-* **4**: ``sel_count``
+* **4**: ``selected_block_count``
   A 3D tensor of type *T_IND* with shape ``[B, H_sel, num_q_blocks]``.
   Number of selected complete-block IDs per query block per selection head; it excludes automatically-derived tail
   tokens. **Required.**
@@ -453,17 +453,17 @@ page table; the fused GPU primitive dispatch is shared.
 * ``T`` is a floating-point type (``float32``, ``float16``, ``bfloat16``).
 * ``T_IND`` is ``int32``.
 * ``num_heads % num_kv_heads == 0``; the group size ``num_heads // num_kv_heads`` must be positive.
-* ``h_sel`` is ``1``, ``num_kv_heads``, or ``num_heads``; ``num_heads % h_sel == 0``.
+* ``num_selection_heads`` is ``1``, ``num_kv_heads``, or ``num_heads``; ``num_heads % num_selection_heads == 0``.
 * ``key``/``value`` second dimension equals ``num_kv_heads``.
 * ``query`` first dimension equals ``key`` first dimension (:math:`B`); ``query`` sequence dimension :math:`L`
-  is related to the last two selection dims by ``sel_indices`` dim 2 ``== ceil(L / q_block_size)`` and
-  ``sel_count`` dim 2 ``== ceil(L / q_block_size)``. When ``q_block_size == 1``, this equals ``L``.
-* ``sel_indices`` last dimension ``K_max`` is **determined by the producer**: ``block_topk`` for a QSA-style
-  producer, or ``ceil(S / sel_block_size)`` when the selection is produced from a block-level mask conversion
-  (the full set of logical KV blocks). ``sel_count[b, sh, qb] <= K_max``, and the valid prefix
-  ``sel_indices[b, sh, qb, :sel_count[b, sh, qb]]`` is **unique and strictly ascending** and contains no ``-1``
+  is related to the last two selection dims by ``selected_block_indices`` dim 2 ``== ceil(L / query_block_size)`` and
+  ``selected_block_count`` dim 2 ``== ceil(L / query_block_size)``. When ``query_block_size == 1``, this equals ``L``.
+* ``selected_block_indices`` last dimension ``K_max`` is **determined by the producer**: ``block_topk`` for a QSA-style
+  producer, or ``ceil(S / key_block_size)`` when the selection is produced from a block-level mask conversion
+  (the full set of logical KV blocks). ``selected_block_count[b, sh, qb] <= K_max``, and the valid prefix
+  ``selected_block_indices[b, sh, qb, :selected_block_count[b, sh, qb]]`` is **unique and strictly ascending** and contains no ``-1``
   entries.
-* When ``q_block_size > 1``, the history length satisfies ``(S - L) % q_block_size == 0``, and left-padding is not
+* When ``query_block_size > 1``, the history length satisfies ``(S - L) % query_block_size == 0``, and left-padding is not
   supported: ``key_length[b] = S`` for every row.
 * ``key_length`` has shape ``[B]`` and ``0 <= key_length[b] <= S``. Key/value padding is ``S - key_length[b]``
   leading rows. In the causal mode, a row with ``key_length[b] < L`` is a fresh sequence whose first
@@ -473,11 +473,11 @@ page table; the fused GPU primitive dispatch is shared.
 * The selected blocks of a row are **unique and strictly ascending**; the consumer gathers exactly the valid
   prefix.
 * When ``causal`` is true, the op automatically adds the per-query tail positions from
-  :math:`\lfloor(q_{abs}+1)/sel\_block\_size\rfloor sel\_block\_size` through the right-aligned logical query
+  :math:`\lfloor(q_{abs}+1)/key\_block\_size\rfloor key\_block\_size` through the right-aligned logical query
   position :math:`q_{abs}=key\_length-L+l` (``S-L+l`` without padding) inclusive; this tail does not appear in
-  ``sel_indices`` or ``sel_count``. All gathered keys are still bounded by :math:`kpos \le q_{abs}`.
+  ``selected_block_indices`` or ``selected_block_count``. All gathered keys are still bounded by :math:`kpos \le q_{abs}`.
 * Gathered tokens with logical position ``>= key_length`` (introduced by a partial final block) are truncated out.
-* If ``sel_count == 0`` and ``causal`` is true, the automatically-added tail can still produce a nonzero output.
+* If ``selected_block_count == 0`` and ``causal`` is true, the automatically-added tail can still produce a nonzero output.
   Output is zero only when no effective key remains after plan, tail and causal filtering.
 
 
@@ -492,20 +492,20 @@ page table; the fused GPU primitive dispatch is shared.
 
 **Example 1 — Qwen4 Token Sparse** (:math:`B_q = 1`, :math:`B_k = 4`, :math:`H_{sel} = 1`).
 
-The producer emits one selection per query *token* (:math:`B_q = 1`, so ``num_q_blocks == L``). ``sel_indices``
+The producer emits one selection per query *token* (:math:`B_q = 1`, so ``num_q_blocks == L``). ``selected_block_indices``
 encodes only the top-:math:`K` complete blocks (from the per-head ReLU score). With
-``B=1``, ``L=1``, dense key history ``S=10``, ``key_length=[10]`` (no padding), ``sel_block_size=4``, ``block_topk=2`` (``K_max=2``): the query's
+``B=1``, ``L=1``, dense key history ``S=10``, ``key_length=[10]`` (no padding), ``key_block_size=4``, ``block_topk=2`` (``K_max=2``): the query's
 absolute position is :math:`q_{abs} = S - L + l = 10 - 1 + 0 = 9`; causally-valid complete blocks are those with
-``b < (9+1)//4 = 2``, i.e. ``{0, 1}``. After a stable top-2 the plan is ``sel_indices = [[[[0, 1]]]]``,
-``sel_count = [[[2]]]``. SparseSDPA independently derives the tail start as ``floor((9+1)/4)*4 = 8`` and adds
+``b < (9+1)//4 = 2``, i.e. ``{0, 1}``. After a stable top-2 the plan is ``selected_block_indices = [[[[0, 1]]]]``,
+``selected_block_count = [[[2]]]``. SparseSDPA independently derives the tail start as ``floor((9+1)/4)*4 = 8`` and adds
 positions ``{8, 9}``; these tail tokens are not present in the selection or its count.
 
 .. code-block:: xml
    :force:
 
    <layer ... type="SparseSDPA">
-       <data num_heads="24" num_kv_heads="2" h_sel="1" k_head_size="256" v_head_size="256"
-             sel_block_size="4" q_block_size="1" causal="true"/>
+       <data num_heads="24" num_kv_heads="2" num_selection_heads="1" k_head_size="256" v_head_size="256"
+             key_block_size="4" query_block_size="1" causal="true"/>
        <input>
            <port id="0">   <!-- query: [B, Hq, L, Dh] -->
                <dim>1</dim><dim>24</dim><dim>1</dim><dim>256</dim>
@@ -516,10 +516,10 @@ positions ``{8, 9}``; these tail tokens are not present in the selection or its 
            <port id="2">   <!-- value: [B, Hkv, S, Dv] -->
                <dim>1</dim><dim>2</dim><dim>10</dim><dim>256</dim>
            </port>
-           <port id="3">   <!-- sel_indices: [B, H_sel, num_q_blocks, K_max] (num_q_blocks = ceil(L/Bq) = 1) -->
+           <port id="3">   <!-- selected_block_indices: [B, H_sel, num_q_blocks, K_max] (num_q_blocks = ceil(L/Bq) = 1) -->
                <dim>1</dim><dim>1</dim><dim>1</dim><dim>2</dim>
            </port>
-           <port id="4">   <!-- sel_count: [B, H_sel, num_q_blocks] -->
+           <port id="4">   <!-- selected_block_count: [B, H_sel, num_q_blocks] -->
                <dim>1</dim><dim>1</dim><dim>1</dim>
            </port>
            <port id="5">   <!-- key_length: [B] -->
@@ -541,7 +541,7 @@ query block, using **multi-head attention** (:math:`H_q = H_{kv} = H_{sel}`). Wi
 :math:`B_q = 128`, the first selection dimension is ``num_q_blocks = ceil(512 / 128) = 4``. Each of the 4 query
 blocks carries its own :math:`H_{sel} = H_q` selection over the :math:`S`-token KV history. A block-level sparse
 mask that keeps, say, blocks ``{0, 2, 3}`` for every selection head of query block ``qb=0`` is encoded as
-``sel_indices[0, :, 0, :] = [[0, 2, 3, -1, ...], ...]`` and ``sel_count[0, :, 0] = [3, 3, ...]`` (replicated across
+``selected_block_indices[0, :, 0, :] = [[0, 2, 3, -1, ...], ...]`` and ``selected_block_count[0, :, 0] = [3, 3, ...]`` (replicated across
 the :math:`H_{sel}` selection heads). With :math:`B_k = 128` and :math:`S = 512` there are ``S / B_k = 4`` logical
 blocks; the selection covers :math:`3` of them. Non-causal (:math:`causal = \mathrm{false}`), so all tokens of
 every selected block are attended (no causal-diagonal block is needed). **The input tokens must be pre-permuted
@@ -552,8 +552,8 @@ one 3D window.
    :force:
 
    <layer ... type="SparseSDPA">
-       <data num_heads="12" num_kv_heads="12" h_sel="12" k_head_size="128" v_head_size="128"
-             sel_block_size="128" q_block_size="128" causal="false"/>
+       <data num_heads="12" num_kv_heads="12" num_selection_heads="12" k_head_size="128" v_head_size="128"
+             key_block_size="128" query_block_size="128" causal="false"/>
        <input>
            <port id="0">   <!-- query: [B, Hq, L, Dh] -->
                <dim>1</dim><dim>12</dim><dim>512</dim><dim>128</dim>
@@ -564,10 +564,10 @@ one 3D window.
            <port id="2">   <!-- value: [B, Hkv, S, Dv] -->
                <dim>1</dim><dim>12</dim><dim>512</dim><dim>128</dim>
            </port>
-           <port id="3">   <!-- sel_indices: [B, H_sel, num_q_blocks, K_max] (num_q_blocks = ceil(512/128) = 4) -->
+           <port id="3">   <!-- selected_block_indices: [B, H_sel, num_q_blocks, K_max] (num_q_blocks = ceil(512/128) = 4) -->
                <dim>1</dim><dim>12</dim><dim>4</dim><dim>4</dim>
            </port>
-           <port id="4">   <!-- sel_count: [B, H_sel, num_q_blocks] -->
+           <port id="4">   <!-- selected_block_count: [B, H_sel, num_q_blocks] -->
                <dim>1</dim><dim>12</dim><dim>4</dim>
            </port>
            <port id="5">   <!-- key_length: [B], equal to S (no padding) -->

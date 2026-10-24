@@ -26,17 +26,17 @@ bool SparseSDPA::validate_config(const Config& c, std::string& reason) {
     if (c.num_heads == 0 || c.num_kv_heads == 0 || c.num_heads % c.num_kv_heads != 0) {
         return fail("num_heads must be a positive multiple of num_kv_heads");
     }
-    if (c.h_sel != 1 && c.h_sel != c.num_kv_heads && c.h_sel != c.num_heads) {
-        return fail("h_sel must be 1, num_kv_heads, or num_heads");
+    if (c.num_selection_heads != 1 && c.num_selection_heads != c.num_kv_heads && c.num_selection_heads != c.num_heads) {
+        return fail("num_selection_heads must be 1, num_kv_heads, or num_heads");
     }
     if (c.k_head_size == 0 || c.k_head_size % 16 != 0 || c.v_head_size == 0 || c.v_head_size % 16 != 0) {
         return fail("k_head_size / v_head_size must be positive multiples of 16");
     }
-    if (c.sel_block_size == 0) {
-        return fail("sel_block_size must be positive");
+    if (c.key_block_size == 0) {
+        return fail("key_block_size must be positive");
     }
-    if (c.q_block_size != 1) {
-        return fail("q_block_size != 1 is not implemented in this pass");
+    if (c.query_block_size != 1) {
+        return fail("query_block_size != 1 is not implemented in this pass");
     }
     return true;
 }
@@ -45,11 +45,11 @@ bool SparseSDPA::visit_attributes(ov::AttributeVisitor& visitor) {
     OV_OP_SCOPE(internal_SparseSDPA_visit_attributes);
     visitor.on_attribute("num_heads", m_config.num_heads);
     visitor.on_attribute("num_kv_heads", m_config.num_kv_heads);
-    visitor.on_attribute("h_sel", m_config.h_sel);
+    visitor.on_attribute("num_selection_heads", m_config.num_selection_heads);
     visitor.on_attribute("k_head_size", m_config.k_head_size);
     visitor.on_attribute("v_head_size", m_config.v_head_size);
-    visitor.on_attribute("sel_block_size", m_config.sel_block_size);
-    visitor.on_attribute("q_block_size", m_config.q_block_size);
+    visitor.on_attribute("key_block_size", m_config.key_block_size);
+    visitor.on_attribute("query_block_size", m_config.query_block_size);
     visitor.on_attribute("causal", m_config.causal);
     visitor.on_attribute("output_type", m_output_type);
     return true;
@@ -73,7 +73,7 @@ void SparseSDPA::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, query_ps.rank().is_dynamic() || query_ps.size() == 4, "SparseSDPA expects a rank-4 [B, Hq, L, Dh] query input, got ", query_ps);
 
     // The kernels read the selection plan and key_length as int32_t.
-    const std::pair<size_t, int64_t> int_inputs[] = {{InputIdx::SEL_INDICES, 4}, {InputIdx::SEL_COUNT, 3}, {InputIdx::KEY_LENGTH, 1}};
+    const std::pair<size_t, int64_t> int_inputs[] = {{InputIdx::SELECTED_BLOCK_INDICES, 4}, {InputIdx::SELECTED_BLOCK_COUNT, 3}, {InputIdx::KEY_LENGTH, 1}};
     for (const auto& [idx, rank] : int_inputs) {
         const auto& et = get_input_element_type(idx);
         const auto& ps = get_input_partial_shape(idx);

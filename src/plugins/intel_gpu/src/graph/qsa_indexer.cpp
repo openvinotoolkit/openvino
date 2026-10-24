@@ -22,17 +22,17 @@ layout qsa_indexer_inst::calc_output_layout(const qsa_indexer_node& node, const 
 template <typename ShapeType>
 std::vector<layout> qsa_indexer_inst::calc_output_layouts(const qsa_indexer_node& node, const kernel_impl_params& impl_param) {
     const auto& desc = impl_param.typed_desc<qsa_indexer>();
-    const auto q_idx_shape = impl_param.get_input_layout(qsa_indexer::InputIdx::Q_IDX).get<ShapeType>();
-    OPENVINO_ASSERT(q_idx_shape.rank().is_static() && q_idx_shape.size() == 4, "[GPU] qsa_indexer expects a rank-4 [B, L, H_iq, D_idx] q_idx input");
+    const auto index_query_shape = impl_param.get_input_layout(qsa_indexer::InputIdx::INDEX_QUERY).get<ShapeType>();
+    OPENVINO_ASSERT(index_query_shape.rank().is_static() && index_query_shape.size() == 4, "[GPU] qsa_indexer expects a rank-4 [B, L, H_iq, D_idx] index_query input");
 
-    const auto h_sel_dim = ov::Dimension(static_cast<int64_t>(desc->h_sel));
-    ShapeType sel_indices_shape{q_idx_shape[0], h_sel_dim, q_idx_shape[1], ov::Dimension(static_cast<int64_t>(desc->block_topk))};
-    ShapeType sel_count_shape{q_idx_shape[0], h_sel_dim, q_idx_shape[1]};
+    const auto num_selection_heads_dim = ov::Dimension(static_cast<int64_t>(desc->num_selection_heads));
+    ShapeType selected_block_indices_shape{index_query_shape[0], num_selection_heads_dim, index_query_shape[1], ov::Dimension(static_cast<int64_t>(desc->block_topk))};
+    ShapeType selected_block_count_shape{index_query_shape[0], num_selection_heads_dim, index_query_shape[1]};
 
-    std::vector<layout> layouts = {layout{sel_indices_shape, ov::element::i32, cldnn::format::get_default_format(sel_indices_shape.size())},
-                                   layout{sel_count_shape, ov::element::i32, cldnn::format::get_default_format(sel_count_shape.size())}};
+    std::vector<layout> layouts = {layout{selected_block_indices_shape, ov::element::i32, cldnn::format::get_default_format(selected_block_indices_shape.size())},
+                                   layout{selected_block_count_shape, ov::element::i32, cldnn::format::get_default_format(selected_block_count_shape.size())}};
     // The updated state has the shape and type of the corresponding state input.
-    for (size_t in : {qsa_indexer::InputIdx::SUMMARY_CACHE, qsa_indexer::InputIdx::PAST_INCOMPLETE_RAW_K, qsa_indexer::InputIdx::PAST_INCOMPLETE_ROPE}) {
+    for (size_t in : {qsa_indexer::InputIdx::BLOCK_INDEX_KEYS_CACHE, qsa_indexer::InputIdx::PAST_INCOMPLETE_RAW_K, qsa_indexer::InputIdx::PAST_INCOMPLETE_ROPE}) {
         const auto& in_layout = impl_param.get_input_layout(in);
         const auto shape = in_layout.get<ShapeType>();
         layouts.emplace_back(shape, in_layout.data_type, cldnn::format::get_default_format(shape.size()));
@@ -48,9 +48,9 @@ std::string qsa_indexer_inst::to_string(const qsa_indexer_node& node) {
 
     std::stringstream primitive_description;
     json_composite info;
-    info.add("compress_ratio", desc->compress_ratio);
+    info.add("key_block_size", desc->key_block_size);
     info.add("block_topk", desc->block_topk);
-    info.add("h_sel", desc->h_sel);
+    info.add("num_selection_heads", desc->num_selection_heads);
     info.add("indexer_head_dim", desc->indexer_head_dim);
     info.add("indexer_rotary_dim", desc->indexer_rotary_dim);
     info.add("scale", desc->scale);
