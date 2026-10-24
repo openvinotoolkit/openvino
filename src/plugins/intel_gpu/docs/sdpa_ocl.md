@@ -264,7 +264,8 @@ of the first-token latency went from 13% (2K) to 66% (32K), and with it the e2e 
 faster than master's.
 
 The tile alone brought it to 1.03-1.14x. Four loop changes, on by default with these tilings only
-(`add_prefill_pipeline_jit()`, one switch each; `PREFETCH_V` at `d_max` <= 256), took it below `sdpa_micro`:
+(`add_prefill_pipeline_jit()`, one switch each; `PREFETCH_V` at `d_max` <= 256, `d_max` 512 has `PREFETCH_V_L3`
+instead, see below), took it below `sdpa_micro`:
 
 - `SOFTMAX_BRANCHLESS`: exp2 then `select()` instead of `ok ? exp2(..) : 0`, which IGC compiled as a
   branch around the exp2 of every (mb, qb) block, so the blocks could not interleave.
@@ -339,6 +340,38 @@ against `sdpa_micro` (gemma-4-e2b, two rounds):
 | 128 x 64 | 0.788x | 0.733x | 0.816x |
 | 256 x 64, `MICRO_MATH` | 0.897x | 0.790x | 0.841x |
 | 256 x 64 | 0.718x | 0.644x | 0.694x |
+| 256 x 64, `PREFETCH_V_L3` (below) | 0.702x | 0.635x | 0.622x |
+
+Every one of these tiles lost ground from 8K to 32K. Part of it was the clock: the B70's 2800 MHz pin does not hold
+through a long prefill. The PL2 power limit (`throttle/reasons` `pl2` under `tile0/gt0/freq0`) holds the GT at 2133-2167
+MHz for most of a 32K prompt (68% of the busy samples with `sdpa_ocl`, 78% with `sdpa_micro`) and rarely at 8K (4%), so
+at 2800 MHz a comparison across prompt lengths mixes the clock in. Pinned at 1800 MHz (no `pl2`), `sdpa_micro`'s per call
+time / keys^2 stays flat from 8K to 32K (175.7 to 170.8 ps), while `sdpa_ocl` had a knee of its own: flat to 16K
+(108.0 ps), +9.6% by 32K. That is where one KV head's K and V (2 KiB per token at head 512) outgrow the 24 MiB L3.
+VTune at 1800 MHz: the kernel's L3 miss ratio went from 3.0% at 8K to 18.2% at 32K and its Send stalls from 20% to 30%
+(`sdpa_micro` 1.1% to 4.6%, Send stalls under 1%); DRAM read stayed at 64 GB/s, so latency, not bandwidth. `sdpa_ocl`
+reads each K/V tile from L3 about once per workgroup (9.0 GB per call at 8K, 9.1 GB computed), `sdpa_micro` 25 GB.
+
+`PREFETCH_V_L3` (`v_prefetch_l3`, `d_max` 512 only) takes the knee out: this tile's V rows, as `PREFETCH_V`, prefetched
+into L3 only (`LSC_LDCC_L1UC_L3C`) with one address per 256 B L3 line. The cost of a prefetch follows the number of line
+requests, not the messages or where the lines land. The block prefetch is 64 B wide, so on 1 KiB V rows it asks for each
+line four times; an address prefetch with a 64 / 128 / 256 B stride was +17.0 / +4.4 / -0.5% at 8K, at the 64 B stride
+`L1C_L3C` cost about what `L1UC_L3C` did (+15.0 / +17.0%; at 256 B it is +1.2 / -8.9% at 8K / 32K against -0.4 /
+-11.0%), and 32-row block reads that cut the K/V messages by 4 for the same lines were 4-14% slower. Per call time / keys^2 (ps) at 1800 MHz, gemma-4-e2b, two rounds within 0.3%:
+
+| | 2K | 4K | 8K | 12K | 16K | 20K | 24K | 28K | 32K |
+|---|---|---|---|---|---|---|---|---|---|
+| 256 x 64 | 144.6 | 119.9 | 110.8 | 109.0 | 108.0 | 112.0 | 114.7 | 117.3 | 118.5 |
+| + `PREFETCH_V_L3` | 142.2 | 119.0 | 110.3 | 107.4 | 105.4 | 105.6 | 105.6 | 106.1 | 105.2 |
+
+That is 0.61-0.63x `sdpa_micro` from 8K to 32K at 1800 MHz, where it was 0.63x to 0.69x. A prefetch changes no value:
+the 173 `basic` PA rows give bit-identical outputs with it forced on and off at every head size. Measured and not
+adopted, at 1800 MHz: the next tile's K as well (+4.0% at 8K, -8.6% instead of -11.0% at 32K), the next tile's V instead
+of this one's (-10.1% at 32K), every other line (512 B stride, -3.5% at 32K), workgroups ordered with the
+`KV_GROUP_SIZE` heads of a query block innermost (4-7% slower at every length, knee unchanged), and `PREFETCH_V_L3` in
+place of `PREFETCH_V` at `d_max` <= 256, where one KV head's K/V still fits L3 at 32K: qwen3-8b (head 128) +3.8 / +3.9%
+at 8K / 32K, llama-3.2-1b (head 64) +5.1 / +5.2%, gemma-3-4b's head 256 window layers +2.8 / +2.9% and its full layers
+-0.8 / -1.0%.
 
 The daily models, B70 at 2800 MHz (llm_bench `-n 3`, 32 output tokens; kernel = `sdpa_ocl` / `sdpa_micro` PREFILL
 device time per prefill from cliloader; 2K / 4K / 8K / 16K / 32K prompts, gemma-2 to 8K and llama-2 to 4K by their
@@ -347,7 +380,10 @@ expected with a window, a sink or token types, which `MICRO_MATH` excludes, and 
 master runs. (b) master also runs a `ref_matmul` this branch does not; against the branch before these tilings it is
 0.992 / 0.988 / 0.972 / 0.948 / 0.874. (c) with the 256 x 64 `d_max` 512 tile; with the 128 x 64 one and `MICRO_MATH` the
 kernel column was 0.777/0.838/0.873/0.926/0.992 and 0.506/0.565/0.689/0.809/0.932, and the TTFT column, measured again
-in the same session, 0.970/0.981/0.977/0.979/0.977 and 0.886/0.904/0.931/0.940/0.960.
+in the same session, 0.970/0.981/0.977/0.979/0.977 and 0.886/0.904/0.931/0.940/0.960. The gemma-4 TTFT column is with
+`PREFETCH_V_L3`, measured again (one round, 2K-32K; e2b two rounds) against the build without it in the same session:
+0.969/0.966/0.949/0.926/0.890 and 0.883/0.894/0.913/0.898/0.882 (at 32K 3,092 to 3,034 ms and 4,638 to 4,577 ms); the
+kernel column is without it.
 
 | Model | Heads, head | Kernel vs `sdpa_micro` | TTFT vs master | Before, vs master | MD5 = master |
 |---|---|---|---|---|---|
@@ -368,8 +404,8 @@ in the same session, 0.970/0.981/0.977/0.979/0.977 and 0.886/0.904/0.931/0.940/0
 | gemma-3-4b-it | 8/4, 256, window, token types | 0.543/0.554/0.555/0.655/0.580 | 0.927/0.966/0.928/0.928/0.904 | 0.946/0.964/0.953/0.965/0.972 | not expected |
 | qwen3.5-9b | 16/4, 256 (8 of 32 layers) | 0.831/0.820/0.816/0.807/0.827 | 0.989/0.994/0.991/0.984/0.970 | 0.991/1.004/1.011/1.023/1.054 | master varies |
 | qwen3.6-35b-a3b | 16/2, 256 (10 of 40 layers) | 0.822/0.824/0.809/0.809/0.823 | 0.796/0.867/0.913/0.734/0.905 (b) | 0.802/0.878/0.939/0.774/1.035 | master varies |
-| gemma-4-e2b-it (c) | 8/1, 256 window + 512 | 0.703/0.699/0.669/0.661/0.697 | 0.966/0.966/0.954/0.927/0.888 | 1.030/1.115/1.252/1.588/2.260 | not expected |
-| gemma-4-26b-a4b-it (c) | 16/8, 256 window + 512 | 0.494/0.521/0.600/0.638/0.708 | 0.883/0.895/0.911/0.900/0.881 | 0.927/1.010/1.194/1.521/2.205 | not expected |
+| gemma-4-e2b-it (c) | 8/1, 256 window + 512 | 0.703/0.699/0.669/0.661/0.697 | 0.953/0.974/0.949/0.918/0.873 | 1.030/1.115/1.252/1.588/2.260 | not expected |
+| gemma-4-26b-a4b-it (c) | 16/8, 256 window + 512 | 0.494/0.521/0.600/0.638/0.708 | 0.881/0.893/0.914/0.898/0.870 | 0.927/1.010/1.194/1.521/2.205 | not expected |
 
 Measured and not adopted, at 8K: K-tile prefetch (next tile +0.2%, first tile +0.4%), skipping the
 `k_mask` add (0%), reversed workgroup order to start the long query blocks first (0% at 8K, +0.7%
@@ -811,6 +847,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_TRACE_CONFIG`, `SDPA_OCL_TRACE_STAGE` | Print the chosen tiling / PA stage |
 | `SDPA_OCL_256GRF`, `SDPA_OCL_DECODE_256GRF` | Large-GRF compile (`SDPAOclGenerator` always on xe_hpg; `SDPA_OCL_256GRF=0` turns it off for the PA PREFILL tiling) |
 | `SDPA_OCL_V_PREFETCH`, `_SM_BRANCHLESS`, `_MAX_SPLIT`, `_MASK_LAST` | PA PREFILL loop changes ("Paged-attention PREFILL tiling"): `0`/`1` forces each off/on |
+| `SDPA_OCL_V_PREFETCH_L3` | PA PREFILL V tile L3 prefetch (on at `d_max` 512): `0`/`1` forces it off/on; on replaces `PREFETCH_V` |
 | `TEST_USE_SDPA_OCL_HPG` | `1`: xe_hpg may take the `sdpa_ocl` lane (default off; see "xe_hpg bring-up") |
 | `SDPA_OCL_HPG_TIERS` | `all` or a comma list of `HpgTier` names: pretend those xe_hpg tiers are ready (dump only) |
 | `SDPA_OCL_NEG_SG8` | xe_hpg (SG8) only: `1` swaps the K pair order, `2` reads the S*V A operand transposed, `3` swaps the S_slm pair order (each must fail the sharp-softmax test); `4` forces the unaligned-K fallback (must pass) |
