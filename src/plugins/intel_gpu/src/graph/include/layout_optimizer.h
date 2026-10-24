@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -154,6 +155,9 @@ private:
     static const std::vector<std::pair<format::type, bool>> optimized_formats;  // pair of format type and allowed weak restriction
     size_t _total_conv;
     std::map<std::pair<format::type, bool>, size_t> _optimized_conv_count;
+    // Resample nodes whose users are being checked by all_users_simple_format_until_output().
+    // Used to break the get_preferred_format() <-> all_users_simple_format_until_output() cycle.
+    std::unordered_set<const program_node*> _resample_users_check_in_progress;
 
     format get_expected_format(const convolution_node& node);
     format get_expected_format(const deconvolution_node& node);

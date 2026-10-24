@@ -19,10 +19,9 @@ set(KERNEL_HEADERS "gpu_cm_kernel_headers.inc")
 set(CODEGEN_CACHE_SOURCES "${CODEGEN_INCDIR}/${KERNEL_SOURCES}"
                           "${CODEGEN_INCDIR}/${KERNEL_HEADERS}")
 
-file(GLOB_RECURSE KERNELS "${CMAKE_CURRENT_SOURCE_DIR}/*.cm")
-# Every CM header in include/ is a .hpp; globbing only *.h left header edits out of the
-# codegen dependency list, so kernels kept using a stale inlined copy after a header change.
-file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h" "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp")
+include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
+set(KERNELS ${GPU_CM_KERNEL_SOURCES})
+set(HEADERS ${GPU_CM_KERNEL_HEADERS})
 
 set_property(SOURCE ${CODEGEN_CACHE_SOURCES} PROPERTY GENERATED TRUE)
 
@@ -77,9 +76,8 @@ add_custom_target(run_cm_codegen${OV_GPU_SUFFIX} ALL DEPENDS "${CODEGEN_INCDIR}/
 ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}
     INCLUDES $<BUILD_INTERFACE:${CODEGEN_INCDIR}>
+    SOURCES ${GPU_CM_IMPL_SOURCES}
     BYPASS
-        ADDITIONAL_SOURCE_DIRS ${CODEGEN_INCDIR}
-        EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/include"
         DEPENDENCIES run_cm_codegen${OV_GPU_SUFFIX}
         ADD_CLANG_FORMAT
 )
