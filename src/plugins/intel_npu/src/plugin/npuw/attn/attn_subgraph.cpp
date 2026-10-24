@@ -1176,13 +1176,16 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                     is_final_tile,
                                     port.get_element_type(),
                                     host_past_has_visible_column);
+                                // Capture the request explicitly: MSVC does not resolve `ctx` through
+                                // a default capture in a lambda nested in a generic lambda.
+                                auto& npuw_request = get_request(ctx);
                                 auto tile = state.hfa_runtime_ctx->get_host_mask_tile(
                                     key,
-                                    get_request(ctx).subgraph_device(ctx.real_subgraph_idx),
-                                    [&](const ov::element::Type& dtype,
-                                        const ov::Shape& shape,
-                                        const std::string& device) {
-                                        return get_request(ctx).allocate_mem(dtype, shape, device);
+                                    npuw_request.subgraph_device(ctx.real_subgraph_idx),
+                                    [&npuw_request](const ov::element::Type& dtype,
+                                                    const ov::Shape& shape,
+                                                    const std::string& device) {
+                                        return npuw_request.allocate_mem(dtype, shape, device);
                                     });
                                 request->set_tensor(port, tile);
                             } else if (process_with_mask && attention_mask_tensor) {
