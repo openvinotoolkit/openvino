@@ -15,6 +15,7 @@ Full guide: `src/plugins/intel_gpu/docs/ocl_perf_guide/README.md`
 | Illegal/corrupted block2d reads, pitch/base rules, prefetch, split barrier, KV page layout | `xe-block-io-prefetch-barrier` | 02 |
 | softmax/mask/sink, int8·u4 dequant (`0x6480`), scale/zp, accuracy regressions | `ocl-quant-softmax-numerics` | 03 |
 | Large performance gap vs a reference, unexplained stall/low utilization, checking the comparison target/measurement validity | `ocl-kernel-performance-investigation` | 06, then 04/05 if needed |
+| Ratio vs a reference drifting with prompt length/size, suspected clock throttling, prefetch that costs more than it saves | `ocl-kernel-performance-investigation`, `xe-profiling-tools-cookbook`, `xe-block-io-prefetch-barrier` | 06 §6.7, 07 §7.8, 02 §7.6 |
 | spill/TPM, 256GRF, ISA dump, VTune source-analysis/GTPin, ocloc splice | `xe-spill-isa-profiling` | 04 |
 | A/B, attribution, speedup claims, verification harness | `ocl-kernel-ab-methodology` | 05 |
 | DG2/ARL-H/SG8 porting | `xe-hpg-porting` | 05 |
@@ -36,5 +37,6 @@ Full guide: `src/plugins/intel_gpu/docs/ocl_perf_guide/README.md`
 
 - Which hardware family is it (Xe2 SG16 / xe_hpg SG8)? If it differs, start with `xe-hpg-porting`.
 - Confirm which kernel/device actually ran and that the inputs are in device memory. Also confirm the final native binary of the comparison arm.
+- For long or heavy runs, confirm the clock actually reached (`act_freq`, `throttle/reasons`): a pin is a request, PL2 overrides it.
 - Large performance gap with no known reason: investigate in the order runtime → profiler → ISA → matched A/B from `ocl-kernel-performance-investigation`. If a spill candidate shows up, apply `xe-spill-isa-profiling`.
 - Wrong output: suspect in the order layout/gate (02), tiling invariant (01), mask type/OOB (02·03), and before blaming the consumer kernel, check the producer (e.g. dynamic_quantize) and a `TEST_USE_SDPA_OCL=0` control.

@@ -41,6 +41,14 @@ For VTune, record version, driver, Metrics Discovery version, device BDF, result
 6. Length scan exposed short-length and pre-pass costs; each hypothesis (causal tail, wave count, idle gap, DPASW, micro packing) was refuted or confirmed alone; final design read raw K/V inside one kernel with native packing.
 7. Close with a frozen-policy gate over lengths x head-counts x both cadences.
 
+## When the ratio changes with problem size (B70 head 512 case, chapter 06 §6.7)
+
+1. Clean the axis: inputs from one source (prompts cut from one text), time normalised by the expected growth (keys^2 for causal attention); find the knee.
+2. Check the clock that was reached, not the pin: sample `act_freq` + `throttle/reasons`; PL2 held a 2800 MHz pin at ~2150 MHz in 32K prefills. Repeat the sweep at a fixed clock below the limit (1800 MHz). There the reference was flat and only our kernel kept the knee (+9.6%), and the ratio drift was unchanged: the clock slowed both, the knee alone moved the ratio.
+3. Match the knee to a working set crossing a cache size (one KV head's K+V, 2 KiB per token, vs the 24 MiB L3 at 12K tokens); profile both ends at the fixed clock (L3 miss 3% -> 18%, Send stall 20% -> 30%, DRAM read far under peak = latency).
+4. Falsify with value-preserving changes, so a bit-identical output check covers correctness: a workgroup reorder (no effect -> not reuse), an existing prefetch (knee gone -> miss latency), then the prefetch's cost model (stride 64/128/256 B -> cost = line requests).
+5. Adopt the narrow form and measure where it does not apply (here: 1-5% slower at head <= 256, kept off).
+
 ## Turn evidence into a testable cause
 
 - Inspect the executed native instructions before labeling a path. In the DG2 SDPA case, an initial “K and V are both gathers” hypothesis was wrong: K already used a 32 B dword block read while V performed lane gathers and packing.

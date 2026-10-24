@@ -17,6 +17,8 @@ Symptom → what to check first → possible causes → how to confirm. A cause 
 | Accuracy wrong **only at specific lengths/heads** | Partial tile, odd depth, tail band | Producer/consumer bound mismatch, reading unwritten SLM, clamp error | Boundary length scan + all-rows + NaN poison |
 | Performance changes by ±tens of % regardless of source meaning | ISA diff | IGC schedule/allocation fluctuation, `inline` vs `always_inline` | Use a "no-op change" as a control via ISA SHA256 comparison (chapter 04 §4.8) |
 | 256 GRF removed the spill but is slower | The kernel's dominant cost (e.g. gather) | Halved occupancy + higher load cost | Measure GRF/tile/SG count together (chapter 04 §4.5) |
+| The ratio to the reference **drifts with problem size** (e.g. prompt length) | The clock actually reached (`act_freq`, `throttle/reasons`), time normalised by the expected growth | Power throttling (slows both arms), a working set crossing a cache size (one KV head's K/V vs L3) that only one kernel cannot hide | Repeat the size sweep at a fixed clock below the power limit; VTune miss ratio / stall reasons at both ends; a value-preserving prefetch or reorder that should remove the knee (chapter 06 §6.7) |
+| A prefetch costs more than it saves | Line requests per prefetched byte | Prefetch granularity below the cache line (64 B wide prefetch on 256 B lines: each line requested 4 times) | Stride sweep 64/128/256 B; L3-only vs L1+L3 at the same stride (chapter 02 §7.6) |
 
 ## 9.2 Where the gains came from (a sense of the ordering of effect sizes)
 
@@ -35,6 +37,7 @@ DG2 PA prefill (h128, 32/8, seq4096, f16, causal): 126.7 ms → 4.25 ms (micro 4
 | 9 | Per-head and per-length geometry/policy (tiny, key8, Q16, clamped SV, …) | Closed the gap at short lengths/small shapes | chapter 06 §6.3 "short lengths" section |
 
 **Generalisation:** the first two-digit factors came from (a) removing comparison errors, (b) register pressure/spill, (c) the memory message form (gather vs block). "Textbook optimisations" such as tile tuning or prefetch were within the last 10%. For a large gap, look in the order **measurement reliability → spill → message form** rather than textbook tuning.
+Once a kernel is faster than its reference, the last 10% can sit at the large-size end: the B70 head 512 PA PREFILL kernel lost 11% at 32K keys to L3-miss latency that `sdpa_micro`, slower per tile, did not show. The fix was a prefetch, but only after its cost model was right (one request per cache line; chapter 02 §7.6).
 
 ## 9.3 Design principles (repeatedly confirmed in this project)
 
@@ -49,6 +52,8 @@ DG2 PA prefill (h128, 32/8, seq4096, f16, causal): 126.7 ms → 4.25 ms (micro 4
 9. **Solving it with a pre-pass is a temporary measure.** An external layout rearrangement (K'/V') sped up the long-length diagnosis, but its fixed cost (about 44–110 µs) loses at short lengths. If the final goal is "replacement", it must be solved inside attention without a pre-pass and without a hybrid fallback (the user's decision).
 10. **Confirm the hardware facts before writing assumptions.** Values such as 1 DPAS in flight per thread, L1 prefetch being a loss, dpasw ≈ dpas, and SLM 47.7 KB halving occupancy narrowed the design choices a lot. On a new architecture, run the microbenchmarks of chapter 07 §7.6 first.
 11. **A static tiling choice is a compromise over runtime shapes.** The best decode `SG_PER_WG` flips with the partition count (i8: 16 subgroups 0.85-0.89x at short context, 1.26-1.29x at 4K). Model it (threads per partition against the device's thread count, per-wave time), pick the side with the smaller worst-case loss, and record the per-dispatch variant as the way to get both.
+12. **Count a prefetch in cache-line requests.** Issue one request per line (query the line: `clinfo` "Global Memory cache line size", 256 B on B70), into the level that misses (L3 only when L1 is shared by the subgroups that read the tile), and only where the working set exceeds that cache: the same prefetch that removed the head 512 knee cost 1-5% at head <= 256 (chapter 02 §7.6).
+13. **A faster kernel exposes more latency.** Re-check the large-size end after overtaking the reference: a miss the reference hid in its longer per-tile time showed up as a knee in ours (chapter 06 §6.7).
 
 ## 9.4 Accuracy verification discipline
 
@@ -91,12 +96,16 @@ DG2 PA prefill (h128, 32/8, seq4096, f16, causal): 126.7 ms → 4.25 ms (micro 4
 | default configuration not checked (KV-cache precision) | a rule measured on u4 was shipped for i8 and regressed it | state the cache actually used (4-bit weights -> u4); measure each cache type |
 | a knob moved a derived parameter (SG -> M through the register estimate) | a confounded A/B credited SG with M's effect | read LWS/GWS/SLM back for every arm |
 | arm names that are prefixes of each other in result globs | one arm's statistics included another arm | glob `<arm>_r[0-9]*`, check the sample counts |
+| trusting the clock pin in long runs | PL2 held a 2800 MHz pin at ~2150 MHz in 32K prefills: size-dependent ratios and "variant" gaps were partly clock | sample `act_freq`/`throttle/reasons`; pin below the power limit for scaling questions (chapter 07 §7.8) |
+| the same arm order in every e2e round | a sub-1% TTFT "regression" that followed the order | reverse the order in a repeat; check the kernel time |
+| VTune target arguments | double quotes stripped (inline JSON breaks) | pass JSON through a file (chapter 07 §7.3) |
+| an experiment env knob emitted for every kernel of a stage | its `#error` guard broke kernels it did not fit; type definitions in kernel files break because the codegen `#undef`s their guard macros between kernels | downgrade the knob where it does not fit; repeat compatible prototypes instead of defining types (chapter 05 E22, E23) |
 
 ## 9.7 Checklist for starting the next kernel
 
 1. Define one call: operation, dtype, shape, layout, mask, device/driver, build, timing API, cadence. Fix the reference kernel (binary).
 2. Confirm that the comparison does the same work (kernel name, memory location, useful FLOPs and the real key count/padding).
-3. Collect runtime evidence first: device time + geometry, SPILL/TPM, SIMD/GRF/SLM. Build a length/shape scan table.
+3. Collect runtime evidence first: device time + geometry, SPILL/TPM, SIMD/GRF/SLM. Build a length/shape scan table, normalised by the expected growth, with the clock actually reached recorded for each run.
 4. If the gap is several-fold, follow §9.1 from the top. Use a profiler tied to one question (chapter 07 §7.0).
 5. Write a falsifiable prediction: "replacing this reader's gather with a block read lowers the time for the same bytes".
 6. One change, controls in both directions, accuracy → performance. Confirm that the JIT constants, the final binary and the ISA signature before/after the change differ as intended.

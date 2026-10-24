@@ -10,6 +10,7 @@ Per-tool commands and interpretation limits are in [chapter 07 tool cookbook](07
 |---|---|---|---|
 | Xe2 Arc Pro B70 | On some heads/paths sdpa_ocl was up to 8.11x slower than sdpa_micro. The default f16 prefill configuration was also 13% slower on the representative case | The head-72 path became 9.28x faster, 1.14x faster than micro. The best f16 prefill setting is 7% faster than micro. The two recorded u4 MIXED workloads are 1.5% and 6.3% faster than micro | A guarantee that the same tile is best for every shape and model |
 | Xe-HPG Arc A770/DG2 | PA PREFILL head 128, seq 4096: initial OCL 110–113 ms, micro about 4.62 ms | A standalone kernel matrix that uses vISA inline assembly and reads and packs the original K/V inside attention passed the approved 3% gate: 32 block-16 head sizes, 2,642 PASS records matching the current policy/source hash, 2,434 unique conditions, worst paired ratio +2.6234% | OpenVINO product raw-kernel integration, end-to-end performance, every head-count/padding/feature combination, Xe2/B70 regressions |
+| head 512 PA PREFILL ratio drifting with prompt length (gemma-4, B70, 2026-10-24) | 0.644x micro at 8K, 0.694x at 32K, every tile alike | the 2800 MHz pin is overridden by PL2 in long prefills (slows both kernels); at a fixed 1800 MHz `sdpa_ocl` alone had a knee at 16K-20K = one KV head's K/V outgrowing L3, V miss latency. One-request-per-line V L3 prefetch: -11% at 32K, flat ratio 0.61-0.63x (§6.7) | other Xe2 devices; why micro hides its misses |
 | lfm2.5-1.2b decode, branch vs reference build (B70, 2026-10-22) | branch 2nd token +3.5%/+2.7% on Linux (+20% reported on Windows) | two causes, each with both controls: the missing upstream RMS+RoPE fusion (+12 kernels and +2 flushes per token) and `sdpa_ocl_decode` at 8 subgroups for head 64; after the rebase and 16 subgroups the branch is 1.3-1.8% faster | the Windows magnitude (host-bound emulation on E-cores gave only +1%) |
 
 The DG2 result is a kernel-only experiment gate. It does not mean that the work of replacing sdpa_micro in the product is complete. Product raw-kernel integration, confirmation of the actual dispatch, the product accuracy gate, end-to-end measurement, and the S6 and SG16/B70 regressions remain as separate steps. The raw data is in the 2026-10-03/04 records under `test/sdpa_ocl_xe_hpg/s7a/perf/`; this chapter summarizes, self-contained, the key evidence and limits worth reusing.
@@ -25,7 +26,7 @@ Before optimizing a large gap, confirm that what you measure is really the compa
 3. **Use the real native binary of the reference kernel.** An OpenCL source wrapper or an early clBuildProgram dump alone can miss sdpa_micro's fused nGEN GEMM. Confirm the final-linked PREFILL binary and the kernel name. With the wrong binary, neither accuracy nor time is valid.
 4. **Give both the same work.** Match Q/K/V values and dtype, shape, cache layout, mask/causal, query/key ranges, subgroup/WG placement, warm-up, and enqueue cadence. If micro and OCL actually processed a different number of keys or a different amount of padding, compute that difference before comparing FLOP efficiency.
 5. **Separate the kinds of time.** cliloader device kernel time, primitive pipeline time, and end-to-end first-token latency are different metrics. For example, if SDPA is 10–15% of first-token, a 7% kernel improvement may show up as only about 1% in first-token. When there is a pre-pass, measure the attention kernel time and the total time including the pre-pass separately.
-6. **Fix the repetitions and the arm order.** With a small number of calls, do not trust a single mean. The B70 comparisons used a pinned 2800 MHz clock, several passes with low variance, and ABBA or independent re-measurement. The DG2 standalone gate computed the OCL/micro paired ratio within the same round and checked the queued32 and wait-each cadences separately. Do not pass a threshold by rounding.
+6. **Fix the repetitions and the arm order.** With a small number of calls, do not trust a single mean. The B70 comparisons used a pinned 2800 MHz clock, several passes with low variance, and ABBA or independent re-measurement. The pin is not the clock: under a sustained load (long prefills) the PL2 power limit lowers it (§6.7), so sample `act_freq`/`throttle/reasons` and, for comparisons across sizes, pin below the limit. The DG2 standalone gate computed the OCL/micro paired ratio within the same round and checked the queued32 and wait-each cadences separately. Do not pass a threshold by rounding.
 
 cliloader -d -dv/-ko is used to confirm the executed kernels, launch geometry, and device time. A run can be host-bound, so do not confuse small device-time differences with e2e results. The execution environment and A/B rules follow chapter 05 §5.3–5.5.
 
@@ -260,7 +261,8 @@ The `KV_TILED` OpenCL pre-pass branch left in the working tree is an earlier pro
 7. **Check the accuracy of a fast kernel first.** Check every output row/channel, NaN/Inf, tails, partial tiles, and dynamic/padded layouts. Confirm that the test data does not hide Q/K errors.
 8. **Widen the performance gate.** Check sequentially not only the long representative model but also short/long, boundary, odd tail, multiple head-counts, and execution cadences. Report the experiment harness, the product dispatch, and end-to-end as different stages of proof.
 9. **Leave the results reproducible.** Record measured/predicted, device/driver/clock, options/JIT constants, source/native hash, the exact comparison arms and commands, warm-up/repetitions, failed/excluded runs, coverage holes, and the next conditions.
-10. **Serialize GPU measurements.** Do not overlap separate benchmarks, compiler dumps, or VTune/GTPin collections on the same GPU. Create new tag/result directories, and if overlap or a wrong arm is suspected, discard that run and re-measure under clean conditions.
+10. **If the ratio changes with problem size, separate the clock from the kernel first.** Sample the actual clock and the throttle reasons during the run; repeat the size sweep at a fixed clock below the power limit; normalise time by the expected growth and look for a knee, then for a working set that crosses a cache size at that knee. Falsify reuse hypotheses with value-preserving changes (order, prefetch) so a bit-identical output check covers correctness (§6.7).
+11. **Serialize GPU measurements.** Do not overlap separate benchmarks, compiler dumps, or VTune/GTPin collections on the same GPU. Create new tag/result directories, and if overlap or a wrong arm is suspected, discard that run and re-measure under clean conditions.
 
 ## 6.5 Questions the performance tools answer
 
@@ -285,3 +287,33 @@ The question was why the branch's 2nd-token latency was slower than a reference 
 4. **Test the platform hypothesis instead of assuming it.** "Windows is host-bound, so extra kernels cost more" was checked by pinning the run to the E-cores (decode became host-bound at 3.4 ms per token): the branch was only 1% slower there, so host-boundness alone does not explain 20%. The Windows magnitude stayed unexplained, and the exact control commands for measuring it there were handed over (`OV_GPU_ENABLE_RMS_ROPE_FUSION=0`, `TEST_USE_SDPA_OCL_DECODE=0`).
 5. **Side effects are part of the result.** The upstream fused rope uses a 2-work-item workgroup and made a 1024-token prefill 0.36 ms slower (q 121.5 vs 71.8 us per layer) while the 32-token prefill got 0.2 ms faster; this was reported, not changed.
 6. **Pre-existing failures need a one-variable control.** The PA gtest run had 13 failures; a test binary built from the pre-change source gave the identical failed and skipped sets, which is what makes them "pre-existing".
+
+## 6.7 Case: head 512 PA PREFILL ratio drifting with prompt length (gemma-4, B70, 2026-10-24)
+
+The shipped head 512 PA PREFILL kernel was 0.644x `sdpa_micro` at 8K keys but 0.694x at 32K (gemma-4-e2b; gemma-4-26b 0.730x ->
+0.743x), and every tile tried showed the same shape. Details and all numbers: `docs/sdpa_ocl.md` "Paged-attention PREFILL: the
+`d_max` 512 long-prompt knee"; prefetch mechanics: chapter 02 §7.6. The steps, each with the evidence it produced:
+
+1. **Locate the knee with a clean length axis.** Prompts were cut from one 32K text (8.1K to 33.4K tokens in 7 steps) and per call
+   time divided by keys^2. Both kernels rose from 16K-20K at the "2800 MHz" pin. That pointed at one KV head's K+V (2 KiB per
+   token) outgrowing the 24 MiB L3 (12K tokens), but that was only a hypothesis.
+2. **Falsify the cheapest reuse hypothesis.** If concurrent workgroups (consecutive query blocks of one head, drifting apart in key
+   position) thrash L3, putting the 8 heads of a KV group into the same wave should cut the misses 8x. It was 4-7% slower at every
+   length and the knee stayed: not reuse.
+3. **Check the clock, not the setting.** A 5 ms sampler of `act_freq` and `throttle/reasons` showed `pl2` holding the GT at
+   2133-2167 MHz for most of a 32K run, rarely at 8K. Pinned at 1800 MHz (0 `pl2`): `sdpa_micro` was flat, `sdpa_ocl` still had a
+   +9.6% knee, and the ratio drifted exactly as before. The clock slowed both; the knee alone moved the ratio. A gap between two
+   kernel variants (6-10% at 32K) vanished at the fixed clock too.
+4. **Profile at the fixed clock.** VTune overview (needed `dev.xe.observation_paranoid=0`; chapter 07 §7.3): L3 miss 3% -> 18%,
+   Send stall 20% -> 30%, DRAM read 64 GB/s (far under peak), L3 read per call = the computed one read per workgroup. Micro read
+   2.8x more from L3 without stalling. Reading: miss latency on the V reads, not bandwidth.
+5. **Prove the latency reading with a value-preserving switch.** The existing `PREFETCH_V` flattened the knee (121 ps from 16K) but
+   cost 14% at 8K. Prefetch placed at L3 only cost the same as L1+L3 (not L1 pollution); 4x fewer demand messages for the same
+   lines was slower (not the message count); the prefetch stride decided it: 64 / 128 / 256 B = +17.0 / +4.4 / -0.5% at 8K. Cost =
+   line requests; the L3 line is 256 B.
+6. **Adopt the narrow form, measure where it does not apply.** One request per line, L3 only, this tile's V, `d_max` 512 only:
+   -0.4..-1.6% at 2K-8K and -11.2% at 32K at 1800 MHz, flat time / keys^2 from 12K; at the 2800 pin with PL2 32K 111.8 -> 100.1 ms
+   and TTFT -1.3..-1.9%. At `d_max` <= 256, where one KV head's K/V fits L3, the same prefetch was 1-5% slower: kept off by the
+   user's decision.
+7. **Verify cheaply because nothing changes value.** 173 PA gtest outputs bit-identical with the switch forced on and off at every
+   head size; the two suites' failure sets unchanged. A 4K TTFT +0.8% was arm order (reversed: +0.4% / 0.0%; kernel -1.2%).

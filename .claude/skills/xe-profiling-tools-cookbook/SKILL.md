@@ -19,6 +19,7 @@ Full explanations and numbers: `src/plugins/intel_gpu/docs/ocl_perf_guide/07-pro
 | The ISA the compiler produced | IGC ShaderDump, ocloc, iga64 | execution frequency·latency hiding |
 | Per-phase ratios | `__builtin_IB_read_cycle_counter` (DG2 1 tick ≈ 1.08 ns) | time of uninstrumented kernels |
 | Hardware ceilings | microbenchmarks (dpas/ld/slm/alu) | whether the whole kernel is capped by a ceiling |
+| Did the GPU run at the pinned clock? | `act_freq` + `throttle/reasons` sampler (`test/longctx/freq_sample.py`, chapter 07 §7.8) | which kernel ran at which clock (whole-run means mix kernels) |
 
 ## Key commands
 
@@ -49,6 +50,9 @@ IGC_ShaderDumpEnable=1 IGC_DumpToCustomDir=/abs/dir <run>
 8. Judge by the median of same-round raw/ref paired ratios. Both queued32/gap0 **and** batch1/wait_each/gap200. Report both the arm median and the paired value. Never pass a threshold by rounding.
 9. Output hygiene: VTune progress log `tr '\r' '\n' | grep -v "Executing actions"`; do not print the `//.declare` headers of IGC `.asm` or `strings libigc.so`. No Bash `cd` (absolute paths). `setupvars.sh` wipes `"$@"`, so save the arguments before sourcing.
 10. Scripts like `isa.sh` change cwd/clean up, so read them before running. Do not edit a running script.
+11. **The clock pin is a request** (B70, 2026-10-24): under a sustained load PL2 lowered a 2800 MHz pin to 2133-2167 MHz in 32K prefills (`throttle/reasons` = `pl2`, 68-78% of busy samples; 8K 4%). Sample `tile0/gt0/freq0/{act_freq,throttle/status,throttle/reasons}` during long runs; for comparisons across sizes or across layers that run at different times, have the user pin below PL2 (1800 MHz gave 0 `pl2`) and verify. A one-length A/B at the pin stays fair.
+12. **VTune on B70 / xe**: permission error -> `sudo sysctl dev.xe.observation_paranoid=0` (the message only names i915); BDF `0:3:0.0`. VTune strips the double quotes of target arguments, so pass JSON (llm_bench `--cb_config`) as a file; `-knob computing-tasks-of-interest=sdpa_*`, llm_bench `-n 1 -ic 1`; `test/longctx/vt_run.sh` / `vt_an.py`.
+13. **Cross-check bandwidths against computed traffic**: GB/s x call time = bytes per call (head 512 at 8K: 9.0 GB measured vs 9.1 GB for one K/V read per workgroup). `GPU L3: Busy` ~100% is not saturation (micro pulled 1.8x the bandwidth at the same Busy). Rising `L3 Miss Ratio` with DRAM read far under peak = latency, not bandwidth.
 
 ## Standalone harness (no product build)
 
