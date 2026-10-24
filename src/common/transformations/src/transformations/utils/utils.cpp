@@ -628,6 +628,36 @@ bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int6
     return false;
 }
 
+std::vector<int64_t> get_unsqueeze_axes(const PartialShape& data_shape, const PartialShape& out_shape) {
+    std::vector<int64_t> axes;
+    int64_t i = 0;
+    for (auto o = 0; o < out_shape.rank().get_length(); o++) {
+        if (i < data_shape.rank().get_length() && data_shape[i].same_scheme(out_shape[o])) {
+            i += 1;
+            continue;
+        }
+        if (out_shape[o].is_static() && out_shape[o] == 1) {
+            axes.push_back(o);
+        }
+    }
+    return axes;
+}
+
+std::vector<int64_t> get_squeeze_axes(const PartialShape& data_shape, const PartialShape& out_shape) {
+    std::vector<int64_t> axes;
+    int64_t out_i = 0;
+    for (auto i = 0; i < data_shape.rank().get_length(); i++) {
+        if (out_i < out_shape.rank().get_length() && data_shape[i].same_scheme(out_shape[out_i])) {
+            out_i += 1;
+            continue;
+        }
+        if (data_shape[i].is_static() && data_shape[i] == 1) {
+            axes.push_back(i);
+        }
+    }
+    return axes;
+}
+
 bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node) {
     bool changed = false;
 

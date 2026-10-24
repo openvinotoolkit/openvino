@@ -54,30 +54,33 @@ public:
     MoveEltwiseUpThroughDataMovPerChannel();
 };
 
-/// This transformation handles the non-constant case where a binary element-wise op
-/// consumes the output of an op that inserts a single unit dimension (Unsqueeze or a
-/// rank-increasing Reshape) whose producer is a "fusable" op (one that can absorb the
-/// eltwise as a post-op, e.g. FullyConnected, MatMul, Transpose). Instead of reshaping
-/// the other input (which is not a constant), it squeezes the other input's unit
-/// dimension, performs the eltwise in the lower rank,
-/// and unsqueezes the result:
-///     Eltwise(R, Unsqueeze(P, axis))
-///       => Unsqueeze(Eltwise(Squeeze(R, axis), P), axis)
-///
-/// so the eltwise operates in the lower rank and can be fused as a post-op on P.
-/// For non-commutative element-wise ops the fusable producer has to be the first eltwise input,
-/// otherwise fusing it would reverse the operation.
+/// This transformation moves a binary element-wise op below a data movement op (Unsqueeze or
+/// rank-increasing Reshape) that inserts a single unit dimension, when the producer of that op can
+/// fuse the eltwise as a post-op (e.g. FullyConnected, MatMul, Transpose). The unit dimension of the
+/// other eltwise input is squeezed instead, so that the eltwise is computed in the lower rank:
+///        ┌───────────┐  ┌──────────────┐              ┌───────────┐           ┌────────────┐
+///        │ FusableOp │  │  TargetShape │              │ FusableOp │           │ OtherInput │
+///        └─────┬─────┘  └──────┬───────┘              └─────┬─────┘           └─────┬──────┘
+///              │               │                            │                       │
+///      ┌───────┴───────────────┴───────┐                    │              ┌────────┴───────┐
+///      │      Reshape / Unsqueeze      │       =>           │              │    Squeeze     │
+///      └───────┬───────────────────────┘                    │              └────────┬───────┘
+///              │                                      ┌─────┴───────────────────────┴─────┐
+///      ┌───────┴────────┐   ┌────────────┐            │            Element-Wise           │
+///      │  Element-Wise  ├───┤ OtherInput │            └────────────────┬──────────────────┘
+///      └────────────────┘   └────────────┘                     ┌───────┴────────┐
+///                                                              │   Unsqueeze    │
+///                                                              └────────────────┘
+/// The producer may be followed by a bias Add, which belongs to it because the bias is folded into the
+/// producer's kernel. The data movement op has to be the first input of a non-commutative eltwise,
+/// because the eltwise is fused into the producer as `producer <op> peer` post-op, which would reverse
+/// the operands otherwise. A Reshape is accepted only when its shapes prove a pure dimension insertion,
+/// which excludes more than one dynamic dimension.
 class TRANSFORMATIONS_API MoveEltwiseUpThroughDataMovFusableProducer : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("MoveEltwiseUpThroughDataMovFusableProducer");
-    /// @param fusable_producer_types List of op types that can fuse an eltwise
-    ///        as a post-op. Passed as a runtime vector of type infos (instead of
-    ///        compile-time wrap_type<...>()) because callers may include plugin-private
-    ///        ops that are not visible to this device-agnostic common transformation,
-    ///        e.g. ov::intel_gpu::op::FullyConnected. The common library must not depend
-    ///        on a plugin, so those types can only be injected at runtime. A bias Add on
-    ///        top of such a producer is always treated as a fusable producer as well,
-    ///        since the bias is folded into the producer's kernel.
+    /// @param fusable_producer_types Types of the ops that can fuse an eltwise as a post-op. Passed as
+    ///        runtime type infos because callers may pass plugin-private ops, e.g. GPU FullyConnected.
     MoveEltwiseUpThroughDataMovFusableProducer(std::vector<DiscreteTypeInfo> fusable_producer_types);
 };
 

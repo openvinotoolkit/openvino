@@ -259,36 +259,6 @@ static bool replace_squeeze_unsqueeze(const std::shared_ptr<Node>& node) {
     }
 }
 
-static std::vector<int64_t> get_unsqueeze_axes(const PartialShape& data_shape, const PartialShape& out_shape) {
-    std::vector<int64_t> axes;
-    int64_t i = 0;
-    for (auto o = 0; o < out_shape.rank().get_length(); o++) {
-        if (i < data_shape.rank().get_length() && data_shape[i].same_scheme(out_shape[o])) {
-            i += 1;
-            continue;
-        }
-        if (out_shape[o].is_static() && out_shape[o] == 1) {
-            axes.push_back(o);
-        }
-    }
-    return axes;
-}
-
-static std::vector<int64_t> get_squeeze_axes(const PartialShape& data_shape, const PartialShape& out_shape) {
-    std::vector<int64_t> axes;
-    int64_t out_i = 0;
-    for (auto i = 0; i < data_shape.rank().get_length(); i++) {
-        if (out_i < out_shape.rank().get_length() && data_shape[i].same_scheme(out_shape[out_i])) {
-            out_i += 1;
-            continue;
-        }
-        if (data_shape[i].is_static() && data_shape[i] == 1) {
-            axes.push_back(i);
-        }
-    }
-    return axes;
-}
-
 static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
     auto out_shape = node->get_output_partial_shape(0);
     // try to replace all squeeze/unsqueeze with reshape
@@ -321,14 +291,14 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
         }
         if (out_shape.rank().get_length() > data_shape.rank().get_length()) {
             // check if single unsqueeze can handle this
-            auto axes = get_unsqueeze_axes(data_shape, out_shape);
+            auto axes = op_util::get_unsqueeze_axes(data_shape, out_shape);
             if (static_cast<int64_t>(axes.size()) + data_shape.rank().get_length() == out_shape.rank().get_length()) {
                 return replace_unsqueeze_only(axes);
             }
         }
         if (out_shape.rank().get_length() < data_shape.rank().get_length()) {
             // check if single squeeze can handle this
-            auto axes = get_squeeze_axes(data_shape, out_shape);
+            auto axes = op_util::get_squeeze_axes(data_shape, out_shape);
             if (data_shape.rank().get_length() - static_cast<int64_t>(axes.size()) == out_shape.rank().get_length()) {
                 auto axes_const = v0::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
                 auto new_sq = std::make_shared<v0::Squeeze>(input->input_value(0), axes_const);
@@ -347,7 +317,7 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
         if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic()) {
             return false;
         }
-        auto axes = get_unsqueeze_axes(data_shape, out_shape);
+        auto axes = op_util::get_unsqueeze_axes(data_shape, out_shape);
         return replace_unsqueeze_only(axes);
     }
 
@@ -812,7 +782,7 @@ EliminateSqueeze::EliminateSqueeze() {
             }
             if (out_shape.rank().get_length() < data_shape.rank().get_length()) {
                 // check if single squeeze can handle this
-                auto axes = get_squeeze_axes(data_shape, out_shape);
+                auto axes = op_util::get_squeeze_axes(data_shape, out_shape);
                 if (data_shape.rank().get_length() ==
                     out_shape.rank().get_length() + static_cast<int64_t>(axes.size())) {
                     return replace_squeeze_only(axes);
@@ -820,7 +790,7 @@ EliminateSqueeze::EliminateSqueeze() {
             }
             if (out_shape.rank().get_length() > data_shape.rank().get_length()) {
                 // check if single unsqueeze can handle this
-                auto axes = get_unsqueeze_axes(data_shape, out_shape);
+                auto axes = op_util::get_unsqueeze_axes(data_shape, out_shape);
                 if (data_shape.rank().get_length() + static_cast<int64_t>(axes.size()) ==
                     out_shape.rank().get_length()) {
                     auto axes_const = v0::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
@@ -844,7 +814,7 @@ EliminateSqueeze::EliminateSqueeze() {
             if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic()) {
                 return false;
             }
-            auto axes = get_squeeze_axes(data_shape, out_shape);
+            auto axes = op_util::get_squeeze_axes(data_shape, out_shape);
             return replace_squeeze_only(axes);
         }
         return false;
