@@ -110,8 +110,7 @@ std::string PermuteTestsBase::ToString() const {
     for (size_t i = 0; i != input_shape.size(); i++) {
         result << input_shape[i] << ((i + 1 == input_shape.size()) ? "" : "x");
     }
-    result << "]"
-           << "_type_" << type;
+    result << "]" << "_type_" << type;
 
     result << "_axis";
 
@@ -147,6 +146,11 @@ void PermuteTestsBase::make_ref_output() {
                                         reinterpret_cast<uint8_t*>(ref_output.data()),
                                         dims,
                                         axes);
+    } else if (type == ov::element::i8) {
+        details::permute<uint8_t>(reinterpret_cast<const uint8_t*>(input.data()),
+                                  reinterpret_cast<uint8_t*>(ref_output.data()),
+                                  dims,
+                                  axes);
     } else {
         throw std::runtime_error("Unsupported element type in PermuteTestsBase::make_ref_output");
     }
@@ -253,6 +257,41 @@ const auto TestCases120 = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(PermuteTests120, PermuteTests, TestCases120, PermuteTests::getTestCaseName);
+
+const auto TestCases0213 = ::testing::Combine(
+        ::testing::ValuesIn({ov::element::Type_t::i4, ov::element::Type_t::i8, ov::element::Type_t::f16,
+                             ov::element::Type_t::f32}),
+        ::details::ShapesIn({Tensors{input={2, 4, 3, 16};
+}
+, Tensors {
+    input = {4, 8, 6, 64};
+}
+, Tensors {
+    input = {1, 2, 2, 16};
+}
+}),
+::testing::ValuesIn(
+    {
+    std::vector<std::size_t>({0, 2, 1, 3})
+}
+)
+);
+
+INSTANTIATE_TEST_SUITE_P(PermuteTests0213, PermuteTests, TestCases0213, PermuteTests::getTestCaseName);
+
+const auto TestCases0213G1 = ::testing::Combine(
+        ::testing::ValuesIn({ov::element::Type_t::i8, ov::element::Type_t::f16, ov::element::Type_t::f32}),
+        ::details::ShapesIn({Tensors{input={3, 5, 7, 1};
+}
+}),
+::testing::ValuesIn(
+    {
+    std::vector<std::size_t>({0, 2, 1, 3})
+}
+)
+);
+
+INSTANTIATE_TEST_SUITE_P(PermuteTests0213G1, PermuteTests, TestCases0213G1, PermuteTests::getTestCaseName);
 
 }  // anonymous namespace
 
