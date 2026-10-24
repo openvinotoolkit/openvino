@@ -55,6 +55,7 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "ov_ops/moe_compressed.hpp"
 #include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
@@ -527,6 +528,16 @@ void apply_moe_config(ov::AnyMap& stage_config,
         LOG_INFO("MoE config for " << stage_name
                                    << " stage: FUSED (single MOECompressed op, device dynamic-sparse"
                                       " kernel)");
+        // The accuracy reference device cannot run the fused MOECompressed op (no CPU implementation).
+        if (auto it = stage_config.find("NPUW_ACC_CHECK"); it != stage_config.end()) {
+            const auto value = it->second.as<std::string>();
+            if (value == "YES" || value == "true" || value == "1") {
+                OPENVINO_THROW("NPUW_ACC_CHECK is not supported with MoE hint FUSED (",
+                               stage_name,
+                               " stage): the reference device cannot run the fused MOECompressed op. "
+                               "Disable NPUW_ACC_CHECK or use HOST_ROUTED or DEVICE_ROUTED.");
+            }
+        }
         if (stage_name == "GENERATE") {
             stage_config["NPUW_UNFOLD_IREQS"] = "YES";
         }
@@ -614,6 +625,16 @@ void restore_weightless_attrs(const std::shared_ptr<ov::Model>& model,
     }
 }
 
+// MoeOpFusion only builds MOECompressed, so its absence means the fusion did not happen.
+void validate_moe_fused(const std::shared_ptr<ov::Model>& model) {
+    const auto ops = model->get_ops();
+    if (std::none_of(ops.begin(), ops.end(), [](const auto& op) {
+            return ov::is_type<ov::op::internal::MOECompressed>(op);
+        })) {
+        OPENVINO_THROW("MoE hint FUSED: no expert block was fused into a MOECompressed op.");
+    }
+}
+
 // Collapse the decomposed tiled-MoE expert subgraph (Tile + batched MatMul + ScatterElementsUpdate
 // routing) into single MOE/MOECompressed ops, so the NPU compiler can lower each MoE block to a
 // single dynamic-sparse kernel instead of partitioning the unrolled expert graph.
@@ -625,6 +646,7 @@ void apply_moe_fusion(const std::shared_ptr<ov::Model>& model) {
     LOG_INFO("Fusing MoE expert subgraphs into MOECompressed ops (MoEHint::FUSED)");
     const std::vector<ov::element::Type> supported_weights_types{ov::element::u4,
                                                                  ov::element::i4,
+                                                                 ov::element::nf4,
                                                                  ov::element::u8,
                                                                  ov::element::i8};
     const std::vector<ov::element::Type> supported_activation_types{ov::element::f32, ov::element::f16};
@@ -642,6 +664,7 @@ void apply_moe_fusion(const std::shared_ptr<ov::Model>& model) {
     manager.register_pass<CollapseRedundantReshapePair>();
     manager.register_pass<ov::pass::Validate>();
     manager.run_passes(model);
+    validate_moe_fused(model);
     restore_weightless_attrs(model, original_attrs);
 }
 
@@ -1172,6 +1195,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (fuse_prefill_moe) {
         apply_moe_fusion(prefill_model);
     }
+    if (fuse_generate_moe) {
+        apply_moe_fusion(kvcache_model);
+    }
 
     m_kvcache_desc =
         KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, max_generation_token_len};
@@ -1264,11 +1290,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // A bidirectional encoder embedding model has no autoregressive generate step (no KV cache,
     // no single-token decode), so the seq_len=1 generate graph is invalid for it and must not be
     // built/compiled. Only the (whole-sequence) prefill model is used at inference time.
-    // kvcache_model is still dynamic here (prefill_model already branched off above), so fuse MoE
-    // in place before each generate variant is cloned off and reshaped to static.
-    if (fuse_generate_moe) {
-        apply_moe_fusion(kvcache_model);
-    }
     std::vector<std::shared_ptr<ov::Model>> generate_model_variants;
     if (!m_is_encoder_embedding) {
         generate_model_variants = create_generate_model_variants(kvcache_model, axes, whisper_lhs_seq_size);

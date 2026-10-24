@@ -1130,6 +1130,39 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintIsIndependentPerStage) {
     expect_prop(generate.props, "NPUW_ONLINE_ISOLATE", "MOE");
 }
 
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintFusesGptOssExpertsWithInterleavedActivation) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_moe_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_PREFILL_MOE_HINT", "FUSED"},
+                                                      {"NPUW_LLM_GENERATE_MOE_HINT", "FUSED"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+
+    for (const auto* call : {&prefill, &generate}) {
+        EXPECT_EQ(count_nodes<ov::op::v0::Tile>(call->model), 0u) << "Expert Tile should be fused away";
+        EXPECT_GE(count_moe_nodes(call->model), 1u) << "Expected at least one fused MOE(Compressed) op";
+        expect_missing_prop(call->props, "NPUW_ONLINE_ISOLATE");
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintRejectsAccuracyCheck) {
+    for (const char* stage_hint : {"NPUW_LLM_PREFILL_MOE_HINT", "NPUW_LLM_GENERATE_MOE_HINT"}) {
+        RecordingFactory recorder;
+        EXPECT_THROW(
+            create_compiled_model(build_qwen3_moe_llm_model(),
+                                  {{"NPUW_LLM_SHARED_HEAD", "NO"}, {"NPUW_ACC_CHECK", "YES"}, {stage_hint, "FUSED"}},
+                                  recorder),
+            ov::Exception)
+            << stage_hint;
+    }
+}
+
 TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeEnabledRoundsTripThroughCompiledModel) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
