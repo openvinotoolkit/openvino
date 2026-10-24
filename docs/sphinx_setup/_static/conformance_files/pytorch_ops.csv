@@ -8,6 +8,7 @@ aten::__range_length,
 aten::__xor__,
 aten::_convolution,
 aten::_convolution_mode,
+aten::_fake_quantize_learnable_per_channel_affine,grad_factor is ignored: it only affects gradients.
 aten::_native_multi_head_attention,
 aten::_pack_padded_sequence,
 aten::_pad_packed_sequence,
