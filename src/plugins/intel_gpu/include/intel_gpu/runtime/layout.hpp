@@ -344,7 +344,7 @@ struct layout {
     /// Number of bytes needed to store this layout
     size_t bytes_count() const {
         constexpr size_t uint2_word_bytes = 4;
-        auto align_uint2_bytes = [uint2_word_bytes](size_t bytes) {
+        auto align_uint2_bytes = [](size_t bytes) {
             return (bytes + uint2_word_bytes - 1) / uint2_word_bytes * uint2_word_bytes;
         };
 
