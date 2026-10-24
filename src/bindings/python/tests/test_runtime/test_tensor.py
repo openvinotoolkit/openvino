@@ -489,6 +489,9 @@ def test_packing(shape, low, high, ov_type, dtype):
         (ov.Type.i4, [1, -9], np.int8),
         (ov.Type.nf4, [16, 1], np.uint8),
         (ov.Type.f4e2m1, [16, 1], np.uint8),
+        # A NaN must not hide an out-of-range value next to it
+        (ov.Type.u3, [np.nan, 8.0], np.float32),
+        (ov.Type.u6, [np.nan, 64.0], np.float32),
     ],
 )
 def test_pack_data_rejects_values_out_of_range(ov_type, values, dtype):
@@ -506,6 +509,12 @@ def test_pack_data_range_error_reports_summary_not_values():
     message = str(e.value)
     assert len(message) < 300
     assert "uint8" in message and "(100000,)" in message and "min 0" in message and "max 16" in message
+
+
+def test_pack_data_range_error_ignores_nan_in_summary():
+    with pytest.raises(RuntimeError) as e:
+        pack_data(np.array([np.nan, 1.0, 64.0], dtype=np.float32), ov.Type.u6)
+    assert "min 1.0" in str(e.value) and "max 64.0" in str(e.value)
 
 
 @pytest.mark.parametrize(
