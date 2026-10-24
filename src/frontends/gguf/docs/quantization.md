@@ -28,6 +28,13 @@ with the first element in the least significant bits. The loader's `u32` tensors
 Q4_1/Q4_K are backing buffers for eight nibbles per word; their graph Constants use `u4`.
 Unpacking into `u2` or `i4` therefore does not mean allocating one byte per weight.
 
+For ternary embedding row lookups, the frontend views the same `u2` buffer as `u8` bytes,
+with four codes in each byte. It gathers the requested code bytes and scales before
+unpacking the selected rows with integer shifts and masks. The dictionary keeps its
+original two-bit storage; it does not expand to an entire floating-point table. The
+selected codes use I32 arithmetic for shifts, then the original F16 dequantization.
+Matrix multiplication consumers keep their `u2` representation, including tied weights.
+
 The usual graph is `Convert -> [Subtract] -> Multiply -> Reshape -> Convert(F32)`. Decompression
 uses the scale's element type, normally F16. Q6_K and formats with fractional F16 zero points
 and code widths of at least four bits instead perform subtraction/multiplication in F32.

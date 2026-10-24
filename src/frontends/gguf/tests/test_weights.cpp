@@ -19,11 +19,13 @@
 #include "op_test_utils.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "quant/weights.hpp"
 #include "utils.hpp"
 
@@ -129,6 +131,79 @@ TEST(GGUFWeight, TernaryWeightsUseScalarZeroPoint) {
     }
 }
 
+TEST(GGUFWeight, TernaryRowsKeepCompressedDictionaryAndTiedProjection) {
+    for (const auto& format :
+         std::vector<std::pair<const char*, const char*>>{{"q2_0", "Q2_0"}, {"pq2_0", "PQ2_0"}, {"ptq1_0", "PTQ1_0"}}) {
+        SCOPED_TRACE(format.second);
+        const auto bytes = load_npy<uint8_t>(std::string(format.first) + "_qbytes");
+        const auto weight = make_weight_node(bytes_to_u8_tensor(bytes), format.second, {kRows, kCols});
+        auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 1, 1, -1});
+        indices->set_friendly_name("indices");
+        indices->output(0).set_names({"indices"});
+        auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, kCols});
+        auto projection = std::make_shared<ov::op::v0::MatMul>(activation, weight, false, true);
+        auto decoder = SingleOpBuilder()
+                           .op("GGML_OP_GET_ROWS")
+                           .input("weight", ov::element::f32, {kRows, kCols})
+                           .input("indices", ov::element::i64, {1, 1, 1, -1})
+                           .output("rows", ov::element::f32, {1, 1, -1, kCols})
+                           .decoder();
+        auto tensors = std::make_shared<TensorMap>();
+        (*tensors)["weight"] = weight;
+        (*tensors)["indices"] = indices;
+        NodeContext context(decoder, tensors);
+        auto rows = op::translate_get_rows(context)[0];
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{rows}, ov::ParameterVector{indices});
+        size_t dictionaries = 0;
+        const void* dictionary_data = nullptr;
+        for (const auto& node : model->get_ops()) {
+            const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+            if (!constant || constant->get_element_type() != ov::element::u8 || constant->get_shape().size() != 3)
+                continue;
+            ++dictionaries;
+            dictionary_data = constant->get_data_ptr();
+            EXPECT_EQ(constant->get_byte_size(), kRows * kCols / 4);
+        }
+        EXPECT_EQ(dictionaries, 1);
+        EXPECT_EQ(projection->get_input_node_shared_ptr(1), weight);
+        auto original = std::make_shared<ov::Model>(ov::OutputVector{weight}, ov::ParameterVector{});
+        size_t original_dictionaries = 0;
+        for (const auto& node : original->get_ops()) {
+            const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+            if (constant && constant->get_element_type() == ov::element::u2) {
+                ++original_dictionaries;
+                EXPECT_EQ(dictionary_data, constant->get_data_ptr());
+            }
+        }
+        EXPECT_EQ(original_dictionaries, 1);
+        const auto reference = load_npy<float>(std::string(format.first) + "_deq");
+        for (const auto& selected : std::vector<std::vector<int64_t>>{{3, 0, 3}, {2}}) {
+            auto output = run_on_cpu(model, {{"indices", make_i64_tensor({1, 1, 1, selected.size()}, selected)}});
+            ASSERT_EQ(output.get_shape(), (ov::Shape{1, 1, selected.size(), kCols}));
+            for (size_t i = 0; i < selected.size(); ++i) {
+                for (size_t j = 0; j < kCols; ++j)
+                    EXPECT_FLOAT_EQ(output.data<float>()[i * kCols + j], reference[selected[i] * kCols + j]);
+            }
+        }
+    }
+}
+
+TEST(GGUFWeight, GatherPreservesOtherWeightFormats) {
+    for (const auto& format : std::vector<std::pair<const char*, const char*>>{{"q1_0", "Q1_0"},
+                                                                               {"q2_k", "Q2_K"},
+                                                                               {"q4_0", "Q4_0"},
+                                                                               {"q8_0", "Q8_0"}}) {
+        SCOPED_TRACE(format.second);
+        const auto bytes = load_npy<uint8_t>(std::string(format.first) + "_qbytes");
+        const auto weight = make_weight_node(bytes_to_u8_tensor(bytes), format.second, {kRows, kCols});
+        auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+        const auto gather =
+            ov::as_type_ptr<ov::op::v8::Gather>(gather_weight_rows(weight, indices).get_node_shared_ptr());
+        ASSERT_TRUE(gather);
+        EXPECT_EQ(gather->get_input_node_shared_ptr(0), weight);
+    }
+}
+
 TEST(GGUFWeight, PreservesNonUniformU2ZeroPoints) {
     using namespace ov::frontend::gguf;
     WeightTensors tensors{ov::Tensor(ov::element::u2, {1, 256}),
@@ -138,6 +213,7 @@ TEST(GGUFWeight, PreservesNonUniformU2ZeroPoints) {
     zp_data[0] = 1;
     zp_data[1] = 2;
     const auto node = make_weight_node(tensors, GGUF_TYPE_PTQ1_0);
+
     const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
     size_t subtracts = 0;
     for (const auto& op : model->get_ordered_ops()) {

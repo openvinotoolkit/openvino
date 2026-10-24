@@ -27,6 +27,8 @@
 #include "openvino/core/type/float16.hpp"
 #include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -474,6 +476,87 @@ private:
 };
 
 }  // namespace
+
+ov::Output<ov::Node> gather_weight_rows(const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& indices) {
+    const auto axis = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
+    const auto gather = [&]() -> ov::Output<ov::Node> {
+        return std::make_shared<ov::op::v8::Gather>(data, indices, axis);
+    };
+    const auto output_convert = ov::as_type_ptr<ov::op::v0::Convert>(data.get_node_shared_ptr());
+    if (!output_convert || data.get_element_type() != ov::element::f32 || !data.get_partial_shape().is_static() ||
+        data.get_partial_shape().rank() != 2 || indices.get_partial_shape().rank() != 2)
+        return gather();
+    const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(output_convert->get_input_node_shared_ptr(0));
+    if (!reshape)
+        return gather();
+    const auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(reshape->get_input_node_shared_ptr(0));
+    if (!multiply || multiply->get_element_type() != ov::element::f16)
+        return gather();
+    const auto scales = ov::as_type_ptr<ov::op::v0::Constant>(multiply->get_input_node_shared_ptr(1));
+    const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(multiply->get_input_node_shared_ptr(0));
+    if (!scales || scales->get_element_type() != ov::element::f16 || !subtract)
+        return gather();
+    const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(subtract->get_input_node_shared_ptr(0));
+    const auto zp_convert = ov::as_type_ptr<ov::op::v0::Convert>(subtract->get_input_node_shared_ptr(1));
+    if (!convert || !zp_convert || convert->get_element_type() != ov::element::f16)
+        return gather();
+    const auto weights = ov::as_type_ptr<ov::op::v0::Constant>(convert->get_input_node_shared_ptr(0));
+    const auto zp = ov::as_type_ptr<ov::op::v0::Constant>(zp_convert->get_input_node_shared_ptr(0));
+    if (!weights || weights->get_element_type() != ov::element::u2 || weights->get_shape().size() != 3 ||
+        weights->get_shape().back() % 4 != 0 || !zp || zp->get_element_type() != ov::element::u8 ||
+        !zp->get_shape().empty() || zp->cast_vector<uint8_t>()[0] != 1)
+        return gather();
+
+    const auto shape = data.get_shape();
+    const auto rows = shape[0];
+    const auto cols = shape[1];
+    if (weights->get_shape()[0] != rows || weights->get_shape()[1] * weights->get_shape()[2] != cols ||
+        scales->get_shape() != ov::Shape{rows, weights->get_shape()[1], 1})
+        return gather();
+    const auto& compressed_shape = weights->get_shape();
+    // Gather packed bytes before unpacking, sharing the original two-bit buffer.
+    auto dictionary =
+        std::make_shared<ov::op::v0::Constant>(ov::element::u8,
+                                               ov::Shape{rows, compressed_shape[1], compressed_shape[2] / 4},
+                                               weights->get_data_ptr(),
+                                               weights);
+    dictionary->set_friendly_name(weights->get_friendly_name() + "_gather_packed_u2");
+    auto selected = std::make_shared<ov::op::v8::Gather>(dictionary, indices, axis);
+    auto packed_values = std::make_shared<ov::op::v0::Convert>(selected, ov::element::i32);
+    auto expanded = std::make_shared<ov::op::v1::Reshape>(
+        packed_values,
+        ov::op::v0::Constant::create(ov::element::i64,
+                                     {5},
+                                     std::vector<int64_t>{0,
+                                                          0,
+                                                          static_cast<int64_t>(compressed_shape[1]),
+                                                          static_cast<int64_t>(compressed_shape[2] / 4),
+                                                          1}),
+        true);
+    auto shifted = std::make_shared<ov::op::v15::BitwiseRightShift>(
+        expanded,
+        ov::op::v0::Constant::create(ov::element::i32, {4}, {0, 2, 4, 6}));
+    auto codes =
+        std::make_shared<ov::op::v13::BitwiseAnd>(shifted, ov::op::v0::Constant::create(ov::element::i32, {}, {3}));
+    auto grouped = std::make_shared<ov::op::v1::Reshape>(
+        codes,
+        ov::op::v0::Constant::create(ov::element::i64,
+                                     {4},
+                                     std::vector<int64_t>{0,
+                                                          0,
+                                                          static_cast<int64_t>(weights->get_shape()[1]),
+                                                          static_cast<int64_t>(weights->get_shape()[2])}),
+        true);
+    auto values = std::make_shared<ov::op::v0::Convert>(grouped, ov::element::f16);
+    auto signs = std::make_shared<ov::op::v1::Subtract>(values, zp_convert);
+    auto selected_scales = std::make_shared<ov::op::v8::Gather>(scales, indices, axis);
+    auto dequantized = std::make_shared<ov::op::v1::Multiply>(signs, selected_scales);
+    auto restored = std::make_shared<ov::op::v1::Reshape>(
+        dequantized,
+        ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{0, 0, static_cast<int64_t>(cols)}),
+        true);
+    return std::make_shared<ov::op::v0::Convert>(restored, ov::element::f32);
+}
 
 void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model) {
     const auto nodes = model->get_ordered_ops();

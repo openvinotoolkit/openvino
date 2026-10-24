@@ -96,6 +96,11 @@ public:
                 node = convert->input_value(0).get_node_shared_ptr();
             }
             auto gather = ov::as_type_ptr<v8::Gather>(node);
+            if (const auto reshape = ov::as_type_ptr<v1::Reshape>(node)) {
+                const auto multiply = ov::as_type_ptr<v1::Multiply>(reshape->get_input_node_shared_ptr(0));
+                if (multiply)
+                    gather = ov::as_type_ptr<v8::Gather>(multiply->get_input_node_shared_ptr(1));
+            }
             if (!gather) {
                 return false;
             }
