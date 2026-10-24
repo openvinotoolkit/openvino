@@ -319,8 +319,8 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
             // sub_kernel_idx is a LOCAL index (0..get_kernels_source().size()-1), i.e. a position
             // within the source list returned by get_kernels_source(), which iterates `_order` -
             // it is NOT a global `_stages` index. Multi-stage impls (any node whose add_stage()
-            // calls registered more than one stage, e.g. the gated_residual dpas READ pipeline or
-            // a single-stage node like gated_residual WRITE whose stage isn't at _stages[0]) need
+            // calls registered more than one stage, or a single-stage node whose stage isn't at
+            // _stages[0]) need
             // the same local->global translation init_kernels()/init_by_cached_kernels() already do
             // via `_order[i]`, otherwise this silently binds the compiled kernel to the wrong Stage
             // object (or leaves the real stage's kernel null) - a guaranteed crash on execute().

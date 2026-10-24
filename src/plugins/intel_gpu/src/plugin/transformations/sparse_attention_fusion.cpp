@@ -50,10 +50,10 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/op/qsa_indexer.hpp"
+#include "intel_gpu/op/qsa_indexer.hpp"
 #include "openvino/op/paged_qsa_indexer.hpp"
-#include "openvino/op/sparse_pa.hpp"
-#include "openvino/op/sparse_sdpa.hpp"
+#include "intel_gpu/op/sparse_pa.hpp"
+#include "intel_gpu/op/sparse_sdpa.hpp"
 #include "ov_ops/rms.hpp"
 
 namespace ov::intel_gpu {
@@ -730,7 +730,7 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
             continue;
         }
 
-        ov::op::internal::QSAIndexer::Config indexer_config{};
+        ov::intel_gpu::op::QSAIndexer::Config indexer_config{};
         indexer_config.key_block_size = r;
         indexer_config.block_topk = static_cast<size_t>(sig.block_topk);
         indexer_config.num_selection_heads = 1;
@@ -740,10 +740,10 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         indexer_config.scale = 1.0f / std::sqrt(static_cast<float>(Di));
         std::string reason;
         // Di % 16: the GPU CM indexer kernels' own constraint (not part of the op contract).
-        if (Di % 16 != 0 || !ov::op::internal::QSAIndexer::validate_config(indexer_config, reason)) {
+        if (Di % 16 != 0 || !ov::intel_gpu::op::QSAIndexer::validate_config(indexer_config, reason)) {
             continue;
         }
-        ov::op::internal::SparseSDPA::Config attn_config{};
+        ov::intel_gpu::op::SparseSDPA::Config attn_config{};
         attn_config.num_heads = Hq;
         attn_config.num_kv_heads = Hkv;
         attn_config.num_selection_heads = 1;
@@ -752,7 +752,7 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         attn_config.key_block_size = r;
         attn_config.query_block_size = 1;
         attn_config.causal = true;
-        if (!ov::op::internal::SparseSDPA::validate_config(attn_config, reason)) {
+        if (!ov::intel_gpu::op::SparseSDPA::validate_config(attn_config, reason)) {
             continue;
         }
 
@@ -833,8 +833,8 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         auto summary_grown = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{summary_read, zeros({batch_dim, i64c({1}), growth, i64c({di})})}, 2);
         new_ops.push_back(summary_grown);
 
-        using IndexerIn = ov::op::internal::QSAIndexer::InputIdx;
-        using IndexerOut = ov::op::internal::QSAIndexer::OutputIdx;
+        using IndexerIn = ov::intel_gpu::op::QSAIndexer::InputIdx;
+        using IndexerOut = ov::intel_gpu::op::QSAIndexer::OutputIdx;
         ov::OutputVector indexer_args(IndexerIn::COUNT);
         indexer_args[IndexerIn::INDEX_QUERY] = index_query_in;
         indexer_args[IndexerIn::RAW_INDEX_KEYS] = raw_index_keys_in;
@@ -846,7 +846,7 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         indexer_args[IndexerIn::BLOCK_INDEX_KEYS_CACHE] = summary_grown;
         indexer_args[IndexerIn::PAST_INCOMPLETE_RAW_K] = raw_read;
         indexer_args[IndexerIn::PAST_INCOMPLETE_ROPE] = rope_read;
-        auto qsa_indexer = std::make_shared<ov::op::internal::QSAIndexer>(indexer_args, indexer_config);
+        auto qsa_indexer = std::make_shared<ov::intel_gpu::op::QSAIndexer>(indexer_args, indexer_config);
         new_ops.push_back(qsa_indexer);
         for (const auto& [out, var] : {std::pair{IndexerOut::BLOCK_INDEX_KEYS_CACHE, state_vars[0]},
                                        std::pair{IndexerOut::PAST_INCOMPLETE_RAW_K, state_vars[1]},
@@ -856,14 +856,14 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
             state_sinks.push_back(assign);
         }
 
-        ov::OutputVector attn_args(ov::op::internal::SparseSDPA::InputIdx::COUNT_MIN);
-        attn_args[ov::op::internal::SparseSDPA::InputIdx::QUERY] = query_in;
-        attn_args[ov::op::internal::SparseSDPA::InputIdx::KEY] = key_in;
-        attn_args[ov::op::internal::SparseSDPA::InputIdx::VALUE] = value_in;
-        attn_args[ov::op::internal::SparseSDPA::InputIdx::SELECTED_BLOCK_INDICES] = qsa_indexer->output(IndexerOut::SELECTED_BLOCK_INDICES);
-        attn_args[ov::op::internal::SparseSDPA::InputIdx::SELECTED_BLOCK_COUNT] = qsa_indexer->output(IndexerOut::SELECTED_BLOCK_COUNT);
-        attn_args[ov::op::internal::SparseSDPA::InputIdx::KEY_LENGTH] = key_length;
-        auto sparse_sdpa = std::make_shared<ov::op::internal::SparseSDPA>(attn_args, attn_config, sdpa->get_output_element_type(0));
+        ov::OutputVector attn_args(ov::intel_gpu::op::SparseSDPA::InputIdx::COUNT_MIN);
+        attn_args[ov::intel_gpu::op::SparseSDPA::InputIdx::QUERY] = query_in;
+        attn_args[ov::intel_gpu::op::SparseSDPA::InputIdx::KEY] = key_in;
+        attn_args[ov::intel_gpu::op::SparseSDPA::InputIdx::VALUE] = value_in;
+        attn_args[ov::intel_gpu::op::SparseSDPA::InputIdx::SELECTED_BLOCK_INDICES] = qsa_indexer->output(IndexerOut::SELECTED_BLOCK_INDICES);
+        attn_args[ov::intel_gpu::op::SparseSDPA::InputIdx::SELECTED_BLOCK_COUNT] = qsa_indexer->output(IndexerOut::SELECTED_BLOCK_COUNT);
+        attn_args[ov::intel_gpu::op::SparseSDPA::InputIdx::KEY_LENGTH] = key_length;
+        auto sparse_sdpa = std::make_shared<ov::intel_gpu::op::SparseSDPA>(attn_args, attn_config, sdpa->get_output_element_type(0));
         new_ops.push_back(sparse_sdpa);
 
         ov::copy_runtime_info(ov::NodeVector{root, sdpa}, new_ops);
@@ -1036,7 +1036,7 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         if (Di % 16 != 0 || !ov::op::internal::PagedQSAIndexer::validate_config(indexer_config, reason)) {
             continue;
         }
-        ov::op::internal::SparsePA::Config attn_config{};
+        ov::intel_gpu::op::SparsePA::Config attn_config{};
         attn_config.num_heads = Hq;
         attn_config.num_kv_heads = Hkv;
         attn_config.num_selection_heads = 1;
@@ -1049,7 +1049,7 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         if (!get_scalar_f32(scale_in, attn_scale)) {
             continue;
         }
-        if (!ov::op::internal::SparsePA::validate_config(attn_config, reason)) {
+        if (!ov::intel_gpu::op::SparsePA::validate_config(attn_config, reason)) {
             continue;
         }
 
@@ -1106,26 +1106,26 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         auto paged_indexer = std::make_shared<ov::op::internal::PagedQSAIndexer>(indexer_args, indexer_config);
         new_ops.push_back(paged_indexer);
 
-        ov::OutputVector attn_args(ov::op::internal::SparsePA::InputIdx::COUNT_MIN);
-        attn_args[ov::op::internal::SparsePA::InputIdx::QUERY] = query_in;
-        attn_args[ov::op::internal::SparsePA::InputIdx::KEY] = key_in;
-        attn_args[ov::op::internal::SparsePA::InputIdx::VALUE] = value_in;
-        attn_args[ov::op::internal::SparsePA::InputIdx::KEY_CACHE] = key_cache_in;
-        attn_args[ov::op::internal::SparsePA::InputIdx::VALUE_CACHE] = value_cache_in;
-        attn_args[ov::op::internal::SparsePA::InputIdx::BLOCK_INDICES] = block_indices_in;
-        attn_args[ov::op::internal::SparsePA::InputIdx::BLOCK_INDICES_BEGINS] = block_indices_begins_in;
-        attn_args[ov::op::internal::SparsePA::InputIdx::SUBSEQUENCE_BEGINS] = subsequence_begins_in;
-        attn_args[ov::op::internal::SparsePA::InputIdx::PAST_LENS] = past_lens_in;
-        attn_args[ov::op::internal::SparsePA::InputIdx::SELECTED_BLOCK_INDICES] = paged_indexer->output(0);
-        attn_args[ov::op::internal::SparsePA::InputIdx::SELECTED_BLOCK_COUNT] = paged_indexer->output(1);
+        ov::OutputVector attn_args(ov::intel_gpu::op::SparsePA::InputIdx::COUNT_MIN);
+        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::QUERY] = query_in;
+        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::KEY] = key_in;
+        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::VALUE] = value_in;
+        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::KEY_CACHE] = key_cache_in;
+        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::VALUE_CACHE] = value_cache_in;
+        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::BLOCK_INDICES] = block_indices_in;
+        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::BLOCK_INDICES_BEGINS] = block_indices_begins_in;
+        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::SUBSEQUENCE_BEGINS] = subsequence_begins_in;
+        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::PAST_LENS] = past_lens_in;
+        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::SELECTED_BLOCK_INDICES] = paged_indexer->output(0);
+        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::SELECTED_BLOCK_COUNT] = paged_indexer->output(1);
         const auto scale_et = scale_in.get_element_type().is_real() ? scale_in.get_element_type() : ov::element::f32;
         auto scale_const = ov::op::v0::Constant::create(scale_et, ov::Shape{}, std::vector<float>{attn_scale});
         auto sinks_const = ov::op::v0::Constant::create(query_in.get_element_type(), ov::Shape{0}, std::vector<float>{});  // empty = no sinks
         new_ops.push_back(scale_const);
         new_ops.push_back(sinks_const);
-        attn_args[ov::op::internal::SparsePA::InputIdx::SCALE] = scale_const;
-        attn_args[ov::op::internal::SparsePA::InputIdx::SINKS] = sinks_const;
-        auto sparse_pa = std::make_shared<ov::op::internal::SparsePA>(attn_args, attn_config, paged_attn->get_out_type(0));
+        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::SCALE] = scale_const;
+        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::SINKS] = sinks_const;
+        auto sparse_pa = std::make_shared<ov::intel_gpu::op::SparsePA>(attn_args, attn_config, paged_attn->get_out_type(0));
         new_ops.push_back(sparse_pa);
 
         ov::copy_runtime_info(ov::NodeVector{root, paged_attn}, new_ops);

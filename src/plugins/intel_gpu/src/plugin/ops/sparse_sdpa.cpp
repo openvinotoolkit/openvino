@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/sparse_sdpa.hpp"
+#include "intel_gpu/op/sparse_sdpa.hpp"
 #include "openvino/op/constant.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
@@ -12,16 +12,20 @@
 // its value can be folded into the primitive's scale field, and attention sinks are not
 // supported by the GPU kernels (explicit rejection, not a silent fallback).
 
+namespace ov::op::internal {
+using SparseSDPA = ov::intel_gpu::op::SparseSDPA;
+}  // namespace ov::op::internal
+
 namespace ov::intel_gpu {
 
-static void CreateSparseSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::SparseSDPA>& op) {
-    using In = ov::op::internal::SparseSDPA::InputIdx;
+static void CreateSparseSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::SparseSDPA>& op) {
+    using In = ov::intel_gpu::op::SparseSDPA::InputIdx;
     const auto layer_name = layer_type_name_ID(op);
 
     OPENVINO_ASSERT(!op->has_sinks(), "[GPU] SparseSDPA '", layer_name, "': the sinks input is not supported by the GPU implementation");
 
     std::string reason;
-    OPENVINO_ASSERT(ov::op::internal::SparseSDPA::validate_config(op->get_config(), reason), "[GPU] Cannot lower SparseSDPA op '", layer_name, "': ", reason);
+    OPENVINO_ASSERT(ov::intel_gpu::op::SparseSDPA::validate_config(op->get_config(), reason), "[GPU] Cannot lower SparseSDPA op '", layer_name, "': ", reason);
     OPENVINO_ASSERT(op->get_config().num_selection_heads == 1, "[GPU] SparseSDPA '", layer_name, "': only num_selection_heads == 1 is supported, got ", op->get_config().num_selection_heads);
     for (size_t idx : {In::QUERY, In::KEY, In::VALUE}) {
         OPENVINO_ASSERT(op->get_input_element_type(idx) == ov::element::f16,

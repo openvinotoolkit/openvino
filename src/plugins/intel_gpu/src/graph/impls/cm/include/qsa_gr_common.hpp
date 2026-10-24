@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Shared helpers for the Gated Residual (hyper connection) CM kernels.
+// Shared half-precision load/store helpers for the QSA CM kernels.
 // A classic include guard, NOT `#pragma once`: the CM codegen inlines headers into
 // each kernel separately, and the plugin then concatenates several kernels into one
 // batched program. Only a textual guard survives that flattening and keeps the second

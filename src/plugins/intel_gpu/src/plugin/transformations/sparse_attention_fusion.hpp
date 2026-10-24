@@ -15,7 +15,7 @@ inline constexpr const char* in_place_cache_rt_key = "GPU_IN_PLACE_CACHE";
 
 /// @brief Recognizes a decomposed, non-paged (dense) Qwen Sparse Attention (QSA) layer
 /// and replaces its indexer + attention sub-graph with
-/// `ov::op::internal::QSAIndexer` + `ov::op::internal::SparseSDPA`.
+/// `ov::intel_gpu::op::QSAIndexer` + `ov::intel_gpu::op::SparseSDPA`.
 ///
 /// The signature that identifies a QSA indexer is the same block score used by the
 /// legacy fused-op detector: `scores = ReduceSum(ReLU(MatMul(index_query, k_block,
@@ -42,7 +42,7 @@ public:
 
 /// @brief Recognizes a decomposed, paged (continuous-batching) QSA layer and replaces
 /// its indexer + attention sub-graph with `ov::op::internal::PagedQSAIndexer` +
-/// `ov::op::internal::SparsePA`.
+/// `ov::intel_gpu::op::SparsePA`.
 ///
 /// Reuses `DenseSparseAttentionFusion`'s indexer-score signature detection, but requires
 /// a reachable `ov::op::PagedAttentionExtension` downstream of the indexer's TopK output

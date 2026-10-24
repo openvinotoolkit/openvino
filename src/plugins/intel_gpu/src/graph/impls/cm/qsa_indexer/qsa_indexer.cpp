@@ -55,7 +55,7 @@ JitConstants make_jit(const std::shared_ptr<const qsa_indexer>& desc, const Runt
     jit.make("QSA_ADDRESS_MODE", 1);
     jit.make("QSA_PREPARE_WG", h_iq + 1);
     jit.add(make_jit_constant("QSA_IDX_NORM_EPS", desc->epsilon));
-    jit.add(make_jit_constant("QSA_IDX_SCALE", ov::op::internal::QSAIndexer::effective_scale(desc->get_config())));
+    jit.add(make_jit_constant("QSA_IDX_SCALE", ov::intel_gpu::op::QSAIndexer::effective_scale(desc->get_config())));
     return jit;
 }
 

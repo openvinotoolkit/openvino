@@ -33,9 +33,9 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/paged_qsa_indexer.hpp"
-#include "openvino/op/qsa_indexer.hpp"
-#include "openvino/op/sparse_pa.hpp"
-#include "openvino/op/sparse_sdpa.hpp"
+#include "intel_gpu/op/qsa_indexer.hpp"
+#include "intel_gpu/op/sparse_pa.hpp"
+#include "intel_gpu/op/sparse_sdpa.hpp"
 #include "openvino/pass/manager.hpp"
 #include "plugin/transformations/sparse_attention_fusion.hpp"
 
@@ -402,8 +402,8 @@ TEST(sparse_attention_fusion, dense_dynamic_causal_replaces_with_proven_inputs) 
     run_fusion(g.model);
 
     ASSERT_EQ(count_ops<ov::op::v13::ScaledDotProductAttention>(g.model), 0u);
-    auto indexer = find_op<ov::op::internal::QSAIndexer>(g.model);
-    auto sparse_sdpa = find_op<ov::op::internal::SparseSDPA>(g.model);
+    auto indexer = find_op<ov::intel_gpu::op::QSAIndexer>(g.model);
+    auto sparse_sdpa = find_op<ov::intel_gpu::op::SparseSDPA>(g.model);
     ASSERT_NE(indexer, nullptr);
     ASSERT_NE(sparse_sdpa, nullptr);
     // The indexer state lives in new Variables, not in new model inputs.
@@ -411,8 +411,8 @@ TEST(sparse_attention_fusion, dense_dynamic_causal_replaces_with_proven_inputs) 
     // The raw-K Assign is retired; main K/V state keeps advancing; three state Assigns are added.
     EXPECT_EQ(g.model->get_sinks().size(), 5u);
 
-    using In = ov::op::internal::QSAIndexer::InputIdx;
-    using Out = ov::op::internal::QSAIndexer::OutputIdx;
+    using In = ov::intel_gpu::op::QSAIndexer::InputIdx;
+    using Out = ov::intel_gpu::op::QSAIndexer::OutputIdx;
     const auto& cfg = indexer->get_config();
     EXPECT_EQ(cfg.key_block_size, static_cast<size_t>(r));
     EXPECT_EQ(cfg.block_topk, static_cast<size_t>(block_topk));
@@ -435,7 +435,7 @@ TEST(sparse_attention_fusion, dense_dynamic_causal_replaces_with_proven_inputs) 
 
     // key_length [B] i32 is the main K length after the call, shared with SparseSDPA.
     EXPECT_EQ(indexer->get_input_element_type(In::KEY_LENGTH), ov::element::i32);
-    EXPECT_EQ(indexer->input_value(In::KEY_LENGTH), sparse_sdpa->input_value(ov::op::internal::SparseSDPA::InputIdx::KEY_LENGTH));
+    EXPECT_EQ(indexer->input_value(In::KEY_LENGTH), sparse_sdpa->input_value(ov::intel_gpu::op::SparseSDPA::InputIdx::KEY_LENGTH));
     auto broadcast = producer_through_layout(indexer->input_value(In::KEY_LENGTH));
     auto gather = broadcast->get_input_node_ptr(0);
     auto shape_of = ov::as_type<ov::op::v3::ShapeOf>(gather->get_input_node_ptr(0));
@@ -468,7 +468,7 @@ TEST(sparse_attention_fusion, dense_dynamic_causal_replaces_with_proven_inputs) 
     EXPECT_EQ(attn_cfg.num_kv_heads, static_cast<size_t>(dense_kv_heads));
     EXPECT_EQ(attn_cfg.k_head_size, static_cast<size_t>(Dh));
     EXPECT_EQ(attn_cfg.key_block_size, static_cast<size_t>(r));
-    EXPECT_EQ(sparse_sdpa->get_input_size(), ov::op::internal::SparseSDPA::InputIdx::COUNT_MIN);
+    EXPECT_EQ(sparse_sdpa->get_input_size(), ov::intel_gpu::op::SparseSDPA::InputIdx::COUNT_MIN);
 }
 
 TEST(sparse_attention_fusion, dense_accepts_topk_selection_mask_and_interleaved_table) {
@@ -476,10 +476,10 @@ TEST(sparse_attention_fusion, dense_accepts_topk_selection_mask_and_interleaved_
     run_fusion(g.model);
 
     ASSERT_EQ(count_ops<ov::op::v13::ScaledDotProductAttention>(g.model), 0u);
-    auto indexer = find_op<ov::op::internal::QSAIndexer>(g.model);
+    auto indexer = find_op<ov::intel_gpu::op::QSAIndexer>(g.model);
     ASSERT_NE(indexer, nullptr);
     // An interleaved source table is split into the same cos/sin values.
-    expect_rope_inputs<ov::op::internal::QSAIndexer::InputIdx>(indexer, g.indexer.positions.get(), RopeLayout::Interleaved);
+    expect_rope_inputs<ov::intel_gpu::op::QSAIndexer::InputIdx>(indexer, g.indexer.positions.get(), RopeLayout::Interleaved);
 }
 
 TEST(sparse_attention_fusion, dense_bails_out_on_unrepresentable_attention) {
@@ -488,7 +488,7 @@ TEST(sparse_attention_fusion, dense_bails_out_on_unrepresentable_attention) {
         const size_t params_before = g.model->get_parameters().size();
         run_fusion(g.model);
 
-        EXPECT_EQ(count_ops<ov::op::internal::QSAIndexer>(g.model), 0u);
+        EXPECT_EQ(count_ops<ov::intel_gpu::op::QSAIndexer>(g.model), 0u);
         EXPECT_EQ(count_ops<ov::op::v13::ScaledDotProductAttention>(g.model), 1u);
         EXPECT_EQ(g.model->get_parameters().size(), params_before);
         EXPECT_EQ(g.model->get_sinks().size(), 3u);
@@ -501,7 +501,7 @@ TEST(sparse_attention_fusion, paged_bails_out_without_reachable_paged_attention)
     run_fusion(g.model);
 
     EXPECT_EQ(count_ops<ov::op::internal::PagedQSAIndexer>(g.model), 0u);
-    EXPECT_EQ(count_ops<ov::op::internal::SparsePA>(g.model), 0u);
+    EXPECT_EQ(count_ops<ov::intel_gpu::op::SparsePA>(g.model), 0u);
     EXPECT_EQ(g.model->get_parameters().size(), params_before);
 }
 
@@ -509,7 +509,7 @@ TEST(sparse_attention_fusion, paged_bails_out_on_sliding_window) {
     auto g = build_paged_graph(/*include_paged_attention=*/true, /*sliding_window=*/8);
     run_fusion(g.model);
 
-    EXPECT_EQ(count_ops<ov::op::internal::SparsePA>(g.model), 0u);
+    EXPECT_EQ(count_ops<ov::intel_gpu::op::SparsePA>(g.model), 0u);
     EXPECT_EQ(count_ops<ov::op::PagedAttentionExtension>(g.model), 1u);
 }
 
@@ -520,7 +520,7 @@ TEST(sparse_attention_fusion, paged_replaces_with_proven_inputs) {
 
     ASSERT_EQ(count_ops<ov::op::PagedAttentionExtension>(g.model), 0u);
     auto indexer = find_op<ov::op::internal::PagedQSAIndexer>(g.model);
-    auto sparse_pa = find_op<ov::op::internal::SparsePA>(g.model);
+    auto sparse_pa = find_op<ov::intel_gpu::op::SparsePA>(g.model);
     ASSERT_NE(indexer, nullptr);
     ASSERT_NE(sparse_pa, nullptr);
     EXPECT_EQ(g.model->get_parameters().size(), params_before + 3);
@@ -548,7 +548,7 @@ TEST(sparse_attention_fusion, paged_replaces_with_proven_inputs) {
     EXPECT_EQ(attn_cfg.num_kv_heads, static_cast<size_t>(Hkv));
     EXPECT_EQ(attn_cfg.key_block_size, static_cast<size_t>(r));
 
-    using Attn = ov::op::internal::SparsePA::InputIdx;
+    using Attn = ov::intel_gpu::op::SparsePA::InputIdx;
     auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(sparse_pa->get_input_node_shared_ptr(Attn::SCALE));
     ASSERT_NE(scale_const, nullptr);
     EXPECT_FLOAT_EQ(scale_const->cast_vector<float>().at(0), 1.0f / std::sqrt(static_cast<float>(Dh)));

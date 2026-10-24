@@ -2098,7 +2098,7 @@ void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<
         return concat;
     };
 
-    ov::op::internal::SparseSDPA::Config cfg;
+    ov::intel_gpu::op::SparseSDPA::Config cfg;
     cfg.num_heads = d.Hq;
     cfg.num_kv_heads = d.Hkv;
     cfg.num_selection_heads = 1;
@@ -2107,7 +2107,7 @@ void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<
     cfg.key_block_size = d.r;
     cfg.query_block_size = 1;
     cfg.causal = true;
-    auto attn = std::make_shared<ov::op::internal::SparseSDPA>(
+    auto attn = std::make_shared<ov::intel_gpu::op::SparseSDPA>(
         ov::OutputVector{query, kv_cache(key_new, d.Dh, "k_cache"), kv_cache(value_new, d.Dv, "v_cache"), sel, count, key_length},
         cfg);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(attn)},
@@ -2235,8 +2235,8 @@ ov::intel_gpu::op::PagedQSAIndexer::Config make_paged_indexer_config(const split
     return c;
 }
 
-ov::op::internal::QSAIndexer::Config make_dense_indexer_config(const split_dims& d) {
-    ov::op::internal::QSAIndexer::Config c;
+ov::intel_gpu::op::QSAIndexer::Config make_dense_indexer_config(const split_dims& d) {
+    ov::intel_gpu::op::QSAIndexer::Config c;
     c.key_block_size = d.r;
     c.block_topk = d.block_topk;
     c.num_selection_heads = 1;
@@ -2356,10 +2356,10 @@ TEST(qsa_ops_gpu_test, paged_qsa_indexer_requires_i32_integer_inputs) {
 
 TEST(qsa_ops_gpu_test, dense_qsa_indexer_validates_state_rope_and_key_length) {
     split_dims d;
-    using In = ov::op::internal::QSAIndexer::InputIdx;
-    using Out = ov::op::internal::QSAIndexer::OutputIdx;
-    std::shared_ptr<ov::op::internal::QSAIndexer> node;
-    ASSERT_NO_THROW(node = std::make_shared<ov::op::internal::QSAIndexer>(make_dense_indexer_args(d), make_dense_indexer_config(d)));
+    using In = ov::intel_gpu::op::QSAIndexer::InputIdx;
+    using Out = ov::intel_gpu::op::QSAIndexer::OutputIdx;
+    std::shared_ptr<ov::intel_gpu::op::QSAIndexer> node;
+    ASSERT_NO_THROW(node = std::make_shared<ov::intel_gpu::op::QSAIndexer>(make_dense_indexer_args(d), make_dense_indexer_config(d)));
     // Outputs: selection plus the updated state, shaped and typed like the state inputs.
     ASSERT_EQ(node->get_output_size(), Out::COUNT);
     EXPECT_EQ(node->get_output_partial_shape(Out::SELECTED_BLOCK_INDICES), (ov::PartialShape{1, 1, -1, I(d.block_topk)}));
@@ -2372,35 +2372,35 @@ TEST(qsa_ops_gpu_test, dense_qsa_indexer_validates_state_rope_and_key_length) {
 
     auto args = make_dense_indexer_args(d);
     args[In::ROPE_COS] = make_param({1, -1, I(d.rotary)}, ov::element::f32);
-    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "rope_cos type";
+    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "rope_cos type";
 
     args = make_dense_indexer_args(d);
     args[In::ROPE_COS] = make_param({1, -1, I(d.rotary / 2)});
-    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "half-width rope_cos";
+    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "half-width rope_cos";
 
     args = make_dense_indexer_args(d);
     args[In::ROPE_COS] = make_param({-1, I(d.rotary)});
-    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "rank-2 rope_cos";
+    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "rank-2 rope_cos";
 
     args = make_dense_indexer_args(d);
     args[In::ROPE_SIN] = make_param({2, -1, I(d.rotary)});
-    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "batch mismatch";
+    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "batch mismatch";
 
     args = make_dense_indexer_args(d);
     args[In::KEY_LENGTH] = make_param({1}, ov::element::i64);
-    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "i64 key_length";
+    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "i64 key_length";
 
     args = make_dense_indexer_args(d);
     args[In::PAST_INCOMPLETE_RAW_K] = make_param({1, 1, I(d.r), I(d.Di)});
-    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "r raw-key slots";
+    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "r raw-key slots";
 
     args = make_dense_indexer_args(d);
     args[In::PAST_INCOMPLETE_ROPE] = make_param({1, I(d.rotary)});
-    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "non-interleaved rope state";
+    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "non-interleaved rope state";
 
     args = make_dense_indexer_args(d);
     args[In::BLOCK_INDEX_KEYS_CACHE] = make_param({1, 1, -1, I(d.Di)}, ov::element::f32);
-    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "summary type";
+    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "summary type";
 }
 
 ov::intel_gpu::op::SparsePA::Config make_sparse_pa_config(const split_dims& d) {
@@ -2660,18 +2660,18 @@ TEST(qsa_ops_gpu_test, plugin_rejects_unsupported_indexer_heads_and_precision) {
         args[DenseIdxIn::K_NORM_WEIGHT] = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{d.Di}, std::vector<float>(d.Di, 1.0f));
         auto cfg = make_dense_indexer_config(d);
         cfg.num_selection_heads = num_selection_heads;
-        return std::make_shared<ov::op::internal::QSAIndexer>(args, cfg);
+        return std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, cfg);
     };
     expect_compile_error(core, make_dense(2, 1), {}, "only H_ik == 1 is supported");
     expect_compile_error(core, make_dense(2, 2), {}, "only num_selection_heads == 1 is supported");
 
-    auto sdpa = std::make_shared<ov::op::internal::SparseSDPA>(make_sparse_sdpa_args(d, ov::element::f32), make_sparse_sdpa_config(d));
+    auto sdpa = std::make_shared<ov::intel_gpu::op::SparseSDPA>(make_sparse_sdpa_args(d, ov::element::f32), make_sparse_sdpa_config(d));
     expect_compile_error(core, sdpa, {ov::hint::inference_precision(ov::element::f32)}, "must be f16");
 
     auto sink_args = make_sparse_sdpa_args(d);
     sink_args.push_back(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.25f}));
     sink_args.push_back(make_param({I(d.Hq)}));
-    auto sdpa_sinks = std::make_shared<ov::op::internal::SparseSDPA>(sink_args, make_sparse_sdpa_config(d));
+    auto sdpa_sinks = std::make_shared<ov::intel_gpu::op::SparseSDPA>(sink_args, make_sparse_sdpa_config(d));
     expect_compile_error(core, sdpa_sinks, {}, "sinks input is not supported");
 }
 
@@ -2680,31 +2680,31 @@ TEST(qsa_ops_gpu_test, plugin_lowers_sparse_pa_scale_input_and_rejects_sinks) {
     if (!gpu_in_core(core)) {
         GTEST_SKIP() << "GPU plugin is not available in ov::Core";
     }
-    using In = ov::op::internal::SparsePA::InputIdx;
+    using In = ov::intel_gpu::op::SparsePA::InputIdx;
     split_dims d;
-    const auto cfg = ov::op::internal::SparsePA::Config(make_sparse_pa_config(d));
+    const auto cfg = ov::intel_gpu::op::SparsePA::Config(make_sparse_pa_config(d));
 
     // A non-empty sinks input is rejected, a non-Constant scale input is rejected.
     auto args = make_sparse_pa_args(d, 8);
     args.pop_back();  // qb_start is optional
     args[In::SINKS] = make_param({I(d.Hq)});
-    expect_compile_error(core, std::make_shared<ov::op::internal::SparsePA>(args, cfg), {}, "sinks input is not supported");
+    expect_compile_error(core, std::make_shared<ov::intel_gpu::op::SparsePA>(args, cfg), {}, "sinks input is not supported");
 
     args = make_sparse_pa_args(d, 8);
     args.push_back(make_param({-1, 1, -1}, ov::element::boolean));
-    expect_compile_error(core, std::make_shared<ov::op::internal::SparsePA>(args, cfg), {}, "selected_block_mask input is not supported");
+    expect_compile_error(core, std::make_shared<ov::intel_gpu::op::SparsePA>(args, cfg), {}, "selected_block_mask input is not supported");
 
     args = make_sparse_pa_args(d, 8);
     args.pop_back();
     args[In::SINKS] = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{0}, std::vector<float>{});
-    expect_compile_error(core, std::make_shared<ov::op::internal::SparsePA>(args, cfg), {}, "scale input must be a Constant");
+    expect_compile_error(core, std::make_shared<ov::intel_gpu::op::SparsePA>(args, cfg), {}, "scale input must be a Constant");
 
     // Constant scale + empty sinks + no qb_start lowers (scale and sinks are not primitive inputs).
     if (!cm_qsa_ops_available()) {
         GTEST_SKIP() << "CM is not supported on this device";
     }
     args[In::SCALE] = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.0625f});
-    auto op = std::make_shared<ov::op::internal::SparsePA>(args, cfg);
+    auto op = std::make_shared<ov::intel_gpu::op::SparsePA>(args, cfg);
     ov::ParameterVector params;
     for (const auto& input : op->input_values()) {
         if (auto p = ov::as_type_ptr<ov::op::v0::Parameter>(input.get_node_shared_ptr())) {

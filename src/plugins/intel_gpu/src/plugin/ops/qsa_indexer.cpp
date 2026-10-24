@@ -2,26 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/qsa_indexer.hpp"
+#include "intel_gpu/op/qsa_indexer.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/qsa_indexer.hpp"
 
+namespace ov::op::internal {
+using QSAIndexer = ov::intel_gpu::op::QSAIndexer;
+}  // namespace ov::op::internal
+
 namespace ov::intel_gpu {
 
-static void CreateQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::QSAIndexer>& op) {
-    validate_inputs_count(op, {ov::op::internal::QSAIndexer::InputIdx::COUNT});
+static void CreateQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::QSAIndexer>& op) {
+    validate_inputs_count(op, {ov::intel_gpu::op::QSAIndexer::InputIdx::COUNT});
     const auto inputs = p.GetInputInfo(op);
     const auto layer_name = layer_type_name_ID(op);
 
     std::string reason;
-    OPENVINO_ASSERT(ov::op::internal::QSAIndexer::validate_config(op->get_config(), reason),
+    OPENVINO_ASSERT(ov::intel_gpu::op::QSAIndexer::validate_config(op->get_config(), reason),
                     "[GPU] Cannot lower QSAIndexer op '",
                     layer_name,
                     "': ",
                     reason);
 
-    using In = ov::op::internal::QSAIndexer::InputIdx;
+    using In = ov::intel_gpu::op::QSAIndexer::InputIdx;
     OPENVINO_ASSERT(op->get_config().num_selection_heads == 1, "[GPU] QSAIndexer '", layer_name, "': only num_selection_heads == 1 is supported, got ", op->get_config().num_selection_heads);
     OPENVINO_ASSERT(op->get_index_key_heads() == 1, "[GPU] QSAIndexer '", layer_name, "': only H_ik == 1 is supported, got ", op->get_index_key_heads());
     for (size_t idx : {In::INDEX_QUERY,
