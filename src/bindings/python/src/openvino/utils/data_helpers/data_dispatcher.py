@@ -42,13 +42,18 @@ def get_request_tensor(
 
 
 def _to_bf16_view(value: np.ndarray) -> np.ndarray:
-    """Convert float32/float64 values to bf16, as the float16 view used by bf16 Tensor.data.
+    """Convert numeric (non float16) values to bf16, as the float16 view used by bf16 Tensor.data.
 
     Rounds the same way as ov::bfloat16 (round_to_nearest_even in bfloat16.hpp).
     """
     bits = np.ascontiguousarray(value, dtype=np.float32).view(np.uint32)
     bits = (bits + ((bits & np.uint32(0x10000)) >> 1)) >> 16
     return bits.astype(np.uint16).view(np.float16)
+
+
+def _is_bf16_convertible(value: np.ndarray) -> bool:
+    """Bool, integer and float arrays other than float16 (taken as raw bf16 bits) are converted to bf16 by value."""
+    return value.dtype != np.float16 and value.dtype.kind in "biuf"
 
 
 @singledispatch
@@ -106,10 +111,10 @@ def _(
         else:
             return Tensor(value.astype(tensor_dtype).reshape(tensor_shape), shared_memory=False)
     # WA for FP16-->BF16 edge-case, always copy.
-    # float16 data is taken as raw bf16 bits, float32/float64 values are converted.
+    # float16 data is taken as raw bf16 bits, other numeric values are converted.
     if tensor_type == Type.bf16:
         tensor = Tensor(tensor_type, value.shape)
-        tensor.data[:] = _to_bf16_view(value) if value.dtype in (np.float32, np.float64) else value.view(tensor_dtype)
+        tensor.data[:] = _to_bf16_view(value) if _is_bf16_convertible(value) else value.view(tensor_dtype)
         return tensor
     # WA for "not writeable" edge-case, always copy.
     if value.flags["WRITEABLE"] is False:
@@ -353,7 +358,7 @@ def _(
         # When copying, type should be up/down-casted automatically.
         if tensor.element_type == Type.string:
             tensor.bytes_data = inputs
-        elif tensor.element_type == Type.bf16 and inputs.dtype in (np.float32, np.float64):
+        elif tensor.element_type == Type.bf16 and _is_bf16_convertible(inputs):
             tensor.data[:] = _to_bf16_view(inputs)
         else:
             tensor.data[:] = inputs[:]
