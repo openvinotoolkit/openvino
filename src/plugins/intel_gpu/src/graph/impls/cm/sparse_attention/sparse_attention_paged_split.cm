@@ -1,0 +1,155 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// Q3 decode, split-selected-KV variant (paged), pass 1 - per-partition partial softmax.
+//
+// Ported from the proven qsa_sparse_attention_split.cm: decode has exactly one query per
+// sequence, so a query-owned work-group would occupy a single Xe-core and waste an order
+// of magnitude of occupancy. This kernel instead partitions each token's OWN selected-KV
+// list across QSA_SPLIT_PARTITIONS independent producers (one thread per (head, token,
+// partition)); see sparse_attention_paged_split_reduce.cm for the exact merge of the
+// partial (max, sum, weighted-V) state. No output gate: the split ABI carries none (see
+// sparse_attention_paged.cm's identical note).
+//
+// JIT constants: QSA_HEADS, QSA_KV_HEADS, QSA_K_HEAD_SIZE, QSA_V_HEAD_SIZE,
+// QSA_COMPRESS_RATIO, QSA_PAGE_SIZE, QSA_BLOCK_TOPK, QSA_SCALE, QSA_SPLIT_PARTITIONS
+//
+// Dispatch: gws = [QSA_HEADS, num_tokens, QSA_SPLIT_PARTITIONS], lws = [1, 1, 1]
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+#include "qsa_ops_common.hpp"
+
+#define QSA_SPLIT_PAGED_LOG2E 1.4426950408889634f
+
+CM_INLINE void sparse_attention_split_paged_softmax_step(float score, float& running_max, float& running_sum, float& corr, float& weight) {
+    const float new_max = running_max > score ? running_max : score;
+    vector<float, 2> e;
+    e[0] = (running_max - new_max) * QSA_SPLIT_PAGED_LOG2E;
+    e[1] = (score - new_max) * QSA_SPLIT_PAGED_LOG2E;
+    e = cm_exp(e);
+    corr = e[0];
+    weight = e[1];
+    running_sum = running_sum * corr + weight;
+    running_max = new_max;
+}
+
+template <int DH, int DV, int HKV, int PAGE, int SPAN>
+CM_INLINE void sparse_attention_split_attend_span_paged(vector_ref<float, DH> q, vector_ref<float, DV> acc, float& running_max, float& running_sum,
+                                                        const half* key_cache ATTR, const half* value_cache ATTR, const int32_t* block_indices ATTR,
+                                                        uint page_begin, uint kv_head, uint pos0) {
+    const uint page = (uint)block_indices[page_begin + pos0 / (uint)PAGE];
+    const uint tok0 = pos0 % (uint)PAGE;
+
+    vector<half, SPAN * DH> ktile;
+    qsa_gr::load_hv<SPAN * DH>(ktile, key_cache, qsa::kv_cache_offset(page, kv_head, tok0, HKV, PAGE, DH));
+    vector<half, SPAN * DV> vtile;
+    qsa_gr::load_hv<SPAN * DV>(vtile, value_cache, qsa::kv_cache_offset(page, kv_head, tok0, HKV, PAGE, DV));
+
+#pragma unroll
+    for (int s = 0; s < SPAN; s++) {
+        float score = 0.0f;
+#pragma unroll
+        for (int k = 0; k < DH; k += 16) {
+            vector<float, 16> kv = ktile.template select<16, 1>(s * DH + k);
+            score += cm_sum<float>(q.template select<16, 1>(k) * kv);
+        }
+
+        float corr = 0.0f;
+        float weight = 0.0f;
+        sparse_attention_split_paged_softmax_step(score, running_max, running_sum, corr, weight);
+
+#pragma unroll
+        for (int k = 0; k < DV; k += 16) {
+            vector<float, 16> vv = vtile.template select<16, 1>(s * DV + k);
+            acc.template select<16, 1>(k) = acc.template select<16, 1>(k) * corr + vv * weight;
+        }
+    }
+}
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,                     // [num_tokens, Hq*Dh]
+                                        const half* key_cache ATTR,                // [num_blocks, Hkv, page_size, Dh]
+                                        const half* value_cache ATTR,              // [num_blocks, Hkv, page_size, Dv]
+                                        const int32_t* past_lens ATTR,             // [num_seqs]
+                                        const int32_t* subsequence_begins ATTR,    // [num_seqs+1]
+                                        const int32_t* block_indices ATTR,         // [used_blocks]
+                                        const int32_t* block_indices_begins ATTR,  // [num_seqs+1]
+                                        const int32_t* selected_blocks ATTR,       // [num_tokens, block_topk]
+                                        const int32_t* selected_counts ATTR,       // [num_tokens]
+                                        float* partial_acc ATTR,                   // [num_tokens, Hq, P, Dv]
+                                        float* partial_ml ATTR,                    // [num_tokens, Hq, P, 2]
+                                        uint32_t num_tokens,
+                                        uint32_t num_seqs,
+                                        uint32_t q_base,
+                                        uint32_t q_pitch) {
+    constexpr uint HQ = QSA_HEADS;
+    constexpr uint HKV = QSA_KV_HEADS;
+    constexpr uint DH = QSA_K_HEAD_SIZE;
+    constexpr uint DV = QSA_V_HEAD_SIZE;
+    constexpr uint R = QSA_COMPRESS_RATIO;
+    constexpr uint PAGE = QSA_PAGE_SIZE;
+    constexpr uint K_TOPK = QSA_BLOCK_TOPK;
+    constexpr uint P = QSA_SPLIT_PARTITIONS;
+
+    static_assert(DH % 16 == 0 && DV % 16 == 0, "head sizes must be multiples of 16");
+    static_assert(P > 0 && HQ % HKV == 0, "invalid split geometry");
+    static_assert(PAGE % R == 0, "a compressed block must not cross a KV page");
+
+    const uint head = cm_global_id(0);
+    const uint token_idx = cm_global_id(1);
+    const uint part = cm_global_id(2);
+    if (head >= HQ || token_idx >= num_tokens || part >= P) {
+        return;
+    }
+
+    uint seq = 0, abs_pos = 0;
+    if (!qsa_ops::resolve_token_paged(subsequence_begins, past_lens, num_seqs, token_idx, seq, abs_pos)) {
+        return;
+    }
+    const uint kv_head = head / (HQ / HKV);
+    const uint page_begin = (uint)block_indices_begins[seq];
+
+    vector<half, DH> q_h;
+    qsa_gr::load_hv<DH>(q_h, query, q_base + token_idx * q_pitch + head * DH);
+    vector<float, DH> q = q_h;
+    q = q * (float)QSA_SCALE;
+
+    float running_max = -1e30f;
+    float running_sum = 0.0f;
+    vector<float, DV> acc = 0.0f;
+
+    // Caller contract: 0 <= selected_counts <= K. Split SLOT ranges, not absolute
+    // KV positions, so every partition's share of the list is contiguous.
+    const uint count = (uint)selected_counts[token_idx];
+    const uint selected = count < K_TOPK ? count : K_TOPK;
+    const uint begin = selected * part / P;
+    const uint end = selected * (part + 1) / P;
+    for (uint i = begin; i < end; i++) {
+        const int32_t b = selected_blocks[token_idx * K_TOPK + i];
+        if (b < 0) {
+            continue;  // MUST precede all KV address computation
+        }
+        sparse_attention_split_attend_span_paged<DH, DV, HKV, PAGE, R>(q, acc, running_max, running_sum, key_cache, value_cache, block_indices, page_begin,
+                                                                       kv_head, (uint)b * R);
+    }
+    // The last partition exclusively owns the always-visible causal tail, also for K=0.
+    if (part == P - 1) {
+        for (uint pos = qsa_ops::num_complete_blocks(abs_pos) * R; pos <= abs_pos; pos++) {
+            sparse_attention_split_attend_span_paged<DH, DV, HKV, PAGE, 1>(q, acc, running_max, running_sum, key_cache, value_cache, block_indices,
+                                                                           page_begin, kv_head, pos);
+        }
+    }
+
+    const uint row = (token_idx * HQ + head) * P + part;
+    partial_ml[row * 2] = running_max;
+    partial_ml[row * 2 + 1] = running_sum;
+#pragma unroll
+    for (uint k = 0; k < DV; k += 16) {
+        vector<float, 16> a = acc.select<16, 1>(k);
+        cm_ptr_store<float, 16>(partial_acc, (row * DV + k) * (uint)sizeof(float), a);
+    }
+    // No normalization or output gate in the producer; see the reduce pass.
+}

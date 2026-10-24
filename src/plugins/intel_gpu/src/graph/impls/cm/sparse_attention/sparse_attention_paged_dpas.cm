@@ -1,0 +1,594 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// Q3 prefill, systolic variant - SparsePA sparse attention (paged), ported from the
+// proven qsa_sparse_attention_dpas.cm. Same algorithm; two ABI differences from the old
+// fused kernel: (1) no output gate at all (that logic is external to the new op, per the
+// split design), so q_head_stride is simply QSA_K_HEAD_SIZE (no runtime gate_delta/2x
+// stride), and (2) selected_blocks/selected_counts are read directly from this op's own
+// SEL_INDICES/SEL_COUNT inputs (flat [tokens, block_topk]/[tokens], num_selection_heads == 1,
+// query_block_size == 1 already enforced), not an internal scratch buffer.
+//
+// QK and PV run on cm_dpas over a 16-wide (head, token) tile instead of one query per
+// thread: N is filled with QSA_HEADS_PER_TILE heads x QSA_TOKENS_PER_TILE tokens (HT * TT
+// == 16), so a tile needs only the UNION of TT independent per-token top-k selections
+// instead of a union of 16 (measured ~15x the useful work at typical budgets). Heads of
+// one token share its selection; under GQA, heads of a group additionally share K/V reads.
+// The union is produced by a plain TT-way merge over TT ascending-sorted cursors (no sort,
+// no bitmap), exactly as sparse_attention_topk.cm's cooperative selection guarantees ascending
+// output. See qsa_sparse_attention_dpas.cm's header comment for the full tile-mapping and
+// head-dimension-split rationale (QSA_ATT_WORKERS, QSA_HEADS_PER_TILE) - unchanged here.
+//
+// JIT constants: QSA_HEADS, QSA_KV_HEADS, QSA_K_HEAD_SIZE, QSA_V_HEAD_SIZE,
+// QSA_COMPRESS_RATIO, QSA_PAGE_SIZE, QSA_BLOCK_TOPK, QSA_SCALE, QSA_ATT_WORKERS,
+// QSA_HEADS_PER_TILE
+//
+// Dispatch:
+//   gws = [(QSA_HEADS / HT) * QSA_ATT_WORKERS, num_tiles * HT, 1]
+//   lws = [QSA_ATT_WORKERS, 1, 1]
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+#include "qsa_dpas_common.hpp"
+
+#ifndef QSA_ATT_WORKERS
+#define QSA_ATT_WORKERS 1
+#endif
+#ifndef QSA_HEADS_PER_TILE
+#define QSA_HEADS_PER_TILE 1
+#endif
+#ifndef QSA_COALESCE_KV
+#define QSA_COALESCE_KV 1
+#endif
+#ifndef QSA_WIDE_TAIL
+#define QSA_WIDE_TAIL 1
+#endif
+#ifndef QSA_CACHE_HEADS
+#define QSA_CACHE_HEADS 1
+#endif
+
+#define QSA_TOKENS_PER_TILE (QSA_REG_N / QSA_HEADS_PER_TILE)
+
+#define QSA_DH_PER_W (QSA_K_HEAD_SIZE / QSA_ATT_WORKERS)
+#define QSA_DV_PER_W (QSA_V_HEAD_SIZE / QSA_ATT_WORKERS)
+#define QSA_DH_TILES (QSA_DH_PER_W / QSA_REG_K)
+#define QSA_DV_TILES (QSA_DV_PER_W / QSA_REG_N)
+#define QSA_Q_TILES  (QSA_REG_N / QSA_REG_M)  // query sub-tiles of the PV A operand (2)
+#define QSA_NEG_INF  (-3.0e38f)
+#define QSA_LOG2E_D  1.4426950408889634f
+
+/// St exchange buffer: [2 buffers][W workers][NKV * NQ floats]. Two buffers let one
+/// barrier per step suffice - a worker can run at most one barrier ahead of its peers, so
+/// it can only ever be writing the buffer the others are not reading.
+#define QSA_ST_FLOATS (QSA_REG_K * QSA_REG_N)
+#define QSA_ST_BYTES  (QSA_ST_FLOATS * 4)
+#define QSA_ST_SLM    (2 * QSA_ATT_WORKERS * QSA_ST_BYTES)
+
+/// KV tokens fed to one QK/PV step: four selected QSA blocks of `r` tokens each.
+#define QSA_BLKS_PER_STEP (QSA_REG_K / QSA_COMPRESS_RATIO)
+
+/// Halfs per row of one 2D block load; see qsa_sparse_attention_dpas.cm for why this is
+/// bound by message rate, not bandwidth.
+#define QSA_WIDE_COLS (QSA_REG_K * 2)
+#define QSA_K_CHUNKS  (QSA_DH_PER_W / QSA_WIDE_COLS)
+#define QSA_V_CHUNKS  (QSA_DV_PER_W / QSA_WIDE_COLS)
+
+#if QSA_ATT_WORKERS > 1
+/// Replaces every worker's partial QK tile by the sum over the whole work-group, so that
+/// all of them run the identical online softmax without a second exchange.
+CM_INLINE void qsa_paged_reduce_st(matrix_ref<float, QSA_REG_K, QSA_REG_N> St, uint slm_st, uint slot_base, uint worker) {
+    constexpr uint HALF = QSA_ST_FLOATS / 2;  // 512-byte SLM messages
+    auto stf = St.template format<float>();
+    cm_slm_block_write(slm_st, slot_base + worker * QSA_ST_BYTES, stf.template select<HALF, 1>(0));
+    cm_slm_block_write(slm_st, slot_base + worker * QSA_ST_BYTES + HALF * 4, stf.template select<HALF, 1>(HALF));
+    cm_fence(CM_LOCAL_BARRIER);
+    cm_barrier();
+#pragma unroll
+    for (uint w = 0; w < QSA_ATT_WORKERS; w++) {
+        if (w == worker) {
+            continue;
+        }
+        vector<float, HALF> part;
+        cm_slm_block_read(slm_st, slot_base + w * QSA_ST_BYTES, part);
+        stf.template select<HALF, 1>(0) = stf.template select<HALF, 1>(0) + part;
+        cm_slm_block_read(slm_st, slot_base + w * QSA_ST_BYTES + HALF * 4, part);
+        stf.template select<HALF, 1>(HALF) = stf.template select<HALF, 1>(HALF) + part;
+    }
+}
+#endif
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,                 // [num_tokens, Hq*Dh]
+                                        const half* key_cache ATTR,             // [num_blocks, Hkv, PAGE, Dh]
+                                        const half* value_cache ATTR,           // [num_blocks, Hkv, PAGE, Dv]
+                                        const int32_t* past_lens ATTR,          // [num_seqs]
+                                        const int32_t* subsequence_begins ATTR,  // [num_seqs+1]
+                                        const int32_t* block_indices ATTR,       // [used_blocks]
+                                        const int32_t* block_indices_begins ATTR,  // [num_seqs+1]
+                                        const int32_t* selected_blocks ATTR,       // [num_tokens, block_topk] ascending
+                                        const int32_t* selected_counts ATTR,       // [num_tokens]
+                                        half* output ATTR,                         // [num_tokens, Hq*Dv]
+                                        uint32_t num_tiles,                        // shape-derived upper bound
+                                        uint32_t num_seqs,
+                                        uint32_t q_base,
+                                        uint32_t q_pitch) {
+    constexpr uint HQ = QSA_HEADS;
+    constexpr uint HKV = QSA_KV_HEADS;
+    constexpr uint DH = QSA_K_HEAD_SIZE;
+    constexpr uint DV = QSA_V_HEAD_SIZE;
+    constexpr uint R = QSA_COMPRESS_RATIO;
+    constexpr uint PAGE = QSA_PAGE_SIZE;
+    constexpr uint K_TOPK = QSA_BLOCK_TOPK;
+    constexpr uint NQ = QSA_REG_N;   // 16 queries per tile
+    constexpr uint NKV = QSA_REG_K;  // 16 KV tokens per step
+    constexpr uint MB = QSA_REG_M;   // 8 = dpas RepeatCount
+    constexpr uint W = QSA_ATT_WORKERS;
+    constexpr uint DH_W = QSA_DH_PER_W;
+    constexpr uint DV_W = QSA_DV_PER_W;
+    constexpr uint HT = QSA_HEADS_PER_TILE;   // heads sharing one KV tile
+    constexpr uint TT = QSA_TOKENS_PER_TILE;  // tokens whose selections must be unioned
+    // No output gate in the split ABI: Q is a plain [tokens, Hq*Dh] buffer.
+    constexpr uint Q_HEAD_STRIDE = DH;
+
+    static_assert(NQ == 16, "the prefill dpas path needs a 512-bit GRF (Xe2 and later)");
+    static_assert(DH % (W * QSA_REG_K) == 0, "k head size must split evenly into per-worker dpas K tiles");
+    static_assert(DV % (W * QSA_REG_N) == 0, "v head size must split evenly into per-worker dpas N tiles");
+    static_assert(R % 2 == 0, "VNNI row pairs require an even compress ratio");
+    static_assert(QSA_BLKS_PER_STEP * R == NKV, "compress ratio must divide the dpas K step");
+    static_assert(PAGE % R == 0, "a compressed block must not cross a KV page");
+    static_assert(DH_W % QSA_WIDE_COLS == 0 && DV_W % QSA_WIDE_COLS == 0,
+                  "wide loads must cover every worker dimension");
+    static_assert(HT * TT == NQ, "the dpas N axis must be filled exactly by heads x tokens");
+    static_assert(HQ % HT == 0 && (HQ / HKV) % HT == 0, "a head group must not straddle a KV head");
+
+    const uint head_group = cm_group_id(0);
+    const uint worker = cm_local_id(0);
+    const uint tile = cm_global_id(1) / HT;  // entry in the shared 16-token tile map
+    const uint sub = cm_global_id(1) % HT;   // which TT-token slice of it
+    if (head_group >= HQ / HT || tile >= num_tiles) {
+        return;
+    }
+    const uint head_base = head_group * HT;
+
+#if QSA_ATT_WORKERS > 1
+    cm_slm_init(QSA_ST_SLM);
+    auto slm_st = cm_slm_alloc(QSA_ST_SLM);
+    uint st_buf = 0;
+#endif
+
+    uint seq = 0, tile_begin = 0;
+    if (!qsa_ops::resolve_tile_paged(subsequence_begins, num_seqs, tile, NQ, seq, tile_begin)) {
+        return;
+    }
+    const uint token0 = tile_begin + sub * TT;
+    const uint seq_begin = (uint)subsequence_begins[seq];
+    const uint seq_end = (uint)subsequence_begins[seq + 1];
+    const uint past_len = (uint)past_lens[seq];
+    const uint page_begin = (uint)block_indices_begins[seq];
+    // All heads of the group share one KV head - that is what makes the tile legal.
+    const uint kv_head = head_base / (HQ / HKV);
+
+    uint valid = seq_end > token0 ? seq_end - token0 : 0;
+    if (valid > TT) {
+        valid = TT;
+    }
+    if (valid == 0) {
+        return;
+    }
+
+    // Column n of the dpas N axis is (head head_base + n / TT, token token0 + n % TT).
+    vector<uint, NQ> lane;
+    cmtl::cm_vector_assign(lane.select_all(), 0, 1);
+    const vector<uint, NQ> col_tok = lane % TT;
+    const vector<uint, NQ> col_head = lane / TT;
+    const vector<uint, NQ> abs_pos = col_tok + (past_len + token0 - seq_begin);
+    const vector<uint, NQ> n_complete = (abs_pos + 1) / R;
+    const vector<ushort, NQ> lane_valid = col_tok < valid;
+
+    // ---- Q tile as dpas B operands (VNNI via transposed d32 load), pre-scaled ----
+    // The transpose maps memory rows to operand columns, so one load per head covers that
+    // head's TT contiguous columns; only this worker's slice of the head dimension.
+    matrix<half, QSA_DH_TILES, QSA_REG_K * NQ> rQ;
+#pragma unroll
+    for (uint k = 0; k < QSA_DH_TILES; k++) {
+        auto qcols = rQ.row(k).format<uint, QSA_REG_K / 2, NQ>();
+#pragma unroll
+        for (uint hh = 0; hh < HT; hh++) {
+            matrix<uint, QSA_REG_K / 2, TT> qtmp;
+            qsa_dpas::load_vnni_cols<TT>(qtmp,
+                                         query + q_base + token0 * q_pitch + (head_base + hh) * Q_HEAD_STRIDE,
+                                         valid,
+                                         q_pitch * (uint)sizeof(half),
+                                         DH * (uint)sizeof(half),
+                                         worker * DH_W + k * QSA_REG_K);
+            qcols.select<QSA_REG_K / 2, 1, TT, 1>(0, hh * TT) = qtmp;
+        }
+        // Fold the attention scale and log2(e) into Q so the softmax can call cm_exp (exp2).
+        rQ.row(k) = cm_mul<half>(rQ.row(k), (half)((float)QSA_SCALE * QSA_LOG2E_D));
+    }
+
+    // ---- online softmax state and output accumulator ----
+    vector<float, NQ> running_max = QSA_NEG_INF;
+    vector<float, NQ> running_sum = 0.0f;
+    matrix<float, QSA_Q_TILES * QSA_DV_TILES, MB * QSA_REG_N> rO = 0.0f;
+
+    // ---- TT-way merge cursors over the per-token ascending selected lists ----
+    vector<int32_t, TT> cursor = 0;
+    vector<int32_t, TT> count = 0;
+#pragma unroll
+    for (uint t = 0; t < TT; t++) {
+        count[t] = t < valid ? selected_counts[token0 + t] : 0;
+    }
+
+    // One QK/PV step consumes QSA_BLKS_PER_STEP union blocks.
+    vector<int32_t, QSA_BLKS_PER_STEP> step_blocks;
+    vector<uint, QSA_BLKS_PER_STEP> step_masks;
+    uint filled = 0;
+
+    // `-1` marks "no block": its mask is empty so every query is masked out and the
+    // address computation below is never reached with an invalid id.
+    step_blocks = -1;
+    step_masks = 0;
+
+#if QSA_CACHE_HEADS
+    // Retain the merge heads: only the lists that advanced need another global load.
+    vector<int32_t, TT> head_val = 0x7fffffff;
+#pragma unroll
+    for (uint t = 0; t < TT; t++) {
+        if (count[t] > 0) {
+            head_val[t] = selected_blocks[(token0 + t) * K_TOPK];
+        }
+    }
+#endif
+    for (;;) {
+        // ---- next union block: minimum over the TT cursor heads ----
+#if !QSA_CACHE_HEADS
+        vector<int32_t, TT> head_val = 0x7fffffff;
+#pragma unroll
+        for (uint t = 0; t < TT; t++) {
+            if (cursor[t] < count[t]) {
+                head_val[t] = selected_blocks[(token0 + t) * K_TOPK + cursor[t]];
+            }
+        }
+#endif
+        int32_t next_block = 0x7fffffff;
+#pragma unroll
+        for (uint t = 0; t < TT; t++) {
+            next_block = head_val[t] < next_block ? head_val[t] : next_block;
+        }
+        const bool have_block = next_block != 0x7fffffff;
+
+        if (have_block) {
+            uint mask = 0;
+#pragma unroll
+            for (uint t = 0; t < TT; t++) {
+                if (head_val[t] == next_block) {
+                    mask |= (1u << t);
+                    cursor[t] = cursor[t] + 1;
+#if QSA_CACHE_HEADS
+                    head_val[t] = 0x7fffffff;
+                    if (cursor[t] < count[t]) {
+                        head_val[t] = selected_blocks[(token0 + t) * K_TOPK + cursor[t]];
+                    }
+#endif
+                }
+            }
+            step_blocks[filled] = next_block;
+            step_masks[filled] = mask;
+            filled++;
+        }
+
+        if (filled == 0) {
+            break;
+        }
+        if (filled < QSA_BLKS_PER_STEP && have_block) {
+            continue;  // keep packing the kv_step tile
+        }
+
+        // ---- stage the step's K and V with 64-byte-wide 2D messages ----
+        matrix<half, NKV, DH_W> kwide;
+        matrix<half, NKV / 2, DV_W * 2> vwide;
+#if QSA_COALESCE_KV
+        // Sorted selections often pack a whole run (always in the dense prefix).
+        // Combine rows, NOT columns: a 2D row must still stay within the 64-byte cap.
+        const uint first_pos = (uint)step_blocks[0] * R;
+        bool contiguous = filled == QSA_BLKS_PER_STEP && first_pos % PAGE + NKV <= PAGE;
+#pragma unroll
+        for (uint j = 1; j < QSA_BLKS_PER_STEP; j++) {
+            contiguous = contiguous && step_blocks[j] == step_blocks[0] + (int32_t)j;
+        }
+        if (contiguous) {
+            const uint page = (uint)block_indices[page_begin + first_pos / PAGE];
+            const half* kbase = key_cache + qsa::kv_cache_offset(page, kv_head, first_pos % PAGE, HKV, PAGE, DH);
+            const half* vbase = value_cache + qsa::kv_cache_offset(page, kv_head, first_pos % PAGE, HKV, PAGE, DV);
+#pragma unroll
+            for (uint c = 0; c < QSA_K_CHUNKS; c++) {
+                matrix<half, NKV, QSA_WIDE_COLS> ktmp;
+                qsa_dpas::load_a_wide<NKV, QSA_WIDE_COLS>(ktmp, kbase, NKV, DH * (uint)sizeof(half),
+                                                        DH * (uint)sizeof(half), worker * DH_W + c * QSA_WIDE_COLS);
+                kwide.select<NKV, 1, QSA_WIDE_COLS, 1>(0, c * QSA_WIDE_COLS) = ktmp;
+            }
+#pragma unroll
+            for (uint c = 0; c < QSA_V_CHUNKS; c++) {
+                matrix<half, NKV / 2, QSA_WIDE_COLS * 2> vtmp;
+                qsa_dpas::load_vnni_wide<NKV, QSA_WIDE_COLS>(vtmp, vbase, NKV, DV * (uint)sizeof(half),
+                                                           DV * (uint)sizeof(half), worker * DV_W + c * QSA_WIDE_COLS);
+                vwide.select<NKV / 2, 1, QSA_WIDE_COLS * 2, 1>(0, c * QSA_WIDE_COLS * 2) = vtmp;
+            }
+        } else
+#endif
+        {
+#pragma unroll
+            for (uint j = 0; j < QSA_BLKS_PER_STEP; j++) {
+                if (step_blocks[j] >= 0) {
+                    const uint pos0 = (uint)step_blocks[j] * R;
+                    const uint page = (uint)block_indices[page_begin + pos0 / PAGE];
+                    const half* kbase = key_cache + qsa::kv_cache_offset(page, kv_head, pos0 % PAGE, HKV, PAGE, DH);
+                    const half* vbase = value_cache + qsa::kv_cache_offset(page, kv_head, pos0 % PAGE, HKV, PAGE, DV);
+#pragma unroll
+                    for (uint c = 0; c < QSA_K_CHUNKS; c++) {
+                        matrix<half, R, QSA_WIDE_COLS> ktmp;
+                        qsa_dpas::load_a_wide<R, QSA_WIDE_COLS>(ktmp, kbase, R, DH * (uint)sizeof(half), DH * (uint)sizeof(half),
+                                                              worker * DH_W + c * QSA_WIDE_COLS);
+                        kwide.select<R, 1, QSA_WIDE_COLS, 1>(j * R, c * QSA_WIDE_COLS) = ktmp;
+                    }
+#pragma unroll
+                    for (uint c = 0; c < QSA_V_CHUNKS; c++) {
+                        matrix<half, R / 2, QSA_WIDE_COLS * 2> vtmp;
+                        qsa_dpas::load_vnni_wide<R, QSA_WIDE_COLS>(vtmp, vbase, R, DV * (uint)sizeof(half), DV * (uint)sizeof(half),
+                                                                 worker * DV_W + c * QSA_WIDE_COLS);
+                        vwide.select<R / 2, 1, QSA_WIDE_COLS * 2, 1>(j * R / 2, c * QSA_WIDE_COLS * 2) = vtmp;
+                    }
+                } else {
+                    kwide.select<R, 1, DH_W, 1>(j * R, 0) = (half)0.0f;
+                    vwide.select<R / 2, 1, DV_W * 2, 1>(j * R / 2, 0) = (half)0.0f;
+                }
+            }
+        }
+
+        // ---- QK: St[kv][q] over the packed union blocks ----
+        matrix<float, NKV, QSA_REG_N> St = 0.0f;
+        auto St2 = St.format<float, NKV / MB, MB * QSA_REG_N>();
+
+        matrix<half, NKV / MB, MB * QSA_REG_K> kmat;
+#pragma unroll
+        for (uint k = 0; k < QSA_DH_TILES; k++) {
+#pragma unroll
+            for (uint m = 0; m < NKV / MB; m++) {
+                kmat.row(m).format<half, MB, QSA_REG_K>() = kwide.select<MB, 1, QSA_REG_K, 1>(m * MB, k * QSA_REG_K);
+            }
+#pragma unroll
+            for (uint m = 0; m < NKV / MB; m++) {
+                St2.row(m) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, QSA_SYSTOLIC_DEPTH, QSA_REG_M, float>(St2.row(m),
+                                                                                                            rQ.row(k).format<int32_t>(),
+                                                                                                            kmat.row(m).format<int32_t>());
+            }
+        }
+
+#if QSA_ATT_WORKERS > 1
+        qsa_paged_reduce_st(St.select_all(), slm_st, st_buf * W * QSA_ST_BYTES, worker);
+        st_buf ^= 1;
+#endif
+
+        // ---- per-column selection mask: a KV row is visible to a column only if that
+        // column's TOKEN selected the block (all heads of a token share its selection) ----
+#pragma unroll
+        for (uint i = 0; i < NKV; i++) {
+            const uint m16 = step_masks[i / R];
+            const vector<uint, NQ> bit = (m16 >> col_tok) & 1u;
+            const vector<ushort, NQ> keep = (bit != 0) & lane_valid;
+            St.row(i).merge(QSA_NEG_INF, keep == 0);
+        }
+
+        // ---- online softmax over the KV rows, per query column ----
+        vector<float, NQ> tile_max = St.row(0);
+#pragma unroll
+        for (uint i = 1; i < NKV; i++) {
+            tile_max = cm_max<float>(tile_max, St.row(i));
+        }
+        const vector<float, NQ> new_max = cm_max<float>(running_max, tile_max);
+        const vector<float, NQ> corr = cm_exp(running_max - new_max);
+
+        matrix<half, NKV, QSA_REG_N> P;
+        vector<float, NQ> tile_sum = 0.0f;
+#pragma unroll
+        for (uint i = 0; i < NKV; i++) {
+            vector<float, NQ> e = cm_exp(St.row(i) - new_max);
+            e.merge(0.0f, St.row(i) <= QSA_NEG_INF);
+            tile_sum = tile_sum + e;
+            P.row(i) = e;
+        }
+        running_sum = running_sum * corr + tile_sum;
+        running_max = new_max;
+
+#pragma unroll
+        for (uint t = 0; t < QSA_Q_TILES * QSA_DV_TILES; t++) {
+            auto tile_o = rO.row(t).format<float, MB, QSA_REG_N>();
+#pragma unroll
+            for (uint rrow = 0; rrow < MB; rrow++) {
+                tile_o.row(rrow) = tile_o.row(rrow) * corr[(t / QSA_DV_TILES) * MB + rrow];
+            }
+        }
+
+        // ---- PV: A operand is P^T ([queries][kv]), B operand is V in VNNI ----
+        matrix<half, NQ, NKV> Pt;
+        qsa_dpas::transpose_16x16(P.select<16, 1, 16, 1>(0, 0), Pt.select<16, 1, 16, 1>(0, 0));
+
+        matrix<half, NKV / 2, QSA_REG_N * 2> vvnni;
+#pragma unroll
+        for (uint d = 0; d < QSA_DV_TILES; d++) {
+            vvnni = vwide.select<NKV / 2, 1, QSA_REG_N * 2, 1>(0, d * QSA_REG_N * 2);
+#pragma unroll
+            for (uint qt = 0; qt < QSA_Q_TILES; qt++) {
+                const uint t = qt * QSA_DV_TILES + d;
+                rO.row(t) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, QSA_SYSTOLIC_DEPTH, QSA_REG_M, float>(
+                    rO.row(t),
+                    vvnni.format<int32_t>(),
+                    Pt.select<MB, 1, NKV, 1>(qt * MB, 0).format<int32_t>());
+            }
+        }
+
+        filled = 0;
+        step_blocks = -1;
+        step_masks = 0;
+        if (!have_block) {
+            break;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Always-visible tail: every token sees [n_complete(t) * r, abs_pos(t)]. The union of
+    // those ranges spans at most TT + r - 1 positions, so two kv_steps always cover it.
+    // ------------------------------------------------------------------
+    const uint tail_begin = n_complete[0] * R;
+    const uint tail_end = past_len + token0 - seq_begin + valid - 1;
+    for (uint base = tail_begin; base <= tail_end; base += NKV) {
+#if QSA_WIDE_TAIL
+        matrix<half, NKV, DH_W> kwide;
+        matrix<half, NKV / 2, DV_W * 2> vwide;
+#pragma unroll
+        for (uint j = 0; j < QSA_BLKS_PER_STEP; j++) {
+            const uint pos = base + j * R;
+            if (pos <= tail_end) {
+                const uint rows = cm_min<uint>(R, tail_end - pos + 1);
+                const uint page = (uint)block_indices[page_begin + pos / PAGE];
+                const half* kbase = key_cache + qsa::kv_cache_offset(page, kv_head, pos % PAGE, HKV, PAGE, DH);
+                const half* vbase = value_cache + qsa::kv_cache_offset(page, kv_head, pos % PAGE, HKV, PAGE, DV);
+#pragma unroll
+                for (uint c = 0; c < QSA_K_CHUNKS; c++) {
+                    matrix<half, R, QSA_WIDE_COLS> ktmp;
+                    qsa_dpas::load_a_wide<R, QSA_WIDE_COLS>(ktmp, kbase, rows, DH * (uint)sizeof(half),
+                                                         DH * (uint)sizeof(half), worker * DH_W + c * QSA_WIDE_COLS);
+                    kwide.select<R, 1, QSA_WIDE_COLS, 1>(j * R, c * QSA_WIDE_COLS) = ktmp;
+                }
+#pragma unroll
+                for (uint c = 0; c < QSA_V_CHUNKS; c++) {
+                    matrix<half, R / 2, QSA_WIDE_COLS * 2> vtmp;
+                    qsa_dpas::load_vnni_wide<R, QSA_WIDE_COLS>(vtmp, vbase, rows, DV * (uint)sizeof(half),
+                                                            DV * (uint)sizeof(half), worker * DV_W + c * QSA_WIDE_COLS);
+                    vwide.select<R / 2, 1, QSA_WIDE_COLS * 2, 1>(j * R / 2, c * QSA_WIDE_COLS * 2) = vtmp;
+                }
+            } else {
+                kwide.select<R, 1, DH_W, 1>(j * R, 0) = (half)0.0f;
+                vwide.select<R / 2, 1, DV_W * 2, 1>(j * R / 2, 0) = (half)0.0f;
+            }
+        }
+#endif
+        matrix<float, NKV, QSA_REG_N> St = 0.0f;
+        auto St2 = St.format<float, NKV / MB, MB * QSA_REG_N>();
+
+        matrix<half, NKV / MB, MB * QSA_REG_K> kmat;
+#pragma unroll
+        for (uint k = 0; k < QSA_DH_TILES; k++) {
+#pragma unroll
+            for (uint m = 0; m < NKV / MB; m++) {
+                kmat.row(m).format<half, MB, QSA_REG_K>() = kwide.select<MB, 1, QSA_REG_K, 1>(m * MB, k * QSA_REG_K);
+            }
+#pragma unroll
+            for (uint m = 0; m < NKV / MB; m++) {
+                St2.row(m) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, QSA_SYSTOLIC_DEPTH, QSA_REG_M, float>(St2.row(m),
+                                                                                                            rQ.row(k).format<int32_t>(),
+                                                                                                            kmat.row(m).format<int32_t>());
+            }
+        }
+
+#if QSA_ATT_WORKERS > 1
+        qsa_paged_reduce_st(St.select_all(), slm_st, st_buf * W * QSA_ST_BYTES, worker);
+        st_buf ^= 1;
+#endif
+
+        // Tail position `pos` is visible to query q iff n_complete(q)*r <= pos <= abs_pos(q).
+#pragma unroll
+        for (uint i = 0; i < NKV; i++) {
+            const uint pos = base + i;
+            const vector<ushort, NQ> ok = (n_complete * R <= pos) & (abs_pos >= pos) & lane_valid;
+            St.row(i).merge(QSA_NEG_INF, ok == 0);
+        }
+
+        vector<float, NQ> tile_max = St.row(0);
+#pragma unroll
+        for (uint i = 1; i < NKV; i++) {
+            tile_max = cm_max<float>(tile_max, St.row(i));
+        }
+        const vector<float, NQ> new_max = cm_max<float>(running_max, tile_max);
+        const vector<float, NQ> corr = cm_exp(running_max - new_max);
+
+        matrix<half, NKV, QSA_REG_N> P;
+        vector<float, NQ> tile_sum = 0.0f;
+#pragma unroll
+        for (uint i = 0; i < NKV; i++) {
+            vector<float, NQ> e = cm_exp(St.row(i) - new_max);
+            e.merge(0.0f, St.row(i) <= QSA_NEG_INF);
+            tile_sum = tile_sum + e;
+            P.row(i) = e;
+        }
+        running_sum = running_sum * corr + tile_sum;
+        running_max = new_max;
+
+#pragma unroll
+        for (uint t = 0; t < QSA_Q_TILES * QSA_DV_TILES; t++) {
+            auto tile_o = rO.row(t).format<float, MB, QSA_REG_N>();
+#pragma unroll
+            for (uint rrow = 0; rrow < MB; rrow++) {
+                tile_o.row(rrow) = tile_o.row(rrow) * corr[(t / QSA_DV_TILES) * MB + rrow];
+            }
+        }
+
+        matrix<half, NQ, NKV> Pt;
+        qsa_dpas::transpose_16x16(P.select<16, 1, 16, 1>(0, 0), Pt.select<16, 1, 16, 1>(0, 0));
+
+        matrix<half, NKV / 2, QSA_REG_N * 2> vvnni;
+#pragma unroll
+        for (uint d = 0; d < QSA_DV_TILES; d++) {
+    #if QSA_WIDE_TAIL
+            vvnni = vwide.select<NKV / 2, 1, QSA_REG_N * 2, 1>(0, d * QSA_REG_N * 2);
+    #else
+#pragma unroll
+            for (uint i = 0; i < NKV; i++) {
+                const uint pos = base + i;
+                vector<half, QSA_REG_N> v = (half)0.0f;
+                if (pos <= tail_end) {
+                    const uint page = (uint)block_indices[page_begin + pos / PAGE];
+                    const half* vbase = value_cache + qsa::kv_cache_offset(page, kv_head, pos % PAGE, HKV, PAGE, DV);
+                    qsa_gr::load_hv<QSA_REG_N>(v, vbase, worker * DV_W + d * QSA_REG_N);
+                }
+                vvnni.row(i / 2).select<QSA_REG_N, 2>(i % 2) = v;
+            }
+#endif
+#pragma unroll
+            for (uint qt = 0; qt < QSA_Q_TILES; qt++) {
+                const uint t = qt * QSA_DV_TILES + d;
+                rO.row(t) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, QSA_SYSTOLIC_DEPTH, QSA_REG_M, float>(
+                    rO.row(t),
+                    vvnni.format<int32_t>(),
+                    Pt.select<MB, 1, NKV, 1>(qt * MB, 0).format<int32_t>());
+            }
+        }
+    }
+
+    // ---- normalize and store (no output gate in the split ABI) ----
+    vector<float, NQ> inv_sum = running_sum;
+#pragma unroll
+    for (uint n = 0; n < NQ; n++) {
+        inv_sum[n] = running_sum[n] > 0.0f ? 1.0f / running_sum[n] : 0.0f;
+    }
+
+    for (uint n = 0; n < NQ; n++) {
+        if (n % TT >= valid) {
+            continue;  // column belongs to a token past the end of the sequence
+        }
+        const uint token_idx = token0 + n % TT;
+        const uint head = head_base + n / TT;
+        vector<half, DV_W> out;
+#pragma unroll
+        for (uint d = 0; d < QSA_DV_TILES; d++) {
+            const uint t = (n / MB) * QSA_DV_TILES + d;
+            auto tile_o = rO.row(t).format<float, MB, QSA_REG_N>();
+            vector<float, QSA_REG_N> o = tile_o.row(n % MB) * inv_sum[n];
+            out.select<QSA_REG_N, 1>(d * QSA_REG_N) = o;
+        }
+        qsa_gr::store_hv<DV_W>(output, (token_idx * HQ + head) * DV + worker * DV_W, out);
+    }
+}

@@ -104,6 +104,7 @@
 #include "plugin/transformations/fold_activation_transpose.hpp"
 #include "plugin/transformations/fuse_avg_down.hpp"
 #include "plugin/transformations/fuse_gated_mlp.hpp"
+#include "plugin/transformations/sparse_attention_fusion.hpp"
 #include "plugin/transformations/fuse_atan2_decomposed.hpp"
 #include "plugin/transformations/fuse_grouped_depth_to_space.hpp"
 #include "plugin/transformations/fuse_hadamard_fc.hpp"
@@ -1642,6 +1643,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
 
+        // Runs before RoPEFusion, which would otherwise absorb the indexer's RoPE table
+        // gather that SparseAttentionFusion proves position_ids from.
+        manager.register_pass<ov::intel_gpu::SparseAttentionFusion>();
         manager.register_pass<ov::pass::RoPEFusion>(true);
         manager.register_pass<ov::intel_gpu::FuseRoPEInputDeinterleave>();
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
