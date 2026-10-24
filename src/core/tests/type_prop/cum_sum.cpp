@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/constant.hpp"
 
@@ -146,4 +147,39 @@ TEST(type_prop, cum_sum_op_incorrect_axis_element_type) {
             FAIL() << "Axis input element type validation check failed for unexpected reason";
         }
     }
+}
+
+TEST(type_prop, cum_sum_axis_out_of_range_positive) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
+    auto axis = ov::op::v0::Constant::create(element::i64, Shape{}, {4});
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v0::CumSum>(data, axis),
+                    NodeValidationFailure,
+                    testing::HasSubstr("Axis"));
+}
+
+TEST(type_prop, cum_sum_axis_out_of_range_negative) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
+    auto axis = ov::op::v0::Constant::create(element::i32, Shape{}, {-3});
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v0::CumSum>(data, axis),
+                    NodeValidationFailure,
+                    testing::HasSubstr("Axis"));
+}
+
+TEST(type_prop, cum_sum_valid_boundary_axes) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
+    for (int64_t ax : {0, 1, -1, -2}) {
+        auto axis = ov::op::v0::Constant::create(element::i64, Shape{}, {ax});
+        EXPECT_NO_THROW(const auto unused = std::make_shared<op::v0::CumSum>(data, axis));
+    }
+}
+
+TEST(type_prop, cum_sum_empty_constant_axis) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
+    auto axis = ov::op::v0::Constant::create(element::i64, Shape{0}, {});
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v0::CumSum>(data, axis),
+                    NodeValidationFailure,
+                    testing::HasSubstr("Axis input must have at least one element"));
 }
