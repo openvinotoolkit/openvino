@@ -397,9 +397,9 @@ PostOps getPostOps(const std::vector<NodePtr>& fused, ov::element::Type_t sumDat
 
     auto makeActivationPostOp = [](const std::shared_ptr<node::Eltwise>& eltwise) {
         return std::make_any<ActivationPostOp>(convertToActivationPostOpt(eltwise->getAlgorithm()),
-                                               eltwise->getAlpha(),
-                                               eltwise->getBeta(),
-                                               eltwise->getGamma());
+                                               static_cast<float>(eltwise->getAlpha()),
+                                               static_cast<float>(eltwise->getBeta()),
+                                               static_cast<float>(eltwise->getGamma()));
     };
 
     auto makeScaleShiftPostOp = [](const std::shared_ptr<node::Eltwise>& eltwise) {

@@ -17,6 +17,7 @@ void register_fused_qkv(GraphEmitter& e, const DecoderConfig& cfg, int il) {
     auto parts = split_fused_qkv_extracted(p + "attn_qkv", e.weights(), e.qtypes(), n_q, n_kv, n_kv);
     const std::array<std::string, 3> names = {p + "attn_q.weight", p + "attn_k.weight", p + "attn_v.weight"};
     for (size_t i = 0; i < 3; ++i) {
+        e.inherit_hadamard(names[i], p + "attn_qkv.weight");
         e.emit_weight_op(names[i], parts[i].tensors, parts[i].qtype);
     }
 
@@ -37,6 +38,7 @@ void register_qwen35_q_gate(GraphEmitter& e, const DecoderConfig& cfg, int il) {
     auto parts = split_interleaved_q_gate(p + "attn_q", e.weights(), e.qtypes(), static_cast<size_t>(cfg.head_size));
     const std::array<std::string, 2> names = {p + "attn_q.weight", p + "attn_gate.weight"};
     for (size_t i = 0; i < 2; ++i) {
+        e.inherit_hadamard(names[i], p + "attn_q.weight");
         e.emit_weight_op(names[i], parts[i].tensors, parts[i].qtype);
     }
 }
