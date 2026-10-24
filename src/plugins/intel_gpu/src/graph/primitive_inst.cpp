@@ -841,12 +841,13 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
     }
     result.realloc_if_needed();
 
+    const bool past_empty = past_layout.count() == 0;
     const auto past_tensor = input_memory_ptr(0);
-    OPENVINO_ASSERT(past_tensor, "[GPU] Input memory is not prepared for stateless_kv node ", id());
+    OPENVINO_ASSERT(past_empty || past_tensor, "[GPU] Input memory is not prepared for stateless_kv node ", id());
     const auto present_tensor = result.output_memory_ptr();
     OPENVINO_ASSERT(present_tensor, "[GPU] Output memory of ", result.id(), " is not prepared for stateless_kv node ", id());
     auto& engine = _network.get_engine();
-    const auto is_same = engine.is_the_same_buffer(*present_tensor, *past_tensor);
+    const auto is_same = !past_empty && engine.is_the_same_buffer(*present_tensor, *past_tensor);
     const auto& present_layout = result._impl_params->get_output_layout();
     const auto same_placement = [&]() {
         return past_layout.data_type == mid_layout.data_type && past_layout.format == mid_layout.format &&
@@ -893,9 +894,9 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
         if (mid_layout == present_layout)
             result.set_can_be_optimized(true);
     }
-    GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_tensor->buffer_ptr() << "](" << past_tensor->get_layout().to_short_string() << ") and output["
-                           << present_tensor->buffer_ptr() << "](" << present_tensor->get_layout().to_short_string() << ")(" << result.id()
-                           << ") same:" << is_same << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << (past_tensor ? past_tensor->buffer_ptr() : nullptr) << "]("
+                           << (past_tensor ? past_tensor->get_layout().to_short_string() : "") << ") and output[" << present_tensor->buffer_ptr() << "]("
+                           << present_tensor->get_layout().to_short_string() << ")(" << result.id() << ") same:" << is_same << std::endl;
     GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_layout.to_short_string() << "] -> mid[" << mid_layout.to_short_string() << "]["
                            << target_layout.to_short_string() << "] -> output[" << present_layout.to_short_string() << "](" << result.id()
                            << ") opt:" << result.can_be_optimized() << std::endl;
