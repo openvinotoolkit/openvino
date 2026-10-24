@@ -46,6 +46,8 @@ def _is_fastpath_eligible(sampling_metadata) -> bool:
 
 _OV_SAMPLE_COMPILED = None
 _OV_NATIVE_COMPILED = {}  # cached per (vocab, top_k, dtype)
+# Extra top-k columns the fused sampler scans for logits tied with the k-th largest.
+_TOPK_TIE_WINDOW = 32
 
 
 def _build_native_sampler(vocab: int, top_k: int):
@@ -92,7 +94,8 @@ def _build_native_sampler(vocab: int, top_k: int):
 def _build_fused_sampler():
     import torch
 
-    def _impl(logits, temperature, top_k, top_p, exp_noise):
+    def _top_p_only(logits, temperature, top_k, top_p, exp_noise):
+        # top_k covers the vocab here, so there is no k-th boundary to tie at.
         scaled = logits / temperature.unsqueeze(-1)
         max_k = top_k.max()
         vocab_size = logits.shape[-1]
@@ -113,15 +116,48 @@ def _build_fused_sampler():
         sampled = torch.gather(topk_idx, dim=-1, index=winner).squeeze(-1)
         return sampled.to(torch.int64)
 
+    def _with_top_k(logits, temperature, top_k, top_p, exp_noise):
+        scaled = logits / temperature.unsqueeze(-1)
+        vocab_size = logits.shape[-1]
+        top_k_c = torch.clamp(top_k, max=vocab_size)
+        # vLLM's top-k keeps every logit tied with the k-th largest, so look a little past k for ties.
+        window = torch.clamp(top_k_c.max() + _TOPK_TIE_WINDOW, max=vocab_size)
+        topk_vals, topk_idx = torch.topk(scaled, k=window, dim=-1, sorted=True)
+        neg_inf = torch.full_like(topk_vals, float("-inf"))
+        kth = torch.gather(topk_vals, -1, (top_k_c - 1).unsqueeze(-1).to(torch.int64))
+        keep_k = topk_vals >= kth
+        # Ties may run past the window if its last column still ties (finite k-th only; -inf ties
+        # carry no probability): the caller hands the step to vLLM.
+        overflow = (topk_vals[:, -1:] >= kth) & (window < vocab_size) & torch.isfinite(kth)
+        k_vals = torch.where(keep_k, topk_vals, neg_inf)
+        topk_softmax = torch.softmax(k_vals, dim=-1)
+        cumprob = torch.cumsum(topk_softmax, dim=-1)
+        col_idx = torch.arange(window, device=logits.device).unsqueeze(0)
+        keep_p = (cumprob - topk_softmax) < top_p.unsqueeze(-1)
+        keep_p = keep_p | (col_idx == 0)
+        keep = keep_k & keep_p
+        masked_vals = torch.where(keep, topk_vals, neg_inf)
+        probs = torch.softmax(masked_vals, dim=-1)
+        gathered_noise = torch.gather(exp_noise, dim=-1, index=topk_idx)
+        scores = probs / gathered_noise
+        winner = scores.argmax(dim=-1, keepdim=True)
+        sampled = torch.gather(topk_idx, dim=-1, index=winner).squeeze(-1)
+        return sampled.to(torch.int64), overflow.squeeze(-1)
+
     options = {"aot_autograd": True, "vllm": True}
-    compiled = torch.compile(
-        _impl,
-        backend="openvino",
-        fullgraph=False,
-        dynamic=False,
-        options=options,
+    top_p_only, with_top_k = (
+        torch.compile(fn, backend="openvino", fullgraph=False, dynamic=False, options=options)
+        for fn in (_top_p_only, _with_top_k)
     )
-    return compiled
+
+    def _sample(logits, temperature, top_k, top_p, exp_noise):
+        """Return (sampled, tie_overflow); tie_overflow is None when no row truncates to top-k."""
+        # The tie handling costs a few dynamic-shape nodes, so skip it when nothing truncates.
+        if int(top_k.min()) >= logits.shape[-1]:
+            return top_p_only(logits, temperature, top_k, top_p, exp_noise), None
+        return with_top_k(logits, temperature, top_k, top_p, exp_noise)
+
+    return _sample
 
 
 def install():
@@ -139,7 +175,8 @@ def install():
 
     def _patched_sample(self, logits, sampling_metadata, logprobs_mode_override=None):
         global _OV_SAMPLE_COMPILED
-        if not _is_fastpath_eligible(sampling_metadata):
+        # use_fp64_gumbel asks for float64 noise; both OV paths draw float32.
+        if not _is_fastpath_eligible(sampling_metadata) or getattr(self, "use_fp64_gumbel", False):
             return _orig_sample(self, logits, sampling_metadata,
                                 logprobs_mode_override=logprobs_mode_override)
         # logprobs=0 still returns the sampled token's logprob; processed_*
@@ -229,20 +266,30 @@ def install():
         gens = getattr(sampling_metadata, "generators", None) or {}
         # Snapshot so a fallback below re-draws the same noise vLLM would have.
         gen_states = {i: g.get_state() for i, g in gens.items()}
+        default_state = None
         if len(gens) != batch_size:
+            default_state = torch.get_rng_state()
             exp_noise.exponential_()
         if gens:
             for i, gen in gens.items():
                 exp_noise[i].exponential_(generator=gen)
 
-        try:
-            sampled = _OV_SAMPLE_COMPILED(logits_f32, temperature, top_k, top_p, exp_noise)
-        except Exception as e:
-            logger.warning("[OV plugin] Fused sampler call failed, falling back: %s", e)
+        def _fallback():
             for i, state in gen_states.items():
                 gens[i].set_state(state)
+            if default_state is not None:
+                torch.set_rng_state(default_state)
             return _orig_sample(self, logits, sampling_metadata,
                                 logprobs_mode_override=logprobs_mode_override)
+
+        try:
+            sampled, tie_overflow = _OV_SAMPLE_COMPILED(logits_f32, temperature, top_k, top_p, exp_noise)
+        except Exception as e:
+            logger.warning("[OV plugin] Fused sampler call failed, falling back: %s", e)
+            return _fallback()
+        if tie_overflow is not None and bool(tie_overflow.any()):
+            logger.debug("[OV plugin] More top-k ties than the fused sampler window, falling back")
+            return _fallback()
 
         return sampled, None
 

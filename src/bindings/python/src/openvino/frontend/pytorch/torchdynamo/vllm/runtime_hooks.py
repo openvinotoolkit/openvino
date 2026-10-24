@@ -139,7 +139,10 @@ def infer_with_pa(req, compiled, call_kwargs):
 
     Under OV_FAST_INFER=1, skip set_tensor for ports whose value id is
     unchanged and reuse output views for statically-shaped outputs. Falls
-    back to plain req.infer(call_kwargs, ...) on any error or when unset.
+    back to plain req.infer(call_kwargs, ...) when unset or when binding the
+    inputs fails. Errors from inference itself propagate: it has already
+    updated the KV cache and GDN state in place, so a rerun would advance
+    them twice for one step.
     """
     if os.environ.get("OV_FAST_INFER", "0") == "0":
         return req.infer(call_kwargs, share_inputs=True, share_outputs=True)
@@ -176,6 +179,11 @@ def infer_with_pa(req, compiled, call_kwargs):
             req.set_tensor(_port, _t)
             _slot[0] = _val_id
             _slot[1] = _t  # keep alive
+    except Exception:
+        _fastinfer_bound_ids.pop(id(req), None)
+        _fastinfer_out_cache.pop(id(req), None)
+        return req.infer(call_kwargs, share_inputs=True, share_outputs=True)
+    try:
         req.infer()
         # Cached output views pin the first call's shape; only reuse for
         # statically-shaped outputs, or a dynamic model hands back a stale one.
@@ -193,4 +201,4 @@ def infer_with_pa(req, compiled, call_kwargs):
     except Exception:
         _fastinfer_bound_ids.pop(id(req), None)
         _fastinfer_out_cache.pop(id(req), None)
-        return req.infer(call_kwargs, share_inputs=True, share_outputs=True)
+        raise
