@@ -274,6 +274,7 @@ SLM transpose (DG2 S2 K3) was the worst of the K-direction candidates (D=128 t_m
 |---|---|---|
 | decode V | `PREFETCH_V_TILE`: `intel_sub_group_2d_block_prefetch_16b_16r16x1c` / `_8b_32r16x1c` for i8·u4 (`sdpa_ocl_decode.cl:177-197`), `PREFETCH_DIST` chunks ahead (default 4, `SDPA_OCL_DECODE_PREFETCH`, `sdpa_gen_ocl_decode.cpp:256`) | `USE_PREFETCH_V && USE_2D_BLOCK_IO_V` |
 | MIXED Vc | `vc_prefetch` (`sdpa_ocl_v_load.cl:21-40`): **right after** the S_max aggregation barrier, before the softmax qb loop. Issued only when `!from_cache && sg_i_sv == 0` | `IS_PA_K_U4 && PA_CUR_KV_F16` (u4 only) |
+| PA PREFILL V, `d_max` 512 | `v_tile_prefetch_l3` (`sdpa_ocl_v_load.cl`): address prefetch of this key tile's V rows into L3 only, one address per 256 B line (§7.6) | `PREFETCH_V_L3` (`v_prefetch_l3`, `SDPA_OCL_V_PREFETCH_L3`); replaces `PREFETCH_V` |
 | K | **none** (decode K prefetch was deleted) | |
 | mask | none (micro has `PREFETCH_MASK`) | |
 
@@ -309,15 +310,58 @@ V_PREFETCH on 145,603 ns vs off 151,866 ns = **-4.1240%** (64 calls, `sdpa_ocl_m
 | qwen3-8b head 128, 8K, 256 x 128 tile (with branchless exp) | 7,914 us | 7,555 us (**-4.5%**) | then the split barrier: 7,218 |
 | gemma-4-e2b head 512, 8K, 128 x 64 tile (256GRF, alone) | 8,880 us | 9,762 us (**+10%**) | a 128-key tile of 512-channel V rows is 128 KiB |
 
--> Prefetch profit depends on the tile's byte size: `v_prefetch` is a per-tiling flag, set at `d_max` <= 256 only. Why 128 KiB hurts
-(L1 capacity / prefetch queue) is **ASSUMED**, not profiled. K prefetch in the same place: next tile +0.2%, first tile +0.4%, both + V +3.6% (rejected).
+-> `v_prefetch` is a per-tiling flag, set at `d_max` <= 256 only. K prefetch in the same place: next tile +0.2%, first tile +0.4%,
+both + V +3.6% (rejected). The "tile byte size" reading was wrong: the cost is the line requests, 4 per 256 B line with a 64 B
+wide block prefetch on 1 KiB rows (§7.6, MEASURED 2026-10-24).
+
+### 7.6 PA PREFILL V L3 prefetch at `d_max` 512 (2026-10-24, B70, `sdpa-ocl-head512-prefill-task`)
+
+Problem: the head 512 PA PREFILL kernel had a knee at 16K-20K keys at a **fixed** 1800 MHz clock (time / keys^2 flat to 16K, +9.6% by
+32K); `sdpa_micro` had none. One KV head's K+V is 2 KiB per token, 24 MiB L3 = 12K tokens. VTune: L3 miss 3.0% -> 18.2%, Send
+stall 20% -> 30%, DRAM read 64 GB/s (latency, not bandwidth). `PREFETCH_V` removed the knee (flat 121 ps) but cost +14% at 8K.
+
+Cost model, measured with an address prefetch (`__builtin_IB_lsc_prefetch_global_uint`, one address per lane, this tile's V,
+gemma-4-e2b, per call against no prefetch, 1800 MHz, two rounds within 0.3%):
+
+| Stride, cache control | 8K | 32K |
+|---|---|---|
+| 64 B, `L1UC_L3C` (4 requests per 256 B line) | +17.0% | +4.5% |
+| 64 B, `L1C_L3C` | +15.0% | +4.4% |
+| 128 B, `L1UC_L3C` | +4.4% | -5.8% |
+| **256 B, `L1UC_L3C` (one request per line)** | **-0.5%** | **-11.0%** |
+| 256 B, `L1C_L3C` | +1.2% | -8.9% |
+| 512 B, `L1UC_L3C` (every other line) | -0.1% | -3.5% |
+
+- **The cost of a prefetch is the number of line requests it adds to L3**, not the message count (32-row x 2-block K/V *demand* reads
+  with 4x fewer messages for the same lines were 4-14% slower, one run) and not the cache level at the 64 B stride (`L1C_L3C` ~
+  `L1UC_L3C`). At one request per line, filling L1 too still cost 1.6 / 2.1 points. 512 B kept about a third of the gain: L3
+  fills whole 256 B lines (`clinfo` "Global Memory cache line size", B70), so the step must equal the line, not exceed it.
+- Product (`39bdb18aeb`): `v_tile_prefetch_l3()` at the `PREFETCH_V` site (after the S_max atomics, inside the split barrier),
+  `__builtin_IB_lsc_prefetch_global_uchar(V + row * pitch + line * 256, 0, 2u /* L1UC_L3C */)`, `kq_wg_tile_keys x ceil(row/256)`
+  lines dealt over all lanes (head 512: 1,024 lines / 512 lanes), rows clamped to `k - 1` (no address leaves the tensor; the byte
+  form needs no alignment). Result per call against no prefetch, 1800 MHz: -1.6 / -0.8 / -0.4 / -1.5 / -2.4 / -5.6 / -7.9 / -9.4 /
+  -11.1% at 2K..32K; flat 105-106 ps from 12K. At the 2800 pin (PL2 active) 32K 111.8 -> 100.1 ms; TTFT -1.3..-1.9% at 32K.
+- Other placements, 256 B stride: the next tile's V -10.1% at 32K, this tile's V + the next tile's K -8.6% (+4.0% at 8K), the
+  next tile's K + V -6.8%. K prefetch does not pay here either.
+- **Where it does not pay**: in place of `PREFETCH_V` at `d_max` <= 256 (one KV head's K/V fits L3 at 32K): head 128 +3.8 / +3.9%,
+  head 64 +5.1 / +5.2%, head 256 window layers +2.6..+2.9%, head 256 full layers -0.8 / -1.0% (8K / 32K). Prefetch where the data
+  is already in L3 only adds requests.
+- **Declaring the builtin in a kernel file**: `tile_ops.cl` declares `__builtin_IB_lsc_prefetch_global_*` with `enum LSC_LDCC`. The
+  OCL codegen (`primitive_db_gen.py` `append_undefs`) appends an `#undef` for every `#define` of a kernel file after each kernel,
+  and a batch puts several kernels of one file into one program, so a guarded `enum` there fails with "redefinition of
+  'LSC_LDCC'" in the second kernel. Declare the cache control as `uint` (the enum is compatible with `unsigned int`; ocloc compiles
+  both prototypes in one translation unit) and guard with `!defined(GPU_OCL_TILE_OPS_H)`.
+- A prefetch changes no value: 173 PA gtest outputs bit-identical with the switch forced on/off at every head size.
 
 ### 7.4 Failed/invalid prefetch
 
 - In plain prefill, issuing the V prefetch inside the k0 iteration right before consuming the same tile: **about 11 us net loss** (right before consumption there is no compute to hide it behind; pure overhead). Code removed (the `#if 0` block just before `ddd9ab8ef4`, `sdpa_ocl.cl` history).
 - `MAX_BARRIER_V_PREFETCH` (V prefetch inside the split barrier window of plain prefill) came in as a toggle in `ddd9ab8ef4` and was used as `SDPA_OCL_256GRF=1 ... MAX_BARRIER_V_PREFETCH=1` in the llama-2-7b 4096-token bench (`test/run.sh`), but
   **its gain was never proven** and it was deleted in the 2026-09 refactor (`sdpa-ocl-refactor-2026-09`: "never shown to help"). No individual measurement result file was found -> the effect is recorded only as "unproven".
-- micro uses `PREFETCH_K/V/MASK` one k0 iteration ahead into L1+L3 (`LSC_LDCC_L1C_L3C`, `cooperative_prefetch_2d_*`). sdpa_ocl did not port this approach as is (it exists only as a plan, Step 3: `sdpa-ocl-block2d-gate-relaxation`).
+- micro uses `PREFETCH_K/V/MASK` one k0 iteration ahead into L1+L3 (`LSC_LDCC_L1C_L3C`, `cooperative_prefetch_2d_*`). Its shape: one
+  `__builtin_IB_lsc_prefetch_global_uint/uchar` per lane, one 64 B address each, and only the first `PREFETCH_D_MAX = min(d_max, 64)`
+  elements of each row (128 B of a 1 KiB head 512 row), i.e. one prefetch message per subgroup per tile (`sdpa_gen_micro.cpp`,
+  `tile_ops.cl`). sdpa_ocl took the address form, not the coverage, in §7.6.
 - DG2: generic `prefetch()` has no effect (MEASURED, S2 P8: recorded only).
 
 ## 8. Split barrier (`intel_work_group_barrier_arrive/wait`)
@@ -487,6 +531,11 @@ The "GRAN=0 is correct" claim and the failure counts in old documents are not cu
 | 26 | `V_I8_PAIRED_READ` on the PA path | **forbidden** | consecutive key groups are on non-adjacent pages (`block_indices`) | `sdpa-ocl-pa-i8-by-token-task` |
 | 27 | at head-72, `DKS_ACTIVE` enlarges the spill of the scalar fallback (head 48/96) | static 2688 -> 16064 (DKS_ACTIVE 8/6/5) | **not measured on device (as of 2026-08-14)** | `sdpa-ocl-block2d-gate-relaxation` |
 | 28 | f16 V-read merge `16r16x2c` (VTune-based) | **small gain** (not a failure): 524.34 -> 521.01 ms (-0.64%), MD5 identical; SBID stall 43.9–45.5% -> 41.5–43.5% | single-workload case, no guarantee for other GPUs/models (MEASURED) | chapter 04 §4.1.1, chapter 05 §5.5.3, B70 |
+| 29 | workgroup order with the KV-group heads innermost (concurrent workgroups share K/V tiles), head 512 PA PREFILL | +5.2% / +4.1% at 8K / 32K, knee unchanged | the knee is miss latency per workgroup, not L3 reuse across workgroups | `sdpa-ocl-head512-prefill-task`, B70 1800 MHz |
+| 30 | 32-row x 2-block K (`16b_32r16x2c`) / V (`transform_16b_32r16x2c`) demand reads, 4x fewer messages for the same lines (head 512) | +3.8% / +14% / +9% (K / V / both, 8K, one run, no spill; correctness not checked) | message count is not the cost; register payload and schedule change | same |
+| 31 | address prefetch of this tile's V at a 64 B stride (head 512), `L1UC_L3C` / `L1C_L3C` | +17.0% / +15.0% at 8K | 4 requests per 256 B line (§7.6) | same |
+| 32 | next-tile K address prefetch (head 512), 64 B / 256 B stride | +15.7% / +4.0% at 8K | K misses are not worth their requests | same |
+| 33 | `PREFETCH_V_L3` in place of `PREFETCH_V` at `d_max` <= 256 | +1..+5% (head 256 full layers -1%) | the K/V of one KV head fits L3 | same |
 
 ## 13. Uncertain/stale items in this chapter (need checking)
 
