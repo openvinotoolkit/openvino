@@ -343,13 +343,20 @@ struct layout {
 
     /// Number of bytes needed to store this layout
     size_t bytes_count() const {
+        constexpr size_t uint2_word_bytes = 4;
+        auto align_uint2_bytes = [](size_t bytes) {
+            return (bytes + uint2_word_bytes - 1) / uint2_word_bytes * uint2_word_bytes;
+        };
+
         if (format == cldnn::format::custom) {
             auto bytes_of_layout = (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
             auto desc_size = format.traits().desc_size;
             OPENVINO_ASSERT(desc_size > 0, "[GPU] Invalid layout descriptor size: ", desc_size);
-            return desc_size > bytes_of_layout ? desc_size : bytes_of_layout;
+            auto bytes = desc_size > bytes_of_layout ? desc_size : bytes_of_layout;
+            return data_type == ov::element::u2 ? align_uint2_bytes(bytes) : bytes;
         }
-        return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
+        auto bytes = (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
+        return data_type == ov::element::u2 ? align_uint2_bytes(bytes) : bytes;
     }
 
     const cldnn::format& get_format() const;

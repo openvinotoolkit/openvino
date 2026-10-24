@@ -83,6 +83,13 @@ TEST_P(data_layout_test, size_check) {
     ASSERT_EQ(l.get_pitches(), p.expected_pitches);
 }
 
+TEST(layout_test, uint2_bytes_count_is_word_aligned) {
+    const layout l(data_types::u2, format::bfyx, tensor{format::bfyx, {2, 3, 4, 1}});
+
+    ASSERT_EQ(l.count(), 24u);
+    ASSERT_EQ(l.bytes_count(), 8u);
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke, data_layout_test,
     testing::ValuesIn(std::vector<layout_test_params>{
         {data_types::f32, format::bfyx, {1, 15, 5, 5}, {1, 17, 11, 9}, {0, 1, 2, 3}, padding{{0, 1, 3, 2}, 0}/*padding in shape order*/, {1683, 99, 9, 1} /*expected pitches in shape order*/},
