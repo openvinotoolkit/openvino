@@ -45,6 +45,7 @@ class TestPad(PytorchLayerTest):
         ((0, 0, 0, 0, 0, 0), "constant", None, "int64"),
         ((1, 0, 0, 0, 0, 1, 1, 2), "constant", 0., "int32"),
         ((1, 2, 0, 0), "circular", None, "int32"),
+        ((1, 0), "circular", None, "float32"),
         ((1, 2, 3, 4), "circular", None, "int64"),
         ((0, 1, 0, 0), "circular", None, "float32"),
         ((0, 0, 0, 0), "circular", None, "float64"),
