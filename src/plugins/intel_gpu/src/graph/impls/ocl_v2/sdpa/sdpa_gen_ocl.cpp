@@ -36,6 +36,7 @@ struct sdpa_ocl_config_t {
     bool large_grf = false;         // compile with 256 GRF (get_build_options())
     bool prefill_pipeline = false;  // PA PREFILL loop changes measured with this tiling (add_prefill_pipeline_jit())
     bool v_prefetch = false;        // PA PREFILL V tile prefetch measured with this tiling (add_tensor_block_io_jit())
+    bool v_prefetch_l3 = false;     // PA PREFILL V tile L3 prefetch measured with this tiling (add_tensor_block_io_jit())
     bool micro_math = true;         // PA PREFILL f16 sdpa_micro rounding with this tiling (add_micro_math_jit())
 
     int sg_per_wg() const {
@@ -292,8 +293,11 @@ bool solve_pa_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_oc
     }
     wide.large_grf = true;
     wide.prefill_pipeline = true;
-    // The 256-key V tile of 512 channels is 256 KiB; prefetching it made the d_max 512 kernel 2-13% slower.
+    // The block prefetch is 64 B wide, so it requests each 256 B L3 line of the 1 KiB V rows four times: the d_max 512
+    // kernel got 2-14% slower with it. The L3 prefetch requests each line once and fills L3 only; it took the B70
+    // L3-miss knee out of the d_max 512 kernel (11% faster at 32K keys, 0.4-1.6% at 2K-8K, at a fixed 1800 MHz).
     wide.v_prefetch = d_max <= 256;
+    wide.v_prefetch_l3 = d_max == 512;
     // At d_max 512 MICRO_MATH's second S*V accumulator is another 64 GRF, which leaves none for loading V ahead of the
     // DPAS: it made the kernel 21-26% slower, though with this tile it gives sdpa_micro's result.
     wide.micro_math = d_max != 512;
@@ -335,6 +339,7 @@ void read_kq_override(sdpa_ocl_config_t& config) {
     config.large_grf = false;
     config.prefill_pipeline = false;
     config.v_prefetch = false;
+    config.v_prefetch_l3 = false;
     config.micro_math = true;
     config.kq_sg_tile_keys = env_int("SDPA_OCL_KQ_TILE_KEYS", config.kq_sg_tile_keys);
     config.kq_sg_tile_queries = env_int("SDPA_OCL_KQ_TILE_QUERIES", config.kq_sg_tile_queries);
@@ -831,7 +836,11 @@ void add_tensor_block_io_jit(JitConstants& jit, const jit_inputs& in) {
     // L1/L3 prefetch of each key tile's V rows, as sdpa_micro's PREFETCH_V does: on by default with the PA PREFILL
     // tilings it was measured with (solve_pa_prefill_tiling()), SDPA_OCL_V_PREFETCH=0/1 for A/B on any PA PREFILL.
     const bool pa_prefill = in.is_pa && in.is_prefill;
-    jit.make("PREFETCH_V", (kv_2d && pa_prefill) ? env_int("SDPA_OCL_V_PREFETCH", in.problem.tiling.v_prefetch ? 1 : 0) : 0);
+    // The same V rows into L3 only, one request per 256 B line; SDPA_OCL_V_PREFETCH_L3=0/1 for A/B on any PA PREFILL,
+    // and it replaces the block prefetch when on.
+    const int v_prefetch_l3 = pa_prefill ? env_int("SDPA_OCL_V_PREFETCH_L3", in.problem.tiling.v_prefetch_l3 ? 1 : 0) : 0;
+    jit.make("PREFETCH_V_L3", v_prefetch_l3);
+    jit.make("PREFETCH_V", (kv_2d && pa_prefill && !v_prefetch_l3) ? env_int("SDPA_OCL_V_PREFETCH", in.problem.tiling.v_prefetch ? 1 : 0) : 0);
 
     // The output is f16 whatever the KV precision, so KV compression must not disable it.
     jit.make("USE_2D_BLOCK_IO_A", block2d_env_int("SDPA_OCL_A_2D", block2d_layout_ok(in.out, in.lda) ? 1 : 0, allowed));

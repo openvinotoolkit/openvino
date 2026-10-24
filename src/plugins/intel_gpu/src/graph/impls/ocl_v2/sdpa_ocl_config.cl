@@ -121,6 +121,10 @@
 #if PREFETCH_V && (IS_PA_MIXED || !USE_2D_BLOCK_IO_KV || SG8)
 #  error "sdpa_ocl.cl: PREFETCH_V needs the 2D block f16 V input"
 #endif
+// V tile L3 prefetch: the PREFILL V input rows, by address; it replaces the block prefetch.
+#if PREFETCH_V_L3 && (IS_PA_MIXED || !IS_PREFILL || PREFETCH_V)
+#  error "sdpa_ocl.cl: PREFETCH_V_L3 needs the PREFILL V input and excludes PREFETCH_V"
+#endif
 
 // Keys are counted in two units that are equal only on Xe2:
 //  DPAS_K (16)     keys per DPAS step: the S*V "cp" block (one 16-token cache page), the S_slm row length,
