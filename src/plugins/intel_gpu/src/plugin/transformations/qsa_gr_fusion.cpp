@@ -187,21 +187,38 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
     auto mean = wrap_type<ov::op::v1::ReduceMean>({sq, any_input()});
     auto biased = wrap_type<ov::op::v1::Add>({mean, any_input()});
     auto rms_val = wrap_type<ov::op::v0::Sqrt>({biased});
-    auto inv_rms = wrap_type<ov::op::v1::Divide>({any_input(), rms_val});
+    // 1 / sqrt(.): Divide(1, sqrt) as exported, or Power(sqrt, -1) once Divide has been converted.
+    auto inv_rms_div = wrap_type<ov::op::v1::Divide>({any_input(), rms_val});
+    auto inv_rms_pow = wrap_type<ov::op::v1::Power>({rms_val, any_input()});
+    auto inv_rms = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{inv_rms_div, inv_rms_pow});
     auto normalized_a = wrap_type<ov::op::v1::Multiply>({residual_3d, inv_rms});
     auto normalized_b = wrap_type<ov::op::v1::Multiply>({inv_rms, residual_3d});
     auto normalized = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{normalized_a, normalized_b});
     auto normalized_flat = wrap_type<ov::op::v1::Reshape>({normalized, any_input()});
-    auto gain_plus_one = wrap_type<ov::op::v1::Add>({any_input(), any_input()});
-    auto rbar_decomposed_a = wrap_type<ov::op::v1::Multiply>({normalized_flat, gain_plus_one});
-    auto rbar_decomposed_b = wrap_type<ov::op::v1::Multiply>({gain_plus_one, normalized_flat});
+    // The gain is whatever multiplies the flattened normalized value: an explicit `1 + w` Add
+    // or, once constants are folded, a plain Constant. Its size is verified in the callback.
+    auto decomposed_gain = any_input();
+    auto rbar_decomposed_a = wrap_type<ov::op::v1::Multiply>({normalized_flat, decomposed_gain});
+    auto rbar_decomposed_b = wrap_type<ov::op::v1::Multiply>({decomposed_gain, normalized_flat});
     auto rbar_decomposed = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{rbar_decomposed_a, rbar_decomposed_b});
 
-    auto rbar = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{rbar_fused, rbar_decomposed});
+    // RMSFusion (earlier in the GPU pipeline) turns the gain-less normalization into a
+    // single-input RMS; the `1 + w` gain is then applied after the flattening Reshape.
+    auto norm_nogamma = wrap_type<ov::op::internal::RMS>({residual_3d});
+    auto nogamma_flat = wrap_type<ov::op::v1::Reshape>({norm_nogamma, any_input()});
+    auto gain_nogamma = any_input();
+    auto rbar_nogamma_a = wrap_type<ov::op::v1::Multiply>({nogamma_flat, gain_nogamma});
+    auto rbar_nogamma_b = wrap_type<ov::op::v1::Multiply>({gain_nogamma, nogamma_flat});
+    auto rbar_nogamma = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{rbar_nogamma_a, rbar_nogamma_b});
+
+    auto rbar = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{rbar_fused, rbar_decomposed, rbar_nogamma});
 
     auto low = wrap_type<ov::op::v0::MatMul>({rbar, any_input()});
+    // The 1/C scale sits after the down projection as exported, or on W_down itself once an
+    // earlier pass has pushed the scalar into the weights; the callback proves either form.
     auto low_scaled = wrap_type<ov::op::v1::Multiply>({low, any_input()});
-    auto activation = wrap_type<ov::op::v4::Swish>({low_scaled});
+    auto low_maybe_scaled = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{low_scaled, low});
+    auto activation = wrap_type<ov::op::v4::Swish>({low_maybe_scaled});
     auto up = wrap_type<ov::op::v0::MatMul>({activation, any_input()});
     auto read_gate = wrap_type<ov::op::v0::Sigmoid>({up});
 
@@ -238,8 +255,9 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
         }
 
         const bool is_fused_norm = pm.count(norm_fused) > 0;
-        const bool is_decomposed_norm = pm.count(gain_plus_one) > 0;
-        if (!is_fused_norm && !is_decomposed_norm) {
+        const bool is_nogamma_norm = pm.count(norm_nogamma) > 0;
+        const bool is_decomposed_norm = pm.count(decomposed_gain) > 0;
+        if (!is_fused_norm && !is_decomposed_norm && !is_nogamma_norm) {
             return false;
         }
         const bool root_is_mixed = pm.count(mixed) > 0;
@@ -281,13 +299,27 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
 
         // --- both 1/C scalings are model semantics; the branch-mix one is either an
         // explicit Multiply (ReduceSum form) or implicit in a ReduceMean (root). -----
-        float low_scale = 0.0f;
-        if (!get_scalar_f32(pm.at(low_scaled).get_node_shared_ptr()->input_value(1), low_scale)) {
-            return false;
-        }
         const float inv_c = 1.0f / static_cast<float>(C);
-        if (!close(low_scale, inv_c)) {
-            return false;
+        // The kernel applies 1/C itself, so it needs the unscaled W_down.
+        auto w_down = low_mm->input_value(1);
+        if (pm.count(low_scaled)) {
+            float low_scale = 0.0f;
+            if (!get_scalar_f32(pm.at(low_scaled).get_node_shared_ptr()->input_value(1), low_scale) || !close(low_scale, inv_c)) {
+                return false;
+            }
+        } else {
+            auto scaled_weight = ov::as_type_ptr<ov::op::v1::Multiply>(w_down.get_node_shared_ptr());
+            bool unscaled = false;
+            for (size_t i = 0; scaled_weight && i < 2 && !unscaled; ++i) {
+                float weight_scale = 0.0f;
+                if (get_scalar_f32(scaled_weight->input_value(1 - i), weight_scale) && close(weight_scale, inv_c)) {
+                    w_down = scaled_weight->input_value(i);
+                    unscaled = true;
+                }
+            }
+            if (!unscaled) {
+                return false;
+            }
         }
         if (root_is_mixed) {
             float mix_scale = 0.0f;
@@ -301,7 +333,6 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
             return false;
         }
 
-        const auto w_down = low_mm->input_value(1);
         const auto w_up = up_mm->input_value(1);
         const auto& w_down_ps = w_down.get_partial_shape();
         const auto& w_up_ps = w_up.get_partial_shape();
@@ -311,6 +342,9 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
         const auto L = static_cast<size_t>(w_down_ps[0].get_length());
         if (static_cast<size_t>(w_down_ps[1].get_length()) != C * D || static_cast<size_t>(w_up_ps[0].get_length()) != C * D ||
             static_cast<size_t>(w_up_ps[1].get_length()) != L) {
+            return false;
+        }
+        if (!op::GatedResidual::is_geometry_supported(op::GatedResidual::Mode::READ, C, D, L)) {
             return false;
         }
 
@@ -332,22 +366,43 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
             }
             gain_flat = flatten_to(gain, C * D, new_ops);
             epsilon = static_cast<float>(rms_node->get_epsilon());
+        } else if (is_nogamma_norm) {
+            auto rms_node = ov::as_type_ptr<ov::op::internal::RMS>(pm.at(norm_nogamma).get_node_shared_ptr());
+            const auto gain = pm.at(gain_nogamma);
+            if (!rms_node || static_element_count(gain.get_partial_shape()) != C * D) {
+                return false;
+            }
+            gain_flat = flatten_to(gain, C * D, new_ops);
+            epsilon = static_cast<float>(rms_node->get_epsilon());
         } else {
             // Decomposed RMSNorm: Power(2) -> ReduceMean -> Add(eps) -> Sqrt -> Divide(1,.) -> Multiply.
+            // The mean must be the per-branch mean over the last (D) axis with keep_dims, otherwise
+            // the grouped norm is not what the fused kernel computes.
+            auto mean_node = ov::as_type_ptr<ov::op::v1::ReduceMean>(pm.at(mean).get_node_shared_ptr());
+            std::vector<int64_t> mean_axes;
+            const auto sq_rank = static_cast<int64_t>(pm.at(sq).get_partial_shape().size());
+            if (!mean_node || !mean_node->get_keep_dims() || !get_i64_vector(mean_node->input_value(1), mean_axes) || mean_axes.size() != 1 ||
+                (mean_axes[0] != -1 && mean_axes[0] != sq_rank - 1)) {
+                return false;
+            }
             float exponent = 0.0f;
             if (!get_scalar_f32(pm.at(sq).get_node_shared_ptr()->input_value(1), exponent) || !close(exponent, 2.0f)) {
                 return false;
             }
             float numerator = 0.0f;
-            if (!get_scalar_f32(pm.at(inv_rms).get_node_shared_ptr()->input_value(0), numerator) || !close(numerator, 1.0f)) {
+            if (pm.count(inv_rms_div)) {
+                if (!get_scalar_f32(pm.at(inv_rms_div).get_node_shared_ptr()->input_value(0), numerator) || !close(numerator, 1.0f)) {
+                    return false;
+                }
+            } else if (!get_scalar_f32(pm.at(inv_rms_pow).get_node_shared_ptr()->input_value(1), numerator) || !close(numerator, -1.0f)) {
                 return false;
             }
             if (!get_scalar_f32(pm.at(biased).get_node_shared_ptr()->input_value(1), epsilon)) {
                 return false;
             }
-            // The gain here is already folded as `1 + w` by the explicit Add matched
-            // above, so GatedResidual must not fold it again either.
-            const auto gain = pm.at(gain_plus_one);
+            // The gain operand already includes any `1 + w` fold, so GatedResidual must not
+            // fold it again either.
+            const auto gain = pm.at(decomposed_gain);
             if (static_element_count(gain.get_partial_shape()) != C * D) {
                 return false;
             }
@@ -450,7 +505,16 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
         }
         const auto C = static_cast<size_t>(gate_ps[gate_ps.size() - 2].get_length());
         const auto D = static_cast<size_t>(y_ps[y_ps.size() - 1].get_length());
-        if (C != supported_branch_count || D == 0) {
+        if (!op::GatedResidual::is_geometry_supported(op::GatedResidual::Mode::WRITE, C, D, 0)) {
+            return false;
+        }
+
+        // The kernel reads Y as [*, D] and the gate as [*, C]; the 3D views above only
+        // prove a broadcast, not that the sources are not themselves already split.
+        const auto& y_src_ps = pm.at(y_src).get_partial_shape();
+        const auto& gate_src_ps = pm.at(write_gate).get_partial_shape();
+        if (y_src_ps.rank().is_dynamic() || gate_src_ps.rank().is_dynamic() || y_src_ps[y_src_ps.size() - 1] != static_cast<int64_t>(D) ||
+            gate_src_ps[gate_src_ps.size() - 1] != static_cast<int64_t>(C)) {
             return false;
         }
 

@@ -1659,8 +1659,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::FuseGatedMLP>();
         }
         manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
+        // GatedResidual only has a CM implementation: without it the fused node has no impl and
+        // compile_model fails, so keep the generic graph on devices/builds lacking CM.
         // Keeps the original generic graph whenever the pattern cannot be proven safe to replace.
-        manager.register_pass<ov::intel_gpu::GatedResidualFusion>();
+        if (device_info.supports_immad && config.get_use_cm() && cldnn::check_cm_jit_support(m_context->get_engine(), config)) {
+            manager.register_pass<ov::intel_gpu::GatedResidualFusion>();
+        }
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
 

@@ -6,8 +6,7 @@
 // GatedResidualCMImpl::execute() call. The systolic READ/FINAL_MIX path runs three
 // independent CM kernel dispatches (RBAR, down-proj, up-proj)
 // behind a single clDNN primitive, so `network::get_executed_primitives()` only exposes
-// the *last* one of them (see qsa_stage_events.hpp for the identical QSA situation, which
-// this mirrors). This header is only meant to be used by roofline/perf unit tests:
+// the *last* one of them. This header is only meant to be used by roofline/perf unit tests:
 // recording an event is just a vector push_back of an existing shared_ptr (no extra
 // synchronization, no change to kernel enqueue order or dependencies), so it has no
 // effect on correctness and a negligible effect on host-side dispatch cost even when

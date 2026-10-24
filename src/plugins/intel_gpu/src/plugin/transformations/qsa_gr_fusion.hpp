@@ -41,7 +41,8 @@ public:
 ///   S    = 2 * Sigmoid(inj * 1/C)               // per-branch scalar gate in (0, 2)
 ///   R'   = Reshape(Reshape(R, [T,C,D]) + Reshape(S,[T,C,1]) * Reshape(Y,[T,1,D]), [T, C*D])
 ///
-/// The `2 *` factor must be present: the write gate range is (0, 2), not (0, 1).
+/// The gate `S` is consumed as an opaque [*, C] input; the `2 * Sigmoid(...)` that produces
+/// it stays outside the fused op.
 class GatedResidualWriteFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("GatedResidualWriteFusion");
