@@ -50,7 +50,10 @@ Related: DPAS/tiling `01-dpas-and-tiling.md`, numerics `03-numerics-softmax-quan
 - At the issue point use the **same surface/fixup/coordinates** as the actual read. A prefetch right before consumption is pure overhead (plain prefill lost about 11 us; removed).
 - Cost: about 8 instructions per prefetch (a64 descriptor setup). It has no destination register, so it provides MLP that occupancy cannot buy.
 - MIXED Vc prefetch (u4, right before softmax, `!from_cache && sg_i_sv==0`): -4.12% (B70 llama-3.2-1b, cliloader). Not measured on i8 BY_CHANNEL MIXED.
-- PA PREFILL V prefetch (`v_tile_prefetch`, cooperative 16r16x2c over this key tile's V rows inside the split S_max barrier, as micro): -4.5% at head 128 (qwen3-8b 8K), but **+10% at head 512** (128-key x 512-channel V tile = 128 KiB) → the profit depends on the tile's byte size; `v_prefetch` is a per-tiling flag (d_max <= 256). B70 pinned, ch02 §7.5.
+- PA PREFILL V prefetch (`v_tile_prefetch`, cooperative 16r16x2c over this key tile's V rows inside the split S_max barrier, as micro): -4.5% at head 128 (qwen3-8b 8K), but +10-14% at head 512; `v_prefetch` is a per-tiling flag (d_max <= 256). B70 pinned, ch02 §7.5.
+- **A prefetch costs its cache-line requests** (ch02 §7.6, B70 1800 MHz, head 512): address prefetch of this tile's V at a 64 / 128 / 256 B stride = +17.0 / +4.4 / **-0.5%** at 8K; L3-only vs L1+L3 cost the same at 64 B; 4x fewer *demand* messages for the same lines was slower. The 64 B wide block prefetch asks for each 256 B L3 line 4 times on 1 KiB rows. B70 L3 line = 256 B (`clinfo`); 512 B stride kept a third of the gain.
+- **`PREFETCH_V_L3`** (d_max 512, `39bdb18aeb`): `__builtin_IB_lsc_prefetch_global_uchar(V + row*pitch + line*256, 0, 2u /*L1UC_L3C*/)`, one per 256 B line dealt over all lanes, rows clamped to `k-1`, at the `PREFETCH_V` site; removed a 16K-20K L3-miss knee (one KV head's K/V > 24 MiB L3): -11% at 32K, -0.4..-1.6% at 2K-8K. At d_max <= 256 (K/V fits L3) it was 1-5% slower: prefetch only where the working set exceeds the cache. Next-tile K prefetch did not pay at any stride.
+- Declaring `__builtin_IB_lsc_prefetch_*` in a kernel file: cache control as `uint` (compatible with `tile_ops.cl`'s `enum LSC_LDCC`), guarded by `!defined(GPU_OCL_TILE_OPS_H)`; an enum cannot be defined there (the codegen `#undef`s file macros between the kernels of a batch).
 
 ## 5. Split barrier
 - Where to use it: independent work between `arrive` and `wait` that **does not read the SLM that barrier protects** (A_tile rescale by alpha `sdpa_ocl.cl:842-868`, V first-tile prefetch `sdpa_ocl_decode.cl:727-732`).
@@ -85,4 +88,7 @@ Related: DPAS/tiling `01-dpas-and-tiling.md`, numerics `03-numerics-softmax-quan
 - "Fewer reads is faster" -> failed 3 times on i8 V/K; geometry and dequant movs were the bottleneck.
 - "Removing spill makes it faster" -> 256 GRF was +47% slower on head-72, +70% slower on u4 head-64.
 - "Occupancy/SLM headroom is throughput" -> missed twice.
+- "The prefetch hurts because the tile is big / it pollutes L1" -> no: it was 4 requests per 256 B line; at one request per line the same prefetch won 11% (ch02 §7.6).
+- "Fewer messages for the same lines relieves Send stalls" -> 32-row x 2-block K/V reads were 4-14% slower.
+- "Concurrent workgroups thrash L3; co-schedule the heads of a KV group" -> 4-7% slower at every length, knee unchanged.
 - "d-major cannot be block-read" -> possible in theory with a reinterpreted surface (80 B pitch), but needs a depth permutation + **unverified on HW**.

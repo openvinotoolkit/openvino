@@ -16,6 +16,7 @@ Details and evidence: `src/plugins/intel_gpu/docs/ocl_perf_guide/09-general-less
 6. Only then tile/prefetch/SLM tuning. (Textbook tuning was within the last 10%.)
 7. If only short lengths are slow, it is a wave/prologue/pre-pass fixed cost → tiny geometry per length.
    If the gap **grows** with length, first check whether the per-call kernel ratio is constant and only the kernel's share grows (attention is quadratic): qwen3-8b 1.4x at every length became +2%..+24% e2e (`docs/ocl_perf_guide/01` §6.6).
+   If the per-call **ratio** drifts with size, check the clock actually reached (PL2 overrides the B70 pin in long runs) and re-sweep at a fixed clock below the power limit; a remaining knee = a working set crossing a cache size (chapter 06 §6.7).
 8. If IGC sinks loads and latency is exposed, go native (vISA) — `xe-visa-inline-asm`.
 
 ## Design principles
@@ -26,7 +27,9 @@ Details and evidence: `src/plugins/intel_gpu/docs/ocl_perf_guide/09-general-less
 - Head count and head size are independent axes — an improvement on one shape hides a defect on another.
 - Mirror the reference's **workgroup** tile per head size (K/V re-read = seq / wgTQ), then pipeline the loop like it (branchless exp, prefetch inside a split barrier, last-tile mask). Check every head size a model mixes (gemma-4: 256 + 512); one left on the old tile made the model 2.2x slower.
 - A pre-pass (external layout rearrangement) is for diagnosis; if replacing it is the goal, solve it inside the kernel (fixed cost 44–110 µs).
-- Measure HW facts first (DPAS 1 in-flight, L1 prefetch hurts, SLM 47.7 KB → occupancy halved).
+- Measure HW facts first (DPAS 1 in-flight, L1 prefetch hurts, SLM 47.7 KB → occupancy halved, B70 L3 line 256 B).
+- Count a prefetch in cache-line requests: one request per line, into the level that misses, only where the working set exceeds the cache (64 B stride +17%, 256 B -0.5% at 8K / -11% at 32K; chapter 02 §7.6).
+- A faster kernel exposes more latency: after overtaking the reference, re-check the large-size end.
 
 ## Accuracy
 Accuracy before timing. NaN poison + CPU double on **all rows** (sampled rows are not exhaustive), fixed tolerance. Math-invariant changes must be bit-identical to the previous variant. Sharp inputs (smooth N(0,0.1) hides Q/K·softmax errors). Check for LCG power-of-two degenerate data. Boundary scan (1,16,31–33,63–65,127–129,255–257,511–513,1025,1033,2048,4096,8192; odd depth; padding NaN). **Never revive a candidate on a single-length PASS** (seq256 PASS/257 NaN case).

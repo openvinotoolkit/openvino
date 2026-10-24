@@ -124,13 +124,18 @@ The `NEG_*` groups are negative controls that **must FAIL** (`SDPA_OCL_BIDIR=0`,
 | E10 | **`-fsyntax-only` blind spot** | Does not catch unused functions in an anonymous namespace (-Wunused-function belongs to the codegen stage) | Check the call sites by hand. Extract the flags from `CXX_(DEFINES\|INCLUDES\|FLAGS)` in `flags.make` with `sed`. `-Wall -Werror -Wmissing-declarations` |
 | E11 | **Removing a variable in a mutation check** | The build fails on `-Werror` unused -> the results of the old binary are read | Keep the variable and add `&& false` (S5) |
 | E12 | **Combining mutations** | MUT-2+3 in one build -> FAILs outside the union of the predictions | Build each mutation alone |
-| E13 | **Clock during performance measurement** | If the B70 clock fluctuates, the sign flips | Pin 2800 MHz; separate processes in ABBA interleaving |
+| E13 | **Clock during performance measurement** | If the B70 clock fluctuates, the sign flips | Pin 2800 MHz; separate processes in ABBA interleaving. The pin does not hold under sustained load (E20) |
 | E14 | **`SDPA_OCL_NO_GETENV` build** (ON by default since 2026-10-19) | every `SDPA_OCL_*` env knob is a silent no-op; a sweep measures the default N times | build a separate install with `-DSDPA_OCL_NO_GETENV=OFF` and `cmake --install <build> --prefix <dir>`, then switch it back ON; confirm a production install by `strings libopenvino_intel_gpu_plugin.so \| grep ^SDPA_OCL_` matching the baseline, and a new `.cl` by a unique string such as a changed `#error` text |
 | E15 | **arm names that are prefixes of each other** in result globs | `tgt_r*.log` also matched `tgt_rebaseB_r*.log`, so one arm's statistics silently contained the other arm (sample count doubled) | match `<arm>_r[0-9]*`; check the per-arm sample count |
 | E16 | **git-lfs post-commit hook during a rebase** | about 7 s per replayed commit; a 98-commit rebase took about 10 min and outlived a 300 s tool timeout | run it in the background; keep a backup branch; drop uncommitted work first (save it as a patch and check that the save path exists) |
 | E17 | **A reboot drops the clock pin** (2026-10-23) | min_freq back to 400; every number of the next 3 hours was unpinned and the user asked for a full re-measure (19 models) | read `/sys/class/drm/card1/device/tile0/gt0/freq0/{min,max}_freq` before each session and append it to every summary (`test/longctx/mc.sh`) |
 | E18 | **The dumped `clintercept_report.txt` is truncated** when a second process of the same run writes the same dump dir | per-kernel totals silently low | parse the "Device Performance Timing" block of cliloader's **stderr** in the run log (`test/longctx/kern_an.py`) |
 | E19 | **Tiling env overrides hit every head size** | on a mixed-head model (gemma-4: head 256 + 512 + an encoder SDPA) a sweep also changes the other layers, and the e2e/total moves the wrong way | classify the cliloader lines (heads = GWS1/LWS1, per-hash call counts = layers x prefills; `test/longctx/g4_an.py`) and read only the target group |
+| E20 | **The 2800 MHz pin does not hold under sustained load** (2026-10-24) | `min_freq` = `max_freq` = 2800 reads back, but in a 32K prefill `act_freq` sat at 2133-2167 MHz with `throttle/reasons` = `pl2` in 68-78% of the busy samples (8K: 4%). Length-dependent ratios and "variant" gaps (two kernel hashes 6-10% apart at 32K, 0.2% at a fixed clock) were partly clock | sample `tile0/gt0/freq0/{act_freq,throttle/status,throttle/reasons}` during the run (`test/longctx/freq_sample.py`); for scaling questions have the user pin **below** the PL2 point (1800 MHz: 0 `pl2`, flat clock; set `min_freq` first when lowering, `max_freq` first when raising) and verify; e2e TTFT stays valid as measured (real use is power-limited too) |
+| E21 | **VTune strips the double quotes of target arguments** | llm_bench `--cb_config '{"k":v}'` arrives as `{k:v}`: "json format is incorrect", rc 1 after 3 s | pass JSON through a file (`get_config` accepts a path); `-ic 1` to keep decode out of the result; `computing-tasks-of-interest=sdpa_*` |
+| E22 | **An env knob emitted for every kernel of a stage meets kernels it does not fit** | an `#error` guard for "needs 32-key tiles" fired in the head-256 PA PREFILL kernel of the same model: `CL_BUILD_PROGRAM_FAILURE`, every run "NO DATA" | for an experiment knob, downgrade (`#undef X` / `#define X 0`) where the kernel does not qualify; keep `#error` for the production flag, which the host sets only where it fits |
+| E23 | **Kernel-file macros do not survive to the next kernel of the batch** | the codegen appends `#undef` for every `#define` of a kernel file (`primitive_db_gen.py append_undefs`), and a batch holds several kernels of one file in one program, so a guard macro around a type definition does not guard: "redefinition of 'LSC_LDCC'" | no type definitions in kernel files; repeat compatible prototypes instead (a builtin's enum parameter as `uint`) |
+| E24 | **Arm order in e2e** | "new" ran after "HEAD" in every round: TTFT +0.8% at 4K twice, while the kernel was 1.2% faster and the other kernels unchanged; with the order reversed +0.4% / 0.0% | reverse the arm order in a repeat before reading a sub-1% e2e difference; check the kernel time of the same length |
 
 ---
 
@@ -163,7 +168,8 @@ The `NEG_*` groups are negative controls that **must FAIL** (`SDPA_OCL_BIDIR=0`,
 |---|---|---|
 | Kernel time | "Device Performance Timing" of `cliloader -d -dv` (CLIntercept), with `SPILL=` shown on the kernel name line. Run by the user | memory:sdpa-ocl-beats-micro-256grf |
 | Bottleneck candidates | Check GPU active/stalled, SBID and barrier stalls with VTune GPU Hotspots, and compare before/after on the same GPU, workload and build. If VTune has no stall PCs, withhold source/ISA line attribution and decide by cliloader device time + correctness A/B | B70 GPU Hotspots records, details in chapter 04 §4.1.1 |
-| Clock | B70 **pinned at 2800 MHz** (unpinned, micro max 16458->10000, large variance) | memory:sdpa-ocl-int8-perf |
+| Clock | B70 **pinned at 2800 MHz** (unpinned, micro max 16458->10000, large variance). Under sustained load PL2 overrides the pin (E20): kernel A/B at one length is still fair (both arms throttle), but a ratio **across lengths** needs a fixed clock below PL2 (1800 MHz) | memory:sdpa-ocl-int8-perf, memory:b70-pl2-throttle-pin-not-held |
+| Scaling with length (2026-10-24) | Cut every prompt from **one** text (`test/longctx/prompts/t*K.jsonl`, `PF=` in `run_model.sh`) so that only the length changes; normalise per call time by the expected growth (keys^2 for causal prefill, `len_an.py`); a rise of time / keys^2 is a knee. Locate it (16K-20K for head 512) and compare with a working set (one KV head's K+V against the 24 MiB L3) | memory:sdpa-ocl-head512-prefill-task |
 | Repetitions | For kernels with few calls (prefill 2 per invocation) the mean is noise -> **MIN/median over N runs** (e.g. 8). `-n 1 -ic 4` is 62+2 prefill calls, ~2 min | 〃 |
 | Real-model harness | Wrap `benchmark.py -d GPU.1 -m <model> -n 1 -ic 4 -pf <jsonl>` in `cliloader` and `grep -E "sdpa_(ocl\|micro)__prefill"`. e2e 1st token uses `-n 3 -ic 256` | 〃 |
 | Interpreting results | SDPA prefill is ~10-15% of the 1st token latency (llama-3.1-8b: 69.8/475 ms) -> a 7% kernel improvement = ~0.9% e2e. **The kernel level is the optimization metric; e2e barely moves** | 〃 |
@@ -257,7 +263,7 @@ Format: number. Situation -> wrong hypothesis/mistake -> fact/cause -> rule.
 27. **`sg_ij` uniformity** (side finding from minicpm4, not fixed): micro uses `sub_group_broadcast(get_local_id(1), 0)`, sdpa_ocl the raw `get_local_id(1)` -> subgroup block read/write addresses and broadcast indices must be subgroup-uniform. `NUM_HEAD_SIZE_GROUPS` (`pa_kv_cache_update_ref.cl:227`) is an unparenthesised macro (the current uses are safe by accident; it truncates to 1 at head 320).
 28. **Refactor scope verdict**: prove in units of "observable behaviour", not code changes. SHA instead of `HEAD`, no snapshot `--force`, and `corpus <dir>` **deletes** `<dir>/configs`, so rerunning r0/r1 with a different base destroys the proof reference point.
 
-### C. Tool/process pitfalls are in 5.3 (E1-E19) and 5.4
+### C. Tool/process pitfalls are in 5.3 (E1-E24) and 5.4
 
 ### D. Attribution errors found on 2026-10-22 (numbering continues after #28)
 
@@ -273,6 +279,20 @@ Format: number. Situation -> wrong hypothesis/mistake -> fact/cause -> rule.
     prefill) that the branch does not; unrelated to attention. Attribute against the branch before the change ("old" arm: 0.992 .. 0.874).
 34. **gemma-4 32-key d512 tile, "no e2e gain"** (sweep): the env override also put the head-256 layers on that tile (528 -> 815 us per
     call), cancelling the head-512 gain (8,610 -> 7,232 us). Read per-group lines (E19).
+
+### F. Attribution notes from 2026-10-24 (head 512 long-prompt knee)
+
+35. **"The head 512 kernel scales worse than micro because of the clock"**: at a fixed 1800 MHz `sdpa_micro`'s time / keys^2 was flat,
+    but `sdpa_ocl` still rose 9.6% from 16K to 32K and the ratio drifted exactly as at the 2800 pin (0.63 -> 0.69). The clock slowed
+    both alike; the ratio drift was the kernel's own L3-miss knee. Separate the two before attributing either.
+36. **"Concurrent workgroups thrash L3; group the heads of a KV group"**: the reorder was 4-7% slower at every length, 8K included,
+    and the knee stayed. Not L3 capacity / reuse. A bit-preserving reorder is a cheap falsifier.
+37. **"`PREFETCH_V` hurts at head 512 because the 128-256 KiB tile pollutes L1"** (written as ASSUMED on 10-23): L3-only and L1+L3
+    address prefetch cost the same (+17.0 / +15.0%); the stride decided it (64 / 128 / 256 B = +17.0 / +4.4 / -0.5%). The cost
+    was line requests.
+38. **"Fewer load messages will relieve the Send stalls"**: 32-row x 2-block reads (4x fewer messages, same lines) were 4-14% slower.
+    VTune's Send stall pointed at the memory path, not at the message count.
+39. **"TTFT +0.8% at 4K is a regression"**: arm order (E24); the kernel was 1.2% faster at 4K.
 
 ---
 
@@ -372,6 +392,7 @@ Many of the old hashes the memory points to (e.g. `235639f1a2`, `1706b74354..065
 | 2026-09-30 | `5af20d13f1` S3, `976fbf4b0c` S4 | xe_hpg plan: predicate split, SG16-neutral refactor + Xe2 invariance proof. S0/S1/S2 on the DG2 PC |
 | 2026-10-01 | `a0c60df997`, `1799d40f79`, `79b856f497`, `10e4f00b68`, `087d2bd171` | S5 (host jit, tier mask, TEMP routing), S6a (plain f16 SG8), S6b (bf16/mask/sink/dynamic) |
 | 2026-10-02 | `b739dc5881` S6c | plain i8 KV SG8. S7 performance guidance approved |
+| 2026-10-23~24 | `d05e5f18ae`, `87c8972bee`, `39bdb18aeb` | PA PREFILL: `sdpa_micro`'s workgroup tiles for d_max 64-512 + pipelined loop (long-prompt TTFT), d_max 512 256 x 64 tile without `MICRO_MATH`, then the d512 knee: PL2 clock trap found, V L3 prefetch at one request per 256 B line (-11% at 32K) |
 | 2026-10-03~04 | S7a standalone PA PREFILL investigation | Initially OCL was 24–28x slower than micro. Separated the spill/reload, V gather/packing and loop-guard costs with VTune/GTPin/IGC ISA and matched source-injection A/B. The vISA inline-assembly raw K/V single attention kernel gate PASSed at 32 block-16 head sizes with +2.6234% worst. Kept distinct from the separate unverified `KV_TILED` prototype and from product raw-kernel integration; the product dispatch/end-to-end/regression gate is follow-up work |
 
 ---
@@ -381,7 +402,7 @@ Many of the old hashes the memory points to (e.g. `235639f1a2`, `1706b74354..065
 1. First classify the kind of change (behaviour-preserving / bug fix / host-only / performance / new feature) -> the proof recipe in 5.2.6.
 2. State the hypothesis in one line, write the predicted value as a number, design **controls on both sides**, then run (one variable at a time).
 3. Run the negative control **before** the fix to see the gap between prediction and reality first.
-4. Check the setup: `--device_suffix`, binary, Debug/Release, embedding confirmed with `built`, clock pin.
+4. Check the setup: `--device_suffix`, binary, Debug/Release, embedding confirmed with `built`, clock pin, and for long runs the clock actually reached (`act_freq`, `throttle/reasons`, E20).
 5. Oracle: first layer, dtype ULP, bit-preserving vs order-changing classification, NaN-poison, non-degenerate data (check the logit spread).
-6. Performance claims: metric (kernel device time vs e2e), pinned clock, MIN/median, matched arms from the same source/build, measured/assumed labels, re-measure after a hardware move.
+6. Performance claims: metric (kernel device time vs e2e), pinned clock (below PL2 for scaling questions), MIN/median, matched arms from the same source/build, arm order reversed in a repeat, measured/assumed labels, re-measure after a hardware move.
 7. Closure: memory update + resume prompt + a proposed one-line commit message (the user commits).
