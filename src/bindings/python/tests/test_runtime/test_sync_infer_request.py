@@ -349,6 +349,37 @@ def test_infer_bf16_input_rounds_like_constant(device, share_inputs):
     assert np.array_equal(request.get_input_tensor(0).data.view(np.uint16), expected)
 
 
+@pytest.mark.parametrize("ov_type", [Type.f32, Type.f16, Type.i32, Type.u8])
+@pytest.mark.parametrize("data", [[1, 2, 3, 4], [1.0, 2.0, 3.0, 4.0], [[1, 2], [3, 4]]])
+@pytest.mark.parametrize("share_inputs", [True, False])
+@pytest.mark.parametrize("call", ["single", "list", "dict", "compiled_model", "start_async"])
+def test_infer_list_input_matches_input_type(device, ov_type, data, share_inputs, call):
+    # A list of ints or floats is converted to the input's type, like a numpy array of another dtype
+    shape = list(np.array(data).shape)
+    # A list of inputs needs two inputs, a single-input model takes the list itself as its data
+    params = [ops.parameter(shape, ov_type) for _ in range(2 if call == "list" else 1)]
+    compiled_model = Core().compile_model(Model(params, params), device)
+    request = compiled_model.create_infer_request()
+
+    if call == "single":
+        result = request.infer(data, share_inputs=share_inputs)
+    elif call == "list":
+        result = request.infer([data, data], share_inputs=share_inputs)
+    elif call == "dict":
+        result = request.infer({0: data}, share_inputs=share_inputs)
+    elif call == "start_async":
+        request.start_async({0: data}, share_inputs=share_inputs)
+        request.wait()
+        result = request.results
+    else:
+        result = compiled_model(data, share_inputs=share_inputs)
+
+    expected = np.array(data).astype(ov_type.to_dtype())
+    for index in range(len(params)):
+        assert result[index].dtype == expected.dtype
+        assert np.array_equal(result[index], expected)
+
+
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
     (Type.f32, np.float32),
     (Type.f64, np.float64),

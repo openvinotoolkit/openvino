@@ -130,7 +130,11 @@ def _(
     is_shared: bool = False,
     key: Optional[ValidKeys] = None,
 ) -> Tensor:
-    return Tensor(value)
+    # String edge-case -- Tensor class converts the list itself.
+    if get_request_tensor(request, key).get_element_type() == Type.string:
+        return Tensor(value)
+    # Numeric lists take the numpy path, so they are converted to the input's type.
+    return value_to_tensor(np.array(value), request, is_shared=False, key=key)
 
 
 @value_to_tensor.register(np.number)
@@ -388,7 +392,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
 
     It creates copy of Tensors or copy data to already allocated Tensors on device
     if the item is of type `np.ndarray`, `np.number`, `int`, `float`, `str`, `bytes` or has numpy __array__ attribute.
-    If value is of type `list`, create a Tensor based on it, copy will occur in the Tensor constructor.
+    If value is of type `list`, create a new Tensor based on it, converted to the input's type unless it is a string.
     """
     # Create new temporary dictionary.
     # new_inputs will be used to transfer data to inference calls,
@@ -402,7 +406,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
         if isinstance(value, (np.ndarray, np.number, int, float, str, bytes)) or hasattr(value, "__array__"):
             update_tensor(value, request, key)
         elif isinstance(value, list):
-            new_inputs[key] = Tensor(value)
+            new_inputs[key] = value_to_tensor(value, request, is_shared=False, key=key)
         # If value is of Tensor type, put it into temporary dictionary.
         elif isinstance(value, Tensor):
             new_inputs[key] = value
