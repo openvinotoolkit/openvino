@@ -34,9 +34,9 @@ static cldnn::condition::branch gen_branch(ProgramBuilder& p, const std::shared_
     auto internal_inputs = internal_body->get_parameters();
     auto input_desc_vec = op->get_input_descriptions(static_cast<int>(idx));
     for (auto& in_desc : input_desc_vec) {
-        const auto& external_id = external_inputs.at(in_desc->m_input_index).pid;
+        const auto& external_id = external_inputs.at(in_desc->m_input_index);
         const auto& internal_id = layer_type_name_ID(internal_inputs.at(in_desc->m_body_parameter_index));
-        input_map.insert({external_id, internal_id});
+        input_map.insert({in_desc->m_input_index, {external_id, internal_id}});
     }
 
     auto& output_map = branch.output_map;
