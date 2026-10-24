@@ -23,6 +23,7 @@ O=$repo/test/sdpa_ocl_xe_hpg/s7a/perf/opt
 | Per-phase (KQ/softmax/SV) ratio inside one kernel? | `__builtin_IB_read_cycle_counter` timer | Time of the uninstrumented kernel (instrumentation changes the ISA) |
 | DPAS/load/SLM ceilings of this hardware? | `mb/` microbench | Whether our kernel is limited by that ceiling |
 | Is one change the cause? | Paired A/B in the harness + bidirectional controls | — (a discipline, not a tool; chapter 05) |
+| Did the GPU run at the clock I pinned? | `act_freq` + `throttle/reasons` sampler (§7.8) | Which kernel ran at which clock (whole-run averages mix kernels) |
 
 ## 7.1 cliloader (CLIntercept): what actually ran
 
@@ -105,6 +106,26 @@ vtune -report hotspots -r /tmp/vt/NAME -group-by computing-task -format csv
 - `target-gpu` is a **PCI BDF**. On a 2-GPU system, check OpenVINO `GPU.1` (`--device_suffix=1`) and the VTune BDF separately (A770: OpenCL platform 0 / device 0 / `GPU.1` / BDF `0:3:0.0`). Profiling the wrong GPU still collects without any error.
 - `$O/vt.sh <name> <mode> <command...>` wraps the above and produces a one-line CSV summary with `vtrow.py`. `mode` is `overview`, `lsc-slm`, `full-compute`, `instruction-count`, etc. `lsc-slm` needs `-allow-multiple-runs`.
 - The progress log keeps overwriting one line with `\r`, so the output gets very large. Filter it with `tr '\r' '\n' | grep -v "Executing actions"`.
+
+### B70 (xe driver) and real-model runs (2026-10-24)
+
+- Permission: "Cannot collect GPU hardware metrics due to a lack of permissions" on the xe driver needs
+  `sudo sysctl dev.xe.observation_paranoid=0` (the message names only i915's `perf_stream_paranoid`; set both, restore to 1 after).
+  B70 BDF `0:3:0.0`; the default `target-gpu` lists the iGPU too.
+- VTune passes the target's arguments without their double quotes: an inline JSON argument breaks (llm_bench
+  `--cb_config '{...}'` -> "json format is incorrect"). Pass a file path instead. The absolute `vtune` path works without
+  sourcing `setvars.sh`, which keeps oneAPI libraries out of the OpenVINO process.
+- Keep the collection to the kernels of interest: `-knob computing-tasks-of-interest=sdpa_*`, llm_bench `-n 1 -ic 1` (no
+  decode); `-report hotspots -group-by computing-task -format csv -csv-delimiter tab`, then select rows by kernel name and
+  `Work Size:Global` (`test/longctx/vt_run.sh`, `vt_an.py`). A gemma-4 run at 32K took about a minute.
+- `characterization-mode=overview` on B70 reports, per computing task: XVE active/stalled/idle, occupancy, XMX active, stall
+  reasons (SBID, Barrier, Send, Dist/Acc, Pipe), `GPU L3: Busy / Average Bandwidth Read / Miss Ratio`, TLB misses,
+  `GPU Memory Bandwidth Read/Write`. The other modes (`global-memory-accesses`, `compute-extended`, `full-compute`,
+  `instruction-count`) were not used here.
+- Cross-check a bandwidth against a computed traffic before reading it: L3 read GB/s x call time = bytes per call (head 512 at
+  8K: 1,231 GB/s x 7.28 ms = 9.0 GB against 9.1 GB for one K/V read per workgroup). `GPU L3: Busy` near 100% is not a saturation
+  verdict: `sdpa_micro` pulled 1.8x the L3 bandwidth at the same Busy value. A rising `L3 Miss Ratio` with a DRAM read far under
+  the peak points at latency, not bandwidth.
 
 ### How to read it (actual values from the chapter 06 DG2 case)
 
@@ -204,4 +225,30 @@ Do not convert microbench throughput into overall attention speed. Microbenchmar
 5. Accuracy before performance. Stop at an accuracy FAIL before timing, and discard the times of FAILed variants.
 6. Keep the result files (JSON/log), the exact command, the source SHA256, and the micro binary used, together. Preserve failed/excluded runs with their reasons too (to prevent retries).
 7. Bash `cd` persists in the session. Use absolute paths and run from the repository root. Filter large output (VTune progress logs, IGC `.asm` headers, `strings`).
-8. Idle gap and clock: measuring the same kernel with gaps of 0/200/1000 µs showed a consistent +0.7~5.9% difference on some shapes, but a power/frequency cause was not proven. In that case record it only as "cadence sensitivity" and do not attribute it to power.
+8. Idle gap and clock: measuring the same kernel with gaps of 0/200/1000 µs showed a consistent +0.7~5.9% difference on some shapes, but a power/frequency cause was not proven. In that case record it only as "cadence sensitivity" and do not attribute it to power. On B70 a power cause *was* measured for long real-model runs (§7.8): attribute to power only with the sampled clock and throttle reason in hand.
+
+## 7.8 GPU clock and power: the pin is a request (B70, 2026-10-24)
+
+`min_freq` = `max_freq` (`/sys/class/drm/card1/device/tile0/gt0/freq0/`) is a request. Under a sustained heavy load the firmware
+lowers the clock anyway and reports why in `throttle/reasons` (`pl1`, `pl2`, `pl4`, `prochot`, `thermal`, `vr_tdc`, ...;
+`throttle/status` 0/1). Read-only sampling needs no root:
+
+```bash
+# test/longctx/freq_sample.py <out.tsv> [interval_ms]: t, act_freq, throttle status, reasons, card W (hwmon energy1 delta), pkg C
+./freq_sample.py logs/run.tsv 5 & SP=$!; <run>; kill $SP
+awk -F'\t' '$2>0{n++; s+=$2; if($3==1)t++} END{print n, s/n, t/n}' logs/run.tsv   # busy samples, mean MHz, pl share
+```
+
+| Run (gemma-4-e2b) | Mean busy `act_freq` | `pl2` share |
+|---|---|---|
+| 2800 pin, `sdpa_ocl` 32K prefill | 2321 MHz (plateau 2133-2167) | 68% |
+| 2800 pin, `sdpa_micro` 32K prefill | 2238 MHz | 78% |
+| 2800 pin, either kernel, 8K prefill | ~2545 MHz | 4% |
+| 1800 pin, every sampled run (about 80 minutes of sweeps) | 1800 MHz | 0% |
+
+- `act_freq` = 0 means idle (RC6); count busy samples only. Whole-run means mix kernels (MLP, attention) and say nothing about the
+  clock during one kernel.
+- A kernel A/B at one length stays fair at the pin (both arms throttle alike), but anything compared across sizes or across
+  layers that run at different times (two kernel variants of one model differed 6-10% at 32K, 0.2% at a fixed clock) needs a
+  fixed clock below the limit. Changing the pin needs root: when lowering set `min_freq` first, when raising `max_freq` first.
+- Power was capped by PL2 (`power1_cap` 230 W, package at most 64 C), not by temperature.
