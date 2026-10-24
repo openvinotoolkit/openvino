@@ -14,6 +14,7 @@
 
 #include "../primitive_cm_base.hpp"
 #include "../utils/kernel_generator.hpp"
+#include "../utils/qsa_host_common.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/sparse_pa.hpp"
@@ -78,35 +79,8 @@ JitConstants make_jit_with_split(const std::shared_ptr<const sparse_pa>& desc, c
     return jit;
 }
 
-void push_u32(KernelData& kd, size_t value) {
-    scalar_desc s;
-    s.t = scalar_desc::Types::UINT32;
-    s.v.u32 = static_cast<uint32_t>(value);
-    kd.params.scalars.push_back(s);
-}
-
 constexpr auto get_sparse_attention_build_options() {
-    return " -cmc -Qxcm_register_file_size=256";
-}
-
-constexpr size_t dpas_query_tile = 16;  // dpas N axis == GRF width on Xe2
-constexpr size_t dpas_k_step = 16;      // fp16 K elements per dpas
-constexpr size_t dpas_wide_cols = 32;   // halfs per 2D block row (64-byte hardware cap)
-
-// Decode-only split-selected-KV attention (see qsa.cpp's identical split_partitions /
-// the old history-length gate): partitions each token's OWN selected-block list across
-// `split_partitions` independent producers instead of relying on a single thread per
-// (head, token) to walk the whole list serially - the gap that leaves the GPU
-// drastically under-occupied for long-history decode (e.g. 2 work-groups instead of
-// hundreds). Used for every pure-decode call (num_tokens == num_seqs): the past lengths are in
-// GPU memory, so the host cannot gate it on history length.
-constexpr size_t split_partitions = 16;
-// One GQA-DPAS WG serves all n_rep heads of a KV head, so decode needs more WGs per token.
-constexpr size_t gqa_split_partitions = 64;
-
-/// Dv slice merged by one split_reduce thread.
-size_t split_reduce_cols(size_t v_head_size) {
-    return v_head_size % 32 == 0 ? 32 : 16;
+    return qsa_cm_build_options;
 }
 
 /// Whether every sequence in this call contributes exactly one query token. A
@@ -124,103 +98,6 @@ bool is_decode_shape(const kernel_impl_params& params) {
 
 bool may_decode(const kernel_impl_params& params) {
     return params.is_dynamic() || is_decode_shape(params);
-}
-
-/// Heads that share one dpas tile. See qsa.cpp's identical dpas_heads_per_tile() for the
-/// full rationale: filling the dpas N axis with HT heads x (16/HT) tokens shrinks the
-/// per-tile top-k union from 16 independent selections down to 16/HT.
-size_t dpas_heads_per_tile(const sparse_pa& desc) {
-    const auto n_rep = desc.num_heads / desc.num_kv_heads;
-    // 16 heads would leave one token per tile, and load_vnni_cols<1> does not compile.
-    for (size_t ht : {size_t{8}, size_t{4}, size_t{2}}) {
-        if (n_rep % ht == 0) {
-            return ht;
-        }
-    }
-    return 1;
-}
-
-/// Threads that cooperate on one (query tile, head). See qsa.cpp's identical
-/// dpas_attention_workers() for the register-budget rationale. Returns 0 when no
-/// supported split fits, which disables the systolic path.
-size_t dpas_attention_workers(const sparse_pa& desc) {
-    constexpr size_t reg_budget = 12 * 1024;
-    for (size_t w : {size_t{1}, size_t{2}, size_t{4}, size_t{8}}) {
-        if (desc.k_head_size % (w * dpas_k_step) != 0 || desc.v_head_size % (w * dpas_query_tile) != 0) {
-            continue;
-        }
-        const auto dh_w = desc.k_head_size / w;
-        const auto dv_w = desc.v_head_size / w;
-        if (dh_w % dpas_wide_cols != 0 || dv_w % dpas_wide_cols != 0) {
-            continue;
-        }
-        const auto rq = dh_w * dpas_query_tile * sizeof(ov::float16);
-        const auto ro = dpas_query_tile * dv_w * sizeof(float);
-        const auto kv = dpas_k_step * (dh_w + dv_w) * sizeof(ov::float16);
-        if (rq + ro + kv <= reg_budget) {
-            return w;
-        }
-    }
-    return 0;
-}
-
-/// Whether the systolic sparse_attention_paged_dpas kernel can be used. Mirrors
-/// qsa.cpp's can_use_dpas_attention(): a compile-time property of the descriptor plus the
-/// GRF width. Falls back to the scalar sparse_attention_paged kernel when it does not
-/// hold.
-bool can_use_dpas_attention(const sparse_pa& desc, size_t page_size, const cldnn::device_info& info) {
-    if (info.arch < gpu_arch::xe2) {
-        return false;
-    }
-    if (desc.k_head_size % dpas_k_step != 0 || desc.v_head_size % dpas_query_tile != 0) {
-        return false;
-    }
-    if (desc.k_head_size * sizeof(ov::float16) < 64 || desc.v_head_size * sizeof(ov::float16) < 64) {
-        return false;
-    }
-    if (desc.key_block_size % 2 != 0 || dpas_k_step % desc.key_block_size != 0) {
-        return false;  // four QSA blocks must pack exactly one 16-token dpas K step
-    }
-    if (page_size % desc.key_block_size != 0) {
-        return false;  // a compressed block must not cross a KV page
-    }
-    return dpas_attention_workers(desc) != 0;
-}
-
-/// Whether the GQA-aware systolic sparse_attention_paged_gqa_dpas kernel can be used.
-/// Mirrors qsa.cpp's can_use_gqa_dpas_attention(): preferred over the plain dpas kernel
-/// whenever it holds (no cross-token union, one KV read serves the whole n_rep group in
-/// one WG) - this is what matters for GQA ratios like Qwen4's Hq/Hkv = 12.
-bool can_use_gqa_dpas_attention(const sparse_pa& desc, size_t page_size, const cldnn::device_info& info) {
-    if (info.arch < gpu_arch::xe2) {
-        return false;
-    }
-    if (desc.num_kv_heads == 0 || desc.num_heads % desc.num_kv_heads != 0) {
-        return false;
-    }
-    const auto n_rep = desc.num_heads / desc.num_kv_heads;
-    if (n_rep < 1 || n_rep > 16) {
-        return false;
-    }
-    constexpr size_t gqa_workers = 4;  // GQA_W in sparse_attention_paged_gqa_dpas.cm
-    if (desc.k_head_size % (gqa_workers * 32) != 0 || desc.v_head_size % (gqa_workers * 32) != 0) {
-        return false;
-    }
-    if (std::max(desc.k_head_size, desc.v_head_size) > 256) {
-        return false;  // above the verified accumulator range
-    }
-    if (desc.key_block_size != 2 && desc.key_block_size != 4 && desc.key_block_size != 8 && desc.key_block_size != 16) {
-        return false;
-    }
-    if (page_size == 0 || page_size % desc.key_block_size != 0) {
-        return false;
-    }
-    return desc.causal;
-}
-
-/// Partitions behind SPLIT_ACC/SPLIT_ML and split_reduce for this config's decode producer.
-size_t decode_split_partitions(const sparse_pa& desc, size_t page_size, const cldnn::device_info& info) {
-    return can_use_gqa_dpas_attention(desc, page_size, info) ? gqa_split_partitions : split_partitions;
 }
 
 // ===========================================================================

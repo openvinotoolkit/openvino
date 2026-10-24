@@ -22,10 +22,10 @@ public:
         return get_dependency(index);
     }
 
-    // past_lens / subsequence_begins must be host-readable so the CM implementation can
-    // size its internal scratch and build its dispatch maps.
+    // Output shapes come from the query alone; past_lens / subsequence_begins stay in GPU
+    // memory (the impl sizes everything from shape-derived bounds), so no host readback.
     std::vector<size_t> get_shape_infer_dependencies() const override {
-        return {ov::intel_gpu::op::SparsePA::InputIdx::PAST_LENS, ov::intel_gpu::op::SparsePA::InputIdx::SUBSEQUENCE_BEGINS};
+        return {};
     }
 };
 using sparse_pa_node = typed_program_node<sparse_pa>;

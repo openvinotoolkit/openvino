@@ -7,8 +7,11 @@
 #include <string>
 #include <utility>
 
+#include "qsa_op_utils.hpp"
 
 namespace ov::intel_gpu::op {
+
+using namespace qsa_util;
 
 SparseSDPA::SparseSDPA(const ov::OutputVector& args, const Config& config, const ov::element::Type output_type)
     : Op(args),
@@ -18,37 +21,11 @@ SparseSDPA::SparseSDPA(const ov::OutputVector& args, const Config& config, const
 }
 
 bool SparseSDPA::validate_config(const Config& c, std::string& reason) {
-    auto fail = [&reason](const char* msg) {
-        reason = msg;
-        return false;
-    };
-    if (c.num_heads == 0 || c.num_kv_heads == 0 || c.num_heads % c.num_kv_heads != 0) {
-        return fail("num_heads must be a positive multiple of num_kv_heads");
-    }
-    if (c.num_selection_heads != 1 && c.num_selection_heads != c.num_kv_heads && c.num_selection_heads != c.num_heads) {
-        return fail("num_selection_heads must be 1, num_kv_heads, or num_heads");
-    }
-    if (c.k_head_size == 0 || c.k_head_size % 16 != 0 || c.v_head_size == 0 || c.v_head_size % 16 != 0) {
-        return fail("k_head_size / v_head_size must be positive multiples of 16");
-    }
-    if (c.key_block_size == 0) {
-        return fail("key_block_size must be positive");
-    }
-    if (c.query_block_size != 1) {
-        return fail("query_block_size != 1 is not implemented in this pass");
-    }
-    return true;
+    return validate_sparse_attention_config(c, reason);
 }
 
 bool SparseSDPA::visit_attributes(ov::AttributeVisitor& visitor) {
-    visitor.on_attribute("num_heads", m_config.num_heads);
-    visitor.on_attribute("num_kv_heads", m_config.num_kv_heads);
-    visitor.on_attribute("num_selection_heads", m_config.num_selection_heads);
-    visitor.on_attribute("k_head_size", m_config.k_head_size);
-    visitor.on_attribute("v_head_size", m_config.v_head_size);
-    visitor.on_attribute("key_block_size", m_config.key_block_size);
-    visitor.on_attribute("query_block_size", m_config.query_block_size);
-    visitor.on_attribute("causal", m_config.causal);
+    visit_sparse_attention_config(visitor, m_config);
     visitor.on_attribute("output_type", m_output_type);
     return true;
 }
@@ -82,6 +59,19 @@ void SparseSDPA::validate_and_infer_types() {
                           get_input_partial_shape(InputIdx::KEY_LENGTH).compatible(ov::PartialShape{batch}),
                           "SparseSDPA expects a [B] key_length input, got ",
                           get_input_partial_shape(InputIdx::KEY_LENGTH));
+
+    // Q/K/V geometry must agree with the config the kernels are specialized for.
+    const auto hkv = static_cast<int64_t>(m_config.num_kv_heads);
+    const auto sel = static_cast<int64_t>(m_config.num_selection_heads);
+    check_shape(this, InputIdx::QUERY, "query", ov::PartialShape{batch, static_cast<int64_t>(m_config.num_heads), dim_at(query_ps, 2), static_cast<int64_t>(m_config.k_head_size)});
+    const auto seq = dim_at(get_input_partial_shape(InputIdx::KEY), 2);
+    check_shape(this, InputIdx::KEY, "key", ov::PartialShape{batch, hkv, seq, static_cast<int64_t>(m_config.k_head_size)});
+    check_shape(this, InputIdx::VALUE, "value", ov::PartialShape{batch, hkv, seq, static_cast<int64_t>(m_config.v_head_size)});
+    const auto q_len = dim_at(query_ps, 2);
+    const auto k_max = dim_at(get_input_partial_shape(InputIdx::SELECTED_BLOCK_INDICES), 3);
+    check_shape(this, InputIdx::SELECTED_BLOCK_INDICES, "selected_block_indices", ov::PartialShape{batch, sel, q_len, k_max});
+    check_shape(this, InputIdx::SELECTED_BLOCK_COUNT, "selected_block_count", ov::PartialShape{batch, sel, q_len});
+    check_float_inputs(this, {InputIdx::QUERY, InputIdx::KEY, InputIdx::VALUE});
     if (has_scale_input()) {
         const auto& scale_ps = get_input_partial_shape(InputIdx::SCALE);
         NODE_VALIDATION_CHECK(this,

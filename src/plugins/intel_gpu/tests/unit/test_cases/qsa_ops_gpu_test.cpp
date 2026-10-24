@@ -1545,10 +1545,10 @@ void run_dense_state_chain_test(const split_dims& d, const std::vector<size_t>& 
 /// Caps the decode BLOCK_SCORES scratch so the Q2 chunk loop runs several times.
 struct scoped_score_budget {
     explicit scoped_score_budget(const char* bytes) {
-        setenv("QSA_TEST_SCORE_BUDGET_BYTES", bytes, 1);
+        setenv("OV_GPU_QSA_SCORE_BUDGET_BYTES", bytes, 1);
     }
     ~scoped_score_budget() {
-        unsetenv("QSA_TEST_SCORE_BUDGET_BYTES");
+        unsetenv("OV_GPU_QSA_SCORE_BUDGET_BYTES");
     }
 };
 
@@ -2308,7 +2308,8 @@ TEST(qsa_ops_gpu_test, paged_qsa_indexer_resolves_default_scale) {
     auto cfg = make_paged_indexer_config(d);
     cfg.scale = 0.0f;
     auto node = std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(make_paged_indexer_args(d, 8, d.page_size / d.r), cfg);
-    EXPECT_FLOAT_EQ(node->get_config().scale, 1.0f / std::sqrt(static_cast<float>(d.Di)));
+    EXPECT_FLOAT_EQ(node->get_config().scale, 0.0f);  // sentinel stays in the IR; consumers resolve it
+    EXPECT_FLOAT_EQ(ov::intel_gpu::op::PagedQSAIndexer::effective_scale(node->get_config()), 1.0f / std::sqrt(static_cast<float>(d.Di)));
 }
 
 TEST(qsa_ops_gpu_test, paged_qsa_indexer_rejects_wrong_input_count) {

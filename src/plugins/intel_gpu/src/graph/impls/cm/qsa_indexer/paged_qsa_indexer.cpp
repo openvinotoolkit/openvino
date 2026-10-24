@@ -14,6 +14,7 @@
 
 #include "../primitive_cm_base.hpp"
 #include "../utils/kernel_generator.hpp"
+#include "../utils/qsa_host_common.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/paged_qsa_indexer.hpp"
@@ -65,40 +66,19 @@ JitConstants make_jit(const std::shared_ptr<const paged_qsa_indexer>& desc, cons
     return jit;
 }
 
-void push_u32(KernelData& kd, size_t value) {
-    scalar_desc s;
-    s.t = scalar_desc::Types::UINT32;
-    s.v.u32 = static_cast<uint32_t>(value);
-    kd.params.scalars.push_back(s);
-}
-
 constexpr auto get_qsa_indexer_build_options() {
-    return " -cmc -Qxcm_register_file_size=256";
+    return qsa_cm_build_options;
 }
 
 // qsa_indexer_topk's cooperative work-group size (see qsa_topk_radix_wg.cm's proven choice).
 
-constexpr size_t dpas_query_tile = 16;  // dpas N axis == GRF width on Xe2
 constexpr size_t dpas_block_tile = 8;   // dpas RepeatCount (M axis)
-constexpr size_t dpas_k_step = 16;      // fp16 K elements per dpas
 constexpr size_t max_slm_bytes = 64 * 1024;
 constexpr size_t score_wg_size = 16;  // threads per query tile in the dpas Q2 score kernel
 
 // Decode-only Q2 score-partition kernel (see qsa_indexer.cpp's identical constant /
 // rationale and measurements).
 constexpr size_t score_partition_blocks = 32;
-
-/// Upper bound on the decode BLOCK_SCORES scratch (old qsa.cpp's score_budget_bytes()).
-/// QSA_TEST_SCORE_BUDGET_BYTES lets tests force the multi-chunk path with small shapes.
-size_t score_budget_bytes() {
-    if (const char* override_str = std::getenv("QSA_TEST_SCORE_BUDGET_BYTES")) {
-        const auto value = std::strtoull(override_str, nullptr, 10);
-        if (value > 0) {
-            return static_cast<size_t>(value);
-        }
-    }
-    return 128 * 1024 * 1024;
-}
 
 /// Whether every sequence in this call contributes exactly one query token. A
 /// shape-agnostic impl keeps both the decode and prefill stages and decides per call.
@@ -121,12 +101,6 @@ bool may_prefill(const kernel_impl_params& params) {
     return params.is_dynamic() || !is_decode_shape(params);
 }
 
-/// Cooperative top-k work-group size: decode rows span the whole history, while prefill
-/// rows are short and numerous, so smaller work-groups pack the GPU better.
-constexpr size_t topk_wg_size(bool decode) {
-    return decode ? 16 : 8;
-}
-
 /// f32 element capacity of BLOCK_SCORES. The row stride is bounded by the whole page pool
 /// (not the actual context), so decode with many sequences and a large pool is what the
 /// budget caps. Static shapes only, so allocation and per-call chunk planning agree.
@@ -142,7 +116,7 @@ size_t score_scratch_elems(const kernel_impl_params& params, const paged_qsa_ind
 }
 
 /// Whether the systolic qsa_indexer_score_dpas kernel can be used for this configuration.
-/// Mirrors qsa.cpp's can_use_dpas_score(): a compile-time property of the descriptor plus
+/// A compile-time property of the descriptor plus
 /// the GRF width, stable across iterations. Falls back to the scalar qsa_indexer_score
 /// kernel when it does not hold.
 bool can_use_dpas_score(const paged_qsa_indexer& desc, size_t page_size, size_t h_iq, const cldnn::device_info& info) {
@@ -472,7 +446,7 @@ public:
     }
 
     // Q2: decode -> score_partition + topk (row-chunked); prefill/mixed -> score_dpas + topk,
-    // or the fused score+top-k kernel when dpas is unavailable (old qsa.cpp's routing).
+    // or the fused score+top-k kernel when dpas is unavailable.
     explicit PagedQSAIndexerCmImpl(const RuntimeParams& params) : PagedQSAIndexerCmImpl() {
         add_stage(prepare, params);
         if (may_decode(params)) {

@@ -5,6 +5,7 @@
 #include "sparse_attention_fusion.hpp"
 
 #include <cmath>
+#include <algorithm>
 #include <deque>
 #include <functional>
 #include <memory>
@@ -28,6 +29,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
@@ -38,6 +40,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/topk.hpp"
@@ -295,29 +298,10 @@ bool is_layout_only(const ov::Node* n) {
            ov::is_type<ov::op::v0::Squeeze>(n) || ov::is_type<ov::op::v1::Transpose>(n);
 }
 
-/// `1 + w` gains that were not constant-folded are folded here, so the op receives the
-/// gain exactly as the kernel applies it.
-std::shared_ptr<ov::op::v0::Constant> fold_one_plus_gain(const std::shared_ptr<ov::op::v0::Constant>& gain) {
-    for (const auto& consumer : gain->output(0).get_target_inputs()) {
-        auto add = ov::as_type<ov::op::v1::Add>(consumer.get_node());
-        if (!add) {
-            continue;
-        }
-        float one = 0.0f;
-        if (get_scalar_f32(add->input_value(1 - consumer.get_index()), one) && close(one, 1.0f)) {
-            auto values = gain->cast_vector<float>();
-            for (auto& v : values) {
-                v += 1.0f;
-            }
-            return ov::op::v0::Constant::create(gain->get_element_type(), gain->get_shape(), values);
-        }
-    }
-    return gain;
-}
-
 struct NormFacts {
     std::shared_ptr<ov::op::v0::Constant> gain;
     float eps = 0.0f;
+    ov::Output<ov::Node> input;  ///< x the norm is applied to
 };
 
 /// The GPU lowering of the QSA ops accepts f16 data only.
@@ -328,63 +312,167 @@ std::shared_ptr<ov::op::v0::Constant> to_f16_const(const std::shared_ptr<ov::op:
     return ov::op::v0::Constant::create(ov::element::f16, c->get_shape(), c->cast_vector<float>());
 }
 
-/// Proves one indexer leg's RMSNorm: either an already-fused `ov::op::internal::RMS`
-/// (RMSFusion runs earlier in the GPU pipeline) or the decomposed
-/// `x * rsqrt(ReduceMean(x^2) + eps) * gain` form.
-bool prove_norm(const ov::Output<ov::Node>& leg, ov::Node* stop_at, size_t Di, NormFacts& out) {
-    if (auto rms = find_ancestor<ov::op::internal::RMS>(leg, 25, stop_at)) {
-        out.eps = static_cast<float>(rms->get_epsilon());
-        if (rms->get_input_size() > 1) {
-            auto gain = ov::as_type_ptr<ov::op::v0::Constant>(resolve_constant_source(rms->input_value(1)).get_node_shared_ptr());
-            if (!gain || static_element_count(gain->get_output_partial_shape(0)) != Di) {
-                return false;
-            }
-            out.gain = fold_one_plus_gain(gain);
-        } else {
-            out.gain = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{Di}, std::vector<float>(Di, 1.0f));
+/// The gain operand of the norm's final Multiply: a `[Di]`-element constant, or `w + 1`
+/// folded here so the op receives the gain exactly as the kernel applies it. Only the Add
+/// that *is* this operand is folded, never an unrelated consumer of a shared constant.
+std::shared_ptr<ov::op::v0::Constant> resolve_gain(ov::Output<ov::Node> gain_out, size_t Di) {
+    auto as_gain = [Di](const ov::Output<ov::Node>& o) -> std::shared_ptr<ov::op::v0::Constant> {
+        auto c = ov::as_type_ptr<ov::op::v0::Constant>(resolve_constant_source(o).get_node_shared_ptr());
+        if (!c) {
+            return nullptr;
         }
-        return true;
+        const auto& ps = c->get_output_partial_shape(0);
+        if (ps.is_dynamic() || ps.size() == 0 || ps[ps.size() - 1].get_length() != static_cast<int64_t>(Di) || static_element_count(ps) != Di) {
+            return nullptr;
+        }
+        return c;
+    };
+    while (ov::is_type<ov::op::v0::Convert>(gain_out.get_node())) {
+        gain_out = gain_out.get_node()->input_value(0);
+    }
+    if (auto c = as_gain(gain_out)) {
+        return c;
+    }
+    if (auto add = ov::as_type_ptr<ov::op::v1::Add>(gain_out.get_node_shared_ptr())) {
+        for (size_t i = 0; i < 2; ++i) {
+            float one = 0.0f;
+            if (!get_scalar_f32(add->input_value(1 - i), one) || !close(one, 1.0f)) {
+                continue;
+            }
+            if (auto w = as_gain(add->input_value(i))) {
+                auto values = w->cast_vector<float>();
+                for (auto& v : values) {
+                    v += 1.0f;
+                }
+                return ov::op::v0::Constant::create(w->get_element_type(), w->get_shape(), values);
+            }
+        }
+    }
+    return nullptr;
+}
+
+/// Explicit RMSNorm pattern: an already-fused `ov::op::internal::RMS`, or the decomposed
+/// `x * (1 / sqrt(mean(x^2) + eps)) * gain` family (Divide-by-Sqrt, Multiply-by-reciprocal
+/// and Power(-0.5) spellings). All uses of `x` bind to the same graph node, and each fact
+/// (reduction axis, exponent, epsilon, gain) is read from the operand that actually feeds
+/// the norm instead of being searched for in the ancestors.
+class RmsNormMatcher {
+public:
+    RmsNormMatcher() {
+        using namespace ov::pass::pattern;
+        using ov::pass::pattern::op::Or;
+        x = any_input();
+        auto sq_mul = wrap_type<ov::op::v1::Multiply>({x, x});
+        sq_pow = wrap_type<ov::op::v1::Power>({x, any_input()});
+        auto sq = std::make_shared<Or>(ov::OutputVector{sq_mul, sq_pow});
+        mean = wrap_type<ov::op::v1::ReduceMean>({sq, any_input()});
+        auto biased_a = wrap_type<ov::op::v1::Add>({mean, any_input()});
+        auto biased_b = wrap_type<ov::op::v1::Add>({any_input(), mean});
+        biased = std::make_shared<Or>(ov::OutputVector{biased_a, biased_b});
+        auto root = wrap_type<ov::op::v0::Sqrt>({biased});
+        inv_div = wrap_type<ov::op::v1::Divide>({any_input(), root});
+        inv_pow = wrap_type<ov::op::v1::Power>({biased, any_input()});
+        inv_pow_root = wrap_type<ov::op::v1::Power>({root, any_input()});
+        auto inv = std::make_shared<Or>(ov::OutputVector{inv_div, inv_pow, inv_pow_root});
+        auto norm_mul_a = wrap_type<ov::op::v1::Multiply>({x, inv});
+        auto norm_mul_b = wrap_type<ov::op::v1::Multiply>({inv, x});
+        auto norm_div = wrap_type<ov::op::v1::Divide>({x, root});
+        auto normalized = std::make_shared<Or>(ov::OutputVector{norm_mul_a, norm_mul_b, norm_div});
+        gain = any_input();
+        auto out_a = wrap_type<ov::op::v1::Multiply>({normalized, gain});
+        auto out_b = wrap_type<ov::op::v1::Multiply>({gain, normalized});
+        auto decomposed = std::make_shared<Or>(ov::OutputVector{out_a, out_b});
+        fused_gain = any_input();
+        fused = wrap_type<ov::op::internal::RMS>({x, fused_gain});
+        // RMSFusion turns a gain-less norm into a single-input RMS followed by the gain Multiply.
+        fused_nogamma = wrap_type<ov::op::internal::RMS>({x});
+        auto nogamma_a = wrap_type<ov::op::v1::Multiply>({fused_nogamma, gain});
+        auto nogamma_b = wrap_type<ov::op::v1::Multiply>({gain, fused_nogamma});
+        matcher = std::make_shared<Matcher>(std::make_shared<Or>(ov::OutputVector{decomposed, fused, nogamma_a, nogamma_b}), "QSAIndexerRmsNorm");
     }
 
-    auto gain = ov::as_type_ptr<ov::op::v0::Constant>(find_ancestor_if(leg, 25, stop_at, [Di](ov::Node* n) {
-        auto c = ov::as_type<ov::op::v0::Constant>(n);
-        return c && static_element_count(c->get_output_partial_shape(0)) == Di;
-    }));
-    if (!gain) {
-        return false;
-    }
-    auto is_mean = [](ov::Node* n) {
-        if (ov::is_type<ov::op::v0::Convert>(n)) {
-            n = n->get_input_node_ptr(0);
-        }
-        return ov::is_type<ov::op::v1::ReduceMean>(n);
-    };
-    float eps = 0.0f;
-    auto eps_add = find_ancestor_if(leg, 25, stop_at, [&](ov::Node* n) {
-        if (!ov::is_type<ov::op::v1::Add>(n)) {
+    /// Matches a norm rooted at `node` and proves it normalizes the last axis of a
+    /// `[..., Di]` tensor. Returns false if `node` is not a norm or any fact fails.
+    bool match(ov::Node* node, size_t Di, bool& is_norm, NormFacts& out) {
+        is_norm = false;
+        if (node->get_output_size() != 1 || !matcher->match(node->output(0))) {
             return false;
         }
-        for (size_t i = 0; i < 2; ++i) {
-            float v = 0.0f;
-            if (is_mean(n->get_input_node_ptr(1 - i)) && get_scalar_f32(n->input_value(i), v) && v > 0.0f && v <= 1e-2f) {
-                eps = v;
-                return true;
-            }
+        is_norm = true;
+        const auto& pm = matcher->get_pattern_value_map();
+        const auto x_out = pm.at(x);
+        const auto& x_ps = x_out.get_partial_shape();
+        if (x_ps.rank().is_dynamic() || x_ps[x_ps.size() - 1].is_dynamic() || static_cast<size_t>(x_ps[x_ps.size() - 1].get_length()) != Di) {
+            return false;
         }
-        return false;
-    });
-    if (!eps_add) {
-        return false;
+
+        if (pm.count(fused)) {
+            auto rms = ov::as_type_ptr<ov::op::internal::RMS>(pm.at(fused).get_node_shared_ptr());
+            out.gain = resolve_gain(pm.at(fused_gain), Di);
+            out.eps = static_cast<float>(rms->get_epsilon());
+        } else if (pm.count(fused_nogamma)) {
+            auto rms = ov::as_type_ptr<ov::op::internal::RMS>(pm.at(fused_nogamma).get_node_shared_ptr());
+            out.gain = resolve_gain(pm.at(gain), Di);
+            out.eps = static_cast<float>(rms->get_epsilon());
+        } else {
+            auto mean_node = ov::as_type_ptr<ov::op::v1::ReduceMean>(pm.at(mean).get_node_shared_ptr());
+            std::vector<int64_t> axes;
+            const auto rank = static_cast<int64_t>(x_ps.size());
+            if (!mean_node->get_keep_dims() || !get_i64_vector(mean_node->input_value(1), axes) || axes.size() != 1 || (axes[0] != -1 && axes[0] != rank - 1)) {
+                return false;
+            }
+            float exponent = 0.0f;
+            if (pm.count(sq_pow) && (!get_scalar_f32(pm.at(sq_pow).get_node_shared_ptr()->input_value(1), exponent) || !close(exponent, 2.0f))) {
+                return false;
+            }
+            float numerator = 0.0f;
+            if (pm.count(inv_div) && (!get_scalar_f32(pm.at(inv_div).get_node_shared_ptr()->input_value(0), numerator) || !close(numerator, 1.0f))) {
+                return false;
+            }
+            if (pm.count(inv_pow) && (!get_scalar_f32(pm.at(inv_pow).get_node_shared_ptr()->input_value(1), exponent) || !close(exponent, -0.5f))) {
+                return false;
+            }
+            if (pm.count(inv_pow_root) && (!get_scalar_f32(pm.at(inv_pow_root).get_node_shared_ptr()->input_value(1), exponent) || !close(exponent, -1.0f))) {
+                return false;
+            }
+            // epsilon is the non-mean operand of the Add that feeds the sqrt.
+            auto biased_node = pm.at(biased).get_node_shared_ptr();
+            const size_t eps_idx = biased_node->input_value(0).get_node() == mean_node.get() ? 1 : 0;
+            float eps = 0.0f;
+            if (!get_scalar_f32(biased_node->input_value(eps_idx), eps) || eps <= 0.0f || eps > 1e-2f) {
+                return false;
+            }
+            out.eps = eps;
+            out.gain = resolve_gain(pm.at(gain), Di);
+        }
+        out.input = x_out;
+        return out.gain != nullptr;
     }
-    out.eps = eps;
-    out.gain = fold_one_plus_gain(gain);
-    return true;
+
+private:
+    std::shared_ptr<ov::Node> x, sq_pow, mean, biased, inv_div, inv_pow, inv_pow_root, gain, fused_gain, fused, fused_nogamma;
+    std::shared_ptr<ov::pass::pattern::Matcher> matcher;
+};
+
+/// Proves the norm applied directly to one indexer leg: the outermost norm found while
+/// walking back from the score MatMul operand. A structurally recognised norm whose facts
+/// do not hold fails the proof instead of falling through to an unrelated inner match.
+bool prove_norm(const ov::Output<ov::Node>& leg, ov::Node* stop_at, size_t Di, NormFacts& out) {
+    RmsNormMatcher norm;
+    bool proven = false;
+    auto found = find_ancestor_if(leg, 25, stop_at, [&](ov::Node* n) {
+        bool is_norm = false;
+        proven = norm.match(n, Di, is_norm, out);
+        return is_norm;
+    });
+    return found && proven;
 }
 
 struct RopeFacts {
     std::shared_ptr<ov::op::v0::Constant> cos_table;  ///< [max_positions, rd], rotate-half row (both halves equal)
     std::shared_ptr<ov::op::v0::Constant> sin_table;  ///< [max_positions, rd], rotate-half row (both halves equal)
     ov::Output<ov::Node> positions;                   ///< the per-token indices the graph gathers rows with
+    std::shared_ptr<ov::Node> gather;                 ///< the Gather node that produces the rows
     size_t rotary_dim = 0;
 };
 
@@ -490,6 +578,7 @@ bool prove_rope(const ov::Output<ov::Node>& idx_q, ov::Node* stop_at, size_t Di,
     out.cos_table = ov::op::v0::Constant::create(table->get_element_type(), full_shape, cos_values);
     out.sin_table = ov::op::v0::Constant::create(table->get_element_type(), full_shape, sin_values);
     out.positions = gather_node->input_value(1);
+    out.gather = gather_node;
     out.rotary_dim = rd;
     return true;
 }
@@ -513,10 +602,81 @@ struct SharedIndexerFacts {
     std::shared_ptr<ov::op::v0::Constant> q_norm_const;
     std::shared_ptr<ov::op::v0::Constant> k_norm_const;
     RopeFacts rope;
+    std::shared_ptr<ov::op::v1::ReduceMean> pool;  ///< the K leg's block-mean pooling
+    size_t r = 0;                                  ///< key_block_size: tokens averaged by `pool`
     float eps = 0.0f;
     size_t Hidx = 0;
     size_t D = 0;
 };
+
+/// Last-axis channel range of the shared projection that a leg is sliced from.
+struct SliceRange {
+    int64_t begin = 0;
+    int64_t end = 0;
+    bool found = false;
+};
+
+/// Walks `out` back to `proj` through shape-only ops (and Concat when `through_concat`, for
+/// the K leg's history), recording the single last-axis Slice/VariadicSplit it takes. Any
+/// other op on the way (bias Add, scale Multiply, ...) fails the proof, because the fused ops
+/// would silently drop it.
+bool trace_to_projection(const ov::Output<ov::Node>& out, const ov::Node* proj, int64_t total, bool through_concat, SliceRange& range, int depth = 16) {
+    auto* node = out.get_node();
+    if (node == proj) {
+        return true;
+    }
+    if (depth == 0) {
+        return false;
+    }
+    auto clamp_index = [total](int64_t v) {
+        return std::clamp<int64_t>(v < 0 ? v + total : v, 0, total);
+    };
+    auto last_axis = [](const ov::Node* n, int64_t axis) {
+        const auto& rank = n->get_input_partial_shape(0).rank();
+        return rank.is_static() && (axis == -1 || axis == rank.get_length() - 1);
+    };
+    if (auto slice = ov::as_type<ov::op::v8::Slice>(node)) {
+        std::vector<int64_t> start, stop, step, axes;
+        if (range.found || slice->get_input_size() < 5 || !get_i64_vector(slice->input_value(1), start) || !get_i64_vector(slice->input_value(2), stop) ||
+            !get_i64_vector(slice->input_value(3), step) || !get_i64_vector(slice->input_value(4), axes) || start.size() != 1 || stop.size() != 1 ||
+            step != std::vector<int64_t>{1} || axes.size() != 1 || !last_axis(slice, axes[0])) {
+            return false;
+        }
+        range = {clamp_index(start[0]), clamp_index(stop[0]), true};
+        return trace_to_projection(slice->input_value(0), proj, total, through_concat, range, depth - 1);
+    }
+    if (auto vsplit = ov::as_type<ov::op::v1::VariadicSplit>(node)) {
+        std::vector<int64_t> axis, lengths;
+        if (range.found || !get_i64_vector(vsplit->input_value(1), axis) || axis.size() != 1 || !last_axis(vsplit, axis[0]) ||
+            !get_i64_vector(vsplit->input_value(2), lengths) || out.get_index() >= lengths.size()) {
+            return false;
+        }
+        int64_t begin = 0;
+        for (size_t i = 0; i < out.get_index(); ++i) {
+            begin += lengths[i];
+        }
+        range = {begin, begin + lengths[out.get_index()], true};
+        return trace_to_projection(vsplit->input_value(0), proj, total, through_concat, range, depth - 1);
+    }
+    if (ov::is_type<ov::op::v0::Convert>(node) || ov::is_type<ov::op::v1::Reshape>(node) || ov::is_type<ov::op::v0::Unsqueeze>(node) ||
+        ov::is_type<ov::op::v0::Squeeze>(node)) {
+        return trace_to_projection(node->input_value(0), proj, total, through_concat, range, depth - 1);
+    }
+    if (through_concat && ov::is_type<ov::op::v0::Concat>(node)) {
+        for (const auto& input : node->input_values()) {
+            SliceRange attempt = range;
+            if (trace_to_projection(input, proj, total, through_concat, attempt, depth - 1)) {
+                range = attempt;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool same_values(const std::shared_ptr<ov::op::v0::Constant>& a, const std::shared_ptr<ov::op::v0::Constant>& b) {
+    return a->get_shape() == b->get_shape() && a->cast_vector<float>() == b->cast_vector<float>();
+}
 
 /// Proves the shared `[Hidx*Di + Di, D]` INDEXER_QK_WEIGHT projection convention, both
 /// legs' RMSNorm (same eps), and the RoPE table/positions. `idx_q`/`idx_k` are the
@@ -550,10 +710,53 @@ bool prove_shared_indexer_facts(const ov::Output<ov::Node>& idx_q, const ov::Out
     if (!prove_norm(idx_q, idx_q_proj_mm.get(), Di, q_norm) || !prove_norm(idx_k, idx_q_proj_mm.get(), Di, k_norm) || !close(q_norm.eps, k_norm.eps)) {
         return false;
     }
-    if (!prove_rope(idx_q, idx_q_proj_mm.get(), Di, out.rope)) {
+    RopeFacts k_rope;
+    if (!prove_rope(idx_q, idx_q_proj_mm.get(), Di, out.rope) || !prove_rope(idx_k, idx_q_proj_mm.get(), Di, k_rope)) {
+        return false;
+    }
+    // Both legs rotate with the same table (the fused op takes one cos/sin pair).
+    if (!same_values(out.rope.cos_table, k_rope.cos_table) || !same_values(out.rope.sin_table, k_rope.sin_table)) {
+        return false;
+    }
+    // Spec order is RoPE(RMSNorm(Mean(K))): RoPE must not feed a norm input.
+    if (is_ancestor_of(q_norm.input, out.rope.gather.get(), 60) || is_ancestor_of(k_norm.input, k_rope.gather.get(), 60)) {
         return false;
     }
 
+    // Q leg: the norm input is exactly the first Hidx*Di channels of the projection.
+    const auto total = static_cast<int64_t>(qk_out_features);
+    SliceRange q_range;
+    if (!trace_to_projection(q_norm.input, idx_q_proj_mm.get(), total, false, q_range) || !q_range.found || q_range.begin != 0 ||
+        q_range.end != static_cast<int64_t>(Hidx * Di)) {
+        return false;
+    }
+
+    // K leg: the norm input is the block-mean of the raw K channels (pool -> norm), and the
+    // pooled tokens are exactly the last Di channels of the projection.
+    auto pool = find_ancestor<ov::op::v1::ReduceMean>(k_norm.input, 8);
+    if (!pool) {
+        return false;
+    }
+    std::vector<int64_t> pool_axes;
+    const auto& pool_in_ps = pool->input_value(0).get_partial_shape();
+    if (!get_i64_vector(pool->input_value(1), pool_axes) || pool_axes.size() != 1 || pool_in_ps.rank().is_dynamic()) {
+        return false;
+    }
+    const auto pool_rank = static_cast<int64_t>(pool_in_ps.size());
+    const int64_t pool_axis = pool_axes[0] < 0 ? pool_axes[0] + pool_rank : pool_axes[0];
+    if (pool_axis < 0 || pool_axis >= pool_rank - 1 || pool_in_ps[pool_axis].is_dynamic() || pool_in_ps[pool_rank - 1].is_dynamic() ||
+        static_cast<size_t>(pool_in_ps[pool_rank - 1].get_length()) != Di) {
+        return false;
+    }
+    const auto r = static_cast<size_t>(pool_in_ps[pool_axis].get_length());
+    SliceRange k_range;
+    if (r == 0 || !trace_to_projection(pool->input_value(0), idx_q_proj_mm.get(), total, true, k_range) || !k_range.found ||
+        k_range.begin != static_cast<int64_t>(Hidx * Di) || k_range.end != static_cast<int64_t>((Hidx + 1) * Di)) {
+        return false;
+    }
+
+    out.pool = pool;
+    out.r = r;
     out.qk_proj_mm = idx_q_proj_mm;
     out.q_norm_const = to_f16_const(q_norm.gain);
     out.k_norm_const = to_f16_const(k_norm.gain);
@@ -680,7 +883,9 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
             continue;
         }
         if (sdpa->get_input_size() > 3) {
-            if (!is_ancestor_of(sdpa->input_value(3), root.get(), 100)) {
+            // SDPA ignores `causal` when a mask is given, so a causal flag next to a mask is
+            // ambiguous; accept only the explicit selection-mask form.
+            if (sdpa->get_causal() || !is_ancestor_of(sdpa->input_value(3), root.get(), 100)) {
                 continue;
             }
         } else if (!sdpa->get_causal()) {
@@ -707,26 +912,10 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
             continue;
         }
 
-        // key_block_size `r`: the indexer's own from-scratch block-mean pooling.
-        auto pool = find_descendant<ov::op::v1::ReduceMean>(raw_k_read_value->output(0), 60);
-        if (!pool) {
-            continue;
-        }
-        std::vector<int64_t> pool_axes;
-        if (!get_i64_vector(pool->input_value(1), pool_axes) || pool_axes.size() != 1) {
-            continue;
-        }
-        const auto& pool_in_ps = pool->input_value(0).get_partial_shape();
-        if (pool_in_ps.rank().is_dynamic()) {
-            continue;
-        }
-        const auto pool_rank = static_cast<int64_t>(pool_in_ps.size());
-        const int64_t pool_axis = pool_axes[0] < 0 ? pool_axes[0] + pool_rank : pool_axes[0];
-        if (pool_axis < 0 || pool_axis >= pool_rank || pool_in_ps[pool_axis].is_dynamic()) {
-            continue;
-        }
-        const size_t r = static_cast<size_t>(pool_in_ps[pool_axis].get_length());
-        if (r == 0) {
+        // key_block_size `r` and the pooling were proven with the K leg; the pooled history
+        // must be the raw-K state this pass retires.
+        const size_t r = facts.r;
+        if (!is_ancestor_of(facts.pool->input_value(0), raw_k_read_value.get(), 10)) {
             continue;
         }
 
@@ -998,28 +1187,9 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         }
         const size_t Hq = Hq_Dh / Dh;
 
-        // key_block_size `r`: the indexer's own from-scratch block-mean pooling (same
-        // proof as the dense case, just walked backward from idx_k since there is no
-        // ReadValue anchor to search forward from in a paged/continuous-batching graph).
-        auto pool = find_ancestor<ov::op::v1::ReduceMean>(idx_k, 60);
-        if (!pool) {
-            continue;
-        }
-        std::vector<int64_t> pool_axes;
-        if (!get_i64_vector(pool->input_value(1), pool_axes) || pool_axes.size() != 1) {
-            continue;
-        }
-        const auto& pool_in_ps = pool->input_value(0).get_partial_shape();
-        if (pool_in_ps.rank().is_dynamic()) {
-            continue;
-        }
-        const auto pool_rank = static_cast<int64_t>(pool_in_ps.size());
-        const int64_t pool_axis = pool_axes[0] < 0 ? pool_axes[0] + pool_rank : pool_axes[0];
-        if (pool_axis < 0 || pool_axis >= pool_rank || pool_in_ps[pool_axis].is_dynamic()) {
-            continue;
-        }
-        const size_t r = static_cast<size_t>(pool_in_ps[pool_axis].get_length());
-        if (r == 0 || page_size % r != 0) {
+        // key_block_size `r` and the pool -> norm -> RoPE order were proven with the K leg.
+        const size_t r = facts.r;
+        if (page_size % r != 0) {
             continue;
         }
 

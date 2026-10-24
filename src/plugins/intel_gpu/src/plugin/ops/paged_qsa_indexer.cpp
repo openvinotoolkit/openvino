@@ -7,7 +7,7 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/paged_qsa_indexer.hpp"
 
-// NOTE: like ops/qsa.cpp, PagedQSAIndexer is lowered from the base
+// NOTE: PagedQSAIndexer is lowered from the base
 // ov::op::internal::PagedQSAIndexer type; ov::intel_gpu::op::PagedQSAIndexer
 // ("gpu_opset") publicly inherits from it and adds no new fields, so
 // ProgramBuilder::CreateSingleLayerPrimitive's type_info->parent walk already dispatches

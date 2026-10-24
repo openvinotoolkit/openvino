@@ -9,41 +9,11 @@
 #include <string>
 #include <utility>
 
+#include "qsa_op_utils.hpp"
+
 namespace ov::intel_gpu::op {
 
-namespace {
-// The kernels read every integer input as int32_t.
-void check_i32_input(const ov::Node* node, size_t idx, const char* name, int64_t rank) {
-    const auto& et = node->get_input_element_type(idx);
-    const auto& ps = node->get_input_partial_shape(idx);
-    NODE_VALIDATION_CHECK(node, et.is_dynamic() || et == element::i32, node->get_type_name(), " expects an i32 ", name, " input, got ", et);
-    NODE_VALIDATION_CHECK(node, ps.rank().compatible(rank), node->get_type_name(), " expects a rank-", rank, " ", name, " input, got ", ps);
-}
-
-void check_shape(const ov::Node* node, size_t idx, const char* name, const ov::PartialShape& expected) {
-    const auto& ps = node->get_input_partial_shape(idx);
-    NODE_VALIDATION_CHECK(node, ps.compatible(expected), node->get_type_name(), " expects ", name, " shaped ", expected, ", got ", ps);
-}
-
-void check_float_inputs(const ov::Node* node, std::initializer_list<size_t> indices) {
-    element::Type et = element::dynamic;
-    for (auto idx : indices) {
-        const auto& in_et = node->get_input_element_type(idx);
-        NODE_VALIDATION_CHECK(node,
-                              element::Type::merge(et, et, in_et),
-                              node->get_type_name(),
-                              " expects all floating-point inputs to share one element type; input ",
-                              idx,
-                              " is ",
-                              in_et);
-    }
-    NODE_VALIDATION_CHECK(node, et.is_dynamic() || et.is_real(), node->get_type_name(), " expects floating-point inputs, got ", et);
-}
-
-ov::Dimension dim_at(const ov::PartialShape& ps, size_t axis) {
-    return ps.rank().is_static() && ps.size() > axis ? ps[axis] : ov::Dimension::dynamic();
-}
-}  // namespace
+using namespace qsa_util;
 
 QSAIndexer::QSAIndexer(const ov::OutputVector& args, const Config& config) : Op(args), m_config(config) {
     constructor_validate_and_infer_types();

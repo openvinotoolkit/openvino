@@ -128,7 +128,8 @@ std::vector<float> rope_table_values() {
 /// Indexer sub-graph shared by the dense and paged builders: a shared `[(Hidx+1)*Di, D]`
 /// projection over dynamic `[B, L, D]` tokens, decomposed RMSNorm on both legs, RoPE via
 /// `Gather(table, position_ids)`, a ReadValue-backed raw-K history, static-`r` block-mean
-/// pooling, and the ReLU -> ReduceSum -> 1/sqrt(Di) -> TopK score signature.
+/// pooling, and the ReLU -> ReduceSum -> 1/sqrt(Di) -> TopK score signature. The K leg follows
+/// the spec order RoPE(RMSNorm(Mean(K))) unless `variant` perturbs it.
 struct IndexerGraph {
     std::shared_ptr<ov::op::v0::Parameter> mixed;
     std::shared_ptr<ov::op::v0::Parameter> positions;
@@ -137,7 +138,17 @@ struct IndexerGraph {
     std::shared_ptr<ov::op::v6::Assign> raw_k_assign;
 };
 
-IndexerGraph build_indexer_graph(RopeLayout layout) {
+/// Perturbations of the spec graph that the fusion must refuse.
+enum class IndexerVariant {
+    Spec,
+    NormBeforePool,   // Mean(RMSNorm(K)): not equivalent to the spec
+    RopeBeforeNorm,   // RMSNorm(RoPE(Mean(K))): not equivalent to the spec
+    QueryBias,        // a bias between the projection and the Q norm would be dropped
+    NormOverHeads,    // the Q norm reduces over the head axis instead of Di
+    SwappedSlices,    // Q takes the last Di channels and K the first
+};
+
+IndexerGraph build_indexer_graph(RopeLayout layout, IndexerVariant variant = IndexerVariant::Spec) {
     IndexerGraph g;
     g.mixed = std::make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{-1, -1, D});
     g.positions = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
@@ -146,41 +157,68 @@ IndexerGraph build_indexer_graph(RopeLayout layout) {
                                                   std::vector<float>((Hidx + 1) * Di * D, 0.01f));
     auto qk_proj = std::make_shared<ov::op::v0::MatMul>(g.mixed, qk_weight, false, true);  // [B, L, (Hidx+1)*Di]
 
-    auto q_heads = std::make_shared<ov::op::v1::Reshape>(last_axis_slice(qk_proj, 0, Hidx * Di), i64_const({0, 0, Hidx, Di}), true);
+    ov::Output<ov::Node> q_src = last_axis_slice(qk_proj, 0, Hidx * Di);
+    ov::Output<ov::Node> k_src = last_axis_slice(qk_proj, Hidx * Di, (Hidx + 1) * Di);
+    if (variant == IndexerVariant::SwappedSlices) {
+        q_src = last_axis_slice(qk_proj, Di, (Hidx + 1) * Di);
+        k_src = last_axis_slice(qk_proj, 0, Di);
+    }
+    if (variant == IndexerVariant::QueryBias) {
+        q_src = std::make_shared<ov::op::v1::Add>(q_src, ov::op::v0::Constant::create(et, ov::Shape{static_cast<size_t>(Hidx * Di)},
+                                                                                      std::vector<float>(Hidx * Di, 0.25f)));
+    }
+    auto q_heads = std::make_shared<ov::op::v1::Reshape>(q_src, i64_const({0, 0, Hidx, Di}), true);
     auto q_w = ov::op::v0::Constant::create(et, ov::Shape{static_cast<size_t>(Di)}, std::vector<float>(Di, q_gain_w));
     auto q_gain = std::make_shared<ov::op::v1::Add>(q_w, f32_scalar(1.0f));
-    auto q_normed = rms_norm(q_heads, q_gain);
+    ov::Output<ov::Node> q_normed;
+    if (variant == IndexerVariant::NormOverHeads) {
+        auto sq = std::make_shared<ov::op::v1::Multiply>(q_heads, q_heads);
+        auto mean = std::make_shared<ov::op::v1::ReduceMean>(sq, i64_const({2}), true);  // over heads, not Di
+        auto denom = std::make_shared<ov::op::v0::Sqrt>(std::make_shared<ov::op::v1::Add>(mean, f32_scalar(eps)));
+        q_normed = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::Divide>(q_heads, denom), q_gain);
+    } else {
+        q_normed = rms_norm(q_heads, q_gain);
+    }
 
-    auto k_heads = std::make_shared<ov::op::v1::Reshape>(last_axis_slice(qk_proj, Hidx * Di, (Hidx + 1) * Di), i64_const({0, 0, 1, Di}), true);
+    auto k_raw = std::make_shared<ov::op::v1::Reshape>(k_src, i64_const({0, 0, 1, Di}), true);  // pre-norm K tokens
     auto k_gain = ov::op::v0::Constant::create(et, ov::Shape{static_cast<size_t>(Di)}, std::vector<float>(Di, 1.0f));
-    auto k_normed = rms_norm(k_heads, k_gain);
 
     auto table = ov::op::v0::Constant::create(et, ov::Shape{max_positions, Rd}, rope_table_values());
-    auto rows = std::make_shared<ov::op::v8::Gather>(table, g.positions, i64_const({0}));  // [B, L, Rd]
-    ov::Output<ov::Node> cos, sin;
-    if (layout == RopeLayout::Halves) {
-        cos = last_axis_slice(rows, 0, Rd / 2);
-        sin = last_axis_slice(rows, Rd / 2, Rd);
-    } else {
-        cos = last_axis_slice(rows, 0, Rd, 2);
-        sin = last_axis_slice(rows, 1, Rd, 2);
-    }
     // Structural stand-in for the rotation: only the table/positions/layout proof matters here.
-    auto cos_sin = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{cos, sin}, -1);
-    auto rope_term = std::make_shared<ov::op::v0::Unsqueeze>(std::make_shared<ov::op::v1::ReduceSum>(cos_sin, i64_const({-1}), true), i64_const({2}));
-    auto idx_q = std::make_shared<ov::op::v1::Add>(q_normed, rope_term);  // [B, L, Hidx, Di]
-    auto new_k = std::make_shared<ov::op::v1::Add>(k_normed, rope_term);  // [B, L, 1, Di]
+    auto rope_sum = [&]() -> ov::Output<ov::Node> {
+        auto rows = std::make_shared<ov::op::v8::Gather>(table, g.positions, i64_const({0}));  // [B, L, Rd]
+        ov::Output<ov::Node> cos, sin;
+        if (layout == RopeLayout::Halves) {
+            cos = last_axis_slice(rows, 0, Rd / 2);
+            sin = last_axis_slice(rows, Rd / 2, Rd);
+        } else {
+            cos = last_axis_slice(rows, 0, Rd, 2);
+            sin = last_axis_slice(rows, 1, Rd, 2);
+        }
+        auto cos_sin = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{cos, sin}, -1);
+        return std::make_shared<ov::op::v1::ReduceSum>(cos_sin, i64_const({-1}), true);  // [B, L, 1]
+    };
+    auto idx_q = std::make_shared<ov::op::v1::Add>(q_normed, std::make_shared<ov::op::v0::Unsqueeze>(rope_sum(), i64_const({2})));  // [B, L, Hidx, Di]
 
     auto raw_k_variable =
         std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ov::PartialShape{-1, -1, Di}, et, "raw_k"});
     g.raw_k_read_value = std::make_shared<ov::op::v6::ReadValue>(raw_k_variable);
-    auto new_k_flat = std::make_shared<ov::op::v1::Reshape>(new_k, i64_const({0, -1, Di}), true);
+    ov::Output<ov::Node> k_tokens = k_raw;
+    if (variant == IndexerVariant::NormBeforePool) {
+        k_tokens = std::make_shared<ov::op::v1::Add>(rms_norm(k_raw, k_gain), std::make_shared<ov::op::v0::Unsqueeze>(rope_sum(), i64_const({2})));
+    }
+    auto new_k_flat = std::make_shared<ov::op::v1::Reshape>(k_tokens, i64_const({0, -1, Di}), true);
     auto raw_k_history = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{g.raw_k_read_value, new_k_flat}, 1);  // [B, ?, Di]
     g.raw_k_assign = std::make_shared<ov::op::v6::Assign>(raw_k_history, raw_k_variable);
 
     auto pool_reshaped = std::make_shared<ov::op::v1::Reshape>(raw_k_history, i64_const({0, -1, r, Di}), true);  // [B, ?, r, Di]
-    auto pooled = std::make_shared<ov::op::v1::ReduceMean>(pool_reshaped, i64_const({2}), false);               // [B, ?, Di]
-    auto idx_k = std::make_shared<ov::op::v0::Unsqueeze>(pooled, i64_const({1}));                               // [B, 1, ?, Di]
+    ov::Output<ov::Node> block_key = std::make_shared<ov::op::v1::ReduceMean>(pool_reshaped, i64_const({2}), false);  // [B, ?, Di]
+    if (variant == IndexerVariant::RopeBeforeNorm) {
+        block_key = rms_norm(std::make_shared<ov::op::v1::Add>(block_key, rope_sum()), k_gain);
+    } else if (variant != IndexerVariant::NormBeforePool) {
+        block_key = std::make_shared<ov::op::v1::Add>(rms_norm(block_key, k_gain), rope_sum());
+    }
+    auto idx_k = std::make_shared<ov::op::v0::Unsqueeze>(block_key, i64_const({1}));  // [B, 1, ?, Di]
 
     auto logits = std::make_shared<ov::op::v0::MatMul>(idx_q, idx_k, false, true);  // [B, L, Hidx, ?]
     auto relu = std::make_shared<ov::op::v0::Relu>(logits);
@@ -209,9 +247,9 @@ struct DenseGraph {
     std::shared_ptr<ov::op::v0::Concat> k_full;
 };
 
-DenseGraph build_dense_graph(DenseAttn attn, RopeLayout layout = RopeLayout::Halves) {
+DenseGraph build_dense_graph(DenseAttn attn, RopeLayout layout = RopeLayout::Halves, IndexerVariant variant = IndexerVariant::Spec) {
     DenseGraph out;
-    out.indexer = build_indexer_graph(layout);
+    out.indexer = build_indexer_graph(layout, variant);
     auto& g = out.indexer;
 
     const ov::PartialShape kv_shape{-1, dense_kv_heads, -1, Dh};
@@ -316,9 +354,9 @@ struct PagedGraph {
     IndexerGraph indexer;
 };
 
-PagedGraph build_paged_graph(bool include_paged_attention, int32_t sliding_window = 0) {
+PagedGraph build_paged_graph(bool include_paged_attention, int32_t sliding_window = 0, IndexerVariant variant = IndexerVariant::Spec) {
     PagedGraph out;
-    out.indexer = build_indexer_graph(RopeLayout::Halves);
+    out.indexer = build_indexer_graph(RopeLayout::Halves, variant);
     auto& g = out.indexer;
 
     auto q_param = std::make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{-1, Hq * Dh});
@@ -554,4 +592,45 @@ TEST(sparse_attention_fusion, paged_replaces_with_proven_inputs) {
     EXPECT_FLOAT_EQ(scale_const->cast_vector<float>().at(0), 1.0f / std::sqrt(static_cast<float>(Dh)));
     EXPECT_FALSE(sparse_pa->has_sinks());
     EXPECT_EQ(sparse_pa->get_input_size(), Attn::COUNT_MIN);  // qb_start is omitted for query_block_size == 1
+}
+
+// The indexer must compute RoPE(RMSNorm(Mean(K))); any other order or a dropped op computes a
+// different function than the fused ops, so every variant has to keep the generic graph.
+TEST(sparse_attention_fusion, dense_bails_out_on_non_spec_indexer_graphs) {
+    for (auto variant : {IndexerVariant::NormBeforePool,
+                         IndexerVariant::RopeBeforeNorm,
+                         IndexerVariant::QueryBias,
+                         IndexerVariant::NormOverHeads,
+                         IndexerVariant::SwappedSlices}) {
+        auto g = build_dense_graph(DenseAttn::Causal, RopeLayout::Halves, variant);
+        run_fusion(g.model);
+
+        EXPECT_EQ(count_ops<ov::intel_gpu::op::QSAIndexer>(g.model), 0u) << "variant " << static_cast<int>(variant);
+        EXPECT_EQ(count_ops<ov::op::v13::ScaledDotProductAttention>(g.model), 1u) << "variant " << static_cast<int>(variant);
+        EXPECT_EQ(g.model->get_sinks().size(), 3u) << "variant " << static_cast<int>(variant);
+    }
+}
+
+TEST(sparse_attention_fusion, paged_bails_out_on_non_spec_indexer_graphs) {
+    for (auto variant : {IndexerVariant::NormBeforePool, IndexerVariant::RopeBeforeNorm, IndexerVariant::QueryBias}) {
+        auto g = build_paged_graph(/*include_paged_attention=*/true, /*sliding_window=*/0, variant);
+        const size_t params_before = g.model->get_parameters().size();
+        run_fusion(g.model);
+
+        EXPECT_EQ(count_ops<ov::op::internal::PagedQSAIndexer>(g.model), 0u) << "variant " << static_cast<int>(variant);
+        EXPECT_EQ(count_ops<ov::op::PagedAttentionExtension>(g.model), 1u) << "variant " << static_cast<int>(variant);
+        EXPECT_EQ(g.model->get_parameters().size(), params_before) << "variant " << static_cast<int>(variant);
+    }
+}
+
+// SDPA ignores `causal` once a mask is supplied, so a causal flag next to a mask is ambiguous.
+TEST(sparse_attention_fusion, dense_bails_out_on_causal_flag_with_selection_mask) {
+    auto g = build_dense_graph(DenseAttn::TopkMask);
+    for (const auto& node : g.model->get_ops()) {
+        if (auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(node)) {
+            sdpa->set_causal(true);
+        }
+    }
+    run_fusion(g.model);
+    EXPECT_EQ(count_ops<ov::intel_gpu::op::QSAIndexer>(g.model), 0u);
 }

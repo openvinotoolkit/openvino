@@ -66,6 +66,7 @@ struct qsa_indexer : public primitive_base<qsa_indexer> {
         seed = hash_combine(seed, num_selection_heads);
         seed = hash_combine(seed, indexer_rotary_dim);
         seed = hash_combine(seed, indexer_head_dim);
+        seed = hash_combine(seed, epsilon);
         seed = hash_combine(seed, scale);
         return seed;
     }
@@ -75,7 +76,7 @@ struct qsa_indexer : public primitive_base<qsa_indexer> {
             return false;
         auto r = downcast<const qsa_indexer>(rhs);
         return key_block_size == r.key_block_size && block_topk == r.block_topk && num_selection_heads == r.num_selection_heads && indexer_rotary_dim == r.indexer_rotary_dim &&
-               indexer_head_dim == r.indexer_head_dim && scale == r.scale;
+               indexer_head_dim == r.indexer_head_dim && epsilon == r.epsilon && scale == r.scale;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
