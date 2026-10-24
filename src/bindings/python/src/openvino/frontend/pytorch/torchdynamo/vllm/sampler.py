@@ -128,7 +128,8 @@ def _build_fused_sampler():
         keep_k = topk_vals >= kth
         # Ties may run past the window if its last column still ties (finite k-th only; -inf ties
         # carry no probability): the caller hands the step to vLLM.
-        overflow = (topk_vals[:, -1:] >= kth) & (window < vocab_size) & torch.isfinite(kth)
+        last_ties = (topk_vals[:, -1:] >= kth) & (window < vocab_size)
+        overflow = last_ties & torch.isfinite(kth)
         k_vals = torch.where(keep_k, topk_vals, neg_inf)
         topk_softmax = torch.softmax(k_vals, dim=-1)
         cumprob = torch.cumsum(topk_softmax, dim=-1)
