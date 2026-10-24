@@ -1036,6 +1036,35 @@ def test_read_value_ctors():
     assert "The necessary overload for read_value was not found" in str(e.value)
 
 
+@pytest.mark.parametrize("kwargs", [
+    {"variable_id": "v1"},
+    {"variable_id": "v1", "variable_type": np.float32, "variable_shape": [1, 64]},
+    {"variable_id": "v1", "variable_type": np.float32, "variable_shape": [1, 64], "name": "read_value"},
+])
+def test_read_value_variable_id_overload_with_kwargs_only(kwargs):
+    # Keywords alone must select the overload without init_value, as the same call does positionally
+    read_value = ov.read_value(**kwargs)
+
+    assert read_value.get_type_name() == "ReadValue"
+    assert read_value.get_variable_id() == "v1"
+    assert read_value.get_input_size() == 0
+    if "variable_shape" in kwargs:
+        assert read_value.get_output_partial_shape(0) == PartialShape([1, 64])
+        assert read_value.get_output_element_type(0) == Type.f32
+    if "name" in kwargs:
+        assert read_value.friendly_name == "read_value"
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"name": "read_value"},
+    {"variable_type": np.float32, "variable_shape": [1, 64]},
+])
+def test_read_value_kwargs_only_without_required_args(kwargs):
+    # No overload gets all of its required parameters from these keywords
+    with pytest.raises(TypeError, match="The necessary overload for read_value was not found"):
+        ov.read_value(**kwargs)
+
+
 def test_read_value_dyn_variable_pshape():
     init_value = ov.parameter([2, 2], name="init_value", dtype=np.int32)
 
