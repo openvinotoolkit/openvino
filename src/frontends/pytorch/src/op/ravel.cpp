@@ -18,7 +18,7 @@ using namespace ov::op;
 
 OutputVector translate_ravel(const NodeContext& context) {
     // Schema: aten::ravel(Tensor self) -> Tensor
-    num_inputs_check(context, 1, 1);
+    num_inputs_check(context, 1, 1, true);
     auto tensor = context.get_input(0);
     Output<Node> shape = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
 
