@@ -18,12 +18,10 @@
 namespace ov::intel_gpu::cm {
 
 struct QSAIndexerInternalBufIdx {
-    static constexpr size_t PREPARE_MAP = 0;    ///< i32 [prepare_wg_count, 2] = (batch, qsa_block_id)
-    static constexpr size_t INDEXER_Q = 1;      ///< f16 [tokens=B*L, H_iq, D_idx]
-    static constexpr size_t BLOCK_SCORES = 2;   ///< f32 [rows, max_blocks]; rows bounded by the score budget for decode
-    static constexpr size_t SCORE_TILE_MAP = 3; ///< i32 [score_tile_count, 2] = (batch, token_begin); dpas score only
+    static constexpr size_t INDEXER_Q = 0;      ///< f16 [tokens=B*L, H_iq, D_idx]
+    static constexpr size_t BLOCK_SCORES = 1;   ///< f32 [rows, max_blocks]; rows bounded by the score budget for decode
 
-    static constexpr size_t COUNT = 4;
+    static constexpr size_t COUNT = 2;
 };
 
 struct QSAIndexerRuntimeParams : public ImplRuntimeParams {
@@ -31,6 +29,7 @@ struct QSAIndexerRuntimeParams : public ImplRuntimeParams {
     size_t seq_len = 0;
     size_t num_tokens = 0;
     size_t max_blocks = 1;
+    size_t prepare_blocks_per_row = 1;  ///< upper bound of QSA blocks one batch row touches per call
     size_t prepare_wg_count = 0;
     size_t score_tile_count = 0;
     size_t num_partitions = 1;  ///< decode-only score_partition block-range split factor
@@ -39,11 +38,7 @@ struct QSAIndexerRuntimeParams : public ImplRuntimeParams {
     size_t chunk_row_end = 0;
     size_t index_query_heads = 0;
     size_t index_key_heads = 0;
-    size_t raw_k_stride = 0;
-    size_t summary_stride = 0;
-    size_t rope_stride = 0;     ///< indexer_rope_cache rows per batch element, ceil(S_cap / r)
-    std::vector<int32_t> prepare_map;
-    std::vector<int32_t> score_tile_map;
+    size_t summary_stride = 0;  ///< summary_cache entries per batch element, floor(S_cap / r)
 };
 
 /// @brief CM implementation of the QSAIndexer (non-paged) primitive: Q1 prepare + Q2

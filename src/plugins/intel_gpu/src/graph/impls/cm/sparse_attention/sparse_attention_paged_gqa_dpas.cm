@@ -109,14 +109,14 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const int32_t* block_indices_begins ATTR,    // [num_seqs+1]
     const int32_t* selected_blocks ATTR,         // [num_tokens, block_topk] ascending
     const int32_t* selected_counts ATTR,         // [num_tokens]
-    const int32_t* token_map ATTR,               // [num_tokens, 2] = (seq, token), one per token
 #if QSA_GQA_SPLIT
     float* partial_acc ATTR,                     // [num_tokens, Hq, P, Dv]
     float* partial_ml ATTR,                      // [num_tokens, Hq, P, 2]
 #else
     half* output ATTR,                           // [num_tokens, Hq*Dv]
 #endif
-    uint32_t num_entries,
+    uint32_t num_entries,                        // shape-derived upper bound of the real tokens
+    uint32_t num_seqs,
     uint32_t q_base,
     uint32_t q_pitch) {
     constexpr uint HQ = QSA_HEADS, HKV = QSA_KV_HEADS;
@@ -139,11 +139,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const uint kv_head = cm_group_id(0), entry = cm_global_id(1);
 #endif
     if (kv_head >= HKV || entry >= num_entries) return;
-    const uint seq = (uint)token_map[entry * 2];
-    const uint token = (uint)token_map[entry * 2 + 1];
-    const uint begin = (uint)subsequence_begins[seq];
-    if (token < begin || token >= (uint)subsequence_begins[seq + 1]) return;
-    const uint abs_pos = (uint)past_lens[seq] + token - begin;
+    const uint token = entry;
+    uint seq = 0, abs_pos = 0;
+    if (!qsa_ops::resolve_token_paged(subsequence_begins, past_lens, num_seqs, token, seq, abs_pos)) return;
     const uint page_begin = (uint)block_indices_begins[seq];
     const uint head_base = kv_head * HEADS;
     const uint q_elem = q_base + token * q_pitch + head_base * Q_HEAD_STRIDE;

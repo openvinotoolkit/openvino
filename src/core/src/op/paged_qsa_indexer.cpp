@@ -134,6 +134,8 @@ void PagedQSAIndexer::validate_and_infer_types() {
 
     std::string reason;
     NODE_VALIDATION_CHECK(this, validate_config(m_config, reason), "PagedQSAIndexer configuration is invalid: ", reason);
+    // Resolve the 0 sentinel so serialized IR always carries the actual multiplier.
+    m_config.scale = effective_scale(m_config);
 
     const auto& q_idx_ps = get_input_partial_shape(InputIdx::Q_IDX);
     const auto& k_idx_ps = get_input_partial_shape(InputIdx::K_IDX);
@@ -159,15 +161,15 @@ void PagedQSAIndexer::validate_and_infer_types() {
     const ov::Dimension tokens = dim_at(q_idx_ps, 0);
     const ov::Dimension di(static_cast<int64_t>(m_config.indexer_head_dim));
     const ov::Dimension rot(static_cast<int64_t>(m_config.indexer_rotary_dim));
-    const ov::Dimension rot_half(static_cast<int64_t>(m_config.indexer_rotary_dim / 2));
+    const ov::Dimension rope_row(static_cast<int64_t>(2 * m_config.indexer_rotary_dim));
     const ov::Dimension page(static_cast<int64_t>(m_config.page_size));
     const ov::Dimension spp(static_cast<int64_t>(m_config.page_size / m_config.compress_ratio));
     const auto h_iq = flat_heads(this, q_idx_ps, m_config.indexer_head_dim, "q_idx");
     const auto h_ik = flat_heads(this, k_idx_ps, m_config.indexer_head_dim, "k_idx");
 
     check_shape(this, InputIdx::K_IDX, "k_idx", ov::PartialShape{tokens, -1});
-    check_shape(this, InputIdx::ROPE_COS, "rope_cos", ov::PartialShape{tokens, rot_half});
-    check_shape(this, InputIdx::ROPE_SIN, "rope_sin", ov::PartialShape{tokens, rot_half});
+    check_shape(this, InputIdx::ROPE_COS, "rope_cos", ov::PartialShape{tokens, rot});
+    check_shape(this, InputIdx::ROPE_SIN, "rope_sin", ov::PartialShape{tokens, rot});
     check_shape(this, InputIdx::Q_NORM_WEIGHT, "q_norm_weight", ov::PartialShape{di});
     check_shape(this, InputIdx::K_NORM_WEIGHT, "k_norm_weight", ov::PartialShape{di});
 
@@ -180,7 +182,7 @@ void PagedQSAIndexer::validate_and_infer_types() {
     }
     check_shape(this, InputIdx::SUMMARY_CACHE, "summary_cache", ov::PartialShape{num_blocks, h_ik, spp, di});
     check_shape(this, InputIdx::INDEXER_RAW_K_CACHE, "indexer_raw_k_cache", ov::PartialShape{num_blocks, h_ik, page, di});
-    check_shape(this, InputIdx::INDEXER_ROPE_CACHE, "indexer_rope_cache", ov::PartialShape{num_blocks, spp, rot});
+    check_shape(this, InputIdx::INDEXER_ROPE_CACHE, "indexer_rope_cache", ov::PartialShape{num_blocks, spp, rope_row});
 
     check_i32_input(this, InputIdx::BLOCK_INDICES, "block_indices", 1);
     check_i32_input(this, InputIdx::BLOCK_INDICES_BEGINS, "block_indices_begins", 1);

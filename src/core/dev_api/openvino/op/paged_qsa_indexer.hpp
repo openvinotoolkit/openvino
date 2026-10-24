@@ -31,17 +31,17 @@ public:
     struct InputIdx {
         static constexpr size_t Q_IDX = 0;                  ///< [tokens, H_iq*D_idx]
         static constexpr size_t K_IDX = 1;                  ///< [tokens, H_ik*D_idx]
-        static constexpr size_t ROPE_COS = 2;               ///< [tokens, indexer_rotary_dim/2]
-        static constexpr size_t ROPE_SIN = 3;               ///< [tokens, indexer_rotary_dim/2]
-        static constexpr size_t SUMMARY_CACHE = 4;          ///< [N_phys, H_ik, page_size/r, D_idx], writable in place
-        static constexpr size_t INDEXER_RAW_K_CACHE = 5;    ///< [N_phys, H_ik, page_size, D_idx], writable in place
-        static constexpr size_t Q_NORM_WEIGHT = 6;          ///< [D_idx]
-        static constexpr size_t K_NORM_WEIGHT = 7;          ///< [D_idx]
-        static constexpr size_t BLOCK_INDICES = 8;          ///< [total_logical_blocks]
-        static constexpr size_t BLOCK_INDICES_BEGINS = 9;   ///< [num_sequences+1]
-        static constexpr size_t SUBSEQUENCE_BEGINS = 10;    ///< [num_sequences+1]
-        static constexpr size_t PAST_LENS = 11;             ///< [num_sequences]
-        static constexpr size_t INDEXER_ROPE_CACHE = 12;    ///< [N_phys, page_size/r, indexer_rotary_dim], (cos_j, sin_j) interleaved, writable in place
+        static constexpr size_t ROPE_COS = 2;               ///< [tokens, indexer_rotary_dim]
+        static constexpr size_t ROPE_SIN = 3;               ///< [tokens, indexer_rotary_dim]
+        static constexpr size_t Q_NORM_WEIGHT = 4;          ///< [D_idx]
+        static constexpr size_t K_NORM_WEIGHT = 5;          ///< [D_idx]
+        static constexpr size_t BLOCK_INDICES = 6;          ///< [total_logical_blocks]
+        static constexpr size_t BLOCK_INDICES_BEGINS = 7;   ///< [num_sequences+1]
+        static constexpr size_t SUBSEQUENCE_BEGINS = 8;     ///< [num_sequences+1]
+        static constexpr size_t PAST_LENS = 9;              ///< [num_sequences]
+        static constexpr size_t INDEXER_RAW_K_CACHE = 10;   ///< [N_phys, H_ik, page_size, D_idx], writable in place
+        static constexpr size_t INDEXER_ROPE_CACHE = 11;    ///< [N_phys, page_size/r, 2*indexer_rotary_dim], (cos_j, sin_j) interleaved, writable in place
+        static constexpr size_t SUMMARY_CACHE = 12;         ///< [N_phys, H_ik, page_size/r, D_idx], writable in place
 
         static constexpr size_t COUNT = 13;
     };
@@ -54,7 +54,7 @@ public:
         size_t indexer_head_dim = 0;    ///< D_idx
         size_t page_size = 0;           ///< shared main-KV page size; must be a multiple of compress_ratio
         float eps = 1e-6f;              ///< RMSNorm epsilon
-        float scale = 0.0f;             ///< positive score multiplier; 0 selects the default 1 / sqrt(indexer_head_dim)
+        float scale = 0.0f;             ///< positive score multiplier; 0 is resolved to 1 / sqrt(indexer_head_dim) by the op
     };
 
     PagedQSAIndexer() = default;

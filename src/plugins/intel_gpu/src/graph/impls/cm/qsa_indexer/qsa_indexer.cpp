@@ -5,11 +5,13 @@
 #include "qsa_indexer.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <cstdlib>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../primitive_cm_base.hpp"
@@ -23,14 +25,9 @@ namespace ov::intel_gpu::cm {
 
 using namespace cldnn;
 using QSAIn = ov::intel_gpu::op::QSAIndexer::InputIdx;
+using QSAOut = ov::intel_gpu::op::QSAIndexer::OutputIdx;
 
 namespace {
-
-std::vector<int32_t> read_i32_input(const primitive_inst& instance, size_t input_idx) {
-    auto mem = instance.input_memory_ptr(input_idx);
-    mem_lock<int32_t, mem_lock_type::read> lock(mem, instance.get_network().get_stream());
-    return {lock.begin(), lock.end()};
-}
 
 QSAIndexerRuntimeParams* rt_of(ImplRuntimeParams* rt) {
     auto* p = static_cast<QSAIndexerRuntimeParams*>(rt);
@@ -128,8 +125,8 @@ constexpr size_t topk_wg_size(bool decode) {
 size_t score_scratch_elems(const kernel_impl_params& params, const qsa_indexer& desc) {
     const auto& q_idx_shape = params.get_input_layout(QSAIn::Q_IDX).get_shape();
     const auto tokens = std::max<size_t>(1, q_idx_shape[0] * q_idx_shape[1]);
-    const auto& raw_shape = params.get_input_layout(QSAIn::INDEXER_RAW_K_CACHE).get_shape();
-    const auto max_blocks = std::max<size_t>(1, raw_shape[2] / desc.compress_ratio);
+    const auto& summary_shape = params.get_input_layout(QSAIn::SUMMARY_CACHE).get_shape();
+    const auto max_blocks = std::max<size_t>(1, summary_shape[2]);
     if (!is_decode_shape(params)) {
         return tokens * max_blocks;
     }
@@ -182,13 +179,14 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::K_NORM_WEIGHT});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::ROPE_COS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::ROPE_SIN});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_LENS});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_RAW_K_CACHE});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUMMARY_CACHE});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_ROPE_CACHE});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::KEY_LENGTH});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_INCOMPLETE_RAW_K});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_INCOMPLETE_ROPE});
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::SUMMARY_CACHE});
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::PAST_INCOMPLETE_RAW_K});
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::PAST_INCOMPLETE_ROPE});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::INDEXER_Q});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::PREPARE_MAP});
-        for (uint32_t i = 0; i < 5; i++) {
+        for (uint32_t i = 0; i < 4; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
         }
         return args;
@@ -209,10 +207,9 @@ protected:
 
             kd.params.scalars.clear();
             push_u32(kd, rtp->prepare_wg_count);
+            push_u32(kd, rtp->prepare_blocks_per_row);
             push_u32(kd, rtp->seq_len);
-            push_u32(kd, rtp->raw_k_stride);
             push_u32(kd, rtp->summary_stride);
-            push_u32(kd, rtp->rope_stride);
         }};
     }
 };
@@ -240,9 +237,8 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::INDEXER_Q});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUMMARY_CACHE});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_LENS});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::SCORE_TILE_MAP});
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::SUMMARY_CACHE});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::BLOCK_SCORES});
         for (uint32_t i = 0; i < 4; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
@@ -295,7 +291,7 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::BLOCK_SCORES});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_LENS});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 1});
         for (uint32_t i = 0; i < 5; i++) {
@@ -351,8 +347,8 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::INDEXER_Q});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUMMARY_CACHE});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_LENS});
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::SUMMARY_CACHE});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::BLOCK_SCORES});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 1});
@@ -406,8 +402,8 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::INDEXER_Q});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUMMARY_CACHE});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_LENS});
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::SUMMARY_CACHE});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::BLOCK_SCORES});
         for (uint32_t i = 0; i < 7; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
@@ -504,26 +500,19 @@ public:
         const auto h_iq = index_heads_4d(params.get_input_layout(QSAIn::Q_IDX));
         const auto tokens = batch * seq_len;
 
-        const auto prepare_pairs = tokens + batch;
-        // One 16-query tile per batch row, upper-bounded (see qsa.cpp's identical bound).
-        const auto score_tiles = tokens / dpas_query_tile + batch + 1;
-
         std::vector<BufferDescriptor> bufs;
-        bufs.emplace_back(prepare_pairs * 2, ov::element::i32, true, false);
         bufs.emplace_back(tokens * h_iq * desc->indexer_head_dim, ov::element::f16);
         bufs.emplace_back(score_scratch_elems(params, *desc), ov::element::f32);
-        bufs.emplace_back(score_tiles * 2, ov::element::i32, true, false);  // SCORE_TILE_MAP (host-filled)
         return bufs;
     }
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         kernel_dump_info.clear_entries();
         update_rt_params(instance);
-        upload_prepare_map(instance);
 
         const auto& params = *instance.get_impl_params();
         auto* rtp = &rt();
-        auto prepare_event = execute_stage(events, instance, prepare);
+        auto prepare_event = execute_stage(copy_state(events, instance), instance, prepare);
         if (is_decode_shape(params)) {
             // Chunks reuse one bounded BLOCK_SCORES buffer, so they run strictly in sequence;
             // the stages are re-dispatched per chunk, hence the explicit refresh.
@@ -554,77 +543,65 @@ public:
 
         const auto& params = *instance.get_impl_params();
         const auto desc = params.typed_desc<qsa_indexer>();
-        const auto past_lens = read_i32_input(instance, QSAIn::PAST_LENS);
 
         const auto& q_idx_layout = params.get_input_layout(QSAIn::Q_IDX);
         const auto& q_idx_shape = q_idx_layout.get_shape();
         const size_t batch = q_idx_shape[0];
         const size_t seq_len = q_idx_shape[1];
-        OPENVINO_ASSERT(past_lens.size() == batch, "[GPU][CM] qsa_indexer: past_lens must have B entries");
 
         rtp->batch = batch;
         rtp->seq_len = seq_len;
         rtp->num_tokens = batch * seq_len;
         rtp->index_query_heads = index_heads_4d(q_idx_layout);
         rtp->index_key_heads = index_heads_4d(params.get_input_layout(QSAIn::K_IDX));
+        rtp->summary_stride = params.get_input_layout(QSAIn::SUMMARY_CACHE).get_shape()[2];
 
-        const auto& raw_shape = params.get_input_layout(QSAIn::INDEXER_RAW_K_CACHE).get_shape();
-        const auto& summary_shape = params.get_input_layout(QSAIn::SUMMARY_CACHE).get_shape();
-        const auto& rope_shape = params.get_input_layout(QSAIn::INDEXER_ROPE_CACHE).get_shape();
-        rtp->raw_k_stride = raw_shape[2];
-        rtp->summary_stride = summary_shape[2];
-        rtp->rope_stride = rope_shape[1];
-
+        // key_length stays in GPU memory: no host readback, so every size below is a bound from
+        // shapes only and the kernels derive the real work (and drop the excess) from key_length.
         const auto r = desc->compress_ratio;
-        size_t max_blocks = 1;
-        rtp->prepare_map.clear();
-        for (size_t b = 0; b < batch; b++) {
-            const auto past_len = static_cast<size_t>(std::max(0, past_lens[b]));
-            const size_t total_len = past_len + seq_len;
-            max_blocks = std::max(max_blocks, total_len / r);
-
-            const size_t first_block = past_len / r;
-            const size_t last_block = (total_len - 1) / r;
-            for (size_t block = first_block; block <= last_block; block++) {
-                rtp->prepare_map.push_back(static_cast<int32_t>(b));
-                rtp->prepare_map.push_back(static_cast<int32_t>(block));
-            }
-        }
-        rtp->prepare_wg_count = rtp->prepare_map.size() / 2;
+        rtp->prepare_blocks_per_row = (seq_len - 1) / r + 2;  // blocks spanned by <= L consecutive tokens
+        rtp->prepare_wg_count = batch * rtp->prepare_blocks_per_row;
+        const size_t max_blocks = std::max<size_t>(1, rtp->summary_stride);
         rtp->max_blocks = max_blocks;
         rtp->num_partitions = std::max<size_t>(1, (max_blocks + score_partition_blocks - 1) / score_partition_blocks);
-        // Runtime max_blocks <= the static stride the buffer was sized for, so a chunk can
-        // hold more rows than the static budget alone would allow.
         rtp->chunk_rows = std::max<size_t>(1, std::min(rtp->num_tokens, score_scratch_elems(params, *desc) / max_blocks));
         rtp->chunk_row_begin = 0;
         rtp->chunk_row_end = rtp->num_tokens;
 
-        // Score tile map (dpas score only; harmless to build unconditionally).
-        rtp->score_tile_map.clear();
-        for (size_t b = 0; b < batch; b++) {
-            for (size_t t = 0; t < seq_len; t += dpas_query_tile) {
-                rtp->score_tile_map.push_back(static_cast<int32_t>(b));
-                rtp->score_tile_map.push_back(static_cast<int32_t>(t));  // local position within the batch row
-            }
-        }
-        rtp->score_tile_count = rtp->score_tile_map.size() / 2;
+        rtp->score_tile_count = batch * ((seq_len + dpas_query_tile - 1) / dpas_query_tile);
     }
 
 private:
-    void upload_prepare_map(primitive_inst& instance) {
-        auto* rtp = &rt();
-        if (!rtp->prepare_map.empty()) {
-            auto mem = instance.get_intermediates_memories()[QSAIndexerInternalBufIdx::PREPARE_MAP];
-            OPENVINO_ASSERT(mem->count() >= rtp->prepare_map.size(), "[GPU][CM] qsa_indexer prepare map buffer is too small");
-            mem_lock<int32_t, mem_lock_type::write> lock(mem, instance.get_network().get_stream());
-            std::copy(rtp->prepare_map.begin(), rtp->prepare_map.end(), lock.begin());
+    /// Functional state: every state output starts as a copy of its input, then prepare
+    /// overwrites the entries this call produces. Inputs and outputs are distinct buffers,
+    /// so prepare reads the old incomplete block without a read-before-write hazard.
+    std::vector<event::ptr> copy_state(const std::vector<event::ptr>& events, primitive_inst& instance) {
+        auto& stream = instance.get_network().get_stream();
+        if (stream.get_queue_type() == QueueTypes::out_of_order) {
+            stream.wait_for_events(events);
         }
-        if (!rtp->score_tile_map.empty() && use_dpas_score(*instance.get_impl_params())) {
-            auto mem = instance.get_intermediates_memories()[QSAIndexerInternalBufIdx::SCORE_TILE_MAP];
-            OPENVINO_ASSERT(mem->count() >= rtp->score_tile_map.size(), "[GPU][CM] qsa_indexer score tile map buffer is too small");
-            mem_lock<int32_t, mem_lock_type::write> lock(mem, instance.get_network().get_stream());
-            std::copy(rtp->score_tile_map.begin(), rtp->score_tile_map.end(), lock.begin());
+        std::vector<event::ptr> deps = events;
+        static constexpr std::array<std::pair<size_t, size_t>, 3> state = {std::pair{QSAIn::SUMMARY_CACHE, QSAOut::SUMMARY_CACHE},
+                                                                           std::pair{QSAIn::PAST_INCOMPLETE_RAW_K, QSAOut::PAST_INCOMPLETE_RAW_K},
+                                                                           std::pair{QSAIn::PAST_INCOMPLETE_ROPE, QSAOut::PAST_INCOMPLETE_ROPE}};
+        const auto& params = *instance.get_impl_params();
+        for (const auto& [in, out] : state) {
+            auto src = instance.input_memory_ptr(in);
+            auto dst = instance.output_memory_ptr(out);
+            const auto bytes = params.get_output_layout(out).bytes_count();
+            OPENVINO_ASSERT(!params.get_input_layout(in).data_padding && !params.get_output_layout(out).data_padding,
+                            "[GPU][CM] qsa_indexer: padded state buffers are not supported");
+            OPENVINO_ASSERT(src->size() >= bytes && dst->size() >= bytes, "[GPU][CM] qsa_indexer: state buffer is too small");
+            const bool aliased = src == dst || (src->buffer_ptr() != nullptr && src->buffer_ptr() == dst->buffer_ptr());
+            // An aliased summary is safe (prepare only appends to it); the incomplete-block
+            // state is read and rewritten by different work-groups of one dispatch.
+            OPENVINO_ASSERT(!aliased || in == QSAIn::SUMMARY_CACHE, "[GPU][CM] qsa_indexer: incomplete-block state input and output must not alias");
+            if (bytes == 0 || aliased) {
+                continue;
+            }
+            deps.push_back(dst->copy_from(stream, *src, 0, 0, bytes, false));
         }
+        return deps;
     }
 };
 

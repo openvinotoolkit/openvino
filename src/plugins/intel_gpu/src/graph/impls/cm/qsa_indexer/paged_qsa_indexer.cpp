@@ -26,12 +26,6 @@ using QSAIn = ov::intel_gpu::op::PagedQSAIndexer::InputIdx;
 
 namespace {
 
-std::vector<int32_t> read_i32_input(const primitive_inst& instance, size_t input_idx) {
-    auto mem = instance.input_memory_ptr(input_idx);
-    mem_lock<int32_t, mem_lock_type::read> lock(mem, instance.get_network().get_stream());
-    return {lock.begin(), lock.end()};
-}
-
 PagedQSAIndexerRuntimeParams* rt_of(ImplRuntimeParams* rt) {
     auto* p = static_cast<PagedQSAIndexerRuntimeParams*>(rt);
     OPENVINO_ASSERT(p != nullptr, "[GPU][CM] paged_qsa_indexer runtime params are not initialized");
@@ -195,8 +189,8 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUMMARY_CACHE});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_ROPE_CACHE});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedQSAIndexerInternalBufIdx::INDEXER_Q});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedQSAIndexerInternalBufIdx::PREPARE_MAP});
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});
         return args;
     }
 
@@ -215,6 +209,7 @@ protected:
 
             kd.params.scalars.clear();
             push_u32(kd, rtp->prepare_wg_count);
+            push_u32(kd, rtp->num_seqs);
         }};
     }
 };
@@ -247,9 +242,8 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUBSEQUENCE_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDICES_BEGINS});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedQSAIndexerInternalBufIdx::SCORE_TILE_MAP});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedQSAIndexerInternalBufIdx::BLOCK_SCORES});
-        for (uint32_t i = 0; i < 2; i++) {
+        for (uint32_t i = 0; i < 3; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
         }
         return args;
@@ -268,6 +262,7 @@ protected:
 
             kd.params.scalars.clear();
             push_u32(kd, rtp->score_tile_count);
+            push_u32(kd, rtp->num_seqs);
             push_u32(kd, rtp->max_blocks);
         }};
     }
@@ -507,26 +502,17 @@ public:
         }
         const auto desc = params.typed_desc<paged_qsa_indexer>();
         const auto tokens = std::max<size_t>(1, params.get_input_layout(QSAIn::Q_IDX).get_shape()[0]);
-        const auto seqs = std::max<size_t>(1, params.get_input_layout(QSAIn::PAST_LENS).get_shape()[0]);
         const auto h_iq = index_heads(params.get_input_layout(QSAIn::Q_IDX), desc->indexer_head_dim);
 
-        const auto prepare_pairs = tokens + seqs;
-        // One 16-query tile per sequence-local boundary, upper-bounded: at most
-        // ceil(tokens/16) + seqs tiles (see qsa.cpp's identical score_tiles bound).
-        const auto score_tiles = tokens / dpas_query_tile + seqs + 1;
-
         std::vector<BufferDescriptor> bufs;
-        bufs.emplace_back(prepare_pairs * 2, ov::element::i32, true, false);  // PREPARE_MAP (host-filled)
         bufs.emplace_back(tokens * h_iq * desc->indexer_head_dim, ov::element::f16);  // INDEXER_Q
         bufs.emplace_back(score_scratch_elems(params, *desc), ov::element::f32);  // BLOCK_SCORES
-        bufs.emplace_back(score_tiles * 2, ov::element::i32, true, false);  // SCORE_TILE_MAP (host-filled)
         return bufs;
     }
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         kernel_dump_info.clear_entries();
         update_rt_params(instance);
-        upload_prepare_map(instance);
 
         const auto& params = *instance.get_impl_params();
         auto* rtp = &rt();
@@ -561,74 +547,32 @@ public:
 
         const auto& params = *instance.get_impl_params();
         const auto desc = params.typed_desc<paged_qsa_indexer>();
-        const auto past_lens = read_i32_input(instance, QSAIn::PAST_LENS);
-        const auto subsequence_begins = read_i32_input(instance, QSAIn::SUBSEQUENCE_BEGINS);
 
-        const size_t num_seqs = past_lens.size();
-        OPENVINO_ASSERT(subsequence_begins.size() == num_seqs + 1, "[GPU][CM] paged_qsa_indexer: subsequence_begins must have num_seqs + 1 entries");
-
+        // past_lens / subsequence_begins stay in GPU memory: every size here is an upper bound taken
+        // from shapes, and the kernels resolve the real sequences (and drop the excess work).
+        const auto& q_layout = params.get_input_layout(QSAIn::Q_IDX);
+        const size_t num_seqs = params.get_input_layout(QSAIn::PAST_LENS).get_shape()[0];
         rtp->num_seqs = num_seqs;
-        rtp->num_tokens = num_seqs == 0 ? 0 : static_cast<size_t>(subsequence_begins.back());
-        rtp->index_query_heads = index_heads(params.get_input_layout(QSAIn::Q_IDX), desc->indexer_head_dim);
+        rtp->num_tokens = q_layout.get_shape()[0];
+        rtp->index_query_heads = index_heads(q_layout, desc->indexer_head_dim);
         rtp->index_key_heads = index_heads(params.get_input_layout(QSAIn::K_IDX), desc->indexer_head_dim);
 
+        // Sequence i touches at most ceil(q_i / r) + 1 blocks, so all sequences together at most
+        // tokens / r + 2 * num_seqs; and at most tokens / 16 + num_seqs score tiles.
         const auto r = desc->compress_ratio;
-        size_t max_blocks = 1;
-        rtp->prepare_map.clear();
-        for (size_t s = 0; s < num_seqs; s++) {
-            const auto q_len = static_cast<size_t>(std::max(0, subsequence_begins[s + 1] - subsequence_begins[s]));
-            const auto past_len = static_cast<size_t>(std::max(0, past_lens[s]));
-            if (q_len == 0) {
-                continue;
-            }
-            const size_t total_len = past_len + q_len;
-            max_blocks = std::max(max_blocks, total_len / r);
+        rtp->prepare_wg_count = rtp->num_tokens / r + 2 * num_seqs;
+        rtp->score_tile_count = rtp->num_tokens / dpas_query_tile + num_seqs;
 
-            const size_t first_block = past_len / r;
-            const size_t last_block = (total_len - 1) / r;
-            for (size_t b = first_block; b <= last_block; b++) {
-                rtp->prepare_map.push_back(static_cast<int32_t>(s));
-                rtp->prepare_map.push_back(static_cast<int32_t>(b));
-            }
-        }
-        rtp->prepare_wg_count = rtp->prepare_map.size() / 2;
+        // No sequence can span more blocks than the page table lists.
+        const size_t used_pages = params.get_input_layout(QSAIn::BLOCK_INDICES).get_shape()[0];
+        const size_t max_blocks = std::max<size_t>(1, used_pages * desc->page_size / r);
         rtp->max_blocks = max_blocks;
         rtp->num_partitions = std::max<size_t>(1, (max_blocks + score_partition_blocks - 1) / score_partition_blocks);
-        // Runtime max_blocks <= the static stride the buffer was sized for, so a chunk can
-        // hold more rows than the static budget alone would allow.
+        // max_blocks <= the pool-wide stride the buffer was sized for, so a chunk can hold more
+        // rows than the static budget alone would allow.
         rtp->chunk_rows = std::max<size_t>(1, std::min(rtp->num_tokens, score_scratch_elems(params, *desc) / max_blocks));
         rtp->chunk_row_begin = 0;
         rtp->chunk_row_end = rtp->num_tokens;
-
-        // Score tile map (dpas score only; harmless to build unconditionally - it is tiny
-        // relative to prepare_map and uploaded only when the dpas stage is dispatched).
-        rtp->score_tile_map.clear();
-        for (size_t s = 0; s < num_seqs; s++) {
-            const auto seq_begin = static_cast<size_t>(subsequence_begins[s]);
-            const auto seq_end = static_cast<size_t>(subsequence_begins[s + 1]);
-            for (size_t t = seq_begin; t < seq_end; t += dpas_query_tile) {
-                rtp->score_tile_map.push_back(static_cast<int32_t>(s));
-                rtp->score_tile_map.push_back(static_cast<int32_t>(t));
-            }
-        }
-        rtp->score_tile_count = rtp->score_tile_map.size() / 2;
-    }
-
-private:
-    void upload_prepare_map(primitive_inst& instance) {
-        auto* rtp = &rt();
-        if (!rtp->prepare_map.empty()) {
-            auto mem = instance.get_intermediates_memories()[PagedQSAIndexerInternalBufIdx::PREPARE_MAP];
-            OPENVINO_ASSERT(mem->count() >= rtp->prepare_map.size(), "[GPU][CM] paged_qsa_indexer prepare map buffer is too small");
-            mem_lock<int32_t, mem_lock_type::write> lock(mem, instance.get_network().get_stream());
-            std::copy(rtp->prepare_map.begin(), rtp->prepare_map.end(), lock.begin());
-        }
-        if (!rtp->score_tile_map.empty() && use_dpas_score(*instance.get_impl_params())) {
-            auto mem = instance.get_intermediates_memories()[PagedQSAIndexerInternalBufIdx::SCORE_TILE_MAP];
-            OPENVINO_ASSERT(mem->count() >= rtp->score_tile_map.size(), "[GPU][CM] paged_qsa_indexer score tile map buffer is too small");
-            mem_lock<int32_t, mem_lock_type::write> lock(mem, instance.get_network().get_stream());
-            std::copy(rtp->score_tile_map.begin(), rtp->score_tile_map.end(), lock.begin());
-        }
     }
 };
 

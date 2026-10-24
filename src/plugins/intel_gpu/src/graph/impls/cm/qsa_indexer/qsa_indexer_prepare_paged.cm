@@ -17,7 +17,8 @@
 // RoPE never derives an angle from a position: a query is rotated with its own
 // `rope_cos`/`rope_sin` row (the same per-token coefficients the main attention RoPE
 // consumes), and a block summary with the row of the block's first logical token.
-// `rope_cache` persists that row once per QSA block, interleaved as (cos_j, sin_j) and
+// `rope_cache` persists that row once per QSA block, interleaved as (cos_j, sin_j) over the
+// full rotary_dim-wide rows (2 * rotary_dim values) and
 // addressed exactly like `summary_cache`. It is written when the first token is
 // processed (possibly in an earlier call than the one that completes the block) and read
 // back once the block completes. A block whose first token belongs to THIS call reads the
@@ -40,22 +41,21 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* q_idx ATTR,                 
                                         const half* k_idx ATTR,                     // [tokens, Di] (Hik == 1)
                                         const half* q_norm_weight ATTR,             // [Di]
                                         const half* k_norm_weight ATTR,             // [Di]
-                                        const half* rope_cos ATTR,                  // [tokens, rotary_dim/2]
-                                        const half* rope_sin ATTR,                  // [tokens, rotary_dim/2]
+                                        const half* rope_cos ATTR,                  // [tokens, rotary_dim]
+                                        const half* rope_sin ATTR,                  // [tokens, rotary_dim]
                                         const int32_t* past_lens ATTR,              // [num_seqs]
                                         const int32_t* subsequence_begins ATTR,     // [num_seqs+1]
                                         const int32_t* block_indices ATTR,          // [used_blocks]
                                         const int32_t* block_indices_begins ATTR,   // [num_seqs+1]
                                         half* raw_k_cache ATTR,                     // [num_blocks, 1, page_size, Di], writable
                                         half* summary_cache ATTR,                   // [num_blocks, 1, page_size/r, Di], writable
-                                        half* rope_cache ATTR,                      // [num_blocks, page_size/r, rotary_dim], writable
+                                        half* rope_cache ATTR,                      // [num_blocks, page_size/r, 2*rotary_dim], writable
                                         half* indexer_q ATTR,                       // [tokens, Hiq, Di]
-                                        const int32_t* prepare_map ATTR,            // [num_wg, 2] = (seq, qsa_block_id)
-                                        uint32_t num_wg) {
+                                        uint32_t num_wg,                            // shape-derived upper bound of the (seq, block) pairs
+                                        uint32_t num_seqs) {
     constexpr uint HIQ = QSA_IDX_QUERY_HEADS;
     constexpr uint DI = QSA_IDX_HEAD_DIM;
     constexpr uint ROT = QSA_IDX_ROTARY_DIM;
-    constexpr uint RH = ROT > 0 ? ROT / 2 : 1;  // coefficients per token row
     constexpr uint R = QSA_COMPRESS_RATIO;
     constexpr uint PAGE = QSA_PAGE_SIZE;
     constexpr uint WG = QSA_PREPARE_WG;
@@ -71,14 +71,16 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* q_idx ATTR,                 
     }
     const uint tid = cm_local_id(2);
 
+    uint seq = 0, qsa_block = 0;
+    if (!qsa_ops::resolve_prepare_wg(subsequence_begins, past_lens, num_seqs, wg, seq, qsa_block)) {
+        return;
+    }
+
     constexpr uint SLM_RAWK_SIZE = R * DI * (uint)sizeof(float);
     constexpr uint SLM_POOL_SIZE = DI * (uint)sizeof(float);
     cm_slm_init(SLM_RAWK_SIZE + SLM_POOL_SIZE);
     auto slm_rawk = cm_slm_alloc(SLM_RAWK_SIZE);
     auto slm_pool = cm_slm_alloc(SLM_POOL_SIZE);
-
-    const uint seq = (uint)prepare_map[wg * 2 + 0];
-    const uint qsa_block = (uint)prepare_map[wg * 2 + 1];
 
     const uint seq_begin = (uint)subsequence_begins[seq];
     const uint q_len = (uint)subsequence_begins[seq + 1] - seq_begin;
@@ -100,9 +102,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* q_idx ATTR,                 
             vector<float, DI> q = q_h;
             qsa::rms_norm<DI>(q, q_norm_weight, (float)QSA_IDX_NORM_EPS);
 #if QSA_IDX_ROTARY_DIM > 0
-            vector<float, RH> c = qsa::load_half_row<RH>(rope_cos, token_idx * RH);
-            vector<float, RH> s = qsa::load_half_row<RH>(rope_sin, token_idx * RH);
-            qsa::apply_partial_rope<DI, ROT, RH>(q, c, s);
+            vector<float, ROT> c = qsa::load_half_row<ROT>(rope_cos, token_idx * ROT);
+            vector<float, ROT> s = qsa::load_half_row<ROT>(rope_sin, token_idx * ROT);
+            qsa::apply_partial_rope<DI, ROT>(q, c, s);
 #endif
             vector<half, DI> q_out = q;
             qsa_gr::store_hv<DI>(indexer_q, (token_idx * HIQ + tid) * DI, q_out);
@@ -120,10 +122,10 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* q_idx ATTR,                 
                 // One row per block, not per token: this is the only row ever read back for
                 // this block. `page` also holds the block's summary slot, since
                 // page_size % compress_ratio == 0 keeps a block on one physical page.
-                vector<half, ROT> row;
-                row.select<RH, 2>(0) = qsa::load_half_row<RH>(rope_cos, token_idx * RH);
-                row.select<RH, 2>(1) = qsa::load_half_row<RH>(rope_sin, token_idx * RH);
-                qsa::store_half_row<ROT>(rope_cache, (page * SUMMARIES_PER_PAGE + qsa_block % SUMMARIES_PER_PAGE) * ROT, row);
+                vector<half, 2 * ROT> row;
+                row.select<ROT, 2>(0) = qsa::load_half_row<ROT>(rope_cos, token_idx * ROT);
+                row.select<ROT, 2>(1) = qsa::load_half_row<ROT>(rope_sin, token_idx * ROT);
+                qsa::store_half_row<2 * ROT>(rope_cache, (page * SUMMARIES_PER_PAGE + qsa_block % SUMMARIES_PER_PAGE) * 2 * ROT, row);
             }
 #endif
 
@@ -163,22 +165,26 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* q_idx ATTR,                 
     if (tid == 0) {
         vector<float, DI> pooled;
         cm_slm_block_read(slm_pool, 0, pooled);
+        // The pooled mean is rounded to T before RMSNorm, like the reference model.
+        vector<half, DI> pooled_h = pooled;
+        pooled = pooled_h;
         qsa::rms_norm<DI>(pooled, k_norm_weight, (float)QSA_IDX_NORM_EPS);
         const uint page = (uint)block_indices[page_begin + qsa_block / SUMMARIES_PER_PAGE];
 #if QSA_IDX_ROTARY_DIM > 0
         // Coefficients of the block's first token: its input row when THIS call appended it,
         // otherwise the row an earlier call persisted in rope_cache.
-        vector<float, RH> c, s;
+        vector<float, ROT> c, s;
         if (block_start >= past_len) {
             const uint first_token = seq_begin + (block_start - past_len);
-            c = qsa::load_half_row<RH>(rope_cos, first_token * RH);
-            s = qsa::load_half_row<RH>(rope_sin, first_token * RH);
+            c = qsa::load_half_row<ROT>(rope_cos, first_token * ROT);
+            s = qsa::load_half_row<ROT>(rope_sin, first_token * ROT);
         } else {
-            vector<float, ROT> row = qsa::load_half_row<ROT>(rope_cache, (page * SUMMARIES_PER_PAGE + qsa_block % SUMMARIES_PER_PAGE) * ROT);
-            c = row.select<RH, 2>(0);
-            s = row.select<RH, 2>(1);
+            vector<float, 2 * ROT> row =
+                qsa::load_half_row<2 * ROT>(rope_cache, (page * SUMMARIES_PER_PAGE + qsa_block % SUMMARIES_PER_PAGE) * 2 * ROT);
+            c = row.select<ROT, 2>(0);
+            s = row.select<ROT, 2>(1);
         }
-        qsa::apply_partial_rope<DI, ROT, RH>(pooled, c, s);
+        qsa::apply_partial_rope<DI, ROT>(pooled, c, s);
 #endif
 
         const uint dst = qsa::summary_offset(page, qsa_block % SUMMARIES_PER_PAGE, SUMMARIES_PER_PAGE, DI);

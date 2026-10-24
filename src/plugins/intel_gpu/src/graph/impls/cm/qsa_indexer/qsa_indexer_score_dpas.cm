@@ -31,7 +31,8 @@
 // QSA_BLOCK_TOPK, QSA_ADDRESS_MODE, QSA_SCORE_WG, and (paged only) QSA_PAGE_SIZE.
 //
 // Dispatch: gws = [num_tiles * QSA_SCORE_WG, 1, 1], lws = [QSA_SCORE_WG, 1, 1]
-// One work-group owns one 16-query tile, (seq/batch, token_begin) read from tile_map.
+// One work-group owns one 16-query tile. num_tiles is a shape-derived upper bound; paged mode
+// finds the tile's sequence from subsequence_begins on the GPU, dense mode from the tile index.
 
 #ifndef ATTR
 #define ATTR [[type("svmptr_t")]]
@@ -51,10 +52,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* indexer_q ATTR,             
                                         const int32_t* block_indices ATTR,       // [used_blocks]
                                         const int32_t* block_indices_begins ATTR,  // [num_seqs+1]
 #endif
-                                        const int32_t* tile_map ATTR,              // [num_tiles,2] = (seq/batch, token_begin)
                                         float* block_scores ATTR,                  // [tokens, max_blocks]
                                         uint32_t num_tiles,
-#if QSA_ADDRESS_MODE == 1
+#if QSA_ADDRESS_MODE == 0
+                                        uint32_t num_seqs,
+#else
                                         uint32_t seq_len,
                                         uint32_t summary_stride,
 #endif
@@ -89,11 +91,20 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* indexer_q ATTR,             
     }
     const uint tid = cm_local_id(0);
 
+    uint anchor = 0;       // paged: seq id; dense: batch id
+    uint token_begin = 0;  // paged: global first token; dense: first row within the batch row
+#if QSA_ADDRESS_MODE == 0
+    if (!qsa_ops::resolve_tile_paged(subsequence_begins, num_seqs, wg, NQ, anchor, token_begin)) {
+        return;
+    }
+#else
+    const uint tiles_per_row = (seq_len + NQ - 1) / NQ;
+    anchor = wg / tiles_per_row;
+    token_begin = (wg % tiles_per_row) * NQ;
+#endif
+
     cm_slm_init(QSA_SCORE_QT_TILES * QT_BYTES);
     auto slm_qt = cm_slm_alloc(QSA_SCORE_QT_TILES * QT_BYTES);
-
-    const uint anchor = (uint)tile_map[wg * 2 + 0];  // paged: seq id; dense: batch id
-    const uint token_begin = (uint)tile_map[wg * 2 + 1];
 
 #if QSA_ADDRESS_MODE == 0
     const uint seq_begin = (uint)subsequence_begins[anchor];
@@ -116,10 +127,14 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* indexer_q ATTR,             
     cmtl::cm_vector_assign(lane.select_all(), 0, 1);
 #if QSA_ADDRESS_MODE == 0
     const vector<uint, NQ> abs_pos = lane + (past_len + token0 - seq_begin);
-#else
-    const vector<uint, NQ> abs_pos = lane + (past_len + token_begin);
-#endif
     const vector<uint, NQ> n_complete = (abs_pos + 1) / (uint)QSA_COMPRESS_RATIO;
+#else
+    // Dense: past_lens holds key_length; logical position = key_length - seq_len + l, and
+    // left-padding rows (negative position) see no complete block.
+    const vector<uint, NQ> shifted = lane + (past_len + token_begin);  // abs_pos + seq_len
+    vector<uint, NQ> n_complete = (shifted + 1 - seq_len) / (uint)QSA_COMPRESS_RATIO;
+    n_complete.merge(0u, shifted < seq_len);
+#endif
     const uint n_blocks_max = valid == 0 ? 0 : n_complete[valid - 1];
 
     // Order-preserving dense-prefix bypass: skip the whole tile before any SLM traffic

@@ -36,6 +36,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include <intel_gpu/primitives/data.hpp>
@@ -243,27 +244,42 @@ std::vector<float> make_rotary_table(size_t max_positions, size_t rotary) {
     return table;
 }
 
-/// The op's per-token `rope_cos`/`rope_sin` rows ([n, rotary/2] each): what the producer
-/// gathers from the interleaved `table` at each token's `positions` entry.
+/// The op's per-token `rope_cos`/`rope_sin` rows ([n, rotary] each, Hugging Face
+/// `cat(freqs, freqs)` layout): what the producer gathers from the interleaved `table` at
+/// each token's `positions` entry.
 std::pair<std::vector<float>, std::vector<float>> rope_rows(const std::vector<float>& table, size_t rotary, const std::vector<int32_t>& positions) {
     const size_t half = rotary / 2;
-    std::vector<float> cos(positions.size() * half), sin(positions.size() * half);
+    std::vector<float> cos(positions.size() * rotary), sin(positions.size() * rotary);
     for (size_t t = 0; t < positions.size(); t++) {
         const size_t row = static_cast<size_t>(positions[t]) * rotary;
-        for (size_t j = 0; j < half; j++) {
-            cos[t * half + j] = table[row + 2 * j];
-            sin[t * half + j] = table[row + 2 * j + 1];
+        for (size_t j = 0; j < rotary; j++) {
+            cos[t * rotary + j] = table[row + 2 * (j % half)];
+            sin[t * rotary + j] = table[row + 2 * (j % half) + 1];
         }
     }
     return {cos, sin};
 }
 
-/// `indexer_rope_cache` content: each block slot holds the interleaved (cos_j, sin_j) row
-/// of its first token, i.e. the table row of the slot's recorded position.
+/// One RoPE state/cache row: the full-width cos/sin rows of `position` interleaved as
+/// (cos_0, sin_0, cos_1, sin_1, ...), 2 * rotary values.
+std::vector<float> rope_state_row(const std::vector<float>& table, size_t rotary, int32_t position) {
+    const auto [cos, sin] = rope_rows(table, rotary, {position});
+    std::vector<float> row(2 * rotary);
+    for (size_t j = 0; j < rotary; j++) {
+        row[2 * j] = cos[j];
+        row[2 * j + 1] = sin[j];
+    }
+    return row;
+}
+
+/// `indexer_rope_cache` content: each block slot holds the interleaved row of its first
+/// token, i.e. rope_state_row() of the slot's recorded position.
 std::vector<float> rope_cache_rows(const std::vector<float>& table, size_t rotary, const std::vector<int32_t>& slot_positions) {
-    std::vector<float> rows(slot_positions.size() * rotary);
-    for (size_t s = 0; s < slot_positions.size(); s++) {
-        std::copy_n(table.begin() + static_cast<ptrdiff_t>(static_cast<size_t>(slot_positions[s]) * rotary), rotary, rows.begin() + static_cast<ptrdiff_t>(s * rotary));
+    std::vector<float> rows;
+    rows.reserve(slot_positions.size() * 2 * rotary);
+    for (int32_t position : slot_positions) {
+        const auto row = rope_state_row(table, rotary, position);
+        rows.insert(rows.end(), row.begin(), row.end());
     }
     return rows;
 }
@@ -305,7 +321,8 @@ struct split_reference {
             }
         }
         for (float& x : pooled) {
-            x /= static_cast<float>(d.r);
+            // The pooled mean is rounded to T before RMSNorm (qsa-indexer.rst numerics).
+            x = static_cast<float>(ov::float16(x / static_cast<float>(d.r)));
         }
         rms_norm(pooled, k_norm, d.eps);
         apply_rope(pooled, rotary, d.rotary, static_cast<size_t>(positions[block_id * d.r]));
@@ -540,7 +557,7 @@ paged_inputs paged_inputs_from_reference(const split_reference& ref) {
     return in;
 }
 
-paged_inputs paged_inputs_synthetic(const split_dims& dims, size_t past_len, size_t q_len) {
+paged_inputs paged_inputs_synthetic(const split_dims& dims, size_t past_len, size_t q_len, size_t batch = 1) {
     paged_inputs in;
     split_dims d = dims;
     d.max_positions = past_len + q_len;
@@ -564,6 +581,40 @@ paged_inputs paged_inputs_synthetic(const split_dims& dims, size_t past_len, siz
     in.q_norm = lcg_vec(d.Di, 10, 0.5f);
     in.k_norm = lcg_vec(d.Di, 11, 0.5f);
     in.plan = synthetic_plan(d, past_len, q_len);
+    // `batch` sequences, each with its own copy of the pages and a contiguous page run.
+    const size_t pages = in.num_pages;
+    auto tile = [batch](auto& v) {
+        const auto one = v;
+        v.reserve(one.size() * batch);
+        for (size_t b = 1; b < batch; b++) {
+            v.insert(v.end(), one.begin(), one.end());
+        }
+    };
+    tile(in.key_cache);
+    tile(in.value_cache);
+    tile(in.raw_k_cache);
+    tile(in.summary_cache);
+    tile(in.q_idx);
+    tile(in.k_idx);
+    tile(in.query);
+    tile(in.key);
+    tile(in.value);
+    tile(in.position_cache);
+    tile(in.position_ids);
+    tile(in.plan.sel);
+    tile(in.plan.count);
+    in.block_indices.resize(pages * batch);
+    std::iota(in.block_indices.begin(), in.block_indices.end(), 0);
+    in.block_indices_begins.assign(batch + 1, 0);
+    in.subsequence_begins.assign(batch + 1, 0);
+    in.past_lens.assign(batch, static_cast<int32_t>(past_len));
+    for (size_t b = 0; b < batch; b++) {
+        in.block_indices_begins[b + 1] = static_cast<int32_t>((b + 1) * pages);
+        in.subsequence_begins[b + 1] = static_cast<int32_t>((b + 1) * q_len);
+    }
+    in.qb_start = in.subsequence_begins;
+    in.num_pages = pages * batch;
+    in.q_len = q_len * batch;
     return in;
 }
 
@@ -604,12 +655,12 @@ void set_paged_inputs(engine& engine, network& net, const paged_inputs& in, Stag
         const auto [rope_cos, rope_sin] = rope_rows(in.rotary, d.rotary, in.position_ids);
         net.set_input_data("q_idx", make_f16(engine, {q, I(d.Hiq * d.Di)}, in.q_idx));
         net.set_input_data("k_idx", make_f16(engine, {q, I(d.Di)}, in.k_idx));
-        net.set_input_data("rope_cos", make_f16(engine, {q, I(d.rotary / 2)}, rope_cos));
-        net.set_input_data("rope_sin", make_f16(engine, {q, I(d.rotary / 2)}, rope_sin));
+        net.set_input_data("rope_cos", make_f16(engine, {q, I(d.rotary)}, rope_cos));
+        net.set_input_data("rope_sin", make_f16(engine, {q, I(d.rotary)}, rope_sin));
         net.set_input_data("summary_cache", make_f16(engine, {np, 1, I(in.spp), I(d.Di)}, in.summary_cache));
         net.set_input_data("raw_k_cache", make_f16(engine, {np, 1, I(d.page_size), I(d.Di)}, in.raw_k_cache));
         net.set_input_data("rope_cache",
-                           make_f16(engine, {np, I(in.spp), I(d.rotary)}, rope_cache_rows(in.rotary, d.rotary, in.position_cache)));
+                           make_f16(engine, {np, I(in.spp), I(2 * d.rotary)}, rope_cache_rows(in.rotary, d.rotary, in.position_cache)));
     }
     if (stage != Stage::IndexerOnly) {
         if (dynamic) {
@@ -651,28 +702,28 @@ std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs&
 
         topo.add(input_layout("q_idx", layout{{q, I(d.Hiq * d.Di)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("k_idx", layout{{q, I(d.Di)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("rope_cos", layout{{q, I(d.rotary / 2)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("rope_sin", layout{{q, I(d.rotary / 2)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("rope_cos", layout{{q, I(d.rotary)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("rope_sin", layout{{q, I(d.rotary)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("summary_cache", layout{{np, 1, I(in.spp), I(d.Di)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("raw_k_cache", layout{{np, 1, I(d.page_size), I(d.Di)}, data_types::f16, format::bfyx}));
         add_call_tensor(topo, dynamic, "q_norm", {I(d.Di)}, make_f16(engine, {I(d.Di)}, in.q_norm));
         add_call_tensor(topo, dynamic, "k_norm", {I(d.Di)}, make_f16(engine, {I(d.Di)}, in.k_norm));
-        topo.add(input_layout("rope_cache", layout{{np, I(in.spp), I(d.rotary)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("rope_cache", layout{{np, I(in.spp), I(2 * d.rotary)}, data_types::f16, format::bfyx}));
         static_assert(PagedIn::COUNT == 13, "keep the test input order in sync with PagedQSAIndexer::InputIdx");
         topo.add(paged_qsa_indexer("indexer",
                                    {input_info("q_idx"),
                                     input_info("k_idx"),
                                     input_info("rope_cos"),
                                     input_info("rope_sin"),
-                                    input_info("summary_cache"),
-                                    input_info("raw_k_cache"),
                                     input_info("q_norm"),
                                     input_info("k_norm"),
                                     input_info("block_indices"),
                                     input_info("block_indices_begins"),
                                     input_info("subsequence_begins"),
                                     input_info("past_lens"),
-                                    input_info("rope_cache")},
+                                    input_info("raw_k_cache"),
+                                    input_info("rope_cache"),
+                                    input_info("summary_cache")},
                                    cfg));
     }
 
@@ -725,108 +776,162 @@ std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs&
 }
 
 // ---------------------------------------------------------------------------
-// Dense pair (QSAIndexer + SparseSDPA), B == 1
+// Dense pair (QSAIndexer + SparseSDPA). Every batch row has its own reference; a row
+// shorter than the shared query length L is a fresh sequence, left-padded to L, and its
+// K/V are left-padded to the longest row's length S (SparseSDPA's key_length contract).
 // ---------------------------------------------------------------------------
+
+template <typename T>
+void append(std::vector<T>& dst, const std::vector<T>& src) {
+    dst.insert(dst.end(), src.begin(), src.end());
+}
+
+/// Storage the ops must never read (left padding, unused state slots): any read poisons
+/// the output with NaN.
+const float poison = std::numeric_limits<float>::quiet_NaN();
 
 struct dense_inputs {
     split_dims d;
-    size_t batch = 1;  // every batch row shares past_len/q_len (SparseSDPA has one history length)
-    size_t past_len = 0;
-    size_t q_len = 0;
-    size_t s_cap = 0;
-    size_t summary_cap = 0;
-    size_t rope_cap = 0;  // ceil(s_cap / r): the trailing partial block still needs a row
+    size_t batch = 0;
+    size_t q_len = 0;        // L, shared by every row
+    size_t kv_len = 0;       // S, the longest row; shorter rows are left-padded
+    size_t summary_cap = 1;  // floor(S_cap / r) summary entries, uniform across rows
 
-    std::vector<float> q_idx, k_idx, rotary, q_norm, k_norm, raw_k_cache, summary_cache;
+    std::vector<int32_t> key_length;  // [B], valid tokens after the call
+    std::vector<float> q_idx, k_idx, rope_cos, rope_sin, q_norm, k_norm;
+    std::vector<float> summary_cache;  // [B, 1, summary_cap, Di]
+    std::vector<float> raw_state;      // [B, 1, r - 1, Di], slot p % r of the incomplete block
+    std::vector<float> rope_state;     // [B, 2 * rotary], first-token row of the incomplete block
     std::vector<float> query_bhld, key_bhsd, value_bhsd;
-    // Producer-side positions; the op sees rope_rows()/rope_cache_rows() built from them.
-    std::vector<int32_t> position_ids, position_cache, past_lens;
-    selection_plan plan;
+    selection_plan plan;  // only used when the attention runs without the indexer
 };
 
-void init_dense_metadata(dense_inputs& in, const split_dims& d, size_t past_len, size_t q_len) {
-    in.d = d;
-    in.past_len = past_len;
-    in.q_len = q_len;
-    in.s_cap = past_len + q_len;
-    in.summary_cap = in.s_cap / d.r;
-    in.rope_cap = (in.s_cap + d.r - 1) / d.r;
-    in.past_lens = {static_cast<int32_t>(past_len)};
+/// Left-padding rows of batch row `b`.
+size_t dense_pad(const dense_inputs& in, size_t b) {
+    return in.q_len - std::min(in.q_len, static_cast<size_t>(in.key_length[b]));
 }
 
-dense_inputs dense_inputs_from_reference(const split_reference& ref) {
-    const auto& d = ref.d;
-    dense_inputs in;
-    init_dense_metadata(in, d, ref.past_len, ref.q_len);
-    const size_t past_len = ref.past_len;
-    const size_t q_len = ref.q_len;
+/// Appends batch row `ref`: inputs left-padded to `in.q_len`, K/V left-padded to `in.kv_len`,
+/// and the state a previous call would have returned after `ref.past_len` tokens.
+void append_dense_row(dense_inputs& in, const split_reference& ref) {
+    const auto& d = in.d;
+    const size_t L = in.q_len;
+    const size_t S = in.kv_len;
+    const size_t past = ref.past_len;
     const size_t total = ref.total_len();
+    ASSERT_TRUE(ref.q_len <= L && total <= S && (ref.q_len == L || past == 0)) << "only a new sequence can be left-padded";
+    const size_t pad = L - ref.q_len;
+    const size_t pad_k = S - total;
+    in.key_length.push_back(static_cast<int32_t>(total));
 
-    in.raw_k_cache.assign(in.s_cap * d.Di, 0.0f);
-    in.summary_cache.assign(in.summary_cap * d.Di, 0.0f);
-    in.position_cache.assign(in.rope_cap, 0);
-    std::copy(ref.k_idx_all.begin(), ref.k_idx_all.begin() + past_len * d.Di, in.raw_k_cache.begin());
-    for (size_t b = 0; b * d.r < past_len; b++) {
-        in.position_cache[b] = ref.positions[b * d.r];
-        if (b * d.r + d.r <= past_len) {
-            const auto s = ref.summary(b);
-            std::copy(s.begin(), s.end(), in.summary_cache.begin() + b * d.Di);
-        }
+    auto left_padded = [pad](const std::vector<float>& rows, size_t width) {
+        std::vector<float> out(pad * width, poison);
+        append(out, rows);
+        return out;
+    };
+    append(in.q_idx, left_padded(ref.q_idx_cur, d.Hiq * d.Di));
+    append(in.k_idx, left_padded(std::vector<float>(ref.k_idx_all.begin() + past * d.Di, ref.k_idx_all.end()), d.Di));
+    const auto [cos, sin] = rope_rows(ref.rotary, d.rotary, std::vector<int32_t>(ref.positions.begin() + past, ref.positions.end()));
+    append(in.rope_cos, left_padded(cos, d.rotary));
+    append(in.rope_sin, left_padded(sin, d.rotary));
+
+    std::vector<float> summary(in.summary_cap * d.Di, 0.0f);
+    for (size_t b = 0; b < past / d.r; b++) {
+        const auto s = ref.summary(b);
+        std::copy(s.begin(), s.end(), summary.begin() + b * d.Di);
     }
+    append(in.summary_cache, summary);
+    const size_t staged = past % d.r;
+    const size_t first = past - staged;
+    std::vector<float> raw((d.r - 1) * d.Di, poison);
+    std::copy(ref.k_idx_all.begin() + first * d.Di, ref.k_idx_all.begin() + past * d.Di, raw.begin());
+    append(in.raw_state, raw);
+    append(in.rope_state, staged ? rope_state_row(ref.rotary, d.rotary, ref.positions[first]) : std::vector<float>(2 * d.rotary, poison));
 
-    in.position_ids.assign(ref.positions.begin() + past_len, ref.positions.end());
-    in.q_idx = ref.q_idx_cur;
-    in.k_idx.assign(ref.k_idx_all.begin() + past_len * d.Di, ref.k_idx_all.end());
-    in.rotary = ref.rotary;
-    in.q_norm = ref.q_norm;
-    in.k_norm = ref.k_norm;
-
-    in.query_bhld.resize(d.Hq * q_len * d.Dh);
-    for (size_t t = 0; t < q_len; t++) {
+    std::vector<float> query(d.Hq * L * d.Dh, poison);
+    for (size_t t = 0; t < ref.q_len; t++) {
         for (size_t h = 0; h < d.Hq; h++) {
             for (size_t j = 0; j < d.Dh; j++) {
-                in.query_bhld[(h * q_len + t) * d.Dh + j] = ref.query_cur[(t * d.Hq + h) * d.Dh + j];
+                query[(h * L + pad + t) * d.Dh + j] = ref.query_cur[(t * d.Hq + h) * d.Dh + j];
             }
         }
     }
-    in.key_bhsd.resize(d.Hkv * total * d.Dh);
-    in.value_bhsd.resize(d.Hkv * total * d.Dv);
+    append(in.query_bhld, query);
+    std::vector<float> key(d.Hkv * S * d.Dh, poison);
+    std::vector<float> value(d.Hkv * S * d.Dv, poison);
     for (size_t p = 0; p < total; p++) {
         for (size_t h = 0; h < d.Hkv; h++) {
             for (size_t j = 0; j < d.Dh; j++) {
-                in.key_bhsd[(h * total + p) * d.Dh + j] = ref.key_all[p * d.Hkv * d.Dh + h * d.Dh + j];
+                key[(h * S + pad_k + p) * d.Dh + j] = ref.key_all[p * d.Hkv * d.Dh + h * d.Dh + j];
             }
             for (size_t j = 0; j < d.Dv; j++) {
-                in.value_bhsd[(h * total + p) * d.Dv + j] = ref.value_all[p * d.Hkv * d.Dv + h * d.Dv + j];
+                value[(h * S + pad_k + p) * d.Dv + j] = ref.value_all[p * d.Hkv * d.Dv + h * d.Dv + j];
             }
         }
+    }
+    append(in.key_bhsd, key);
+    append(in.value_bhsd, value);
+}
+
+dense_inputs dense_inputs_from_references(const std::vector<split_reference>& refs) {
+    dense_inputs in;
+    in.d = refs.front().d;
+    in.batch = refs.size();
+    size_t blocks = 0;
+    for (const auto& ref : refs) {
+        in.q_len = std::max(in.q_len, ref.q_len);
+        in.kv_len = std::max(in.kv_len, ref.total_len());
+        blocks = std::max(blocks, ref.total_len() / in.d.r);
+    }
+    in.summary_cap = std::max<size_t>(1, blocks);
+    in.q_norm = refs.front().q_norm;
+    in.k_norm = refs.front().k_norm;
+    for (const auto& ref : refs) {
+        append_dense_row(in, ref);
     }
     return in;
 }
 
-dense_inputs dense_inputs_synthetic(const split_dims& dims, size_t past_len, size_t q_len) {
+dense_inputs dense_inputs_from_reference(const split_reference& ref) {
+    return dense_inputs_from_references({ref});
+}
+
+dense_inputs dense_inputs_synthetic(const split_dims& dims, size_t past_len, size_t q_len, size_t batch = 1) {
     dense_inputs in;
-    split_dims d = dims;
-    d.max_positions = past_len + q_len;
-    init_dense_metadata(in, d, past_len, q_len);
+    in.d = dims;
+    const auto& d = in.d;
     const size_t total = past_len + q_len;
-    in.raw_k_cache = lcg_vec(in.s_cap * d.Di, 3);
+    in.batch = 1;
+    in.q_len = q_len;
+    in.kv_len = total;
+    in.summary_cap = std::max<size_t>(1, total / d.r);
+    in.key_length = {static_cast<int32_t>(total)};
+    const auto rotary = make_rotary_table(total, d.rotary);
+    std::vector<int32_t> positions(q_len);
+    std::iota(positions.begin(), positions.end(), static_cast<int32_t>(past_len));
+    std::tie(in.rope_cos, in.rope_sin) = rope_rows(rotary, d.rotary, positions);
     in.summary_cache = lcg_vec(in.summary_cap * d.Di, 4);
-    in.position_cache.resize(in.rope_cap);
-    for (size_t b = 0; b < in.rope_cap; b++) {
-        in.position_cache[b] = static_cast<int32_t>(b * d.r);
-    }
-    in.position_ids.resize(q_len);
-    std::iota(in.position_ids.begin(), in.position_ids.end(), static_cast<int32_t>(past_len));
+    in.raw_state = lcg_vec((d.r - 1) * d.Di, 3);
+    in.rope_state = rope_state_row(rotary, d.rotary, static_cast<int32_t>(past_len - past_len % d.r));
     in.q_idx = lcg_vec(q_len * d.Hiq * d.Di, 5);
     in.k_idx = lcg_vec(q_len * d.Di, 6);
     in.query_bhld = lcg_vec(d.Hq * q_len * d.Dh, 7);
     in.key_bhsd = lcg_vec(d.Hkv * total * d.Dh, 8);
     in.value_bhsd = lcg_vec(d.Hkv * total * d.Dv, 9);
-    in.rotary = make_rotary_table(d.max_positions, d.rotary);
     in.q_norm = lcg_vec(d.Di, 10, 0.5f);
     in.k_norm = lcg_vec(d.Di, 11, 0.5f);
     in.plan = synthetic_plan(d, past_len, q_len);
+    // Every batch row repeats row 0's content (all tensors are batch-major).
+    in.batch = batch;
+    for (auto* v : {&in.q_idx, &in.k_idx, &in.rope_cos, &in.rope_sin, &in.summary_cache, &in.raw_state, &in.rope_state, &in.query_bhld, &in.key_bhsd,
+                    &in.value_bhsd}) {
+        const auto row = *v;
+        v->reserve(row.size() * batch);
+        for (size_t b = 1; b < batch; b++) {
+            append(*v, row);
+        }
+    }
+    in.key_length.assign(batch, static_cast<int32_t>(total));
     return in;
 }
 
@@ -834,32 +939,32 @@ void set_dense_inputs(engine& engine, network& net, const dense_inputs& in, Stag
     const auto& d = in.d;
     const auto B = I(in.batch);
     const auto q = I(in.q_len);
-    const auto total = I(in.past_len + in.q_len);
+    const auto S = I(in.kv_len);
+    if (dynamic) {
+        net.set_input_data("key_length", make_i32(engine, {B}, in.key_length));
+    }
     if (stage != Stage::AttentionOnly) {
         if (dynamic) {
             net.set_input_data("q_norm", make_f16(engine, {I(d.Di)}, in.q_norm));
             net.set_input_data("k_norm", make_f16(engine, {I(d.Di)}, in.k_norm));
-            net.set_input_data("past_lens", make_i32(engine, {B}, in.past_lens));
         }
-        const auto [rope_cos, rope_sin] = rope_rows(in.rotary, d.rotary, in.position_ids);
         net.set_input_data("q_idx", make_f16(engine, {B, q, I(d.Hiq), I(d.Di)}, in.q_idx));
         net.set_input_data("k_idx", make_f16(engine, {B, q, 1, I(d.Di)}, in.k_idx));
-        net.set_input_data("rope_cos", make_f16(engine, {B, q, I(d.rotary / 2)}, rope_cos));
-        net.set_input_data("rope_sin", make_f16(engine, {B, q, I(d.rotary / 2)}, rope_sin));
+        net.set_input_data("rope_cos", make_f16(engine, {B, q, I(d.rotary)}, in.rope_cos));
+        net.set_input_data("rope_sin", make_f16(engine, {B, q, I(d.rotary)}, in.rope_sin));
         net.set_input_data("summary_cache", make_f16(engine, {B, 1, I(in.summary_cap), I(d.Di)}, in.summary_cache));
-        net.set_input_data("raw_k_cache", make_f16(engine, {B, 1, I(in.s_cap), I(d.Di)}, in.raw_k_cache));
-        net.set_input_data("rope_cache",
-                           make_f16(engine, {B, I(in.rope_cap), I(d.rotary)}, rope_cache_rows(in.rotary, d.rotary, in.position_cache)));
+        net.set_input_data("raw_state", make_f16(engine, {B, 1, I(d.r - 1), I(d.Di)}, in.raw_state));
+        net.set_input_data("rope_state", make_f16(engine, {B, I(2 * d.rotary)}, in.rope_state));
     }
     if (stage != Stage::IndexerOnly) {
         net.set_input_data("query", make_f16(engine, {B, I(d.Hq), q, I(d.Dh)}, in.query_bhld));
-        net.set_input_data("key", make_f16(engine, {B, I(d.Hkv), total, I(d.Dh)}, in.key_bhsd));
-        net.set_input_data("value", make_f16(engine, {B, I(d.Hkv), total, I(d.Dv)}, in.value_bhsd));
+        net.set_input_data("key", make_f16(engine, {B, I(d.Hkv), S, I(d.Dh)}, in.key_bhsd));
+        net.set_input_data("value", make_f16(engine, {B, I(d.Hkv), S, I(d.Dv)}, in.value_bhsd));
     }
 }
 
-/// `dynamic`: B/L/S and cache capacities are dynamic and every per-call tensor is an input,
-/// so ONE network serves any (batch, past_len, q_len) through the shape-agnostic impls.
+/// `dynamic`: B/L/S and the summary capacity are dynamic and every per-call tensor is an
+/// input, so ONE network serves any (batch, key_length, q_len) through the shape-agnostic impls.
 std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs& in, Stage stage, bool dynamic = false) {
     const auto& d = in.d;
     const auto dyn = [dynamic](int64_t v) {
@@ -867,11 +972,10 @@ std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs&
     };
     const auto B = dyn(I(in.batch));
     const auto q = dyn(I(in.q_len));
-    const auto total = dyn(I(in.past_len + in.q_len));
-    const auto s_cap = dyn(I(in.s_cap));
+    const auto S = dyn(I(in.kv_len));
     const auto summary_cap = dyn(I(in.summary_cap));
-    const auto rope_cap = dyn(I(in.rope_cap));
     topology topo;
+    add_call_tensor(topo, dynamic, "key_length", {-1}, make_i32(engine, {I(in.batch)}, in.key_length));
 
     if (stage != Stage::AttentionOnly) {
         ov::intel_gpu::op::QSAIndexer::Config cfg;
@@ -885,26 +989,25 @@ std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs&
 
         topo.add(input_layout("q_idx", layout{{B, q, I(d.Hiq), I(d.Di)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("k_idx", layout{{B, q, 1, I(d.Di)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("rope_cos", layout{{B, q, I(d.rotary / 2)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("rope_sin", layout{{B, q, I(d.rotary / 2)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("summary_cache", layout{{B, 1, summary_cap, I(d.Di)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("raw_k_cache", layout{{B, 1, s_cap, I(d.Di)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("rope_cos", layout{{B, q, I(d.rotary)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("rope_sin", layout{{B, q, I(d.rotary)}, data_types::f16, format::bfyx}));
         add_call_tensor(topo, dynamic, "q_norm", {I(d.Di)}, make_f16(engine, {I(d.Di)}, in.q_norm));
         add_call_tensor(topo, dynamic, "k_norm", {I(d.Di)}, make_f16(engine, {I(d.Di)}, in.k_norm));
-        add_call_tensor(topo, dynamic, "past_lens", {-1}, make_i32(engine, {I(in.batch)}, in.past_lens));
-        topo.add(input_layout("rope_cache", layout{{B, rope_cap, I(d.rotary)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("summary_cache", layout{{B, 1, summary_cap, I(d.Di)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("raw_state", layout{{B, 1, I(d.r - 1), I(d.Di)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("rope_state", layout{{B, I(2 * d.rotary)}, data_types::f16, format::bfyx}));
         static_assert(DenseIdxIn::COUNT == 10, "keep the test input order in sync with QSAIndexer::InputIdx");
         topo.add(qsa_indexer("indexer",
                              {input_info("q_idx"),
                               input_info("k_idx"),
                               input_info("rope_cos"),
                               input_info("rope_sin"),
-                              input_info("summary_cache"),
-                              input_info("raw_k_cache"),
+                              input_info("key_length"),
                               input_info("q_norm"),
                               input_info("k_norm"),
-                              input_info("past_lens"),
-                              input_info("rope_cache")},
+                              input_info("summary_cache"),
+                              input_info("raw_state"),
+                              input_info("rope_state")},
                              cfg));
     }
 
@@ -920,8 +1023,8 @@ std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs&
         cfg.causal = true;
 
         topo.add(input_layout("query", layout{{B, I(d.Hq), q, I(d.Dh)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("key", layout{{B, I(d.Hkv), total, I(d.Dh)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("value", layout{{B, I(d.Hkv), total, I(d.Dv)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("key", layout{{B, I(d.Hkv), S, I(d.Dh)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("value", layout{{B, I(d.Hkv), S, I(d.Dv)}, data_types::f16, format::bfyx}));
         input_info sel("indexer", 0), count("indexer", 1);
         if (stage == Stage::AttentionOnly) {
             topo.add(data("sel", make_i32(engine, {1, 1, I(in.q_len), I(d.block_topk)}, in.plan.sel)));
@@ -929,8 +1032,11 @@ std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs&
             sel = input_info("sel");
             count = input_info("count");
         }
-        static_assert(SparseSDPAIn::COUNT_MIN == 5, "keep the test input order in sync with SparseSDPA::InputIdx");
-        topo.add(sparse_sdpa("attn", {input_info("query"), input_info("key"), input_info("value"), sel, count}, cfg, 1.0f / std::sqrt(static_cast<float>(d.Dh))));
+        static_assert(SparseSDPAIn::COUNT_MIN == 6, "keep the test input order in sync with SparseSDPA::InputIdx");
+        topo.add(sparse_sdpa("attn",
+                             {input_info("query"), input_info("key"), input_info("value"), sel, count, input_info("key_length")},
+                             cfg,
+                             1.0f / std::sqrt(static_cast<float>(d.Dh))));
     }
 
     auto net = std::make_unique<network>(engine, topo, make_config(engine));
@@ -1051,15 +1157,6 @@ std::vector<float> bhld_to_token_major(const std::vector<float>& bhld, const spl
     return out;
 }
 
-pair_outputs run_dense_pair(engine& engine, const split_reference& ref) {
-    auto net = build_dense_network(engine, dense_inputs_from_reference(ref), Stage::Pair);
-    auto outputs = net->execute();
-    pair_outputs out;
-    out.attn = bhld_to_token_major(read_f16(outputs.at("attn").get_memory()), ref.d, ref.q_len);
-    read_pair_outputs(*net, out);
-    return out;
-}
-
 /// Combined absolute+relative error summary (numpy-`allclose`-style), plus a non-finite
 /// count so a corrupted/overflowing kernel output fails loudly instead of silently
 /// skewing the mean.
@@ -1144,8 +1241,118 @@ void validate_pair(const split_reference& ref, const pair_outputs& gpu, float at
     EXPECT_EQ(mismatches, 0u);
 }
 
+/// Checks the dense state outputs against `refs`: the summary of every complete block, and
+/// the staged raw keys and first-token RoPE row of the new incomplete block.
+void validate_dense_state(network& net, const dense_inputs& in, const std::vector<split_reference>& refs) {
+    using Out = ov::intel_gpu::op::QSAIndexer::OutputIdx;
+    const auto& d = in.d;
+    auto indexer = net.get_primitive("indexer");
+    const auto summary = read_f16(indexer->output_memory_ptr(Out::SUMMARY_CACHE));
+    const auto raw = read_f16(indexer->output_memory_ptr(Out::PAST_INCOMPLETE_RAW_K));
+    const auto rope = read_f16(indexer->output_memory_ptr(Out::PAST_INCOMPLETE_ROPE));
+    ASSERT_EQ(indexer->get_output_layout(Out::SUMMARY_CACHE).count(), in.batch * in.summary_cap * d.Di);
+    ASSERT_EQ(indexer->get_output_layout(Out::PAST_INCOMPLETE_RAW_K).count(), in.batch * (d.r - 1) * d.Di);
+    ASSERT_EQ(indexer->get_output_layout(Out::PAST_INCOMPLETE_ROPE).count(), in.batch * 2 * d.rotary);
+    for (size_t b = 0; b < refs.size(); b++) {
+        const auto& ref = refs[b];
+        const size_t total = ref.total_len();
+        SCOPED_TRACE("state of row " + std::to_string(b) + " key_length=" + std::to_string(total));
+        size_t mismatches = 0;
+        for (size_t blk = 0; blk < total / d.r; blk++) {
+            const auto expected = ref.summary(blk);
+            for (size_t j = 0; j < d.Di; j++) {
+                const float got = summary[(b * in.summary_cap + blk) * d.Di + j];
+                if (!(std::fabs(got - expected[j]) <= 1e-2f + 1e-2f * std::fabs(expected[j])) && mismatches++ < 8) {
+                    ADD_FAILURE() << "summary[" << blk << "][" << j << "] gpu=" << got << " ref=" << expected[j];
+                }
+            }
+        }
+        const size_t staged = total % d.r;
+        const size_t first = total - staged;
+        for (size_t i = 0; i < staged * d.Di; i++) {
+            if (raw[b * (d.r - 1) * d.Di + i] != ref.k_idx_all[first * d.Di + i] && mismatches++ < 8) {
+                ADD_FAILURE() << "staged key " << i / d.Di << "[" << i % d.Di << "] gpu=" << raw[b * (d.r - 1) * d.Di + i]
+                              << " ref=" << ref.k_idx_all[first * d.Di + i];
+            }
+        }
+        if (staged != 0) {
+            const auto expected = rope_state_row(ref.rotary, d.rotary, ref.positions[first]);
+            for (size_t j = 0; j < expected.size(); j++) {
+                if (rope[b * 2 * d.rotary + j] != static_cast<float>(ov::float16(expected[j])) && mismatches++ < 8) {
+                    ADD_FAILURE() << "rope state[" << j << "] gpu=" << rope[b * 2 * d.rotary + j] << " ref=" << expected[j];
+                }
+            }
+        }
+        EXPECT_EQ(mismatches, 0u);
+    }
+}
+
+/// Validates a dense network execution row by row: the real rows of each batch row against
+/// its reference, the left-padding rows (no selection, zero attention), and the state.
+void validate_dense_outputs(network& net, const dense_inputs& in, const std::vector<split_reference>& refs, const route* r, float atol, float rtol) {
+    const auto& d = in.d;
+    const size_t L = in.q_len;
+    const size_t K = d.block_topk;
+    // The test config may use an out-of-order queue: wait for every kernel before reading back.
+    net.get_stream().finish();
+    pair_outputs all;
+    auto attn_inst = net.get_primitive("attn");
+    auto attn = read_f16(attn_inst->output_memory_ptr(0));
+    attn.resize(attn_inst->get_output_layout().count());
+    read_pair_outputs(net, all);
+    if (r != nullptr) {
+        expect_route(false, all, *r);
+    }
+    ASSERT_EQ(all.plan.count.size(), in.batch * L);
+    ASSERT_EQ(attn.size(), in.batch * d.Hq * L * d.Dv);
+    for (size_t b = 0; b < refs.size(); b++) {
+        const auto& ref = refs[b];
+        const size_t pad = dense_pad(in, b);
+        SCOPED_TRACE("row " + std::to_string(b) + " past_len=" + std::to_string(ref.past_len) + " q_len=" + std::to_string(ref.q_len));
+        size_t bad_padding = 0;
+        for (size_t l = 0; l < pad; l++) {
+            bad_padding += all.plan.count[b * L + l] != 0;
+            for (size_t i = 0; i < K; i++) {
+                bad_padding += all.plan.sel[(b * L + l) * K + i] != -1;
+            }
+            for (size_t h = 0; h < d.Hq; h++) {
+                for (size_t j = 0; j < d.Dv; j++) {
+                    bad_padding += attn[((b * d.Hq + h) * L + l) * d.Dv + j] != 0.0f;
+                }
+            }
+        }
+        EXPECT_EQ(bad_padding, 0u) << "left-padding rows must select nothing and output zeros";
+
+        pair_outputs one;
+        one.plan.sel.assign(all.plan.sel.begin() + (b * L + pad) * K, all.plan.sel.begin() + (b + 1) * L * K);
+        one.plan.count.assign(all.plan.count.begin() + b * L + pad, all.plan.count.begin() + (b + 1) * L);
+        one.attn.resize(ref.q_len * d.Hq * d.Dv);
+        for (size_t t = 0; t < ref.q_len; t++) {
+            for (size_t h = 0; h < d.Hq; h++) {
+                for (size_t j = 0; j < d.Dv; j++) {
+                    one.attn[(t * d.Hq + h) * d.Dv + j] = attn[((b * d.Hq + h) * L + pad + t) * d.Dv + j];
+                }
+            }
+        }
+        validate_pair(ref, one, atol, rtol);
+    }
+    validate_dense_state(net, in, refs);
+}
+
+/// One static dense network over `refs` (one batch row each), validated row by row.
+void run_dense_rows(engine& engine, const std::vector<split_reference>& refs, const route& r, float atol, float rtol) {
+    const auto in = dense_inputs_from_references(refs);
+    auto net = build_dense_network(engine, in, Stage::Pair);
+    net->execute();
+    validate_dense_outputs(*net, in, refs, &r, atol, rtol);
+}
+
 void validate_and_run_pair(bool paged, engine& engine, const split_reference& ref, const route& r, float atol, float rtol) {
-    const auto gpu = paged ? run_paged_pair(engine, ref) : run_dense_pair(engine, ref);
+    if (!paged) {
+        run_dense_rows(engine, {ref}, r, atol, rtol);
+        return;
+    }
+    const auto gpu = run_paged_pair(engine, ref);
     expect_route(paged, gpu, r);
     validate_pair(ref, gpu, atol, rtol);
 }
@@ -1180,11 +1387,6 @@ void run_full_selection_pair_test(bool paged, const split_dims& d, size_t past_l
     }
     ASSERT_LE((past_len + q_len) / d.r, d.block_topk);
     run_pair_case(paged, d, past_len, q_len, Positions::Sequential, r, rtol, atol, 1.0f);
-}
-
-template <typename T>
-void append(std::vector<T>& dst, const std::vector<T>& src) {
-    dst.insert(dst.end(), src.begin(), src.end());
 }
 
 /// Independent references sharing the norm gains the network takes as single constants.
@@ -1263,42 +1465,86 @@ void run_paged_batch_test(const split_dims& d, const std::vector<std::pair<size_
     validate_slices(true, refs, all, r, atol, rtol);
 }
 
-/// Dense batch of `batch` rows sharing one (past_len, q_len), as SparseSDPA requires.
-void run_dense_batch_test(const split_dims& d, size_t batch, size_t past_len, size_t q_len, const route& r, float rtol, float atol = 2e-3f) {
+/// Dense batch, one row per (past_len, q_len). Rows may differ in key length (their K/V
+/// are left-padded to the longest row); a row with q_len below the longest q_len must have
+/// past_len == 0 and is left-padded.
+void run_dense_batch_test(const split_dims& d, const std::vector<std::pair<size_t, size_t>>& rows, const route& r, float rtol, float atol = 2e-3f) {
     if (!cm_qsa_ops_available()) {
         GTEST_SKIP() << "CM is not supported on this device";
     }
+    run_dense_rows(get_test_engine(), make_batch_references(d, rows), r, atol, rtol);
+}
+
+/// Dense batch of `batch` identical-length rows.
+void run_dense_batch_test(const split_dims& d, size_t batch, size_t past_len, size_t q_len, const route& r, float rtol, float atol = 2e-3f) {
+    run_dense_batch_test(d, std::vector<std::pair<size_t, size_t>>(batch, {past_len, q_len}), r, rtol, atol);
+}
+
+/// `full` restricted to its first `past_len + q_len` tokens, the last `q_len` being queries.
+/// `full` must have been built with past_len == 0, so it holds every token's query.
+split_reference slice_reference(const split_reference& full, size_t past_len, size_t q_len) {
+    const auto& d = full.d;
+    const size_t total = past_len + q_len;
+    split_reference ref;
+    ref.d = d;
+    ref.past_len = past_len;
+    ref.q_len = q_len;
+    ref.positions.assign(full.positions.begin(), full.positions.begin() + total);
+    ref.k_idx_all.assign(full.k_idx_all.begin(), full.k_idx_all.begin() + total * d.Di);
+    ref.q_idx_cur.assign(full.q_idx_cur.begin() + past_len * d.Hiq * d.Di, full.q_idx_cur.begin() + total * d.Hiq * d.Di);
+    ref.key_all.assign(full.key_all.begin(), full.key_all.begin() + total * d.Hkv * d.Dh);
+    ref.value_all.assign(full.value_all.begin(), full.value_all.begin() + total * d.Hkv * d.Dv);
+    ref.query_cur.assign(full.query_cur.begin() + past_len * d.Hq * d.Dh, full.query_cur.begin() + total * d.Hq * d.Dh);
+    ref.q_norm = full.q_norm;
+    ref.k_norm = full.k_norm;
+    ref.rotary = full.rotary;
+    return ref;
+}
+
+/// Functional state across calls: ONE dynamic dense network runs a sequence chunk by chunk,
+/// and every call after the first consumes the state outputs (summary_cache, staged raw keys,
+/// RoPE row) the previous call returned, as ReadValue/Assign would carry them.
+void run_dense_state_chain_test(const split_dims& d, const std::vector<size_t>& q_lens, float rtol, float atol = 2e-3f) {
+    if (!cm_qsa_ops_available()) {
+        GTEST_SKIP() << "CM is not supported on this device";
+    }
+    using Out = ov::intel_gpu::op::QSAIndexer::OutputIdx;
     auto& engine = get_test_engine();
-    const auto refs = make_batch_references(d, std::vector<std::pair<size_t, size_t>>(batch, {past_len, q_len}));
-    auto in = dense_inputs_from_reference(refs.front());
-    in.batch = batch;
-    for (size_t b = 1; b < batch; b++) {
-        const auto one = dense_inputs_from_reference(refs[b]);
-        for (auto [dst, src] : {std::pair{&in.q_idx, &one.q_idx}, {&in.k_idx, &one.k_idx}, {&in.raw_k_cache, &one.raw_k_cache},
-                                {&in.summary_cache, &one.summary_cache}, {&in.query_bhld, &one.query_bhld}, {&in.key_bhsd, &one.key_bhsd},
-                                {&in.value_bhsd, &one.value_bhsd}}) {
-            append(*dst, *src);
+    tests::random_generator rg(GET_SUITE_NAME);
+    const auto full = make_split_reference(rg, d, 0, std::accumulate(q_lens.begin(), q_lens.end(), size_t{0}), Positions::MRoPELike);
+    std::unique_ptr<network> net;
+    std::vector<float> summary, raw, rope;
+    size_t summary_cap = 0;
+    size_t past_len = 0;
+    for (size_t q_len : q_lens) {
+        SCOPED_TRACE("past_len=" + std::to_string(past_len) + " q_len=" + std::to_string(q_len));
+        const auto ref = slice_reference(full, past_len, q_len);
+        auto in = dense_inputs_from_reference(ref);
+        if (net) {
+            // Previous state, summary grown to this call's capacity (zero-filled tail).
+            in.summary_cache.assign(in.summary_cap * d.Di, 0.0f);
+            std::copy_n(summary.begin(), summary_cap * d.Di, in.summary_cache.begin());
+            in.raw_state = raw;
+            in.rope_state = rope;
+            set_dense_inputs(engine, *net, in, Stage::Pair, true);
+        } else {
+            net = build_dense_network(engine, in, Stage::Pair, true);
         }
-        append(in.position_ids, one.position_ids);
-        append(in.position_cache, one.position_cache);
-        append(in.past_lens, one.past_lens);
+        net->execute();
+        validate_dense_outputs(*net, in, {ref}, nullptr, atol, rtol);
+
+        auto indexer = net->get_primitive("indexer");
+        auto read_state = [&](size_t out) {
+            auto values = read_f16(indexer->output_memory_ptr(out));
+            values.resize(indexer->get_output_layout(out).count());
+            return values;
+        };
+        summary = read_state(Out::SUMMARY_CACHE);
+        raw = read_state(Out::PAST_INCOMPLETE_RAW_K);
+        rope = read_state(Out::PAST_INCOMPLETE_ROPE);
+        summary_cap = in.summary_cap;
+        past_len += q_len;
     }
-    auto net = build_dense_network(engine, in, Stage::Pair);
-    auto outputs = net->execute();
-    const auto attn_bhld = read_f16(outputs.at("attn").get_memory());
-    pair_outputs all;
-    all.attn.resize(attn_bhld.size());
-    for (size_t b = 0; b < batch; b++) {
-        for (size_t t = 0; t < q_len; t++) {
-            for (size_t h = 0; h < d.Hq; h++) {
-                for (size_t j = 0; j < d.Dv; j++) {
-                    all.attn[((b * q_len + t) * d.Hq + h) * d.Dv + j] = attn_bhld[((b * d.Hq + h) * q_len + t) * d.Dv + j];
-                }
-            }
-        }
-    }
-    read_pair_outputs(*net, all);
-    validate_slices(false, refs, all, r, atol, rtol);
 }
 
 /// Caps the decode BLOCK_SCORES scratch so the Q2 chunk loop runs several times.
@@ -1327,11 +1573,12 @@ TEST(qsa_ops_gpu_test, qwen38_dense_batch_decode_matches_reference) {
     run_dense_batch_test(qwen38_dims(), 3, 3071, 1, decode_gqa, 3e-3f);
 }
 
-// Same, with a one-row BLOCK_SCORES budget. The paged scratch row spans the whole 487-page
-// pool (1948 blocks), so two 768-block rows fit: chunks of 2 + 1 sequences.
+// Same, with a one-row BLOCK_SCORES budget. The paged scratch row is sized from the page table
+// (past_lens stay in GPU memory), i.e. the whole 1948-block pool, so only one row fits per
+// chunk: 3 chunks of one sequence each.
 TEST(qsa_ops_gpu_test, qwen38_paged_batch_decode_chunked_scores_match_reference) {
     scoped_score_budget budget("1");
-    run_paged_batch_test(qwen38_dims(), {{2100, 1}, {2600, 1}, {3071, 1}}, {IndexerPath::Decode, AttnPath::GqaSplit, 2}, 3e-3f);
+    run_paged_batch_test(qwen38_dims(), {{2100, 1}, {2600, 1}, {3071, 1}}, {IndexerPath::Decode, AttnPath::GqaSplit, 3}, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, qwen38_dense_batch_decode_chunked_scores_match_reference) {
@@ -1356,7 +1603,7 @@ TEST(qsa_ops_gpu_test, paged_batch_mixed_fused_score_topk_matches_reference) {
 }
 
 TEST(qsa_ops_gpu_test, paged_batch_decode_toy_dims_matches_reference) {
-    run_paged_batch_test(split_dims{}, {{20, 1}, {37, 1}, {63, 1}}, decode_scalar, 2e-2f);
+    run_paged_batch_test(split_dims{}, {{20, 1}, {37, 1}, {63, 1}}, decode_split, 2e-2f);
 }
 
 // Toy dims have no GQA-DPAS, so long decode takes the split + reduce fallback.
@@ -1366,6 +1613,51 @@ TEST(qsa_ops_gpu_test, paged_batch_long_decode_split_fallback_matches_reference)
 
 TEST(qsa_ops_gpu_test, dense_batch_long_decode_split_fallback_matches_reference) {
     run_dense_batch_test(split_dims{}, 2, 2100, 1, decode_split, 2e-2f);
+}
+
+// ---------------------------------------------------------------------------
+// Multi-batch dense rows of different key lengths: K/V of shorter rows are left-padded
+// (logical key j at S - key_length + j), and rows shorter than L are fresh, left-padded
+// sequences whose padding queries select nothing and output zeros. Padding storage is
+// NaN, so any read of it fails the comparison.
+// ---------------------------------------------------------------------------
+
+TEST(qsa_ops_gpu_test, dense_batch_left_padding_fused_scalar_matches_reference) {
+    run_dense_batch_test(split_dims{}, {{20, 44}, {0, 30}, {0, 44}, {0, 3}}, fused_scalar, 2e-2f);
+}
+
+TEST(qsa_ops_gpu_test, dense_batch_ragged_decode_scalar_matches_reference) {
+    run_dense_batch_test(split_dims{}, {{63, 1}, {20, 1}, {37, 1}}, decode_scalar, 2e-2f);
+}
+
+TEST(qsa_ops_gpu_test, dense_batch_ragged_long_decode_split_matches_reference) {
+    run_dense_batch_test(split_dims{}, {{2100, 1}, {15, 1}}, decode_split, 2e-2f);
+}
+
+// Padding spans whole and partial 16-query tiles of the plain DPAS kernel.
+TEST(qsa_ops_gpu_test, dense_batch_left_padding_plain_dpas_matches_reference) {
+    run_dense_batch_test(non_gqa_dpas_dims(), {{2100, 33}, {0, 9}, {0, 20}}, dpas_dpas, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, qwen38_dense_batch_left_padding_prefill_matches_reference) {
+    run_dense_batch_test(qwen38_dims(), {{4032, 64}, {0, 40}, {0, 64}}, dpas_gqa, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, qwen38_dense_batch_ragged_decode_matches_reference) {
+    run_dense_batch_test(qwen38_dims(), {{3071, 1}, {15, 1}, {2050, 1}}, decode_gqa, 3e-3f);
+}
+
+// ---------------------------------------------------------------------------
+// Functional state across calls: each call consumes the state the previous call returned,
+// including staged keys of an incomplete block that a later call completes.
+// ---------------------------------------------------------------------------
+
+TEST(qsa_ops_gpu_test, dense_state_carries_across_calls) {
+    run_dense_state_chain_test(split_dims{}, {37, 1, 1, 6, 1, 3, 2}, 2e-2f);
+}
+
+TEST(qsa_ops_gpu_test, qwen38_dense_state_carries_across_calls) {
+    run_dense_state_chain_test(qwen38_dims(), {2050, 1, 1, 17, 1}, 3e-3f);
 }
 
 // Toy Dh = 16 is below the 64-byte DPAS row minimum, so prefill takes the scalar Q3 kernel.
@@ -1487,15 +1779,15 @@ TEST(qsa_ops_gpu_test, paged_batch_mixed_plain_dpas_attention_matches_reference)
 }
 
 // ---------------------------------------------------------------------------
-// Decode split-KV threshold for non-GQA dims. Paged compares the shortest past_len with
-// 2048; dense compares the whole K length (past_len + 1).
+// Decode split-KV threshold for non-GQA dims. Paged past_lens are GPU-resident, so it always
+// splits; dense compares the whole K length (past_len + 1) with 2048.
 // ---------------------------------------------------------------------------
 
-TEST(qsa_ops_gpu_test, paged_batch_decode_below_split_threshold_uses_scalar) {
-    run_paged_batch_test(non_gqa_dpas_dims(), {{2047, 1}, {3000, 1}}, decode_scalar, 3e-3f);
+TEST(qsa_ops_gpu_test, paged_batch_short_decode_uses_split) {
+    run_paged_batch_test(non_gqa_dpas_dims(), {{2047, 1}, {3000, 1}}, decode_split, 3e-3f);
 }
 
-TEST(qsa_ops_gpu_test, paged_batch_decode_at_split_threshold_uses_split) {
+TEST(qsa_ops_gpu_test, paged_batch_long_decode_uses_split) {
     run_paged_batch_test(non_gqa_dpas_dims(), {{2048, 1}, {3000, 1}}, decode_split, 3e-3f);
 }
 
@@ -1596,6 +1888,7 @@ void run_dynamic_pair_test(bool paged, const split_dims& d, const std::vector<dy
     for (const auto& step : steps) {
         SCOPED_TRACE("past_len=" + std::to_string(step.past_len) + " q_len=" + std::to_string(step.q_len));
         const auto ref = make_split_reference(rg, d, step.past_len, step.q_len, Positions::Sequential);
+        dense_inputs dense_in;
         if (paged) {
             const auto in = paged_inputs_from_reference(ref);
             if (net) {
@@ -1604,11 +1897,11 @@ void run_dynamic_pair_test(bool paged, const split_dims& d, const std::vector<dy
                 net = build_paged_network(engine, in, Stage::Pair, true);
             }
         } else {
-            const auto in = dense_inputs_from_reference(ref);
+            dense_in = dense_inputs_from_reference(ref);
             if (net) {
-                set_dense_inputs(engine, *net, in, Stage::Pair, true);
+                set_dense_inputs(engine, *net, dense_in, Stage::Pair, true);
             } else {
-                net = build_dense_network(engine, in, Stage::Pair, true);
+                net = build_dense_network(engine, dense_in, Stage::Pair, true);
             }
         }
         auto outputs = net->execute();
@@ -1628,20 +1921,29 @@ void run_dynamic_pair_test(bool paged, const split_dims& d, const std::vector<dy
         }
         EXPECT_EQ(indexer, indexer_impl) << "a new shape must reuse the shape-agnostic indexer impl";
         EXPECT_EQ(attention, attn_impl) << "a new shape must reuse the shape-agnostic attention impl";
+        if (!paged) {
+            validate_dense_outputs(*net, dense_in, {ref}, &step.r, atol, rtol);
+            continue;
+        }
         expect_route(paged, gpu, step.r);
         validate_pair(ref, gpu, atol, rtol);
     }
 }
 
-const std::vector<dynamic_step> toy_dynamic_steps = {{0, 37, fused_scalar}, {37, 1, decode_scalar}, {38, 1, decode_scalar}, {39, 6, fused_scalar}, {45, 1, decode_scalar}};
+// Paged past_lens live in GPU memory, so its non-GQA decode always takes split + reduce;
+// dense gates the split on the (shape-known) K length instead.
+std::vector<dynamic_step> toy_dynamic_steps(bool paged) {
+    const route decode = paged ? decode_split : decode_scalar;
+    return {{0, 37, fused_scalar}, {37, 1, decode}, {38, 1, decode}, {39, 6, fused_scalar}, {45, 1, decode}};
+}
 const std::vector<dynamic_step> qwen38_dynamic_steps = {{2100, 17, dpas_gqa}, {2117, 1, decode_gqa}, {2118, 1, decode_gqa}, {40, 9, dpas_gqa}};
 
 TEST(qsa_ops_gpu_test, paged_pair_dynamic_shapes_reuse_one_network) {
-    run_dynamic_pair_test(true, split_dims{}, toy_dynamic_steps, 2e-3f);
+    run_dynamic_pair_test(true, split_dims{}, toy_dynamic_steps(true), 2e-3f);
 }
 
 TEST(qsa_ops_gpu_test, dense_pair_dynamic_shapes_reuse_one_network) {
-    run_dynamic_pair_test(false, split_dims{}, toy_dynamic_steps, 2e-3f);
+    run_dynamic_pair_test(false, split_dims{}, toy_dynamic_steps(false), 2e-3f);
 }
 
 TEST(qsa_ops_gpu_test, qwen38_paged_pair_dynamic_shapes_reuse_one_network) {
@@ -1714,8 +2016,9 @@ void run_padded_kv_attention_test(const split_dims& d, size_t past_len, size_t q
     topo.add(input_layout("value", value->get_layout()));
     topo.add(data("sel", make_i32(engine, {1, 1, I(q_len), I(d.block_topk)}, plan.sel)));
     topo.add(data("count", make_i32(engine, {1, 1, I(q_len)}, plan.count)));
+    topo.add(data("key_length", make_i32(engine, {1}, {static_cast<int32_t>(total)})));
     topo.add(sparse_sdpa("attn",
-                         {input_info("query"), input_info("key"), input_info("value"), input_info("sel"), input_info("count")},
+                         {input_info("query"), input_info("key"), input_info("value"), input_info("sel"), input_info("count"), input_info("key_length")},
                          cfg,
                          1.0f / std::sqrt(static_cast<float>(d.Dh))));
     network net(engine, topo, make_config(engine));
@@ -1789,6 +2092,7 @@ void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<
     auto value_new = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{1, I(d.Hkv), -1, I(d.Dv)});
     auto sel = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1, -1, I(d.block_topk)});
     auto count = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1, -1});
+    auto key_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
 
     ov::SinkVector sinks;
     auto kv_cache = [&](const std::shared_ptr<ov::op::v0::Parameter>& fresh, size_t head_size, const std::string& name) {
@@ -1809,11 +2113,11 @@ void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<
     cfg.q_block_size = 1;
     cfg.causal = true;
     auto attn = std::make_shared<ov::op::internal::SparseSDPA>(
-        ov::OutputVector{query, kv_cache(key_new, d.Dh, "k_cache"), kv_cache(value_new, d.Dv, "v_cache"), sel, count},
+        ov::OutputVector{query, kv_cache(key_new, d.Dh, "k_cache"), kv_cache(value_new, d.Dv, "v_cache"), sel, count, key_length},
         cfg);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(attn)},
                                              sinks,
-                                             ov::ParameterVector{query, key_new, value_new, sel, count});
+                                             ov::ParameterVector{query, key_new, value_new, sel, count, key_length});
     auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(f16));
     auto request = compiled.create_infer_request();
 
@@ -1856,6 +2160,9 @@ void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<
         std::copy(plan.count.begin(), plan.count.end(), count_t.data<int32_t>());
         request.set_tensor(sel, sel_t);
         request.set_tensor(count, count_t);
+        ov::Tensor key_length_t(ov::element::i32, ov::Shape{1});
+        key_length_t.data<int32_t>()[0] = static_cast<int32_t>(ref.total_len());
+        request.set_tensor(key_length, key_length_t);
         request.infer();
 
         const auto out = request.get_output_tensor(0);
@@ -1895,30 +2202,30 @@ std::shared_ptr<ov::op::v0::Parameter> make_param(const ov::PartialShape& shape,
 ov::OutputVector make_paged_indexer_args(const split_dims& d, size_t num_pages, size_t summaries_per_page) {
     return {make_param({-1, I(d.Hiq * d.Di)}),
             make_param({-1, I(d.Di)}),
-            make_param({-1, I(d.rotary / 2)}),
-            make_param({-1, I(d.rotary / 2)}),
-            make_param({I(num_pages), 1, I(summaries_per_page), I(d.Di)}),
+            make_param({-1, I(d.rotary)}),
+            make_param({-1, I(d.rotary)}),
+            make_param({I(d.Di)}),
+            make_param({I(d.Di)}),
+            make_param({-1}, ov::element::i32),
+            make_param({-1}, ov::element::i32),
+            make_param({-1}, ov::element::i32),
+            make_param({-1}, ov::element::i32),
             make_param({I(num_pages), 1, I(d.page_size), I(d.Di)}),
-            make_param({I(d.Di)}),
-            make_param({I(d.Di)}),
-            make_param({-1}, ov::element::i32),
-            make_param({-1}, ov::element::i32),
-            make_param({-1}, ov::element::i32),
-            make_param({-1}, ov::element::i32),
-            make_param({I(num_pages), I(summaries_per_page), I(d.rotary)})};
+            make_param({I(num_pages), I(summaries_per_page), I(2 * d.rotary)}),
+            make_param({I(num_pages), 1, I(summaries_per_page), I(d.Di)})};
 }
 
 ov::OutputVector make_dense_indexer_args(const split_dims& d, size_t h_ik = 1) {
     return {make_param({1, -1, I(d.Hiq), I(d.Di)}),
             make_param({1, -1, I(h_ik), I(d.Di)}),
-            make_param({1, -1, I(d.rotary / 2)}),
-            make_param({1, -1, I(d.rotary / 2)}),
-            make_param({1, I(h_ik), -1, I(d.Di)}),
-            make_param({1, I(h_ik), -1, I(d.Di)}),
-            make_param({I(d.Di)}),
-            make_param({I(d.Di)}),
+            make_param({1, -1, I(d.rotary)}),
+            make_param({1, -1, I(d.rotary)}),
             make_param({1}, ov::element::i32),
-            make_param({1, -1, I(d.rotary)})};
+            make_param({I(d.Di)}),
+            make_param({I(d.Di)}),
+            make_param({1, I(h_ik), -1, I(d.Di)}),
+            make_param({1, I(h_ik), I(d.r - 1), I(d.Di)}),
+            make_param({1, I(2 * d.rotary)})};
 }
 
 ov::intel_gpu::op::PagedQSAIndexer::Config make_paged_indexer_config(const split_dims& d) {
@@ -1998,6 +2305,14 @@ TEST(qsa_ops_gpu_test, paged_qsa_indexer_output_shapes_and_clone) {
         << "clone_with_new_inputs() must not silently downgrade to the base ov::op::internal::PagedQSAIndexer type";
 }
 
+TEST(qsa_ops_gpu_test, paged_qsa_indexer_resolves_default_scale) {
+    split_dims d;
+    auto cfg = make_paged_indexer_config(d);
+    cfg.scale = 0.0f;
+    auto node = std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(make_paged_indexer_args(d, 8, d.page_size / d.r), cfg);
+    EXPECT_FLOAT_EQ(node->get_config().scale, 1.0f / std::sqrt(static_cast<float>(d.Di)));
+}
+
 TEST(qsa_ops_gpu_test, paged_qsa_indexer_rejects_wrong_input_count) {
     split_dims d;
     auto args = make_paged_indexer_args(d, 8, d.page_size / d.r);
@@ -2010,24 +2325,24 @@ TEST(qsa_ops_gpu_test, paged_qsa_indexer_rejects_bad_rope_shapes) {
     using In = ov::intel_gpu::op::PagedQSAIndexer::InputIdx;
     const size_t spp = d.page_size / d.r;
     auto args = make_paged_indexer_args(d, 8, spp);
-    args[In::ROPE_COS] = make_param({-1, I(d.rotary)});  // a full-width row, not rotary/2
+    args[In::ROPE_COS] = make_param({-1, I(d.rotary / 2)});  // a half-width row, not rotary
     EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope_cos width";
 
     args = make_paged_indexer_args(d, 8, spp);
-    args[In::ROPE_SIN] = make_param({3, I(d.rotary / 2)});
+    args[In::ROPE_SIN] = make_param({3, I(d.rotary)});
     args[In::Q_IDX] = make_param({4, I(d.Hiq * d.Di)});
     EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope_sin tokens";
 
     args = make_paged_indexer_args(d, 8, spp);
-    args[In::INDEXER_ROPE_CACHE] = make_param({8, I(spp), I(d.rotary / 2)});
+    args[In::INDEXER_ROPE_CACHE] = make_param({8, I(spp), I(d.rotary)});
     EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache row width";
 
     args = make_paged_indexer_args(d, 8, spp);
-    args[In::INDEXER_ROPE_CACHE] = make_param({9, I(spp), I(d.rotary)});
+    args[In::INDEXER_ROPE_CACHE] = make_param({9, I(spp), I(2 * d.rotary)});
     EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache num_blocks";
 
     args = make_paged_indexer_args(d, 8, spp);
-    args[In::INDEXER_ROPE_CACHE] = make_param({8, I(spp), I(d.rotary)}, ov::element::f32);
+    args[In::INDEXER_ROPE_CACHE] = make_param({8, I(spp), I(2 * d.rotary)}, ov::element::f32);
     EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache type";
 }
 
@@ -2041,35 +2356,53 @@ TEST(qsa_ops_gpu_test, paged_qsa_indexer_requires_i32_integer_inputs) {
     }
 }
 
-TEST(qsa_ops_gpu_test, dense_qsa_indexer_validates_rope_inputs_and_past_lens) {
+TEST(qsa_ops_gpu_test, dense_qsa_indexer_validates_state_rope_and_key_length) {
     split_dims d;
     using In = ov::op::internal::QSAIndexer::InputIdx;
-    ASSERT_NO_THROW(std::make_shared<ov::op::internal::QSAIndexer>(make_dense_indexer_args(d), make_dense_indexer_config(d)));
+    using Out = ov::op::internal::QSAIndexer::OutputIdx;
+    std::shared_ptr<ov::op::internal::QSAIndexer> node;
+    ASSERT_NO_THROW(node = std::make_shared<ov::op::internal::QSAIndexer>(make_dense_indexer_args(d), make_dense_indexer_config(d)));
+    // Outputs: selection plus the updated state, shaped and typed like the state inputs.
+    ASSERT_EQ(node->get_output_size(), Out::COUNT);
+    EXPECT_EQ(node->get_output_partial_shape(Out::SEL_INDICES), (ov::PartialShape{1, 1, -1, I(d.block_topk)}));
+    for (auto [out, in] : {std::pair{Out::SUMMARY_CACHE, In::SUMMARY_CACHE},
+                           std::pair{Out::PAST_INCOMPLETE_RAW_K, In::PAST_INCOMPLETE_RAW_K},
+                           std::pair{Out::PAST_INCOMPLETE_ROPE, In::PAST_INCOMPLETE_ROPE}}) {
+        EXPECT_EQ(node->get_output_partial_shape(out), node->get_input_partial_shape(in));
+        EXPECT_EQ(node->get_output_element_type(out), ov::element::f16);
+    }
 
     auto args = make_dense_indexer_args(d);
-    args[In::ROPE_COS] = make_param({1, -1, I(d.rotary / 2)}, ov::element::f32);
+    args[In::ROPE_COS] = make_param({1, -1, I(d.rotary)}, ov::element::f32);
     EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "rope_cos type";
 
     args = make_dense_indexer_args(d);
-    args[In::ROPE_COS] = make_param({-1, I(d.rotary / 2)});
+    args[In::ROPE_COS] = make_param({1, -1, I(d.rotary / 2)});
+    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "half-width rope_cos";
+
+    args = make_dense_indexer_args(d);
+    args[In::ROPE_COS] = make_param({-1, I(d.rotary)});
     EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "rank-2 rope_cos";
 
     args = make_dense_indexer_args(d);
-    args[In::ROPE_SIN] = make_param({2, -1, I(d.rotary / 2)});
+    args[In::ROPE_SIN] = make_param({2, -1, I(d.rotary)});
     EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "batch mismatch";
 
     args = make_dense_indexer_args(d);
-    args[In::PAST_LENS] = make_param({1}, ov::element::i64);
-    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "i64 past_lens";
+    args[In::KEY_LENGTH] = make_param({1}, ov::element::i64);
+    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "i64 key_length";
 
-    // A static S_cap that is not a multiple of r needs ceil(S_cap / r) rope rows.
     args = make_dense_indexer_args(d);
-    args[In::INDEXER_RAW_K_CACHE] = make_param({1, 1, 10, I(d.Di)});
-    args[In::SUMMARY_CACHE] = make_param({1, 1, 2, I(d.Di)});
-    args[In::INDEXER_ROPE_CACHE] = make_param({1, 3, I(d.rotary)});
-    EXPECT_NO_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)));
-    args[In::INDEXER_ROPE_CACHE] = make_param({1, 2, I(d.rotary)});
-    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "floor-sized rope cache";
+    args[In::PAST_INCOMPLETE_RAW_K] = make_param({1, 1, I(d.r), I(d.Di)});
+    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "r raw-key slots";
+
+    args = make_dense_indexer_args(d);
+    args[In::PAST_INCOMPLETE_ROPE] = make_param({1, I(d.rotary)});
+    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "non-interleaved rope state";
+
+    args = make_dense_indexer_args(d);
+    args[In::SUMMARY_CACHE] = make_param({1, 1, -1, I(d.Di)}, ov::element::f32);
+    EXPECT_THROW(std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "summary type";
 }
 
 ov::intel_gpu::op::SparsePA::Config make_sparse_pa_config(const split_dims& d) {
@@ -2184,25 +2517,30 @@ ov::OutputVector make_sparse_sdpa_args(const split_dims& d, ov::element::Type_t 
             make_param({1, I(d.Hkv), -1, I(d.Dh)}, et),
             make_param({1, I(d.Hkv), -1, I(d.Dv)}, et),
             make_param({1, 1, -1, I(d.block_topk)}, ov::element::i32),
-            make_param({1, 1, -1}, ov::element::i32)};
+            make_param({1, 1, -1}, ov::element::i32),
+            make_param({1}, ov::element::i32)};
 }
 
 TEST(qsa_ops_gpu_test, sparse_sdpa_output_shape_and_optional_inputs) {
     split_dims d;
     auto args = make_sparse_sdpa_args(d);
     auto node = std::make_shared<ov::intel_gpu::op::SparseSDPA>(args, make_sparse_sdpa_config(d));
-    ASSERT_FALSE(node->has_attn_mask());
     ASSERT_FALSE(node->has_scale_input());
+    ASSERT_FALSE(node->has_sinks());
 
     const auto& out_ps = node->get_output_partial_shape(0);
     ASSERT_EQ(out_ps.size(), 4u);
     ASSERT_EQ(out_ps[1].get_length(), I(d.Hq));
     ASSERT_EQ(out_ps[3].get_length(), I(d.Dv));
 
-    args.push_back(make_param({1, 1, -1, -1}));  // attn_mask
-    auto node_with_mask = std::make_shared<ov::intel_gpu::op::SparseSDPA>(args, make_sparse_sdpa_config(d));
-    ASSERT_TRUE(node_with_mask->has_attn_mask());
-    ASSERT_FALSE(node_with_mask->has_scale_input());
+    args.push_back(make_param({}));  // scale
+    auto node_with_scale = std::make_shared<ov::intel_gpu::op::SparseSDPA>(args, make_sparse_sdpa_config(d));
+    ASSERT_TRUE(node_with_scale->has_scale_input());
+    ASSERT_FALSE(node_with_scale->has_sinks());
+
+    args.push_back(make_param({I(d.Hq)}));  // sinks
+    auto node_with_sinks = std::make_shared<ov::intel_gpu::op::SparseSDPA>(args, make_sparse_sdpa_config(d));
+    ASSERT_TRUE(node_with_sinks->has_sinks());
 
     auto clone = node->clone_with_new_inputs(node->input_values());
     ASSERT_NE(std::dynamic_pointer_cast<ov::intel_gpu::op::SparseSDPA>(clone), nullptr);
@@ -2210,6 +2548,18 @@ TEST(qsa_ops_gpu_test, sparse_sdpa_output_shape_and_optional_inputs) {
     args = make_sparse_sdpa_args(d);
     args[SparseSDPAIn::SEL_INDICES] = make_param({1, 1, -1, I(d.block_topk)}, ov::element::i64);
     EXPECT_THROW(std::make_shared<ov::intel_gpu::op::SparseSDPA>(args, make_sparse_sdpa_config(d)), ov::Exception);
+
+    args = make_sparse_sdpa_args(d);
+    args[SparseSDPAIn::KEY_LENGTH] = make_param({1}, ov::element::i64);
+    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::SparseSDPA>(args, make_sparse_sdpa_config(d)), ov::Exception) << "i64 key_length";
+
+    args = make_sparse_sdpa_args(d);
+    args[SparseSDPAIn::KEY_LENGTH] = make_param({2}, ov::element::i32);
+    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::SparseSDPA>(args, make_sparse_sdpa_config(d)), ov::Exception) << "key_length batch";
+
+    args = make_sparse_sdpa_args(d);
+    args.pop_back();
+    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::SparseSDPA>(args, make_sparse_sdpa_config(d)), ov::Exception) << "key_length is required";
 }
 
 // ---------------------------------------------------------------------------
@@ -2270,6 +2620,12 @@ TEST(qsa_ops_gpu_test, plugin_rejects_unsupported_indexer_heads_and_precision) {
 
     auto sdpa = std::make_shared<ov::op::internal::SparseSDPA>(make_sparse_sdpa_args(d, ov::element::f32), make_sparse_sdpa_config(d));
     expect_compile_error(core, sdpa, {ov::hint::inference_precision(ov::element::f32)}, "must be f16");
+
+    auto sink_args = make_sparse_sdpa_args(d);
+    sink_args.push_back(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.25f}));
+    sink_args.push_back(make_param({I(d.Hq)}));
+    auto sdpa_sinks = std::make_shared<ov::op::internal::SparseSDPA>(sink_args, make_sparse_sdpa_config(d));
+    expect_compile_error(core, sdpa_sinks, {}, "sinks input is not supported");
 }
 
 }  // namespace
@@ -2406,5 +2762,67 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_qsa_ops_perf,
                              return std::string(c.paged ? "paged" : "dense") + "_ctx" + std::to_string(c.past_len + c.q_len) + "_q" +
                                     std::to_string(c.q_len) + (c.no_dpas_score ? "_nodpasq2" : "");
                          });
+
+// Per-kernel sweep driver for external GPU tracing (e.g. onetrace -d): one dense (QSAIndexer +
+// SparseSDPA) or paged (PagedQSAIndexer + SparsePA) pair with Qwen3.8 dims, configured via the
+// environment: QSA_PERF_IMPL=dense|paged, QSA_PERF_PHASE=prefill|decode, QSA_PERF_B, QSA_PERF_LEN
+// (prompt length / history length), QSA_PERF_ITERS, QSA_PERF_WARMUP, QSA_PERF_FLUSH_MB (writes
+// that many MiB between iterations to evict L2).
+TEST(qsa_ops_perf_sweep, DISABLED_pair) {
+    if (!cm_qsa_ops_available()) {
+        GTEST_SKIP() << "CM is not supported on this device";
+    }
+    auto env_size = [](const char* name, size_t fallback) {
+        const char* v = std::getenv(name);
+        return v ? static_cast<size_t>(std::strtoull(v, nullptr, 10)) : fallback;
+    };
+    const char* phase_env = std::getenv("QSA_PERF_PHASE");
+    const std::string phase = phase_env ? phase_env : "prefill";
+    ASSERT_TRUE(phase == "prefill" || phase == "decode") << phase;
+    const size_t batch = env_size("QSA_PERF_B", 1);
+    const size_t len = env_size("QSA_PERF_LEN", 1024);
+    const int iterations = static_cast<int>(env_size("QSA_PERF_ITERS", 30));
+    const size_t flush_mb = env_size("QSA_PERF_FLUSH_MB", 0);
+    const int warmup = static_cast<int>(env_size("QSA_PERF_WARMUP", 5));
+
+    auto& engine = get_test_engine();
+    const char* impl_env = std::getenv("QSA_PERF_IMPL");
+    const std::string impl = impl_env ? impl_env : "dense";
+    ASSERT_TRUE(impl == "dense" || impl == "paged") << impl;
+    const size_t past = phase == "prefill" ? 0 : len;
+    const size_t q_len = phase == "prefill" ? len : 1;
+    std::unique_ptr<network> net;
+    if (impl == "paged") {
+        net = build_paged_network(engine, paged_inputs_synthetic(qwen38_dims(), past, q_len, batch), Stage::Pair);
+    } else {
+        net = build_dense_network(engine, dense_inputs_synthetic(qwen38_dims(), past, q_len, batch), Stage::Pair);
+    }
+    memory::ptr flush;
+    if (flush_mb != 0) {
+        flush = engine.allocate_memory(layout{ov::PartialShape{I(flush_mb << 20)}, data_types::u8, format::bfyx}, allocation_type::usm_device);
+    }
+    auto run_once = [&]() {
+        if (flush) {
+            flush->fill(get_test_stream(), static_cast<unsigned char>(0), {}, true);
+        }
+        const auto start = std::chrono::steady_clock::now();
+        auto outputs = net->execute();
+        outputs.at("attn").get_memory();
+        net->get_stream().finish();
+        return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+    };
+    for (int i = 0; i < warmup; i++) {
+        run_once();
+    }
+    double total = 0.0;
+    double best = std::numeric_limits<double>::max();
+    for (int i = 0; i < iterations; i++) {
+        const double ms = run_once();
+        total += ms;
+        best = std::min(best, ms);
+    }
+    std::cout << "QSA_SWEEP impl=" << impl << " phase=" << phase << " B=" << batch << " len=" << len << " calls=" << warmup + iterations << " wall_avg_ms=" << total / iterations
+              << " wall_min_ms=" << best << " flush_mb=" << flush_mb << std::endl;
+}
 
 }  // namespace

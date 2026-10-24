@@ -18,22 +18,19 @@
 namespace ov::intel_gpu::cm {
 
 struct SparsePAInternalBufIdx {
-    static constexpr size_t TILE_MAP = 0;   ///< i32 [tile_count, 2] = (seq, token_begin); plain dpas attention only
-    static constexpr size_t TOKEN_MAP = 1;  ///< i32 [num_tokens, 2] = (seq, token); GQA dpas attention only
-    static constexpr size_t SPLIT_ACC = 2;  ///< f32 [num_tokens, Hq, split_partitions, Dv]; decode split attention only
-    static constexpr size_t SPLIT_ML = 3;   ///< f32 [num_tokens, Hq, split_partitions, 2]; decode split attention only
+    static constexpr size_t SPLIT_ACC = 0;  ///< f32 [num_tokens, Hq, split_partitions, Dv]; decode split attention only
+    static constexpr size_t SPLIT_ML = 1;   ///< f32 [num_tokens, Hq, split_partitions, 2]; decode split attention only
 
-    static constexpr size_t COUNT = 4;
+    static constexpr size_t COUNT = 2;
 };
 
+/// All sizes are upper bounds derived from shapes: past_lens/subsequence_begins live in GPU
+/// memory and are resolved by the kernels, never read by the host.
 struct SparsePARuntimeParams : public ImplRuntimeParams {
     size_t num_tokens = 0;
     size_t num_seqs = 0;
     size_t tile_count = 0;
-    bool is_decode = false;        ///< every sequence contributes exactly one query token
-    size_t min_past_len = 0;       ///< min past_lens[s] across sequences with q_len > 0; valid only if is_decode
-    std::vector<int32_t> tile_map;
-    std::vector<int32_t> token_map;
+    bool is_decode = false;        ///< one query token per sequence (num_tokens == num_seqs)
 };
 
 /// @brief CM implementation of the SparsePA primitive: Q0 (K/V cache write) + Q3

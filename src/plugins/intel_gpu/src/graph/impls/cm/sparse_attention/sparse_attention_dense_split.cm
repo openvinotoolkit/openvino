@@ -7,8 +7,9 @@
 //
 // Dense counterpart of sparse_attention_paged_split.cm: same partition-the-selected-list
 // + exclusive-tail-owner design, addressed directly through `[B, Hkv, S, D]` strides (no
-// page table). The causal position is the RST's bottom-right-aligned `q_abs = S - L + l`,
-// matching sparse_attention_dense.cm exactly. No output gate.
+// page table). Positions follow sparse_attention_dense.cm exactly: left-padded K/V with
+// `pad_k = S - key_length[b]`, causal position `q_abs = key_length[b] - L + l`, and a
+// left-padding query row attends nothing (its partitions are empty). No output gate.
 //
 // JIT constants: QSA_HEADS, QSA_KV_HEADS, QSA_K_HEAD_SIZE, QSA_V_HEAD_SIZE,
 // QSA_COMPRESS_RATIO, QSA_BLOCK_TOPK, QSA_SCALE, QSA_SPLIT_PARTITIONS
@@ -73,6 +74,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,               //
                                         const half* value ATTR,               // [B, Hkv, S, Dv], dense history
                                         const int32_t* selected_blocks ATTR,  // [B*L, block_topk]
                                         const int32_t* selected_counts ATTR,  // [B*L]
+                                        const int32_t* key_length ATTR,       // [B]
                                         float* partial_acc ATTR,              // [B*L, Hq, P, Dv]
                                         float* partial_ml ATTR,               // [B*L, Hq, P, 2]
                                         uint32_t seq_len,                     // L
@@ -100,7 +102,13 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,               //
 
     const uint batch = row / seq_len;
     const uint l = row - batch * seq_len;
-    const uint q_abs = history_len - seq_len + l;  // bottom-right aligned, RST q_abs = S - L + l
+    uint kl = (uint)key_length[batch];
+    kl = kl < history_len ? kl : history_len;
+    // Left-padded K/V: logical key j of this row is stored at row (history_len - kl) + j.
+    key += (history_len - kl) * DH;
+    value += (history_len - kl) * DV;
+    const bool pad_row = kl + l < seq_len;
+    const uint q_abs = kl + l - seq_len;  // RST q_abs = key_length - L + l, valid unless pad_row
     const uint kv_head = head / (HQ / HKV);
 
     vector<half, DH> q_h;
@@ -112,7 +120,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,               //
     float running_sum = 0.0f;
     vector<float, DV> acc = 0.0f;
 
-    const uint count = (uint)selected_counts[row];
+    const uint count = pad_row ? 0 : (uint)selected_counts[row];
     const uint selected = count < K_TOPK ? count : K_TOPK;
     const uint begin = selected * part / P;
     const uint end = selected * (part + 1) / P;
@@ -124,7 +132,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,               //
         sparse_attention_split_attend_span_dense<DH, DV, HKV, R>(q, acc, running_max, running_sum, key, value, batch, kv_head, k_seq_pitch, v_seq_pitch,
                                                                  (uint)b * R);
     }
-    if (part == P - 1) {
+    if (part == P - 1 && !pad_row) {
         for (uint pos = qsa_ops::num_complete_blocks(q_abs) * R; pos <= q_abs; pos++) {
             sparse_attention_split_attend_span_dense<DH, DV, HKV, 1>(q, acc, running_max, running_sum, key, value, batch, kv_head, k_seq_pitch, v_seq_pitch,
                                                                      pos);

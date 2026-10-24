@@ -100,7 +100,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,                 
     }
 
     uint seq = 0, abs_pos = 0;
-    qsa_ops::resolve_token_paged(subsequence_begins, past_lens, num_seqs, token_idx, seq, abs_pos);
+    if (!qsa_ops::resolve_token_paged(subsequence_begins, past_lens, num_seqs, token_idx, seq, abs_pos)) {
+        return;
+    }
 
     const uint kv_head = head / (HQ / HKV);
     const uint page_begin = (uint)block_indices_begins[seq];

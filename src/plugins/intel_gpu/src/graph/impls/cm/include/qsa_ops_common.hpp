@@ -34,24 +34,72 @@ CM_INLINE uint num_complete_blocks(uint abs_pos) {
 }
 
 /// Resolves a flattened paged token index to its sequence and absolute logical position.
-CM_INLINE void resolve_token_paged(const int32_t* subsequence_begins ATTR, const int32_t* past_lens ATTR, uint num_seqs, uint token_idx, uint& seq,
+/// Returns false for rows past the last real token: the grids are sized from shapes, the
+/// real counts live only in GPU memory.
+CM_INLINE bool resolve_token_paged(const int32_t* subsequence_begins ATTR, const int32_t* past_lens ATTR, uint num_seqs, uint token_idx, uint& seq,
                                    uint& abs_pos) {
     seq = 0;
+    abs_pos = 0;
     for (uint i = 0; i < num_seqs; i++) {
         if (token_idx >= (uint)subsequence_begins[i] && token_idx < (uint)subsequence_begins[i + 1]) {
             seq = i;
-            break;
+            abs_pos = (uint)past_lens[i] + token_idx - (uint)subsequence_begins[i];
+            return true;
         }
     }
-    abs_pos = (uint)past_lens[seq] + token_idx - (uint)subsequence_begins[seq];
+    return false;
+}
+
+/// Maps work-group `wg` of a grid sized `tokens / r + 2 * num_seqs` onto the (sequence, QSA block)
+/// pair it prepares: sequence `i` owns the blocks touched by its `q_len` new tokens.
+CM_INLINE bool resolve_prepare_wg(const int32_t* subsequence_begins ATTR, const int32_t* past_lens ATTR, uint num_seqs, uint wg, uint& seq, uint& block) {
+    uint acc = 0;
+    for (uint i = 0; i < num_seqs; i++) {
+        const uint q_len = (uint)subsequence_begins[i + 1] - (uint)subsequence_begins[i];
+        if (q_len == 0) {
+            continue;
+        }
+        const uint past = (uint)past_lens[i];
+        const uint first = past / (uint)QSA_COMPRESS_RATIO;
+        const uint n = (past + q_len - 1) / (uint)QSA_COMPRESS_RATIO - first + 1;
+        if (wg < acc + n) {
+            seq = i;
+            block = first + (wg - acc);
+            return true;
+        }
+        acc += n;
+    }
+    return false;
+}
+
+/// Maps query tile `tile` (grid sized `tokens / tile_tokens + num_seqs`) onto its sequence and
+/// the global index of its first token; tiles never straddle two sequences.
+CM_INLINE bool resolve_tile_paged(const int32_t* subsequence_begins ATTR, uint num_seqs, uint tile, uint tile_tokens, uint& seq, uint& token_begin) {
+    uint acc = 0;
+    for (uint i = 0; i < num_seqs; i++) {
+        const uint begin = (uint)subsequence_begins[i];
+        const uint q_len = (uint)subsequence_begins[i + 1] - begin;
+        const uint n = (q_len + tile_tokens - 1) / tile_tokens;
+        if (tile < acc + n) {
+            seq = i;
+            token_begin = begin + (tile - acc) * tile_tokens;
+            return true;
+        }
+        acc += n;
+    }
+    return false;
 }
 
 /// Resolves a flattened dense token index `t = b * seq_len + l` to its batch index and
-/// absolute logical position. No subsequence table is synthesized: the dense batch axis
-/// IS the sequence axis, and every batch element shares the same query length `seq_len`.
-CM_INLINE void resolve_token_dense(const int32_t* past_lens ATTR, uint seq_len, uint token_idx, uint& batch, uint& abs_pos) {
+/// logical position `key_length[b] - seq_len + l`. No subsequence table is synthesized:
+/// the dense batch axis IS the sequence axis, and every batch element shares the same
+/// query length `seq_len`. A left-padding row (`key_length[b] + l < seq_len`) yields
+/// `abs_pos = 0xFFFFFFFF`, so `num_complete_blocks(abs_pos)` wraps to 0 and the row
+/// selects nothing.
+CM_INLINE void resolve_token_dense(const int32_t* key_length ATTR, uint seq_len, uint token_idx, uint& batch, uint& abs_pos) {
     batch = token_idx / seq_len;
-    abs_pos = (uint)past_lens[batch] + (token_idx - batch * seq_len);
+    const uint shifted = (uint)key_length[batch] + (token_idx - batch * seq_len);  // abs_pos + seq_len
+    abs_pos = shifted >= seq_len ? shifted - seq_len : 0xFFFFFFFFu;
 }
 
 /// Dense element offset of logical position `pos` of batch `b` in a `[B, stride, Di]`

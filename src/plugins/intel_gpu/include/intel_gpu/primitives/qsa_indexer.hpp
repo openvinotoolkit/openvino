@@ -11,17 +11,26 @@
 
 namespace cldnn {
 
-/// @brief Non-paged (dense, caller-owned-cache) QSA Indexer primitive: Q1 (prepare) +
-/// Q2 (score/top-k). See ov::intel_gpu::op::QSAIndexer.
+/// @brief Non-paged (dense, functional-state) QSA Indexer primitive: Q1 (prepare) +
+/// Q2 (score/top-k). Outputs: sel_indices, sel_count, and the updated summary_cache,
+/// past_incomplete_raw_k and past_incomplete_rope state. See ov::intel_gpu::op::QSAIndexer.
 struct qsa_indexer : public primitive_base<qsa_indexer> {
     CLDNN_DECLARE_PRIMITIVE(qsa_indexer)
 
     using InputIdx = ov::intel_gpu::op::QSAIndexer::InputIdx;
+    using OutputIdx = ov::intel_gpu::op::QSAIndexer::OutputIdx;
 
     qsa_indexer() : primitive_base("", {}) {}
 
     qsa_indexer(const primitive_id& id, const std::vector<input_info>& inputs, const ov::intel_gpu::op::QSAIndexer::Config& config)
-        : primitive_base(id, inputs, 2, {optional_data_type{ov::element::i32}, optional_data_type{ov::element::i32}}),
+        : primitive_base(id,
+                         inputs,
+                         OutputIdx::COUNT,
+                         {optional_data_type{ov::element::i32},
+                          optional_data_type{ov::element::i32},
+                          optional_data_type{},
+                          optional_data_type{},
+                          optional_data_type{}}),
           compress_ratio(config.compress_ratio),
           block_topk(config.block_topk),
           h_sel(config.h_sel),

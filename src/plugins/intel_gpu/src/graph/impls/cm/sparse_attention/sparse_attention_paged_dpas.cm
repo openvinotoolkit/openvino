@@ -109,9 +109,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,                 
                                         const int32_t* block_indices_begins ATTR,  // [num_seqs+1]
                                         const int32_t* selected_blocks ATTR,       // [num_tokens, block_topk] ascending
                                         const int32_t* selected_counts ATTR,       // [num_tokens]
-                                        const int32_t* tile_map ATTR,              // [num_tiles, 2] = (seq, token_begin)
                                         half* output ATTR,                         // [num_tokens, Hq*Dv]
-                                        uint32_t num_tiles,
+                                        uint32_t num_tiles,                        // shape-derived upper bound
+                                        uint32_t num_seqs,
                                         uint32_t q_base,
                                         uint32_t q_pitch) {
     constexpr uint HQ = QSA_HEADS;
@@ -158,8 +158,10 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,                 
     uint st_buf = 0;
 #endif
 
-    const uint seq = (uint)tile_map[tile * 2 + 0];
-    const uint tile_begin = (uint)tile_map[tile * 2 + 1];
+    uint seq = 0, tile_begin = 0;
+    if (!qsa_ops::resolve_tile_paged(subsequence_begins, num_seqs, tile, NQ, seq, tile_begin)) {
+        return;
+    }
     const uint token0 = tile_begin + sub * TT;
     const uint seq_begin = (uint)subsequence_begins[seq];
     const uint seq_end = (uint)subsequence_begins[seq + 1];

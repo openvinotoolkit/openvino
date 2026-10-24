@@ -206,6 +206,7 @@ struct DenseGraph {
     std::shared_ptr<ov::Model> model;
     IndexerGraph indexer;
     std::shared_ptr<ov::op::v6::ReadValue> k_read;
+    std::shared_ptr<ov::op::v0::Concat> k_full;
 };
 
 DenseGraph build_dense_graph(DenseAttn attn, RopeLayout layout = RopeLayout::Halves) {
@@ -221,6 +222,7 @@ DenseGraph build_dense_graph(DenseAttn attn, RopeLayout layout = RopeLayout::Hal
     auto k_new = std::make_shared<ov::op::v0::Parameter>(et, kv_shape);
     auto v_new = std::make_shared<ov::op::v0::Parameter>(et, kv_shape);
     auto k_full = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{out.k_read, k_new}, 2);
+    out.k_full = k_full;
     auto v_full = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{v_read, v_new}, 2);
     auto k_assign = std::make_shared<ov::op::v6::Assign>(k_full, k_variable);
     auto v_assign = std::make_shared<ov::op::v6::Assign>(v_full, v_variable);
@@ -354,8 +356,9 @@ void expect_norm_weight(const ov::Output<ov::Node>& input, float value) {
     }
 }
 
-/// `rope_cos`/`rope_sin` must be `Gather(table, positions)` rows of a split `[max_positions,
-/// Rd/2]` table whose entries are `value_of(p, j)`.
+/// `rope_cos`/`rope_sin` must be `Gather(table, positions)` rows of a full-width
+/// `[max_positions, Rd]` rotate-half table (both halves equal) whose entries are
+/// `value_of(p, j % (Rd / 2))`.
 template <typename ValueOf>
 void expect_rope_rows(const ov::Output<ov::Node>& input, const ov::Node* positions, ValueOf value_of) {
     auto gather = ov::as_type_ptr<ov::op::v8::Gather>(input.get_node_shared_ptr());
@@ -363,11 +366,11 @@ void expect_rope_rows(const ov::Output<ov::Node>& input, const ov::Node* positio
     EXPECT_EQ(producer_through_layout(gather->input_value(1)), positions);
     auto c = ov::as_type_ptr<ov::op::v0::Constant>(gather->get_input_node_shared_ptr(0));
     ASSERT_NE(c, nullptr);
-    ASSERT_EQ(c->get_shape(), (ov::Shape{max_positions, Rd / 2}));
+    ASSERT_EQ(c->get_shape(), (ov::Shape{max_positions, Rd}));
     const auto values = c->cast_vector<float>();
     for (int64_t p = 0; p < max_positions; ++p) {
-        for (int64_t j = 0; j < Rd / 2; ++j) {
-            EXPECT_FLOAT_EQ(values[p * (Rd / 2) + j], value_of(p, j));
+        for (int64_t j = 0; j < Rd; ++j) {
+            EXPECT_FLOAT_EQ(values[p * Rd + j], value_of(p, j % (Rd / 2)));
         }
     }
 }
@@ -403,11 +406,13 @@ TEST(sparse_attention_fusion, dense_dynamic_causal_replaces_with_proven_inputs) 
     auto sparse_sdpa = find_op<ov::op::internal::SparseSDPA>(g.model);
     ASSERT_NE(indexer, nullptr);
     ASSERT_NE(sparse_sdpa, nullptr);
-    EXPECT_EQ(g.model->get_parameters().size(), params_before + 3);
-    // Only the raw-K Assign is retired; main K/V state keeps advancing.
-    EXPECT_EQ(g.model->get_sinks().size(), 2u);
+    // The indexer state lives in new Variables, not in new model inputs.
+    EXPECT_EQ(g.model->get_parameters().size(), params_before);
+    // The raw-K Assign is retired; main K/V state keeps advancing; three state Assigns are added.
+    EXPECT_EQ(g.model->get_sinks().size(), 5u);
 
     using In = ov::op::internal::QSAIndexer::InputIdx;
+    using Out = ov::op::internal::QSAIndexer::OutputIdx;
     const auto& cfg = indexer->get_config();
     EXPECT_EQ(cfg.compress_ratio, static_cast<size_t>(r));
     EXPECT_EQ(cfg.block_topk, static_cast<size_t>(block_topk));
@@ -418,29 +423,45 @@ TEST(sparse_attention_fusion, dense_dynamic_causal_replaces_with_proven_inputs) 
     // Dynamic B/L survive: q_idx is [B, L, Hidx, Di], outputs keep dynamic L.
     EXPECT_EQ(indexer->get_input_partial_shape(In::Q_IDX), (ov::PartialShape{-1, -1, Hidx, Di}));
     EXPECT_EQ(indexer->get_input_partial_shape(In::K_IDX), (ov::PartialShape{-1, -1, 1, Di}));
-    EXPECT_EQ(indexer->get_output_partial_shape(0), (ov::PartialShape{-1, 1, -1, block_topk}));
+    EXPECT_EQ(indexer->get_output_partial_shape(Out::SEL_INDICES), (ov::PartialShape{-1, 1, -1, block_topk}));
 
     expect_norm_weight(indexer->input_value(In::Q_NORM_WEIGHT), 1.0f + q_gain_w);
     expect_norm_weight(indexer->input_value(In::K_NORM_WEIGHT), 1.0f);
 
-    // rope_cos/rope_sin [B, L, Rd/2] are the rows the model gathers with its own RoPE indices.
+    // rope_cos/rope_sin [B, L, Rd] are the rows the model gathers with its own RoPE indices.
     expect_rope_inputs<In>(indexer, g.indexer.positions.get(), RopeLayout::Halves);
-    EXPECT_EQ(indexer->get_input_partial_shape(In::ROPE_COS), (ov::PartialShape{-1, -1, Rd / 2}));
-    EXPECT_EQ(indexer->get_input_partial_shape(In::ROPE_SIN), (ov::PartialShape{-1, -1, Rd / 2}));
+    EXPECT_EQ(indexer->get_input_partial_shape(In::ROPE_COS), (ov::PartialShape{-1, -1, Rd}));
+    EXPECT_EQ(indexer->get_input_partial_shape(In::ROPE_SIN), (ov::PartialShape{-1, -1, Rd}));
 
-    // past_lens [B] i32 comes from the main K history, not the retired raw-K Variable.
-    EXPECT_EQ(indexer->get_input_element_type(In::PAST_LENS), ov::element::i32);
-    auto broadcast = producer_through_layout(indexer->input_value(In::PAST_LENS));
+    // key_length [B] i32 is the main K length after the call, shared with SparseSDPA.
+    EXPECT_EQ(indexer->get_input_element_type(In::KEY_LENGTH), ov::element::i32);
+    EXPECT_EQ(indexer->input_value(In::KEY_LENGTH), sparse_sdpa->input_value(ov::op::internal::SparseSDPA::InputIdx::KEY_LENGTH));
+    auto broadcast = producer_through_layout(indexer->input_value(In::KEY_LENGTH));
     auto gather = broadcast->get_input_node_ptr(0);
     auto shape_of = ov::as_type<ov::op::v3::ShapeOf>(gather->get_input_node_ptr(0));
     ASSERT_NE(shape_of, nullptr);
-    EXPECT_EQ(shape_of->get_input_node_ptr(0), g.k_read.get());
+    EXPECT_EQ(shape_of->get_input_node_ptr(0), g.k_full.get());
 
-    expect_in_place_cache(indexer->input_value(In::INDEXER_RAW_K_CACHE), ov::element::f16);
-    expect_in_place_cache(indexer->input_value(In::SUMMARY_CACHE), ov::element::f16);
-    expect_in_place_cache(indexer->input_value(In::INDEXER_ROPE_CACHE), ov::element::f16);
-    EXPECT_EQ(indexer->get_input_partial_shape(In::INDEXER_RAW_K_CACHE), (ov::PartialShape{-1, 1, -1, Di}));
-    EXPECT_EQ(indexer->get_input_partial_shape(In::INDEXER_ROPE_CACHE), (ov::PartialShape{-1, -1, Rd}));
+    // State: ReadValue -> QSAIndexer -> Assign on the same Variable; summary grows via Concat.
+    auto expect_state = [&](size_t in, size_t out, const ov::PartialShape& shape, bool grown) {
+        auto* producer = indexer->get_input_node_ptr(in);
+        if (grown) {
+            ASSERT_TRUE(ov::is_type<ov::op::v0::Concat>(producer));
+            producer = producer->get_input_node_ptr(0);
+        }
+        auto read = ov::as_type<ov::op::v6::ReadValue>(producer);
+        ASSERT_NE(read, nullptr);
+        EXPECT_EQ(read->get_variable()->get_info().data_shape, shape);
+        EXPECT_EQ(read->get_variable()->get_info().data_type, ov::element::f16);
+        const auto consumers = indexer->output(out).get_target_inputs();
+        ASSERT_EQ(consumers.size(), 1u);
+        auto assign = ov::as_type<ov::op::v6::Assign>(consumers.begin()->get_node());
+        ASSERT_NE(assign, nullptr);
+        EXPECT_EQ(assign->get_variable_id(), read->get_variable_id());
+    };
+    expect_state(In::SUMMARY_CACHE, Out::SUMMARY_CACHE, ov::PartialShape{-1, 1, -1, Di}, true);
+    expect_state(In::PAST_INCOMPLETE_RAW_K, Out::PAST_INCOMPLETE_RAW_K, ov::PartialShape{-1, 1, r - 1, Di}, false);
+    expect_state(In::PAST_INCOMPLETE_ROPE, Out::PAST_INCOMPLETE_ROPE, ov::PartialShape{-1, 2 * Rd}, false);
 
     const auto& attn_cfg = sparse_sdpa->get_config();
     EXPECT_EQ(attn_cfg.num_heads, static_cast<size_t>(Hq));
@@ -514,14 +535,14 @@ TEST(sparse_attention_fusion, paged_replaces_with_proven_inputs) {
     EXPECT_EQ(indexer->get_input_partial_shape(In::Q_IDX), (ov::PartialShape{-1, Hidx * Di}));
     EXPECT_EQ(indexer->get_input_partial_shape(In::K_IDX), (ov::PartialShape{-1, Di}));
     expect_rope_inputs<In>(indexer, g.indexer.positions.get(), RopeLayout::Halves);
-    EXPECT_EQ(indexer->get_input_partial_shape(In::ROPE_COS), (ov::PartialShape{-1, Rd / 2}));
+    EXPECT_EQ(indexer->get_input_partial_shape(In::ROPE_COS), (ov::PartialShape{-1, Rd}));
     expect_norm_weight(indexer->input_value(In::Q_NORM_WEIGHT), 1.0f + q_gain_w);
 
     expect_in_place_cache(indexer->input_value(In::INDEXER_RAW_K_CACHE), ov::element::f16);
     expect_in_place_cache(indexer->input_value(In::SUMMARY_CACHE), ov::element::f16);
     expect_in_place_cache(indexer->input_value(In::INDEXER_ROPE_CACHE), ov::element::f16);
     EXPECT_EQ(indexer->get_input_partial_shape(In::INDEXER_RAW_K_CACHE), (ov::PartialShape{-1, 1, page_size, Di}));
-    EXPECT_EQ(indexer->get_input_partial_shape(In::INDEXER_ROPE_CACHE), (ov::PartialShape{-1, page_size / r, Rd}));
+    EXPECT_EQ(indexer->get_input_partial_shape(In::INDEXER_ROPE_CACHE), (ov::PartialShape{-1, page_size / r, 2 * Rd}));
 
     const auto& attn_cfg = sparse_pa->get_config();
     EXPECT_EQ(attn_cfg.num_heads, static_cast<size_t>(Hq));

@@ -72,13 +72,31 @@ void SparseSDPA::validate_and_infer_types() {
     const auto& query_ps = get_input_partial_shape(InputIdx::QUERY);
     NODE_VALIDATION_CHECK(this, query_ps.rank().is_dynamic() || query_ps.size() == 4, "SparseSDPA expects a rank-4 [B, Hq, L, Dh] query input, got ", query_ps);
 
-    // The kernels read the selection plan as int32_t.
-    const std::pair<size_t, int64_t> int_inputs[] = {{InputIdx::SEL_INDICES, 4}, {InputIdx::SEL_COUNT, 3}};
+    // The kernels read the selection plan and key_length as int32_t.
+    const std::pair<size_t, int64_t> int_inputs[] = {{InputIdx::SEL_INDICES, 4}, {InputIdx::SEL_COUNT, 3}, {InputIdx::KEY_LENGTH, 1}};
     for (const auto& [idx, rank] : int_inputs) {
         const auto& et = get_input_element_type(idx);
         const auto& ps = get_input_partial_shape(idx);
         NODE_VALIDATION_CHECK(this, et.is_dynamic() || et == element::i32, "SparseSDPA expects an i32 input ", idx, ", got ", et);
         NODE_VALIDATION_CHECK(this, ps.rank().compatible(rank), "SparseSDPA expects a rank-", rank, " input ", idx, ", got ", ps);
+    }
+    const auto batch = query_ps.rank().is_static() ? query_ps[0] : ov::Dimension::dynamic();
+    NODE_VALIDATION_CHECK(this,
+                          get_input_partial_shape(InputIdx::KEY_LENGTH).compatible(ov::PartialShape{batch}),
+                          "SparseSDPA expects a [B] key_length input, got ",
+                          get_input_partial_shape(InputIdx::KEY_LENGTH));
+    if (has_scale_input()) {
+        const auto& scale_ps = get_input_partial_shape(InputIdx::SCALE);
+        NODE_VALIDATION_CHECK(this,
+                              scale_ps.is_dynamic() || ov::shape_size(scale_ps.to_shape()) == 1,
+                              "SparseSDPA expects a scalar or 1-element scale input, got ",
+                              scale_ps);
+    }
+    if (has_sinks()) {
+        NODE_VALIDATION_CHECK(this,
+                              get_input_partial_shape(InputIdx::SINKS).compatible(ov::PartialShape{static_cast<int64_t>(m_config.num_heads)}),
+                              "SparseSDPA expects a [num_heads] sinks input, got ",
+                              get_input_partial_shape(InputIdx::SINKS));
     }
 
     auto out_ps = ov::PartialShape::dynamic(4);

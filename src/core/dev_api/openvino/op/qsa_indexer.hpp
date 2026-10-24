@@ -11,15 +11,14 @@
 
 namespace ov::op::internal {
 
-/// \brief Non-paged, caller-owned-cache complete-block plan producer for Qwen Sparse
-/// Attention (QSA). See `qsa-indexer.rst` for the normative contract.
+/// \brief Non-paged, stateful complete-block plan producer for Qwen Sparse Attention (QSA).
+/// See `qsa-indexer.rst` for the normative contract.
 ///
-/// Reads no page table and owns no opaque runtime state: its logical cache state is three
-/// caller-owned writable dense tensors (`summary_cache`, `indexer_raw_k_cache`,
-/// `indexer_rope_cache`), mutated in place at logical positions derived from `past_lens`.
-/// RoPE uses the caller-supplied per-token `rope_cos`/`rope_sin`. The caller advances
-/// `past_lens` by `L` only after a successful call; this op never resizes any cache or
-/// returns replacement cache tensors.
+/// Reads no page table and owns no opaque runtime state. The state (`summary_cache`, and the
+/// raw keys and first-token RoPE row of the incomplete block) is passed as inputs and
+/// returned, updated, as outputs (functional state interface). `key_length` is the number of
+/// valid tokens of each row after the call; rows shorter than `L` are left-padded.
+/// RoPE uses the caller-supplied per-token rotate-half `rope_cos`/`rope_sin`.
 ///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API QSAIndexer : public ov::op::Op {
@@ -28,18 +27,29 @@ public:
 
     /// @brief Fixed input order of the QSAIndexer op.
     struct InputIdx {
-        static constexpr size_t Q_IDX = 0;                ///< [B, L, H_iq, D_idx]
-        static constexpr size_t K_IDX = 1;                ///< [B, L, H_ik, D_idx]
-        static constexpr size_t ROPE_COS = 2;             ///< [B, L, indexer_rotary_dim/2]
-        static constexpr size_t ROPE_SIN = 3;             ///< [B, L, indexer_rotary_dim/2]
-        static constexpr size_t SUMMARY_CACHE = 4;        ///< [B, H_ik, floor(S_cap/r), D_idx], writable in place
-        static constexpr size_t INDEXER_RAW_K_CACHE = 5;  ///< [B, H_ik, S_cap, D_idx], writable in place
-        static constexpr size_t Q_NORM_WEIGHT = 6;        ///< [D_idx]
-        static constexpr size_t K_NORM_WEIGHT = 7;        ///< [D_idx]
-        static constexpr size_t PAST_LENS = 8;            ///< [B], read-only
-        static constexpr size_t INDEXER_ROPE_CACHE = 9;   ///< [B, ceil(S_cap/r), indexer_rotary_dim], (cos_j, sin_j) interleaved, writable in place
+        static constexpr size_t Q_IDX = 0;                  ///< [B, L, H_iq, D_idx]
+        static constexpr size_t K_IDX = 1;                  ///< [B, L, H_ik, D_idx]
+        static constexpr size_t ROPE_COS = 2;               ///< [B, L, indexer_rotary_dim]
+        static constexpr size_t ROPE_SIN = 3;               ///< [B, L, indexer_rotary_dim]
+        static constexpr size_t KEY_LENGTH = 4;             ///< [B], valid tokens after the call
+        static constexpr size_t Q_NORM_WEIGHT = 5;          ///< [D_idx]
+        static constexpr size_t K_NORM_WEIGHT = 6;          ///< [D_idx]
+        static constexpr size_t SUMMARY_CACHE = 7;          ///< [B, H_ik, floor(S_cap/r), D_idx]
+        static constexpr size_t PAST_INCOMPLETE_RAW_K = 8;  ///< [B, H_ik, r-1, D_idx], slot p % r
+        static constexpr size_t PAST_INCOMPLETE_ROPE = 9;   ///< [B, 2*indexer_rotary_dim], (cos_j, sin_j) interleaved
 
         static constexpr size_t COUNT = 10;
+    };
+
+    /// @brief Fixed output order of the QSAIndexer op.
+    struct OutputIdx {
+        static constexpr size_t SEL_INDICES = 0;            ///< [B, h_sel, L, block_topk]
+        static constexpr size_t SEL_COUNT = 1;              ///< [B, h_sel, L]
+        static constexpr size_t SUMMARY_CACHE = 2;          ///< same shape as input SUMMARY_CACHE
+        static constexpr size_t PAST_INCOMPLETE_RAW_K = 3;  ///< same shape as input PAST_INCOMPLETE_RAW_K
+        static constexpr size_t PAST_INCOMPLETE_ROPE = 4;   ///< same shape as input PAST_INCOMPLETE_ROPE
+
+        static constexpr size_t COUNT = 5;
     };
 
     struct Config {

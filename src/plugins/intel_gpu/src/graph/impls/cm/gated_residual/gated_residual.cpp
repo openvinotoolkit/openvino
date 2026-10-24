@@ -598,7 +598,8 @@ public:
                 const size_t rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
                 if (use_single_dpas_read(*desc, info, rows)) {
                     add_stage(gr_read_dpas, params);
-                } else {
+                }
+                if (!has_stage(gr_read_dpas)) {
                     add_stage(gr_rbar_dpas, params);
                     add_stage(down_stage(gr_down_tier(rows, info)), params);
                     add_stage(up_stage(gr_up_tier(rows)), params);
@@ -682,7 +683,7 @@ public:
         const size_t num_rows = std::max<size_t>(1, get_num_rows(params.get_input_layout(0), cd));
         const size_t l = std::max<size_t>(1, desc->lowrank);
         if (desc->mode != gated_residual::Mode::WRITE && can_use_dpas_gr_read(*desc, params.get_device_info()) &&
-            use_single_dpas_read(*desc, params.get_device_info(), num_rows)) {
+            use_single_dpas_read(*desc, params.get_device_info(), num_rows) && has_stage(gr_read_dpas)) {
             return {};  // gr_read_dpas.cm keeps its intermediates in SLM
         }
 

@@ -7,8 +7,9 @@
 // sparse_attention_paged_gqa_dpas.cm (one WG = one token x one KV head, no
 // cross-token union, GQA_W=4 worker split), addressed directly through dense
 // `[B, H, *, D]` strides instead of a page table:
-//   - no past_lens / subsequence_begins / block_indices - causal position is the RST's
-//     bottom-right-aligned `q_abs = history_len - seq_len + l`;
+//   - no past_lens / subsequence_begins / block_indices - per batch row the causal
+//     position is `q_abs = key_length - seq_len + l`, the K/V rows are left-padded by
+//     `history_len - key_length`, and a left-padding query (`q_abs < 0`) attends nothing;
 //   - K/V for one (batch, kv_head) is one contiguous `[history_len, head_size]` region,
 //     so the "coalesced 16-row step" fast path has no page-boundary term;
 //   - Q for one token is `HEADS` rows of a `[B, Hq, L, Dh]` buffer, `row_pitch =
@@ -105,7 +106,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const half* value ATTR,               // [B, Hkv, S, Dv], dense history
     const int32_t* selected_blocks ATTR,  // [B*L, block_topk] ascending
     const int32_t* selected_counts ATTR,  // [B*L]
-    const int32_t* token_map ATTR,        // [B*L, 2] = (batch, token_begin_local), one per token
+    const int32_t* key_length ATTR,       // [B]
 #if QSA_GQA_SPLIT
     float* partial_acc ATTR,              // [B*L, Hq, P, Dv]
     float* partial_ml ATTR,               // [B*L, Hq, P, 2]
@@ -134,10 +135,15 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const uint kv_head = cm_group_id(0), entry = cm_global_id(1);
 #endif
     if (kv_head >= HKV || entry >= num_entries) return;
-    const uint batch = (uint)token_map[entry * 2];
-    const uint l = (uint)token_map[entry * 2 + 1];
-    if (l >= seq_len) return;
-    const uint abs_pos = history_len - seq_len + l;  // bottom-right aligned, RST q_abs = S - L + l
+    const uint batch = entry / seq_len;
+    const uint l = entry - batch * seq_len;
+    uint kl = (uint)key_length[batch];
+    kl = kl < history_len ? kl : history_len;
+    // Left-padded K/V: logical key j of this row is stored at row (history_len - kl) + j.
+    key += (history_len - kl) * DH;
+    value += (history_len - kl) * DV;
+    const bool pad_row = kl + l < seq_len;
+    const uint abs_pos = kl + l - seq_len;  // RST q_abs = key_length - L + l, valid unless pad_row
     const uint head_base = kv_head * HEADS;
     const uint row = batch * seq_len + l;  // flat row matching QSAIndexer's own output convention
 
@@ -161,10 +167,10 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     }
     vector<float, 16> running_max = GQA_NEG_INF, running_sum = 0.0f;
     matrix<float, 2 * GQA_VT, 8 * 16> ro = 0.0f;
-    const uint count = (uint)selected_counts[row];
+    const uint count = pad_row ? 0 : (uint)selected_counts[row];
     const uint steps = (count + GQA_BLOCKS - 1) / GQA_BLOCKS;
-    const uint tail_begin = (abs_pos + 1) / R * R;
-    const uint tail_rows = abs_pos + 1 - tail_begin;
+    const uint tail_begin = pad_row ? 0 : (abs_pos + 1) / R * R;
+    const uint tail_rows = pad_row ? 0 : abs_pos + 1 - tail_begin;
 
 #if QSA_GQA_SPLIT
     constexpr uint P = QSA_SPLIT_PARTITIONS;

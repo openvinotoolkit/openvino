@@ -21,14 +21,14 @@ namespace ov::intel_gpu::cm {
 /// sel_indices/sel_count are NOT internal buffers: the top-k finalize stage writes
 /// directly into the primitive's own declared outputs.
 struct PagedQSAIndexerInternalBufIdx {
-    static constexpr size_t PREPARE_MAP = 0;    ///< i32 [prepare_wg_count, 2] = (seq, qsa_block_id)
-    static constexpr size_t INDEXER_Q = 1;      ///< f16 [num_tokens, H_iq, D_idx]
-    static constexpr size_t BLOCK_SCORES = 2;   ///< f32 [rows, max_blocks]; rows bounded by the score budget for decode
-    static constexpr size_t SCORE_TILE_MAP = 3; ///< i32 [score_tile_count, 2] = (seq, token_begin); dpas score only
+    static constexpr size_t INDEXER_Q = 0;      ///< f16 [num_tokens, H_iq, D_idx]
+    static constexpr size_t BLOCK_SCORES = 1;   ///< f32 [rows, max_blocks]; rows bounded by the score budget for decode
 
-    static constexpr size_t COUNT = 4;
+    static constexpr size_t COUNT = 2;
 };
 
+/// All sizes are upper bounds derived from shapes: past_lens/subsequence_begins live in GPU
+/// memory and are resolved by the kernels, never read by the host.
 struct PagedQSAIndexerRuntimeParams : public ImplRuntimeParams {
     size_t num_tokens = 0;
     size_t num_seqs = 0;
@@ -41,8 +41,6 @@ struct PagedQSAIndexerRuntimeParams : public ImplRuntimeParams {
     size_t chunk_row_end = 0;
     size_t index_query_heads = 0;
     size_t index_key_heads = 0;
-    std::vector<int32_t> prepare_map;
-    std::vector<int32_t> score_tile_map;
 };
 
 /// @brief CM implementation of the PagedQSAIndexer primitive (Q1 prepare + Q2 score/top-k).

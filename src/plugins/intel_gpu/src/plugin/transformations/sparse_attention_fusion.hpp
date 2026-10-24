@@ -21,20 +21,16 @@ inline constexpr const char* in_place_cache_rt_key = "GPU_IN_PLACE_CACHE";
 /// legacy fused-op detector: `scores = ReduceSum(ReLU(MatMul(q_idx, k_block,
 /// transpose_b)), axis=head) * 1/sqrt(Di)` followed by `TopK(scores, block_topk)`.
 ///
-/// `QSAIndexer`'s cache inputs (`summary_cache`, `indexer_raw_k_cache`,
-/// `indexer_rope_cache`) are caller-owned writable tensors with no `ReadValue`/
-/// `Assign` counterpart in their ABI (see `qsa-indexer.rst`'s in-place state contract).
-/// The only decomposed source pattern this pass can soundly bridge is therefore one
-/// where the indexer's raw-key history is already a `ReadValue`-backed `Variable`: the
-/// pass removes that `ReadValue` (and the `Concat`/mean-pool recomputation it feeds) and
-/// appends brand-new f16 `Parameter`s (tagged with `in_place_cache_rt_key`, dynamic
-/// capacity) to the model for the three cache tensors. This is a disclosed, user-visible
-/// change to the compiled model's input signature -- callers must bind persistent,
-/// device-visible tensors to these new inputs and reuse the SAME tensor objects across
-/// calls (see `qsa_final_design_implement.md` &sect;2.3's operator-external IndexerCache
-/// manager). `past_lens` is taken from the main K `ReadValue` history length and
-/// `rope_cos`/`rope_sin` are the rows the source graph gathers from its RoPE table for each
-/// token. Only causal,
+/// The indexer state (`summary_cache`, `past_incomplete_raw_k`, `past_incomplete_rope`)
+/// follows QSAIndexer's functional state interface: the pass creates one f16 `Variable`
+/// per state tensor, reads it with a zero-initialized `ReadValue`, grows `summary_cache`
+/// on its sequence axis to `floor(key_length / r)` entries, and feeds the updated state
+/// outputs back with `Assign`. The decomposed source pattern must already keep the
+/// indexer's raw-key history in a `ReadValue`-backed `Variable` (what distinguishes a real
+/// incremental graph from a one-shot reference computation); that history and the mean-pool
+/// recomputation it feeds are retired. `key_length` is the main K length after the call
+/// (shared by QSAIndexer and SparseSDPA) and `rope_cos`/`rope_sin` are the full-width rows
+/// the source graph gathers from its RoPE table for each token. Only causal,
 /// default-scale attention (or a mask derived from the indexer's own TopK) is replaced.
 /// The pass bails out -- leaving the original generic graph untouched -- whenever any
 /// required fact cannot be proven.

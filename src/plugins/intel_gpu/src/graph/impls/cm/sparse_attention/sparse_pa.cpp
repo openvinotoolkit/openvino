@@ -28,12 +28,6 @@ namespace {
 
 constexpr size_t kv_write_wg_size = 16;
 
-std::vector<int32_t> read_i32_input(const primitive_inst& instance, size_t input_idx) {
-    auto mem = instance.input_memory_ptr(input_idx);
-    mem_lock<int32_t, mem_lock_type::read> lock(mem, instance.get_network().get_stream());
-    return {lock.begin(), lock.end()};
-}
-
 SparsePARuntimeParams* rt_of(ImplRuntimeParams* rt) {
     auto* p = static_cast<SparsePARuntimeParams*>(rt);
     OPENVINO_ASSERT(p != nullptr, "[GPU][CM] sparse_pa runtime params are not initialized");
@@ -93,16 +87,15 @@ constexpr size_t dpas_k_step = 16;      // fp16 K elements per dpas
 constexpr size_t dpas_wide_cols = 32;   // halfs per 2D block row (64-byte hardware cap)
 
 // Decode-only split-selected-KV attention (see qsa.cpp's identical split_partitions /
-// split_decode_min_past): partitions each token's OWN selected-block list across
+// the old history-length gate): partitions each token's OWN selected-block list across
 // `split_partitions` independent producers instead of relying on a single thread per
 // (head, token) to walk the whole list serially - the gap that leaves the GPU
 // drastically under-occupied for long-history decode (e.g. 2 work-groups instead of
-// hundreds). Only ever used for pure-decode calls (every sequence has q_len == 1) whose
-// shortest past length clears the threshold, matching the old code's GENERATE-stage gate.
+// hundreds). Used for every pure-decode call (num_tokens == num_seqs): the past lengths are in
+// GPU memory, so the host cannot gate it on history length.
 constexpr size_t split_partitions = 16;
 // One GQA-DPAS WG serves all n_rep heads of a KV head, so decode needs more WGs per token.
 constexpr size_t gqa_split_partitions = 64;
-constexpr size_t split_decode_min_past = 2048;
 
 /// Dv slice merged by one split_reduce thread.
 size_t split_reduce_cols(size_t v_head_size) {
@@ -373,9 +366,8 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::BLOCK_INDICES_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SEL_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SEL_COUNT});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparsePAInternalBufIdx::TILE_MAP});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-        for (uint32_t i = 0; i < 3; i++) {
+        for (uint32_t i = 0; i < 4; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
         }
         return args;
@@ -398,6 +390,7 @@ protected:
             const auto& q_layout = params.get_input_layout(SparsePAIn::QUERY);
             kd.params.scalars.clear();
             push_u32(kd, rtp->tile_count);
+            push_u32(kd, rtp->num_seqs);
             push_u32(kd, q_layout.get_linear_offset());
             push_u32(kd, token_pitch(q_layout));
         }};
@@ -447,14 +440,13 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::BLOCK_INDICES_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SEL_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SEL_COUNT});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparsePAInternalBufIdx::TOKEN_MAP});
         if (m_split) {
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparsePAInternalBufIdx::SPLIT_ACC});
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparsePAInternalBufIdx::SPLIT_ML});
         } else {
             args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         }
-        for (uint32_t i = 0; i < 3; i++) {
+        for (uint32_t i = 0; i < 4; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
         }
         return args;
@@ -478,6 +470,7 @@ protected:
             const auto& q_layout = params.get_input_layout(SparsePAIn::QUERY);
             kd.params.scalars.clear();
             push_u32(kd, rtp->num_tokens);
+            push_u32(kd, rtp->num_seqs);
             push_u32(kd, q_layout.get_linear_offset());
             push_u32(kd, token_pitch(q_layout));
         }};
@@ -658,7 +651,7 @@ public:
     // Split-selected-KV is only a decode fallback for configs without GQA-DPAS: on BMG
     // (Qwen3.8 dims) GQA-DPAS decode measured ~2.5x faster than split+reduce at 4K-16K.
     bool use_split_attention() {
-        return has_stage(split) && rt().is_decode && rt().min_past_len >= split_decode_min_past;
+        return has_stage(split) && rt().is_decode;
     }
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
@@ -666,14 +659,9 @@ public:
             return {};
         }
         const auto tokens = std::max<size_t>(1, params.get_input_layout(SparsePAIn::QUERY).get_shape()[0]);
-        const auto seqs = std::max<size_t>(1, params.get_input_layout(SparsePAIn::PAST_LENS).get_shape()[0]);
-        // One 16-query tile per sequence-local boundary, upper-bounded (see qsa.cpp).
-        const auto tiles = tokens / dpas_query_tile + seqs + 1;
         const auto desc = params.typed_desc<sparse_pa>();
 
         std::vector<BufferDescriptor> bufs;
-        bufs.emplace_back(tiles * 2, ov::element::i32, true, false);   // TILE_MAP (host-filled)
-        bufs.emplace_back(tokens * 2, ov::element::i32, true, false);  // TOKEN_MAP (host-filled)
         // SPLIT_ACC/SPLIT_ML: only ever dispatched for decode-shaped calls, where `tokens`
         // equals the (small) sequence count, so this is cheap even at the full partition
         // width regardless of whether split actually fires for this particular call.
@@ -698,7 +686,6 @@ public:
         const auto& params = *instance.get_impl_params();
         // GQA-DPAS wins for decode too (fills dpas N with the n_rep heads of one token).
         if (use_gqa_dpas_attention(params)) {
-            upload_token_map(instance);
             if (has_stage(attention_gqa_split) && rt().is_decode) {
                 auto split_event = execute_stage(attn_deps, instance, attention_gqa_split);
                 return execute_stage({split_event}, instance, split_reduce);
@@ -711,7 +698,6 @@ public:
         }
         // Plain dpas needs a multi-token query tile; decode keeps the scalar kernel.
         if (has_stage(attention_dpas) && !rt().is_decode) {
-            upload_tile_map(instance);
             return execute_stage(attn_deps, instance, attention_dpas);
         }
         return execute_stage(attn_deps, instance, attention);
@@ -722,77 +708,14 @@ public:
         force_stages_refresh(*this);
         auto* rtp = &rt();
 
-        const auto past_lens = read_i32_input(instance, SparsePAIn::PAST_LENS);
-        const auto subsequence_begins = read_i32_input(instance, SparsePAIn::SUBSEQUENCE_BEGINS);
-
-        const size_t num_seqs = past_lens.size();
-        OPENVINO_ASSERT(subsequence_begins.size() == num_seqs + 1, "[GPU][CM] sparse_pa: subsequence_begins must have num_seqs + 1 entries");
-
-        rtp->num_seqs = num_seqs;
-        rtp->num_tokens = num_seqs == 0 ? 0 : static_cast<size_t>(subsequence_begins.back());
-
-        // Decode detection mirrors qsa.cpp's any_multi/any_single: true only when every
-        // sequence with a non-empty query contributes exactly one token, and at least one
-        // such sequence exists.
-        bool any_multi = false, any_single = false;
-        size_t min_past_len = std::numeric_limits<size_t>::max();
-        for (size_t s = 0; s < num_seqs; s++) {
-            const auto q_len = static_cast<size_t>(std::max(0, subsequence_begins[s + 1] - subsequence_begins[s]));
-            if (q_len == 0) {
-                continue;
-            }
-            (q_len > 1) ? (any_multi = true) : (any_single = true);
-            min_past_len = std::min(min_past_len, static_cast<size_t>(std::max(0, past_lens[s])));
-        }
-        rtp->is_decode = any_single && !any_multi;
-        rtp->min_past_len = rtp->is_decode ? min_past_len : 0;
-
+        // past_lens / subsequence_begins stay in GPU memory: sizes are shape-derived upper bounds
+        // and the kernels resolve the real sequences (dropping the excess work-groups).
         const auto& params = *instance.get_impl_params();
-        rtp->tile_map.clear();
-        rtp->token_map.clear();
-        if (use_gqa_dpas_attention(params)) {
-            for (size_t s = 0; s < num_seqs; s++) {
-                const auto seq_begin = static_cast<size_t>(subsequence_begins[s]);
-                const auto seq_end = static_cast<size_t>(subsequence_begins[s + 1]);
-                for (size_t t = seq_begin; t < seq_end; t++) {
-                    rtp->token_map.push_back(static_cast<int32_t>(s));
-                    rtp->token_map.push_back(static_cast<int32_t>(t));
-                }
-            }
-        } else if (use_dpas_attention(params)) {
-            for (size_t s = 0; s < num_seqs; s++) {
-                const auto seq_begin = static_cast<size_t>(subsequence_begins[s]);
-                const auto seq_end = static_cast<size_t>(subsequence_begins[s + 1]);
-                for (size_t t = seq_begin; t < seq_end; t += dpas_query_tile) {
-                    rtp->tile_map.push_back(static_cast<int32_t>(s));
-                    rtp->tile_map.push_back(static_cast<int32_t>(t));
-                }
-            }
-        }
-        rtp->tile_count = rtp->tile_map.size() / 2;
-    }
-
-private:
-    void upload_tile_map(primitive_inst& instance) {
-        auto* rtp = &rt();
-        if (rtp->tile_map.empty()) {
-            return;
-        }
-        auto mem = instance.get_intermediates_memories()[SparsePAInternalBufIdx::TILE_MAP];
-        OPENVINO_ASSERT(mem->count() >= rtp->tile_map.size(), "[GPU][CM] sparse_pa tile map buffer is too small");
-        mem_lock<int32_t, mem_lock_type::write> lock(mem, instance.get_network().get_stream());
-        std::copy(rtp->tile_map.begin(), rtp->tile_map.end(), lock.begin());
-    }
-
-    void upload_token_map(primitive_inst& instance) {
-        auto* rtp = &rt();
-        if (rtp->token_map.empty()) {
-            return;
-        }
-        auto mem = instance.get_intermediates_memories()[SparsePAInternalBufIdx::TOKEN_MAP];
-        OPENVINO_ASSERT(mem->count() >= rtp->token_map.size(), "[GPU][CM] sparse_pa token map buffer is too small");
-        mem_lock<int32_t, mem_lock_type::write> lock(mem, instance.get_network().get_stream());
-        std::copy(rtp->token_map.begin(), rtp->token_map.end(), lock.begin());
+        rtp->num_seqs = params.get_input_layout(SparsePAIn::PAST_LENS).get_shape()[0];
+        rtp->num_tokens = params.get_input_layout(SparsePAIn::QUERY).get_shape()[0];
+        rtp->is_decode = is_decode_shape(params);
+        // At most tokens / 16 + num_seqs query tiles (a tile never straddles two sequences).
+        rtp->tile_count = rtp->num_tokens / dpas_query_tile + rtp->num_seqs;
     }
 };
 

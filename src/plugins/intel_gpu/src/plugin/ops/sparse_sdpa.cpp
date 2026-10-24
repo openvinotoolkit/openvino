@@ -8,11 +8,9 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/sparse_sdpa.hpp"
 
-// v1 scope: only the sel_indices/sel_count plan form is lowered; an ordinary (non-plan)
-// attn_mask is not yet implemented in GPU lowering either (explicit rejection, not a
-// silent dense/mask fallback -- see qsa_final_design_implement.md section 3.1/4.5), and a
-// SCALE input must be a Constant so its value can be folded into the primitive's scale
-// field (no non-constant scale support in this pass).
+// Only the sel_indices/sel_count plan form is lowered. A SCALE input must be a Constant so
+// its value can be folded into the primitive's scale field, and attention sinks are not
+// supported by the GPU kernels (explicit rejection, not a silent fallback).
 
 namespace ov::intel_gpu {
 
@@ -20,7 +18,7 @@ static void CreateSparseSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     using In = ov::op::internal::SparseSDPA::InputIdx;
     const auto layer_name = layer_type_name_ID(op);
 
-    OPENVINO_ASSERT(!op->has_attn_mask(), "[GPU] SparseSDPA '", layer_name, "': attn_mask input is not supported by this lowering pass");
+    OPENVINO_ASSERT(!op->has_sinks(), "[GPU] SparseSDPA '", layer_name, "': the sinks input is not supported by the GPU implementation");
 
     std::string reason;
     OPENVINO_ASSERT(ov::op::internal::SparseSDPA::validate_config(op->get_config(), reason), "[GPU] Cannot lower SparseSDPA op '", layer_name, "': ", reason);
@@ -38,7 +36,7 @@ static void CreateSparseSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     }
 
     auto full_inputs = p.GetInputInfo(op);
-    const std::vector<cldnn::input_info> inputs(full_inputs.begin(), full_inputs.begin() + In::SEL_COUNT + 1);
+    const std::vector<cldnn::input_info> inputs(full_inputs.begin(), full_inputs.begin() + In::KEY_LENGTH + 1);
 
     cldnn::sparse_sdpa prim(layer_name, inputs, op->get_config(), resolved_scale);
     prim.output_data_types = get_output_data_types(op);

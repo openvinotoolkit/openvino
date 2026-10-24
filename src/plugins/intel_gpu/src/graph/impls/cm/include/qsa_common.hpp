@@ -73,26 +73,27 @@ CM_INLINE uint summary_offset(uint physical_page, uint slot_in_page, uint summar
 // The reference is transformers' `apply_rotary_pos_emb`:
 //     x_rope = x[..., :rd];  x1 = x_rope[:rd/2];  x2 = x_rope[rd/2:]
 //     out    = x_rope * cos + cat(-x2, x1) * sin
-// where `cos`/`sin` are `cat(freqs, freqs)`, i.e. cos[j] == cos[j + rd/2].
+// where `cos`/`sin` are full `rd`-wide rows (in HF RoPE `cat(freqs, freqs)`, i.e.
+// cos[j] == cos[j + rd/2], but both halves are applied as given).
 // So frequency j pairs channel j with channel j + rd/2 - NOT the adjacent
 // channels (2j, 2j+1) that the GPT-J / "interleaved" variant uses.
 //
-// `c`/`s` hold the rd/2 distinct coefficients of one token: a row of the op's per-token
-// `rope_cos`/`rope_sin` inputs, or a de-interleaved `indexer_rope_cache` row. Only the
+// `c`/`s` hold the rd coefficients of one token: a row of the op's per-token
+// `rope_cos`/`rope_sin` inputs, or a de-interleaved RoPE state/cache row. Only the
 // first `rotary_dim` channels rotate; the rest pass through unchanged, which is what
 // "partial rotary" means for Qwen3.8 (Di = 128, rotary_dim = 64). Any position scheme
 // (e.g. mRoPE sections) is already folded into the coefficients by their producer.
 // --------------------------------------------------------------------------
-template <int HEAD_DIM, int ROTARY_DIM, int HALF>
-CM_INLINE void apply_partial_rope(vector_ref<float, HEAD_DIM> v, vector_ref<float, HALF> c, vector_ref<float, HALF> s) {
+template <int HEAD_DIM, int ROTARY_DIM>
+CM_INLINE void apply_partial_rope(vector_ref<float, HEAD_DIM> v, vector_ref<float, ROTARY_DIM> c, vector_ref<float, ROTARY_DIM> s) {
     static_assert(ROTARY_DIM % 2 == 0, "rotary dim must be even");
     static_assert(ROTARY_DIM <= HEAD_DIM, "rotary dim must not exceed head dim");
     if constexpr (ROTARY_DIM > 0) {
-        static_assert(HALF == ROTARY_DIM / 2, "one coefficient per rotated channel pair");
+        constexpr int HALF = ROTARY_DIM / 2;
         vector<float, HALF> x0 = v.template select<HALF, 1>(0);
         vector<float, HALF> x1 = v.template select<HALF, 1>(HALF);
-        v.template select<HALF, 1>(0) = x0 * c - x1 * s;
-        v.template select<HALF, 1>(HALF) = x1 * c + x0 * s;
+        v.template select<HALF, 1>(0) = x0 * c.template select<HALF, 1>(0) - x1 * s.template select<HALF, 1>(0);
+        v.template select<HALF, 1>(HALF) = x1 * c.template select<HALF, 1>(HALF) + x0 * s.template select<HALF, 1>(HALF);
     }
 }
 

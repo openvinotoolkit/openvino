@@ -67,7 +67,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const float* block_scores ATTR,         
 
     uint seq = 0, abs_pos = 0;
 #if QSA_ADDRESS_MODE == 0
-    qsa_ops::resolve_token_paged(subsequence_begins, past_lens, num_seqs, token, seq, abs_pos);
+    if (!qsa_ops::resolve_token_paged(subsequence_begins, past_lens, num_seqs, token, seq, abs_pos)) {
+        return;
+    }
 #else
     qsa_ops::resolve_token_dense(past_lens, seq_len, token, seq, abs_pos);
 #endif

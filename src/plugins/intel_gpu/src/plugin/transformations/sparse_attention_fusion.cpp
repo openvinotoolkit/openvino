@@ -9,11 +9,13 @@
 #include <functional>
 #include <memory>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/assign.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -21,6 +23,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -36,6 +39,7 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -378,8 +382,8 @@ bool prove_norm(const ov::Output<ov::Node>& leg, ov::Node* stop_at, size_t Di, N
 }
 
 struct RopeFacts {
-    std::shared_ptr<ov::op::v0::Constant> cos_table;  ///< [max_positions, rd/2]
-    std::shared_ptr<ov::op::v0::Constant> sin_table;  ///< [max_positions, rd/2]
+    std::shared_ptr<ov::op::v0::Constant> cos_table;  ///< [max_positions, rd], rotate-half row (both halves equal)
+    std::shared_ptr<ov::op::v0::Constant> sin_table;  ///< [max_positions, rd], rotate-half row (both halves equal)
     ov::Output<ov::Node> positions;                   ///< the per-token indices the graph gathers rows with
     size_t rotary_dim = 0;
 };
@@ -387,7 +391,8 @@ struct RopeFacts {
 /// Proves `rows = Gather(table, positions, axis=0)` on the indexer query leg and the row
 /// layout from how `rows` is split on its last axis: step-2 slices mean an interleaved
 /// `(cos_j, sin_j)` layout; two `rd/2` halves mean `[cos | sin]`. Either way the table is
-/// split into separate cos/sin tables. Any other use bails out.
+/// split into separate full-width (Hugging Face `cat(freqs, freqs)`) cos/sin tables. Any
+/// other use bails out.
 bool prove_rope(const ov::Output<ov::Node>& idx_q, ov::Node* stop_at, size_t Di, RopeFacts& out) {
     auto gather_node = find_ancestor_if(idx_q, 25, stop_at, [](ov::Node* n) {
         if (!ov::is_type<ov::op::util::GatherBase>(n)) {
@@ -472,23 +477,24 @@ bool prove_rope(const ov::Output<ov::Node>& idx_q, ov::Node* stop_at, size_t Di,
 
     const auto values = table->cast_vector<float>();
     const size_t half_rd = rd / 2;
-    std::vector<float> cos_values(table_shape[0] * half_rd);
-    std::vector<float> sin_values(table_shape[0] * half_rd);
+    std::vector<float> cos_values(table_shape[0] * rd);
+    std::vector<float> sin_values(table_shape[0] * rd);
     for (size_t p = 0; p < table_shape[0]; ++p) {
-        for (size_t j = 0; j < half_rd; ++j) {
-            cos_values[p * half_rd + j] = halves ? values[p * rd + j] : values[p * rd + 2 * j];
-            sin_values[p * half_rd + j] = halves ? values[p * rd + half_rd + j] : values[p * rd + 2 * j + 1];
+        for (size_t j = 0; j < rd; ++j) {
+            const size_t f = j % half_rd;
+            cos_values[p * rd + j] = halves ? values[p * rd + f] : values[p * rd + 2 * f];
+            sin_values[p * rd + j] = halves ? values[p * rd + half_rd + f] : values[p * rd + 2 * f + 1];
         }
     }
-    const ov::Shape half_shape{table_shape[0], half_rd};
-    out.cos_table = ov::op::v0::Constant::create(table->get_element_type(), half_shape, cos_values);
-    out.sin_table = ov::op::v0::Constant::create(table->get_element_type(), half_shape, sin_values);
+    const ov::Shape full_shape{table_shape[0], rd};
+    out.cos_table = ov::op::v0::Constant::create(table->get_element_type(), full_shape, cos_values);
+    out.sin_table = ov::op::v0::Constant::create(table->get_element_type(), full_shape, sin_values);
     out.positions = gather_node->input_value(1);
     out.rotary_dim = rd;
     return true;
 }
 
-/// Per-token `(rope_cos, rope_sin)` rows for `positions` (any shape), each `[..., rd/2]`.
+/// Per-token `(rope_cos, rope_sin)` rows for `positions` (any shape), each `[..., rd]`.
 std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> gather_rope_rows(const RopeFacts& rope,
                                                                       const ov::Output<ov::Node>& positions,
                                                                       ov::NodeVector& new_ops) {
@@ -772,63 +778,103 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         auto batch_len = std::make_shared<ov::op::v8::Gather>(proj_shape, i64c({0, 1}), i64c({0}));
         new_ops.push_back(batch_len);
 
-        // PAST_LENS [B] i32: the main K history length before this call.
-        auto kv_shape = std::make_shared<ov::op::v3::ShapeOf>(key_read_value->output(0), ov::element::i64);
+        // KEY_LENGTH [B] i32: the main K length after this call (no padding in this graph),
+        // shared by QSAIndexer and SparseSDPA.
+        auto kv_shape = std::make_shared<ov::op::v3::ShapeOf>(key_in, ov::element::i64);
         new_ops.push_back(kv_shape);
-        auto past_len = std::make_shared<ov::op::v8::Gather>(kv_shape, i64c({2}), i64c({0}));
-        new_ops.push_back(past_len);
-        auto past_lens_b = std::make_shared<ov::op::v3::Broadcast>(past_len, batch_dim);
-        new_ops.push_back(past_lens_b);
-        auto past_lens = std::make_shared<ov::op::v0::Convert>(past_lens_b, ov::element::i32);
-        new_ops.push_back(past_lens);
+        auto total_len = std::make_shared<ov::op::v8::Gather>(kv_shape, i64c({2}), i64c({0}));
+        new_ops.push_back(total_len);
+        auto key_length_b = std::make_shared<ov::op::v3::Broadcast>(total_len, batch_dim);
+        new_ops.push_back(key_length_b);
+        auto key_length = std::make_shared<ov::op::v0::Convert>(key_length_b, ov::element::i32);
+        new_ops.push_back(key_length);
 
-        // ROPE_COS/ROPE_SIN [B, L, rd/2]: the rows the source graph gathers for each token,
+        // ROPE_COS/ROPE_SIN [B, L, rd]: the rows the source graph gathers for each token,
         // so non-sequential (mRoPE) positions are preserved.
         auto positions_bl = std::make_shared<ov::op::v1::Reshape>(facts.rope.positions, batch_len, false);
         new_ops.push_back(positions_bl);
         const auto [rope_cos, rope_sin] = gather_rope_rows(facts.rope, positions_bl, new_ops);
 
-        // Caller-owned in-place caches (no ReadValue counterpart in QSAIndexer's ABI); the
-        // caller sizes capacity. f16 matches the kernels so no conversion copy is inserted.
-        const auto& cache_prefix = raw_k_read_value->get_variable_id();
+        // Indexer state through ReadValue/Assign (functional state interface). Each Variable
+        // starts as zeros of its batch-dependent shape; summary_cache grows on the sequence
+        // axis to floor(key_length / r) entries before the call.
+        const auto& state_prefix = raw_k_read_value->get_variable_id();
         const auto di = static_cast<int64_t>(Di);
         const auto rd = static_cast<int64_t>(facts.rope.rotary_dim);
-        auto raw_k_cache = make_in_place_cache(ov::element::f16, ov::PartialShape{-1, 1, -1, di}, cache_prefix + "_raw_k_cache");
-        auto summary_cache = make_in_place_cache(ov::element::f16, ov::PartialShape{-1, 1, -1, di}, cache_prefix + "_summary_cache");
-        auto rope_cache = make_in_place_cache(ov::element::f16, ov::PartialShape{-1, -1, rd}, cache_prefix + "_rope_cache");
-        model->add_parameters({raw_k_cache, summary_cache, rope_cache});
+        auto f16_zero = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.0f});
+        new_ops.push_back(f16_zero);
+        auto zeros = [&](const ov::OutputVector& dims) {
+            auto shape = std::make_shared<ov::op::v0::Concat>(dims, 0);
+            auto filled = std::make_shared<ov::op::v3::Broadcast>(f16_zero, shape);
+            new_ops.insert(new_ops.end(), {shape, filled});
+            return filled->output(0);
+        };
+        ov::SinkVector state_sinks;
+        ov::op::util::VariableVector state_vars;
+        auto read_state = [&](const ov::PartialShape& shape, const ov::Output<ov::Node>& init, const std::string& suffix) {
+            auto var = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{shape, ov::element::f16, state_prefix + suffix});
+            auto read = std::make_shared<ov::op::v6::ReadValue>(init, var);
+            new_ops.push_back(read);
+            state_vars.push_back(var);
+            return read;
+        };
+        auto summary_read = read_state(ov::PartialShape{-1, 1, -1, di}, zeros({batch_dim, i64c({1}), i64c({0}), i64c({di})}), "_qsa_summary_cache");
+        auto raw_read = read_state(ov::PartialShape{-1, 1, static_cast<int64_t>(r) - 1, di},
+                                   zeros({batch_dim, i64c({1}), i64c({static_cast<int64_t>(r) - 1}), i64c({di})}),
+                                   "_qsa_past_incomplete_raw_k");
+        auto rope_read = read_state(ov::PartialShape{-1, 2 * rd}, zeros({batch_dim, i64c({2 * rd})}), "_qsa_past_incomplete_rope");
 
-        ov::OutputVector indexer_args(ov::op::internal::QSAIndexer::InputIdx::COUNT);
-        indexer_args[ov::op::internal::QSAIndexer::InputIdx::Q_IDX] = q_idx_in;
-        indexer_args[ov::op::internal::QSAIndexer::InputIdx::K_IDX] = k_idx_in;
-        indexer_args[ov::op::internal::QSAIndexer::InputIdx::ROPE_COS] = rope_cos;
-        indexer_args[ov::op::internal::QSAIndexer::InputIdx::ROPE_SIN] = rope_sin;
-        indexer_args[ov::op::internal::QSAIndexer::InputIdx::SUMMARY_CACHE] = summary_cache;
-        indexer_args[ov::op::internal::QSAIndexer::InputIdx::INDEXER_RAW_K_CACHE] = raw_k_cache;
-        indexer_args[ov::op::internal::QSAIndexer::InputIdx::Q_NORM_WEIGHT] = facts.q_norm_const;
-        indexer_args[ov::op::internal::QSAIndexer::InputIdx::K_NORM_WEIGHT] = facts.k_norm_const;
-        indexer_args[ov::op::internal::QSAIndexer::InputIdx::PAST_LENS] = past_lens;
-        indexer_args[ov::op::internal::QSAIndexer::InputIdx::INDEXER_ROPE_CACHE] = rope_cache;
+        auto summary_shape = std::make_shared<ov::op::v3::ShapeOf>(summary_read, ov::element::i64);
+        auto summary_entries = std::make_shared<ov::op::v8::Gather>(summary_shape, i64c({2}), i64c({0}));
+        auto needed_entries = std::make_shared<ov::op::v1::Divide>(total_len, i64c({static_cast<int64_t>(r)}));
+        auto missing = std::make_shared<ov::op::v1::Subtract>(needed_entries, summary_entries);
+        auto growth = std::make_shared<ov::op::v1::Maximum>(missing, i64c({0}));
+        new_ops.insert(new_ops.end(), {summary_shape, summary_entries, needed_entries, missing, growth});
+        auto summary_grown = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{summary_read, zeros({batch_dim, i64c({1}), growth, i64c({di})})}, 2);
+        new_ops.push_back(summary_grown);
+
+        using IndexerIn = ov::op::internal::QSAIndexer::InputIdx;
+        using IndexerOut = ov::op::internal::QSAIndexer::OutputIdx;
+        ov::OutputVector indexer_args(IndexerIn::COUNT);
+        indexer_args[IndexerIn::Q_IDX] = q_idx_in;
+        indexer_args[IndexerIn::K_IDX] = k_idx_in;
+        indexer_args[IndexerIn::ROPE_COS] = rope_cos;
+        indexer_args[IndexerIn::ROPE_SIN] = rope_sin;
+        indexer_args[IndexerIn::KEY_LENGTH] = key_length;
+        indexer_args[IndexerIn::Q_NORM_WEIGHT] = facts.q_norm_const;
+        indexer_args[IndexerIn::K_NORM_WEIGHT] = facts.k_norm_const;
+        indexer_args[IndexerIn::SUMMARY_CACHE] = summary_grown;
+        indexer_args[IndexerIn::PAST_INCOMPLETE_RAW_K] = raw_read;
+        indexer_args[IndexerIn::PAST_INCOMPLETE_ROPE] = rope_read;
         auto qsa_indexer = std::make_shared<ov::op::internal::QSAIndexer>(indexer_args, indexer_config);
         new_ops.push_back(qsa_indexer);
+        for (const auto& [out, var] : {std::pair{IndexerOut::SUMMARY_CACHE, state_vars[0]},
+                                       std::pair{IndexerOut::PAST_INCOMPLETE_RAW_K, state_vars[1]},
+                                       std::pair{IndexerOut::PAST_INCOMPLETE_ROPE, state_vars[2]}}) {
+            auto assign = std::make_shared<ov::op::v6::Assign>(qsa_indexer->output(out), var);
+            new_ops.push_back(assign);
+            state_sinks.push_back(assign);
+        }
 
         ov::OutputVector attn_args(ov::op::internal::SparseSDPA::InputIdx::COUNT_MIN);
         attn_args[ov::op::internal::SparseSDPA::InputIdx::QUERY] = query_in;
         attn_args[ov::op::internal::SparseSDPA::InputIdx::KEY] = key_in;
         attn_args[ov::op::internal::SparseSDPA::InputIdx::VALUE] = value_in;
-        attn_args[ov::op::internal::SparseSDPA::InputIdx::SEL_INDICES] = qsa_indexer->output(0);
-        attn_args[ov::op::internal::SparseSDPA::InputIdx::SEL_COUNT] = qsa_indexer->output(1);
+        attn_args[ov::op::internal::SparseSDPA::InputIdx::SEL_INDICES] = qsa_indexer->output(IndexerOut::SEL_INDICES);
+        attn_args[ov::op::internal::SparseSDPA::InputIdx::SEL_COUNT] = qsa_indexer->output(IndexerOut::SEL_COUNT);
+        attn_args[ov::op::internal::SparseSDPA::InputIdx::KEY_LENGTH] = key_length;
         auto sparse_sdpa = std::make_shared<ov::op::internal::SparseSDPA>(attn_args, attn_config, sdpa->get_output_element_type(0));
         new_ops.push_back(sparse_sdpa);
 
         ov::copy_runtime_info(ov::NodeVector{root, sdpa}, new_ops);
         ov::replace_node(sdpa, sparse_sdpa);
+        model->add_variables(state_vars);
+        model->add_sinks(state_sinks);
 
-        // Retire any Assign feeding the raw-K Variable: QSAIndexer mutates its cache
-        // Parameter in place and returns no updated history, so there is no value left
-        // to feed it. The Variable declaration itself is left in place rather than
-        // removed -- harmless if unused, and safer than asserting nothing else in the
-        // graph still structurally touches it.
+        // Retire any Assign feeding the source raw-K Variable: its history is superseded by
+        // the QSAIndexer state above and the decomposed pooling that read it is now dead.
+        // The Variable declaration itself is left in place rather than removed -- harmless
+        // if unused, and safer than asserting nothing else in the graph still touches it.
         auto variable = raw_k_read_value->get_variable();
         for (const auto& sink : model->get_sinks()) {
             if (auto assign = ov::as_type_ptr<ov::op::v6::Assign>(sink)) {
@@ -1025,7 +1071,7 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         auto q_idx_flat = flatten_tokens(q_raw, facts.Hidx);
         auto k_idx_flat = flatten_tokens(k_raw, 1);
 
-        // ROPE_COS/ROPE_SIN [tokens, rd/2]: the rows the source graph gathers for each
+        // ROPE_COS/ROPE_SIN [tokens, rd]: the rows the source graph gathers for each
         // token, so non-sequential (mRoPE) positions are preserved.
         auto positions_flat = std::make_shared<ov::op::v1::Reshape>(facts.rope.positions, i64c({-1}), false);
         new_ops.push_back(positions_flat);
@@ -1041,7 +1087,7 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         auto summary_cache =
             make_in_place_cache(ov::element::f16, ov::PartialShape{num_blocks, 1, summaries_per_page, di}, cache_prefix + "_indexer_summary_cache");
         auto rope_cache =
-            make_in_place_cache(ov::element::f16, ov::PartialShape{num_blocks, summaries_per_page, rd}, cache_prefix + "_indexer_rope_cache");
+            make_in_place_cache(ov::element::f16, ov::PartialShape{num_blocks, summaries_per_page, 2 * rd}, cache_prefix + "_indexer_rope_cache");
         model->add_parameters({raw_k_cache, summary_cache, rope_cache});
 
         ov::OutputVector indexer_args(ov::op::internal::PagedQSAIndexer::InputIdx::COUNT);

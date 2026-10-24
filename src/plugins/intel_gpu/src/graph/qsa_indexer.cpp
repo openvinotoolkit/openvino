@@ -29,8 +29,15 @@ std::vector<layout> qsa_indexer_inst::calc_output_layouts(const qsa_indexer_node
     ShapeType sel_indices_shape{q_idx_shape[0], h_sel_dim, q_idx_shape[1], ov::Dimension(static_cast<int64_t>(desc->block_topk))};
     ShapeType sel_count_shape{q_idx_shape[0], h_sel_dim, q_idx_shape[1]};
 
-    return {layout{sel_indices_shape, ov::element::i32, cldnn::format::get_default_format(sel_indices_shape.size())},
-            layout{sel_count_shape, ov::element::i32, cldnn::format::get_default_format(sel_count_shape.size())}};
+    std::vector<layout> layouts = {layout{sel_indices_shape, ov::element::i32, cldnn::format::get_default_format(sel_indices_shape.size())},
+                                   layout{sel_count_shape, ov::element::i32, cldnn::format::get_default_format(sel_count_shape.size())}};
+    // The updated state has the shape and type of the corresponding state input.
+    for (size_t in : {qsa_indexer::InputIdx::SUMMARY_CACHE, qsa_indexer::InputIdx::PAST_INCOMPLETE_RAW_K, qsa_indexer::InputIdx::PAST_INCOMPLETE_ROPE}) {
+        const auto& in_layout = impl_param.get_input_layout(in);
+        const auto shape = in_layout.get<ShapeType>();
+        layouts.emplace_back(shape, in_layout.data_type, cldnn::format::get_default_format(shape.size()));
+    }
+    return layouts;
 }
 
 template std::vector<layout> qsa_indexer_inst::calc_output_layouts<ov::PartialShape>(const qsa_indexer_node& node, const kernel_impl_params& impl_param);

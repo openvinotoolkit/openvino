@@ -28,16 +28,17 @@ static void CreateQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
                        In::K_IDX,
                        In::ROPE_COS,
                        In::ROPE_SIN,
-                       In::SUMMARY_CACHE,
-                       In::INDEXER_RAW_K_CACHE,
                        In::Q_NORM_WEIGHT,
                        In::K_NORM_WEIGHT,
-                       In::INDEXER_ROPE_CACHE}) {
+                       In::SUMMARY_CACHE,
+                       In::PAST_INCOMPLETE_RAW_K,
+                       In::PAST_INCOMPLETE_ROPE}) {
         OPENVINO_ASSERT(op->get_input_element_type(idx) == ov::element::f16,
                         "[GPU] QSAIndexer '", layer_name, "': input ", idx, " must be f16, got ", op->get_input_element_type(idx));
     }
 
     cldnn::qsa_indexer prim(layer_name, inputs, op->get_config());
+    prim.output_data_types = get_output_data_types(op);
     p.add_primitive(*op, prim);
 }
 

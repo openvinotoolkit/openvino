@@ -7,6 +7,7 @@
 #include <cmath>
 #include <initializer_list>
 #include <string>
+#include <utility>
 
 #include "itt.hpp"
 
@@ -126,41 +127,32 @@ void QSAIndexer::validate_and_infer_types() {
                         InputIdx::K_IDX,
                         InputIdx::ROPE_COS,
                         InputIdx::ROPE_SIN,
-                        InputIdx::SUMMARY_CACHE,
-                        InputIdx::INDEXER_RAW_K_CACHE,
                         InputIdx::Q_NORM_WEIGHT,
                         InputIdx::K_NORM_WEIGHT,
-                        InputIdx::INDEXER_ROPE_CACHE});
+                        InputIdx::SUMMARY_CACHE,
+                        InputIdx::PAST_INCOMPLETE_RAW_K,
+                        InputIdx::PAST_INCOMPLETE_ROPE});
 
     const auto r = static_cast<int64_t>(m_config.compress_ratio);
     const ov::Dimension di(static_cast<int64_t>(m_config.indexer_head_dim));
     const ov::Dimension rot(static_cast<int64_t>(m_config.indexer_rotary_dim));
-    const ov::Dimension rot_half(static_cast<int64_t>(m_config.indexer_rotary_dim / 2));
+    const ov::Dimension rope_row(static_cast<int64_t>(2 * m_config.indexer_rotary_dim));
     const auto batch = dim_at(q_idx_ps, 0);
     const auto length = dim_at(q_idx_ps, 1);
     const auto h_ik = dim_at(k_idx_ps, 2);
 
     check_shape(this, InputIdx::Q_IDX, "q_idx", ov::PartialShape{batch, length, -1, di});
     check_shape(this, InputIdx::K_IDX, "k_idx", ov::PartialShape{batch, length, h_ik, di});
-    check_shape(this, InputIdx::ROPE_COS, "rope_cos", ov::PartialShape{batch, length, rot_half});
-    check_shape(this, InputIdx::ROPE_SIN, "rope_sin", ov::PartialShape{batch, length, rot_half});
+    check_shape(this, InputIdx::ROPE_COS, "rope_cos", ov::PartialShape{batch, length, rot});
+    check_shape(this, InputIdx::ROPE_SIN, "rope_sin", ov::PartialShape{batch, length, rot});
     check_shape(this, InputIdx::Q_NORM_WEIGHT, "q_norm_weight", ov::PartialShape{di});
     check_shape(this, InputIdx::K_NORM_WEIGHT, "k_norm_weight", ov::PartialShape{di});
+    check_shape(this, InputIdx::SUMMARY_CACHE, "summary_cache", ov::PartialShape{batch, h_ik, -1, di});
+    check_shape(this, InputIdx::PAST_INCOMPLETE_RAW_K, "past_incomplete_raw_k", ov::PartialShape{batch, h_ik, r - 1, di});
+    check_shape(this, InputIdx::PAST_INCOMPLETE_ROPE, "past_incomplete_rope", ov::PartialShape{batch, rope_row});
 
-    const auto& raw_ps = get_input_partial_shape(InputIdx::INDEXER_RAW_K_CACHE);
-    check_shape(this, InputIdx::INDEXER_RAW_K_CACHE, "indexer_raw_k_cache", ov::PartialShape{batch, h_ik, -1, di});
-    const auto s_cap = dim_at(raw_ps, 2);
-    ov::Dimension summary_cap = ov::Dimension::dynamic();
-    ov::Dimension rope_cap = ov::Dimension::dynamic();
-    if (s_cap.is_static()) {
-        summary_cap = s_cap.get_length() / r;
-        rope_cap = (s_cap.get_length() + r - 1) / r;
-    }
-    check_shape(this, InputIdx::SUMMARY_CACHE, "summary_cache", ov::PartialShape{batch, h_ik, summary_cap, di});
-    check_shape(this, InputIdx::INDEXER_ROPE_CACHE, "indexer_rope_cache", ov::PartialShape{batch, rope_cap, rot});
-
-    check_i32_input(this, InputIdx::PAST_LENS, "past_lens", 1);
-    check_shape(this, InputIdx::PAST_LENS, "past_lens", ov::PartialShape{batch});
+    check_i32_input(this, InputIdx::KEY_LENGTH, "key_length", 1);
+    check_shape(this, InputIdx::KEY_LENGTH, "key_length", ov::PartialShape{batch});
 
     if (q_idx_ps.rank().is_static() && q_idx_ps.size() == 4 && q_idx_ps[2].is_static() && h_ik.is_static()) {
         const auto h_iq = static_cast<size_t>(q_idx_ps[2].get_length());
@@ -173,9 +165,14 @@ void QSAIndexer::validate_and_infer_types() {
                                            ov::Dimension(static_cast<int64_t>(m_config.block_topk))};
     const ov::PartialShape sel_count_ps{batch, ov::Dimension(static_cast<int64_t>(m_config.h_sel)), length};
 
-    set_output_size(2);
-    set_output_type(0, element::i32, sel_indices_ps);
-    set_output_type(1, element::i32, sel_count_ps);
+    set_output_size(OutputIdx::COUNT);
+    set_output_type(OutputIdx::SEL_INDICES, element::i32, sel_indices_ps);
+    set_output_type(OutputIdx::SEL_COUNT, element::i32, sel_count_ps);
+    for (auto [out, in] : {std::pair{OutputIdx::SUMMARY_CACHE, InputIdx::SUMMARY_CACHE},
+                           std::pair{OutputIdx::PAST_INCOMPLETE_RAW_K, InputIdx::PAST_INCOMPLETE_RAW_K},
+                           std::pair{OutputIdx::PAST_INCOMPLETE_ROPE, InputIdx::PAST_INCOMPLETE_ROPE}}) {
+        set_output_type(out, get_input_element_type(in), get_input_partial_shape(in));
+    }
 }
 
 std::shared_ptr<Node> QSAIndexer::clone_with_new_inputs(const ov::OutputVector& new_args) const {

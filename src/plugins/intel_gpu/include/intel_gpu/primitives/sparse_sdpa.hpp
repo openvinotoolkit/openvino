@@ -12,9 +12,9 @@
 namespace cldnn {
 
 /// @brief Non-paged (dense) sparse attention consumer primitive: Q3 only, read-only on
-/// main K/V. See ov::intel_gpu::op::SparseSDPA. v1 does not support an ordinary
-/// (non-plan) attn_mask or a non-constant scale input; lowering must reject those cases
-/// explicitly rather than construct this primitive.
+/// main K/V. See ov::intel_gpu::op::SparseSDPA. Inputs: query, key, value, sel_indices,
+/// sel_count, key_length. A constant scale input is folded into `scale`; sinks are not
+/// supported, lowering must reject them explicitly rather than construct this primitive.
 struct sparse_sdpa : public primitive_base<sparse_sdpa> {
     CLDNN_DECLARE_PRIMITIVE(sparse_sdpa)
 

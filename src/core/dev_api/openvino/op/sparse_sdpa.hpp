@@ -15,31 +15,30 @@ namespace ov::op::internal {
 ///
 /// Reads dense K/V history already materialized by an upstream `KVCache`-style producer
 /// (read-only; does not write main K/V or own Indexer state), consumes an upstream
-/// Indexer's complete-block selection, derives each query's causal tail using the
-/// bottom-right-aligned logical position `q_abs = S - L + l`, and performs sparse
-/// attention over the union. v1 only implements the `sel_indices`/`sel_count` plan form
-/// (no plan-carrying `attn_mask`); an ordinary, non-plan `attn_mask` is not implemented
-/// in GPU lowering in this pass either (explicit rejection, no silent fallback) -- see
-/// `sparse-sdpa.rst` for the full normative contract.
+/// Indexer's complete-block selection, derives each query's causal tail from its logical
+/// position `q_abs = key_length[b] - L + l`, and performs sparse attention over the union.
+/// `key_length` describes left padding: logical key `j` of batch `b` is stored at index
+/// `S - key_length[b] + j`. See `sparse-sdpa.rst` for the full normative contract.
 ///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API SparseSDPA : public ov::op::Op {
 public:
     OPENVINO_OP("SparseSDPA");
 
-    /// @brief Fixed input order. ATTN_MASK/SCALE are optional trailing inputs: a node may
-    /// have 5 (neither), 6 (ATTN_MASK only), or 7 (both) inputs.
+    /// @brief Fixed input order. SCALE/SINKS are optional trailing inputs: a node may have
+    /// 6 (neither), 7 (SCALE only), or 8 (both) inputs.
     struct InputIdx {
         static constexpr size_t QUERY = 0;        ///< [B, Hq, L, Dh]
         static constexpr size_t KEY = 1;          ///< [B, Hkv, S, Dh], dense history
         static constexpr size_t VALUE = 2;        ///< [B, Hkv, S, Dv], dense history
         static constexpr size_t SEL_INDICES = 3;  ///< [B, h_sel, ceil(L/q_block_size), K_max]
         static constexpr size_t SEL_COUNT = 4;    ///< [B, h_sel, ceil(L/q_block_size)]
-        static constexpr size_t ATTN_MASK = 5;    ///< optional, broadcastable to [B,1,L,S]
-        static constexpr size_t SCALE = 6;        ///< optional scalar tensor
+        static constexpr size_t KEY_LENGTH = 5;   ///< [B] i32, valid keys per batch row
+        static constexpr size_t SCALE = 6;        ///< optional scalar or 1-element tensor
+        static constexpr size_t SINKS = 7;        ///< optional [num_heads], requires SCALE
 
-        static constexpr size_t COUNT_MIN = 5;
-        static constexpr size_t COUNT_MAX = 7;
+        static constexpr size_t COUNT_MIN = 6;
+        static constexpr size_t COUNT_MAX = 8;
     };
 
     struct Config {
@@ -67,11 +66,11 @@ public:
         return m_output_type;
     }
 
-    bool has_attn_mask() const {
-        return get_input_size() >= InputIdx::ATTN_MASK + 1;
-    }
     bool has_scale_input() const {
         return get_input_size() >= InputIdx::SCALE + 1;
+    }
+    bool has_sinks() const {
+        return get_input_size() >= InputIdx::SINKS + 1;
     }
 
     static bool validate_config(const Config& config, std::string& reason);

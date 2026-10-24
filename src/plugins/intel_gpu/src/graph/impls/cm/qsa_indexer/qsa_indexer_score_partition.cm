@@ -30,6 +30,24 @@
 
 #include "qsa_ops_common.hpp"
 
+/// Sum over index-query heads of ReLU(<q_h, summary>), before the score scale.
+template <int HEADS, int DIM>
+CM_INLINE float qsa_block_score(matrix_ref<half, HEADS, DIM> q, vector_ref<half, DIM> summary) {
+    float total = 0.0f;
+#pragma unroll
+    for (int h = 0; h < HEADS; h++) {
+        float dot = 0.0f;
+#pragma unroll
+        for (int k = 0; k < DIM; k += 16) {
+            vector<float, 16> qv = q.row(h).template select<16, 1>(k);
+            vector<float, 16> kv = summary.template select<16, 1>(k);
+            dot += cm_sum<float>(qv * kv);
+        }
+        total += dot > 0.0f ? dot : 0.0f;
+    }
+    return total;
+}
+
 extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* indexer_q ATTR,              // [tokens, Hiq, Di]
                                         const half* summary_cache ATTR,          // paged: [N_phys,1,page/r,Di]; dense: [B,1,S_cap/r,Di]
                                         const int32_t* past_lens ATTR,           // paged: [num_seqs]; dense: [B]
@@ -66,7 +84,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* indexer_q ATTR,             
 
     uint seq = 0, abs_pos = 0;
 #if QSA_ADDRESS_MODE == 0
-    qsa_ops::resolve_token_paged(subsequence_begins, past_lens, num_seqs, token_idx, seq, abs_pos);
+    if (!qsa_ops::resolve_token_paged(subsequence_begins, past_lens, num_seqs, token_idx, seq, abs_pos)) {
+        return;
+    }
     const uint page_begin = (uint)block_indices_begins[seq];
 #else
     qsa_ops::resolve_token_dense(past_lens, seq_len, token_idx, seq, abs_pos);
@@ -98,28 +118,29 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* indexer_q ATTR,             
         qsa_gr::load_hv<DI>(q.row(h), indexer_q, (token_idx * HIQ + h) * DI);
     }
 
-    for (uint b = begin; b < end; b++) {
+    // The scan is memory-latency bound: keep U summary loads in flight instead of one.
+    constexpr uint U = 8;
 #if QSA_ADDRESS_MODE == 0
-        const uint page = (uint)block_indices[page_begin + b / SUMMARIES_PER_PAGE];
-        const uint src = qsa::summary_offset(page, b % SUMMARIES_PER_PAGE, SUMMARIES_PER_PAGE, DI);
+#define QSA_SUMMARY_SRC(blk) qsa::summary_offset((uint)block_indices[page_begin + (blk) / SUMMARIES_PER_PAGE], (blk) % SUMMARIES_PER_PAGE, SUMMARIES_PER_PAGE, DI)
 #else
-        const uint src = qsa_ops::offset_dense(seq, b, summary_stride, DI);
+#define QSA_SUMMARY_SRC(blk) qsa_ops::offset_dense(seq, (blk), summary_stride, DI)
 #endif
-        vector<half, DI> summary;
-        qsa_gr::load_hv<DI>(summary, summary_cache, src);
-
-        float total = 0.0f;
+    uint b = begin;
+    for (; b + U <= end; b += U) {
+        matrix<half, U, DI> summaries;
 #pragma unroll
-        for (uint h = 0; h < HIQ; h++) {
-            float dot = 0.0f;
-#pragma unroll
-            for (uint k = 0; k < DI; k += 16) {
-                vector<float, 16> qv = q.row(h).template select<16, 1>(k);
-                vector<float, 16> kv = summary.template select<16, 1>(k);
-                dot += cm_sum<float>(qv * kv);
-            }
-            total += dot > 0.0f ? dot : 0.0f;
+        for (uint u = 0; u < U; u++) {
+            qsa_gr::load_hv<DI>(summaries.row(u), summary_cache, QSA_SUMMARY_SRC(b + u));
         }
-        block_scores[row + b] = total * (float)QSA_IDX_SCALE;
+#pragma unroll
+        for (uint u = 0; u < U; u++) {
+            block_scores[row + b + u] = qsa_block_score<HIQ, DI>(q, summaries.row(u)) * (float)QSA_IDX_SCALE;
+        }
     }
+    for (; b < end; b++) {
+        vector<half, DI> summary;
+        qsa_gr::load_hv<DI>(summary, summary_cache, QSA_SUMMARY_SRC(b));
+        block_scores[row + b] = qsa_block_score<HIQ, DI>(q, summary) * (float)QSA_IDX_SCALE;
+    }
+#undef QSA_SUMMARY_SRC
 }

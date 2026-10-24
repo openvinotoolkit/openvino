@@ -221,6 +221,7 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::VALUE});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_COUNT});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         for (uint32_t i = 0; i < 5; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
@@ -279,7 +280,7 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::VALUE});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_COUNT});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparseSDPAInternalBufIdx::TILE_MAP});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         for (uint32_t i = 0; i < 5; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
@@ -347,7 +348,7 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::VALUE});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_COUNT});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparseSDPAInternalBufIdx::TOKEN_MAP});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::KEY_LENGTH});
         if (m_split) {
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparseSDPAInternalBufIdx::SPLIT_ACC});
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparseSDPAInternalBufIdx::SPLIT_ML});
@@ -413,6 +414,7 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::VALUE});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_COUNT});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparseSDPAInternalBufIdx::SPLIT_ACC});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparseSDPAInternalBufIdx::SPLIT_ML});
         for (uint32_t i = 0; i < 5; i++) {
@@ -570,13 +572,9 @@ public:
         const auto& query_shape = params.get_input_layout(SparseSDPAIn::QUERY).get_shape();
         const auto batch = std::max<size_t>(1, query_shape[0]);
         const auto seq_len = std::max<size_t>(1, query_shape[2]);
-        // One 16-query tile per batch row, upper-bounded (see qsa.cpp's identical bound).
-        const auto tiles = (batch * seq_len) / dpas_query_tile + batch + 1;
         const auto desc = params.typed_desc<sparse_sdpa>();
 
         std::vector<BufferDescriptor> bufs;
-        bufs.emplace_back(tiles * 2, ov::element::i32, true, false);            // TILE_MAP (host-filled)
-        bufs.emplace_back(batch * seq_len * 2, ov::element::i32, true, false);  // TOKEN_MAP (host-filled)
         // SPLIT_ACC/SPLIT_ML: only ever dispatched for decode-shaped calls (seq_len == 1),
         // where batch*seq_len == batch (small), so this is cheap regardless of whether
         // split actually fires for this particular call.
@@ -592,7 +590,6 @@ public:
         update_rt_params(instance);
         const auto& params = *instance.get_impl_params();
         if (use_gqa_dpas_attention(params)) {
-            upload_token_map(instance);
             if (has_stage(attention_gqa_split) && rt().is_decode) {
                 auto split_event = execute_stage(events, instance, attention_gqa_split);
                 return execute_stage({split_event}, instance, split_reduce);
@@ -605,7 +602,6 @@ public:
         }
         // Plain dpas needs a multi-token query tile; decode keeps the scalar kernel.
         if (has_stage(attention_dpas) && !rt().is_decode) {
-            upload_tile_map(instance);
             return execute_stage(events, instance, attention_dpas);
         }
         return execute_stage(events, instance, attention);
@@ -632,47 +628,7 @@ public:
         rtp->v_seq_pitch = seq_pitch(params.get_input_layout(SparseSDPAIn::VALUE), "value");
         rtp->is_decode = rtp->seq_len == 1;
 
-        rtp->tile_map.clear();
-        rtp->token_map.clear();
-        if (use_gqa_dpas_attention(params)) {
-            for (size_t b = 0; b < rtp->batch; b++) {
-                for (size_t t = 0; t < rtp->seq_len; t++) {
-                    rtp->token_map.push_back(static_cast<int32_t>(b));
-                    rtp->token_map.push_back(static_cast<int32_t>(t));
-                }
-            }
-        } else if (use_dpas_attention(params)) {
-            for (size_t b = 0; b < rtp->batch; b++) {
-                for (size_t t = 0; t < rtp->seq_len; t += dpas_query_tile) {
-                    rtp->tile_map.push_back(static_cast<int32_t>(b));
-                    rtp->tile_map.push_back(static_cast<int32_t>(t));
-                }
-            }
-        }
-        rtp->tile_count = rtp->tile_map.size() / 2;
-    }
-
-private:
-    void upload_tile_map(primitive_inst& instance) {
-        auto* rtp = &rt();
-        if (rtp->tile_map.empty()) {
-            return;
-        }
-        auto mem = instance.get_intermediates_memories()[SparseSDPAInternalBufIdx::TILE_MAP];
-        OPENVINO_ASSERT(mem->count() >= rtp->tile_map.size(), "[GPU][CM] sparse_sdpa tile map buffer is too small");
-        mem_lock<int32_t, mem_lock_type::write> lock(mem, instance.get_network().get_stream());
-        std::copy(rtp->tile_map.begin(), rtp->tile_map.end(), lock.begin());
-    }
-
-    void upload_token_map(primitive_inst& instance) {
-        auto* rtp = &rt();
-        if (rtp->token_map.empty()) {
-            return;
-        }
-        auto mem = instance.get_intermediates_memories()[SparseSDPAInternalBufIdx::TOKEN_MAP];
-        OPENVINO_ASSERT(mem->count() >= rtp->token_map.size(), "[GPU][CM] sparse_sdpa token map buffer is too small");
-        mem_lock<int32_t, mem_lock_type::write> lock(mem, instance.get_network().get_stream());
-        std::copy(rtp->token_map.begin(), rtp->token_map.end(), lock.begin());
+        rtp->tile_count = rtp->batch * ((rtp->seq_len + dpas_query_tile - 1) / dpas_query_tile);
     }
 };
 
@@ -698,7 +654,8 @@ bool SparseSDPACMImplementationManager::validate_impl(const cldnn::program_node&
         return false;
     }
 
-    if (desc->h_sel != 1) {
+    // Every dense kernel adds the causal tail and applies the causal bound.
+    if (desc->h_sel != 1 || !desc->causal) {
         return false;
     }
 
@@ -708,9 +665,11 @@ bool SparseSDPACMImplementationManager::validate_impl(const cldnn::program_node&
             return false;
         }
     }
-    if (node.get_input_layout(SparseSDPAIn::SEL_INDICES).data_type != ov::element::i32 ||
-        node.get_input_layout(SparseSDPAIn::SEL_COUNT).data_type != ov::element::i32) {
-        return false;
+    static constexpr std::array i32_inputs = {SparseSDPAIn::SEL_INDICES, SparseSDPAIn::SEL_COUNT, SparseSDPAIn::KEY_LENGTH};
+    for (auto idx : i32_inputs) {
+        if (node.get_input_layout(idx).data_type != ov::element::i32) {
+            return false;
+        }
     }
 
     return true;
