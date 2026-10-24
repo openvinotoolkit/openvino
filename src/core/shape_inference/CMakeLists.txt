@@ -107,6 +107,7 @@ target_sources(${TARGET_NAME}
     ${SHAPE_INFER_INCLUDE_DIR}/prior_box_shape_inference_util.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/proposal_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/psroi_pooling_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/qsa_prepare_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/random_uniform_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/range_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/rdft_shape_inference.hpp

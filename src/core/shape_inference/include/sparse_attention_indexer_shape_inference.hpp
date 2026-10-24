@@ -81,6 +81,13 @@ std::vector<TRShape> shape_infer(const SparseAttentionIndexer* op,
                                input_shapes,
                                index_weights_shape.rank().compatible(3),
                                "The shape of index_weights must be 3D [N, L, Hi].");
+        if (block_index_keys_shape.rank().is_static() && index_weights_shape.rank().is_static()) {
+            TDim merged;
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   TDim::merge(merged, block_index_keys_shape[0], index_weights_shape[0]),
+                                   "The batch dimension of index_query and index_weights must be the same.");
+        }
         if (index_query_shape.rank().is_static() && index_weights_shape.rank().is_static()) {
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
@@ -107,6 +114,11 @@ std::vector<TRShape> shape_infer(const SparseAttentionIndexer* op,
     }
 
     const auto num_selected_blocks = token_budget / key_block_size;
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           key_length_shape.rank().is_dynamic() || key_length_shape[0].compatible(1) ||
+                               key_length_shape[0].compatible(batch),
+                           "The size of key_length must be 1 or the batch dimension of index_query.");
     return {TRShape{batch, TDim(num_selection_heads), num_queries, TDim(num_selected_blocks)},
             TRShape{batch, TDim(num_selection_heads), num_queries}};
 }

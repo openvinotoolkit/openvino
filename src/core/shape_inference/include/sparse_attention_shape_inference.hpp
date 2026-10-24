@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/op/sparse_attention.hpp"
+#include "openvino/util/math_util.hpp"
 #include "utils.hpp"
 
 namespace ov::op::v17 {
@@ -63,16 +64,20 @@ std::vector<TRShape> shape_infer(const SparseAttention* op,
     // Batch size, shared by all the data and selection inputs
     if (is_out_rank_static) {
         for (size_t i = 1; i < 5; ++i) {
-            NODE_SHAPE_INFER_CHECK(op,
-                                   input_shapes,
-                                   input_shapes[i].rank().is_dynamic() ||
-                                       TDim::merge(out_shape[0], out_shape[0], input_shapes[i][0]),
-                                   "The batch dimension of all the inputs must be the same.");
+            NODE_SHAPE_INFER_CHECK(
+                op,
+                input_shapes,
+                input_shapes[i].rank().is_dynamic() || TDim::merge(out_shape[0], out_shape[0], input_shapes[i][0]),
+                "The batch dimension of all the inputs must be the same.");
         }
     }
 
     if (key_shape.rank().is_static() && value_shape.rank().is_static()) {
         TDim merged;
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               TDim::merge(merged, key_shape[0], value_shape[0]),
+                               "The batch dimension of all the inputs must be the same.");
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                TDim::merge(merged, key_shape[1], value_shape[1]),
@@ -108,6 +113,10 @@ std::vector<TRShape> shape_infer(const SparseAttention* op,
         TDim merged;
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
+                               TDim::merge(merged, block_indices_shape[0], block_count_shape[0]),
+                               "The batch dimension of all the inputs must be the same.");
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
                                TDim::merge(merged, block_indices_shape[1], block_count_shape[1]),
                                "The number of selection heads of block_indices and block_count must be the same.");
         NODE_SHAPE_INFER_CHECK(op,
@@ -125,7 +134,7 @@ std::vector<TRShape> shape_infer(const SparseAttention* op,
                                    "The number of query heads must be divisible by the number of selection heads.");
         }
         if (query_shape[2].is_static() && block_indices_shape[2].is_static()) {
-            const auto expected_rows = (query_shape[2].get_length() + query_block_size - 1) / query_block_size;
+            const auto expected_rows = ov::util::ceil_div(query_shape[2].get_length(), query_block_size);
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
                                    block_indices_shape[2].get_length() == expected_rows,
@@ -142,6 +151,25 @@ std::vector<TRShape> shape_infer(const SparseAttention* op,
                                input_shapes,
                                key_length_shape.rank().compatible(1),
                                "The shape of key_length must be 1D [N] or [1].");
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               !is_out_rank_static || key_length_shape.rank().is_dynamic() ||
+                                   key_length_shape[0].compatible(1) || key_length_shape[0].compatible(out_shape[0]),
+                               "The size of key_length must be 1 or the batch dimension of the other inputs.");
+        if (key_shape.rank().is_static() && key_shape[2].is_static()) {
+            if (const auto key_lengths = get_input_const_data_as<TRShape, int64_t>(op, 5, ta)) {
+                const auto num_positions = static_cast<int64_t>(key_shape[2].get_length());
+                for (const auto& length : *key_lengths) {
+                    NODE_SHAPE_INFER_CHECK(op,
+                                           input_shapes,
+                                           0 <= length && length <= num_positions,
+                                           "The key_length values must be in [0, S], S = ",
+                                           num_positions,
+                                           ". Got: ",
+                                           length);
+                }
+            }
+        }
     }
 
     if (inputs_count > 6) {
