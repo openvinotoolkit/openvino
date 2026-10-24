@@ -146,17 +146,46 @@ def test_openvino_matches_eager_tiny(case, tmp_path, monkeypatch):
     ov_tokens, ov_lps, layers = _generate(str(tmp_path), dtype, prompt, True, block_size)
 
     assert layers.get(ov_layer), f"{ov_layer} missing from the OV exec graphs: {layers}"
+    _assert_same_decode(eager_tokens, eager_lps, ov_tokens, ov_lps, tol)
+
+
+def _assert_same_decode(eager_tokens, eager_lps, ov_tokens, ov_lps, tol):
+    """Tokens and their logprobs agree step by step; a mismatch is only accepted at a near tie, then comparison stops.
+
+    A near tie means each side ranks the other's token within `tol` of its own pick, so both tokens must appear in
+    both sides' logprobs (vLLM always returns the sampled token's logprob alongside the top ones).
+    """
     for step, (eager_token, ov_token) in enumerate(zip(eager_tokens, ov_tokens)):
-        ranked = sorted(eager_lps[step].values(), reverse=True)
         if eager_token != ov_token:
-            assert ranked[0] - ranked[1] <= tol, (
-                f"step {step}: OV picked {ov_token}, eager {eager_token} by a margin of {ranked[0] - ranked[1]:.4f}\n"
-                f"  eager: {eager_tokens}\n  ov:    {ov_tokens}")
+            context = (f"step {step}: OV picked {ov_token}, eager {eager_token}\n"
+                       f"  eager: {eager_tokens}\n  ov:    {ov_tokens}")
+            for side, lps, pick, other in (("eager", eager_lps, eager_token, ov_token),
+                                           ("OV", ov_lps, ov_token, eager_token)):
+                assert other in lps[step], f"{context}\n  {side} doesn't rank token {other} among its candidates"
+                gap = lps[step][pick] - lps[step][other]
+                assert gap <= tol, f"{context}\n  {side} prefers its token by {gap:.4f} (tolerance {tol})"
             assert step >= MIN_STEPS, f"diverged at a near tie after only {step} steps"
-            break
+            return
         assert eager_token in ov_lps[step], f"step {step}: token {eager_token} missing from OV logprobs"
         delta = abs(eager_lps[step][eager_token] - ov_lps[step][eager_token])
         assert delta <= tol, f"step {step}: logprob differs by {delta:.4f} (tolerance {tol})"
+
+
+@pytest.mark.precommit
+def test_near_tie_acceptance():
+    """The comparison accepts a divergence only between near-tied tokens, never a far-off pick."""
+    match = ([5] * MIN_STEPS, [{5: -0.1, 6: -3.0}] * MIN_STEPS)
+    eager_tokens, eager_lps = match[0] + [1], match[1] + [{1: -1.0, 2: -1.0005, 900: -20.0}]
+    tied = ([2], [{2: -1.0, 1: -1.0004, 7: -5.0}])
+    far = ([900], [{900: -0.9, 1: -1.0, 2: -1.1}])
+    _assert_same_decode(eager_tokens, eager_lps, match[0] + tied[0], match[1] + tied[1], tol=1e-3)
+    with pytest.raises(AssertionError, match="eager prefers its token"):
+        _assert_same_decode(eager_tokens, eager_lps, match[0] + far[0], match[1] + far[1], tol=1e-3)
+    with pytest.raises(AssertionError, match="OV prefers its token"):
+        unsure_ov = ([2], [{2: -0.5, 1: -1.0, 7: -5.0}])
+        _assert_same_decode(eager_tokens, eager_lps, match[0] + unsure_ov[0], match[1] + unsure_ov[1], tol=1e-3)
+    with pytest.raises(AssertionError, match="after only"):
+        _assert_same_decode([1], eager_lps[-1:], tied[0], tied[1], tol=1e-3)
 
 
 def _routed_reference(tokens, w1, w3, w2, topk_weights, topk_ids, act):
