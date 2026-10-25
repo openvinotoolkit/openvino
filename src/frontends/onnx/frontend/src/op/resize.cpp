@@ -125,6 +125,9 @@ ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
     }
     auto axes_attr = node.get_attribute_value<std::vector<int64_t>>("axes", {});
     if (axes_attr.empty()) {
+        if (node.has_attribute("axes")) {
+            return {data};
+        }
         return {std::make_shared<v11::Interpolate>(data, scale_or_sizes, attrs)};
     }
 
