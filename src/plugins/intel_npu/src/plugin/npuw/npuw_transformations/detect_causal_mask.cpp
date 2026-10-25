@@ -58,6 +58,24 @@ int64_t get_window_size(const std::shared_ptr<ov::Node>& node) {
     return vals.empty() ? 0 : std::llabs(vals.front());
 }
 
+// Keep branch filtering consistent with TriuSlidingMatcher: only skip a nested
+// mask when that matcher can actually annotate its SDPA consumers.
+int64_t get_triu_sliding_window(const std::shared_ptr<ov::Node>& node) {
+    auto select = ov::as_type_ptr<ov::op::v1::Select>(node);
+    if (!select || !select->get_output_element_type(0).is_real())
+        return 0;
+
+    auto condition = select->get_input_node_shared_ptr(0);
+    for (size_t i = 0; i < 2 && ov::is_type<ov::op::v0::Unsqueeze>(condition); ++i) {
+        condition = condition->get_input_node_shared_ptr(0);
+    }
+    auto ge = ov::as_type_ptr<ov::op::v1::GreaterEqual>(condition);
+    if (!ge || !ov::is_type<ov::op::v1::Subtract>(ge->get_input_node_shared_ptr(0)))
+        return 0;
+
+    return get_window_size(ge->get_input_node_shared_ptr(1));
+}
+
 // Writes `encoded_value` (see NPUW_SDPA_MASK_RT_KEY for the encoding) onto `sdpa`'s
 // rt_info. A node may only be annotated once: if it is already annotated with a
 // *different* value, that means two matchers produced genuinely contradictory
@@ -180,6 +198,8 @@ bool traces_to_range(const std::shared_ptr<ov::Node>& node, int depth = 8) {
 // matcher -- if so, traversal doesn't cross into it, leaving that branch alone;
 // otherwise traversal continues through it (e.g. a combine with a `new_ones`
 // identity constant or a padding mask is still just a plain causal mask).
+// LFM3 also combines a causal/padding condition with an already-built sliding
+// mask as Select(invalid, fill, window_mask); do not cross that merge either.
 void annotate_causal_mask_impl(
     const ov::Output<ov::Node>& mask_output,
     const std::function<bool(const std::shared_ptr<ov::Node>&, const ov::Output<ov::Node>&)>& should_skip_branch) {
@@ -197,6 +217,13 @@ void annotate_causal_mask_impl(
             if (auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(consumer)) {
                 assign_mask_rt_info(sdpa, ov::npuw::NPUW_SDPA_MASK_CAUSAL);
                 continue;  // don't cross into the SDPA's own outputs
+            }
+            if (auto select = ov::as_type_ptr<ov::op::v1::Select>(consumer)) {
+                if (select->input_value(0) == output &&
+                    (get_triu_sliding_window(select->get_input_node_shared_ptr(1)) > 0 ||
+                     get_triu_sliding_window(select->get_input_node_shared_ptr(2)) > 0)) {
+                    continue;
+                }
             }
             if (should_skip_branch(consumer, output))
                 continue;  // this branch belongs to a SWA matcher, don't propagate into it
@@ -507,10 +534,8 @@ public:
         auto beyond_window_unsq1 = opp::optional<ov::op::v0::Unsqueeze>({beyond_window, opp::any_input()});
         auto beyond_window_unsq2 = opp::optional<ov::op::v0::Unsqueeze>({beyond_window_unsq1, opp::any_input()});
         auto windowed = opp::wrap_type<ov::op::v1::Select>({beyond_window_unsq2, opp::any_input(), opp::any_input()});
-        auto callback = [=](opp::Matcher& m) {
-            if (!m.get_match_root()->get_output_element_type(0).is_real())
-                return false;
-            const int64_t w = get_window_size(m.get_pattern_value_map().at(window_const).get_node_shared_ptr());
+        auto callback = [](opp::Matcher& m) {
+            const int64_t w = get_triu_sliding_window(m.get_match_root());
             if (w > 0) {
                 annotate_sdpa_consumers(m.get_match_root()->output(0), w);
             }
