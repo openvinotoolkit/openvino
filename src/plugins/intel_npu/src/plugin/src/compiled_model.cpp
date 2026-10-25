@@ -11,7 +11,7 @@
 #include "async_infer_request.hpp"
 #include "compiled_model_property_manager.hpp"
 #include "executor.hpp"
-#include "hsm_writer.hpp"
+#include "hsm_read_write.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/config.hpp"
@@ -130,7 +130,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
     if (!_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
         OPENVINO_ASSERT(_blobSectionsRegistry.has_value(),
                         "Cannot export non-raw blobs without a BlobSectionsRegistry");
-        hsm::Writer(_blobSectionsRegistry.value()).write_to(stream);
+        hsm::write_to(stream, _blobSectionsRegistry.value());
         return;
     }
 

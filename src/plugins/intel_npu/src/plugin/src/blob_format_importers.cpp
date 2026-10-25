@@ -9,7 +9,7 @@
 #include "compiler_schedule_instance_evaluator.hpp"
 #include "compiler_schedules_sections.hpp"
 #include "compiler_version_section.hpp"
-#include "hsm_reader.hpp"
+#include "hsm_read_write.hpp"
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/encrypted_schedules_flag_section.hpp"
@@ -439,9 +439,10 @@ public:
                                   const std::shared_ptr<CompilerOptionSupportHelper>& option_helper,
                                   const Config& config)
         : IBlobFormatImporter(original_model, backend, config, Logger("BlobFormatV2Importer", config.get<LOG_LEVEL>())),
-          m_blob_sections_registry(
-              hsm::Reader(get_readers(), create_type_evaluators(), create_instance_evaluators(option_helper))
-                  .read(base_reader)) {
+          m_blob_sections_registry(hsm::read_from(base_reader,
+                                                  get_readers(),
+                                                  create_type_evaluators(),
+                                                  create_instance_evaluators(option_helper))) {
         verify_valid_sections();
     }
 
