@@ -118,6 +118,29 @@ def _kv_update_owned_backend(base):
     return cached
 
 
+def _unsupported_attention_features(module) -> list:
+    """Attention settings the OV PagedAttention rewrite does not carry over, for one layer.
+
+    The translator (frontends/pytorch/src/op/paged_attention.cpp) passes empty
+    ALiBi slopes and sinks, has no soft-cap input, and always builds causal
+    decoder attention, so a layer using any of these would compute different
+    attention without an error.
+    """
+    from vllm.v1.attention.backend import AttentionType
+    impl = getattr(module, "impl", None)
+    features = []
+    if getattr(impl, "alibi_slopes", None) is not None:
+        features.append("ALiBi slopes")
+    if getattr(impl, "sinks", None) is not None:
+        features.append("attention sinks")
+    if getattr(impl, "logits_soft_cap", None):
+        features.append("logits soft-capping")
+    attn_type = getattr(impl, "attn_type", AttentionType.DECODER)
+    if attn_type != AttentionType.DECODER:
+        features.append(f"attention type {attn_type}")
+    return features
+
+
 def _own_kv_cache_update(model) -> int:
     """Point this model's attention layers at a kv-update-owning backend.
 
@@ -125,17 +148,30 @@ def _own_kv_cache_update(model) -> int:
     unified_kv_cache_update op is redundant and, having
     no OV translator, would be stranded in eager PyTorch by the partitioner.
     Scoped per layer, not on CPUAttentionBackend, which is process-global.
+
+    Refuses, before touching any layer, a model with attention settings the
+    rewrite can't express: once OV owns the KV-cache write there is no falling
+    back to vLLM's attention for those layers.
     """
     from vllm.v1.attention.backend import AttentionBackend
-    swapped = 0
-    for module in model.modules():
+    layers = []
+    for name, module in model.named_modules():
         # Some layers hold an AttentionBackendEnum here, not a backend class.
         backend = getattr(module, "attn_backend", None)
         if (isinstance(backend, type) and issubclass(backend, AttentionBackend)
                 and not backend.forward_includes_kv_cache_update):
-            module.attn_backend = _kv_update_owned_backend(backend)
-            swapped += 1
-    return swapped
+            layers.append((name, module, backend))
+    unsupported = {name: features for name, module, _ in layers
+                   if (features := _unsupported_attention_features(module))}
+    if unsupported:
+        first = next(iter(unsupported))
+        raise NotImplementedError(
+            f"The OpenVINO backend does not support {', '.join(unsupported[first])} in attention "
+            f"(layer {first!r}, {len(unsupported)} layer(s) affected). Run this model without "
+            f"the OpenVINO compilation backend.")
+    for _, module, backend in layers:
+        module.attn_backend = _kv_update_owned_backend(backend)
+    return len(layers)
 
 
 # Past this many guard specializations, dynamo silently drops to eager --
@@ -272,6 +308,8 @@ def _patch_cpu_model_runner():
                 logger.debug(
                     "[OV plugin] kv-cache update ownership moved to OV "
                     "PagedAttention for %d attention layer(s)", _n)
+            except NotImplementedError:
+                raise  # attention the OV rewrite can't express: refuse the model
             except Exception as _e:
                 logger.debug(
                     "[OV plugin] kv_cache_update suppression skipped: %s", _e)

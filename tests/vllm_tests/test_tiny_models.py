@@ -197,6 +197,22 @@ def test_near_tie_acceptance():
         _assert_same_decode([], [], [], [], tol=1e-3)
 
 
+@pytest.mark.precommit
+def test_alibi_model_is_refused(tmp_path, monkeypatch):
+    """A model with ALiBi attention fails at load with a clear error, instead of running OV attention without the
+    slopes. In-process engine, so the worker's exception reaches the test unwrapped."""
+    from vllm import LLM
+
+    select_cpu_platform()
+    monkeypatch.setenv("VLLM_ENABLE_V1_MULTIPROCESSING", "0")
+    _write_checkpoint(tmp_path, "bloom", dict(architectures=["BloomForCausalLM"], hidden_size=256, n_layer=2,
+                                              n_head=4, vocab_size=1024, layer_norm_epsilon=1e-5))
+    with pytest.raises(NotImplementedError, match="ALiBi"):
+        LLM(model=str(tmp_path), dtype="float32", max_model_len=512, distributed_executor_backend="uni",
+            skip_tokenizer_init=True, kv_cache_memory_bytes=KV_CACHE_BYTES, max_num_seqs=1, block_size=32,
+            compilation_config={"mode": "STOCK_TORCH_COMPILE", "backend": "openvino", "custom_ops": ["none"]})
+
+
 def _routed_reference(tokens, w1, w3, w2, topk_weights, topk_ids, act):
     """Per-token, per-selected-expert MoE: weight * down(act(gate(x)) * up(x))."""
     from torch.nn import functional
