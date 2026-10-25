@@ -123,6 +123,15 @@ struct loop_impl : typed_primitive_impl<loop> {
         const auto is_dynamic = instance.is_dynamic();
 
         if (is_dynamic) {
+            // Dynamic Loop bodies retain primitive instances and their runtime
+            // buffers between inferences, which can leak folded body parameter
+            // state into the next inference. Reset the loop memory mappings and
+            // mark all body primitives as changed, so each body execution
+            // re-runs shape/impl/argument updates and reallocates runtime
+            // buffers instead of reusing state left by the previous inference.
+            instance.reset_memory();
+            instance.mark_body_primitives_dirty();
+            instance.preproc_memories_done = false;
             instance.update_shape();
             if (instance.get_flag(ExecutionFlags::SHAPE_CHANGED)) {
                 instance.preproc_memories_done = false;
