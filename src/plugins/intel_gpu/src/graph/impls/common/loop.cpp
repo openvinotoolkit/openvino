@@ -123,6 +123,15 @@ struct loop_impl : typed_primitive_impl<loop> {
         const auto is_dynamic = instance.is_dynamic();
 
         if (is_dynamic) {
+            // Dynamic Loop bodies retain primitive instances and their runtime
+            // buffers between inferences, which can leak folded body parameter
+            // state into the next inference. Reset the loop memory mappings and
+            // mark all body primitives as changed, so each body execution
+            // re-runs shape/impl/argument updates and reallocates runtime
+            // buffers instead of reusing state left by the previous inference.
+            instance.reset_memory();
+            instance.mark_body_primitives_dirty();
+            instance.preproc_memories_done = false;
             instance.update_shape();
             if (instance.get_flag(ExecutionFlags::SHAPE_CHANGED)) {
                 instance.preproc_memories_done = false;
@@ -253,13 +262,19 @@ struct loop_impl : typed_primitive_impl<loop> {
             }
 
             // execution condition is the result of body network execution
-            if (body_execution_condition_mem != nullptr) {
+            if (!instance.get_condition_id().empty()) {
+                // Re-fetch the memory pointer each iteration because in dynamic
+                // models the primitive's output memory may not be allocated
+                // until after the first body execution.
                 auto execution_id = instance.get_condition_id();
-                if (body_network->has_event(execution_id)) {
-                    auto ev = body_network->get_primitive_event(execution_id);
-                    if (ev) ev->wait();
+                body_execution_condition_mem = body_network->get_primitive(execution_id)->output_memory_ptr();
+                if (body_execution_condition_mem != nullptr) {
+                    if (body_network->has_event(execution_id)) {
+                        auto ev = body_network->get_primitive_event(execution_id);
+                        if (ev) ev->wait();
+                    }
+                    execution_condition = read_scalar_value(body_execution_condition_mem, body_network->get_stream());
                 }
-                execution_condition = read_scalar_value(body_execution_condition_mem, body_network->get_stream());
             }
             GPU_DEBUG_IF(!execution_condition) {
                 GPU_DEBUG_LOG << "body_exec_condition is false at "<< current_iteration_idx << " iteration idx" << std::endl;

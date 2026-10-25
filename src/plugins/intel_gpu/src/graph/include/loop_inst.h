@@ -346,6 +346,7 @@ public:
                                                                 const int64_t num_iteration);
     event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     void reset_memory();
+    void mark_body_primitives_dirty();
 
     void validate_backedges(loop_node const & node) const;
 

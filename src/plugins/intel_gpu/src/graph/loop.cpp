@@ -753,6 +753,17 @@ void loop_inst::postprocess_output_memory(bool is_dynamic, int64_t current_itera
     }
 }
 
+void loop_inst::mark_body_primitives_dirty() {
+    for (const auto& node : get_node().as<loop>().get_body_program()->get_processing_order()) {
+        auto prim = body_network->get_primitive(node->id());
+        if (!prim || prim->is_constant())
+            continue;
+        prim->set_flag(ExecutionFlags::SHAPE_CHANGED);
+        prim->set_flag(ExecutionFlags::IMPL_CHANGED);
+        prim->set_flag(ExecutionFlags::MEMORY_CHANGED);
+    }
+}
+
 void loop_inst::reset_memory() {
     GPU_DEBUG_LOG << "Reset memory" << std::endl;
     backedge_memory_mappings.clear();
