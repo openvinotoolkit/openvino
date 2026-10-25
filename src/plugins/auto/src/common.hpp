@@ -70,6 +70,7 @@ struct WorkerInferRequest {
     std::list<Time>               m_end_times;
     int                           m_index = 0;
     AutoImmediateExecutor::Ptr    m_fallback_exec;
+    // the request could not be started, so its completion callback will never hand this worker back
     bool                          m_dispatch_failed = false;
 };
 
@@ -264,6 +265,7 @@ struct AutoCompileContext {
     std::string m_err_message;
     ov::threading::Task m_task;
     std::string m_worker_name = "";
+    // the priority registration of m_device_info has already been dropped by the caller
     bool m_priority_released = false;
 };
 

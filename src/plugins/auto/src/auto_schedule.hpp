@@ -48,6 +48,8 @@ private:
     bool ensure_device_ready(DeviceInformation& device);
     // disables the configured low_power_device override if it matches the failed device
     void check_and_disable_if_low_power_device_failed(const std::string& failed_device_name);
+    // moves the persistent MODEL_PRIORITY registration of this model to the device that is about to run it
+    void transfer_priority_registration(const std::string& unique_name);
     size_t                                                               m_cpuhelp_infer_count = 0;
     double                                                               m_cpuhelp_fps = 0.0;
     mutable std::once_flag                                               m_oc;
@@ -63,6 +65,8 @@ private:
     // m_dynamic_executor once teardown has started
     bool                                                                 m_dynamic_shutdown = false;
     DeviceName                                                           m_gate_current_device;
+    // guarded by m_gate_mutex; unique name of the device holding this model's MODEL_PRIORITY registration
+    std::string                                                          m_registered_unique_name;
     std::deque<std::pair<ov::threading::Task, DeviceName>>               m_gate_pending_tasks;
     DeviceMap<SoCompiledModel>                                           m_dynamic_compiled_models;
     std::atomic<size_t>                                                  m_dynamic_infer_count = {0};
