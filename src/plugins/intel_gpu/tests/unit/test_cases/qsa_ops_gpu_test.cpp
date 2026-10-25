@@ -27,6 +27,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstddef>
+#include <cstdlib>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -1542,13 +1543,30 @@ void run_dense_state_chain_test(const split_dims& d, const std::vector<size_t>& 
     }
 }
 
+// setenv/unsetenv are POSIX-only; MSVC provides _putenv_s, where an empty value removes the variable.
+void set_env_var(const char* name, const char* value) {
+#ifdef _WIN32
+    _putenv_s(name, value);
+#else
+    setenv(name, value, 1);
+#endif
+}
+
+void unset_env_var(const char* name) {
+#ifdef _WIN32
+    _putenv_s(name, "");
+#else
+    unsetenv(name);
+#endif
+}
+
 /// Caps the decode BLOCK_SCORES scratch so the Q2 chunk loop runs several times.
 struct scoped_score_budget {
     explicit scoped_score_budget(const char* bytes) {
-        setenv("OV_GPU_QSA_SCORE_BUDGET_BYTES", bytes, 1);
+        set_env_var("OV_GPU_QSA_SCORE_BUDGET_BYTES", bytes);
     }
     ~scoped_score_budget() {
-        unsetenv("OV_GPU_QSA_SCORE_BUDGET_BYTES");
+        unset_env_var("OV_GPU_QSA_SCORE_BUDGET_BYTES");
     }
 };
 

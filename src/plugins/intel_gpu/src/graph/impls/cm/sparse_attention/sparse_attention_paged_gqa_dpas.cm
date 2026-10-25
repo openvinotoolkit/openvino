@@ -29,6 +29,7 @@
 #define ATTR [[type("svmptr_t")]]
 #endif
 #include "qsa_dpas_common.hpp"
+#include "qsa_ops_common.hpp"
 
 #define GQA_W 4
 #ifndef QSA_GQA_VECTOR_META

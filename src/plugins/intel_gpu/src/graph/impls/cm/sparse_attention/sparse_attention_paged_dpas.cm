@@ -33,6 +33,7 @@
 #endif
 
 #include "qsa_dpas_common.hpp"
+#include "qsa_ops_common.hpp"
 
 #ifndef QSA_ATT_WORKERS
 #define QSA_ATT_WORKERS 1
