@@ -76,6 +76,7 @@ OP_CONVERTER(translate_copy_);
 OP_CONVERTER(translate_cross);
 OP_CONVERTER(translate_cumsum);
 OP_CONVERTER(translate_deform_conv);
+OP_CONVERTER(translate_deg2rad);
 OP_CONVERTER(translate_derive_index);
 OP_CONVERTER(translate_dim);
 OP_CONVERTER(translate_div);
@@ -501,6 +502,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::cosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cosh>>},
         {"aten::cross", op::translate_cross},
         {"aten::cumsum", op::translate_cumsum},
+        {"aten::deg2rad", op::translate_deg2rad},
         {"aten::det", op::translate_linalg_det},
         {"aten::detach", op::skip_node},
         {"aten::dequantize", op::skip_node},  // we convert model to fp32 using FQ, so dequantization is not needed
