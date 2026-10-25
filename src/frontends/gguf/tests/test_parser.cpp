@@ -10,6 +10,7 @@
 #include "builder/graph_emitter.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "gguf_writer.hpp"
+#include "openvino/frontend/gguf/parser.hpp"
 #include "op_test_utils.hpp"
 #include "quant/weights.hpp"
 
@@ -259,6 +260,18 @@ TEST_F(GGUFParser, RejectsMXFP4WithZeroColumns) {
     } catch (const ov::Exception& e) {
         EXPECT_NE(std::string(e.what()).find("zero-sized dimension"), std::string::npos);
     }
+}
+
+TEST_F(GGUFParser, ParseMetadataOnly) {
+    ASSERT_NO_FATAL_FAILURE(write_tensor("test.weight", GGUF_TYPE_F32, 2, 2, {}, "test_arch"));
+    const auto loaded = get_gguf_data(m_path, /*load_weights=*/false);
+    const auto& meta = std::get<0>(loaded);
+    const auto& arrays = std::get<1>(loaded);
+    EXPECT_TRUE(arrays.empty());
+    ASSERT_EQ(meta.count("general.architecture"), 1);
+    const auto* arch = std::get_if<std::string>(&meta.at("general.architecture"));
+    ASSERT_NE(arch, nullptr);
+    EXPECT_EQ(*arch, "test_arch");
 }
 
 }  // namespace
