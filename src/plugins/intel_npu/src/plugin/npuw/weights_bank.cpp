@@ -4,6 +4,8 @@
 
 #include "weights_bank.hpp"
 
+#include <cstring>
+
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "serialization.hpp"
@@ -88,6 +90,101 @@ struct TensorToAllocate {
     int64_t uid;
 };
 
+namespace {
+// Reshaped view of an already allocated buffer, keeps the owner alive
+ov::Tensor make_alias_view(const ov::Tensor& owner, const LazyTensor::Meta& meta) {
+    auto holder = std::make_shared<ov::Tensor>(owner);
+    // Non-const data(): a const pointer would make the view reject mutable access
+    auto view = ov::make_tensor(meta.type, meta.shape, holder->data());
+    NPUW_ASSERT(view->get_byte_size() == owner.get_byte_size());
+    return ov::make_tensor(ov::SoPtr<ov::ITensor>(view, holder));
+}
+
+// A shorter view or another element type may start at the same address: only equal type and size can be shared
+bool same_buffer_layout(const LazyTensor::Meta& a, const LazyTensor::Meta& b) {
+    return a.type == b.type && ov::shape_size(a.shape) == ov::shape_size(b.shape);
+}
+}  // namespace
+
+// The source buffer of an earlier owner may have been freed and its address reused by different data, so a hit is
+// only taken after comparing the bytes: the candidate's own source is alive here, the owner's copy is host-accessible.
+Bank::Views Bank::find_earlier_owners(const DeviceBank& device_bank, const Candidates& candidates) {
+    struct Match {
+        int64_t uid;
+        int64_t owner;
+        const void* source;
+        bool same_bytes = false;
+    };
+    std::vector<Match> matches;
+    for (const auto& [uid, lt] : candidates) {
+        const void* source = lt.const_data_ptr();
+        if (source == nullptr) {
+            continue;
+        }
+        const auto iter_alias = device_bank.aliases.find(source);
+        if (iter_alias == device_bank.aliases.end()) {
+            continue;
+        }
+        const auto iter_owner = device_bank.storage.find(iter_alias->second);
+        if (iter_owner == device_bank.storage.end() || !iter_owner->second.tensor) {
+            continue;
+        }
+        const auto& owner = iter_owner->second.tensor;
+        if (same_buffer_layout(lt.eval_meta(), {owner.get_shape(), owner.get_element_type()})) {
+            matches.push_back({uid, iter_alias->second, source});
+        }
+    }
+    ov::parallel_for(matches.size(), [&](std::size_t idx) {
+        auto& match = matches[idx];
+        const auto& owner = device_bank.storage.at(match.owner).tensor;
+        match.same_bytes = std::memcmp(match.source, owner.data(), owner.get_byte_size()) == 0;
+    });
+
+    Views views;
+    for (const auto& match : matches) {
+        if (match.same_bytes) {
+            views.emplace(match.uid, match.owner);
+        }
+    }
+    return views;
+}
+
+// Within one pass every source buffer is alive, so equal pointers mean the same buffer: the lowest uid owns it and
+// the rest become views of it. Returns the new owners.
+Bank::BufferOwners Bank::split_owners_and_views(const Candidates& candidates, Views& views) {
+    BufferOwners owners;
+    for (const auto& [uid, lt] : candidates) {
+        if (views.count(uid) != 0) {
+            continue;
+        }
+        const void* source = lt.const_data_ptr();
+        if (source == nullptr) {
+            continue;
+        }
+        const auto [iter_owner, inserted] = owners.emplace(source, uid);
+        if (!inserted && same_buffer_layout(lt.eval_meta(), candidates.at(iter_owner->second).eval_meta())) {
+            views.emplace(uid, iter_owner->second);
+        }
+    }
+    return owners;
+}
+
+void Bank::bind_views(DeviceBank& device_bank, const Views& views, const std::string& device) {
+    std::size_t shared_bytes = 0u;
+    for (const auto& [uid, owner_uid] : views) {
+        const auto& owner = device_bank.storage.at(owner_uid).tensor;
+        NPUW_ASSERT(owner && "Owner of a shared tensor should be allocated first!");
+        auto& stored_tensor = device_bank.storage.at(uid);
+        stored_tensor.tensor = make_alias_view(owner, stored_tensor.lt.eval_meta());
+        shared_bytes += owner.get_byte_size();
+        stored_tensor.lt.detach();
+    }
+    if (!views.empty()) {
+        LOG_INFO("WeightsBank: shared " << views.size() << " tensors with existing allocations on " << device
+                                        << ", saved " << shared_bytes / 1024.0 / 1024.0 << " MiB");
+    }
+}
+
 void Bank::evaluate_and_allocate() {
     std::unique_lock guard(m_mutex);
 
@@ -141,29 +238,32 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
                                            const std::string& device) {
     // Note: not locking here. This is a private function, so Bank should handle the locks around it
     // as we lock in evaluate_and_allocate() now.
-    std::vector<TensorToAllocate> uids_to_allocated;
-    uids_to_allocated.reserve(uid_count);
-
+    Candidates candidates;
     for (const auto& lt : to_process) {
         auto iter_device_registered = device_bank.registered_tensors.find(lt);
         NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
                     "Tensor should be registered first!");
-        auto uid = iter_device_registered->second;
-        uids_to_allocated.push_back({lt.eval_meta(), ov::Tensor(), uid});
+        candidates.emplace(iter_device_registered->second, lt);
     }
-    // Sort by UIDs, lowest first
-    std::sort(uids_to_allocated.begin(),
-              uids_to_allocated.end(),
-              [](const TensorToAllocate& a, const TensorToAllocate& b) {
-                  return a.uid < b.uid;
-              });
+
+    // Tensors which only differ by shape from an already allocated one are views of it, not new allocations
+    auto views = find_earlier_owners(device_bank, candidates);
+    const auto owners = split_owners_and_views(candidates, views);
+
+    std::vector<TensorToAllocate> uids_to_allocated;
+    uids_to_allocated.reserve(candidates.size() - views.size());
+    for (const auto& [uid, lt] : candidates) {
+        if (views.count(uid) == 0) {
+            uids_to_allocated.push_back({lt.eval_meta(), ov::Tensor(), uid});
+        }
+    }
 
     // Allocate memory sequentially - in order of UID
     auto remote_ctx = m_core->get_default_context(device)._ptr;
     for (auto&& allocated : uids_to_allocated) {
         ov::SoPtr<ov::ITensor> remote_tensor =
             remote_ctx->create_host_tensor(allocated.meta.type, allocated.meta.shape);
-        allocated = {allocated.meta, ov::make_tensor(remote_tensor), allocated.uid};
+        allocated.allocated_tensor = ov::make_tensor(remote_tensor);
     }
 
     // Evaluate and copy into the device memory
@@ -180,6 +280,12 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         // Note: this is the non-CPU path!
         const_cast<LazyTensor&>(stored_tensor.lt).detach();
     });
+
+    // Published only once the owners are allocated, so a failed pass leaves no entry behind
+    for (const auto& [key, uid] : owners) {
+        device_bank.aliases[key] = uid;
+    }
+    bind_views(device_bank, views, device);
 }
 
 bool Bank::is_remote(int64_t uid) const {
