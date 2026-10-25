@@ -905,7 +905,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 // queue stays out-of-order and the oneDNN stream creation may assert.
                 manager.register_pass<ov::intel_gpu::NormalizeMoEOutputReshape>();
                 manager.register_pass<ov::pass::MoeOpFusion>();
-                manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
+                // OTD reloads routed constants from their original backing source on an LRU miss.
+                // Supporting this fusion requires persisting the transformed down-scale as that source.
+                if (!otd_enabled) {
+                    manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
+                }
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             }
         }

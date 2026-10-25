@@ -456,6 +456,8 @@ public:
         const auto& engine = mem->get_engine();
         const auto& dev_info = engine->get_device_info();
         if (!do_weightless_caching) {
+            OPENVINO_ASSERT(!_skip_device_transfer,
+                            "Cannot serialize a partial OTD allocation without a backing source");
             if (engine->can_use_host_usm_zero_copy() && !ob.is_encrypted()) {
                 if (const auto pad = ov::util::align_padding_size(dev_info.sub_buffer_base_alignment.value_or(0), ob.get_offset()); pad > 0) {
                     std::vector<uint8_t> zeros(pad, 0);

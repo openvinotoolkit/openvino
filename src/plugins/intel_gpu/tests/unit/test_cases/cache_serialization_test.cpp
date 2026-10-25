@@ -429,3 +429,19 @@ TEST(cache_serialization, otd_partial_allocation_uses_weightless_metadata) {
     ASSERT_NE(loaded_data.mem->get_mem_tracker(), nullptr);
     EXPECT_EQ(loaded_data.mem->get_mem_tracker()->size(), resident_memory->size());
 }
+
+TEST(cache_serialization, otd_partial_allocation_without_backing_source_is_rejected) {
+    auto& engine = get_test_engine();
+    const layout full_layout({4, 1, 1, 16}, data_types::u8, format::bfyx);
+    const layout resident_layout({1, 1, 1, 16}, data_types::u8, format::bfyx);
+    auto resident_memory = engine.allocate_memory(resident_layout, true);
+    auto partial_memory = engine.reinterpret_buffer(*resident_memory, full_layout);
+
+    data partial_data("partial_no_backing_source", partial_memory, true, 1);
+    membuf mem_buf;
+    std::ostream out_mem(&mem_buf);
+    BinaryOutputBuffer ob(out_mem);
+    ob.set_stream(get_test_stream_ptr().get());
+
+    EXPECT_THROW(partial_data.save(ob), ov::AssertFailure);
+}
