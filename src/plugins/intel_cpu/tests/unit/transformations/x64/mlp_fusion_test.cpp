@@ -35,6 +35,8 @@ struct GateUpMLPParams {
     std::vector<int64_t> split_lengths;
     size_t gate_up_rows = 2 * up_size;  // output features of the gate_up MatMul
     size_t down_cols = up_size;         // input features of the down MatMul
+    size_t act_out = 0;                 // split output feeding the activation
+    size_t up_out = 1;                  // split output feeding the Multiply directly
 };
 
 std::shared_ptr<v0::Constant> make_weight(element::Type type, const Shape& shape) {
@@ -55,21 +57,24 @@ std::shared_ptr<Model> make_gate_up_mlp(const GateUpMLPParams& p,
     auto split = std::make_shared<v1::VariadicSplit>(gate_up,
                                                      v0::Constant::create(p.split_type, Shape{}, {p.split_axis}),
                                                      v0::Constant::create(p.split_type, Shape{2}, p.split_lengths));
-    auto gated = std::make_shared<v1::Multiply>(std::make_shared<v4::Swish>(split->output(0)), split->output(1));
+    auto gated =
+        std::make_shared<v1::Multiply>(std::make_shared<v4::Swish>(split->output(p.act_out)), split->output(p.up_out));
     auto down = std::make_shared<v0::MatMul>(gated, std::make_shared<v0::Convert>(down_w, element::f32), false, true);
     return std::make_shared<Model>(OutputVector{down}, ParameterVector{input});
 }
 
-std::shared_ptr<Model> make_fused_mlp(const std::shared_ptr<v0::Parameter>& input,
-                                      const std::shared_ptr<v0::Constant>& gate_up_w,
-                                      const std::shared_ptr<v0::Constant>& down_w) {
+std::shared_ptr<Model> make_fused_mlp(
+    const std::shared_ptr<v0::Parameter>& input,
+    const std::shared_ptr<v0::Constant>& gate_up_w,
+    const std::shared_ptr<v0::Constant>& down_w,
+    intel_cpu::LLMMLPNode::GATE_UP_TYPE gate_up_type = intel_cpu::LLMMLPNode::GATE_UP_TYPE::COMBINED_GATE_UP) {
     intel_cpu::LLMMLPNode::Config config{};
     config.act = intel_cpu::LLMMLPNode::ACT_FN::SILU;
     config.gate_up_quantized = false;
     config.down_quantized = false;
     config.hidden_size = static_cast<int>(hidden_size);
     config.up_size = static_cast<int>(up_size);
-    config.gate_up_type = intel_cpu::LLMMLPNode::GATE_UP_TYPE::COMBINED_GATE_UP;
+    config.gate_up_type = gate_up_type;
     auto mlp = std::make_shared<intel_cpu::LLMMLPNode>(OutputVector{input, gate_up_w, gate_up_w, down_w}, config);
     return std::make_shared<Model>(OutputVector{mlp}, ParameterVector{input});
 }
@@ -105,6 +110,20 @@ INSTANTIATE_TEST_SUITE_P(
         // Inferred split length.
         GateUpMLPParams{PartialShape{-1, hidden_size}, element::bf16, element::i32, -1, {-1, up_size}}));
 
+TEST_F(TransformationTestsF, MLPFusionGateUpSwappedHalvesFused) {
+    disable_rt_info_check();
+    disable_result_friendly_names_check();
+    std::shared_ptr<v0::Constant> gate_up_w, down_w;
+    std::shared_ptr<v0::Parameter> input;
+    // Act(h1) * h0: the gate is the second half, fused with the swapped layout.
+    GateUpMLPParams p{PartialShape{-1, hidden_size}, element::bf16, element::i64, 1, {up_size, up_size}};
+    p.act_out = 1;
+    p.up_out = 0;
+    model = make_gate_up_mlp(p, gate_up_w, down_w, input);
+    register_mlp_fusion(manager);
+    model_ref = make_fused_mlp(input, gate_up_w, down_w, intel_cpu::LLMMLPNode::GATE_UP_TYPE::COMBINED_UP_GATE);
+}
+
 TEST_F(TransformationTestsF, MLPFusionGateUpUnequalSplitNotFused) {
     std::shared_ptr<v0::Constant> gate_up_w, down_w;
     std::shared_ptr<v0::Parameter> input;
@@ -122,6 +141,46 @@ TEST_F(TransformationTestsF, MLPFusionGateUpTokenAxisSplitNotFused) {
     GateUpMLPParams p{PartialShape{2 * up_size, hidden_size}, element::bf16, element::i64, 0, {up_size, up_size}};
     p.down_cols = 2 * up_size;
     model = make_gate_up_mlp(p, gate_up_w, down_w, input);
+    register_mlp_fusion(manager);
+}
+
+class MLPFusionGateUpSameHalfTest : public TransformationTestsF, public WithParamInterface<size_t> {};
+
+TEST_P(MLPFusionGateUpSameHalfTest, NotFused) {
+    std::shared_ptr<v0::Constant> gate_up_w, down_w;
+    std::shared_ptr<v0::Parameter> input;
+    // Swish(half) * half: LLMMLP's combined executor would take "up" from the other half of the weight.
+    GateUpMLPParams p{PartialShape{-1, hidden_size}, element::bf16, element::i64, 1, {up_size, up_size}};
+    p.act_out = p.up_out = GetParam();
+    model = make_gate_up_mlp(p, gate_up_w, down_w, input);
+    register_mlp_fusion(manager);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, MLPFusionGateUpSameHalfTest, Values(0, 1));
+
+TEST_F(TransformationTestsF, MLPFusionGateUpSplitGateSeparateUpNotFused) {
+    // The gate comes from a gate_up split but "up" is a separate MatMul: not the combined layout.
+    auto input = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, hidden_size});
+    auto to_f32 = [](const std::shared_ptr<v0::Constant>& w) {
+        return std::make_shared<v0::Convert>(w, element::f32);
+    };
+    auto gate_up = std::make_shared<v0::MatMul>(input,
+                                                to_f32(make_weight(element::bf16, Shape{2 * up_size, hidden_size})),
+                                                false,
+                                                true);
+    auto split = std::make_shared<v1::VariadicSplit>(gate_up,
+                                                     v0::Constant::create(element::i64, Shape{}, {1}),
+                                                     v0::Constant::create(element::i64, Shape{2}, {up_size, up_size}));
+    auto up = std::make_shared<v0::MatMul>(input,
+                                           to_f32(make_weight(element::bf16, Shape{up_size, hidden_size})),
+                                           false,
+                                           true);
+    auto gated = std::make_shared<v1::Multiply>(std::make_shared<v4::Swish>(split->output(0)), up);
+    auto down = std::make_shared<v0::MatMul>(gated,
+                                             to_f32(make_weight(element::bf16, Shape{hidden_size, up_size})),
+                                             false,
+                                             true);
+    model = std::make_shared<Model>(OutputVector{down, split->output(1)}, ParameterVector{input});
     register_mlp_fusion(manager);
 }
 

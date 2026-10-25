@@ -119,7 +119,7 @@ def build_call_kwargs(compiled, ov_inputs):
     if not pa_inputs_by_pos:
         return None, None
     call_kwargs = {}
-    tensor_pos = 0
+    positional = []
     for inp in compiled.inputs:
         pa_tensor = None
         for name in inp.get_names():
@@ -129,8 +129,11 @@ def build_call_kwargs(compiled, ov_inputs):
         if pa_tensor is not None:
             call_kwargs[inp] = pa_tensor
         else:
-            call_kwargs[inp] = ov_inputs[tensor_pos]
-            tensor_pos += 1
+            positional.append(inp)
+    # Values bind by position; a count mismatch means a dropped or extra input would shift every later port.
+    if len(positional) != len(ov_inputs):
+        raise RuntimeError(f"PA graph has {len(positional)} positional inputs but got {len(ov_inputs)} values")
+    call_kwargs.update(zip(positional, ov_inputs))
     return call_kwargs, scatter_back
 
 
