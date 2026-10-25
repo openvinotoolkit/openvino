@@ -9,10 +9,8 @@ import re
 import sys
 from pathlib import Path
 from sys import platform
-from typing import Union
 
 import numpy as np
-
 import openvino
 import openvino.opset13 as ops
 from openvino import Core, Model, Shape, Tensor, Type
@@ -114,7 +112,7 @@ def plugins_path(device, lib_path):
     return plugins_paths
 
 
-def generate_image(shape: tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = "float32") -> np.array:
+def generate_image(shape: tuple = (1, 3, 32, 32), dtype: str | np.dtype = "float32") -> np.array:
     np.random.seed(42)
     return np.random.rand(*shape).astype(dtype)
 
@@ -126,8 +124,7 @@ def tensor_from_bytes(stream: io.BytesIO) -> Tensor:
 
 def get_model_with_template_extension():
     core = Core()
-    ir = bytes(
-        b"""<net name="Activation" version="10">
+    ir = b"""<net name="Activation" version="10">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset1">
             <data shape="1,3,22,22" element_type="f32"/>
@@ -174,7 +171,6 @@ def get_model_with_template_extension():
         <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
     </edges>
 </net>"""
-    )
     if platform == "win32":
         core.add_extension(library_path="openvino_template_extension.dll")
     else:
@@ -182,7 +178,7 @@ def get_model_with_template_extension():
     return core, core.read_model(ir)
 
 
-def get_relu_model(input_shape: list[int] = None, input_dtype=np.float32) -> openvino.Model:
+def get_relu_model(input_shape: list[int] | None = None, input_dtype=np.float32) -> openvino.Model:
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
     param = ops.parameter(input_shape, input_dtype, name="data")
@@ -196,7 +192,7 @@ def get_relu_model(input_shape: list[int] = None, input_dtype=np.float32) -> ope
 
 def generate_relu_compiled_model(
     device,
-    input_shape: list[int] = None,
+    input_shape: list[int] | None = None,
     input_dtype=np.float32,
 ) -> openvino.CompiledModel:
     if input_shape is None:
@@ -217,7 +213,7 @@ def decrypt_base64(src):
 def generate_relu_compiled_model_with_config(
     device,
     config,
-    input_shape: list[int] = None,
+    input_shape: list[int] | None = None,
     input_dtype=np.float32,
 ) -> openvino.CompiledModel:
     if input_shape is None:
@@ -227,7 +223,7 @@ def generate_relu_compiled_model_with_config(
     return core.compile_model(model, device, config)
 
 
-def generate_model_and_image(device, input_shape: list[int] = None):
+def generate_model_and_image(device, input_shape: list[int] | None = None):
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
     return (
@@ -236,7 +232,7 @@ def generate_model_and_image(device, input_shape: list[int] = None):
     )
 
 
-def generate_add_model(input_shape: list[int] = None, input_dtype=np.float32) -> openvino.Model:
+def generate_add_model(input_shape: list[int] | None = None, input_dtype=np.float32) -> openvino.Model:
     if input_shape is None:
         input_shape = [2, 1]
     param1 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data1")
@@ -259,7 +255,7 @@ def generate_multi_input_model() -> openvino.Model:
     return model
 
 
-def generate_single_input_model(input_shape: list[int] = None, input_dtype=np.float32) -> openvino.Model:
+def generate_single_input_model(input_shape: list[int] | None = None, input_dtype=np.float32) -> openvino.Model:
     """Generate a model with a single input parameter and relu operation.
 
     :param input_shape: The shape of the input parameter. Default: [4, 4]
@@ -294,7 +290,7 @@ def generate_two_input_model():
 
 def generate_add_compiled_model(
     device,
-    input_shape: list[int] = None,
+    input_shape: list[int] | None = None,
     input_dtype=np.float32,
 ) -> openvino.CompiledModel:
     if input_shape is None:
@@ -315,7 +311,9 @@ def generate_model_with_memory(input_shape, data_type) -> openvino._pyopenvino.M
     return model
 
 
-def generate_concat_compiled_model(device, input_shape: list[int] = None, ov_type=Type.f32, numpy_dtype=np.float32):
+def generate_concat_compiled_model(
+    device, input_shape: list[int] | None = None, ov_type=Type.f32, numpy_dtype=np.float32
+):
     if input_shape is None:
         input_shape = [5]
 
@@ -334,7 +332,7 @@ def generate_concat_compiled_model(device, input_shape: list[int] = None, ov_typ
 
 def generate_concat_compiled_model_with_data(
     device,
-    input_shape: list[int] = None,
+    input_shape: list[int] | None = None,
     ov_type=Type.f32,
     numpy_dtype=np.float32,
 ):

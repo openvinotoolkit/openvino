@@ -4,23 +4,13 @@
 
 import math
 import os
-import sys
 import tempfile
 from contextlib import nullcontext as does_not_raise
 from copy import copy
 
 import numpy as np
-import pytest
-from tests.utils.helpers import (
-    create_filenames_for_ir,
-    generate_add_model,
-    generate_model_with_memory,
-    generate_multi_input_model,
-    generate_single_input_model,
-    generate_two_input_model,
-)
-
 import openvino.opset13 as ops
+import pytest
 from openvino import (
     Core,
     Dimension,
@@ -38,7 +28,15 @@ from openvino import (
     serialize,
     set_batch,
 )
-from openvino.op.util import VariableInfo, Variable
+from openvino.op.util import Variable, VariableInfo
+from tests.utils.helpers import (
+    create_filenames_for_ir,
+    generate_add_model,
+    generate_model_with_memory,
+    generate_multi_input_model,
+    generate_single_input_model,
+    generate_two_input_model,
+)
 
 
 def make_add_with_variable_model(shape, variable_id: str, dtype=np.float32) -> Model:
@@ -724,6 +722,21 @@ def test_reshape_with_dynamic_dimensions():
     assert b_shape[1] == 3
 
 
+def test_reshape_flat_shape_with_nested_intervals():
+    """Flat shape dimensions may contain bounded intervals for every input."""
+    model = generate_multi_input_model()
+
+    model.reshape([1, (2, 3), [224, 256]])
+
+    for model_input in model.inputs:
+        shape = model_input.get_partial_shape()
+        assert shape[0] == 1
+        assert shape[1].get_min_length() == 2
+        assert shape[1].get_max_length() == 3
+        assert shape[2].get_min_length() == 224
+        assert shape[2].get_max_length() == 256
+
+
 def test_reshape_single_input_flat_list_with_list_intervals():
     """Single-input: flat list with nested list intervals should parse correctly."""
     model = generate_single_input_model(input_shape=[1, 3, 224, 224])
@@ -759,11 +772,11 @@ def test_reshape_empty_list_raises():
         model.reshape([])
 
 
-def test_reshape_invalid_inner_type_raises():
-    """Each shape must be a list or tuple."""
+def test_reshape_flat_shape_invalid_interval_raises():
+    """A flat shape must use two values for a bounded dimension interval."""
     model = generate_multi_input_model()
 
-    with pytest.raises(TypeError, match="Each shape must be a list or tuple"):
+    with pytest.raises((RuntimeError, TypeError), match="Two elements are expected"):
         model.reshape([[2, 2], 123, [10]])
 
 
@@ -1189,7 +1202,7 @@ def test_model_with_statement():
         pass
     assert isinstance(mem_model, Model)
     with pytest.raises(AttributeError, match="attribute is no longer accessible."):
-        model.friendly_name
+        _ = model.friendly_name
 
 
 def test_model_dir():
