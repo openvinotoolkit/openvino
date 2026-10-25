@@ -219,26 +219,42 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                     // by default, no preferred device:
                     m_this_preferred_device_name = "";
                     auto compiled_model = m_context->m_compiled_model.lock();
-                    // if any input is remote (e.g. was set with set_tensor), let' use the corresponding device
-                    for (const auto& it : compiled_model->inputs()) {
-                        auto tensor = infer_request->get_tensor(it);
-                        if (auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr)) {
-                            const auto name = remote_tensor->get_device_name();
-                            const auto res = std::find_if(
-                                m_context->m_device_priorities_initial.cbegin(),
-                                m_context->m_device_priorities_initial.cend(),
-                            [&name](const DeviceInformation & d) {
-                                return (d.default_device_id.empty() ? d.device_name : (d.device_name + "." +
-                                        d.default_device_id)) == name;
+                    auto find_remote_device = [this](const ov::SoPtr<ov::ITensor>& tensor) -> const char* {
+                        auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr);
+                        if (!remote_tensor) {
+                            return nullptr;
+                        }
+                        const auto name = remote_tensor->get_device_name();
+                        const auto res = std::find_if(
+                            m_context->m_device_priorities_initial.cbegin(),
+                            m_context->m_device_priorities_initial.cend(),
+                            [&name](const DeviceInformation& d) {
+                                return (d.default_device_id.empty() ? d.device_name
+                                                                    : (d.device_name + "." + d.default_device_id)) == name;
                             });
-                            if (m_context->m_device_priorities_initial.cend() == res) {
-                                OPENVINO_THROW(
-                                    "None of the devices supports a remote tensor created on the device named ", name);
-                            } else {
-                                // it is ok to take the c_str() here (as pointed in the schedule.hpp we need to use const char*)
-                                // as the original strings are from the "persistent" vector (with the right lifetime)
-                                m_this_preferred_device_name = res->device_name.c_str();
-                                break;
+                        if (m_context->m_device_priorities_initial.cend() == res) {
+                            OPENVINO_THROW("None of the devices supports a remote tensor created on the device named ",
+                                           name);
+                        }
+                        // it is ok to take the c_str() here (as pointed in the schedule.hpp we need to use const char*)
+                        // as the original strings are from the "persistent" vector (with the right lifetime)
+                        return res->device_name.c_str();
+                    };
+                    // if any input is remote (e.g. was set with set_tensor), let's use the corresponding device
+                    for (const auto& it : compiled_model->inputs()) {
+                        if (const char* device = find_remote_device(infer_request->get_tensor(it))) {
+                            m_this_preferred_device_name = device;
+                            break;
+                        }
+                    }
+                    if (m_context->m_dynamic_device_selection) {
+                        // the target device is re-selected per inference, so a remote output pins the request as well
+                        for (const auto& it : compiled_model->outputs()) {
+                            if (const char* device = find_remote_device(infer_request->get_tensor(it))) {
+                                OPENVINO_ASSERT(m_this_preferred_device_name[0] == '\0' ||
+                                                    std::string(m_this_preferred_device_name) == device,
+                                                "Remote tensors of the inputs and outputs are created on different devices");
+                                m_this_preferred_device_name = device;
                             }
                         }
                     }
@@ -254,7 +270,12 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                     }
                     *worker_infer_request = m_this_worker_infer_request;
                     auto auto_request = std::dynamic_pointer_cast<InferRequest>(infer_request);
-                    auto_request->set_tensors_to_another_request(m_this_worker_infer_request->m_inferrequest);
+                    try {
+                        auto_request->set_tensors_to_another_request(m_this_worker_infer_request->m_inferrequest);
+                    } catch (...) {
+                        m_this_worker_infer_request->m_dispatch_failed = true;
+                        throw;
+                    }
                     INFO_RUN([worker_infer_request]() {
                         (*worker_infer_request)->m_start_times.push_back(std::chrono::steady_clock::now());
                         });

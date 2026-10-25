@@ -406,7 +406,9 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     // configure 0 dGPU, 1 NPU, if dGPU compile failed,
     // the result will be not sure, maybe two models are compiled into NPU,
     // maybe 0 is compiled to NPU, 1 is compiled to iGPU
-    m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
+    if (!context.m_priority_released) {
+        m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
+    }
     // remove the current device from device_list
     auto erase_device = deviceChecker().check_and_return_if_device_in_list(device, device_list, true);
     if (erase_device != device_list.end())
@@ -425,6 +427,8 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     } catch (const ov::Exception&) {
         return;
     }
+    // the registration made by the reselection above is owned by this attempt
+    context.m_priority_released = false;
     // if the select device is CPU, need to check the config of m_compile_context[CPU]
     // if they are same, do not need to compile again
     cur_dev_is_cpu = (context.m_device_info.device_name.find("CPU") != std::string::npos);
@@ -616,11 +620,15 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task pipeline_task, cons
             }
         }
         m_dynamic_infer_count++;
-        OPENVINO_ASSERT(run_pipeline_task(pipeline_task, m_idle_worker_requests[device_name], device_name),
-                        "[",
-                        get_log_tag(),
-                        "] no idle infer request available on device ",
-                        device_name);
+        const bool dispatched = run_pipeline_task(pipeline_task, m_idle_worker_requests[device_name], device_name);
+        OPENVINO_ASSERT(dispatched, "[", get_log_tag(), "] no idle infer request available on device ", device_name);
+        // the pipeline swallows a failure to start the request and its completion callback never fires
+        if (m_this_worker_infer_request && m_this_worker_infer_request->m_dispatch_failed) {
+            auto* worker = m_this_worker_infer_request;
+            worker->m_dispatch_failed = false;
+            m_idle_worker_requests[device_name].try_push(std::make_pair(worker->m_index, worker));
+            release_execution_slot();
+        }
     } catch (...) {
         // report the failure through the pipeline, otherwise the request would never complete
         m_this_scheduling_exception = std::current_exception();
@@ -668,9 +676,12 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
         context.m_meta_devices = m_context->m_device_priorities;
     }
     LOG_INFO_TAG("[dynamic] device:%s is used for the first time, compiling the model", device.device_name.c_str());
+    // select_dynamic_device() already dropped the registration of the requested device
+    context.m_priority_released = true;
     try_to_compile_model(context, m_dynamic_model ? m_dynamic_model->clone() : nullptr);
     const bool fell_back_to_other_device = context.m_device_info.device_name != requested_device_name;
     if (fell_back_to_other_device || !context.m_is_load_success) {
+        check_and_disable_if_low_power_device_failed(requested_device_name);
         // the requested device failed to compile (try_to_compile_model() may have silently fallen back to
         // another one); exclude it from the shared candidate list so future inferences stop retrying it
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);

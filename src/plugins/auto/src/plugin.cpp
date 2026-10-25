@@ -511,6 +511,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     }
     auto low_power_device = load_config.get_property(ov::intel_auto::low_power_device);
     if (!low_power_device.empty()) {
+        if (is_meta_device(low_power_device))
+            OPENVINO_THROW("The meta device should not be used as low_power_device: ", low_power_device);
         try {
             auto resolved_low_power_device = parse_meta_devices(low_power_device, full_property);
             if (!resolved_low_power_device.empty())
@@ -526,21 +528,41 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
+    const bool has_resource_aware_property = !auto_s_context->m_selection_policy.utilization_thresholds.empty() ||
+                                             !auto_s_context->m_selection_policy.perf_curve_table.empty() ||
+                                             auto_s_context->m_low_power_device.has_value();
+    const auto& low_power_info = auto_s_context->m_low_power_device;
+    // there is nothing to switch to unless a second candidate or a low power device out of the candidates exists
+    const bool has_alternative_device =
+        support_devices.size() > 1 ||
+        (low_power_info.has_value() &&
+         std::none_of(support_devices.begin(), support_devices.end(), [&](const DeviceInformation& device) {
+             return device.unique_name == low_power_info->unique_name;
+         }));
+    const bool is_throughput = auto_s_context->m_performance_hint == ov::hint::PerformanceMode::THROUGHPUT;
     auto_s_context->m_dynamic_device_selection =
         // dynamic selection requires an in-memory model and is incompatible with bind_buffer
         model_path.empty() && !is_cumulative && !is_stateful_model && !auto_s_context->m_bind_buffer &&
-        (!auto_s_context->m_selection_policy.utilization_thresholds.empty() ||
-         !auto_s_context->m_selection_policy.perf_curve_table.empty() ||
-         auto_s_context->m_low_power_device.has_value());
+        !is_throughput && has_alternative_device && has_resource_aware_property;
     if (auto_s_context->m_dynamic_device_selection) {
         LOG_INFO_TAG("[dynamic] per inference device selection enabled by the resource aware selection properties");
+        // load_config treats every property as user set by now, so the explicit setting is read from the original inputs
+        const bool is_startup_fallback_set_by_user =
+            m_plugin_config.is_set_by_user(ov::intel_auto::enable_startup_fallback) ||
+            properties.count(ov::intel_auto::enable_startup_fallback.name());
+        OPENVINO_ASSERT(!(is_startup_fallback_set_by_user &&
+                          load_config.get_property(ov::intel_auto::enable_startup_fallback)),
+                        "ENABLE_STARTUP_FALLBACK is not supported together with the resource aware device selection");
         // the CPU accelerator assumes a fixed target device for the whole model lifetime
         auto_s_context->m_startup_fallback = false;
-    } else if (is_stateful_model &&
-               (!auto_s_context->m_selection_policy.utilization_thresholds.empty() ||
-                !auto_s_context->m_selection_policy.perf_curve_table.empty() ||
-                auto_s_context->m_low_power_device.has_value())) {
-        LOG_WARNING_TAG("resource aware device selection properties are ignored for stateful models");
+    } else if (has_resource_aware_property) {
+        if (is_stateful_model) {
+            LOG_WARNING_TAG("resource aware device selection properties are ignored for stateful models");
+        } else if (is_throughput) {
+            LOG_WARNING_TAG("resource aware device selection properties are ignored for THROUGHPUT performance hint");
+        } else if (!has_alternative_device) {
+            LOG_INFO_TAG("resource aware device selection properties are ignored, there is only one candidate device");
+        }
     }
     // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
     auto_s_context->m_model = model_path.empty() ? std::const_pointer_cast<ov::Model>(model) : nullptr;

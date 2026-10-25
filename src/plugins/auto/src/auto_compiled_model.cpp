@@ -90,6 +90,10 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         auto value = m_context->m_model_priority;
         return value ? ((value > 1) ? ov::hint::Priority::LOW : ov::hint::Priority::MEDIUM) : ov::hint::Priority::HIGH;
     } else if (name == ov::optimal_number_of_infer_requests) {
+        if (m_context->m_dynamic_device_selection) {
+            // return a single request under dynamic device selecion
+            return decltype(ov::optimal_number_of_infer_requests)::value_type{1u};
+        }
         const unsigned int default_num_for_tput = 4u;
         const unsigned int default_num_for_latency = 1u;
         unsigned int real = 0;

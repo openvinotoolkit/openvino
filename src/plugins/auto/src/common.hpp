@@ -70,6 +70,7 @@ struct WorkerInferRequest {
     std::list<Time>               m_end_times;
     int                           m_index = 0;
     AutoImmediateExecutor::Ptr    m_fallback_exec;
+    bool                          m_dispatch_failed = false;
 };
 
 struct ThisRequestExecutor : public ov::threading::ITaskExecutor {
@@ -79,7 +80,12 @@ struct ThisRequestExecutor : public ov::threading::ITaskExecutor {
     void run(ov::threading::Task task) override {
         (*m_workptrptr)->m_task = std::move(task);
         (*m_workptrptr)->m_fallback_exec = m_fallback_exec;
-        (*m_workptrptr)->m_inferrequest->start_async();
+        try {
+            (*m_workptrptr)->m_inferrequest->start_async();
+        } catch (...) {
+            (*m_workptrptr)->m_dispatch_failed = true;
+            throw;
+        }
     };
     WorkerInferRequest** m_workptrptr = nullptr;
     AutoImmediateExecutor::Ptr m_fallback_exec;
@@ -258,6 +264,7 @@ struct AutoCompileContext {
     std::string m_err_message;
     ov::threading::Task m_task;
     std::string m_worker_name = "";
+    bool m_priority_released = false;
 };
 
 enum AutoCompileContextIndex {
