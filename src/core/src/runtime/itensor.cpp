@@ -89,6 +89,10 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
         return;
     }
 
+    if (get_size() == 0) {
+        return;
+    }
+
     auto* src_data = static_cast<const uint8_t*>(data());
     auto* dst_data = static_cast<uint8_t*>(dst->data());
     ov::Strides src_strides{get_byte_size()};
