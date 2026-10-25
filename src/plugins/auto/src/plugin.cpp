@@ -540,7 +540,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
         }
         // The actual device may be the CPU, so one non-CPU candidate is enough as long as another device exists.
         // A user blob ID does not identify a device, so blobs warmed up for other devices would overwrite each other.
-        const bool has_blob_id = properties.count(ov::cache_blob_id.name()) != 0;
+        const bool has_blob_id = full_property.count(ov::cache_blob_id.name()) != 0;
         if (is_cumulative || has_blob_id || warmup_candidates.empty() ||
             auto_s_context->m_device_priorities_initial.size() < 2) {
             LOG_WARNING_TAG("compile_for_all is ignored: %s",

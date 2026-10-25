@@ -219,6 +219,14 @@ void AutoSchedule::init() {
         auto recycleTask = [this]() mutable {
             bool helper_released = false;
             wait_actual_compiled_model_ready();
+            if (!m_exitflag && !m_compile_context[ACTUALDEVICE].m_is_already && m_cache_warmup) {
+                // The actual device failed and the CPU helper stays as the final device, so it is never released.
+                m_compile_context[CPU].m_future.wait();
+                if (m_compile_context[CPU].m_is_already) {
+                    m_cache_warmup->start(m_compile_context[ACTUALDEVICE].m_device_info.device_name,
+                                          m_compile_context[ACTUALDEVICE].m_meta_devices);
+                }
+            }
             while (!m_exitflag && m_compile_context[ACTUALDEVICE].m_is_already) {
                 // handle the case of ACTUAL faster than CPU
                 m_compile_context[CPU].m_future.wait();

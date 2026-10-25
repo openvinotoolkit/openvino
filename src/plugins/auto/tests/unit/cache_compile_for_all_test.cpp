@@ -318,6 +318,41 @@ TEST_F(AutoCacheWarmupTest, failedActualDeviceIsNotWarmedUp) {
     EXPECT_EQ(retry_count.load(), 1);
 }
 
+TEST_F(AutoCacheWarmupTest, warmsUpOtherDeviceWhenActualFailsAndCpuHelperIsReused) {
+    set_global_cache("test_cache_dir");
+    set_devices({actual_device, cpu_device, "GPU.0"});
+    // Same as the CPU helper config, so the failed actual device falls back to the helper without recompiling.
+    metaDevices[1].config = {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY), ov::cache_dir("")};
+    ON_CALL(*plugin, parse_meta_devices(_, _)).WillByDefault(Return(metaDevices));
+    std::atomic<int> select_count{0};
+    ON_CALL(*plugin, select_device(_, _, _, _, _)).WillByDefault(InvokeWithoutArgs([&]() {
+        return select_count++ == 0 ? metaDevices[0] : metaDevices[1];
+    }));
+    std::atomic<int> cpu_count{0};
+    on_compile(cpu_device, [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        cpu_count++;
+        return {mockIExeNet, {}};
+    });
+    on_compile(actual_device, [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        OPENVINO_THROW("compile failure on ", actual_device);
+    });
+    std::atomic<int> warmup_count{0};
+    auto warmup_compiled_model = make_compiled_model();
+    on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        warmup_count++;
+        return {warmup_compiled_model, {}};
+    });
+    config.insert(ov::intel_auto::compile_for_all(true));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    EXPECT_TRUE(wait_until([&] {
+        return warmup_count.load() == 1;
+    }));
+    EXPECT_EQ(cpu_count.load(), 1);
+}
+
 TEST_F(AutoCacheWarmupTest, warmsUpOtherDeviceWhenCpuIsActualDevice) {
     set_global_cache("test_cache_dir");
     set_devices({"GPU.0", cpu_device});
