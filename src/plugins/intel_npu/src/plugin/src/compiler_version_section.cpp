@@ -4,8 +4,6 @@
 
 #include "compiler_version_section.hpp"
 
-#include "intel_npu/common/blob_reader.hpp"
-#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/itt.hpp"
 
 namespace intel_npu {

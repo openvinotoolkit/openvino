@@ -13,8 +13,6 @@
 #include "compiler_schedules_sections.hpp"
 #include "compiler_version_section.hpp"
 #include "driver_compiler_adapter.hpp"
-#include "intel_npu/common/blob_reader.hpp"
-#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
