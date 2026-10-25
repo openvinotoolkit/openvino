@@ -7,6 +7,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/node_builders/moe_builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -330,6 +331,60 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload,
                                             ::testing::Values(ov::element::u8, ov::element::u4),
                                             ::testing::Values(ov::test::utils::DecompressionType::full, ov::test::utils::DecompressionType::empty)),
                          MoECompressedOffloadTest::getTestCaseName);
+
+TEST(MoEOffloadSerializationTest, export_import_preserves_router_scale) {
+    auto core = ov::test::utils::PluginCache::get().core();
+    const auto capabilities = core->get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+    if (std::find(capabilities.begin(), capabilities.end(), ov::intel_gpu::capability::HW_MATMUL) == capabilities.end()) {
+        GTEST_SKIP() << "MoE pipeline requires a systolic GPU (HW_MATMUL capability)";
+    }
+
+    const ov::test::MoePatternParams params{{1, 2, 128}, 2, 4, 256};
+    auto model = ov::test::initMoE3GeMMSubgraph(params,
+                                                 ov::element::f32,
+                                                 ov::element::u4,
+                                                 true,
+                                                 ov::element::f16,
+                                                 ov::element::f16,
+                                                 ov::test::utils::DecompressionType::full,
+                                                 ov::test::utils::DecompressionType::full,
+                                                 true,
+                                                 128,
+                                                 MoERoutingType::SOFTMAX,
+                                                 MoEActivationType::GELU,
+                                                 true);
+    const auto file_prefix = ov::test::utils::generateTestFilePrefix();
+    const auto xml_path = file_prefix + ".xml";
+    const auto bin_path = file_prefix + ".bin";
+    ov::pass::Serialize(xml_path, bin_path).run_on_model(model);
+
+    const ov::AnyMap config = {ov::weights_path(bin_path),
+                                ov::intel_gpu::offload_ratio(50),
+                                ov::hint::inference_precision(ov::element::f16)};
+    const ov::AnyMap reference_config = {ov::hint::inference_precision(ov::element::f16)};
+    auto reference_model = core->compile_model(xml_path, ov::test::utils::DEVICE_GPU, reference_config);
+    auto compiled_model = core->compile_model(xml_path, ov::test::utils::DEVICE_GPU, config);
+    std::stringstream blob;
+    ASSERT_NO_THROW(compiled_model.export_model(blob));
+    auto imported_model = core->import_model(blob, ov::test::utils::DEVICE_GPU, config);
+
+    auto input = ov::test::utils::create_and_fill_tensor_normal_distribution(
+        ov::element::f32, {1, 2, 128}, 0.0f, 0.05f, 1234);
+    auto reference_request = reference_model.create_infer_request();
+    auto original_request = compiled_model.create_infer_request();
+    auto imported_request = imported_model.create_infer_request();
+    reference_request.set_input_tensor(input);
+    original_request.set_input_tensor(input);
+    imported_request.set_input_tensor(input);
+    reference_request.infer();
+    original_request.infer();
+    imported_request.infer();
+    ov::test::utils::compare(reference_request.get_output_tensor(), original_request.get_output_tensor(), ov::element::f16);
+    ov::test::utils::compare(original_request.get_output_tensor(), imported_request.get_output_tensor(), ov::element::f16);
+
+    std::remove(xml_path.c_str());
+    std::remove(bin_path.c_str());
+}
 
 // GatherMatmul and fused MoE kernels support only f16 activations, so the MoE pipeline must be applied
 // only if the activations are f16 after ConvertPrecision, regardless of OV_GPU_MOE_DISABLE_FUSION.
