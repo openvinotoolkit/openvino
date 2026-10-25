@@ -40,7 +40,25 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     if (value_cache_ps[2].get_length() == cldnn::paged_attention::block_size_xattn) {
         prim.has_xattention = true;
     }
-    const auto k_head_size_idx = prim.has_xattention ? 3 : 2;
+    // Token-major K puts head_size innermost, like the XAttention and value-cache layouts.
+    // Feed the predicate the cache's own element type, except for INT4 -- that packs into u8, so
+    // only the config precision can tell it apart from a real u8 BY_TOKEN cache.
+    // See paged_attention::k_token_major_for().
+    const auto& cfg_kv_precision = p.get_config().get_kv_cache_precision();
+    const bool is_int4_cache = cfg_kv_precision == ov::element::u4 || cfg_kv_precision == ov::element::i4;
+    const bool is_by_channel = p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
+    const auto k_cache_precision = is_int4_cache ? cfg_kv_precision : op->get_input_element_type(3);
+    // i8/u4 BY_CHANNEL token-major is read off the PHYSICAL cache shape (the block-size dim moved to
+    // dim[2]), not re-derived from the predicate -- the model-wide layout decision was made once in
+    // transformations_pipeline.cpp and is authoritative. k_token_major_for() covers the remaining
+    // (uncompressed / BY_TOKEN) cases, which the shape cannot disambiguate.
+    const bool k_by_channel_tm = is_by_channel &&
+                                 cldnn::paged_attention::k_by_channel_token_major_layout(
+                                     key_cache_ps,
+                                     is_int4_cache ? cldnn::paged_attention::block_size / 2 + 4
+                                                   : cldnn::paged_attention::block_size + cldnn::paged_attention::block_size / 16 * 4);
+    const bool k_token_major = cldnn::paged_attention::k_token_major_for(k_cache_precision, is_by_channel) || k_by_channel_tm;
+    const auto k_head_size_idx = (prim.has_xattention || k_token_major) ? 3 : 2;
 
     auto k_head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[k_head_size_idx].get_length();
     auto v_head_size = has_rt_params ? rt_info.at(v_head_size_id).as<int64_t>() : value_cache_ps[3].get_length();

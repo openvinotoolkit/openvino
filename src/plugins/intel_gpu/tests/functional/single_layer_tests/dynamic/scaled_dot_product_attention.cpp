@@ -951,6 +951,27 @@ const std::vector<std::vector<InputShape>> static_shapes{
             {ov::Shape{77, 77}}}
         },
     },
+    {
+        // one query, unaligned k head != v head: no sdpa_ocl/sdpa_micro stage, so the static
+        // single-token SDPA must fall back to the sdpa_opt multi-tokens kernel, whose S*V tail
+        // (100 keys) must keep all V dims when only K is unaligned
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 1, 72},
+            {ov::Shape{1, 8, 1, 72}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 72},
+            {ov::Shape{1, 8, 100, 72}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 64},
+            {ov::Shape{1, 8, 100, 64}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{1, 1, 1, 100},
+            {ov::Shape{1, 1, 1, 100}}}
+        },
+    },
 };
 
 const auto static_shape_params = testing::Combine(testing::Values(ov::element::f16, ov::element::bf16),
@@ -966,6 +987,62 @@ const auto static_shape_params = testing::Combine(testing::Values(ov::element::f
 INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnStatic_GPU,
                          ScaledAttnLayerGPUTest,
                          static_shape_params,
+                         ScaledAttnLayerGPUTest::getTestCaseName);
+
+
+// The graph and reference of ScaledAttnLayerGPUTest with Q/K/V in [-1, 1). The generator above draws them from
+// [0, 8), which makes the softmax one-hot (the logits differ by hundreds), so a wrongly read runtime scale still
+// picks the same key and cannot be seen. Here a scale that is off by a small factor changes the output.
+//
+// The resolution must not divide the head size (64): the generator is an LCG whose values repeat with period
+// range * resolution when that is a power of two, so with 32 (period 64) every 64-element row of Q, K and V is the
+// same sequence, all logits are equal, and the softmax ignores the scale. 31 gives a logit spread of ~14.
+class ScaledAttnUnsaturatedGPUTest : public ScaledAttnLayerGPUTest {
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        ScaledAttnLayerGPUTest::generate_inputs(targetInputStaticShapes);
+        const auto& model_inputs = function->inputs();
+        for (size_t i = 0; i < 3; ++i) {
+            ov::test::utils::InputGenerateData data(-1, 2, 31, static_cast<int32_t>(i + 1));
+            inputs[model_inputs[i].get_node_shared_ptr()] =
+                ov::test::utils::create_and_fill_tensor(model_inputs[i].get_element_type(), targetInputStaticShapes[i], data);
+        }
+    }
+};
+
+TEST_P(ScaledAttnUnsaturatedGPUTest, CompareWithRefs) {
+    run();
+}
+
+const std::vector<std::vector<InputShape>> unsaturated_shapes{
+    // static: prefill-sized query
+    {
+        {ov::test::InputShape{ov::PartialShape{1, 8, 32, 64}, {ov::Shape{1, 8, 32, 64}}}},
+        {ov::test::InputShape{ov::PartialShape{1, 8, 128, 64}, {ov::Shape{1, 8, 128, 64}}}},
+        {ov::test::InputShape{ov::PartialShape{1, 8, 128, 64}, {ov::Shape{1, 8, 128, 64}}}},
+        {ov::test::InputShape{ov::PartialShape{1, 1, 32, 128}, {ov::Shape{1, 1, 32, 128}}}},
+    },
+    // dynamic: a prefill-sized query, then a single token
+    {
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64}, {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}}}},
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64}, {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}}}},
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64}, {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}}}},
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1}, {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 1, 1}}}},
+    },
+};
+
+// A runtime scale in the model's own precision (f16 is the control), with and without a tensor mask.
+INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnUnsaturatedRuntimeScale_GPU,
+                         ScaledAttnUnsaturatedGPUTest,
+                         testing::Combine(testing::Values(ov::element::f16, ov::element::bf16),
+                                          testing::ValuesIn(unsaturated_shapes),
+                                          testing::Values(false),
+                                          testing::Values(true, false),
+                                          testing::Values(false),
+                                          testing::Values(true),
+                                          testing::Values(false),
+                                          testing::Values(disable_transpose),
+                                          testing::Values(false)),
                          ScaledAttnLayerGPUTest::getTestCaseName);
 
 } // namespace
