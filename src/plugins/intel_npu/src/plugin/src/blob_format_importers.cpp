@@ -463,7 +463,6 @@ public:
         verify_valid_sections();
     }
 
-    // TODO avoid using pointers for the registry
     std::optional<BlobSectionsRegistry> get_blob_sections_registry() override {
         // Moving forward, the "Graph" object will manage the ownership of the compiler schedules
         auto elf_main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
@@ -779,7 +778,6 @@ Config IBlobFormatImporter::get_config() const {
 
 namespace blob_format_importer_factory {
 
-// TODO see if you can simplify the readerorsource type
 std::unique_ptr<IBlobFormatImporter> create(BlobSource& blob_source,
                                             const bool is_raw_blob,
                                             const std::shared_ptr<const ov::Model>& original_model,

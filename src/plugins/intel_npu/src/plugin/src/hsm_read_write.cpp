@@ -12,6 +12,9 @@ using namespace intel_npu;
 namespace {
 
 constexpr std::string_view PARSE_FAILURE_MESSAGE = "Failed to parse the mandatory section ";
+constexpr std::string_view MANDATORY_READER_MISSING_MESSAGE = "No section reader found for mandatory section ";
+constexpr std::string_view OPTIONAL_READER_MISSING_MESSAGE = "No section reader found for optional section %s";
+constexpr std::string_view OPTIONAL_SECTION_PARSING_FAILED_MESSAGE = "The parsing of optional section %s has failed.";
 
 const ov::runtime::hsm::SectionTag RUNTIME_REQUIREMENTS_TAG =
     ov::runtime::hsm::SectionTag::make(static_cast<uint32_t>(SectionTypeCode::RUNTIME_REQUIREMENTS), false);
@@ -53,7 +56,8 @@ BlobSectionsRegistry read_from(
     OPENVINO_ASSERT(n_runtime_requirements < 2, "Found more than one runtime requirements section");
 
     if (n_runtime_requirements) {
-        OPENVINO_ASSERT(readers.count(SectionTypeCode::RUNTIME_REQUIREMENTS), "No reader found for the manifest");
+        OPENVINO_ASSERT(readers.count(SectionTypeCode::RUNTIME_REQUIREMENTS),
+                        "No reader found for the runtime requirements section");
         const auto decode_result =
             base_reader.decode(static_cast<ov::runtime::hsm::DeviceId>(ov::runtime::hsm::Devices::npu),
                                RUNTIME_REQUIREMENTS_TAG,
@@ -75,7 +79,6 @@ BlobSectionsRegistry read_from(
 
     BlobSectionsRegistry registry;
 
-    // TODO veridy everything important has been imported from blobwriter/reader
     for (const ov::runtime::hsm::ManifestEntry& manifest_entry : base_reader.entries()) {
         if (manifest_entry.tag.id() == static_cast<uint32_t>(SectionTypeCode::RUNTIME_REQUIREMENTS)) {
             // Already parsed
@@ -88,17 +91,11 @@ BlobSectionsRegistry read_from(
 
         logger.debug("Parsing the section %s", debug_name.data());
 
-        // The section is considered for parsing only if the BlobReader has a reader registered for its type
-        if (!readers.count(section_type)) {
-            logger.debug("No section reader found for section %s. Skipping", debug_name.data());
-            continue;
-        }
-        logger.trace("Found a reader for section %s", debug_name.data());
-
         // TODO test the negative branch as well
         if (!runtime_requirements.has_value()) {
             // No runtime requirements found. All sections are considered mandatory
             logger.trace("Parsing the mandatory section %s", debug_name.data());
+            OPENVINO_ASSERT(readers.count(section_type), MANDATORY_READER_MISSING_MESSAGE, debug_name);
 
             const std::optional<std::shared_ptr<ISection>> parsed_section =
                 base_reader.decode(manifest_entry.device, manifest_entry.tag, readers.at(section_type));
@@ -134,6 +131,7 @@ BlobSectionsRegistry read_from(
                 // Case 1
                 // TODO update logs
                 logger.trace("Parsing mandatory section %s", debug_name.data());
+                OPENVINO_ASSERT(readers.count(section_type), MANDATORY_READER_MISSING_MESSAGE, debug_name);
 
                 const std::optional<std::shared_ptr<ISection>> parsed_section =
                     base_reader.decode(manifest_entry.device, manifest_entry.tag, readers.at(section_type));
@@ -148,14 +146,18 @@ BlobSectionsRegistry read_from(
                 // Case 3
                 logger.trace("The section type instance corresponding to section ID %s was not evaluated",
                              debug_name.data());
+                if (!readers.count(section_type)) {
+                    logger.debug(OPTIONAL_READER_MISSING_MESSAGE.data(), debug_name.data());
+                    logger.warning(OPTIONAL_SECTION_PARSING_FAILED_MESSAGE.data(), debug_name.data());
+                    continue;
+                }
 
                 const std::optional<std::shared_ptr<ISection>> parsed_section =
                     base_reader.decode(manifest_entry.device, manifest_entry.tag, readers.at(section_type));
-                OPENVINO_ASSERT(parsed_section.has_value(), PARSE_FAILURE_MESSAGE, debug_name);
                 if (parsed_section.has_value()) {
                     registry.register_section(parsed_section.value(), section_id);
                 } else {
-                    logger.warning("The parsing of optional section %s has failed.", debug_name.data());
+                    logger.warning(OPTIONAL_SECTION_PARSING_FAILED_MESSAGE.data(), debug_name.data());
                 }
             }
         } else if (type_evaluation_result.has_value() && !type_evaluation_result.value()) {
@@ -168,15 +170,19 @@ BlobSectionsRegistry read_from(
             OPENVINO_ASSERT(
                 !instance_evaluation_result.has_value(),
                 "Found a section type instance that was evaluated without evaluating the section type first");
+            if (!readers.count(section_type)) {
+                logger.debug(OPTIONAL_READER_MISSING_MESSAGE.data(), debug_name.data());
+                logger.warning(OPTIONAL_SECTION_PARSING_FAILED_MESSAGE.data(), debug_name.data());
+                continue;
+            }
 
             // TODO refactor opportunities here?
             const std::optional<std::shared_ptr<ISection>> parsed_section =
                 base_reader.decode(manifest_entry.device, manifest_entry.tag, readers.at(section_type));
-            OPENVINO_ASSERT(parsed_section.has_value(), PARSE_FAILURE_MESSAGE, debug_name);
             if (parsed_section.has_value()) {
                 registry.register_section(parsed_section.value(), section_id);
             } else {
-                logger.warning("The parsing of optional section %s has failed.", debug_name.data());
+                logger.warning(OPTIONAL_SECTION_PARSING_FAILED_MESSAGE.data(), debug_name.data());
             }
         }
     }
@@ -186,11 +192,11 @@ void write_to(std::ostream& stream, const BlobSectionsRegistry& blob_sections_re
     const Logger logger("HSMWriter", Logger::global().level());
     logger.debug("Writing into stream using the HSM format");
 
-    const auto runtime_requirements_section = blob_sections_registry.build_runtime_requirements_section();
-
     auto deferred_writer = ov::runtime::hsm::DeferredWriter::open(stream);
     OPENVINO_ASSERT(deferred_writer.has_value(), "A blob writer could not be created. The stream may be invalid");
+
     // TODO add common sections when available
+    const auto runtime_requirements_section = blob_sections_registry.build_runtime_requirements_section();
     deferred_writer->add_section(static_cast<ov::runtime::hsm::DeviceId>(ov::runtime::hsm::Devices::npu),
                                  build_section_tag(runtime_requirements_section),
                                  runtime_requirements_section,

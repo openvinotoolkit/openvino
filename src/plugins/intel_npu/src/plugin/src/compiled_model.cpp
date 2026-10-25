@@ -175,7 +175,6 @@ void CompiledModel::export_model(std::ostream& stream) const {
     if (!(config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
           config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr)) {
         // Plain raw blob
-        // TODO utility for creating sink. and test for it
         _graph->export_main_blob([&stream](ov::util::MemoryView data) {
             stream.write(reinterpret_cast<const char*>(data.data()), data.size());
             OPENVINO_ASSERT(stream, "Stream invalidated during blob writing");

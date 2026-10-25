@@ -68,7 +68,6 @@ public:
 private:
     void update_global_properties(const ov::AnyMap& properties) const;
 
-    // TODO fix the design somehow
     std::shared_ptr<ov::ICompiledModel> import_model(BlobSource& blobSource, ov::AnyMap& properties) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
