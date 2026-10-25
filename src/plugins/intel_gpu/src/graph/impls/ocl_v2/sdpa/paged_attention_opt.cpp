@@ -1751,7 +1751,7 @@ public:
         }
 #endif
 
-        rt_params->partition_size = get_partitioning_size(params, desc->v_head_size, rt_params->stage, desc->k_head_size);
+        rt_params->partition_size = get_partitioning_size(params, desc->v_head_size, rt_params->stage);
 
         auto effective_context_len = rt_params->max_context_len;
         // scores_output is only used in SnapKV path, and it doesn't yet handle the SWA block skip offset
