@@ -190,6 +190,25 @@ bool traces_to_range(const std::shared_ptr<ov::Node>& node, int depth = 8) {
     return false;
 }
 
+// True when `consumer` is a Select that merges our causal mask (as its
+// *condition*) with an already-built triu sliding-window mask (as one of its
+// *data* operands):
+//
+//   Select(~(causal & padding), fill, Select(GreaterEqual(Subtract(q, k), window), fill, 0))
+//
+// The mirror image of the triu form handled in annotate_triu_causal_mask() below
+// (causal mask in a data operand, window check as the condition). The data
+// operand is required to be exactly what TriuSlidingMatcher annotates (see
+// get_triu_sliding_window above), so this branch is only skipped when that
+// matcher really owns it.
+bool merges_triu_window_mask(const std::shared_ptr<ov::Node>& consumer, const ov::Output<ov::Node>& output) {
+    auto select = ov::as_type_ptr<ov::op::v1::Select>(consumer);
+    if (!select || select->input_value(0) != output)
+        return false;
+    return get_triu_sliding_window(select->get_input_node_shared_ptr(1)) > 0 ||
+           get_triu_sliding_window(select->get_input_node_shared_ptr(2)) > 0;
+}
+
 // Shared BFS skeleton behind annotate_causal_mask()/annotate_triu_causal_mask()
 // below: forward-propagates a Causal annotation from `mask_output` onto every
 // ScaledDotProductAttention node it (transitively) feeds. For every non-SDPA
@@ -198,8 +217,6 @@ bool traces_to_range(const std::shared_ptr<ov::Node>& node, int depth = 8) {
 // matcher -- if so, traversal doesn't cross into it, leaving that branch alone;
 // otherwise traversal continues through it (e.g. a combine with a `new_ones`
 // identity constant or a padding mask is still just a plain causal mask).
-// LFM3 also combines a causal/padding condition with an already-built sliding
-// mask as Select(invalid, fill, window_mask); do not cross that merge either.
 void annotate_causal_mask_impl(
     const ov::Output<ov::Node>& mask_output,
     const std::function<bool(const std::shared_ptr<ov::Node>&, const ov::Output<ov::Node>&)>& should_skip_branch) {
@@ -218,13 +235,6 @@ void annotate_causal_mask_impl(
                 assign_mask_rt_info(sdpa, ov::npuw::NPUW_SDPA_MASK_CAUSAL);
                 continue;  // don't cross into the SDPA's own outputs
             }
-            if (auto select = ov::as_type_ptr<ov::op::v1::Select>(consumer)) {
-                if (select->input_value(0) == output &&
-                    (get_triu_sliding_window(select->get_input_node_shared_ptr(1)) > 0 ||
-                     get_triu_sliding_window(select->get_input_node_shared_ptr(2)) > 0)) {
-                    continue;
-                }
-            }
             if (should_skip_branch(consumer, output))
                 continue;  // this branch belongs to a SWA matcher, don't propagate into it
             for (const auto& out : consumer->outputs())
@@ -237,10 +247,14 @@ void annotate_causal_mask_impl(
 // output (LessEqual/Less family). A boolean-combine op (BitwiseAnd/BitwiseOr/
 // LogicalAnd) is only treated as SWA-owned when its *other* operand
 // (transitively) contains a sliding-window bound check (see contains_window_check
-// above) -- meaning this specific combine node is a genuine SWA anchor.
+// above) -- meaning this specific combine node is a genuine SWA anchor. A Select
+// merging the mask with a triu sliding-window mask (see merges_triu_window_mask
+// above) is SWA-owned as well.
 void annotate_causal_mask(const ov::Output<ov::Node>& mask_output) {
     annotate_causal_mask_impl(mask_output,
                               [](const std::shared_ptr<ov::Node>& consumer, const ov::Output<ov::Node>& output) {
+                                  if (merges_triu_window_mask(consumer, output))
+                                      return true;
                                   if (!is_boolean_combine_op(consumer))
                                       return false;
                                   for (size_t i = 0; i < consumer->get_input_size(); ++i) {
@@ -260,11 +274,15 @@ void annotate_causal_mask(const ov::Output<ov::Node>& mask_output) {
 // mask, ...); a Select is only treated as SWA-owned when our matched mask feeds
 // one of its *data* operands (then/else, not the condition) AND that Select's
 // condition is a genuine sliding-window bound check (see contains_triu_window_check
-// above) -- meaning TriuSlidingMatcher already owns that branch.
+// above) -- meaning TriuSlidingMatcher already owns that branch. The mirror form,
+// where our mask is the Select's condition (see merges_triu_window_mask above),
+// is SWA-owned too.
 void annotate_triu_causal_mask(const ov::Output<ov::Node>& mask_output) {
     annotate_causal_mask_impl(
         mask_output,
         [](const std::shared_ptr<ov::Node>& consumer, const ov::Output<ov::Node>& output) {
+            if (merges_triu_window_mask(consumer, output))
+                return true;
             auto select = ov::as_type_ptr<ov::op::v1::Select>(consumer);
             if (!select)
                 return false;

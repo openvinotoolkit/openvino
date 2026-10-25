@@ -331,7 +331,7 @@ std::shared_ptr<ov::Model> build_gemma4_12b_triu_shared_causal(int64_t window) {
                                        ov::ParameterVector{seq, amask, q, k, v});
 }
 
-// LFM3 combines the causal/padding condition with a separately constructed
+// Combines the causal/padding condition with a separately constructed
 // window mask: Select(invalid, fill, Select(beyond_window, fill, zero)).
 std::shared_ptr<ov::Model> build_lfm3_shared_causal(int64_t window,
                                                     size_t window_unsqueezes = 2,
