@@ -3,22 +3,10 @@ permissions: read-all
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-      - 'releases/**'
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-  merge_group:
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.run_id || github.ref }}
   cancel-in-progress: true
-
-   
 
 jobs:
   bandit:
