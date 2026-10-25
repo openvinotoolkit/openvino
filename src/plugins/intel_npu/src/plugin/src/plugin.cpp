@@ -251,7 +251,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     update_global_properties(properties);
 
     // Created at this stage to allow functions to register blob sections on the fly
-    auto blobSectionsRegistry = std::make_shared<BlobSectionsRegistry>();
+    BlobSectionsRegistry blobSectionsRegistry;
 
     // Before going any further: if
     // ... 1 - NPUW mode is activated
@@ -455,7 +455,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     adapterDesc.secureCompile = localConfig.has(ov::cache_encryption_callbacks.name()) &&
                                 localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
 
-    auto compileWithConfig = [&](auto&& modelToCompile, const auto& config, const auto& blobSectionsRegistry) {
+    auto compileWithConfig = [&](auto&& modelToCompile, const auto& config, auto& blobSectionsRegistry) {
         if (!localConfig.get<ENABLE_WEIGHTLESS>()) {
             return compiler->compile(modelToCompile, config, adapterDesc, blobSectionsRegistry);
         }
@@ -517,7 +517,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             graph->set_batch_size(batch.value());
         }
 
-        blobSectionsRegistry->register_section(std::make_shared<BatchSizeSection>(batch.value(), _logger.level()));
+        blobSectionsRegistry.register_section(std::make_shared<BatchSizeSection>(batch.value(), _logger.level()));
     }
 
     if (localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
@@ -527,13 +527,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                         "will be disabled.");
     }
 
+    blobSectionsRegistry.register_section(
+        std::make_shared<CompilerVersionSection>(localConfig.get<COMPILER_VERSION>(), _logger.level()));
+
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
         compiledModel = std::make_shared<CompiledModel>(model,
                                                         shared_from_this(),
                                                         device,
                                                         graph,
-                                                        blobSectionsRegistry,
+                                                        std::make_optional(std::move(blobSectionsRegistry)),
                                                         localConfig,
                                                         unknownProperties);
     } catch (const std::exception& ex) {
@@ -541,25 +544,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     } catch (...) {
         OPENVINO_THROW("Unexpected exception thrown upon attempting to create the \"CompiledModel\" object");
     }
-
-    blobSectionsRegistry->register_section(
-        std::make_shared<CompilerVersionSection>(localConfig.get<COMPILER_VERSION>(), _logger.level()));
-
-    // Registed the IO layouts section
-    std::vector<ov::Layout> inputLayouts;
-    std::vector<ov::Layout> outputLayouts;
-
-    for (const ov::Output<const ov::Node>& nodeOutput : compiledModel->inputs()) {
-        inputLayouts.push_back(
-            std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
-    }
-    for (const ov::Output<const ov::Node>& nodeOutput : compiledModel->outputs()) {
-        outputLayouts.push_back(
-            std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
-    }
-
-    blobSectionsRegistry->register_section(
-        std::make_shared<IOLayoutsSection>(std::move(inputLayouts), std::move(outputLayouts), _logger.level()));
 
     ++_compiledModelLoadCounter;
     OV_ITT_TASK_SKIP(PLUGIN_COMPILE_MODEL);
@@ -604,11 +588,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         return compiledModel;
     }
 
-    reader.has_value() ? reader : ;
     try {
-        const auto reader = ov::runtime::hsm::Reader::open(stream);
+        auto reader = ov::runtime::hsm::Reader::open(stream);
         if (reader.has_value()) {
-            return import_model(reader, localProperties);
+            return import_model(reader.value(), localProperties);
         }
 
         BlobSource blobSource(stream, _logger.level());
@@ -639,9 +622,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     }
 
     try {
-        const auto reader = ov::runtime::hsm::Reader::open(stream);
+        auto reader = ov::runtime::hsm::Reader::open(stream);
         if (reader.has_value()) {
-            return import_model(reader, localProperties);
+            return import_model(reader.value(), localProperties);
         }
 
         BlobSource blobSource(compiledBlob, _logger.level());

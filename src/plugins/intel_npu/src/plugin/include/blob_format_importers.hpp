@@ -73,9 +73,9 @@ public:
      * @brief Creates a new BlobSectionsRegistry using the data parsed from the blob. The BlobSectionsRegistry can later
      * be used to re-export the blob.
      *
-     * @return The BlobSectionsRegistry if the imported compiled model is not a "raw blob". "nullptr" otherwise.
+     * @return The BlobSectionsRegistry if the imported compiled model is not a "raw blob". "nullopt" otherwise.
      */
-    virtual std::shared_ptr<BlobSectionsRegistry> get_blob_sections_registry() = 0;
+    virtual std::optional<BlobSectionsRegistry> get_blob_sections_registry() = 0;
 
     Config get_config() const;
 

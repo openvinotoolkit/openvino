@@ -9,6 +9,7 @@
 #include "compiler_schedule_instance_evaluator.hpp"
 #include "compiler_schedules_sections.hpp"
 #include "compiler_version_section.hpp"
+#include "hsm_reader.hpp"
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/encrypted_schedules_flag_section.hpp"
@@ -172,9 +173,9 @@ public:
         m_main_schedule = compiler_main_schedule.create_roi_tensor(blob_size);
     }
 
-    std::shared_ptr<BlobSectionsRegistry> get_blob_sections_registry() override {
+    std::optional<BlobSectionsRegistry> get_blob_sections_registry() override {
         // TODO comment
-        return nullptr;
+        return std::nullopt;
     }
 
 private:
@@ -266,10 +267,10 @@ public:
      * @brief Constructs a blob writer that can be used to re-export the blob.
      * @details The sections are built using the content found within the V1 format.
      */
-    std::shared_ptr<BlobSectionsRegistry> get_blob_sections_registry() override {
+    std::optional<BlobSectionsRegistry> get_blob_sections_registry() override {
         OPENVINO_ASSERT(m_graph, "Invalid state");
 
-        auto blob_sections_registry = std::make_shared<BlobSectionsRegistry>();
+        BlobSectionsRegistry blob_sections_registry;
 
         // Register the compiler schedules
         const bool encryption_enabled = m_config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
@@ -281,21 +282,21 @@ public:
         case GraphKind::Dynamic: {
             auto dynamic_graph = std::dynamic_pointer_cast<DynamicGraph>(m_graph);
             OPENVINO_ASSERT(dynamic_graph, GRAPH_CLASS_MISMATCH_MESSAGE);
-            blob_sections_registry->register_section(
+            blob_sections_registry.register_section(
                 std::make_shared<DynamicScheduleSection>(dynamic_graph, encryption_callback, m_logger.level()));
             break;
         }
         case GraphKind::Weightless: {
             auto weightless_graph = std::dynamic_pointer_cast<WeightlessGraph>(m_graph);
             OPENVINO_ASSERT(weightless_graph, GRAPH_CLASS_MISMATCH_MESSAGE);
-            blob_sections_registry->register_section(
+            blob_sections_registry.register_section(
                 std::make_shared<ELFInitSchedulesSection>(weightless_graph, encryption_callback, m_logger.level()));
             // break omitted on purpose, since in the weightless case we also need to register a main schedule
         }
         case GraphKind::Weightful: {
             auto graph = std::dynamic_pointer_cast<Graph>(m_graph);
             OPENVINO_ASSERT(graph, GRAPH_CLASS_MISMATCH_MESSAGE);
-            blob_sections_registry->register_section(
+            blob_sections_registry.register_section(
                 std::make_shared<ELFMainScheduleSection>(graph, encryption_callback, m_logger.level()));
             break;
         }
@@ -306,24 +307,24 @@ public:
 
         // Miscellaneous
         if (m_batch_size.has_value()) {
-            blob_sections_registry->register_section(
+            blob_sections_registry.register_section(
                 std::make_shared<BatchSizeSection>(m_batch_size.value(), m_logger.level()));
         }
 
         const auto layouts = extract_layouts();
         if (layouts.has_value()) {
-            blob_sections_registry->register_section(
+            blob_sections_registry.register_section(
                 std::make_shared<IOLayoutsSection>(layouts->first, layouts->second, m_logger.level()));
         }
 
         const auto compiler_version = extract_compiler_version();
         if (compiler_version.has_value()) {
-            blob_sections_registry->register_section(
+            blob_sections_registry.register_section(
                 std::make_shared<CompilerVersionSection>(compiler_version.value(), m_logger.level()));
         }
 
         if (encryption_enabled) {
-            blob_sections_registry->register_section(
+            blob_sections_registry.register_section(
                 std::make_shared<EncryptedSchedulesFlagSection>(encryption_enabled, m_logger.level()));
         }
 
@@ -445,7 +446,7 @@ public:
     }
 
     // TODO avoid using pointers for the registry
-    std::shared_ptr<BlobSectionsRegistry> get_blob_sections_registry() override {
+    std::optional<BlobSectionsRegistry> get_blob_sections_registry() override {
         // Moving forward, the "Graph" object will manage the ownership of the compiler schedules
         auto elfMainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
             m_blob_sections_registry.retrieve_any_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
@@ -464,7 +465,7 @@ public:
             dynamicScheduleSection->set_graph(std::dynamic_pointer_cast<DynamicGraph>(m_graph));
         }
 
-        return std::make_shared<BlobSectionsRegistry>(m_blob_sections_registry);
+        return m_blob_sections_registry;
     }
 
 private:
@@ -760,18 +761,6 @@ Config IBlobFormatImporter::get_config() const {
 
 namespace blob_format_importer_factory {
 
-// std::visit(ov::util::VariantVisitor{
-//                    [](StreamDestination& destination) {
-//                        destination.stream->seekp(destination.start);
-//                        destination.size = 0;
-//                    },
-//                    [](BufferDestination& destination) {
-//                        destination.size = 0;
-//                        destination.good = true;
-//                    },
-//                },
-//                m_destination);
-
 // TODO see if you can simplify the readerorsource type
 std::unique_ptr<IBlobFormatImporter> create(const std::variant<std::reference_wrapper<ov::runtime::hsm::Reader>,
                                                                std::reference_wrapper<BlobSource>>& reader_or_source,
@@ -782,6 +771,7 @@ std::unique_ptr<IBlobFormatImporter> create(const std::variant<std::reference_wr
                                             const Config& config) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "blob_format_importer_factory::create");
     const Logger logger("blob_format_importer_factory", config.get<LOG_LEVEL>());
+    std::unique_ptr<IBlobFormatImporter> result;
 
     std::visit(
         ov::util::VariantVisitor{
@@ -791,7 +781,7 @@ std::unique_ptr<IBlobFormatImporter> create(const std::variant<std::reference_wr
                                 "The raw blob flag was set, but the container to be imported follows the HSM format");
 
                 logger.debug("Creating a blob format v2 import handler using the factory");
-                return std::make_unique<BlobFormatV2Importer>(reader, original_model, backend, option_helper, config);
+                result = std::make_unique<BlobFormatV2Importer>(reader, original_model, backend, option_helper, config);
             },
             [&](std::reference_wrapper<BlobSource> npu_formatted_blob) {
                 const size_t input_size = npu_formatted_blob.get().get_remaining_size();
@@ -801,7 +791,7 @@ std::unique_ptr<IBlobFormatImporter> create(const std::variant<std::reference_wr
                     logger.info(BLOB_COMPATIBILITY_SKIPPED_MESSAGE.data());
 
                     logger.debug("Creating a raw blob format import handler using the factory");
-                    return std::make_unique<RawBlobImporter>(npu_formatted_blob, original_model, backend, config);
+                    result = std::make_unique<RawBlobImporter>(npu_formatted_blob, original_model, backend, config);
                 }
 
                 // The V1 format is identified by some magic bytes at the end of the input
@@ -817,10 +807,13 @@ std::unique_ptr<IBlobFormatImporter> create(const std::variant<std::reference_wr
                 npu_formatted_blob.get().seekg(compiler_payload_beginning, std::ios::beg);
 
                 logger.debug("Creating a blob format v1 import handler using the factory");
-                return std::make_unique<BlobFormatV1Importer>(npu_formatted_blob, original_model, backend, config);
+                result = std::make_unique<BlobFormatV1Importer>(npu_formatted_blob, original_model, backend, config);
             },
         },
         reader_or_source);
+
+    OPENVINO_ASSERT(result);
+    return result;
 }
 
 }  // namespace blob_format_importer_factory

@@ -27,7 +27,7 @@ public:
                                  const ov::AnyMap& properties,
                                  const std::shared_ptr<IDevice>& device,
                                  const std::shared_ptr<IGraph>& graph,
-                                 const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry,
+                                 const BlobSectionsRegistry& blobSectionsRegistry,
                                  Logger& logger);
 
     void setProperty(const ov::AnyMap& properties);
@@ -42,7 +42,7 @@ private:
 
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<IGraph> _graph;
-    std::shared_ptr<BlobSectionsRegistry> _blobSectionsRegistry;
+    std::reference_wrapper<const BlobSectionsRegistry> _blobSectionsRegistry;
     Logger& _logger;
 
     mutable std::mutex _mutex;

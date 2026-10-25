@@ -28,11 +28,10 @@ public:
      * @param config Will be passed to the compiler.
      * @param adapterDesc Adapter-specific settings, not forwarded to the compiler. See "AdapterDescriptor".
      */
-    virtual std::shared_ptr<IGraph> compile(
-        const std::shared_ptr<const ov::Model>& model,
-        const Config& config,
-        const AdapterDescriptor& adapterDesc,
-        const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry) const = 0;
+    virtual std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
+                                            const Config& config,
+                                            const AdapterDescriptor& adapterDesc,
+                                            BlobSectionsRegistry& blobSectionsRegistry) const = 0;
 
     /**
      * @brief Compiles the model, weights separation enabled.
@@ -49,11 +48,10 @@ public:
      * @param adapterDesc Adapter - specific settings, not forwarded to the compiler.See "AdapterDescriptor".*
      * @param blobSectionsRegistry Used to register the resulted compiler schedules.
      * @return A "WeightlessGraph" type of object.*/
-    virtual std::shared_ptr<IGraph> compileWS(
-        std::shared_ptr<ov::Model>&& model,
-        const Config& config,
-        const AdapterDescriptor& adapterDesc,
-        const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry) const = 0;
+    virtual std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model,
+                                              const Config& config,
+                                              const AdapterDescriptor& adapterDesc,
+                                              BlobSectionsRegistry& blobSectionsRegistry) const = 0;
 
     virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
     virtual uint32_t get_version() const = 0;

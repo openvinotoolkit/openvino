@@ -36,7 +36,7 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
-                  const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry,
+                  std::optional<BlobSectionsRegistry>&& blobSectionsRegistry,
                   const Config& config,
                   const ov::AnyMap& properties);
 
@@ -73,7 +73,8 @@ private:
 
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<IGraph> _graph;
-    std::shared_ptr<BlobSectionsRegistry> _blobSectionsRegistry;
+    // TODO optional comment
+    std::optional<BlobSectionsRegistry> _blobSectionsRegistry;
 
     std::unique_ptr<CompiledModelPropertyManager> _propertiesManager;
 

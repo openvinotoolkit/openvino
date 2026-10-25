@@ -26,10 +26,10 @@ namespace {
 
 using namespace intel_npu;
 
-bool blob_contains_only_main_schedule(const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry) {
-    return (blobSectionsRegistry->count_sections_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE) == 1) &&
-           !blobSectionsRegistry->count_sections_of_type(SectionTypeCode::ELF_INIT_SCHEDULES) &&
-           !blobSectionsRegistry->count_sections_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
+bool blob_contains_only_main_schedule(const BlobSectionsRegistry& blobSectionsRegistry) {
+    return (blobSectionsRegistry.count_sections_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE) == 1) &&
+           !blobSectionsRegistry.count_sections_of_type(SectionTypeCode::ELF_INIT_SCHEDULES) &&
+           !blobSectionsRegistry.count_sections_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
 }
 
 }  // namespace
@@ -40,21 +40,42 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<IDevice>& device,
                              const std::shared_ptr<IGraph>& graph,
-                             const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry,
+                             std::optional<BlobSectionsRegistry>&& blobSectionsRegistry,
                              const Config& config,
                              const ov::AnyMap& properties)
     : ICompiledModel(model, plugin, nullptr, nullptr),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _graph(graph),
-      _blobSectionsRegistry(blobSectionsRegistry),
-      _propertiesManager(
-          std::make_unique<CompiledModelPropertyManager>(config, properties, _device, _graph, _blobWriter, _logger)) {
+      _blobSectionsRegistry(std::move(blobSectionsRegistry)),
+      _propertiesManager(std::make_unique<CompiledModelPropertyManager>(config,
+                                                                        properties,
+                                                                        _device,
+                                                                        _graph,
+                                                                        _blobSectionsRegistry,
+                                                                        _logger)) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
-    OPENVINO_ASSERT(blobSectionsRegistry);
 
     OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
     _logger.info("The current compiled model is a %s one", to_string(_graph->get_kind()));
+
+    if (_blobSectionsRegistry.has_value()) {
+        // Registed the IO layouts section
+        std::vector<ov::Layout> inputLayouts;
+        std::vector<ov::Layout> outputLayouts;
+
+        for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
+            inputLayouts.push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
+        for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
+            outputLayouts.push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
+
+        blobSectionsRegistry->register_section(
+            std::make_shared<IOLayoutsSection>(std::move(inputLayouts), std::move(outputLayouts), _logger.level()));
+    }
 
     // Immediate-init path: when weights load is not deferred, initialize the graph now.
     // The deferred path (CREATE_EXECUTOR off or DEFER_WEIGHTS_LOAD on) is handled in create_infer_request().
@@ -107,13 +128,13 @@ void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
     if (!_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
-        OPENVINO_ASSERT(_blobSectionsRegistry, "Cannot export non-raw blobs without a BlobSectionsRegistry");
-        // TODO use a HSM decorator?
-        hsm::Writer(_blobSectionsRegistry).write_to(stream);
+        OPENVINO_ASSERT(_blobSectionsRegistry.has_value(),
+                        "Cannot export non-raw blobs without a BlobSectionsRegistry");
+        hsm::Writer(_blobSectionsRegistry.value()).write_to(stream);
         return;
     }
 
-    if (_blobSectionsRegistry && !blob_contains_only_main_schedule(_blobSectionsRegistry)) {
+    if (_blobSectionsRegistry.has_value() && !blob_contains_only_main_schedule(_blobSectionsRegistry.value())) {
         OPENVINO_THROW("Received a request to export the compiled model using the raw format, but multiple compiler "
                        "schedules have been found. The raw format supports only a single compiler schedule.");
     }
@@ -121,7 +142,11 @@ void CompiledModel::export_model(std::ostream& stream) const {
     if (!(_propertiesManager->getConfig().has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
           _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr)) {
         // Plain raw blob
-        _graph->export_main_blob(stream);
+        // TODO utility for creating sink. and test for it
+        _graph->export_main_blob([&stream](ov::util::MemoryView data) {
+            stream.write(reinterpret_cast<const char*>(data.data()), data.size());
+            OPENVINO_ASSERT(stream, "Stream invalidated during blob writing");
+        });
         return;
     }
 
@@ -131,8 +156,11 @@ void CompiledModel::export_model(std::ostream& stream) const {
         std::string tmpPlainPayload;
         {
             std::stringstream tmpStream;
-            _graph->export_main_blob(tmpStream);  // +1x blob size
-            tmpPlainPayload = tmpStream.str();    // +2x blob size
+            _graph->export_main_blob([&tmpStream](ov::util::MemoryView data) {
+                tmpStream.write(reinterpret_cast<const char*>(data.data()), data.size());
+                OPENVINO_ASSERT(tmpStream, "Stream invalidated during blob writing");
+            });                                 // +1x blob size
+            tmpPlainPayload = tmpStream.str();  // +2x blob size
         }  // -1x blob size when deallocating temporary stringstream
         encryptedPayload = _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(
             tmpPlainPayload);  // +2x blob size

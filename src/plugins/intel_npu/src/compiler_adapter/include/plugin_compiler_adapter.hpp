@@ -36,12 +36,12 @@ public:
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
                                     const Config& config,
                                     const AdapterDescriptor& adapterDesc,
-                                    const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry) const override;
+                                    BlobSectionsRegistry& blobSectionsRegistry) const override;
 
     std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model,
                                       const Config& config,
                                       const AdapterDescriptor& adapterDesc,
-                                      const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry) const override;
+                                      BlobSectionsRegistry& blobSectionsRegistry) const override;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 

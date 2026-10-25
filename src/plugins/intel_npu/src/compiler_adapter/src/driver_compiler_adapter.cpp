@@ -89,13 +89,11 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
                  ZE_MINOR_VERSION(graphExtVersion));
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::compile(
-    const std::shared_ptr<const ov::Model>& model,
-    const Config& config,
-    const AdapterDescriptor& adapterDesc,
-    const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry) const {
+std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
+                                                       const Config& config,
+                                                       const AdapterDescriptor& adapterDesc,
+                                                       BlobSectionsRegistry& blobSectionsRegistry) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compile");
-    OPENVINO_ASSERT(blobSectionsRegistry, "Requested compilation without providing a blob sections registry object");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
     const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
@@ -151,11 +149,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(
                                          get_compatibility_descriptor(graphDesc._handle));
 
     if (adapterDesc.secureCompile) {
-        blobSectionsRegistry->register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
+        blobSectionsRegistry.register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
     }
 
     // Tell the blob writer to store the main schedule in the blob at export time
-    blobSectionsRegistry->register_section(std::make_shared<ELFMainScheduleSection>(
+    blobSectionsRegistry.register_section(std::make_shared<ELFMainScheduleSection>(
         graph,
         adapterDesc.secureCompile ? updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt : nullptr,
         _logger.level()));
@@ -163,13 +161,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(
     return graph;
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(
-    std::shared_ptr<ov::Model>&& model,
-    const Config& config,
-    const AdapterDescriptor& adapterDesc,
-    const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry) const {
+std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
+                                                         const Config& config,
+                                                         const AdapterDescriptor& adapterDesc,
+                                                         BlobSectionsRegistry& blobSectionsRegistry) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
-    OPENVINO_ASSERT(blobSectionsRegistry, "Requested compilation without providing a blob writer object");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
     if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 3)) {
@@ -291,13 +287,13 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(
     if (updatedConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
         updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
         encryptionCallback = updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt;
-        blobSectionsRegistry->register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
+        blobSectionsRegistry.register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
     }
 
     // At export time, all schedules (main + inits) shall be stored in the blob.
-    blobSectionsRegistry->register_section(
+    blobSectionsRegistry.register_section(
         std::make_shared<ELFMainScheduleSection>(weightlessGraph, encryptionCallback, _logger.level()));
-    blobSectionsRegistry->register_section(
+    blobSectionsRegistry.register_section(
         std::make_shared<ELFInitSchedulesSection>(weightlessGraph, encryptionCallback, _logger.level()));
 
     return weightlessGraph;

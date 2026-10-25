@@ -26,14 +26,14 @@ ov::runtime::hsm::SectionTagReserved build_section_tag(const std::shared_ptr<ISe
 namespace intel_npu::hsm {
 
 // TODO ITT here
-Writer::Writer(const std::shared_ptr<BlobSectionsRegistry>& blob_sections_registry)
+Writer::Writer(const BlobSectionsRegistry& blob_sections_registry)
     : m_blob_sections_registry(blob_sections_registry),
       m_logger("BatchSizeSection", Logger::global().level()) {
     m_logger.trace("NPU HSM writer created");
 }
 
 void Writer::write_to(std::ostream& stream) const {
-    const auto runtime_requirements_section = m_blob_sections_registry.build_runtime_requirements_section();
+    const auto runtime_requirements_section = m_blob_sections_registry.get().build_runtime_requirements_section();
 
     auto deferred_writer = ov::runtime::hsm::DeferredWriter::open(stream);
     OPENVINO_ASSERT(deferred_writer.has_value(), "A blob writer could not be created. The stream may be invalid");
@@ -43,7 +43,7 @@ void Writer::write_to(std::ostream& stream) const {
                                  runtime_requirements_section,
                                  runtime_requirements_section->get_alignment());
 
-    std::queue<std::shared_ptr<ISection>> write_queue = m_blob_sections_registry.get_write_queue();
+    std::queue<std::shared_ptr<ISection>> write_queue = m_blob_sections_registry.get().get_write_queue();
     while (!write_queue.empty()) {
         const std::shared_ptr<ISection>& section = write_queue.front();
         write_queue.pop();

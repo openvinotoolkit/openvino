@@ -11,12 +11,13 @@ namespace intel_npu::hsm {
 
 class Writer final {
 public:
-    Writer(const std::shared_ptr<BlobSectionsRegistry>& blob_sections_registry);
+    Writer(const BlobSectionsRegistry& blob_sections_registry);
 
     void write_to(std::ostream& stream) const;
 
 private:
-    BlobSectionsRegistry m_blob_sections_registry;
+    // TODO make function instead of class
+    std::reference_wrapper<const BlobSectionsRegistry> m_blob_sections_registry;
 
     Logger m_logger;
 };

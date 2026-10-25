@@ -21,11 +21,10 @@ inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-std::string buildRuntimeRequirements(const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry,
-                                     intel_npu::Logger& logger) {
+std::string buildRuntimeRequirements(const BlobSectionsRegistry& blobSectionsRegistry, intel_npu::Logger& logger) {
     // Build and use a "RuntimeRequirementsSection" to serialize the requirements
     const auto section = std::dynamic_pointer_cast<RuntimeRequirementsSection>(
-        blobSectionsRegistry->build_runtime_requirements_section());
+        blobSectionsRegistry.build_runtime_requirements_section());
 
     std::ostringstream result_stream;
     section->encode([&result_stream](ov::util::MemoryView data) {
@@ -43,13 +42,12 @@ std::string buildRuntimeRequirements(const std::shared_ptr<BlobSectionsRegistry>
 
 namespace intel_npu {
 
-CompiledModelPropertyManager::CompiledModelPropertyManager(
-    const Config& config,
-    const ov::AnyMap& properties,
-    const std::shared_ptr<IDevice>& device,
-    const std::shared_ptr<IGraph>& graph,
-    const std::shared_ptr<BlobSectionsRegistry>& blobSectionsRegistry,
-    Logger& logger)
+CompiledModelPropertyManager::CompiledModelPropertyManager(const Config& config,
+                                                           const ov::AnyMap& properties,
+                                                           const std::shared_ptr<IDevice>& device,
+                                                           const std::shared_ptr<IGraph>& graph,
+                                                           const BlobSectionsRegistry& blobSectionsRegistry,
+                                                           Logger& logger)
     : _config(config),
       _device(device),
       _graph(graph),
@@ -342,7 +340,7 @@ void CompiledModelPropertyManager::registerProperties() {
             return _graph != nullptr && _graph->get_compatibility_descriptor().has_value();
         },
         [this](const ov::AnyMap&) {
-            return ov::Any(buildRuntimeRequirements(_blobWriter, _logger));
+            return ov::Any(buildRuntimeRequirements(_blobSectionsRegistry, _logger));
         },
         readOnlySetter);
     // clang-format on
