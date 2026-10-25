@@ -9,10 +9,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 OutputVector translate_tile_op(const NodeContext& node) {
     default_op_checks(node, 2, {"Tile", "TILE"});
@@ -24,7 +21,4 @@ OutputVector translate_tile_op(const NodeContext& node) {
     return {tile};
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

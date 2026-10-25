@@ -6,6 +6,7 @@
 
 #include <map>
 #include <optional>
+#include <set>
 #include <vector>
 
 #include "../logging.hpp"
@@ -36,7 +37,7 @@ struct ParamIndex {
 namespace function {
 
 // Default chunk size variants for dynamic iterative mode chunking
-constexpr std::array<size_t, 5> DEFAULT_ITERATIVE_CHUNKING_VARIANTS = {16, 32, 64, 128, 256};
+constexpr std::array<size_t, 8> DEFAULT_ITERATIVE_CHUNKING_VARIANTS = {16, 32, 64, 128, 192, 256, 384, 512};
 
 // Complete structure analysis result (immutable after analysis)
 struct MoEStructureInfo {
@@ -53,6 +54,7 @@ struct MoEStructureInfo {
     // Parameter indices (detected once during analysis)
     std::optional<size_t> expert_input_param_idx;  // Parameter index for expert's input (token embeddings)
     std::optional<size_t> router_scores_idx;       // Parameter index for router scores (from Multiply in output path)
+    std::set<size_t> expert_parameters;
 
     // Processing mode (inferred from input_token_count)
     moe::MoEProcessingMode processing_mode = moe::MoEProcessingMode::EXPERT_ITERATIVE;
@@ -150,7 +152,8 @@ private:
 
     void fix_parameters_with_num_experts(const std::shared_ptr<ov::Model>& model,
                                          size_t num_experts,
-                                         size_t num_target_experts) const;
+                                         size_t num_target_experts,
+                                         const std::set<const ov::Node*>& expert_axis_nodes) const;
 
     void fix_token_count_for_expert_iterative(
         const std::shared_ptr<ov::Model>& model,

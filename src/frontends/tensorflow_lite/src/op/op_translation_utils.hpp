@@ -16,10 +16,7 @@
 #include "openvino/opsets/opset8.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
-namespace op {
+namespace ov::frontend::tensorflow_lite::op {
 
 void set_output_names(const ov::frontend::tensorflow_lite::NodeContext& node, OutputVector& outputs);
 
@@ -90,7 +87,4 @@ template OutputVector translate_reduce_op<opset8::ReduceMin>(const ov::frontend:
 template OutputVector translate_reduce_op<opset8::ReduceProd>(const ov::frontend::tensorflow_lite::NodeContext& node);
 template OutputVector translate_reduce_op<opset8::ReduceSum>(const ov::frontend::tensorflow_lite::NodeContext& node);
 
-}  // namespace op
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite::op

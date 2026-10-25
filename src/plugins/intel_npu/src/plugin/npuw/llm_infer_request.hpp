@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
 
 #include "base_sync_infer_request.hpp"
 #include "llm_compiled_model.hpp"
@@ -15,8 +16,16 @@
 #include "llm_lora_states.hpp"
 #include "llm_prefix_caching.hpp"
 #include "llm_stored_tokens_state.hpp"
+#include "llm_swa_cache.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "perf.hpp"
+
+template <>
+struct std::hash<ov::Output<const ov::Node>> {
+    std::size_t operator()(const ov::Output<const ov::Node>& port) const {
+        return ((hash<string>()(port.get_node()->get_name())) ^ (hash<std::size_t>()(port.get_index()) << 1));
+    }
+};
 
 namespace ov {
 namespace test {
@@ -25,6 +34,8 @@ struct LLMVariantSwitchTestAccess;
 struct LLMTrimKVCacheTestAccess;
 struct LLMPortNameRegistrationTestAccess;
 struct LLMContinuedPrefillTestAccess;
+struct LLMLongRopeModeTestAccess;
+struct LLMSwaCacheTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -60,6 +71,12 @@ protected:
     // that a variant switch requires no explicit lincache migration. Called once after
     // m_kvcache_strategy->on_initialize() and is strategy-independent.
     void share_lincache_across_generate_variants();
+
+    // Classifies each generate model input into m_kvcache_past_names / m_lincache_past_names /
+    // m_swa_past_names.
+    void init_past_name_lists();
+    // Zeroes the prefill model's inputs named in `past_names` on a new conversation.
+    void zero_prefill_past_tensors(const std::vector<std::string>& past_names);
     // Select appropriate generate request variant based on prompt length
     // Internally calculates expected total tokens (prompt + min_response_len) to ensure
     // sufficient capacity for both input prompt and minimum response generation
@@ -85,6 +102,11 @@ protected:
     PrefixCachingHelper* get_prefix_caching_helper(const ov::SoPtr<ov::ITensor>& position_ids);
     bool use_longrope_prefix_cache(const ov::SoPtr<ov::ITensor>& position_ids) const;
 
+    void accumulate_other_chunked_outputs(uint32_t start_offset,
+                                          uint32_t chunk_token_count,
+                                          uint32_t processed_token_count,
+                                          uint32_t max_seq_len);
+
     void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                              ov::SoPtr<ov::ITensor> attention_mask,
                              ov::SoPtr<ov::ITensor> position_ids,
@@ -105,6 +127,24 @@ protected:
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids,
                         ov::SoPtr<ov::ITensor> per_layer_inputs);
+
+    // Picks the LongRoPE mode for this call from position_ids, points the stage's
+    // npuw_lr_cos/npuw_lr_sin inputs at that mode's coefficients, and - when the choice
+    // flipped mid-conversation - turns the num_cached_tokens keys already in `request` by
+    // the angle difference between the modes instead of dropping them; see
+    // llm_longrope_kv.hpp. A no-op for models without those inputs.
+    //
+    // The two halves are never done separately: coefficients bound without the cache
+    // turned to match is exactly the corruption this path exists to prevent. That also
+    // fixes where it can be called from - each stage must first have the conversation's
+    // KV in `request`, which only happens inside infer_prefill()/infer_generate().
+    //
+    // Throws if the flip cannot be carried out in full, leaving m_longrope_long_mode
+    // describing the mode the cache is actually in.
+    void sync_longrope_mode(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                            const PortsMap& in_ports,
+                            const ov::SoPtr<ov::ITensor>& position_ids,
+                            uint32_t num_cached_tokens);
 
     // Continuation counterpart of prepare_for_new_conversation(), run by
     // infer_prefill() when a granted keep is armed. Validates the delta inputs,
@@ -147,6 +187,9 @@ protected:
     // This infer request is optional, so can be null.
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
     ov::SoPtr<ov::ITensor> m_logits;
+    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_other_outputs;
+    std::map<ov::Output<const ov::Node>, std::size_t> m_prefill_other_outs_seqdims;
+    std::unordered_map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>> m_prefill_other_outs_accum;
 
     PortsMap m_prefill_in_ports;
     PortsMap m_prefill_out_ports;
@@ -164,6 +207,7 @@ protected:
 
     std::vector<std::string> m_kvcache_past_names;
     std::vector<std::string> m_lincache_past_names;
+    std::vector<std::string> m_swa_past_names;
 
     // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;
@@ -176,6 +220,10 @@ protected:
 
     bool m_first_run = true;
 
+    // Whether the currently cached keys were rotated with the long-factor LongRoPE
+    // coefficients. Meaningless for models without LongRoPE, where it stays false.
+    bool m_longrope_long_mode = false;
+
     int64_t m_first_position_id = 0;
 
     uint64_t m_tokens_in_present_chunk = 0;
@@ -186,8 +234,8 @@ protected:
     // Support reset of stored tokens to 0 from external pipeline
     ov::SoPtr<ov::npuw::StoredTokensState> m_stored_tokens_state;
 
-    // Continuous prefill transaction coordinator, disabled unless the compiled model
-    // reports the capability.
+    // Continuous prefill transaction coordinator, disabled unless continuous prefill
+    // is enabled for the compiled model.
     ContinuationCoordinator m_continuation;
     // Absolute KV position the current chunked prefill started at. Non-zero only while
     // a continued prefill is running, where the caller tensors hold just the delta and
@@ -208,6 +256,9 @@ protected:
     // Support prefix caching
     std::vector<std::unique_ptr<PrefixCachingHelper>> m_prefix_caching_helpers;
 
+    // Support Sliding Window Attention
+    std::unique_ptr<SwaKVCacheHelper> m_swa_cache;
+
     // LLM-level profiling for 1st token generation analysis
     using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
     ov::npuw::perf::Profile<MS> m_llm_profile;
@@ -215,14 +266,18 @@ protected:
     // KV cache management strategy (set once in the constructor, valid for the object's lifetime)
     std::unique_ptr<LLMKVCacheStrategy> m_kvcache_strategy;
 
-    // Friend declarations: strategies and PrefixCachingHelper need access to protected members
+    // Friend declarations: strategies, PrefixCachingHelper and SwaKVCacheHelper need access to
+    // protected members
     friend class LLMContinuousKVCacheStrategy;
     friend class LLMBlockKVCacheStrategy;
     friend class PrefixCachingHelper;
+    friend class SwaKVCacheHelper;
     friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
     friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
     friend struct ov::test::npuw::LLMPortNameRegistrationTestAccess;
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
+    friend struct ov::test::npuw::LLMLongRopeModeTestAccess;
+    friend struct ov::test::npuw::LLMSwaCacheTestAccess;
 };
 
 }  // namespace npuw

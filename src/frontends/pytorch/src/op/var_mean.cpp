@@ -15,10 +15,7 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -104,8 +101,7 @@ OutputVector translate_var_mean_fx(const NodeContext& context) {
     if (context.has_attribute("keepdim")) {
         keepdim = context.get_attribute<bool>("keepdim");
     }
-    auto res = translate_var_mean_common(context, data, axes, correction, keepdim);
-    return {context.mark_node(make_list_construct(res))};
+    return translate_var_mean_common(context, data, axes, correction, keepdim);
 };
 
 OutputVector translate_var_fx(const NodeContext& context) {
@@ -166,7 +162,4 @@ OutputVector translate_std_mean(const NodeContext& context) {
     return {context.mark_node(std::make_shared<v0::Sqrt>(var)), res[1]};
 }
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op
