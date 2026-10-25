@@ -3606,6 +3606,48 @@ def test_canonicalize_float_precision_leaves_f32_model_unchanged():
     assert [sorted(o.get_names()) for o in canonical.outputs] == [sorted(o.get_names()) for o in expected.outputs]
 
 
+class _Bf16RoundThenInt(torch.nn.Module):
+    """An explicit bf16 cast that rounds before an integer cast."""
+
+    def forward(self, x):
+        return x.to(torch.bfloat16).to(torch.int32)
+
+
+class _Bf16RoundSharedWithFloat(torch.nn.Module):
+    """The same bf16 cast feeds an integer cast and float math."""
+
+    def forward(self, x):
+        y = x.to(torch.bfloat16)
+        return y.to(torch.int32), y * 2
+
+
+@pytest.mark.parametrize("module_cls", [_Bf16RoundThenInt, _Bf16RoundSharedWithFloat], ids=["int_only", "shared"])
+def test_canonicalize_float_precision_keeps_rounding_before_integer_cast(module_cls):
+    """f32 -> bf16 -> i32 must round in bf16 first (1.999 -> 2), not truncate the f32 value (-> 1)."""
+    from openvino import Core
+
+    module = module_cls()
+    ov_model = _convert_f32_input(module, torch.bfloat16)
+    x = torch.tensor([[1.999, 2.996, 255.5, -1.999, 0.4, 7.97, 100.9, -3.999]] * 2)
+    got = Core().compile_model(ov_model, "CPU")(x.numpy())
+    expected = module(x)
+    expected = expected if isinstance(expected, tuple) else (expected,)
+    assert np.array_equal(got[0], expected[0].numpy()), f"{got[0][0]} vs {expected[0][0].numpy()}"
+    # Only the rounding cast (read by the integer cast) and the restored bf16 output stay narrow; float math is
+    # retyped to f32 as before.
+
+    def allowed(op):
+        targets = [t.get_node() for t in op.output(0).get_target_inputs()]
+        return op.get_type_name() == "Convert" and targets and all(
+            t.get_type_name() == "Result"
+            or (t.get_type_name() == "Convert" and not t.get_output_element_type(0).is_real()) for t in targets)
+
+    narrow = [op.get_type_name() for op in ov_model.get_ordered_ops()
+              if op.get_type_name() not in ("Parameter", "Result")
+              and op.get_output_element_type(0) in (Type.bf16, Type.f16) and not allowed(op)]
+    assert narrow == [], f"ops left in bf16 besides the rounding cast: {narrow}"
+
+
 class _SharedBf16Outputs(torch.nn.Module):
     """Several outputs read the same bf16 tensor, next to one that doesn't."""
 
