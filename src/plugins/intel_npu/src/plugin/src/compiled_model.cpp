@@ -10,6 +10,7 @@
 
 #include "async_infer_request.hpp"
 #include "compiled_model_property_manager.hpp"
+#include "compiler_schedules_sections.hpp"
 #include "executor.hpp"
 #include "hsm_read_write.hpp"
 #include "intel_npu/common/device_helpers.hpp"
@@ -30,6 +31,36 @@ bool blob_contains_only_main_schedule(const BlobSectionsRegistry& blobSectionsRe
     return (blobSectionsRegistry.count_sections_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE) == 1) &&
            !blobSectionsRegistry.count_sections_of_type(SectionTypeCode::ELF_INIT_SCHEDULES) &&
            !blobSectionsRegistry.count_sections_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
+}
+
+/**
+ * @brief TODO
+ *
+ * @param blobSectionsRegistry
+ * @param config
+ */
+void sync_encryption_callbacks(const BlobSectionsRegistry& blobSectionsRegistry, const Config& config) {
+    std::function<std::string(const std::string&)> encryptionCallback = nullptr;
+    if (config.has(CACHE_ENCRYPTION_CALLBACKS::key().data())) {
+        encryptionCallback = config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt;
+    }
+
+    auto elfMainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
+        blobSectionsRegistry.retrieve_any_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
+
+    if (elfMainScheduleSection) {
+        auto initSchedulesSection = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
+            blobSectionsRegistry.retrieve_any_section(SectionTypeCode::ELF_INIT_SCHEDULES));
+
+        elfMainScheduleSection->set_encryption_callback(encryptionCallback);
+        if (initSchedulesSection) {
+            initSchedulesSection->set_encryption_callback(encryptionCallback);
+        }
+    } else {
+        auto dynamicScheduleSection = std::dynamic_pointer_cast<DynamicScheduleSection>(
+            blobSectionsRegistry.retrieve_any_section(SectionTypeCode::DYNAMIC_SCHEDULE));
+        dynamicScheduleSection->set_encryption_callback(encryptionCallback);
+    }
 }
 
 }  // namespace
@@ -127,9 +158,11 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
-    if (!_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
+    const Config config = _propertiesManager->getConfig();
+    if (!config.get<EXPORT_RAW_BLOB>()) {
         OPENVINO_ASSERT(_blobSectionsRegistry.has_value(),
                         "Cannot export non-raw blobs without a BlobSectionsRegistry");
+        sync_encryption_callbacks(_blobSectionsRegistry.value(), config);
         hsm::write_to(stream, _blobSectionsRegistry.value());
         return;
     }
@@ -139,8 +172,8 @@ void CompiledModel::export_model(std::ostream& stream) const {
                        "schedules have been found. The raw format supports only a single compiler schedule.");
     }
 
-    if (!(_propertiesManager->getConfig().has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
-          _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr)) {
+    if (!(config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+          config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr)) {
         // Plain raw blob
         // TODO utility for creating sink. and test for it
         _graph->export_main_blob([&stream](ov::util::MemoryView data) {
@@ -162,8 +195,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
             });                                 // +1x blob size
             tmpPlainPayload = tmpStream.str();  // +2x blob size
         }  // -1x blob size when deallocating temporary stringstream
-        encryptedPayload = _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(
-            tmpPlainPayload);  // +2x blob size
+        encryptedPayload = config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(tmpPlainPayload);  // +2x blob size
     }  // -1x blob size when deallocating temporary blob string
 
     stream.write(encryptedPayload.c_str(), encryptedPayload.size());

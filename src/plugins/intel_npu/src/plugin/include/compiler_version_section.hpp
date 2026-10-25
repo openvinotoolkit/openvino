@@ -10,7 +10,7 @@ namespace intel_npu {
 
 class CompilerVersionSection final : public ISection {
 public:
-    CompilerVersionSection(const int32_t version, const ov::log::Level log_level = ov::log::Level::WARNING);
+    CompilerVersionSection(const int32_t version);
 
     void encode(const ov::runtime::hsm::SectionSink& sink) const override;
 

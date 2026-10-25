@@ -9,10 +9,10 @@
 namespace intel_npu {
 
 // TODO comment why inline
-BatchSizeSection::BatchSizeSection(const int64_t batch_size, const ov::log::Level log_level)
+BatchSizeSection::BatchSizeSection(const int64_t batch_size)
     : ISection(SectionTypeCode::BATCH_SIZE, {}, true),
       m_batch_size(batch_size),
-      m_logger("BatchSizeSection", log_level) {
+      m_logger("BatchSizeSection", Logger::global().level()) {
     m_logger.trace("Section created");
 }
 
@@ -52,7 +52,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> BatchSizeSection::de
 
     logger.debug("Read batch size %lu", batch_size);
 
-    return std::make_shared<BatchSizeSection>(batch_size, Logger::global().level());
+    return std::make_shared<BatchSizeSection>(batch_size);
 };
 
 }  // namespace intel_npu

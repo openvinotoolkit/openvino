@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "hsm_reader.hpp"
+#include "hsm_read_write.hpp"
+
 #include "intel_npu/common/itt.hpp"
 #include "openvino/runtime/hsm_deferred_writer.hpp"
 
@@ -94,6 +95,7 @@ BlobSectionsRegistry read_from(
         }
         logger.trace("Found a reader for section %s", debug_name.data());
 
+        // TODO test the negative branch as well
         if (!runtime_requirements.has_value()) {
             // No runtime requirements found. All sections are considered mandatory
             logger.trace("Parsing the mandatory section %s", debug_name.data());

@@ -208,6 +208,57 @@ std::shared_ptr<CREToken> cre_special_token_from_string(const std::string_view t
     return nullptr;
 }
 
+bool are_expressions_equal(const std::vector<std::shared_ptr<CREToken>>& expression1,
+                           const std::vector<std::shared_ptr<CREToken>>& expression2) {
+    if (expression1.size() != expression2.size()) {
+        return false;
+    }
+
+    for (size_t token_index = 0; token_index < expression1.size(); ++token_index) {
+        if (is_section_type(expression1.at(token_index))) {
+            if (!is_section_type(expression2.at(token_index))) {
+                return false;
+            }
+
+            const SectionType this_type = *std::dynamic_pointer_cast<SectionType>(expression1.at(token_index));
+            const SectionType other_type = *std::dynamic_pointer_cast<SectionType>(expression2.at(token_index));
+            if (this_type != other_type) {
+                return false;
+            }
+
+            continue;
+        }
+
+        if (is_section_id(expression1.at(token_index))) {
+            if (!is_section_id(expression2.at(token_index))) {
+                return false;
+            }
+
+            const SectionID this_id = *std::dynamic_pointer_cast<SectionID>(expression1.at(token_index));
+            const SectionID other_id = *std::dynamic_pointer_cast<SectionID>(expression2.at(token_index));
+            if (this_id != other_id) {
+                return false;
+            }
+
+            continue;
+        }
+
+        OPENVINO_ASSERT(is_cre_special_token(expression1.at(token_index)), "Encountered an unknown type of CRE token");
+
+        if (!is_cre_special_token(expression2.at(token_index))) {
+            return false;
+        }
+
+        const CRESpecialToken this_token = *std::dynamic_pointer_cast<CRESpecialToken>(expression1.at(token_index));
+        const CRESpecialToken other_token = *std::dynamic_pointer_cast<CRESpecialToken>(expression2.at(token_index));
+        if (this_token != other_token) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -275,8 +326,7 @@ bool CRE::subexpression_already_registered(const std::vector<std::shared_ptr<CRE
     for (const std::vector<std::shared_ptr<CREToken>>& registered_subexpression : m_subexpressions) {
         // Can't compare directly since these are pointers and we are interested in comparing contents. The
         // "CRE::operator==" does compare the contents alone.
-        // TODO should define a utility for vector compatison instead of reconstructing CREs?
-        if (CRE(subexpression) == CRE(registered_subexpression)) {
+        if (are_expressions_equal(subexpression, registered_subexpression)) {
             return true;
         }
     }
@@ -368,55 +418,7 @@ bool CRE::empty() const {
 bool CRE::operator==(const CRE& other) const {
     const std::vector<std::shared_ptr<CREToken>> this_expression = get_expression();
     const std::vector<std::shared_ptr<CREToken>> other_expression = other.get_expression();
-    if (this_expression.size() != other_expression.size()) {
-        return false;
-    }
-
-    for (size_t token_index = 0; token_index < this_expression.size(); ++token_index) {
-        if (is_section_type(this_expression.at(token_index))) {
-            if (!is_section_type(other_expression.at(token_index))) {
-                return false;
-            }
-
-            const SectionType this_type = *std::dynamic_pointer_cast<SectionType>(this_expression.at(token_index));
-            const SectionType other_type = *std::dynamic_pointer_cast<SectionType>(other_expression.at(token_index));
-            if (this_type != other_type) {
-                return false;
-            }
-
-            continue;
-        }
-
-        if (is_section_id(this_expression.at(token_index))) {
-            if (!is_section_id(other_expression.at(token_index))) {
-                return false;
-            }
-
-            const SectionID this_id = *std::dynamic_pointer_cast<SectionID>(this_expression.at(token_index));
-            const SectionID other_id = *std::dynamic_pointer_cast<SectionID>(other_expression.at(token_index));
-            if (this_id != other_id) {
-                return false;
-            }
-
-            continue;
-        }
-
-        OPENVINO_ASSERT(is_cre_special_token(this_expression.at(token_index)),
-                        "Encountered an unknown type of CRE token");
-
-        if (!is_cre_special_token(other_expression.at(token_index))) {
-            return false;
-        }
-
-        const CRESpecialToken this_token = *std::dynamic_pointer_cast<CRESpecialToken>(this_expression.at(token_index));
-        const CRESpecialToken other_token =
-            *std::dynamic_pointer_cast<CRESpecialToken>(other_expression.at(token_index));
-        if (this_token != other_token) {
-            return false;
-        }
-    }
-
-    return true;
+    return are_expressions_equal(this_expression, other_expression);
 }
 
 bool CRE::operator!=(const CRE& other) const {

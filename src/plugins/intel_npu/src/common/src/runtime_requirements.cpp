@@ -230,7 +230,6 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> RuntimeRequirementsS
         logger.trace("Parsing the key %s", section_type_and_id_string.data());
 
         const auto [section_type, section_id] = section_type_and_id_from_string(section_type_and_id_string);
-        // TODO check you didn't forget any return nullopt
         if (!section_id.has_value()) {
             logger.error("Missing section ID. The keys within the NPU plugin runtime requirements should contain both "
                          "section type and ID");
@@ -247,8 +246,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> RuntimeRequirementsS
 
     // TODO check all classes got their log levels right
     return std::make_shared<RuntimeRequirementsSection>(
-        RuntimeRequirements(sections_requirements, cre, section_id_to_type),
-        logger.level());
+        RuntimeRequirements(sections_requirements, cre, section_id_to_type));
 };
 
 bool is_runtime_requirements_format_v2(std::string_view runtime_requirements) {

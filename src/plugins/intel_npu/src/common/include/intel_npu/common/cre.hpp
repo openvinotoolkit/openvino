@@ -33,7 +33,6 @@ protected:
     explicit InvalidCRE(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
 
-// TODO double check it's fine to have no predetermined value (these are not stored)
 enum class CRESpecialTokenCode { AND, OR, NOT, OPEN, CLOSE };
 
 /**

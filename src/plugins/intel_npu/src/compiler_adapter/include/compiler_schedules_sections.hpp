@@ -20,12 +20,10 @@ namespace intel_npu {
 class ELFMainScheduleSection final : public ISection {
 public:
     ELFMainScheduleSection(const std::shared_ptr<Graph>& graph,
-                           const std::function<std::string(const std::string&)>& encryption_callback = nullptr,
-                           const ov::log::Level log_level = ov::log::Level::WARNING);
+                           const std::function<std::string(const std::string&)>& encryption_callback = nullptr);
 
     ELFMainScheduleSection(ov::Tensor&& main_schedule,
-                           const std::function<std::string(const std::string&)>& encryption_callback = nullptr,
-                           const ov::log::Level log_level = ov::log::Level::WARNING);
+                           const std::function<std::string(const std::string&)>& encryption_callback = nullptr);
 
     std::vector<std::shared_ptr<CREToken>> get_compatibility_requirements_subexpression(
         const std::unordered_map<SectionID, std::shared_ptr<ISection>>& all_registered_sections) const override;
@@ -46,7 +44,6 @@ public:
 
     static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
 
-    // TODO can't this happen during `read`, by getting the callbacks from the BlobReader?
     void decrypt(const std::function<std::string(const std::string&)>& decryption_callback);
 
     std::optional<std::string> get_individual_compatibility_requirements() const override;
@@ -72,12 +69,10 @@ private:
 class ELFInitSchedulesSection final : public ISection {
 public:
     ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph,
-                            const std::function<std::string(const std::string&)>& encryption_callback = nullptr,
-                            const ov::log::Level log_level = ov::log::Level::WARNING);
+                            const std::function<std::string(const std::string&)>& encryption_callback = nullptr);
 
     ELFInitSchedulesSection(std::vector<ov::Tensor>&& init_schedules,
-                            const std::function<std::string(const std::string&)>& encryption_callback = nullptr,
-                            const ov::log::Level log_level = ov::log::Level::WARNING);
+                            const std::function<std::string(const std::string&)>& encryption_callback = nullptr);
 
     std::vector<std::shared_ptr<CREToken>> get_compatibility_requirements_subexpression(
         const std::unordered_map<SectionID, std::shared_ptr<ISection>>& all_registered_sections) const override;
@@ -119,12 +114,10 @@ private:
 class DynamicScheduleSection final : public ISection {
 public:
     DynamicScheduleSection(const std::shared_ptr<DynamicGraph>& graph,
-                           const std::function<std::string(const std::string&)>& encryption_callback = nullptr,
-                           const ov::log::Level log_level = ov::log::Level::WARNING);
+                           const std::function<std::string(const std::string&)>& encryption_callback = nullptr);
 
     DynamicScheduleSection(ov::Tensor&& main_schedule,
-                           const std::function<std::string(const std::string&)>& encryption_callback = nullptr,
-                           const ov::log::Level log_level = ov::log::Level::WARNING);
+                           const std::function<std::string(const std::string&)>& encryption_callback = nullptr);
 
     std::vector<std::shared_ptr<CREToken>> get_compatibility_requirements_subexpression(
         const std::unordered_map<SectionID, std::shared_ptr<ISection>>& all_registered_sections) const override;

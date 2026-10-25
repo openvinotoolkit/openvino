@@ -97,11 +97,7 @@ protected:
              const bool is_inline = false);
 
 private:
-    // Access required to set the section type instance ID
-    // TODO remove what is unnecessary.
-    friend class BlobWriter;
-    friend class BlobWriterInterface;
-    friend class BlobReader;
+    // Access required to set the section ID
     friend class BlobSectionsRegistry;
 
     /**

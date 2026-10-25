@@ -182,4 +182,9 @@ bool BlobSource::is_contiguous() const {
     return !std::get_if<std::reference_wrapper<std::istream>>(&m_source);
 }
 
+std::variant<std::reference_wrapper<std::istream>, std::pair<std::reference_wrapper<const ov::Tensor>, size_t>>
+BlobSource::get_source() const {
+    return m_source;
+}
+
 }  // namespace intel_npu

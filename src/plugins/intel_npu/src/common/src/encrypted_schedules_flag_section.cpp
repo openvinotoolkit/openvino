@@ -8,11 +8,10 @@
 
 namespace intel_npu {
 
-EncryptedSchedulesFlagSection::EncryptedSchedulesFlagSection(const bool applied_encryption,
-                                                             const ov::log::Level log_level)
+EncryptedSchedulesFlagSection::EncryptedSchedulesFlagSection(const bool applied_encryption)
     : ISection(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, {}, true),
       m_flag(applied_encryption),
-      m_logger("EncryptedSchedulesFlagSection", log_level) {
+      m_logger("EncryptedSchedulesFlagSection", Logger::global().level()) {
     m_logger.trace("Section created");
 }
 
@@ -53,7 +52,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> EncryptedSchedulesFl
 
     logger.debug("Read the encryption flag %d", flag);
 
-    return std::make_shared<EncryptedSchedulesFlagSection>(flag, Logger::global().level());
+    return std::make_shared<EncryptedSchedulesFlagSection>(flag);
 };
 
 }  // namespace intel_npu

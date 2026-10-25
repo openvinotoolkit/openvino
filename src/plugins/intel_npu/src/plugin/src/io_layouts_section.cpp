@@ -17,12 +17,11 @@ constexpr size_t SIZE_OF_LAYOUT_SIZE = sizeof(uint16_t);
 namespace intel_npu {
 
 IOLayoutsSection::IOLayoutsSection(const std::vector<ov::Layout>& input_layouts,
-                                   const std::vector<ov::Layout>& output_layouts,
-                                   const ov::log::Level log_level)
+                                   const std::vector<ov::Layout>& output_layouts)
     : ISection(SectionTypeCode::IO_LAYOUTS),
       m_input_layouts(std::move(input_layouts)),
       m_output_layouts(std::move(output_layouts)),
-      m_logger("IOLayoutsSection", log_level) {}
+      m_logger("IOLayoutsSection", Logger::global().level()) {}
 
 void IOLayoutsSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "IOLayoutsSection::write");
@@ -138,7 +137,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> IOLayoutsSection::de
         logger.error("Failed to read the whole content of the section");
         return std::nullopt;
     }
-    return std::make_shared<IOLayoutsSection>(input_layouts, output_layouts, Logger::global().level());
+    return std::make_shared<IOLayoutsSection>(input_layouts, output_layouts);
 };
 
 }  // namespace intel_npu

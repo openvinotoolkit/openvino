@@ -8,10 +8,10 @@
 
 namespace intel_npu {
 
-CompilerVersionSection::CompilerVersionSection(const int32_t version, const ov::log::Level log_level)
+CompilerVersionSection::CompilerVersionSection(const int32_t version)
     : ISection(SectionTypeCode::COMPILER_VERSION, {}, true),
       m_compiler_version(version),
-      m_logger("CompilerVersionSection", log_level) {
+      m_logger("CompilerVersionSection", Logger::global().level()) {
     m_logger.trace("Section created");
 }
 
@@ -44,7 +44,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> CompilerVersionSecti
 
     logger.debug("Read compiler version %lu", compiler_version);
 
-    return std::make_shared<CompilerVersionSection>(compiler_version, Logger::global().level());
+    return std::make_shared<CompilerVersionSection>(compiler_version);
 };
 
 }  // namespace intel_npu

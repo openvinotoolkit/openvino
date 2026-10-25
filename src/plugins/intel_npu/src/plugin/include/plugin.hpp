@@ -69,10 +69,7 @@ private:
     void update_global_properties(const ov::AnyMap& properties) const;
 
     // TODO fix the design somehow
-    std::shared_ptr<ov::ICompiledModel> import_model(
-        const std::variant<std::reference_wrapper<ov::runtime::hsm::Reader>, std::reference_wrapper<BlobSource>>&
-            readerOrSource,
-        ov::AnyMap& properties) const;
+    std::shared_ptr<ov::ICompiledModel> import_model(BlobSource& blobSource, ov::AnyMap& properties) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 

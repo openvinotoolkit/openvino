@@ -92,7 +92,6 @@ private:
     /**
      * @brief Queue that holds all sections to be written at export time.
      */
-    // TODO consider storing section ID in all attrs but m_ids_to_sections
     std::queue<std::shared_ptr<ISection>> m_write_queue;
     std::unordered_map<SectionID, std::shared_ptr<ISection>> m_ids_to_sections;
     std::unordered_map<SectionType, std::vector<std::shared_ptr<ISection>>> m_types_to_sections;

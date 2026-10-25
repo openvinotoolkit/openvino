@@ -10,7 +10,6 @@
 #include "compiler_schedules_sections.hpp"
 #include "compiler_version_section.hpp"
 #include "hsm_read_write.hpp"
-#include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/encrypted_schedules_flag_section.hpp"
 #include "intel_npu/common/isection.hpp"
@@ -48,6 +47,24 @@ constexpr std::string_view MISSING_MAIN_SCHEDULE_MESSAGE = "The compiler main sc
 constexpr std::string_view GRAPH_CLASS_MISMATCH_MESSAGE = "The blob type doesn't match the type of \"Graph\"";
 
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
+
+// TODO comment the design flaw
+std::optional<ov::runtime::hsm::Reader> open_hsm_reader(BlobSource& blob_source) {
+    std::optional<ov::runtime::hsm::Reader> reader = std::nullopt;
+
+    std::visit(
+        ov::util::VariantVisitor{[&](std::reference_wrapper<std::istream> stream) {
+                                     reader = ov::runtime::hsm::Reader::open(stream);
+                                 },
+                                 [&](std::pair<std::reference_wrapper<const ov::Tensor>, size_t> tensor_and_cursor) {
+                                     reader = ov::runtime::hsm::Reader::open(
+                                         reinterpret_cast<const std::byte*>(tensor_and_cursor.first.get().data()),
+                                         tensor_and_cursor.first.get().get_byte_size());
+                                 }},
+        blob_source.get_source());
+
+    return reader;
+}
 
 /**
  * @brief Special case for PERF_COUNT as it requires compiler_type detection in case it is still set to PREFER_PLUGIN
@@ -449,21 +466,21 @@ public:
     // TODO avoid using pointers for the registry
     std::optional<BlobSectionsRegistry> get_blob_sections_registry() override {
         // Moving forward, the "Graph" object will manage the ownership of the compiler schedules
-        auto elfMainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
+        auto elf_main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
             m_blob_sections_registry.retrieve_any_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
 
-        if (elfMainScheduleSection) {
-            auto initSchedulesSection = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
+        if (elf_main_schedule_section) {
+            auto init_schedules_section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
                 m_blob_sections_registry.retrieve_any_section(SectionTypeCode::ELF_INIT_SCHEDULES));
 
-            elfMainScheduleSection->set_graph(std::dynamic_pointer_cast<Graph>(m_graph));
-            if (initSchedulesSection) {
-                initSchedulesSection->set_graph(std::dynamic_pointer_cast<WeightlessGraph>(m_graph));
+            elf_main_schedule_section->set_graph(std::dynamic_pointer_cast<Graph>(m_graph));
+            if (init_schedules_section) {
+                init_schedules_section->set_graph(std::dynamic_pointer_cast<WeightlessGraph>(m_graph));
             }
         } else {
-            auto dynamicScheduleSection = std::dynamic_pointer_cast<DynamicScheduleSection>(
+            auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
                 m_blob_sections_registry.retrieve_any_section(SectionTypeCode::DYNAMIC_SCHEDULE));
-            dynamicScheduleSection->set_graph(std::dynamic_pointer_cast<DynamicGraph>(m_graph));
+            dynamic_schedule_section->set_graph(std::dynamic_pointer_cast<DynamicGraph>(m_graph));
         }
 
         return m_blob_sections_registry;
@@ -763,8 +780,7 @@ Config IBlobFormatImporter::get_config() const {
 namespace blob_format_importer_factory {
 
 // TODO see if you can simplify the readerorsource type
-std::unique_ptr<IBlobFormatImporter> create(const std::variant<std::reference_wrapper<ov::runtime::hsm::Reader>,
-                                                               std::reference_wrapper<BlobSource>>& reader_or_source,
+std::unique_ptr<IBlobFormatImporter> create(BlobSource& blob_source,
                                             const bool is_raw_blob,
                                             const std::shared_ptr<const ov::Model>& original_model,
                                             const ov::SoPtr<IEngineBackend>& backend,
@@ -772,49 +788,40 @@ std::unique_ptr<IBlobFormatImporter> create(const std::variant<std::reference_wr
                                             const Config& config) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "blob_format_importer_factory::create");
     const Logger logger("blob_format_importer_factory", config.get<LOG_LEVEL>());
-    std::unique_ptr<IBlobFormatImporter> result;
 
-    std::visit(
-        ov::util::VariantVisitor{
-            [&](std::reference_wrapper<ov::runtime::hsm::Reader> reader) {
-                // The V2 format is the HSM format
-                OPENVINO_ASSERT(!is_raw_blob,
-                                "The raw blob flag was set, but the container to be imported follows the HSM format");
+    const size_t input_size = blob_source.get_remaining_size();
+    OPENVINO_ASSERT(input_size > 0, EMPTY_BLOB_MESSAGE);
 
-                logger.debug("Creating a blob format v2 import handler using the factory");
-                result = std::make_unique<BlobFormatV2Importer>(reader, original_model, backend, option_helper, config);
-            },
-            [&](std::reference_wrapper<BlobSource> npu_formatted_blob) {
-                const size_t input_size = npu_formatted_blob.get().get_remaining_size();
-                OPENVINO_ASSERT(input_size > 0, EMPTY_BLOB_MESSAGE);
+    std::optional<ov::runtime::hsm::Reader> reader = open_hsm_reader(blob_source);
+    if (reader.has_value()) {
+        OPENVINO_ASSERT(!is_raw_blob,
+                        "The raw blob flag was set, but the container to be imported follows the HSM format");
 
-                if (is_raw_blob) {
-                    logger.info(BLOB_COMPATIBILITY_SKIPPED_MESSAGE.data());
+        logger.debug("Creating a blob format v2 import handler using the factory");
+        return std::make_unique<BlobFormatV2Importer>(reader, original_model, backend, option_helper, config);
+    }
 
-                    logger.debug("Creating a raw blob format import handler using the factory");
-                    result = std::make_unique<RawBlobImporter>(npu_formatted_blob, original_model, backend, config);
-                }
+    if (is_raw_blob) {
+        logger.info(BLOB_COMPATIBILITY_SKIPPED_MESSAGE.data());
 
-                // The V1 format is identified by some magic bytes at the end of the input
-                OPENVINO_ASSERT(input_size >= MAGIC_BYTES.size(), BLOB_SIZE_SMALLER_THAN_MAGIC);
+        logger.debug("Creating a raw blob format import handler using the factory");
+        return std::make_unique<RawBlobImporter>(blob_source, original_model, backend, config);
+    }
 
-                const size_t compiler_payload_beginning = npu_formatted_blob.get().tellg();
-                npu_formatted_blob.get().seekg(-static_cast<int>(MAGIC_BYTES.size()), std::ios::end);
+    // The V1 format is identified by some magic bytes at the end of the input
+    OPENVINO_ASSERT(input_size >= MAGIC_BYTES.size(), BLOB_SIZE_SMALLER_THAN_MAGIC);
 
-                std::string blob_magic_bytes(MAGIC_BYTES.size(), 0);
-                npu_formatted_blob.get().read_into_buffer(blob_magic_bytes.data(), MAGIC_BYTES.size());
+    const size_t compiler_payload_beginning = blob_source.tellg();
+    blob_source.seekg(-static_cast<int>(MAGIC_BYTES.size()), std::ios::end);
 
-                OPENVINO_ASSERT(MAGIC_BYTES == blob_magic_bytes, MISSING_METADATA_MESSAGE);
-                npu_formatted_blob.get().seekg(compiler_payload_beginning, std::ios::beg);
+    std::string blob_magic_bytes(MAGIC_BYTES.size(), 0);
+    blob_source.read_into_buffer(blob_magic_bytes.data(), MAGIC_BYTES.size());
 
-                logger.debug("Creating a blob format v1 import handler using the factory");
-                result = std::make_unique<BlobFormatV1Importer>(npu_formatted_blob, original_model, backend, config);
-            },
-        },
-        reader_or_source);
+    OPENVINO_ASSERT(MAGIC_BYTES == blob_magic_bytes, MISSING_METADATA_MESSAGE);
+    blob_source.seekg(compiler_payload_beginning, std::ios::beg);
 
-    OPENVINO_ASSERT(result);
-    return result;
+    logger.debug("Creating a blob format v1 import handler using the factory");
+    return std::make_unique<BlobFormatV1Importer>(blob_source, original_model, backend, config);
 }
 
 }  // namespace blob_format_importer_factory

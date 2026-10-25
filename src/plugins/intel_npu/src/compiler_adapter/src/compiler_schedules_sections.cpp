@@ -33,23 +33,21 @@ namespace intel_npu {
 
 ELFMainScheduleSection::ELFMainScheduleSection(
     const std::shared_ptr<Graph>& graph,
-    const std::function<std::string(const std::string&)>& encryption_callback,
-    const ov::log::Level log_level)
+    const std::function<std::string(const std::string&)>& encryption_callback)
     : ISection(SectionTypeCode::ELF_MAIN_SCHEDULE, PAGE_ALIGNED_BEGINNING),
       m_graph_or_schedule(graph),
       m_encryption_callback(encryption_callback),
-      m_logger("ELFMainScheduleSection", log_level) {
+      m_logger("ELFMainScheduleSection", Logger::global().level()) {
     OPENVINO_ASSERT(graph, NULL_GRAPH_MESSAGE);
 }
 
 ELFMainScheduleSection::ELFMainScheduleSection(
     ov::Tensor&& main_schedule,
-    const std::function<std::string(const std::string&)>& encryption_callback,
-    const ov::log::Level log_level)
+    const std::function<std::string(const std::string&)>& encryption_callback)
     : ISection(SectionTypeCode::ELF_MAIN_SCHEDULE, PAGE_ALIGNED_BEGINNING),
       m_graph_or_schedule(std::move(main_schedule)),
       m_encryption_callback(encryption_callback),
-      m_logger("ELFMainScheduleSection", log_level) {}
+      m_logger("ELFMainScheduleSection", Logger::global().level()) {}
 
 std::vector<std::shared_ptr<CREToken>> ELFMainScheduleSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
@@ -59,7 +57,6 @@ std::vector<std::shared_ptr<CREToken>> ELFMainScheduleSection::get_compatibility
     return {std::make_shared<SectionType>(get_type()), std::make_shared<SectionID>(get_id().value())};
 }
 
-// TODO remember to register this with page alignment
 void ELFMainScheduleSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::write");
     const auto* graph = std::get_if<std::shared_ptr<Graph>>(&m_graph_or_schedule);
@@ -136,8 +133,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFMainScheduleSecti
     } else {
         result = std::make_shared<ELFMainScheduleSection>(
             ov::Tensor(ov::element::Type_t::u8, ov::Shape({content_view.size()}), content_view.data()),
-            nullptr,
-            logger.level());
+            nullptr);
     }
 
     return result;
@@ -154,23 +150,21 @@ std::optional<std::string> ELFMainScheduleSection::get_individual_compatibility_
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(
     const std::shared_ptr<WeightlessGraph>& weightless_graph,
-    const std::function<std::string(const std::string&)>& encryption_callback,
-    const ov::log::Level log_level)
+    const std::function<std::string(const std::string&)>& encryption_callback)
     : ISection(SectionTypeCode::ELF_INIT_SCHEDULES, PAGE_ALIGNED_BEGINNING),
       m_graph_or_schedules(weightless_graph),
       m_encryption_callback(encryption_callback),
-      m_logger("ELFInitSchedulesSection", log_level) {
+      m_logger("ELFInitSchedulesSection", Logger::global().level()) {
     OPENVINO_ASSERT(weightless_graph, NULL_GRAPH_MESSAGE);
 }
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(
     std::vector<ov::Tensor>&& init_schedules,
-    const std::function<std::string(const std::string&)>& encryption_callback,
-    const ov::log::Level log_level)
+    const std::function<std::string(const std::string&)>& encryption_callback)
     : ISection(SectionTypeCode::ELF_INIT_SCHEDULES, PAGE_ALIGNED_BEGINNING),
       m_graph_or_schedules(std::move(init_schedules)),
       m_encryption_callback(encryption_callback),
-      m_logger("ELFInitSchedulesSection", log_level) {}
+      m_logger("ELFInitSchedulesSection", Logger::global().level()) {}
 
 std::vector<std::shared_ptr<CREToken>> ELFInitSchedulesSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
@@ -186,7 +180,6 @@ void ELFInitSchedulesSection::encode(const ov::runtime::hsm::SectionSink& sink) 
     const auto* weightless_graph = std::get_if<std::shared_ptr<WeightlessGraph>>(&m_graph_or_schedules);
     OPENVINO_ASSERT(weightless_graph, INVALID_STATE_MESSAGE);
 
-    // TODO check all written data types to eliminate some redundancy in size
     const uint16_t number_of_inits = (*weightless_graph)->get_number_of_inits();
     m_logger.debug("Writting %lu init schedules", number_of_inits);
 
@@ -324,24 +317,22 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFInitSchedulesSect
         init_schedules.push_back(std::move(init_schedule));
     }
 
-    return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules), nullptr, logger.level());
+    return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules), nullptr);
 };
 
 DynamicScheduleSection::DynamicScheduleSection(
     const std::shared_ptr<DynamicGraph>& graph,
-    const std::function<std::string(const std::string&)>& encryption_callback,
-    const ov::log::Level log_level)
+    const std::function<std::string(const std::string&)>& encryption_callback)
     : ISection(SectionTypeCode::DYNAMIC_SCHEDULE, PAGE_ALIGNED_BEGINNING),
-      m_impl(std::dynamic_pointer_cast<Graph>(graph), encryption_callback, log_level),
-      m_logger("DynamicScheduleSection", log_level) {}
+      m_impl(std::dynamic_pointer_cast<Graph>(graph), encryption_callback),
+      m_logger("DynamicScheduleSection", Logger::global().level()) {}
 
 DynamicScheduleSection::DynamicScheduleSection(
     ov::Tensor&& main_schedule,
-    const std::function<std::string(const std::string&)>& encryption_callback,
-    const ov::log::Level log_level)
+    const std::function<std::string(const std::string&)>& encryption_callback)
     : ISection(SectionTypeCode::DYNAMIC_SCHEDULE, PAGE_ALIGNED_BEGINNING),
-      m_impl(std::move(main_schedule), encryption_callback, log_level),
-      m_logger("DynamicScheduleSection", log_level) {}
+      m_impl(std::move(main_schedule), encryption_callback),
+      m_logger("DynamicScheduleSection", Logger::global().level()) {}
 
 std::vector<std::shared_ptr<CREToken>> DynamicScheduleSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
@@ -387,8 +378,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> DynamicScheduleSecti
 
     return std::make_shared<DynamicScheduleSection>(
         std::dynamic_pointer_cast<ELFMainScheduleSection>(main_schedule_section.value())->get_schedule(),
-        nullptr,
-        Logger::global().level());
+        nullptr);
 };
 
 std::optional<std::string> DynamicScheduleSection::get_individual_compatibility_requirements() const {

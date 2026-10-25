@@ -16,8 +16,7 @@ namespace intel_npu {
  */
 class EncryptedSchedulesFlagSection final : public ISection {
 public:
-    EncryptedSchedulesFlagSection(const bool applied_encryption,
-                                  const ov::log::Level log_level = ov::log::Level::WARNING);
+    EncryptedSchedulesFlagSection(const bool applied_encryption);
 
     std::vector<std::shared_ptr<CREToken>> get_compatibility_requirements_subexpression(
         const std::unordered_map<SectionID, std::shared_ptr<ISection>>& all_registered_sections) const override;

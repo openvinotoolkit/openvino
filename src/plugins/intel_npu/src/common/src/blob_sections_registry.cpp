@@ -27,6 +27,7 @@ SectionID BlobSectionsRegistry::register_section(const std::shared_ptr<ISection>
 
     // TODO overflow checks
     const SectionID section_id = parsed_id.has_value() ? parsed_id.value() : SectionID(m_next_section_id++);
+    OPENVINO_ASSERT(m_next_section_id != 0, "Integer overflow");
     OPENVINO_ASSERT(!m_ids_to_sections.count(section_id),
                     "The same section ID has been attributed to two distinct sections");
 
@@ -34,8 +35,9 @@ SectionID BlobSectionsRegistry::register_section(const std::shared_ptr<ISection>
         // TODO error prone?
         // Assume that the gap between m_next_section_id and parsed_id (if applicable) was already used within the
         // parsed blob. Therefore, the next section ID should be updated accordingly.
-        const SectionID candidate(section->get_id()->get_id() + 1);
-        m_next_section_id = candidate.get_id() > m_next_section_id ? candidate.get_id() : m_next_section_id;
+        const uint16_t candidate = parsed_id.value().get_id() + 1;
+        OPENVINO_ASSERT(candidate != 0, "Integer overflow");
+        m_next_section_id = candidate > m_next_section_id ? candidate : m_next_section_id;
     }
 
     section->set_id(section_id);
