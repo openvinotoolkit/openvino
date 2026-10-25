@@ -233,8 +233,19 @@ bool CacheWarmupManager::is_blob_cached(const ov::ICore& core,
     const auto base_name = ov::DeviceIDParser(device_name).get_device_name();
     const auto compile_config =
         core.create_compile_config(base_name, core.get_supported_property(base_name, config));
-    const auto blob_id = model ? ov::ModelCache::compute_hash(model, compile_config)
-                               : ov::ModelCache::compute_hash(model_path, compile_config);
+    // Same precedence as Core: a user blob ID wins, then the hash (which covers ov::cache_model_path for a model).
+    const auto blob_id = [&]() -> std::string {
+        if (const auto it = config.find(ov::cache_blob_id.name()); it != config.end()) {
+            return it->second.as<std::string>();
+        }
+        if (model) {
+            const auto it = config.find(ov::cache_model_path.name());
+            const auto cache_model_path =
+                it == config.end() ? std::filesystem::path{} : it->second.as<std::filesystem::path>();
+            return ov::ModelCache::compute_hash(model, cache_model_path, compile_config);
+        }
+        return ov::ModelCache::compute_hash(model_path, compile_config);
+    }();
     return ov::util::file_exists(cache_location / (blob_id + ".blob"));
 }
 

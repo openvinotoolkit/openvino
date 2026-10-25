@@ -352,6 +352,42 @@ TEST_F(AutoCacheWarmupTest, singleNonCpuCandidateWithoutCacheIsIgnored) {
     OV_ASSERT_NO_THROW(plugin->compile_model(model, config));
 }
 
+TEST_F(AutoCacheWarmupTest, ignoredWhenCacheBlobIdIsSet) {
+    set_global_cache("test_cache_dir");
+    set_devices({cpu_device, "GPU.0", actual_device});
+    use_default_startup_compilation();
+    std::atomic<int> warmup_count{0};
+    auto warmup_compiled_model = make_compiled_model();
+    on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        warmup_count++;
+        return {warmup_compiled_model, {}};
+    });
+    config.insert(ov::intel_auto::compile_for_all(true));
+    config.insert(ov::cache_blob_id(746352));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    EXPECT_FALSE(wait_until([&] {
+        return warmup_count.load() > 0;
+    }, std::chrono::milliseconds(500)));
+}
+
+TEST_F(AutoCacheWarmupTest, blobProbeHonorsCacheBlobId) {
+    const auto cache_dir = std::filesystem::temp_directory_path() /
+                           ("ov_auto_cache_blob_id_" +
+                            std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(cache_dir);
+    std::ofstream(cache_dir / "746352.blob") << "blob";
+    const auto is_cached = [&](const ov::AnyMap& properties) {
+        return ov::auto_plugin::CacheWarmupManager::is_blob_cached(*core, "GPU.0", properties, model, {}, cache_dir);
+    };
+    EXPECT_TRUE(is_cached({ov::cache_blob_id(746352)}));
+    EXPECT_FALSE(is_cached({ov::cache_blob_id(1)}));
+    // Without a user ID the hash is used, and no blob exists for it.
+    EXPECT_FALSE(is_cached({}));
+    std::filesystem::remove_all(cache_dir);
+}
+
 TEST_F(AutoCacheWarmupTest, skipsDeviceWithCachingDisabled) {
     set_global_cache("test_cache_dir");
     set_devices({cpu_device, "GPU.0", "NPU", actual_device});

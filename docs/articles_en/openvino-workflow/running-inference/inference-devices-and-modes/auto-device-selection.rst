@@ -209,6 +209,9 @@ the following setup options:
 |                                              | Requires ``ov::cache_dir`` or ``ov::cache_path``; otherwise        |
 |                                              | compiling the model throws an exception.                           |
 |                                              |                                                                    |
+|                                              | Ignored in cumulative throughput mode and when                     |
+|                                              | ``ov::cache_blob_id`` is set.                                      |
+|                                              |                                                                    |
 |                                              | At most two compiled models are held at the same time, so the peak |
 |                                              | memory usage does not exceed twice the compiled model size.        |
 |                                              |                                                                    |

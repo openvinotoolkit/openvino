@@ -539,9 +539,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
                 warmup_candidates.push_back(&device);
         }
         // The actual device may be the CPU, so one non-CPU candidate is enough as long as another device exists.
-        if (is_cumulative || warmup_candidates.empty() || auto_s_context->m_device_priorities_initial.size() < 2) {
+        // A user blob ID does not identify a device, so blobs warmed up for other devices would overwrite each other.
+        const bool has_blob_id = properties.count(ov::cache_blob_id.name()) != 0;
+        if (is_cumulative || has_blob_id || warmup_candidates.empty() ||
+            auto_s_context->m_device_priorities_initial.size() < 2) {
             LOG_WARNING_TAG("compile_for_all is ignored: %s",
-                            is_cumulative ? "not supported in cumulative mode" : "no other candidate device to compile");
+                            is_cumulative   ? "not supported in cumulative mode"
+                            : has_blob_id   ? "not supported with ov::cache_blob_id"
+                                            : "no other candidate device to compile");
             auto_s_context->m_compile_for_all = false;
         } else if (!std::any_of(warmup_candidates.begin(),
                                 warmup_candidates.end(),
