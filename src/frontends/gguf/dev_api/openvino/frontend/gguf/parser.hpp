@@ -14,7 +14,9 @@
 
 #include "openvino/frontend/gguf/visibility.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "openvino/util/mmap_object.hpp"
+namespace ov {
+class MappedMemory;
+}
 
 namespace ov::frontend::gguf {
 
