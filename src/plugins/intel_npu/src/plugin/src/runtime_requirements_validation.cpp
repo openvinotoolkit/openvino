@@ -25,14 +25,23 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(
     const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper) {
     // Need to create a few object to connect to the API used within the import path
     // TODO adapt this
-    BlobSource source(
-        ov::Tensor(ov::element::Type_t::u8, ov::Shape({runtimeRequirements.size()}), runtimeRequirements.data()));
-    BlobReaderInterface readerInterface(source, 0, runtimeRequirements.size(), 0, runtimeRequirements.size());
+    ov::runtime::hsm::ManifestEntry manifest_entry;
+    manifest_entry.tag =
+        ov::runtime::hsm::SectionTag::make(static_cast<uint32_t>(SectionTypeCode::RUNTIME_REQUIREMENTS), false);
+    manifest_entry.device = static_cast<ov::runtime::hsm::DeviceId>(ov::runtime::hsm::Devices::npu);
+    manifest_entry.offset = 0;
+    manifest_entry.size = runtimeRequirements.size();
+
+    const ov::runtime::hsm::Section section(
+        manifest_entry,
+        ov::util::MemoryView(reinterpret_cast<const std::byte*>(runtimeRequirements.data()),
+                             runtimeRequirements.size()));
 
     std::shared_ptr<RuntimeRequirementsSection> runtimeRequirementsSection;
     try {
-        runtimeRequirementsSection =
-            std::dynamic_pointer_cast<RuntimeRequirementsSection>(RuntimeRequirementsSection::read(readerInterface));
+        const auto parsedResult = RuntimeRequirementsSection::decode(section);
+        OPENVINO_ASSERT(parsedResult.has_value());
+        runtimeRequirementsSection = std::dynamic_pointer_cast<RuntimeRequirementsSection>(parsedResult.value());
     } catch (...) {
         // E.g. unsupported version
         return ov::CompatibilityCheck::UNSUPPORTED;
