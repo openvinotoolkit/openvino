@@ -63,16 +63,18 @@ std::shared_ptr<Model> make_gate_up_mlp(const GateUpMLPParams& p,
     return std::make_shared<Model>(OutputVector{down}, ParameterVector{input});
 }
 
-std::shared_ptr<Model> make_fused_mlp(const std::shared_ptr<v0::Parameter>& input,
-                                      const std::shared_ptr<v0::Constant>& gate_up_w,
-                                      const std::shared_ptr<v0::Constant>& down_w) {
+std::shared_ptr<Model> make_fused_mlp(
+    const std::shared_ptr<v0::Parameter>& input,
+    const std::shared_ptr<v0::Constant>& gate_up_w,
+    const std::shared_ptr<v0::Constant>& down_w,
+    intel_cpu::LLMMLPNode::GATE_UP_TYPE gate_up_type = intel_cpu::LLMMLPNode::GATE_UP_TYPE::COMBINED_GATE_UP) {
     intel_cpu::LLMMLPNode::Config config{};
     config.act = intel_cpu::LLMMLPNode::ACT_FN::SILU;
     config.gate_up_quantized = false;
     config.down_quantized = false;
     config.hidden_size = static_cast<int>(hidden_size);
     config.up_size = static_cast<int>(up_size);
-    config.gate_up_type = intel_cpu::LLMMLPNode::GATE_UP_TYPE::COMBINED_GATE_UP;
+    config.gate_up_type = gate_up_type;
     auto mlp = std::make_shared<intel_cpu::LLMMLPNode>(OutputVector{input, gate_up_w, gate_up_w, down_w}, config);
     return std::make_shared<Model>(OutputVector{mlp}, ParameterVector{input});
 }
@@ -107,6 +109,20 @@ INSTANTIATE_TEST_SUITE_P(
         GateUpMLPParams{PartialShape{-1, -1, hidden_size}, element::f16, element::i64, 2, {up_size, up_size}},
         // Inferred split length.
         GateUpMLPParams{PartialShape{-1, hidden_size}, element::bf16, element::i32, -1, {-1, up_size}}));
+
+TEST_F(TransformationTestsF, MLPFusionGateUpSwappedHalvesFused) {
+    disable_rt_info_check();
+    disable_result_friendly_names_check();
+    std::shared_ptr<v0::Constant> gate_up_w, down_w;
+    std::shared_ptr<v0::Parameter> input;
+    // Act(h1) * h0: the gate is the second half, fused with the swapped layout.
+    GateUpMLPParams p{PartialShape{-1, hidden_size}, element::bf16, element::i64, 1, {up_size, up_size}};
+    p.act_out = 1;
+    p.up_out = 0;
+    model = make_gate_up_mlp(p, gate_up_w, down_w, input);
+    register_mlp_fusion(manager);
+    model_ref = make_fused_mlp(input, gate_up_w, down_w, intel_cpu::LLMMLPNode::GATE_UP_TYPE::COMBINED_UP_GATE);
+}
 
 TEST_F(TransformationTestsF, MLPFusionGateUpUnequalSplitNotFused) {
     std::shared_ptr<v0::Constant> gate_up_w, down_w;
