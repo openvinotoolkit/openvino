@@ -188,6 +188,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/non_max_suppression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/normalize_l2.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/pad.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/paged_attention_block_size.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/paged_attention_token_type.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/paged_gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/pooling.cpp
