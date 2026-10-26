@@ -114,10 +114,8 @@ ov::pass::Gemma4MTPStateManagementPattern::Gemma4MTPStateManagementPattern(
         wrap_type<v13::ScaledDotProductAttention>({any_input(), k_to_sdpa, v_to_sdpa, mask_to_sdpa}) |
         wrap_type<v13::ScaledDotProductAttention>({any_input(), k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS,
-                                          &pa_params,
-                                          &params_to_remove,
-                                          &options](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &params_to_remove, &options](
+                                             Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto sdpa_node = ov::as_type_ptr<v13::ScaledDotProductAttention>(m.get_match_root());
         if (!sdpa_node) {
@@ -199,7 +197,8 @@ ov::pass::Gemma4MTPStateManagementPattern::Gemma4MTPStateManagementPattern(
             return std::make_shared<v1::Add>(offset, v0::Constant::create(element::i32, Shape{}, {1}));
         }();
 
-        auto block_indices = options.use_per_layer_block_indices_inputs
+        auto block_indices =
+            options.use_per_layer_block_indices_inputs
                 ? pa_params.add("block_indices." + std::to_string(m_layer_index), element::i32, PartialShape{-1})
                 : pa_params["block_indices"];
 
