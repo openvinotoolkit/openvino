@@ -86,6 +86,10 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[may
 #endif
 }
 
+ov::element::TypeVector FullyConnected::getSupportedDequantizationPrecisions(bool apply_fp8) {
+    return getSupportedCompressedWeightsTypes(apply_fp8);
+}
+
 ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes() {
     using ov::element::Type_t;
 

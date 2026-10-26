@@ -79,6 +79,13 @@ public:
                                                const Config& config) noexcept;
     static ov::element::TypeVector getSupportedCompressedWeightsTypes(bool apply_fp8 = false);
     static ov::element::TypeVector getSupportedCompressedActivationsTypes();
+    /**
+     * @brief The weight precisions whose dequantization subgraph must be recognized as one, so that a packed
+     * Constant survives constant folding.
+     * @note Named apart from getSupportedCompressedWeightsTypes(): oneDNN has to take the weight as a compressed
+     * weight, while a packed Constant only has to keep its Convert unfolded.
+     */
+    static ov::element::TypeVector getSupportedDequantizationPrecisions(bool apply_fp8 = false);
 
     bool isExecutable() const override {
         return !isInputTensorAtPortEmpty(0);
