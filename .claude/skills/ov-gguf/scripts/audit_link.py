@@ -226,6 +226,7 @@ def audit(command_file, contract_file, directory, output_file):
     }
     inputs = {command_file.resolve(), contract_file.resolve()}
     responses = set()
+    response_discovery_complete = False
 
     try:
         if not directory.is_dir():
@@ -234,6 +235,7 @@ def audit(command_file, contract_file, directory, output_file):
         command_tokens = parse_command(raw_command)
         report["counts"]["command_tokens"] = len(command_tokens)
         expanded = expand_responses(command_tokens, directory, responses)
+        response_discovery_complete = True
         report["counts"]["expanded_tokens"] = len(expanded)
         report["counts"]["response_files"] = len(responses)
         report["response_files"] = sorted(str(path) for path in responses)
@@ -277,7 +279,7 @@ def audit(command_file, contract_file, directory, output_file):
     report["response_files"] = sorted(str(path) for path in responses)
 
     report["passed"] = not report["violations"] and not report["parse_errors"]
-    return report, inputs
+    return report, inputs, response_discovery_complete
 
 
 def write_report(requested, report, inputs):
@@ -305,8 +307,13 @@ def main(argv=None):
     command_file = args.command_file.resolve()
     contract_file = args.contract.resolve()
     output_file = args.output.resolve()
-    report, inputs = audit(command_file, contract_file, directory, output_file)
-    destination = write_report(output_file, report, inputs)
+    report, inputs, response_discovery_complete = audit(
+        command_file, contract_file, directory, output_file
+    )
+    destination = (
+        write_report(output_file, report, inputs)
+        if response_discovery_complete else None
+    )
     first_violations = report["violations"][:5]
     remaining = max(0, 5 - len(first_violations))
     first_violations.extend(
@@ -324,6 +331,8 @@ def main(argv=None):
     }
     if destination is None:
         summary["output_refused"] = str(output_file)
+        if not response_discovery_complete:
+            summary["output_refusal_reason"] = "response-file discovery was incomplete"
     print(json.dumps(summary, sort_keys=True))
     if report["parse_errors"]:
         return 2

@@ -126,6 +126,7 @@ private:
             sorted = add(sorted, g.node("GGML_OP_LOG", {keep}));
             cumulative = g.node("GGML_OP_CUMSUM", {g.node("GGML_OP_SOFT_MAX", {sorted})});
         }
+        cumulative = g.node("GGML_OP_DIV", {cumulative, slice(cumulative, 3, count - 1, 1)});
         auto crosses = g.node("GGML_UNARY_OP_STEP", {g.node("GGML_OP_SUB", {cumulative, random})});
         auto index = cast(scale(g.node("GGML_OP_SUM_ROWS", {crosses}), -1, float(count)), ov::element::i32);
         return reshape(rows(reshape(indices, {1, 1, count, 1}), index), {1, 1, 1, 1});

@@ -100,18 +100,47 @@ class AuditLinkTest(unittest.TestCase):
 
     def test_missing_response_is_parse_error(self):
         self.write_contract()
-        result, summary, report = self.run_audit("c++ @missing.rsp")
+        result, summary, _ = self.run_audit("c++ @missing.rsp")
         self.assertEqual(result.returncode, 2)
         self.assertEqual(summary["parse_errors"], 1)
-        self.assertIn("cannot read response file", report["parse_errors"][0])
+        self.assertIn("cannot read response file", summary["first_violations"][0]["message"])
 
     def test_response_cycle_is_parse_error(self):
         self.write_contract()
         (self.cwd / "first.rsp").write_text("@second.rsp", encoding="utf-8")
         (self.cwd / "second.rsp").write_text("@first.rsp", encoding="utf-8")
-        result, _, report = self.run_audit("c++ @first.rsp")
+        result, summary, _ = self.run_audit("c++ @first.rsp")
         self.assertEqual(result.returncode, 2)
-        self.assertIn("response-file cycle", report["parse_errors"][0])
+        self.assertIn("response-file cycle", summary["first_violations"][0]["message"])
+
+    def test_incomplete_response_discovery_refuses_output_after_xlinker_error(self):
+        self.write_contract()
+        response = self.cwd / "args.rsp"
+        original = b"lib/required.o\n"
+        response.write_bytes(original)
+        result, summary, _ = self.run_audit("c++ @args.rsp -Xlinker", output=response)
+
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(response.read_bytes(), original)
+        self.assertEqual(summary["parse_errors"], 1)
+        self.assertIn("-Xlinker is missing its argument", summary["first_violations"][0]["message"])
+        self.assertIsNone(summary["details"])
+        self.assertEqual(summary["output_refusal_reason"], "response-file discovery was incomplete")
+
+    def test_incomplete_nested_response_discovery_refuses_output(self):
+        self.write_contract()
+        (self.cwd / "outer.rsp").write_text('@nested.rsp "unterminated', encoding="utf-8")
+        nested = self.cwd / "nested.rsp"
+        original = b"preserve nested response\n"
+        nested.write_bytes(original)
+        result, summary, _ = self.run_audit("c++ @outer.rsp", output=nested)
+
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(nested.read_bytes(), original)
+        self.assertEqual(summary["parse_errors"], 1)
+        self.assertIn("cannot parse response file", summary["first_violations"][0]["message"])
+        self.assertIsNone(summary["details"])
+        self.assertEqual(summary["output_refusal_reason"], "response-file discovery was incomplete")
 
     def test_shell_operators_and_substitution_are_rejected(self):
         self.write_contract()

@@ -27,6 +27,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/op/topk.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -906,6 +907,72 @@ TEST_F(GGUFMMProj, Qwen3TTSMatchesCPUAndResetsStreamingState) {
                 value.copy_to(copied);
                 wave.set_tensor("gen_audio.state_in." + name.substr(std::string("gen_audio.state_out.").size()),
                                 copied);
+            }
+        }
+    }
+}
+
+TEST_F(GGUFMMProj, Qwen3TTSSamplingUpperTailStaysInRetainedCandidates) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/mmproj_accuracy/qwen3tts_gen.npz");
+    const ov_gguf_test::TemporaryGguf file(ov_gguf_test::npz_array(arrays, "model"));
+    for (const auto top_p : {1.f, .22f}) {
+        SCOPED_TRACE(top_p);
+        auto loaded = get_gguf_data(file.path);
+        auto& metadata = std::get<0>(loaded);
+        metadata["general.sampling.top_k"] = 50;
+        metadata["general.sampling.top_p"] = top_p;
+        auto& head = std::get<1>(loaded).at("a.gen.code.head.weight");
+        auto head_shape = head.get_shape();
+        head_shape[1] = 50;
+        ov::Tensor uniform_head(head.get_element_type(), head_shape);
+        std::memset(uniform_head.data(), 0, uniform_head.get_byte_size());
+        head = std::move(uniform_head);
+        const detail::MetadataStore meta_store{metadata};
+        detail::WeightStore store{std::get<1>(loaded), std::get<2>(loaded)};
+        auto builder = make_mmproj_builder(BuildContext{GgufMetadata(meta_store), "clip", &store});
+        std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(builder->build());
+        FrontEnd frontend;
+        auto full = frontend.convert(frontend.load(decoder));
+        ov::OutputVector outputs{full->output("gen_audio.codes")};
+        if (top_p < 1.f) {
+            for (const auto& node : full->get_ordered_ops())
+                if (const auto topk = ov::as_type_ptr<ov::op::v11::TopK>(node))
+                    outputs.push_back(topk->output(1));
+            ASSERT_EQ(outputs.size(), 16u);
+        }
+        auto codes = std::make_shared<ov::Model>(outputs, full->get_parameters())->clone();
+        const auto parameters = codes->get_parameters();
+        for (const auto& parameter : parameters)
+            if (parameter->output(0).get_target_inputs().empty())
+                codes->remove_parameter(parameter);
+        auto request = ov::Core{}
+                           .compile_model(codes,
+                                          "CPU",
+                                          ov::hint::inference_precision(ov::element::f32),
+                                          ov::hint::dynamic_quantization_group_size(0),
+                                          ov::inference_num_threads(2))
+                           .create_infer_request();
+        for (const auto& input : codes->inputs()) {
+            const auto name = input.get_any_name();
+            ov::Tensor values(input.get_element_type(), input.get_shape());
+            if (name.find("gen_audio.random.") == 0)
+                *values.data<float>() = std::nextafter(1.f, 0.f);
+            else
+                std::memset(values.data(), 0, values.get_byte_size());
+            request.set_tensor(name, values);
+        }
+        request.infer();
+        const auto output = request.get_output_tensor(0);
+        ASSERT_EQ(output.get_size(), 16u);
+        EXPECT_EQ(output.data<const int32_t>()[0], 0);
+        for (size_t group = 1; group < output.get_size(); ++group) {
+            if (top_p == 1.f) {
+                EXPECT_EQ(output.data<const int32_t>()[group], 49);
+            } else {
+                const auto candidates = request.get_output_tensor(group);
+                ASSERT_EQ(candidates.get_size(), 50u);
+                EXPECT_EQ(output.data<const int32_t>()[group], candidates.data<const int32_t>()[11]);
             }
         }
     }
