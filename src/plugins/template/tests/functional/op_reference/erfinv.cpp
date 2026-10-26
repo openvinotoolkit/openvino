@@ -39,6 +39,9 @@ public:
         function = CreateFunction(params.pshape, params.inType);
         inputData = {params.inputData};
         refOutData = {params.refData};
+        if (params.inType == ov::element::f32 || params.inType == ov::element::f64) {
+            threshold = 2e-5f;
+        }
     }
     static std::string getTestCaseName(const testing::TestParamInfo<ErfInvParams>& obj) {
         auto param = obj.param;
@@ -46,6 +49,7 @@ public:
         result << "shape=" << param.pshape << "_";
         result << "iType=" << param.inType << "_";
         result << "oType=" << param.outType;
+        result << "_case=" << obj.index;
         return result.str();
     }
 
@@ -86,18 +90,34 @@ std::vector<ErfInvParams> generateErfInvFloatParams() {
                      IN_ET,
                      std::vector<T>{T(0.7f), T(-0.7f), T(0.9f), T(-0.9f)},
                      std::vector<T>{T(0.73286909f), T(-0.73286909f), T(1.16308725f), T(-1.16308725f)}),
-        // High domain (w >= 5, |x| >= 0.9966): ±0.999, ±0.9999
-        ErfInvParams(ov::PartialShape{4},
-                     IN_ET,
-                     std::vector<T>{T(0.999f), T(-0.999f), T(0.9999f), T(-0.9999f)},
-                     std::vector<T>{T(2.32675376f), T(-2.32675376f), T(2.75106397f), T(-2.75106397f)}),
-        // Boundary: x=±1 → ±inf
+    };
+
+    // High domain (w >= 5, |x| >= 0.9966): ±0.999, ±0.9999
+    // Skip for bf16 (rounds to ±1 → ±inf) and f16 (0.9999 rounds to 1.0)
+    if (IN_ET == ov::element::Type_t::f32) {
+        params.emplace_back(
+            ErfInvParams(ov::PartialShape{4},
+                         IN_ET,
+                         std::vector<T>{T(0.999f), T(-0.999f), T(0.9999f), T(-0.9999f)},
+                         std::vector<T>{T(2.32675376f), T(-2.32675376f), T(2.75106397f), T(-2.75106397f)}));
+    } else if (IN_ET == ov::element::Type_t::f16) {
+        // Use f16-representable values that don't round to ±1
+        params.emplace_back(
+            ErfInvParams(ov::PartialShape{2},
+                         IN_ET,
+                         std::vector<T>{T(0.999f), T(-0.999f)},
+                         std::vector<T>{T(2.32675376f), T(-2.32675376f)}));
+    }
+    // bf16: skip finite high-domain test entirely
+
+    // Boundary: x=±1 → ±inf
+    params.emplace_back(
         ErfInvParams(
             ov::PartialShape{2},
             IN_ET,
             std::vector<T>{T(1.0f), T(-1.0f)},
-            std::vector<T>{T(std::numeric_limits<float>::infinity()), T(-std::numeric_limits<float>::infinity())}),
-    };
+            std::vector<T>{T(std::numeric_limits<float>::infinity()), T(-std::numeric_limits<float>::infinity())}));
+
     return params;
 }
 
