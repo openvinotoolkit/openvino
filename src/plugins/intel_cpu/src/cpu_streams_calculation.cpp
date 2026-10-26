@@ -569,7 +569,7 @@ struct StreamsInfoBuilder {
         }
         std::unordered_set<int> socket_id_list(proc_type_table.size());
         for (size_t i = 1; i < proc_type_table.size(); i++) {
-            if (!socket_id_list.count(proc_type_table[i][PROC_SOCKET_ID])) {
+            if (!socket_id_list.contains(proc_type_table[i][PROC_SOCKET_ID])) {
                 proc_socket_table.push_back(proc_type_table[i]);
                 socket_id_list.insert(proc_type_table[i][PROC_SOCKET_ID]);
             } else {

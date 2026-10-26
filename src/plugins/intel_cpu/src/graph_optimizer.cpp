@@ -3485,10 +3485,10 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
         if (!parent) {
             return false;
         }
-        if (supportFuseConvert(parent->getType()) && tailNodesMap.count(parent) != 0U) {
+        if (supportFuseConvert(parent->getType()) && tailNodesMap.contains(parent)) {
             return true;
         }
-        if (supportInPlace(parent->getType()) && tailNodesMap.count(parent) != 0U) {
+        if (supportInPlace(parent->getType()) && tailNodesMap.contains(parent)) {
             return parent->isInPlace();
         }
         return false;
@@ -3511,7 +3511,7 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
                 if (!isParentSuitableForTailOpt(parent)) {
                     return false;
                 }
-                if (supportInPlace(parent->getType()) && tailNodesMap.count(parent) != 0U) {
+                if (supportInPlace(parent->getType()) && tailNodesMap.contains(parent)) {
                     if (!suitableForTailOptimization(parent)) {
                         return false;
                     }
@@ -3529,7 +3529,7 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
             if (!parent) {
                 continue;
             }
-            OPENVINO_ASSERT(tailNodesMap.count(parent),
+            OPENVINO_ASSERT(tailNodesMap.contains(parent),
                             "resetTailPrecision: node ",
                             parent->getName(),
                             " with type ",
@@ -3562,7 +3562,7 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
             bool concatConvertfuse = false;
             const auto& parent = node->getParentEdgeAt(i)->getParent();
-            if (!tailNodesMap.count(parent)) {
+            if (!tailNodesMap.contains(parent)) {
                 continue;
             }
             if (any_of(parent->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput)) {
@@ -3572,7 +3572,7 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
                 continue;
             }
             if ((parent->getType() == Type::Convert) && (parent->getOriginalInputPrecisionAtPort(0) == inferPrec) &&
-                outputPrecisions.count(parent->getOriginalOutputPrecisionAtPort(0)) != 0U) {
+                outputPrecisions.contains(parent->getOriginalOutputPrecisionAtPort(0))) {
                 bool suitableCase = false;
                 auto outprecision = parent->getOriginalOutputPrecisionAtPort(0);
                 NodePtr concatConvertfusedNode;
@@ -3581,7 +3581,7 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
                     if (!p) {
                         continue;
                     }
-                    if (supportInPlace(p->getType()) && tailNodesMap.count(parent) != 0U) {
+                    if (supportInPlace(p->getType()) && tailNodesMap.contains(parent)) {
                         if (!p->isInPlace()) {
                             // if FuseConvert method implement, we can fuse the following convert into this node
                             auto* concat = dynamic_cast<node::Concat*>(p.get());

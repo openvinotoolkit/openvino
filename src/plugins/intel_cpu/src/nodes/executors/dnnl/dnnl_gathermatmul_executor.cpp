@@ -256,14 +256,14 @@ dnnl::memory::desc makeBiasMd(dnnl::memory::dim N, const MemoryPtr& biasMem) {
 bool GatherMatmulDnnlExecutor::supports([[maybe_unused]] const GatherMatmulConfig& config) {
 #ifdef OPENVINO_ARCH_X86_64
     // Allow empty (dynamic) src descriptor — actual type is resolved at createPrimitive time
-    if ((config.descs.count(ARG_SRC) != 0U) && !config.descs.at(ARG_SRC)->empty()) {
+    if ((config.descs.contains(ARG_SRC)) && !config.descs.at(ARG_SRC)->empty()) {
         const auto src_prc = config.descs.at(ARG_SRC)->getPrecision();
         if (!any_of(src_prc, ov::element::f32, ov::element::bf16)) {
             return false;
         }
     }
     // For compressed (int) weights, require AVX2
-    if ((config.descs.count(ARG_WEI) != 0U) && !config.descs.at(ARG_WEI)->empty()) {
+    if ((config.descs.contains(ARG_WEI)) && !config.descs.at(ARG_WEI)->empty()) {
         const auto wei_prc = config.descs.at(ARG_WEI)->getPrecision();
         if (any_of(wei_prc, ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4)) {
             if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {

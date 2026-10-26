@@ -210,7 +210,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
         auto is_optional_one_child = [&pattern_map](const std::vector<std::shared_ptr<Node>>& nodes) {
             return std::all_of(nodes.begin(), nodes.end(), [&](const std::shared_ptr<Node>& node) {
-                if (pattern_map.count(node)) {
+                if (pattern_map.contains(node)) {
                     auto p = pattern_map.at(node).get_node_shared_ptr();
                     return p->get_output_target_inputs(0).size() == 1;
                 }
@@ -260,7 +260,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         config.is_causal = sdp_node->get_causal();
         config.fuse_concat = true;
 
-        if (pattern_map.count(order_q) && pattern_map.count(order_k) && pattern_map.count(order_v)) {
+        if (pattern_map.contains(order_q) && pattern_map.contains(order_k) && pattern_map.contains(order_v)) {
             const auto order_q_node =
                 ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(order_q).get_node_shared_ptr());
             const auto order_k_node =

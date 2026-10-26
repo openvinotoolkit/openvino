@@ -137,7 +137,7 @@ bool MHAParallelWAOptimizer::run(const lowered::LinearIR& linear_ir) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     auto updater = [&](const lowered::LoopInfoPtr& loop_info) {
         if (const auto unified_loop_info = ov::as_type_ptr<lowered::UnifiedLoopInfo>(loop_info)) {
-            if (initialized_info.count(unified_loop_info) == 0) {
+            if (!initialized_info.contains(unified_loop_info)) {
                 if (!ov::is_type<lowered::InnerSplittedUnifiedLoopInfo>(unified_loop_info)) {
                     unified_loop_info->set_work_amount(new_kernel_dim);
                 }
@@ -157,7 +157,7 @@ bool MHAParallelWAOptimizer::run(const lowered::LinearIR& linear_ir) {
 
     for (size_t i = 0; i < m_configurator->get_io_num(); ++i) {
         config->io_shapes[i] =
-            m_unsqueezed_params.count(i)
+            m_unsqueezed_params.contains(i)
                 ? unsqueeze_m_dim(config->io_shapes[i], m_dim_M_idces[i])
                 : reshape_m_dim(config->io_shapes[i], m_dim_M_idces[i], new_batch_dim, new_kernel_dim);
     }
@@ -251,7 +251,7 @@ std::vector<lowered::ExpandedLoopInfoPtr> MHAParallelWAOptimizer::find_loops_to_
     size_t i = 0;
     std::unordered_set<lowered::ExpressionPtr> visited;
     for (const auto& param : linear_ir->get_parameters()) {
-        if (unsqueezed_params.count(i++) != 0U) {
+        if (unsqueezed_params.contains(i++)) {
             continue;
         }
         utils::visit_path(param, visited, add_loop_idx_to_split, false);

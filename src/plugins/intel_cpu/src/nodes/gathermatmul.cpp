@@ -240,7 +240,7 @@ void GatherMatmul::initSupportedPrimitiveDescriptors() {
         nodeConfig.inConfs.resize(srcTypes.size());
 
         for (const auto& [argId, portId] : m_atoi) {
-            if (nodeDescriptors.count(argId)) {
+            if (nodeDescriptors.contains(argId)) {
                 nodeConfig.inConfs[portId] = PortConfig{nodeDescriptors.at(argId)};
             }
         }

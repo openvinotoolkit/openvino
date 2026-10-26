@@ -137,7 +137,7 @@ SetBufferRegGroup::BufferMap SetBufferRegGroup::get_buffer_loop_neighbours(const
     for (const auto& port_info : loop_inputs) {
         const auto& parent_output = port_info.port.get_expr_port()->get_port_connector_ptr()->get_source().get_expr();
         if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(parent_output)) {
-            if (buffer_neighbours.count(buffer_expr) > 0) {
+            if (buffer_neighbours.contains(buffer_expr)) {
                 const auto& port_desc = port_info.desc;
                 OPENVINO_ASSERT(buffer_neighbours[buffer_expr].desc == port_desc,
                                 "Invalid data pointer shifts: If Buffer has several consumers, this consumers must "
@@ -170,7 +170,7 @@ SetBufferRegGroup::BufferMap SetBufferRegGroup::get_buffer_loop_inside(const Lin
         const auto& inner_expr = *it;
         if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(inner_expr)) {
             // Set default value (zeroes) since it's not used for adjacency definition in case with Buffers in Loop
-            if (inner_buffers.count(buffer_expr) == 0) {
+            if (!inner_buffers.contains(buffer_expr)) {
                 inner_buffers[buffer_expr] = UnifiedLoopInfo::LoopPortInfo();
             }
         }

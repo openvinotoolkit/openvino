@@ -107,7 +107,7 @@ private:
 
     bool append_node_attributes(ov::Node& node) override {
         m_weightless_const_writer.skip_weights(
-            m_weightless_mode && node.get_rt_info().count(ov::WeightlessCacheAttribute::get_type_info_static()) != 0);
+            m_weightless_mode && node.get_rt_info().contains(ov::WeightlessCacheAttribute::get_type_info_static()));
 
         auto result = util::XmlSerializer::append_node_attributes(node);
 

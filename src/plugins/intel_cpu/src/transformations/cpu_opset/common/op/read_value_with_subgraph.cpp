@@ -112,7 +112,7 @@ void ov::intel_cpu::ReadValueWithSubgraph::validate_and_infer_types() {
     // Checking each output
     for (size_t output_index = 0; output_index < output_nodes.size(); ++output_index) {
         NODE_VALIDATION_CHECK(this,
-                              outputs_map.count(output_index) != 0,
+                              outputs_map.contains(output_index),
                               "Incorrect associating in body! Output ",
                               output_index,
                               " is not associated with results in then_body!");

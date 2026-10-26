@@ -21,7 +21,7 @@ bool NormalizeBufferRegisterGroups::run(lowered::LinearIR& linear_ir,
     std::map<size_t, size_t> buffer_reg_groups;
     for (const auto& buffer_expr : linear_ir.get_buffers()) {
         const auto group = buffer_expr->get_reg_group();
-        if (buffer_reg_groups.count(group) == 0) {
+        if (!buffer_reg_groups.contains(group)) {
             const auto new_id = buffer_reg_groups.size();
             buffer_reg_groups[group] = new_id;
         }

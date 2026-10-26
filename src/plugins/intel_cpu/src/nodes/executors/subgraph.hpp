@@ -117,7 +117,7 @@ public:
         m_external_ptr_mappings.resize(external_ptrs_idces.size());
         m_src_ptr_mappings.resize(in_num - external_ptrs_idces.size());
         for (size_t i = 0; i < in_num; i++) {
-            if (external_ptrs_idces.count(i)) {
+            if (external_ptrs_idces.contains(i)) {
                 m_external_ptr_mappings[external_idx] = {i, external_idx};
                 external_idx++;
             } else {
