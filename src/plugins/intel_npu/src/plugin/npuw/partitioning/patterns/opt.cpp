@@ -1256,7 +1256,10 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
-    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
+    // The sign grid's zero point is a scalar constant under the Convert; the lifted chain keeps it so the
+    // weight's own partition still computes (code - 0.5) * scale.
+    auto qsub = opp::optional<ov::op::v1::Subtract>({qcvtw, opp::wrap_type<ov::op::v0::Constant>()});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
     auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls->output(0)});
 
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
@@ -1275,7 +1278,16 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
         // Create new gathers on W and S, connect respectively
         auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(matched_out_w, ov::element::f16);
         auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
-        auto new_g_w = std::make_shared<ov::op::v8::Gather>(new_cvt_w, matched_out_ids, gather_c);
+        // The zero point stays on the weight side of the Gather: the compiler folds a `Convert(u1) -> Subtract(0.5)`
+        // into the weight's two-entry table at import, while behind the Gather the fold cannot see it and the bare
+        // `Convert` has no device kernel.
+        std::shared_ptr<ov::Node> gathered_w = new_cvt_w;
+        const auto qsubIt = node_to_output.find(qsub);
+        if (qsubIt != node_to_output.end()) {
+            gathered_w =
+                std::make_shared<ov::op::v1::Subtract>(new_cvt_w, qsubIt->second.get_node_shared_ptr()->input_value(1));
+        }
+        auto new_g_w = std::make_shared<ov::op::v8::Gather>(gathered_w, matched_out_ids, gather_c);
         auto new_scale_out = matched_out_s;
 
         if (matched_out_s.get_element_type() != ov::element::f16) {
@@ -1350,7 +1362,10 @@ DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
-    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
+    // The sign grid's zero point is a scalar constant under the Convert; the lifted chain keeps it so the
+    // weight's own partition still computes (code - 0.5) * scale.
+    auto qsub = opp::optional<ov::op::v1::Subtract>({qcvtw, opp::wrap_type<ov::op::v0::Constant>()});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qmuls, opp::any_input()});
     auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qreshp});
 
@@ -1374,7 +1389,16 @@ DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
         auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(matched_out_w, ov::element::f16);
 
         auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
-        auto new_g_w = std::make_shared<ov::op::v8::Gather>(new_cvt_w, matched_out_ids, gather_c);
+        // The zero point stays on the weight side of the Gather: the compiler folds a `Convert(u1) -> Subtract(0.5)`
+        // into the weight's two-entry table at import, while behind the Gather the fold cannot see it and the bare
+        // `Convert` has no device kernel.
+        std::shared_ptr<ov::Node> gathered_w = new_cvt_w;
+        const auto qsubIt = node_to_output.find(qsub);
+        if (qsubIt != node_to_output.end()) {
+            gathered_w =
+                std::make_shared<ov::op::v1::Subtract>(new_cvt_w, qsubIt->second.get_node_shared_ptr()->input_value(1));
+        }
+        auto new_g_w = std::make_shared<ov::op::v8::Gather>(gathered_w, matched_out_ids, gather_c);
         auto new_g_s = std::make_shared<ov::op::v8::Gather>(matched_out_s, matched_out_ids, gather_c);
 
         auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_g_w, new_g_s);
@@ -1781,11 +1805,13 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
 
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
+    // The sign grid's zero point is a scalar constant under the Convert, so it rides along with the weight.
+    auto qsubw = opp::optional<ov::op::v1::Subtract>({qcvtw, opp::wrap_type<ov::op::v0::Constant>()});
 
     auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtc = opp::optional<ov::op::v0::Convert>({qcoeff->output(0)});
 
-    auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qcvtw, cvtids, opp::any_input()});
+    auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qsubw, cvtids, opp::any_input()});
     auto qgthrc = opp::wrap_type<ov::op::v8::Gather>({qcvtc, cvtids, opp::any_input()});
     auto qmul = opp::wrap_type<ov::op::v1::Multiply>({qgthrw, qgthrc});
 
@@ -1807,12 +1833,19 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
         // were Hs = hidden size, G is # of groups, N is the prompt size.
         auto out_len = out_shape.size() == 3 ? out_shape[2] : out_shape[2] * out_shape[3];
 
+        // The reader decodes the sign grid as (code - 0.5) * scale, so a one-bit weight takes this route only
+        // with its 0.5 zero point; a u1 weight without one is boolean data, and a wider weight's zero point is
+        // not the reader's to apply. Both keep their old route.
+        const auto qsubwIt = node_to_output.find(qsubw);
+        const bool sign_grid = qweight_type == ov::element::u1 && qsubwIt != node_to_output.end();
+
         // The host gather materialises the whole table in f16. `i2` is left off it: the bank presents the same
         // codes in `i4` for the device, so gathering the stored 2-bit table on the host would expand it eightfold
         // for a presentation the device already has.
-        const bool host_table = util::isDQWeightOrFloat8(qweight_type) && qweight_type != ov::element::i2;
+        const bool host_table = util::isDQWeightOrFloat8(qweight_type) && qweight_type != ov::element::i2 &&
+                                qsubwIt == node_to_output.end();
 
-        if (out_len >= 2048 && host_table) {
+        if (out_len >= 2048 && (sign_grid || host_table)) {
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
@@ -1820,6 +1853,16 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
             auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
             auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
+
+            if (sign_grid) {
+                // The reader applies the zero point itself, so the chain has to carry exactly 0.5.
+                const auto& zero_point = qsubwIt->second.get_node_shared_ptr()->input_value(1);
+                const auto zero_point_constant =
+                    ov::as_type_ptr<ov::op::v0::Constant>(zero_point.get_node_shared_ptr());
+                NPUW_ASSERT(ov::shape_size(zero_point.get_shape()) == 1);
+                const auto zero_point_value = zero_point_constant->cast_vector<float>();
+                NPUW_ASSERT(zero_point_value.front() == 0.5f);
+            }
 
             auto fp16vocab = ctx.get().unpack(matched_qweight, matched_qcoeff, ov::element::f16);
             auto new_param = ctx.get().host_gather(fp16vocab, matched_ids);

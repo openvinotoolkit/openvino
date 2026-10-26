@@ -49,7 +49,9 @@ const auto TestCasesU4 = ::testing::Combine(
         ::testing::ValuesIn({true, false})
 );
 
-INSTANTIATE_TEST_SUITE_P(UnpackTestsU4, UnpackTestsU4, TestCasesU4, UnpackTestsU4::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(UnpackTestsU4, UnpackTestsU4,
+                         TestCasesU4,
+                         UnpackTestsU4::getTestCaseName);
 
 // The widening: every sub-byte storage the host presents in an i4 container decodes to the same values there.
 const auto TestCasesWidenSubbyte = ::testing::Combine(
@@ -134,7 +136,8 @@ TEST(WidenSubbyteSignGrid, widensAKnownByte) {
 }
 const auto TestCasesScale = ::testing::Combine(
         ::testing::ValuesIn({ov::element::Type_t::i2,
-                             ov::element::Type_t::i4}), // TODO: add i8 as input for test
+                             ov::element::Type_t::i4,
+                             ov::element::Type_t::u1}), // TODO: add i8 as input for test
         ::testing::ValuesIn({ov::element::Type_t::f16, ov::element::Type_t::f32}),
         ::testing::ValuesIn({ov::element::Type_t::f16, ov::element::Type_t::f32}),
         ::testing::ValuesIn({ov::element::Type_t::dynamic}),  // no used in this test
@@ -144,6 +147,7 @@ const auto TestCasesScale = ::testing::Combine(
                              Tensors{input={64, 160};     scale = {64, 1};},
                              Tensors{input={1024, 4};     scale = {64, 1};},
                              Tensors{input={1, 1, 1024, 4};  scale = {1, 1, 64, 1};},
+                             // Twenty codes exercise partial-byte tails for u1.
                              Tensors{input={1, 2, 10}; scale = {1, 2, 1};}}),
         ::testing::ValuesIn({true, false}),
         ::testing::ValuesIn({true, false}));
@@ -263,6 +267,30 @@ INSTANTIATE_TEST_SUITE_P(I8AsymmetricUnpackTests,
                          I8AsymmetricUnpackTests,
                          TestCasesI8Asymmetric,
                          I8AsymmetricUnpackTests::getTestCaseName);
+TEST(UnpackU1OddTail, decodes_theLastCodes) {
+    const ov::Shape shape{1, 13};
+    const std::size_t elements = shape_size(shape);
+    const std::vector<uint8_t> data{0x60, 0xA0};
+    ov::Tensor subbyte(ov::element::u1, shape, const_cast<uint8_t*>(data.data()));
+    ASSERT_EQ(subbyte.get_byte_size(), data.size());
+
+    std::vector<int8_t> expected(elements * sizeof(uint16_t));
+    details::unpack_u1f16(reinterpret_cast<const int8_t*>(data.data()),
+                           expected.data(),
+                           static_cast<int>(elements));
+
+    std::vector<ov::float16> scale_values{ov::float16(1.0f)};
+    auto scale = ov::make_tensor(ov::element::f16, ov::Shape{1, 1}, scale_values.data());
+    std::vector<int8_t> to_storage(expected.size());
+    auto to = ov::make_tensor(ov::element::f16, shape, to_storage.data());
+    ASSERT_NO_THROW_WITH_MESSAGE(
+        ov::npuw::util::unpack(ov::get_tensor_impl(subbyte), scale, to, ov::npuw::util::UnpackOptions{true, 0, false}));
+    ASSERT_EQ(to_storage, expected) << "the tail differs";
+
+    // 0xA0 is 1010_0000, so element 12 is zero and decodes to -0.5.
+    const auto* last = reinterpret_cast<const uint16_t*>(to_storage.data()) + (elements - 1);
+    EXPECT_EQ(*last, details::float_to_half(-0.5f));
+}
 
 } // anonymous namespace
 

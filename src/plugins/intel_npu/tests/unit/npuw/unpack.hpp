@@ -117,6 +117,16 @@ void unpack_i2f16(const int8_t* in, int8_t* out, int size) {
     }
 }
 
+/*u1: one bit per element, MSB-first, decoded as (bit - 0.5) * scale; a tail of 1-7 codes sits in the last byte*/
+void unpack_u1f16(const int8_t* in, int8_t* out, int size) {
+    uint16_t* hFloatOut = reinterpret_cast<uint16_t*>(out);
+
+    for (int i = 0; i < size; i++) {
+        const float code = ((static_cast<uint8_t>(in[i / 8]) >> (7 - (i % 8))) & 0x1) ? 1.0f : 0.0f;
+        hFloatOut[i] = float_to_half(code - 0.5f);
+    }
+}
+
 /*i2 -> i4: four signed codes per byte, low bits first, into two per byte, low nibble first*/
 void widen_i2_to_i4(const int8_t* in, int8_t* out, int size) {
     for (int i = 0; i < size; i++) {
@@ -302,12 +312,14 @@ protected:
     void make_input() {
 
         size_t nElements = shape_size(input_shape);
+        const size_t bits = fromType.bitwidth() * nElements;
 
-        ASSERT_EQ((fromType.bitwidth() * nElements) % 8, 0) << "Input len has to be byte boundary aligned, but was "
-                                                            << fromType.bitwidth() * nElements << " bits";
+        ASSERT_TRUE(fromType.bitwidth() <= 2 || bits % 8 == 0)
+            << "Input len has to be byte boundary aligned, but was " << bits << " bits";
+
         ASSERT_EQ((toType.bitwidth() * nElements) % 8, 0) << "Output len has to be byte boundary aligned";
 
-        const size_t nInputBytes  = fromType.bitwidth() * nElements  / 8;
+        const size_t nInputBytes  = (bits + 7) / 8;
         const size_t nOutputBytes = toType.bitwidth() * nElements  / 8;
 
         input.resize(nInputBytes);
@@ -436,10 +448,10 @@ protected:
             return true;
         if (toType != ov::element::f16)
             return true;
-        if (fromType == ov::element::i2) {
-            // The i2 reader takes one f16 or f32 scale per group and has no vectorized tail to align, so unlike
-            // the i4 kernel's 64 elements any whole group works. Its scale keeps the input's leading dims —
-            // [N, G, 1] for a [N, G, group] weight, [N, 1] for a per-row [N, K] one.
+        if (fromType == ov::element::i2 || fromType == ov::element::u1) {
+            // The sub-byte readers take one f16 or f32 scale per group and have no vectorized tail to align, so
+            // unlike the i4 kernel's 64 elements any whole group works. Their scale keeps the input's leading
+            // dims — [N, G, 1] for a [N, G, group] weight, [N, 1] for a per-row [N, K] one.
             if (scaleType != ov::element::f16 && scaleType != ov::element::f32)
                 return true;
             if (from->get_size() % scale->get_size() != 0)
@@ -466,12 +478,14 @@ protected:
 
         if (fromType == ov::element::i2) {
             details::unpack_i2f16(input.data(), ref_output.data(), static_cast<int>(nElements));
+        } else if (fromType == ov::element::u1) {
+            details::unpack_u1f16(input.data(), ref_output.data(), static_cast<int>(nElements));
         } else {
             details::unpack_i4f16(input.data(), ref_output.data(), static_cast<int>(nElements));
         }
 
         // lets apply per channel scale
-        uint16_t* pRef = reinterpret_cast<uint16_t*>(ref_output.data());
+        uint16_t * pRef = reinterpret_cast<uint16_t*>(ref_output.data());
         uint16_t* pScale_f16 = reinterpret_cast<uint16_t*>(scale->data());
         float* pScale_f32 = reinterpret_cast<float*>(scale->data());
 

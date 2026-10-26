@@ -223,6 +223,61 @@ void unpack_i2i8(const ov::SoPtr<ov::ITensor>& from,
     });
 }
 
+// The one-bit sign grid: one bit per element, MSB-first, decoded as (bit - 0.5) * scale. The zero point is the
+// export's scalar 0.5 and the scale is the doubled group scale, so the pair encodes -s/+s; a reader that ignored
+// the half would double the weight.
+void unpack_u1f16_scale(const ov::SoPtr<ov::ITensor>& from,
+                        const ov::SoPtr<ov::ITensor>& scale,
+                        const ov::SoPtr<ov::ITensor>& to,
+                        const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    const auto& from_shape = from->get_shape();
+    const auto& scale_shape = scale->get_shape();
+    const auto scale_elem_type = scale->get_element_type();
+    NPUW_ASSERT(scale_elem_type == ov::element::f16 || scale_elem_type == ov::element::f32);
+    NPUW_ASSERT(scale_shape.size() == 3 || scale_shape.size() == 2);
+    if (scale_shape.size() == 3) {
+        NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+        NPUW_ASSERT(scale_shape[1] == from_shape[1]);
+        NPUW_ASSERT(scale_shape[2] == 1);
+    } else {
+        NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+        NPUW_ASSERT(scale_shape[1] == 1);
+    }
+
+    const auto size = from->get_size();
+    const auto scale_count = scale->get_size();
+    NPUW_ASSERT(scale_count != 0 && size % scale_count == 0);
+    const auto group_len = size / scale_count;
+
+    const auto* from_ptr = static_cast<const uint8_t*>(from->data());
+    const auto* scale_ptr = static_cast<const ov::float16*>(scale->data());
+    const auto* scale_ptr_f32 = static_cast<const float*>(scale->data());
+    auto* to_ptr = to->data<ov::float16>();
+
+    auto code_at = [&](size_t idx) -> float {
+        return ((from_ptr[idx / 8] >> (7 - (idx % 8))) & 0x1) ? 1.0f : 0.0f;
+    };
+    auto scale_at = [&](size_t idx) -> float {
+        return scale_elem_type == ov::element::f16 ? static_cast<float>(scale_ptr[idx]) : scale_ptr_f32[idx];
+    };
+
+    ov::parallel_for(size / 8, [&](size_t byte_idx) {
+        for (size_t k = 0; k < 8; ++k) {
+            const size_t idx = byte_idx * 8 + k;
+            to_ptr[idx] = ov::float16((code_at(idx) - 0.5f) * scale_at(idx / group_len));
+        }
+    });
+    // The last 1-7 codes sit in the high bits of the last byte.
+    for (size_t idx = size - size % 8; idx < size; ++idx) {
+        to_ptr[idx] = ov::float16((code_at(idx) - 0.5f) * scale_at(idx / group_len));
+    }
+}
+
 void unpack_nf4f16(const ov::SoPtr<ov::ITensor>& from,
                    const ov::SoPtr<ov::ITensor>& scale,
                    const ov::SoPtr<ov::ITensor>& to,
@@ -409,6 +464,8 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         }
     } else if (type_from == ov::element::i8) {
         ov::npuw::util::XARCH::unpack_i8f16_scale(from, scale, to, unpack_options);
+    } else if (type_from == ov::element::u1) {
+        unpack_u1f16_scale(from, scale, to, unpack_options);
     } else if (type_from == ov::element::i2) {
         // The i2 reader takes the two grouped forms only — a [N, G, g] weight with a [N, G, 1] scale, or a
         // [N, K] weight with a [N, 1] one. A per-element scale has no i2 reader yet.
