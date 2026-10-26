@@ -80,6 +80,7 @@ DataID Extension::get_constant_source_id(const ov::op::v0::Constant& constant) {
 
 DataID Extension::get_constant_id(const ov::op::v0::Constant& constant) {
     const auto desc = constant.m_data->get_descriptor();
+    // -S- the offset of constant can be 0, but 0 equals invalid_constant_id. is it OK?
     return desc ? desc->get_offset() : invalid_constant_id;
 }
 
