@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <tuple>
 
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/parameter.hpp"
@@ -77,19 +78,23 @@ TEST(type_prop, paged_sparse_attention_accepts_quantized_cache_types) {
         {element::dynamic, element::u4, element::u8, element::f16, element::f32, element::bf16};
     for (const auto& type : key_cache_types) {
         // Key cache storage precision is independent of query precision and includes signed i8.
-        EXPECT_NO_THROW(std::make_shared<PagedSparseAttention>(make_valid_inputs(element::f32, type, element::f16), 4));
+        EXPECT_NO_THROW(
+            std::ignore =
+                std::make_shared<PagedSparseAttention>(make_valid_inputs(element::f32, type, element::f16), 4));
     }
     for (const auto& type : value_cache_types) {
         // Value caches accept their specified storage types without forcing the key cache to match.
-        EXPECT_NO_THROW(std::make_shared<PagedSparseAttention>(make_valid_inputs(element::f32, element::f16, type), 4));
+        EXPECT_NO_THROW(
+            std::ignore =
+                std::make_shared<PagedSparseAttention>(make_valid_inputs(element::f32, element::f16, type), 4));
     }
 }
 
 TEST(type_prop, paged_sparse_attention_rejects_invalid_key_block_size) {
     // Zero cannot define a selected block or serve as the page-divisibility divisor.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(make_valid_inputs(), 0), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(make_valid_inputs(), 0), NodeValidationFailure);
     // Negative block lengths cannot describe groups of key tokens.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(make_valid_inputs(), -4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(make_valid_inputs(), -4), NodeValidationFailure);
 }
 
 TEST(type_prop, paged_sparse_attention_rejects_incompatible_shapes) {
@@ -97,55 +102,55 @@ TEST(type_prop, paged_sparse_attention_rejects_incompatible_shapes) {
     inputs[3] = std::make_shared<Parameter>(element::f16, PartialShape{8, 2, 30, 16});
     inputs[4] = std::make_shared<Parameter>(element::bf16, PartialShape{8, 2, 30, 8});
     // A 30-token page cannot contain an integral number of four-token selected blocks.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
 
     inputs = make_valid_inputs();
     inputs[1] = std::make_shared<Parameter>(element::f32, PartialShape{5, 32});
     // Current query and key projections must describe the same token stream.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
 
     inputs = make_valid_inputs();
     inputs[0] = std::make_shared<Parameter>(element::f32, PartialShape{6, 80});
     // Five query heads cannot be grouped evenly over two KV heads.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
 
     inputs = make_valid_inputs();
     inputs[0] = std::make_shared<Parameter>(element::f32, PartialShape{6, 64});
     inputs[1] = std::make_shared<Parameter>(element::f16, PartialShape{6, 32});
     // Projection types must match even when their shapes are otherwise valid.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
 
     inputs = make_valid_inputs();
     inputs[0] = std::make_shared<Parameter>(element::f32, PartialShape{6, 2, 32});
     // Query heads must be flattened into a rank-two projection.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
 
     inputs = make_valid_inputs();
     inputs[2] = std::make_shared<Parameter>(element::f32, PartialShape{6, 2, 8});
     // Value heads must also be flattened rather than exposed as a separate axis.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
 
     inputs = make_valid_inputs();
     inputs[10] = std::make_shared<Parameter>(element::i32, PartialShape{6, 2});
     // Selection counts must use the same selection-head axis as the selected indices.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
 }
 
 TEST(type_prop, paged_sparse_attention_rejects_invalid_types_and_arity) {
     auto inputs = make_valid_inputs();
     inputs[11] = std::make_shared<Parameter>(element::f16, PartialShape{});
     // Scale shares the query/key/value type rather than having an independent precision.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
 
     inputs = make_valid_inputs();
     inputs[7] = std::make_shared<Parameter>(element::i64, PartialShape{12});
     // The page-table requires i32 indices, not merely any integer type.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
 
     inputs = make_valid_inputs();
     inputs.pop_back();
     // All 13 ports are required, including an explicit sinks input when it is empty.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
 }
 
 TEST(type_prop, paged_sparse_attention_merges_input_types) {
@@ -162,13 +167,13 @@ TEST(type_prop, paged_sparse_attention_merges_input_types) {
     inputs[0] = std::make_shared<Parameter>(element::dynamic, PartialShape{6, 64});
     inputs[2] = std::make_shared<Parameter>(element::f16, PartialShape{6, 16});
     // A dynamic query must not hide a known f32-key versus f16-value mismatch.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
 
     for (const auto i : {0, 1, 2, 11}) {
         inputs[i] = std::make_shared<Parameter>(element::i32, inputs[i].get_partial_shape());
     }
     // Matching integer data types still violate the floating-point attention contract.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
 }
 
 TEST(type_prop, paged_sparse_attention_dynamic_ranks) {
@@ -226,7 +231,7 @@ TEST(type_prop, paged_sparse_attention_merges_intervals_and_symbols) {
     inputs[1] = std::make_shared<Parameter>(element::f32, PartialShape{Dimension(2, 4), 32});
     inputs[2] = std::make_shared<Parameter>(element::f32, PartialShape{Dimension(6, 8), 16});
     // Individually query-compatible intervals are invalid when they have no common token count.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
 }
 
 TEST(type_prop, paged_sparse_attention_validates_each_rank_and_cache_type) {
@@ -237,24 +242,24 @@ TEST(type_prop, paged_sparse_attention_validates_each_rank_and_cache_type) {
         invalid[i] =
             std::make_shared<Parameter>(inputs[i].get_element_type(), i == 11 ? PartialShape{1} : PartialShape{});
         // Every port enforces its own rank; in particular, scale is scalar while all other ports are not.
-        EXPECT_THROW(std::make_shared<PagedSparseAttention>(invalid, 4), NodeValidationFailure);
+        EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(invalid, 4), NodeValidationFailure);
     }
     for (const auto i : {3, 4}) {
         for (const auto type : {element::i32, element::f64}) {
             auto invalid = inputs;
             invalid[i] = std::make_shared<Parameter>(type, inputs[i].get_partial_shape());
             // Neither integer i32 nor floating f64 is a supported cache storage format.
-            EXPECT_THROW(std::make_shared<PagedSparseAttention>(invalid, 4), NodeValidationFailure);
+            EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(invalid, 4), NodeValidationFailure);
         }
         auto dynamic = inputs;
         dynamic[i] = std::make_shared<Parameter>(element::dynamic, inputs[i].get_partial_shape());
         // An unresolved cache type is allowed until a later validation pass determines it.
-        EXPECT_NO_THROW(std::make_shared<PagedSparseAttention>(dynamic, 4));
+        EXPECT_NO_THROW(std::ignore = std::make_shared<PagedSparseAttention>(dynamic, 4));
     }
     auto invalid = inputs;
     invalid[4] = std::make_shared<Parameter>(element::i8, inputs[4].get_partial_shape());
     // Signed i8 is key-cache-only and must not leak into the value-cache allowlist.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(invalid, 4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(invalid, 4), NodeValidationFailure);
 }
 
 TEST(type_prop, paged_sparse_attention_rejects_inconsistent_dynamic_relationships) {
@@ -262,18 +267,18 @@ TEST(type_prop, paged_sparse_attention_rejects_inconsistent_dynamic_relationship
     inputs[3] = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
     inputs[4] = std::make_shared<Parameter>(element::bf16, PartialShape{8, 2, 30, 8});
     // A dynamic key cache must not hide the value cache's invalid page divisibility.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
 
     inputs = make_valid_inputs();
     inputs[5] = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
     inputs[8] = std::make_shared<Parameter>(element::i32, PartialShape{5});
     // Offset arrays must agree even when past_lens cannot reveal the sequence count.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
 
     inputs = make_valid_inputs();
     inputs[10] = std::make_shared<Parameter>(element::i32, PartialShape{6, 0});
     // A zero selection-head axis cannot describe a selection for any query head.
-    EXPECT_THROW(std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(inputs, 4), NodeValidationFailure);
 }
 
 TEST(type_prop, paged_sparse_attention_dynamic_head_product) {
@@ -299,7 +304,7 @@ TEST(type_prop, paged_sparse_attention_rejects_zero_head_dimensions) {
         shape[input_index < 3 ? 1 : 3] = 0;
         invalid_inputs[input_index] = std::make_shared<Parameter>(inputs[input_index].get_element_type(), shape);
         // Zero projection widths or cache head sizes cannot define positive attention head dimensions.
-        EXPECT_THROW(std::make_shared<PagedSparseAttention>(invalid_inputs, 4), NodeValidationFailure);
+        EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(invalid_inputs, 4), NodeValidationFailure);
     }
     for (const auto cache_index : {3, 4}) {
         auto invalid_inputs = inputs;
@@ -307,7 +312,7 @@ TEST(type_prop, paged_sparse_attention_rejects_zero_head_dimensions) {
         shape[1] = 0;
         invalid_inputs[cache_index] = std::make_shared<Parameter>(inputs[cache_index].get_element_type(), shape);
         // Both caches require a positive KV-head count before any head-size division.
-        EXPECT_THROW(std::make_shared<PagedSparseAttention>(invalid_inputs, 4), NodeValidationFailure);
+        EXPECT_THROW(std::ignore = std::make_shared<PagedSparseAttention>(invalid_inputs, 4), NodeValidationFailure);
     }
 }
 
