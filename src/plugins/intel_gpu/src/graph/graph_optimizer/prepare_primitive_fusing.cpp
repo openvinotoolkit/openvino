@@ -102,6 +102,10 @@ static std::optional<size_t> find_eltwise_const_dep_idx(const eltwise_node& node
     return std::nullopt;
 }
 
+static bool is_hadamard_fc(const program_node& node) {
+    return node.is_type<fully_connected>() && node.as<fully_connected>().get_primitive()->hadamard_block != 0;
+}
+
 void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
@@ -228,7 +232,7 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
         auto& dep_node = node->get_dependency(0);
 
         // FC + SwiGLU fusion (non-systolic platforms only)
-        if (!supports_immad && dep_node.is_type<fully_connected>() && dep_node.as<fully_connected>().get_primitive()->hadamard_block == 0) {
+        if (!supports_immad && dep_node.is_type<fully_connected>() && !is_hadamard_fc(dep_node)) {
             if (!dep_node.get_fused_primitives().empty())
                 continue;
             auto in_dt = dep_node.get_input_layout(0).data_type;
@@ -612,13 +616,16 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto& fused_prims = node.get_fused_primitives();
             if (node.get_primitive()->hadamard_block != 0) {
 #ifdef OV_GPU_WITH_OCL_RT
-                if (candidate.has_fused_primitives() || candidate.get_output_layout().data_padding || candidate.get_output_layout().format != format::bfyx ||
-                    candidate.get_output_layout().get_partial_shape() != node.get_output_layout().get_partial_shape() ||
-                    (candidate.get_output_layout().data_type != data_types::f16 && candidate.get_output_layout().data_type != data_types::f32))
+                const auto& out_shape = node.get_output_layout().get_partial_shape();
+                auto is_plain_like_fc = [&](const layout& l) {
+                    return !l.data_padding && l.format == format::bfyx && l.get_partial_shape() == out_shape;
+                };
+                const auto& candidate_dt = candidate.get_output_layout().data_type;
+                if (candidate.has_fused_primitives() || !is_plain_like_fc(candidate.get_output_layout()) ||
+                    (candidate_dt != data_types::f16 && candidate_dt != data_types::f32))
                     return false;
                 if (swish != nullptr && (swish->get_dependencies().size() != 1 || swish->as<activation>().get_primitive()->additional_params.a != 1.0f ||
-                                         swish->get_output_layout().data_padding || swish->get_output_layout().format != format::bfyx ||
-                                         swish->get_output_layout().get_partial_shape() != node.get_output_layout().get_partial_shape()))
+                                         !is_plain_like_fc(swish->get_output_layout())))
                     return false;
                 auto chain = fused_prims;
                 if (swish != nullptr)
@@ -632,9 +639,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     if (candidate.get_dependencies().size() != 2)
                         return false;
                     const auto& peer = candidate.get_dependency(&candidate.get_dependency(0) == input ? 1 : 0);
-                    const auto& peer_layout = peer.get_output_layout();
-                    if (peer_layout.data_type != data_types::f16 || peer_layout.format != format::bfyx || peer_layout.data_padding ||
-                        peer_layout.get_partial_shape() != node.get_output_layout().get_partial_shape())
+                    if (peer.get_output_layout().data_type != data_types::f16 || !is_plain_like_fc(peer.get_output_layout()))
                         return false;
                 }
                 return true;
@@ -643,16 +648,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 #endif
             }
 #ifdef OV_GPU_WITH_OCL_RT
-            const auto& fc = node.get_primitive();
-            if (p.get_config().get_enable_ternocl_int2() && supports_immad && p.get_engine().get_device_info().arch >= gpu_arch::xe2 &&
-                fc->compressed_weights && node.weights().get_output_layout(false).data_type == data_types::u2 &&
-                node.get_input_layout(0).data_type == data_types::f16 && !fc->bias.is_valid() && fc->decompression_zero_point_scalar == 1.0f &&
-                node.weights().is_type<data>() && node.weights().get_output_layout(false).batch() % 16 == 0 &&
-                node.weights().get_output_layout(false).feature() % 128 == 0 && fused_prims.size() == 1 && fused_prims.front().is_type<activation>() &&
-                fused_prims.front().typed_desc<activation>()->activation_function == activation_func::logistic) {
-                // TernOCL folds sigmoid alone; further fusion would disable its FC kernel.
+            // TernOCL folds sigmoid alone; further fusion would disable its FC kernel.
+            if (fused_prims.size() == 1 && fused_prims.front().is_type<activation>() &&
+                fused_prims.front().typed_desc<activation>()->activation_function == activation_func::logistic &&
+                ocl::TernoclInt2FCImplementationManager(shape_types::any).validate_impl(node))
                 return false;
-            }
 #endif
             if (std::any_of(fused_prims.begin(), fused_prims.end(), [](const fused_primitive_desc& f_desc) {
                     return f_desc.is_type<swiglu>();
@@ -922,7 +922,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             if (input.is_type<fully_connected>()) {
                 const bool supports_fusion = fc_supports_fusings(input.as<fully_connected>(), activation_node);
-                if (input.as<fully_connected>().get_primitive()->hadamard_block != 0 && !supports_fusion)
+                if (is_hadamard_fc(input) && !supports_fusion)
                     return;
                 should_fuse |= supports_fusion;
             }
@@ -1072,8 +1072,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
 
-            should_fuse |= input_data.is_type<fully_connected>() && input_data.as<fully_connected>().get_primitive()->hadamard_block == 0 &&
-                           quantize_node.get_scale_shift_opt();
+            should_fuse |= input_data.is_type<fully_connected>() && !is_hadamard_fc(input_data) && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 
@@ -1174,8 +1173,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     parent->has_fused_primitives() || parent->is_output() || parent->in_shape_of_subgraph || parent->get_users().size() != 1)
                     continue;
                 auto& fc = parent->get_dependency(0);
-                if (!fc.is_type<fully_connected>() || fc.as<fully_connected>().get_primitive()->hadamard_block == 0 || fc.is_output() ||
-                    fc.in_shape_of_subgraph || fc.get_users().size() != 1)
+                if (!is_hadamard_fc(fc) || fc.is_output() || fc.in_shape_of_subgraph || fc.get_users().size() != 1)
                     continue;
                 swish_parents[i] = parent;
                 parents[i].first = &fc;
@@ -1184,23 +1182,40 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             std::vector<bool> can_fuse_parents = { false, false };
 
             for (size_t i = 0; i < parents.size(); i++) {
-                can_fuse_parents[i] =
-                    (parents[i].first->is_type<convolution>() && conv_supports_fusings(parents[i].first->as<convolution>())) ||
-                    (parents[i].first->is_type<mvn>() &&
-                     mvn_supports_fusings(parents[i].first->as<mvn>(), {parents[parents.size() - 1 - i].first->get_output_layout()})) ||
-                    (parents[i].first->is_type<group_normalization>()) || (parents[i].first->is_type<rms>()) || (parents[i].first->is_type<deconvolution>()) ||
-                    (parents[i].first->is_type<permute>()) || (parents[i].first->is_type<resample>()) || (parents[i].first->is_type<space_to_depth>()) ||
-                    (parents[i].first->is_type<fully_connected>() && fc_supports_fusings(parents[i].first->as<fully_connected>(), node, swish_parents[i])) ||
-                    (parents[i].first->is_type<gemm>() && gemm_supports_fusings(parents[i].first->as<gemm>())) ||
-                    (parents[i].first->is_type<batch_to_space>()) || (parents[i].first->is_type<space_to_batch>()) ||
-                    (parents[i].first->is_type<eltwise>() && eltwise_supports_fusings(parents[i].first->as<eltwise>())) ||
-                    (parents[i].first->is_type<gather_nd>()) || (parents[i].first->is_type<gather_elements>()) ||
-                    (parents[i].first->is_type<scatter_nd_update>()) || (parents[i].first->is_type<scatter_elements_update>()) ||
-                    (parents[i].first->is_type<pooling>()) ||
-                    (parents[i].first->is_type<depth_to_space>() && dts_supports_fusings(parents[i].first->as<depth_to_space>())) ||
-                    (parents[i].first->is_type<gather>()) || (parents[i].first->is_type<reduce>() && reduce_supports_fusings(parents[i].first->as<reduce>())) ||
-                    (parents[i].first->is_type<lrn>()) || (parents[i].first->is_type<lora>() && lora_supports_fusings(parents[i].first->as<lora>())) ||
-                    (parents[i].first->is_type<broadcast>() && broadcast_supports_fusings(parents[i].first->as<broadcast>()));
+                can_fuse_parents[i] = (parents[i].first->is_type<convolution>() &&
+                                       conv_supports_fusings(parents[i].first->as<convolution>())) ||
+                                      (parents[i].first->is_type<mvn>() &&
+                                       mvn_supports_fusings(parents[i].first->as<mvn>(),
+                                                            { parents[parents.size() - 1 - i].first->get_output_layout() })) ||
+                                      (parents[i].first->is_type<group_normalization>()) ||
+                                      (parents[i].first->is_type<rms>()) ||
+                                      (parents[i].first->is_type<deconvolution>()) ||
+                                      (parents[i].first->is_type<permute>()) ||
+                                      (parents[i].first->is_type<resample>()) ||
+                                      (parents[i].first->is_type<space_to_depth>()) ||
+                                      (parents[i].first->is_type<fully_connected>() &&
+                                       fc_supports_fusings(parents[i].first->as<fully_connected>(), node, swish_parents[i])) ||
+                                      (parents[i].first->is_type<gemm>() &&
+                                       gemm_supports_fusings(parents[i].first->as<gemm>())) ||
+                                      (parents[i].first->is_type<batch_to_space>()) ||
+                                      (parents[i].first->is_type<space_to_batch>()) ||
+                                      (parents[i].first->is_type<eltwise>() &&
+                                       eltwise_supports_fusings(parents[i].first->as<eltwise>())) ||
+                                      (parents[i].first->is_type<gather_nd>()) ||
+                                      (parents[i].first->is_type<gather_elements>()) ||
+                                      (parents[i].first->is_type<scatter_nd_update>()) ||
+                                      (parents[i].first->is_type<scatter_elements_update>()) ||
+                                      (parents[i].first->is_type<pooling>()) ||
+                                      (parents[i].first->is_type<depth_to_space>() &&
+                                       dts_supports_fusings(parents[i].first->as<depth_to_space>())) ||
+                                      (parents[i].first->is_type<gather>()) ||
+                                      (parents[i].first->is_type<reduce>() &&
+                                       reduce_supports_fusings(parents[i].first->as<reduce>())) ||
+                                      (parents[i].first->is_type<lrn>()) ||
+                                      (parents[i].first->is_type<lora>() &&
+                                       lora_supports_fusings(parents[i].first->as<lora>())) ||
+                                       (parents[i].first->is_type<broadcast>() &&
+                                       broadcast_supports_fusings(parents[i].first->as<broadcast>()));
             }
 
             // Disable fusion to a node on constant path when second input is in data flow
@@ -1456,11 +1471,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 if (parents[i].first == fused_node)
                     deferred_swish = swish_parents[i];
             }
-            if (fused_node->is_type<fully_connected>() && fused_node->as<fully_connected>().get_primitive()->hadamard_block != 0 &&
-                !fc_supports_fusings(fused_node->as<fully_connected>(), node, deferred_swish))
+            if (is_hadamard_fc(*fused_node) && !fc_supports_fusings(fused_node->as<fully_connected>(), node, deferred_swish))
                 return;
 
-            if (p.get_processing_order().get_processing_number(fused_node) < p.get_processing_order().get_processing_number(peer_node))
+            if (p.get_processing_order().get_processing_number(fused_node) <
+                p.get_processing_order().get_processing_number(peer_node))
                 recalc_processing_order = true;
 
             // [WA]: Resample + Eltwise fusing causes accuracy issues without processing order update.

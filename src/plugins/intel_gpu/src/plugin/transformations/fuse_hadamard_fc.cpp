@@ -63,7 +63,7 @@ bool supports_hadamard_fc(const std::shared_ptr<op::FullyConnectedCompressed>& f
     }
     const auto weights = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
     const auto zp = constant_behind(fc->input_value(4));
-    if (!weights || !zp || ov::shape_size(zp->get_shape()) != 1 || zp->cast_vector<float>() != std::vector<float>{1.f}) {
+    if (!weights || !zp || ov::shape_size(zp->get_shape()) != 1 || zp->cast_vector<float>(1)[0] != 1.f) {
         return false;
     }
     const auto& shape = weights->get_shape();
@@ -87,10 +87,7 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto fc = ov::as_type_ptr<op::FullyConnectedCompressed>(node);
         if (!fc || !supports_hadamard_fc(fc))
             continue;
-        const auto& wshape = fc->get_input_partial_shape(1);
-        if (wshape.rank().is_dynamic() || wshape.rank().get_length() < 2 || !wshape[1].is_static())
-            continue;
-        const size_t K = static_cast<size_t>(wshape[1].get_length());
+        const size_t K = fc->get_input_shape(1)[1];
         if (K % kBlock != 0)
             continue;
 
