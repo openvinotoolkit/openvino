@@ -97,9 +97,11 @@ class TestRoundDecimals(PytorchLayerTest):
     # decimals value (TorchScript scalar input / FX aten.round.decimals kwarg) was ignored.
     def _prepare_input(self, dtype="float32"):
         import numpy as np
-        # includes half-way ties and negatives to exercise HALF_TO_EVEN and sign handling
+        # includes half-way ties and negatives to exercise HALF_TO_EVEN and sign handling.
+        # 6500 with decimals=-3 is 6.5 after the division, so it also catches a pre-round Divide
+        # that CommonOptimizations would rewrite into a reciprocal multiplication.
         input = np.array([1.234, 2.567, -1.256, 0.05, 3.449, 0.5, 1.5, 2.5,
-                          -0.5, -1.5, 6.5, 1234.0, 1250.0, 2.675], dtype=dtype)
+                          -0.5, -1.5, 6.5, 1234.0, 1250.0, 2.675, 6500.0], dtype=dtype)
         return (input,)
 
     def create_model(self, decimals):
@@ -118,7 +120,7 @@ class TestRoundDecimals(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
-    @pytest.mark.parametrize("decimals", [1, 2, -1])
+    @pytest.mark.parametrize("decimals", [1, 2, -1, -3])
     @pytest.mark.parametrize("dtype", ["float32", "float64"])
     def test_round_decimals(self, decimals, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(decimals), ie_device, precision, ir_version,
@@ -164,6 +166,37 @@ class TestRoundDecimalsLowPrecision(PytorchLayerTest):
 
         torch_dtype = {"float16": torch.float16, "bfloat16": torch.bfloat16}[torch_dtype]
         self._test(*self.create_model(decimals, torch_dtype), ie_device, precision, ir_version)
+
+
+class TestRoundDecimalsDirectLowPrecision(PytorchLayerTest):
+    # The input is already f16, without the internal .to() of the test above: the direct frontend
+    # conversion path leaves the input element type dynamic during translation and specializes it
+    # only afterwards, so the widening to float must not depend on the type being statically known
+    # (otherwise f16 1000 with decimals=2 scales to inf instead of staying 1000).
+    def _prepare_input(self):
+        import numpy as np
+        input = np.array([1000.0, 2000.0, 1234.0, -1000.0, 0.5, 1.5, 2.5, -2.5], dtype=np.float16)
+        return (input,)
+
+    def create_model(self, decimals):
+        import torch
+
+        class aten_round_decimals(torch.nn.Module):
+            def __init__(self, decimals):
+                super().__init__()
+                self.decimals = decimals
+
+            def forward(self, x):
+                return torch.round(x, decimals=self.decimals)
+
+        return aten_round_decimals(decimals), "aten::round"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("decimals", [1, 2, -1])
+    def test_round_decimals_direct_low_precision(self, decimals, ie_device, precision, ir_version):
+        self._test(*self.create_model(decimals), ie_device, precision, ir_version)
 
 
 class TestRoundDecimalsOut(PytorchLayerTest):

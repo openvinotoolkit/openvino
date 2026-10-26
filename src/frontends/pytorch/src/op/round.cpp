@@ -12,6 +12,7 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
+#include "transformations/rt_info/nonconvertible_divide.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::pytorch::op {
@@ -26,9 +27,13 @@ namespace {
 Output<Node> round_with_decimals(const NodeContext& context, const Output<Node>& data, int64_t decimals) {
     // The kernel is evaluated in opmath_t, so half and bfloat16 inputs are widened to float before
     // the scaling: scaling in the low precision type itself overflows instead of rounding
-    // (f16 1000 with decimals = 2 becomes inf, while torch keeps 1000).
+    // (f16 1000 with decimals = 2 becomes inf, while torch keeps 1000). The element type is still
+    // dynamic when the caller specializes the input after the conversion (the direct frontend
+    // path does), so a dynamic input is widened as well: the type is not available here, and f32
+    // is the one type that neither overflows for the low precision inputs nor is rejected by the
+    // plugins. ConvertLike below restores whatever type the input resolves to.
     const auto data_type = data.get_element_type();
-    const bool widen = data_type == element::f16 || data_type == element::bf16;
+    const bool widen = data_type.is_dynamic() || data_type == element::f16 || data_type == element::bf16;
     auto x = widen ? context.mark_node(std::make_shared<v0::Convert>(data, element::f32)) : data;
 
     // The factor is computed in fp64 and materialized in the working type: the input element type
@@ -44,10 +49,16 @@ Output<Node> round_with_decimals(const NodeContext& context, const Output<Node>&
         res = context.mark_node(std::make_shared<v1::Divide>(rounded, scale));
     } else {
         const auto scaled = context.mark_node(std::make_shared<v1::Divide>(x, scale));
+        // ConvertDivide rewrites a division into a multiplication by a rounded reciprocal, which
+        // moves the pre-round quotient across a tie: f32 6500 / 10^3 is exactly 6.5 and rounds to
+        // 6000, while the reciprocal product is 6.5000005 and rounds to 7000.
+        disable_divide_conversion(scaled);
         const auto rounded = context.mark_node(std::make_shared<v5::Round>(scaled, v5::Round::RoundMode::HALF_TO_EVEN));
         res = context.mark_node(std::make_shared<v1::Multiply>(rounded, scale));
     }
-    return widen ? context.mark_node(std::make_shared<v0::Convert>(res, data_type)) : res;
+    // ConvertLike instead of Convert: the input element type may still be dynamic, and it is the
+    // one op that resolves the target type when the input is specialized.
+    return widen ? context.mark_node(std::make_shared<v1::ConvertLike>(res, data)) : res;
 }
 }  // namespace
 
