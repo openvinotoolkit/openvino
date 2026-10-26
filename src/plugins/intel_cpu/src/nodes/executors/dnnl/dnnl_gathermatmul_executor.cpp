@@ -281,7 +281,8 @@ bool GatherMatmulDnnlExecutor::supports([[maybe_unused]] const GatherMatmulConfi
 GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const GatherMatmulAttrs& attrs,
                                                    const MemoryArgs& memory,
                                                    const ExecutorContext::CPtr& context)
-    : m_context(context) {
+    : m_context(context),
+      m_l2CacheSize(dnnl::utils::get_cache_size(2, true)) {
     const auto& weightsMemory = memory.at(ARG_WEI);
     const auto& srcMemory = memory.at(ARG_SRC);
 
@@ -291,7 +292,6 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
     m_bf16AmxMode =
         (src_precision == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx));
 #endif
-    m_l2CacheSize = dnnl::utils::get_cache_size(2, true);
 
     const auto& weiDims = weightsMemory->getShape().getStaticDims();
     const dnnl::memory::dim N = weiDims[weiDims.size() - 2];
@@ -521,6 +521,8 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
             if (0 == num_valid_rows) {
                 continue;
             }
+            OPENVINO_ASSERT(num_valid_rows <= M_size,
+                            "GatherMatmul: a gather index received more rows than the input has");
 
             // Few rows: per-row GEMV is cheaper than gathering, padding, and scattering them for a GEMM.
             // A decode step of N requests is M = N, so most experts get one or two rows.
@@ -540,8 +542,6 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
 
             // Size the GEMM to the rows routed to this gather index (rounded up by normalizeM), not to
             // the full input length: with top-k routing most rows of a full-length GEMM are zero padding.
-            OPENVINO_ASSERT(num_valid_rows <= M_size,
-                            "GatherMatmul: a gather index received more rows than the input has");
             const size_t gemm_rows = normalizeM(num_valid_rows);
             auto& gemmImpl = gemmBySize[gemm_rows];
             if (!gemmImpl) {
