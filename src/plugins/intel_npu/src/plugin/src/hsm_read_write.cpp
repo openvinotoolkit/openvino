@@ -34,6 +34,30 @@ ov::runtime::hsm::SectionTagReserved build_section_tag(const std::shared_ptr<ISe
     return ov::runtime::hsm::SectionTagReserved(tag, reserved_bytes);
 }
 
+RuntimeRequirements parse_and_evaluate_runtime_requirements(
+    ov::runtime::hsm::Reader& base_reader,
+    const std::unordered_map<SectionType, ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>>>& section_readers,
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators,
+    const Logger& logger) {
+    OPENVINO_ASSERT(section_readers.count(SectionTypeCode::RUNTIME_REQUIREMENTS),
+                    "No reader found for the runtime requirements section");
+    const auto decode_result =
+        base_reader.decode(static_cast<ov::runtime::hsm::DeviceId>(ov::runtime::hsm::Devices::npu),
+                           RUNTIME_REQUIREMENTS_TAG,
+                           section_readers.at(SectionTypeCode::RUNTIME_REQUIREMENTS));
+    OPENVINO_ASSERT(decode_result.has_value());
+    const auto runtime_requirements_section =
+        std::dynamic_pointer_cast<RuntimeRequirementsSection>(decode_result.value());
+    OPENVINO_ASSERT(runtime_requirements_section);
+
+    RuntimeRequirements runtime_requirements = runtime_requirements_section->get_runtime_requirements();
+    OPENVINO_ASSERT(runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators),
+                    "The imported model is not compatible");
+    logger.debug("Runtime requirements evaluation passed");
+    return runtime_requirements;
+}
+
 }  // namespace
 
 namespace intel_npu::hsm {
@@ -42,7 +66,7 @@ namespace intel_npu::hsm {
 
 BlobSectionsRegistry read_from(
     ov::runtime::hsm::Reader& base_reader,
-    const std::unordered_map<SectionType, ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>>>& readers,
+    const std::unordered_map<SectionType, ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>>>& section_readers,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators) {
     const Logger logger("HSMReader", Logger::global().level());
@@ -56,21 +80,11 @@ BlobSectionsRegistry read_from(
     OPENVINO_ASSERT(n_runtime_requirements < 2, "Found more than one runtime requirements section");
 
     if (n_runtime_requirements) {
-        OPENVINO_ASSERT(readers.count(SectionTypeCode::RUNTIME_REQUIREMENTS),
-                        "No reader found for the runtime requirements section");
-        const auto decode_result =
-            base_reader.decode(static_cast<ov::runtime::hsm::DeviceId>(ov::runtime::hsm::Devices::npu),
-                               RUNTIME_REQUIREMENTS_TAG,
-                               readers.at(SectionTypeCode::RUNTIME_REQUIREMENTS));
-        OPENVINO_ASSERT(decode_result.has_value());
-        const auto runtime_requirements_section =
-            std::dynamic_pointer_cast<RuntimeRequirementsSection>(decode_result.value());
-        OPENVINO_ASSERT(runtime_requirements_section);
-
-        runtime_requirements = runtime_requirements_section->get_runtime_requirements();
-        OPENVINO_ASSERT(runtime_requirements->get_compatibility_check_result(type_evaluators, instance_evaluators),
-                        "The imported model is not compatible");
-        logger.debug("Runtime requirements evaluation passed");
+        runtime_requirements = parse_and_evaluate_runtime_requirements(base_reader,
+                                                                       section_readers,
+                                                                       type_evaluators,
+                                                                       instance_evaluators,
+                                                                       logger);
     } else {
         logger.warning(
             "The runtime requirements section was not found within the manifest. Proceeding without performing any "
@@ -95,10 +109,10 @@ BlobSectionsRegistry read_from(
         if (!runtime_requirements.has_value()) {
             // No runtime requirements found. All sections are considered mandatory
             logger.trace("Parsing the mandatory section %s", debug_name.data());
-            OPENVINO_ASSERT(readers.count(section_type), MANDATORY_READER_MISSING_MESSAGE, debug_name);
+            OPENVINO_ASSERT(section_readers.count(section_type), MANDATORY_READER_MISSING_MESSAGE, debug_name);
 
             const std::optional<std::shared_ptr<ISection>> parsed_section =
-                base_reader.decode(manifest_entry.device, manifest_entry.tag, readers.at(section_type));
+                base_reader.decode(manifest_entry.device, manifest_entry.tag, section_readers.at(section_type));
             OPENVINO_ASSERT(parsed_section.has_value(), PARSE_FAILURE_MESSAGE, debug_name);
             registry.register_section(parsed_section.value(), section_id);
             continue;
@@ -121,7 +135,7 @@ BlobSectionsRegistry read_from(
             runtime_requirements->get_instance_evaluation_result(section_id);
 
         const std::optional<std::shared_ptr<ISection>> parsed_section =
-            base_reader.decode(manifest_entry.device, manifest_entry.tag, readers.at(section_type));
+            base_reader.decode(manifest_entry.device, manifest_entry.tag, section_readers.at(section_type));
         if (parsed_section.has_value()) {
             registry.register_section(parsed_section.value(), section_id);
         }
@@ -129,31 +143,29 @@ BlobSectionsRegistry read_from(
         if (type_evaluation_result.has_value() && type_evaluation_result.value()) {
             if (instance_evaluation_result.has_value() && instance_evaluation_result.value()) {
                 // Case 1
-                // TODO update logs
-                logger.trace("Parsing mandatory section %s", debug_name.data());
-                OPENVINO_ASSERT(readers.count(section_type), MANDATORY_READER_MISSING_MESSAGE, debug_name);
+                logger.trace("Parsing the mandatory section %s", debug_name.data());
+                OPENVINO_ASSERT(section_readers.count(section_type), MANDATORY_READER_MISSING_MESSAGE, debug_name);
 
                 const std::optional<std::shared_ptr<ISection>> parsed_section =
-                    base_reader.decode(manifest_entry.device, manifest_entry.tag, readers.at(section_type));
+                    base_reader.decode(manifest_entry.device, manifest_entry.tag, section_readers.at(section_type));
                 OPENVINO_ASSERT(parsed_section.has_value(), PARSE_FAILURE_MESSAGE, debug_name);
                 registry.register_section(parsed_section.value(), section_id);
             } else if (instance_evaluation_result.has_value() && !instance_evaluation_result.value()) {
                 // Case 2
-                logger.debug(
-                    "The parsing of section ID %s has been skipped. The section type instance is not supported",
-                    debug_name.data());
+                logger.debug("The parsing of section %s has been skipped. The section instance is not supported",
+                             debug_name.data());
             } else {
                 // Case 3
-                logger.trace("The section type instance corresponding to section ID %s was not evaluated",
-                             debug_name.data());
-                if (!readers.count(section_type)) {
+                logger.trace("The section instance %s was not evaluated", debug_name.data());
+                logger.trace("Parsing the optional section %s", debug_name.data());
+                if (!section_readers.count(section_type)) {
                     logger.debug(OPTIONAL_READER_MISSING_MESSAGE.data(), debug_name.data());
                     logger.warning(OPTIONAL_SECTION_PARSING_FAILED_MESSAGE.data(), debug_name.data());
                     continue;
                 }
 
                 const std::optional<std::shared_ptr<ISection>> parsed_section =
-                    base_reader.decode(manifest_entry.device, manifest_entry.tag, readers.at(section_type));
+                    base_reader.decode(manifest_entry.device, manifest_entry.tag, section_readers.at(section_type));
                 if (parsed_section.has_value()) {
                     registry.register_section(parsed_section.value(), section_id);
                 } else {
@@ -167,18 +179,17 @@ BlobSectionsRegistry read_from(
         } else {
             // Case 5
             logger.trace("The section type of %s was not evaluated", debug_name.data());
-            OPENVINO_ASSERT(
-                !instance_evaluation_result.has_value(),
-                "Found a section type instance that was evaluated without evaluating the section type first");
-            if (!readers.count(section_type)) {
+            logger.trace("Parsing the optional section %s", debug_name.data());
+            OPENVINO_ASSERT(!instance_evaluation_result.has_value(),
+                            "Found a section instance that was evaluated without evaluating the section type first");
+            if (!section_readers.count(section_type)) {
                 logger.debug(OPTIONAL_READER_MISSING_MESSAGE.data(), debug_name.data());
                 logger.warning(OPTIONAL_SECTION_PARSING_FAILED_MESSAGE.data(), debug_name.data());
                 continue;
             }
 
-            // TODO refactor opportunities here?
             const std::optional<std::shared_ptr<ISection>> parsed_section =
-                base_reader.decode(manifest_entry.device, manifest_entry.tag, readers.at(section_type));
+                base_reader.decode(manifest_entry.device, manifest_entry.tag, section_readers.at(section_type));
             if (parsed_section.has_value()) {
                 registry.register_section(parsed_section.value(), section_id);
             } else {

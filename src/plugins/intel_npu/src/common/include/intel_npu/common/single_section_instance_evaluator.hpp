@@ -29,7 +29,7 @@ public:
     ov::CompatibilityCheck get_result() const;
 
     /**
-     * @brief Tells whether or not the section type instance has been already evaluated.
+     * @brief Tells whether or not the section instance has been already evaluated.
      */
     bool evaluated() const;
 

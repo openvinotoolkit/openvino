@@ -22,6 +22,7 @@ namespace intel_npu {
  * modified.
  * @note The size needs to be fixed (2 bytes) since this value is written inside the blob manifest
  */
+// TODO need to change value of RR since the content is NPU specific?
 enum class SectionTypeCode : uint32_t {
     RUNTIME_REQUIREMENTS = static_cast<uint32_t>(
         ov::runtime::hsm::Tags::runtime_requirements),  // Matches the tag ID used by the OV common code

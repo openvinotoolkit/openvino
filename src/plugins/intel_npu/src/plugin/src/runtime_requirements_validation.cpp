@@ -24,7 +24,6 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(
     const ov::SoPtr<intel_npu::IEngineBackend>& backend,
     const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper) {
     // Need to create a few object to connect to the API used within the import path
-    // TODO adapt this
     ov::runtime::hsm::ManifestEntry manifest_entry;
     manifest_entry.tag =
         ov::runtime::hsm::SectionTag::make(static_cast<uint32_t>(SectionTypeCode::RUNTIME_REQUIREMENTS), false);
