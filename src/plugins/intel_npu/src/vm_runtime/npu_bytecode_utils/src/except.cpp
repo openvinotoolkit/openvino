@@ -1,5 +1,4 @@
-//
-// Copyright (C) 2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +12,7 @@
                                                            const std::string& message) {
     std::ostringstream stream;
     stream
-#ifdef VPUX_DEVELOPER_BUILD
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
             << file << ":" << line << ": "
 #endif
             << message;
