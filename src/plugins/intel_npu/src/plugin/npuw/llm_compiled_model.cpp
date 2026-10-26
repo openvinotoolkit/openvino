@@ -1156,7 +1156,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const bool generate_attn_hfa = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::HFA;
 
     if (prefill_attn_hfa && m_use_chunk_prefill && !m_is_embedding) {
-        bool host_mask = false;
+        bool host_mask = ::intel_npu::NPUW_ATTN_HFA_HOST_MASK::defaultValue();
         auto read_host_mask = [&](const ov::AnyMap& config) {
             const auto it = config.find("NPUW_ATTN_HFA_HOST_MASK");
             if (it != config.end()) {
