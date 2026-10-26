@@ -36,6 +36,17 @@ ov::OutputVector deform_conv(const ov::frontend::onnx::Node& node) {
     const auto group = node.get_attribute_value<int64_t>("group", 1);
     const auto offset_group = node.get_attribute_value<int64_t>("offset_group", 1);
 
+    FRONT_END_GENERAL_CHECK(offset_group > 0, "DeformConv offset_group must be greater than zero");
+    const auto& data_shape = data.get_partial_shape();
+    if (data_shape.rank().is_static() && data_shape.rank().get_length() > 1 && data_shape[1].is_static()) {
+        FRONT_END_GENERAL_CHECK(data_shape[1].get_length() % offset_group == 0,
+                                "DeformConv input channels (",
+                                data_shape[1].get_length(),
+                                ") must be evenly divisible by offset_group (",
+                                offset_group,
+                                ")");
+    }
+
     // ONNX samples zero when the location lies outside of the padded input tensor,
     // which corresponds to bilinear interpolation on the zero-padded feature map.
     constexpr bool bilinear_interpolation_pad = true;

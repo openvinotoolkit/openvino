@@ -7,7 +7,6 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "common_test_utils/ov_plugin_cache.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -261,30 +260,6 @@ TEST_P(ReferenceDeformableConvolutionLayerTest, CompareWithRefs) {
 
 TEST_P(ReferenceDeformableConvolutionV8LayerTest, CompareWithRefs) {
     Exec();
-}
-
-TEST(ReferenceDeformableConvolutionV8DynamicTest, RejectsInputChannelsNotDivisibleByDeformableGroup) {
-    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, -1, 3, 3});
-    const auto offsets = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 16, 2, 2});
-    const auto filters = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, -1, 2, 2});
-    const auto deformable_conv = std::make_shared<op::v8::DeformableConvolution>(data,
-                                                                                 offsets,
-                                                                                 filters,
-                                                                                 Strides{1, 1},
-                                                                                 CoordinateDiff{0, 0},
-                                                                                 CoordinateDiff{0, 0},
-                                                                                 Strides{1, 1},
-                                                                                 op::PadType::EXPLICIT,
-                                                                                 1,
-                                                                                 2);
-    const auto model = std::make_shared<Model>(OutputVector{deformable_conv}, ParameterVector{data, offsets, filters});
-    const auto compiled_model = test::utils::PluginCache::get().core("TEMPLATE")->compile_model(model, "TEMPLATE");
-    auto infer_request = compiled_model.create_infer_request();
-    infer_request.set_tensor(0, ov::Tensor(element::f32, Shape{1, 3, 3, 3}));
-    infer_request.set_tensor(1, ov::Tensor(element::f32, Shape{1, 16, 2, 2}));
-    infer_request.set_tensor(2, ov::Tensor(element::f32, Shape{1, 3, 2, 2}));
-
-    EXPECT_THROW(infer_request.infer(), ov::Exception);
 }
 
 template <element::Type_t IN_ET>

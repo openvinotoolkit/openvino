@@ -20,6 +20,7 @@
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
 #include "common_test_utils/test_tools.hpp"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "onnx_utils.hpp"
 #include "openvino/op/max_pool.hpp"
@@ -366,6 +367,16 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv_2d_with_offset_groups) {
 
     test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {33.5f, 32.1f, 32.f, 32.f});
     test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv_2d_invalid_offset_group_channels) {
+    try {
+        convert_model("deform_conv_2d_invalid_offset_group_channels.onnx");
+        FAIL() << "Expected DeformConv input channel validation to fail";
+    } catch (const ov::Exception& error) {
+        EXPECT_THAT(error.what(),
+                    testing::HasSubstr("DeformConv input channels (3) must be evenly divisible by offset_group (2)"));
+    }
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d) {
