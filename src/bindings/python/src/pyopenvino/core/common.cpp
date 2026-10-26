@@ -403,20 +403,11 @@ std::vector<size_t> _get_byte_strides(const ov::Shape& s, const size_t element_b
 }
 
 std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
-    using namespace ov::element;
-    switch (self.get_element_type()) {
-    case i4:
-    case u1:
-    case u2:
-    case u3:
-    case u4:
-    case u6:
-    case nf4:
-    case f4e2m1:
+    // A packed value occupies one byte in the numpy view of the constant.
+    if (self.get_element_type().bitwidth() < 8) {
         return _get_byte_strides(self.get_shape(), 8);
-    default:
-        return self.get_strides();
     }
+    return self.get_strides();
 }
 
 std::shared_ptr<ov::SharedBuffer<py::array>> get_shared_memory(py::array& array) {
