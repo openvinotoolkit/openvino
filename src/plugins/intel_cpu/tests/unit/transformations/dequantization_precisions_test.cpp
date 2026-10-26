@@ -43,9 +43,9 @@ TEST_P(DequantizationPrecisionsTest, PackedWeightConvertSurvivesConstantFolding)
 }
 
 // u2 is already in the compressed-weight set: it is the control that shows the harness's dequantization chain
-// (a {N,1} scale on a 2-D weight) satisfies the matcher, so an i2 failure is the set's and not the fixture's.
+// (a {N,1} scale on a 2-D weight) satisfies the matcher, so a failure below is the set's and not the fixture's.
 INSTANTIATE_TEST_SUITE_P(SubByte,
                          DequantizationPrecisionsTest,
-                         ::testing::Values(ov::element::u2, ov::element::i2));
+                         ::testing::Values(ov::element::u2, ov::element::u1, ov::element::i2));
 
 }  // namespace
