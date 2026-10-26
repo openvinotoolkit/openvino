@@ -1,0 +1,49 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_buffers.bin
+
+type_section:
+  - id: i32
+    kind: integer
+    width: 32
+    is_signed: false
+  - id: fn_buffer_ops
+    kind: function
+    params: []
+    results: []
+
+function_section:
+  - name: buffer_ops
+    type: fn_buffer_ops
+    # Register mapping: 0=buf, 1=view, 2=val, 3=shape0, 4=shape1, 5=stride0, 6=stride1, 7=idx0, 8=idx1, 9=dim
+    instructions:
+      - op: buffer_create
+        dst: 0
+        elem_type: 0
+        shape_regs: [3, 4]
+        stride_regs: [5, 6]
+      - op: buffer_get_dim
+        args: [9, 0, 7]
+      - op: buffer_subview
+        dst: 1
+        src: 0
+        offsets: [7]
+        sizes: [9]
+        strides: [6]
+      - op: buffer_view
+        dst: 1
+        src: 0
+        byte_offset: 7
+        elem_type: 0
+        shape_regs: [9]
+        stride_regs: [6]
+      - op: buffer_store
+        buffer: 0
+        value: 2
+        index_regs: [7, 8]
+      - op: ret
+        args: []

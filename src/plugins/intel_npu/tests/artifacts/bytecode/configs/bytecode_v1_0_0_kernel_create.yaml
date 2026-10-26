@@ -1,0 +1,67 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_kernel_create.bin
+
+type_section:
+  - id: f32
+    kind: float
+    width: 32
+    format: ieee754
+  - id: fn_kernel_create
+    kind: function
+    params: []
+    results: []
+
+kernel_section:
+  - "0x00010203"
+
+function_section:
+  - name: kernel_create
+    type: fn_kernel_create
+    # Register mapping:
+    # 0=in_buf, 1=out_buf, 2=off, 3=size, 4=stride, 5=in_sv, 6=out_sv, 7=handle
+    instructions:
+      - op: set_imm
+        args: [2, 0]
+      - op: set_imm
+        args: [3, 8]
+      - op: set_imm
+        args: [4, 1]
+
+      - op: buffer_create
+        dst: 0
+        elem_type: 0
+        shape_regs: [3]
+        stride_regs: [4]
+      - op: buffer_create
+        dst: 1
+        elem_type: 0
+        shape_regs: [3]
+        stride_regs: [4]
+
+      - op: buffer_subview
+        dst: 5
+        src: 0
+        offsets: [2]
+        sizes: [3]
+        strides: [4]
+      - op: buffer_subview
+        dst: 6
+        src: 1
+        offsets: [2]
+        sizes: [3]
+        strides: [4]
+
+      - op: kernel_create
+        dst: 7
+        kernel_index: 0
+        kernel_name_index: 0
+        input_registers: [5]
+        output_registers: [6]
+
+      - op: ret
+        args: []

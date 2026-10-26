@@ -1,0 +1,30 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_invalid_opcode.bin
+
+type_section:
+  - id: i64
+    kind: integer
+    width: 64
+    is_signed: true
+  - id: fn_main_invalid_opcode
+    kind: function
+    params: []
+    results: [i64]
+
+function_section:
+  - name: main_invalid_opcode
+    type: fn_main_invalid_opcode
+    # Register mapping: 0=value
+    instructions:
+      # Invalid opcode
+      - op: 0x7FFE
+        args: []
+      - op: set_imm
+        args: [0, 123]
+      - op: retv
+        args: [0]

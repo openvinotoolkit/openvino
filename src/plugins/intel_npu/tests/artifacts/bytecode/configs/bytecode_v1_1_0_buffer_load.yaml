@@ -1,0 +1,28 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 1, 0]
+output: bytecode_v1_1_0_buffer_load.bin
+
+type_section:
+  - id: i32
+    kind: integer
+    width: 32
+    is_signed: false
+  - id: fn_buffer_load
+    kind: function
+    params: []
+    results: []
+
+function_section:
+  - name: buffer_load
+    type: fn_buffer_load
+    num_registers: 3
+    # Register mapping: 0=buf, 1=idx0, 2=dst
+    instructions:
+      - op: buffer_load
+        dst: 2
+        buffer: 0
+        index_regs: [1]

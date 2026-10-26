@@ -1,0 +1,9 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_zero_sections.bin
+
+allow_zero_sections: true

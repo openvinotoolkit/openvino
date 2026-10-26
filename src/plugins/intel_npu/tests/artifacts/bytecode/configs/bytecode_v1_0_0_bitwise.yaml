@@ -1,0 +1,49 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_bitwise.bin
+
+type_section:
+  - id: i64
+    kind: integer
+    width: 64
+    is_signed: true
+  - id: fn_main_bitwise
+    kind: function
+    params: []
+    results: [i64, i64, i64, i64, i64, i64, i64]
+
+function_section:
+  - name: main_bitwise
+    type: fn_main_bitwise
+    # Register mapping:
+    # 0=cst(ten), 1=cst(three), 2=cst(one),
+    # 3=and, 4=not, 5=or, 6=xor, 7=sll, 8=srl, 9=sra
+    instructions:
+      - op: set_imm
+        args: [0, 10]
+      - op: set_imm
+        args: [1, 3]
+      - op: set_imm
+        args: [2, 1]
+
+      - op: and_64
+        args: [3, 0, 1]
+      - op: not_64
+        args: [4, 0]
+      - op: or_64
+        args: [5, 0, 1]
+      - op: xor_64
+        args: [6, 0, 1]
+      - op: sll_64
+        args: [7, 0, 2]
+      - op: srl_64
+        args: [8, 0, 2]
+      - op: sra_64
+        args: [9, 0, 2]
+
+      - op: retv
+        args: [3, 4, 5, 6, 7, 8, 9]
