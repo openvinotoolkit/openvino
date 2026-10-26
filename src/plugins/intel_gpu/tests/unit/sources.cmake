@@ -229,6 +229,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_weight_provider_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_router_fused_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_scatter_reduction_gpu_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/msda_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/multiclass_nms_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/multiple_streams_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/mvn_gpu_test.cpp
@@ -358,6 +359,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/sdpa_transpose_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/sink_reshape_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/stateless_kv_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/swoosh_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/swish_with_clamp_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_matmul_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sdpa_fusion_test.cpp
@@ -431,12 +433,16 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_grouped_depth_to_space.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_gated_mlp.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_gated_mlp.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_hadamard_fc.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_hadamard_fc.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_moe_router.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_moe_router.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_moe_router_scale.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_moe_router_scale.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_moe_shared_expert.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_moe_shared_expert.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_rms_rope.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_rms_rope.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_rope_input_deinterleave.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_rope_input_deinterleave.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/group_query_attention_decomposition.cpp
@@ -478,6 +484,8 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/sink_reshape.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/sink_reshape.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/stateless_kv_fusion.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/swoosh_fusion.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/swoosh_fusion.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/swiglu_fusion_with_clamp.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/swiglu_fusion_with_clamp.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/transpose_fusion.cpp
@@ -502,6 +510,7 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/read_value.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/sdpa.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/stateless_kv.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/swoosh.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/swiglu_with_clamp.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/variable_state.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/multi_tensor_variable_state.cpp
