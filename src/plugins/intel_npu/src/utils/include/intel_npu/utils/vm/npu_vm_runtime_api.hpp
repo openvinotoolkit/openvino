@@ -10,7 +10,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "npu_vm_runtime.hpp"
+#include "vm_runtime/npu_vm_runtime.hpp"
 #include "openvino/core/except.hpp"
 
 namespace intel_npu {
@@ -57,7 +57,7 @@ public:
     static void initialize(std::string_view libName);
 
     // Inspects the blob header to select the appropriate runtime library and calls initialize().
-    // Selects "openvino_intel_npu_vm_runtime" for NPUByte blobs, "openvino_intel_npu_mlir_runtime" otherwise.
+    // Selects "openvino_intel_npu_vm_runtime" for NPUByte blobs.
     static void initializeFromBlob(const void* data, size_t size);
 
     static const std::shared_ptr<NPUVMRuntimeApi>& getInstance();

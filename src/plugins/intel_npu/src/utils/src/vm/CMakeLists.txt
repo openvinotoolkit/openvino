@@ -24,6 +24,7 @@ target_include_directories(${TARGET_NAME}
         $<TARGET_PROPERTY:openvino::util,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino::intel_npu_vm_runtime,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(${TARGET_NAME} PUBLIC
