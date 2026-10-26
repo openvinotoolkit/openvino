@@ -37,6 +37,7 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/gathermatmul_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -286,6 +287,11 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
 
     auto src_precision = srcMemory->getDesc().getPrecision();
     auto weights_precision = weightsMemory->getDesc().getPrecision();
+#ifdef OPENVINO_ARCH_X86_64
+    m_bf16AmxMode =
+        (src_precision == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx));
+#endif
+    m_l2CacheSize = dnnl::utils::get_cache_size(2, true);
 
     const auto& weiDims = weightsMemory->getShape().getStaticDims();
     const dnnl::memory::dim N = weiDims[weiDims.size() - 2];
@@ -508,7 +514,8 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
         // Gather indices with the same rounded row count share one GEMM within this call. The runtime cache
         // keeps the primitives across calls.
         std::unordered_map<size_t, InnerProductPtr> gemmBySize;
-        constexpr size_t min_rows_for_gemm = 4;
+        // On AMX a GEMM is cheap even for a few rows; elsewhere experts with fewer rows run per-row GEMV.
+        const size_t min_rows_for_gemm = m_bf16AmxMode ? 1 : 4;
         for (size_t gather_axis_index = 0; gather_axis_index < gather_axis_size; gather_axis_index++) {
             const size_t num_valid_rows = elements_per_gather_indx[gather_axis_index];
             if (0 == num_valid_rows) {
@@ -541,7 +548,7 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
                 gemmImpl = createGemm(gemm_rows);
             }
 
-            cpu_parallel->parallel_for(gemm_rows, [&](size_t m) {
+            auto gather_row = [&](size_t m) {
                 auto* dst_row = tmp_input_offset(m);
                 if (m < num_valid_rows) {
                     const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
@@ -551,7 +558,15 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
                 } else {
                     std::memset(dst_row, 0, K_size * element_size);
                 }
-            });
+            };
+            // Copies that fit in L2 are faster on one thread than split across the pool.
+            if (gemm_rows * K_size * element_size < m_l2CacheSize) {
+                for (size_t m = 0; m < gemm_rows; ++m) {
+                    gather_row(m);
+                }
+            } else {
+                cpu_parallel->parallel_for(gemm_rows, gather_row);
+            }
 
             auto* src = tmp_input_offset.get_base();
             auto* dst = tmp_dst_offset.get_base();
@@ -561,13 +576,20 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
             auto* zp = zp_offset(gather_axis_index);
             gemmImpl->exec(src, dst, wei, bias, scale, zp);
 
-            cpu_parallel->parallel_for(num_valid_rows, [&](size_t m) {
+            auto scatter_row = [&](size_t m) {
                 const auto* src_row = tmp_dst_offset(m);
                 const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
                 const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
                 auto* dst_row = dst_offset(batch_index, row_id);
                 std::memcpy(dst_row, src_row, N_size * element_size);
-            });
+            };
+            if (num_valid_rows * N_size * element_size < m_l2CacheSize) {
+                for (size_t m = 0; m < num_valid_rows; ++m) {
+                    scatter_row(m);
+                }
+            } else {
+                cpu_parallel->parallel_for(num_valid_rows, scatter_row);
+            }
         }
     } else {
         OPENVINO_ASSERT(m_gemvImpl, "GEMV implementation is not created");
