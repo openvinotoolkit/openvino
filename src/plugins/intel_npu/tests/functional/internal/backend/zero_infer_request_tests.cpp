@@ -11,6 +11,7 @@
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "compiled_model.hpp"
+#include "compiler_impl.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "graph.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
@@ -94,7 +95,7 @@ protected:
     bool withResetInferRequest;
     uint32_t zeGraphNpuExtVersion;
     uint32_t zeMutableCommandListExtVersion;
-    std::unique_ptr<::intel_npu::FilteredConfig> npu_config;
+    std::unique_ptr<::intel_npu::Config> npu_config;
     std::shared_ptr<::intel_npu::ZeroInitStructsHolder> zeroInitStruct;
     std::shared_ptr<ov::Model> ov_model;
 
@@ -158,7 +159,7 @@ public:
         options->add<::intel_npu::COMPILER_TYPE>();
         options->add<::intel_npu::BATCH_MODE>();
         options->add<::intel_npu::MODEL_SERIALIZER_VERSION>();
-        npu_config = std::make_unique<::intel_npu::FilteredConfig>(options);
+        npu_config = std::make_unique<::intel_npu::Config>(options);
         for (const auto& [propertyName, propertyValue] : configuration) {
             npu_config->update(propertyName, propertyValue.as<std::string>());
         }
@@ -208,7 +209,8 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
                        ? std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
                              std::make_shared<::intel_npu::DriverCompilerAdapter>(zeroInitStruct))
                        : std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
-                             std::make_shared<::intel_npu::PluginCompilerAdapter>(zeroInitStruct));
+                             std::make_shared<::intel_npu::PluginCompilerAdapter>(zeroInitStruct,
+                                                                                  ::intel_npu::makeVCLCompiler()));
     } catch (...) {
         GTEST_SKIP() << "Couldn't load compiler library";
     }
@@ -239,7 +241,7 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         copy_model = batchedModel;
     }
 
-    auto graph = compiler->compile(copy_model, *npu_config);
+    auto graph = compiler->compile(copy_model, *npu_config, ::intel_npu::AdapterDescriptor{});
     if (batch) {
         graph->set_batch_size(batch.value());
     }

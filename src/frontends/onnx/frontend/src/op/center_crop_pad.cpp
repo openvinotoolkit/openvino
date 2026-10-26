@@ -23,11 +23,7 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 
 namespace detail {
 static std::shared_ptr<ov::Node> get_axes_range(const ov::Output<ov::Node>& input) {
@@ -100,8 +96,4 @@ ov::OutputVector center_crop_pad(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("CenterCropPad", OPSET_SINCE(1), ai_onnx::opset_1::center_crop_pad);
 
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1

@@ -28,8 +28,11 @@ xfail_accuracy = xfail_test(reason="Accuracy")
 xfail_issue_69444 = xfail_test(reason="ONNX Resize - AssertionError: Mismatched elements.")
 skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
-xfail_issue_33488 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
-                                      "MaxUnpool")
+xfail_maxunpool_output_shape_onnx_ref = xfail_test(reason="MaxUnpool with output_shape: ONNX reference data places "
+                                                          "values in the inferred shape, onnxruntime and OV index "
+                                                          "flat(output_shape) (onnx/onnx#2398)")
+# GPU: wrong scatter result for a static rank-1 Constant data input
+skip_maxunpool_gpu = pytest.mark.skip_on_gpu
 skip_issue_38084 = pytest.mark.skip(reason="Aborted (core dumped) Assertion "
                                            "`(layer->get_output_partial_shape(i).is_static())' failed.")
 xfail_issue_33596 = xfail_test(reason="RuntimeError: OV does not support different sequence operations: "
@@ -41,7 +44,7 @@ xfail_issue_33651 = xfail_test(reason="RuntimeError: OV does not support the fol
                                       "TfIdfVectorizer")
 xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations:"
                                       "DFT, LayerNormalization, "
-                                      "MelWeightMatrix, SequenceMap, STFT")
+                                      "MelWeightMatrix, SequenceMap")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
 xfail_issue_38699 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
@@ -112,8 +115,6 @@ xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadca
 xfail_issue_58676 = xfail_test(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 skip_issue_58676 = pytest.mark.skip(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")
-
-xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R, B inputs.")
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
 xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")

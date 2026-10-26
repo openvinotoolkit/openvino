@@ -2,25 +2,64 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "random_generator.hpp"
-
-#include <intel_gpu/primitives/input_layout.hpp>
+#include <algorithm>
+#include <cmath>
 #include <intel_gpu/primitives/activation.hpp>
+#include <intel_gpu/primitives/concatenation.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
-#include <intel_gpu/primitives/concatenation.hpp>
-#include <intel_gpu/primitives/permute.hpp>
+#include <intel_gpu/primitives/select.hpp>
+#include <limits>
+
 #include "activation_inst.h"
 #include "graph/impls/ocl/primitive_base.hpp"
-
-#include <cmath>
-#include <algorithm>
-#include <limits>
+#include "intel_gpu/op/swoosh.hpp"
+#include "random_generator.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
+
+class activation_relu_byxf_gpu_test : public ::testing::TestWithParam<bool> {};
+
+TEST_P(activation_relu_byxf_gpu_test, basic) {
+    const bool is_dynamic = GetParam();
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ov::PartialShape{2, 2, 2, 2}, data_types::f32, format::byxf});
+    set_values(input, {1.f, -3.f, -2.f, 4.f, -5.f, 6.f, 7.f, -8.f,
+                       9.f, -10.f, -11.f, 12.f, -13.f, 14.f, 15.f, -16.f});
+
+    auto in_layout = is_dynamic ? layout{ov::PartialShape::dynamic(4), data_types::f32, format::byxf}
+                                : input->get_layout();
+    topology topology(input_layout("input", in_layout),
+                      activation("activation", input_info("input"), activation_func::relu));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    if (is_dynamic)
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto output = network.execute().at("activation").get_memory();
+    ASSERT_EQ(output->get_layout().format, format::byxf);
+    mem_lock<float, mem_lock_type::read> result(output, get_test_stream());
+    const std::vector<float> expected = {1.f, 0.f, 0.f, 4.f, 0.f, 6.f, 7.f, 0.f,
+                                         9.f, 0.f, 0.f, 12.f, 0.f, 14.f, 15.f, 0.f};
+    ASSERT_EQ(result.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i)
+        EXPECT_FLOAT_EQ(result[i], expected[i]);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         activation_relu_byxf_gpu_test,
+                         ::testing::Values(false, true),
+                         [](const ::testing::TestParamInfo<bool>& info) {
+                             return info.param ? "dynamic" : "static";
+                         });
 
 TEST(activation_f32_fw_gpu, dynamic) {
     auto& engine = get_test_engine();
@@ -649,6 +688,43 @@ TEST(activation_f32_fw_gpu, softplus_basic_yxfb) {
     }
 }
 
+template <data_types DataType, typename ValueType>
+void test_swoosh_activation(float offset, float bias, float tolerance) {
+    auto& engine = get_test_engine();
+    const std::vector<float> input_values = {-100.0f, -20.0f, -1.0f, 0.0f, 1.0f, 4.0f, 12.0f, 100.0f};
+    std::vector<ValueType> typed_input(input_values.begin(), input_values.end());
+
+    auto input = engine.allocate_memory({DataType, format::bfyx, {1, 1, static_cast<tensor::value_type>(input_values.size()), 1}});
+    set_values<ValueType>(input, typed_input);
+
+    topology topology(input_layout("input", input->get_layout()),
+                      activation("swoosh", input_info("input"), activation_func::swoosh, {offset, bias}));
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto output_memory = network.execute().at("swoosh").get_memory();
+    cldnn::mem_lock<ValueType, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
+
+    for (size_t i = 0; i < input_values.size(); ++i) {
+        const float input_value = static_cast<float>(typed_input[i]);
+        const float shifted = input_value - offset;
+        const float softplus = std::max(shifted, 0.0f) + std::log1p(std::exp(-std::abs(shifted)));
+        const float expected = softplus - ov::intel_gpu::op::swoosh_constants::slope * input_value - bias;
+        ASSERT_NEAR(expected, static_cast<float>(output_ptr[i]), tolerance);
+    }
+}
+
+TEST(activation_f32_fw_gpu, swoosh_l_and_r) {
+    namespace constants = ov::intel_gpu::op::swoosh_constants;
+    test_swoosh_activation<data_types::f32, float>(constants::swoosh_l_offset, constants::swoosh_l_bias, 1e-5f);
+    test_swoosh_activation<data_types::f32, float>(constants::swoosh_r_offset, constants::swoosh_r_bias, 1e-5f);
+}
+
+TEST(activation_f16_fw_gpu, swoosh_l_and_r) {
+    namespace constants = ov::intel_gpu::op::swoosh_constants;
+    test_swoosh_activation<data_types::f16, ov::float16>(constants::swoosh_l_offset, constants::swoosh_l_bias, 4e-2f);
+    test_swoosh_activation<data_types::f16, ov::float16>(constants::swoosh_r_offset, constants::swoosh_r_bias, 4e-2f);
+}
+
 TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {
     //  Input:
     //  1 0 -3  4  5
@@ -918,7 +994,7 @@ TEST(activation_bf16_fw_gpu, pow_basic_yxfb) {
     }
 }
 
-TEST(activation_f16_fw_gpu, softplus_do_not_fuse_for_f16_prevent_overflow) {
+TEST(activation_f16_fw_gpu, softplus_f16_fusion_test) {
     auto& engine = get_test_engine();
 
     tensor input_shape{2, 4, 2, 3};

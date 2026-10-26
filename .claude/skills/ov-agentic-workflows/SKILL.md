@@ -36,10 +36,14 @@ keys, `imports`, `safe-outputs`, tools, and the `gh aw compile` workflow.
     `${{ github.aw.import-inputs.<key> }}` is substituted at compile time in both frontmatter and body.
     They may also carry flavour-dependent frontmatter (`tools.repo-memory`, `post-steps`).
 * **Known examples today**: `ci-doctor.md` (on-demand PR investigator), `ci-doctor-mq.md` (automatic
-  merge-queue investigator), and `ci-doctor-post-commit.md` (automatic post-commit investigator,
-  report-only — never re-runs/re-queues). The latter two share their whole protocol via the
-  `ci-doctor-investigation-protocol.md` / `ci-doctor-knowledge-base.md` / `ci-doctor-reporting.md`
-  prompt fragments; their own bodies hold only workflow-specific addenda. Do not assume this is the
+  merge-queue investigator), `ci-doctor-post-commit.md` (automatic post-commit investigator,
+  report-only — never re-runs/re-queues), and `ci-doctor-remediation.md` (weekly/`workflow_dispatch`
+  maintenance job that consumes the two doctors' knowledge base read-only and opens up to 3 draft
+  remediation PRs plus a Markdown report artifact). The two automatic investigators share their whole
+  protocol via the `ci-doctor-investigation-protocol.md` / `ci-doctor-knowledge-base.md` /
+  `ci-doctor-reporting.md` prompt fragments; their own bodies hold only workflow-specific addenda.
+  `ci-doctor-remediation.md` reuses the `collect-ci-doctor-history.md` step fragment
+  (`collect_ci_doctor_history.py`) to pre-download the recent knowledge base. Do not assume this is the
   complete list — check `.github/workflows/*.md` for the current set of `gh-aw` sources, since more
   will be added over time.
 
@@ -133,6 +137,9 @@ General, applies to any agentic workflow:
 
 Known pitfalls from existing workflows (check whether they still apply, and add new ones as you find
 them — see below):
+- **PR comment collapsibles** (`ci-doctor`) — keep the overview visible and use a separate
+  collapsed-by-default `<details>` block per pipeline. HTML-escape dynamic `<summary>` text and leave
+  blank lines around the Markdown body. This GitHub-only formatting must not leak into Teams reports.
 - **Teams markdown** (`ci-doctor-mq`) — Adaptive Cards render a limited subset; use `~~~` (tilde)
   fences for log excerpts, no raw HTML (`<details>`, `<br>`, `<table>`).
 - **Signature hashing** (`ci-doctor-mq`) — the pattern hash must stay job-agnostic (normalized error +

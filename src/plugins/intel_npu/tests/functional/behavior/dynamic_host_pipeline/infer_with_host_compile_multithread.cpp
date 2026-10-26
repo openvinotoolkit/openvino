@@ -194,7 +194,7 @@ public:
         configuration[ov::intel_npu::compile_log_level.name()] = ov::log::Level::ERR;
 
         std::vector<std::string> deviceNames =
-            core->get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
+            core.get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
         for (const auto& name : deviceNames) {
             if (target_device.find(name) != std::string::npos) {
                 isTargetDevice = true;
@@ -392,7 +392,7 @@ protected:
         return cfg;
     }
 
-    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
+    ov::Core core;
     ov::AnyMap configuration;
     std::string selectedModelName;
     std::string target_device;
@@ -416,7 +416,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
     auto referenceModel = createModelByName(selectedModelName);
     ov::CompiledModel referenceCompiledModel;
     try {
-        referenceCompiledModel = core->compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+        referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -430,7 +430,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
             kThreadCount,
             [this, &cfg, &shape, &referenceCompiledModel, &requests, &referenceRequests, &inputs](size_t threadIdx) {
                 auto model = createModelByName(selectedModelName);
-                auto compiledModel = core->compile_model(model, target_device, cfg);
+                auto compiledModel = core.compile_model(model, target_device, cfg);
                 requests[threadIdx] = std::make_shared<ov::InferRequest>(compiledModel.create_infer_request());
                 referenceRequests[threadIdx] =
                     std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
@@ -464,7 +464,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateReque
     auto referenceModel = createModelByName(selectedModelName);
     ov::CompiledModel referenceCompiledModel;
     try {
-        referenceCompiledModel = core->compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+        referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -473,7 +473,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateReque
         const auto cfg = makeConfig(sharedQueue);
         auto model = createModelByName(selectedModelName);
         ov::CompiledModel compiledModel;
-        OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, cfg));
+        OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device, cfg));
 
         std::vector<std::shared_ptr<ov::InferRequest>> requests(kThreadCount);
         std::vector<std::shared_ptr<ov::InferRequest>> referenceRequests(kThreadCount);
@@ -515,7 +515,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
     auto referenceModel = createModelByName(selectedModelName);
     ov::CompiledModel referenceCompiledModel;
     try {
-        referenceCompiledModel = core->compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+        referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -527,7 +527,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
         auto model = createModelByName(selectedModelName);
         ov::CompiledModel compiledModel;
         try {
-            compiledModel = core->compile_model(model, target_device, cfg);
+            compiledModel = core.compile_model(model, target_device, cfg);
         } catch (const ov::Exception& e) {
             GTEST_SKIP() << "model priority is not supported: " << e.what();
         }
@@ -618,7 +618,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
     auto referenceModel = createModelByName(selectedModelName);
     ov::CompiledModel referenceCompiledModel;
     try {
-        referenceCompiledModel = core->compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+        referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -629,9 +629,11 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
 
         std::vector<ov::CompiledModel> compiledModels;
         compiledModels.reserve(kModelCount);
-        auto producer = std::async(std::launch::async, [this, &compiledModels, &model, &cfg, kModelCount]() {
-            for (size_t i = 0; i < kModelCount; ++i) {
-                compiledModels.emplace_back(core->compile_model(model, target_device, cfg));
+        // Non-const on purpose: a const copy is still constant-folded and flagged as a redundant capture.
+        size_t modelCount = kModelCount;
+        auto producer = std::async(std::launch::async, [this, &compiledModels, &model, &cfg, modelCount]() {
+            for (size_t i = 0; i < modelCount; ++i) {
+                compiledModels.emplace_back(core.compile_model(model, target_device, cfg));
             }
         });
         producer.get();
@@ -645,6 +647,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
         for (size_t inferIdx = 0; inferIdx < kInferLoops; ++inferIdx) {
             const bool useAltShape = (inferIdx % 2U) == 1U;
             const auto& shape = useAltShape ? shapeSmall : shapeLarge;
+            // Non-const on purpose - see the modelCount comment above.
+            size_t requestsPerModel = kRequestsPerModel;
             runConcurrentlyAsync(
                 kThreadCount,
                 [model,
@@ -654,16 +658,16 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
                  &referenceRequests,
                  &inputs,
                  &shape,
-                 kRequestsPerModel,
-                 inferIdx](size_t threadIdx) {
+                 inferIdx,
+                 requestsPerModel](size_t threadIdx) {
                     if (requests[threadIdx].empty()) {
-                        requests[threadIdx].reserve(compiledModels.size() * kRequestsPerModel);
-                        referenceRequests[threadIdx].reserve(compiledModels.size() * kRequestsPerModel);
+                        requests[threadIdx].reserve(compiledModels.size() * requestsPerModel);
+                        referenceRequests[threadIdx].reserve(compiledModels.size() * requestsPerModel);
                     }
                     inputs[threadIdx].clear();
-                    inputs[threadIdx].reserve(compiledModels.size() * kRequestsPerModel);
+                    inputs[threadIdx].reserve(compiledModels.size() * requestsPerModel);
                     for (size_t modelIdx = 0; modelIdx < compiledModels.size(); ++modelIdx) {
-                        for (size_t reqIdx = 0; reqIdx < kRequestsPerModel; ++reqIdx) {
+                        for (size_t reqIdx = 0; reqIdx < requestsPerModel; ++reqIdx) {
                             if (inferIdx == 0) {
                                 requests[threadIdx].emplace_back(compiledModels[modelIdx].create_infer_request());
                                 referenceRequests[threadIdx].emplace_back(
@@ -672,7 +676,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
                             const int startFrom =
                                 static_cast<int>(100 + threadIdx * 17 + modelIdx * 7 + reqIdx * 3 + inferIdx);
                             inputs[threadIdx].emplace_back(makeInputTensor(model, shape, startFrom));
-                            const size_t requestIdx = modelIdx * kRequestsPerModel + reqIdx;
+                            const size_t requestIdx = modelIdx * requestsPerModel + reqIdx;
                             requests[threadIdx][requestIdx].set_input_tensor(0, inputs[threadIdx].back());
                             referenceRequests[threadIdx][requestIdx].set_input_tensor(0, inputs[threadIdx].back());
                         }
@@ -718,7 +722,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
     auto referenceModel = createModelByName(selectedModelName);
     ov::CompiledModel referenceCompiledModel;
     try {
-        referenceCompiledModel = core->compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+        referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -727,7 +731,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
         const auto cfg = makeConfig(sharedQueue);
         auto model = createModelByName(selectedModelName);
         ov::CompiledModel compiledModel;
-        OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, cfg));
+        OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device, cfg));
 
         std::atomic<size_t> successInferCount{0};
         std::vector<std::shared_ptr<ov::InferRequest>> requests(kThreadCount);
@@ -754,7 +758,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
                         referenceRequests[threadIdx] =
                             std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
                     }
-                    auto zeroContext = core->get_default_context(target_device);
+                    auto zeroContext = core.get_default_context(target_device);
                     const int startFrom = static_cast<int>(100 + threadIdx * 11 + inferIdx);
                     inputs[threadIdx] = makeZeroInputTensor(zeroContext, model, shape, startFrom);
                     outputs[threadIdx] = zeroContext.create_host_tensor(model->output().get_element_type(), shape);
@@ -797,7 +801,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputT
     auto referenceModel = createModelByName(selectedModelName);
     ov::CompiledModel referenceCompiledModel;
     try {
-        referenceCompiledModel = core->compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+        referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -830,13 +834,13 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputT
                     if (!models[threadIdx]) {
                         models[threadIdx] = createModelByName(selectedModelName);
                         compiledModels[threadIdx] = std::make_shared<ov::CompiledModel>(
-                            core->compile_model(models[threadIdx], target_device, cfg));
+                            core.compile_model(models[threadIdx], target_device, cfg));
                         requests[threadIdx] =
                             std::make_shared<ov::InferRequest>(compiledModels[threadIdx]->create_infer_request());
                         referenceRequests[threadIdx] =
                             std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
                     }
-                    auto zeroContext = core->get_default_context(target_device);
+                    auto zeroContext = core.get_default_context(target_device);
                     const int startFrom = static_cast<int>(100 + threadIdx * 11 + inferIdx);
                     inputs[threadIdx] = makeZeroInputTensor(zeroContext, models[threadIdx], shape, startFrom);
                     outputs[threadIdx] =
@@ -877,7 +881,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
     auto referenceModel = createModelByName(selectedModelName);
     ov::CompiledModel referenceCompiledModel;
     try {
-        referenceCompiledModel = core->compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+        referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -888,6 +892,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
 
         std::vector<ov::CompiledModel> compiledModels;
         compiledModels.reserve(kModelCount);
+        // Non-const on purpose - see the modelCount comment in MT_MultiCompiledModelsMultiRequestsMultiInfer.
+        size_t modelCount = kModelCount;
         std::mutex mutex;
         std::condition_variable cv;
         bool producerDone = false;
@@ -943,8 +949,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
              &cv,
              &producerDone,
              &producerException,
-             kModelCount,
-             &producer](const std::shared_future<void>& start) {
+             &producer,
+             modelCount](const std::shared_future<void>& start) {
                 producer = std::async(std::launch::async,
                                       [this,
                                        &cfg,
@@ -955,11 +961,11 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
                                        &producerDone,
                                        &producerException,
                                        start,
-                                       kModelCount]() {
+                                       modelCount]() {
                                           start.wait();
                                           try {
-                                              for (size_t i = 0; i < kModelCount; ++i) {
-                                                  auto compiledModel = core->compile_model(model, target_device, cfg);
+                                              for (size_t i = 0; i < modelCount; ++i) {
+                                                  auto compiledModel = core.compile_model(model, target_device, cfg);
                                                   {
                                                       std::lock_guard<std::mutex> lock(mutex);
                                                       compiledModels.push_back(compiledModel);

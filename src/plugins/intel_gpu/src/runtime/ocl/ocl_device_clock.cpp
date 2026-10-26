@@ -18,10 +18,10 @@ device_clock_sync::device_clock_sync(const cl::Device& device) : m_device(device
 // Cristian's algorithm: attribute the device reading to the midpoint of the host
 // interval bracketing the call, keeping the attempt with the tightest bracket.
 device_clock_sync::anchor device_clock_sync::sample(const cl::Device& device) {
-    constexpr int sample_attempts = 5;
-
     anchor best;
 #if defined(CL_VERSION_2_1)
+    constexpr int sample_attempts = 5;
+
     if (device.get() == nullptr)
         return best;
 
