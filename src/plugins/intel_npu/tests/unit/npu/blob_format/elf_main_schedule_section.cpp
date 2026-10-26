@@ -6,6 +6,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "compiler_schedules_sections.hpp"
+#include "intel_npu/common/blob_sections_registry.hpp"
 #include "intel_npu/common/section_type.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "openvino/runtime/hsm_deferred_writer.hpp"
@@ -60,12 +61,13 @@ TEST_F(ELFMainScheduleSectionTest, CtorSetsTheRightValue) {
     ASSERT_EQ(section->get_schedule().get_byte_size(), 0);
 }
 
+// TODO verify the negative tests are still correct
 TEST_F(ELFMainScheduleSectionTest, CompatibilityReqsSubexpression) {
     std::shared_ptr<ELFMainScheduleSection> section1 = create_section_using_dummy_content();
     OV_EXPECT_THROW(section1->get_compatibility_requirements_subexpression({}), ov::Exception, _);
 
-    BlobWriter writer;
-    writer.register_section(section1);
+    BlobSectionsRegistry registry;
+    registry.register_section(section1);
     std::vector<std::shared_ptr<CREToken>> requirements = section1->get_compatibility_requirements_subexpression({});
     ASSERT_EQ(requirements.size(), 2);
     ASSERT_TRUE(is_section_type(requirements.at(0)));
@@ -75,7 +77,7 @@ TEST_F(ELFMainScheduleSectionTest, CompatibilityReqsSubexpression) {
     ASSERT_EQ(*std::dynamic_pointer_cast<SectionID>(requirements.at(1)).get(), FIRST_REGISTERED_SECTION_ID);
 
     std::shared_ptr<ELFMainScheduleSection> section2 = create_section_using_dummy_content();
-    writer.register_section(section2);
+    registry.register_section(section2);
     requirements = section2->get_compatibility_requirements_subexpression({});
     ASSERT_EQ(requirements.size(), 2);
     ASSERT_TRUE(is_section_type(requirements.at(0)));
@@ -119,30 +121,44 @@ TEST_F(ELFMainScheduleSectionTest, WorkingDecryption) {
 TEST_F(ELFMainScheduleSectionTest, ReadingATooSmallSection) {
     const std::string section_content = "0";
 
-    ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size());
-    OV_EXPECT_THROW(ELFMainScheduleSection::read(reader), ov::Exception, _);
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE);
+    manifest_entry.size = section_content.size();
+
+    auto read_section = ELFMainScheduleSection::decode(ov::runtime::hsm::Section(
+        manifest_entry,
+        ov::util::MemoryView(reinterpret_cast<const std::byte*>(section_content.data()), section_content.size())));
+    ASSERT_FALSE(read_section);
 
     std::istringstream stream(section_content);
-    source = BlobSource(stream);
-    reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size());
-    OV_EXPECT_THROW(ELFMainScheduleSection::read(reader), ov::Exception, _);
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE);
+    manifest_entry.size = section_content.size();
+
+    read_section = ELFMainScheduleSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
+    ASSERT_FALSE(read_section);
 }
 
 TEST_F(ELFMainScheduleSectionTest, ReadPaddingTooBig) {
     std::string section_content("\x06\x00", 2);  // padding
     section_content += "dummy";                  // dummy compiler schedule;
 
-    ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size());
-    OV_EXPECT_THROW(ELFMainScheduleSection::read(reader), ov::Exception, _);
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE);
+    manifest_entry.size = section_content.size();
+
+    auto read_section = ELFMainScheduleSection::decode(ov::runtime::hsm::Section(
+        manifest_entry,
+        ov::util::MemoryView(reinterpret_cast<const std::byte*>(section_content.data()), section_content.size())));
+    ASSERT_FALSE(read_section);
 
     std::istringstream stream(section_content);
-    source = BlobSource(stream);
-    reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size());
-    OV_EXPECT_THROW(ELFMainScheduleSection::read(reader), ov::Exception, _);
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE);
+    manifest_entry.size = section_content.size();
+
+    read_section = ELFMainScheduleSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
+    ASSERT_FALSE(read_section);
 }
 
 TEST_F(ELFMainScheduleSectionTest, WrongTagToDecoder) {
@@ -171,7 +187,7 @@ TEST_F(ELFMainScheduleSectionTest, InlineTagToDecoder) {
 
 class ELFMainScheduleSectionReadTest : public testing::TestWithParam<std::tuple<size_t, bool, bool>> {
 public:
-    ELFMainScheduleSectionReadTest() : source(stream), reader(source, 0, 0, 0, 0) {}
+    ELFMainScheduleSectionReadTest() : section({}) {}
 
     static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<size_t, bool, bool>>& obj) {
         size_t padding_size;
@@ -196,36 +212,32 @@ protected:
             section_content += "dummy";
         }
 
+        ov::runtime::hsm::ManifestEntry manifest_entry =
+            ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE);
+        manifest_entry.size = section_content.size();
+
         if (is_tensor_source) {
-            tensor = ov::Tensor(ov::element::Type_t::u8, {section_content.size()}, section_content.data());
-            source = BlobSource(tensor);
+            section = ov::runtime::hsm::Section(
+                manifest_entry,
+                ov::util::MemoryView(reinterpret_cast<std::byte*>(section_content.data()), section_content.size()));
         } else {
             stream = std::istringstream(section_content);
-            source = BlobSource(stream);
+            section = ov::runtime::hsm::Section(manifest_entry, stream, 0);
         }
-
-        const auto options = std::make_shared<OptionsDesc>();
-        Config empty_config(options);
-        reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size(), empty_config);
     }
 
     bool is_tensor_source;
     std::string section_content;
     size_t after_padding_offset;
-    ov::Tensor tensor;
     std::istringstream stream;
-    BlobSource source;
-    BlobReaderInterface reader;
+    ov::runtime::hsm::Section section;
 };
 
 TEST_P(ELFMainScheduleSectionReadTest, SuccessfulRead) {
-    auto read_section = ELFMainScheduleSection::read(reader);
-    auto casted_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(read_section);
+    auto read_section = ELFMainScheduleSection::decode(section);
+    ASSERT_TRUE(read_section);
+    auto casted_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(read_section.value());
     ASSERT_TRUE(casted_section);
-
-    // Check that the cursor was left at the end of the section. This may be an indicator that the whole section has
-    // been read.
-    ASSERT_EQ(reader.get_offset_relative_to_current_section(), section_content.size());
 
     const std::string parsed_content(casted_section->get_schedule().data<char>(),
                                      casted_section->get_schedule().get_byte_size());
