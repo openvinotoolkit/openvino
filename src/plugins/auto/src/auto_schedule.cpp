@@ -76,6 +76,7 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
             m_compile_context[FALLBACKDEVICE].m_is_load_success = false;
             m_compile_context[FALLBACKDEVICE].m_worker_name = "";
             m_compile_context[FALLBACKDEVICE].m_is_reload_success = false;
+            m_compile_context[FALLBACKDEVICE].m_priority_released = false;
             m_compile_context[FALLBACKDEVICE].m_device_info =
                 m_plugin->select_device(m_context->m_device_priorities,
                                         m_compile_context[FALLBACKDEVICE].m_model_precision,

@@ -1315,16 +1315,16 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
     }
     is_stateful_model = !stateful_node_names.empty();
 
-    if (meta_devices.size() == 1) {
-        return meta_devices;
-    }
-
     if (!is_stateful_model) {
         return meta_devices;
     }
 
-    // disable CPU_HELP and runtime fallback if model is stateful
+    // disable CPU_HELP and runtime fallback if model is stateful, including the single candidate case
     disable_startup_runtime_fallback();
+
+    if (meta_devices.size() == 1) {
+        return meta_devices;
+    }
 
     bool isCumulative = (get_device_name() == "MULTI") || (load_config.get_property(ov::hint::performance_mode) ==
                                                            ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);

@@ -270,11 +270,35 @@ TEST_F(AutoDynamicDeviceSelectionTest, stateful_model_with_a_single_candidate_di
     config.erase(ov::device::priorities.name());
     config.insert(ov::device::priorities("GPU.0"));
     model = create_stateful_model();
+    // the GPU mock was built around the default model; rebind its ports and sync request to the stateful one
+    ON_CALL(*mockIExeNetActual.get(), inputs()).WillByDefault(ReturnRefOfCopy(model->inputs()));
+    ON_CALL(*mockIExeNetActual.get(), outputs()).WillByDefault(ReturnRefOfCopy(model->outputs()));
+    inferReqInternalActual = std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(mockIExeNetActual);
     config.insert(ov::intel_auto::low_power_device("CPU"));
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
     // select_device() is already called once by init() to pick the sole candidate; if dynamic selection were
     // (incorrectly) left enabled it would be called again for every inference below.
+    EXPECT_CALL(*plugin, select_device).Times(0);
+    run_inferences(compiled_model, 3);
+}
+
+// A stateful model with a single candidate must keep startup/runtime fallback disabled, even though the
+// single candidate returns early from filter_device_by_model(). Explicitly enabled fallbacks must not survive.
+TEST_F(AutoDynamicDeviceSelectionTest, stateful_single_candidate_disables_startup_and_runtime_fallback) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0"));
+    model = create_stateful_model();
+    config.insert(ov::intel_auto::low_power_device(ov::test::utils::DEVICE_CPU));
+    config.insert(ov::intel_auto::enable_startup_fallback(true));
+    config.insert(ov::intel_auto::enable_runtime_fallback(true));
+    // the mocked GPU model is rebound to the stateful one, so the passthrough schedule can serve requests
+    ON_CALL(*mockIExeNetActual.get(), inputs()).WillByDefault(ReturnRefOfCopy(model->inputs()));
+    ON_CALL(*mockIExeNetActual.get(), outputs()).WillByDefault(ReturnRefOfCopy(model->outputs()));
+    inferReqInternalActual = std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(mockIExeNetActual);
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    // stateful: no per inference selection
     EXPECT_CALL(*plugin, select_device).Times(0);
     run_inferences(compiled_model, 3);
 }
