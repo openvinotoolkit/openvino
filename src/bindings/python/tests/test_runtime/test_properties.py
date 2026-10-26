@@ -41,6 +41,19 @@ def test_properties_rw_base():
     assert "incompatible function arguments" in str(e.value)
 
 
+@pytest.mark.parametrize("property_key", [intel_gpu.kernel_selection, "KERNEL_SELECTION"])
+def test_gpu_kernel_selection_dictionary_reset(property_key):
+    core = Core()
+    if not any(device_name.startswith("GPU") for device_name in core.available_devices):
+        pytest.skip("GPU device is required")
+
+    selections = [intel_gpu.KernelSelection.PA_KERNEL_AUTO]
+    core.set_property("GPU", {property_key: selections})
+    assert core.get_property("GPU", intel_gpu.kernel_selection) == selections
+    core.set_property("GPU", {property_key: []})
+    assert core.get_property("GPU", intel_gpu.kernel_selection) == []
+
+
 ###
 # Enum-like values
 ###

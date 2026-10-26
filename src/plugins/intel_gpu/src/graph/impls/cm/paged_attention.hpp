@@ -42,11 +42,33 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
             return false;
         }
 
+        if (desc->k_head_size != desc->v_head_size) {
+            OPENVINO_ASSERT(!explicit_cm, "[GPU] CM PagedAttention requires equal K/V head sizes.");
+            return false;
+        }
+
+        if (!desc->has_xattention &&
+            (desc->sliding_window != 0 || desc->has_alibi || desc->has_sink_input || desc->has_rotated_blocks ||
+             desc->has_token_type_ids || desc->has_scores_output() || desc->has_score_aggregation || desc->has_adaptive_rkv)) {
+            OPENVINO_ASSERT(!explicit_cm,
+                            "[GPU] CM PagedAttention does not support sliding-window attention, ALiBi, attention sinks, "
+                            "cache rotation, token-type inputs, scores output, score aggregation, or adaptive RKV. "
+                            "Set ov::intel_gpu::kernel_selection to an empty list to use OCL PagedAttention.");
+            return false;
+        }
+
+        if (!desc->scale_val.has_value()) {
+            OPENVINO_ASSERT(!explicit_cm,
+                            "[GPU] CM PagedAttention requires a constant attention scale. "
+                            "Set ov::intel_gpu::kernel_selection to an empty list to use a runtime scale with OCL PagedAttention.");
+            return false;
+        }
+
         // PA CM kernel requires kv_head_size divisible by 16
-        if (desc->k_head_size % 16 != 0 && desc->v_head_size % 16 != 0) {
+        if (desc->k_head_size % 16 != 0 || desc->v_head_size % 16 != 0) {
             OPENVINO_ASSERT(!explicit_cm,
                             "[GPU] ov::intel_gpu::kernel_selection=PA_KERNEL_AUTO selected CM, but the CM paged attention kernel "
-                            "requires k_head_size or v_head_size to be divisible by 16. Observed k_head_size=",
+                            "requires both k_head_size and v_head_size to be divisible by 16. Observed k_head_size=",
                             desc->k_head_size,
                             ", v_head_size=",
                             desc->v_head_size,

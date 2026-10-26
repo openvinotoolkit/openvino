@@ -573,11 +573,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
             // Also mask columns beyond kv_pos_end for the last tile.
             {
-                uint partition_kv_pos_end = KV_PARTITION_SIZE;
-                if (leftover_size > 0) {
-                    partition_kv_pos_end = leftover_size;
-                    if (partition_kv_pos_end == 0) partition_kv_pos_end = KV_BLOCK_SIZE;
-                }
+                const uint partition_kv_pos_end = leftover_size > 0 ? leftover_size : KV_PARTITION_SIZE;
                 // Mask tile columns beyond the valid range
                 #pragma unroll
                 for (int b = 0; b < ONLINE_TILE_STEPS; ++b) {

@@ -348,6 +348,9 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             };
             ov::EncryptionCallbacks encryption_callbacks{encrypt_func, decrypt_func};
             properties_to_cpp[property.first] = encryption_callbacks;
+        } else if (property.first == ov::intel_gpu::kernel_selection.name() &&
+                   py::isinstance<py::list>(property.second) && property.second.cast<py::list>().empty()) {
+            properties_to_cpp[property.first] = std::vector<ov::intel_gpu::KernelSelection>{};
         } else if (property.first == ov::hint::model.name()) {
             auto model = Common::utils::convert_to_model(property.second);
             properties_to_cpp[property.first] = std::static_pointer_cast<const ov::Model>(model);

@@ -945,10 +945,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                        ? std::vector<size_t>{0, 1, 2, 3}
                                                        : std::vector<size_t>{0, 1, 3, 2};
             }
-            std::cout << "[GPU] KVCache precision: " << kv_cache_precision << ", dim order: [" << kv_cache_config.keyCacheDimOrder[0] << ", "
-                      << kv_cache_config.keyCacheDimOrder[1] << ", "
-                      << kv_cache_config.keyCacheDimOrder[2] << ", "
-                      << kv_cache_config.keyCacheDimOrder[3] << "]" << std::endl;
             kv_cache_config.keyCacheQuantBychannel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
             kv_cache_config.keyCacheGroupSize = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
             if (use_xattention) {

@@ -118,6 +118,7 @@ struct PagedAttentionManager {
     // xattention related inputs
     bool has_xattention;
     bool use_cm_kernel = false;
+    std::optional<float> attention_scale;
     std::vector<ov::float16> xattention_threshold;
     std::vector<int> xattention_block_size;
     std::vector<int> xattention_stride;
@@ -846,7 +847,7 @@ struct PagedAttentionManager {
     }
 
     float get_default_scale() {
-        return static_cast<float>(1.f / std::sqrt(k_head_size));
+        return attention_scale.value_or(static_cast<float>(1.f / std::sqrt(k_head_size)));
     }
 
 private:
@@ -2099,7 +2100,7 @@ public:
         pa_prim.v_head_size = p.v_head_size;
         pa_prim.kv_heads_num = p.num_kv_heads;
         pa_prim.heads_num = p.num_heads;
-        pa_prim.scale_val = pam.get_default_scale();
+        pa_prim.scale_val = p.runtime_scale ? std::nullopt : std::optional<float>{pam.get_default_scale()};
         pa_prim.has_alibi = false;
         pa_prim.has_token_type_ids = p.token_type_ids.has_value() || p.has_sink_input;
         pa_prim.has_sink_input = p.has_sink_input;
@@ -2231,6 +2232,7 @@ public:
     void execute(T& p, bool run_reference = true) {
         ASSERT_TRUE(this->pam.has_value());
         auto& pam = *this->pam;
+        pam.attention_scale = p.attention_scale;
 
         auto result = run_gpu_inference(pam, p);
 
@@ -3009,6 +3011,8 @@ struct paged_attention_test_params {
 
     // Uses PA_KERNEL_AUTO with legacy block_size=16 on CM-capable devices, requiring the CM token-major key-cache layout.
     bool use_cm_kernel = false;
+    std::optional<float> attention_scale;
+    bool runtime_scale = false;
 };
 
 const auto ENABLE_CACHE_COMPRESSION = true;

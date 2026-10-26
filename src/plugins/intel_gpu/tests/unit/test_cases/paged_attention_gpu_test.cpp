@@ -228,6 +228,53 @@ static paged_attention_test_params make_cm_legacy_pa_params(paged_attention_test
     return params;
 }
 
+TEST_P(cm_legacy_pa_test, non_default_scale) {
+    auto params = GetParam();
+    if (!check_cm_available())
+        GTEST_SKIP() << "CM JIT support is required";
+
+    params.attention_scale = 1.0f;
+    execute(params);
+}
+
+class cm_legacy_pa_invalid_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(cm_legacy_pa_invalid_test, rejects_unsupported_configuration) {
+    auto params = GetParam();
+    if (!check_cm_available())
+        GTEST_SKIP() << "CM JIT support is required";
+
+    EXPECT_THROW(execute(params, false), ov::Exception);
+}
+
+INSTANTIATE_TEST_SUITE_P(regression_cm_legacy_pa_invalid, cm_legacy_pa_invalid_test, ::testing::ValuesIn([] {
+    auto base = make_cm_legacy_pa_params(paged_attention_test_params{
+        {{8, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN,
+        STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2});
+    std::vector<paged_attention_test_params> cases;
+    auto params = base;
+    params.v_head_size = 32;
+    cases.push_back(params);
+    params = base;
+    params.sliding_window_size = 16;
+    cases.push_back(params);
+    params = base;
+    params.has_sink_input = true;
+    cases.push_back(params);
+    params = base;
+    params.token_type_ids = std::vector<int>(42, 0);
+    cases.push_back(params);
+    params = base;
+    params.rotation_config = PER_BLOCK_ROTATION;
+    cases.push_back(params);
+    params = base;
+    params.scores_mode = ENABLE_SCORES;
+    cases.push_back(params);
+    params = base;
+    params.runtime_scale = true;
+    cases.push_back(params);
+    return cases;
+}()));
+
 // qq_bias on the CM kernels. smoke_qq_bias covers the same masks on the OCL path; these cases add
 // has_xattention so the CM kernels carry the mask instead - pa_small_q.cm for the small-q
 // subsequences and cm_pa_xe*.hpp for the rest.
