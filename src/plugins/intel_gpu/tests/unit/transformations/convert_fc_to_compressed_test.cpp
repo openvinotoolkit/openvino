@@ -15,6 +15,8 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/placeholder.hpp"
@@ -889,6 +891,82 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed24_mxfp4e2m1) {
         auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input1, weights_const, no_bias, scale_const);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertFCToCompressed26_SlicedU2ZeroPoint) {
+    // Packed u2 ZP padded along the group axis (4 groups stored, 2 used) and trimmed by a Slice after
+    // the Convert, as produced by the ONNX MatMulNBits importer for unaligned n_blocks_per_col.
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 32});
+    auto start = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
+    auto stop = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {2});
+    auto step = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+    auto axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+    {
+        auto weights = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{32, 2, 16}, {1});
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+        auto zero_point = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{32, 4, 1}, {2});
+        auto zero_point_convert = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f16);
+        auto zero_point_slice = std::make_shared<ov::op::v8::Slice>(zero_point_convert, start, stop, step, axis);
+        auto subtract = std::make_shared<ov::op::v1::Subtract>(weights_convert, zero_point_slice);
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{32, 2, 1}, {1});
+        auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
+        auto reshape_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {-1, 32});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(multiply, reshape_shape, false);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, reshape, no_bias);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+    {
+        auto weights = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{32, 32}, {1});
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{32, 2}, {1});
+        // Slice(Convert(ZP, u8)) is folded, then reshaped like a regular ZP Constant.
+        auto zero_point = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 2}, {2});
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc_compressed =
+            std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weights, no_bias, scale, zero_point);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertFCToCompressed27_StridedSlicedU2ZeroPoint) {
+    // Same as ConvertFCToCompressed26, but the ZP Slice has already been turned into a StridedSlice by
+    // SliceToStridedSlice (CommonOptimizations), which is the form that reaches this pass in the GPU pipeline.
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 32});
+    auto begin = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 0});
+    auto end = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 2});
+    auto strides = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1});
+    const std::vector<int64_t> mask{1, 0};
+    {
+        auto weights = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{32, 2, 16}, {1});
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+        auto zero_point = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{32, 4, 1}, {2});
+        auto zero_point_convert = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f16);
+        auto zero_point_slice =
+            std::make_shared<ov::op::v1::StridedSlice>(zero_point_convert, begin, end, strides, mask, mask);
+        auto subtract = std::make_shared<ov::op::v1::Subtract>(weights_convert, zero_point_slice);
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{32, 2, 1}, {1});
+        auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
+        auto reshape_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {-1, 32});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(multiply, reshape_shape, false);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, reshape, no_bias);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+    {
+        auto weights = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{32, 32}, {1});
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{32, 2}, {1});
+        auto zero_point = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 2}, {2});
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc_compressed =
+            std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weights, no_bias, scale, zero_point);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input});
     }
 }
 

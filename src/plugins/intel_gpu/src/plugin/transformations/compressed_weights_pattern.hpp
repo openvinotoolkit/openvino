@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "openvino/op/slice.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 
 using namespace ov::pass::pattern;
@@ -30,9 +32,12 @@ using ov::pass::operator|;
 \
         auto sub_const_m = wrap_type<ov::op::v0::Constant>();\
         auto sub_convert_const_m = wrap_type<ov::op::v0::Convert>({sub_const_m});\
-        auto sub_with_convert_m = wrap_type<ov::op::v1::Subtract>({decompressed_weights_m, sub_convert_const_m});\
-        auto sub_no_convert_m = wrap_type<ov::op::v1::Subtract>({decompressed_weights_m, sub_const_m});\
-        auto subtract_m = sub_with_convert_m | sub_no_convert_m;\
+        /* Packed sub-byte ZP with padding trimmed after decompression: (Strided)Slice(Convert(Constant)). */\
+        /* Slice is converted to StridedSlice by SliceToStridedSlice in CommonOptimizations. */\
+        auto sub_slice_m = wrap_type<ov::op::v8::Slice>({sub_convert_const_m, wrap_const(), wrap_const(), wrap_const(), wrap_const()});\
+        auto sub_strided_slice_m = wrap_type<ov::op::v1::StridedSlice>({sub_convert_const_m, wrap_const(), wrap_const(), wrap_const()});\
+        auto sub_value_m = sub_const_m | sub_convert_const_m | sub_slice_m | sub_strided_slice_m;\
+        auto subtract_m = wrap_type<ov::op::v1::Subtract>({decompressed_weights_m, sub_value_m});\
 \
         auto mul_const_m = wrap_type<ov::op::v0::Constant>();\
         auto mul_with_sub_m = wrap_type<ov::op::v1::Multiply>({subtract_m, mul_const_m});\

@@ -12,6 +12,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
@@ -20,6 +21,8 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -124,7 +127,29 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
         const bool with_zero_point = pattern_map.count(subtract_m) > 0;
         if (with_zero_point) {
-            optional_zero_point = convert_zp_const(reshape_const(pattern_map.at(sub_const_m).get_node_shared_ptr()));
+            std::shared_ptr<ov::Node> zp_const = pattern_map.at(sub_const_m).get_node_shared_ptr();
+            std::shared_ptr<ov::Node> zp_slice = nullptr;
+            if (pattern_map.count(sub_slice_m)) {
+                zp_slice = pattern_map.at(sub_slice_m).get_node_shared_ptr();
+            } else if (pattern_map.count(sub_strided_slice_m)) {
+                zp_slice = pattern_map.at(sub_strided_slice_m).get_node_shared_ptr();
+            }
+            if (zp_slice) {
+                // Packed u2/u4 ZP whose element count doesn't fill whole bytes (e.g. 214 x u2 stored as 216) is
+                // trimmed by a Slice after decompression. Slice can't evaluate sub-byte types, so fold
+                // Slice(Convert(ZP, u8)) into a u8 Constant and continue as with a regular u8 ZP.
+                const auto zp_type = zp_const->get_element_type();
+                if (zp_type != ov::element::u2 && zp_type != ov::element::u4) {
+                    return false;
+                }
+                auto slice_inputs = zp_slice->input_values();
+                slice_inputs[0] = std::make_shared<ov::op::v0::Convert>(zp_const, ov::element::u8);
+                zp_const = ov::util::get_constant_from_source(zp_slice->clone_with_new_inputs(slice_inputs));
+                if (!zp_const) {
+                    return false;
+                }
+            }
+            optional_zero_point = convert_zp_const(reshape_const(zp_const));
         }
 
         std::shared_ptr<ov::Node> fc_input_b = weight_ptr;

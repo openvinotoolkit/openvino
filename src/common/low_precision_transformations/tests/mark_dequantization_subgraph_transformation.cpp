@@ -21,6 +21,8 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/gather.hpp"
 
@@ -775,6 +777,87 @@ TEST_F(TransformationTestsF, MarkDequantizationTransformationFoldSubConst) {
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{multiply});
     }
 
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
+TEST_F(TransformationTestsF, MarkDequantizationSlicedZeroPoint) {
+    // Packed sub-byte zero point padded along the block axis and trimmed by a Slice after the Convert
+    // (e.g. MatMulNBits with bits=2 and n_blocks_per_col not a multiple of 4):
+    //
+    //   Constant(u2)   Constant(u2)
+    //       |              |
+    //    Convert        Convert
+    //       |              |
+    //       |            Slice
+    //        \            /
+    //          Subtract
+    //             |
+    //          Multiply
+    //
+    // The zero-point Convert must be marked with DisableConstantFolding so the u2 Constant is preserved,
+    // instead of Convert and Slice being folded into a high-precision Constant.
+    auto build_model = [](bool ref) {
+        auto weights = opset10::Constant::create(element::u2, Shape{4, 3, 16}, {1});
+        auto convert = std::make_shared<opset10::Convert>(weights, element::f32);
+        auto zero_point = opset10::Constant::create(element::u2, Shape{4, 4, 1}, {2});
+        auto zp_convert = std::make_shared<opset10::Convert>(zero_point, element::f32);
+        auto start = opset10::Constant::create(element::i32, Shape{1}, {0});
+        auto stop = opset10::Constant::create(element::i32, Shape{1}, {3});
+        auto step = opset10::Constant::create(element::i32, Shape{1}, {1});
+        auto axis = opset10::Constant::create(element::i32, Shape{1}, {1});
+        auto zp_slice = std::make_shared<op::v8::Slice>(zp_convert, start, stop, step, axis);
+        auto subtract = std::make_shared<opset10::Subtract>(convert, zp_slice);
+        auto scale = opset10::Constant::create(element::f32, Shape{4, 3, 1}, {0.2});
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        if (ref) {
+            enable_keep_const_precision(weights);
+            enable_keep_const_precision(zero_point);
+            pass::disable_constant_folding(convert);
+            pass::disable_constant_folding(zp_convert);
+            mark_as_dequantization_node(subtract);
+            mark_as_dequantization_node(multiply);
+        }
+        return std::make_shared<ov::Model>(ov::OutputVector{multiply});
+    };
+
+    model = build_model(false);
+    manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u2});
+    manager.register_pass<pass::ConstantFolding>();
+    manager.register_pass<pass::KeepConstPrecision>(element::TypeVector{element::u2});
+
+    model_ref = build_model(true);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
+TEST_F(TransformationTestsF, KeepConstPrecisionStridedSlicedZeroPoint) {
+    // Same subgraph as MarkDequantizationSlicedZeroPoint after SliceToStridedSlice: KeepConstPrecision, which
+    // runs again after CommonOptimizations, must still reach the u2 zero-point Constant through the StridedSlice.
+    auto build_model = [](bool ref) {
+        auto weights = opset10::Constant::create(element::u2, Shape{4, 3, 16}, {1});
+        auto convert = std::make_shared<opset10::Convert>(weights, element::f32);
+        auto zero_point = opset10::Constant::create(element::u2, Shape{4, 4, 1}, {2});
+        auto zp_convert = std::make_shared<opset10::Convert>(zero_point, element::f32);
+        auto begin = opset10::Constant::create(element::i64, Shape{2}, {0, 0});
+        auto end = opset10::Constant::create(element::i64, Shape{2}, {0, 3});
+        auto strides = opset10::Constant::create(element::i64, Shape{2}, {1, 1});
+        const std::vector<int64_t> mask{1, 0};
+        auto zp_slice = std::make_shared<opset10::StridedSlice>(zp_convert, begin, end, strides, mask, mask);
+        auto subtract = std::make_shared<opset10::Subtract>(convert, zp_slice);
+        auto scale = opset10::Constant::create(element::f32, Shape{4, 3, 1}, {0.2});
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        if (ref) {
+            enable_keep_const_precision(weights);
+            enable_keep_const_precision(zero_point);
+        }
+        return std::make_shared<ov::Model>(ov::OutputVector{multiply});
+    };
+
+    model = build_model(false);
+    manager.register_pass<pass::KeepConstPrecision>(element::TypeVector{element::u2});
+
+    model_ref = build_model(true);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }
