@@ -629,7 +629,8 @@ TEST(GGUFArchitectureExtension, TypedUnknownLayerNormFactoryControlsScalesAndLay
     EXPECT_FLOAT_EQ(op("embd_scaled").attributes.at("scale").as<float>(), 2.5f);
     EXPECT_FLOAT_EQ(op("blk.0.attn_out_scaled").attributes.at("scale").as<float>(), 0.375f);
     EXPECT_FLOAT_EQ(op("result_output_scaled").attributes.at("scale").as<float>(), 0.75f);
-    const auto converted = convert_with(path, {std::make_shared<ArchitectureExtension>(definition)});
+    const auto extension = std::make_shared<ArchitectureExtension>(definition);
+    const auto converted = convert_with(path, {extension});
     ASSERT_TRUE(converted);
     EXPECT_EQ(converted->output(0).get_partial_shape().rank().get_length(), 4);
 }

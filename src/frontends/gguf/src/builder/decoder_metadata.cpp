@@ -163,7 +163,10 @@ DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParamete
     }
     const auto pattern = key("attention.sliding_window_pattern");
     if (m.has(pattern)) {
-        if (m.get_int(pattern)) {
+        const auto& stored_pattern = detail::MetadataAccess::get(m).map.at(pattern);
+        const auto* tensor = std::get_if<ov::Tensor>(&stored_pattern);
+        const bool boolean_pattern = tensor && tensor->get_element_type() == ov::element::boolean;
+        if (!boolean_pattern && m.get_int(pattern)) {
             a.sliding_period = integer(m, pattern, a.sliding_period);
             a.sliding_layers.clear();
         } else {
@@ -449,7 +452,9 @@ ArchitectureDefinition::BuilderFactory decoder_builder_factory(RopeMode rope, De
     return [rope, options = std::move(options)](const BuildContext& ctx) {
         OPENVINO_ASSERT(ctx.weights, "[GGUF] decoder builder requires a weight table");
         const auto overrides = options ? options(ctx.metadata) : DecoderOptions{};
-        return std::make_shared<DecoderBuilder>(ctx, resolve_decoder_parameters(ctx.metadata, rope, overrides));
+        const auto parameters = resolve_decoder_parameters(ctx.metadata, rope, overrides);
+        const auto builder = std::make_shared<DecoderBuilder>(ctx, parameters);
+        return builder;
     };
 }
 
@@ -457,7 +462,9 @@ ArchitectureDefinition::BuilderFactory decoder_builder_factory(DecoderParameters
     OPENVINO_ASSERT(parameters, "[GGUF] decoder architecture requires a parameter factory");
     return [parameters = std::move(parameters)](const BuildContext& ctx) {
         OPENVINO_ASSERT(ctx.weights, "[GGUF] decoder builder requires a weight table");
-        return std::make_shared<DecoderBuilder>(ctx, parameters(ctx));
+        const auto decoder_parameters = parameters(ctx);
+        const auto builder = std::make_shared<DecoderBuilder>(ctx, decoder_parameters);
+        return builder;
     };
 }
 

@@ -166,6 +166,9 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const std::unordered_ma
     }
     OPENVINO_ASSERT(rope_config.is_imrope == (rope_op_case == ROPE_OP_CASE_IMROPE),
                     "[GGUF] RoPE configuration must match the selected position layout");
+    has_sinks = p.attention.sinks.value_or(has("blk.0.attn_sinks.weight"));
+    has_swa = has_swa || has_sinks;
+    periodic_swa = has_swa;
     std::string attention_probe = "blk.0.";
     int attention_layer = 0;
     for (int layer = 0; layer < n_layer; ++layer) {
@@ -191,9 +194,6 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const std::unordered_ma
     has_moe_expert_bias = has(expert_prefix + "ffn_gate_exps.bias");
     moe_softmax_weight = p.experts.softmax_after_topk.value_or(has_moe_gate_bias);
     moe_swiglu_oai = p.experts.swiglu_oai.value_or(has_moe_gate_bias);
-    has_sinks = p.attention.sinks.value_or(has("blk.0.attn_sinks.weight"));
-    has_swa = has_swa || has_sinks;
-    periodic_swa = has_swa;
     interleaved_q_gate = p.attention.interleaved_q_gate;
     qkv_bias_override = p.attention.qkv_bias;
     output_bias_override = p.attention.output_bias;

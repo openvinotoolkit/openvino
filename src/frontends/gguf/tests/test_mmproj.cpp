@@ -181,7 +181,8 @@ TEST_F(GGUFMMProj, CustomProjectorOverridesSerializableGenAILayout) {
         {},
         ProjectorLayout::PaddedPatches};
     FrontEnd frontend;
-    frontend.add_extension(std::make_shared<ProjectorExtension>(definition));
+    auto extension = std::make_shared<ProjectorExtension>(definition);
+    frontend.add_extension(extension);
     auto model = frontend.convert(frontend.load(path));
     EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.genai_layout"}), "image");
     ov::serialize(model, path + ".xml", path + ".bin");
@@ -202,7 +203,8 @@ TEST_F(GGUFMMProj, CustomProjectorOverridesSerializableGenAILayout) {
         return ProjectorResult{graph.add_input("vision.replacement", ov::element::f32, {1, 1, 2, 3}), {}};
     };
     definition.genai_layout = ProjectorLayout::Image;
-    frontend.add_extension(std::make_shared<ProjectorExtension>(definition, RegistrationMode::Replace));
+    auto replacement_extension = std::make_shared<ProjectorExtension>(definition, RegistrationMode::Replace);
+    frontend.add_extension(replacement_extension);
     auto replacement = frontend.convert(frontend.load(path));
     EXPECT_EQ(replacement->get_rt_info<std::string>({"gguf_mmproj", "vision.genai_layout"}), "image");
     ASSERT_TRUE(adapter.run_on_model(replacement));
@@ -218,9 +220,8 @@ TEST_F(GGUFMMProj, ArbitraryProjectorCallbacksOverrideRecipesAndDefinitions) {
     const auto scale = [](float factor) -> ModelAdapterFn {
         return [factor](const std::shared_ptr<ov::Model>& model) {
             auto result = model->get_results().front();
-            auto output =
-                std::make_shared<ov::op::v1::Multiply>(result->input_value(0),
-                                                       ov::op::v0::Constant::create(ov::element::f32, {}, {factor}));
+            auto multiplier = ov::op::v0::Constant::create(ov::element::f32, {}, {factor});
+            auto output = std::make_shared<ov::op::v1::Multiply>(result->input_value(0), multiplier);
             output->output(0).set_names({"custom_features"});
             result->input(0).replace_source_output(output);
             return ModelAdapterResult{model, {{"custom_vision", model}}};
@@ -249,7 +250,8 @@ TEST_F(GGUFMMProj, ArbitraryProjectorCallbacksOverrideRecipesAndDefinitions) {
             ProjectorLayout::PaddedPatches,
             scale(3.f)};
         FrontEnd frontend;
-        frontend.add_extension(std::make_shared<ProjectorExtension>(definition));
+        auto extension = std::make_shared<ProjectorExtension>(definition);
+        frontend.add_extension(extension);
         auto model = frontend.convert(frontend.load(path));
         ov::serialize(model, path + ".xml", path + ".bin");
         auto restored = ov::Core{}.read_model(path + ".xml");
@@ -292,15 +294,16 @@ TEST_F(GGUFMMProj, ProjectorCallbackCanReplaceThePrimaryGraph) {
             auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 3});
             input->set_friendly_name("callback_values");
             input->output(0).set_names({"callback_values"});
-            auto output =
-                std::make_shared<ov::op::v1::Add>(input, ov::op::v0::Constant::create(ov::element::f32, {}, {7.f}));
+            auto bias = ov::op::v0::Constant::create(ov::element::f32, {}, {7.f});
+            auto output = std::make_shared<ov::op::v1::Add>(input, bias);
             output->output(0).set_names({"callback_features"});
             auto replacement = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
             replacement->set_rt_info(std::string("replacement"), {"custom_adapter"});
             return ModelAdapterResult{replacement, {{"custom_replacement", replacement}}};
         }};
     FrontEnd frontend;
-    frontend.add_extension(std::make_shared<ProjectorExtension>(definition));
+    auto extension = std::make_shared<ProjectorExtension>(definition);
+    frontend.add_extension(extension);
     auto model = frontend.convert(frontend.load(path));
     using Adapter = pass::AdaptMmprojToGenAI;
     Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
@@ -352,9 +355,10 @@ TEST_F(GGUFMMProj, EmbeddingsCallbacksOverrideBothModalitiesWithOptionalModelMap
                     EXPECT_EQ(model->output().get_any_name(),
                               modality == "vision" ? "image_features" : "audio_features");
                     EXPECT_EQ(model->output().get_shape(), (ov::Shape{1, 2, 3}));
-                    auto output = std::make_shared<ov::op::v1::Multiply>(
-                        model->get_results().front()->input_value(0),
-                        ov::op::v0::Constant::create(ov::element::f32, {}, {modality == "vision" ? 3.f : 5.f}));
+                    auto multiplier =
+                        ov::op::v0::Constant::create(ov::element::f32, {}, {modality == "vision" ? 3.f : 5.f});
+                    auto output = std::make_shared<ov::op::v1::Multiply>(model->get_results().front()->input_value(0),
+                                                                         multiplier);
                     output->output(0).set_names({"custom_features"});
                     auto replacement = std::make_shared<ov::Model>(ov::OutputVector{output}, model->get_parameters());
                     replacement->set_rt_info(modality, {"custom_adapter"});
@@ -362,7 +366,8 @@ TEST_F(GGUFMMProj, EmbeddingsCallbacksOverrideBothModalitiesWithOptionalModelMap
                         replacement,
                         named_models ? ModelMap{{"custom_" + modality, replacement}} : ModelMap{}};
                 }};
-            frontend.add_extension(std::make_shared<ProjectorExtension>(definition));
+            auto extension = std::make_shared<ProjectorExtension>(definition);
+            frontend.add_extension(extension);
         }
         auto original = frontend.convert(frontend.load(path));
         for (const std::string modality : {"vision", "audio"}) {
@@ -646,6 +651,90 @@ void expect_layout_rejection_preserves_model(const std::shared_ptr<ov::Model>& m
     EXPECT_EQ(model->output(0).get_any_name(), "image_features");
 }
 
+TEST_F(GGUFMMProj, VisionEncoderLayoutRestoresLegacySerializedRecipes) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    for (const std::string projector : {"gemma3", "gemma4v", "gemma4uv", "muse-glimmer", "qwen3vl_merger", "lfm2"}) {
+        SCOPED_TRACE(projector);
+        auto source = vision_fixture(projector);
+        auto current = source->clone();
+        Adapter current_adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+        ASSERT_TRUE(current_adapter.run_on_model(current));
+        source->get_rt_info()["gguf_mmproj"].as<ov::AnyMap>().erase("vision.genai_layout");
+        ov::serialize(source, path + ".xml", path + ".bin");
+        auto restored = ov::Core{}.read_model(path + ".xml");
+        ASSERT_FALSE(restored->has_rt_info({"gguf_mmproj", "vision.genai_layout"}));
+        ASSERT_EQ(restored->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"}), projector);
+        Adapter legacy_adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+        ASSERT_TRUE(legacy_adapter.run_on_model(restored));
+        const auto& current_models = current_adapter.get_vision_models();
+        const auto& legacy_models = legacy_adapter.get_vision_models();
+        ASSERT_EQ(legacy_models.size(), current_models.size());
+        for (const auto& [name, expected] : current_models) {
+            ASSERT_TRUE(legacy_models.count(name));
+            const auto& actual = legacy_models.at(name);
+            ASSERT_EQ(actual->inputs().size(), expected->inputs().size());
+            ASSERT_EQ(actual->outputs().size(), expected->outputs().size());
+            for (size_t i = 0; i < actual->inputs().size(); ++i) {
+                EXPECT_EQ(actual->input(i).get_names(), expected->input(i).get_names());
+                EXPECT_EQ(actual->input(i).get_partial_shape(), expected->input(i).get_partial_shape());
+                EXPECT_EQ(actual->input(i).get_element_type(), expected->input(i).get_element_type());
+            }
+            for (size_t i = 0; i < actual->outputs().size(); ++i) {
+                EXPECT_EQ(actual->output(i).get_names(), expected->output(i).get_names());
+                EXPECT_EQ(actual->output(i).get_partial_shape(), expected->output(i).get_partial_shape());
+                EXPECT_EQ(actual->output(i).get_element_type(), expected->output(i).get_element_type());
+            }
+        }
+    }
+}
+
+TEST_F(GGUFMMProj, ExplicitVisionLayoutOverridesLegacyProjectorRecipe) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    auto source = vision_fixture("gemma4v");
+    source->set_rt_info(std::string("image"), {"gguf_mmproj", "vision.genai_layout"});
+    source->get_rt_info()["gguf_mmproj"].as<ov::AnyMap>().erase("vision.patch_size");
+    ov::serialize(source, path + ".xml", path + ".bin");
+    auto restored = ov::Core{}.read_model(path + ".xml");
+    ASSERT_EQ(restored->get_rt_info<std::string>({"gguf_mmproj", "vision.genai_layout"}), "image");
+    Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+    ASSERT_TRUE(adapter.run_on_model(restored));
+    ASSERT_EQ(adapter.get_vision_models().size(), 1);
+    EXPECT_EQ(adapter.get_vision_models().at("vision_embeddings"), restored);
+    ASSERT_EQ(restored->inputs().size(), source->inputs().size());
+    for (size_t i = 0; i < restored->inputs().size(); ++i) {
+        EXPECT_EQ(restored->input(i).get_any_name(), source->input(i).get_any_name().substr(7));
+        EXPECT_EQ(restored->input(i).get_partial_shape(), source->input(i).get_partial_shape());
+        EXPECT_EQ(restored->input(i).get_element_type(), source->input(i).get_element_type());
+    }
+    EXPECT_EQ(restored->output().get_any_name(), "image_features");
+}
+
+TEST_F(GGUFMMProj, ExplicitUnsupportedVisionLayoutRejectsLegacyProjectorRecipe) {
+    encoder("vision", "gemma3");
+    auto source = convert();
+    for (const std::string layout : {"unsupported", "invalid", ""}) {
+        SCOPED_TRACE(layout);
+        auto model = source->clone();
+        model->set_rt_info(layout, {"gguf_mmproj", "vision.genai_layout"});
+        expect_layout_rejection_preserves_model(model, "no GenAI vision layout for mmproj contract");
+    }
+}
+
+TEST_F(GGUFMMProj, LegacyVisionLayoutRejectsUnknownOrMissingProjector) {
+    encoder("vision", "gemma3");
+    auto source = convert();
+    source->get_rt_info()["gguf_mmproj"].as<ov::AnyMap>().erase("vision.genai_layout");
+    for (const std::string projector : {"custom", ""}) {
+        SCOPED_TRACE(projector);
+        auto model = source->clone();
+        if (projector.empty())
+            model->get_rt_info()["gguf_mmproj"].as<ov::AnyMap>().erase("vision.projector");
+        else
+            model->set_rt_info(projector, {"gguf_mmproj", "vision.projector"});
+        expect_layout_rejection_preserves_model(model, "no GenAI vision layout");
+    }
+}
+
 TEST_F(GGUFMMProj, ProjectorCallbackFailuresPreserveTheOriginalGraph) {
     using namespace ov::frontend::gguf;
     writer.kv_bool("clip.has_vision_encoder", true);
@@ -673,13 +762,14 @@ TEST_F(GGUFMMProj, ProjectorCallbackFailuresPreserveTheOriginalGraph) {
                     return {model, {{"primary", model}, {"invalid", nullptr}}};
                 if (failure == 4)
                     return {model, {}};
-                auto result =
-                    std::make_shared<ov::op::v0::Result>(ov::op::v0::Constant::create(ov::element::f32, {}, {1.f}));
+                auto output = ov::op::v0::Constant::create(ov::element::f32, {}, {1.f});
+                auto result = std::make_shared<ov::op::v0::Result>(output);
                 auto other = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{});
                 return {model, {{"other", other}}};
             }};
         FrontEnd frontend;
-        frontend.add_extension(std::make_shared<ProjectorExtension>(definition));
+        auto extension = std::make_shared<ProjectorExtension>(definition);
+        frontend.add_extension(extension);
         auto model = frontend.convert(frontend.load(path));
         using Adapter = pass::AdaptMmprojToGenAI;
         Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
@@ -732,14 +822,14 @@ TEST_F(GGUFMMProj, EmbeddingsCallbackFailuresPreserveBothModalities) {
                             return {model, {{"other", other}}};
                         auto invalid = failure == 5 ? model : other;
                         auto result = invalid->get_results().front();
-                        auto output = std::make_shared<ov::op::v1::Add>(
-                            result->input_value(0),
-                            ov::op::v0::Constant::create(ov::element::f32, {1, 2, 3}, {1.f}));
+                        auto bias = ov::op::v0::Constant::create(ov::element::f32, {1, 2, 3}, {1.f});
+                        auto output = std::make_shared<ov::op::v1::Add>(result->input_value(0), bias);
                         result->input(0).replace_source_output(output);
                         invalid->get_parameters().front()->set_partial_shape({1, 1, 2, 5});
                         return {model, failure == 5 ? ModelMap{} : ModelMap{{"primary", model}, {"other", other}}};
                     }};
-                frontend.add_extension(std::make_shared<ProjectorExtension>(definition));
+                auto extension = std::make_shared<ProjectorExtension>(definition);
+                frontend.add_extension(extension);
             }
             auto model = frontend.convert(frontend.load(path));
             Adapter adapter(modality == "vision" ? Adapter::Modality::VISION : Adapter::Modality::AUDIO);

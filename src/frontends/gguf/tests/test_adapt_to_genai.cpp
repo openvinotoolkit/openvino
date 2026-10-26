@@ -1255,11 +1255,11 @@ TEST(GGUFAdaptToGenAI, ExplicitRecurrentContractOverridesGatedDeltaNetInference)
         const auto data = v0::Constant::create(ov::element::f32, {1, 1, 1, 1}, {1.f});
         const auto gate = v0::Constant::create(ov::element::f32, {1, 1, 1}, {1.f});
         const auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(data, data, data, data, gate, gate);
-        const auto sum = std::make_shared<v1::ReduceSum>(gdn->output(0),
-                                                         v0::Constant::create(ov::element::i64, {4}, {0, 1, 2, 3}),
-                                                         false);
+        const auto axes = v0::Constant::create(ov::element::i64, {4}, {0, 1, 2, 3});
+        const auto sum = std::make_shared<v1::ReduceSum>(gdn->output(0), axes, false);
         const auto result = model->get_results().front();
-        result->input(0).replace_source_output(std::make_shared<v1::Add>(result->input_value(0), sum));
+        const auto combined = std::make_shared<v1::Add>(result->input_value(0), sum);
+        result->input(0).replace_source_output(combined);
         model->get_rt_info()[ov::frontend::gguf::pass::gguf_recurrent_states_key()] = std::vector<std::string>{};
         ov::frontend::gguf::ModelContract contract;
         contract.batchable_recurrent = batchable;

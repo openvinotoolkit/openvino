@@ -516,6 +516,62 @@ TEST(GGUFBuilderAPI, Gemma2RejectsZeroAttentionHeadsWithOrWithoutKeyLength) {
     }
 }
 
+TEST(GGUFBuilderAPI, SlidingPolicyIsResolvedBeforeInferringNormalizationWidth) {
+    for (const bool sinks : {false, true}) {
+        for (const bool full_width : {false, true}) {
+            SCOPED_TRACE(sinks);
+            SCOPED_TRACE(full_width);
+            Environment env;
+            env.decoder();
+            auto parameters = read_decoder_parameters(env.context.metadata);
+            parameters.dimensions.head_size = 128;
+            parameters.attention.sliding_head_size = 64;
+            parameters.attention.sliding_period = 2;
+            parameters.attention.window_size = sinks ? 0 : 16;
+            if (sinks) {
+                env.weights["blk.0.attn_sinks.weight"] = ov::Tensor(ov::element::f32, {4});
+            }
+            env.weights["blk.0.attn_q_norm.weight"] = ov::Tensor(ov::element::f32, {full_width ? 256u : 64u});
+            DecoderConfig config(parameters, env.weights);
+            EXPECT_TRUE(config.layer_is_swa(0));
+            EXPECT_EQ(config.layer_head_size(0), 64);
+            EXPECT_EQ(config.layer_head_size(1), 128);
+            EXPECT_TRUE(config.has_qk_norm);
+            EXPECT_EQ(config.qk_norm_full, full_width);
+            parameters.normalization.qk_full_width = !full_width;
+            EXPECT_EQ(DecoderConfig(parameters, env.weights).qk_norm_full, !full_width);
+        }
+    }
+}
+
+TEST(GGUFBuilderAPI, OneLayerBooleanSlidingPatternRemainsALayerFlag) {
+    for (const bool sliding : {false, true}) {
+        SCOPED_TRACE(sliding);
+        Environment env;
+        env.decoder();
+        env.integer("test.block_count", 1);
+        env.integer("test.attention.key_length", 128);
+        env.integer("test.attention.key_length_swa", 64);
+        env.integer("test.rope.dimension_count", 64);
+        env.real("test.rope.freq_base", 32000.f);
+        env.real("test.rope.freq_base_swa", 10000.f);
+        ov::Tensor pattern(ov::element::boolean, {1});
+        *pattern.data<char>() = sliding;
+        env.metadata["test.attention.sliding_window_pattern"] = pattern;
+        const auto parameters = read_decoder_parameters(env.context.metadata);
+        EXPECT_EQ(parameters.attention.sliding_layers, (std::vector<int32_t>{sliding ? 1 : 0}));
+        EXPECT_EQ(parameters.attention.sliding_period, 0);
+        DecoderConfig config(parameters, env.weights);
+        EXPECT_EQ(config.layer_is_swa(0), sliding);
+        EXPECT_EQ(config.layer_head_size(0), sliding ? 64 : 128);
+        EXPECT_FLOAT_EQ(config.layer_rope_config(0).freq_base, sliding ? 10000.f : 32000.f);
+        env.integer("test.attention.sliding_window_pattern", 2);
+        const auto periodic = read_decoder_parameters(env.context.metadata);
+        EXPECT_TRUE(periodic.attention.sliding_layers.empty());
+        EXPECT_EQ(periodic.attention.sliding_period, 2);
+    }
+}
+
 TEST(GGUFBuilderAPI, SlidingWindowDefaultsMatchExaoneMoeAndPlamo3) {
     for (const auto* family : {"exaone-moe", "plamo3"}) {
         SCOPED_TRACE(family);

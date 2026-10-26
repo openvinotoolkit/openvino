@@ -32,7 +32,6 @@
 #include "openvino/op/select.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
@@ -43,48 +42,13 @@ using namespace ov::op;
 using Value = ov::Output<ov::Node>;
 using Models = ProjectorModels;
 
-Value i64(const std::vector<int64_t>& values) {
-    return v0::Constant::create(ov::element::i64, {values.size()}, values);
-}
-Value scalar(int64_t value) {
-    return v0::Constant::create(ov::element::i64, {}, {value});
-}
-Value add(const Value& a, const Value& b) {
-    return std::make_shared<v1::Add>(a, b);
-}
-Value mul(const Value& a, const Value& b) {
-    return std::make_shared<v1::Multiply>(a, b);
-}
-Value div(const Value& a, const Value& b) {
-    return std::make_shared<v1::Divide>(a, b);
-}
-Value mod(const Value& a, const Value& b) {
-    return std::make_shared<v1::FloorMod>(a, b);
-}
-Value add(const Value& a, int64_t b) {
-    return add(a, scalar(b));
-}
-Value mul(const Value& a, int64_t b) {
-    return mul(a, scalar(b));
-}
-Value div(const Value& a, int64_t b) {
-    return div(a, scalar(b));
-}
-Value mod(const Value& a, int64_t b) {
-    return mod(a, scalar(b));
-}
-Value reshape(const Value& value, const Value& shape) {
-    return std::make_shared<v1::Reshape>(value, shape, false);
-}
-Value as_index(const Value& value) {
-    return reshape(value, i64({1, 1, 1, -1}));
-}
-Value column(const Value& matrix, int64_t index) {
-    return std::make_shared<v8::Gather>(matrix, scalar(index), scalar(1));
-}
 Value range(const Value& count) {
-    auto stop = std::make_shared<v0::Squeeze>(count, i64({0}));
-    return std::make_shared<v4::Range>(scalar(0), stop, scalar(1), ov::element::i64);
+    auto axis = v0::Constant::create(ov::element::i64, {1}, {0});
+    auto start = v0::Constant::create(ov::element::i64, {}, {0});
+    auto step = v0::Constant::create(ov::element::i64, {}, {1});
+    auto stop = std::make_shared<v0::Squeeze>(count, axis);
+    auto indices = std::make_shared<v4::Range>(start, stop, step, ov::element::i64);
+    return indices;
 }
 
 std::shared_ptr<v0::Parameter> parameter(const std::shared_ptr<ov::Model>& model, const std::string& name) {
@@ -97,8 +61,10 @@ std::shared_ptr<v0::Parameter> parameter(const std::shared_ptr<ov::Model>& model
 
 void replace_input(const std::shared_ptr<ov::Model>& model, const std::string& name, Value value) {
     auto source = parameter(model, name);
-    if (value.get_element_type() != source->get_element_type())
-        value = std::make_shared<v0::Convert>(value, source->get_element_type());
+    if (value.get_element_type() != source->get_element_type()) {
+        auto converted = std::make_shared<v0::Convert>(value, source->get_element_type());
+        value = converted;
+    }
     source->output(0).replace(value);
     value.get_tensor().set_names({});
     model->remove_parameter(source);
@@ -111,10 +77,6 @@ void add_inputs(const std::shared_ptr<ov::Model>& model,
         model->add_parameters({input});
     }
     model->validate_nodes_and_infer_types();
-}
-
-std::shared_ptr<v0::Parameter> new_input(ov::element::Type type, const ov::PartialShape& shape) {
-    return std::make_shared<v0::Parameter>(type, shape);
 }
 
 // The translator names a GGUF tensor "<tensor>_<tensor>".
@@ -161,19 +123,29 @@ Value image_from_patches(const Value& patches,
                          const Value& cols,
                          int64_t patch,
                          bool channels_last) {
-    const auto p = i64({patch}), c = i64({3});
+    auto p = v0::Constant::create(ov::element::i64, {1}, {patch});
+    auto c = v0::Constant::create(ov::element::i64, {1}, {3});
     auto grid = channels_last ? ov::OutputVector{rows, cols, p, p, c} : ov::OutputVector{rows, cols, c, p, p};
-    Value image = reshape(patches, std::make_shared<v0::Concat>(grid, 0));
-    image = std::make_shared<v1::Transpose>(
-        image,
-        i64(channels_last ? std::vector<int64_t>{4, 0, 2, 1, 3} : std::vector<int64_t>{2, 0, 3, 1, 4}));
-    return reshape(image,
-                   std::make_shared<v0::Concat>(ov::OutputVector{i64({1, 3}), mul(rows, patch), mul(cols, patch)}, 0));
+    auto grid_shape = std::make_shared<v0::Concat>(grid, 0);
+    auto patch_grid = std::make_shared<v1::Reshape>(patches, grid_shape, false);
+    auto order =
+        v0::Constant::create(ov::element::i64,
+                             {5},
+                             channels_last ? std::vector<int64_t>{4, 0, 2, 1, 3} : std::vector<int64_t>{2, 0, 3, 1, 4});
+    auto image_grid = std::make_shared<v1::Transpose>(patch_grid, order);
+    auto batch_channels = v0::Constant::create(ov::element::i64, {2}, {1, 3});
+    auto patch_size = v0::Constant::create(ov::element::i64, {}, {patch});
+    auto height = std::make_shared<v1::Multiply>(rows, patch_size);
+    auto width = std::make_shared<v1::Multiply>(cols, patch_size);
+    auto image_shape = std::make_shared<v0::Concat>(ov::OutputVector{batch_channels, height, width}, 0);
+    auto image = std::make_shared<v1::Reshape>(image_grid, image_shape, false);
+    return image;
 }
 
 void squeeze_output(const std::shared_ptr<ov::Model>& model) {
     auto result = model->get_results().front();
-    auto features = std::make_shared<v0::Squeeze>(result->input_value(0), i64({0}));
+    auto axis = v0::Constant::create(ov::element::i64, {1}, {0});
+    auto features = std::make_shared<v0::Squeeze>(result->input_value(0), axis);
     features->output(0).get_tensor().set_names({"last_hidden_state"});
     result->input(0).replace_source_output(features);
 }
@@ -182,24 +154,32 @@ void squeeze_output(const std::shared_ptr<ov::Model>& model) {
 void padded_patch_layout(const std::shared_ptr<ov::Model>& model, int64_t patch) {
     OPENVINO_ASSERT(patch <= std::numeric_limits<int64_t>::max() / 3 / patch,
                     "[GGUF] out-of-range mmproj metadata vision.patch_size");
-    auto pixels = new_input(ov::element::f32, {1, -1, 3 * patch * patch});
-    auto positions = new_input(ov::element::i64, {1, -1, 2});
-    auto flat = std::make_shared<v0::Squeeze>(positions, i64({0}));
-    auto x = column(flat, 0), y = column(flat, 1);
-    auto count = std::make_shared<v1::ReduceSum>(
-        std::make_shared<v0::Convert>(std::make_shared<v1::GreaterEqual>(x, scalar(0)), ov::element::i64),
-        i64({0}),
-        true);
-    auto cols = add(std::make_shared<v1::ReduceMax>(x, i64({0}), true), 1);
-    auto rows = div(count, cols);
-    const auto valid = [&](const Value& value) {
-        return std::make_shared<v8::Slice>(value, i64({0}), count, i64({1}), i64({0}));
-    };
-    replace_input(model,
-                  "pixel_values",
-                  image_from_patches(valid(std::make_shared<v0::Squeeze>(pixels, i64({0}))), rows, cols, patch, true));
-    replace_input(model, "position_x", as_index(valid(x)));
-    replace_input(model, "position_y", as_index(valid(y)));
+    auto pixels = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, 3 * patch * patch});
+    auto positions = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1, 2});
+    auto zero_axis = v0::Constant::create(ov::element::i64, {1}, {0});
+    auto one_step = v0::Constant::create(ov::element::i64, {1}, {1});
+    auto zero = v0::Constant::create(ov::element::i64, {}, {0});
+    auto one = v0::Constant::create(ov::element::i64, {}, {1});
+    auto flat = std::make_shared<v0::Squeeze>(positions, zero_axis);
+    auto x = std::make_shared<v8::Gather>(flat, zero, one);
+    auto y = std::make_shared<v8::Gather>(flat, one, one);
+    auto nonnegative = std::make_shared<v1::GreaterEqual>(x, zero);
+    auto valid_rows = std::make_shared<v0::Convert>(nonnegative, ov::element::i64);
+    auto count = std::make_shared<v1::ReduceSum>(valid_rows, zero_axis, true);
+    auto maximum_x = std::make_shared<v1::ReduceMax>(x, zero_axis, true);
+    auto cols = std::make_shared<v1::Add>(maximum_x, one);
+    auto rows = std::make_shared<v1::Divide>(count, cols);
+    auto flat_pixels = std::make_shared<v0::Squeeze>(pixels, zero_axis);
+    auto valid_pixels = std::make_shared<v8::Slice>(flat_pixels, zero_axis, count, one_step, zero_axis);
+    auto valid_x = std::make_shared<v8::Slice>(x, zero_axis, count, one_step, zero_axis);
+    auto valid_y = std::make_shared<v8::Slice>(y, zero_axis, count, one_step, zero_axis);
+    auto image = image_from_patches(valid_pixels, rows, cols, patch, true);
+    auto index_shape = v0::Constant::create(ov::element::i64, {4}, {1, 1, 1, -1});
+    auto position_x = std::make_shared<v1::Reshape>(valid_x, index_shape, false);
+    auto position_y = std::make_shared<v1::Reshape>(valid_y, index_shape, false);
+    replace_input(model, "pixel_values", image);
+    replace_input(model, "position_x", position_x);
+    replace_input(model, "position_y", position_y);
     add_inputs(model, {{"pixel_values", pixels}, {"image_position_ids", positions}});
 }
 
@@ -210,45 +190,100 @@ void windowed_patch_layout(const std::shared_ptr<ov::Model>& model, int64_t patc
                     "[GGUF] out-of-range mmproj metadata vision.window_size");
     OPENVINO_ASSERT(merge <= std::numeric_limits<int64_t>::max() / merge,
                     "[GGUF] out-of-range mmproj metadata vision.merge");
-    auto pixels = new_input(ov::element::f32, {-1, 3 * patch * patch});
-    auto grid = new_input(ov::element::i64, {1, 3});
-    auto thw = std::make_shared<v0::Squeeze>(grid, i64({0}));
-    Value rows = std::make_shared<v8::Gather>(thw, i64({1}), scalar(0));
-    Value cols = std::make_shared<v8::Gather>(thw, i64({2}), scalar(0));
-    replace_input(model, "pixel_values", image_from_patches(pixels, rows, cols, patch, false));
+    auto pixels = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 3 * patch * patch});
+    auto grid = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1, 3});
+    auto zero_axis = v0::Constant::create(ov::element::i64, {1}, {0});
+    auto row_index = v0::Constant::create(ov::element::i64, {1}, {1});
+    auto col_index = v0::Constant::create(ov::element::i64, {1}, {2});
+    auto zero = v0::Constant::create(ov::element::i64, {}, {0});
+    auto one = v0::Constant::create(ov::element::i64, {}, {1});
+    auto thw = std::make_shared<v0::Squeeze>(grid, zero_axis);
+    auto rows = std::make_shared<v8::Gather>(thw, row_index, zero);
+    auto cols = std::make_shared<v8::Gather>(thw, col_index, zero);
+    auto image = image_from_patches(pixels, rows, cols, patch, false);
+    replace_input(model, "pixel_values", image);
 
     // Slots outside the image repeat the window's first patch and are masked out as keys.
     const int64_t slots = window * window;
-    auto window_cols = div(add(cols, window - 1), window);
-    auto slot = range(mul(mul(div(add(rows, window - 1), window), window_cols), slots));
-    auto index_in_window = mod(slot, slots);
-    auto window_index = div(slot, slots);
-    auto top = mul(div(window_index, window_cols), window);
-    auto left = mul(mod(window_index, window_cols), window);
-    auto y = add(top, div(index_in_window, window));
-    auto x = add(left, mod(index_in_window, window));
-    auto inside =
-        std::make_shared<v1::LogicalAnd>(std::make_shared<v1::Less>(y, rows), std::make_shared<v1::Less>(x, cols));
-    Value index = std::make_shared<v1::Select>(inside, add(mul(y, cols), x), add(mul(top, cols), left));
-    replace_input(model, "patch_indices", as_index(index));
-    replace_input(model, "position_x", as_index(add(mod(index, cols), 1)));
-    replace_input(model, "position_y", as_index(add(div(index, cols), 1)));
-    auto key_mask = std::make_shared<v1::Select>(
-        inside,
-        v0::Constant::create(ov::element::f32, {}, {0.f}),
-        v0::Constant::create(ov::element::f32, {}, {-std::numeric_limits<float>::infinity()}));
-    replace_input(model, "window_mask", reshape(key_mask, i64({-1, 1, 1, slots})));
+    auto window_size = v0::Constant::create(ov::element::i64, {}, {window});
+    auto window_padding = v0::Constant::create(ov::element::i64, {}, {window - 1});
+    auto window_slots = v0::Constant::create(ov::element::i64, {}, {slots});
+    auto padded_cols = std::make_shared<v1::Add>(cols, window_padding);
+    auto window_cols = std::make_shared<v1::Divide>(padded_cols, window_size);
+    auto padded_rows = std::make_shared<v1::Add>(rows, window_padding);
+    auto window_rows = std::make_shared<v1::Divide>(padded_rows, window_size);
+    auto window_count = std::make_shared<v1::Multiply>(window_rows, window_cols);
+    auto slot_count = std::make_shared<v1::Multiply>(window_count, window_slots);
+    auto slot = range(slot_count);
+    auto index_in_window = std::make_shared<v1::FloorMod>(slot, window_slots);
+    auto window_index = std::make_shared<v1::Divide>(slot, window_slots);
+    auto window_row = std::make_shared<v1::Divide>(window_index, window_cols);
+    auto window_col = std::make_shared<v1::FloorMod>(window_index, window_cols);
+    auto top = std::make_shared<v1::Multiply>(window_row, window_size);
+    auto left = std::make_shared<v1::Multiply>(window_col, window_size);
+    auto row_in_window = std::make_shared<v1::Divide>(index_in_window, window_size);
+    auto col_in_window = std::make_shared<v1::FloorMod>(index_in_window, window_size);
+    auto y = std::make_shared<v1::Add>(top, row_in_window);
+    auto x = std::make_shared<v1::Add>(left, col_in_window);
+    auto inside_rows = std::make_shared<v1::Less>(y, rows);
+    auto inside_cols = std::make_shared<v1::Less>(x, cols);
+    auto inside = std::make_shared<v1::LogicalAnd>(inside_rows, inside_cols);
+    auto row_offset = std::make_shared<v1::Multiply>(y, cols);
+    auto patch_index = std::make_shared<v1::Add>(row_offset, x);
+    auto top_offset = std::make_shared<v1::Multiply>(top, cols);
+    auto first_patch = std::make_shared<v1::Add>(top_offset, left);
+    auto index = std::make_shared<v1::Select>(inside, patch_index, first_patch);
+    auto index_shape = v0::Constant::create(ov::element::i64, {4}, {1, 1, 1, -1});
+    auto patch_indices = std::make_shared<v1::Reshape>(index, index_shape, false);
+    auto patch_x = std::make_shared<v1::FloorMod>(index, cols);
+    auto patch_y = std::make_shared<v1::Divide>(index, cols);
+    auto offset_x = std::make_shared<v1::Add>(patch_x, one);
+    auto offset_y = std::make_shared<v1::Add>(patch_y, one);
+    auto position_x = std::make_shared<v1::Reshape>(offset_x, index_shape, false);
+    auto position_y = std::make_shared<v1::Reshape>(offset_y, index_shape, false);
+    replace_input(model, "patch_indices", patch_indices);
+    replace_input(model, "position_x", position_x);
+    replace_input(model, "position_y", position_y);
+    auto unmasked = v0::Constant::create(ov::element::f32, {}, {0.f});
+    auto masked = v0::Constant::create(ov::element::f32, {}, {-std::numeric_limits<float>::infinity()});
+    auto key_mask = std::make_shared<v1::Select>(inside, unmasked, masked);
+    auto mask_shape = v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{-1, 1, 1, slots});
+    auto window_mask = std::make_shared<v1::Reshape>(key_mask, mask_shape, false);
+    replace_input(model, "window_mask", window_mask);
 
-    auto raster = range(mul(rows, cols));
-    auto r = div(raster, cols), c = mod(raster, cols);
-    auto slot_of = add(mul(add(mul(div(r, window), window_cols), div(c, window)), slots),
-                       add(mul(mod(r, window), window), mod(c, window)));
-    replace_input(model, "output_indices", as_index(slot_of));
-    auto block = div(raster, merge * merge), within = mod(raster, merge * merge);
-    auto block_cols = div(cols, merge);
-    auto merged = add(mul(add(mul(div(block, block_cols), merge), div(within, merge)), cols),
-                      add(mul(mod(block, block_cols), merge), mod(within, merge)));
-    replace_input(model, "merge_indices", as_index(merged));
+    auto patch_count = std::make_shared<v1::Multiply>(rows, cols);
+    auto raster = range(patch_count);
+    auto r = std::make_shared<v1::Divide>(raster, cols);
+    auto c = std::make_shared<v1::FloorMod>(raster, cols);
+    auto raster_window_row = std::make_shared<v1::Divide>(r, window_size);
+    auto raster_window_col = std::make_shared<v1::Divide>(c, window_size);
+    auto raster_window_offset = std::make_shared<v1::Multiply>(raster_window_row, window_cols);
+    auto raster_window_index = std::make_shared<v1::Add>(raster_window_offset, raster_window_col);
+    auto raster_slot_offset = std::make_shared<v1::Multiply>(raster_window_index, window_slots);
+    auto raster_row_in_window = std::make_shared<v1::FloorMod>(r, window_size);
+    auto raster_col_in_window = std::make_shared<v1::FloorMod>(c, window_size);
+    auto raster_row_offset = std::make_shared<v1::Multiply>(raster_row_in_window, window_size);
+    auto raster_index_in_window = std::make_shared<v1::Add>(raster_row_offset, raster_col_in_window);
+    auto slot_of = std::make_shared<v1::Add>(raster_slot_offset, raster_index_in_window);
+    auto output_indices = std::make_shared<v1::Reshape>(slot_of, index_shape, false);
+    replace_input(model, "output_indices", output_indices);
+    auto merge_size = v0::Constant::create(ov::element::i64, {}, {merge});
+    auto merge_slots = v0::Constant::create(ov::element::i64, {}, {merge * merge});
+    auto block = std::make_shared<v1::Divide>(raster, merge_slots);
+    auto within = std::make_shared<v1::FloorMod>(raster, merge_slots);
+    auto block_cols = std::make_shared<v1::Divide>(cols, merge_size);
+    auto block_row = std::make_shared<v1::Divide>(block, block_cols);
+    auto block_col = std::make_shared<v1::FloorMod>(block, block_cols);
+    auto block_top = std::make_shared<v1::Multiply>(block_row, merge_size);
+    auto block_left = std::make_shared<v1::Multiply>(block_col, merge_size);
+    auto row_in_block = std::make_shared<v1::Divide>(within, merge_size);
+    auto col_in_block = std::make_shared<v1::FloorMod>(within, merge_size);
+    auto merged_row = std::make_shared<v1::Add>(block_top, row_in_block);
+    auto merged_col = std::make_shared<v1::Add>(block_left, col_in_block);
+    auto merged_row_offset = std::make_shared<v1::Multiply>(merged_row, cols);
+    auto merged = std::make_shared<v1::Add>(merged_row_offset, merged_col);
+    auto merge_indices = std::make_shared<v1::Reshape>(merged, index_shape, false);
+    replace_input(model, "merge_indices", merge_indices);
     add_inputs(model, {{"pixel_values", pixels}, {"image_grid_thw", grid}});
     squeeze_output(model);
 }
@@ -258,32 +293,39 @@ std::shared_ptr<ov::Model> single_output_model(const Value& output,
                                                const ov::ParameterVector& inputs) {
     auto result = std::make_shared<v0::Result>(output);
     output.get_tensor().set_names({name});
-    return std::make_shared<ov::Model>(ov::ResultVector{result}, inputs)->clone();
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, inputs);
+    return model->clone();
 }
 
 Models split_merger_layout(const std::shared_ptr<ov::Model>& model) {
     Models models;
     // HF flattens patches as (channel, frame, y, x).
-    auto frame = [&](const std::string& name) {
-        return std::make_shared<v0::Unsqueeze>(require_weight(model, name), i64({2}));
-    };
-    auto kernel =
-        std::make_shared<v0::Concat>(ov::OutputVector{frame("v.patch_embd.weight"), frame("v.patch_embd.weight.1")}, 2);
+    auto first_weight = require_weight(model, "v.patch_embd.weight");
+    auto second_weight = require_weight(model, "v.patch_embd.weight.1");
+    auto frame_axis = v0::Constant::create(ov::element::i64, {1}, {2});
+    auto first_frame = std::make_shared<v0::Unsqueeze>(first_weight, frame_axis);
+    auto second_frame = std::make_shared<v0::Unsqueeze>(second_weight, frame_axis);
+    auto kernel = std::make_shared<v0::Concat>(ov::OutputVector{first_frame, second_frame}, 2);
     const auto& kernel_shape = kernel->get_output_partial_shape(0);
     const auto width = kernel_shape[0].get_length();
     const auto patch_dim = ov::shape_size(kernel_shape.get_shape()) / width;
-    auto patches = new_input(ov::element::f32, {-1, int64_t(patch_dim)});
+    auto patches = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, int64_t(patch_dim)});
     name_output(patches, "hidden_states");
-    Value embeddings =
-        std::make_shared<v0::MatMul>(patches, reshape(kernel, i64({width, int64_t(patch_dim)})), false, true);
-    if (auto bias = weight(model, "v.patch_embd.bias"); bias.get_node())
-        embeddings = add(embeddings, bias);
+    auto kernel_shape_2d = v0::Constant::create(ov::element::i64, {2}, {width, int64_t(patch_dim)});
+    auto kernel_2d = std::make_shared<v1::Reshape>(kernel, kernel_shape_2d, false);
+    auto projection = std::make_shared<v0::MatMul>(patches, kernel_2d, false, true);
+    Value embeddings = projection;
+    if (auto bias = weight(model, "v.patch_embd.bias"); bias.get_node()) {
+        auto biased = std::make_shared<v1::Add>(embeddings, bias);
+        embeddings = biased;
+    }
     models["vision_embeddings"] = single_output_model(embeddings, "last_hidden_state", {patches});
 
-    auto table_indices = new_input(ov::element::i64, {4, -1});
+    auto table_indices = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{4, -1});
     name_output(table_indices, "input");
-    auto table =
-        std::make_shared<v8::Gather>(require_weight(model, "v.position_embd.weight"), table_indices, scalar(0));
+    auto position_weight = require_weight(model, "v.position_embd.weight");
+    auto zero = v0::Constant::create(ov::element::i64, {}, {0});
+    auto table = std::make_shared<v8::Gather>(position_weight, table_indices, zero);
     models["vision_embeddings_pos"] = single_output_model(table, "last_hidden_state", {table_indices});
 
     auto norm_weight = require_weight(model, "v.blk.0.ln1.weight");
@@ -294,9 +336,11 @@ Models split_merger_layout(const std::shared_ptr<ov::Model>& model) {
     auto normalized = ov::as_type_ptr<v6::MVN>(
         (scale->input_value(0) == norm_weight ? scale->input_value(1) : scale->input_value(0)).get_node_shared_ptr());
     OPENVINO_ASSERT(normalized, "[GGUF] expected LayerNorm before v.blk.0.ln1.weight");
-    auto hidden_states = new_input(ov::element::f32, {-1, width});
+    auto hidden_states = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, width});
+    auto batch_axes = v0::Constant::create(ov::element::i64, {2}, {0, 1});
+    auto hidden_states_4d = std::make_shared<v0::Unsqueeze>(hidden_states, batch_axes);
     // Replace the activation shared by LayerNorm and its residual path.
-    normalized->input_value(0).replace(std::make_shared<v0::Unsqueeze>(hidden_states, i64({0, 1})));
+    normalized->input_value(0).replace(hidden_states_4d);
     model->remove_parameter(parameter(model, "pixel_values"));
     model->remove_parameter(parameter(model, "patch_indices"));
 
@@ -307,14 +351,20 @@ Models split_merger_layout(const std::shared_ptr<ov::Model>& model) {
                     "[GGUF] incompatible mmproj metadata clip.vision.embedding_length and "
                     "clip.vision.attention.head_count");
     const auto head = width_metadata / heads;
-    auto rotary = new_input(ov::element::f32, {-1, head / 2});
-    auto row = column(rotary, 0), col = column(rotary, head / 4);
-    auto positions = std::make_shared<v5::Round>(std::make_shared<v0::Concat>(ov::OutputVector{row, col, row, col}, 0),
-                                                 v5::Round::RoundMode::HALF_TO_EVEN);
-    replace_input(model, "position_ids", as_index(positions));
+    auto rotary = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, head / 2});
+    auto col_index = v0::Constant::create(ov::element::i64, {}, {head / 4});
+    auto one = v0::Constant::create(ov::element::i64, {}, {1});
+    auto row = std::make_shared<v8::Gather>(rotary, zero, one);
+    auto col = std::make_shared<v8::Gather>(rotary, col_index, one);
+    auto coordinates = std::make_shared<v0::Concat>(ov::OutputVector{row, col, row, col}, 0);
+    auto positions = std::make_shared<v5::Round>(coordinates, v5::Round::RoundMode::HALF_TO_EVEN);
+    auto index_shape = v0::Constant::create(ov::element::i64, {4}, {1, 1, 1, -1});
+    auto position_ids = std::make_shared<v1::Reshape>(positions, index_shape, false);
+    replace_input(model, "position_ids", position_ids);
 
-    auto mask = new_input(ov::element::f32, {1, -1, -1});
-    auto mask4 = std::make_shared<v0::Unsqueeze>(mask, i64({0}));
+    auto mask = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, -1});
+    auto zero_axis = v0::Constant::create(ov::element::i64, {1}, {0});
+    auto mask4 = std::make_shared<v0::Unsqueeze>(mask, zero_axis);
     for (const auto& node : model->get_ordered_ops()) {
         if (auto sdpa = ov::as_type_ptr<v13::ScaledDotProductAttention>(node)) {
             OPENVINO_ASSERT(sdpa->get_input_size() == 3, "[GGUF] split-merger vision attention already has a mask");
@@ -338,15 +388,28 @@ Models split_merger_layout(const std::shared_ptr<ov::Model>& model) {
         }
         auto deepstack = std::make_shared<v0::Concat>(levels, 0);
         deepstack->output(0).get_tensor().set_names({"deepstack_feature_lists"});
-        model->add_results({std::make_shared<v0::Result>(deepstack)});
+        auto deepstack_result = std::make_shared<v0::Result>(deepstack);
+        model->add_results({deepstack_result});
     }
     add_inputs(model, {{"hidden_states", hidden_states}, {"attention_mask", mask}, {"rotary_pos_emb", rotary}});
     models["vision_embeddings_merger"] = model;
     return models;
 }
 ProjectorLayout read_projector_layout(const std::shared_ptr<ov::Model>& model) {
-    OPENVINO_ASSERT(model->has_rt_info({"gguf_mmproj", "vision.genai_layout"}),
-                    "[GGUF] no GenAI vision layout contract");
+    if (!model->has_rt_info({"gguf_mmproj", "vision.genai_layout"})) {
+        OPENVINO_ASSERT(model->has_rt_info({"gguf_mmproj", "vision.projector"}),
+                        "[GGUF] no GenAI vision layout contract");
+        const auto projector = model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"});
+        if (projector == "gemma3" || projector == "lfm2")
+            return ProjectorLayout::Image;
+        if (projector == "gemma4v" || projector == "gemma4uv")
+            return ProjectorLayout::PaddedPatches;
+        if (projector == "muse-glimmer")
+            return ProjectorLayout::WindowedPatches;
+        if (projector == "qwen3vl_merger")
+            return ProjectorLayout::SplitMerger;
+        OPENVINO_THROW("[GGUF] no GenAI vision layout for mmproj projector '", projector, "'");
+    }
     const auto layout = model->get_rt_info<std::string>({"gguf_mmproj", "vision.genai_layout"});
     if (layout == "image")
         return ProjectorLayout::Image;
