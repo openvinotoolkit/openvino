@@ -379,6 +379,12 @@ bool isPastValueParam(const std::string& str);
 bool isDQScaleOrZPKey(const std::string& str);
 bool isDQScaleOrZPValue(const std::string& str);
 
+// The stored weight types the dequantization patterns recognize: the integer and nf4 storages whose codes the
+// host readers decode.
+bool isDQWeight(const ov::element::Type& type);
+// The same set plus the float8 spellings the same patterns also see in exported graphs.
+bool isDQWeightOrFloat8(const ov::element::Type& type);
+
 // To remove input KV params that got badly matched in StatefulToStateless pass
 // in Whisper model.
 bool isRestoredPastKeyValueParam(const std::string& str);

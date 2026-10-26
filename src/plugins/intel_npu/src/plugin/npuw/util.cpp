@@ -1038,6 +1038,15 @@ bool ov::npuw::util::isDQScaleOrZPValue(const std::string& str) {
     return std::regex_match(str, pattern);
 }
 
+bool ov::npuw::util::isDQWeight(const ov::element::Type& type) {
+    return type == ov::element::i4 || type == ov::element::i8 || type == ov::element::nf4;
+}
+
+bool ov::npuw::util::isDQWeightOrFloat8(const ov::element::Type& type) {
+    return isDQWeight(type) || type == ov::element::f8e4m3 || type == ov::element::f8e5m2 ||
+           type == ov::element::f8e8m0;
+}
+
 bool ov::npuw::util::isRestoredPastKeyValueParam(const std::string& str) {
     // Match badly handled KVCache states by StatefulToStateless pass for Whisper.
     static const std::regex restored_pattern(

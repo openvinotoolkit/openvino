@@ -307,7 +307,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
 
     auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
     auto element_type = matched_paramA->get_element_type();
-    if (element_type == ov::element::i4 || element_type == ov::element::i8 || element_type == ov::element::nf4) {
+    if (util::isDQWeight(element_type)) {
         LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << m_dcoff_type);
         matched_paramA->set_element_type(m_dcoff_type);
 
@@ -969,8 +969,7 @@ CWAI3::CWAI3(CWAI3::Results scales) {
         if ((ov::element::f16 == matched_C->get_element_type() || ov::element::f32 == matched_C->get_element_type()) &&
             (ov::element::f16 == matched_matmul->get_element_type() ||
              ov::element::f32 == matched_matmul->get_element_type()) &&
-            (ov::element::i4 == matched_A->get_element_type() || ov::element::nf4 == matched_A->get_element_type() ||
-             ov::element::i8 == matched_A->get_element_type())) {
+            util::isDQWeight(matched_A->get_element_type())) {
             auto matched_C_shape = matched_C->output(0).get_shape();
 
             if (matched_C_shape.size() == 2 && matched_matmul->get_transpose_b()) {

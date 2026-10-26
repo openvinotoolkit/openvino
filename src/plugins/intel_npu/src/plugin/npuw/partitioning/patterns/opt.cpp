@@ -242,9 +242,7 @@ DQMatMulCWi::DQMatMulCWi(Context::Ref ctx) {
 
         auto qcoeff_shape = matched_node_qcoeff->output(0).get_shape();
 
-        if ((ov::element::i4 == matched_qweight->get_element_type() ||
-             ov::element::i8 == matched_qweight->get_element_type() ||
-             ov::element::nf4 == matched_qweight->get_element_type()) &&
+        if (util::isDQWeight(matched_qweight->get_element_type()) &&
             (ov::op::util::is_parameter(matched_node_qcoeff) || ov::op::util::is_constant(matched_node_qcoeff)) &&
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
@@ -339,11 +337,9 @@ DQMatMulCWi_Transpose::DQMatMulCWi_Transpose(Context::Ref ctx) {
         const auto& tr_in_shape = matched_node_transpose->input(0).get_shape();
         const auto& tr_out_shape = matched_node_transpose->output(0).get_shape();
 
-        if ((ov::element::i4 == matched_qweight->get_element_type() ||
-             ov::element::i8 == matched_qweight->get_element_type() ||
-             ov::element::nf4 == matched_qweight->get_element_type()) &&
-            !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b() && tr_in_shape.size() == 2 &&
-            tr_out_shape.size() == 2 && tr_in_shape[0] == tr_out_shape[1] && tr_in_shape[1] == tr_out_shape[0]) {
+        if (util::isDQWeight(matched_qweight->get_element_type()) && !matched_matmul->get_transpose_a() &&
+            !matched_matmul->get_transpose_b() && tr_in_shape.size() == 2 && tr_out_shape.size() == 2 &&
+            tr_in_shape[0] == tr_out_shape[1] && tr_in_shape[1] == tr_out_shape[0]) {
             auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
             matched_matmul->input(1).replace_source_output(matched_node_qmuls);
             matched_matmul->set_transpose_b(true);
@@ -1713,9 +1709,7 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
         // were Hs = hidden size, G is # of groups, N is the prompt size.
         auto out_len = out_shape.size() == 3 ? out_shape[2] : out_shape[2] * out_shape[3];
 
-        if (out_len >= 2048 && (qweight_type == ov::element::i4 || qweight_type == ov::element::i8 ||
-                                qweight_type == ov::element::nf4 || qweight_type == ov::element::f8e4m3 ||
-                                qweight_type == ov::element::f8e5m2 || qweight_type == ov::element::f8e8m0)) {
+        if (out_len >= 2048 && util::isDQWeightOrFloat8(qweight_type)) {
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();

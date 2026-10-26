@@ -5,6 +5,7 @@
 #include "compute.hpp"
 
 #include "../../logging.hpp"
+#include "../../util.hpp"
 #include "../online/group.hpp"     // online::Group
 #include "../online/snapshot.hpp"  // online::Snapshot
 #include "openvino/op/ops.hpp"
@@ -159,12 +160,7 @@ DQMatMulGQi4::DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto matched_qweight = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qweight);
         auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qcoeff);
 
-        if ((ov::element::i4 == matched_qweight->get_element_type() ||
-             ov::element::i8 == matched_qweight->get_element_type() ||
-             ov::element::f8e4m3 == matched_qweight->get_element_type() ||
-             ov::element::f8e5m2 == matched_qweight->get_element_type() ||
-             ov::element::f8e8m0 == matched_qweight->get_element_type() ||
-             ov::element::nf4 == matched_qweight->get_element_type()) &&
+        if (util::isDQWeightOrFloat8(matched_qweight->get_element_type()) &&
             (ov::element::f16 == matched_qcoeff->get_element_type() ||
              ov::element::f32 == matched_qcoeff->get_element_type())) {
             // Partitioning ignores Const->Convert nodes, so qcvtw is not used
@@ -236,12 +232,7 @@ DQMatMulCWi4::DQMatMulCWi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto matched_qweight = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qweight);
         auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qcoeff);
 
-        if ((ov::element::i4 == matched_qweight->get_element_type() ||
-             ov::element::i8 == matched_qweight->get_element_type() ||
-             ov::element::f8e4m3 == matched_qweight->get_element_type() ||
-             ov::element::f8e5m2 == matched_qweight->get_element_type() ||
-             ov::element::f8e8m0 == matched_qweight->get_element_type() ||
-             ov::element::nf4 == matched_qweight->get_element_type()) &&
+        if (util::isDQWeightOrFloat8(matched_qweight->get_element_type()) &&
             (ov::element::f16 == matched_qcoeff->get_element_type() ||
              ov::element::f32 == matched_qcoeff->get_element_type())) {
             // Partitioning ignores Const->Convert nodes, so qcvtw is not used
