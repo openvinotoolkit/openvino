@@ -120,15 +120,27 @@ TEST_F(IOLayoutsSectionRead, LessLayoutsThanExpected) {
     real_section.encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
     std::string buffer = stream.str();
 
-    // overwrite both numbers of layouts
+    // overwrite only the numbers of input layouts
     const uint32_t fake_count = 20;
     std::memcpy(buffer.data(), &fake_count, sizeof(fake_count));
+
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
+    manifest_entry.size = buffer.size();
+
+    const ov::runtime::hsm::Section section(
+        manifest_entry,
+        ov::util::MemoryView(reinterpret_cast<const std::byte*>(buffer.data()), buffer.size()));
+    auto decode_result = IOLayoutsSection::decode(section);
+    ASSERT_FALSE(decode_result);
+
+    // overwrite only the numbers of output layouts
+    const uint32_t real_count = 2;
+    std::memcpy(buffer.data(), &real_count, sizeof(real_count));
     std::memcpy(buffer.data() + LAYOUTS_COUNT_SIZE, &fake_count, sizeof(fake_count));
 
-    ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size());
-    ASSERT_ANY_THROW(IOLayoutsSection::read(reader));
+    decode_result = IOLayoutsSection::decode(section);
+    ASSERT_FALSE(decode_result);
 }
 
 TEST_F(IOLayoutsSectionRead, MoreLayoutsThanExpected) {
@@ -137,15 +149,27 @@ TEST_F(IOLayoutsSectionRead, MoreLayoutsThanExpected) {
     real_section.encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
     std::string buffer = stream.str();
 
-    // overwrite both numbers of layouts
+    // overwrite only the numbers of input layouts
     const uint32_t fake_count = 1;
     std::memcpy(buffer.data(), &fake_count, sizeof(fake_count));
+
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
+    manifest_entry.size = buffer.size();
+
+    const ov::runtime::hsm::Section section(
+        manifest_entry,
+        ov::util::MemoryView(reinterpret_cast<const std::byte*>(buffer.data()), buffer.size()));
+    auto decode_result = IOLayoutsSection::decode(section);
+    ASSERT_FALSE(decode_result);
+
+    // overwrite only the numbers of output layouts
+    const uint32_t real_count = 2;
+    std::memcpy(buffer.data(), &real_count, sizeof(real_count));
     std::memcpy(buffer.data() + LAYOUTS_COUNT_SIZE, &fake_count, sizeof(fake_count));
 
-    ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size());
-    ASSERT_ANY_THROW(IOLayoutsSection::read(reader));
+    decode_result = IOLayoutsSection::decode(section);
+    ASSERT_FALSE(decode_result);
 }
 
 TEST_F(IOLayoutsSectionRead, InvalidLayoutNoThrow) {
@@ -161,14 +185,16 @@ TEST_F(IOLayoutsSectionRead, InvalidLayoutNoThrow) {
     buffer[layout_offset + 1] = '%';
     buffer[layout_offset + 2] = ']';
 
-    ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size());
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
+    manifest_entry.size = buffer.size();
 
-    std::shared_ptr<ISection> read_section;
-    ASSERT_NO_THROW(read_section = IOLayoutsSection::read(reader));
+    auto read_section = IOLayoutsSection::decode(ov::runtime::hsm::Section(
+        manifest_entry,
+        ov::util::MemoryView(reinterpret_cast<const std::byte*>(buffer.data()), buffer.size())));
+    ASSERT_TRUE(read_section);
 
-    const auto layouts_result = std::dynamic_pointer_cast<IOLayoutsSection>(read_section);
+    const auto layouts_result = std::dynamic_pointer_cast<IOLayoutsSection>(read_section.value());
     ASSERT_TRUE(layouts_result);
     ASSERT_EQ(layouts_result->get_input_layouts().size(), 1);
     EXPECT_EQ(layouts_result->get_input_layouts()[0], ov::Layout());
@@ -185,10 +211,14 @@ TEST_F(IOLayoutsSectionRead, AlteredLayoutSizeTooBig) {
     const uint16_t fake_layout_size = 5;
     std::memcpy(buffer.data() + 2 * LAYOUTS_COUNT_SIZE, &fake_layout_size, sizeof(fake_layout_size));
 
-    ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size());
-    ASSERT_ANY_THROW(IOLayoutsSection::read(reader));
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
+    manifest_entry.size = buffer.size();
+
+    auto read_section = IOLayoutsSection::decode(ov::runtime::hsm::Section(
+        manifest_entry,
+        ov::util::MemoryView(reinterpret_cast<const std::byte*>(buffer.data()), buffer.size())));
+    ASSERT_FALSE(read_section);
 }
 
 INSTANTIATE_TEST_SUITE_P(
