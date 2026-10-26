@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <iterator>
 #include <memory>
+#include <optional>
 
 #include "convolution_inst.h"
 #include "data_inst.h"
@@ -18,6 +21,7 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "pass_manager.h"
 #include "program_wrapper.h"
+#include "quantize_inst.h"
 #include "random_generator.hpp"
 #include "reduce_inst.h"
 #include "reshape_inst.h"
@@ -95,6 +99,171 @@ TEST(prepare_primitive_fusing, preserve_ternary_fc_sigmoid_epilogue) {
         }
     }
 }
+
+#ifdef OV_GPU_WITH_OCL_RT
+TEST(prepare_primitive_fusing, preserve_hadamard_fc_epilogues) {
+    struct test_case {
+        activation_func before;
+        std::optional<eltwise_mode> first;
+        std::optional<eltwise_mode> second;
+        bool relu_after;
+        bool product_output;
+        bool shared_swish;
+        bool broadcast_peer;
+        bool f32_peer;
+        size_t fused_count;
+        float beta = 1.0f;
+    };
+    const std::vector<test_case> cases = {
+        {activation_func::relu, {}, {}, false, false, false, false, false, 0},
+        {activation_func::logistic, {}, {}, false, false, false, false, false, 1},
+        {activation_func::logistic, eltwise_mode::prod, {}, false, false, false, false, false, 1},
+        {activation_func::none, eltwise_mode::sum, {}, false, false, false, false, false, 1},
+        {activation_func::none, eltwise_mode::sum, {}, true, false, false, false, false, 1},
+        {activation_func::none, eltwise_mode::sum, eltwise_mode::sum, false, false, false, false, false, 1},
+        {activation_func::none, eltwise_mode::sum, eltwise_mode::prod, false, false, false, false, false, 1},
+        {activation_func::swish, {}, {}, false, false, false, false, false, 0},
+        {activation_func::swish, eltwise_mode::prod, {}, false, false, false, false, false, 2},
+        {activation_func::swish, eltwise_mode::prod, {}, false, false, false, false, false, 0, 2.0f},
+        {activation_func::swish, eltwise_mode::prod, {}, false, true, false, false, false, 0},
+        {activation_func::swish, eltwise_mode::prod, {}, false, false, true, false, false, 0},
+        {activation_func::swish, eltwise_mode::prod, {}, false, false, false, true, false, 0},
+        {activation_func::swish, eltwise_mode::prod, {}, false, false, false, false, true, 0},
+        {activation_func::none, eltwise_mode::sum, {}, false, false, false, true, false, 0},
+        {activation_func::none, eltwise_mode::sum, {}, false, false, false, false, true, 0},
+    };
+    auto& engine = get_test_engine();
+    for (bool dynamic : {false, true}) {
+        for (size_t i = 0; i < cases.size(); ++i) {
+            const auto& c = cases[i];
+            SCOPED_TRACE(testing::Message() << "dynamic=" << dynamic << " case=" << i);
+            const auto shape = ov::PartialShape{1, dynamic ? -1 : 2, 1024};
+            const auto output_shape = ov::PartialShape{1, dynamic ? -1 : 2, 16};
+            auto weights = engine.allocate_memory({ov::PartialShape{16, 1024}, data_types::u2, format::bfyx});
+            auto scales = engine.allocate_memory({ov::PartialShape{16, 8}, data_types::f16, format::bfyx});
+            auto fc = fully_connected("fc", input_info("input"), "weights", "", "scales", "", data_types::f16, 3);
+            fc.decompression_zero_point_scalar = 1.0f;
+            fc.hadamard_block = 1024;
+            topology topology(input_layout("input", {shape, data_types::f16, format::bfyx}), data("weights", weights), data("scales", scales), fc);
+            topology.add(
+                input_layout("other",
+                             {c.broadcast_peer ? ov::PartialShape{1, 1, 16} : output_shape, c.f32_peer ? data_types::f32 : data_types::f16, format::bfyx}));
+            topology.add(input_layout("other2", {output_shape, data_types::f16, format::bfyx}));
+            primitive_id output = "fc";
+            if (c.before != activation_func::none) {
+                topology.add(activation("act", input_info(output), c.before, {c.beta, 0.0f}));
+                output = "act";
+            }
+            if (c.shared_swish)
+                topology.add(reorder("swish_output", input_info("act"), format::bfyx, data_types::f32));
+            if (c.first) {
+                topology.add(eltwise("first", {input_info(output), input_info("other")}, *c.first));
+                output = "first";
+            }
+            if (c.second) {
+                topology.add(eltwise("second", {input_info(output), input_info("other2")}, *c.second));
+                output = "second";
+            }
+            if (c.relu_after) {
+                topology.add(activation("relu", input_info(output), activation_func::relu));
+                output = "relu";
+            }
+            if (!c.product_output)
+                topology.add(reorder("output", input_info(output), format::bfyx, data_types::f32));
+            auto config = get_test_default_config(engine);
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true), ov::intel_gpu::enable_ternocl_int2(true));
+            auto prog = program::build_program(engine, topology, config, false, true);
+            program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+            const auto& fused = prog->get_node("fc").get_fused_primitives();
+            ASSERT_EQ(fused.size(), c.fused_count);
+            if (c.before != activation_func::none) {
+                EXPECT_EQ(has_node(*prog, "act"), c.fused_count == 0);
+            }
+            if (c.first) {
+                EXPECT_EQ(has_node(*prog, "first"), c.fused_count == 0 || c.before == activation_func::logistic);
+            }
+            if (c.second) {
+                EXPECT_TRUE(has_node(*prog, "second"));
+            }
+            if (c.relu_after) {
+                EXPECT_TRUE(has_node(*prog, "relu"));
+            }
+            if (c.fused_count == 2) {
+                ASSERT_TRUE(fused.front().is_type<activation>());
+                EXPECT_EQ(fused.front().typed_desc<activation>()->activation_function, activation_func::swish);
+                ASSERT_TRUE(fused.back().is_type<eltwise>());
+                EXPECT_EQ(fused.back().typed_desc<eltwise>()->mode, eltwise_mode::prod);
+            }
+        }
+    }
+}
+
+TEST(prepare_primitive_fusing, fuse_hadamard_swish_product_with_late_gemm) {
+    auto& engine = get_test_engine();
+    auto weights = engine.allocate_memory({ov::PartialShape{16, 1024}, data_types::u2, format::bfyx});
+    auto scales = engine.allocate_memory({ov::PartialShape{16, 8}, data_types::f16, format::bfyx});
+    auto fc = fully_connected("fc", input_info("input"), "weights", "", "scales", "", data_types::f16, 3);
+    fc.decompression_zero_point_scalar = 1.0f;
+    fc.hadamard_block = 1024;
+    topology topology(input_layout("input", {ov::PartialShape{1, 2, 1024}, data_types::f16, format::bfyx}),
+                      data("weights", weights),
+                      data("scales", scales),
+                      fc);
+    topology.add(activation("act", input_info("fc"), activation_func::swish, {1.0f, 0.0f}));
+    topology.add(input_layout("gemm_input", {ov::PartialShape{1, 2, 8}, data_types::f16, format::bfyx}));
+    topology.add(input_layout("gemm_weights", {ov::PartialShape{1, 8, 16}, data_types::f16, format::bfyx}));
+    topology.add(gemm("gemm", {input_info("gemm_input"), input_info("gemm_weights")}, data_types::f16, false, false, 1.0f, 0.0f, 3, 3));
+    topology.add(eltwise("prod", {input_info("act"), input_info("gemm")}, eltwise_mode::prod));
+    topology.add(reorder("output", input_info("prod"), format::bfyx, data_types::f32));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true), ov::intel_gpu::enable_ternocl_int2(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    auto& order = prog->get_processing_order();
+    auto* gemm_node = &prog->get_node("gemm");
+    order.erase(gemm_node);
+    const auto product = std::find(order.begin(), order.end(), &prog->get_node("prod"));
+    order.insert_next(*std::prev(product), gemm_node);
+    ASSERT_GT(order.get_processing_number(gemm_node), order.get_processing_number(&prog->get_node("fc")));
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+    EXPECT_FALSE(has_node(*prog, "act"));
+    EXPECT_FALSE(has_node(*prog, "prod"));
+    auto& fused_fc = prog->get_node("fc");
+    const auto& fused = fused_fc.get_fused_primitives();
+    ASSERT_EQ(fused.size(), 2);
+    ASSERT_TRUE(fused.front().is_type<activation>());
+    EXPECT_EQ(fused.front().typed_desc<activation>()->additional_params.a, 1.0f);
+    ASSERT_TRUE(fused.back().is_type<eltwise>());
+    EXPECT_EQ(fused.back().typed_desc<eltwise>()->mode, eltwise_mode::prod);
+    for (const auto& dependency : fused_fc.get_dependencies()) {
+        EXPECT_LT(order.get_processing_number(dependency.first), order.get_processing_number(&fused_fc));
+    }
+}
+
+TEST(prepare_primitive_fusing, dont_fuse_quantize_into_hadamard_fc) {
+    auto& engine = get_test_engine();
+    auto weights = engine.allocate_memory({ov::PartialShape{16, 1024}, data_types::u2, format::bfyx});
+    auto scales = engine.allocate_memory({ov::PartialShape{16, 8}, data_types::f16, format::bfyx});
+    auto range = engine.allocate_memory({ov::PartialShape{1}, data_types::f16, format::bfyx});
+    auto fc = fully_connected("fc", input_info("input"), "weights", "", "scales", "", data_types::f16, 3);
+    fc.decompression_zero_point_scalar = 1.0f;
+    fc.hadamard_block = 1024;
+    auto q = quantize("quantize", {input_info("fc"), input_info("range"), input_info("range"), input_info("range"), input_info("range")}, 256, data_types::f16);
+    q.scale_shift_opt = true;
+    topology topology(input_layout("input", {ov::PartialShape{1, -1, 1024}, data_types::f16, format::bfyx}),
+                      data("weights", weights),
+                      data("scales", scales),
+                      data("range", range),
+                      fc,
+                      q);
+    topology.add(reorder("output", input_info("quantize"), format::bfyx, data_types::f32));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true), ov::intel_gpu::enable_ternocl_int2(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+    EXPECT_TRUE(has_node(*prog, "quantize"));
+    EXPECT_FALSE(prog->get_node("fc").has_fused_primitives());
+}
+#endif
 
 // fp8 concatenation/scatter_update take a byte-copy kernel path that cannot run fused ops, so
 // prepare_primitive_fusing must not fuse an activation into an f8e4m3 scatter_update (unlike a
