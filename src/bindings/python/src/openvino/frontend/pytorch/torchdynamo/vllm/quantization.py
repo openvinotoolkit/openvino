@@ -167,6 +167,14 @@ def _define_classes():
                 quantized_modules=config.get("quantized_modules", ()),
             )
 
+        def apply_vllm_mapper(self, hf_to_vllm_mapper):
+            # `quantized_modules` holds checkpoint names, but `_is_quantized`
+            # is asked with vLLM prefixes; models that rename (gemma4_mm.py:
+            # model.language_model. -> language_model.model.) would otherwise
+            # match nothing and silently build every layer dense.
+            self.quantized_modules = set(
+                hf_to_vllm_mapper.apply_list(sorted(self.quantized_modules)))
+
         def _is_quantized(self, prefix):
             """Is the vLLM layer at `prefix` one the checkpoint compressed?
 

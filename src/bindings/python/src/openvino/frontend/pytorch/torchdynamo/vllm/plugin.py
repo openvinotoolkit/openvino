@@ -527,6 +527,12 @@ def _register_quantization():
         _q.register()
     except Exception as _e:
         logger.debug("[OV plugin] quantization registration skipped: %s", _e)
+    # The loader that reads NNCF's hook-storage layout into those methods.
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm import model_loader as _ml
+        _ml.register()
+    except Exception as _e:
+        logger.debug("[OV plugin] model loader registration skipped: %s", _e)
 
 
 def register():
