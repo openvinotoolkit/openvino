@@ -84,14 +84,20 @@ The type columns describe stored Constants; their decompression or Convert outpu
 | Q4_K, fractional zero point | 256 | 144 | `u4` | `f16` | `f16` | `128 + 16 + 16` = 160 | +11.1% |
 | Q5_0 | 32 | 22 | `i8` | `f16` | — | `32 + 2` = 34 | +54.5% |
 | Q5_1 | 32 | 24 | `i8` | `f16` | `f16` | `32 + 2 + 2` = 36 | +50.0% |
-| Q5_K, integer zero point | 256 | 176 | `u8` | `f16` | `u8` | `256 + 16 + 8` = 280 | +59.1% |
+| Q5_K, ordinary matrix | 256 | 176 | `i8` | `f16` | — | `256 + 16` = 272 | +54.5% |
 | Q5_K, fractional zero point | 256 | 176 | `u8` | `f16` | `f16` | `256 + 16 + 16` = 288 | +63.6% |
 | Q6_K | 256 | 210 | `i8` | `f16` | — | `256 + 32` = 288 | +37.1% |
 | Q8_0 | 32 | 34 | `i8` | `f16` | — | `32 + 2` = 34 | 0% |
 | Q8_K | 256 | 292 | `i8` | `f32` | — | `256 + 4` = 260 | -11.0% |
 | MXFP4 | 32 | 17 | `f4e2m1` | `f8e8m0` | — | `16 + 1` = 17 | 0% |
 
-Ordinary native Q4_1/Q4_K and Q5_K matrix weights use integer zero points by default.
+Ordinary native Q4_1/Q4_K matrix weights use integer zero points by default.
+Ordinary native Q5_K matrix weights use symmetric i8 by default, with one F16 scale per 32 weights
+and no zero point. Source values are decoded and requantized using the group maximum
+absolute value; this adds rounding error and changes the grid from the former asymmetric u8
+representation. Conversion uses a 256-value scratch buffer per source block. The converted
+weight/scale payload is 2.86% smaller than the former u8/integer-zero-point payload.
+Group size remains 32 for all devices.
 `token_embd.weight` and `output.weight` use fractional zero points for these affine formats;
 Q5_1 and Q2_K also use fractional zero points. See [accuracy controls](#accuracy-controls)
 to select fractional zero points for all Q4_1/Q4_K/Q5_K tensors.
@@ -266,16 +272,22 @@ Q5_K reconstructs five-bit codes 0..31 and stores them in `u8`. Both store F16 `
 F16 `offset/sc` (zero for a zero scale), and their graph arithmetic is F32. Both have the
 common affine limitations; Q5_K additionally widens its code payload.
 
-With an **integer zero point**, both first reconstruct 32 source values in F32, then
-requantize onto a new grid whose range includes zero. Q4_K uses 16 levels in packed `u4`:
+With an **integer zero point**, Q4_K first reconstructs 32 source values in F32, then
+requantizes onto a new grid whose range includes zero. It uses 16 levels in packed `u4`:
 min/max initialization, an integer zero point, and a least-squares scale refinement. Candidate
 scales are evaluated after F16 rounding. The importer retains the original codes with a
 rounded integer zero point unless a candidate reduces squared error without increasing
-maximum absolute error. Q5_K uses 256 levels in `u8`, an F16 min/max scale and a rounded,
-clipped integer zero point; values are rounded and clipped to 0..255.
+maximum absolute error.
+
+Ordinary Q5_K matrix weights use a symmetric 255-level i8 grid. Each 32-value group uses `F16(max(abs(value))/127)` and codes rounded against that stored scale,
+clamped to [-127,127]. There is no zero-point tensor. A skewed range can have a coarser
+grid than asymmetric u8, so this representation changes reconstruction error even though
+both paths requantize once. Embedding/output and other non-matrix Q5_K tensors retain
+the existing u8 handling.
 
 Including zero in a one-sided group coarsens the available grid. Q5_K collapses a group to
-zero if its new F16 scale is nonpositive or nonfinite.
+zero if its new F16 scale rounds to zero. The symmetric path rejects nonfinite source
+values and scales that exceed the F16 range.
 
 ### Q4_1
 
@@ -330,7 +342,7 @@ compiled = core.compile_model(model, "CPU", {
 ```
 
 Set `OV_GGUF_Q4_K_ZP_F16=1` **before starting the process** to preserve fractional Q4_K/Q4_1/Q5_K
-zero points instead of their default u4/u8 requantization. It is cached on first use; changing the
+zero points instead of their default u4/u8 or symmetric i8 requantization. It is cached on first use; changing the
 environment later in a notebook does not switch an already initialized process. The option
 does not make every quantized format lossless or guarantee device support for fractional zero points.
 
