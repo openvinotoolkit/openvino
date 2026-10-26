@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -34,6 +35,27 @@
 
 using namespace ov::frontend::gguf;
 using ov_gguf_test::load_npy;
+
+TEST(GGUFDequant, ChannelwiseQ8ZeroRowRemainsZero) {
+    const std::vector<float> row(32, 0.0f);
+    std::vector<int8_t> weights(row.size(), 1);
+    ov::float16 scale(1.0f);
+    quantize_row_q8_0_c(row.data(), row.size(), weights.data(), scale);
+    EXPECT_FLOAT_EQ(static_cast<float>(scale), 0.0f);
+    EXPECT_EQ(weights, std::vector<int8_t>(row.size(), 0));
+}
+
+TEST(GGUFDequant, ChannelwiseQ8TinyRowsHaveFiniteQuantizedWeights) {
+    for (const float maximum : {std::numeric_limits<float>::min(), std::numeric_limits<float>::denorm_min()}) {
+        SCOPED_TRACE(maximum);
+        const std::vector<float> row{maximum, -maximum, 0.0f};
+        std::vector<int8_t> weights(row.size());
+        ov::float16 scale;
+        quantize_row_q8_0_c(row.data(), row.size(), weights.data(), scale);
+        EXPECT_EQ(weights, (std::vector<int8_t>{127, -127, 0}));
+        EXPECT_FLOAT_EQ(static_cast<float>(scale), 0.0f);
+    }
+}
 
 namespace {
 

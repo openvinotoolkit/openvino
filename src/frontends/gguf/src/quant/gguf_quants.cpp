@@ -99,14 +99,22 @@ void quantize_row_q8_0_c(const float* x, size_t cols, int8_t* out_weights, ov::f
     for (size_t c = 0; c < cols; ++c) {
         amax = std::max(amax, std::fabs(x[c]));
     }
-    const float d = amax / 127.0f;
-    // A zero row has a zero scale and must remain zero. Keep the division in a
-    // branch where its divisor is known to be non-zero.
-    float id = 0.0f;
-    if (d != 0.0f) {
-        id = 1.0f / d;
+    if (amax == 0.0f) {
+        out_scale = ov::float16(0.0f);
+        std::fill_n(out_weights, cols, int8_t{0});
+        return;
     }
+    const float d = amax / 127.0f;
     out_scale = ov::float16(d);
+    if (d < std::numeric_limits<float>::min()) {
+        // Avoid an underflowed scale or overflowing reciprocal for tiny nonzero rows.
+        const double id = 127.0 / static_cast<double>(amax);
+        for (size_t c = 0; c < cols; ++c) {
+            out_weights[c] = static_cast<int8_t>(std::lround(static_cast<double>(x[c]) * id));
+        }
+        return;
+    }
+    const float id = 1.0f / d;
     for (size_t c = 0; c < cols; ++c) {
         out_weights[c] = static_cast<int8_t>(std::lround(x[c] * id));
     }
