@@ -140,6 +140,19 @@ class TorchScriptPythonDecoder(TorchDecoderBase):
                         preserved_attributes.extend([prefix + public_attr, prefix + attr])
         return list(dict.fromkeys(preserved_attributes))
 
+    @staticmethod
+    def _trace_model(pt_module, input_parameters, trace_kwargs):
+        """Trace with at most one retry per placeholder parameter."""
+        max_retries = sum(isinstance(parameter, patch_model._FP32ParameterPlaceholder)
+                          for parameter in pt_module.parameters())
+        for attempt in range(max_retries + 1):
+            try:
+                with FunctionsPatcher():
+                    return torch.jit.trace(pt_module, **input_parameters, strict=False, **trace_kwargs)
+            except patch_model._ParameterPlaceholderTraceError as error:
+                if attempt == max_retries or not patch_model._materialize_parameters(pt_module, error.parameters):
+                    raise
+
     def _get_scripted_model(self, pt_module, example_inputs=None, skip_freeze=False, trace_kwargs=None):
         freeze_by_default = False
         if isinstance(pt_module, torch.nn.Module):
@@ -191,15 +204,7 @@ class TorchScriptPythonDecoder(TorchDecoderBase):
                 if trace_kwargs is None:
                     trace_kwargs = {}
                 try:
-                    while True:
-                        try:
-                            with FunctionsPatcher():
-                                scripted = torch.jit.trace(
-                                    pt_module, **input_parameters, strict=False, **trace_kwargs)
-                            break
-                        except patch_model._ParameterPlaceholderTraceError as error:
-                            if not patch_model._materialize_parameters(pt_module, error.parameters):
-                                raise
+                    scripted = self._trace_model(pt_module, input_parameters, trace_kwargs)
                 finally:
                     if patched:
                         quantized.unpatch_quantized(pt_module)

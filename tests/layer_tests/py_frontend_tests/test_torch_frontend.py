@@ -1156,6 +1156,38 @@ def test_make_16bit_traceable_falls_back_for_parameter_scalar_extraction(dtype, 
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_make_16bit_traceable_multiple_parameter_retries(dtype):
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch import patch_model
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.first = torch.nn.Parameter(torch.tensor([2, 3], dtype=dtype), requires_grad=False)
+            self.second = torch.nn.Parameter(torch.tensor([4, 5], dtype=dtype), requires_grad=False)
+
+        def forward(self, value):
+            return value * self.first.sum().item() + self.second.sum().item()
+
+    model = Model().eval()
+    originals = dict(model.named_parameters(remove_duplicate=False))
+    example = torch.ones(4)
+    expected = model(example)
+    try:
+        patch_model.__make_16bit_traceable(model)
+        converted = convert_model(model, example_input=(example,))
+        result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
+        np.testing.assert_allclose(result, expected.numpy(), atol=1e-5, rtol=1e-5)
+        assert model.first.untyped_storage().nbytes() == 8
+        assert model.second.untyped_storage().nbytes() == 8
+    finally:
+        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
+    for name, original in originals.items():
+        assert getattr(model, name) is original
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("comparison", ["equal", "allclose", "method_equal", "method_allclose"])
 def test_make_16bit_traceable_fallback_comparison(dtype, comparison):
     from openvino import convert_model, compile_model
