@@ -42,7 +42,7 @@ public:
         : ov::frontend::NodeContext(decoder->get_op_type()),
           m_decoder(decoder),
           m_tensor_map(tensor_map),
-          m_constant_cache(constant_cache) {
+          m_constant_cache(constant_cache ? constant_cache : std::make_shared<ConstantCache>()) {
         m_input_names = decoder->get_input_names();
         m_output_names = decoder->get_output_names();
     }
@@ -109,8 +109,6 @@ public:
     std::shared_ptr<ov::op::v0::Constant> get_constant(const ov::element::Type& type,
                                                        const ov::Shape& shape,
                                                        const std::vector<int64_t>& values) const {
-        if (!m_constant_cache)
-            return ov::op::v0::Constant::create(type, shape, values);
         auto& constant = m_constant_cache->constants[{static_cast<ov::element::Type_t>(type), shape, values}];
         if (!constant)
             constant = ov::op::v0::Constant::create(type, shape, values);
@@ -131,8 +129,6 @@ public:
             }
             return ov::op::v0::Constant::create(type, {block, block}, values);
         };
-        if (!m_constant_cache)
-            return make_matrix();
         auto& matrix = m_constant_cache->hadamard_matrices[static_cast<ov::element::Type_t>(type)];
         if (!matrix)
             matrix = make_matrix();

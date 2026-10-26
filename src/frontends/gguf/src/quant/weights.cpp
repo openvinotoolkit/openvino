@@ -427,6 +427,8 @@ public:
         const auto node = output.get_node_shared_ptr();
         if (!node->get_control_dependencies().empty() || !node->get_control_dependents().empty())
             return m_ids[output] = m_next++;
+        std::vector<int64_t> attributes;
+        bool comparable = true;
         if (const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(node)) {
             const auto& shape = reshape->get_input_partial_shape(0);
             const auto pattern = ov::as_type_ptr<ov::op::v0::Constant>(reshape->get_input_node_shared_ptr(1));
@@ -436,12 +438,8 @@ public:
                       return dim.is_static();
                   }))))
                 return m_ids[output] = get(reshape->input_value(0));
-        }
-        std::vector<int64_t> attributes;
-        bool comparable = true;
-        if (const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(node))
             attributes.push_back(reshape->get_special_zero());
-        else if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
+        } else if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
             if (convert->get_input_element_type(0) == convert->get_element_type())
                 return m_ids[output] = get(convert->input_value(0));
             attributes.push_back(static_cast<int64_t>(static_cast<ov::element::Type_t>(convert->get_element_type())));
@@ -469,7 +467,7 @@ public:
             constants.emplace_back(constant, id);
             return m_ids[output] = id;
         }
-        if (!comparable || !node->get_control_dependencies().empty() || !node->get_control_dependents().empty())
+        if (!comparable)
             return m_ids[output] = m_next++;
         std::vector<size_t> inputs;
         for (const auto& input : node->input_values())

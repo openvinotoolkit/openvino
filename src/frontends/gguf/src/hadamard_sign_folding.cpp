@@ -86,45 +86,10 @@ bool preserves_shape(const ov::PartialShape& data,
     return true;
 }
 
-bool broadcast_shape(const ov::Shape& lhs, const ov::Shape& rhs, ov::Shape& result) {
-    result.assign(std::max(lhs.size(), rhs.size()), 1);
-    for (size_t axis = 0; axis < result.size(); ++axis) {
-        const auto a = axis < result.size() - lhs.size() ? 1 : lhs[axis - (result.size() - lhs.size())];
-        const auto b = axis < result.size() - rhs.size() ? 1 : rhs[axis - (result.size() - rhs.size())];
-        if (a != b && a != 1 && b != 1)
-            return false;
-        result[axis] = a == 1 ? b : a;
-    }
-    return ov::shape_size(result) > 0;
-}
-
-size_t broadcast_index(size_t index, const ov::Shape& source, const ov::Shape& output) {
-    size_t source_index = 0;
-    size_t stride = 1;
-    for (size_t axis = output.size(); axis-- > 0;) {
-        const auto coordinate = index % output[axis];
-        index /= output[axis];
-        if (axis >= output.size() - source.size()) {
-            const auto dimension = source[axis - (output.size() - source.size())];
-            if (dimension != 1)
-                source_index += coordinate * stride;
-            stride *= dimension;
-        }
-    }
-    return source_index;
-}
-
-template <typename T>
-void flip_sign(uint8_t* bytes) {
-    T bits;
-    std::memcpy(&bits, bytes, sizeof(bits));
-    bits ^= T{1} << (sizeof(T) * 8 - 1);
-    std::memcpy(bytes, &bits, sizeof(bits));
-}
-
 std::shared_ptr<Constant> signed_scale(const std::shared_ptr<Constant>& scale, const std::shared_ptr<Constant>& signs) {
-    ov::Shape shape;
-    if (!broadcast_shape(scale->get_shape(), signs->get_shape(), shape))
+    ov::PartialShape shape = scale->get_shape();
+    if (!ov::PartialShape::broadcast_merge_into(shape, signs->get_shape(), ov::op::AutoBroadcastType::NUMPY) ||
+        ov::shape_size(shape.to_shape()) == 0)
         return nullptr;
     const auto values = scale->cast_vector<double>();
     const auto sign_values = signs->cast_vector<double>();
@@ -134,24 +99,12 @@ std::shared_ptr<Constant> signed_scale(const std::shared_ptr<Constant>& scale, c
     for (const auto sign : sign_values)
         if (sign != 1.0 && sign != -1.0)
             return nullptr;
-    const auto type = scale->get_element_type();
-    const auto size = type.size();
-    ov::Tensor tensor(type, shape);
-    auto* output = static_cast<uint8_t*>(tensor.data());
-    const auto* input = static_cast<const uint8_t*>(scale->get_data_ptr());
-    for (size_t i = 0; i < tensor.get_size(); ++i) {
-        auto* element = output + i * size;
-        std::memcpy(element, input + broadcast_index(i, scale->get_shape(), shape) * size, size);
-        if (sign_values[broadcast_index(i, signs->get_shape(), shape)] < 0) {
-            if (size == 2)
-                flip_sign<uint16_t>(element);
-            else if (size == 4)
-                flip_sign<uint32_t>(element);
-            else
-                flip_sign<uint64_t>(element);
-        }
-    }
-    return std::make_shared<Constant>(tensor);
+    // Multiplying a finite value by +-1 is exact, including for f16/bf16 evaluated through f32.
+    ov::TensorVector folded{ov::Tensor(scale->get_element_type(), shape.to_shape())};
+    if (!std::make_shared<Multiply>(scale, signs)
+             ->evaluate(folded, {scale->get_tensor_view(), signs->get_tensor_view()}))
+        return nullptr;
+    return std::make_shared<Constant>(folded.front());
 }
 
 bool merge_info(const ov::NodeVector& sources, const std::shared_ptr<ov::Node>& target) {
@@ -274,9 +227,11 @@ void fold_scale(const std::shared_ptr<Multiply>& scaled) {
                 (!view.squeeze && ov::is_type<Squeeze>(node)))
                 continue;
             const auto rotation = ov::as_type_ptr<Multiply>(node);
-            if (!is_sign_multiply(rotation) || rotation->input_value(1 - consumer.get_index()) == view.output)
+            if (!is_sign_multiply(rotation))
                 return;
             const auto sign_input = rotation->input_value(1 - consumer.get_index());
+            if (sign_input == view.output)
+                return;
             const auto constant = exact_constant(sign_input);
             if (!constant || constant->get_element_type() != scale->get_element_type() ||
                 !preserves_shape(view.output.get_partial_shape(), constant->get_shape(), rotation->get_autob()))

@@ -44,7 +44,7 @@ Output<Node>* NodeContext::get_hadamard_cache_entry(const Output<Node>& input,
                                                     bool inverse,
                                                     const std::vector<int64_t>& heads,
                                                     const ov::Tensor& signs) const {
-    if (!m_constant_cache || (signs && !signs.is_continuous()))
+    if (signs && !signs.is_continuous())
         return nullptr;
     auto type = ov::element::Type_t::dynamic;
     ov::Shape shape;
@@ -61,14 +61,9 @@ Output<Node>* NodeContext::get_hadamard_cache_entry(const Output<Node>& input,
 Output<Node> NodeContext::get_f32_activation(const Output<Node>& input) const {
     if (input.get_element_type() == ov::element::f32)
         return input;
-    const auto make_convert = [&]() -> Output<Node> {
-        return std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
-    };
-    if (!m_constant_cache)
-        return make_convert();
     auto& output = m_constant_cache->f32_activations[input];
     if (!output.get_node())
-        output = make_convert();
+        output = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
     return output;
 }
 

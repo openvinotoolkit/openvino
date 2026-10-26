@@ -40,6 +40,7 @@
 #include "openvino/openvino.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
+#include "openvino/util/common_util.hpp"
 #include "quant/gguf.hpp"
 #include "utils.hpp"
 
@@ -637,6 +638,20 @@ TEST(GGUFMultimodalBackboneAdaptation, Lfm2SupportsBatchesAndBeamReordering) {
     }
 }
 
+static size_t count_rank3_gates(const std::shared_ptr<ov::Model>& model, const std::string& prefix) {
+    size_t gates = 0;
+    for (const auto& node : model->get_ops()) {
+        const auto& name = node->get_friendly_name();
+        for (const auto* gate : {"attn_gate", "attn_gate_sig", "kqv_gated"}) {
+            if (ov::util::ends_with(name, prefix + gate)) {
+                ++gates;
+                EXPECT_EQ(node->get_output_partial_shape(0).rank(), 3) << name;
+            }
+        }
+    }
+    return gates;
+}
+
 TEST(GGUFMultimodalBackboneAdaptation, AttentionGatesPreserveBatchAndBeamShapes) {
     for (const auto* family : {"muse-glimmer", "qwen35", "bonsai2-hadamard"}) {
         SCOPED_TRACE(family);
@@ -645,18 +660,7 @@ TEST(GGUFMultimodalBackboneAdaptation, AttentionGatesPreserveBatchAndBeamShapes)
         ov::frontend::gguf::FrontEnd frontend;
         frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
         const auto model = frontend.convert(frontend.load(temporary.path));
-        size_t gates = 0;
-        for (const auto& node : model->get_ops()) {
-            const auto& name = node->get_friendly_name();
-            for (const std::string suffix : {".attn_gate", ".attn_gate_sig", ".kqv_gated"}) {
-                if (name.size() >= suffix.size() &&
-                    name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0) {
-                    ++gates;
-                    EXPECT_EQ(node->get_output_partial_shape(0).rank(), 3) << name;
-                }
-            }
-        }
-        EXPECT_GT(gates, 0);
+        EXPECT_GT(count_rank3_gates(model, "."), 0);
         check_batched_decode(model);
     }
 }
@@ -682,18 +686,7 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
         frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
         auto model = frontend.convert(frontend.load(temporary.path));
         if (std::string(family).find("qwen35") == 0 || std::string(family) == "bonsai2-hadamard") {
-            size_t gates = 0;
-            for (const auto& node : model->get_ordered_ops()) {
-                const auto& name = node->get_friendly_name();
-                for (const std::string suffix : {"_blk.3.attn_gate", "_blk.3.attn_gate_sig", "_blk.3.kqv_gated"}) {
-                    if (name.size() >= suffix.size() &&
-                        name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0) {
-                        ++gates;
-                        EXPECT_EQ(node->get_output_partial_shape(0).rank(), 3) << name;
-                    }
-                }
-            }
-            EXPECT_EQ(gates, 3);
+            EXPECT_EQ(count_rank3_gates(model, "_blk.3."), 3);
         }
         check_batched_decode(model);
         ov::pass::Manager manager;
