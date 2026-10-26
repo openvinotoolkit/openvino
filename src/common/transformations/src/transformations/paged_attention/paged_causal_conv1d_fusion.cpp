@@ -41,7 +41,6 @@
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::has_static_rank;
 using ov::pass::pattern::has_static_shape;
-using ov::pass::pattern::optional;
 using ov::pass::pattern::rank_equals;
 using ov::pass::pattern::wrap_type;
 
@@ -85,7 +84,8 @@ PagedCausalConv1DFusionMatcher::PagedCausalConv1DFusionMatcher(ov::pass::paged_a
     MATCHER_SCOPE(PagedCausalConv1DFusionMatcher);
 
     auto p_read_value = wrap_type<ov::op::util::ReadValueBase>(has_static_rank() && rank_equals(3));
-    auto p_past_via_gather = optional<ov::op::util::GatherBase>({p_read_value, any_input(), any_input()});
+    auto p_past_via_gather =
+        ov::pass::pattern::optional<ov::op::util::GatherBase>({p_read_value, any_input(), any_input()});
     auto p_token_input = any_input(rank_equals(3));
     auto p_concat_past_first = wrap_type<v0::Concat>({p_past_via_gather, p_token_input}, {{"axis", -1}});
     auto p_concat_token_first = wrap_type<v0::Concat>({p_token_input, p_past_via_gather}, {{"axis", -1}});
@@ -96,8 +96,9 @@ PagedCausalConv1DFusionMatcher::PagedCausalConv1DFusionMatcher(ov::pass::paged_a
         wrap_type<v1::GroupConvolution>({p_state_concat, p_weight_input}, has_unit_stride_and_no_padding());
 
     auto p_bias_input = any_input(has_static_shape());
-    auto p_add_bias = optional<v1::Add>({p_group_conv, p_bias_input});
-    auto p_slice_out = optional<v8::Slice>({p_add_bias, any_input(), any_input(), any_input(), any_input()});
+    auto p_add_bias = ov::pass::pattern::optional<v1::Add>({p_group_conv, p_bias_input});
+    auto p_slice_out =
+        ov::pass::pattern::optional<v8::Slice>({p_add_bias, any_input(), any_input(), any_input(), any_input()});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove, &layer_index](
                                              ov::pass::pattern::Matcher& m) {
