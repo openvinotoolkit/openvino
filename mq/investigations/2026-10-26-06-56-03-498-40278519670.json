@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-26-06-56-03-498-40278519670",
+  "timestamp": "2026-10-26T06:56:03Z",
+  "run_id": "40278519670",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/40278519670",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "38669",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38669",
+  "author": "LeoHeller",
+  "category": "Flaky Test",
+  "title": "smoke_AvgPoolV14CeilTorch CPU test fails on ACL primitive type mismatch (undef_f32 vs acl_f32)",
+  "signature": "primType is unexpected undef_f32 Expected acl_f32|Flaky Test",
+  "signature_hash": "eb0b94c864ee1a85",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "1 of 72267 smoke tests failed: AvgPoolingV14LayerCPUTest expected ACL primitive but got undef primitive"
+    },
+    {
+      "name": "ci/gha_overall_status_linux_arm64",
+      "conclusion": "failure",
+      "symptom": "Aggregated workflow status reported failure due to the CPU functional tests job failure"
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : undef_f32 Expected : acl_f32",
+    "[  FAILED  ] smoke_AvgPoolV14CeilTorch_CPU_4D/AvgPoolingV14LayerCPUTest.CompareWithRefs/IS=([?.?.?.?])_TS=(1.32.8.8)_(1.21.8.4)_(2.8.8.12)_(1.96.125.125)_Prc=f32_ExcludePad=1_K(4.4)_S(4.4)_PB(2.2)_PE(2.2)_Rounding=floor_AutoPad=explicit_INT8=0__primitive=acl"
+  ],
+  "root_cause": "This is a known recurring flaky-test pattern on the ARM64 CPU plugin: the AvgPooling/related layer tests assert that the executed primitive implementation is the ACL (Arm Compute Library) kernel (primType == acl_f32), but on this run the CPU plugin's implementation-selection logic non-deterministically picked the fallback 'undef' (reference/generic) implementation instead, failing the assertion in cpu_test_utils.cpp:248. This is unrelated to the PR under test (#38669), which only touches CMake regex-escaping logic for EXCLUDED_SOURCE_PATHS and does not touch the CPU plugin or its primitive-selection code at all. The same primType-mismatch signature (eb0b94c864ee1a85) has recurred 4 times previously across unrelated PRs since 2026-09-11, each time involving a different parametrized test instance of the same family of primitive-type assertions, confirming this is a pre-existing non-deterministic test/plugin issue rather than something introduced by this PR.",
+  "reproduction_steps": "Not reliably reproducible locally since it is a flaky/non-deterministic primitive-selection outcome. To attempt reproduction: build OpenVINO for ARM64 with CPU plugin and ACL enabled, then repeatedly run `ov_cpu_func_tests --gtest_filter=*smoke_AvgPoolV14CeilTorch_CPU_4D*AvgPoolingV14LayerCPUTest*` until the primType mismatch reoccurs; may require many iterations since it only manifested once in ~72k smoke tests this run.",
+  "recommended_actions": [
+    "No action needed on PR #38669 — this failure is unrelated to the CMake changes being merged.",
+    "Investigate CPU plugin primitive-selection logic for AvgPooling on ARM64/ACL builds to determine why it occasionally falls back to the reference ('undef') implementation instead of acl_f32.",
+    "Consider loosening the test assertion to tolerate an occasional fallback-to-reference implementation when the ACL kernel does not support the given parameter combination, or add retry/quarantine for this specific parametrized test family.",
+    "Re-run the failed CPU functional tests job; it is expected to pass on retry given the non-deterministic nature of the failure."
+  ],
+  "prevention_strategies": "Track recurring primType-mismatch flaky tests in a dedicated ticket and consider marking the specific parametrized AvgPoolingV14LayerCPUTest / MatMulDecompressConvertTest instances as known-flaky (disabled_tests.log) until the underlying ACL primitive-selection non-determinism is fixed, to avoid repeatedly blocking unrelated merge-queue PRs.",
+  "historical_context": "Same signature (primType is unexpected ... Expected acl_f32 | Flaky Test, hash eb0b94c864ee1a85) previously recorded 4 times between 2026-09-11 and 2026-10-02 across PRs #37783, #37885, #38052, #38528, none of which touched CPU plugin primitive-selection code. A related but distinct signature (76751669c7a78fcd, 'primType is unexpected unknown Expected ref') was also seen once on PR #36890 in 2026-07-17, suggesting a broader family of primType-assertion flakiness in the CPU test suite."
+}
