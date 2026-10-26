@@ -84,11 +84,13 @@ class CoverageTests(unittest.TestCase):
             self.contract["required_files"] = [str(fixture)]
             contract.write_text(json.dumps(self.contract))
             listing.write_text(self.listing)
+            original = {target: target.read_bytes() for target in (fixture, contract, listing)}
             for output in (fixture, contract, listing):
                 result = subprocess.run([sys.executable, coverage.__file__, "--contract", str(contract),
                                          "--listing", str(listing), "--output", str(output)], capture_output=True)
                 self.assertEqual(result.returncode, 2)
-            self.assertEqual(fixture.read_bytes(), b"GGUF")
+                self.assertEqual(json.loads(result.stdout)["output_refused"], True)
+                self.assertEqual({target: target.read_bytes() for target in original}, original)
 
     def test_cli_malformed_contract_retains_error(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -99,7 +101,107 @@ class CoverageTests(unittest.TestCase):
             result = subprocess.run([sys.executable, coverage.__file__, "--contract", str(contract),
                                      "--listing", str(listing), "--output", str(output)], capture_output=True)
             self.assertEqual(result.returncode, 2)
-            self.assertTrue(json.loads(output.read_text())["input_error"])
+            report = json.loads(output.read_text())
+            self.assertTrue(report["input_error"])
+            self.assertEqual(json.loads(result.stdout)["details"], str(output.resolve()))
+
+    def test_cli_relative_required_file_and_later_fixture_alias_refuses_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            model, contract, listing = path / "model.gguf", path / "contract.json", path / "listing.txt"
+            original = b"MODEL BYTES MUST SURVIVE"
+            model.write_bytes(original)
+            contract.write_text(json.dumps({"selections": self.contract["selections"],
+                                            "required_files": ["relative.gguf", str(model)]}))
+            listing.write_text(self.listing)
+            result = subprocess.run([sys.executable, coverage.__file__, "--contract", str(contract),
+                                     "--listing", str(listing), "--output", str(model)], capture_output=True)
+            self.assertEqual(result.returncode, 2)
+            diagnostic = json.loads(result.stdout)
+            self.assertIsNone(diagnostic["details"])
+            self.assertTrue(diagnostic["output_refused"])
+            self.assertIn("required fixture", diagnostic["reason"])
+            self.assertEqual(model.read_bytes(), original)
+
+    def test_cli_malformed_required_files_refuses_without_writing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            output, contract, listing = path / "result.json", path / "contract.json", path / "listing.txt"
+            original = b"KEEP EXISTING OUTPUT"
+            output.write_bytes(original)
+            listing.write_text(self.listing)
+            malformed = ("not a list", [None], [""], [str(output), None])
+            for required_files in malformed:
+                with self.subTest(required_files=required_files):
+                    contract.write_text(json.dumps({"selections": self.contract["selections"],
+                                                    "required_files": required_files}))
+                    result = subprocess.run([sys.executable, coverage.__file__, "--contract", str(contract),
+                                             "--listing", str(listing), "--output", str(output)], capture_output=True)
+                    self.assertEqual(result.returncode, 2)
+                    diagnostic = json.loads(result.stdout)
+                    self.assertIsNone(diagnostic["details"])
+                    self.assertTrue(diagnostic["output_refused"])
+                    self.assertTrue(diagnostic["reason"])
+                    self.assertEqual(output.read_bytes(), original)
+
+    def test_cli_unreadable_contract_discovery_refuses_without_writing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            contract, listing, output = path / "contract.json", path / "listing.txt", path / "result.json"
+            listing.write_text(self.listing)
+            original = b"KEEP EXISTING OUTPUT"
+            output.write_bytes(original)
+            for contents in ("{broken", "[]"):
+                with self.subTest(contents=contents):
+                    contract.write_text(contents)
+                    result = subprocess.run([sys.executable, coverage.__file__, "--contract", str(contract),
+                                             "--listing", str(listing), "--output", str(output)], capture_output=True)
+                    self.assertEqual(result.returncode, 2)
+                    diagnostic = json.loads(result.stdout)
+                    self.assertIsNone(diagnostic["details"])
+                    self.assertTrue(diagnostic["output_refused"])
+                    self.assertTrue(diagnostic["reason"])
+                    self.assertEqual(output.read_bytes(), original)
+
+    def test_cli_fixture_symlink_and_hardlink_aliases_refuse_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            model, contract, listing = path / "model.gguf", path / "contract.json", path / "listing.txt"
+            model.write_bytes(b"KEEP MODEL BYTES")
+            contract.write_text(json.dumps({"selections": self.contract["selections"],
+                                            "required_files": [str(model)]}))
+            listing.write_text(self.listing)
+            for kind in ("symlink", "hardlink"):
+                with self.subTest(kind=kind):
+                    output = path / (kind + "-output")
+                    if kind == "symlink":
+                        output.symlink_to(model)
+                    else:
+                        os.link(model, output)
+                    result = subprocess.run([sys.executable, coverage.__file__, "--contract", str(contract),
+                                             "--listing", str(listing), "--output", str(output)], capture_output=True)
+                    self.assertEqual(result.returncode, 2)
+                    diagnostic = json.loads(result.stdout)
+                    self.assertIsNone(diagnostic["details"])
+                    self.assertTrue(diagnostic["output_refused"])
+                    self.assertEqual(model.read_bytes(), b"KEEP MODEL BYTES")
+                    self.assertEqual(output.read_bytes(), b"KEEP MODEL BYTES")
+                    output.unlink()
+            first_link, second_link = path / "loop-a", path / "loop-b"
+            first_link.symlink_to(second_link)
+            second_link.symlink_to(first_link)
+            output = path / "loop-output.json"
+            output.write_bytes(b"KEEP OUTPUT BYTES")
+            contract.write_text(json.dumps({"selections": self.contract["selections"],
+                                            "required_files": [str(first_link)]}))
+            result = subprocess.run([sys.executable, coverage.__file__, "--contract", str(contract),
+                                     "--listing", str(listing), "--output", str(output)], capture_output=True)
+            self.assertEqual(result.returncode, 2)
+            diagnostic = json.loads(result.stdout)
+            self.assertIsNone(diagnostic["details"])
+            self.assertTrue(diagnostic["output_refused"])
+            self.assertIn("cannot safely resolve", diagnostic["reason"])
+            self.assertEqual(output.read_bytes(), b"KEEP OUTPUT BYTES")
 
     def test_hardlink_output_preserves_coverage_inputs_and_xml(self):
         with tempfile.TemporaryDirectory() as directory:

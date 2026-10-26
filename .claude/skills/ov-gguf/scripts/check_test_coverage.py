@@ -26,12 +26,17 @@ def listed_ids(text):
 
 
 def aliases(first, second):
-    if first.resolve() == second.resolve():
-        return True
+    try:
+        if first.resolve() == second.resolve():
+            return True
+    except (OSError, RuntimeError, ValueError) as error:
+        raise ValueError(f"cannot safely resolve path {first}: {error}") from error
     try:
         return os.path.samefile(first, second)
-    except OSError:
+    except (FileNotFoundError, NotADirectoryError):
         return False
+    except (OSError, ValueError) as error:
+        raise ValueError(f"cannot safely compare paths {first} and {second}: {error}") from error
 
 
 def check(contract, listing=None, summary=None):
@@ -114,17 +119,37 @@ def main():
     if args.listing is None and args.summary is None:
         parser.error("provide --listing and/or --summary")
     inputs = [path for path in (args.contract, args.listing, args.summary) if path is not None]
-    if any(aliases(args.output, path) for path in inputs):
-        parser.error("output must not overwrite an input")
+
+    def refuse_output(reason):
+        print(json.dumps({"counts": {}, "violations": [reason], "omitted_violations": 0,
+                          "details": None, "output_refused": True, "reason": reason}))
+        return 2
+
+    try:
+        if any(aliases(args.output, path) for path in inputs):
+            return refuse_output("output must not overwrite an input")
+    except ValueError as error:
+        return refuse_output(str(error))
     try:
         contract = json.loads(args.contract.read_text())
-        if not isinstance(contract, dict):
-            raise ValueError("contract must be an object")
-        for name in contract.get("required_files", []):
-            if not Path(name).is_absolute():
-                raise ValueError("required_files must use absolute paths")
-            if aliases(Path(name), args.output):
-                parser.error("output must not overwrite a required fixture")
+    except (OSError, ValueError) as error:
+        return refuse_output("cannot read or parse contract: " + str(error))
+    if not isinstance(contract, dict):
+        return refuse_output("contract must be an object")
+    required_files = contract.get("required_files", [])
+    if (not isinstance(required_files, list)
+            or any(not isinstance(name, str) or not name for name in required_files)):
+        return refuse_output("required_files must contain nonempty strings")
+    fixture_paths = [Path(name) for name in required_files]
+    try:
+        for path in fixture_paths:
+            if aliases(path, args.output):
+                return refuse_output("output must not overwrite a required fixture")
+    except ValueError as error:
+        return refuse_output(str(error))
+    if any(not path.is_absolute() for path in fixture_paths):
+        return refuse_output("required_files must use absolute paths")
+    try:
         result = check(contract, args.listing.read_text() if args.listing else None,
                        json.loads(args.summary.read_text()) if args.summary else None)
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
