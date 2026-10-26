@@ -248,6 +248,50 @@ ocl_stream::ocl_stream(const ocl_engine& engine, const ExecutionConfig& config, 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::stream& ocl_stream::get_onednn_stream() {
     OPENVINO_ASSERT(m_queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
+    return get_or_create_onednn_stream();
+}
+
+event::ptr ocl_stream::enqueue_onednn(const dnnl::primitive& prim,
+                                      const std::unordered_map<int, dnnl::memory>& args,
+                                      const std::vector<event::ptr>& deps,
+                                      bool is_output_event) {
+    OPENVINO_ASSERT(m_queue_type == QueueTypes::out_of_order, "[GPU] enqueue_onednn is intended for out-of-order queues only");
+    auto& dnn_stream = get_or_create_onednn_stream();
+
+    std::vector<cl::Event> dep_events;
+    std::vector<cl_event> cl_deps;
+    if (m_sync_method == SyncMethods::events) {
+        dep_events = utils::get_cl_events(deps);
+        for (const auto& ev : dep_events) {
+            cl_deps.push_back(ev.get());
+        }
+    } else if (m_sync_method == SyncMethods::barriers) {
+        sync_events(deps, is_output_event);
+    }
+
+    cl_event ret = nullptr;
+    try {
+        ret = dnnl::ocl_interop::execute(prim, dnn_stream, args, cl_deps);
+    } catch (const dnnl::error& err) {
+        OPENVINO_THROW(err.what());
+    }
+
+    cl::Event ret_ev;
+    if (ret != nullptr) {
+        ret_ev = cl::Event(ret);
+    } else {
+        // oneDNN submitted nothing, still hand out an event that covers all previous work
+        try {
+            _command_queue.enqueueMarkerWithWaitList(nullptr, &ret_ev);
+        } catch (const cl::Error& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
+    }
+
+    return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
+}
+
+dnnl::stream& ocl_stream::get_or_create_onednn_stream() {
     OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
     if (!_onednn_stream) {
 #    ifdef OV_GPU_WITH_ZE_RT

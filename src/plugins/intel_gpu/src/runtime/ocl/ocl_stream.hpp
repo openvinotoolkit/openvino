@@ -63,10 +63,17 @@ public:
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::stream& get_onednn_stream() override;
+    event::ptr enqueue_onednn(const dnnl::primitive& prim,
+                              const std::unordered_map<int, dnnl::memory>& args,
+                              const std::vector<event::ptr>& deps,
+                              bool is_output_event) override;
 #endif
 
 private:
     void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    dnnl::stream& get_or_create_onednn_stream();
+#endif
 
     const ocl_engine& _engine;
     ocl_queue_type _command_queue;

@@ -356,9 +356,6 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     if (!is_set_by_user(ov::intel_gpu::use_onednn) && info.supports_immad) {
         m_use_onednn = true;
     }
-    if (m_use_onednn) {
-        m_queue_type = QueueTypes::in_order;
-    }
     if (m_use_onednn && dnnl::verbose_profiling_enabled()) {
         // Auto-enable profiling when OneDNN verbose profiling is enabled.
         m_enable_profiling = true;
@@ -400,6 +397,14 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
         m_enable_profiling = true;
     }
 #endif // ENABLE_DEBUG_CAPS
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    // oneDNN works with an out-of-order queue only through the OCL runtime and without its profiling.
+    if (m_use_onednn &&
+        (m_enable_profiling || dynamic_cast<const RemoteContextImpl*>(context)->get_engine().runtime_type() != cldnn::runtime_types::ocl)) {
+        m_queue_type = QueueTypes::in_order;
+    }
+#endif
 }
 
 void ExecutionConfig::apply_hints(const cldnn::device_info& info) {

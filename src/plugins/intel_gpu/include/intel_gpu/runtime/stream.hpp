@@ -11,6 +11,7 @@
 #include "command_recorder.hpp"
 
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -93,6 +94,12 @@ public:
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     virtual dnnl::stream& get_onednn_stream() = 0;
+    /// @brief Executes a oneDNN primitive on an out-of-order queue with explicit dependencies.
+    /// @return Event that completes together with the submitted oneDNN work.
+    virtual event::ptr enqueue_onednn(const dnnl::primitive& prim,
+                                      const std::unordered_map<int, dnnl::memory>& args,
+                                      const std::vector<event::ptr>& deps,
+                                      bool is_output_event);
 #endif
 
 protected:
