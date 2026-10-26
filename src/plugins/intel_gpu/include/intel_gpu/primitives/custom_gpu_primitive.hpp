@@ -148,7 +148,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     /// @brief Source code for the kernel
     const primitive_id_arr kernels_code;
     /// @brief Original IR op
-    const std::shared_ptr<ov::Node> op;
+    std::shared_ptr<ov::Node> op;
     /// @brief -1: mean calc gws via output, else calc gws via inputs
     const int calcWgDimInputIdx = -1;
     /// @brief Custom provided rules for calc work sizes.
@@ -167,6 +167,9 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         seed = hash_range(seed, kernels_code.begin(), kernels_code.end());
         seed = hash_range(seed, gws.begin(), gws.end());
         seed = hash_range(seed, lws.begin(), lws.end());
+        seed = hash_combine(seed, calcWgDimInputIdx);
+        seed = hash_range(seed, globalSizeRules.begin(), globalSizeRules.end());
+        seed = hash_range(seed, localSizeRules.begin(), localSizeRules.end());
         return seed;
     }
 
@@ -197,7 +200,8 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
             return false;
         }
 
-        return lws == rhs_casted.lws;
+        return lws == rhs_casted.lws && calcWgDimInputIdx == rhs_casted.calcWgDimInputIdx &&
+               globalSizeRules == rhs_casted.globalSizeRules && localSizeRules == rhs_casted.localSizeRules;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -209,6 +213,11 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         ob << gws;
         ob << lws;
         ob << kernels_code;
+        const uint64_t schema = 0x435553544f4d3031ULL;
+        ob << schema;
+        ob << calcWgDimInputIdx;
+        ob << globalSizeRules;
+        ob << localSizeRules;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -220,6 +229,13 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         ib >> *const_cast<std::vector<size_t>*>(&gws);
         ib >> *const_cast<std::vector<size_t>*>(&lws);
         ib >> *const_cast<primitive_id_arr*>(&kernels_code);
+        uint64_t schema = 0;
+        ib >> schema;
+        OPENVINO_ASSERT(schema == 0x435553544f4d3031ULL,
+                        "[GPU] Incompatible custom primitive cache schema");
+        ib >> *const_cast<int*>(&calcWgDimInputIdx);
+        ib >> *const_cast<std::vector<std::string>*>(&globalSizeRules);
+        ib >> *const_cast<std::vector<std::string>*>(&localSizeRules);
     }
 };
 }  // namespace cldnn

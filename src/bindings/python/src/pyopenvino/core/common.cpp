@@ -647,19 +647,23 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
 
 py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool decode_strings) {
     py::dict res;
+    // Port copies may outlive the request and its plugin shared library.
+    auto owner = py::cast(request.m_request.get_compiled_model());
     for (const auto& out : request.m_outputs) {
+        auto key = py::cast(out);
+        py::detail::keep_alive_impl(key, owner);
         auto t = request.m_request.get_tensor(out);
         if (t.get_element_type() == ov::element::string) {
             if (share_outputs) {
                 PyErr_WarnEx(PyExc_RuntimeWarning, "Result of a string type will be copied to OVDict!", 1);
             }
             if (decode_strings) {
-                res[py::cast(out)] = string_helpers::string_array_from_tensor(std::move(t));
+                res[key] = string_helpers::string_array_from_tensor(std::move(t));
             } else {
-                res[py::cast(out)] = string_helpers::bytes_array_from_tensor(std::move(t));
+                res[key] = string_helpers::bytes_array_from_tensor(std::move(t));
             }
         } else {
-            res[py::cast(out)] = array_helpers::array_from_tensor(std::move(t), share_outputs);
+            res[key] = array_helpers::array_from_tensor(std::move(t), share_outputs);
         }
     }
     return res;

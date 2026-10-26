@@ -3,8 +3,10 @@
 //
 #include <thread>
 #include <chrono>
+#include <cctype>
 
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
+#include "openvino/op/parameter.hpp"
 #include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/type.hpp"
@@ -2083,6 +2085,41 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         ib >> prim;
         if (auto* data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
             data_prim->load_weights(ib, weights_memory, host_buffer_base_ptr);
+        }
+        if (auto* custom = dynamic_cast<cldnn::custom_gpu_primitive*>(prim.get())) {
+            const bool dynamic_output = std::any_of(custom->output_layouts.begin(), custom->output_layouts.end(),
+                                                    [](const layout& output) { return output.is_dynamic(); });
+            if (dynamic_output) {
+                OPENVINO_ASSERT(model_ptr, "[GPU] Dynamic custom cache import requires the original model hint");
+                std::shared_ptr<ov::Node> original;
+                for (const auto& node : model_ptr->get_ordered_ops()) {
+                    std::string type = node->get_type_name();
+                    std::transform(type.begin(), type.end(), type.begin(),
+                                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                    if (type + ":" + node->get_friendly_name() != custom->id)
+                        continue;
+                    OPENVINO_ASSERT(!original, "[GPU] Ambiguous original operation for custom cache import: ", custom->id);
+                    original = node;
+                }
+                OPENVINO_ASSERT(original, "[GPU] Original custom operation is missing: ", custom->id);
+                OPENVINO_ASSERT(original->get_input_size() == custom->input.size() &&
+                                    original->get_output_size() == custom->output_layouts.size(),
+                                "[GPU] Custom cache operation arity differs: ", custom->id);
+                ov::OutputVector inputs;
+                for (size_t port = 0; port < original->get_input_size(); ++port) {
+                    inputs.emplace_back(std::make_shared<ov::op::v0::Parameter>(
+                        original->get_input_element_type(port), original->get_input_partial_shape(port)));
+                }
+                auto restored = original->clone_with_new_inputs(inputs);
+                restored->validate_and_infer_types();
+                for (size_t port = 0; port < custom->output_layouts.size(); ++port) {
+                    const auto& cached = custom->output_layouts[port];
+                    OPENVINO_ASSERT(element_type_to_data_type(restored->get_output_element_type(port)) == cached.data_type &&
+                                        restored->get_output_partial_shape(port).compatible(cached.get_partial_shape()),
+                                    "[GPU] Custom cache output contract differs: ", custom->id);
+                }
+                custom->op = std::move(restored);
+            }
         }
         get_or_create(prim);
     }
