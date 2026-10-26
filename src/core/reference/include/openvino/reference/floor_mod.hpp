@@ -18,13 +18,13 @@ namespace func {
 
 template <class T, typename std::enable_if<std::is_unsigned<T>::value>::type* = nullptr>
 constexpr T floor_mod(const T x, const T y) {
-    OPENVINO_ASSERT(y != T{0}, "integer modulo by zero");
+    OPENVINO_ASSERT(y != T{0});
     return mod(x, y);
 }
 
 template <class T, typename std::enable_if<std::is_signed<T>::value && std::is_integral<T>::value>::type* = nullptr>
 constexpr T floor_mod(const T x, const T y) {
-    OPENVINO_ASSERT(y != T{0}, "integer modulo by zero");
+    OPENVINO_ASSERT(y != T{0});
     // Compute the floored remainder with exact integer arithmetic. Going through double (as the
     // floating-point overload does) loses precision for large magnitudes, e.g. values near the
     // int64 limits, so that FloorMod(INT64_MAX, 3) would wrongly yield 0 instead of 1.
