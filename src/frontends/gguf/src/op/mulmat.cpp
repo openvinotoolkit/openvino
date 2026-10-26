@@ -55,7 +55,7 @@ OutputVector translate_mulmat(const NodeContext& context) {
     }
     // GGML MUL_MAT produces F32, including when both operands are F16.
     if (A.get_element_type() != ov::element::f32) {
-        A = std::make_shared<ov::op::v0::Convert>(A, ov::element::f32);
+        A = context.get_f32_activation(A);
     }
     if (B.get_element_type() != ov::element::f32) {
         B = std::make_shared<ov::op::v0::Convert>(B, ov::element::f32);

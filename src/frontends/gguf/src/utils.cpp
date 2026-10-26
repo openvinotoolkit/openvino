@@ -39,6 +39,39 @@
 
 namespace ov::frontend::gguf {
 
+Output<Node>* NodeContext::get_hadamard_cache_entry(const Output<Node>& input,
+                                                    int64_t block,
+                                                    bool inverse,
+                                                    const std::vector<int64_t>& heads,
+                                                    const ov::Tensor& signs) const {
+    if (!m_constant_cache || (signs && !signs.is_continuous()))
+        return nullptr;
+    auto type = ov::element::Type_t::dynamic;
+    ov::Shape shape;
+    std::vector<uint8_t> values;
+    if (signs) {
+        type = static_cast<ov::element::Type_t>(signs.get_element_type());
+        shape = signs.get_shape();
+        const auto* bytes = static_cast<const uint8_t*>(signs.data());
+        values.assign(bytes, bytes + signs.get_byte_size());
+    }
+    return &m_constant_cache->hadamard_outputs[{input, block, inverse, heads, type, shape, values}];
+}
+
+Output<Node> NodeContext::get_f32_activation(const Output<Node>& input) const {
+    if (input.get_element_type() == ov::element::f32)
+        return input;
+    const auto make_convert = [&]() -> Output<Node> {
+        return std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
+    };
+    if (!m_constant_cache)
+        return make_convert();
+    auto& output = m_constant_cache->f32_activations[input];
+    if (!output.get_node())
+        output = make_convert();
+    return output;
+}
+
 ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::Node> input) {
     const auto block = context.get_attribute<int64_t>("hadamard_block", 0);
     if (block == 0)
@@ -53,8 +86,13 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
     const auto pattern = [&](const std::vector<int64_t>& dims) {
         return context.get_constant(ov::element::i64, {dims.size()}, dims);
     };
-    const auto original = std::make_shared<v3::ShapeOf>(input, ov::element::i64);
     const auto heads = context.get_attribute<std::vector<int64_t>>("hadamard_gdn_heads", {});
+    const auto signs = context.get_attribute<ov::Tensor>("hadamard_signs", ov::Tensor{});
+    const bool inverse = context.get_attribute<bool>("hadamard_inverse", false);
+    auto* cached = context.get_hadamard_cache_entry(input, block, inverse, heads, signs);
+    if (cached && cached->get_node())
+        return *cached;
+    const auto original = std::make_shared<v3::ShapeOf>(input, ov::element::i64);
     if (!heads.empty()) {
         FRONT_END_OP_CONVERSION_CHECK(heads.size() == 3 && heads[0] * heads[1] * heads[2] == width,
                                       "Invalid Hadamard GDN feature order");
@@ -62,16 +100,16 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
         input = std::make_shared<v1::Transpose>(input, pattern({0, 2, 1, 3}));
         input = std::make_shared<v1::Reshape>(input, original, false);
     }
-    const auto signs = context.get_attribute<ov::Tensor>("hadamard_signs", ov::Tensor{});
-    const bool inverse = context.get_attribute<bool>("hadamard_inverse", false);
     ov::Output<ov::Node> sign_node;
     if (signs) {
         sign_node = std::make_shared<v0::Constant>(signs);
         if (sign_node.get_element_type() != input.get_element_type())
             sign_node = std::make_shared<v1::ConvertLike>(sign_node, input);
     }
-    if (signs && !inverse)
+    if (signs && !inverse) {
         input = std::make_shared<v1::Multiply>(input, sign_node);
+        input.get_node_shared_ptr()->get_rt_info()["gguf_hadamard_input_sign"] = true;
+    }
     input = std::make_shared<v1::Reshape>(input, pattern({-1, block}), false);
     if (block == 1024 &&
         (input.get_element_type() == ov::element::f32 || input.get_element_type() == ov::element::f16)) {
@@ -98,6 +136,8 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
     input = std::make_shared<v1::Reshape>(input, original, false);
     if (signs && inverse)
         input = std::make_shared<v1::Multiply>(input, sign_node);
+    if (cached)
+        *cached = input;
     return input;
 }
 

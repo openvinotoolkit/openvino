@@ -13,6 +13,7 @@
 #include <unordered_set>
 
 #include "builder/gguf_builder_decoder.hpp"
+#include "hadamard_sign_folding.hpp"
 #include "input_model.hpp"
 #include "node_context.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -400,6 +401,7 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
         manager.register_pass<pass::PruneParametersOrphanedSince>(live_before_gdn);
     }
 
+    fold_hadamard_input_signs(model);
     manager.run_passes(model);
     normalize_u2_zero_points(model);
     return model;

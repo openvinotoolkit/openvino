@@ -22,6 +22,16 @@ struct ConstantCache {
     std::map<std::tuple<ov::element::Type_t, ov::Shape, std::vector<int64_t>>, std::shared_ptr<ov::op::v0::Constant>>
         constants;
     std::map<ov::element::Type_t, std::shared_ptr<ov::op::v0::Constant>> hadamard_matrices;
+    std::map<std::tuple<Output<Node>,
+                        int64_t,
+                        bool,
+                        std::vector<int64_t>,
+                        ov::element::Type_t,
+                        ov::Shape,
+                        std::vector<uint8_t>>,
+             Output<Node>>
+        hadamard_outputs;
+    std::map<Output<Node>, Output<Node>> f32_activations;
 };
 
 class NodeContext : public frontend::NodeContext {
@@ -128,6 +138,14 @@ public:
             matrix = make_matrix();
         return matrix;
     }
+
+    Output<Node>* get_hadamard_cache_entry(const Output<Node>& input,
+                                           int64_t block,
+                                           bool inverse,
+                                           const std::vector<int64_t>& heads,
+                                           const ov::Tensor& signs) const;
+
+    Output<Node> get_f32_activation(const Output<Node>& input) const;
 
 private:
     std::shared_ptr<GgufDecoder> m_decoder;
