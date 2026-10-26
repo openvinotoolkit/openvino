@@ -159,7 +159,7 @@ public:
             });
     }
 
-    size_t m_select_device_count = 0;
+    std::atomic<size_t> m_select_device_count{0};
 };
 
 TEST_F(AutoDynamicDeviceSelectionTest, disabled_by_default_keeps_more_than_one_worker) {
@@ -543,7 +543,7 @@ TEST_F(AutoDynamicDeviceSelectionTest, concurrent_requests_are_queued_and_dispat
     // the execution gate is held by the still-dispatching first request, so this must be
     // queued in m_gate_pending_tasks rather than dispatched (or dropped) right away.
     OV_ASSERT_NO_THROW(second_request->start_async());
-    EXPECT_EQ(m_select_device_count, 2u);
+    EXPECT_EQ(m_select_device_count.load(), 2u);
 
     {
         std::lock_guard<std::mutex> lock(mtx);
@@ -553,7 +553,7 @@ TEST_F(AutoDynamicDeviceSelectionTest, concurrent_requests_are_queued_and_dispat
 
     OV_ASSERT_NO_THROW(first_request->wait());
     OV_ASSERT_NO_THROW(second_request->wait());
-    EXPECT_EQ(m_select_device_count, 3u);
+    EXPECT_EQ(m_select_device_count.load(), 3u);
 }
 
 // The low_power_device override must be dropped once its on-demand compilation fails, otherwise every
@@ -787,6 +787,14 @@ TEST_F(AutoDynamicDeviceSelectionTest, exhausted_compile_cascade_releases_each_r
                               _))
             .WillByDefault(ov::Throw("mock compile failure"));
     }
+    // every device is compiled exactly once, GPU.0 when the model is loaded and the failed ones on demand
+    for (const auto* device : {"GPU.0", "GPU.1", "GPU.2"}) {
+        EXPECT_CALL(*core,
+                    compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                                  ::testing::Matcher<const std::string&>(StrEq(device)),
+                                  ::testing::Matcher<const ov::AnyMap&>(_)))
+            .Times(1);
+    }
     auto gpu0_over_threshold = std::make_shared<std::atomic<bool>>(false);
     mock_gpu0_over_threshold(gpu0_over_threshold);
 
@@ -798,6 +806,8 @@ TEST_F(AutoDynamicDeviceSelectionTest, exhausted_compile_cascade_releases_each_r
     std::shared_ptr<ov::IAsyncInferRequest> infer_request;
     OV_ASSERT_NO_THROW(infer_request = compiled_model->create_infer_request());
     // GPU.1 and GPU.2 fail to compile, the cascade ends on the cached GPU.0 which must not be compiled again
+    OV_ASSERT_NO_THROW(infer_request->infer());
+    // both failed devices are excluded, so neither of them is compiled again
     OV_ASSERT_NO_THROW(infer_request->infer());
 
     // the model still runs on GPU.0, so a lower priority instance must keep getting GPU.1

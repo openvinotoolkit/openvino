@@ -670,11 +670,12 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task pipeline_task, cons
             release_execution_slot();
         }
     } catch (...) {
-        // report the failure through the pipeline, otherwise the request would never complete
-        m_this_scheduling_exception = std::current_exception();
         m_this_worker_infer_request = nullptr;
         release_execution_slot();
+        // report the failure through the pipeline, otherwise the request would never complete; the task is gone
+        // once it has been dispatched, so the exception must not be left behind on this thread in that case
         if (pipeline_task) {
+            m_this_scheduling_exception = std::current_exception();
             pipeline_task();
         }
     }
@@ -715,21 +716,39 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         context.m_meta_devices = m_context->m_device_priorities;
     }
+    const auto candidate_devices = context.m_meta_devices;
     LOG_INFO_TAG("[dynamic] device:%s is used for the first time, compiling the model", device.device_name.c_str());
     // select_dynamic_device() already dropped the registration of the requested device
     context.m_priority_released = true;
     try_to_compile_model(context, m_dynamic_model ? m_dynamic_model->clone() : nullptr);
     const bool fell_back_to_other_device = context.m_device_info.device_name != requested_device_name;
-    if (fell_back_to_other_device || !context.m_is_load_success) {
-        // the requested device failed to compile (try_to_compile_model() may have silently fallen back to
-        // another one); exclude it from the shared candidate list so future inferences stop retrying it
+    // try_to_compile_model() drops every device that failed to compile from its own candidate list
+    std::vector<std::string> failed_devices;
+    for (const auto& candidate : candidate_devices) {
+        const auto remaining = std::find_if(context.m_meta_devices.begin(),
+                                            context.m_meta_devices.end(),
+                                            [&candidate](const DeviceInformation& remaining_device) {
+                                                return remaining_device.device_name == candidate.device_name;
+                                            });
+        if (remaining == context.m_meta_devices.end()) {
+            failed_devices.push_back(candidate.device_name);
+        }
+    }
+    if ((fell_back_to_other_device || !context.m_is_load_success) &&
+        std::find(failed_devices.begin(), failed_devices.end(), requested_device_name) == failed_devices.end()) {
+        failed_devices.push_back(requested_device_name);
+    }
+    if (!failed_devices.empty()) {
+        // exclude them from the shared candidate list so future inferences stop retrying them
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
-        const auto iter = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(
-            requested_device_name, m_context->m_device_priorities, true);
-        if (iter != m_context->m_device_priorities.end()) {
-            m_context->m_device_priorities.erase(iter);
-            LOG_WARNING_TAG("[dynamic] device:%s failed to compile, excluding it from future selection",
-                            requested_device_name.c_str());
+        for (const auto& failed_device : failed_devices) {
+            const auto iter = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(
+                failed_device, m_context->m_device_priorities, true);
+            if (iter != m_context->m_device_priorities.end()) {
+                m_context->m_device_priorities.erase(iter);
+                LOG_WARNING_TAG("[dynamic] device:%s failed to compile, excluding it from future selection",
+                                failed_device.c_str());
+            }
         }
     }
     if (fell_back_to_other_device && !context.m_priority_released) {
