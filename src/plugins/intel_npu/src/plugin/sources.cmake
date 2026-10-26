@@ -98,6 +98,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/collapse_unqdq.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_kvcache_to_precision.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_kvcache_to_precision.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/cut_lm_head.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/cut_lm_head.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/insert_vocab_sub128.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/insert_vocab_sub128.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/conv_to_matmul.cpp
@@ -113,6 +115,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/kv_cache_compressed.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/lora_stateful_to_stateless.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/lora_stateful_to_stateless.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_lincache_layout.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_lincache_layout.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_value_tensors.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_value_tensors.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/shrink_sliding_window_kv_cache.cpp
