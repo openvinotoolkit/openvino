@@ -736,11 +736,19 @@ INSTANTIATE_TEST_SUITE_P(
     sdpa_micro_prefetch_k_test::PrintToStringParamName
 );
 
+enum class masked_row_check {
+    mean_v,   // the fill overflows once folded: uniform weights, i.e. the mean of all V rows
+    softmax,  // finite fill: softmax over all keys, the fill cancels out
+    hull,     // only finiteness and the convex hull of V
+};
+
 struct sdpa_mask_fill_params {
     data_types dt;
     float fill;
     bool use_micro;
     bool scalar_mask;
+    masked_row_check masked_rows;
+    float scale = 0.0f;  // 0: default 1/sqrt(head_size)
 };
 
 class sdpa_mask_fill_test : public ::testing::TestWithParam<sdpa_mask_fill_params> {
@@ -748,8 +756,8 @@ public:
     static std::string PrintToStringParamName(const testing::TestParamInfo<sdpa_mask_fill_params>& info) {
         const auto& p = info.param;
         std::string fill = std::isinf(p.fill) ? "neg_inf" : std::to_string(static_cast<int>(std::log10(-p.fill) * 100));
-        return std::string(p.dt == data_types::bf16 ? "bf16" : "f16") + "_fill_" + fill +
-               (p.use_micro ? "_micro" : "_opt") + (p.scalar_mask ? "_scalar_mask" : "_tensor_mask");
+        return std::string(p.dt == data_types::bf16 ? "bf16" : "f16") + "_fill_" + fill + (p.use_micro ? "_micro" : "_opt") +
+               (p.scalar_mask ? "_scalar_mask" : "_tensor_mask") + (p.scale != 0.0f ? "_custom_scale" : "");
     }
 
 protected:
@@ -799,6 +807,8 @@ protected:
                                                       false, -1, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {}, false);
         if (p.scalar_mask)
             sdpa_prim.attn_mask_val = p.fill;
+        if (p.scale != 0.0f)
+            sdpa_prim.scale_val = p.scale;
         topo.add(sdpa_prim);
         topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f32));
 
@@ -828,14 +838,50 @@ protected:
         cldnn::mem_lock<float, mem_lock_type::read> out(output, get_test_stream());
         ASSERT_EQ(out.size(), ov::shape_size(q_shape));
 
-        const double scale = 1.0 / std::sqrt(static_cast<double>(head_size));
+        const double scale = p.scale != 0.0f ? static_cast<double>(p.scale) : 1.0 / std::sqrt(static_cast<double>(head_size));
         const double tol = p.dt == data_types::bf16 ? 2e-2 : 4e-3;
-        size_t checked_rows = 0;
+        // Double reference on the rounded inputs: softmax(q.k * scale + mask) . V over the keys [0, keys_end),
+        // or the plain mean of those V rows if uniform is set.
+        auto check_row = [&](size_t h, size_t i, const float* o, size_t keys_end, bool uniform) {
+            std::vector<double> s(keys_end, 0.0);
+            if (!uniform) {
+                double s_max = -std::numeric_limits<double>::infinity();
+                for (size_t j = 0; j < keys_end; ++j) {
+                    double acc = 0.0;
+                    for (size_t d = 0; d < head_size; ++d)
+                        acc += static_cast<double>(q[(h * seq_q + i) * head_size + d]) * static_cast<double>(k[(h * seq_kv + j) * head_size + d]);
+                    const double m = p.scalar_mask ? static_cast<double>(p.fill) : static_cast<double>(static_cast<float>(mask[i * seq_kv + j]));
+                    s[j] = acc * scale + m;
+                    s_max = std::max(s_max, s[j]);
+                }
+                for (auto& x : s)
+                    x -= s_max;
+            }
+            double sum = 0.0;
+            for (auto& x : s) {
+                x = std::exp(x);
+                sum += x;
+            }
+            for (size_t d = 0; d < head_size; ++d) {
+                double ref = 0.0;
+                for (size_t j = 0; j < keys_end; ++j)
+                    ref += s[j] / sum * static_cast<double>(v[(h * seq_kv + j) * head_size + d]);
+                ASSERT_TRUE(std::isfinite(o[d])) << "non-finite output in row h=" << h << " q=" << i << " d=" << d;
+                ASSERT_NEAR(o[d], ref, tol) << "h=" << h << " q=" << i << " d=" << d;
+            }
+        };
+        size_t checked_rows = 0, checked_masked_rows = 0;
         for (size_t h = 0; h < heads; ++h) {
             for (size_t i = 0; i < seq_q; ++i) {
                 const float* o = &out[(h * seq_q + i) * head_size];
                 const bool fully_masked = p.scalar_mask || i >= valid_q;
-                if (fully_masked) {
+                if (!fully_masked) {
+                    // Masked keys contribute exactly zero.
+                    ASSERT_NO_FATAL_FAILURE(check_row(h, i, o, valid_kv, false));
+                    ++checked_rows;
+                    continue;
+                }
+                if (p.masked_rows == masked_row_check::hull) {
                     // Any softmax output is a convex combination of the V rows.
                     for (size_t d = 0; d < head_size; ++d) {
                         ASSERT_TRUE(std::isfinite(o[d])) << "non-finite output in fully masked row h=" << h << " q=" << i << " d=" << d;
@@ -848,35 +894,14 @@ protected:
                         ASSERT_GE(o[d], lo - tol) << "h=" << h << " q=" << i << " d=" << d;
                         ASSERT_LE(o[d], hi + tol) << "h=" << h << " q=" << i << " d=" << d;
                     }
-                    continue;
+                } else {
+                    ASSERT_NO_FATAL_FAILURE(check_row(h, i, o, seq_kv, p.masked_rows == masked_row_check::mean_v));
                 }
-                // Reference in double on the rounded inputs; masked keys contribute exactly zero.
-                std::vector<double> s(seq_kv);
-                double s_max = -std::numeric_limits<double>::infinity();
-                for (size_t j = 0; j < seq_kv; ++j) {
-                    double acc = 0.0;
-                    for (size_t d = 0; d < head_size; ++d)
-                        acc += static_cast<double>(q[(h * seq_q + i) * head_size + d]) *
-                               static_cast<double>(k[(h * seq_kv + j) * head_size + d]);
-                    s[j] = acc * scale + static_cast<double>(static_cast<float>(mask[i * seq_kv + j]));
-                    s_max = std::max(s_max, s[j]);
-                }
-                double sum = 0.0;
-                for (auto& x : s) {
-                    x = std::exp(x - s_max);
-                    sum += x;
-                }
-                for (size_t d = 0; d < head_size; ++d) {
-                    double ref = 0.0;
-                    for (size_t j = 0; j < seq_kv; ++j)
-                        ref += s[j] / sum * static_cast<double>(v[(h * seq_kv + j) * head_size + d]);
-                    ASSERT_TRUE(std::isfinite(o[d])) << "non-finite output in row h=" << h << " q=" << i << " d=" << d;
-                    ASSERT_NEAR(o[d], ref, tol) << "h=" << h << " q=" << i << " d=" << d;
-                }
-                ++checked_rows;
+                ++checked_masked_rows;
             }
         }
         ASSERT_EQ(checked_rows, p.scalar_mask ? 0 : heads * valid_q);
+        ASSERT_EQ(checked_masked_rows, heads * seq_q - checked_rows);
     }
 };
 
@@ -892,28 +917,27 @@ constexpr float torch_mask_fill = -2.381976325057654e38f;
 constexpr float bf16_lowest = -3.3895313892515355e38f;
 constexpr float neg_inf = -std::numeric_limits<float>::infinity();
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_sdpa_mask_fill,
-    sdpa_mask_fill_test,
-    ::testing::Values(
-        // bf16: the fill survives the conversion and overflows once folded (original NaN report)
-        sdpa_mask_fill_params{data_types::bf16, torch_mask_fill, true, false},
-        sdpa_mask_fill_params{data_types::bf16, bf16_lowest, true, false},
-        sdpa_mask_fill_params{data_types::bf16, neg_inf, true, false},
-        sdpa_mask_fill_params{data_types::bf16, -1e4f, true, false},  // control: never overflowed
-        sdpa_mask_fill_params{data_types::bf16, torch_mask_fill, true, true},
-        sdpa_mask_fill_params{data_types::bf16, torch_mask_fill, false, false},
-        sdpa_mask_fill_params{data_types::bf16, neg_inf, false, false},
-        sdpa_mask_fill_params{data_types::bf16, torch_mask_fill, false, true},
-        // f16: f32 fills saturate to -65504 on conversion; only an explicit -inf mask overflows
-        sdpa_mask_fill_params{data_types::f16, -65504.0f, true, false},
-        sdpa_mask_fill_params{data_types::f16, neg_inf, true, false},
-        sdpa_mask_fill_params{data_types::f16, -65504.0f, true, true},
-        sdpa_mask_fill_params{data_types::f16, -65504.0f, false, false},
-        sdpa_mask_fill_params{data_types::f16, neg_inf, false, false}
-    ),
-    sdpa_mask_fill_test::PrintToStringParamName
-);
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_mask_fill,
+                         sdpa_mask_fill_test,
+                         ::testing::Values(
+                             // bf16: the fill survives the conversion and overflows once folded (original NaN report)
+                             sdpa_mask_fill_params{data_types::bf16, torch_mask_fill, true, false, masked_row_check::mean_v},
+                             sdpa_mask_fill_params{data_types::bf16, bf16_lowest, true, false, masked_row_check::mean_v},
+                             sdpa_mask_fill_params{data_types::bf16, neg_inf, true, false, masked_row_check::mean_v},
+                             sdpa_mask_fill_params{data_types::bf16, -1e4f, true, false, masked_row_check::softmax},  // control: never overflowed
+                             sdpa_mask_fill_params{data_types::bf16, torch_mask_fill, true, true, masked_row_check::mean_v},
+                             // small custom scale: the saturated mask must still give the masked keys exactly zero weight
+                             sdpa_mask_fill_params{data_types::bf16, -1e4f, true, false, masked_row_check::mean_v, 1e-30f},
+                             sdpa_mask_fill_params{data_types::bf16, torch_mask_fill, false, false, masked_row_check::hull},
+                             sdpa_mask_fill_params{data_types::bf16, neg_inf, false, false, masked_row_check::hull},
+                             sdpa_mask_fill_params{data_types::bf16, torch_mask_fill, false, true, masked_row_check::hull},
+                             // f16: f32 fills saturate to -65504 on conversion; only an explicit -inf mask overflows
+                             sdpa_mask_fill_params{data_types::f16, -65504.0f, true, false, masked_row_check::softmax},
+                             sdpa_mask_fill_params{data_types::f16, neg_inf, true, false, masked_row_check::mean_v},
+                             sdpa_mask_fill_params{data_types::f16, -65504.0f, true, true, masked_row_check::softmax},
+                             sdpa_mask_fill_params{data_types::f16, -65504.0f, false, false, masked_row_check::hull},
+                             sdpa_mask_fill_params{data_types::f16, neg_inf, false, false, masked_row_check::hull}),
+                         sdpa_mask_fill_test::PrintToStringParamName);
 
 // use_onednn_sdpa is a debug-caps-only option.
 #ifdef ENABLE_DEBUG_CAPS

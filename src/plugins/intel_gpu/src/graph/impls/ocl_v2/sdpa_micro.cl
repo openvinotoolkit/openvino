@@ -602,9 +602,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     float scale = native_recip(iscale);
 #endif
 #endif
-    // Upper bound for a folded additive attention mask; large enough to be -inf for the softmax,
-    // small enough that a fully masked row stays finite instead of becoming NaN.
-#define MICRO_MASK_SAT 1.0e30f
+    // Upper bound for a folded additive attention mask. exp2(scale * log2(e) * -MICRO_MASK_SAT) must still
+    // flush to exactly 0 for small custom scales (holds for scale >= ~2e-35), while 2 * MICRO_MASK_SAT plus
+    // any score stays far below FLT_MAX, so a fully masked row stays finite instead of becoming NaN.
+#define MICRO_MASK_SAT 1.0e37f
     const float log2_e = 1.442695f;
 #if !defined(HAS_SINK_INPUT)
 #define LOG_2_E_MUL_SCALE 1
