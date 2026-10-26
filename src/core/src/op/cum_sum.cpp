@@ -7,6 +7,7 @@
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/reference/cum_sum.hpp"
 #include "utils.hpp"
@@ -34,19 +35,13 @@ bool evaluate(TensorVector& outputs, const TensorVector& inputs, const bool excl
     outputs[0].set_shape(inputs[0].get_shape());
     const auto axis = ov::get_tensor_data_as<int64_t>(inputs[1]).front();
 
-    // Validate that the normalized axis is within [0, rank) on the core evaluate / constant-folding
-    // path, matching the CPU plugin node check (src/plugins/intel_cpu/src/nodes/cum_sum.cpp).
-    // Not ov::util::try_normalize_axis(): that helper treats axis == 0 as valid for rank-0 scalars.
-    // The shared reference kernel (reference/cum_sum.hpp) also checks bounds defensively; asserting
-    // here surfaces a descriptive ov::Exception during constant folding when the axis is out of
-    // range.
-    const auto cumsum_rank = static_cast<int64_t>(inputs[0].get_shape().size());
-    const auto cumsum_norm_axis = axis < 0 ? axis + cumsum_rank : axis;
-    OPENVINO_ASSERT(cumsum_norm_axis >= 0 && cumsum_norm_axis < cumsum_rank,
+    const auto rank = static_cast<int64_t>(inputs[0].get_shape().size());
+    OPENVINO_ASSERT(ov::util::is_axis_valid(axis, rank),
                     "CumSum axis ",
                     axis,
                     " is out of range for a tensor of rank ",
-                    cumsum_rank);
+                    rank);
+    const auto normalized_axis = ov::util::normalize_axis(axis, rank);
 
     using namespace ov::element;
     return IF_TYPE_OF(CumSum_evaluate,
@@ -55,7 +50,7 @@ bool evaluate(TensorVector& outputs, const TensorVector& inputs, const bool excl
                       inputs[0].get_element_type(),
                       inputs[0],
                       outputs[0],
-                      axis,
+                      normalized_axis,
                       exclusive,
                       reverse);
 }

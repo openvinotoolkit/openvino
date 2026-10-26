@@ -4156,11 +4156,6 @@ TEST(eval, evaluate_cum_sum_v0_exclusive_reversed) {
     EXPECT_EQ(memcmp(outputs[0].data(), out_expected, sizeof(out_expected)), 0);
 }
 
-// CumSum axis bounds and zero-length axis dimension tests: verify that CumSum::evaluate throws
-// ov::Exception when the axis is outside [-rank, rank) or the data tensor is scalar (rank 0), and
-// that both CumSum::evaluate and ov::reference::cumsum handle a zero-length axis dimension without
-// reading or writing out of bounds.
-
 TEST(eval, evaluate_cum_sum_v0_axis_out_of_range_throws) {
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
     auto axis = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{1}, {2});  // rank == 2, axis == rank
@@ -4198,15 +4193,24 @@ TEST(eval, evaluate_cum_sum_v0_axis_negative_out_of_range_throws) {
     }
 }
 
-TEST(eval, evaluate_cum_sum_v0_rank0_data_throws) {
-    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});  // rank 0: axis range is empty
-    auto axis = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{1}, {0});
-    auto cs = make_shared<op::v0::CumSum>(data, axis);
-    auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
+TEST(eval, evaluate_cum_sum_v0_rank0_data) {
+    float input_value = 42.f;
+    for (const int64_t axis_value : {-1, 0}) {
+        for (const bool exclusive : {false, true}) {
+            for (const bool reverse : {false, true}) {
+                auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+                auto axis = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{}, {axis_value});
+                auto cs = make_shared<op::v0::CumSum>(data, axis, exclusive, reverse);
+                auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
 
-    float input_values[1] = {42.f};
-    auto outputs = ov::TensorVector(1);
-    ASSERT_THROW(m->evaluate(outputs, {{ov::element::f32, {}, input_values}}), ov::Exception);
+                auto outputs = ov::TensorVector(1);
+                ASSERT_TRUE(m->evaluate(outputs, {{ov::element::f32, {}, &input_value}}));
+                EXPECT_EQ(outputs[0].get_shape(), Shape{});
+                EXPECT_EQ(outputs[0].get_size(), 1u);
+                EXPECT_FLOAT_EQ(outputs[0].data<float>()[0], exclusive ? 0.f : input_value);
+            }
+        }
+    }
 }
 
 TEST(eval, evaluate_cum_sum_v0_zero_length_axis_safe) {
@@ -4271,9 +4275,6 @@ TEST(eval, evaluate_cum_sum_v0_negative_axis_in_range_still_correct) {
     }
 }
 
-// The reference kernel is header-only and is also called directly (template/INTERPRETER backend),
-// bypassing CumSum::evaluate. These tests exercise its own guards: an out-of-range axis or rank-0
-// data and a zero-length dimension must leave the (sentinel) output untouched and access nothing.
 TEST(eval, reference_cum_sum_axis_out_of_range_no_access) {
     const Shape shape{2, 3};
     std::vector<float> in{1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
@@ -4292,9 +4293,25 @@ TEST(eval, reference_cum_sum_axis_out_of_range_no_access) {
     EXPECT_EQ(out, std::vector<float>(6, -1.f));
     ov::reference::cumsum<float, int64_t>(in.data(), max_axis, out.data(), shape, false, false);
     EXPECT_EQ(out, std::vector<float>(6, -1.f));
-    float s_in = 1.f, s_out = -1.f;
-    ov::reference::cumsum<float, int64_t>(&s_in, 0, &s_out, Shape{}, false, false);
-    EXPECT_EQ(s_out, -1.f);
+    float s_in = 1.f;
+    for (const int64_t bad_axis : {-2, 1}) {
+        float s_out = -1.f;
+        ov::reference::cumsum<float, int64_t>(&s_in, bad_axis, &s_out, Shape{}, false, false);
+        EXPECT_EQ(s_out, -1.f);
+    }
+}
+
+TEST(eval, reference_cum_sum_rank0_data) {
+    float s_in = 7.f;
+    for (const int64_t axis : {-1, 0}) {
+        for (const bool exclusive : {false, true}) {
+            for (const bool reverse : {false, true}) {
+                float s_out = -1.f;
+                ov::reference::cumsum<float, int64_t>(&s_in, axis, &s_out, Shape{}, exclusive, reverse);
+                EXPECT_EQ(s_out, exclusive ? 0.f : s_in);
+            }
+        }
+    }
 }
 
 TEST(eval, reference_cum_sum_zero_length_axis_no_store) {
