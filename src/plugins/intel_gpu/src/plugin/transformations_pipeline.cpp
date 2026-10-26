@@ -853,7 +853,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::FuseGroupedDepthToSpace>();
         manager.register_pass<ov::pass::CommonOptimizations>();
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
-        manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>();
         manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
         manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(device_info.supports_immad);
 
