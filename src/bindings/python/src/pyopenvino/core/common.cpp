@@ -206,13 +206,20 @@ void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array) {
     for (auto a_first = reinterpret_cast<const uint8_t*>(buf.ptr), a_last = a_first + array.nbytes(); a_first < a_last;
          a_first += array.itemsize(), ++data) {
         // TODO: check other unicode kinds? 2BYTE and 1BYTE?
-        auto _unicode_obj = PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, a_first, array.itemsize() / 4);
+        auto unicode_obj = py::reinterpret_steal<py::object>(
+            PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, a_first, array.itemsize() / 4));
+        if (!unicode_obj) {
+            throw py::error_already_set();
+        }
 
         Py_ssize_t utf8_size = 0;
-        const auto utf8_str = PyUnicode_AsUTF8AndSize(_unicode_obj, &utf8_size);
+        const auto utf8_str = PyUnicode_AsUTF8AndSize(unicode_obj.ptr(), &utf8_size);
+        // Strings which cannot be encoded to UTF-8 (e.g. lone surrogates) raise UnicodeEncodeError.
+        if (!utf8_str) {
+            throw py::error_already_set();
+        }
 
         *data = std::string(utf8_str, find_last_not_null(utf8_str, utf8_size));
-        Py_XDECREF(_unicode_obj);
     }
 }
 

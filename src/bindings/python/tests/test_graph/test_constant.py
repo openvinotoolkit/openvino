@@ -879,3 +879,15 @@ def test_string_constant_inference():
 def test_string_constant_with_shared_memory():
     with pytest.raises(RuntimeError, match="String types can be only copied"):
         Constant(np.array(["openvino"], dtype=str), shared_memory=True)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        np.array(["\ud800"], dtype=str),  # lone surrogate, not encodable to UTF-8
+        np.array(["text", "\udfff", "openvino"], dtype=str),
+    ],
+)
+def test_string_constant_not_encodable(value):
+    with pytest.raises(UnicodeEncodeError, match="surrogates not allowed"):
+        ops.constant(value)

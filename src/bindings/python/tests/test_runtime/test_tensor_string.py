@@ -320,3 +320,15 @@ def test_invalid_bytes_replaced():
     check_bytes_based(tensor, string_data, to_flat=True)
     # Decoded:
     check_string_based(tensor, np.char.decode(string_data, encoding="utf=8", errors="replace"), to_flat=True)
+
+
+@pytest.mark.parametrize(
+    ("string_data"),
+    [
+        (np.array(["\ud800"])),  # lone surrogate, not encodable to UTF-8
+        (np.array(["text", "\udfff", "openvino"])),
+    ],
+)
+def test_init_with_numpy_not_encodable_string(string_data):
+    with pytest.raises(UnicodeEncodeError, match="surrogates not allowed"):
+        ov.Tensor(string_data, shared_memory=False)
