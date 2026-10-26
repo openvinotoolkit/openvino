@@ -124,7 +124,6 @@ const std::vector<ov::AnyMap> cachingProperties = {
     {ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE)},
     {ov::hint::inference_precision(ov::element::i8)},
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-    {ov::intel_npu::batch_compiler_mode_settings("batch-compile-method=unroll")},
     {ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::COMPILER)},
     {ov::intel_npu::compilation_mode("ReferenceSW")},
     {ov::intel_npu::compilation_mode_params("dummy-op-replacement=true")},

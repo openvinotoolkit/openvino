@@ -819,20 +819,6 @@ struct ALLOW_BYTECODE final : OptionBase<ALLOW_BYTECODE, bool> {
     }
 };
 
-struct BATCH_COMPILER_MODE_SETTINGS final : OptionBase<BATCH_COMPILER_MODE_SETTINGS, std::string> {
-    static std::string_view key() {
-        return ov::intel_npu::batch_compiler_mode_settings.name();
-    }
-
-    static std::string defaultValue() {
-        return {};
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
 struct ENABLE_WEIGHTLESS final : OptionBase<ENABLE_WEIGHTLESS, bool> {
     static std::string_view key() {
         return ov::enable_weightless.name();

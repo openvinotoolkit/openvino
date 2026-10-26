@@ -73,7 +73,6 @@ private:
             ov::hint::execution_mode.name(),
             ov::hint::inference_precision.name(),
             ov::hint::performance_mode.name(),
-            ov::intel_npu::batch_compiler_mode_settings.name(),
             ov::intel_npu::batch_mode.name(),
             ov::intel_npu::compilation_mode.name(),
             ov::intel_npu::compilation_mode_params.name(),
