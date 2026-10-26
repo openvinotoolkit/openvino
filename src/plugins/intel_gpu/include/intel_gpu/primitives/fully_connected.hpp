@@ -188,6 +188,11 @@ struct fully_connected : public primitive_base<fully_connected> {
     size_t hadamard_block = 0;
     std::vector<int8_t> hadamard_signs;
 
+    /// @brief Block sizes the TernOCL FWHT kernel implements.
+    static constexpr bool is_supported_hadamard_block(size_t b) {
+        return b >= 256 && b <= 4096 && (b & (b - 1)) == 0;
+    }
+
     /// @brief Primitive dimension size.
     size_t input_size = 2;
     /// @brief Primitive weights rank.

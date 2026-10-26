@@ -145,7 +145,7 @@ inputs, so one impl object can serve every node with equal `kernel_impl_params`.
 flowchart TD
     A["execute"] --> B["packed weights and scales from the node's inputs"]
     B --> C{"hadamard_block?"}
-    C -->|yes| D["hadamard_fwht_1024: y = H(s*x)/32<br/>into a per-node scratch"]
+    C -->|yes| D["hadamard_fwht: y = H_B(s*x)/sqrt(B)<br/>into a per-node scratch"]
     C -->|no| E
     D --> E{"M > 8 and<br/>GPU_TERNOCL_INT2_INT8_PREFILL?"}
     E -->|no| F["up-convert: pick launch class from M"]
@@ -218,9 +218,10 @@ quantization mode (`QMODE=0`, int8 A written by `quant_a`); the plugin uses
 neither, so decode is unchanged and no `[M, K]` int8 scratch is needed.
 
 ### 5.3 Hadamard input transform (`hadamard_fwht.cl`)
-1024-block, the ten radix-2 stages as three radix-8 passes through SLM and a
-final radix-2 pass that scales and stores, fp32 butterflies. Its output feeds
-either GEMM family.
+One work-group of B/8 items per B-wide block (B a power of two from 256 to 4096,
+`-DHB=B`). The log2(B) radix-2 stages run as radix-8 passes through SLM, plus a final
+radix-2 or radix-4 pass when log2(B) is not a multiple of 3, with fp32 butterflies.
+Its output feeds either GEMM family.
 
 ---
 
@@ -296,18 +297,20 @@ To tune a new GPU or network:
 ## 7. Rotated-basis checkpoints (Hadamard input transform)
 
 Bonsai 2 stores its ternary weights in a rotated basis: every folded
-projection expects its input `x` replaced by `H_1024 (s * x) / 32`, per
-1024-wide block along K with a fixed `+-1` sign vector `s`. In the IR this
-arrives as `[Multiply(s)] -> Reshape(..., K/1024, 1024) -> MatMul(H) -> Reshape(..., K)`
-in front of the compressed FC (produced by `tools/int2/bonsai2_gguf_to_ir.py`).
+projection expects its input `x` replaced by `H_B (s * x) / sqrt(B)`, per
+B-wide block along K with a fixed `+-1` sign vector `s`. B comes from the checkpoint
+(`prism.hadamard.block_size`): 512 for Bonsai 2 2B and 4B, 1024 for 27B, 4096 for 9B.
+In the IR this arrives as `[Multiply(s)] -> Reshape(..., K/B, B) -> MatMul(H_B) -> Reshape(..., K)`
+in front of the compressed FC (produced by `tools/int2/bonsai2_gguf_to_ir.py`). The
+Reshapes are absent when K = B.
 
 `FuseHadamardIntoFC` (registered after the horizontal FC fusion, so a merged
 gate/up FC absorbs the shared rotation once) recognises the chain, verifies the
-constant is the normalised Sylvester `H_1024`, rewires the FC to the original
+constant is a normalised Sylvester `H_B` with B from 256 to 4096 dividing K, rewires the FC to the original
 activation and records `int2_hadamard_block` / `int2_hadamard_signs` in the
 rt_info; the FC translator moves them onto the cldnn `fully_connected`
 primitive (part of its hash and serialization). At execution the impl runs
-`hadamard_fwht_1024` into a per-node scratch and points the GEMM at it.
+`hadamard_fwht` into a per-node scratch and points the GEMM at it.
 The pass is registered only on the OpenCL or Level Zero runtime with TernOCL enabled, since no
 other implementation applies a fused rotation; otherwise (and with
 `GPU_ENABLE_HADAMARD_FC_FUSION=0` in debug-caps builds) the rotation stays in the graph.

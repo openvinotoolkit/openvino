@@ -333,6 +333,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fc_per_layer_scaling_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fold_activation_transpose_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fold_rms_transposes_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_hadamard_fc_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_avg_down_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_atan2_decomposed_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_grouped_depth_to_space_test.cpp
