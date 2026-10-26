@@ -902,9 +902,10 @@ struct ConvertFromBinPrecision<std::tuple<src_t, dst_t>> {
     }
 };
 
-#define INTEL_CPU_CVT_FROM_2BIT_LIST                                                                 \
-    INTEL_CPU_CVT(u2, f32), INTEL_CPU_CVT(u2, f16), INTEL_CPU_CVT(u2, bf16), INTEL_CPU_CVT(u2, i32), \
-        INTEL_CPU_CVT(u2, u8), INTEL_CPU_CVT(u2, i8)
+#define INTEL_CPU_CVT_FROM_2BIT_LIST                                                                  \
+    INTEL_CPU_CVT(u2, f32), INTEL_CPU_CVT(u2, f16), INTEL_CPU_CVT(u2, bf16), INTEL_CPU_CVT(u2, i32),  \
+        INTEL_CPU_CVT(u2, u8), INTEL_CPU_CVT(u2, i8), INTEL_CPU_CVT(i2, f32), INTEL_CPU_CVT(i2, f16), \
+        INTEL_CPU_CVT(i2, bf16), INTEL_CPU_CVT(i2, i32), INTEL_CPU_CVT(i2, u8), INTEL_CPU_CVT(i2, i8)
 
 template <typename LoopPolicy>
 struct ConvertFrom2BitContext {
@@ -924,6 +925,12 @@ struct ConvertFrom2BitPrecision;
     return static_cast<uint8_t>((val & (0x3 << shift)) >> shift);
 }
 
+// Two's complement: the 2-bit range is -2..1.
+static int8_t get_i2(uint8_t val, uint8_t shift) {
+    const auto v = static_cast<uint8_t>((val >> shift) & 0x3U);
+    return static_cast<int8_t>((v & 0x2U) != 0 ? (v | 0xFCU) : v);
+}
+
 template <typename src_t, typename dst_t>
 struct ConvertFrom2BitPrecision<std::tuple<src_t, dst_t>> {
     template <typename Ctx>
@@ -934,6 +941,10 @@ struct ConvertFrom2BitPrecision<std::tuple<src_t, dst_t>> {
         if (ctx.inType == ov::element::u2) {
             LoopPolicy::run(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<dst_t>(get_u2(src[i / 4], (i % 4) * 2));
+            });
+        } else if (ctx.inType == ov::element::i2) {
+            LoopPolicy::run(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<dst_t>(get_i2(src[i / 4], (i % 4) * 2));
             });
         } else {
             OPENVINO_THROW("cpu_convert doesn't support input data type: ", ctx.inType, ". Not implemented.");

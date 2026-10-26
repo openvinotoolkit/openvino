@@ -87,7 +87,12 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[may
 }
 
 ov::element::TypeVector FullyConnected::getSupportedDequantizationPrecisions(bool apply_fp8) {
-    return getSupportedCompressedWeightsTypes(apply_fp8);
+    using ov::element::Type_t;
+
+    auto precisions = getSupportedCompressedWeightsTypes(apply_fp8);
+    // oneDNN has no i2 data type, so an i2 weight stays a packed Constant whose Convert must not be folded.
+    precisions.insert(precisions.end(), {Type_t::i2});
+    return precisions;
 }
 
 ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes() {
