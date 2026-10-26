@@ -150,6 +150,7 @@ struct Config {
 
     ov::CacheMode m_cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
     bool enableWeightless = false;
+    bool exportHsmFormat = false;
 
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;

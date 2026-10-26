@@ -25,6 +25,7 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
@@ -38,6 +39,7 @@
 #include "sub_memory_manager.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#include "utils/graph_serializer/hsm_writer_handler.hpp"
 #include "utils/graph_serializer/serializer.hpp"
 #ifdef CPU_DEBUG_CAPS
 #    include "utils/memory_stats_dump.hpp"
@@ -430,9 +432,19 @@ static void write_header(std::ostream& modelStream, const std::string& runtime_r
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
-    write_header(modelStream, m_runtime_requirements);
-    ModelSerializer serializer(modelStream, m_cfg.cacheEncrypt, m_cfg.m_cache_mode == ov::CacheMode::OPTIMIZE_SIZE);
-    serializer << m_model;
+    const bool weightless_mode = m_cfg.m_cache_mode == ov::CacheMode::OPTIMIZE_SIZE;
+    if (m_cfg.exportHsmFormat) {
+        HsmWriterHandler handler{m_model, m_runtime_requirements, m_cfg.cacheEncrypt, weightless_mode};
+        auto writer = ov::runtime::hsm::DeferredWriter::open(modelStream);
+        OPENVINO_ASSERT(writer, "[CPU] Cannot export in HSM format: the output stream must be seekable.");
+        writer->add_sections({&handler});
+        const auto error = writer->finalize();
+        OPENVINO_ASSERT(!error, "[CPU] HSM export failed: ", error.message());
+    } else {
+        write_header(modelStream, m_runtime_requirements);
+        ModelSerializer serializer(modelStream, m_cfg.cacheEncrypt, weightless_mode);
+        serializer << m_model;
+    }
 }
 
 void CompiledModel::release_memory() {
