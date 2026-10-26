@@ -77,6 +77,20 @@ static inline std::optional<ze_command_queue_workload_type_t> toZeQueueWorkloadT
     }
 }
 
+/**
+ * @brief Whether two element types are different spellings of the same storage.
+ *
+ * The compiler names some network tensors by their storage rather than by the model's element type: a boolean
+ * tensor becomes u8, and a packed weight may be named by either signedness. A tensor for such a port carries the
+ * same bytes under either name.
+ */
+static inline bool isSameStorageSpelling(const ov::element::Type& first, const ov::element::Type& second) {
+    const auto a = static_cast<ov::element::Type_t>(first);
+    const auto b = static_cast<ov::element::Type_t>(second);
+    return (a == ov::element::Type_t::u8 && b == ov::element::Type_t::boolean) ||
+           (a == ov::element::Type_t::boolean && b == ov::element::Type_t::u8);
+}
+
 static inline ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElementType) {
     switch (zeElementType) {
     case ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN:
