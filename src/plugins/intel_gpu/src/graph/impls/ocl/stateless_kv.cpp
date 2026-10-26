@@ -114,7 +114,8 @@ struct stateless_kv_impl : typed_primitive_impl_ocl<stateless_kv> {
 
     kernel_arguments_data get_arguments(const typed_primitive_inst<stateless_kv>& instance) const override {
         kernel_arguments_data args;
-        args.inputs.push_back(instance.input_memory_ptr(0)); // past
+        const auto past = instance.input_memory_ptr(0);
+        args.inputs.push_back(past ? past : instance.input_memory_ptr(1)); // past
         if (!_has_pos_idx_input) {
             args.inputs.push_back(instance.input_memory_ptr(1)); // new_token_data
         } else {
@@ -286,7 +287,8 @@ private:
 namespace detail {
 
 attach_stateless_kv_impl::attach_stateless_kv_impl() {
-    auto types = {data_types::i8, data_types::f16, data_types::f32};
+    // u8 / f8e4m3 cover compressed KV caches (u8 also carries packed i4); concat_ref and scatter_update_ref support them.
+    auto types = {data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f16, data_types::f32};
     auto formats = {format::bfyx};
     implementation_map<stateless_kv>::add(impl_types::ocl, shape_types::dynamic_shape, stateless_kv_impl::create, types, formats);
     implementation_map<stateless_kv>::add(impl_types::ocl, shape_types::static_shape, stateless_kv_impl::create, types, formats);

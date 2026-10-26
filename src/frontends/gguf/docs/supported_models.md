@@ -37,6 +37,9 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 | `hunyuan-dense` | Learned QK-norm after RoPE | Hunyuan-0.5B-Instruct Q8_0 | 13/13 |
 | `hunyuan-moe` | QK-norm after RoPE, routed and shared experts | Hunyuan-A13B-Instruct Q2_K | 13/13 |
 | `jais2` | Biased LayerNorm, ungated ReLU² FFN | Jais-2-8B-Chat Q4_K_M | 13/13 ² |
+| `lfm2` | LFM2 / LFM2.5 dense hybrid short convolution and GQA, QK-norm, tied head | LFM2-350M / LFM2.5-1.2B-Instruct Q4_0 | 13/13 each |
+| `lfm2.audio_vocoder` | Standalone speech component; accepts the existing publisher architecture string | LFM2.5-Audio-1.5B Q4_0 | [Component parity](mmproj.md#lfm2-audio-components) |
+| `lfm2moe` | LFM2 / LFM2.5 MoE hybrid, dense lead, biased normalized expert routing | LFM2.5-8B-A1B Q4_0 | 12/13 |
 | `llama` | llama-2 / llama-3, YaRN | Devstral Small 2507 24B Q4_K_M | 13/13 |
 | `llama-embed` | Per-token embeddings; mean/first/last pooling; causal or bidirectional | Llama-Nemotron-Embed-1B-v2 Q4_K_M | NMSE 3e-6 ² |
 | `maincoder` | NORMAL RoPE, QK-norm after RoPE | Maincoder-1B Q4_K_M | 13/13 |
@@ -114,3 +117,84 @@ GGML_OPENVINO_DEVICE=CPU GGML_OPENVINO_STATEFUL_EXECUTION=1 \
 ```
 
 Checkpoints used `Q2_K`, `Q4_0`, `Q4_K_M`, `Q6_K` and `Q8_0`; other formats are covered by unit tests only.
+
+## LFM2 and LFM2.5 coverage
+
+Dense and MoE language models use the `lfm2` and `lfm2moe` GGUF architecture names,
+respectively. The builder detects each convolution or attention layer from its weights;
+it supports arbitrary layer ordering, separate or fused QKV, per-head QK normalization,
+dense leading layers, softmax/sigmoid expert routing with selection bias, tied output
+weights, and attention sliding windows. No model-size-specific layer schedule is hardcoded.
+LFM2.5 8B-A1B and LFM2 24B-A2B use the same MoE builder; the 24B checkpoint has not been
+replayed. LFM2-VL and LFM2.5-VL language backbones use `lfm2`; their separate SigLIP vision
+projector is covered in [mmproj.md](mmproj.md).
+
+Six nonzero F32 llama.cpp fixtures cover mixed layer order, tied heads, a sliding-window
+boundary, fused QKV, dense-leading MoE, and all-routed sigmoid MoE. They compare full logits
+through prefill, cached one/multiple-token decode, and state reset with NMSE below `1e-5`.
+Batching, left padding, beam reordering, injected embeddings and structural conversion to
+PagedAttention/PagedCausalConv1D are covered separately. This does not establish a GenAI
+multimodal application or audio generation pipeline.
+
+Real CPU reference-token replay uses llama.cpp `03fa73cb27f5c251b9528489b18d303b1366aca4`,
+F32 inference, F16 KV, and disabled activation quantization. The prompt is
+`The capital of France is`. Quantized-CPU logit NMSE ranges are `2.32e-4..6.20e-3` for
+LFM2-350M, `3.99e-4..1.45e-3` for LFM2.5-1.2B-Instruct, and `2.98e-4..8.17e-2` for
+LFM2.5-8B-A1B. These pass the real-checkpoint greedy-choice gate above, not the F32
+fixture NMSE gate. Checkpoint revisions are `8fdc9d526b7ed346b19257551b05816c7912ecc2`,
+`8ed288026e23958ad9dfa92d53ed773a8eee7125`, and
+`49c14831707011e64d70b2ebd8462ba08d608434`, respectively, from LiquidAI's GGUF repositories.
+
+The standalone `lfm2.audio_vocoder` architecture loads LFM2.5 Audio depthformer and
+codec components; the existing publisher architecture string is also accepted.
+It consumes hidden states and codec codes rather than text tokens; see
+[audio component inputs and outputs](mmproj.md#lfm2-audio-components).
+
+Noncausal LFM2 embedding/encoder/ColBERT variants need centered convolution and their
+embedding/pooling output contracts and are rejected explicitly. LFM2.5-Audio's `lfm2a`
+conformer projector and LFM2.5 speech components are supported as described in
+[mmproj.md](mmproj.md#lfm2-audio-components). GenAI waveform preprocessing and generation
+require the `gguf-frontend-mmproj` integration. Older Mimi-based LFM2 speech output
+requires a separate codec. Other sizes, quantizations, long contexts,
+and downstream fine-tunes require their own checkpoint validation.
+
+## Bonsai and Bonsai-2
+
+The native GGUF frontend supports the following model families and weight formats:
+
+| Family | Sizes | Architecture | Weight formats |
+|---|---|---|---|
+| Bonsai | 1.7B, 4B, 8B | `qwen3` | Q1_0 |
+| Bonsai | 27B | `qwen35` | Q1_0, F16 |
+| Ternary-Bonsai | 1.7B, 4B, 8B | `qwen3` | F16, Q2_0 per-64/per-128, PQ2_0 |
+| Ternary-Bonsai | 27B | `qwen35` | F16, Q2_0 per-64/per-128, PQ2_0 |
+| Ternary-Bonsai-2 | 27B | `qwen35` | F16, PQ2_0, PTQ1_0, development Q2_0 per-64 |
+
+Bonsai-2 uses folded Hadamard weights, including its F16 checkpoints. Supported metadata is
+version 1 or tied-output version 2, normalized Sylvester, input-last-dimension, identity or
+explicit ±1 signs, and blocks up to 4096. The frontend applies the input activation transform
+for annotated projections and the inverse transform after latent token lookup, preserving
+annotations when splitting QKV and Q/gate weights.
+
+The BF16 and Q8_0 multimodal projector variants are supported directly by the built-in
+`qwen3vl_merger`; see [supported projectors](mmproj.md#supported-projectors).
+
+## Block drafters
+
+| Architecture | Supported models | Features |
+|---|---|---|
+| `dspark` | Bonsai-27B and Ternary-Bonsai-27B BF16/Q4_1 drafts | Noncausal block attention, captured target features, log-SNR conditioning, optional Markov/confidence outputs |
+
+DSpark accepts a fixed draft block in `inp_tokens` and captured target-layer features in
+`dspark_ctx_feat` (`[1,1,context_rows,capture_count*embedding_width]`). Positions and cache-write
+indices cover context plus draft rows; callers provide a fully open attention mask for the
+noncausal round. Outputs include `logits`, `dspark.hidden`, per-layer caches and, when present,
+`dspark.corrected_logits` and raw `dspark.confidence_score`. `dspark_prev_tokens` supplies the
+sampled predecessor for each auxiliary-head row. Sequential sampling and target-layer capture
+belong to the caller. Log-SNR uses Prism's round-1 inference convention: the first draft
+position is at `max_log_snr`, and the remaining masked positions are at `min_log_snr`.
+Normalization `(log_snr - min_log_snr) / (max_log_snr - min_log_snr) * 1000` maps these
+endpoints to 1000 and 0, independent of the bounds. Both bounds must still be present,
+finite and strictly ordered, as required by the model's conditioning metadata.
+Hidden-correction checkpoints and generic GenAI decoder adaptation are not supported.
+Draft blocks up to 4096 tokens are supported.
