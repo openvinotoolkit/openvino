@@ -16,7 +16,7 @@ onnx>=1.22.0
 onnxruntime>=1.23.2
 opencv-python>=4.5
 paddlepaddle==3.3.0
-protobuf>=6.31.1,<7.0.0
+protobuf>=6.31.1,<7.34.0  # 7.34 drops text_format float_format, still used by tf.io.write_graph
 py>=1.9.0
 pytest>=5.0,<9.2
 pytest-dependency==0.6.1
