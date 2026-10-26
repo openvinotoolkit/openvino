@@ -40,16 +40,11 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> BatchSizeSection::de
     const Logger logger("BatchSizeSection", Logger::global().level());
     OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::BATCH_SIZE),
                     "Logic error: the decoder received a section of the wrong type");
-
-    const size_t section_length = section.size();
-    if (section_length != sizeof(int64_t)) {
-        logger.error("Incorrect section length %zu. Expected: %zu", section_length, sizeof(int64_t));
-        return std::nullopt;
-    }
+    OPENVINO_ASSERT(section.tag().is_inline() && section.size() >= sizeof(int64_t),
+                    "Logic error: the payload is not inline or the size is not sufficiently large");
 
     int64_t batch_size;
-    section.read(&batch_size);
-
+    section.read(0, sizeof(batch_size), &batch_size);
     logger.debug("Read batch size %lu", batch_size);
 
     return std::make_shared<BatchSizeSection>(batch_size);

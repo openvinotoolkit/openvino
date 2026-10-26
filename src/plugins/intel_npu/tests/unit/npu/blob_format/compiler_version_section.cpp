@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "intel_npu/common/section_type.hpp"
 #include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
@@ -52,12 +53,13 @@ TEST_F(CompilerVersionSectionTest, Write) {
 }
 
 TEST_F(CompilerVersionSectionTest, Read) {
-    ov::Tensor tensor(ov::element::u8, ov::Shape{sizeof(compiler_version)}, &compiler_version);
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, sizeof(compiler_version), 0, sizeof(compiler_version));
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::COMPILER_VERSION, true);
+    std::memcpy(&manifest_entry.inline_bytes, &compiler_version, sizeof(compiler_version));
 
-    auto read_section = CompilerVersionSection::read(reader);
-    auto casted_section = std::dynamic_pointer_cast<CompilerVersionSection>(read_section);
+    auto read_section = CompilerVersionSection::decode(ov::runtime::hsm::Section(manifest_entry));
+    ASSERT_TRUE(read_section.has_value());
+    auto casted_section = std::dynamic_pointer_cast<CompilerVersionSection>(read_section.value());
     ASSERT_TRUE(casted_section);
     EXPECT_EQ(casted_section->get_compiler_version(), compiler_version);
 }
@@ -66,20 +68,33 @@ TEST_F(CompilerVersionSectionTest, WriteRead) {
     section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
 
     const std::string buffer = stream.str();
-    ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, stream.tellp(), 0, stream.tellp());
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::COMPILER_VERSION, true);
+    std::memcpy(&manifest_entry.inline_bytes, buffer.data(), buffer.size());
 
-    auto read_section = CompilerVersionSection::read(reader);
-    auto casted_section = std::dynamic_pointer_cast<CompilerVersionSection>(read_section);
+    auto read_section = CompilerVersionSection::decode(ov::runtime::hsm::Section(manifest_entry));
+    ASSERT_TRUE(read_section);
+    auto casted_section = std::dynamic_pointer_cast<CompilerVersionSection>(read_section.value());
     ASSERT_TRUE(casted_section);
     EXPECT_EQ(casted_section->get_compiler_version(), compiler_version);
 }
 
-TEST_F(CompilerVersionSectionTest, InvalidSectionLength) {
-    std::vector<uint8_t> dummy(0xFFFF, 0xFF);
-    ov::Tensor tensor(ov::element::u8, ov::Shape{dummy.size()}, const_cast<uint8_t*>(dummy.data()));
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size() - 1);
-    ASSERT_ANY_THROW(CompilerVersionSection::read(reader));
+TEST_F(CompilerVersionSectionTest, WrongTagToDecoder) {
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, true);
+    std::memcpy(&manifest_entry.inline_bytes, &compiler_version, sizeof(compiler_version));
+
+    OV_EXPECT_THROW(CompilerVersionSection::decode(ov::runtime::hsm::Section(manifest_entry)),
+                    ov::Exception,
+                    testing::_);
+}
+
+TEST_F(CompilerVersionSectionTest, NotInline) {
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::COMPILER_VERSION, false);
+    std::memcpy(&manifest_entry.inline_bytes, &compiler_version, sizeof(compiler_version));
+
+    OV_EXPECT_THROW(CompilerVersionSection::decode(ov::runtime::hsm::Section(manifest_entry)),
+                    ov::Exception,
+                    testing::_);
 }

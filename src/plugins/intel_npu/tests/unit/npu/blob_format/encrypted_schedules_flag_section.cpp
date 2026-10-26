@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "intel_npu/common/section_type.hpp"
 #include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
@@ -59,12 +60,13 @@ TEST_P(EncryptedSchedulesFlagSectionTest, Write) {
 }
 
 TEST_P(EncryptedSchedulesFlagSectionTest, Read) {
-    ov::Tensor tensor(ov::element::u8, ov::Shape{sizeof(encrypted_flag)}, &encrypted_flag);
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, sizeof(encrypted_flag), 0, sizeof(encrypted_flag));
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, true);
+    std::memcpy(&manifest_entry.inline_bytes, &encrypted_flag, sizeof(encrypted_flag));
 
-    auto read_section = EncryptedSchedulesFlagSection::read(reader);
-    auto casted_section = std::dynamic_pointer_cast<EncryptedSchedulesFlagSection>(read_section);
+    auto read_section = EncryptedSchedulesFlagSection::decode(ov::runtime::hsm::Section(manifest_entry));
+    ASSERT_TRUE(read_section);
+    auto casted_section = std::dynamic_pointer_cast<EncryptedSchedulesFlagSection>(read_section.value());
     ASSERT_TRUE(casted_section);
     EXPECT_EQ(casted_section->get_flag(), encrypted_flag);
 }
@@ -73,22 +75,35 @@ TEST_P(EncryptedSchedulesFlagSectionTest, WriteRead) {
     section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
 
     const std::string buffer = stream.str();
-    ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, stream.tellp(), 0, stream.tellp());
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, true);
+    std::memcpy(&manifest_entry.inline_bytes, buffer.data(), buffer.size());
 
-    auto read_section = EncryptedSchedulesFlagSection::read(reader);
-    auto casted_section = std::dynamic_pointer_cast<EncryptedSchedulesFlagSection>(read_section);
+    auto read_section = EncryptedSchedulesFlagSection::decode(ov::runtime::hsm::Section(manifest_entry));
+    ASSERT_TRUE(read_section);
+    auto casted_section = std::dynamic_pointer_cast<EncryptedSchedulesFlagSection>(read_section.value());
     ASSERT_TRUE(casted_section);
     EXPECT_EQ(casted_section->get_flag(), encrypted_flag);
 }
 
-TEST_P(EncryptedSchedulesFlagSectionTest, InvalidSectionLength) {
-    std::vector<uint8_t> dummy(0xFFFF, 0xFF);
-    ov::Tensor tensor(ov::element::u8, ov::Shape{dummy.size()}, const_cast<uint8_t*>(dummy.data()));
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size() + 1);
-    ASSERT_ANY_THROW(EncryptedSchedulesFlagSection::read(reader));
+TEST_F(EncryptedSchedulesFlagSectionTest, WrongTagToDecoder) {
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, true);
+    std::memcpy(&manifest_entry.inline_bytes, &encrypted_flag, sizeof(encrypted_flag));
+
+    OV_EXPECT_THROW(EncryptedSchedulesFlagSection::decode(ov::runtime::hsm::Section(manifest_entry)),
+                    ov::Exception,
+                    testing::_);
+}
+
+TEST_F(EncryptedSchedulesFlagSectionTest, NotInline) {
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, false);
+    std::memcpy(&manifest_entry.inline_bytes, &encrypted_flag, sizeof(encrypted_flag));
+
+    OV_EXPECT_THROW(EncryptedSchedulesFlagSection::decode(ov::runtime::hsm::Section(manifest_entry)),
+                    ov::Exception,
+                    testing::_);
 }
 
 INSTANTIATE_TEST_SUITE_P(UnitTests,

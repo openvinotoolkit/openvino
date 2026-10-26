@@ -40,16 +40,11 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> EncryptedSchedulesFl
     const Logger logger("EncryptedSchedulesFlagSection", Logger::global().level());
     OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG),
                     "Logic error: the decoder received a section of the wrong type");
-
-    const size_t section_length = section.size();
-    if (section_length != sizeof(bool)) {
-        logger.error("Incorrect section length %zu. Expected: %zu", section_length, sizeof(bool));
-        return std::nullopt;
-    }
+    OPENVINO_ASSERT(section.tag().is_inline() && section.size() >= sizeof(bool),
+                    "Logic error: the payload is not inline or the size is not sufficiently large");
 
     bool flag;
-    section.read(&flag);
-
+    section.read(0, sizeof(flag), &flag);
     logger.debug("Read the encryption flag %d", flag);
 
     return std::make_shared<EncryptedSchedulesFlagSection>(flag);

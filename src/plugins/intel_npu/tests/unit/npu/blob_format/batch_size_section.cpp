@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "intel_npu/common/section_type.hpp"
 #include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
@@ -55,12 +56,13 @@ TEST_F(BatchSizeSectionTest, Write) {
 }
 
 TEST_F(BatchSizeSectionTest, Read) {
-    ov::Tensor tensor(ov::element::u8, ov::Shape{sizeof(batch_size)}, &batch_size);
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, sizeof(batch_size), 0, sizeof(batch_size));
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, true);
+    std::memcpy(&manifest_entry.inline_bytes, &batch_size, sizeof(batch_size));
 
-    auto read_section = BatchSizeSection::read(reader);
-    auto casted_section = std::dynamic_pointer_cast<BatchSizeSection>(read_section);
+    auto read_section = BatchSizeSection::decode(ov::runtime::hsm::Section(manifest_entry));
+    ASSERT_TRUE(read_section.has_value());
+    auto casted_section = std::dynamic_pointer_cast<BatchSizeSection>(read_section.value());
     ASSERT_TRUE(casted_section);
     EXPECT_EQ(casted_section->get_batch_size(), batch_size);
 }
@@ -69,20 +71,29 @@ TEST_F(BatchSizeSectionTest, WriteRead) {
     section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
 
     const std::string buffer = stream.str();
-    ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, stream.tellp(), 0, stream.tellp());
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, true);
+    std::memcpy(&manifest_entry.inline_bytes, buffer.data(), buffer.size());
 
-    auto read_section = BatchSizeSection::read(reader);
-    auto casted_section = std::dynamic_pointer_cast<BatchSizeSection>(read_section);
+    auto read_section = BatchSizeSection::decode(ov::runtime::hsm::Section(manifest_entry));
+    ASSERT_TRUE(read_section.has_value());
+    auto casted_section = std::dynamic_pointer_cast<BatchSizeSection>(read_section.value());
     ASSERT_TRUE(casted_section);
     EXPECT_EQ(casted_section->get_batch_size(), batch_size);
 }
 
-TEST_F(BatchSizeSectionTest, InvalidSectionLength) {
-    std::vector<uint8_t> dummy(0xFFFF, 0xFF);
-    ov::Tensor tensor(ov::element::u8, ov::Shape{dummy.size()}, const_cast<uint8_t*>(dummy.data()));
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size() - 1);
-    ASSERT_ANY_THROW(BatchSizeSection::read(reader));
+TEST_F(BatchSizeSectionTest, WrongTagToDecoder) {
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::COMPILER_VERSION, true);
+    std::memcpy(&manifest_entry.inline_bytes, &batch_size, sizeof(batch_size));
+
+    OV_EXPECT_THROW(BatchSizeSection::decode(ov::runtime::hsm::Section(manifest_entry)), ov::Exception, testing::_);
+}
+
+TEST_F(BatchSizeSectionTest, NotInline) {
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, false);
+    std::memcpy(&manifest_entry.inline_bytes, &batch_size, sizeof(batch_size));
+
+    OV_EXPECT_THROW(BatchSizeSection::decode(ov::runtime::hsm::Section(manifest_entry)), ov::Exception, testing::_);
 }

@@ -32,16 +32,11 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> CompilerVersionSecti
     const Logger logger("CompilerVersionSection", Logger::global().level());
     OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::COMPILER_VERSION),
                     "Logic error: the decoder received a section of the wrong type");
-
-    const size_t section_length = section.size();
-    if (section_length != sizeof(int32_t)) {
-        logger.error("Incorrect section length %zu. Expected: %zu", section_length, sizeof(int32_t));
-        return std::nullopt;
-    }
+    OPENVINO_ASSERT(section.tag().is_inline() && section.size() >= sizeof(int32_t),
+                    "Logic error: the payload is not inline or the size is not sufficiently large");
 
     int32_t compiler_version;
-    section.read(&compiler_version);
-
+    section.read(0, sizeof(compiler_version), &compiler_version);
     logger.debug("Read compiler version %lu", compiler_version);
 
     return std::make_shared<CompilerVersionSection>(compiler_version);
