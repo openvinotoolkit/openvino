@@ -23,6 +23,6 @@ void register_fused_qkv(GraphEmitter& e, const DecoderConfig& cfg, int il);
 // blk.N.attn_q.weight / blk.N.attn_gate.weight the shared attention path expects, so the graph
 // never sees the interleaving. llama.cpp does the same split with two strided views
 // (src/models/qwen35.cpp build_layer_attn).
-void register_qwen35_q_gate(GraphEmitter& e, const DecoderConfig& cfg, int il);
+void register_interleaved_q_gate(GraphEmitter& e, const DecoderConfig& cfg, int il);
 
 }  // namespace ov::frontend::gguf::blocks

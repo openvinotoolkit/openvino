@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+#include "builder/api/metadata_store.hpp"
+#include "builder/gguf_graph.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
@@ -64,7 +66,10 @@ private:
 };
 
 // Small nonzero fixture shared by registration, structure, and stateful numerical tests.
-std::string write_decoder_gguf(const std::string& dir, const std::string& arch = "qwen3", uint32_t layers = 2) {
+std::string write_decoder_gguf(const std::string& dir,
+                               const std::string& arch = "qwen3",
+                               uint32_t layers = 2,
+                               bool layer_norm = false) {
     const auto path = ov::util::path_join({dir, arch + ".gguf"}).string();
     GgufWriter writer;
     writer.kv_str("general.architecture", arch);
@@ -74,7 +79,7 @@ std::string write_decoder_gguf(const std::string& dir, const std::string& arch =
     writer.kv_u32(arch + ".attention.head_count_kv", 1);
     writer.kv_u32(arch + ".rope.dimension_count", 4);
     writer.kv_u32(arch + ".context_length", 32);
-    writer.kv_f32(arch + ".attention.layer_norm_rms_epsilon", 1e-5f);
+    writer.kv_f32(arch + (layer_norm ? ".attention.layer_norm_epsilon" : ".attention.layer_norm_rms_epsilon"), 1e-5f);
     writer.kv_f32(arch + ".rope.scaling.factor", 4.f);
     writer.kv_f32(arch + ".attn_logit_softcapping", 2.f);
     writer.kv_u32(arch + ".attention.sliding_window", 2);
@@ -83,9 +88,13 @@ std::string write_decoder_gguf(const std::string& dir, const std::string& arch =
     };
     weight("token_embd.weight", {8, 16});
     weight("output_norm.weight", {8}, true);
+    if (layer_norm)
+        weight("output_norm.bias", {8});
     for (uint32_t layer = 0; layer < layers; ++layer) {
         const auto prefix = "blk." + std::to_string(layer) + ".";
         weight(prefix + "attn_norm.weight", {8}, true);
+        if (layer_norm)
+            weight(prefix + "attn_norm.bias", {8});
         weight(prefix + "attn_q.weight", {8, 8});
         weight(prefix + "attn_k.weight", {8, 4});
         weight(prefix + "attn_v.weight", {8, 4});
@@ -93,6 +102,8 @@ std::string write_decoder_gguf(const std::string& dir, const std::string& arch =
         weight(prefix + "attn_q_norm.weight", {4}, true);
         weight(prefix + "attn_k_norm.weight", {4}, true);
         weight(prefix + "ffn_norm.weight", {8}, true);
+        if (layer_norm)
+            weight(prefix + "ffn_norm.bias", {8});
         weight(prefix + "ffn_gate.weight", {8, 12});
         weight(prefix + "ffn_up.weight", {8, 12});
         weight(prefix + "ffn_down.weight", {12, 8});
@@ -576,4 +587,49 @@ TEST(GGUFArchitectureExtension, ConverterRegisteredAfterLoadInfersBuilderValues)
             }
         }
     }
+}
+
+TEST(GGUFArchitectureExtension, TypedUnknownLayerNormFactoryControlsScalesAndLayerRope) {
+    using namespace ov::frontend::gguf;
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), "custom-normalization", 2, true);
+    ASSERT_FALSE(path.empty());
+    const auto definition = make_decoder_architecture("custom-normalization", [](const BuildContext& context) {
+        DecoderParameters defaults;
+        defaults.normalization.kind = NormalizationKind::Layer;
+        auto parameters = read_decoder_parameters(context.metadata, defaults);
+        parameters.attention.rope_mode = RopeMode::Neox;
+        parameters.scales.embedding = 2.5f;
+        parameters.scales.residual = 0.375f;
+        parameters.scales.logits = 0.75f;
+        parameters.layers.resize(2);
+        parameters.layers[0].sliding_window = false;
+        parameters.layers[1].sliding_window = true;
+        auto local = parameters.attention.rope;
+        local.freq_base = 32000.f;
+        local.freq_scale = 0.5f;
+        parameters.layers[1].rope = local;
+        return parameters;
+    });
+    auto loaded = get_gguf_data(path);
+    auto& [metadata, weights, qtypes, mappings] = loaded;
+    detail::MetadataStore store{metadata};
+    detail::WeightStore tensors{weights, qtypes};
+    const BuildContext context{GgufMetadata(store), "custom-normalization", &tensors};
+    const auto graph = definition.factory(context)->build();
+    EXPECT_TRUE(graph->use_per_op_rope);
+    const auto op = [&](const std::string& name) -> const GgufOp& {
+        const auto found = std::find_if(graph->nodes.begin(), graph->nodes.end(), [&](const GgufOp& node) {
+            return node.name == name;
+        });
+        OPENVINO_ASSERT(found != graph->nodes.end(), "missing expected operation ", name);
+        return *found;
+    };
+    EXPECT_EQ(op("blk.0.attn_norm.norm").op_type, "GGML_OP_NORM");
+    EXPECT_FLOAT_EQ(op("embd_scaled").attributes.at("scale").as<float>(), 2.5f);
+    EXPECT_FLOAT_EQ(op("blk.0.attn_out_scaled").attributes.at("scale").as<float>(), 0.375f);
+    EXPECT_FLOAT_EQ(op("result_output_scaled").attributes.at("scale").as<float>(), 0.75f);
+    const auto converted = convert_with(path, {std::make_shared<ArchitectureExtension>(definition)});
+    ASSERT_TRUE(converted);
+    EXPECT_EQ(converted->output(0).get_partial_shape().rank().get_length(), 4);
 }

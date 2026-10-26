@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "model_contract.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
@@ -248,14 +249,12 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto token_len_per_seq = find_parameter(model, "token_len_per_seq");
     const bool has_recurrent_states = model->get_rt_info().count(gguf_recurrent_states_key()) != 0;
     const auto operations = model->get_ops();
-    const auto architecture = model->get_rt_info().find("gguf_architecture");
-    const bool lfm2 =
-        architecture != model->get_rt_info().end() &&
-        (architecture->second.as<std::string>() == "lfm2" || architecture->second.as<std::string>() == "lfm2moe");
+    const auto contract = read_model_contract(model);
     const bool batchable_recurrent =
-        has_recurrent_states && (lfm2 || std::any_of(operations.begin(), operations.end(), [](const auto& node) {
-                                     return ov::is_type<internal::GatedDeltaNet>(node);
-                                 }));
+        has_recurrent_states &&
+        contract.batchable_recurrent.value_or(std::any_of(operations.begin(), operations.end(), [](const auto& node) {
+            return ov::is_type<internal::GatedDeltaNet>(node);
+        }));
     const bool recurrent_only = !inp_pos && !self_kq_mask && has_recurrent_states;
     if (!inp_tokens || (!recurrent_only && !self_kq_mask)) {
         return false;
@@ -371,11 +370,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                                    multimodal_positions ? ov::PartialShape{4, -1, -1} : ov::PartialShape{-1, -1});
     name_output(position_ids, "position_ids");
     std::shared_ptr<v0::Parameter> token_type_ids;
-    const auto arch_it = model->get_rt_info().find("gguf_architecture");
-    const auto arch = arch_it != model->get_rt_info().end() ? arch_it->second.as<std::string>() : std::string{};
-    const auto hidden = inputs_embeds ? inputs_embeds->get_partial_shape()[2] : ov::Dimension{};
-    const bool gemma4_causal = hidden == ov::Dimension(1536) || hidden == ov::Dimension(2560);
-    if (inputs_embeds && (arch == "gemma3" || (arch == "gemma4" && !gemma4_causal))) {
+    if (inputs_embeds && contract.image_attention != ModelContract::ImageAttentionMode::Causal) {
         token_type_ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
         name_output(token_type_ids, "token_type_ids");
     }
@@ -525,8 +520,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     allowed = make_shared<v1::LogicalAnd>(allowed, valid_keys);
     auto mask_4d = to_mask_4d(allowed);
     if (self_kq_mask) {
-        // Gemma4 permits bidirectional image attention only in sliding-window layers.
-        const bool causal_global = token_type_ids && arch == "gemma4";
+        const bool causal_global =
+            token_type_ids && contract.image_attention == ModelContract::ImageAttentionMode::SlidingOnly;
         auto global_mask = causal_global ? to_mask_4d(make_shared<v1::LogicalAnd>(causal, valid_keys)) : mask_4d;
         self_kq_mask->output(0).replace(global_mask->output(0));
     }

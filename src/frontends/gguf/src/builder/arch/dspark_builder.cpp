@@ -19,9 +19,7 @@ class DSparkBuilder : public ModelBuilder {
 public:
     explicit DSparkBuilder(const BuildContext& context)
         : m_metadata(context.metadata),
-          m_config(decoder_config_from_meta(detail::MetadataAccess::get(context.metadata).map),
-                   context.weights->weights,
-                   RopeMode::Neox),
+          m_config(resolve_decoder_parameters(context.metadata, RopeMode::Neox), context.weights->weights),
           m_emitter(context.weights->weights, context.weights->qtypes, context.arch, context.weights->translators) {}
 
     std::shared_ptr<GgufGraph> build() override {
@@ -48,6 +46,9 @@ public:
         auto& graph = *e.graph();
         graph.has_rope = true;
         graph.rope_config = m_config.rope_config;
+        graph.model_contract = m_config.model_contract;
+        e.configure_hadamard(
+            decoder_weight_transform_metadata(m_metadata, m_config.ssm_dt_rank, m_config.ssm_group_count));
         const auto kv = blocks::KvCachePlan::build(m_config);
         e.add_input("inp_tokens", i32, ps({1, 1, 1, block}));
         e.add_input("inp_pos", i32, ps({1, 1, 1, -1}));
@@ -147,6 +148,7 @@ public:
             confidence_value.set_names({"dspark.confidence_score"});
             graph.model_output_names.push_back(confidence);
         }
+        e.validate_hadamard();
         return e.graph();
     }
 

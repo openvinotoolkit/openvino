@@ -14,6 +14,8 @@
 
 #include "builder/gguf_builder_decoder.hpp"
 #include "input_model.hpp"
+#include "model_adapter_attribute.hpp"
+#include "model_contract.hpp"
 #include "node_context.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
@@ -291,12 +293,23 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
         }
     }
 
-    // The architecture and projector metadata select what the GenAI adapters change, including
-    // adapters registered as transformation extensions.
-    if (builder)
-        resulting_model->get_rt_info()["gguf_architecture"] = builder->get_attribute("architecture");
+    write_model_contract(resulting_model, gguf_model_decoder->get_model_contract());
+    if (const auto architecture = gguf_model_decoder->get_architecture(); !architecture.empty())
+        resulting_model->get_rt_info()["gguf_architecture"] = architecture;
     if (!gguf_model_decoder->get_mmproj_config().empty()) {
         resulting_model->get_rt_info()["gguf_mmproj"] = gguf_model_decoder->get_mmproj_config();
+    }
+
+    for (const auto& [output, adapter] : gguf_model_decoder->get_model_adapters()) {
+        OPENVINO_ASSERT(adapter && adapter->transform, "[GGUF] invalid model adapter for ", output);
+        bool found = false;
+        for (const auto& result : resulting_model->get_results()) {
+            if (!result->input_value(0).get_names().count(output))
+                continue;
+            result->get_rt_info()[ModelAdapterAttribute::get_type_info_static()] = ModelAdapterAttribute(adapter);
+            found = true;
+        }
+        OPENVINO_ASSERT(found, "[GGUF] model adapter has no output ", output);
     }
 
     if (builder) {

@@ -15,6 +15,7 @@
 #include "builder/gguf_graph.hpp"
 #include "builder/projector_registry.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
+#include "projector_adapter.hpp"
 
 namespace ov::frontend::gguf {
 namespace {
@@ -1199,6 +1200,7 @@ public:
             encoders.push_back(definition);
         }
         OPENVINO_ASSERT(!encoders.empty(), "[GGUF] mmproj has no encoder");
+        ModelAdapters adapters;
         std::map<std::string, std::string> branch_config;
         branch_config["vision.auxiliary_count"] = "0";
         for (const auto& definition : encoders) {
@@ -1211,8 +1213,18 @@ public:
                 branch_config[entry.first] = entry.second;
             }
             branch_config[definition->modality + ".projector"] = definition->projector_type;
+            const auto layout =
+                result.genai_layout.value_or(definition->genai_layout.value_or(ProjectorLayout::Unsupported));
+            branch_config[definition->modality + ".genai_layout"] = projector_layout_name(layout);
+            auto callback = result.genai_adapter.value_or(definition->genai_adapter);
+            if (callback) {
+                auto adapter = std::make_shared<ModelAdapter>();
+                adapter->transform = std::move(callback);
+                adapters[definition->modality + ".embeddings"] = std::move(adapter);
+            }
         }
         auto graph = g.finish();
+        graph->model_adapters = std::move(adapters);
         const auto number = [](auto value) {
             std::ostringstream stream;
             stream.precision(std::numeric_limits<double>::max_digits10);
@@ -1263,7 +1275,18 @@ private:
 ProjectorResult build_builtin_projector(GgufGraphContext& graph,
                                         const std::string& modality,
                                         const std::string& projector_type) {
-    return BuiltinProjectorBuilder(graph).build(modality, projector_type);
+    auto result = BuiltinProjectorBuilder(graph).build(modality, projector_type);
+    if (modality == "vision") {
+        if (projector_type == "gemma3" || projector_type == "lfm2")
+            result.genai_layout = ProjectorLayout::Image;
+        else if (projector_type == "gemma4v" || projector_type == "gemma4uv")
+            result.genai_layout = ProjectorLayout::PaddedPatches;
+        else if (projector_type == "muse-glimmer")
+            result.genai_layout = ProjectorLayout::WindowedPatches;
+        else if (projector_type == "qwen3vl_merger")
+            result.genai_layout = ProjectorLayout::SplitMerger;
+    }
+    return result;
 }
 
 std::vector<ProjectorDefinition> builtin_projectors() {

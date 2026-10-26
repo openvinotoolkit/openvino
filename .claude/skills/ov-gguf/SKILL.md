@@ -31,6 +31,19 @@ converters; builders and validation differ. Registration or conversion alone nev
 | Build, run tests, regenerate fixtures | [testing.md](../../../src/frontends/gguf/docs/testing.md) |
 | Run or resume GGUF validation across OpenVINO, GenAI and llama.cpp | [validation.md](references/validation.md); use existing GHA workflows and focused local tests, preserving revisions, coverage and failures |
 
+## Architecture ownership
+
+- Keep all architecture-specific computation and decisions under `src/builder/`: metadata schemas,
+  aliases/defaults, topology, operation selection, layouts, and architecture-specific adaptation.
+- Built-ins and `ArchitectureExtension`/`ProjectorExtension` must use the same configuration and
+  builder contracts. An extension must be able to replace or override every architecture-specific
+  behavior without editing parser, quantization, translator, or generic adaptation code.
+- Code outside `src/builder/` should be reusable between OpenVINO GenAI and the llama.cpp OpenVINO
+  backend. Consume explicit operation parameters and builder/decoder-declared model contracts;
+  do not dispatch on architecture names, projector names, or guessed model variants there.
+  Keep file-format/quantization mechanics and GGML operation semantics generic. Architecture
+  identifiers may be propagated for diagnostics, and specialized adapters belong to their builder.
+
 ## Easy to miss
 
 - **Which layer is missing.** An unclaimed `general.architecture` needs a catalog row or

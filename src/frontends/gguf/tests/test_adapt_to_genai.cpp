@@ -18,6 +18,7 @@
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "gtest/gtest.h"
+#include "model_contract.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/core/visibility.hpp"
@@ -31,6 +32,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -444,11 +446,20 @@ TEST(GGUFAdaptToGenAI, BatchedMaskKeepsSequencesSeparateAndExcludesPadding) {
     }
 }
 
-class GGUFAdaptToGenAIImageMask : public testing::TestWithParam<std::string> {};
+using ImageAttentionMode = ov::frontend::gguf::ModelContract::ImageAttentionMode;
+
+static void image_attention_contract(const std::shared_ptr<ov::Model>& model, ImageAttentionMode mode) {
+    ov::frontend::gguf::ModelContract contract;
+    contract.image_attention = mode;
+    ov::frontend::gguf::write_model_contract(model, contract);
+}
+
+class GGUFAdaptToGenAIImageMask : public testing::TestWithParam<ImageAttentionMode> {};
 
 TEST_P(GGUFAdaptToGenAIImageMask, RespectsLayerTypeImageGroupsAndCachedPrefix) {
     auto m = build_minimal_gguf_model();
-    m.model->get_rt_info()["gguf_architecture"] = GetParam();
+    image_attention_contract(m.model, GetParam());
+    m.model->get_rt_info()["gguf_architecture"] = std::string("custom-image-decoder");
     m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{3};
     auto mask = find_parameter(m.model, "self_kq_mask");
     auto swa_mask = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
@@ -482,7 +493,7 @@ TEST_P(GGUFAdaptToGenAIImageMask, RespectsLayerTypeImageGroupsAndCachedPrefix) {
             for (size_t layer = 0; layer < 2; ++layer) {
                 auto actual = request.get_output_tensor(layer);
                 ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, types.size(), past + types.size()}));
-                const bool bidirectional = layer == 1 || GetParam() == "gemma3";
+                const bool bidirectional = layer == 1 || GetParam() == ImageAttentionMode::GlobalAndSliding;
                 SCOPED_TRACE("layer=" + std::to_string(layer) + " past=" + std::to_string(past));
                 expect_mask(actual.data<const float>(), types.size(), past + types.size(), [&](size_t q, size_t k) {
                     const bool same_image = k >= past && types[q] == 1 && types[k - past] == 1 &&
@@ -494,11 +505,12 @@ TEST_P(GGUFAdaptToGenAIImageMask, RespectsLayerTypeImageGroupsAndCachedPrefix) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(Gemma,
+INSTANTIATE_TEST_SUITE_P(Contract,
                          GGUFAdaptToGenAIImageMask,
-                         testing::Values(std::string("gemma3"), std::string("gemma4")),
-                         [](const testing::TestParamInfo<std::string>& info) {
-                             return info.param;
+                         testing::Values(ImageAttentionMode::GlobalAndSliding, ImageAttentionMode::SlidingOnly),
+                         [](const testing::TestParamInfo<ImageAttentionMode>& info) {
+                             return info.param == ImageAttentionMode::GlobalAndSliding ? "GlobalAndSliding"
+                                                                                       : "SlidingOnly";
                          });
 
 TEST(GGUFAdaptToGenAI, EmbeddingModeMapsGenAIMultimodalPositionsToGGML) {
@@ -864,7 +876,7 @@ TEST_P(GGUFAdaptToGenAISlidingWindow, PreservedByPagedAttention) {
                                                   v0::Constant::create(ov::element::i64, {1}, {1}));
     }
     mask->output(0).replace(mask_source);
-    model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
+    image_attention_contract(model, ImageAttentionMode::SlidingOnly);
     model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{64};
     AdaptToGenAI(embeds ? AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS : AdaptToGenAI::InputMode::IDS_TO_LOGITS)
         .run_on_model(model);
@@ -912,7 +924,7 @@ TEST_P(GGUFAdaptToGenAIImageWindow, MatchesSDPAAndPagedAttention) {
     auto swa = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
     model->add_parameters({swa});
     mask->output(0).replace(swa->output(0));
-    model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
+    image_attention_contract(model, ImageAttentionMode::SlidingOnly);
     model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{3};
     AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(model);
     if (paged)
@@ -1165,7 +1177,7 @@ INSTANTIATE_TEST_SUITE_P(Softcap, GGUFAdaptToGenAILmHead, ::testing::Bool());
 // embeddings only, and the unmodified PagedAttention conversion applies as for optimum-intel.
 TEST(GGUFAdaptToGenAI, PagedAttentionFlattensEmbeddingsWithPerLayerInputs) {
     auto model = build_attention_gguf_model(8, 1536, true);
-    model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
+    image_attention_contract(model, ImageAttentionMode::Causal);
     ASSERT_TRUE(AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(model));
     ASSERT_EQ(find_parameter(model, "input_ids"), nullptr);
     ASSERT_EQ(model->input("inputs_embeds").get_partial_shape().rank().get_length(), 3);
@@ -1180,19 +1192,84 @@ TEST(GGUFAdaptToGenAI, PagedAttentionFlattensEmbeddingsWithPerLayerInputs) {
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
 }
 
-class GGUFAdaptToGenAIGemma4VisionAttention : public ::testing::TestWithParam<int64_t> {};
+class GGUFAdaptToGenAIImageAttentionContract
+    : public ::testing::TestWithParam<std::tuple<int64_t, ImageAttentionMode>> {};
 
-TEST_P(GGUFAdaptToGenAIGemma4VisionAttention, MatchesLlamaVariantSelection) {
-    const auto hidden = GetParam();
+TEST_P(GGUFAdaptToGenAIImageAttentionContract, UsesDeclaredSemanticsForAnyEmbeddingWidth) {
+    const auto& [hidden, mode] = GetParam();
     auto model = build_attention_gguf_model(8, hidden, true);
-    model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
+    image_attention_contract(model, mode);
+    model->get_rt_info()["gguf_architecture"] = std::string("custom-image-decoder");
     ASSERT_TRUE(AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(model));
-    EXPECT_EQ(find_parameter(model, "token_type_ids") == nullptr, hidden == 1536 || hidden == 2560);
+    EXPECT_EQ(find_parameter(model, "token_type_ids") == nullptr, mode == ImageAttentionMode::Causal);
 }
 
 INSTANTIATE_TEST_SUITE_P(EmbeddingWidth,
-                         GGUFAdaptToGenAIGemma4VisionAttention,
-                         ::testing::Values(int64_t{32}, int64_t{1536}, int64_t{2560}));
+                         GGUFAdaptToGenAIImageAttentionContract,
+                         ::testing::Combine(::testing::Values(int64_t{32}, int64_t{1536}, int64_t{2560}),
+                                            ::testing::Values(ImageAttentionMode::Causal,
+                                                              ImageAttentionMode::GlobalAndSliding,
+                                                              ImageAttentionMode::SlidingOnly)));
+
+TEST(GGUFAdaptToGenAI, ModelContractSurvivesIRReloadBeforeAdaptation) {
+    for (const auto batchable : std::vector<std::optional<bool>>{std::nullopt, false, true}) {
+        auto model = build_attention_gguf_model(8, 4);
+        ov::frontend::gguf::ModelContract contract;
+        contract.image_attention = ImageAttentionMode::SlidingOnly;
+        contract.batchable_recurrent = batchable;
+        ov::frontend::gguf::write_model_contract(model, contract);
+        for (const auto& node : model->get_ops())
+            node->get_rt_info().clear();
+        std::stringstream xml, weights;
+        ov::pass::Serialize(xml, weights).run_on_model(model);
+        const auto bytes = weights.str();
+        ov::Tensor constants(ov::element::u8, {bytes.size()});
+        if (!bytes.empty())
+            std::memcpy(constants.data(), bytes.data(), bytes.size());
+        auto restored = ov::Core{}.read_model(xml.str(), constants);
+        const auto restored_contract = ov::frontend::gguf::read_model_contract(restored);
+        EXPECT_EQ(restored_contract.image_attention, ImageAttentionMode::SlidingOnly);
+        EXPECT_EQ(restored_contract.batchable_recurrent, batchable);
+        ASSERT_TRUE(AdaptToGenAI(AdaptToGenAI::InputMode::IDS_TO_LOGITS).run_on_model(restored));
+        EXPECT_NE(find_parameter(restored, "input_ids"), nullptr);
+    }
+}
+
+TEST(GGUFAdaptToGenAI, RecurrentBatchingUsesDeclaredContract) {
+    for (const bool batchable : {false, true}) {
+        auto model = build_minimal_gguf_model().model;
+        model->get_rt_info()[ov::frontend::gguf::pass::gguf_recurrent_states_key()] = std::vector<std::string>{};
+        model->get_rt_info()["gguf_architecture"] = std::string("custom-recurrent-decoder");
+        ov::frontend::gguf::ModelContract contract;
+        contract.batchable_recurrent = batchable;
+        ov::frontend::gguf::write_model_contract(model, contract);
+        ASSERT_TRUE(AdaptToGenAI().run_on_model(model));
+        EXPECT_EQ(model->input("input_ids").get_partial_shape()[0],
+                  batchable ? ov::Dimension::dynamic() : ov::Dimension{1});
+    }
+}
+
+TEST(GGUFAdaptToGenAI, ExplicitRecurrentContractOverridesGatedDeltaNetInference) {
+    for (const auto batchable : std::vector<std::optional<bool>>{std::nullopt, false, true}) {
+        auto model = build_minimal_gguf_model().model;
+        const auto data = v0::Constant::create(ov::element::f32, {1, 1, 1, 1}, {1.f});
+        const auto gate = v0::Constant::create(ov::element::f32, {1, 1, 1}, {1.f});
+        const auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(data, data, data, data, gate, gate);
+        const auto sum = std::make_shared<v1::ReduceSum>(gdn->output(0),
+                                                         v0::Constant::create(ov::element::i64, {4}, {0, 1, 2, 3}),
+                                                         false);
+        const auto result = model->get_results().front();
+        result->input(0).replace_source_output(std::make_shared<v1::Add>(result->input_value(0), sum));
+        model->get_rt_info()[ov::frontend::gguf::pass::gguf_recurrent_states_key()] = std::vector<std::string>{};
+        ov::frontend::gguf::ModelContract contract;
+        contract.batchable_recurrent = batchable;
+        ov::frontend::gguf::write_model_contract(model, contract);
+        EXPECT_EQ(ov::frontend::gguf::read_model_contract(model).batchable_recurrent, batchable);
+        ASSERT_TRUE(AdaptToGenAI().run_on_model(model));
+        EXPECT_EQ(model->input("input_ids").get_partial_shape()[0],
+                  batchable.value_or(true) ? ov::Dimension::dynamic() : ov::Dimension{1});
+    }
+}
 
 class GGUFAdaptToGenAIEmbeddingMode : public ::testing::TestWithParam<bool> {};
 

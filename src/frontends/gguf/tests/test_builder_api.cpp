@@ -884,3 +884,168 @@ TEST(GGUFBuilderAPI, CastAndIm2colRequireExplicitDestinationType) {
         EXPECT_EQ(output.type(), ov::element::f16);
     }
 }
+
+TEST(GGUFBuilderAPI, TypedCustomLayerNormScalesAndLayerSettingsAreResolvedTogether) {
+    Environment env;
+    env.decoder();
+    env.metadata.erase("test.attention.layer_norm_rms_epsilon");
+    env.real("test.attention.layer_norm_epsilon", 3e-4f);
+    env.real("test.rope.scaling.factor", 4.0f);
+    env.architecture("custom-layernorm");
+    DecoderParameters defaults;
+    defaults.normalization.kind = NormalizationKind::Layer;
+    auto parameters = read_decoder_parameters(env.context.metadata, defaults);
+    parameters.scales.embedding = 2.5f;
+    parameters.scales.residual = 0.375f;
+    parameters.scales.logits = 0.75f;
+    parameters.scales.attention = 0.25f;
+    parameters.attention.window_size = 17;
+    parameters.layers.resize(2);
+    parameters.layers[0].sliding_window = false;
+    parameters.layers[1].sliding_window = true;
+    parameters.layers[1].query_heads = 8;
+    parameters.layers[1].kv_heads = 2;
+    parameters.layers[1].head_size = 4;
+    parameters.layers[1].attention_scale = 0.625f;
+    auto local_rope = parameters.attention.rope;
+    local_rope.n_dims = 4;
+    local_rope.freq_base = 32000.f;
+    local_rope.freq_scale = 0.5f;
+    parameters.layers[1].rope = local_rope;
+    parameters.model_contract.batchable_recurrent = true;
+    parameters.model_contract.image_attention = ModelContract::ImageAttentionMode::SlidingOnly;
+    DecoderConfig resolved(parameters, env.weights);
+    EXPECT_TRUE(resolved.layer_norm);
+    EXPECT_FLOAT_EQ(resolved.rms_eps, 3e-4f);
+    EXPECT_FLOAT_EQ(resolved.embedding_scale, 2.5f);
+    EXPECT_FLOAT_EQ(resolved.residual_scale, 0.375f);
+    EXPECT_FLOAT_EQ(resolved.logit_scale, 0.75f);
+    EXPECT_FLOAT_EQ(resolved.layer_kq_scale(0), 0.25f);
+    EXPECT_FLOAT_EQ(resolved.layer_kq_scale(1), 0.625f);
+    GgufGraphContext graph(env.context);
+    const auto dimensions = graph.configure_decoder(parameters);
+    EXPECT_EQ(dimensions.layers, 2);
+    EXPECT_FLOAT_EQ(dimensions.norm_epsilon, resolved.rms_eps);
+    const auto global = graph.decoder_layer_parameters(0);
+    const auto local = graph.decoder_layer_parameters(1);
+    EXPECT_FALSE(global.sliding_window);
+    EXPECT_TRUE(local.sliding_window);
+    EXPECT_EQ(local.query_heads, 8);
+    EXPECT_EQ(local.kv_heads, 2);
+    EXPECT_EQ(local.head_size, 4);
+    EXPECT_FLOAT_EQ(local.attention_scale, resolved.layer_kq_scale(1));
+    EXPECT_FLOAT_EQ(global.rope.freq_scale, 0.25f);
+    EXPECT_FLOAT_EQ(local.rope.freq_base, 32000.f);
+    EXPECT_FLOAT_EQ(local.rope.freq_scale, 0.5f);
+    auto input = graph.add_input("x", ov::element::f32, {1, 1, 1, 32});
+    graph.set_output(input);
+    const auto built = graph.finish();
+    EXPECT_TRUE(built->use_per_op_rope);
+    EXPECT_EQ(built->swa_window_size, 17);
+    EXPECT_TRUE(built->model_contract.batchable_recurrent);
+    EXPECT_EQ(built->model_contract.image_attention, ModelContract::ImageAttentionMode::SlidingOnly);
+}
+
+TEST(GGUFBuilderAPI, TypedSettingsRejectPartialLayersAndIncompatiblePresentMetadata) {
+    Environment env;
+    env.decoder();
+    auto parameters = read_decoder_parameters(env.context.metadata);
+    parameters.layers.resize(1);
+    EXPECT_THROW(DecoderConfig(parameters, env.weights), ov::Exception);
+    parameters.layers.resize(2);
+    parameters.layers[1].head_size = 0;
+    EXPECT_THROW(DecoderConfig(parameters, env.weights), ov::Exception);
+    env.metadata["test.embedding_scale"] = std::string("invalid");
+    EXPECT_THROW(read_decoder_parameters(env.context.metadata), ov::Exception);
+}
+
+TEST(GGUFBuilderAPI, ConvenienceOptionsSelectUnknownLayerNormBeforeMetadataReading) {
+    Environment env;
+    env.decoder();
+    env.metadata.erase("test.attention.layer_norm_rms_epsilon");
+    env.real("test.attention.layer_norm_epsilon", 2e-4f);
+    DecoderOptions options;
+    options.normalization = NormalizationKind::Layer;
+    options.embedding_scale = 3.0f;
+    GgufGraphContext graph(env.context);
+    EXPECT_FLOAT_EQ(graph.configure_decoder(RopeMode::Normal, options).norm_epsilon, 2e-4f);
+}
+
+TEST(GGUFBuilderAPI, LayerRopeOriginalContextUsesItsOwnTable) {
+    Environment env;
+    env.decoder();
+    auto parameters = read_decoder_parameters(env.context.metadata);
+    EXPECT_FALSE(DecoderConfig(parameters, env.weights).use_per_op_rope);
+    parameters.layers.resize(2);
+    auto rope = parameters.attention.rope;
+    rope.n_ctx_orig += 128;
+    parameters.layers[1].rope = rope;
+    DecoderConfig config(parameters, env.weights);
+    EXPECT_TRUE(config.use_per_op_rope);
+    EXPECT_EQ(config.layer_rope_config(1).n_ctx_orig, rope.n_ctx_orig);
+}
+
+TEST(GGUFBuilderAPI, UnsignedMetadataOverflowCannotWrapToSignedValues) {
+    Environment env;
+    env.decoder();
+    ov::Tensor scalar(ov::element::u64, {});
+    scalar.data<uint64_t>()[0] = uint64_t{1} << 63;
+    env.metadata["test.embedding_length"] = scalar;
+    EXPECT_FALSE(env.context.metadata.get_int("test.embedding_length"));
+    EXPECT_THROW(read_decoder_parameters(env.context.metadata), ov::Exception);
+    ov::Tensor values(ov::element::u64, {2});
+    values.data<uint64_t>()[0] = 1;
+    values.data<uint64_t>()[1] = (uint64_t{1} << 63) + 1;
+    env.metadata["test.attention.head_count_kv"] = values;
+    EXPECT_TRUE(env.context.metadata.get_int_array("test.attention.head_count_kv").empty());
+}
+
+TEST(GGUFBuilderAPI, UnsetPoolingSentinelIsPreservedWithoutRelaxingDimensionChecks) {
+    Environment env;
+    env.decoder();
+    ov::Tensor sentinel(ov::element::u32, {});
+    sentinel.data<uint32_t>()[0] = std::numeric_limits<uint32_t>::max();
+    env.metadata["test.pooling_type"] = sentinel;
+    EXPECT_EQ(read_decoder_parameters(env.context.metadata).pooling_type, -1);
+    env.metadata["test.embedding_length"] = sentinel;
+    EXPECT_THROW(read_decoder_parameters(env.context.metadata), ov::Exception);
+}
+
+TEST(GGUFBuilderAPI, LayerRopeCannotChangeTheSharedPositionLayout) {
+    Environment env;
+    env.decoder();
+    auto parameters = read_decoder_parameters(env.context.metadata);
+    parameters.layers.resize(2);
+    auto rope = parameters.attention.rope;
+    rope.is_imrope = true;
+    parameters.layers[1].rope = rope;
+    EXPECT_THROW(DecoderConfig(parameters, env.weights), ov::Exception);
+}
+
+TEST(GGUFBuilderAPI, ScalarRecurrentMetadataAppliesToEveryLayer) {
+    Environment env;
+    env.decoder();
+    for (const int value : {0, 1}) {
+        env.integer("test.attention.recurrent_layers", value);
+        auto parameters = read_decoder_parameters(env.context.metadata);
+        EXPECT_EQ(parameters.hybrid.recurrent_layers, (std::vector<int32_t>{value, value}));
+        EXPECT_NO_THROW(DecoderConfig(parameters, env.weights));
+    }
+}
+
+TEST(GGUFBuilderAPI, QueryHeadArraysDescribeHybridAndVariableWidthLayers) {
+    Environment env;
+    env.decoder();
+    ov::Tensor heads(ov::element::u32, {2});
+    heads.data<uint32_t>()[0] = 2;
+    heads.data<uint32_t>()[1] = 1;
+    env.metadata["test.attention.head_count"] = heads;
+    auto parameters = read_decoder_parameters(env.context.metadata);
+    EXPECT_EQ(parameters.dimensions.query_heads, 2);
+    EXPECT_EQ(DecoderConfig(parameters, env.weights).layer_n_head(1), 1);
+    heads.data<uint32_t>()[1] = 0;
+    EXPECT_THROW(read_decoder_parameters(env.context.metadata), ov::Exception);
+    env.integer("test.attention.recurrent_layers", 1);
+    parameters = read_decoder_parameters(env.context.metadata);
+    EXPECT_NO_THROW(DecoderConfig(parameters, env.weights));
+}

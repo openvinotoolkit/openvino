@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "openvino/frontend/gguf/builder/decoder_options.hpp"
+#include "builder/decoder_metadata.hpp"
 #include "openvino/frontend/gguf/decoder.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "quant/gguf.hpp"
@@ -18,14 +18,22 @@ namespace ov::frontend::gguf {
 // Internal configuration resolved from metadata, tensor shapes and architecture semantics.
 // Extensions override ambiguous semantics through DecoderOptions before dependent plans are built.
 struct DecoderConfig {
-    // Resolve the whole description from the parsed metadata (already normalized by
-    // config_from_meta) and the parser's tensor table.
+    DecoderConfig(const DecoderParameters& parameters, const std::unordered_map<std::string, ov::Tensor>& weights);
     DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
                   const std::unordered_map<std::string, ov::Tensor>& weights,
                   std::optional<RopeMode> rope = {},
                   const DecoderOptions& options = {});
 
     std::string arch;
+    ModelContract model_contract{};
+    std::vector<DecoderLayerOverrides> layers;
+    bool sliding_on_attention_layers = false;
+    bool interleaved_q_gate = false;
+    std::optional<bool> qkv_bias_override;
+    std::optional<bool> output_bias_override;
+    std::optional<bool> fused_qkv_override;
+    std::optional<bool> output_gate_override;
+    bool periodic_swa = false;
 
     // ---- core dimensions ----
     int n_layer = 0;
@@ -139,6 +147,7 @@ struct DecoderConfig {
 
     // Head size for layer `il`. gemma4 SWA layers use a smaller head size than global layers.
     int layer_head_size(int il) const;
+    int layer_n_head(int il) const;
 
     // KV head count for layer `il` (some archs, e.g. Deci-style, vary head_count_kv per layer).
     int layer_n_head_kv(int il) const;

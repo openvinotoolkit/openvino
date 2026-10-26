@@ -9,15 +9,24 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/decoder.hpp"
+#include "openvino/frontend/gguf/model_adapter.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 
 namespace ov::frontend::gguf {
+
+struct ModelContract {
+    enum class ImageAttentionMode { Causal, GlobalAndSliding, SlidingOnly };
+
+    std::optional<bool> batchable_recurrent;
+    ImageAttentionMode image_attention = ImageAttentionMode::Causal;
+};
 
 // Typed RoPE configuration, replacing the raw gguf `op_params`/`rope_params` int32 array
 // the translators used to dereference by byte offset. A decoder is responsible for
@@ -121,6 +130,19 @@ public:
     // decoder describes ggml OPERATIONS, not a deployment; conversion always yields a stateless
     // graph, and a caller that wants an OpenVINO KV cache registers
     // ov::frontend::gguf::pass::GGUFMakeStateful as a DecoderTransformationExtension.
+
+    virtual ModelContract get_model_contract() const {
+        return {};
+    }
+
+    virtual std::string get_architecture() const {
+        return {};
+    }
+
+    virtual const ModelAdapters& get_model_adapters() const {
+        static const ModelAdapters empty;
+        return empty;
+    }
 
     // Auxiliary model-scope inputs (position IDs, KV-cache lengths, attention masks). A decoder
     // that folds these into get_model_inputs() leaves this empty. beam_idx is not among them: it

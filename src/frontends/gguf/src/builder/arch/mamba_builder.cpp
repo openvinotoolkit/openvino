@@ -7,6 +7,7 @@
 #include <cmath>
 #include <limits>
 
+#include "builder/decoder_metadata.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 
 namespace ov::frontend::gguf {
@@ -51,7 +52,7 @@ public:
                             "[GGUF] Nemotron-H MoE is not supported by the dense builder");
             DecoderOptions options;
             options.rope_skip_period = 1;  // Nemotron-H attention has no positional embedding.
-            g.configure_decoder(RopeMode::Normal, options);
+            g.configure_decoder(resolve_decoder_parameters(g.metadata(), RopeMode::Normal, options));
             g.build_attn_inp_kv();
         }
         auto cur = g.build_inp_embd(weights.require("token_embd.weight"));

@@ -14,6 +14,7 @@
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/arch/dspark_builder.hpp"
+#include "builder/decoder_metadata.hpp"
 #include "builder/gguf_builder_decoder.hpp"
 #include "builder/gguf_graph.hpp"
 #include "builder/graph_emitter.hpp"
