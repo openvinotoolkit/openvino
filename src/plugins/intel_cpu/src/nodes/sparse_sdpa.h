@@ -7,11 +7,14 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <vector>
 
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
+#include "memory_state.h"
 #include "node.h"
+#include "nodes/kernels/scaled_attn/cache_spec.hpp"
 #include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -33,6 +36,16 @@ namespace ov::intel_cpu::node {
 /// 5-input form (no padding) and the 6-input form (with key_length, honoring per-batch
 /// left-padding) are both accepted, with query_block_size == 1; the optional scale and sinks inputs
 /// are not supported -- the scale always defaults to `1 / sqrt(k_head_size)`.
+///
+/// The node also implements ov::intel_cpu::SparseAttentionWithKVCache: the same attention, but the dense K/V cache
+/// is owned by a pair of VariableStateKVcacheBHLS states instead of being fed by a Concat. The state is assigned
+/// by MemoryInputSparseSDPA, the node appends the current step's key/value into it in place (growing the buffer
+/// geometrically, reordering rows by beam_idx when it is not the identity) and runs the very same kernel over the
+/// state's BHLS buffer. The cache is kept in the query's precision, or compressed to u8 / u4 with per-token groups of
+/// scale / zero point (the key_cache_precision / value_cache_precision hints of the plugin, same as for SDPA); the
+/// kernel then dequantizes just the rows it reads, i.e. the selected blocks and the causal tail. The keys may also be
+/// quantized by channel (u8, groups of `group_size` tokens, see ov::internal::key_cache_quant_mode). TurboQuant and
+/// by-channel u4 are not supported: such a side stays a plain cache in the query's precision.
 class SparseSDPA : public Node {
 public:
     SparseSDPA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
@@ -44,6 +57,18 @@ public:
     [[nodiscard]] bool needPrepareParams() const override {
         return false;
     }
+    // The state inputs of the stateful form are proxies and have zero length on the first step.
+    [[nodiscard]] bool isExecutable() const override {
+        if (!m_fuse_concat) {
+            return Node::isExecutable();
+        }
+        for (size_t i = 0; i < m_base_inputs + 1; i++) {  // + beam_idx
+            if (isInputTensorAtPortEmpty(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
     void executeDynamicImpl(const dnnl::stream& strm) override {
         execute(strm);
     }
@@ -52,7 +77,48 @@ public:
     void createPrimitive() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
+    // true for SparseAttentionWithKVCache, the form that owns the KV cache states
+    [[nodiscard]] bool isStateful() const {
+        return m_fuse_concat;
+    }
+
+    // KV cache state interface, consumed by MemoryInputSparseSDPA (only meaningful for SparseAttentionWithKVCache).
+    void assignState(const std::shared_ptr<VariableStateKVcache>& state, int idx);
+    [[nodiscard]] static std::vector<size_t> getKVCacheOrder() {
+        return {0, 1, 2, 3};  // BHLS: the kernels read rows along L contiguously
+    }
+    [[nodiscard]] ov::element::Type getKeyCachePrecision() const {
+        return m_key_spec.precision;
+    }
+    [[nodiscard]] ov::element::Type getValueCachePrecision() const {
+        return m_value_spec.precision;
+    }
+    [[nodiscard]] const ov::Extensions::Cpu::CacheSpec& getKeySpec() const {
+        return m_key_spec;
+    }
+    [[nodiscard]] const ov::Extensions::Cpu::CacheSpec& getValueSpec() const {
+        return m_value_spec;
+    }
+    [[nodiscard]] static bool isQuantizedCache(const ov::Extensions::Cpu::CacheSpec& spec) {
+        return spec.precision == ov::element::u8 || spec.precision == ov::element::u4;
+    }
+
 private:
+    // Appends the current step's key/value to the key/value states.
+    void updateKVCache();
+
+    // SparseAttentionWithKVCache: the last three inputs are beam_idx, past_key, past_value.
+    bool m_fuse_concat = false;
+    // number of the leading (non-stateful) inputs: 5 or 6
+    size_t m_base_inputs = 0;
+    // precision of the plain (not quantized) cache and the precision the quantized cache is decoded to: the query's
+    ov::element::Type m_cache_prec = ov::element::f32;
+    // the stored precision of the key / value cache (m_cache_prec, u8 or u4) and its quantization parameters
+    ov::Extensions::Cpu::CacheSpec m_key_spec;
+    ov::Extensions::Cpu::CacheSpec m_value_spec;
+    std::shared_ptr<VariableStateKVcache> m_k_state;
+    std::shared_ptr<VariableStateKVcache> m_v_state;
+
     size_t m_key_block_size = 0;
     bool m_causal = true;
     float m_scale = 0.0F;

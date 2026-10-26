@@ -46,8 +46,8 @@
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
-#include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/paged_qsa_indexer.hpp"
+#include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/prior_box.hpp"
 #include "openvino/op/prior_box_clustered.hpp"
@@ -63,11 +63,11 @@
 #include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/xor.hpp"
-#include "openvino/op/sparse_attention.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 #include "ov_ops/fully_connected.hpp"
@@ -110,6 +110,7 @@
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
+#include "transformations/cpu_opset/common/op/sparse_attention_with_kv_cache.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
 #    include "transformations/snippets/common/op/load_convert.hpp"
@@ -227,6 +228,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LLMMLPNode>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::QKVProjectionNode>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>>())
+    OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::SparseAttentionWithKVCache>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LoadConvertSaturation>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LoadConvertTruncation>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::StoreConvertSaturation>>())

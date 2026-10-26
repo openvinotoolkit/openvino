@@ -352,6 +352,7 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/qsa_indexer_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/rms_norm_no_gamma.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/rope_table_precision.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/stateful_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/sdpa_sink_input.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/stateful_sdpa_bool_mask.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/strided_slice_reshape_concat_fusion.cpp

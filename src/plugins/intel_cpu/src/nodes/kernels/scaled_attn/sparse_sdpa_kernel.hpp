@@ -14,6 +14,29 @@
 #    include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #endif
 
+namespace ov::Extensions::Cpu {
+
+// Describes how the key (or value) cache rows are stored. A plain cache is read as is (any of f32/f16/bf16, see
+// load_row_f32() in the kernel). A quantized cache (u8 / u4, per-token groups of `group_size` elements) holds the
+// quantized rows in `cache` and the {scale, zero point} pairs of the groups in `scale_zp`, laid out as
+// [L, B, H, 2 * D / group_size] -- the layout written by attn_quant_by_token() -- and the rows that are touched are
+// dequantized on the fly: only the selected blocks and the causal tail, never the whole history.
+// With `by_channel` (u8 only) the groups run along L instead: `group_size` consecutive tokens share one
+// {scale, zero point} per channel, and `scale_zp` is [2 * ceil(L / group_size), B, H, D] -- the layout written by
+// attn_quant_by_channel(): row 2 * g holds the scales of group g, row 2 * g + 1 its zero points.
+struct SparseKVQuant {
+    ov::element::Type prec = ov::element::dynamic;  // u8 / u4, anything else means "not quantized"
+    size_t group_size = 0;                          // elements of a row per group, or tokens per group when by_channel
+    bool by_channel = false;
+    const ov::intel_cpu::PlainTensor* scale_zp = nullptr;
+
+    [[nodiscard]] bool enabled() const {
+        return scale_zp != nullptr && (prec == ov::element::u8 || prec == ov::element::u4);
+    }
+};
+
+}  // namespace ov::Extensions::Cpu
+
 namespace ov::Extensions::Cpu::XARCH {
 
 // Single cross-compiled entry point for ov::intel_cpu::node::SparseSDPA (see sparse_sdpa.h for the
@@ -50,6 +73,17 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
                          size_t runs_per_thread,
                          const int32_t* key_length,
                          size_t key_length_batch_stride,
+                         const SparseKVQuant& key_quant,
+                         const SparseKVQuant& value_quant,
                          const ov::intel_cpu::CpuParallelPtr& cpu_parallel);
+
+// Dequantizes the rows [0, L) of the quantized cache (b, h) into dense f32 rows, `dst` is [L, D].
+void sparse_kv_dequantize_rows(const ov::intel_cpu::PlainTensor& cache,
+                               const SparseKVQuant& quant,
+                               size_t b,
+                               size_t h,
+                               size_t L,
+                               size_t D,
+                               float* dst);
 
 }  // namespace ov::Extensions::Cpu::XARCH

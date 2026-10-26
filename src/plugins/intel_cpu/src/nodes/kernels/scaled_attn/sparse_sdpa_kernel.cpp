@@ -10,6 +10,7 @@
 #include <limits>
 #include <numeric>
 
+#include "nodes/kernels/scaled_attn/attn_quant_kernel.hpp"
 #include "nodes/kernels/scaled_attn/common.hpp"
 #include "nodes/kernels/scaled_attn/paged_attn_kernel.hpp"
 #include "openvino/core/parallel.hpp"
@@ -51,6 +52,60 @@ void store_row_f32(const PlainTensor& t, size_t len, const float* src, Idx... id
         cvt_copy(reinterpret_cast<ov::float16*>(t.ptr_v(idx...)), src, 1, len, 0, 0);
     } else {
         cvt_copy(reinterpret_cast<float*>(t.ptr_v(idx...)), src, 1, len, 0, 0);
+    }
+}
+
+// Dequantizes `n` consecutive rows of the quantized cache (b, kv), starting at `pos`, into `dst` ([n, D], DstT).
+// Every row is made of D / group_size groups, each with its own {scale, zero point}.
+template <typename DstT>
+void dequant_rows(const PlainTensor& cache,
+                  const SparseKVQuant& quant,
+                  size_t b,
+                  size_t kv,
+                  size_t pos,
+                  size_t n,
+                  size_t D,
+                  DstT* dst) {
+    if (quant.by_channel) {
+        // the rows of a group share the per-channel scale / zero point: dequantize the range group by group
+        const size_t group_size = quant.group_size;
+        for (size_t r = 0; r < n;) {
+            const size_t p = pos + r;
+            const size_t g = p / group_size;
+            const size_t rows = std::min(n - r, (g + 1) * group_size - p);
+            attn_dequant_by_channel_kernel<DstT, ov::element::u8>(cache.ptr_v(b, kv, p),
+                                                                  dst + r * D,
+                                                                  rows,
+                                                                  D,
+                                                                  cache.stride(2),
+                                                                  D,
+                                                                  quant.scale_zp->ptr<float>(g * 2, b, kv),
+                                                                  quant.scale_zp->ptr<float>(g * 2 + 1, b, kv));
+            r += rows;
+        }
+        return;
+    }
+    const bool is_u4 = quant.prec == ov::element::u4;
+    const size_t group_size = quant.group_size;
+    const size_t group_bytes = is_u4 ? group_size / 2 : group_size;
+    const size_t groups = D / group_size;
+    for (size_t r = 0; r < n; r++) {
+        const auto* row = static_cast<const uint8_t*>(cache.ptr_v(b, kv, pos + r));
+        const float* szp = quant.scale_zp->ptr<float>(pos + r, b, kv);
+        DstT* out = dst + r * D;
+        for (size_t g = 0; g < groups; g++) {
+            if (is_u4) {
+                attn_dequant_kernel<DstT, ov::element::u4>(row + g * group_bytes,
+                                                           out + g * group_size,
+                                                           group_size,
+                                                           szp + g * 2);
+            } else {
+                attn_dequant_kernel<DstT, ov::element::u8>(row + g * group_bytes,
+                                                           out + g * group_size,
+                                                           group_size,
+                                                           szp + g * 2);
+            }
+        }
     }
 }
 
@@ -145,11 +200,16 @@ void run_amx_qk_chunks(const PlainTensor& query,
                        float* acc,
                        float* raw_buf,
                        float& running_max,
-                       float& running_sum) {
+                       float& running_sum,
+                       const SparseKVQuant& key_quant,
+                       const SparseKVQuant& value_quant,
+                       AmxT* k_dq_buf,
+                       AmxT* v_dq_buf) {
     if (runs.chunk_count == 0) {
         return;
     }
     constexpr float neg_inf = -std::numeric_limits<float>::infinity();
+    const auto Dh_k = static_cast<size_t>(gemv1.m_head_size);
     const auto* q_amx = query.ptr<AmxT>(b, h, l);
     // Tile shape is derived from head_size only (identical for gemv1/gemv4), so one
     // tile_config()/tile_release() bracket covers calls into either kernel below.
@@ -158,7 +218,17 @@ void run_amx_qk_chunks(const PlainTensor& query,
         const int64_t block_start = runs.chunk_block_start[idx];
         const size_t n_units = static_cast<size_t>(runs.chunk_n_units[idx]);
         const size_t chunk_len = n_units * unit_rows;
-        const auto* k_amx = key.ptr<AmxT>(b, kv, static_cast<size_t>(block_start));
+        // a quantized cache is dequantized into the per-thread scratch first (contiguous rows, as the JIT kernel
+        // needs); the rows past the end of the cache are zeroed, they are masked out below
+        const size_t valid_rows = std::min(chunk_len, S - std::min(S, static_cast<size_t>(block_start)));
+        const AmxT* k_amx = nullptr;
+        if (key_quant.enabled()) {
+            dequant_rows<AmxT>(key, key_quant, b, kv, static_cast<size_t>(block_start), valid_rows, Dh_k, k_dq_buf);
+            std::fill(k_dq_buf + valid_rows * Dh_k, k_dq_buf + chunk_len * Dh_k, AmxT{});
+            k_amx = k_dq_buf;
+        } else {
+            k_amx = key.ptr<AmxT>(b, kv, static_cast<size_t>(block_start));
+        }
         auto& kernel = n_units == 4 ? gemv4 : gemv1;
         kernel(q_amx, k_amx, raw_buf);
 
@@ -187,7 +257,14 @@ void run_amx_qk_chunks(const PlainTensor& query,
             raw_buf[r] = p;
             running_sum += p;
         }
-        auto* v_amx = value.ptr<AmxT>(b, kv, static_cast<size_t>(block_start));
+        AmxT* v_amx = nullptr;
+        if (value_quant.enabled()) {
+            dequant_rows<AmxT>(value, value_quant, b, kv, static_cast<size_t>(block_start), valid_rows, Dv, v_dq_buf);
+            std::fill(v_dq_buf + valid_rows * Dv, v_dq_buf + chunk_len * Dv, AmxT{});
+            v_amx = v_dq_buf;
+        } else {
+            v_amx = value.ptr<AmxT>(b, kv, static_cast<size_t>(block_start));
+        }
         if constexpr (std::is_same_v<AmxT, ov::bfloat16>) {
             attn_acc_value_block<ov::bfloat16, ov::element::bf16>(acc, raw_buf, v_amx, Dv, chunk_len, 0);
         } else {
@@ -225,6 +302,8 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
                          size_t runs_per_thread,
                          const int32_t* key_length,
                          size_t key_length_batch_stride,
+                         const SparseKVQuant& key_quant,
+                         const SparseKVQuant& value_quant,
                          const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     auto* gemv_qk1 = static_cast<ov::Extensions::Cpu::JitMatMulVecAMX*>(gemv_qk1_ptr);
     auto* gemv_qk4 = static_cast<ov::Extensions::Cpu::JitMatMulVecAMX*>(gemv_qk4_ptr);
@@ -254,6 +333,8 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
         float* const v_buf = row + 2 * Dh + Dv;
 #ifdef OPENVINO_ARCH_X86_64
         float* const raw_buf = row + 2 * Dh + 2 * Dv;  // only valid when amx_prec != ov::element::dynamic
+        // dequantized K / V rows of one AMX chunk (<= 4 merge units), only used by a quantized cache
+        float* const dq_base = raw_buf + 4 * amx_unit_blocks * Bk;
 #endif
 
         load_row_f32(query, Dh, q_buf, b, h, l);
@@ -270,8 +351,16 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
             if (causal && kpos > token_pos) {
                 return;
             }
-            load_row_f32(key, Dh, k_buf, b, kv, kpos);
-            load_row_f32(value, Dv, v_buf, b, kv, kpos);
+            if (key_quant.enabled()) {
+                dequant_rows<float>(key, key_quant, b, kv, static_cast<size_t>(kpos), 1, Dh, k_buf);
+            } else {
+                load_row_f32(key, Dh, k_buf, b, kv, kpos);
+            }
+            if (value_quant.enabled()) {
+                dequant_rows<float>(value, value_quant, b, kv, static_cast<size_t>(kpos), 1, Dv, v_buf);
+            } else {
+                load_row_f32(value, Dv, v_buf, b, kv, kpos);
+            }
             float dot = 0.0F;
             for (size_t d = 0; d < Dh; d++) {
                 dot += q[d] * k_buf[d];
@@ -330,7 +419,11 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
                                                 acc,
                                                 raw_buf,
                                                 running_max,
-                                                running_sum);
+                                                running_sum,
+                                                key_quant,
+                                                value_quant,
+                                                reinterpret_cast<ov::bfloat16*>(dq_base),
+                                                reinterpret_cast<ov::bfloat16*>(dq_base) + 4 * unit_rows * Dh);
             } else {
                 run_amx_qk_chunks<ov::float16>(query,
                                                key,
@@ -352,7 +445,11 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
                                                acc,
                                                raw_buf,
                                                running_max,
-                                               running_sum);
+                                               running_sum,
+                                               key_quant,
+                                               value_quant,
+                                               reinterpret_cast<ov::float16*>(dq_base),
+                                               reinterpret_cast<ov::float16*>(dq_base) + 4 * unit_rows * Dh);
             }
             // Blocks that couldn't be grouped into a complete 16-row-multiple AMX chunk (too short
             // a run, or the remainder after merging as many whole units as fit) still need to
@@ -387,6 +484,16 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
         }
         store_row_f32(out, Dv, acc, b, h, l);
     });
+}
+
+void sparse_kv_dequantize_rows(const ov::intel_cpu::PlainTensor& cache,
+                               const SparseKVQuant& quant,
+                               size_t b,
+                               size_t h,
+                               size_t L,
+                               size_t D,
+                               float* dst) {
+    dequant_rows<float>(cache, quant, b, h, 0, L, D, dst);
 }
 
 }  // namespace ov::Extensions::Cpu::XARCH
