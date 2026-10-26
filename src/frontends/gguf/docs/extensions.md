@@ -23,10 +23,12 @@ device backend. Extensions attached to an `ov::BaseOpExtension` and shared-libra
 unwrapped; a bare custom operation supplies no GGML converter. `TelemetryExtension` is stored but
 never invoked; other types are ignored.
 
-GenAI accepts these objects or library paths through `ov::genai::gguf_frontend_extensions(...)`
-in C++, or `GGUF_FRONTEND_EXTENSIONS=[...]` in Python. A nonempty list selects the frontend reader;
-combining it with an explicit `GGUF_READER="LEGACY"` is rejected. Extensions are registered before
-the GGUF file is loaded.
+GenAI integration in [PR #4683](https://github.com/openvinotoolkit/openvino.genai/pull/4683)
+accepts extension objects or library paths through `ov::genai::extensions(...)` in C++, or
+library paths through `extensions=[...]` in Python. For `LLMPipeline` and
+`ContinuousBatchingPipeline`, also select `GGUF_READER="FRONTEND"`. Extensions are registered
+before loading on every GGUF frontend, including both language and projector frontends in
+`VLMPipeline`.
 
 ## Lifecycle
 
@@ -230,6 +232,6 @@ Load the actual library, convert a matching file and compare with the reference 
 | Outputs differ from the reference | Follow [debugging_accuracy.md](debugging_accuracy.md) |
 
 GenAI C++ callers can forward extension objects or shared-library paths using
-`ov::genai::gguf_frontend_extensions(...)`; Python uses `GGUF_FRONTEND_EXTENSIONS=[...]`.
-A nonempty list selects the frontend reader unless `GGUF_READER=LEGACY` was explicitly requested,
-which is rejected. These extensions are registered on the same frontend before loading.
+`ov::genai::extensions(...)`; Python uses `extensions=[...]` for library paths. Select
+`GGUF_READER="FRONTEND"` when using the language-model pipelines. These extensions are
+registered on each GGUF frontend before loading.

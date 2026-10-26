@@ -493,7 +493,7 @@ TEST_P(GGUFAdaptToGenAIImageMask, RespectsLayerTypeImageGroupsAndCachedPrefix) {
             for (size_t layer = 0; layer < 2; ++layer) {
                 auto actual = request.get_output_tensor(layer);
                 ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, types.size(), past + types.size()}));
-                const bool bidirectional = layer == 1 || GetParam() == ImageAttentionMode::GlobalAndSliding;
+                const bool bidirectional = layer == 1 || GetParam() == ImageAttentionMode::GLOBAL_AND_SLIDING;
                 SCOPED_TRACE("layer=" + std::to_string(layer) + " past=" + std::to_string(past));
                 expect_mask(actual.data<const float>(), types.size(), past + types.size(), [&](size_t q, size_t k) {
                     const bool same_image = k >= past && types[q] == 1 && types[k - past] == 1 &&
@@ -507,10 +507,10 @@ TEST_P(GGUFAdaptToGenAIImageMask, RespectsLayerTypeImageGroupsAndCachedPrefix) {
 
 INSTANTIATE_TEST_SUITE_P(Contract,
                          GGUFAdaptToGenAIImageMask,
-                         testing::Values(ImageAttentionMode::GlobalAndSliding, ImageAttentionMode::SlidingOnly),
+                         testing::Values(ImageAttentionMode::GLOBAL_AND_SLIDING, ImageAttentionMode::SLIDING_ONLY),
                          [](const testing::TestParamInfo<ImageAttentionMode>& info) {
-                             return info.param == ImageAttentionMode::GlobalAndSliding ? "GlobalAndSliding"
-                                                                                       : "SlidingOnly";
+                             return info.param == ImageAttentionMode::GLOBAL_AND_SLIDING ? "GlobalAndSliding"
+                                                                                         : "SlidingOnly";
                          });
 
 TEST(GGUFAdaptToGenAI, EmbeddingModeMapsGenAIMultimodalPositionsToGGML) {
@@ -876,7 +876,7 @@ TEST_P(GGUFAdaptToGenAISlidingWindow, PreservedByPagedAttention) {
                                                   v0::Constant::create(ov::element::i64, {1}, {1}));
     }
     mask->output(0).replace(mask_source);
-    image_attention_contract(model, ImageAttentionMode::SlidingOnly);
+    image_attention_contract(model, ImageAttentionMode::SLIDING_ONLY);
     model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{64};
     AdaptToGenAI(embeds ? AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS : AdaptToGenAI::InputMode::IDS_TO_LOGITS)
         .run_on_model(model);
@@ -924,7 +924,7 @@ TEST_P(GGUFAdaptToGenAIImageWindow, MatchesSDPAAndPagedAttention) {
     auto swa = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
     model->add_parameters({swa});
     mask->output(0).replace(swa->output(0));
-    image_attention_contract(model, ImageAttentionMode::SlidingOnly);
+    image_attention_contract(model, ImageAttentionMode::SLIDING_ONLY);
     model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{3};
     AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(model);
     if (paged)
@@ -1177,7 +1177,7 @@ INSTANTIATE_TEST_SUITE_P(Softcap, GGUFAdaptToGenAILmHead, ::testing::Bool());
 // embeddings only, and the unmodified PagedAttention conversion applies as for optimum-intel.
 TEST(GGUFAdaptToGenAI, PagedAttentionFlattensEmbeddingsWithPerLayerInputs) {
     auto model = build_attention_gguf_model(8, 1536, true);
-    image_attention_contract(model, ImageAttentionMode::Causal);
+    image_attention_contract(model, ImageAttentionMode::CAUSAL);
     ASSERT_TRUE(AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(model));
     ASSERT_EQ(find_parameter(model, "input_ids"), nullptr);
     ASSERT_EQ(model->input("inputs_embeds").get_partial_shape().rank().get_length(), 3);
@@ -1201,21 +1201,21 @@ TEST_P(GGUFAdaptToGenAIImageAttentionContract, UsesDeclaredSemanticsForAnyEmbedd
     image_attention_contract(model, mode);
     model->get_rt_info()["gguf_architecture"] = std::string("custom-image-decoder");
     ASSERT_TRUE(AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(model));
-    EXPECT_EQ(find_parameter(model, "token_type_ids") == nullptr, mode == ImageAttentionMode::Causal);
+    EXPECT_EQ(find_parameter(model, "token_type_ids") == nullptr, mode == ImageAttentionMode::CAUSAL);
 }
 
 INSTANTIATE_TEST_SUITE_P(EmbeddingWidth,
                          GGUFAdaptToGenAIImageAttentionContract,
                          ::testing::Combine(::testing::Values(int64_t{32}, int64_t{1536}, int64_t{2560}),
-                                            ::testing::Values(ImageAttentionMode::Causal,
-                                                              ImageAttentionMode::GlobalAndSliding,
-                                                              ImageAttentionMode::SlidingOnly)));
+                                            ::testing::Values(ImageAttentionMode::CAUSAL,
+                                                              ImageAttentionMode::GLOBAL_AND_SLIDING,
+                                                              ImageAttentionMode::SLIDING_ONLY)));
 
 TEST(GGUFAdaptToGenAI, ModelContractSurvivesIRReloadBeforeAdaptation) {
     for (const auto batchable : std::vector<std::optional<bool>>{std::nullopt, false, true}) {
         auto model = build_attention_gguf_model(8, 4);
         ov::frontend::gguf::ModelContract contract;
-        contract.image_attention = ImageAttentionMode::SlidingOnly;
+        contract.image_attention = ImageAttentionMode::SLIDING_ONLY;
         contract.batchable_recurrent = batchable;
         ov::frontend::gguf::write_model_contract(model, contract);
         for (const auto& node : model->get_ops())
@@ -1228,7 +1228,7 @@ TEST(GGUFAdaptToGenAI, ModelContractSurvivesIRReloadBeforeAdaptation) {
             std::memcpy(constants.data(), bytes.data(), bytes.size());
         auto restored = ov::Core{}.read_model(xml.str(), constants);
         const auto restored_contract = ov::frontend::gguf::read_model_contract(restored);
-        EXPECT_EQ(restored_contract.image_attention, ImageAttentionMode::SlidingOnly);
+        EXPECT_EQ(restored_contract.image_attention, ImageAttentionMode::SLIDING_ONLY);
         EXPECT_EQ(restored_contract.batchable_recurrent, batchable);
         ASSERT_TRUE(AdaptToGenAI(AdaptToGenAI::InputMode::IDS_TO_LOGITS).run_on_model(restored));
         EXPECT_NE(find_parameter(restored, "input_ids"), nullptr);

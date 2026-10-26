@@ -22,10 +22,10 @@
 namespace ov::frontend::gguf {
 
 struct ModelContract {
-    enum class ImageAttentionMode { Causal, GlobalAndSliding, SlidingOnly };
+    enum class ImageAttentionMode { CAUSAL, GLOBAL_AND_SLIDING, SLIDING_ONLY };
 
     std::optional<bool> batchable_recurrent;
-    ImageAttentionMode image_attention = ImageAttentionMode::Causal;
+    ImageAttentionMode image_attention = ImageAttentionMode::CAUSAL;
 };
 
 // Typed RoPE configuration, replacing the raw gguf `op_params`/`rope_params` int32 array

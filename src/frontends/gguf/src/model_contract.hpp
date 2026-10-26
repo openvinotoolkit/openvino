@@ -13,13 +13,13 @@ namespace ov::frontend::gguf {
 inline void write_model_contract(const std::shared_ptr<ov::Model>& model, const ModelContract& contract) {
     std::string image_attention;
     switch (contract.image_attention) {
-    case ModelContract::ImageAttentionMode::Causal:
+    case ModelContract::ImageAttentionMode::CAUSAL:
         image_attention = "causal";
         break;
-    case ModelContract::ImageAttentionMode::GlobalAndSliding:
+    case ModelContract::ImageAttentionMode::GLOBAL_AND_SLIDING:
         image_attention = "global_and_sliding";
         break;
-    case ModelContract::ImageAttentionMode::SlidingOnly:
+    case ModelContract::ImageAttentionMode::SLIDING_ONLY:
         image_attention = "sliding_only";
         break;
     default:
@@ -44,9 +44,9 @@ inline ModelContract read_model_contract(const std::shared_ptr<ov::Model>& model
     if (model->has_rt_info({"gguf_model_contract", "image_attention"})) {
         const auto value = model->get_rt_info<std::string>({"gguf_model_contract", "image_attention"});
         if (value == "global_and_sliding") {
-            contract.image_attention = ModelContract::ImageAttentionMode::GlobalAndSliding;
+            contract.image_attention = ModelContract::ImageAttentionMode::GLOBAL_AND_SLIDING;
         } else if (value == "sliding_only") {
-            contract.image_attention = ModelContract::ImageAttentionMode::SlidingOnly;
+            contract.image_attention = ModelContract::ImageAttentionMode::SLIDING_ONLY;
         } else {
             OPENVINO_ASSERT(value == "causal", "[GGUF] invalid image attention contract");
         }

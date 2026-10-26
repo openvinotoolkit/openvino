@@ -370,7 +370,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                                    multimodal_positions ? ov::PartialShape{4, -1, -1} : ov::PartialShape{-1, -1});
     name_output(position_ids, "position_ids");
     std::shared_ptr<v0::Parameter> token_type_ids;
-    if (inputs_embeds && contract.image_attention != ModelContract::ImageAttentionMode::Causal) {
+    if (inputs_embeds && contract.image_attention != ModelContract::ImageAttentionMode::CAUSAL) {
         token_type_ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
         name_output(token_type_ids, "token_type_ids");
     }
@@ -521,7 +521,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto mask_4d = to_mask_4d(allowed);
     if (self_kq_mask) {
         const bool causal_global =
-            token_type_ids && contract.image_attention == ModelContract::ImageAttentionMode::SlidingOnly;
+            token_type_ids && contract.image_attention == ModelContract::ImageAttentionMode::SLIDING_ONLY;
         auto global_mask = causal_global ? to_mask_4d(make_shared<v1::LogicalAnd>(causal, valid_keys)) : mask_4d;
         self_kq_mask->output(0).replace(global_mask->output(0));
     }

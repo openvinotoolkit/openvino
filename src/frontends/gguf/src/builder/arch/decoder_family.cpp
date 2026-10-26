@@ -77,9 +77,9 @@ DecoderParameters decoder_family_defaults(const std::string& arch, int layers, i
         p.model_contract.batchable_recurrent = true;
     }
     if (arch == "gemma3")
-        p.model_contract.image_attention = ModelContract::ImageAttentionMode::GlobalAndSliding;
+        p.model_contract.image_attention = ModelContract::ImageAttentionMode::GLOBAL_AND_SLIDING;
     if (arch == "gemma4" && embedding != 1536 && embedding != 2560)
-        p.model_contract.image_attention = ModelContract::ImageAttentionMode::SlidingOnly;
+        p.model_contract.image_attention = ModelContract::ImageAttentionMode::SLIDING_ONLY;
     return p;
 }
 

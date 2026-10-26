@@ -913,7 +913,7 @@ TEST(GGUFBuilderAPI, TypedCustomLayerNormScalesAndLayerSettingsAreResolvedTogeth
     local_rope.freq_scale = 0.5f;
     parameters.layers[1].rope = local_rope;
     parameters.model_contract.batchable_recurrent = true;
-    parameters.model_contract.image_attention = ModelContract::ImageAttentionMode::SlidingOnly;
+    parameters.model_contract.image_attention = ModelContract::ImageAttentionMode::SLIDING_ONLY;
     DecoderConfig resolved(parameters, env.weights);
     EXPECT_TRUE(resolved.layer_norm);
     EXPECT_FLOAT_EQ(resolved.rms_eps, 3e-4f);
@@ -943,7 +943,7 @@ TEST(GGUFBuilderAPI, TypedCustomLayerNormScalesAndLayerSettingsAreResolvedTogeth
     EXPECT_TRUE(built->use_per_op_rope);
     EXPECT_EQ(built->swa_window_size, 17);
     EXPECT_TRUE(built->model_contract.batchable_recurrent);
-    EXPECT_EQ(built->model_contract.image_attention, ModelContract::ImageAttentionMode::SlidingOnly);
+    EXPECT_EQ(built->model_contract.image_attention, ModelContract::ImageAttentionMode::SLIDING_ONLY);
 }
 
 TEST(GGUFBuilderAPI, TypedSettingsRejectPartialLayersAndIncompatiblePresentMetadata) {
