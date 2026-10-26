@@ -27,6 +27,7 @@ struct DynamicQuantizeFCParams {
     ov::element::Type weights_type;
     ov::element::Type zp_type;
     bool expect_precomputed_reduction;
+    bool expect_dynamic_quantization = true;
 };
 
 class DynamicQuantizeFullyConnectedTests : public TransformationTestsF, public WithParamInterface<DynamicQuantizeFCParams> {
@@ -62,6 +63,10 @@ protected:
             auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, w[0], w[1], w[2], w[3]);
             model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
             manager.register_pass<DynamicQuantizeFullyConnected>(dyn_quan_group_size, false, true);
+        }
+        if (!p.expect_dynamic_quantization) {
+            model_ref = model->clone();
+            return;
         }
         {
             auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, K});
@@ -101,8 +106,9 @@ const std::vector<DynamicQuantizeFCParams> dynamic_quantize_fc_params = {
     {ov::element::i8, ov::element::u8, true},
     {ov::element::u4, ov::element::u4, false},
     {ov::element::i4, ov::element::u4, false},
-    {ov::element::u3, ov::element::u8, false},
-    {ov::element::u2, ov::element::u8, false},
+    {ov::element::u3, ov::element::u8, false, false},
+    {ov::element::u2, ov::element::u8, false, false},
+    {ov::element::u1, ov::element::u8, false, false},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_TransformationTests_PrecomputedReduction,

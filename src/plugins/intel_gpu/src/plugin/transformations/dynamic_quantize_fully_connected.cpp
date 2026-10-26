@@ -43,6 +43,10 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         uint64_t adj_group_size = group_size; // If group_size is not supported, it can be adjusted to proper group size
 
         auto m_fc = ov::as_type_ptr<op::FullyConnectedCompressed>(m.get_match_root());
+        // Dynamic-quantized FC implementations require at least 4-bit weights.
+        if (m_fc->get_input_element_type(1).bitwidth() < 4) {
+            return false;
+        }
         ov::NodeVector new_ops;
         auto make_placeholder = [&new_ops]() {
             auto placeholder = std::make_shared<ov::intel_gpu::op::Placeholder>();
