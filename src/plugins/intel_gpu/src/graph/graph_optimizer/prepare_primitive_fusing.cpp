@@ -99,7 +99,6 @@ static std::optional<size_t> find_eltwise_const_dep_idx(const eltwise_node& node
     return std::nullopt;
 }
 
-
 void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
@@ -851,6 +850,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
             }
 
+
+            if (activation_func == cldnn::activation_func::swoosh) {
+                return;
+            }
 
             auto& input = activation_node.get_dependency(0);
             if (activation_node.get_dependencies().size() >= 3)
