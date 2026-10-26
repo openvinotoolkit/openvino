@@ -231,12 +231,12 @@ struct Moe3GemmReference {
                 for (size_t e = 0; e < num_experts; ++e) {
                     expert_weights.push_back({logits[e] / sum_exp, e});
                 }
-                // Sort descending
+                // Sort descending; equal weights keep the lower expert index, as the router kernel does
                 std::partial_sort(expert_weights.begin(),
                                   expert_weights.begin() + top_k,
                                   expert_weights.end(),
                                   [](const std::pair<float, size_t>& a, const std::pair<float, size_t>& b) {
-                                      return a.first > b.first;
+                                      return a.first > b.first || (a.first == b.first && a.second < b.second);
                                   });
 
                 // Normalize top-k weights
