@@ -220,22 +220,17 @@ size_t Type::bitwidth() const {
 namespace ov {
 template <>
 OPENVINO_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
-    static auto enum_names =
-        EnumNames<element::Type_t>("element::Type_t",
-                                   {{"dynamic", element::Type_t::dynamic}, {"undefined", element::Type_t::dynamic},
-                                    {"boolean", element::Type_t::boolean}, {"bf16", element::Type_t::bf16},
-                                    {"f16", element::Type_t::f16},         {"f32", element::Type_t::f32},
-                                    {"f64", element::Type_t::f64},         {"i4", element::Type_t::i4},
-                                    {"i8", element::Type_t::i8},           {"i16", element::Type_t::i16},
-                                    {"i32", element::Type_t::i32},         {"i64", element::Type_t::i64},
-                                    {"u1", element::Type_t::u1},           {"u2", element::Type_t::u2},
-                                    {"u3", element::Type_t::u3},           {"u4", element::Type_t::u4},
-                                    {"u6", element::Type_t::u6},           {"u8", element::Type_t::u8},
-                                    {"u16", element::Type_t::u16},         {"u32", element::Type_t::u32},
-                                    {"u64", element::Type_t::u64},         {"nf4", element::Type_t::nf4},
-                                    {"f8e4m3", element::Type_t::f8e4m3},   {"f8e5m2", element::Type_t::f8e5m2},
-                                    {"string", element::Type_t::string},   {"f4e2m1", element::Type_t::f4e2m1},
-                                    {"f8e8m0", element::Type_t::f8e8m0}});
+    static auto enum_names = [] {
+        // The deprecated spelling of dynamic follows the current one: the map is searched in order and the
+        // first match wins, so as_string(dynamic) keeps returning "dynamic".
+        std::vector<std::pair<std::string, element::Type_t>> names{
+            {element::types_info[0].m_type_name, element::Type_t::dynamic},
+            {"undefined", element::Type_t::dynamic}};
+        for (size_t i = 1; i < element::types_info.size(); ++i) {
+            names.emplace_back(element::types_info[i].m_type_name, static_cast<element::Type_t>(i));
+        }
+        return EnumNames<element::Type_t>("element::Type_t", std::move(names));
+    }();
     return enum_names;
 }
 
