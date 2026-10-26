@@ -27,6 +27,7 @@
 #include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_convert.hpp"
 #include "low_precision/group_convolution.hpp"
@@ -122,6 +123,7 @@
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
 #include "plugin/transformations/stateless_kv_fusion.hpp"
+#include "plugin/transformations/swoosh_fusion.hpp"
 #include "intel_gpu/op/fully_connected.hpp"
 #include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
@@ -1657,6 +1659,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (device_info.supports_immad && config.get_use_onednn() && !disable_gated_mlp_fusion) {
             manager.register_pass<ov::intel_gpu::FuseGatedMLP>();
         }
+        manager.register_pass<ov::intel_gpu::SwooshFusion>();
         manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
@@ -1677,6 +1680,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             pass_config->disable<GroupConvolutionTransformation>();
             pass_config->disable<MatMulTransformation>();
             pass_config->disable<MVNTransformation>();
+            // This LPT run only moves scalar Multiply layers. FakeQuantize layers left by the INT8 LPT run (e.g. Q/K
+            // quantization before SDPA) must not be decomposed again: the f16 DataPrecision interval (+/-1e15)
+            // overflows f16 and turns the quantized activations into inf/NaN.
+            pass_config->disable<FakeQuantizeDecompositionTransformation>();
 
             pass_config->set_callback<FoldConvertTransformation>(
                 [](const std::shared_ptr<const ov::Node> &node) -> bool {
