@@ -1346,6 +1346,40 @@ def test_make_16bit_traceable_activation_fallback(dtype, operation):
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("view", ["none", "transpose", "chunk_transpose"])
+def test_make_16bit_traceable_bmm_replay(dtype, view):
+    from openvino.frontend.pytorch import patch_model
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            shape = (4, 16, 8) if view == "chunk_transpose" else (4, 8, 8)
+            self.weight = torch.nn.Parameter(torch.ones(shape, dtype=dtype), requires_grad=False)
+
+        def forward(self, value):
+            weight = self.weight
+            if view == "chunk_transpose":
+                weight = weight.chunk(2, dim=1)[0]
+            if view != "none":
+                weight = weight.transpose(1, 2)
+            return torch.bmm(value, weight)
+
+    model = Model().eval()
+    original = model.weight
+    example = torch.ones(4, 2, 8)
+    try:
+        patch_model.__make_16bit_traceable(model)
+        expected = model(example)
+        traced = torch.jit.trace(model, example)
+        torch.testing.assert_close(traced(example), expected)
+        assert model.weight.untyped_storage().nbytes() <= 4
+    finally:
+        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
+    assert model.weight is original
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("operation", ["linear", "linear_chain", "bmm", "embedding"])
 def test_make_16bit_traceable_extension_activation_fallback(dtype, operation):
     from openvino import convert_model, compile_model

@@ -96,16 +96,19 @@ def unpatch_model(model, orig_forward_name):
 
 def _create_function_wrapper(extension):
     """Create a wrapper for a torch function using the same Trampoline pattern as modules."""
-
-    class Trampoline(torch.autograd.Function):
-        target_extension = extension
-
-        @staticmethod
-        @torch.jit.ignore
-        def forward(ctx, *args, **kwargs):
-            return extension.evaluate(None, *args, **kwargs)
-
     def wrapper(*args, **kwargs):
+        parameters = _placeholder_parameters((args, kwargs))
+
+        class Trampoline(torch.autograd.Function):
+            target_extension = extension
+
+            @staticmethod
+            @torch.jit.ignore
+            def forward(ctx, *args, **kwargs):
+                # TorchScript replay loses dependency metadata on parameter views.
+                args = _set_placeholder_parameters(args, parameters)
+                return extension.evaluate(None, *args, **kwargs)
+
         return extension.convert(None, Trampoline.apply, *args, **kwargs)
 
     return wrapper
