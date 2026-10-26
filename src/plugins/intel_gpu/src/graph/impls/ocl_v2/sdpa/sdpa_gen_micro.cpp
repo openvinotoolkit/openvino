@@ -35,6 +35,9 @@ size_t get_subgroup_size(gpu_arch arch) {
     }
 }
 
+// Host payload (cross-thread argument bytes) of the sdpa_micro kernel; needs ~140 bytes at least.
+constexpr int host_argument_bytes = 256;
+
 inline size_t get_d_max(size_t head_size) {
     for (size_t i = 32; i <= 1024; i *= 2) {
         if (head_size <= i) {
@@ -1336,8 +1339,14 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.make("WITH_ATTN_MASK", 0);
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
         const auto desc = params.typed_desc<paged_attention>();
-        if (desc->has_token_type_ids && m_is_prefill) {
+        if (desc->has_token_type_ids) {
             jit.make("HAS_TOKEN_TYPE_IDS", 1);
+            // the kernel checks the runtime size: an empty token_type_ids input disables the bidirectional masking
+            const size_t tensor_id = PagedAttentionInputIdx::TOKEN_TYPE_IDS;
+            jit.add(make_layout_jit_constants("TOKEN_TYPE_IDS", params.input_layouts[tensor_id], params.in_port_to_shape_info_offset.at(tensor_id)));
+            if (pa_micro_uses_tt_bounds(*desc)) {
+                jit.make("USE_TT_BOUNDS", 1);  // group bounds precomputed by the pa_tt_bounds stage
+            }
         }
     }
 
@@ -1533,11 +1542,14 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     }
 
     if (device_info.arch >= gpu_arch::xe_hpc) {
-        jit.make("PREFETCH_MASK", 1);
+        const int disabled_prefetch = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_micro_sdpa_disable_prefetch(), 0);
+        if (!(disabled_prefetch & 1))
+            jit.make("PREFETCH_MASK", 1);
         const bool enable_kv_prefetch = (!config.is_paged_attention || m_is_prefill) && !is_byte_packed_int4;
-        jit.make("PREFETCH_K0", enable_kv_prefetch);
-        jit.make("PREFETCH_K", enable_kv_prefetch);
-        jit.make("PREFETCH_V", enable_kv_prefetch);
+        const bool enable_k_prefetch = enable_kv_prefetch && ((disabled_prefetch & 2) == 0);
+        jit.make("PREFETCH_K0", enable_k_prefetch);
+        jit.make("PREFETCH_K", enable_k_prefetch);
+        jit.make("PREFETCH_V", enable_kv_prefetch && ((disabled_prefetch & 4) == 0));
         bool no_rem = d_full && v_full && k_full;
         jit.make("PREFETCH_REMAINDER", !no_rem);
         jit.make("PREFETCH_D_MAX", std::min<int64_t>(d_max, 64));
@@ -1677,11 +1689,14 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
                 {ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins                              // qq_bias_num
         }
 
-        if (desc->has_token_type_ids && m_is_prefill) {
+        if (desc->has_token_type_ids) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
         }
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // blocked_indexes_start_and_gws_mapping
+        if (pa_micro_uses_tt_bounds(*desc)) {
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // tt_bounds
+        }
     } else {
         args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::KEY});    // K
         args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::QUERY});  // Q
@@ -1905,6 +1920,9 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     hw_info.gmdid = device_info.ip_version;
     hw_info.systolicAvailable = device_info.supports_immad;
 
+    /* Host kernel facts: the microkernel registers must not overlap the host thread payload */
+    const micro::HostPayload host{static_cast<int>(get_subgroup_size(device_info.arch)), host_argument_bytes};
+
     /* Set up GEMMProblem structure for first GEMM: K^T * Q */
     micro::GEMMProblem problem;
     problem.Ta_ext = convert_type(K.data_type);
@@ -2054,7 +2072,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     /* Ask microkernel provider for microkernel */
     try {
-        gemm_kq = micro::select_gemm_microkernel(opts_kq, hw_info, sizes, problem_kq, reqs_kq);
+        gemm_kq = micro::select_gemm_microkernel(opts_kq, host, hw_info, sizes, problem_kq, reqs_kq);
     } catch (const std::runtime_error& ex) {
         GPU_DEBUG_TRACE_DETAIL << "Can't create KQ sdpa_micro kernel: " << ex.what() << "\n";
         throw;
@@ -2080,7 +2098,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
         /* Ask microkernel provider for microkernel */
         try {
-            gemm_kcq = micro::select_gemm_microkernel(opts_kq, hw_info, sizes, problem_kcq, reqs_kq);
+            gemm_kcq = micro::select_gemm_microkernel(opts_kq, host, hw_info, sizes, problem_kcq, reqs_kq);
         } catch (const std::runtime_error& ex) {
             GPU_DEBUG_TRACE_DETAIL << "Can't create KcQ sdpa_micro kernel: " << ex.what() << "\n";
             throw;
@@ -2212,7 +2230,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     };
     /* Ask microkernel provider for microkernel */
     try {
-        gemm_vs = micro::select_gemm_microkernel(opts_vs, hw_info, sizes, problem_vs, reqs_vs, adjust_vs);
+        gemm_vs = micro::select_gemm_microkernel(opts_vs, host, hw_info, sizes, problem_vs, reqs_vs, adjust_vs);
     } catch (const std::runtime_error& ex) {
         GPU_DEBUG_TRACE_DETAIL << "Can't create VS sdpa_micro kernel: " << ex.what() << "\n";
         throw;
@@ -2240,7 +2258,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
         /* Ask microkernel provider for microkernel */
         try {
-            gemm_vcs = micro::select_gemm_microkernel(opts_vs, hw_info, sizes, problem_vcs, reqs_vs, adjust_vs);
+            gemm_vcs = micro::select_gemm_microkernel(opts_vs, host, hw_info, sizes, problem_vcs, reqs_vs, adjust_vs);
         } catch (const std::runtime_error& ex) {
             GPU_DEBUG_TRACE_DETAIL << "Can't create VcS sdpa_micro kernel: " << ex.what() << "\n";
             throw;
