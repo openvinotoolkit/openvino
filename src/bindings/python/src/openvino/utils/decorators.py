@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import wraps
-from inspect import Parameter, signature
+from inspect import signature
 from typing import Any, Optional, Union, get_origin, get_args
 from collections.abc import Callable
 
@@ -93,12 +93,6 @@ class MultiMethod(object):
     def matches_optional(self, optional_type, actual_type) -> bool:  # type: ignore
         return actual_type is None or self.matches_union(optional_type, actual_type)
 
-    # Names of parameters that have no default value (*args and **kwargs excluded)
-    def required_params(self, func: Callable) -> set:
-        params = signature(func).parameters.values()
-        variadic = (Parameter.VAR_POSITIONAL, Parameter.VAR_KEYWORD)
-        return {param.name for param in params if param.default is param.empty and param.kind not in variadic}
-
     # Checks whether there is overloading which matches invoked argument types
     def check_invoked_types_in_overloaded_funcs(self, tuple_to_check: tuple, key_structure: tuple) -> bool:
         for actual_type, expected_type in zip(tuple_to_check, key_structure):
@@ -126,9 +120,13 @@ class MultiMethod(object):
                     break
         elif len(arg_types) == 0 and len(kwarg_types) != 0:
             for key, func in self.typemap.items():
-                func_signature = {arg_name: types.annotation for arg_name, types in signature(func).parameters.items()}
-                # if kwargs of called function are subset of overloaded function, we use this overload
-                if kwarg_types.keys() <= func_signature.keys() and self.required_params(func) <= kwarg_types.keys():
+                params = signature(func).parameters
+                # parameters without a default, *args and **kwargs excluded
+                required = {n for n, p in params.items()
+                            if p.default is p.empty and p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)}
+                # if kwargs of called function are subset of overloaded function
+                # and cover its required parameters, we use this overload
+                if kwarg_types.keys() <= params.keys() and required <= kwarg_types.keys():
                     key_matched = key
                     break
         elif len(arg_types) != 0 and len(kwarg_types) != 0:
