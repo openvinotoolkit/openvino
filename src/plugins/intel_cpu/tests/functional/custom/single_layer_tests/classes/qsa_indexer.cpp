@@ -281,7 +281,21 @@ QSAIndexerOracle::Output QSAIndexerOracle::run_call(size_t batch,
 
 std::string QSAIndexerLayerCPUTest::getTestCaseName(const testing::TestParamInfo<QSAIndexerLayerTestParams>& obj) {
     const auto& [device, data_precision, h_iq, h_ik, h_sel, batch, scenario] = obj.param;
-    const std::string scenario_name = scenario == QSAIndexerScenario::kWorkedExample ? "WorkedExample" : "DensePrefill";
+    std::string scenario_name;
+    switch (scenario) {
+    case QSAIndexerScenario::kDensePrefill:
+        scenario_name = "DensePrefill";
+        break;
+    case QSAIndexerScenario::kWorkedExample:
+        scenario_name = "WorkedExample";
+        break;
+    case QSAIndexerScenario::kFullyPaddedRow:
+        scenario_name = "FullyPaddedRow";
+        break;
+    case QSAIndexerScenario::kRaggedCalls:
+        scenario_name = "RaggedCalls";
+        break;
+    }
     return "Target=" + device + "_DataPrecision=" + data_precision.get_type_name() + "_Hiq=" + std::to_string(h_iq) +
            "_Hik=" + std::to_string(h_ik) + "_Hsel=" + std::to_string(h_sel) + "_Batch=" + std::to_string(batch) +
            "_Scenario=" + scenario_name;
@@ -317,6 +331,19 @@ void QSAIndexerLayerCPUTest::SetUp() {
         m_summary_cap = 3;
         m_calls.push_back(CallSpec{10, {10, 7}});
         m_calls.push_back(CallSpec{1, {11, 8}});
+    } else if (m_scenario == QSAIndexerScenario::kFullyPaddedRow) {
+        m_batch = 2;
+        m_compress_ratio = 4;
+        m_summary_cap = 3;
+        m_calls.push_back(CallSpec{5, {5, 0}});
+        m_calls.push_back(CallSpec{3, {8, 3}});
+    } else if (m_scenario == QSAIndexerScenario::kRaggedCalls) {
+        m_batch = 2;
+        m_compress_ratio = 4;
+        m_summary_cap = 4;
+        m_calls.push_back(CallSpec{7, {7, 5}});
+        m_calls.push_back(CallSpec{3, {10, 8}});
+        m_calls.push_back(CallSpec{5, {15, 13}});
     } else {
         m_compress_ratio = 2;
         m_summary_cap = 4;

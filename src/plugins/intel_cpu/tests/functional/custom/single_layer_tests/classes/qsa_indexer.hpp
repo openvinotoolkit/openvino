@@ -64,11 +64,16 @@ struct QSAIndexerOracle {
 // kWorkedExample reproduces new_spec/qsa-prepare-17.rst's worked example verbatim: compress_ratio
 // 4, a prefill call (L=10, key_length=[10,7], row 1 left-padded by 3) followed by a decode call
 // (L=1, key_length=[11,8]) that completes row 1's second block. Forces batch to 2.
-enum class QSAIndexerScenario { kDensePrefill, kWorkedExample };
+// kFullyPaddedRow: compress_ratio 4, a prefill call (L=5, key_length=[5,0]) whose row 1 is entirely padding
+// (no token, no block, all-zero state), then a call (L=3, key_length=[8,3]) in which that row starts from scratch.
+// kRaggedCalls: compress_ratio 4, three calls with L > 1 and different past lengths per row (key_length=[7,5],
+// [10,8], [15,13]): the incomplete-block tail is 3/1, 2/0 and 3/1 rows long at the start of the calls and a block
+// is completed exactly at the end of a call (row 1 of the second one). Forces batch to 2.
+enum class QSAIndexerScenario { kDensePrefill, kWorkedExample, kFullyPaddedRow, kRaggedCalls };
 
 // target device, data precision (q_idx/k_idx/rotary/caches/norm weights),
 // H_iq (index-query head count), H_ik (index-key head count), h_sel (selection-head count),
-// batch (ignored for kWorkedExample, which forces batch == 2), scenario
+// batch (ignored by all scenarios but kDensePrefill, which force batch == 2), scenario
 using QSAIndexerLayerTestParams =
     std::tuple<std::string, ov::element::Type, size_t, size_t, size_t, size_t, QSAIndexerScenario>;
 

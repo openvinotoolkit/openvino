@@ -29,9 +29,9 @@ namespace ov::intel_cpu::node {
 /// (`summary_cache`, `past_incomplete_raw_k`, `past_incomplete_rope`) are never modified: the
 /// updated states are written to dedicated outputs for an outside Assign to consume. `summary_cache` grows like
 /// QSAPrepare-17's `block_index_keys`: the output has max(key_length) / key_block_size blocks, so the output shape
-/// depends on the `key_length` values. All floating-point data
-/// ports may be negotiated as f32, f16, or bf16 independently; compute is always performed in
-/// fp32. `sel_indices`/`sel_count` are always i32; the three state outputs keep their input's precision.
+/// depends on the `key_length` values. All floating-point ports (inputs and state outputs) share one
+/// precision (f32, f16 or bf16, that of `q_idx`); compute is always performed in fp32.
+/// `sel_indices`/`sel_count` are always i32.
 class QSAIndexer : public Node {
     using InputIdx = ov::intel_cpu::QSAIndexer::InputIdx;
 
@@ -67,7 +67,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    template <typename IndexT>
+    template <typename T>
     void execute_typed();
 
     ov::intel_cpu::QSAIndexer::Config m_config{};

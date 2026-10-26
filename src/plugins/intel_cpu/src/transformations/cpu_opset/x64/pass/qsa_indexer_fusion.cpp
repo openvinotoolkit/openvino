@@ -18,7 +18,10 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -59,6 +62,18 @@ constexpr size_t PAST_INCOMPLETE_ROPE = 7;
 
 bool is_supported_data_type(const ov::element::Type& et) {
     return et == ov::element::f32 || et == ov::element::f16 || et == ov::element::bf16;
+}
+
+// The RMS epsilon comes from a constant of the model type, so it is the QSAPrepare epsilon rounded to that type
+// (1e-6 is not exactly representable in f16 / bf16).
+bool is_same_epsilon(double rms_epsilon, const ov::element::Type& type, float prepare_epsilon) {
+    float expected = prepare_epsilon;
+    if (type == ov::element::f16) {
+        expected = static_cast<float>(ov::float16(prepare_epsilon));
+    } else if (type == ov::element::bf16) {
+        expected = static_cast<float>(ov::bfloat16(prepare_epsilon));
+    }
+    return static_cast<float>(rms_epsilon) == expected;
 }
 
 // An optional QSAPrepare input is disabled by an empty Constant.
@@ -236,7 +251,9 @@ ov::intel_cpu::QSAIndexerFusion::QSAIndexerFusion() {
         }
 
         // Both normalizations share the epsilon of the fused op.
-        if (static_cast<float>(rms_node->get_epsilon()) != prepare_node->get_epsilon()) {
+        if (!is_same_epsilon(rms_node->get_epsilon(),
+                             rms_node->get_output_element_type(0),
+                             prepare_node->get_epsilon())) {
             return false;
         }
 
@@ -281,23 +298,54 @@ ov::intel_cpu::QSAIndexerFusion::QSAIndexerFusion() {
             }
         }
 
+        // The fused op needs one precision for all its floating-point ports, but the surrounding graph can mix
+        // them (e.g. an f16 model keeps the query RMS path and its weight in f32). Everything is brought to the
+        // precision of the big persistent state, the summary cache, and the state outputs are brought back.
+        // An existing Convert is looked through, a Constant is converted in place, a new Convert is the last resort.
+        const auto data_type = prepare_node->get_input_element_type(PAST_BLOCK_INDEX_KEYS);
+        if (!is_supported_data_type(data_type)) {
+            return false;
+        }
         ov::NodeVector new_nodes;
+        auto to_type = [&new_nodes](const ov::Output<ov::Node>& output,
+                                    const ov::element::Type& type) -> ov::Output<ov::Node> {
+            if (output.get_element_type() == type) {
+                return output;
+            }
+            auto source = output;
+            if (ov::is_type<v0::Convert>(source.get_node())) {
+                source = source.get_node()->input_value(0);
+                if (source.get_element_type() == type) {
+                    return source;
+                }
+            }
+            const auto convert = std::make_shared<v0::Convert>(source, type);
+            if (const auto constant = ov::util::get_constant_from_source(convert)) {
+                new_nodes.push_back(constant);
+                return constant;
+            }
+            new_nodes.push_back(convert);
+            return convert;
+        };
         std::shared_ptr<ov::intel_cpu::QSAIndexer> qsa_indexer;
         ov::Output<ov::Node> block_index_keys;
         ov::Output<ov::Node> incomplete_raw_keys;
+        ov::Output<ov::Node> incomplete_rope;
         try {
             if (gamma_ps.size() != 1) {
                 q_norm_weight =
                     std::make_shared<v1::Reshape>(q_norm_weight, i64_const({static_cast<int64_t>(head_dim)}), false);
             }
+            q_norm_weight = to_type(q_norm_weight, data_type);
 
             // ---- fused op inputs (the QSAPrepare state tensors get the single index key head axis) ----
             const auto key_length_value = prepare_node->input_value(KEY_LENGTH);
-            const auto k_idx = std::make_shared<v0::Unsqueeze>(raw_keys, i64_const({2}));
+            const auto k_idx = std::make_shared<v0::Unsqueeze>(to_type(raw_keys, data_type), i64_const({2}));
             const auto past_blocks =
                 std::make_shared<v0::Unsqueeze>(prepare_node->input_value(PAST_BLOCK_INDEX_KEYS), i64_const({1}));
             const auto past_raw_keys =
-                std::make_shared<v0::Unsqueeze>(prepare_node->input_value(PAST_INCOMPLETE_RAW_KEYS), i64_const({1}));
+                std::make_shared<v0::Unsqueeze>(to_type(prepare_node->input_value(PAST_INCOMPLETE_RAW_KEYS), data_type),
+                                                i64_const({1}));
 
             ov::intel_cpu::QSAIndexer::Config config;
             config.compress_ratio = static_cast<size_t>(key_block_size);
@@ -311,31 +359,39 @@ ov::intel_cpu::QSAIndexerFusion::QSAIndexerFusion() {
 
             ov::OutputVector args(ov::intel_cpu::QSAIndexer::InputIdx::COUNT);
             using InputIdx = ov::intel_cpu::QSAIndexer::InputIdx;
-            args[InputIdx::Q_IDX] = raw_query;
+            args[InputIdx::Q_IDX] = to_type(raw_query, data_type);
             args[InputIdx::K_IDX] = k_idx;
-            args[InputIdx::ROPE_COS] = broadcast_rope_table(prepare_node->input_value(ROPE_COS), raw_keys, rotary_dim);
-            args[InputIdx::ROPE_SIN] = broadcast_rope_table(prepare_node->input_value(ROPE_SIN), raw_keys, rotary_dim);
+            args[InputIdx::ROPE_COS] =
+                broadcast_rope_table(to_type(prepare_node->input_value(ROPE_COS), data_type), raw_keys, rotary_dim);
+            args[InputIdx::ROPE_SIN] =
+                broadcast_rope_table(to_type(prepare_node->input_value(ROPE_SIN), data_type), raw_keys, rotary_dim);
             args[InputIdx::KEY_LENGTH] = make_key_length(key_length_value, raw_keys);
             args[InputIdx::Q_NORM_WEIGHT] = q_norm_weight;
-            args[InputIdx::K_NORM_WEIGHT] = prepare_node->input_value(K_NORM_WEIGHT);
+            args[InputIdx::K_NORM_WEIGHT] = to_type(prepare_node->input_value(K_NORM_WEIGHT), data_type);
             args[InputIdx::SUMMARY_CACHE] = past_blocks;
             args[InputIdx::PAST_INCOMPLETE_RAW_K] = past_raw_keys;
-            args[InputIdx::PAST_INCOMPLETE_ROPE] = prepare_node->input_value(PAST_INCOMPLETE_ROPE);
+            args[InputIdx::PAST_INCOMPLETE_ROPE] = to_type(prepare_node->input_value(PAST_INCOMPLETE_ROPE), data_type);
             qsa_indexer = std::make_shared<ov::intel_cpu::QSAIndexer>(args, config);
 
             // ---- QSAPrepare outputs: all blocks of the longest sequence, incomplete block keys and rope ----
             using OutputIdx = ov::intel_cpu::QSAIndexer::OutputIdx;
             block_index_keys =
-                std::make_shared<v0::Squeeze>(qsa_indexer->output(OutputIdx::SUMMARY_CACHE), i64_const({1}));
-            incomplete_raw_keys =
-                std::make_shared<v0::Squeeze>(qsa_indexer->output(OutputIdx::PAST_INCOMPLETE_RAW_K), i64_const({1}));
+                to_type(std::make_shared<v0::Squeeze>(qsa_indexer->output(OutputIdx::SUMMARY_CACHE), i64_const({1})),
+                        prepare_node->get_output_element_type(0));
+            incomplete_raw_keys = to_type(
+                std::make_shared<v0::Squeeze>(qsa_indexer->output(OutputIdx::PAST_INCOMPLETE_RAW_K), i64_const({1})),
+                prepare_node->get_output_element_type(1));
+            incomplete_rope =
+                to_type(qsa_indexer->output(OutputIdx::PAST_INCOMPLETE_ROPE), prepare_node->get_output_element_type(2));
 
-            new_nodes = {k_idx,
-                         past_blocks,
-                         past_raw_keys,
-                         qsa_indexer,
-                         block_index_keys.get_node_shared_ptr(),
-                         incomplete_raw_keys.get_node_shared_ptr()};
+            for (const auto& node : {std::shared_ptr<ov::Node>(k_idx),
+                                     std::shared_ptr<ov::Node>(past_blocks),
+                                     std::shared_ptr<ov::Node>(past_raw_keys),
+                                     std::shared_ptr<ov::Node>(qsa_indexer),
+                                     block_index_keys.get_node_shared_ptr(),
+                                     incomplete_raw_keys.get_node_shared_ptr()}) {
+                new_nodes.push_back(node);
+            }
         } catch (const ov::Exception&) {
             // QSAIndexer rejects the configuration: leave the subgraph as it is.
             return false;
@@ -347,10 +403,7 @@ ov::intel_cpu::QSAIndexerFusion::QSAIndexerFusion() {
         ov::replace_node(
             sai_node,
             ov::OutputVector{qsa_indexer->output(OutputIdx::SEL_INDICES), qsa_indexer->output(OutputIdx::SEL_COUNT)});
-        ov::replace_node(prepare_node,
-                         ov::OutputVector{block_index_keys,
-                                          incomplete_raw_keys,
-                                          qsa_indexer->output(OutputIdx::PAST_INCOMPLETE_ROPE)});
+        ov::replace_node(prepare_node, ov::OutputVector{block_index_keys, incomplete_raw_keys, incomplete_rope});
         return true;
     };
 

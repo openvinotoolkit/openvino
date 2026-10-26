@@ -12,6 +12,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -20,15 +21,18 @@
 #include "cpu_parallel.hpp"
 #include "graph_context.h"
 #include "kernels/scaled_attn/common.hpp"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "node.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
+#include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 
 namespace ov::intel_cpu::node {
@@ -72,32 +76,16 @@ void rmsnorm_partial_rope(const float* src,
     }
 }
 
-// All floating-point data ports of QSAIndexer may independently be negotiated as f32, f16, or
-// bf16 -- these convert only the elements actually touched, so compute stays fp32 without paying
-// for a whole-tensor Reorder on every call. Reuses the same SIMD converting-copy primitive as
-// recurrent_linear_attn_paged_impl (kernels/scaled_attn/common.hpp).
-template <typename... Idx>
+// All floating-point ports share the precision T (the node declares them that way), so only the rows
+// actually touched are converted to / from the f32 compute buffers, never a whole tensor.
+template <typename T, typename... Idx>
 void load_row_f32(const PlainTensor& t, size_t len, float* dst, Idx... idx) {
-    const auto prec = t.get_precision();
-    if (prec == ov::element::bf16) {
-        ov::Extensions::Cpu::XARCH::cvt_copy(dst, t.ptr<ov::bfloat16>(idx...), 1, len, 0, 0);
-    } else if (prec == ov::element::f16) {
-        ov::Extensions::Cpu::XARCH::cvt_copy(dst, t.ptr<ov::float16>(idx...), 1, len, 0, 0);
-    } else {
-        ov::Extensions::Cpu::XARCH::cvt_copy(dst, t.ptr<float>(idx...), 1, len, 0, 0);
-    }
+    ov::Extensions::Cpu::XARCH::cvt_copy(dst, t.ptr<T>(idx...), 1, len, 0, 0);
 }
 
-template <typename... Idx>
+template <typename T, typename... Idx>
 void store_row_f32(const PlainTensor& t, size_t len, const float* src, Idx... idx) {
-    const auto prec = t.get_precision();
-    if (prec == ov::element::bf16) {
-        ov::Extensions::Cpu::XARCH::cvt_copy(t.ptr<ov::bfloat16>(idx...), src, 1, len, 0, 0);
-    } else if (prec == ov::element::f16) {
-        ov::Extensions::Cpu::XARCH::cvt_copy(t.ptr<ov::float16>(idx...), src, 1, len, 0, 0);
-    } else {
-        ov::Extensions::Cpu::XARCH::cvt_copy(t.ptr<float>(idx...), src, 1, len, 0, 0);
-    }
+    ov::Extensions::Cpu::XARCH::cvt_copy(t.ptr<T>(idx...), src, 1, len, 0, 0);
 }
 
 // Output shapes of QSAIndexer: everything follows the input shapes, but the summary_cache block count of the longest
@@ -167,16 +155,15 @@ void QSAIndexer::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
     }
-    // Every floating-point data port is independently echoed at whatever precision (f32/f16/
-    // bf16) was negotiated upstream -- the reference kernel reads/writes all of them through
-    // load_row_f32()/store_row_f32() rather than hardcoding f32. KEY_LENGTH stays i32 --
-    // reordering it to f32 would numerically convert the index values instead of reinterpreting
-    // them. sel_indices/sel_count are always i32; each state output has the precision of its
-    // state input and never shares memory with it (inPlace == -1): the update is out-of-place.
+    // Every floating-point port (data inputs, state inputs and state outputs) is declared with the
+    // precision of Q_IDX, so the kernel sees a single precision (a mismatching edge gets a Reorder).
+    // KEY_LENGTH stays i32 -- reordering it to f32 would numerically convert the index values.
+    // sel_indices/sel_count are i32; the state outputs never share memory with their inputs
+    // (inPlace == -1): the update is out-of-place.
+    const auto data_precision = getOriginalInputPrecisionAtPort(InputIdx::Q_IDX);
     std::vector<PortConfigurator> inPortConfigs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
-        const bool is_i32_port = i == InputIdx::KEY_LENGTH;
-        const ov::element::Type precision = is_i32_port ? ov::element::i32 : getOriginalInputPrecisionAtPort(i);
+        const ov::element::Type precision = i == InputIdx::KEY_LENGTH ? ov::element::i32 : data_precision;
         inPortConfigs.emplace_back(LayoutType::ncsp, precision, getInputShapeAtPort(i), false, -1);
     }
     std::vector<PortConfigurator> outPortConfigs = {
@@ -187,20 +174,25 @@ void QSAIndexer::initSupportedPrimitiveDescriptors() {
         {InputIdx::PAST_INCOMPLETE_RAW_K, OutputIdx::PAST_INCOMPLETE_RAW_K},
         {InputIdx::PAST_INCOMPLETE_ROPE, OutputIdx::PAST_INCOMPLETE_ROPE}};
     for (const auto& [in_port, out_port] : state_ports) {
-        outPortConfigs.emplace_back(LayoutType::ncsp,
-                                    getOriginalInputPrecisionAtPort(in_port),
-                                    getOutputShapeAtPort(out_port),
-                                    false,
-                                    -1);
+        outPortConfigs.emplace_back(LayoutType::ncsp, data_precision, getOutputShapeAtPort(out_port), false, -1);
     }
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref);
 }
 
 void QSAIndexer::execute([[maybe_unused]] const dnnl::stream& strm) {
-    execute_typed<int32_t>();
+    const auto data_precision = getSrcMemoryAtPort(InputIdx::Q_IDX)->getDesc().getPrecision();
+    if (data_precision == ov::element::f32) {
+        execute_typed<float>();
+    } else if (data_precision == ov::element::f16) {
+        execute_typed<ov::float16>();
+    } else if (data_precision == ov::element::bf16) {
+        execute_typed<ov::bfloat16>();
+    } else {
+        OPENVINO_THROW("QSAIndexer: unsupported precision ", data_precision);
+    }
 }
 
-template <typename IndexT>
+template <typename T>
 void QSAIndexer::execute_typed() {
     const auto& c = m_config;
     const auto r = static_cast<int64_t>(c.compress_ratio);
@@ -241,204 +233,282 @@ void QSAIndexer::execute_typed() {
     const auto summary_cache_out_mem = getDstMemoryAtPort(OutputIdx::SUMMARY_CACHE);
     const size_t summary_blocks_in = summary_cache_in_mem->getStaticDims()[2];
     const size_t summary_blocks_out = summary_cache_out_mem->getStaticDims()[2];
-    const size_t summary_block_bytes = D_idx * summary_cache_in_mem->getDesc().getPrecision().size();
+    const size_t summary_block_bytes = D_idx * sizeof(T);
     const size_t summary_head_in_bytes = summary_blocks_in * summary_block_bytes;
     const size_t summary_head_out_bytes = summary_blocks_out * summary_block_bytes;
     const size_t summary_copy_bytes = std::min(summary_blocks_in, summary_blocks_out) * summary_block_bytes;
     const auto* summary_cache_src = summary_cache_in_mem->getDataAs<const uint8_t>();
     auto* summary_cache_dst = summary_cache_out_mem->getDataAs<uint8_t>();
 
-    std::vector<float> q_norm_weight_f32(D_idx);
-    load_row_f32(q_norm_weight, D_idx, q_norm_weight_f32.data());
-    std::vector<float> k_norm_weight_f32(D_idx);
-    load_row_f32(k_norm_weight, D_idx, k_norm_weight_f32.data());
+    // Every per-row quantity is derived from this call's own key_length/L alone -- no cross-call running counter
+    // is kept (see QSAIndexer's class comment).
+    struct RowPlan {
+        int64_t num_padding;  // left-padded positions of this call's window, skipped everywhere
+        int64_t current;      // real tokens of this call
+        int64_t tail;         // rows already sitting in the incomplete-block state
+        int64_t past_blocks;  // complete blocks of the earlier calls
+        int64_t new_blocks;   // blocks this call completes
+    };
+    const auto plan_row = [&](size_t b) {
+        const int64_t key_len = key_length_p[b];
+        const int64_t past_n = std::max<int64_t>(0, key_len - L);
+        RowPlan plan{};
+        plan.current = key_len - past_n;  // == min(L, key_len)
+        plan.num_padding = L - plan.current;
+        plan.tail = past_n % r;
+        plan.past_blocks = past_n / r;
+        plan.new_blocks = (plan.tail + plan.current) / r;
+        return plan;
+    };
 
-    std::vector<size_t> kv_of_head(H_iq);
-    std::vector<size_t> sel_of_head(H_iq);
+    // One scratch allocation (a second createScratchPadMem() could free the first's memory):
+    // a shared header (row plans, head maps, f32 norm weights, a zero row), the f32 mirror of summary_cache when it
+    // isn't f32, then one slice per worker thread: floats | (score, block) pairs | chosen block ids.
+    constexpr size_t kAlign = 64;
+    const size_t max_blocks = summary_blocks_out;  // upper bound of n_complete for every row
+    const size_t head_maps_offset = B * sizeof(RowPlan);
+    const size_t shared_floats_offset = head_maps_offset + 2 * H_iq * sizeof(size_t);
+    const size_t shared_header_bytes = rnd_up(shared_floats_offset + 3 * D_idx * sizeof(float), kAlign);
+    // An f32 summary_cache is scored in place; otherwise Stage C reads the f32 mirror of [B, H_ik, blocks, D_idx].
+    constexpr bool summary_is_f32 = std::is_same_v<T, float>;
+    const size_t summary_mirror_floats = summary_is_f32 ? 0 : B * H_ik * summary_blocks_out * D_idx;
+    const size_t shared_bytes = shared_header_bytes + rnd_up(summary_mirror_floats * sizeof(float), kAlign);
+    // Float buffers (offsets in floats) of a thread slice. The phases run one after the other, so they share it:
+    //   phase 1: pooled (= the first row of q_normed), row_buf, [rope_cos, rope_sin] of the block's reference token
+    //   phase 2: q_normed [H_iq, D_idx], row_buf, [rope_cos, rope_sin] of the token
+    const size_t q_normed_off = 0;
+    const size_t row_buf_off = q_normed_off + H_iq * D_idx;
+    const size_t rope_cos_sin_off = row_buf_off + D_idx;  // past_incomplete_rope's [rope_cos, rope_sin] layout
+    const size_t thread_floats = rope_cos_sin_off + 2 * rotary_dim;
+    using ScoreT = std::pair<float, int32_t>;
+    const size_t thread_scores_offset = rnd_up(thread_floats * sizeof(float), kAlign);
+    const size_t thread_chosen_offset = rnd_up(thread_scores_offset + max_blocks * sizeof(ScoreT), kAlign);
+    const size_t thread_bytes = rnd_up(thread_chosen_offset + block_topk * sizeof(int32_t), kAlign);
+    const auto num_threads = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
+    auto scratch_desc =
+        std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8,
+                                               ov::intel_cpu::Shape{shared_bytes + num_threads * thread_bytes});
+    const MemoryPtr scratch = context->getScratchPad()->createScratchPadMem(scratch_desc);
+    auto* const scratch_base = scratch->getDataAs<uint8_t>();
+
+    auto* const plans = reinterpret_cast<RowPlan*>(scratch_base);
+    auto* const kv_of_head = reinterpret_cast<size_t*>(scratch_base + head_maps_offset);
+    auto* const sel_of_head = kv_of_head + H_iq;
+    auto* const q_norm_weight_f32 = reinterpret_cast<float*>(scratch_base + shared_floats_offset);
+    auto* const k_norm_weight_f32 = q_norm_weight_f32 + D_idx;
+    auto* const zero_row = k_norm_weight_f32 + D_idx;
+    load_row_f32<T>(q_norm_weight, D_idx, q_norm_weight_f32);
+    load_row_f32<T>(k_norm_weight, D_idx, k_norm_weight_f32);
+    std::fill_n(zero_row, D_idx, 0.0F);
     for (size_t h = 0; h < H_iq; h++) {
         kv_of_head[h] = h / G;
         sel_of_head[h] = (kv_of_head[h] * H_sel) / H_ik;
     }
+    auto* const summary_f32_base = summary_is_f32 ? reinterpret_cast<float*>(summary_cache_dst)
+                                                  : reinterpret_cast<float*>(scratch_base + shared_header_bytes);
+    // f32 view of the summary block `blk` of kv head `h` of row `b`; same layout as the summary_cache output.
+    auto summary_f32_row = [&](size_t b, size_t h, size_t blk) {
+        return summary_f32_base + ((b * H_ik + h) * summary_blocks_out + blk) * D_idx;
+    };
 
-    std::fill_n(sel_indices.ptr<IndexT>(), B * H_sel * static_cast<size_t>(L) * block_topk, static_cast<IndexT>(-1));
-    std::fill_n(sel_count.ptr<IndexT>(), B * H_sel * static_cast<size_t>(L), static_cast<IndexT>(0));
+    int64_t max_new_blocks = 0;
+    for (size_t b = 0; b < B; b++) {
+        plans[b] = plan_row(b);
+        OPENVINO_ASSERT(static_cast<size_t>(plans[b].past_blocks + plans[b].new_blocks) <= summary_blocks_out,
+                        "QSAIndexer: ",
+                        plans[b].past_blocks + plans[b].new_blocks,
+                        " blocks do not fit the summary_cache output of ",
+                        summary_blocks_out,
+                        " blocks");
+        max_new_blocks = std::max(max_new_blocks, plans[b].new_blocks);
+    }
+
+    // The pending window of a row is [the `tail` rows of the incomplete-block state | the real tokens of this call].
+    // Raw K row at pending position `pos`:
+    const auto load_pending_row = [&](size_t b, const RowPlan& plan, size_t h, int64_t pos, float* dst) {
+        if (pos < plan.tail) {
+            load_row_f32<T>(past_incomplete_raw_k_in, D_idx, dst, b, h, pos);
+        } else {
+            load_row_f32<T>(k_idx, D_idx, dst, b, plan.num_padding + pos - plan.tail, h);
+        }
+    };
+    // [rope_cos, rope_sin] of the first token of the block starting at pending position `pos`, in
+    // past_incomplete_rope's layout:
+    const auto load_block_ref = [&](size_t b, const RowPlan& plan, int64_t pos, float* dst) {
+        if (pos < plan.tail) {
+            load_row_f32<T>(past_incomplete_rope_in, 2 * rotary_dim, dst, b);
+        } else {
+            const int64_t l = plan.num_padding + pos - plan.tail;
+            load_row_f32<T>(rope_cos, rotary_dim, dst, b, l);
+            load_row_f32<T>(rope_sin, rotary_dim, dst + rotary_dim, b, l);
+        }
+    };
+    // This worker thread's slice of the scratch (see the layout comment above).
+    const auto thread_slice = [&]() {
+        return scratch_base + shared_bytes + static_cast<size_t>(parallel_get_thread_num()) * thread_bytes;
+    };
+
+    std::fill_n(sel_indices.ptr<int32_t>(), B * H_sel * static_cast<size_t>(L) * block_topk, static_cast<int32_t>(-1));
+    std::fill_n(sel_count.ptr<int32_t>(), B * H_sel * static_cast<size_t>(L), static_cast<int32_t>(0));
 
     const auto& cpu_parallel = context->getCpuParallel();
+
+    // ---- Phase 0: the summary_cache output starts as the blocks of the earlier calls (+ their f32 mirror) ----
+    cpu_parallel->parallel_for2d(B, H_ik, [&](size_t b, size_t h) {
+        auto* dst = summary_cache_dst + (b * H_ik + h) * summary_head_out_bytes;
+        const auto* src = summary_cache_src + (b * H_ik + h) * summary_head_in_bytes;
+        if (summary_copy_bytes != 0) {
+            std::memcpy(dst, src, summary_copy_bytes);
+        }
+        if (summary_head_out_bytes != summary_copy_bytes) {
+            std::memset(dst + summary_copy_bytes, 0, summary_head_out_bytes - summary_copy_bytes);
+        }
+        if constexpr (!summary_is_f32) {
+            for (size_t blk = 0; blk < static_cast<size_t>(plans[b].past_blocks); blk++) {
+                load_row_f32<T>(summary_cache, D_idx, summary_f32_row(b, h, blk), b, h, blk);
+            }
+        }
+    });
+
+    // ---- Phase 1: the blocks this call completes are independent of each other: pool + RMSNorm + RoPE ----
+    cpu_parallel->parallel_for3d(B, H_ik, static_cast<size_t>(max_new_blocks), [&](size_t b, size_t h, size_t j) {
+        const auto& plan = plans[b];
+        if (static_cast<int64_t>(j) >= plan.new_blocks) {
+            return;
+        }
+        auto* const thread_floats_base = reinterpret_cast<float*>(thread_slice());
+        float* const row_buf = thread_floats_base + row_buf_off;
+        float* const block_ref_cos_sin = thread_floats_base + rope_cos_sin_off;
+        float* const pooled = thread_floats_base + q_normed_off;
+
+        const int64_t block_start = static_cast<int64_t>(j) * r;
+        std::fill_n(pooled, D_idx, 0.0F);
+        for (int64_t p = 0; p < r; p++) {
+            load_pending_row(b, plan, h, block_start + p, row_buf);
+            for (size_t d = 0; d < D_idx; d++) {
+                pooled[d] += row_buf[d];
+            }
+        }
+        const float inv_r = 1.0F / static_cast<float>(r);
+        for (size_t d = 0; d < D_idx; d++) {
+            pooled[d] *= inv_r;
+        }
+        load_block_ref(b, plan, block_start, block_ref_cos_sin);
+        rmsnorm_partial_rope(pooled,
+                             pooled,
+                             k_norm_weight_f32,
+                             D_idx,
+                             rotary_dim,
+                             eps,
+                             block_ref_cos_sin,
+                             block_ref_cos_sin + rotary_dim);
+        const auto blk = static_cast<size_t>(plan.past_blocks) + j;
+        store_row_f32<T>(summary_cache, D_idx, pooled, b, h, blk);
+        if constexpr (!summary_is_f32) {
+            // Phase 2 scores the value as stored (rounded to the cache precision).
+            load_row_f32<T>(summary_cache, D_idx, summary_f32_row(b, h, blk), b, h, blk);
+        }
+    });
+
+    // ---- Phase 1b: fully overwrite the fixed-size incomplete-block state ----
     cpu_parallel->parallel_for(B, [&](size_t b) {
-        for (size_t h = 0; h < H_ik; h++) {
-            auto* dst = summary_cache_dst + (b * H_ik + h) * summary_head_out_bytes;
-            const auto* src = summary_cache_src + (b * H_ik + h) * summary_head_in_bytes;
-            if (summary_copy_bytes != 0) {
-                std::memcpy(dst, src, summary_copy_bytes);
-            }
-            if (summary_head_out_bytes != summary_copy_bytes) {
-                std::memset(dst + summary_copy_bytes, 0, summary_head_out_bytes - summary_copy_bytes);
-            }
-        }
+        const auto& plan = plans[b];
+        auto* const thread_floats_base = reinterpret_cast<float*>(thread_slice());
+        float* const row_buf = thread_floats_base + row_buf_off;
+        float* const block_ref_cos_sin = thread_floats_base + rope_cos_sin_off;
 
-        const int64_t key_len = key_length_p[b];
-        // Every per-row quantity is derived from this call's own key_length/L alone -- no
-        // cross-call running counter is kept (see QSAIndexer's class comment).
-        const int64_t past_n = std::max<int64_t>(0, key_len - L);
-        const int64_t current_n = key_len - past_n;  // == min(L, key_len)
-        const int64_t num_padding_n = L - current_n;
-        const int64_t c_n = past_n % r;  // valid rows already sitting in the tail buffer
-        const int64_t num_cached_blocks_n = past_n / r;
-
-        std::vector<float> q_normed(H_iq * D_idx);
-        std::vector<float> row_buf(D_idx);
-        std::vector<float> rope_cos_buf(rotary_dim);
-        std::vector<float> rope_sin_buf(rotary_dim);
-        // rope_cos (first rotary_dim) then rope_sin (next rotary_dim) of the block's reference
-        // token, matching past_incomplete_rope's [rope_cos, rope_sin] layout 1:1.
-        std::vector<float> block_ref_cos_sin(2 * rotary_dim, 0.0F);
-        std::vector<float> pooled(D_idx);
-        std::vector<float> summary_buf(D_idx);
-        std::vector<std::pair<float, int32_t>> scores;
-        std::vector<int32_t> chosen;
-
-        // Raw rows of the block currently being accumulated (0..r-1 valid slots), seeded from
-        // the caller-owned fixed-size tail buffer and/or this call's new K_IDX rows.
-        std::vector<float> pending_rows(static_cast<size_t>(r) * H_ik * D_idx, 0.0F);
-        auto pending_row_ptr = [&](int64_t pos_in_block, size_t h) {
-            return pending_rows.data() + (static_cast<size_t>(pos_in_block) * H_ik + h) * D_idx;
-        };
-
-        for (int64_t p = 0; p < c_n; p++) {
-            for (size_t h = 0; h < H_ik; h++) {
-                load_row_f32(past_incomplete_raw_k_in, D_idx, pending_row_ptr(p, h), b, h, p);
-            }
-        }
-        if (c_n > 0) {
-            load_row_f32(past_incomplete_rope_in, 2 * rotary_dim, block_ref_cos_sin.data(), b);
-        }
-
-        int64_t running_block_idx = num_cached_blocks_n;
-
-        for (int64_t l = num_padding_n; l < L; l++) {
-            const int64_t v = l - num_padding_n;
-            const int64_t pending_pos = c_n + v;
-            const int64_t pos_in_block = pending_pos % r;
-
-            // ---- Stage A: query RMSNorm + partial RoPE (per index-query head) ----
-            load_row_f32(rope_cos, rotary_dim, rope_cos_buf.data(), b, l);
-            load_row_f32(rope_sin, rotary_dim, rope_sin_buf.data(), b, l);
-            for (size_t h = 0; h < H_iq; h++) {
-                load_row_f32(q_idx, D_idx, row_buf.data(), b, l, h);
-                rmsnorm_partial_rope(row_buf.data(),
-                                     &q_normed[h * D_idx],
-                                     q_norm_weight_f32.data(),
-                                     D_idx,
-                                     rotary_dim,
-                                     eps,
-                                     rope_cos_buf.data(),
-                                     rope_sin_buf.data());
-            }
-
-            // ---- Stage B: raw-K append into the in-progress block + pooling on completion ----
-            if (pos_in_block == 0) {
-                // c_n < r guarantees pending_pos == 0 only ever occurs when c_n == 0, i.e. this is
-                // genuinely a fresh block (not one seeded from the tail) -- safe to overwrite.
-                std::copy(rope_cos_buf.begin(), rope_cos_buf.end(), block_ref_cos_sin.begin());
-                std::copy(rope_sin_buf.begin(),
-                          rope_sin_buf.end(),
-                          block_ref_cos_sin.begin() + static_cast<ptrdiff_t>(rotary_dim));
-            }
-            for (size_t h = 0; h < H_ik; h++) {
-                load_row_f32(k_idx, D_idx, pending_row_ptr(pos_in_block, h), b, l, h);
-            }
-
-            if (pos_in_block + 1 == r) {
-                for (size_t h = 0; h < H_ik; h++) {
-                    std::fill(pooled.begin(), pooled.end(), 0.0F);
-                    for (int64_t p = 0; p < r; p++) {
-                        const float* src = pending_row_ptr(p, h);
-                        for (size_t d = 0; d < D_idx; d++) {
-                            pooled[d] += src[d];
-                        }
-                    }
-                    const float inv_r = 1.0F / static_cast<float>(r);
-                    for (size_t d = 0; d < D_idx; d++) {
-                        pooled[d] *= inv_r;
-                    }
-                    rmsnorm_partial_rope(pooled.data(),
-                                         summary_buf.data(),
-                                         k_norm_weight_f32.data(),
-                                         D_idx,
-                                         rotary_dim,
-                                         eps,
-                                         block_ref_cos_sin.data(),
-                                         block_ref_cos_sin.data() + rotary_dim);
-                    OPENVINO_ASSERT(static_cast<size_t>(running_block_idx) < summary_blocks_out,
-                                    "QSAIndexer: block ",
-                                    running_block_idx,
-                                    " does not fit the summary_cache output of ",
-                                    summary_blocks_out,
-                                    " blocks");
-                    store_row_f32(summary_cache, D_idx, summary_buf.data(), b, h, running_block_idx);
-                }
-                running_block_idx += 1;
-            }
-
-            // ---- Stage C: per-selection-head complete-block scoring + top-k ----
-            const int64_t n_complete = running_block_idx;
-            for (size_t sh = 0; sh < H_sel; sh++) {
-                size_t k = 0;
-                if (n_complete > 0) {
-                    scores.resize(static_cast<size_t>(n_complete));
-                    for (int64_t bidx = 0; bidx < n_complete; bidx++) {
-                        float score = 0.0F;
-                        for (size_t h = 0; h < H_iq; h++) {
-                            if (sel_of_head[h] != sh) {
-                                continue;
-                            }
-                            load_row_f32(summary_cache, D_idx, summary_buf.data(), b, kv_of_head[h], bidx);
-                            float dot = 0.0F;
-                            for (size_t d = 0; d < D_idx; d++) {
-                                dot += q_normed[h * D_idx + d] * summary_buf[d];
-                            }
-                            score += std::max(0.0F, dot);
-                        }
-                        scores[static_cast<size_t>(bidx)] = {score * scale, static_cast<int32_t>(bidx)};
-                    }
-                    k = std::min(block_topk, static_cast<size_t>(n_complete));
-                    std::partial_sort(scores.begin(),
-                                      scores.begin() + static_cast<ptrdiff_t>(k),
-                                      scores.end(),
-                                      [](const auto& a, const auto& b2) {
-                                          if (a.first != b2.first) {
-                                              return a.first > b2.first;
-                                          }
-                                          return a.second < b2.second;
-                                      });
-                    chosen.resize(k);
-                    for (size_t i = 0; i < k; i++) {
-                        chosen[i] = scores[i].second;
-                    }
-                    std::sort(chosen.begin(), chosen.end());
-                }
-
-                auto* out_row = sel_indices.ptr<IndexT>(b, sh, l, 0);
-                for (size_t i = 0; i < k; i++) {
-                    out_row[i] = static_cast<IndexT>(chosen[i]);
-                }
-                *sel_count.ptr<IndexT>(b, sh, l) = static_cast<IndexT>(k);
-            }
-        }
-
-        // ---- Finalize: fully overwrite the fixed-size incomplete-block tail buffers ----
-        const int64_t rest = (c_n + current_n) - (running_block_idx - num_cached_blocks_n) * r;
-        std::vector<float> zero_row(D_idx, 0.0F);
+        const int64_t rest = plan.tail + plan.current - plan.new_blocks * r;
+        const int64_t rest_start = plan.new_blocks * r;
         for (int64_t p = 0; p < r - 1; p++) {
             for (size_t h = 0; h < H_ik; h++) {
-                const float* src = p < rest ? pending_row_ptr(p, h) : zero_row.data();
-                store_row_f32(past_incomplete_raw_k, D_idx, src, b, h, p);
+                const float* src = zero_row;
+                if (p < rest) {
+                    load_pending_row(b, plan, h, rest_start + p, row_buf);
+                    src = row_buf;
+                }
+                store_row_f32<T>(past_incomplete_raw_k, D_idx, src, b, h, p);
             }
         }
-        if (rest == 0) {
-            std::fill(block_ref_cos_sin.begin(), block_ref_cos_sin.end(), 0.0F);
+        if (rest > 0) {
+            load_block_ref(b, plan, rest_start, block_ref_cos_sin);
+        } else {
+            std::fill_n(block_ref_cos_sin, 2 * rotary_dim, 0.0F);
         }
-        store_row_f32(past_incomplete_rope, 2 * rotary_dim, block_ref_cos_sin.data(), b);
+        store_row_f32<T>(past_incomplete_rope, 2 * rotary_dim, block_ref_cos_sin, b);
+    });
+
+    // ---- Phase 2: per real token, query RMSNorm + RoPE, then per-selection-head scoring of the complete blocks ----
+    cpu_parallel->parallel_for2d(B, static_cast<size_t>(L), [&](size_t b, size_t l_u) {
+        const auto& plan = plans[b];
+        const auto l = static_cast<int64_t>(l_u);
+        if (l < plan.num_padding) {
+            return;
+        }
+        auto* const thread_base = thread_slice();
+        auto* const thread_floats_base = reinterpret_cast<float*>(thread_base);
+        float* const q_normed = thread_floats_base + q_normed_off;  // [H_iq, D_idx]
+        float* const row_buf = thread_floats_base + row_buf_off;
+        float* const rope_cos_buf = thread_floats_base + rope_cos_sin_off;
+        float* const rope_sin_buf = rope_cos_buf + rotary_dim;
+        auto* const scores = reinterpret_cast<ScoreT*>(thread_base + thread_scores_offset);
+        auto* const chosen = reinterpret_cast<int32_t*>(thread_base + thread_chosen_offset);
+
+        // ---- Stage A: query RMSNorm + partial RoPE (per index-query head) ----
+        load_row_f32<T>(rope_cos, rotary_dim, rope_cos_buf, b, l);
+        load_row_f32<T>(rope_sin, rotary_dim, rope_sin_buf, b, l);
+        for (size_t h = 0; h < H_iq; h++) {
+            load_row_f32<T>(q_idx, D_idx, row_buf, b, l, h);
+            rmsnorm_partial_rope(row_buf,
+                                 q_normed + h * D_idx,
+                                 q_norm_weight_f32,
+                                 D_idx,
+                                 rotary_dim,
+                                 eps,
+                                 rope_cos_buf,
+                                 rope_sin_buf);
+        }
+
+        // ---- Stage C: per-selection-head complete-block scoring + top-k ----
+        // The complete blocks visible to this token: the earlier calls' plus those finished up to this token.
+        const int64_t v = l - plan.num_padding;
+        const int64_t n_complete = plan.past_blocks + (plan.tail + v + 1) / r;
+        for (size_t sh = 0; sh < H_sel; sh++) {
+            size_t k = 0;
+            if (n_complete > 0) {
+                for (int64_t bidx = 0; bidx < n_complete; bidx++) {
+                    float score = 0.0F;
+                    for (size_t h = 0; h < H_iq; h++) {
+                        if (sel_of_head[h] != sh) {
+                            continue;
+                        }
+                        const float* const block_f32 = summary_f32_row(b, kv_of_head[h], static_cast<size_t>(bidx));
+                        float dot = 0.0F;
+                        for (size_t d = 0; d < D_idx; d++) {
+                            dot += q_normed[h * D_idx + d] * block_f32[d];
+                        }
+                        score += std::max(0.0F, dot);
+                    }
+                    scores[static_cast<size_t>(bidx)] = {score * scale, static_cast<int32_t>(bidx)};
+                }
+                k = std::min(block_topk, static_cast<size_t>(n_complete));
+                std::partial_sort(scores, scores + k, scores + n_complete, [](const auto& a, const auto& b2) {
+                    if (a.first != b2.first) {
+                        return a.first > b2.first;
+                    }
+                    return a.second < b2.second;
+                });
+                for (size_t i = 0; i < k; i++) {
+                    chosen[i] = scores[i].second;
+                }
+                std::sort(chosen, chosen + k);
+            }
+
+            auto* out_row = sel_indices.ptr<int32_t>(b, sh, l_u, 0);
+            for (size_t i = 0; i < k; i++) {
+                out_row[i] = static_cast<int32_t>(chosen[i]);
+            }
+            *sel_count.ptr<int32_t>(b, sh, l_u) = static_cast<int32_t>(k);
+        }
     });
 }
 
@@ -458,10 +528,17 @@ bool QSAIndexer::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                  InputIdx::SUMMARY_CACHE,
                                                  InputIdx::PAST_INCOMPLETE_RAW_K,
                                                  InputIdx::PAST_INCOMPLETE_ROPE};
+        // All floating-point ports share one precision (the fusion pass converts the graph to that).
+        const auto data_precision = op->get_input_element_type(InputIdx::Q_IDX);
+        if (data_precision != ov::element::f32 && data_precision != ov::element::f16 &&
+            data_precision != ov::element::bf16) {
+            errorMessage = "QSAIndexer CPU implementation only supports f32, f16, or bf16 data inputs.";
+            return false;
+        }
         for (auto port : float_ports) {
-            const auto prec = op->get_input_element_type(port);
-            if (prec != ov::element::f32 && prec != ov::element::f16 && prec != ov::element::bf16) {
-                errorMessage = "QSAIndexer CPU implementation only supports f32, f16, or bf16 data inputs.";
+            if (op->get_input_element_type(port) != data_precision) {
+                errorMessage = "QSAIndexer CPU implementation requires all floating-point inputs to have the same "
+                               "precision.";
                 return false;
             }
         }

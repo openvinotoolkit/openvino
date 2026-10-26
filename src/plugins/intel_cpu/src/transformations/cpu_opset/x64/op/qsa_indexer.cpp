@@ -55,11 +55,10 @@ void check_shape(const ov::Node* node, size_t idx, const char* name, const ov::P
                           ps);
 }
 
-// Each port is validated independently, not merged into one shared type: the CPU kernel
-// negotiates every floating-point port's precision separately (load_row_f32()/store_row_f32()
-// convert per-element on access), so e.g. f32 compute ports alongside bf16 caches is a
-// legitimate, intentional configuration, not a mismatch to reject.
+// All floating-point inputs share one element type: the CPU kernel is instantiated for that precision, so
+// converting the other ports is the job of whoever builds the op (see QSAIndexerFusion).
 void check_float_inputs(const ov::Node* node, std::initializer_list<size_t> indices) {
+    auto data_type = ov::element::dynamic;
     for (auto idx : indices) {
         const auto& et = node->get_input_element_type(idx);
         NODE_VALIDATION_CHECK(node,
@@ -69,6 +68,15 @@ void check_float_inputs(const ov::Node* node, std::initializer_list<size_t> indi
                               idx,
                               ", got ",
                               et);
+        NODE_VALIDATION_CHECK(node,
+                              ov::element::Type::merge(data_type, data_type, et),
+                              node->get_type_name(),
+                              " expects all floating-point inputs to have the same element type, input ",
+                              idx,
+                              " is ",
+                              et,
+                              " but the others are ",
+                              data_type);
     }
 }
 

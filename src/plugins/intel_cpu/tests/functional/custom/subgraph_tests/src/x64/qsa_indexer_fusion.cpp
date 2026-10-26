@@ -54,7 +54,7 @@ constexpr float kEpsilon = 1e-6F;
 enum class Scenario { kWorkedExample, kDensePrefill, kDensePrefillSharedRope };
 
 // scenario, RMSNorm of the query applied after the [N, L, H, D] -> [N, H, L, D] transpose instead of before it,
-// inference precision (a plugin config: the model and its inputs / outputs stay f32)
+// precision (the element type of the model's floating-point inputs, constants and outputs, and the inference precision)
 using QSAIndexerFusionParams = std::tuple<Scenario, bool, element::Type>;
 
 struct CallSpec {
@@ -74,8 +74,8 @@ std::string scenario_name(Scenario scenario) {
     return {};
 }
 
-std::shared_ptr<v0::Constant> f32_scalar(float value) {
-    return v0::Constant::create(element::f32, Shape{}, {value});
+std::shared_ptr<v0::Constant> scalar(const element::Type& type, float value) {
+    return v0::Constant::create(type, Shape{}, {value});
 }
 
 std::shared_ptr<v0::Constant> i64_const(const std::vector<int64_t>& values) {
@@ -84,10 +84,11 @@ std::shared_ptr<v0::Constant> i64_const(const std::vector<int64_t>& values) {
 
 // x * 1 / sqrt(mean(x^2, -1) + eps) * gamma
 Output<Node> make_rms_norm(const Output<Node>& x, const Output<Node>& gamma) {
-    auto square = std::make_shared<v1::Power>(x, f32_scalar(2.0F));
+    const auto type = x.get_element_type();
+    auto square = std::make_shared<v1::Power>(x, scalar(type, 2.0F));
     auto mean = std::make_shared<v1::ReduceMean>(square, v0::Constant::create(element::i32, Shape{1}, {-1}), true);
-    auto add_eps = std::make_shared<v1::Add>(mean, f32_scalar(kEpsilon));
-    auto rsqrt = std::make_shared<v1::Divide>(f32_scalar(1.0F), std::make_shared<v0::Sqrt>(add_eps));
+    auto add_eps = std::make_shared<v1::Add>(mean, scalar(type, kEpsilon));
+    auto rsqrt = std::make_shared<v1::Divide>(scalar(type, 1.0F), std::make_shared<v0::Sqrt>(add_eps));
     auto norm = std::make_shared<v1::Multiply>(x, rsqrt);
     return std::make_shared<v1::Multiply>(norm, gamma);
 }
@@ -105,7 +106,7 @@ Output<Node> make_partial_rope(const Output<Node>& x, const Output<Node>& cos, c
     auto x_pass = make_slice(x, rotary_dim, int32_max);
     auto x_first_half = make_slice(x_rot, 0, rotary_dim / 2);
     auto x_second_half = make_slice(x_rot, rotary_dim / 2, int32_max);
-    auto x_second_half_neg = std::make_shared<v1::Multiply>(x_second_half, f32_scalar(-1.0F));
+    auto x_second_half_neg = std::make_shared<v1::Multiply>(x_second_half, scalar(x.get_element_type(), -1.0F));
     auto rotate_half = std::make_shared<v0::Concat>(OutputVector{x_second_half_neg, x_first_half}, -1);
     auto rotated = std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(x_rot, cos),
                                              std::make_shared<v1::Multiply>(rotate_half, sin));
@@ -121,20 +122,21 @@ class QSAIndexerFusionCPUTest : public testing::WithParamInterface<QSAIndexerFus
                                 virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<QSAIndexerFusionParams>& obj) {
-        const auto& [scenario, rms_after_transpose, inference_precision] = obj.param;
+        const auto& [scenario, rms_after_transpose, precision] = obj.param;
         return "Scenario=" + scenario_name(scenario) + "_RMSAfterTranspose=" + std::to_string(rms_after_transpose) +
-               "_InferencePrecision=" + inference_precision.to_string();
+               "_Precision=" + precision.to_string();
     }
 
 protected:
     void SetUp() override {
-        const auto& [scenario, rms_after_transpose, inference_precision] = GetParam();
+        const auto& [scenario, rms_after_transpose, precision] = GetParam();
         targetDevice = utils::DEVICE_CPU;
-        configuration[ov::hint::inference_precision.name()] = inference_precision;
-        // The kernel keeps its caches in the inference precision, the oracle computes in f32.
-        if (inference_precision == element::bf16) {
+        configuration[ov::hint::inference_precision.name()] = precision;
+        m_precision = precision;
+        // The kernel keeps its caches in this precision, the oracle computes in f32.
+        if (precision == element::bf16) {
             m_abs_tolerance = m_rel_tolerance = 5e-2F;
-        } else if (inference_precision == element::f16) {
+        } else if (precision == element::f16) {
             m_abs_tolerance = m_rel_tolerance = 1e-2F;
         }
         m_scenario = scenario;
@@ -153,22 +155,22 @@ protected:
         const auto rotary_dim = static_cast<int64_t>(kRotaryDim);
         const auto rope_batch = scenario == Scenario::kDensePrefillSharedRope ? int64_t{1} : batch;
 
-        auto q = std::make_shared<v0::Parameter>(element::f32,
+        auto q = std::make_shared<v0::Parameter>(m_precision,
                                                  PartialShape{batch, -1, static_cast<int64_t>(kQueryHeads), head_dim});
-        auto raw_keys = std::make_shared<v0::Parameter>(element::f32, PartialShape{batch, -1, head_dim});
-        auto rope_cos = std::make_shared<v0::Parameter>(element::f32, PartialShape{rope_batch, -1, rotary_dim});
-        auto rope_sin = std::make_shared<v0::Parameter>(element::f32, PartialShape{rope_batch, -1, rotary_dim});
+        auto raw_keys = std::make_shared<v0::Parameter>(m_precision, PartialShape{batch, -1, head_dim});
+        auto rope_cos = std::make_shared<v0::Parameter>(m_precision, PartialShape{rope_batch, -1, rotary_dim});
+        auto rope_sin = std::make_shared<v0::Parameter>(m_precision, PartialShape{rope_batch, -1, rotary_dim});
         auto key_length = std::make_shared<v0::Parameter>(element::i32, PartialShape{batch});
-        auto past_blocks = std::make_shared<v0::Parameter>(element::f32, PartialShape{batch, -1, head_dim});
+        auto past_blocks = std::make_shared<v0::Parameter>(m_precision, PartialShape{batch, -1, head_dim});
         auto past_raw_keys =
-            std::make_shared<v0::Parameter>(element::f32, PartialShape{batch, key_block_size - 1, head_dim});
-        auto past_rope = std::make_shared<v0::Parameter>(element::f32, PartialShape{batch, 2 * rotary_dim});
+            std::make_shared<v0::Parameter>(m_precision, PartialShape{batch, key_block_size - 1, head_dim});
+        auto past_rope = std::make_shared<v0::Parameter>(m_precision, PartialShape{batch, 2 * rotary_dim});
         m_params = {q, raw_keys, rope_cos, rope_sin, key_length, past_blocks, past_raw_keys, past_rope};
 
         m_q_norm_weight =
-            utils::create_and_fill_tensor(element::f32, Shape{kHeadDim}, utils::InputGenerateData(0.5, 1000, 1000, 6));
+            utils::create_and_fill_tensor(m_precision, Shape{kHeadDim}, utils::InputGenerateData(0.5, 1000, 1000, 6));
         m_k_norm_weight =
-            utils::create_and_fill_tensor(element::f32, Shape{kHeadDim}, utils::InputGenerateData(0.5, 1000, 1000, 7));
+            utils::create_and_fill_tensor(m_precision, Shape{kHeadDim}, utils::InputGenerateData(0.5, 1000, 1000, 7));
         auto q_norm_weight = std::make_shared<v0::Constant>(m_q_norm_weight);
         auto k_norm_weight = std::make_shared<v0::Constant>(m_k_norm_weight);
 
@@ -227,9 +229,9 @@ protected:
 
         // Caller-owned state of the public ops, fed back from their outputs; the oracle keeps its own copy.
         const auto head_dim = kHeadDim;
-        Tensor past_blocks(element::f32, Shape{kBatch, 0, head_dim});
-        Tensor past_raw_keys = make_zero_tensor(element::f32, Shape{kBatch, m_key_block_size - 1, head_dim});
-        Tensor past_rope = make_zero_tensor(element::f32, Shape{kBatch, 2 * kRotaryDim});
+        Tensor past_blocks(m_precision, Shape{kBatch, 0, head_dim});
+        Tensor past_raw_keys = make_zero_tensor(m_precision, Shape{kBatch, m_key_block_size - 1, head_dim});
+        Tensor past_rope = make_zero_tensor(m_precision, Shape{kBatch, 2 * kRotaryDim});
 
         QSAIndexerOracle oracle;
         oracle.h_iq = kQueryHeads;
@@ -251,7 +253,7 @@ protected:
             const auto length = static_cast<size_t>(call.length);
             const auto fill = [&](const Shape& shape, size_t slot) {
                 return utils::create_and_fill_tensor(
-                    element::f32,
+                    m_precision,
                     shape,
                     utils::InputGenerateData(-1.0, 2000, 1000, static_cast<int32_t>(10 + call_idx * 4 + slot)));
             };
@@ -273,10 +275,13 @@ protected:
                     }
                 }
             }
-            Tensor rope_cos(element::f32, Shape{rope_batch, length, kRotaryDim});
-            Tensor rope_sin(element::f32, Shape{rope_batch, length, kRotaryDim});
+            Tensor rope_cos(m_precision, Shape{rope_batch, length, kRotaryDim});
+            Tensor rope_sin(m_precision, Shape{rope_batch, length, kRotaryDim});
             write_f32_to_tensor(rope_cos, cos_data);
             write_f32_to_tensor(rope_sin, sin_data);
+            // The oracle sees the tables as the model does, rounded to the model type.
+            cos_data = read_tensor_to_f32(rope_cos);
+            sin_data = read_tensor_to_f32(rope_sin);
 
             Tensor key_length(element::i32, Shape{kBatch});
             std::copy(call.key_length.begin(), call.key_length.end(), key_length.data<int32_t>());
@@ -356,7 +361,7 @@ private:
         // block_index_keys [N, longest_key_length / r, D]: only the complete blocks of every row are defined.
         const int64_t longest = *std::max_element(call.key_length.begin(), call.key_length.end());
         ASSERT_EQ(outputs[2].get_shape(), (Shape{kBatch, static_cast<size_t>(longest / r), kHeadDim}));
-        const auto* block_keys = outputs[2].data<float>();
+        const auto block_keys = read_tensor_to_f32(outputs[2]);
         const auto num_blocks = static_cast<size_t>(longest / r);
         for (size_t b = 0; b < kBatch; ++b) {
             for (size_t block = 0; block < static_cast<size_t>(call.key_length[b] / r); ++block) {
@@ -372,14 +377,16 @@ private:
         // past_incomplete_raw_keys [N, r - 1, D] and past_incomplete_rope [N, 2 * Dr]
         ASSERT_EQ(outputs[3].get_shape(), (Shape{kBatch, m_key_block_size - 1, kHeadDim}));
         ASSERT_EQ(outputs[4].get_shape(), (Shape{kBatch, 2 * kRotaryDim}));
+        const auto past_raw_keys = read_tensor_to_f32(outputs[3]);
+        const auto past_rope = read_tensor_to_f32(outputs[4]);
         for (size_t i = 0; i < oracle.past_raw_k.size(); ++i) {
-            EXPECT_NEAR(outputs[3].data<float>()[i],
+            EXPECT_NEAR(past_raw_keys[i],
                         oracle.past_raw_k[i],
                         m_abs_tolerance + m_rel_tolerance * std::abs(oracle.past_raw_k[i]))
                 << "past_incomplete_raw_keys[" << i << "]";
         }
         for (size_t i = 0; i < oracle.past_rope.size(); ++i) {
-            EXPECT_NEAR(outputs[4].data<float>()[i],
+            EXPECT_NEAR(past_rope[i],
                         oracle.past_rope[i],
                         m_abs_tolerance + m_rel_tolerance * std::abs(oracle.past_rope[i]))
                 << "past_incomplete_rope[" << i << "]";
@@ -388,6 +395,7 @@ private:
 
     float m_abs_tolerance = 1e-4F;
     float m_rel_tolerance = 1e-3F;
+    element::Type m_precision = element::f32;
     Scenario m_scenario = Scenario::kWorkedExample;
     size_t m_key_block_size = 4;
     std::vector<CallSpec> m_calls;
