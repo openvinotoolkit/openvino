@@ -910,6 +910,7 @@ template <typename LoopPolicy>
 struct ConvertFrom2BitContext {
     using loop_policy = LoopPolicy;
 
+    ov::element::Type_t inType;
     const void* srcPtr;
     void* dstPtr;
     size_t size;
@@ -930,9 +931,13 @@ struct ConvertFrom2BitPrecision<std::tuple<src_t, dst_t>> {
         using LoopPolicy = typename Ctx::loop_policy;
         const auto* src = static_cast<const uint8_t*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
-        LoopPolicy::run(ctx.size, [&](size_t i) {
-            dst[i] = static_cast<dst_t>(get_u2(src[i / 4], (i % 4) * 2));
-        });
+        if (ctx.inType == ov::element::u2) {
+            LoopPolicy::run(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<dst_t>(get_u2(src[i / 4], (i % 4) * 2));
+            });
+        } else {
+            OPENVINO_THROW("cpu_convert doesn't support input data type: ", ctx.inType, ". Not implemented.");
+        }
         ctx.converted = true;
     }
 };
@@ -1174,8 +1179,8 @@ static void do_cpu_convert(const void* srcPtr,
                         srcPrc.bitwidth(),
                         "> precision to: ",
                         dstPrc);
-    } else if (srcPrc == ov::element::u2) {
-        ConvertFrom2BitContext<LoopPolicy> ctx{srcPtr, dstPtr, size, false};
+    } else if (srcPrc.bitwidth() == 2U) {
+        ConvertFrom2BitContext<LoopPolicy> ctx{srcPrc, srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertFrom2BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_2BIT_LIST);
         OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     } else if (srcPrc.bitwidth() == 4U) {
