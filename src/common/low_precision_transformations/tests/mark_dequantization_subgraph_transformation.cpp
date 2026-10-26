@@ -25,6 +25,7 @@
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace ov;
 
@@ -781,6 +782,58 @@ TEST_F(TransformationTestsF, MarkDequantizationTransformationFoldSubConst) {
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }
 
+enum class ZeroPointShapeOp { None, Reshape, Unsqueeze };
+
+static std::shared_ptr<Model> make_sliced_zero_point_model(bool strided_slice,
+                                                           ZeroPointShapeOp shape_op,
+                                                           bool mark_dequantization = false,
+                                                           bool keep_const_precision = false) {
+    const bool has_shape_op = shape_op != ZeroPointShapeOp::None;
+    const int64_t sliced_blocks = 214;
+    auto weights = opset10::Constant::create(element::u2, Shape{32, 214, 16}, {1});
+    auto convert = std::make_shared<opset10::Convert>(weights, element::f32);
+    auto zero_point = opset10::Constant::create(element::u2, has_shape_op ? Shape{32, 216} : Shape{32, 216, 1}, {2});
+    auto zp_convert = std::make_shared<opset10::Convert>(zero_point, element::f32);
+    std::shared_ptr<Node> zp_slice;
+    if (strided_slice) {
+        auto begin = opset10::Constant::create(element::i64, Shape{2}, {0, 0});
+        auto end = opset10::Constant::create(element::i64, Shape{2}, {int64_t{0}, sliced_blocks});
+        auto slice_strides = opset10::Constant::create(element::i64, Shape{2}, {1, 1});
+        const std::vector<int64_t> mask{1, 0};
+        zp_slice = std::make_shared<opset10::StridedSlice>(zp_convert, begin, end, slice_strides, mask, mask);
+    } else {
+        auto start = opset10::Constant::create(element::i32, Shape{1}, {0});
+        auto stop = opset10::Constant::create(element::i32, Shape{1}, {sliced_blocks});
+        auto strides = opset10::Constant::create(element::i32, Shape{1}, {1});
+        auto axis = opset10::Constant::create(element::i32, Shape{1}, {1});
+        zp_slice = std::make_shared<op::v8::Slice>(zp_convert, start, stop, strides, axis);
+    }
+
+    // The shape operation must stay after the slice that trims the padded blocks.
+    std::shared_ptr<Node> zp_shape = zp_slice;
+    if (shape_op == ZeroPointShapeOp::Unsqueeze) {
+        auto axes = opset10::Constant::create(element::i64, Shape{1}, {2});
+        zp_shape = std::make_shared<opset10::Unsqueeze>(zp_slice, axes);
+    } else if (shape_op == ZeroPointShapeOp::Reshape) {
+        auto shape = opset10::Constant::create(element::i64, Shape{3}, {32, 214, 1});
+        zp_shape = std::make_shared<opset10::Reshape>(zp_slice, shape, false);
+    }
+    auto subtract = std::make_shared<opset10::Subtract>(convert, zp_shape);
+    auto scale = opset10::Constant::create(element::f32, Shape{32, 214, 1}, {0.2});
+    auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+    if (mark_dequantization) {
+        pass::disable_constant_folding(convert);
+        pass::disable_constant_folding(zp_convert);
+        mark_as_dequantization_node(subtract);
+        mark_as_dequantization_node(multiply);
+    }
+    if (keep_const_precision) {
+        enable_keep_const_precision(weights);
+        enable_keep_const_precision(zero_point);
+    }
+    return std::make_shared<Model>(OutputVector{multiply});
+}
+
 TEST_F(TransformationTestsF, MarkDequantizationSlicedZeroPoint) {
     // Packed u2 zero point with 216 stored blocks trimmed to 214 by a Slice after the Convert
     // (e.g. MatMulNBits with bits=2 and n_blocks_per_col not a multiple of 4):
@@ -797,67 +850,59 @@ TEST_F(TransformationTestsF, MarkDequantizationSlicedZeroPoint) {
     //
     // The zero-point Convert must be marked with DisableConstantFolding so the u2 Constant is preserved,
     // instead of Convert and Slice being folded into a high-precision Constant.
-    auto build_model = [](bool ref) {
-        auto weights = opset10::Constant::create(element::u2, Shape{32, 214, 16}, {1});
-        auto convert = std::make_shared<opset10::Convert>(weights, element::f32);
-        auto zero_point = opset10::Constant::create(element::u2, Shape{32, 216, 1}, {2});
-        auto zp_convert = std::make_shared<opset10::Convert>(zero_point, element::f32);
-        auto start = opset10::Constant::create(element::i32, Shape{1}, {0});
-        auto stop = opset10::Constant::create(element::i32, Shape{1}, {214});
-        auto step = opset10::Constant::create(element::i32, Shape{1}, {1});
-        auto axis = opset10::Constant::create(element::i32, Shape{1}, {1});
-        auto zp_slice = std::make_shared<op::v8::Slice>(zp_convert, start, stop, step, axis);
-        auto subtract = std::make_shared<opset10::Subtract>(convert, zp_slice);
-        auto scale = opset10::Constant::create(element::f32, Shape{32, 214, 1}, {0.2});
-        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
-        if (ref) {
-            enable_keep_const_precision(weights);
-            enable_keep_const_precision(zero_point);
-            pass::disable_constant_folding(convert);
-            pass::disable_constant_folding(zp_convert);
-            mark_as_dequantization_node(subtract);
-            mark_as_dequantization_node(multiply);
-        }
-        return std::make_shared<ov::Model>(ov::OutputVector{multiply});
-    };
-
-    model = build_model(false);
+    model = make_sliced_zero_point_model(false, ZeroPointShapeOp::None);
     manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u2});
     manager.register_pass<pass::ConstantFolding>();
     manager.register_pass<pass::KeepConstPrecision>(element::TypeVector{element::u2});
 
-    model_ref = build_model(true);
+    model_ref = make_sliced_zero_point_model(false, ZeroPointShapeOp::None, true, true);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
+TEST_F(TransformationTestsF, MarkDequantizationSlicedZeroPointReshape) {
+    model = make_sliced_zero_point_model(false, ZeroPointShapeOp::Reshape);
+    model_ref = make_sliced_zero_point_model(false, ZeroPointShapeOp::Reshape, true);
+    manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u2});
+    manager.register_pass<pass::ConstantFolding>();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, MarkDequantizationSlicedZeroPointUnsqueeze) {
+    model = make_sliced_zero_point_model(false, ZeroPointShapeOp::Unsqueeze);
+    model_ref = make_sliced_zero_point_model(false, ZeroPointShapeOp::Unsqueeze, true);
+    manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u2});
+    manager.register_pass<pass::ConstantFolding>();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, MarkDequantizationStridedSlicedZeroPointReshape) {
+    model = make_sliced_zero_point_model(true, ZeroPointShapeOp::Reshape);
+    model_ref = make_sliced_zero_point_model(true, ZeroPointShapeOp::Reshape, true);
+    manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u2});
+    manager.register_pass<pass::ConstantFolding>();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, MarkDequantizationStridedSlicedZeroPointUnsqueeze) {
+    model = make_sliced_zero_point_model(true, ZeroPointShapeOp::Unsqueeze);
+    model_ref = make_sliced_zero_point_model(true, ZeroPointShapeOp::Unsqueeze, true);
+    manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u2});
+    manager.register_pass<pass::ConstantFolding>();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, KeepConstPrecisionStridedSlicedZeroPoint) {
     // Same subgraph as MarkDequantizationSlicedZeroPoint after SliceToStridedSlice: KeepConstPrecision, which
     // runs again after CommonOptimizations, must still reach the u2 zero-point Constant through the StridedSlice.
-    auto build_model = [](bool ref) {
-        auto weights = opset10::Constant::create(element::u2, Shape{32, 214, 16}, {1});
-        auto convert = std::make_shared<opset10::Convert>(weights, element::f32);
-        auto zero_point = opset10::Constant::create(element::u2, Shape{32, 216, 1}, {2});
-        auto zp_convert = std::make_shared<opset10::Convert>(zero_point, element::f32);
-        auto begin = opset10::Constant::create(element::i64, Shape{2}, {0, 0});
-        auto end = opset10::Constant::create(element::i64, Shape{2}, {0, 214});
-        auto strides = opset10::Constant::create(element::i64, Shape{2}, {1, 1});
-        const std::vector<int64_t> mask{1, 0};
-        auto zp_slice = std::make_shared<opset10::StridedSlice>(zp_convert, begin, end, strides, mask, mask);
-        auto subtract = std::make_shared<opset10::Subtract>(convert, zp_slice);
-        auto scale = opset10::Constant::create(element::f32, Shape{32, 214, 1}, {0.2});
-        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
-        if (ref) {
-            enable_keep_const_precision(weights);
-            enable_keep_const_precision(zero_point);
-        }
-        return std::make_shared<ov::Model>(ov::OutputVector{multiply});
-    };
-
-    model = build_model(false);
+    model = make_sliced_zero_point_model(true, ZeroPointShapeOp::None);
     manager.register_pass<pass::KeepConstPrecision>(element::TypeVector{element::u2});
 
-    model_ref = build_model(true);
+    model_ref = make_sliced_zero_point_model(true, ZeroPointShapeOp::None, false, true);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }

@@ -139,7 +139,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                 // trimmed by a Slice after decompression. Slice can't evaluate sub-byte types, so fold
                 // Slice(Convert(ZP, u8)) into a u8 Constant and continue as with a regular u8 ZP.
                 const auto zp_type = zp_const->get_element_type();
-                if (zp_type != ov::element::u2 && zp_type != ov::element::u4) {
+                if (zp_type != ov::element::u2 && zp_type != ov::element::u4 && zp_type != ov::element::u8) {
                     return false;
                 }
                 auto slice_inputs = zp_slice->input_values();
