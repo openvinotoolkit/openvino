@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -34,6 +35,27 @@
 
 using namespace ov::frontend::gguf;
 using ov_gguf_test::load_npy;
+
+TEST(GGUFDequant, ChannelwiseQ8ZeroRowRemainsZero) {
+    const std::vector<float> row(32, 0.0f);
+    std::vector<int8_t> weights(row.size(), 1);
+    ov::float16 scale(1.0f);
+    quantize_row_q8_0_c(row.data(), row.size(), weights.data(), scale);
+    EXPECT_FLOAT_EQ(static_cast<float>(scale), 0.0f);
+    EXPECT_EQ(weights, std::vector<int8_t>(row.size(), 0));
+}
+
+TEST(GGUFDequant, ChannelwiseQ8TinyRowsHaveFiniteQuantizedWeights) {
+    for (const float maximum : {std::numeric_limits<float>::min(), std::numeric_limits<float>::denorm_min()}) {
+        SCOPED_TRACE(maximum);
+        const std::vector<float> row{maximum, -maximum, 0.0f};
+        std::vector<int8_t> weights(row.size());
+        ov::float16 scale;
+        quantize_row_q8_0_c(row.data(), row.size(), weights.data(), scale);
+        EXPECT_EQ(weights, (std::vector<int8_t>{127, -127, 0}));
+        EXPECT_FLOAT_EQ(static_cast<float>(scale), 0.0f);
+    }
+}
 
 namespace {
 
@@ -314,4 +336,90 @@ TEST(GGUFDequant, IntegerZeroPointRequantizationTracksGgml) {
                 ASSERT_LE(std::fabs(values[k] - reference[k]), range * (0.5f / levels + 1e-3f)) << "group " << group;
         }
     }
+}
+
+TEST(GGUFQ5KRequant, SymmetricGroupsTrackRealGgml) {
+    const auto bytes = load_npy<uint8_t>("q5_k_qbytes");
+    const auto reference = load_npy<float>("q5_k_deq");
+    ASSERT_EQ(reference.size(), kRows * kCols);
+    GgufTensor source{};
+    source.type = GGUF_TYPE_Q5_K;
+    source.num_weights = reference.size();
+    source.bsize = bytes.size();
+    source.weights_data = bytes.data();
+    constexpr size_t group_size = 32;
+    WeightTensors tensors{ov::Tensor(ov::element::i8, {kRows, kCols}),
+                          ov::Tensor(ov::element::f16, {kRows, kCols / group_size}),
+                          {}};
+    gguf_fill_q5_k_i8(source, tensors.weight, tensors.scales);
+    ASSERT_FALSE(tensors.zero_point);
+    const auto node = make_weight_node(tensors, GGUF_TYPE_Q5_K);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+    bool has_i8 = false;
+    for (const auto& op : model->get_ops()) {
+        EXPECT_STRNE(op->get_type_name(), "Subtract");
+        if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op))
+            has_i8 |= constant->get_element_type() == ov::element::i8;
+    }
+    EXPECT_TRUE(has_i8);
+    const auto expanded = eval_as_f32(node);
+    ASSERT_EQ(expanded.size(), reference.size());
+    for (size_t group = 0; group < reference.size() / group_size; ++group) {
+        float maxabs = 0.0f;
+        for (size_t k = group * group_size; k < (group + 1) * group_size; ++k)
+            maxabs = std::max(maxabs, std::fabs(reference[k]));
+        const ov::float16 expected_scale(maxabs / 127.0f);
+        EXPECT_EQ(tensors.scales.data<ov::float16>()[group].to_bits(), expected_scale.to_bits());
+        const float scale = static_cast<float>(expected_scale);
+        for (size_t k = group * group_size; k < (group + 1) * group_size; ++k) {
+            const int code = tensors.weight.data<int8_t>()[k];
+            EXPECT_GE(code, -127);
+            EXPECT_LE(code, 127);
+            const float expected_code = scale > 0.0f ? std::round(reference[k] / scale) : 0.0f;
+            EXPECT_EQ(code, static_cast<int>(std::clamp(expected_code, -127.0f, 127.0f)));
+            EXPECT_LE(std::fabs(expanded[k] - reference[k]), scale * 0.501f + maxabs * 1e-3f + 1e-7f);
+        }
+    }
+}
+
+TEST(GGUFQ5KRequant, ZeroAndUnderflowGroupsStayFinite) {
+    auto bytes = load_npy<uint8_t>("q5_k_qbytes");
+    GgufTensor source{};
+    source.type = GGUF_TYPE_Q5_K;
+    source.num_weights = kRows * kCols;
+    source.bsize = bytes.size();
+    source.weights_data = bytes.data();
+    for (bool tiny : {false, true}) {
+        std::fill(bytes.begin(), bytes.end(), uint8_t{0});
+        if (tiny) {
+            for (size_t block = 0; block < bytes.size() / 176; ++block) {
+                bytes[block * 176] = 1;
+                std::fill_n(bytes.begin() + block * 176 + 4, 4, uint8_t{1});
+                std::fill_n(bytes.begin() + block * 176 + 48, 128, uint8_t{0x11});
+            }
+        }
+        constexpr size_t group_size = 32;
+        WeightTensors tensors{ov::Tensor(ov::element::i8, {kRows, kCols}),
+                              ov::Tensor(ov::element::f16, {kRows, kCols / group_size}),
+                              {}};
+        gguf_fill_q5_k_i8(source, tensors.weight, tensors.scales);
+        for (size_t k = 0; k < tensors.weight.get_size(); ++k)
+            EXPECT_EQ(tensors.weight.data<int8_t>()[k], 0);
+        for (size_t k = 0; k < tensors.scales.get_size(); ++k)
+            EXPECT_EQ(tensors.scales.data<ov::float16>()[k].to_bits(), 0);
+    }
+}
+
+TEST(GGUFQ5KRequant, RejectsNonFiniteSource) {
+    auto bytes = load_npy<uint8_t>("q5_k_qbytes");
+    const uint16_t infinity = 0x7c00;
+    std::memcpy(bytes.data(), &infinity, sizeof(infinity));
+    GgufTensor source{};
+    source.type = GGUF_TYPE_Q5_K;
+    source.num_weights = kRows * kCols;
+    source.bsize = bytes.size();
+    source.weights_data = bytes.data();
+    ov::Tensor weights(ov::element::i8, {kRows, kCols});
+    ov::Tensor scales(ov::element::f16, {kRows, kCols / 32});
+    EXPECT_THROW(gguf_fill_q5_k_i8(source, weights, scales), ov::Exception);
 }
