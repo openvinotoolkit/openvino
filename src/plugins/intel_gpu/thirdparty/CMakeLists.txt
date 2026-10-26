@@ -211,7 +211,6 @@ if(ENABLE_ONEDNN_FOR_GPU)
             # second full -j and oversubscribes the machine for the whole oneDNN
             # GPU build. The console pool runs this step alone, so the child can
             # take every core without fighting the parent compile.
-            USES_TERMINAL_BUILD ON
             # Target Options:
             EXCLUDE_FROM_ALL ON
         )

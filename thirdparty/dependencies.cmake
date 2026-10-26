@@ -194,6 +194,10 @@ endif()
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
     add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
+    # zlib defines file-scope structs (gz_state) in several .c files that collide when unity-merged
+    if(TARGET openvino_zlib)
+        set_target_properties(openvino_zlib PROPERTIES UNITY_BUILD OFF)
+    endif()
 endif()
 
 #
@@ -406,6 +410,12 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         endif()
     else()
         add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
+        # protobuf sources reuse file-scope helpers that collide when unity-merged
+        foreach(pb_target IN ITEMS libprotobuf libprotobuf-lite libprotoc)
+            if(TARGET ${pb_target})
+                set_target_properties(${pb_target} PROPERTIES UNITY_BUILD OFF)
+            endif()
+        endforeach()
     endif()
 
     # forward additional variables used in the other places

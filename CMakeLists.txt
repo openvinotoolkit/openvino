@@ -189,7 +189,20 @@ if(ENABLE_TESTS)
     include(cmake/test_model_zoo.cmake)
 endif()
 
+# Unity (jumbo) builds reduce repeated header parsing. Third-party code is batched
+# more aggressively than OpenVINO sources, which are kept at a smaller batch size.
+if(NOT DEFINED CMAKE_UNITY_BUILD)
+    set(CMAKE_UNITY_BUILD OFF)
+endif()
+
+if(CMAKE_UNITY_BUILD)
+    set(CMAKE_UNITY_BUILD_BATCH_SIZE 24)
+endif()
 include(thirdparty/dependencies.cmake)
+
+if(CMAKE_UNITY_BUILD)
+    set(CMAKE_UNITY_BUILD_BATCH_SIZE 4)
+endif()
 add_subdirectory(src)
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
