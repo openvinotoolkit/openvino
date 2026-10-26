@@ -29,6 +29,20 @@ extern void __builtin_IB_lsc_prefetch_global_uchar(const __global uchar *base, i
 #  error "sdpa_ocl.cl: an sdpa_ocl_*.cl header was not inlined"
 #endif
 
+// WIDE_READS (PA PREFILL, set by the host): fewer, larger messages for the reads every key tile repeats -- K as one
+// 16b 2D block read of a depth-tile pair (32 or 16 key rows x 32 head dims), V as one VNNI read of a value-block pair,
+// Q_slm as ulong4 (one 512 B SLM message instead of two 256 B ones); bits 1 / 2 / 4 of WIDE_READS. Each part keeps
+// the registers and DPAS order of the narrow read, so the result is the same.
+#if WIDE_READS && USE_2D_BLOCK_IO_KV && !IS_PA_MIXED && !SG8
+#  define WIDE_K_READS ((WIDE_READS & 1) && (kq_sg_tile_keys == 32 || kq_sg_tile_keys == 16))
+#  define WIDE_V_READS ((WIDE_READS & 2) && sv_value_blocks % 2 == 0)
+#  define WIDE_Q_SLM ((WIDE_READS & 4) != 0)
+#else
+#  define WIDE_K_READS 0
+#  define WIDE_V_READS 0
+#  define WIDE_Q_SLM 0
+#endif
+
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 __attribute__((reqd_work_group_size(SUBGROUP_SIZE, sg_per_wg, 1)))
 KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
@@ -317,7 +331,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 #endif
 
+#if WIDE_Q_SLM
+    // Read as ulong4: 8 B alignment, which a uint array alone does not guarantee.
+    local uint  Q_slm[DKS_ACTIVE * q_blocks * Q_DWORDS * SUBGROUP_SIZE] __attribute__((aligned(8)));
+#else
     local uint  Q_slm[DKS_ACTIVE * q_blocks * Q_DWORDS * SUBGROUP_SIZE];
+#endif
     local uint  S_slm[kq_wg_tile_keys * kq_wg_tile_queries / 2];
     local float S_sum_slm[kq_wg_tile_queries * kq_sg_per_wg_keys];
     local float S_max_slm[kq_wg_tile_queries];
@@ -345,8 +364,23 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #else
         FUNC_CALL(q_chunk)(&q_pack, Q, QD_w, QD_h, QD_p, ldq, q, d, query_base, db, lane);
 #endif
+#if WIDE_Q_SLM
+        {
+            // The ulong4 block layout (lane l's ulong j at j * SUBGROUP_SIZE + l), stored per lane: with
+            // intel_sub_group_block_write_ul4 instead, the dynamically padded head 64 PA rows (basic/29-34) read back
+            // wrong Q, even with Q_slm 64 B aligned. Staging runs once per workgroup: the d_max 512 kernel took the same
+            // time either way (within 0.1%).
+            const ulong4 qp = as_ulong4(q_pack);
+            local ulong *dst = (local ulong *)&Q_slm[Q_SLM_OFF(db, q_block)];
+            dst[0 * SUBGROUP_SIZE + lane] = qp.s0;
+            dst[1 * SUBGROUP_SIZE + lane] = qp.s1;
+            dst[2 * SUBGROUP_SIZE + lane] = qp.s2;
+            dst[3 * SUBGROUP_SIZE + lane] = qp.s3;
+        }
+#else
         intel_sub_group_block_write8(
             (local uint *)&Q_slm[Q_SLM_OFF(db, q_block)], q_pack);
+#endif
     }
 
     float S_max_tile[kq_query_blocks];
@@ -539,14 +573,21 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 #endif
 
+#if WIDE_K_READS
+        ushort8 k_wide[2 * kq_key_blocks];
+#endif
         #pragma unroll
         for (int db = 0; db < DKS_ACTIVE; ++db) {
             int8 qB[kq_query_blocks];
             #pragma unroll
             for (int qb = 0; qb < kq_query_blocks; ++qb) {
                 const int q_block = sg_j0_kq / SUBGROUP_SIZE + qb;
+#if WIDE_Q_SLM
+                qB[qb] = as_int8(intel_sub_group_block_read_ul4((local ulong *)&Q_slm[Q_SLM_OFF(db, q_block)]));
+#else
                 qB[qb] = as_int8(intel_sub_group_block_read8(
                     (local void *)&Q_slm[Q_SLM_OFF(db, q_block)]));
+#endif
             }
 
 #if SG8
@@ -602,7 +643,23 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             uint kt[8];
             FUNC_CALL(k_tile_i8_b2d)(k_raw, kt, K, KD_w, KD_h, KD_p, k_scale_lane, k_zpb_lane, key_base, db);
 #elif USE_2D_BLOCK_IO_KV
+    #if WIDE_K_READS
+            // Depth tiles db and db + 1 in one read, block-major: db's key rows, then db + 1's.
+            if ((db & 1) == 0) {
+        #if kq_sg_tile_keys == 32
+                intel_sub_group_2d_block_read_16b_32r16x2c((global void *)K_b2d, KD_w_b2d, KD_h, KD_p,
+                                                          (int2)(KD_x0 + db * DPAS_K, key_base), (private ushort *)&k_wide[0]);
+        #else
+                intel_sub_group_2d_block_read_16b_16r16x2c((global void *)K_b2d, KD_w_b2d, KD_h, KD_p,
+                                                          (int2)(KD_x0 + db * DPAS_K, key_base), (private ushort *)&k_wide[0]);
+        #endif
+            }
+            #pragma unroll
+            for (int mb = 0; mb < kq_key_blocks; ++mb)
+                k_raw[mb] = k_wide[(db & 1) * kq_key_blocks + mb];
+    #else
             FUNC_CALL(k_tile_b2d16)(k_raw, K_b2d, KD_w_b2d, KD_h, KD_p, KD_x0, db, key_base, 0);
+    #endif
 #else
     #if SG8 && defined(KV_COMPRESSED)
             FUNC_CALL(k_tile_dword_i8)(k_raw, K, ldk, k_scale_lane, k_zpb_lane, key_base, k, d, db, lane);
@@ -1028,7 +1085,16 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 half4 zpb4[4];
                 FUNC_CALL(v_i8_dequant)(vb, zpb4, vt, vt_half, vzb_c);
             #elif USE_2D_BLOCK_IO_KV
+              #if WIDE_V_READS
+                // Value blocks cd and cd + 1 in one read, block-major, i.e. vb[cd] then vb[cd + 1].
+                #pragma unroll
+                for (int cd = 0; cd < sv_value_blocks; cd += 2)
+                    intel_sub_group_2d_block_read_transform_16b_16r16x2c(
+                        (global void *)V_b2d, VD_w_b2d, VD_h, VD_p,
+                        (int2)(VD_x0 + sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * DPAS_K), (private uint *)&vb[cd]);
+              #else
                 FUNC_CALL(v_tile_b2d16)(vb, V_b2d, VD_w_b2d, VD_h, VD_p, VD_x0, sg_j0_sv, k0, cp, 0);
+              #endif
             #else
         #ifdef KV_COMPRESSED
                 FUNC_CALL(v_tile_gather)(OPTIONAL_SHAPE_INFO_TENSOR vb, V, ldv, V_scales, V_zp, b1, b0_kv, k0, cp, k, dv,

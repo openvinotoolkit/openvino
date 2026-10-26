@@ -38,6 +38,7 @@ struct sdpa_ocl_config_t {
     bool v_prefetch = false;        // PA PREFILL V tile prefetch measured with this tiling (add_tensor_block_io_jit())
     bool v_prefetch_l3 = false;     // PA PREFILL V tile L3 prefetch measured with this tiling (add_tensor_block_io_jit())
     bool micro_math = true;         // PA PREFILL f16 sdpa_micro rounding with this tiling (add_micro_math_jit())
+    bool wide_reads = false;        // PA PREFILL wide K/V/Q reads measured with this tiling (add_tensor_block_io_jit())
 
     int sg_per_wg() const {
         return kq_sg_per_wg_keys * kq_sg_per_wg_queries;
@@ -301,6 +302,11 @@ bool solve_pa_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_oc
     // At d_max 512 MICRO_MATH's second S*V accumulator is another 64 GRF, which leaves none for loading V ahead of the
     // DPAS: it made the kernel 21-26% slower, though with this tile it gives sdpa_micro's result.
     wide.micro_math = d_max != 512;
+    // With IGC 2.41 the d_max 512 kernel stalled on message issue (VTune "Send" 26% against sdpa_micro's 5%): it read
+    // K and V in 512 B blocks and Q_slm in 256 B ones. A 2 KB K read per depth-tile pair, a 1 KB V read per value-block
+    // pair and 512 B Q_slm reads made it 21-31% faster at 8K-32K keys (gemma-4-e2b / 26b). The value is unchanged (same
+    // data, same DPAS order). At head 256 the Q_slm read was 2% slower, so the other tilings keep the narrow reads.
+    wide.wide_reads = d_max == 512;
     if (!solve_sv_split(wide, vd_max) || !tiling_fits_device(arch, d_max, wide)) {
         return false;
     }
@@ -341,6 +347,7 @@ void read_kq_override(sdpa_ocl_config_t& config) {
     config.v_prefetch = false;
     config.v_prefetch_l3 = false;
     config.micro_math = true;
+    config.wide_reads = false;
     config.kq_sg_tile_keys = env_int("SDPA_OCL_KQ_TILE_KEYS", config.kq_sg_tile_keys);
     config.kq_sg_tile_queries = env_int("SDPA_OCL_KQ_TILE_QUERIES", config.kq_sg_tile_queries);
     config.kq_sg_per_wg_keys = env_int("SDPA_OCL_KQ_PER_WG_KEYS", config.kq_sg_per_wg_keys);
@@ -841,6 +848,9 @@ void add_tensor_block_io_jit(JitConstants& jit, const jit_inputs& in) {
     const int v_prefetch_l3 = pa_prefill ? env_int("SDPA_OCL_V_PREFETCH_L3", in.problem.tiling.v_prefetch_l3 ? 1 : 0) : 0;
     jit.make("PREFETCH_V_L3", v_prefetch_l3);
     jit.make("PREFETCH_V", (kv_2d && pa_prefill && !v_prefetch_l3) ? env_int("SDPA_OCL_V_PREFETCH", in.problem.tiling.v_prefetch ? 1 : 0) : 0);
+    // Fewer, larger K (1) / V (2) / Q_slm (4) reads per key tile: all three with the PA PREFILL tilings they were
+    // measured with (solve_pa_prefill_tiling()), SDPA_OCL_WIDE_READS=<mask> for A/B on any PA PREFILL.
+    jit.make("WIDE_READS", (kv_2d && pa_prefill) ? env_int("SDPA_OCL_WIDE_READS", in.problem.tiling.wide_reads ? 7 : 0) : 0);
 
     // The output is f16 whatever the KV precision, so KV compression must not disable it.
     jit.make("USE_2D_BLOCK_IO_A", block2d_env_int("SDPA_OCL_A_2D", block2d_layout_ok(in.out, in.lda) ? 1 : 0, allowed));
