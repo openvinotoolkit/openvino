@@ -775,13 +775,23 @@ protected:
 constexpr size_t INT3_GEMV_SGN = 8;
 constexpr size_t INT3_GEMV_SIMD = 16;
 
-// The down projection has a short K, so each subgroup takes more columns to amortize staging the activations.
-static size_t int3_gemv_nb(Int3Projection proj) {
-    return proj == Int3Projection::DOWN ? 32 : 8;
+// One token runs top_k * n / nb subgroups. The column counts (more for down, whose K is short) suit a GPU with 512
+// hardware threads; on larger GPUs they shrink until a single token keeps at least half of the threads busy.
+static size_t int3_gemv_nb(const RuntimeParams& params, Int3Projection proj) {
+    const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
+    const auto& info = params.get_device_info();
+    const size_t threads = static_cast<size_t>(info.execution_units_count) * std::max<uint32_t>(info.num_threads_per_eu, 1);
+    const size_t n = get_int3_projection_shape(params, proj).n;
+    size_t nb = proj == Int3Projection::DOWN ? 32 : 8;
+    while (nb > 1 && config.top_k * n / nb < threads / 2) {
+        nb /= 2;
+    }
+    return nb;
 }
 
-static bool int3_gemv_supported(const Int3ProjectionShape& shape, Int3Projection proj) {
-    return shape.k % (INT3_GEMV_SIMD * 32) == 0 && shape.weight_group_size % 32 == 0 && shape.n % (INT3_GEMV_SGN * int3_gemv_nb(proj)) == 0;
+static bool int3_gemv_supported(const RuntimeParams& params, Int3Projection proj) {
+    const auto shape = get_int3_projection_shape(params, proj);
+    return shape.k % (INT3_GEMV_SIMD * 32) == 0 && shape.weight_group_size % 32 == 0 && shape.n % (INT3_GEMV_SGN * int3_gemv_nb(params, proj)) == 0;
 }
 
 class MoE3GemmInt3Gemv : public KernelGenerator {
@@ -808,7 +818,7 @@ protected:
         jit.make("ZP_TYPE", params.get_input_layout(zp_idx).data_type == ov::element::i8 ? "char" : "uchar");
         jit.make("MAX_TOPK", config.top_k);
         jit.make("SGN", INT3_GEMV_SGN);
-        jit.make("NB", int3_gemv_nb(m_proj));
+        jit.make("NB", int3_gemv_nb(params, m_proj));
         if (config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
             jit.make("GATE_ACT_GELU_TANH", 1);
         } else if (config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
@@ -1355,8 +1365,7 @@ public:
             // Few tokens decode through the u3 batched GEMV instead of the grouped GEMM path. The shared expert is
             // only fused into the batched GEMV kernels of the other weight types.
             if (use_int3_gemm && moe_config.num_shared_expert == 0 && params.get_input_layout(0).data_type == ov::element::f16 &&
-                int3_gemv_supported(get_int3_projection_shape(params, Int3Projection::GATE_UP), Int3Projection::GATE_UP) &&
-                int3_gemv_supported(get_int3_projection_shape(params, Int3Projection::DOWN), Int3Projection::DOWN)) {
+                int3_gemv_supported(params, Int3Projection::GATE_UP) && int3_gemv_supported(params, Int3Projection::DOWN)) {
                 decode_impl = MoeGemmImpl::batched_gemv;
             }
         }
@@ -2042,7 +2051,7 @@ public:
             const size_t pairs = token_num * compute_experts;
             const auto gemv = [&](Stage& stage, Int3Projection proj, std::vector<memory::ptr> inputs, memory::ptr output, const std::vector<event::ptr>& deps) {
                 const auto shape = get_int3_projection_shape(params, proj);
-                const size_t blocks = shape.n / (INT3_GEMV_SGN * int3_gemv_nb(proj));
+                const size_t blocks = shape.n / (INT3_GEMV_SGN * int3_gemv_nb(params, proj));
                 return execute_stage(deps,
                                      instance,
                                      stage,

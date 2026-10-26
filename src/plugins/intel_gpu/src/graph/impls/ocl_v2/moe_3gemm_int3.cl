@@ -482,9 +482,9 @@ KERNEL(moe_int3_gemm)(
 // Decode GEMV of the routed experts on f16 activations, one work-group per
 // (token, top-k slot) pair and SGN * NB output columns: the batched GEMV path,
 // which reads the expert ids on the GPU and needs no gather or scatter. Lane l
-// owns granule l of every CHUNK-value run of K; the activations are staged
-// transposed in SLM (value j of granule l at j * SIMD + l), so each value is one
-// conflict-free SLM row for the subgroup, reused by all its weight rows.
+// owns granule l of every CHUNK-value run of K and loads its 32 activations
+// straight from the (cache resident) input, with no SLM staging or barrier, so
+// the weight loads are issued right away.
 // GEMV_DOWN computes the down projection of act(gate) * up, scaled by the routing
 // weight; otherwise each subgroup computes NB gate and NB up columns and stores
 // act(gate) * up.
@@ -562,21 +562,6 @@ KERNEL(moe_int3_gemv)(
     const __global half* xr = x + (size_t)(pair / MAX_TOPK) * K_SIZE;
 #endif
 
-    __local half xs[K_SIZE];
-    for (uint i = sg * SIMD + lane; i < K_SIZE; i += SIMD * SGN)
-        xs[(i / CHUNK) * CHUNK + (i % K_CHUNK) * SIMD + (i % CHUNK) / K_CHUNK] = xr[i];
-#if HAS_ZP
-    // Activation sum of each granule, for the zero point
-    __local float xsum[K_SIZE / K_CHUNK];
-    for (uint gi = sg * SIMD + lane; gi < K_SIZE / K_CHUNK; gi += SIMD * SGN) {
-        float s = 0.0f;
-        unroll_for (uint j = 0; j < K_CHUNK; ++j)
-            s += (float)xr[gi * K_CHUNK + j];
-        xsum[gi] = s;
-    }
-#endif
-    barrier(CLK_LOCAL_MEM_FENCE);
-
     const __global uint* wm[MATS] = {weights0
 #if !GEMV_DOWN
                                      , weights1
@@ -601,13 +586,19 @@ KERNEL(moe_int3_gemv)(
             acc[m][j] = 0.0f;
 
     unroll_for (uint c = 0; c < NCHUNK; ++c) {
-        half a[K_CHUNK];
-        unroll_for (uint j = 0; j < K_CHUNK; ++j)
-            a[j] = xs[c * CHUNK + j * SIMD + lane];
         const uint gi = c * SIMD + lane;
         const uint wg = gi * K_CHUNK / WEI_GROUP_SIZE;
+        half a[K_CHUNK];
+        unroll_for (uint j = 0; j < K_CHUNK; j += 8) {
+            const half8 v = vload8(0, xr + gi * K_CHUNK + j);
+            unroll_for (uint t = 0; t < 8; ++t)
+                a[j + t] = v[t];
+        }
 #if HAS_ZP
-        const float asum = xsum[gi];
+        // Activation sum of the granule, for the zero point
+        float asum = 0.0f;
+        unroll_for (uint j = 0; j < K_CHUNK; ++j)
+            asum += (float)a[j];
 #endif
         unroll_for (uint m = 0; m < MATS; ++m) {
             unroll_for (uint j = 0; j < NB; ++j) {
