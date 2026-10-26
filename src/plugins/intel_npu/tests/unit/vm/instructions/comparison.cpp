@@ -8,8 +8,6 @@
 #include "vm_runtime/virtual_machine.h"
 #include "vm_value_helpers.hpp"
 
-#include <llvm/Support/FormatVariadic.h>
-
 #include <common_test_utils/test_common.hpp>
 
 #include <climits>
@@ -47,11 +45,10 @@ struct CmpInstructionParams {
     }
 
     [[maybe_unused]] friend std::ostream& operator<<(std::ostream& os, const CmpInstructionParams& params) {
-        os << llvm::formatv("{ opcode={0}, lhs={1}, rhs={2}, predicate={3}, isSigned={4}, expected={5} }",
-                            static_cast<uint16_t>(params.opcode), params.lhs, params.rhs,
-                            static_cast<uint16_t>(params.predicate),
-                            params.isSigned.has_value() ? std::to_string(*params.isSigned) : "none", params.expected)
-                        .str();
+        os << "{ opcode=" << static_cast<uint16_t>(params.opcode) << ", lhs=" << params.lhs << ", rhs=" << params.rhs
+           << ", predicate=" << static_cast<uint16_t>(params.predicate)
+           << ", isSigned=" << (params.isSigned.has_value() ? std::to_string(*params.isSigned) : "none")
+           << ", expected=" << params.expected << "}";
         return os;
     }
 };

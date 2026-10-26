@@ -65,8 +65,8 @@ bool intel_npu::vm::details::FunctionSectionInfo::parseFrom(intel_npu::vm::Span<
             return false;
         }
         if (!parseValueFrom(buffer, functionInfo.bodySize)) {
-            NPU_VM_LOG_ERROR("Failed to parse bodySize from buffer {} {}, for function {}", buffer.begin(),
-                             buffer.size(), i);
+            NPU_VM_LOG_ERROR("Failed to parse bodySize from buffer {} {}, for function {}",
+                             static_cast<const void*>(buffer.begin()), buffer.size(), i);
             return false;
         }
         functionInfos.push_back(functionInfo);

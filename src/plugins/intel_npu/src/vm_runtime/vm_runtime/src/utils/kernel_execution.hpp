@@ -239,7 +239,6 @@ public:
         bool _dynamicCmdListCount = false;
         ze_context_handle_t _context{nullptr};
         ze_device_handle_t _device{nullptr};
-        ExecutionMode _executionMode = ExecutionMode::TILE_BOUND;
         uint32_t _groupOrdinal = 0;
 
     public:

@@ -5,8 +5,6 @@
 #include "npu_bytecode_utils/instructions.hpp"
 #include "utils/common.hpp"
 
-#include <llvm/Support/FormatVariadic.h>
-
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 #include <common_test_utils/test_common.hpp>
