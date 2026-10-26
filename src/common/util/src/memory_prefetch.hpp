@@ -27,7 +27,7 @@ struct PageToucher {
     void operator()() const noexcept {
         volatile uint8_t local = 0;
         for (auto begin = m_begin; begin < m_end; begin += m_page_size) {
-            local += *begin;
+            local = static_cast<uint8_t>(local + *begin);
         }
     }
 };
