@@ -78,7 +78,8 @@ if(APPLE)
 else()
     set(ENABLE_CM_FOR_GPU_DEFAULT ON)
 endif()
-ov_dependent_option (ENABLE_CM_FOR_GPU "Enable C for Metal (CM) kernels at GPU runtime" ${ENABLE_CM_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
+# CM kernels are Intel-specific, so CM is only available when targeting Intel GPUs.
+ov_dependent_option (ENABLE_CM_FOR_GPU "Enable C for Metal (CM) kernels at GPU runtime" ${ENABLE_CM_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU;GPU_VENDOR STREQUAL INTEL" OFF)
 
 ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ON "X86_64;WIN32 OR LINUX OR ANDROID" OFF)
 # matches ENABLE_INTEL_NPU_COMPILER default: internal NPU tools aren't built for static libs

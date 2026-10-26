@@ -183,6 +183,18 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
     dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) const override;
 #endif
 
+    // PTX/CUDA interop helpers
+    size_t get_byte_offset() const { return _byte_offset; }
+    ::sycl::buffer<std::byte, 1>& get_root_buffer() { return _root_buffer; }
+    const ::sycl::buffer<std::byte, 1>& get_root_buffer() const { return _root_buffer; }
+
+    // Create a read-write accessor on the root buffer (must be called inside sycl::handler scope)
+    ::sycl::accessor<std::byte, 1, ::sycl::access::mode::read_write>
+    create_rw_accessor(::sycl::handler& cgh) const {
+        auto& root_buffer = const_cast<::sycl::buffer<std::byte, 1>&>(_root_buffer);
+        return root_buffer.get_access<::sycl::access::mode::read_write>(cgh);
+    }
+
 protected:
     size_t _byte_offset;
     ::sycl::buffer<std::byte, 1> _root_buffer;
