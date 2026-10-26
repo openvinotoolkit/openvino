@@ -4,7 +4,9 @@
 
 #include "optimize_value_tensors.hpp"
 
+#include <algorithm>
 #include <transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp>
+#include <vector>
 
 #include "../llm_compiled_model_utils.hpp"
 #include "../logging.hpp"
@@ -27,39 +29,75 @@ namespace {
 #    pragma GCC diagnostic ignored "-Wattributes"
 #endif
 
-// Transposing a V-tensor changes the physical layout of `out`, so any ShapeOf
-// reading it (e.g. the KV length feeding an attention mask) would observe swapped
-// dims. Replace such ShapeOf nodes with a Constant holding the original shape.
-// Only the ShapeOf directly attached to the transposed tensor is touched, so
-// unrelated shape subgraphs (e.g. the ones RoPE matchers rely on) stay intact.
-void freeze_shape_of_consumers(const ov::Output<ov::Node>& out) {
-    const auto& pshape = out.get_partial_shape();
-    if (pshape.is_dynamic()) {
-        return;
-    }
-    const auto shape = pshape.to_shape();
-    for (const auto& input : out.get_target_inputs()) {
-        auto shape_of = input.get_node()->shared_from_this();
-        ov::element::Type out_type;
-        if (auto so3 = ov::as_type_ptr<ov::op::v3::ShapeOf>(shape_of)) {
-            out_type = so3->get_output_type();
-        } else if (ov::is_type<ov::op::v0::ShapeOf>(shape_of)) {
-            out_type = ov::element::i64;
-        } else {
-            continue;
-        }
-        auto shape_const = ov::op::v0::Constant::create(out_type, ov::Shape{shape.size()}, shape);
-        shape_const->set_friendly_name(shape_of->get_friendly_name());
-        ov::copy_runtime_info(shape_of, shape_const);
-        ov::replace_node(shape_of, shape_const);
-    }
-}
-
 class TransposeValueTensors : public ov::pass::MatcherPass {
 public:
     struct Context {
         using Ref = std::reference_wrapper<Context>;
+        struct ChangedOutput {
+            ov::Output<ov::Node> output;
+            std::vector<std::shared_ptr<ov::Node>> optimized_consumers;
+        };
+
         bool bTransposed = false;
+        std::vector<ChangedOutput> changed_outputs;
+
+        bool tracks(const ov::Output<ov::Node>& output) const {
+            return std::any_of(changed_outputs.begin(), changed_outputs.end(), [&](const auto& changed) {
+                return changed.output == output;
+            });
+        }
+
+        void track(const ov::Output<ov::Node>& output, const std::shared_ptr<ov::Node>& optimized_consumer) {
+            if (output.get_target_inputs().size() <= 1) {
+                return;
+            }
+            auto changed = std::find_if(changed_outputs.begin(), changed_outputs.end(), [&](const auto& item) {
+                return item.output == output;
+            });
+            if (changed == changed_outputs.end()) {
+                changed_outputs.push_back({output, {optimized_consumer}});
+            } else if (std::find(changed->optimized_consumers.begin(),
+                                 changed->optimized_consumers.end(),
+                                 optimized_consumer) == changed->optimized_consumers.end()) {
+                changed->optimized_consumers.push_back(optimized_consumer);
+            }
+        }
+
+        void restore_original_layout_consumers() const {
+            for (const auto& changed : changed_outputs) {
+                const auto targets = changed.output.get_target_inputs();
+                const auto has_external_consumer = std::any_of(targets.begin(), targets.end(), [&](const auto& input) {
+                    return std::find(changed.optimized_consumers.begin(),
+                                     changed.optimized_consumers.end(),
+                                     input.get_node()->shared_from_this()) == changed.optimized_consumers.end();
+                });
+                if (!has_external_consumer) {
+                    continue;
+                }
+
+                const auto& rank = changed.output.get_partial_shape().rank();
+                OPENVINO_ASSERT(rank.is_static() && rank.get_length() >= 2,
+                                "Cannot restore the original layout for a value tensor with dynamic rank");
+                std::vector<int64_t> order(static_cast<size_t>(rank.get_length()));
+                for (size_t i = 0; i < order.size(); ++i) {
+                    order[i] = static_cast<int64_t>(i);
+                }
+                std::swap(order[order.size() - 2], order[order.size() - 1]);
+                auto order_constant = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{order.size()}, order);
+                auto restore_transpose = std::make_shared<ov::op::v1::Transpose>(changed.output, order_constant);
+                restore_transpose->set_friendly_name(changed.output.get_node()->get_friendly_name() +
+                                                     "/restore_original_layout");
+                ov::copy_runtime_info(changed.output.get_node_shared_ptr(), restore_transpose);
+
+                for (const auto& input : targets) {
+                    if (std::find(changed.optimized_consumers.begin(),
+                                  changed.optimized_consumers.end(),
+                                  input.get_node()->shared_from_this()) == changed.optimized_consumers.end()) {
+                        input.replace_source_output(restore_transpose->output(0));
+                    }
+                }
+            }
+        }
     };
 
 protected:
@@ -73,11 +111,10 @@ protected:
         // V-concat output feeds more than one downstream branch (e.g. shared KV-cache
         // across attention layers in Gemma4).  Guard the shared-state mutations so they
         // are applied exactly once; per-branch matmul transpose_b is always set.
-        if (matched_concat->get_axis() != 3u) {
+        const bool changes_layout = matched_concat->get_axis() != 3u;
+        if (changes_layout) {
             auto param_shape = matched_param->get_partial_shape();
             NPUW_ASSERT(param_shape.size() == 4u);
-            freeze_shape_of_consumers(matched_param->output(0));
-            freeze_shape_of_consumers(matched_concat->output(0));
             // NB: Transpose Parameter that correspond to V-tensor it will
             // speed-up its multiplication with attention scores
             std::swap(param_shape[2], param_shape[3]);
@@ -87,6 +124,21 @@ protected:
             auto order_cst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
             matched_transpose->set_argument(1, order_cst);
             matched_concat->set_axis(3u);
+        }
+        if (changes_layout || ctx.get().tracks(matched_concat->output(0))) {
+            for (size_t i = 0; i < matched_concat->get_input_size(); ++i) {
+                const auto input = matched_concat->input_value(i);
+                if (input.get_node_shared_ptr() == matched_param) {
+                    ctx.get().track(matched_param->output(0), matched_concat);
+                } else if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(input.get_node_shared_ptr())) {
+                    if (convert->input_value(0).get_node_shared_ptr() == matched_param) {
+                        ctx.get().track(matched_param->output(0), convert);
+                        ctx.get().track(convert->output(0), matched_concat);
+                    }
+                }
+            }
+            ctx.get().track(matched_transpose->output(0), matched_concat);
+            ctx.get().track(matched_concat->output(0), matched_matmul);
         }
         matched_matmul->set_transpose_b(true);
         ctx.get().bTransposed = true;
@@ -133,6 +185,7 @@ public:
             const auto order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
             matched_transpose->set_argument(1, order);
             matched_matmul->set_transpose_b(true);
+            ctx.get().track(matched_transpose->output(0), matched_matmul);
             ctx.get().bTransposed = true;
             LOG_DEBUG("vtensors transposed: Whisper cross-attention prefill pattern");
             return true;
@@ -169,6 +222,14 @@ public:
 
             std::swap(shape[2], shape[3]);
             matched_param->set_partial_shape(shape);
+            const auto matched_convert = node_to_output.find(convert);
+            if (matched_convert != node_to_output.end()) {
+                const auto convert_node = matched_convert->second.get_node_shared_ptr();
+                ctx.get().track(matched_param->output(0), convert_node);
+                ctx.get().track(matched_convert->second, matched_matmul);
+            } else {
+                ctx.get().track(matched_param->output(0), matched_matmul);
+            }
             matched_matmul->set_transpose_b(true);
             ctx.get().bTransposed = true;
             return true;
@@ -326,6 +387,10 @@ private:
             matched_reshape->input(1).replace_source_output(reshape_axes_node);
 
             transpose_matmul_b(ctx, matched_param, matched_concat, matched_transpose, matched_matmul);
+            ctx.get().track(matched_concat->output(0), matched_unsqueeze);
+            ctx.get().track(matched_unsqueeze->output(0), matched_broadcast);
+            ctx.get().track(matched_broadcast->output(0), matched_reshape);
+            ctx.get().track(matched_reshape->output(0), matched_matmul);
             LOG_DEBUG("vtensors transposed: GQA pattern");
             return true;
         };
@@ -482,6 +547,8 @@ bool ov::npuw::util::OptimizeValueTensors::run_on_model(const std::shared_ptr<ov
     }
 
     rewr.run_on_model(model);
+
+    ctx.restore_original_layout_consumers();
 
     ov::pass::Validate().run_on_model(model);
 
