@@ -341,22 +341,22 @@ ov::pass::PositionIDsReplacerCodeGen2::PositionIDsReplacerCodeGen2(const std::sh
 ov::pass::PositionIDsReplacerGranite::PositionIDsReplacerGranite(const Output<Node>& unsq_position_ids) {
     MATCHER_SCOPE(PositionIDsReplacerGranite);
 
-    // Current-token offsets: Range(0, ShapeOf(hidden_states)[1], 1).
-    auto p_hidden_states = any_input();
-    auto p_current_shape = wrap_type<ov::op::util::ShapeOfBase>({p_hidden_states});
-    auto p_current_length = wrap_type<ov::op::util::GatherBase>({p_current_shape, any_input(), any_input()});
+    auto p_current_length = any_input();  // ShapeOf(hidden_states)[1]
+    // Current-token offsets: Range(0, current_length, 1).
     auto p_range = wrap_type<ov::op::v0::Range, ov::op::v4::Range>({any_input(), p_current_length, any_input()});
 
     // Past length comes from the 1) cache, or 2) from the replacement produced by PrevSequenceLengthPattern.
-    //1) Generally, should not be observed as PrevSequenceLengthPattern has to cover it, but leaving just in case if
+    // 1) Generally, should not be observed as PrevSequenceLengthPattern has to cover it, but leaving just in case if
     // something happens to PrevSequenceLengthPattern (i.e. order is changed or removed)
     auto p_cache = wrap_type<ov::op::util::ReadValueBase>();
     auto p_cache_gather = wrap_type<ov::op::util::GatherBase>({p_cache, any_input(), any_input()});
     auto p_cache_shape = wrap_type<ov::op::util::ShapeOfBase>({p_cache_gather});
     auto p_cache_length = wrap_type<ov::op::util::GatherBase>({p_cache_shape, any_input(), any_input()});
 
-    //2)
-    auto p_max_context_length = wrap_type<v0::Parameter>([](const Output<Node>& output) {return output.get_names().count("max_context_len") != 0;});
+    // 2)
+    auto p_max_context_length = wrap_type<v0::Parameter>([](const Output<Node>& output) {
+        return output.get_names().count("max_context_len") != 0;
+    });
     auto p_replaced_length = wrap_type<v1::Subtract>({p_max_context_length, any_input()});
     auto p_replaced_length_convert = wrap_type<v0::Convert>({p_replaced_length});
 
@@ -376,7 +376,6 @@ ov::pass::PositionIDsReplacerGranite::PositionIDsReplacerGranite(const Output<No
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
         pattern_map.at(p_positions_heads)->input(0).replace_source_output(unsq_position_ids);
-        std::cout << pattern_map.at(p_range) << std::endl;
         return true;
     };
 

@@ -42,19 +42,11 @@ ov::pass::PrevSequenceLengthPattern::PrevSequenceLengthPattern(const std::shared
         if (!gather_index) {
             return false;  // cannot detect axis
         }
-
-        if (!max_context_len) {
-            std::cout << "max_context_len is not nullptr" << std::endl;
-        }
-        std::cout << "max_context_len: " << max_context_len << std::endl;
         auto axis = gather_index->cast_vector<int64_t>().at(0);
         auto kv_init_shape = pattern_map.at(kv_past).get_node()->get_input_partial_shape(0);
         auto target_type = gather->get_output_element_type(0);
         std::shared_ptr<ov::Node> replacement;
-        std::cout << "RV: " << pattern_map.at(kv_past) << std::endl;
-        std::cout << "kv_init_shape: " << kv_init_shape << std::endl;
         if (kv_init_shape[axis].is_static() && kv_init_shape[axis].get_length() == 0) {
-            std::cout << "unsqueezed_input_ids shape: " << unsqueezed_input_ids->get_output_partial_shape(0) << std::endl;
             auto cur_seq_len = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(unsqueezed_input_ids),
                                                             v0::Constant::create(element::i64, Shape{}, {1}),
                                                             v0::Constant::create(element::i64, Shape{}, {0}));

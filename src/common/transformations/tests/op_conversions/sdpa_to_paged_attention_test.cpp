@@ -1201,7 +1201,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Qwen7bChat_PositionIDsReplacerQwenPattern) {
 TEST_F(TransformationTestsF, SDPAToPA_Granite_PositionIDsReplacer) {
     {
         auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{-1}, "position_ids");
-        auto unsqueezed_position_ids = std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i64, Shape{}, {-1}));
+        auto unsqueezed_position_ids =  // not yet connected
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i64, Shape{}, {-1}));
 
         auto zero = v0::Constant::create(element::i64, Shape{}, {0});
         auto one = v0::Constant::create(element::i64, Shape{}, {1});
@@ -1231,8 +1232,8 @@ TEST_F(TransformationTestsF, SDPAToPA_Granite_PositionIDsReplacer) {
         auto sin = std::make_shared<v0::Sin>(angles);
         auto unsq_cos = std::make_shared<v0::Unsqueeze>(cos, one);
         auto unsq_sin = std::make_shared<v0::Unsqueeze>(sin, one);
-        model = std::make_shared<Model>(OutputVector{unsq_cos, unsq_sin},
-                                        ParameterVector{hidden_states, max_context_len});
+        model =
+            std::make_shared<Model>(OutputVector{unsq_cos, unsq_sin}, ParameterVector{hidden_states, max_context_len});
 
         manager.register_pass<pass::PositionIDsReplacerGranite>(unsqueezed_position_ids);
         model->add_parameters({position_ids});
@@ -1242,10 +1243,12 @@ TEST_F(TransformationTestsF, SDPAToPA_Granite_PositionIDsReplacer) {
         // Expected branch: preprocessed positions [3,1] -> [3,1,1], producing cos/sin [3,1,1,4].
         auto hidden_states = std::make_shared<v0::Parameter>(element::f32, PartialShape{3, 1, 4});
         auto max_context_len = ov::test::utils::make_param(element::i32, PartialShape{}, "max_context_len");
+
         auto one = v0::Constant::create(element::i64, Shape{}, {1});
+        auto minus_one = v0::Constant::create(element::i64, Shape{}, {1});
 
         auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{-1}, "position_ids");
-        auto unsqueezed_position_ids = std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i64, Shape{}, {-1}));
+        auto unsqueezed_position_ids = std::make_shared<v0::Unsqueeze>(position_ids, minus_one);
         auto rotary_positions = std::make_shared<v0::Unsqueeze>(unsqueezed_position_ids, one);
         auto converted = std::make_shared<v0::Convert>(rotary_positions, element::f32);
         auto inv_freq = v0::Constant::create(element::f32, Shape{1, 2, 1}, {1.f, 0.1f});
@@ -1261,9 +1264,6 @@ TEST_F(TransformationTestsF, SDPAToPA_Granite_PositionIDsReplacer) {
                                             ParameterVector{hidden_states, position_ids, max_context_len});
     }
 
-    // TODO: align precisions, check the copying of "fuse_names" attr in SDPAToPagedAttention
-    // checking the graph structure and names, other checks are temporarily disabled:
-    comparator.disable(FunctionsComparator::PRECISIONS);
     disable_result_friendly_names_check();
     disable_rt_info_check();
 }
