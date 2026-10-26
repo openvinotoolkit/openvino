@@ -10,6 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/convert_promote_types.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
 #include "transformations/rt_info/nonconvertible_divide.hpp"
@@ -27,14 +28,20 @@ namespace {
 Output<Node> round_with_decimals(const NodeContext& context, const Output<Node>& data, int64_t decimals) {
     // The kernel is evaluated in opmath_t, so half and bfloat16 inputs are widened to float before
     // the scaling: scaling in the low precision type itself overflows instead of rounding
-    // (f16 1000 with decimals = 2 becomes inf, while torch keeps 1000). The element type is still
-    // dynamic when the caller specializes the input after the conversion (the direct frontend
-    // path does), so a dynamic input is widened as well: the type is not available here, and f32
-    // is the one type that neither overflows for the low precision inputs nor is rejected by the
-    // plugins. ConvertLike below restores whatever type the input resolves to.
+    // (f16 1000 with decimals = 2 becomes inf, while torch keeps 1000). The direct frontend path
+    // specializes input types only after conversion, so use ConvertPromoteTypes with an f32 anchor
+    // for dynamic inputs. Its output stays dynamic during translation, then resolves to f32 for
+    // f16/bf16, remains f32 for f32, and remains f64 for f64. ConvertLike below restores the input
+    // type after the calculation.
     const auto data_type = data.get_element_type();
     const bool widen = data_type.is_dynamic() || data_type == element::f16 || data_type == element::bf16;
-    auto x = widen ? context.mark_node(std::make_shared<v0::Convert>(data, element::f32)) : data;
+    Output<Node> x = data;
+    if (data_type.is_dynamic()) {
+        auto anchor = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
+        x = context.mark_node(std::make_shared<v14::ConvertPromoteTypes>(data, anchor))->output(0);
+    } else if (data_type == element::f16 || data_type == element::bf16) {
+        x = context.mark_node(std::make_shared<v0::Convert>(data, element::f32));
+    }
 
     // The factor is computed in fp64 and materialized in the working type: the input element type
     // may still be dynamic during conversion, so it cannot be used to type a constant.

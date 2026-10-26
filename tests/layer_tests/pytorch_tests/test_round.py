@@ -199,6 +199,34 @@ class TestRoundDecimalsDirectLowPrecision(PytorchLayerTest):
         self._test(*self.create_model(decimals), ie_device, precision, ir_version)
 
 
+@pytest.mark.nightly
+@pytest.mark.precommit
+def test_round_decimals_dynamic_f64_working_type(ie_device, precision, ir_version):
+    # The direct frontend path leaves f64 inputs dynamic during translation. Widening every
+    # dynamic input to f32 would lose precision before ConvertLike restores the f64 output type.
+    import torch
+    from openvino import PartialShape, Type
+    from openvino.frontend import FrontEndManager
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    class aten_round_decimals(torch.nn.Module):
+        def forward(self, x):
+            return torch.round(x, decimals=8)
+
+    decoder = TorchScriptPythonDecoder(aten_round_decimals())
+    fe = FrontEndManager().load_by_framework("pytorch")
+    model = fe.convert(fe.load(decoder))
+    parameter = model.inputs[0].get_node()
+    assert parameter.get_element_type().is_dynamic()
+    parameter.set_element_type(Type.f64)
+    parameter.set_partial_shape(PartialShape([2]))
+    model.validate_nodes_and_infer_types()
+
+    promotions = [node for node in model.get_ordered_ops() if node.get_type_name() == "ConvertPromoteTypes"]
+    assert len(promotions) == 1
+    assert all(output.get_element_type() == Type.f64 for output in promotions[0].outputs())
+
+
 class TestRoundDecimalsOut(PytorchLayerTest):
     # aten::round(self, decimals, out) passes data, decimals and out as three inputs, which the
     # translator rejected before parsing; the decimals and out combination is a valid overload.
