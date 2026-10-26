@@ -178,6 +178,8 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/zero_utils_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_graph_options_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/flux2_compiled_model_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/dq_matmul_gq2ip_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/dq_gather_lift_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/gqa_compiled_model_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/gather_sub128_matcher_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_continuation_test.cpp

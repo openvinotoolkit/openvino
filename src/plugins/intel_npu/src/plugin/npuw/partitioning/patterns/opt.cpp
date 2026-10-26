@@ -29,6 +29,13 @@ bool is_subtract_128(const std::shared_ptr<ov::Node>& node) {
 }  // namespace
 
 void Context::permute(const PPtr& orig_param, const Context::Axes& order) {
+    auto it = closures_to_permute.find(orig_param);
+    if (it != closures_to_permute.end()) {
+        // One closure carries one transform per parameter: a second, different order would compose onto the
+        // first one's shape and only the last would reach the bank, so refuse it here.
+        NPUW_ASSERT(it->second == order);
+        return;
+    }
     closures_to_permute[orig_param] = order;
 
     const auto& orig_shape = orig_param->get_shape();
@@ -52,6 +59,17 @@ Context::PPtr Context::subtract_128(const PPtr& orig_param) {
     shifted_param->set_friendly_name(orig_param->get_friendly_name() + "_sub128");
     closures_to_subtract_128.emplace(shifted_param, orig_param);
     return shifted_param;
+}
+
+void Context::to_i4(const PPtr& orig_param) {
+    // Presentation only: the codes keep their values in a wider container (see DQMatMulGQ2iP). The closure can
+    // only be widened from the IR's own sub-byte constant, so a parameter already converted to f16 must not
+    // reach it: the two Convert ops would stack and trip the widening's type assert only at load.
+    NPUW_ASSERT(closures_to_f16.count(orig_param) == 0);
+    closures_to_i4.insert(orig_param);
+
+    orig_param->set_element_type(ov::element::i4);
+    orig_param->validate_and_infer_types();
 }
 
 void Context::register_parallel_matmul(const O& multiply, std::size_t axis, DQParMM&& mm) {
@@ -555,7 +573,18 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
         auto act_shape = matched_out_mmi.get_shape();
         auto out_shape = matched_node_matmul->output(0).get_shape();
 
-        if (ov::element::i4 == matched_qweight->get_element_type() && qweight_shape.size() == 3 &&
+        // A grouped signed 2-bit weight takes the same presentation as `i4`: the banked closure is put in the
+        // [G, N, g] layout with a Transpose back, which is the shape whose per-group convolutions read the
+        // stored codes in place. Without it the weight keeps the export's own [N, G, g] layout and its forward
+        // is unrolled per group, so the device passes over it several times per token. `GQi`/`GQiP` stay
+        // `i4`-only: their layout needs a bit-level host transpose that `util::permute` does not implement for
+        // sub-byte codes.
+        if ((ov::element::i2 == matched_qweight->get_element_type() ||
+             ov::element::i4 == matched_qweight->get_element_type()) &&
+            qweight_shape.size() == 3 &&
+            // The presentation's swap is a host byte-row copy, so the innermost dimension has to be
+            // byte-aligned; `util::permute` asserts the same bound.
+            qweight_shape[2] % (8 / matched_qweight->get_element_type().bitwidth()) == 0 &&
             ov::element::f16 == matched_qcoeff->get_element_type() && qcoeff_shape.size() == 3 &&
             act_shape.size() == 3 && act_shape[0] == 1 && act_shape[1] == 1 && qcoeff_shape[0] == qweight_shape[0] &&
             qcoeff_shape[2] == 1 && qcoeff_shape[1] == qweight_shape[1] && !matched_matmul->get_transpose_a() &&
@@ -843,7 +872,10 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
             return (a == 1 && b > 1) || (a > 1 && b == 1);
         };
 
-        if (ov::element::i4 == matched_qweight->get_element_type() && qweight_shape.size() == 3 &&
+        // As in DQMatMulGQ2i: the multi-token case of the same grouped signed 2-bit presentation.
+        if ((ov::element::i2 == matched_qweight->get_element_type() ||
+             ov::element::i4 == matched_qweight->get_element_type()) &&
+            qweight_shape.size() == 3 && qweight_shape[2] % (8 / matched_qweight->get_element_type().bitwidth()) == 0 &&
             ov::element::f16 == matched_qcoeff->get_element_type() && qcoeff_shape.size() == 3 &&
             act_shape.size() == 3 && just_one(act_shape[0], act_shape[1]) &&  // multi-token case
             qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[1] == qweight_shape[1] && qcoeff_shape[2] == 1 &&
@@ -852,6 +884,14 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
                 // Transpose weight and coeff
                 ctx.get().permute(matched_qweight, {1, 0, 2});
                 ctx.get().permute(matched_qcoeff, {1, 0, 2});
+
+                // The compiler unrolls a sub-byte weight at this multi-token consumer into per-group
+                // convolutions, because the device's whole-group dequantization decodes `i4`, `i8` and `u2`
+                // codes only, and that plan is ~2x the 4-bit one. Presenting the weight in `i4` keeps the values
+                // (see widen_subbyte_to_i4); the single-token consumer keeps its stored width.
+                if (util::needsWholeGroupWidening(matched_qweight->get_element_type())) {
+                    ctx.get().to_i4(matched_qweight);
+                }
 
                 // Add Transpose and insert it
                 std::vector<std::size_t> new_transpose_order = {1, 0, 2};
@@ -1709,7 +1749,12 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
         // were Hs = hidden size, G is # of groups, N is the prompt size.
         auto out_len = out_shape.size() == 3 ? out_shape[2] : out_shape[2] * out_shape[3];
 
-        if (out_len >= 2048 && util::isDQWeightOrFloat8(qweight_type)) {
+        // The host gather materialises the whole table in f16. `i2` is left off it: the bank presents the same
+        // codes in `i4` for the device, so gathering the stored 2-bit table on the host would expand it eightfold
+        // for a presentation the device already has.
+        const bool host_table = util::isDQWeightOrFloat8(qweight_type) && qweight_type != ov::element::i2;
+
+        if (out_len >= 2048 && host_table) {
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();

@@ -82,6 +82,46 @@ ov::npuw::util::DynamicQuantStorageTypes ov::npuw::util::resolve_dynamic_quant_s
     return resolved;
 }
 
+bool ov::npuw::util::deviceDecodesWholeGroup(const ov::element::Type& type) {
+    return type == ov::element::i4 || type == ov::element::i8 || type == ov::element::u2;
+}
+
+bool ov::npuw::util::needsWholeGroupWidening(const ov::element::Type& type) {
+    return type == ov::element::i2 && !deviceDecodesWholeGroup(type);
+}
+
+namespace {
+// A signed 2-bit code: four per byte, low bits first, two's complement — 2 -> -2, 3 -> -1.
+inline int i2_code(const uint8_t* src, std::size_t idx) {
+    const int code = (src[idx / 4] >> (2 * (idx % 4))) & 0x3;
+    return code >= 2 ? code - 4 : code;
+}
+}  // namespace
+
+ov::Tensor ov::npuw::util::widen_subbyte_to_i4(const ov::Tensor& src) {
+    const auto& type = src.get_element_type();
+    NPUW_ASSERT(needsWholeGroupWidening(type));
+    NPUW_ASSERT(src.is_continuous());
+    const auto shape = src.get_shape();
+    const auto elements = src.get_size();
+    ov::Tensor dst(ov::element::i4, shape);
+    const auto* in = static_cast<const uint8_t*>(src.data());
+    auto* out = static_cast<uint8_t*>(dst.data());
+
+    // OpenVINO packs i2 four codes per byte, low bits first; the reader decodes the source and the unpack
+    // suite's unpack_i4f16 decodes the result.
+
+    // Each destination byte is written by one iteration; a packed buffer can hold any element count, so the
+    // last pair may take only its low code and leave the high nibble zero.
+    ov::parallel_for(dst.get_byte_size(), [&](std::size_t byte_idx) {
+        const std::size_t first = byte_idx * 2;
+        const int lo = i2_code(in, first);
+        const int hi = first + 1 < elements ? i2_code(in, first + 1) : 0;
+        out[byte_idx] = static_cast<uint8_t>((lo & 0xF) | ((hi & 0xF) << 4));
+    });
+    return dst;
+}
+
 namespace {
 inline uint8_t hi4(uint8_t x) {
     return x >> 4;
@@ -89,6 +129,89 @@ inline uint8_t hi4(uint8_t x) {
 
 inline uint8_t lo4(uint8_t x) {
     return x & 0xF;
+}
+
+// Symmetric i2: four signed 2-bit codes per byte, low bits first, decoded as code * scale. The scale of
+// element i is i / group_len, with group_len = elements / scales — a [N, G, group] weight with a [N, G, 1]
+// scale, or a [N, K] weight with a per-row [N, 1] one.
+void unpack_i2f16_scale(const ov::SoPtr<ov::ITensor>& from,
+                        const ov::SoPtr<ov::ITensor>& scale,
+                        const ov::SoPtr<ov::ITensor>& to,
+                        const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    const auto& from_shape = from->get_shape();
+    const auto& scale_shape = scale->get_shape();
+    const auto scale_elem_type = scale->get_element_type();
+    NPUW_ASSERT(scale_elem_type == ov::element::f16 || scale_elem_type == ov::element::f32);
+    NPUW_ASSERT(scale_shape.size() == 3 || scale_shape.size() == 2);
+    if (scale_shape.size() == 3) {
+        NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+        NPUW_ASSERT(scale_shape[1] == from_shape[1]);
+        NPUW_ASSERT(scale_shape[2] == 1);
+    } else {
+        NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+        NPUW_ASSERT(scale_shape[1] == 1);
+    }
+
+    const auto size = from->get_size();
+    const auto scale_count = scale->get_size();
+    NPUW_ASSERT(scale_count != 0 && size % scale_count == 0);
+    const auto group_len = size / scale_count;
+
+    const auto* from_ptr = static_cast<const uint8_t*>(from->data());
+    const auto* scale_ptr = static_cast<const ov::float16*>(scale->data());
+    const auto* scale_ptr_f32 = static_cast<const float*>(scale->data());
+    auto* to_ptr = to->data<ov::float16>();
+
+    auto scale_at = [&](size_t idx) -> float {
+        return scale_elem_type == ov::element::f16 ? static_cast<float>(scale_ptr[idx]) : scale_ptr_f32[idx];
+    };
+
+    ov::parallel_for(size / 4, [&](size_t byte_idx) {
+        for (size_t k = 0; k < 4; ++k) {
+            const size_t idx = byte_idx * 4 + k;
+            to_ptr[idx] = ov::float16(static_cast<float>(i2_code(from_ptr, idx)) * scale_at(idx / group_len));
+        }
+    });
+    // A packed buffer can hold any element count: the last 1-3 codes sit in the high bits of the last byte.
+    for (size_t idx = size - size % 4; idx < size; ++idx) {
+        to_ptr[idx] = ov::float16(static_cast<float>(i2_code(from_ptr, idx)) * scale_at(idx / group_len));
+    }
+}
+
+// The scale-less decoders: a DCOFF'd weight records no scale, so the code is the value.
+void unpack_i2f16(const ov::SoPtr<ov::ITensor>& from,
+                  const ov::SoPtr<ov::ITensor>& to,
+                  const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    const auto* from_ptr = static_cast<const uint8_t*>(from->data());
+    auto* to_ptr = to->data<ov::float16>();
+
+    ov::parallel_for(from->get_size(), [&](size_t idx) {
+        to_ptr[idx] = ov::float16(static_cast<float>(i2_code(from_ptr, idx)));
+    });
+}
+
+void unpack_i2i8(const ov::SoPtr<ov::ITensor>& from,
+                 const ov::SoPtr<ov::ITensor>& to,
+                 const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    const auto* from_ptr = static_cast<const uint8_t*>(from->data());
+    auto* to_ptr = to->data<int8_t>();
+
+    ov::parallel_for(from->get_size(), [&](size_t idx) {
+        to_ptr[idx] = static_cast<int8_t>(i2_code(from_ptr, idx));
+    });
 }
 
 void unpack_nf4f16(const ov::SoPtr<ov::ITensor>& from,
@@ -237,6 +360,13 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         HNDL(u4, f16);
         HNDL(u4, f32);
         HNDL(i8, f16);
+    // i2 has no vectorized decoder.
+    case PAIR(ove::i2, ove::f16):
+        unpack_i2f16(from, to, unpack_options);
+        break;
+    case PAIR(ove::i2, ove::i8):
+        unpack_i2i8(from, to, unpack_options);
+        break;
     default:
         OPENVINO_THROW("Unknown unpack combination ", type_from, " -> ", type_to);
     }
@@ -270,6 +400,10 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         }
     } else if (type_from == ov::element::i8) {
         ov::npuw::util::XARCH::unpack_i8f16_scale(from, scale, to, unpack_options);
+    } else if (type_from == ov::element::i2) {
+        // The i2 reader takes the two grouped forms only — a [N, G, g] weight with a [N, G, 1] scale, or a
+        // [N, K] weight with a [N, 1] one. A per-element scale has no i2 reader yet.
+        unpack_i2f16_scale(from, scale, to, unpack_options);
     } else if (type_from == ov::element::nf4) {
         unpack_nf4f16(from, scale, to, unpack_options);
     } else if (type_from == ov::element::f8e4m3 || type_from == ov::element::f8e5m2 ||
@@ -504,8 +638,8 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
     const auto type = src->get_element_type();
     NPUW_ASSERT(from.size() == to.size());
 
-    // Sub-byte views are not supported here
-    NPUW_ASSERT(type != ov::element::u4 && type != ov::element::i4);
+    // A sub-byte view would need bit offsets; the strides here are element strides.
+    NPUW_ASSERT(type.bitwidth() >= 8);
 
     // Bounds guard: from[d] <= to[d] <= shape[d] (prevents OOB views and unsigned wrap below).
     const auto& shape = src->get_shape();
@@ -730,7 +864,8 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
         }
         return tnew;
     } else if (axes[0] == 1 && axes[1] == 0 && axes[2] == 2) {
-        NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f16);
+        NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::i2 ||
+                    t.get_element_type() == ov::element::f16);
         ov::Shape tshape = {shape[1], shape[0], shape[2]};
         ov::Tensor tnew(t.get_element_type(), tshape);
         switch (t.get_element_type()) {
@@ -745,6 +880,18 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
                                 &dst[(r * shape[0] * shape[2] + p * shape[2]) / 2]);
                 }
             }
+            break;
+        }
+        case ov::element::i2: {
+            // Four codes per byte: a row is a byte copy while the innermost dimension is byte-aligned.
+            NPUW_ASSERT(shape[2] % 4 == 0);
+            const uint8_t* src = static_cast<const uint8_t*>(t.data());
+            uint8_t* dst = static_cast<uint8_t*>(tnew.data());
+            ov::parallel_for2d(shape[0], shape[1], [&](size_t p, size_t r) {
+                const size_t src_off = (p * shape[1] + r) * shape[2] / 4;
+                const size_t dst_off = (r * shape[0] + p) * shape[2] / 4;
+                std::copy_n(src + src_off, shape[2] / 4, dst + dst_off);
+            });
             break;
         }
         case ov::element::f16: {
@@ -1039,7 +1186,7 @@ bool ov::npuw::util::isDQScaleOrZPValue(const std::string& str) {
 }
 
 bool ov::npuw::util::isDQWeight(const ov::element::Type& type) {
-    return type == ov::element::i4 || type == ov::element::i8 || type == ov::element::nf4;
+    return type == ov::element::i2 || type == ov::element::i4 || type == ov::element::i8 || type == ov::element::nf4;
 }
 
 bool ov::npuw::util::isDQWeightOrFloat8(const ov::element::Type& type) {

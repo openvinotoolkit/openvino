@@ -7,48 +7,45 @@
 
 namespace details {
 
-// Permute function.
+// Visit every (output, input) index pair of `dims` permuted by `order`: the output index is
+// unravelled in the permuted strides and folded back through `order` and the input strides.
+template <typename Function>
+void for_each_permute_index(const std::vector<size_t>& dims, const std::vector<size_t>& order, const Function& visit) {
+    const size_t ndim = dims.size();
+    assert(order.size() == ndim);
+
+    const auto new_dims = details::reorder(dims, order);
+    const auto old_strides = details::compute_strides(dims);
+    const auto new_strides = details::compute_strides(new_dims);
+    const size_t total = std::accumulate(dims.begin(), dims.end(), size_t(1), std::multiplies<size_t>());
+
+    for (size_t out_idx = 0; out_idx < total; ++out_idx) {
+        std::vector<size_t> new_multi(ndim);
+        size_t tmp = out_idx;
+        // Unravel the output index in the new order's strides.
+        for (size_t i = 0; i < ndim; ++i) {
+            new_multi[i] = tmp / new_strides[i];
+            tmp %= new_strides[i];
+        }
+
+        // Fold it back to the input, reading each axis with the stride it had in the old order.
+        size_t in_idx = 0;
+        for (size_t i = 0; i < ndim; ++i) {
+            in_idx += new_multi[i] * old_strides[order[i]];
+        }
+        visit(out_idx, in_idx);
+    }
+}
+
 template <typename T, bool Int4 = false>
 void permute(const T* input, T* output, const std::vector<size_t>& dims, const std::vector<size_t>& order) {
     static_assert(!Int4 || (Int4 && std::is_same_v<T, uint8_t>), "For int4 data input data must be of type uint8_t");
 
-    size_t ndim = dims.size();
-    assert(order.size() == ndim);
-
-    // Compute new dims.
-    std::vector<size_t> new_dims = details::reorder(dims, order);
-
-    // Compute strides.
-    std::vector<size_t> old_strides = details::compute_strides(dims);
-    std::vector<size_t> new_strides = details::compute_strides(new_dims);
-
-    size_t total = std::accumulate(dims.begin(), dims.end(), size_t(1), std::multiplies<size_t>());
-
-    // For each index in output, compute corresponding input index.
-    // Use a flat index and unravel it to multi-index in new order, then map to old order.
-    for (size_t out_idx = 0; out_idx < total; ++out_idx) {
-        // Unravel out_idx to multi-index in new_dims.
-        std::vector<size_t> new_multi(ndim);
-        size_t tmp = out_idx;
-        for (size_t i = 0; i < ndim; ++i) {
-            new_multi[i] = tmp / new_strides[i];
-            tmp = tmp % new_strides[i];
-        }
-        // Map new_multi to old_multi.
-        std::vector<size_t> old_multi(ndim);
-        for (size_t i = 0; i < ndim; ++i)
-            old_multi[order[i]] = new_multi[i];
-
-        // Compute flat input index.
-        size_t in_idx = 0;
-        for (size_t i = 0; i < ndim; ++i)
-            in_idx += old_multi[i] * old_strides[i];
-
+    for_each_permute_index(dims, order, [&](size_t out_idx, size_t in_idx) {
         if constexpr (Int4) {
-            uint8_t in_byte = input[in_idx / 2];
-            uint8_t in_val = (in_idx % 2 == 0) ? (in_byte & 0x0F) : ((in_byte >> 4) & 0x0F);
-
-            size_t out_byte_idx = out_idx / 2;
+            const uint8_t in_byte = input[in_idx / 2];
+            const uint8_t in_val = (in_idx % 2 == 0) ? (in_byte & 0x0F) : ((in_byte >> 4) & 0x0F);
+            const size_t out_byte_idx = out_idx / 2;
             if (out_idx % 2 == 0) {
                 output[out_byte_idx] = (output[out_byte_idx] & 0xF0) | (in_val & 0x0F);
             } else {
@@ -57,7 +54,31 @@ void permute(const T* input, T* output, const std::vector<size_t>& dims, const s
         } else {
             output[out_idx] = input[in_idx];
         }
-    }
+    });
+}
+
+// Permute a bit-packed tensor one field at a time, so the reference does not depend on the host's byte-row
+// copy. `get` reads one field of the payload and `set` writes it.
+template <typename Get, typename Set>
+void permute_fields(const uint8_t* input,
+                    uint8_t* output,
+                    const std::vector<size_t>& dims,
+                    const std::vector<size_t>& order,
+                    const Get& get,
+                    const Set& set) {
+    for_each_permute_index(dims, order, [&](size_t out_idx, size_t in_idx) {
+        set(output, out_idx, get(input, in_idx));
+    });
+}
+
+/*i2: four codes per byte, low bits first*/
+inline uint8_t get_i2(const uint8_t* in, size_t idx) {
+    return (in[idx / 4] >> (2 * (idx % 4))) & 0x3;
+}
+
+inline void set_i2(uint8_t* out, size_t idx, uint8_t value) {
+    const size_t shift = 2 * (idx % 4);
+    out[idx / 4] = static_cast<uint8_t>((out[idx / 4] & ~(0x3 << shift)) | (value << shift));
 }
 
 }  // namespace details
@@ -142,6 +163,13 @@ void PermuteTestsBase::make_ref_output() {
                                 reinterpret_cast<float*>(ref_output.data()),
                                 dims,
                                 axes);
+    } else if (type == ov::element::i2) {
+        details::permute_fields(reinterpret_cast<const uint8_t*>(input.data()),
+                                reinterpret_cast<uint8_t*>(ref_output.data()),
+                                dims,
+                                axes,
+                                details::get_i2,
+                                details::set_i2);
     } else if (type == ov::element::i4) {
         details::permute<uint8_t, true>(reinterpret_cast<const uint8_t*>(input.data()),
                                         reinterpret_cast<uint8_t*>(ref_output.data()),
@@ -209,7 +237,7 @@ const auto TestCases021 = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(PermuteTests021, PermuteTests, TestCases021, PermuteTests::getTestCaseName);
 
 const auto TestCases102 = ::testing::Combine(
-        ::testing::ValuesIn({ov::element::Type_t::i4, ov::element::Type_t::f16}),
+        ::testing::ValuesIn({ov::element::Type_t::i4, ov::element::Type_t::i2, ov::element::Type_t::f16}),
         ::details::ShapesIn({Tensors{input={1, 10, 16};
 }
 , Tensors {

@@ -389,6 +389,20 @@ bool isDQWeightOrFloat8(const ov::element::Type& type);
 // in Whisper model.
 bool isRestoredPastKeyValueParam(const std::string& str);
 
+// The stored widths the device compiler's whole-group dynamic dequantization decodes in place — the
+// OpenVINO-side copy of the compiler's whole-group rule (isWholeGroupDequantizeSupported: i4, i8, u2); a width
+// it accepts becomes a row here.
+bool deviceDecodesWholeGroup(const ov::element::Type& type);
+
+// A stored weight the host must re-store in i4 for a multi-token consumer: its codes keep their values, the
+// device reads one container width.
+bool needsWholeGroupWidening(const ov::element::Type& type);
+
+// The device's whole-group kernel decodes i4, i8 and u2, so a sub-byte weight takes the per-group unroll at
+// about twice the 4-bit plan; every i2 code is representable in i4. The stored weight, the single-token path
+// and the cached blob keep their width — remove this with the kernel.
+ov::Tensor widen_subbyte_to_i4(const ov::Tensor& src);
+
 }  // namespace util
 }  // namespace npuw
 }  // namespace ov

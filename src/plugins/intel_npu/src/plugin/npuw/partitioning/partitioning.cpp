@@ -2492,6 +2492,10 @@ void Partitioner::optimize(const std::string& func_name) {
 
     do_permute(ctx);
     do_convert(ctx.closures_to_f16, ov::element::f16);
+    // The parameter carries 4-bit codes while the closure's source stays the IR's own sub-byte constant: the
+    // widening is a transform on the banked tensor, so the cached blob keeps its weightless record and the host
+    // widens the codes once, at load.
+    do_convert(ctx.closures_to_i4, ov::element::i4);
 
     LOG_VERB("Done");
 }

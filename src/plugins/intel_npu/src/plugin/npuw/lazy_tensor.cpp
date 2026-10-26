@@ -309,8 +309,13 @@ bool Convert::operator==(const Convert& other) const {
 }
 
 ov::Tensor Convert::eval() const {
+    auto src = tensor.eval();
+    if (type == ov::element::i4) {
+        // The banked presentation: the weight re-stored in `i4` with its codes preserved.
+        return ov::npuw::util::widen_subbyte_to_i4(src);
+    }
     NPUW_ASSERT(ov::element::f16 == type);
-    return ov::npuw::util::to_f16(tensor.eval());
+    return ov::npuw::util::to_f16(src);
 }
 
 LazyTensor::Meta Convert::eval_meta() const {

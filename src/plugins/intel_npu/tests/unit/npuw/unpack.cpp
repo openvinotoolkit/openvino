@@ -3,7 +3,8 @@
 //
 
 #ifdef HAVE_AVX2
-#include "unpack.hpp"
+#    include "unpack.hpp"
+
 
 namespace {
 
@@ -49,43 +50,86 @@ const auto TestCasesU4 = ::testing::Combine(
         ::testing::ValuesIn({true, false})
 );
 
-INSTANTIATE_TEST_SUITE_P(UnpackTestsU4, UnpackTestsU4,
-                         TestCasesU4,
-                         UnpackTestsU4::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(UnpackTestsU4, UnpackTestsU4, TestCasesU4, UnpackTestsU4::getTestCaseName);
+
+// The widening: every sub-byte storage the host presents in an i4 container decodes to the same values there.
+const auto TestCasesWidenSubbyte = ::testing::Combine(
+        ::testing::ValuesIn({ov::element::Type_t::i2}),
+        ::testing::ValuesIn({ov::element::Type_t::i4}),
+        ::testing::ValuesIn({ov::element::Type_t::dynamic}),  // no used in this test
+        ::testing::ValuesIn({ov::element::Type_t::dynamic}),  // no used in this test
+        ::testing::Values(3lu),
+        ::details::ShapesIn({Tensors{input={1, 1, 1, 32};}}),
+        ::testing::Values(true),
+        ::testing::Values(true));
+
+INSTANTIATE_TEST_SUITE_P(WidenSubbyteTests, WidenSubbyteTests, TestCasesWidenSubbyte, WidenSubbyteTests::getTestCaseName);
+
+TEST_P(WidenSubbyteTests, widen) {
+    ov::Tensor subbyte(fromType, input_shape, input.data());
+    const auto widened = ov::npuw::util::widen_subbyte_to_i4(subbyte);
+    ASSERT_EQ(widened.get_element_type(), ov::element::i4);
+    ASSERT_EQ(widened.get_shape(), input_shape);
+    // A packing bug then reports as a size mismatch here rather than as a read past the payload in std::equal.
+    ASSERT_EQ(widened.get_byte_size(), ref_output.size());
+    const auto* actual = static_cast<const int8_t*>(widened.data());
+    ASSERT_TRUE(std::equal(ref_output.begin(), ref_output.end(), actual)) << "the widened payload differs";
+
+    // The invariant the change rests on: the readers decode the same values from both containers. The codes are
+    // small enough for f16 to hold exactly, so the comparison needs no tolerance.
+    if (fromType == ov::element::i2) {
+        const auto elements = static_cast<int>(shape_size(input_shape));
+        std::vector<int8_t> source_values(elements * sizeof(uint16_t));
+        std::vector<int8_t> widened_values(source_values.size());
+        details::unpack_i2f16(static_cast<const int8_t*>(subbyte.data()), source_values.data(), elements);
+        details::unpack_i4f16(actual, widened_values.data(), elements);
+        ASSERT_EQ(source_values, widened_values) << "the two containers decode to different values";
+    }
+}
+
+TEST(WidenSubbyteOddTail, decodes_theLastCodes) {
+    const ov::Shape shape{1, 5};
+    const std::size_t elements = shape_size(shape);
+    // 0, 1, -2, -1, 1; the unused codes are nonzero so reading a sixth code changes the high nibble.
+    const std::vector<int8_t> data{static_cast<int8_t>(0xE4), static_cast<int8_t>(0xFD)};
+    ov::Tensor subbyte(ov::element::i2, shape, const_cast<int8_t*>(data.data()));
+
+    // The i4 reference reads pairs; include the zero padding code in both decoded buffers.
+    std::vector<int8_t> expected((elements + 1) * sizeof(uint16_t));
+    details::unpack_i2f16(data.data(), expected.data(), static_cast<int>(elements));
+
+    const auto widened = ov::npuw::util::widen_subbyte_to_i4(subbyte);
+    ASSERT_EQ(widened.get_element_type(), ov::element::i4);
+    ASSERT_EQ(widened.get_byte_size(), (elements + 1) / 2);
+    const auto* actual = static_cast<const uint8_t*>(widened.data());
+    EXPECT_EQ(actual[widened.get_byte_size() - 1] & 0xF0, 0) << "the unused high nibble must be zero";
+    std::vector<int8_t> widened_values(expected.size());
+    details::unpack_i4f16(static_cast<const int8_t*>(widened.data()),
+                          widened_values.data(),
+                          static_cast<int>(elements + 1));
+    ASSERT_EQ(widened_values, expected) << "the widened tail differs";
+}
 
 const auto TestCasesScale = ::testing::Combine(
-        ::testing::ValuesIn({ov::element::Type_t::i4}), // TODO: add i8 as input for test
+        ::testing::ValuesIn({ov::element::Type_t::i2,
+                             ov::element::Type_t::i4}), // TODO: add i8 as input for test
         ::testing::ValuesIn({ov::element::Type_t::f16, ov::element::Type_t::f32}),
         ::testing::ValuesIn({ov::element::Type_t::f16, ov::element::Type_t::f32}),
-        ::testing::ValuesIn({ov::element::Type_t::dynamic}), // no used in this test
+        ::testing::ValuesIn({ov::element::Type_t::dynamic}),  // no used in this test
         ::testing::ValuesIn({3lu, 0lu}),
-        ::details::ShapesIn({Tensors{input={1,32, 128};     scale = {1, 32, 1};
-}
-, Tensors {
-    input = {32, 128};
-    scale = {32, 1};
-}
-, Tensors {
-    input = {64, 160};
-    scale = {64, 1};
-}
-, Tensors {
-    input = {1024, 4};
-    scale = {64, 1};
-}
-, Tensors {
-    input = {1, 1, 1024, 4};
-    scale = {1, 1, 64, 1};
-}
-}),
+        ::details::ShapesIn({Tensors{input={1,32, 128};     scale = {1, 32, 1};},
+                             Tensors{input={32, 128};     scale = {32, 1};},
+                             Tensors{input={64, 160};     scale = {64, 1};},
+                             Tensors{input={1024, 4};     scale = {64, 1};},
+                             Tensors{input={1, 1, 1024, 4};  scale = {1, 1, 64, 1};},
+                             Tensors{input={1, 2, 10}; scale = {1, 2, 1};}}),
         ::testing::ValuesIn({true, false}),
-        ::testing::ValuesIn({true, false})
-);
+        ::testing::ValuesIn({true, false}));
 
-INSTANTIATE_TEST_SUITE_P(UnpackWithScaleTests, UnpackWithScaleTests,
+INSTANTIATE_TEST_SUITE_P(UnpackWithScaleTests,
+                         UnpackWithScaleTests,
                          TestCasesScale,
                          UnpackWithScaleTests::getTestCaseName);
-
 
 const auto TestCasesScaleI4F16 = ::testing::Combine(
         ::testing::ValuesIn({ov::element::Type_t::i4}),
