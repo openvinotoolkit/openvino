@@ -1543,6 +1543,10 @@ bool primitive_inst::use_async_compilation() {
             if (one_of(weights_dt, {data_types::i4, data_types::u4}) && batch_size != 1) {
                 compile_fc_impls = false;
             }
+            // The TernOCL shape-agnostic impl already runs the right kernel for every M.
+            if (weights_dt == data_types::u2) {
+                compile_fc_impls = false;
+            }
         } else {
             auto input_dt = fc_node.input().get_output_layout().data_type;
             auto weights_dt = fc_node.weights().get_output_layout().data_type;

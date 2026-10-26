@@ -44,7 +44,7 @@ the input transform `hadamard/hadamard_fwht.cl` in front of either.
 | File | Role |
 |---|---|
 | `impls/ocl_v2/ternocl_int2/fully_connected_ternocl_int2.hpp` | Registration, acceptance rules, fused-chain -> epilogue mapping |
-| `impls/ocl_v2/ternocl_int2/fully_connected_ternocl_int2.cpp` | Weights reorder request, program cache, tile tables, execution of both GEMM families |
+| `impls/ocl_v2/ternocl_int2/fully_connected_ternocl_int2.cpp` | Weights reorder request, tile tables, one kernel stage per launch class, execution of both GEMM families |
 | `impls/ocl_v2/ternocl_int2/ternocl_int2_weights_reorder.cpp` | Weights reorder `u2` -> `format::is_os_yx_isv16_ternary`, folded at build time (section 3) |
 | `impls/ocl_v2/CMakeLists.txt` | Embeds the TernOCL sources (up-convert, int2 x int8, FWHT, epilogue) as chunked string literals at configure time |
 | `thirdparty/TernOCL` | Submodule: [TernOCL](https://github.com/libxsmm/TernOCL) kernels, drivers, validation, tuning scripts |
@@ -54,7 +54,7 @@ the input transform `hadamard/hadamard_fwht.cl` in front of either.
 | `registry/reorder_impls.cpp` | Registers the weights reorder ahead of the stock reorders; it accepts only the TernOCL packed format and hands any other reorder to the stock CPU reorder when the CPU impl type is forced |
 | `primitive_inst.cpp` | Lets `ternocl_int2` keep its fused chain under dynamic shapes (section 4) |
 
-The impl needs only the plugin's OpenCL runtime (`GPU_RT_TYPE=OCL`).
+The impl runs on the OpenCL and Level Zero runtimes (`GPU_RT_TYPE=OCL`, `ZE` or `COMBINED`).
 
 ---
 
@@ -62,7 +62,7 @@ The impl needs only the plugin's OpenCL runtime (`GPU_RT_TYPE=OCL`).
 
 `TernoclInt2FCImplementationManager` (`impl_types::ocl`) is registered for
 `FullyConnected` ahead of the oneDNN and stock OpenCL managers, for dynamic and
-static shapes, when the plugin is built on the OpenCL runtime.
+static shapes, on the OpenCL and Level Zero runtimes.
 
 `validate_impl` accepts a node only when every assumption the kernels make
 holds; anything else falls through to the existing paths unchanged:
@@ -91,7 +91,7 @@ A node whose primitive carries a Hadamard input transform (section 7) is
 rejected with an error rather than falling through, because no other
 implementation applies the transform.
 
-For models with `u2` weights on the OpenCL runtime (with `GPU_ENABLE_TERNOCL_INT2`, the default),
+For models with `u2` weights on the OpenCL or Level Zero runtime (with `GPU_ENABLE_TERNOCL_INT2`, the default),
 the pipeline always enables the existing gate/up horizontal FC fusion
 (`FullyConnectedHorizontalFusion` with the SwiGLU split), which it otherwise
 skips on some devices. The merged `[K, 2I]` int2 projection followed by the
@@ -124,7 +124,8 @@ blocked weight formats of the stock FC and convolution kernels:
 - **Scales**: read from the FC's scale input, whose `[K/128, N]` physical layout
   `prepare_quantization` already provides.
 - **Hadamard signs** (rotated checkpoints): the `+-1` vector as `i8[K]` on the device,
-  owned by the impl and rebuilt from the primitive when an exported model is loaded.
+  owned by the impl and uploaded from the primitive at its first execution, on the network
+  stream. Impls are created in parallel, and the service stream is not thread-safe on Level Zero.
   The signs are part of the primitive's hash and equality, so an impl taken from the
   in-memory impl cache always carries the signs of the node that uses it.
 
@@ -134,8 +135,7 @@ activation scales `f16 [K/128, (M+31) & ~31]`.
 
 The impl keeps no per-node buffers: weights and scales come from the node's
 inputs, so one impl object can serve every node with equal `kernel_impl_params`.
-`save()` / `load()` serialize its scalar state; kernels are rebuilt on first use
-after a load.
+`save()` / `load()` serialize its stages like the other `ocl_v2` impls.
 
 ---
 
@@ -143,12 +143,12 @@ after a load.
 
 ```mermaid
 flowchart TD
-    A["execute_impl"] --> B["packed weights and scales from the node's inputs"]
+    A["execute"] --> B["packed weights and scales from the node's inputs"]
     B --> C{"hadamard_block?"}
     C -->|yes| D["hadamard_fwht_1024: y = H(s*x)/32<br/>into a per-node scratch"]
     C -->|no| E
     D --> E{"M > 8 and<br/>GPU_TERNOCL_INT2_INT8_PREFILL?"}
-    E -->|no| F["up-convert: pick launch class from M<br/>(build program on first use)"]
+    E -->|no| F["up-convert: pick launch class from M"]
     F --> G["int2_fp16_upcvt_gemm / _gemm_mt<br/>(A, B, S, C, Other, Bias, M, N, K)"]
     E -->|yes| H["quant_a: SA = 127 / absmax<br/>per (row, 128-group)"]
     H --> I["int2_int8_gemm_mt<br/>(A, SA, B, S, C, Other, Bias, M, N, K)"]
@@ -161,12 +161,15 @@ Kernels are launched through the plugin stream (`set_arguments` /
 `enqueue_kernel`), so they take part in the normal in-order / out-of-order
 event handling and cost no host synchronisation.
 
-**Programs** are built with `clBuildProgram` on the engine's `cl_context`, once
-per (source, option string), in a cache shared by the impls created on that
-context and released with the last of them; each impl creates its `cl_kernel`
-from them on first use of a launch class. Clones share the kernel
-handles, like the stock OpenCL impls: OpenVINO clones cached impls on every
-shape update.
+**Kernels** are stages of an `ocl_v2` impl (`PrimitiveImplOCL`), built by the
+plugin's kernels cache on either runtime, so they take part in parallel compilation,
+the `CACHE_DIR` disk cache and model export. Each kernel is a program of its own:
+`TERNOCL_SELECT_KERNELS` / `TERNOCL_KERNEL_<NAME>` drop the other kernels of the source,
+and the kernel is renamed to the stage's entry point. A dynamic-shape impl builds every
+launch class at compilation and picks one per execution from M. A static-shape impl
+builds only its own class. `u2` FCs skip the asynchronous compilation of static impls
+for new shapes (`primitive_inst::use_async_compilation()`), since the dynamic impl
+already covers every M.
 
 **Fusion under dynamic shapes**: `primitive_inst::is_valid_fusion()` only
 trusts fused eltwise ops on `impl_types::ocl` FCs whose kernel it knows and
@@ -223,8 +226,8 @@ either GEMM family.
 
 ## 6. Configuration selection
 
-`get_launch()` (up-convert) and `get_int8_launch()` (int8 prefill) map M to a
-launch class and build its kernels on first use:
+`launch_class()` maps M to a launch class. The tile depends only on (K, N, class, GPU),
+so the kernel built for a class serves every M in it:
 
 | M | Kernel | Tile |
 |---|---|---|
@@ -246,7 +249,7 @@ TernOCL's benchmark sweeps (`bench.sh`, `sweep_midm.sh`):
   is not tuned.
 
 New entries come from TernOCL's sweeps, which tune each tile on the standalone
-kernels. With debug caps, `OV_VERBOSE=4` prints every built program and the tile chosen.
+kernels. With debug caps, `OV_VERBOSE=4` prints every generated kernel and the tile chosen.
 
 ### 6.1 Other GPUs and new networks
 
@@ -305,7 +308,7 @@ activation and records `int2_hadamard_block` / `int2_hadamard_signs` in the
 rt_info; the FC translator moves them onto the cldnn `fully_connected`
 primitive (part of its hash and serialization). At execution the impl runs
 `hadamard_fwht_1024` into a per-node scratch and points the GEMM at it.
-The pass is registered only on the OpenCL runtime with TernOCL enabled, since no
+The pass is registered only on the OpenCL or Level Zero runtime with TernOCL enabled, since no
 other implementation applies a fused rotation; otherwise (and with
 `GPU_ENABLE_HADAMARD_FC_FUSION=0` in debug-caps builds) the rotation stays in the graph.
 `OV_VERBOSE=4` traces the match per FC.
