@@ -59,17 +59,28 @@ public:
         return Handle(m_mutex, m_context);
     }
 
-    ov::weight_sharing::WeightBuffer request_shared_weight_source_buffer(size_t source_id, size_t size, const std::string &device, Handle &handle);
+    ov::weight_sharing::WeightBuffer request_shared_weight_source_buffer(size_t source_id, const element::Type& type, const ov::Shape& shape, const std::string &device, Handle &handle);
     void register_shared_weight_source_for_weight(ov::weight_sharing::WeightBuffer source_buffer,
                                                   size_t source_id,
                                                   const std::string& device,
                                                   Handle& handle);
 
     static ov::weight_sharing::WeightBuffer create_shared_buffer(int64_t source_id, std::size_t size);
+
+    bool serialize_native_format(ov::npuw::orc::Stream& stream);
+    bool serialize_native_format(ov::npuw::orc::Stream& stream, Handle& handle);
+    bool deserialize_native_format(ov::npuw::orc::Stream& stream, const ov::ICore &core);
+    bool deserialize_native_format(ov::npuw::orc::Stream& stream, const ov::ICore &core, Handle& handle);
+protected:
+    /* CVS-198039 WeightMetaData has no m_shape */
+    const ov::op::v0::Constant& get_transformed_constant(size_t source_id, Handle& handle) const;
+
 private:
     std::mutex m_mutex;
     std::shared_ptr<ov::weight_sharing::Context> m_context = nullptr;
     std::unordered_map<size_t, ov::weight_sharing::WeightBuffer> m_shared_sources;
+
+    std::unordered_map<size_t, ov::op::v0::Constant> m_transformed_weights;
 };
 
 
@@ -105,6 +116,7 @@ private:
     struct StoredTensor {
         LazyTensor lt;
         ov::Tensor tensor;
+        bool is_evaluated() const;
     };
     // Bank for specified device and their allocated memory
     struct DeviceBank {
@@ -119,6 +131,7 @@ private:
                                          const std::string& device);
 
     void serialize(ov::npuw::orc::Stream& stream);
+    void deserialize(ov::npuw::orc::Stream& stream);
     void read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const std::string& device);
 
     mutable std::mutex m_mutex;
