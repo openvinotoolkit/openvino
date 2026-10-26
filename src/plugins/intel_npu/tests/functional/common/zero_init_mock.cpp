@@ -15,52 +15,7 @@ namespace {
 
 constexpr ze_driver_uuid_t uuid = ze_intel_npu_driver_uuid;
 
-bool isExtensionNameMatching(const char* propertyName, const char* extName) {
-    if (strcmp(propertyName, extName) == 0) {
-        return true;
-    }
-
-    // Older drivers use specific names for different graph ext versions, e.g.: ZE_extension_graph_1_1
-    if (strcmp(extName, ZE_GRAPH_EXT_NAME) != 0) {
-        return false;
-    }
-
-    const size_t extNameLen = strlen(extName);
-    return strncmp(propertyName, extName, extNameLen) == 0 && propertyName[extNameLen] == '_' &&
-           propertyName[extNameLen + 1] >= '0' && propertyName[extNameLen + 1] <= '9';
-}
-
-std::tuple<uint32_t, std::string> queryDriverExtensionVersion(const char* extName,
-                                                              uint32_t extCurrentVersion,
-                                                              std::vector<ze_driver_extension_properties_t>& extProps,
-                                                              uint32_t count) {
-    const char* functionExtName = nullptr;
-    uint32_t targetVersion = 0;
-
-    for (uint32_t i = 0; i < count; ++i) {
-        auto& property = extProps[i];
-
-        if (!isExtensionNameMatching(property.name, extName)) {
-            continue;
-        }
-
-        if (property.version >= extCurrentVersion) {
-            functionExtName = property.name;
-            targetVersion = extCurrentVersion;
-            break;
-        }
-
-        // Use the latest version supported by the driver - We need to go through all the properties for older drivers
-        // that use specific names for different graph ext versions, e.g.: ZE_extension_graph_1_1,
-        // ZE_extension_graph_1_2
-        if (property.version > targetVersion) {
-            functionExtName = property.name;
-            targetVersion = property.version;
-        }
-    }
-
-    return std::make_tuple(targetVersion, functionExtName ? functionExtName : "");
-}
+using intel_npu::zeroUtils::queryDriverExtensionVersion;
 
 void saveSupportedExtension(std::map<std::string, uint32_t, std::less<>>& supportedExtensions,
                             const char* extName,
