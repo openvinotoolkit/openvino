@@ -1078,8 +1078,8 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
             m_plugin_config.parse_priorities_devices(priorities.as<std::string>());
         std::size_t num_blob_files = 0;
         const auto cache_location = CacheWarmupManager::get_cache_location(*get_core(), properties);
-        bool if_need_cache_check =
-            !is_cumulative_tput && enable_startup_cpu && (model || !model_path.empty()) && !cache_location.empty();
+        bool if_need_cache_check = !is_cumulative_tput && enable_startup_cpu && (model || !model_path.empty()) &&
+                                   !cache_location.empty() && properties.count(ov::cache_blob_id.name()) == 0;
         if (if_need_cache_check) {
             for (auto&& device : devices_to_be_merged) {
                 // Skip the excluded device

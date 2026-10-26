@@ -273,6 +273,22 @@ TEST_F(AutoCacheWarmupTest, excludedDeviceIsNotProbedForCachedBlob) {
     std::filesystem::remove_all(cache_dir);
 }
 
+TEST_F(AutoCacheWarmupTest, customBlobIdDoesNotPruneCpuFallback) {
+    const auto cache_dir = std::filesystem::temp_directory_path() /
+                           ("ov_auto_cache_blob_id_prune_" +
+                            std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(cache_dir);
+    // A custom ID carries no device information, so this file must not count as a GPU cache hit.
+    std::ofstream(cache_dir / "746352.blob") << "blob";
+    ov::AnyMap properties = {ov::device::priorities("CPU,GPU"), ov::cache_path(cache_dir), ov::cache_blob_id(746352)};
+    std::string devices;
+    OV_ASSERT_NO_THROW(devices = plugin->Plugin::get_device_list(properties, model, {}));
+    EXPECT_NE(devices.find(cpu_device), std::string::npos);
+    EXPECT_EQ(properties.count(ov::intel_auto::enable_startup_fallback.name()), 0u);
+    EXPECT_EQ(properties.count(ov::intel_auto::enable_runtime_fallback.name()), 0u);
+    std::filesystem::remove_all(cache_dir);
+}
+
 class AutoCacheWarmupSharedManagerTest : public AutoCacheWarmupTestBase, public ::testing::Test {
 protected:
     std::promise<void> gate;
@@ -283,6 +299,9 @@ protected:
     std::atomic<int> in_flight{0};
     std::atomic<int> max_in_flight{0};
     std::shared_ptr<NiceMock<ov::MockICompiledModel>> warmup_compiled_model;
+    // Declared last so they are destroyed first; TearDown() opens the gate before that, even after a fatal assertion.
+    std::shared_ptr<ov::ICompiledModel> first;
+    std::shared_ptr<ov::ICompiledModel> second;
 
     // The first warm-up compilation blocks until the gate is opened.
     void SetUp() override {
@@ -321,8 +340,6 @@ protected:
 };
 
 TEST_F(AutoCacheWarmupSharedManagerTest, warmUpsOfDifferentModelsDoNotOverlap) {
-    std::shared_ptr<ov::ICompiledModel> first;
-    std::shared_ptr<ov::ICompiledModel> second;
     OV_ASSERT_NO_THROW(first = plugin->compile_model(model, config));
     ASSERT_TRUE(wait_until([&] {
         return warmup_count.load() == 1;
@@ -345,8 +362,6 @@ TEST_F(AutoCacheWarmupSharedManagerTest, warmUpsOfDifferentModelsDoNotOverlap) {
 }
 
 TEST_F(AutoCacheWarmupSharedManagerTest, destroyingQueuedModelCancelsItsWarmUp) {
-    std::shared_ptr<ov::ICompiledModel> first;
-    std::shared_ptr<ov::ICompiledModel> second;
     OV_ASSERT_NO_THROW(first = plugin->compile_model(model, config));
     ASSERT_TRUE(wait_until([&] {
         return warmup_count.load() == 1;
@@ -357,7 +372,7 @@ TEST_F(AutoCacheWarmupSharedManagerTest, destroyingQueuedModelCancelsItsWarmUp) 
     }));
     // Give the second warm-up time to be queued behind the blocked first one.
     std::this_thread::sleep_for(std::chrono::milliseconds(300));
-    auto destroyed = std::async(std::launch::async, [&second] {
+    auto destroyed = std::async(std::launch::async, [this] {
         second.reset();
     });
     EXPECT_EQ(destroyed.wait_for(std::chrono::seconds(2)), std::future_status::ready);
