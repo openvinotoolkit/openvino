@@ -1082,6 +1082,9 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
             !is_cumulative_tput && enable_startup_cpu && (model || !model_path.empty()) && !cache_location.empty();
         if (if_need_cache_check) {
             for (auto&& device : devices_to_be_merged) {
+                // Skip the excluded device
+                if (device.front() == '-')
+                    continue;
                 ov::DeviceIDParser parsed{device};
                 if (parsed.get_device_name().find("CPU") != std::string::npos)
                     continue;

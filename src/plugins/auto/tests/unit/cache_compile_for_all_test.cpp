@@ -259,6 +259,116 @@ TEST_F(AutoCacheWarmupTest, skipsDeviceWithCachedBlob) {
     std::filesystem::remove_all(cache_dir);
 }
 
+TEST_F(AutoCacheWarmupTest, excludedDeviceIsNotProbedForCachedBlob) {
+    const auto cache_dir = std::filesystem::temp_directory_path() /
+                           ("ov_auto_cache_excluded_" +
+                            std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(cache_dir);
+    // The mocked core returns an empty compile config, so the blob id only depends on the model.
+    std::ofstream(cache_dir / (ov::ModelCache::compute_hash(model, ov::AnyMap{}) + ".blob")) << "blob";
+    ov::AnyMap properties = {ov::device::priorities("CPU,-GPU"), ov::cache_path(cache_dir)};
+    std::string devices;
+    OV_ASSERT_NO_THROW(devices = plugin->Plugin::get_device_list(properties, model, {}));
+    EXPECT_EQ(devices, cpu_device);
+    std::filesystem::remove_all(cache_dir);
+}
+
+class AutoCacheWarmupSharedManagerTest : public AutoCacheWarmupTestBase, public ::testing::Test {
+protected:
+    std::promise<void> gate;
+    std::shared_future<void> gate_future = gate.get_future().share();
+    std::once_flag gate_opened;
+    std::atomic<int> actual_count{0};
+    std::atomic<int> warmup_count{0};
+    std::atomic<int> in_flight{0};
+    std::atomic<int> max_in_flight{0};
+    std::shared_ptr<NiceMock<ov::MockICompiledModel>> warmup_compiled_model;
+
+    // The first warm-up compilation blocks until the gate is opened.
+    void SetUp() override {
+        set_global_cache("test_cache_dir");
+        set_devices({cpu_device, "GPU.0", actual_device});
+        on_compile(cpu_device, [this]() -> ov::SoPtr<ov::ICompiledModel> {
+            return {mockIExeNet, {}};
+        });
+        on_compile(actual_device, [this]() -> ov::SoPtr<ov::ICompiledModel> {
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            actual_count++;
+            return {mockIExeNetActual, {}};
+        });
+        warmup_compiled_model = make_compiled_model();
+        on_compile("GPU.0", [this]() -> ov::SoPtr<ov::ICompiledModel> {
+            const auto current = ++in_flight;
+            max_in_flight = std::max(max_in_flight.load(), current);
+            if (++warmup_count == 1) {
+                gate_future.wait();
+            }
+            --in_flight;
+            return {warmup_compiled_model, {}};
+        });
+        config.insert(ov::intel_auto::compile_for_all(true));
+    }
+
+    void open_gate() {
+        std::call_once(gate_opened, [this] {
+            gate.set_value();
+        });
+    }
+
+    void TearDown() override {
+        open_gate();
+    }
+};
+
+TEST_F(AutoCacheWarmupSharedManagerTest, warmUpsOfDifferentModelsDoNotOverlap) {
+    std::shared_ptr<ov::ICompiledModel> first;
+    std::shared_ptr<ov::ICompiledModel> second;
+    OV_ASSERT_NO_THROW(first = plugin->compile_model(model, config));
+    ASSERT_TRUE(wait_until([&] {
+        return warmup_count.load() == 1;
+    }));
+    OV_ASSERT_NO_THROW(second = plugin->compile_model(model->clone(), config));
+    ASSERT_TRUE(wait_until([&] {
+        return actual_count.load() == 2;
+    }));
+    // The second warm-up is queued behind the blocked first one.
+    EXPECT_FALSE(wait_until(
+        [&] {
+            return warmup_count.load() > 1;
+        },
+        std::chrono::milliseconds(500)));
+    open_gate();
+    EXPECT_TRUE(wait_until([&] {
+        return warmup_count.load() == 2;
+    }));
+    EXPECT_EQ(max_in_flight.load(), 1);
+}
+
+TEST_F(AutoCacheWarmupSharedManagerTest, destroyingQueuedModelCancelsItsWarmUp) {
+    std::shared_ptr<ov::ICompiledModel> first;
+    std::shared_ptr<ov::ICompiledModel> second;
+    OV_ASSERT_NO_THROW(first = plugin->compile_model(model, config));
+    ASSERT_TRUE(wait_until([&] {
+        return warmup_count.load() == 1;
+    }));
+    OV_ASSERT_NO_THROW(second = plugin->compile_model(model->clone(), config));
+    ASSERT_TRUE(wait_until([&] {
+        return actual_count.load() == 2;
+    }));
+    // Give the second warm-up time to be queued behind the blocked first one.
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    auto destroyed = std::async(std::launch::async, [&second] {
+        second.reset();
+    });
+    EXPECT_EQ(destroyed.wait_for(std::chrono::seconds(2)), std::future_status::ready);
+    open_gate();
+    first.reset();
+    // Neither the cancelled model nor the one just destroyed may compile GPU.0 again.
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    EXPECT_EQ(warmup_count.load(), 1);
+    EXPECT_EQ(max_in_flight.load(), 1);
+}
+
 TEST_F(AutoCacheWarmupTest, destructionSkipsRemainingDevices) {
     set_global_cache("test_cache_dir");
     set_devices({cpu_device, "GPU.0", "NPU", actual_device});
