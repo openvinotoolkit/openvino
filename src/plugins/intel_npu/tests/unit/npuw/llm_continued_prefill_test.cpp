@@ -240,7 +240,7 @@ FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledMo
 void FakeSubInferRequest::infer() {
     for (const auto& output : get_compiled_model()->outputs()) {
         auto tensor = ov::ISyncInferRequest::get_tensor(output);
-        if (output.get_any_name() == ov::npuw::LLMCompiledModel::output_embeds) {
+        if (output.get_any_name() == ov::npuw::LLMCompiledModel::layer_names::output_embeds) {
             auto* data = static_cast<uint8_t*>(tensor->data());
             for (size_t index = 0; index < tensor->get_byte_size(); ++index) {
                 data[index] = static_cast<uint8_t>(index % 251u);
@@ -646,7 +646,8 @@ TEST_F(LLMContinuedPrefillTest, ShortTailChunkRoutesGraphSelectedEmbedToSharedHe
     run_full_prefill(67u);
 
     auto prefill_embeds =
-        LLMContinuedPrefillTestAccess::prefill_output(request(), ov::npuw::LLMCompiledModel::output_embeds);
+        LLMContinuedPrefillTestAccess::prefill_output(request(),
+                                                      ov::npuw::LLMCompiledModel::layer_names::output_embeds);
     ASSERT_EQ(prefill_embeds->get_shape(), (ov::Shape{1, 8, 64}));
     auto selection_indices = LLMContinuedPrefillTestAccess::prefill_logits_selection_indices(request());
     ASSERT_EQ(selection_indices->get_shape(), (ov::Shape{8}));

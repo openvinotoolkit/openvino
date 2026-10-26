@@ -116,9 +116,11 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/collapse_unqdq.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/conv_to_matmul.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/convert_kvcache_to_precision.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/cut_lm_head.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/drop_zp_subtract.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/untangle_dq_scale.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/lora_stateful_to_stateless.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/optimize_lincache_layout.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/optimize_value_tensors.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/shrink_sliding_window_kv_cache.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/patch_sliding_window_mask.cpp
@@ -216,6 +218,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/right_align_mask_slice_for_conv_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/collapse_unqdq_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/conv_to_matmul_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/cut_lm_head_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/patch_sliding_mask_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/select_last_chunk_logits_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/detect_causal_mask_test.cpp
@@ -223,6 +226,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/remove_empty_kv_inputs_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/remove_token_type_ids_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/stateful_to_stateless_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/optimize_lincache_layout_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pyramid_attention_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pyramid_attention_left_alignment_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/sdpa_pattern_matcher_test.cpp

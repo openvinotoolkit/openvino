@@ -245,6 +245,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/matmul_conversion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/matmul_squeeze_add.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/matmul_transpose_to_reshape.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/msda_pattern.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/multiply_add.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/perm_conv_perm_concat.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/preprocess.cpp

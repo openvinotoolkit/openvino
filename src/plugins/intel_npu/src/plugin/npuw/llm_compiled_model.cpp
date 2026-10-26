@@ -19,10 +19,12 @@
 #include "moe_transformations/moe_topology.hpp"
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
+#include "npuw_transformations/cut_lm_head.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
 #include "npuw_transformations/insert_vocab_sub128.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
+#include "npuw_transformations/optimize_lincache_layout.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
 #include "npuw_transformations/propagate_slice.hpp"
@@ -75,96 +77,10 @@ bool is_aligned_to(T value, T alignment) {
 
 }  // namespace
 
-class CutLMHead : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::CutLMHead");
-    explicit CutLMHead(std::shared_ptr<ov::Model>& lm_head_model) {
-        // We are interested at first input to MatMul as a cut point
-        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
-
-        // There are several patterns for matmul we are looking for:
-        // Matmul -> Result
-        // Matmul -> Add -> Result
-        auto matmul_add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
-        // Matmul -> Transpose -> Result
-        auto matmul_transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
-        //  Matmul -> Convert -> Result
-        auto matmul_convert = opp::wrap_type<ov::op::v0::Convert>({matmul});
-        // MatMul -> Divide -> Tanh -> Multiply -> Result
-        auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
-        auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
-        auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
-
-        auto last_op = std::make_shared<opp::op::Or>(ov::OutputVector{matmul->output(0),
-                                                                      matmul_add->output(0),
-                                                                      matmul_transpose->output(0),
-                                                                      matmul_convert->output(0),
-                                                                      matmul_multiply->output(0)});
-        auto res = opp::wrap_type<ov::op::v0::Result>({last_op->output(0)});
-
-        auto callback = [=, &lm_head_model](opp::Matcher& m) {
-            auto& node_to_output = m.get_pattern_value_map();
-
-            auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
-            std::shared_ptr<ov::Node> matched_node_last_op = nullptr;
-            if (node_to_output.count(matmul_add)) {
-                matched_node_last_op = node_to_output[matmul_add].get_node_shared_ptr();
-            } else if (node_to_output.count(matmul_transpose)) {
-                matched_node_last_op = node_to_output[matmul_transpose].get_node_shared_ptr();
-            } else if (node_to_output.count(matmul_convert)) {
-                matched_node_last_op = node_to_output[matmul_convert].get_node_shared_ptr();
-            } else if (node_to_output.count(matmul_multiply)) {
-                matched_node_last_op = node_to_output[matmul_multiply].get_node_shared_ptr();
-            } else {
-                matched_node_last_op = matched_node_matmul;
-            }
-            auto matched_node_result = node_to_output.at(res).get_node_shared_ptr();
-
-            auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
-            auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_result);
-
-            // Some LLMs add intermediate hidden state outputs that can interfere with LM head detection.
-            // Skip Result nodes that were manually added (marked with "manually_added_output" in RT_INFO).
-            // For example, Eagle-3 target/draft models add "last_hidden_state" output which should be skipped.
-            const auto& rt_info = matched_result->get_rt_info();
-            if (rt_info.count("manually_added_output")) {
-                return false;
-            }
-
-            // Cut point:
-            auto matmul_first_source = matched_matmul->input(0).get_source_output();
-
-            // Cut original model:
-            matched_result->input(0).replace_source_output(matmul_first_source);
-            // FIXME: Somehow for KVCache model result output gets renamed in
-            //        ICompiledModel::ICompiledModel().
-            //        As a WA, setting the same name to output from MatMul
-            //        avoids the issue.
-            matmul_first_source.set_names({ov::npuw::LLMCompiledModel::output_embeds});
-            matched_result->output(0).set_names({ov::npuw::LLMCompiledModel::output_embeds});
-            matched_result->validate_and_infer_types();
-
-            // Create an additional model after cut point:
-            auto new_param = std::make_shared<ov::op::v0::Parameter>(matmul_first_source.get_element_type(),
-                                                                     matmul_first_source.get_partial_shape());
-            new_param->output(0).add_names({ov::npuw::LLMCompiledModel::output_embeds});
-            matched_matmul->input(0).replace_source_output(new_param);
-            auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
-            lm_head_model =
-                std::make_shared<ov::Model>(ov::OutputVector{new_result->output(0)}, ov::ParameterVector{new_param});
-
-            return true;
-        };
-        register_matcher(std::make_shared<opp::Matcher>(res, "CutLMHead"), std::move(callback));
-    }
-};
-
 namespace {
 std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model) {
-    ov::pass::GraphRewrite rewr;
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
-    rewr.add_matcher<CutLMHead>(lm_head_model);
-    rewr.run_on_model(model);
+    ov::npuw::CutLMHead(lm_head_model).run_on_model(model);
     if (lm_head_model) {
         lm_head_model->set_friendly_name(model->get_friendly_name() + "_lm_head");
     }
@@ -647,6 +563,98 @@ std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model
     return lm_head_model;
 }
 
+std::map<std::string, std::vector<std::size_t>> find_other_dynamic_outputs(const std::shared_ptr<ov::Model>& model) {
+    std::map<std::string, std::vector<std::size_t>> other_dynamic_outputs;
+    for (const auto& output : model->outputs()) {
+        // Filter logits, as we are collecting only "other" than logits outputs.
+        if (output.get_names().count(ov::npuw::LLMCompiledModel::layer_names::logits)) {
+            LOG_VERB("Skipping output port " << output.get_index() << " as it is identified as logits." << std::endl);
+            continue;
+        }
+
+        const auto& shape = output.get_partial_shape();
+        if (!shape.is_dynamic()) {
+            continue;
+        }
+
+        std::vector<std::size_t> dynamic_dims_ids;
+        for (auto dim_it = shape.begin(); dim_it != shape.end(); ++dim_it) {
+            if (dim_it->is_dynamic()) {
+                dynamic_dims_ids.push_back(std::distance(shape.begin(), dim_it));
+            }
+        }
+        OPENVINO_ASSERT(!dynamic_dims_ids.empty() && "Dynamic output should have at least one dynamic dimension");
+        const auto& output_name = output.get_any_name();
+        other_dynamic_outputs[output_name] = dynamic_dims_ids;
+        LOG_VERB("Find other dynamic output with name \"" << output_name << "\" at port: " << output << " with shape: "
+                                                          << shape << " with dynamic dimension indices: ");
+        if ((ov::npuw::get_log_level() >= ov::npuw::LogLevel::Verbose)) {
+            for (const auto& dim_id : dynamic_dims_ids) {
+                LOG_VERB("    - " << dim_id);
+            }
+        }
+    }
+    return other_dynamic_outputs;
+}
+
+std::map<ov::Output<const ov::Node>, std::size_t> find_other_outputs_with_seqdim(
+    const std::shared_ptr<ov::npuw::ICompiledModel_v0>& compiled_model,
+    const std::map<std::string, std::vector<std::size_t>>& other_dynamic_outputs,
+    const std::size_t expected_seqdim_value) {
+    std::map<ov::Output<const ov::Node>, std::size_t> other_outputs_with_seqdim;
+    const auto& cm_outs = compiled_model->outputs();
+    for (const auto& [name, dynamic_dims] : other_dynamic_outputs) {
+        const auto& output_name = name;
+        if (auto it = std::find_if(cm_outs.begin(),
+                                   cm_outs.end(),
+                                   [&output_name](const ov::Output<const ov::Node>& output) {
+                                       return output.get_names().count(output_name) > 0;
+                                   });
+            it != cm_outs.end()) {
+            const auto& port = *it;
+            const auto& static_shape = port.get_partial_shape();
+            OPENVINO_ASSERT(static_shape.is_static() && "Model should have static shape at this point");
+
+            auto matched_dyn_dim = dynamic_dims.front();
+            std::size_t match_count = 0;
+            // NB: Only one previous dynamic dimension will be reshaped to the stated sequence length.
+            //     Batch size has been also a dynamic dimension prevously, but it is expected to be
+            //     reshaped to 1, so it won't be equal to the max sequence length in the prefill model.
+            for (const auto& dim : dynamic_dims) {
+                OPENVINO_ASSERT(dim < static_shape.size(),
+                                "Dimension index " + std::to_string(dim) +
+                                    " is out of range for the static shape of output port: " + port.get_any_name());
+                if (static_shape[dim] == expected_seqdim_value) {
+                    matched_dyn_dim = dim;
+                    ++match_count;
+                }
+            }
+
+            if (match_count == 0) {
+                // NB: such an output is not accumulated across chunks, so in chunked prefill
+                //     it will only hold the value computed from the last processed chunk.
+                LOG_WARN("No dynamic dimension matched the max sequence length for output port: "
+                         << port.get_any_name()
+                         << ", assuming that given output doesn't need accumulation. "
+                            "Its value will reflect only the last processed prefill chunk.");
+                continue;
+            }
+
+            // Assert that only one match is found:
+            OPENVINO_ASSERT(match_count == 1,
+                            "Only one dynamic dimension is expected to be reshaped to the max sequence length, but "
+                            "found " +
+                                std::to_string(match_count) + " matches for output port: " + port.get_any_name());
+            other_outputs_with_seqdim.emplace(port, matched_dyn_dim);
+        } else {
+            LOG_WARN("Output port with name: " << name
+                                               << " was marked as dynamic additional output to the \"logits\","
+                                                  "but it wasn't found in outputs of prefill model!");
+        }
+    }
+    return other_outputs_with_seqdim;
+}
+
 }  // namespace
 
 // Apply DEVICE_ROUTED MoE transformations to models
@@ -881,6 +889,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
     KVAxesPosition axes{batch_dim, seq_len_dim};
 
+    std::map<std::string, std::vector<std::size_t>> other_dynamic_outputs;
+    if (m_use_chunk_prefill) {
+        LOG_VERB("Find all models outputs besides logits that also have dynamic shapes to handle in chunked prefill.");
+        other_dynamic_outputs = find_other_dynamic_outputs(model);
+        // Chunk size 1 makes the batch and sequence axes indistinguishable (both are 1),
+        // which breaks sequence-axis detection for non-logits outputs below.
+        OPENVINO_ASSERT(m_prefill_chunk_size != 1 || other_dynamic_outputs.empty(),
+                        "NPUW_LLM_PREFILL_CHUNK_SIZE=1 is not supported together with non-logits outputs. "
+                        "Please use a larger chunk size.");
+    }
+
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
 
@@ -994,6 +1013,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (!m_is_whisper && !m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
         ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
+    }
+
+    if (m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_LINCACHE_LAYOUT>()) {
+        // Applied once before the prefill model and the generate variants are cloned, so all of
+        // them share the conv state layout that the byte-wise present -> past copy relies on.
+        if (ov::npuw::util::OptimizeLinCacheLayout().run_on_model(kvcache_model)) {
+            LOG_DEBUG("Conv state tensors re-laid out as [batch, kernel, channels]");
+        }
     }
 
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
@@ -1118,13 +1145,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     if (lm_head_model && supports_logits_selection) {
         LOG_DEBUG("Shared LM head: select prefill output rows");
-        ov::npuw::SelectLastLogits(axes.batch, m_kvcache_desc.max_generation_token_len, LLMCompiledModel::output_embeds)
+        ov::npuw::SelectLastLogits(axes.batch,
+                                   m_kvcache_desc.max_generation_token_len,
+                                   LLMCompiledModel::layer_names::output_embeds)
             .run_on_model(prefill_model);
         if (m_kvcache_desc.max_generation_token_len > 1u) {
             for (auto& generate_variant : generate_model_variants) {
                 ov::npuw::SelectLastLogits(axes.batch,
                                            m_kvcache_desc.max_generation_token_len,
-                                           LLMCompiledModel::output_embeds)
+                                           LLMCompiledModel::layer_names::output_embeds)
                     .run_on_model(generate_variant);
             }
         }
@@ -1265,6 +1294,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, other_props);
     merge_config_with(generate_config, other_props);
     merge_config_with(prefill_config, prefill_config_addition_value);
+    // If model has multiple outputs, only logits will be extracted to a separate model.
+    // Prefill will have all other outputs. It might be a wrong assumption that all of
+    // them need to be sliced for, for instance, 1 token.
+    if (lm_head_model) {
+        LOG_DEBUG("LM head model is present, erasing NPUW_SLICE_OUT from prefill config.");
+        prefill_config.erase("NPUW_SLICE_OUT");
+    }
     merge_config_with(generate_config, generate_config_addition_value);
     if (user_compilation_mode_params.has_value() && default_compilation_mode_params.has_value() &&
         user_compilation_mode_params.value() != default_compilation_mode_params.value()) {
@@ -1533,6 +1569,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_prefill_compiled = m_compiled_model_factory(prefill_model, plugin, prefill_config);
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
                                       "model and its config, please check passed config.");
+    if (m_use_chunk_prefill) {
+        LOG_VERB("Find all models outputs besides logits that have sequence dimension to handle in chunked prefill.");
+        m_prefill_other_outs_seqdims =
+            find_other_outputs_with_seqdim(m_prefill_compiled, other_dynamic_outputs, m_prefill_chunk_size);
+    }
     if (lm_head_model) {
         auto lm_head_config = get_default_lm_head_config(npudesc);
         merge_config_with(lm_head_config, other_props);
@@ -1611,6 +1652,32 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     }
 }
 
+std::map<std::string, std::size_t> ov::npuw::LLMCompiledModel::serialize_prefill_other_outs_seqdims() const {
+    std::map<std::string, std::size_t> by_name;
+    for (const auto& [port, seqdim] : m_prefill_other_outs_seqdims) {
+        by_name.emplace(port.get_any_name(), seqdim);
+    }
+    return by_name;
+}
+
+void ov::npuw::LLMCompiledModel::deserialize_prefill_other_outs_seqdims(
+    const std::map<std::string, std::size_t>& by_name) {
+    m_prefill_other_outs_seqdims.clear();
+    const auto& prefill_outs = m_prefill_compiled->outputs();
+    for (const auto& [port_name, seqdim] : by_name) {
+        const auto& name = port_name;
+        auto it =
+            std::find_if(prefill_outs.begin(), prefill_outs.end(), [&name](const ov::Output<const ov::Node>& out) {
+                return out.get_names().count(name) > 0;
+            });
+        OPENVINO_ASSERT(it != prefill_outs.end(),
+                        "NPUW blob: prefill output '",
+                        port_name,
+                        "' from the seq-dim table is missing after import.");
+        m_prefill_other_outs_seqdims.emplace(*it, seqdim);
+    }
+}
+
 void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::npuw::s11n::CompiledContext& ctx) const {
     LOG_INFO("Serializing LLMCompiledModel...");
     LOG_BLOCK();
@@ -1673,6 +1740,12 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
         if (is_shared_lm_head) {
             m_lm_head_compiled->serialize(model_stream, enc_ctx);
         }
+
+        // The chunked-prefill outputs' sequence-dimension table is keyed by model output ports,
+        // which cannot be serialized directly. Export it by tensor name instead, so it can be
+        // rebuilt against the restored prefill model on import.
+        auto other_outs_seqdims = serialize_prefill_other_outs_seqdims();
+        stream & other_outs_seqdims;
     };
 
     std::stringstream non_encrypted_stream;
@@ -1887,6 +1960,12 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_lm_head_compiled =
                 ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         }
+
+        // Rebuild the chunked-prefill outputs' sequence dimension table by matching tensor names
+        // against the restored prefill model (see the matching comment in serialize()).
+        std::map<std::string, std::size_t> other_outs_seqdims;
+        stream & other_outs_seqdims;
+        compiled->deserialize_prefill_other_outs_seqdims(other_outs_seqdims);
 
         // Reject blobs whose KVCacheDesc::dim is not a valid axis for the restored KV tensors.
         compiled->validate_imported_kvcache_dim();
@@ -2114,6 +2193,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN, get),
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
+                          BIND(npuw::llm::optimize_lincache_layout, NPUW_LLM_OPTIMIZE_LINCACHE_LAYOUT, get),
                           BIND(npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8, get),
                           BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
                           BIND(npuw::llm::enable_block_based_kv_cache, NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE, get),
