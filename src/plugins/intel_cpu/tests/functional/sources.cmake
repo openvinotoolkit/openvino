@@ -284,9 +284,13 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/paged_qsa_indexer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/sparse_sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/sparse_sdpa.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/sparse_pa.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/sparse_pa.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/common/sparse_sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/../../src/transformations/cpu_opset/x64/op/qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/../../src/transformations/cpu_opset/x64/op/qsa_indexer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../../src/transformations/cpu_opset/x64/op/sparse_pa.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/../../src/transformations/cpu_opset/x64/op/sparse_pa.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/selective_ssm_jit.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/activation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/col2im.cpp
@@ -308,6 +312,7 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/reduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/rms_norm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/softmax.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/sparse_pa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/transpose.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/bf16_convert_saturation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/bf16_embed_tokens_rms.cpp

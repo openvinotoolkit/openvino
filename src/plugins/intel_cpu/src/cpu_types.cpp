@@ -272,7 +272,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"PagedCausalConv1D", Type::PagedCausalConv1D},
         {"QSAIndexer", Type::QSAIndexer},
         {"SparseAttention", Type::SparseSDPA},
-        {"PagedQSAIndexer", Type::PagedQSAIndexer}};
+        {"PagedQSAIndexer", Type::PagedQSAIndexer},
+        {"SparsePA", Type::SparsePA}};
     return type_to_name_tbl;
 }
 
@@ -417,6 +418,7 @@ std::string NameFromType(const Type type) {
         CASE(QSAIndexer);
         CASE(SparseSDPA);
         CASE(PagedQSAIndexer);
+        CASE(SparsePA);
         CASE(Unknown);
     }
 #undef CASE

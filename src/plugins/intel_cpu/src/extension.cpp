@@ -123,6 +123,7 @@
 #    include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #    include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 #    include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
+#    include "transformations/cpu_opset/x64/op/sparse_pa.hpp"
 #elif defined(OPENVINO_ARCH_ARM64)
 #    include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
 #    include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
@@ -233,6 +234,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::BrgemmCPU>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::BrgemmCopyB>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::QSAIndexer>>())
+    OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::op::internal::SparsePA>>())
     OP_EXTENSION_ARM64(std::make_shared<ov::OpExtension<ov::intel_cpu::LoadConvertSaturation>>())
     OP_EXTENSION_ARM64(std::make_shared<ov::OpExtension<ov::intel_cpu::LoadConvertTruncation>>())
     OP_EXTENSION_ARM64(std::make_shared<ov::OpExtension<ov::intel_cpu::StoreConvertSaturation>>())

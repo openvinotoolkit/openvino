@@ -104,6 +104,7 @@
 #include "nodes/space_to_batch.h"
 #include "nodes/space_to_depth.h"
 #include "nodes/sparse_fill_empty_rows.h"
+#include "nodes/sparse_pa.h"
 #include "nodes/sparse_sdpa.h"
 #include "nodes/split.h"
 #include "nodes/stft.h"
@@ -269,6 +270,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(node::QSAIndexer, Type::QSAIndexer);
     INTEL_CPU_NODE(SparseSDPA, Type::SparseSDPA);
     INTEL_CPU_NODE(PagedQSAIndexer, Type::PagedQSAIndexer);
+    INTEL_CPU_NODE(node::SparsePA, Type::SparsePA);
 #elif defined(OPENVINO_ARCH_ARM64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);

@@ -489,6 +489,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/sparse_fill_empty_rows.h
     ${CPU_SRC_DIR}/nodes/sparse_sdpa.cpp
     ${CPU_SRC_DIR}/nodes/sparse_sdpa.h
+    ${CPU_SRC_DIR}/nodes/sparse_pa.cpp
+    ${CPU_SRC_DIR}/nodes/sparse_pa.h
     ${CPU_SRC_DIR}/nodes/split.cpp
     ${CPU_SRC_DIR}/nodes/split.h
     ${CPU_SRC_DIR}/nodes/stft.cpp
@@ -855,6 +857,8 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qsa_indexer.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qkv_proj.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qkv_proj.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/sparse_pa.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/sparse_pa.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/convert_to_interaction.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/convert_to_interaction.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/mlp_fusion.cpp
