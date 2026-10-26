@@ -15,6 +15,21 @@ namespace {
 
 constexpr ze_driver_uuid_t uuid = ze_intel_npu_driver_uuid;
 
+bool isExtensionNameMatching(const char* propertyName, const char* extName) {
+    if (strcmp(propertyName, extName) == 0) {
+        return true;
+    }
+
+    // Older drivers use specific names for different graph ext versions, e.g.: ZE_extension_graph_1_1
+    if (strcmp(extName, ZE_GRAPH_EXT_NAME) != 0) {
+        return false;
+    }
+
+    const size_t extNameLen = strlen(extName);
+    return strncmp(propertyName, extName, extNameLen) == 0 && propertyName[extNameLen] == '_' &&
+           propertyName[extNameLen + 1] >= '0' && propertyName[extNameLen + 1] <= '9';
+}
+
 std::tuple<uint32_t, std::string> queryDriverExtensionVersion(const char* extName,
                                                               uint32_t extCurrentVersion,
                                                               std::vector<ze_driver_extension_properties_t>& extProps,
@@ -25,7 +40,7 @@ std::tuple<uint32_t, std::string> queryDriverExtensionVersion(const char* extNam
     for (uint32_t i = 0; i < count; ++i) {
         auto& property = extProps[i];
 
-        if (strncmp(property.name, extName, strlen(extName)) != 0) {
+        if (!isExtensionNameMatching(property.name, extName)) {
             continue;
         }
 
