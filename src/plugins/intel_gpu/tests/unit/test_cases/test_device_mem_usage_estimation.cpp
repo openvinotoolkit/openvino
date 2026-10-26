@@ -6,6 +6,7 @@
 #include <algorithm>
 
 #include "test_utils.h"
+#include "intel_gpu/plugin/detail/batch_size_estimation.hpp"
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <openvino/runtime/core.hpp>
@@ -14,6 +15,16 @@
 
 using namespace cldnn;
 using namespace tests;
+
+TEST(batch_size_estimation, unavailable_general_memory_uses_conservative_fallback) {
+    EXPECT_EQ(1, ov::intel_gpu::detail::estimate_max_batch_size(3504054272, 4868270, 0, 16, 2));
+    EXPECT_EQ(1, ov::intel_gpu::detail::estimate_max_batch_size(3504054272, 4868270, -1, 16, 2));
+}
+
+TEST(batch_size_estimation, valid_memory_estimate_preserves_batch_calculation) {
+    EXPECT_EQ(450, ov::intel_gpu::detail::estimate_max_batch_size(1000000, 100000, 16000, 16, 2));
+    EXPECT_EQ(450000, ov::intel_gpu::detail::estimate_max_batch_size(1000000, 100000, 1, 16, 2));
+}
 
 class test_device_mem_usage_estimation: public ::testing::Test {
 public:
