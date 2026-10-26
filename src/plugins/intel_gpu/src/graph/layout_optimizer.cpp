@@ -209,7 +209,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         for (auto& fused_op : next.get_fused_primitives()) {
             if (fused_op.is_type<eltwise>()) {
                 auto out_layout = next.get_output_layout();
-                auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(next, fused_op);
+                auto add_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(next, fused_op);
                 if (add_type == add_fusing_type::sum && prev.get_output_layout().format != out_layout.format)
                     return false;
             }
@@ -1471,11 +1471,24 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         // if the resample is in the last part of the network and there are no users using blocked format,
         // it is better to reorder to bfyx before resample is done.
         // Skip all user format check when node is dynamic. It could cause endless recursive call in get_preferred_foramt()
-        if (!node.is_dynamic() && all_users_simple_format_until_output(node, node, 0, 10)) {
-            const auto& dim = format::dimension(node.get_output_layout().format);
-            expected = format::get_default_format(dim, false, false);
-        } else {
-            expected = format::any;
+        // A rank-changing user (e.g. reshape, gather) may query this resample's preferred format again while its users are
+        // being checked, which would restart the user check and recurse endlessly. Such a re-entrant query returns any.
+        expected = format::any;
+        if (!node.is_dynamic()) {
+            const bool is_reentrant = !_resample_users_check_in_progress.insert(&node).second;
+            if (!is_reentrant) {
+                struct in_progress_guard {
+                    std::unordered_set<const program_node*>& nodes;
+                    const program_node* node;
+                    ~in_progress_guard() {
+                        nodes.erase(node);
+                    }
+                } guard{_resample_users_check_in_progress, &node};
+                if (all_users_simple_format_until_output(node, node, 0, 10)) {
+                    const auto& dim = format::dimension(node.get_output_layout().format);
+                    expected = format::get_default_format(dim, false, false);
+                }
+            }
         }
     } else if (node.is_type<permute>()) {
         if (node.get_dependencies().size() == 1 && node.get_dependencies().front().first->is_type<convolution>()) {
@@ -1559,9 +1572,7 @@ bool layout_optimizer::all_users_simple_format_until_output(program_node& origin
             return false;
     }
 
-    // Reshape intrinsically requires plain input and output formats. Continue through it without
-    // recursively querying its dependency's preferred format.
-    if (cur_node.is_in_data_flow() && !cur_node.is_type<reshape>() && (cur_node.type() != origin_node.type())) {
+    if (cur_node.is_in_data_flow() && (cur_node.type() != origin_node.type())) {
         const auto& fmt = get_preferred_format(cur_node);
         if (fmt != format::any && !format::is_simple_data_format(fmt)) {
             return false;
