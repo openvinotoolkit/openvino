@@ -11,6 +11,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/pooling.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/roll.hpp>
 #include <map>
 #include <string>
 #include <vector>
@@ -131,10 +132,13 @@ protected:
                 topo.add(activation(branch.id + "_relu", input_info(branch.id + "_add"), activation_func::relu));
                 last = branch.id + "_relu";
             }
-            // Pooling is not in the byxf_onednn_convolution whitelist, so the convolution keeps b_fs_yx_fsv16.
             topo.add(pooling(branch.id + "_pool", input_info(last), pooling_mode::max, {1, 1}, {1, 1}));
             topo.add(reorder(branch.id + "_out", input_info(branch.id + "_pool"), format::bfyx, data_types::f32));
         }
+        // Roll is not in the byxf_onednn_convolution whitelist, so the convolutions keep b_fs_yx_fsv16.
+        topo.add(input_layout("side", side_layout));
+        topo.add(roll("side_roll", input_info("side"), tensor(0, 0, 1, 0)));
+        topo.add(reorder("side_out", input_info("side_roll"), format::bfyx, data_types::f32));
         return topo;
     }
 
@@ -167,6 +171,8 @@ protected:
 
         const auto& in = branches.front().geometry;
         add_input("input", in.in_features, in.in_size);
+        inputs["side"] = engine.allocate_memory(side_layout);
+        set_values(inputs["side"], rg.generate_random_1d<ov::float16>(side_layout.count(), -1, 1));
         if (residual_relu) {
             for (const auto& branch : branches) {
                 add_input(branch.id + "_residual", branch.geometry.out_features, branch.geometry.out_size());
@@ -245,6 +251,7 @@ protected:
         compare_with_reference(actual, batch, inputs);
     }
 
+    const layout side_layout{ov::PartialShape{1, 8, 8, 8}, data_types::f16, format::bfyx};
     tests::random_generator rg;
     std::vector<conv_branch> branches;
     bool residual_relu = false;
