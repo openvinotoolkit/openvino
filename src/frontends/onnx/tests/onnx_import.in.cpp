@@ -11,7 +11,7 @@
 #include <numeric>
 #include <sstream>
 #include <stdexcept>
-#include <vector>
+#include <vector>8
 
 // clang-format off
 #ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
@@ -8241,8 +8241,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_circular_empty) {
 // unknown at conversion time. The axis normalization and the transpose permutation are then
 // constructed at runtime. axis=2 on the rank-4 input requires an actual transpose.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_dynamic_rank) {
-    if (s_device == "CPU") {
-        GTEST_SKIP() << "CPU plug-in does not support Parameter operations with dynamic rank";
+    if (s_device == "CPU" || s_device == "GPU") {
+        GTEST_SKIP() << "CPU and GPU plug-ins do not support Parameter operations with dynamic rank";
     }
 
     const auto model = convert_model("tensor_scatter_dynamic_rank.onnx");
