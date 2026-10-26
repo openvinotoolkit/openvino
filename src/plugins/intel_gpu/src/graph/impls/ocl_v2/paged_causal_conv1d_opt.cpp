@@ -1,0 +1,203 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "paged_causal_conv1d_opt.hpp"
+
+#include <algorithm>
+#include <limits>
+
+#include "intel_gpu/primitives/paged_causal_conv1d.hpp"
+#include "primitive_ocl_base.hpp"
+#include "utils/kernel_generator.hpp"
+
+namespace ov::intel_gpu::ocl {
+namespace {
+
+enum class ScalarArg : size_t {
+    sequence_count,
+    hidden_size,
+    input_token_stride,
+    input_hidden_stride,
+    state_block_stride,
+    state_hidden_stride,
+    state_kernel_stride,
+    weight_hidden_stride,
+    weight_kernel_stride,
+    bias_hidden_stride,
+    output_token_stride,
+    output_hidden_stride,
+    state_block_count,
+    token_count,
+    tokens_per_item,
+    input_offset,
+    state_offset,
+    weight_offset,
+    bias_offset,
+    subsequence_offset,
+    block_indices_offset,
+    block_begins_offset,
+    past_lens_offset,
+    cache_interval_offset,
+    output_offset,
+    count,
+};
+
+constexpr size_t scalar_arg_count = static_cast<size_t>(ScalarArg::count);
+
+// Token ranges are sized so that a prompt is split into about this many ranges per channel.
+constexpr int32_t target_token_ranges = 128;
+constexpr int32_t max_tokens_per_item = 16;
+
+class PagedCausalConv1DOptGenerator : public KernelGenerator {
+public:
+    PagedCausalConv1DOptGenerator() : KernelGenerator("paged_causal_conv1d_opt") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+
+        const auto& input_shape = params.get_input_layout(paged_causal_conv1d::INPUT_EMBEDS).get_partial_shape();
+        const auto& state_shape = params.get_input_layout(paged_causal_conv1d::CONV_STATE_TABLE).get_partial_shape();
+        const auto& bias_shape = params.get_input_layout(paged_causal_conv1d::CONV_BIAS).get_partial_shape();
+        const bool has_bias = bias_shape.rank().is_static() && bias_shape.size() == 1 && bias_shape[0].is_static() && bias_shape[0].get_length() != 0;
+
+        jit.make("HIDDEN_SIZE", static_cast<int>(input_shape[1].get_length()));
+        jit.make("KERNEL_SIZE", static_cast<int>(state_shape[2].get_length()));
+        jit.make("HAS_BIAS", has_bias ? 1 : 0);
+
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+
+        for (uint32_t i = 0; i < params.input_layouts.size(); i++) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, i});
+        }
+
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+
+        for (size_t i = 0; i < scalar_arg_count; i++) {
+            args.push_back({ArgumentDescriptor::Types::SCALAR, static_cast<uint32_t>(i)});
+        }
+
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+            assert(!params.is_dynamic());
+            auto& wgs = kd.params.workGroups;
+
+            const auto& input_shape = params.get_input_layout(paged_causal_conv1d::INPUT_EMBEDS).get_partial_shape();
+            const auto& seq_shape = params.get_input_layout(paged_causal_conv1d::SUBSEQUENCE_BEGINS).get_partial_shape();
+
+            const int32_t seq_count = seq_shape[0].get_length() > 0 ? static_cast<int32_t>(seq_shape[0].get_length() - 1) : 0;
+            const int32_t token_count = static_cast<int32_t>(input_shape[0].get_length());
+            const int32_t hidden_size = static_cast<int32_t>(input_shape[1].get_length());
+
+            auto read_pitch = [](const cldnn::layout& layout, size_t idx) -> int32_t {
+                const auto& pitches = layout.get_pitches();
+                if (idx < pitches.size()) {
+                    return static_cast<int32_t>(pitches[idx]);
+                }
+                return 1;
+            };
+
+            const auto& in_layout = params.input_layouts[paged_causal_conv1d::INPUT_EMBEDS];
+            const auto& state_layout = params.input_layouts[paged_causal_conv1d::CONV_STATE_TABLE];
+            const auto& weight_layout = params.input_layouts[paged_causal_conv1d::CONV_WEIGHT];
+            const auto& bias_layout = params.input_layouts[paged_causal_conv1d::CONV_BIAS];
+            const auto& out_layout = params.output_layouts[0];
+            const auto& bias_shape = bias_layout.get_partial_shape();
+            const bool has_bias = bias_shape.rank().is_static() && bias_shape.size() == 1 && bias_shape[0].is_static() && bias_shape[0].get_length() != 0;
+
+            const int32_t input_token_stride = read_pitch(in_layout, 0);
+            const int32_t input_hidden_stride = read_pitch(in_layout, 1);
+
+            const int32_t state_block_stride = read_pitch(state_layout, 0);
+            const int32_t state_hidden_stride = read_pitch(state_layout, 1);
+            const int32_t state_kernel_stride = read_pitch(state_layout, 2);
+
+            const int32_t weight_hidden_stride = read_pitch(weight_layout, 0);
+            const int32_t weight_kernel_stride = read_pitch(weight_layout, 2);
+
+            const int32_t bias_hidden_stride = has_bias ? read_pitch(bias_layout, 0) : 0;
+
+            const int32_t output_token_stride = read_pitch(out_layout, 0);
+            const int32_t output_hidden_stride = read_pitch(out_layout, 1);
+
+            const int32_t tokens_per_item = std::clamp<int32_t>((token_count + target_token_ranges - 1) / target_token_ranges, 1, max_tokens_per_item);
+            const size_t token_ranges = std::max<size_t>(1, (static_cast<size_t>(token_count) + tokens_per_item - 1) / tokens_per_item);
+
+            const size_t lws_y = std::min<size_t>(256, static_cast<size_t>(hidden_size));
+            const size_t gws_y = ((static_cast<size_t>(hidden_size) + lws_y - 1) / lws_y) * lws_y;
+            wgs.global = {token_ranges, gws_y, 1};
+            wgs.local = {1, lws_y, 1};
+
+            kd.params.scalars.clear();
+            std::vector<int32_t> scalars{
+                seq_count,
+                hidden_size,
+                input_token_stride,
+                input_hidden_stride,
+                state_block_stride,
+                state_hidden_stride,
+                state_kernel_stride,
+                weight_hidden_stride,
+                weight_kernel_stride,
+                bias_hidden_stride,
+                output_token_stride,
+                output_hidden_stride,
+                static_cast<int32_t>(params.get_input_layout(paged_causal_conv1d::CONV_STATE_TABLE).get_partial_shape()[0].get_length()),
+                token_count,
+                tokens_per_item,
+            };
+
+            auto append_offset = [&scalars](const cldnn::layout& layout) {
+                const auto offset = layout.get_linear_offset();
+                OPENVINO_ASSERT(offset <= static_cast<size_t>(std::numeric_limits<int32_t>::max()), "PagedCausalConv1D layout offset exceeds int32 range");
+                scalars.push_back(static_cast<int32_t>(offset));
+            };
+            for (const auto& input_layout : params.input_layouts)
+                append_offset(input_layout);
+            append_offset(out_layout);
+            OPENVINO_ASSERT(scalars.size() == scalar_arg_count, "PagedCausalConv1D scalar arguments do not match the kernel signature");
+
+            for (auto v : scalars) {
+                scalar_desc desc;
+                desc.t = scalar_desc::Types::INT32;
+                desc.v.s32 = v;
+                kd.params.scalars.push_back(desc);
+            }
+        }};
+    }
+};
+
+class PagedCausalConv1DOptImpl : public PrimitiveImplOCL {
+public:
+    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::PagedCausalConv1DOptImpl)
+
+    Stage::Ptr paged_causal_conv1d = make_stage<PagedCausalConv1DOptGenerator>();
+
+    PagedCausalConv1DOptImpl() : PrimitiveImplOCL(PagedCausalConv1DOpt::get_type_info_static()) {}
+    PagedCausalConv1DOptImpl(const program_node& node, const RuntimeParams& params) : PagedCausalConv1DOptImpl() {
+        add_stage(paged_causal_conv1d, params);
+    }
+
+    [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
+        return make_deep_copy<PagedCausalConv1DOptImpl>(this);
+    }
+};
+
+}  // namespace
+
+std::unique_ptr<primitive_impl> PagedCausalConv1DOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
+    assert(node.is_type<paged_causal_conv1d>());
+    return std::make_unique<PagedCausalConv1DOptImpl>(node, params);
+}
+
+}  // namespace ov::intel_gpu::ocl
+
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::PagedCausalConv1DOptImpl)
