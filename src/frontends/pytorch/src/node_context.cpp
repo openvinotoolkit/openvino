@@ -280,7 +280,7 @@ Output<Node> NodeContext::get_input_from_visible_context(size_t index, bool reso
             if (ov::is_type<v0::Parameter>(value.get_node())) {
                 const auto tensor_id = m_translate_session->decode_tensor_name(value);
                 const auto external = m_ext_tensor_map.find(tensor_id);
-                if (external != m_ext_tensor_map.end() && ov::is_type<v0::Constant>(external->second.get_node())) {
+                if (external != m_ext_tensor_map.end()) {
                     return external->second;
                 }
             }

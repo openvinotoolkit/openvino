@@ -63,6 +63,49 @@ def test_torchscript_subgraph_convolution_constants(dimension, groups, scope):
 
 @pytest.mark.precommit
 @pytest.mark.nightly
+@pytest.mark.parametrize("scope", ["branch", "nested", "loop"])
+def test_torchscript_subgraph_computed_convolution_constants(scope):
+    class Model(torch.nn.Module):
+        __constants__ = ["scope"]
+
+        def __init__(self):
+            super().__init__()
+            self.weight = torch.nn.Parameter(torch.randn(4, 4, 3, 3))
+            self.kernel_size = 3
+            self.enabled = True
+            self.inner_enabled = True
+            self.repeat = 2
+            self.scope = scope
+
+        def convolve(self, x: torch.Tensor, stride: int, padding: int):
+            return torch.nn.functional.conv2d(x, self.weight, stride=[stride, stride], padding=[padding, padding])
+
+        def forward(self, x: torch.Tensor):
+            stride = self.kernel_size - 1
+            padding = self.kernel_size // 2
+            if self.enabled:
+                if self.scope == "loop":
+                    for _ in range(self.repeat):
+                        x = self.convolve(x, stride, padding)
+                elif self.scope == "nested":
+                    if self.inner_enabled:
+                        x = self.convolve(x, stride, padding)
+                else:
+                    x = self.convolve(x, stride, padding)
+            return x
+
+    torch.manual_seed(0)
+    source = torch.jit.script(Model().eval())
+    inputs = torch.randn(1, 4, 9, 9)
+    converted = ov.convert_model(source, example_input=inputs)
+    compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+    actual = compiled(inputs.numpy())[0]
+    expected = source(inputs).detach().numpy()
+    np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-6)
+
+
+@pytest.mark.precommit
+@pytest.mark.nightly
 @pytest.mark.parametrize("outer,inner", [(False, False), (False, True), (True, False), (True, True)])
 def test_torchscript_nested_constant_mutation_before_append(outer, inner):
     class Model(torch.nn.Module):
