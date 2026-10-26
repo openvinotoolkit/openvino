@@ -289,6 +289,28 @@ TEST(constant, double_vector_broadcast) {
 }
 
 //
+// int2
+//
+
+TEST(constant, int2_write_and_read_back) {
+    Shape shape{4};
+    std::vector<int> input{-2, 1, 0, -1};
+    ov::op::v0::Constant c(element::i2, shape, input);
+
+    EXPECT_EQ(c.get_byte_size(), 1u);
+    EXPECT_EQ(c.cast_vector<int>(), input);
+    // Twos complement, low bits first: -2, 1, 0, -1 pack to 0xC6.
+    EXPECT_EQ(c.get_data_ptr<uint8_t>()[0], 0xC6);
+}
+
+TEST(constant, int2_out_of_range_throws) {
+    EXPECT_THROW(ov::op::v0::Constant(element::i2, Shape{1}, std::vector<int>{2}), Exception);
+    EXPECT_THROW(ov::op::v0::Constant(element::i2, Shape{1}, std::vector<int>{-3}), Exception);
+    EXPECT_THROW(ov::op::v0::Constant(element::i2, Shape{1}, std::vector<int>{254}), Exception);
+    EXPECT_THROW(ov::op::v0::Constant(element::i2, Shape{1}, std::vector<int>{-258}), Exception);
+}
+
+//
 // int4
 //
 

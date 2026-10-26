@@ -255,6 +255,7 @@ def test_init_bf16_direct(ov_type, numpy_dtype, shared_flag):
         (Type.u3, np.uint8),
         (Type.u4, np.uint8),
         (Type.u6, np.uint8),
+        (Type.i2, np.int8),
         (Type.i4, np.int8),
         (Type.nf4, np.uint8),
     ],
@@ -290,6 +291,14 @@ def test_constant_direct_packing(ov_type, src_dtype, shared_flag, data_getter):
 
     assert np.array_equal(unpacked, data)
     assert not np.shares_memory(unpacked, data)
+
+
+def test_constant_direct_packing_i2_sign_extension():
+    # Each byte is palindromic to isolate sign extension from the core's low-code-first packing order.
+    data = np.array([-2, -1, -1, -2, 0, 1, 1, 0], dtype=np.int8)
+    ov_const = ops.constant(data, dtype=Type.i2)
+    unpacked = unpack_data(ov_const.get_data(), ov_const.get_element_type(), ov_const.shape)
+    assert np.array_equal(unpacked, data)
 
 
 @pytest.mark.parametrize(

@@ -63,6 +63,7 @@ enum class Type_t {
     string,   //!< string element type
     f4e2m1,   //!< f4e2m1 element type
     f8e8m0,   //!< f8e8m0 element type
+    i2,       //!< i2 element type
 };
 
 /// \brief Base class to define element type
@@ -213,6 +214,9 @@ inline constexpr Type f4e2m1(Type_t::f4e2m1);
 /// \brief f8e8m0 element type
 /// \ingroup ov_element_cpp_api
 inline constexpr Type f8e8m0(Type_t::f8e8m0);
+/// \brief i2 element type
+/// \ingroup ov_element_cpp_api
+inline constexpr Type i2(Type_t::i2);
 
 template <class T>
 constexpr Type from() {

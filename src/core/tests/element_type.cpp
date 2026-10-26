@@ -39,6 +39,8 @@ constexpr auto element_type_cases = util::make_array(std::pair{"boolean", elemen
                                                      std::pair{"FP32", element::f32},
                                                      std::pair{"f64", element::f64},
                                                      std::pair{"FP64", element::f64},
+                                                     std::pair{"i2", element::i2},
+                                                     std::pair{"I2", element::i2},
                                                      std::pair{"i4", element::i4},
                                                      std::pair{"I4", element::i4},
                                                      std::pair{"i8", element::i8},

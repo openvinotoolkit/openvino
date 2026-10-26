@@ -122,7 +122,8 @@ INSTANTIATE_TEST_SUITE_P(ov_tensor,
                                            ov_element_type_e::U8,
                                            ov_element_type_e::U16,
                                            ov_element_type_e::U32,
-                                           ov_element_type_e::U64));
+                                           ov_element_type_e::U64,
+                                           ov_element_type_e::I2));
 
 TEST_P(ov_tensor_create_test, get_tensor_element_type) {
     ov_element_type_e type = GetParam();

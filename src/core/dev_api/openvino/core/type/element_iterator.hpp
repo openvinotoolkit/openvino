@@ -35,7 +35,7 @@ namespace element {
  * @return True if element type is bit type otherwise false.
  */
 constexpr bool is_bit_type(Type_t et) {
-    return et == u1 || et == u2 || et == u3 || et == u6;
+    return et == u1 || et == u2 || et == u3 || et == u6 || et == i2;
 }
 
 /**
@@ -67,7 +67,7 @@ constexpr bool is_byte_type(Type_t et) {
  * @return True if element type is a signed sub-byte integer type otherwise false.
  */
 constexpr bool is_signed_sub_byte(Type_t et) {
-    return et == i4;
+    return et == i2 || et == i4;
 }
 
 /**
@@ -128,6 +128,11 @@ constexpr size_t bit_width<Type_t::u6>() {
 template <>
 constexpr size_t bit_width<Type_t::f4e2m1>() {
     return 4;
+}
+
+template <>
+constexpr size_t bit_width<Type_t::i2>() {
+    return 2;
 }
 
 /**

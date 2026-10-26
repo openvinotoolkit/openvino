@@ -18,7 +18,7 @@ namespace utils {
 static const std::vector<element::Type>& get_known_types() {
     static const auto known_types = [] {
         using namespace ov::element;
-        constexpr size_t enum_count = static_cast<std::underlying_type_t<Type_t>>(Type_t::f8e8m0);
+        constexpr size_t enum_count = static_cast<std::underlying_type_t<Type_t>>(Type_t::i2);
 
         std::vector<Type> types(enum_count);
         for (size_t idx = 1, i = 0; i < types.size(); ++idx, ++i) {
@@ -76,6 +76,11 @@ static ov::test::utils::InputGenerateData get_range_by_type(
     case (ov::element::Type_t::boolean): {
         inData.start_from = 0;
         inData.range = 2;
+        break;
+    }
+    case (ov::element::Type_t::i2): {
+        inData.start_from = -2;
+        inData.range = 4;
         break;
     }
     case ov::element::Type_t::string: {

@@ -29,9 +29,9 @@
 
 namespace ov::op {
 
-#define SUPPORTED_ET                                                                                                 \
-    boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, nf4, f8e4m3, f8e5m2, \
-        f4e2m1, f8e8m0
+#define SUPPORTED_ET                                                                                             \
+    boolean, bf16, f16, f32, f64, i2, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, nf4, f8e4m3, \
+        f8e5m2, f4e2m1, f8e8m0
 
 template <class TContainer>
 TContainer convert_values_to(std::vector<int64_t>&& values, const Shape& shape) {
@@ -95,6 +95,9 @@ bool in_t_range(const U& v) {
     } else if constexpr (ET == element::u6) {
         const auto temp = static_cast<ConstantT>(v);
         return 0 <= temp && temp <= 63;
+    } else if constexpr (ET == element::i2) {
+        // Check the source value before narrowing; otherwise values such as 254 wrap into the i2 range.
+        return v >= 0 ? v <= 1 : v >= -2;
     } else if constexpr (ET == element::i4) {
         const auto temp = static_cast<ConstantT>(v);
         return -8 <= temp && temp <= 7;

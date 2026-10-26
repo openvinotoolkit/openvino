@@ -69,6 +69,7 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
         CASE_CONVERT(ov::element::u3)
         CASE_CONVERT(ov::element::u2)
         CASE_CONVERT(ov::element::u1)
+        CASE_CONVERT(ov::element::i2)
         CASE_CONVERT(ov::element::i4)
         CASE_CONVERT(ov::element::nf4)
         CASE_CONVERT(ov::element::f8e4m3)

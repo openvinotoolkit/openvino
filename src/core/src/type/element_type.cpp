@@ -21,7 +21,7 @@ constexpr size_t idx(Type_t e) noexcept {
 }
 
 // Update it when new type is added
-constexpr size_t enum_types_size = idx(f8e8m0) + 1;
+constexpr size_t enum_types_size = idx(i2) + 1;
 
 template <class Array>
 constexpr TypeInfo type_info(size_t bitwidth,
@@ -60,6 +60,7 @@ constexpr auto f8e5m2_aliases = util::make_array("F8E5M2");
 constexpr auto string_aliases = util::make_array("STRING");
 constexpr auto f4e2m1_aliases = util::make_array("F4E2M1");
 constexpr auto f8e8m0_aliases = util::make_array("F8E8M0");
+constexpr auto i2_aliases = util::make_array("I2");
 
 static constexpr std::array<TypeInfo, enum_types_size> types_info = {
     type_info(0, false, false, false, "dynamic", "dynamic", dynamic_aliases),                     // dynamic
@@ -87,7 +88,8 @@ static constexpr std::array<TypeInfo, enum_types_size> types_info = {
     type_info(8, true, true, true, "f8e5m2", "f8e5m2", f8e5m2_aliases),                           // f8e5m2
     type_info(8 * sizeof(std::string), false, false, false, "string", "string", string_aliases),  // string
     type_info(4, true, true, true, "f4e2m1", "f4e2m1", f4e2m1_aliases),                           // f4e2m1
-    type_info(8, true, true, true, "f8e8m0", "f8e8m0", f8e8m0_aliases)                            // f8e8m0
+    type_info(8, true, true, true, "f8e8m0", "f8e8m0", f8e8m0_aliases),                           // f8e8m0
+    type_info(2, false, true, true, "int2_t", "i2", i2_aliases)                                   // i2
 };
 
 constexpr bool validate_types_info(decltype(types_info)& info, size_t i = 0) {

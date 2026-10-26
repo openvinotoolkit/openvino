@@ -18,4 +18,5 @@ std::map<ov_element_type_e, size_t> element_type_size_map = {{ov_element_type_e:
                                                              {ov_element_type_e::U8, 8},
                                                              {ov_element_type_e::U16, 16},
                                                              {ov_element_type_e::U32, 32},
-                                                             {ov_element_type_e::U64, 64}};
+                                                             {ov_element_type_e::U64, 64},
+                                                             {ov_element_type_e::I2, 2}};
