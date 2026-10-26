@@ -8,8 +8,6 @@
 #include "vm_runtime/virtual_machine.h"
 #include "vm_value_helpers.hpp"
 
-#include <llvm/ADT/ScopeExit.h>
-
 #include <gtest/gtest.h>
 
 #include <cstdint>
@@ -510,10 +508,6 @@ TEST_F(VirtualMachineInstructionTest, BufferCopyIntoMemRefParameterMatchesByteco
     // Destroy on scope exit so a failing assertion below does not leak the memref
     npu_vm_runtime_mem_ref_handle_t outputMemRef = nullptr;
     ASSERT_EQ(npuVMRuntimeCreateMemRef(/*dimsCount=*/1, &outputMemRef), NPU_VM_RUNTIME_RESULT_SUCCESS);
-    const llvm::scope_exit memRefGuard([&outputMemRef]() {
-        EXPECT_EQ(npuVMRuntimeDestroyMemRef(outputMemRef), NPU_VM_RUNTIME_RESULT_SUCCESS);
-    });
-
     ASSERT_EQ(npuVMRuntimeSetMemRef(outputMemRef, output.data(), output.data(), /*offset=*/0, sizes.data(),
                                     strides.data(), /*dimsCount=*/1),
               NPU_VM_RUNTIME_RESULT_SUCCESS);
@@ -524,6 +518,8 @@ TEST_F(VirtualMachineInstructionTest, BufferCopyIntoMemRefParameterMatchesByteco
 
     EXPECT_EQ(npu_vm_infer(engine, &params), NPU_VM_SUCCESS);
     EXPECT_EQ(output.at(0), kStoredValue);
+
+    EXPECT_EQ(npuVMRuntimeDestroyMemRef(outputMemRef), NPU_VM_RUNTIME_RESULT_SUCCESS);
 }
 
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers)

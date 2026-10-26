@@ -35,8 +35,8 @@ struct _npu_vm_runtime_handle_t {
     // Ze command queue handle for executing the graph.
     // A command queue will be created when npuVMRuntimeCreateExecutionContext2 is called with
     // a null command queue
-    ze_device_handle_t device;
-    ze_context_handle_t context;
+    ze_device_handle_t device{};
+    ze_context_handle_t context{};
     npu_vm_command_queue_desc commandQueueDesc{};
     ze_command_queue_handle_t commandQueue{};
     std::vector<ze_command_queue_handle_t> commandQueues;
@@ -217,7 +217,7 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeGetAPIVersi
 
     npu_vm_runtime_version_t version = NPU_VM_RUNTIME_VERSION_CURRENT;
 
-#if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD) || !defined(NDEBUG)
     // Debug purpose to verify old version of runtime interfaces
     // The env variable can be set to "V1.1" to force the runtime to use the old version.
     const char* envVar = std::getenv("NPU_VM_RUNTIME_VERSION");
@@ -251,7 +251,7 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreate(cons
         const auto bytecodeSize = desc->inputSize;
 
         auto handle = std::make_unique<_npu_vm_runtime_handle_t>();
-        if (npu_vm_parse_module(bytecodePtr, bytecodeSize, &handle->module) != NPU_VM_SUCCESS) {
+        if (npu_vm_parse_module(bytecodePtr, static_cast<uint32_t>(bytecodeSize), &handle->module) != NPU_VM_SUCCESS) {
             return NPU_VM_RUNTIME_RESULT_ERROR_UNKNOWN;
         }
         auto metadata = intel_npu::vm::getNetworkMetadata(handle->module);
@@ -271,8 +271,8 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreate(cons
         } else {
             NPU_VM_LOG_WARN("Bytecode blob does not contain metadata section. Set conservatively "
                             "numOfGraphArgs=2 and numOfSubGraphs=1 to allow for basic functionality.");
-            pProperties->numOfSubGraphs =
-                    1;  // if metadata is missing, assume a single subgraph with all inputs and outputs
+            // if metadata is missing, assume a single subgraph with all inputs and outputs
+            pProperties->numOfSubGraphs = 1;
             pProperties->numOfGraphArgs = 2;  // at least one input and one output
         }
         *phRuntime = handle.release();
@@ -796,10 +796,10 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecu
                                                  nullptr) == ZE_RESULT_SUCCESS;
         }
 
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
         const char* envVar = std::getenv("NPU_VM_RUNTIME_DISABLE_COUNTER_BASED_EVENT");
-        if (envVar != nullptr) {
-            counterBasedEventSupported = !intel_npu::OptionParser<bool>::parse(envVar);
+        if (envVar != nullptr && counterBasedEventSupported) {
+            counterBasedEventSupported = !::intel_npu::OptionParser<bool>::parse(envVar);
         }
 #endif
     }

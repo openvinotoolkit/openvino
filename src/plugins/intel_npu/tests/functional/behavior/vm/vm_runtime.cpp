@@ -137,22 +137,6 @@ struct npu_vm_runtime_fntbl {
     }
 };
 
-std::shared_ptr<ov::Model> createMaxPoolModel() {
-    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
-                                                         ov::PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
-    input->set_friendly_name("input1");
-
-    auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input, ov::Strides{1, 1}, ov::Shape{0, 0}, ov::Shape{0, 0},
-                                                         ov::Shape{1, 1}, ov::op::RoundingType::FLOOR,
-                                                         ov::op::PadType::EXPLICIT);
-    maxpool->set_friendly_name("MaxPool_2");
-
-    auto result = std::make_shared<ov::op::v0::Result>(maxpool);
-    result->set_friendly_name("output");
-
-    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "MaxPool");
-}
-
 namespace {
 
 std::string formatCheckedPaths(const std::vector<std::filesystem::path>& paths) {
@@ -198,6 +182,22 @@ std::filesystem::path resolveExistingPathOrThrow(const std::filesystem::path& in
                              ". Checked paths: " + formatCheckedPaths(candidatePaths));
 }
 
+std::shared_ptr<ov::Model> createMaxPoolModel() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                         ov::PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
+    input->set_friendly_name("input1");
+
+    auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input, ov::Strides{1, 1}, ov::Shape{0, 0}, ov::Shape{0, 0},
+                                                         ov::Shape{1, 1}, ov::op::RoundingType::FLOOR,
+                                                         ov::op::PadType::EXPLICIT);
+    maxpool->set_friendly_name("MaxPool_2");
+
+    auto result = std::make_shared<ov::op::v0::Result>(maxpool);
+    result->set_friendly_name("output");
+
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "MaxPool");
+}
+
 }  // namespace
 
 using NPUVMRuntimeCAPITestParams = std::tuple<std::string,  // Device name
@@ -220,7 +220,7 @@ public:
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
 
         std::ostringstream result;
-        result << "target_platform=" << LayerTestsUtils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
+        result << "target_platform=" <<  ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
         result << "model=" << modelPath << "_";
         result << "target_device=" << targetDevice << "_";
         result << "library_name=" << libName << "_";
@@ -727,7 +727,7 @@ TEST_P(NPUVMRuntimeCAPITest, UpdateMutableCommandList) {
     EXPECT_EQ(
             fntbl.npuVMRuntimeUpdateMutableCommandList(handle, &execParams, argIndexArray.data(), argIndexArray.size()),
             NPU_VM_RUNTIME_RESULT_SUCCESS);
-    intel_npu::zeCommandQueueExecuteCommandLists(commandQueue->handle(), commandLists.size(), commandListHandles.data(),
+    intel_npu::zeCommandQueueExecuteCommandLists(commandQueue->handle(), static_cast<uint32_t>(commandLists.size()), commandListHandles.data(),
                                                  fence->handle());
     fence->hostSynchronize();
 
@@ -814,9 +814,9 @@ TEST_P(NPUVMRuntimeCAPITest, DISABLED_PredictShape) {
     }
     npu_vm_runtime_predict_output_shape_params_t predictParam;
     predictParam.pInputs = inputArgs.data();
-    predictParam.numOfInputs = inputArgs.size();
+    predictParam.numOfInputs = static_cast<uint32_t>(inputArgs.size());
     predictParam.pOutputs = outputArgs.data();
-    predictParam.numOfOutputs = outputArgs.size();
+    predictParam.numOfOutputs = static_cast<uint32_t>(outputArgs.size());
     EXPECT_EQ(fntbl.npuVMRuntimePredictOutputShape(handle, &predictParam), NPU_VM_RUNTIME_RESULT_SUCCESS);
     // Verify the output shape
     for (size_t i = 0; i < outputs.size(); i++) {
@@ -887,7 +887,7 @@ TEST_P(NPUVMRuntimeCAPITest, DISABLED_PredictShape2) {
         // Compute row-major (NCHW) strides
         uint64_t stride = 1;
         localMemRef.strides.resize(localMemRef.dimsCount);
-        for (int32_t d = localMemRef.dimsCount - 1; d >= 0; d--) {
+        for (int64_t d = localMemRef.dimsCount - 1; d >= 0; d--) {
             localMemRef.strides[d] = stride;
             stride *= localMemRef.sizes[d];
         }
@@ -918,9 +918,9 @@ TEST_P(NPUVMRuntimeCAPITest, DISABLED_PredictShape2) {
     }
     npu_vm_runtime_predict_output_shape_params_t2 predictParam;
     predictParam.pInputs = inputArgs.data();
-    predictParam.numOfInputs = inputArgs.size();
+    predictParam.numOfInputs = static_cast<uint32_t>(inputArgs.size());
     predictParam.pOutputs = outputArgs.data();
-    predictParam.numOfOutputs = outputArgs.size();
+    predictParam.numOfOutputs = static_cast<uint32_t>(outputArgs.size());
     predictParam.executionContext = executionContextHandle;
     EXPECT_EQ(fntbl.npuVMRuntimePredictOutputShape2(handle, &predictParam), NPU_VM_RUNTIME_RESULT_SUCCESS);
     // Verify the output shape
@@ -1197,7 +1197,7 @@ TEST_P(NPUVMRuntimeCAPITest, ExecuteCompiledModelWithCmdQueueConfig_v2) {
     destroyMemRefs(outputArgs);
 }
 
-const std::vector<std::string> devices = {"NPU.4000", "NPU.5010"};
+const std::vector<std::string> devices = {"NPU.4000", "NPU.5010", "NPU.6010"};
 
 const std::vector<std::string> interpreterModels = {
         // E#214461: Temporarily disabled because IR is unavailable in CI environment.

@@ -135,4 +135,4 @@ TEST_P(LevelZeroAllocatorDeviceTest, DefaultAllocatorHandsOutAlignedDistinctReus
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest_level_zero_allocator, LevelZeroAllocatorDeviceTest,
-                         ::testing::Values(test_utils::TARGET_DEVICE), LevelZeroAllocatorDeviceTest::getTestCaseName);
+                         ::testing::Values(ov::test::utils::DEVICE_NPU), LevelZeroAllocatorDeviceTest::getTestCaseName);

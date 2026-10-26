@@ -8,8 +8,6 @@
 #include "vm_runtime/virtual_machine.h"
 #include "vm_value_helpers.hpp"
 
-#include <llvm/Support/FormatVariadic.h>
-
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 #include <common_test_utils/test_common.hpp>
@@ -40,9 +38,8 @@ struct SelectInstructionParams {
     }
 
     [[maybe_unused]] friend std::ostream& operator<<(std::ostream& os, const SelectInstructionParams& params) {
-        os << llvm::formatv("{ condition={0}, trueValue={1}, falseValue={2}, expected={3} }", params.condition,
-                            params.trueValue, params.falseValue, params.expected)
-                        .str();
+        os << "{ condition=" << params.condition << ", trueValue=" << params.trueValue
+           << ", falseValue=" << params.falseValue << ", expected=" << params.expected << " }";
         return os;
     }
 };
