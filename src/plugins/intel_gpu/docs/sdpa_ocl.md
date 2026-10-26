@@ -506,7 +506,7 @@ knee, then look for a working set that crosses a cache size there; count a prefe
 and issue one request per line; test reuse hypotheses with a change that keeps every value (workgroup order, prefetch),
 so that a bit-identical output check covers correctness.
 
-### Paged-attention PREFILL: wide reads at `d_max` 512 (IGC 2.41)
+### Paged-attention PREFILL: wide reads (IGC 2.41)
 
 Every number above was measured with IGC 2.36.3 (compute runtime 26.22). With IGC 2.41.5 (26.35) `sdpa_micro`'s head 512
 PA prefill kernel lost its 2,752 B spill and became about 40% faster (gemma-4-e2b, 32K keys, 1800 MHz: about 190 to 114
@@ -516,7 +516,8 @@ spill and did not move. VTune at 8K, head 512 kernel: XMX active 60.9% against `
 26.5% against 5.1%. Per subgroup and key tile the kernel issued 64 K block reads and 64 V block reads of 512 B and 96 SLM
 reads of 256 B; `sdpa_micro`'s final binary (iga64) reads K in 2 KB and V in 1 KB blocks and SLM in 512 B messages.
 
-**`WIDE_READS`** (bits 1 / 2 / 4; `wide_reads` in `solve_pa_prefill_tiling()`, `d_max` 512 only):
+**`WIDE_READS`** (bits 1 / 2 / 4; `wide_reads` in `solve_pa_prefill_tiling()`: 7 at `d_max` 512, the other tilings
+in "Wide reads at `d_max` 64 / 128 / 256" below):
 
 - K: one `16b_32r16x2c` read per depth-tile pair (`16b_16r16x2c` at 16-key subgroup tiles), block-major, so `k_raw`
   for `db` and `db + 1` are the two halves of the same registers the narrow reads filled.
@@ -540,8 +541,7 @@ Per call at 1800 MHz (cliloader, two rounds, spread under 0.1%), head 512:
 At 32K that is about 79% (e2b) and 77% (26b) of the B70's XMX f16 peak (256 engines x 256 FLOP per clock), against 68%
 and 60% for `sdpa_micro`. Measured and not used: 32-row V reads (`transform_16b_32r16x1c`, `_32r16x2c`, a cp-block pair
 per read) 6-10% slower alone and 3-10% slower than the 16-row pair with K + Q_slm; a block prefetch of the K pair one or two
-pairs ahead +51%; a block prefetch of the next cp block's V +2-3%. At head 256 the K pair is 1.1-1.6% faster but the
-Q_slm read 2% slower, so the other tilings keep the narrow reads.
+pairs ahead +51%; a block prefetch of the next cp block's V +2-3%.
 
 The reads change no value: the 173 `basic` PA rows are bit-identical with `SDPA_OCL_WIDE_READS` 0, the default and 7
 (every head size); with the V pair read deliberately swapped the four head 512 rows fail and the head 256 row passes. The
@@ -553,7 +553,61 @@ at 2K / 8K / 16K / 32K: gemma-4-e2b 0.979 / 0.981 / 0.981 / 0.964 (narrow reads 
 gemma-4-26b 0.988 / 0.969 / 0.941 / 0.932 (0.997 / 0.994 / 0.987 / 1.015). At 278 and 1,024 tokens with the daily image
 the head 512 call is 0.1-0.4 ms and `sdpa_ocl` is 1.7-2.3x / 0.91-0.93x `sdpa_micro` there; 26b's lead at those lengths
 (0.76x / 0.87x) is the image mask (`sdpa_micro` checks group membership per (query, key) element, see "Bidirectional
-image groups"). Not covered: other Xe2 devices, and the head 64 / 128 tilings, which were not measured with these reads.
+image groups"). Not covered: other Xe2 devices.
+
+#### Wide reads at `d_max` 64 / 128 / 256
+
+Defaults: `d_max` 64 takes K + Q_slm (5), or nothing (0) when the layer has a sliding window
+(`add_tensor_block_io_jit()`); `d_max` 128 and 256 take the K pair alone (1). The K read there is `16b_16r16x2c` (16-key
+subgroup tiles, 1 KB per depth-tile pair). The V pair exists only at `d_max` 256 (`sv_value_blocks` 2); `d_max` 64 / 128
+split the values 16 per subgroup, so it is inactive there.
+
+What each part costs (IGC ShaderDump, one key tile of the main loop): the K pair halves the K block reads (8 to 4 at
+`d_max` 128, 4 to 2 at 64) and changes nothing else. The Q_slm read halves the Q SLM messages (64 `d32x64t` to 32
+`d64x64t` at 128), but the `ulong4` result has to become the `int8` DPAS operand, 8 `mov (16) r<1>:d r<2;1,0>:d` per
+read: 256 more movs per key tile at 128, 128 at 64. So Q_slm pays only where the loop waits on memory, and its gain grows
+with the key count (llama-3.2-1b, Q_slm alone: +2.4% at 1K keys, -2.9% at 32K); it loses where K and V stay in cache:
+short prompts and small sliding windows. The K pair alone and K + Q_slm do not add up, and the K pair's sign depends on
+the kernel variant (gpt-oss-20b, with a sink input, is 1.2-1.8% slower with it at `d_max` 64).
+
+Per call against the narrow reads at 1800 MHz (cliloader `-d -dv`, `-n 3`, two rounds; spread up to 0.25% from 2K up,
+0.9% at 1K and 1.5% at 32 tokens, where a call is 12-28 us):
+
+| | default | 32 | 1K | 2K | 4K | 8K | 32K |
+|---|---|---|---|---|---|---|---|
+| llama-3.2-1b (64) | 5 | +2.4% | -0.4% | -1.4% | -1.8% | -3.1% | -5.6% |
+| minicpm4-0.5b (64) | 5 | | -1.5% | | | -3.0% | |
+| gpt-oss-20b (64), full layers | 5 | | +1.0% | | -2.8% | -3.3% | -4.7% |
+| gpt-oss-20b (64), 128-key window layers | 0 | | (5: +11.1%) | | (+11.9%) | (+11.2%) | (+9.9%) |
+| qwen3-8b (128) | 1 | +0.2% | +0.1% | -0.3% | -0.5% | -0.8% | -1.0% |
+| phi-3.5-mini (96, `d_max` 128) | 1 | +0.6% | +0.1% | -0.1% | -0.2% | -0.2% | -0.2% |
+| llama-3.1-8b / minicpm4-8b / phi-4-mini (128) | 1 | | 0 to +0.1% | | | -0.25 / -0.7 / -0.4% | |
+| gemma-3-4b (256), full / 1024-key window | 1 | +0.9 / -0.2% | -2.0 / -2.0% | -2.1 / -2.2% | -1.9 / -2.3% | -2.0 / -2.1% | -2.1 / -2.4% |
+| gemma-2-9b (256) | 1 | | -3.7% | | | -5.2% | |
+| qwen3.5-9b (256, image in the prompt) | 1 | | -3.1% | | | -4.4% | |
+| gemma-4-e2b (256, 512-key window) | 1 | | -1.9% (image) | | | -1.0% | |
+
+Measured and not used: Q_slm at `d_max` 128 (alone +1.4-4.0%, with K +3.8-16%) and 256 (alone +0.1-2.2%); the V pair at
+256 (+0.6% full, -0.1% window); K + Q_slm on gpt-oss-20b's window layers (+10-12%) and the K pair alone there (0 to
++0.7%). gemma-3-4b with the daily image (275 and 1,025 tokens, bidirectional image groups, full / window layers) is
+-0.3 / +0.1% and -1.6 / -1.9%; its vision encoder (plain SDPA) does not change. The cache precision (f16, i8, u4) does
+not change the PREFILL kernel or the gain (llama-3.2-1b 8K -3.0 / -3.1 / -3.1%). With GenAI's continuous-batching
+default scheduler (256-token chunks) only the first chunk runs PREFILL; the other chunks run MIXED, which these reads do
+not touch.
+
+The reads change no value: the 173 `basic` PA rows are bit-identical with `SDPA_OCL_WIDE_READS` 0, the default, 1, 5
+and 7. With the two halves of the K pair deliberately swapped, the default changes exactly the rows that read K in
+pairs: 32 PREFILL rows at `d_max` 64 without a window, 128 (head 96 included), 256 and 512, and none of the `d_max` 64
+rows with a window; `SDPA_OCL_WIDE_READS=1` also changes those (`basic/87`-`90`, `97`). Only 16 of the 32 rows fail the
+test's tolerance (the compressed-cache rows stay inside it), so a bitwise comparison is the check. The PA,
+`*sdpa*:*rope*:*kv_cache*:*update_shape_test.paged*` and `*large_head*:*kv_cache_rotation_content*:*shared_kv_cache*`
+suites fail the same 13 / 60 / 0 tests as before, with the reads on and off.
+
+First-token latency against the build before (532e4893fa), llm_bench `-n 3 -ic 32`, 1800 MHz, two rounds interleaved,
+median of 6: llama-3.2-1b 1.006 / 0.999 / 0.989 / 0.961 at 1K / 2K / 8K / 32K (1K within the run-to-run range,
+18.46-19.05 ms before), gpt-oss-20b 1.001 / 0.997 / 0.986 at 1K / 8K / 32K, qwen3-8b 1.001 / 0.998 / 0.994, gemma-3-4b
+1.001 / 0.999 / 0.996, gemma-2-9b 0.998 / 0.998 / 0.989 at 1K / 2K / 8K, qwen3.5-9b 1.000 / 0.999 at 1K / 8K. Not
+covered: other Xe2 devices, and `d_max` 128 / 256 kernels with a sink input (no such model was at hand).
 
 ### Kernel flow
 
@@ -991,7 +1045,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_256GRF`, `SDPA_OCL_DECODE_256GRF` | Large-GRF compile (`SDPAOclGenerator` always on xe_hpg; `SDPA_OCL_256GRF=0` turns it off for the PA PREFILL tiling) |
 | `SDPA_OCL_V_PREFETCH`, `_SM_BRANCHLESS`, `_MAX_SPLIT`, `_MASK_LAST` | PA PREFILL loop changes ("Paged-attention PREFILL tiling"): `0`/`1` forces each off/on |
 | `SDPA_OCL_V_PREFETCH_L3` | PA PREFILL V tile L3 prefetch (on at `d_max` 512): `0`/`1` forces it off/on; on replaces `PREFETCH_V` |
-| `SDPA_OCL_WIDE_READS` | PA PREFILL wide reads (`7` at `d_max` 512): bit mask, `1` K pair, `2` V pair, `4` Q_slm as `ulong4`; `0` = narrow |
+| `SDPA_OCL_WIDE_READS` | PA PREFILL wide reads (`d_max` 64: `5`, `0` with a sliding window; 128 / 256: `1`; 512: `7`): bit mask, `1` K pair, `2` V pair, `4` Q_slm as `ulong4`; `0` = narrow |
 | `TEST_USE_SDPA_OCL_HPG` | `1`: xe_hpg may take the `sdpa_ocl` lane (default off; see "xe_hpg bring-up") |
 | `SDPA_OCL_HPG_TIERS` | `all` or a comma list of `HpgTier` names: pretend those xe_hpg tiers are ready (dump only) |
 | `SDPA_OCL_NEG_SG8` | xe_hpg (SG8) only: `1` swaps the K pair order, `2` reads the S*V A operand transposed, `3` swaps the S_slm pair order (each must fail the sharp-softmax test); `4` forces the unaligned-K fallback (must pass) |
