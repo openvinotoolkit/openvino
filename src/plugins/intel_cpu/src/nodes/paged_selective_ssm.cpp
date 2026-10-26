@@ -121,7 +121,7 @@ void PagedSelectiveSSM::initSupportedPrimitiveDescriptors() {
         NodeConfig node_config;
         node_config.inConfs.resize(getParentEdges().size());
         for (const auto& [arg_id, port_id] : input_port_bindings) {
-            if (node_descriptors.count(arg_id)) {
+            if (node_descriptors.contains(arg_id)) {
                 node_config.inConfs[port_id] = PortConfig{node_descriptors.at(arg_id)};
             }
         }

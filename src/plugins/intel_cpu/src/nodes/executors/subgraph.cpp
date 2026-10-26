@@ -78,7 +78,7 @@ SubgraphCodeGenerator::SubgraphCodeGenerator(const std::shared_ptr<SubgraphAttrs
     jcp.data_offsets.reserve(config->io_data_offsets.size());
     for (size_t i = 0; i < config->io_data_offsets.size(); ++i) {
         // Note: external ptrs must be ignored by the kernel during compilation
-        if (!external_ptrs_idces.count(i)) {
+        if (!external_ptrs_idces.contains(i)) {
             jcp.data_offsets.push_back(config->io_data_offsets[i]);
         }
     }

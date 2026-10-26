@@ -68,11 +68,11 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
         int64_t begin = 0;
         int64_t end = 0;
         if (stridePtr[cur_idx] < 0) {
-            begin = m_begin_mask_set.count(cur_idx) ? input_dim : beginPtr[cur_idx];
-            end = m_end_mask_set.count(cur_idx) ? (-1 - input_dim) : endPtr[cur_idx];
+            begin = m_begin_mask_set.contains(cur_idx) ? input_dim : beginPtr[cur_idx];
+            end = m_end_mask_set.contains(cur_idx) ? (-1 - input_dim) : endPtr[cur_idx];
         } else {
-            begin = m_begin_mask_set.count(cur_idx) ? 0 : beginPtr[cur_idx];
-            end = m_end_mask_set.count(cur_idx) ? input_dim : endPtr[cur_idx];
+            begin = m_begin_mask_set.contains(cur_idx) ? 0 : beginPtr[cur_idx];
+            end = m_end_mask_set.contains(cur_idx) ? input_dim : endPtr[cur_idx];
         }
         return ov::op::slice::get_sliced_value(shapeIn[in_idx], begin, end, stridePtr[cur_idx]);
     };
@@ -89,8 +89,8 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
     for (size_t axis_idx = 0, out_idx = 0, in_idx = 0;
          axis_idx < maxAxisSize && in_idx < shapeInSize && out_idx < outputShapeSize;
          axis_idx++) {
-        newAxis = (m_new_axis_mask_set.count(axis_idx) != 0U);
-        shrinkAxis = (m_shrink_axis_mask_set.count(axis_idx) != 0U);
+        newAxis = (m_new_axis_mask_set.contains(axis_idx));
+        shrinkAxis = (m_shrink_axis_mask_set.contains(axis_idx));
         if (newAxis) {
             // from test when shrinkAxis && newAxis, only newAxis is working in NgraphShapeInfer,
             // so merge if(newAxis) and if(shrinkAxis && newAxis) together.

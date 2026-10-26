@@ -102,7 +102,7 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
     // BRGEMM kernels. Shapes cannot be used here because cache inputs are fully dynamic at
     // createPrimitive time.
     const auto& rt = op->get_rt_info();
-    CPU_NODE_ASSERT(rt.count("k_head_size") != 0UL && rt.count("num_k_heads") != 0UL,
+    CPU_NODE_ASSERT(rt.contains("k_head_size") && rt.contains("num_k_heads"),
                     "Runtime info k_head_size and num_k_heads are required for PagedAttention node.");
     m_head_size = rt.at("k_head_size").as<size_t>();
     m_num_kv_heads = rt.at("num_k_heads").as<size_t>();

@@ -63,7 +63,7 @@ namespace {
 void propagate_precision_conversion_disable(const ov::NodeVector& from, const std::shared_ptr<ov::Node>& to) {
     for (const auto& node : from) {
         for (const auto& item : node->get_rt_info()) {
-            if (item.first.rfind("DisablePrecisionConversion", 0) == 0) {
+            if (item.first.starts_with("DisablePrecisionConversion")) {
                 to->get_rt_info()[item.first] = item.second;
             }
         }
@@ -224,8 +224,8 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const ov::snippets::pa
 
     for (const auto& input_node : ov::as_node_vector(input_values)) {
         if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
-            if ((clones.count(input_node) == 0U) && ov::snippets::pass::GetSnippetsSubgraphType(subgraph) !=
-                                                        ov::snippets::pass::SnippetsSubgraphType::Completed) {
+            if ((!clones.contains(input_node)) && ov::snippets::pass::GetSnippetsSubgraphType(subgraph) !=
+                                                      ov::snippets::pass::SnippetsSubgraphType::Completed) {
                 auto f = subgraph->body().clone();
                 f->set_friendly_name(subgraph->body_ptr()->get_friendly_name());
                 clones[input_node] = f;
@@ -251,7 +251,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const ov::snippets::pa
         auto input_node = input_value.get_node_shared_ptr();
         if (ov::is_type<op::Subgraph>(input_node) && !cyclicDependencyIsIntoduced(input_node, currentTopoBounds)) {
             auto subgraph = std::static_pointer_cast<op::Subgraph>(input_node);
-            if (!input_subgraphs.count(input_node)) {
+            if (!input_subgraphs.contains(input_node)) {
                 input_subgraphs.insert(input_node);
 
                 fusedNames += getFusedNames(subgraph);
@@ -389,11 +389,11 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const ov::snippets::pa
             for (auto target_input : output.get_target_inputs()) {
                 auto target_node = target_input.get_node()->shared_from_this();
 
-                if (input_subgraphs.count(target_node)) {
+                if (input_subgraphs.contains(target_node)) {
                     remark(13) << "ternary merge is conducted " << subgraph << " -> " << target_node << '\n';
                 }
 
-                if (!input_subgraphs.count(target_node) && target_node != node) {
+                if (!input_subgraphs.contains(target_node) && target_node != node) {
                     if (first_side_consumer) {
                         auto& input_subgraph_body = clones[subgraph];
                         body_results.push_back(std::make_shared<snippets::op::Result>(
@@ -403,7 +403,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const ov::snippets::pa
                         first_side_consumer = false;
                     }
 
-                    if (!!subgraph_result_inputs.back().count(target_input)) {
+                    if (!!subgraph_result_inputs.back().contains(target_input)) {
                         OPENVINO_THROW("target input added twice!!!");
                     }
                     // save target input port outside the body

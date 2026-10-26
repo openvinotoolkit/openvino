@@ -29,7 +29,7 @@ std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared
     // for each node in topological order
     auto sorted_nodes = topological_sort(nodes);
     for (const auto& node : sorted_nodes) {
-        if (node_map.count(node.get()) == 0) {
+        if (!node_map.contains(node.get())) {
             // get (already) cloned arguments and clone the node
             OutputVector cloned_args;
             for (const auto& input : node->inputs()) {

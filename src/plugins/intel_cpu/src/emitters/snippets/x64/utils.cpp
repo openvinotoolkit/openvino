@@ -30,7 +30,7 @@ Xbyak::Reg64 get_aux_gpr(const std::vector<size_t>& used_gpr_idxs) {
         if (std::find(used_gpr_idxs.cbegin(), used_gpr_idxs.cend(), _idx) != used_gpr_idxs.cend()) {
             continue;
         }
-        if (blacklist_gpr_idxs.count(_idx) > 0) {
+        if (blacklist_gpr_idxs.contains(_idx)) {
             continue;
         }
         return Xbyak::Reg64(_idx);

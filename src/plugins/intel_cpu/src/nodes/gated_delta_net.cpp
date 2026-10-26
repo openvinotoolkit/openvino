@@ -70,7 +70,7 @@ void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
         nodeConfig.inConfs.resize(getParentEdges().size());
 
         for (const auto& [argId, portId] : m_atoi) {
-            if (nodeDescriptors.count(argId)) {
+            if (nodeDescriptors.contains(argId)) {
                 nodeConfig.inConfs[portId] = PortConfig{nodeDescriptors.at(argId)};
             }
         }

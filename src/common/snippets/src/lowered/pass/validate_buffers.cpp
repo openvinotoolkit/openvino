@@ -54,7 +54,7 @@ bool ValidateBuffers::run(LinearIR& linear_ir,
     for (const auto& p : static_buffer_clusters) {
         const auto& cluster_id = p.first;
         const auto& cluster = p.second;
-        OPENVINO_ASSERT(dynamic_buffer_clusters.count(cluster_id) == 0,
+        OPENVINO_ASSERT(!dynamic_buffer_clusters.contains(cluster_id),
                         "Buffers from the same cluster must be only static or dynamic");
 
         OPENVINO_ASSERT(!cluster.empty(), "Incorrect size of buffer cluster");

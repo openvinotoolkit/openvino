@@ -200,7 +200,7 @@ std::vector<LoopPort> LoopInfo::clone_loop_ports(const ExpressionMap& expr_map,
     cloned_port_points.reserve(loop_ports.size());
     for (const auto& p : loop_ports) {
         const auto& expr = p.get_expr_port()->get_expr().get();
-        OPENVINO_ASSERT(expr_map.count(expr), "Can't clone LoopInfo: old expression is not in the map");
+        OPENVINO_ASSERT(expr_map.contains(expr), "Can't clone LoopInfo: old expression is not in the map");
         const auto& new_expr = expr_map.at(expr);
         cloned_port_points.emplace_back(*p.clone_with_new_expr(new_expr));
     }
@@ -256,7 +256,7 @@ UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount,
 
 std::shared_ptr<LoopInfo> UnifiedLoopInfo::clone_with_new_expr(const ExpressionMap& expr_map,
                                                                LoopInfoMap& loop_map) const {
-    if (loop_map.count(this) == 0) {
+    if (!loop_map.contains(this)) {
         const auto& new_input_ports = clone_loop_ports(expr_map, m_input_ports);
         const auto& new_output_ports = clone_loop_ports(expr_map, m_output_ports);
 
@@ -273,7 +273,7 @@ std::shared_ptr<LoopInfo> UnifiedLoopInfo::clone_with_new_expr(const ExpressionM
 }
 
 void UnifiedLoopInfo::apply(const std::function<void(const LoopInfoPtr&)>& func, LoopInfoSet& applied_loops) {
-    if (applied_loops.count(this) == 0) {
+    if (!applied_loops.contains(this)) {
         func(shared_from_this());
         applied_loops.insert(this);
     }
@@ -477,7 +477,7 @@ InnerSplittedUnifiedLoopInfo::InnerSplittedUnifiedLoopInfo(size_t increment,
 
 std::shared_ptr<LoopInfo> InnerSplittedUnifiedLoopInfo::clone_with_new_expr(const ExpressionMap& expr_map,
                                                                             LoopInfoMap& loop_map) const {
-    if (loop_map.count(this) == 0) {
+    if (!loop_map.contains(this)) {
         auto cloned_outer_splitted_loop_info = m_outer_splitted_loop_info->clone_with_new_expr(expr_map, loop_map);
         const auto& new_input_ports = clone_loop_ports(expr_map, m_input_ports);
         const auto& new_output_ports = clone_loop_ports(expr_map, m_output_ports);
@@ -495,7 +495,7 @@ std::shared_ptr<LoopInfo> InnerSplittedUnifiedLoopInfo::clone_with_new_expr(cons
 
 void InnerSplittedUnifiedLoopInfo::apply(const std::function<void(const LoopInfoPtr&)>& func,
                                          LoopInfoSet& applied_loops) {
-    if (applied_loops.count(this) == 0) {
+    if (!applied_loops.contains(this)) {
         m_outer_splitted_loop_info->apply(func, applied_loops);
         func(shared_from_this());
         applied_loops.insert(this);
@@ -543,7 +543,7 @@ ExpandedLoopInfo::ExpandedLoopInfo(size_t work_amount,
 
 std::shared_ptr<LoopInfo> ExpandedLoopInfo::clone_with_new_expr(const ExpressionMap& expr_map,
                                                                 LoopInfoMap& loop_map) const {
-    if (loop_map.count(this) == 0) {
+    if (!loop_map.contains(this)) {
         auto cloned_unified_loop_info =
             ov::as_type_ptr<UnifiedLoopInfo>(m_unified_loop_info->clone_with_new_expr(expr_map, loop_map));
         const auto& new_input_ports = clone_loop_ports(expr_map, m_input_ports);
@@ -564,7 +564,7 @@ std::shared_ptr<LoopInfo> ExpandedLoopInfo::clone_with_new_expr(const Expression
 }
 
 void ExpandedLoopInfo::apply(const std::function<void(const LoopInfoPtr&)>& func, LoopInfoSet& applied_loops) {
-    if (applied_loops.count(this) == 0) {
+    if (!applied_loops.contains(this)) {
         m_unified_loop_info->apply(func, applied_loops);
         func(shared_from_this());
         applied_loops.insert(this);
