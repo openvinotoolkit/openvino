@@ -7011,9 +7011,9 @@ TEST(fully_connected_gpu_ternocl_int2_dynamic, non_ternary_zero_point_falls_back
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 namespace {
-class matmul_dynamic_quantize_matmul_gpu : public ::testing::TestWithParam<size_t> {};
+class fully_connected_dynamic_quantize_threshold_onednn : public ::testing::TestWithParam<size_t> {};
 
-TEST_P(matmul_dynamic_quantize_matmul_gpu, switches_at_runtime_threshold) {
+TEST_P(fully_connected_dynamic_quantize_threshold_onednn, toggles_dynamic_quantize_with_token_count) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         GTEST_SKIP() << "Dynamic quantized fully connected requires XMX";
@@ -7118,8 +7118,8 @@ TEST_P(matmul_dynamic_quantize_matmul_gpu, switches_at_runtime_threshold) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(token_length,
-                         matmul_dynamic_quantize_matmul_gpu,
+INSTANTIATE_TEST_SUITE_P(token_count,
+                         fully_connected_dynamic_quantize_threshold_onednn,
                          ::testing::Values(size_t{1}, size_t{32}, size_t{64}, size_t{65}, size_t{1024}),
                          [](const ::testing::TestParamInfo<size_t>& info) {
                              return "M" + std::to_string(info.param);
