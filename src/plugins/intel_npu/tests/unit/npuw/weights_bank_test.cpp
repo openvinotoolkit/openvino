@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -13,6 +14,7 @@
 #include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
+#include "serialization.hpp"
 #include "weights_bank.hpp"
 
 namespace {
@@ -141,6 +143,55 @@ TEST_P(WeightsBankTest, EvaluationFallsBackWithoutWeightSharingContext) {
     const auto values = read_f32(bank.get(uid, device));
     EXPECT_EQ(values[0], 5.0f);
     EXPECT_EQ(values[1], 6.0f);
+}
+
+TEST(WeightsBankSerializationTest, WeightSharingAndLegacyFormatsMatchAndRoundtrip) {
+    using ov::npuw::s11n::read;
+    using ov::npuw::s11n::write;
+    using ov::npuw::weights::Bank;
+    using ov::npuw::weights::LazyTensor;
+
+    auto first = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                        ov::Shape{2},
+                                                        std::vector<float>{1.0f, 2.0f});
+    auto second = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                         ov::Shape{2},
+                                                         std::vector<float>{3.0f, 4.0f});
+
+    auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    Bank original(core, "CPU", "original-bank");
+    auto weight_sharing_context = std::make_shared<ov::weight_sharing::Context>();
+    Bank weight_sharing(core, "CPU", "weight-sharing-bank", weight_sharing_context);
+
+    const auto original_uid0 = original.registerLT(LazyTensor(first), "CPU");
+    const auto original_uid1 = original.registerLT(LazyTensor(second), "CPU");
+    const auto weight_sharing_uid0 = weight_sharing.registerLT(LazyTensor(first), "CPU");
+    const auto weight_sharing_uid1 = weight_sharing.registerLT(LazyTensor(second), "CPU");
+    ASSERT_EQ(original_uid0, weight_sharing_uid0);
+    ASSERT_EQ(original_uid1, weight_sharing_uid1);
+
+    original.evaluate_and_allocate();
+    weight_sharing.evaluate_and_allocate();
+
+    std::stringstream stream_orig;
+    std::stringstream stream_ov_ws;
+    write(stream_orig, original);
+    write(stream_ov_ws, weight_sharing);
+    ASSERT_EQ(stream_orig.str(), stream_ov_ws.str());
+
+    Bank restored_ov_ws(core, "CPU", "restored-ov-ws");
+    read(stream_ov_ws, restored_ov_ws);
+
+    Bank restored_orig(core, "CPU", "restored-orig", weight_sharing_context);
+    read(stream_orig, restored_orig);
+
+    const auto expect_banks_equal = [&](Bank& expected, Bank& actual) {
+        EXPECT_EQ(read_f32(expected.get(original_uid0, "CPU")), read_f32(actual.get(original_uid0, "CPU")));
+        EXPECT_EQ(read_f32(expected.get(original_uid1, "CPU")), read_f32(actual.get(original_uid1, "CPU")));
+    };
+    expect_banks_equal(restored_ov_ws, restored_orig);
+    expect_banks_equal(original, restored_orig);
+    expect_banks_equal(weight_sharing, restored_ov_ws);
 }
 
 INSTANTIATE_TEST_SUITE_P(Devices,

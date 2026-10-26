@@ -4,6 +4,8 @@
 
 #include "weights_bank.hpp"
 
+#include <map>
+
 #include "logging.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/parallel.hpp"
@@ -14,6 +16,43 @@
 
 using ov::npuw::weights::Bank;
 using ov::npuw::weights::LazyTensor;
+
+namespace {
+ov::AnyMap prepareNPURemoteMemoryImportParams(std::shared_ptr<ov::AlignedBuffer> buffer_to_import) {
+    if (!buffer_to_import)  {
+        return {};
+    }
+    ov::AnyMap params {
+        ov::intel_npu::mem_type(ov::intel_npu::MemType::CPU_VA),
+        ov::intel_npu::mem_handle(buffer_to_import->get_ptr()),
+        ov::intel_npu::tensor_type(ov::intel_npu::TensorType::BINDED),
+    };
+    return params;
+}
+
+ov::Tensor tensor_factory(const ov::ICore &core, const std::string &device,
+                          const ov::element::Type& type, const ov::Shape& shape,
+                          std::shared_ptr<ov::AlignedBuffer> staging_buffer_ptr = {}) {
+    if (device == "CPU") {
+        return staging_buffer_ptr ? ov::Tensor(type, shape, staging_buffer_ptr->get_ptr<char>()) :
+                                    ov::Tensor(type, shape);
+    }
+
+    auto remote_ctx = core.get_default_context(device)._ptr;
+    std::function<ov::AnyMap(std::shared_ptr<ov::AlignedBuffer>)> remoteCtxParamCreator;
+    ov::AnyMap params;
+    if (device == "NPU") {
+        params = prepareNPURemoteMemoryImportParams(staging_buffer_ptr);
+    } else if (device == "GPU") {
+        NPUW_ASSERT(false && "create_tensor_allocator: GPU remote context parameter creator is not implemented");
+    }
+
+    NPUW_ASSERT(remote_ctx && "create_tensor_allocator:Remote context is not initialized");
+    auto staging_buffer_ptr_copy = staging_buffer_ptr;
+    return !params.empty() ? ov::make_tensor(remote_ctx->create_tensor(type, shape, params)) :
+                             ov::make_tensor(remote_ctx->create_host_tensor(type, shape));
+}
+}
 
 class BankManager {
 public:
@@ -54,14 +93,26 @@ ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor
             ov::create_base_descriptor(source_id, 0, raw));
 }
 
+const ov::op::v0::Constant& ov::npuw::weights::WeightSharingContextAccessor::get_transformed_constant(
+    size_t source_id,
+    Handle& handle) const {
+    OPENVINO_ASSERT(handle.context, "WeightSharingContextAccessor has no weight sharing context");
+    auto iter = m_transformed_weights.find(source_id);
+    OPENVINO_ASSERT(iter != m_transformed_weights.end(), "Transformed constant not found for source id: ", source_id);
+    return iter->second;
+}
+
 ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor::request_shared_weight_source_buffer(
     size_t source_id,
-    size_t size,
+    const element::Type& type, const ov::Shape& shape,
     const std::string& device,
     Handle& handle) {
     if (!handle.context) {
         return {};
     }
+
+    auto size = ov::util::get_memory_size_safe(type, shape);
+    OPENVINO_ASSERT(size.has_value(), "LazyTensor size overflow, uid: ", source_id, " device: ", device);
 
     auto shared_weight_source = ov::weight_sharing::get_runtime_weight_source(*handle.context, source_id);
     if (auto shared_buffer = shared_weight_source.m_weights.lock()) {
@@ -79,9 +130,154 @@ ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor
                     device,
                     " actual: ",
                     shared_weight_source.m_device);
-    auto shared_buffer = WeightSharingContextAccessor::create_shared_buffer(source_id, size);
+    auto shared_buffer = WeightSharingContextAccessor::create_shared_buffer(source_id, *size);
     register_shared_weight_source_for_weight(shared_buffer, source_id, device, handle);
+
+    // A transformed constant is never exist in the model as a node.
+    // let's create a fake constant using the shared buffer as its data source
+    // and register it with the weight sharing context.
+    auto transformed_constant = ov::op::v0::Constant(type, shape, shared_buffer);
+    ov::weight_sharing::set_constant(*handle.context, transformed_constant);
+
+    // CVS-198039 WeightMetaData has no m_shape
+    // As weight sharing context doesn't include the shape of the constant in WeightMetaData,
+    // we store and remember the transformed constant,
+    // so that we can deserialize its ov::Tensor from raw buffer.
+    m_transformed_weights.erase(source_id);
+    m_transformed_weights.emplace(source_id, std::move(transformed_constant));
     return shared_buffer;
+}
+
+bool ov::npuw::weights::WeightSharingContextAccessor::serialize_native_format(ov::npuw::orc::Stream& stream) {
+    auto lock = get_handle();
+    return serialize_native_format(stream, lock);
+}
+
+bool ov::npuw::weights::WeightSharingContextAccessor::serialize_native_format(ov::npuw::orc::Stream& stream, Handle& handle) {
+    using namespace ov::weight_sharing;
+    NPUW_ASSERT(stream.output() && "WeightSharingContextAccessor::serialize_native_format must receive an output stream");
+    if (!m_context) {
+        return false;
+    }
+    // NPUW serializes the device at first then stores tensor UID within each device section by the incremental order.
+    // Let's sort the source_id by device.
+    std::map<std::string, std::set<DataID>> weight_sources_per_device;
+    // for each source_id we collect constant ids associated with it
+    std::map<DataID, std::set<DataID>> constant_ids_per_source_id_ordered;
+    for (const auto& elem : m_context->m_runtime_sources) {
+        const auto& [source_id, source] = elem;
+        weight_sources_per_device[source.m_device].insert(source_id);
+
+        auto weigt_reg_it = m_context->m_weight_registry.find(source_id);
+        NPUW_ASSERT(weigt_reg_it != m_context->m_weight_registry.end() && "NPUW: Weight not found in registry");
+        const WeightMetaMap& weight_meta_map = weigt_reg_it->second;
+        for (const auto [constant_id, weight_meta] : weight_meta_map) {
+            constant_ids_per_source_id_ordered[source_id].insert(constant_id);
+        }
+    }
+
+    // serialization
+    std::size_t bank_size = weight_sources_per_device.size();
+    stream & bank_size;
+    for (const auto& [device, source_ids]: weight_sources_per_device) {
+        // 1) serialize the name of the device
+        stream & device;
+
+        // 2) serialize the number of UIDs for this device
+        size_t num_weights = 0;
+        num_weights = std::accumulate(constant_ids_per_source_id_ordered.begin(),
+                                      constant_ids_per_source_id_ordered.end(), num_weights,
+                                      [&source_ids](size_t sum, const auto& pair) {
+                                          return source_ids.count(pair.first) ? sum + pair.second.size() : sum;
+                                      });
+        stream & num_weights;
+
+        // serialize weights in the incrementing order
+        for (const auto& [source_id, constant_ids] : constant_ids_per_source_id_ordered) {
+            if (!source_ids.count(source_id)) continue;
+
+            // for NPUW we must not serialize constant_ids, which number is always 1,
+            // and the only element has constant_id equals to 0 for each weight transformation
+            NPUW_ASSERT(constant_ids.size() == 1 && "NPUW: transformed constant ids for each source must have exactly one constant id");
+            for (auto constant_id : constant_ids) {
+                NPUW_ASSERT(constant_id == 0 && "NPUW: constant id must be 0 for each weight transformation");
+                // 3) serialize the weight identifier
+                if (constant_id != invalid_constant_id) {
+                    // Should newer happen
+                    stream & constant_id;
+                } else {
+                    // the NPUW format: source_id is a real identifier for the weight
+                    // when constant_id is always 0
+                    stream & source_id;
+                }
+                const WeightMetaData& weight_meta_map = m_context->m_weight_registry.find(source_id)->second.find(constant_id)->second;
+                bool is_initialized = true; // once the weight is found in m_weight_registry, it is considered initialized
+                stream & is_initialized;
+
+                // 4) serialize the weight metadata
+                auto type_str = weight_meta_map.m_type.to_string();
+                /*CVS-198039 WeightMetaData has no m_shape*/
+                auto shape = m_transformed_weights.find(source_id)->second.get_shape_val();
+                auto byte_size = weight_meta_map.m_size;
+                stream & type_str & shape & byte_size;
+
+                // 5) finally serialize the actual weight data
+                const WeightSource &data_source = m_context->m_runtime_sources.find(source_id)->second;
+                auto source_staging_buffer = data_source.m_weights.lock();
+                stream.bytes(source_staging_buffer->get_ptr(weight_meta_map.m_offset), weight_meta_map.m_size);
+            }
+        }
+    }
+    return true;
+}
+
+
+bool ov::npuw::weights::WeightSharingContextAccessor::deserialize_native_format(ov::npuw::orc::Stream& stream, const ov::ICore &core) {
+    auto lock = get_handle();
+    return deserialize_native_format(stream, core, lock);
+}
+
+bool ov::npuw::weights::WeightSharingContextAccessor::deserialize_native_format(ov::npuw::orc::Stream& stream, const ov::ICore &core, Handle& handle) {
+    NPUW_ASSERT(stream.input() && "WeightSharingContextAccessor::deserialize_native_format must receive an input stream");
+
+    // TODO who will create the m_context if it is not already created?
+    if (!handle.context) {
+        return false;
+    }
+
+    size_t bank_size = 0;
+    stream & bank_size;
+    for (size_t i = 0; i < bank_size; ++i) {
+        std::string device;
+        stream & device;
+        std::size_t storage_size = 0;
+        stream & storage_size;
+        for (std::size_t j = 0; j < storage_size; ++j) {
+            int64_t uid = -1;
+            stream & uid;
+
+            auto common_allocator = [this, &core, &device, uid, &handle] (const ov::element::Type& type, const ov::Shape& shape) {
+                auto shared_source = this->request_shared_weight_source_buffer(uid, type, shape, device, handle);
+
+                // CVS-198039 WeightMetaData has no m_shape
+                // As weight sharing context doesn't include the shape of the constant in WeightMetaData,
+                // we store and remember the transformed constant,
+                // so that we can deserialize its ov::Tensor from raw buffer.
+                auto transformed_constant = ov::op::v0::Constant(type, shape, shared_source);
+                ov::weight_sharing::set_constant(*handle.context, transformed_constant);
+                m_transformed_weights.erase(uid);
+                m_transformed_weights.emplace(uid, std::move(transformed_constant));
+
+                // return reconstructed ov::Tensor
+                return tensor_factory(core, device, type, shape, shared_source);
+            };
+
+            ov::Tensor regained_tensor;
+            transfer_tensor(stream, regained_tensor, common_allocator);
+            (void)regained_tensor; // can be dropped, not needed
+        }
+    }
+    return true;
 }
 
 void ov::npuw::weights::WeightSharingContextAccessor::register_shared_weight_source_for_weight(
@@ -158,7 +354,7 @@ void Bank::evaluate_and_allocate() {
         to_process.reserve(device_bank.storage.size());
         for (const auto& el : device_bank.storage) {
             // Add non-allocated tensors for furter evaluation and allocation
-            if (!el.second.tensor) {
+            if (!el.second.is_evaluated()) {
                 to_process.push_back(el.second.lt);
             }
         }
@@ -200,15 +396,8 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
         // `WeightSharingContextAccessor` owns and manages access to the shared weight memory.
         // It also provides access to `ov::weight_sharing::Context`.
         auto handle = this->get_handle();
-        auto size = ov::util::get_memory_size_safe(t.get_element_type(), t.get_shape());
-        OPENVINO_ASSERT(size.has_value(), "LazyTensor size overflow, uid: ", uid, " device: CPU");
-        auto shared_source = this->request_shared_weight_source_buffer(uid, *size, "CPU", handle);
-
-        if (shared_source) {
-            stored_tensor.tensor = ov::Tensor(t.get_element_type(), t.get_shape(), shared_source->get_ptr());
-        } else {
-            stored_tensor.tensor = ov::Tensor(t.get_element_type(), t.get_shape());
-        }
+        auto shared_source = this->request_shared_weight_source_buffer(uid, t.get_element_type(), t.get_shape(), "CPU", handle);
+        stored_tensor.tensor = tensor_factory(*m_core, "CPU", t.get_element_type(), t.get_shape(), shared_source);
 
         // Get ownership of the weights, might be a mmaped object during import
         t.copy_to(stored_tensor.tensor);
@@ -248,9 +437,6 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
     // Allocate memory sequentially - in order of UID
     auto remote_ctx = m_core->get_default_context(device)._ptr;
     for (auto&& allocated : uids_to_allocated) {
-        const auto evaluated_byte_size = ov::util::get_memory_size_safe(allocated.meta.type, allocated.meta.shape);
-        OPENVINO_ASSERT(evaluated_byte_size.has_value(), "LazyTensor size overflow, uid: ", allocated.uid);
-
         // Each LazyTensor describes either a shared `constant` or a shared `transformation` of such constants.
         // "Shared" means that, once allocated, the tensor's memory may be reused across different compiled-model instances
         // if the same `transformation` is repeated.
@@ -268,19 +454,9 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         // `WeightSharingContextAccessor` owns and manages access to the shared weight memory.
         // It also provides access to `ov::weight_sharing::Context`.
         auto handle = this->get_handle();
-        auto weight_shared_source_buffer = this->request_shared_weight_source_buffer(allocated.uid, *evaluated_byte_size, device, handle);
+        auto weight_shared_source_buffer = this->request_shared_weight_source_buffer(allocated.uid, allocated.meta.type, allocated.meta.shape, device, handle);
 
-        ov::Tensor tensor;
-        if (weight_shared_source_buffer) {
-            ov::AnyMap params{
-                ov::intel_npu::mem_type(ov::intel_npu::MemType::CPU_VA),
-                ov::intel_npu::mem_handle(weight_shared_source_buffer->get_ptr()),
-                ov::intel_npu::tensor_type(ov::intel_npu::TensorType::BINDED),
-            };
-            tensor = ov::make_tensor(remote_ctx->create_tensor(allocated.meta.type, allocated.meta.shape, params));
-        } else {
-            tensor = ov::make_tensor(remote_ctx->create_host_tensor(allocated.meta.type, allocated.meta.shape));
-        }
+        ov::Tensor tensor = tensor_factory(*m_core, device, allocated.meta.type, allocated.meta.shape, weight_shared_source_buffer);
         allocated = {allocated.meta, std::move(tensor), allocated.uid};
     }
 
@@ -316,9 +492,14 @@ bool Bank::is_remote(int64_t uid) const {
 }
 
 void Bank::serialize(ov::npuw::orc::Stream& stream) {
+    NPUW_ASSERT(stream.output() && "Bank::serialize must use an output stream");
     LOG_INFO("Serializing weights bank...");
     LOG_BLOCK();
 
+    if (this->serialize_native_format(stream)) {
+        LOG_INFO("Bank has been serialized using OV weight sharing.");
+        return;
+    }
     std::unique_lock guard(m_mutex);
 
     std::size_t bank_size = m_device_banks.size();
@@ -343,6 +524,62 @@ void Bank::serialize(ov::npuw::orc::Stream& stream) {
     }
 
     LOG_INFO("DONE.");
+}
+
+void Bank::deserialize(ov::npuw::orc::Stream& stream) {
+    NPUW_ASSERT(stream.input() && "Bank::deserialize must use an input stream");
+    LOG_INFO("Deserializing weights bank...");
+    LOG_BLOCK();
+
+    {
+        auto handle = this->get_handle();
+        if (this->deserialize_native_format(stream, *m_core, handle)) {
+            //return tensor_factory(core, device, type, shape, shared_source);
+            std::unique_lock guard(m_mutex);
+            for (const auto &[uid, weight_meta_map] : handle.context->m_weight_registry) {
+                NPUW_ASSERT(weight_meta_map.size() == 1 && "Bank::deserialize: weight_meta_map must contain exactly one entry");
+                auto weight_source = ov::weight_sharing::get_runtime_weight_source(*handle.context, uid);
+                auto shared_source = weight_source.m_weights.lock();
+                NPUW_ASSERT(shared_source && "Bank::deserialize: WeightSource must provide a valid shared source buffer");
+                for (const auto& [constant_id, weight_meta] : weight_meta_map) {
+                    NPUW_ASSERT(constant_id == 0 && "Bank::deserialize: constant id must be 0 for each weight transformation");
+                    NPUW_ASSERT(weight_meta.m_offset == 0 && "Bank::deserialize: constant id must have m_offset 0 for each weight transformation");
+
+                    // insert the restored data into the device bank for consistency
+                    auto constant_buffer = ov::weight_sharing::get_buffer(*handle.context, shared_source, constant_id);
+                    const auto& ov_transformed_constant = this->get_transformed_constant(uid, handle);
+
+                    auto& device_bank = m_device_banks[weight_source.m_device];
+                    auto iter_device = device_bank.storage.find(uid /* not constant_id! */);
+                    NPUW_ASSERT(iter_device == device_bank.storage.end() && "Bank::deserialize: Tensor with this UID already exists in the device bank");
+                    device_bank.storage[uid].tensor = tensor_factory(*m_core, weight_source.m_device, weight_meta.m_type, ov_transformed_constant.get_shape_val(), constant_buffer);
+                    device_bank.storage[uid].lt = LazyTensor();
+
+                }
+            }
+            LOG_INFO("Bank has been deserialized using OV weight sharing.");
+            return;
+        }
+    }
+
+    std::unique_lock guard(m_mutex);
+
+    std::size_t bank_size;
+    stream & bank_size;
+
+    for (std::size_t i = 0; i < bank_size; ++i) {
+        std::string device;
+        std::size_t storage_size;
+        stream & device & storage_size;
+
+        for (std::size_t j = 0; j < storage_size; ++j) {
+            int64_t uid;
+            stream & uid;
+            read_and_add_tensor(stream, uid, device);
+        }
+    }
+
+    LOG_INFO("Deserialized in the legacy way.");
 }
 
 void Bank::read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const std::string& device) {
@@ -380,28 +617,15 @@ std::string Bank::get_name() const {
     return m_bank_name;
 }
 
+bool Bank::StoredTensor::is_evaluated() const {
+    return static_cast<bool>(tensor);
+}
+
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::weights::Bank& var) {
     if (stream.output()) {
         var.serialize(stream);
     } else {
-        LOG_INFO("Deserializing weights bank...");
-        LOG_BLOCK();
-
-        std::size_t bank_size = 0;
-        stream & bank_size;
-
-        for (std::size_t i = 0; i < bank_size; ++i) {
-            std::string device;
-            stream & device;
-            std::size_t storage_size = 0;
-            stream & storage_size;
-            for (std::size_t j = 0; j < storage_size; ++j) {
-                int64_t uid = -1;
-                stream & uid;
-                var.read_and_add_tensor(stream, uid, device);
-            }
-        }
-
+        var.deserialize(stream);
         LOG_INFO("DONE.");
     }
 }
