@@ -45,7 +45,7 @@ public:
         }
     }
 
-    std::shared_future<void> hint_prefetch_async() const override {
+    std::shared_future<void> hint_prefetch_async() const noexcept override {
         return hint_prefetch_async(get_offset(), m_byte_size);
     }
 
@@ -70,7 +70,7 @@ protected:
     }
 
     // The offset is relative to the root source buffer, so it is forwarded to the parents unchanged.
-    std::shared_future<void> hint_prefetch_async(size_t offset, size_t size) const override {
+    std::shared_future<void> hint_prefetch_async(size_t offset, size_t size) const noexcept override {
         if constexpr (std::is_same_v<std::shared_ptr<ov::MappedMemory>, T>) {
             if (m_shared_object) {
                 return m_shared_object->hint_prefetch_async(offset, size);

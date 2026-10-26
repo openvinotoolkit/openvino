@@ -83,7 +83,7 @@ public:
      * @return A handle that can be waited on to know when the region is actually resident; an
      *         invalid handle means there is nothing to wait for.
      */
-    virtual std::shared_future<void> hint_prefetch_async(size_t offset = 0, size_t size = auto_size) = 0;
+    virtual std::shared_future<void> hint_prefetch_async(size_t offset = 0, size_t size = auto_size) noexcept = 0;
 };
 
 /**

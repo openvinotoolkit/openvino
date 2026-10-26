@@ -107,7 +107,7 @@ void Extension::hint_evict(ov::op::v0::Constant& constant) noexcept {
     }
 }
 
-std::shared_future<void> Extension::hint_prefetch(const ov::op::v0::Constant& constant) {
+std::shared_future<void> Extension::hint_prefetch(const ov::op::v0::Constant& constant) noexcept {
     return (constant.m_data && constant.m_data->get_descriptor()) ? constant.m_data->hint_prefetch_async() : std::shared_future<void>{};
 }
 

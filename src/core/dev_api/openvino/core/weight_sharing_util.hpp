@@ -141,7 +141,7 @@ struct OPENVINO_API Extension {
      * @return A handle that can be waited on to know when the data is actually resident; an
      *         invalid handle means there is nothing to wait for.
      */
-    static std::shared_future<void> hint_prefetch(const ov::op::v0::Constant& constant);
+    static std::shared_future<void> hint_prefetch(const ov::op::v0::Constant& constant) noexcept;
 };
 
 /** @brief Get the source buffer for a given source id.
