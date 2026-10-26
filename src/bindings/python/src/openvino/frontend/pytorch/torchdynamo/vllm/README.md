@@ -213,6 +213,22 @@ Load: pass `load_format="nncf_hooks"` to `LLM`, with the same
 llm = LLM(model="tinyllama_int4", load_format="nncf_hooks", ...)
 ```
 
+The weights can be a `torch.export` archive instead of safetensors. Export the
+compressed model with `return_dict=False`, so the archive's output is a plain
+tuple that any torch version can deserialize, and keep config.json and the
+tokenizer beside it:
+
+```python
+ep = torch.export.export(model, args=(), strict=False,
+                         kwargs={**example, "use_cache": False, "return_dict": False})
+torch.export.save(ep, f"{out_dir}/model.pt2")
+model.config.save_pretrained(out_dir)  # then add quantization_config as above
+tokenizer.save_pretrained(out_dir)
+```
+
+The loader reads `*.pt2` only from a directory with no `*.safetensors`, and
+takes its weights alone: vLLM builds its own model, not the exported graph.
+
 ### Precision
 
 You do not configure precision. The backend reads the model's own float dtype

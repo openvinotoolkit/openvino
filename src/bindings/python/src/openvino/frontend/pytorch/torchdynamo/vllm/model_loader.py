@@ -20,6 +20,13 @@ This loader translates at load time, so the checkpoint needs no offline
 conversion -- only a `quantization_config` in config.json naming the int4
 modules, because vLLM fixes each layer's parameters before any weight is read.
 
+The same tensors can instead arrive as a `.pt2`: `torch.export.export()` of
+the compressed model keeps NNCF's hook modules as submodules, so its persistent
+state_dict carries exactly these names. A directory with no `*.safetensors` is
+read from its `*.pt2` (export with `return_dict=False`; see `_pt2_state_dict`).
+config.json and the tokenizer still sit beside it, since vLLM reads the config
+before any weight. Only the weights are used; vLLM builds its own model.
+
 The form each weight takes is decided by the model vLLM built rather than
 inferred: if the target layer declares a `qweight` the weight goes in packed,
 otherwise it is decompressed to dense. That covers the int8 backup layers,
@@ -84,7 +91,27 @@ def _dequantize(q, scale, zero_point, out_dtype):
     return weight.reshape(out_features, -1).type(out_dtype)
 
 
+def _pt2_state_dict(path):
+    """Persistent parameters and buffers of a `torch.export.save` archive.
+
+    The non-persistent buffers in `constants` (HF's rotary `inv_freq`) are not
+    checkpoint data; `save_pretrained` never writes them either. Loading
+    rebuilds the graph, so its output type must deserialize here: HF's
+    `CausalLMOutputWithPast` does not, a `return_dict=False` tuple does.
+    """
+    import torch
+
+    try:
+        exported = torch.export.load(path)
+    except Exception as exc:
+        raise ValueError(
+            f"[OV plugin] {LOAD_FORMAT}: cannot read {path}: {exc}. Export "
+            "with kwargs return_dict=False so the output is a plain tuple") from exc
+    return exported.state_dict
+
+
 def _define_loader():
+    import contextlib
     import glob
     import os
 
@@ -158,14 +185,25 @@ def _define_loader():
                     else:
                         yield w, torch.zeros(kv_shape, dtype=out_dtype)
 
+        @staticmethod
+        def _shards(model_dir):
+            """`(keys, get_tensor)` per checkpoint file: safetensors, else pt2."""
+            paths = sorted(glob.glob(os.path.join(model_dir, "*.safetensors")))
+            if paths:
+                for path in paths:
+                    with safe_open(path, framework="pt") as f:
+                        yield set(f.keys()), f.get_tensor
+                return
+            for path in sorted(glob.glob(os.path.join(model_dir, "*.pt2"))):
+                state = _pt2_state_dict(path)
+                yield set(state), state.__getitem__
+
         def _weights(self, model, model_config):
             params = dict(model.named_parameters())
             out_dtype = model_config.dtype
-            pattern = os.path.join(model_config.model, "*.safetensors")
             seen = set()
-            for path in sorted(glob.glob(pattern)):
-                with safe_open(path, framework="pt") as f:
-                    keys = set(f.keys())
+            with contextlib.closing(self._shards(model_config.model)) as shards:
+                for keys, get_tensor in shards:
                     seen.update(keys)
                     for name in sorted(keys):
                         if name.startswith("__nncf_hooks."):
@@ -174,13 +212,13 @@ def _define_loader():
                         scale_key = _hook_key(name, "_scale")
                         if scale_key not in keys:
                             # Norms and anything else NNCF left alone.
-                            yield name, f.get_tensor(name)
+                            yield name, get_tensor(name)
                             continue
 
-                        q = f.get_tensor(name)
-                        scale = f.get_tensor(scale_key)
+                        q = get_tensor(name)
+                        scale = get_tensor(scale_key)
                         zp_key = _hook_key(name, "_zero_point")
-                        zp = f.get_tensor(zp_key) if zp_key in keys else None
+                        zp = get_tensor(zp_key) if zp_key in keys else None
                         module = name.removesuffix(".weight")
 
                         if scale.dim() == 3 and self._target_is_quantized(
