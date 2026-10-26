@@ -23,10 +23,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 OutputVector translate_mulmat(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
@@ -36,6 +33,7 @@ OutputVector translate_mulmat(const NodeContext& context) {
     ov::Output<Node> res;
     ov::Output<ov::Node> B = context.get_input(0);
     ov::Output<ov::Node> A = context.get_input(1);
+    A = apply_hadamard(context, A);
 
     bool transpose_b = true;
     if (op_case == 2) {
@@ -55,6 +53,12 @@ OutputVector translate_mulmat(const NodeContext& context) {
 
     auto B_shape = context.get_input_shape(0);
     auto A_shape = context.get_input_shape(1);
+    if (A_shape[1].is_dynamic() || B_shape[1].is_dynamic()) {
+        // Variable encoder grids use equal or singleton batch axes. MatMul validates
+        // their broadcast compatibility at runtime; do not freeze a grid dimension.
+        return rename_outputs_with_suffix({std::make_shared<ov::op::v0::MatMul>(A, B, false, transpose_b)},
+                                          context.get_name());
+    }
     int64_t A_batch = A_shape[1].get_length();
     int64_t B_batch = B_shape[1].get_length();
 
@@ -96,7 +100,4 @@ OutputVector translate_mulmat(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

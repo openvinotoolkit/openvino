@@ -79,6 +79,7 @@ function(ov_add_onednn)
         set(DNNL_TARGET_ARCH "X86" CACHE STRING "" FORCE)
     elseif(RISCV64)
         set(DNNL_TARGET_ARCH "RV64" CACHE STRING "" FORCE)
+        include_directories(BEFORE "${intel_cpu_thirdparty_SOURCE_DIR}/xbyak_riscv")
     elseif(ARM)
         set(DNNL_TARGET_ARCH "ARM" CACHE STRING "" FORCE)
     elseif(AARCH64)
@@ -150,11 +151,6 @@ function(ov_add_onednn)
 
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
 
-    # 3rd-party code (Windows): don't fail the build on its warnings, but don't hide them either
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
-        target_compile_options(dnnl PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/WX->)
-    endif()
-
     # install static libraries
     ov_install_static_lib(dnnl ${OV_CPACK_COMP_CORE})
 
@@ -162,7 +158,7 @@ function(ov_add_onednn)
         # use ACLConfig.cmake in OpenVINOConfig.cmake in case of static build
         # we cannot use 'ov_install_static_lib' for imported targets,
         # but for this we need to install library files
-        install(FILES $<TARGET_PROPERTY:arm_compute::arm_compute,IMPORTED_LOCATION>
+        install(FILES $<TARGET_FILE:arm_compute::arm_compute>
                 DESTINATION ${OV_CPACK_ARCHIVEDIR}
                 COMPONENT ${OV_CPACK_COMP_CORE}
                 ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})

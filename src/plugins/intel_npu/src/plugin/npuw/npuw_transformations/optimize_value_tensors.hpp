@@ -13,10 +13,13 @@ namespace util {
 // SDPA-unroll and transpose transformations
 class OptimizeValueTensors : public ov::pass::ModelPass {
     bool m_is_prefill;
+    bool m_is_whisper;
 
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::OptimizeValueTensors");
-    explicit OptimizeValueTensors(bool is_prefill) : m_is_prefill(is_prefill) {}
+    explicit OptimizeValueTensors(bool is_prefill, bool is_whisper = false)
+        : m_is_prefill(is_prefill),
+          m_is_whisper(is_whisper) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };

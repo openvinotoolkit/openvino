@@ -18,6 +18,8 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
+#include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -2414,20 +2416,71 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
                                blobComparator);
 }
 
-static ov::Shape parseDataShape(const std::string& dataShapeStr) {
-    std::vector<uint64_t> dataShape;
-    std::stringstream ss(dataShapeStr);
+// Parses a comma separated list of non-negative dimensions, e.g. "1,3,224,224".
+static ov::Shape parseDimensions(const std::string& dimensionsStr) {
+    ov::Shape dataShape;
+    std::stringstream ss(dimensionsStr);
+    std::string dimStr;
 
-    char ch;  // To discard non-numeric characters
-    int64_t dim;
-    while (ss >> ch) {
-        if (std::isdigit(ch)) {
-            ss.putback(ch);
-            ss >> dim;
-            dataShape.push_back(dim);
+    while (std::getline(ss, dimStr, ',')) {
+        const bool isNumber = !dimStr.empty() && std::all_of(dimStr.begin(), dimStr.end(), [](unsigned char ch) {
+                                  return std::isdigit(ch) != 0;
+                              });
+        OPENVINO_ASSERT(isNumber, "Dimension \"", dimStr, "\" of the shape \"", dimensionsStr,
+                        "\" is not a non-negative integer");
+        try {
+            dataShape.push_back(std::stoull(dimStr));
+        } catch (const std::out_of_range&) {
+            OPENVINO_THROW("Dimension \"", dimStr, "\" of the shape \"", dimensionsStr, "\" is out of range");
         }
     }
-    return ov::Shape(dataShape);
+    OPENVINO_ASSERT(!dataShape.empty(), "Can't parse \"", dimensionsStr, "\" as a shape");
+    return dataShape;
+}
+
+// Data shapes by tensor name, as returned by ov::Output::get_any_name().
+using DataShapes = std::map<std::string, ov::Shape>;
+
+// Parses --data_shape. Accepted formats:
+//  - "[1,3,224,224]" or "1,3,224,224": a single shape used for every input;
+//  - "input1[1,3,224,224],input2[1,4]": one shape per input.
+static DataShapes parseDataShapes(std::string dataShapeStr,
+                                  const std::vector<ov::Output<const ov::Node>>& inputsInfo) {
+    dataShapeStr.erase(std::remove_if(dataShapeStr.begin(), dataShapeStr.end(),
+                                      [](unsigned char ch) {
+                                          return std::isspace(ch) != 0;
+                                      }),
+                       dataShapeStr.end());
+
+    DataShapes dataShapes;
+    if (dataShapeStr.empty()) {
+        return dataShapes;
+    }
+
+    // The shared parser expects bracketed values, while --data_shape also accepts a bare "1,3,224,224".
+    const std::string bracketed =
+            dataShapeStr.find('[') == std::string::npos ? "[" + dataShapeStr + "]" : dataShapeStr;
+
+    std::map<std::string, std::vector<std::string>> shapesPerInput;
+    try {
+        shapesPerInput = parseInputParameters(bracketed, inputsInfo);
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW("Can't parse --data_shape \"", dataShapeStr, "\": ", ex.what());
+    }
+
+    for (const auto& entry : shapesPerInput) {
+        OPENVINO_ASSERT(entry.second.size() == 1, "--data_shape contains more than one shape for input \"",
+                        entry.first, "\"");
+        dataShapes.emplace(entry.first, parseDimensions(entry.second.front()));
+    }
+    return dataShapes;
+}
+
+static ov::Shape getDataShape(const DataShapes& dataShapes, const ov::Output<const ov::Node>& inputInfo) {
+    const auto it = dataShapes.find(inputInfo.get_any_name());
+    OPENVINO_ASSERT(it != dataShapes.end(), "--data_shape has no shape for the dynamic input \"",
+                    inputInfo.get_any_name(), "\"");
+    return it->second;
 }
 
 std::string getRefBlobFilePath(const std::string& blobNamePrefix, const std::vector<std::string>& refFiles,
@@ -2762,6 +2815,8 @@ static int runSingleImageTest() {
         const std::string blobNamePrefix =
                 FLAGS_blob_name_prefix.empty() ? netFileName : cleanName(FLAGS_blob_name_prefix);
 
+        const DataShapes dataShapes = parseDataShapes(FLAGS_data_shape, compiledModel.inputs());
+
         for (size_t numberOfTestCase = 0; numberOfTestCase < inputFilesPerCase.size(); ++numberOfTestCase) {
             const auto inputsInfo = compiledModel.inputs();
             const auto outputsInfo = compiledModel.outputs();
@@ -2783,7 +2838,9 @@ static int runSingleImageTest() {
             // Load the input data
             for (const auto& inputInfo : inputsInfo) {
                 const auto& shape = inputInfo.get_partial_shape();
-                const auto dataShape = shape.is_static() ? shape.get_shape() : parseDataShape(FLAGS_data_shape);
+                const auto dataShape = shape.is_static() ? shape.get_shape() : getDataShape(dataShapes, inputInfo);
+                OPENVINO_ASSERT(shape.compatible(ov::PartialShape(dataShape)), "Data shape ", dataShape,
+                                " of the input \"", inputInfo.get_any_name(), "\" is not compatible with ", shape);
                 const ov::element::Type& precision = inputInfo.get_element_type();
 
                 // Determine the input layout

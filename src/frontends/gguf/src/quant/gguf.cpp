@@ -9,13 +9,19 @@
 
 #include "gguf.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
+#include <iomanip>
 #include <limits>
 #include <optional>
+#include <sstream>
 #include <string_view>
+#include <type_traits>
+#include <unordered_set>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
@@ -24,13 +30,13 @@
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/math_util.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "openvino/util/variant_visitor.hpp"
 #include "weights.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 namespace {
 
@@ -52,6 +58,8 @@ TypeTraits type_traits(uint32_t type) {
         return {1, 2};
     case GGUF_TYPE_Q4_0:
         return {32, 18};
+    case GGUF_TYPE_Q1_0:
+        return {128, 18};
     case GGUF_TYPE_Q4_1:
         return {32, 20};
     case GGUF_TYPE_Q5_0:
@@ -66,6 +74,10 @@ TypeTraits type_traits(uint32_t type) {
         return {256, 84};
     case GGUF_TYPE_Q2_0:
         return {64, 18};  // f16 scale + 64x 2-bit codes (16 bytes)
+    case GGUF_TYPE_PQ2_0:
+        return {128, 34};
+    case GGUF_TYPE_PTQ1_0:
+        return {128, 28};
     case GGUF_TYPE_Q3_K:
         return {256, 110};
     case GGUF_TYPE_Q4_K:
@@ -95,10 +107,8 @@ TypeTraits type_traits(uint32_t type) {
     }
 }
 
-// Layout of the REPACKED tensors a quantized GGUF type is unpacked into: the element types and
-// shapes the gguf_fill_* functions write into quant_buf. Single source of truth for both the
-// pass-1 size reservation and the pass-2 view carving below, so the two cannot disagree about a
-// divisor. Returns nullopt for the non-quantized types, which are mmap views instead.
+// Repacked tensor types and shape divisors shared by validation and allocation.
+// Non-quantized tensors use mmap views instead.
 struct QuantLayout {
     ov::element::Type weight_type;  // element type of the repacked weight blob
     size_t weight_div;              // innermost-dim divisor of the weight shape (8 = u32-packed u4)
@@ -113,6 +123,8 @@ std::optional<QuantLayout> quant_layout(uint32_t type) {
     switch (type) {
     case GGUF_TYPE_Q4_0:
         return QuantLayout{ov::element::i4, 1, ov::element::f16, 32, symmetric};
+    case GGUF_TYPE_Q1_0:
+        return QuantLayout{ov::element::u1, 1, ov::element::f16, 128, symmetric};
     case GGUF_TYPE_Q3_K:
         return QuantLayout{ov::element::i4, 1, ov::element::f16, 16, symmetric};
     case GGUF_TYPE_Q5_0:
@@ -127,12 +139,16 @@ std::optional<QuantLayout> quant_layout(uint32_t type) {
         return QuantLayout{ov::element::u2, 1, ov::element::f16, 16, asymmetric};
     case GGUF_TYPE_Q2_0:
         return QuantLayout{ov::element::u2, 1, ov::element::f16, 64, asymmetric};
+    case GGUF_TYPE_PQ2_0:
+    case GGUF_TYPE_PTQ1_0:
+        return QuantLayout{ov::element::u2, 1, ov::element::f16, 128, asymmetric};
     case GGUF_TYPE_Q4_1:
     case GGUF_TYPE_Q4_K:
         return QuantLayout{ov::element::u32, 8, ov::element::f16, 32, asymmetric};
     case GGUF_TYPE_Q5_1:
-    case GGUF_TYPE_Q5_K:
         return QuantLayout{ov::element::i8, 1, ov::element::f16, 32, asymmetric};
+    case GGUF_TYPE_Q5_K:
+        return QuantLayout{ov::element::u8, 1, ov::element::f16, 32, asymmetric};
     case GGUF_TYPE_MXFP4:
         return QuantLayout{ov::element::f4e2m1, 1, ov::element::f8e8m0, 32, symmetric};
     default:
@@ -422,13 +438,29 @@ ov::Shape get_shape(const GgufTensor& tensor) {
     return shape;
 }
 
-GGUFLoad get_gguf_data(const std::string& file) {
+namespace {
+
+struct TensorInfo {
+    std::string name;
+    uint32_t type = 0;
+    uint32_t ndim = 0;
+    uint64_t dim[4] = {1, 1, 1, 1};
+    uint64_t offset = 0;
+};
+
+struct GgufFile {
     std::unordered_map<std::string, GGUFMetaData> metadata;
-    std::unordered_map<std::string, ov::Tensor> arrays;
-    std::unordered_map<std::string, GgufTensorType> qtype;
+    std::vector<TensorInfo> infos;
+    std::shared_ptr<ov::MappedMemory> mapped;
+    uint64_t alignment;
+    uint64_t data_off;
+};
+
+GgufFile read_gguf_file(const std::filesystem::path& file) {
+    std::unordered_map<std::string, GGUFMetaData> metadata;
 
     auto mapped = ov::load_mmap_object(file);
-    OPENVINO_ASSERT(mapped && mapped->data(), "[load_gguf] failed to mmap '", file, "'");
+    OPENVINO_ASSERT(mapped && mapped->data(), "[load_gguf] failed to mmap '", ov::util::path_to_string(file), "'");
     const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
     const uint64_t fsize = mapped->size();
 
@@ -436,7 +468,10 @@ GGUFLoad get_gguf_data(const std::string& file) {
 
     // ---- Header ----
     uint32_t magic = cur.read<uint32_t>();
-    OPENVINO_ASSERT(magic == GGUF_MAGIC, "[load_gguf] '", file, "' is not a GGUF file (bad magic)");
+    OPENVINO_ASSERT(magic == GGUF_MAGIC,
+                    "[load_gguf] '",
+                    ov::util::path_to_string(file),
+                    "' is not a GGUF file (bad magic)");
     uint32_t version = cur.read<uint32_t>();
     OPENVINO_ASSERT(version == 2 || version == 3, "[load_gguf] unsupported GGUF version ", version);
     uint64_t tensor_count = cur.read<uint64_t>();
@@ -464,13 +499,6 @@ GGUFLoad get_gguf_data(const std::string& file) {
                     alignment);
 
     // ---- Tensor info section ----
-    struct TensorInfo {
-        std::string name;
-        uint32_t type = 0;
-        uint32_t ndim = 0;
-        uint64_t dim[4] = {1, 1, 1, 1};
-        uint64_t offset = 0;
-    };
     // A minimal tensor-info record (0-length name, ndim=0) is 8 (name len) + 4 (ndim) + 4 (type) +
     // 8 (offset) = 24 bytes; bound the file-controlled `tensor_count` by that before sizing the
     // vector, so a tiny malformed file can't request an effectively unbounded allocation.
@@ -493,14 +521,76 @@ GGUFLoad get_gguf_data(const std::string& file) {
 
     // Tensor data starts at the next `alignment`-aligned offset after the info section.
     uint64_t data_off = cur.offset() + ov::util::align_padding_size(alignment, cur.offset());
+    OPENVINO_ASSERT(data_off <= fsize, "[load_gguf] tensor data section starts past EOF");
+    return {std::move(metadata), std::move(infos), std::move(mapped), alignment, data_off};
+}
 
-    // Bytes the repacked (weight, scale, zero-point) tensors of a quantized tensor occupy in
-    // quant_buf, derived from its QuantLayout. Symmetric types have no zero-point; asymmetric
-    // ones use the element type selected by gguf_zero_point_type.
-    //
-    // Every dim comes straight from the file, so the element and byte counts go through the
-    // overflow-checked ov::util helpers: a wrapped product could otherwise under-size quant_buf
-    // while the fill functions still write the real, attacker-controlled shape into it.
+void detect_legacy_q2_layout(std::vector<GgufFile>& files) {
+    std::vector<TensorInfo*> ambiguous_q2;
+    bool legacy_g128 = false;
+    for (auto& file : files) {
+        auto& infos = file.infos;
+        const auto alignment = file.alignment;
+        const auto data_off = file.data_off;
+        const uint64_t fsize = file.mapped->size();
+        std::vector<uint64_t> offsets;
+        for (const auto& ti : infos)
+            offsets.push_back(ti.offset);
+        std::sort(offsets.begin(), offsets.end());
+        OPENVINO_ASSERT(data_off <= fsize && (offsets.empty() || offsets.back() <= fsize - data_off),
+                        "[load_gguf] tensor offset runs past EOF");
+        for (auto& ti : infos) {
+            if (ti.type != GGUF_TYPE_Q2_0 || ti.dim[0] == 0)
+                continue;
+            const auto next = std::upper_bound(offsets.begin(), offsets.end(), ti.offset);
+            OPENVINO_ASSERT(data_off <= fsize && ti.offset <= fsize - data_off,
+                            "[load_gguf] tensor '",
+                            ti.name,
+                            "' offset runs past EOF");
+            const auto span = (next == offsets.end() ? fsize - data_off : *next) - ti.offset;
+            const auto size_for = [&](uint32_t type) {
+                const auto traits = type_traits(type);
+                uint64_t blocks = ti.dim[0] / traits.items_per_block;
+                for (uint32_t d = 1; d < ti.ndim; ++d) {
+                    OPENVINO_ASSERT(ti.dim[d] == 0 || blocks <= std::numeric_limits<uint64_t>::max() / ti.dim[d],
+                                    "[load_gguf] tensor '",
+                                    ti.name,
+                                    "' byte count overflows");
+                    blocks *= ti.dim[d];
+                }
+                OPENVINO_ASSERT(blocks <= std::numeric_limits<uint64_t>::max() / traits.bytes_per_block,
+                                "[load_gguf] tensor '",
+                                ti.name,
+                                "' byte count overflows");
+                const auto bytes = blocks * traits.bytes_per_block;
+                return bytes <= span &&
+                       (bytes == span || ov::util::align_padding_size(alignment, bytes) == span - bytes);
+            };
+            const bool g64 = ti.dim[0] % 64 == 0 && size_for(GGUF_TYPE_Q2_0);
+            const bool g128 = ti.dim[0] % 128 == 0 && size_for(GGUF_TYPE_PQ2_0);
+            OPENVINO_ASSERT(g64 || g128, "[load_gguf] tensor '", ti.name, "' has invalid Q2_0 packing");
+            if (g64 && g128) {
+                ambiguous_q2.push_back(&ti);
+            } else if (g128) {
+                ti.type = GGUF_TYPE_PQ2_0;
+                legacy_g128 = true;
+            }
+        }
+    }
+    if (legacy_g128) {
+        for (auto* ti : ambiguous_q2)
+            ti->type = GGUF_TYPE_PQ2_0;
+    }
+}
+
+void load_gguf_tensors(GgufFile& file,
+                       std::unordered_map<std::string, ov::Tensor>& arrays,
+                       std::unordered_map<std::string, GgufTensorType>& qtype) {
+    auto& [metadata, infos, mapped, alignment, data_off] = file;
+    const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
+    const uint64_t fsize = mapped->size();
+
+    // Validate file-controlled shapes before allocating repacked tensors.
     auto quant_sizes = [](const TensorInfo& ti, const QuantLayout& ql) -> std::array<size_t, 3> {
         const ov::Shape shape = [&ti]() {
             ov::Shape s;
@@ -528,26 +618,12 @@ GGUFLoad get_gguf_data(const std::string& file) {
         return {bytes(ql.weight_type, weight_shape), bytes(ql.scale_type, scale_shape), z_bytes};
     };
 
-    // ---- Pass 1: size, and record, every tensor's slice of the repacked quantized data ----
-    std::vector<std::array<size_t, 3>> quant_bytes(infos.size(), {0, 0, 0});
-    size_t total_quant_bytes = 0;
-    for (size_t i = 0; i < infos.size(); ++i) {
-        const auto layout = quant_layout(infos[i].type);
-        if (!layout) {
-            continue;
-        }
-        quant_bytes[i] = quant_sizes(infos[i], *layout);
-        for (const size_t part : quant_bytes[i]) {
-            const bool overflow = ov::util::add_overflow(total_quant_bytes, part, total_quant_bytes);
-            OPENVINO_ASSERT(!overflow, "[load_gguf] total quantized buffer size overflows size_t");
+    for (const auto& info : infos) {
+        if (const auto layout = quant_layout(info.type)) {
+            quant_sizes(info, *layout);
         }
     }
 
-    // Single allocation for all repacked quantized data (IR-frontend AlignedBuffer pattern).
-    auto quant_buf = std::make_shared<ov::AlignedBuffer>(total_quant_bytes > 0 ? total_quant_bytes : 1);
-
-    // ---- Pass 2: materialize tensors, slicing into quant_buf for quantized ones ----
-    size_t quant_offset = 0;
     for (size_t idx = 0; idx < infos.size(); ++idx) {
         const TensorInfo& ti = infos[idx];
         GgufTensor tensor;
@@ -569,7 +645,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
         // ne[0] % 256 == 0 for Q6_K). Without this, a crafted or truncated file's flooring
         // integer division below silently produces a `bsize` that disagrees with the
         // independently-flooring `scale_shape` computed in quant_sizes, letting fill_* write
-        // scales past the end of its (too-small) AlignedBuffer slice.
+        // scales past the end of its allocated tensor.
         OPENVINO_ASSERT(ti.dim[0] % tr.items_per_block == 0,
                         "[load_gguf] tensor '",
                         ti.name,
@@ -610,27 +686,17 @@ GGUFLoad get_gguf_data(const std::string& file) {
         ov::Shape scale_shape = shape;
         scale_shape.back() /= layout->group_size;
 
-        // Carve each repacked tensor out of the single quant_buf allocation, in the same order
-        // and with the same sizes pass 1 reserved for it.
-        char* buf_ptr = quant_buf->get_ptr<char>();
-        std::shared_ptr<void> so_buf(quant_buf);
-        size_t part = 0;
-        const auto carve = [&](const ov::element::Type& et, const ov::Shape& s) {
-            ov::Tensor view(et, s, static_cast<void*>(buf_ptr + quant_offset));
-            quant_offset += quant_bytes[idx][part++];
-            return ov::Tensor(view, so_buf);
-        };
-        ov::Tensor weights = carve(layout->weight_type, weight_shape);
-        ov::Tensor scales = carve(layout->scale_type, scale_shape);
+        // Independent buffers let replaced weights be freed without retaining the whole model.
+        ov::Tensor weights(layout->weight_type, weight_shape);
+        ov::Tensor scales(layout->scale_type, scale_shape);
         ov::Tensor zp;
         if (layout->asymmetric) {
-            // Preserve the native zero-point representation, including u8 for Q2_0.
-            zp = carve(gguf_zero_point_type(name, static_cast<GgufTensorType>(ti.type)), scale_shape);
+            zp = ov::Tensor(gguf_zero_point_type(name, static_cast<GgufTensorType>(ti.type)), scale_shape);
         }
 
         if (ti.type == GGUF_TYPE_MXFP4) {
             gguf_fill_mxfp4(tensor, weights, scales);
-        } else if (ti.type == GGUF_TYPE_Q2_0) {
+        } else if (ti.type == GGUF_TYPE_Q2_0 || ti.type == GGUF_TYPE_PQ2_0 || ti.type == GGUF_TYPE_PTQ1_0) {
             gguf_fill_q2_0(tensor, weights, scales, zp);
         } else if (layout->asymmetric) {
             gguf_fill_asym(tensor, weights, scales, zp);
@@ -646,8 +712,153 @@ GGUFLoad get_gguf_data(const std::string& file) {
         }
         qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
     }
+}
 
-    return {std::move(metadata), std::move(arrays), std::move(qtype), std::move(mapped), std::move(quant_buf)};
+uint64_t split_value(const GgufFile& file, const std::string& key, const ov::element::Type& type) {
+    const auto& value = metadata_scalar_tensor(file.metadata, key, type);
+    OPENVINO_ASSERT(value.get_shape().empty(), "[load_gguf] '", key, "' must be a scalar");
+    if (type == ov::element::u16) {
+        return *value.data<const uint16_t>();
+    }
+    const auto count = *value.data<const int32_t>();
+    OPENVINO_ASSERT(count >= 0, "[load_gguf] '", key, "' must be nonnegative");
+    return static_cast<uint64_t>(count);
+}
+
+uint64_t split_count(const GgufFile& file) {
+    return file.metadata.count("split.count") ? split_value(file, "split.count", ov::element::u16) : 0;
+}
+
+bool same_metadata(const GGUFMetaData& lhs, const GGUFMetaData& rhs) {
+    if (lhs.index() != rhs.index()) {
+        return false;
+    }
+    return std::visit(ov::util::VariantVisitor{[&](const ov::Tensor& a) {
+                                                   const auto& b = std::get<ov::Tensor>(rhs);
+                                                   return a.get_element_type() == b.get_element_type() &&
+                                                          a.get_shape() == b.get_shape() &&
+                                                          (a.get_byte_size() == 0 ||
+                                                           std::memcmp(a.data(), b.data(), a.get_byte_size()) == 0);
+                                               },
+                                               [&](const auto& a) {
+                                                   return a == std::get<std::decay_t<decltype(a)>>(rhs);
+                                               }},
+                      lhs);
+}
+
+std::string split_suffix(uint64_t index, uint64_t count) {
+    std::ostringstream suffix;
+    suffix << '-' << std::setfill('0') << std::setw(5) << index + 1 << "-of-" << std::setw(5) << count << ".gguf";
+    return suffix.str();
+}
+
+GGUFLoad load_gguf_files(std::vector<GgufFile> files) {
+    const uint64_t count = split_count(files.front());
+    if (count != 0) {
+        OPENVINO_ASSERT(files.size() == count, "[load_gguf] expected ", count, " GGUF shards, got ", files.size());
+        std::vector<bool> seen(count);
+        uint64_t tensor_count = 0;
+        const auto total = split_value(files.front(), "split.tensors.count", ov::element::i32);
+        for (const auto& file : files) {
+            OPENVINO_ASSERT(split_count(file) == count, "[load_gguf] inconsistent split.count across GGUF shards");
+            const auto index = split_value(file, "split.no", ov::element::u16);
+            OPENVINO_ASSERT(index < count, "[load_gguf] split.no is out of range: ", index);
+            OPENVINO_ASSERT(!seen[index], "[load_gguf] duplicate GGUF shard index: ", index);
+            seen[index] = true;
+            OPENVINO_ASSERT(split_value(file, "split.tensors.count", ov::element::i32) == total,
+                            "[load_gguf] inconsistent split.tensors.count across GGUF shards");
+            tensor_count += file.infos.size();
+        }
+        OPENVINO_ASSERT(tensor_count == total,
+                        "[load_gguf] split.tensors.count declares ",
+                        total,
+                        " tensors, found ",
+                        tensor_count);
+        std::sort(files.begin(), files.end(), [](const auto& a, const auto& b) {
+            return split_value(a, "split.no", ov::element::u16) < split_value(b, "split.no", ov::element::u16);
+        });
+    } else {
+        OPENVINO_ASSERT(files.size() == 1, "[load_gguf] multiple inputs must belong to one split GGUF model");
+    }
+
+    const auto& metadata = files.front().metadata;
+    std::unordered_set<std::string> names;
+    for (const auto& file : files) {
+        for (const auto& [key, value] : file.metadata) {
+            if (key.compare(0, 6, "split.") == 0) {
+                continue;
+            }
+            const auto it = metadata.find(key);
+            OPENVINO_ASSERT(it != metadata.end() && same_metadata(it->second, value),
+                            "[load_gguf] inconsistent metadata across GGUF shards: '",
+                            key,
+                            "'");
+        }
+        for (const auto& info : file.infos) {
+            OPENVINO_ASSERT(names.insert(info.name).second, "[load_gguf] duplicate tensor name '", info.name, "'");
+        }
+    }
+
+    std::unordered_map<std::string, ov::Tensor> arrays;
+    std::unordered_map<std::string, GgufTensorType> qtype;
+    std::vector<std::shared_ptr<ov::MappedMemory>> mappings;
+    mappings.reserve(files.size());
+    detect_legacy_q2_layout(files);
+    for (auto& file : files) {
+        load_gguf_tensors(file, arrays, qtype);
+        mappings.push_back(std::move(file.mapped));
+    }
+    return {std::move(files.front().metadata), std::move(arrays), std::move(qtype), std::move(mappings)};
+}
+
+}  // namespace
+
+GGUFLoad get_gguf_data(const std::filesystem::path& file) {
+    auto initial = read_gguf_file(file);
+    const auto count = split_count(initial);
+    if (count <= 1) {
+        std::vector<GgufFile> files;
+        files.push_back(std::move(initial));
+        return load_gguf_files(std::move(files));
+    }
+    const auto index = split_value(initial, "split.no", ov::element::u16);
+    OPENVINO_ASSERT(index < count, "[load_gguf] split.no is out of range: ", index);
+    const auto filename = file.filename().native();
+    const auto suffix = std::filesystem::path(split_suffix(index, count)).native();
+    OPENVINO_ASSERT(filename.size() >= suffix.size() &&
+                        filename.compare(filename.size() - suffix.size(), suffix.size(), suffix) == 0,
+                    "[load_gguf] split GGUF filename does not match its metadata; provide an explicit list of shards");
+    const auto prefix = filename.substr(0, filename.size() - suffix.size());
+    std::vector<GgufFile> files;
+    files.reserve(count);
+    for (uint64_t i = 0; i < count; ++i) {
+        if (i == index) {
+            files.push_back(std::move(initial));
+            continue;
+        }
+        const auto sibling = file.parent_path() / (prefix + std::filesystem::path(split_suffix(i, count)).native());
+        OPENVINO_ASSERT(std::filesystem::is_regular_file(sibling),
+                        "[load_gguf] missing GGUF shard: '",
+                        ov::util::path_to_string(sibling),
+                        "'");
+        auto next = read_gguf_file(sibling);
+        OPENVINO_ASSERT(split_value(next, "split.no", ov::element::u16) == i,
+                        "[load_gguf] split.no does not match shard filename: '",
+                        ov::util::path_to_string(sibling),
+                        "'");
+        files.push_back(std::move(next));
+    }
+    return load_gguf_files(std::move(files));
+}
+
+GGUFLoad get_gguf_data(const std::vector<std::filesystem::path>& paths) {
+    OPENVINO_ASSERT(!paths.empty(), "[load_gguf] GGUF shard list is empty");
+    std::vector<GgufFile> files;
+    files.reserve(paths.size());
+    for (const auto& path : paths) {
+        files.push_back(read_gguf_file(path));
+    }
+    return load_gguf_files(std::move(files));
 }
 
 std::map<std::string, GGUFMetaData> decoder_config_from_meta(
@@ -693,7 +904,11 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     }
     config["hidden_size"] = metadata_to_int(metadata, arch + ".embedding_length");
     config["max_position_embeddings"] = metadata_to_int_or(metadata, arch + ".context_length", 2048);
-    config["rms_norm_eps"] = metadata_to_float(metadata, arch + ".attention.layer_norm_rms_epsilon");
+    config["pooling_type"] = metadata_to_int_or(metadata, arch + ".pooling_type", 0);
+    config["causal_attention"] = metadata_to_bool_or(metadata, arch + ".attention.causal", true) ? 1 : 0;
+    config["rms_norm_eps"] = metadata_to_float(
+        metadata,
+        arch + (arch == "jais2" ? ".attention.layer_norm_epsilon" : ".attention.layer_norm_rms_epsilon"));
     config["rope_freq_base"] = metadata_to_float_or(metadata, arch + ".rope.freq_base", 10000.0f);
     // Advisory: the dominant quant type of the file. Purely informational -- every weight carries
     // its own type in the tensor info, which is what the dequant path uses. Optional because
@@ -706,7 +921,20 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // Mirrors llama.cpp: hparams.rope_freq_scale_train = 1/ropescale; ext_factor = (yarn?1:0).
     {
         const float ropescale = metadata_to_float_or(metadata, arch + ".rope.scaling.factor", 0.0f);
-        config["rope_freq_scale"] = ropescale == 0.0f ? 1.0f : 1.0f / ropescale;
+        float freq_scale = 1.0f;
+        if (ropescale != 0.0f) {
+            OPENVINO_ASSERT(std::isfinite(ropescale) && ropescale > 0.0f,
+                            "[GGUF] '",
+                            arch,
+                            ".rope.scaling.factor' must be finite and positive");
+            const double inverse = 1.0 / static_cast<double>(ropescale);
+            OPENVINO_ASSERT(inverse <= std::numeric_limits<float>::max(),
+                            "[GGUF] '",
+                            arch,
+                            ".rope.scaling.factor' reciprocal exceeds the float range");
+            freq_scale = static_cast<float>(inverse);
+        }
+        config["rope_freq_scale"] = freq_scale;
 
         const bool is_yarn = metadata.count(arch + ".rope.scaling.type") &&
                              std::get<std::string>(metadata.at(arch + ".rope.scaling.type")) == "yarn";
@@ -814,7 +1042,8 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // absent (it does not reset to the global base first, unlike gemma2/gemma4/cohere2/etc.), so
     // gemma3 SWA layers rope at freq_base=10000 while global layers use 1000000. See
     // llama.cpp src/models/gemma3.cpp load_arch_hparams.
-    const float def_freq_base_swa = (arch == "gemma3") ? 10000.0f : std::get<float>(config["rope_freq_base"]);
+    const float def_freq_base_swa =
+        (arch == "gemma3" || arch == "plamo3") ? 10000.0f : std::get<float>(config["rope_freq_base"]);
     config["rope_freq_base_swa"] = metadata_to_float_or(metadata, arch + ".rope.freq_base_swa", def_freq_base_swa);
 
     // has_swa: true when the GGUF carries either a sliding_window_pattern or a
@@ -865,7 +1094,10 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     } else {
         // No explicit pattern key. gemma3 defaults to period 6 (llama.cpp gemma3 load_arch_hparams
         // passes swa_period=6 to get_key_or_arr); gpt-oss and others default to 2.
-        config["swa_layer_pattern"] = arch == "gemma3" ? 6 : arch == "exaone4" ? 4 : 2;
+        config["swa_layer_pattern"] = arch == "gemma3"                              ? 6
+                                      : arch == "plamo3"                            ? 8
+                                      : (arch == "exaone4" || arch == "exaone-moe") ? 4
+                                                                                    : 2;
         config["swa_layer_flags"] = std::vector<int32_t>{};
     }
 
@@ -876,7 +1108,10 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     config["moe_layer_step"] = metadata_to_int_or(metadata, arch + ".interleave_moe_layer_step", 1);
     config["expert_groups"] = metadata_to_int_or(metadata, arch + ".expert_group_count", 1);
     config["expert_groups_used"] = metadata_to_int_or(metadata, arch + ".expert_group_used_count", 1);
-    config["expert_gating_func"] = metadata_to_int_or(metadata, arch + ".expert_gating_func", 1);
+    auto expert_gating_func = metadata_to_int_or(metadata, arch + ".expert_gating_func", arch == "glm4moe" ? 2 : 1);
+    if (arch == "glm4moe" && expert_gating_func == 0)
+        expert_gating_func = 2;
+    config["expert_gating_func"] = expert_gating_func;
     config["expert_weights_norm"] = metadata_to_bool_or(metadata, arch + ".expert_weights_norm", false) ? 1 : 0;
 
     // Gemma2 attention soft-cap: tanh(QK^T * (1/cap)) * cap applied inside the attention.
@@ -887,9 +1122,11 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // 0.0 means no soft-cap.
     config["final_logit_softcapping"] = metadata_to_float_or(metadata, arch + ".final_logit_softcapping", 0.0f);
 
+    for (const auto& [key, value] : metadata) {
+        if (key.compare(0, 15, "prism.hadamard.") == 0)
+            config[key] = value;
+    }
     return config;
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf
