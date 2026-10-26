@@ -199,6 +199,36 @@ cp ../bonsai27b-hf/*processor_config.json .     # the processor configs WWB load
 cd ..
 ```
 
+### 4.1 Bonsai 2 2B, 4B and 9B
+
+The smaller sizes have the architecture of the Qwen3.5 base model of the same
+size, so that model replaces the Bonsai 1 IR of step 3 as the template. They
+use other Hadamard blocks (512 for 2B and 4B, 4096 for 9B) and tie the LM head
+to the embedding (2B and 4B). The converter reads both from the GGUF. For
+`<size>` = `2B`, `4B` or `9B`:
+
+```bash
+cd $WORK
+./venv/bin/hf download Qwen/Qwen3.5-<size> --local-dir qwen35-<size>-hf
+./venv/bin/optimum-cli export openvino --model qwen35-<size>-hf \
+    --task image-text-to-text --weight-format fp16 qwen35-<size>-fp16
+./venv/bin/python $TOOLS/quantize_ir_ternary.py --in qwen35-<size>-fp16/openvino_language_model.xml \
+    --out tmpl-<size>-u2/openvino_model.xml
+
+./venv/bin/hf download prism-ml/Ternary-Bonsai-2-<size>-gguf Ternary-Bonsai-2-<size>-PQ2_0.gguf --local-dir bonsai2-gguf
+./venv/bin/python $TOOLS/bonsai2_gguf_to_ir.py \
+    --gguf           bonsai2-gguf/Ternary-Bonsai-2-<size>-PQ2_0.gguf \
+    --template-dir   tmpl-<size>-u2 \
+    --gguf-py        llama.cpp-prism/gguf-py \
+    --out-dir        bonsai2-<size>-u2
+```
+
+Expected for 2B: `[ir] hadamard H512: 151 folded weights, sign widths [2048, 6144]`,
+and for 9B: `[ir] hadamard H4096: 201 folded weights, sign widths [4096, 12288]`.
+The IRs are 0.6 GB (2B), 1.3 GB (4B) and 2.4 GB (9B). The GenAI model
+directory is built as for 27B, with `qwen35-<size>-fp16` and `qwen35-<size>-hf`
+in place of `bonsai27b-fp16` and `bonsai27b-hf`.
+
 ## 5. Run
 
 ```bash
