@@ -60,7 +60,7 @@ std::string paged_causal_conv1d_inst::to_string(const paged_causal_conv1d_node& 
     pcc_info.add("past_lens", node.input(7).id());
     pcc_info.add("cache_interval", node.input(8).id());
     pcc_info.add("hidden_size", desc->hidden_size);
-    pcc_info.add("kernel_size", desc->kernel_size);
+    pcc_info.add("causal_window", desc->causal_window);
     pcc_info.add("dilation", desc->dilation);
 
     node_info->add("paged_causal_conv1d_info", pcc_info);

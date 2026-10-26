@@ -422,7 +422,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_causal_conv1d_gpu_test,
                                            paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, true, false, true},
                                            // PLE scenario: num_taps=4, dilation=ngram_size=3 -> window=10.
                                            paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f32, true, false, false, 3},
-                                           paged_causal_conv1d_test_params{12, 3, 32, 5, ov::element::f16, true, false, false, 2}),
+                                           paged_causal_conv1d_test_params{12, 3, 32, 5, ov::element::f16, true, false, false, 2},
+                                           // Dilated conv combined with padded input and prefix-caching writes.
+                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f32, true, true, true, 3}),
                          paged_causal_conv1d_gpu_test::PrintToStringParamName);
 
 }  // namespace

@@ -49,6 +49,26 @@ namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
 
+namespace {
+
+// PagedCausalConv1D has no stride/padding attributes: it always produces one output per
+// input token. A strided or padded GroupConvolution would change the output token count
+// and is not representable by the fused op.
+ov::pass::pattern::op::Predicate has_unit_stride_and_no_padding() {
+    return ov::pass::pattern::op::Predicate(
+        [](const ov::Output<ov::Node>& output) -> bool {
+            const auto group_conv = ov::as_type_ptr<v1::GroupConvolution>(output.get_node_shared_ptr());
+            const auto& strides = group_conv->get_strides();
+            const auto& pads_begin = group_conv->get_pads_begin();
+            const auto& pads_end = group_conv->get_pads_end();
+            return (strides.empty() || strides[0] == 1) && (pads_begin.empty() || pads_begin[0] == 0) &&
+                   (pads_end.empty() || pads_end[0] == 0);
+        },
+        "has_unit_stride_and_no_padding");
+}
+
+}  // namespace
+
 namespace ov::pass {
 
 class PagedCausalConv1DFusionMatcher : public ov::pass::MatcherPass {
@@ -72,7 +92,8 @@ PagedCausalConv1DFusionMatcher::PagedCausalConv1DFusionMatcher(ov::pass::paged_a
     auto p_state_concat = p_concat_past_first | p_concat_token_first;
 
     auto p_weight_input = any_input(has_static_shape() && rank_equals(4));
-    auto p_group_conv = wrap_type<v1::GroupConvolution>({p_state_concat, p_weight_input});
+    auto p_group_conv =
+        wrap_type<v1::GroupConvolution>({p_state_concat, p_weight_input}, has_unit_stride_and_no_padding());
 
     auto p_bias_input = any_input(has_static_shape());
     auto p_add_bias = optional<v1::Add>({p_group_conv, p_bias_input});
@@ -100,7 +121,7 @@ PagedCausalConv1DFusionMatcher::PagedCausalConv1DFusionMatcher(ov::pass::paged_a
         const size_t hidden_size = weight_shape[0];
         const size_t kernel_size = weight_shape[3];
 
-        const size_t dilation = group_conv_node->get_dilations()[0];
+        const size_t dilation = group_conv_node->get_dilations().size() > 0 ? group_conv_node->get_dilations()[0] : 1;
         const size_t causal_window = (kernel_size - 1) * dilation + 1;
         // A full-window history produces one extra output, removed by the output Slice.
         // The history-only form (e.g. PLE) already produces one output per current token.

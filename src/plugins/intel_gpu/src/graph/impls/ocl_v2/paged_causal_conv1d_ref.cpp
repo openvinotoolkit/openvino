@@ -59,8 +59,7 @@ protected:
         auto desc = params.typed_desc<paged_causal_conv1d>();
 
         jit.make("HIDDEN_SIZE", static_cast<int>(input_shape[1].get_length()));
-        // KERNEL_SIZE is the causal window (state buffer length): (NUM_TAPS-1)*DILATION+1.
-        jit.make("KERNEL_SIZE", static_cast<int>(state_shape[2].get_length()));
+        jit.make("CAUSAL_WINDOW", static_cast<int>(state_shape[2].get_length()));
         jit.make("NUM_TAPS", static_cast<int>(weight_shape[2].get_length()));
         jit.make("DILATION", static_cast<int>(desc->dilation));
         jit.make("HAS_BIAS", has_bias ? 1 : 0);

@@ -455,7 +455,9 @@ std::shared_ptr<v8::Slice> make_last_n_slice(const ov::Output<ov::Node>& data, s
 std::shared_ptr<ov::Model> build_dilated_conv_model(size_t state_len,
                                                     size_t dilation,
                                                     bool with_output_slice = true,
-                                                    bool with_bias = false) {
+                                                    bool with_bias = false,
+                                                    size_t stride = 1,
+                                                    size_t pad = 0) {
     auto past_state_param = std::make_shared<v0::Parameter>(element::f32, Shape{2, hidden_size, state_len});
     auto read_value = std::make_shared<ov::op::v3::ReadValue>(past_state_param->output(0), "past_cache");
     read_value->get_output_tensor(0).set_names({"cache_params.past.conv.0"});
@@ -468,9 +470,9 @@ std::shared_ptr<ov::Model> build_dilated_conv_model(size_t state_len,
                                         std::vector<float>(hidden_size * kernel_size, 0.25f));
     auto group_conv = std::make_shared<v1::GroupConvolution>(state_concat,
                                                              weights,
-                                                             Strides{1},
-                                                             CoordinateDiff{0},
-                                                             CoordinateDiff{0},
+                                                             Strides{stride},
+                                                             CoordinateDiff{static_cast<ptrdiff_t>(pad)},
+                                                             CoordinateDiff{static_cast<ptrdiff_t>(pad)},
                                                              Strides{dilation});
     std::shared_ptr<ov::Node> conv_out = group_conv;
     if (with_bias) {
@@ -744,6 +746,55 @@ TEST_F(PagedCausalConv1DFusionTest, DoesNotFuseDilatedConvWhenStateIsKernelSize)
     model = build_dilated_conv_model(kernel_size, dilation);
     run_paged_causal_conv1d_fusion(model);
     model_ref = build_dilated_conv_model(kernel_size, dilation);
+}
+
+// PagedCausalConv1D has no stride attribute and always emits one output per input token.
+// With 4 taps, dilation 3, 9 history entries and 8 current tokens, GroupConvolution with
+// stride 2 would produce 4 outputs, while the fused op would wrongly produce 8. Must not fuse.
+TEST_F(PagedCausalConv1DFusionTest, DoesNotFuseStridedConv) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+
+    constexpr size_t dilation = 3;
+    constexpr size_t history_length = (kernel_size - 1) * dilation;
+    constexpr size_t stride = 2;
+
+    model = build_dilated_conv_model(history_length,
+                                     dilation,
+                                     /*with_output_slice=*/false,
+                                     /*with_bias=*/false,
+                                     stride);
+    run_paged_causal_conv1d_fusion(model);
+    model_ref = build_dilated_conv_model(history_length,
+                                         dilation,
+                                         /*with_output_slice=*/false,
+                                         /*with_bias=*/false,
+                                         stride);
+}
+
+// PagedCausalConv1D has no padding attribute, so implicit zero padding from GroupConvolution
+// cannot be represented by the fused op. Must not fuse.
+TEST_F(PagedCausalConv1DFusionTest, DoesNotFusePaddedConv) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+
+    constexpr size_t dilation = 3;
+    constexpr size_t causal_window = (kernel_size - 1) * dilation + 1;
+    constexpr size_t pad = 1;
+
+    model = build_dilated_conv_model(causal_window,
+                                     dilation,
+                                     /*with_output_slice=*/true,
+                                     /*with_bias=*/false,
+                                     /*stride=*/1,
+                                     pad);
+    run_paged_causal_conv1d_fusion(model);
+    model_ref = build_dilated_conv_model(causal_window,
+                                         dilation,
+                                         /*with_output_slice=*/true,
+                                         /*with_bias=*/false,
+                                         /*stride=*/1,
+                                         pad);
 }
 
 TEST_F(PagedCausalConv1DFusionTest, FusesPLEWithHistoryOnlyAndNoOutputSlice) {
