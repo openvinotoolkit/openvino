@@ -8,8 +8,10 @@
 #include <cstdint>
 #include <cstring>
 #include <deque>
+#include <exception>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -103,7 +105,9 @@ public:
     }
 
     Kernel* createKernel(const uint8_t* data, size_t size, const char* name, uint32_t n_args, ArgType* arg_types) override {
-        return new GcKernel(data, size, name, n_args, arg_types);
+        return guard([&] {
+            return new GcKernel(data, size, name, n_args, arg_types);
+        });
     }
 
     // Called by the GC-generated code via gcGpuDestroyKernelName, the program owns the kernels.
@@ -122,26 +126,28 @@ public:
                   uint32_t block_z,
                   Event* const* deps,
                   uint32_t n_deps) override {
-        OPENVINO_DEBUG_ASSERT(grid_x && grid_y && grid_z && block_x && block_y && block_z, "[GPU] MLIR kernel launch with a zero grid or local size");
+        return guard([&] {
+            OPENVINO_DEBUG_ASSERT(grid_x && grid_y && grid_z && block_x && block_y && block_z, "[GPU] MLIR kernel launch with a zero grid or local size");
 
-        const auto& gc_kernel = *kernel;
-        auto& kd = kernel_data(gc_kernel, n_args);
+            const auto& gc_kernel = *kernel;
+            auto& kd = kernel_data(gc_kernel, n_args);
 
-        auto& global = kd.desc.workGroups.global;
-        auto& local = kd.desc.workGroups.local;
-        global[0] = static_cast<size_t>(grid_x) * block_x;
-        global[1] = static_cast<size_t>(grid_y) * block_y;
-        global[2] = static_cast<size_t>(grid_z) * block_z;
-        local[0] = block_x;
-        local[1] = block_y;
-        local[2] = block_z;
+            auto& global = kd.desc.workGroups.global;
+            auto& local = kd.desc.workGroups.local;
+            global[0] = static_cast<size_t>(grid_x) * block_x;
+            global[1] = static_cast<size_t>(grid_y) * block_y;
+            global[2] = static_cast<size_t>(grid_z) * block_z;
+            local[0] = block_x;
+            local[1] = block_y;
+            local[2] = block_z;
 
-        set_arg_values(kd, gc_kernel.argTypes, args);
-        gpuStream.set_arguments(*kd.kernel, kd.desc, kd.args);
-        auto* ev = store_event(gpuStream.enqueue_kernel(*kd.kernel, kd.desc, kd.args, collect_events(deps, n_deps), /*is_output_event=*/true));
-        eventScratch.clear();
-        kd.args.intermediates.clear();
-        return ev;
+            set_arg_values(kd, gc_kernel.argTypes, args);
+            gpuStream.set_arguments(*kd.kernel, kd.desc, kd.args);
+            auto* ev = store_event(gpuStream.enqueue_kernel(*kd.kernel, kd.desc, kd.args, collect_events(deps, n_deps), /*is_output_event=*/true));
+            eventScratch.clear();
+            kd.args.intermediates.clear();
+            return ev;
+        });
     }
 
     Memory* allocDevice(size_t size, size_t alignment) override {
@@ -155,25 +161,31 @@ public:
     }
 
     void free(Memory* ptr) override {
-        ptr->reset();
+        // After a failure wait() is a no-op, kernels may still use the buffer: keep it until finish().
+        if (!error) {
+            ptr->reset();
+        }
     }
 
     Event* memcpy(const Memory* src, Memory* dst, size_t size, Event* const* deps, uint32_t n_deps) override {
-        if (n_deps > 0) {
+        return guard([&] {
             // copy_from() takes no dependencies, order the copy after them on the queue.
-            gpuStream.enqueue_marker(collect_events(deps, n_deps), /*is_output_event=*/false);
-            gpuStream.enqueue_barrier();
+            if (const auto& evs = collect_events(deps, n_deps); !evs.empty()) {
+                gpuStream.enqueue_barrier(evs);
+            }
             eventScratch.clear();
-        }
-        return store_event((*dst)->copy_from(gpuStream, **src, 0, 0, size, /*blocking=*/false));
+            return store_event((*dst)->copy_from(gpuStream, **src, 0, 0, size, /*blocking=*/false));
+        });
     }
 
     void wait(Event* const* events, uint32_t n_events) override {
-        gpuStream.wait_for_events(collect_events(events, n_events));
-        std::for_each_n(events, n_events, [](Event* ev) {
-            ev->reset();
+        guard([&] {
+            gpuStream.wait_for_events(collect_events(events, n_events));
+            std::for_each_n(events, n_events, [](Event* ev) {
+                ev->reset();
+            });
+            eventScratch.clear();
         });
-        eventScratch.clear();
     }
 
     Memory* store_memory(cldnn::memory::ptr mem) {
@@ -264,16 +276,46 @@ private:
     }
 
     Memory* alloc(size_t size, size_t alignment, cldnn::allocation_type type) {
-        cldnn::layout layout({static_cast<int64_t>(std::max<size_t>(size, 1))}, ov::element::u8, cldnn::format::bfyx);
-        auto mem = gpuEngine.allocate_memory(layout, type, /*reset=*/false);
-        void* ptr = mem->buffer_ptr();
-        OPENVINO_ASSERT(ptr != nullptr, "[GPU] Failed to allocate ", size, " bytes of USM memory");
-        // USM allocator chooses alignment; only verify the GC request.
-        OPENVINO_ASSERT(alignment == 0 || reinterpret_cast<uintptr_t>(ptr) % alignment == 0,
-                        "[GPU] USM allocation is not aligned to ",
-                        alignment,
-                        " bytes as requested by an MLIR program");
-        return store_memory(std::move(mem));
+        return guard([&] {
+            cldnn::layout layout({static_cast<int64_t>(std::max<size_t>(size, 1))}, ov::element::u8, cldnn::format::bfyx);
+            auto mem = gpuEngine.allocate_memory(layout, type, /*reset=*/false);
+            void* ptr = mem->buffer_ptr();
+            OPENVINO_ASSERT(ptr != nullptr, "[GPU] Failed to allocate ", size, " bytes of USM memory");
+            // USM allocator chooses alignment; only verify the GC request.
+            OPENVINO_ASSERT(alignment == 0 || reinterpret_cast<uintptr_t>(ptr) % alignment == 0,
+                            "[GPU] USM allocation is not aligned to ",
+                            alignment,
+                            " bytes as requested by an MLIR program");
+            return store_memory(std::move(mem));
+        });
+    }
+
+    // Runs the given function and captures any exception, turning subsequent calls into no-ops.
+    template <typename F>
+    auto guard(F&& fn) noexcept -> decltype(fn()) {
+        using R = decltype(fn());
+        if (!error) {
+            try {
+                return fn();
+            } catch (...) {
+                error = std::current_exception();
+            }
+        }
+        if constexpr (std::is_same_v<R, Event*>) {
+            return &noEvent;
+        } else if constexpr (std::is_same_v<R, Memory*>) {
+            return &noMemory;
+        } else if constexpr (!std::is_void_v<R>) {
+            return R{};
+        }
+    }
+
+    void reset() noexcept {
+        events.clear();
+        memories.clear();
+        eventScratch.clear();
+        eventHandles.clear();
+        error = nullptr;
     }
 
     friend class GcGpuProgram;
@@ -287,6 +329,10 @@ private:
     std::vector<Event*> eventHandles;
     ProgramArgs args;
     ProgramArgStorage arg_storage;
+    std::exception_ptr error;
+    // Null slots returned by the callbacks after a failure.
+    Event noEvent;
+    Memory noMemory;
 
     static std::unique_ptr<MLIRGpuRuntime> create_runtime(cldnn::stream& stream, cldnn::engine& engine) {
         return std::make_unique<GcGpuRuntime>(stream, engine);
@@ -328,6 +374,12 @@ public:
         OPENVINO_ASSERT(op.get_output_size() == instance.outputs_memory_count(), "[GPU] mlir_primitive '", instance.id(), "': output count mismatch");
         // GcGpuRuntime is the only MLIRGpuRuntime, see create_runtime().
         auto& rt = static_cast<GcGpuRuntime&>(runtime);
+        const struct Cleanup {
+            GcGpuRuntime& rt;
+            ~Cleanup() {
+                rt.reset();
+            }
+        } cleanup{rt};
 
         ::gc::gpu::ArgsBuilder<ProgramArgs, ProgramArgStorage> builder(rt.args, rt.arg_storage);
         const auto store_memref = [&](const cldnn::memory::ptr& mem, size_t idx, bool input, unsigned rank, ov::element::Type type) {
@@ -403,21 +455,22 @@ public:
         store_all(op.get_input_size(), /*input=*/true);
         store_all(op.get_output_size(), /*input=*/false);
 
-        rt.eventHandles.clear();
         for (const auto& dep : deps) {
             rt.eventHandles.push_back(rt.store_event(dep));
         }
 
-        auto** events =
-            program->main(builder.build(*program), &rt, rt.eventHandles.empty() ? nullptr : rt.eventHandles.data(), static_cast<uint32_t>(rt.eventHandles.size()));
+        auto** events = program->main(builder.build(*program),
+                                      &rt,
+                                      rt.eventHandles.empty() ? nullptr : rt.eventHandles.data(),
+                                      static_cast<uint32_t>(rt.eventHandles.size()));
+        if (rt.error) {
+            rt.stream().finish();
+            std::rethrow_exception(rt.error);
+        }
         // Copy the completions out; do not wait(). OV owns the events after this.
         // main() waits for the buffers it has allocated and frees them, so dropping the frame is safe.
         const auto& completions = rt.collect_events(events, program->eventNum());
-        auto event = completions.empty() ? rt.stream().enqueue_marker(deps, need_event) : rt.stream().aggregate_events(completions, /*group=*/true, need_event);
-        rt.events.clear();
-        rt.memories.clear();
-        rt.eventScratch.clear();
-        return event;
+        return completions.empty() ? rt.stream().enqueue_marker(deps, need_event) : rt.stream().aggregate_events(completions, /*group=*/true, need_event);
     }
 
 private:

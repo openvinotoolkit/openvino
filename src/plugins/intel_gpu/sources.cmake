@@ -239,8 +239,8 @@ set(GPU_PLUGIN_MLIR_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/mlir/common/convert_common.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/mlir/conversion/patterns.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/mlir/convert.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/mlir/gc_gpu_runtime.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/mlir/graph_converter.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/mlir/mlir_evaluate.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/mlir/subgraph_tracker.cpp
 )
 
