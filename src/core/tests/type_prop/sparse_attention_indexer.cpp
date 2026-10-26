@@ -62,6 +62,17 @@ TEST_F(TypePropSparseAttentionIndexerTest, batch_mismatch_with_dynamic_rank_inde
                     HasSubstr("The batch dimension of index_query and index_weights must be the same."));
 }
 
+TEST_F(TypePropSparseAttentionIndexerTest, key_length_size_checked_against_block_index_keys) {
+    // The batch is known from block_index_keys even though index_query has a dynamic rank.
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape::dynamic()),
+                                          param(element::f32, PartialShape{2, 16, 128}),
+                                          param(element::i32, PartialShape{3}),
+                                          4,
+                                          2048),
+                    NodeValidationFailure,
+                    HasSubstr("The size of key_length must be 1 or the batch dimension of index_query."));
+}
+
 TEST_F(TypePropSparseAttentionIndexerTest, incorrect_key_length_size) {
     OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{2, 4, 7, 128}),
                                           param(element::f32, PartialShape{2, 2500, 128}),

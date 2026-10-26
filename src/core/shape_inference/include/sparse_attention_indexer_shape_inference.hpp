@@ -63,16 +63,18 @@ std::vector<TRShape> shape_infer(const SparseAttentionIndexer* op,
         num_queries = index_query_shape[2];
     }
 
-    if (index_query_shape.rank().is_static() && block_index_keys_shape.rank().is_static()) {
+    if (block_index_keys_shape.rank().is_static()) {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                TDim::merge(batch, batch, block_index_keys_shape[0]),
                                "The batch dimension of index_query and block_index_keys must be the same.");
-        TDim merged;
-        NODE_SHAPE_INFER_CHECK(op,
-                               input_shapes,
-                               TDim::merge(merged, index_query_shape[3], block_index_keys_shape[2]),
-                               "The head size of index_query and block_index_keys must be the same.");
+        if (index_query_shape.rank().is_static()) {
+            TDim merged;
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   TDim::merge(merged, index_query_shape[3], block_index_keys_shape[2]),
+                                   "The head size of index_query and block_index_keys must be the same.");
+        }
     }
 
     if (inputs_count == 4) {

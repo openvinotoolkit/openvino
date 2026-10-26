@@ -119,7 +119,7 @@ public:
     }
 
 private:
-    int64_t m_key_block_size = 1;
+    int64_t m_key_block_size = 0;
     int64_t m_query_block_size = 1;
     bool m_causal = true;
 };

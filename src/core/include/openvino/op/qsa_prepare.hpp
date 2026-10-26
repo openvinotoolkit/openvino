@@ -75,7 +75,7 @@ public:
     }
 
 private:
-    int64_t m_key_block_size = 2;
+    int64_t m_key_block_size = 0;
     float m_epsilon = 1e-6f;
 };
 }  // namespace ov::op::v17
