@@ -96,6 +96,42 @@ TEST_F(GGUFParser, Q1_0PreservesBinaryStorageAndScaleValues) {
         EXPECT_FLOAT_EQ(output.data<const float>()[i], reference[i]);
 }
 
+TEST_F(GGUFParser, Q3_KPreservesThreeBitStorageAndSplitRows) {
+    const auto bytes = load_npy<uint8_t>("q3_k_qbytes");
+    const auto reference = load_npy<float>("q3_k_deq");
+    for (const std::string name : {"blk.0.attn_qkv", "token_embd", "output"}) {
+        SCOPED_TRACE(name);
+        ASSERT_NO_FATAL_FAILURE(write_tensor(name + ".weight", GGUF_TYPE_Q3_K, 256, 4, bytes));
+        const auto loaded = get_gguf_data(m_path);
+        const auto& arrays = std::get<1>(loaded);
+        const auto& weights = arrays.at(name + ".weight");
+        const auto& scales = arrays.at(name + ".scales");
+        ASSERT_EQ(weights.get_element_type(), ov::element::u3);
+        EXPECT_EQ(weights.get_shape(), (ov::Shape{4, 256}));
+        EXPECT_EQ(weights.get_byte_size(), 384);
+        EXPECT_EQ(scales.get_shape(), (ov::Shape{4, 16}));
+        EXPECT_EQ(arrays.count(name + ".zp"), 0);
+        const auto node = make_weight_node({weights, scales, {}}, GGUF_TYPE_Q3_K);
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+        const auto output = run_on_cpu(model, {});
+        ASSERT_EQ(output.get_size(), reference.size());
+        for (size_t i = 0; i < reference.size(); ++i)
+            EXPECT_NEAR(output.data<const float>()[i], reference[i], 3e-3f);
+        const auto parts = split_fused_qkv_extracted(name, arrays, std::get<2>(loaded), 2, 1, 1);
+        size_t offset = 0;
+        for (const auto& part : parts) {
+            EXPECT_EQ(part.tensors.weight.get_element_type(), ov::element::u3);
+            const auto split_node = make_weight_node(part.tensors, part.qtype);
+            const auto split_model = std::make_shared<ov::Model>(ov::OutputVector{split_node}, ov::ParameterVector{});
+            const auto split_output = run_on_cpu(split_model, {});
+            for (size_t i = 0; i < split_output.get_size(); ++i)
+                EXPECT_NEAR(split_output.data<const float>()[i], reference[offset + i], 3e-3f);
+            offset += split_output.get_size();
+        }
+        EXPECT_EQ(offset, reference.size());
+    }
+}
+
 TEST_F(GGUFParser, Q2_0KeepsIntegerZeroPointsForAllWeightNames) {
     const auto bytes = load_npy<uint8_t>("q2_0_qbytes");
     const auto reference = load_npy<float>("q2_0_deq");
