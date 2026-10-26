@@ -90,6 +90,14 @@ def test_zero_sized_string_tensor_data(shape):
     assert data.dtype.kind == "S"
 
 
+def test_bytes_data_with_empty_strings():
+    tensor = ov.Tensor(type=ov.Type.string, shape=[2])
+
+    bytes_data = tensor.bytes_data
+    assert bytes_data.tolist() == [b"", b""]
+    assert bytes_data.strides == (0,)
+
+
 @pytest.mark.parametrize(
     ("string_data"),
     [
