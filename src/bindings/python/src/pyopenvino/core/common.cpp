@@ -156,6 +156,12 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
         return new_strides;
     };
 
+    if (max_stride == 0) {
+        auto array = py::array(py::dtype("S1"), t.get_shape(), py_array_strides());
+        *reinterpret_cast<char*>(array.mutable_data()) = '\0';
+        return array;
+    }
+
     // Create an empty array and populate it with utf-8 encoded strings:
     auto array = py::array(dtype, t.get_shape(), py_array_strides());
     auto ptr = reinterpret_cast<char*>(array.mutable_data());
