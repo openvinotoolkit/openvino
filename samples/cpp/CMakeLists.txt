@@ -117,15 +117,24 @@ if(CMAKE_CXX_STANDARD GREATER_EQUAL 20)
 
     set(_ov_samples_cxx20_floor_GNU 10)
     set(_ov_samples_cxx20_floor_Clang 14)
-    set(_ov_samples_cxx20_floor_AppleClang 14)
-    set(_ov_samples_cxx20_floor_MSVC 19.30)
+    set(_ov_samples_cxx20_floor_AppleClang 13)
+    set(_ov_samples_cxx20_floor_MSVC 19.28)
     set(_ov_samples_cxx20_floor_IntelLLVM 2024.2)
 
-    if(DEFINED _ov_samples_cxx20_floor_${CMAKE_CXX_COMPILER_ID} AND
-        CMAKE_CXX_COMPILER_VERSION VERSION_LESS _ov_samples_cxx20_floor_${CMAKE_CXX_COMPILER_ID})
-        message(FATAL_ERROR
-            "CMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD} requires ${CMAKE_CXX_COMPILER_ID} >= "
-            "${_ov_samples_cxx20_floor_${CMAKE_CXX_COMPILER_ID}}, but found ${CMAKE_CXX_COMPILER_VERSION}.")
+    if(DEFINED _ov_samples_cxx20_floor_${CMAKE_CXX_COMPILER_ID})
+        set(_ov_samples_cxx20_floor "${_ov_samples_cxx20_floor_${CMAKE_CXX_COMPILER_ID}}")
+
+        if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS _ov_samples_cxx20_floor)
+            message(FATAL_ERROR
+                "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION} does not fully support C++20. "
+                "Minimum: ${CMAKE_CXX_COMPILER_ID} ${_ov_samples_cxx20_floor}")
+        endif()
+
+        unset(_ov_samples_cxx20_floor)
+    else()
+        message(WARNING
+            "CMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD} was requested, but ${CMAKE_CXX_COMPILER_ID} "
+            "has no verified minimum version in cxx_standard.cmake. Proceeding unchecked.")
     endif()
 
     unset(_ov_samples_cxx20_floor_GNU)
