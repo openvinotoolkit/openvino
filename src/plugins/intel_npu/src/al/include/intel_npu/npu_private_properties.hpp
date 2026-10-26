@@ -330,13 +330,6 @@ static constexpr ov::Property<std::string> compilation_mode{"NPU_COMPILATION_MOD
 static constexpr ov::Property<ov::log::Level> compile_log_level{"NPU_COMPILE_LOG_LEVEL"};
 
 /**
- * @brief [Only for NPU Plugin]
- * Type: integer, default is -1
- * Sets the number of DMA engines that will be used to execute the model.
- */
-static constexpr ov::Property<int64_t> dma_engines{"NPU_DMA_ENGINES"};
-
-/**
  * @brief
  * Type: Boolean. Default is "NO".
  * Determines which branch we use for dynamic shapes.

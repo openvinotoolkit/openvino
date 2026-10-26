@@ -641,30 +641,6 @@ struct STEPPING final : OptionBase<STEPPING, int64_t> {
     }
 };
 
-struct DMA_ENGINES final : OptionBase<DMA_ENGINES, int64_t> {
-    static std::string_view key() {
-        return ov::intel_npu::dma_engines.name();
-    }
-
-    static std::vector<std::string_view> deprecatedKeys() {
-        return {};
-    }
-
-    static int64_t defaultValue() {
-        return -1;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-    static std::string_view envVar() {
-        return "IE_NPU_DMA_ENGINES";
-    }
-#endif
-};
-
 struct BACKEND_COMPILATION_PARAMS final : OptionBase<BACKEND_COMPILATION_PARAMS, std::string> {
     static std::string_view key() {
         return ov::intel_npu::backend_compilation_params.name();

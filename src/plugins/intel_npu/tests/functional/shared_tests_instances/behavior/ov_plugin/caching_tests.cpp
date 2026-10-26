@@ -130,7 +130,6 @@ const std::vector<ov::AnyMap> cachingProperties = {
     {ov::intel_npu::compilation_mode_params("dummy-op-replacement=true")},
     {ov::intel_npu::compiler_dynamic_quantization()},
     {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)},
-    {ov::intel_npu::dma_engines(1)},
     {ov::intel_npu::dynamic_shape_to_static("true")},
     {ov::intel_npu::stepping(1)},
     {ov::intel_npu::tiles(2)},

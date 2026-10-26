@@ -227,14 +227,12 @@ TEST_P(OVCheckSetSupportedRWMetricsPropsTestsNPU, ChangeCorrectProperties) {
 }
 
 const std::vector<ov::AnyMap> compat_CorrectPluginMutableProperties = {
-    {{ov::intel_npu::dma_engines.name(), 1}},
     {{ov::intel_npu::compilation_mode.name(), "DefaultHW"}},
     {{ov::intel_npu::profiling_type.name(), ov::intel_npu::ProfilingType::INFER}}};
 
 const std::vector<ov::AnyMap> compat_IncorrectMutablePropertiesWrongValueTypes = {
     {{ov::intel_npu::compilation_mode.name(), -3.6}},
     {{ov::intel_npu::profiling_type.name(), 10}},
-    {{ov::intel_npu::dma_engines.name(), false}},
 };
 
 const std::vector<ov::AnyMap> CorrectPluginMutableProperties = {
@@ -255,7 +253,6 @@ const std::vector<AnyMap> PropsWithEnvVars{
     {{ov::intel_npu::compilation_mode.name(), ::intel_npu::COMPILATION_MODE::envVar()}},
     {{ov::intel_npu::dynamic_shape_to_static.name(), ::intel_npu::DYNAMIC_SHAPE_TO_STATIC::envVar()}},
     {{ov::intel_npu::tiles.name(), ::intel_npu::TILES::envVar()}},
-    {{ov::intel_npu::dma_engines.name(), ::intel_npu::DMA_ENGINES::envVar()}},
     {{ov::intel_npu::disable_version_check.name(), ::intel_npu::DISABLE_VERSION_CHECK::envVar()}},
     {{ov::intel_npu::export_raw_blob.name(), ::intel_npu::EXPORT_RAW_BLOB::envVar()}},
     {{ov::intel_npu::import_raw_blob.name(), ::intel_npu::IMPORT_RAW_BLOB::envVar()}},

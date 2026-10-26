@@ -56,7 +56,6 @@ const std::vector<PropertySupportInfo> _supportedPropertiesWithVersions = {
     {ov::intel_npu::compilation_mode.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::intel_npu::compilation_mode_params.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::intel_npu::compiler_dynamic_quantization.name(), ONEAPI_MAKE_VERSION(7, 1)},
-    {ov::intel_npu::dma_engines.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::intel_npu::dynamic_shape_to_static.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::intel_npu::max_tiles.name(), ONEAPI_MAKE_VERSION(5, 3)},
     {ov::intel_npu::platform.name(), ONEAPI_MAKE_VERSION(0, 0)},
