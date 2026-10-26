@@ -8,6 +8,11 @@
 #include <limits.h>
 #include <ze_graph_ext.h>
 
+#include <array>
+#include <cstdint>
+#include <cstring>
+#include <vector>
+
 #include <optional>
 
 #include "intel_npu/utils/logger/logger.hpp"
@@ -75,6 +80,51 @@ static inline std::optional<ze_command_queue_workload_type_t> toZeQueueWorkloadT
     default:
         OPENVINO_THROW("Incorrect workload type.");
     }
+}
+
+/**
+ * @brief Reverse the bit order inside every byte.
+ *
+ * `u1` is the one sub-byte spelling OpenVINO packs MSB-first inside a byte, while the device's sub-byte consumers
+ * index a payload LSB-first. A byte-local reversal converts between the two orders and is its own inverse.
+ */
+static inline void reverseBitsPerByte(uint8_t* data, const size_t byteSize) {
+    static const std::array<uint8_t, 256> kReversedByte = [] {
+        std::array<uint8_t, 256> reversed{};
+        for (size_t value = 0; value < reversed.size(); ++value) {
+            uint8_t result = 0;
+            for (size_t bit = 0; bit < 8; ++bit) {
+                result = static_cast<uint8_t>((result << 1) | ((value >> bit) & 1U));
+            }
+            reversed[value] = result;
+        }
+        return reversed;
+    }();
+
+    for (size_t i = 0; i < byteSize; ++i) {
+        data[i] = kReversedByte[data[i]];
+    }
+}
+
+/**
+ * @brief Copy a payload into a buffer the device reads, in the bit order that reader uses.
+ *
+ * `reverseBitsPerByte` above states the rule: a `u1` payload is reversed, and every other storage is copied as it
+ * is. The reversal is staged in host memory, because a byte-wise walk over a device allocation measured ~9 MB/s.
+ */
+static inline void copyPayloadInDeviceBitOrder(const ov::element::Type& type,
+                                               void* dst,
+                                               const void* src,
+                                               const size_t byteSize) {
+    if (type != ov::element::u1) {
+        std::memcpy(dst, src, byteSize);
+        return;
+    }
+
+    std::vector<uint8_t> staged(byteSize);
+    std::memcpy(staged.data(), src, byteSize);
+    reverseBitsPerByte(staged.data(), byteSize);
+    std::memcpy(dst, staged.data(), byteSize);
 }
 
 /**

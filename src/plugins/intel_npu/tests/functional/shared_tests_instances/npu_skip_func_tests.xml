@@ -266,6 +266,20 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- E#170977 -->
+    <skip_config>
+        <message>Data type u1/u2 not supported by NPU3720.</message>
+        <enable_rules>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u2.*</filter>
+        </filters>
+    </skip_config>
+
     <skip_config>
         <message>Tests skipped to reduce overall log length</message>
         <filters>

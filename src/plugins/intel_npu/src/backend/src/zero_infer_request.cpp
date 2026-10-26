@@ -4,6 +4,8 @@
 
 #include "zero_infer_request.hpp"
 
+#include <vector>
+
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
@@ -11,6 +13,7 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -42,6 +45,44 @@ void align_element_type_with_user_tensor(const std::shared_ptr<intel_npu::ZeroTe
     }
 }
 
+// Copy a payload into a device tensor in the bit order the destination must read. `u1` is the one sub-byte
+// spelling OpenVINO packs MSB-first, while the device's sub-byte consumers - the palettized sign grid a one-bit
+// weight is imported as - index a payload LSB-first; the reversal runs in host memory, because a byte-wise walk
+// over a device allocation measured ~9 MB/s.
+//
+// Only the buffers this function copies are reversed. The caller skips the copy when the user tensor already
+// wraps the Level Zero allocation, so a buffer in that position must already be in the device's order: the
+// weights bank's fill writes its own that way, and a user-supplied `u1` tensor handed in zero-copy is read as
+// device order too. The plugin does not reverse it in place - that would undo the bank's pass and mutate the
+// caller's tensor.
+void copy_payload(const ov::SoPtr<ov::ITensor>& srcTensor, const ov::SoPtr<ov::ITensor>& dstTensor) {
+    if (ov::element::is_lsb_packed(dstTensor->get_element_type())) {
+        srcTensor->copy_to(dstTensor._ptr);
+        return;
+    }
+
+    OPENVINO_ASSERT(
+        srcTensor->get_element_type() == dstTensor->get_element_type() ||
+            intel_npu::zeroUtils::isSameStorageSpelling(srcTensor->get_element_type(), dstTensor->get_element_type()),
+        "The tensor element type is not corresponding with the destination element type (",
+        srcTensor->get_element_type(),
+        " != ",
+        dstTensor->get_element_type(),
+        ")");
+
+    // The destination is either the same size or, for the shape-tensor view, larger than the payload it takes.
+    OPENVINO_ASSERT(dstTensor->get_byte_size() >= srcTensor->get_byte_size(),
+                    "The destination tensor cannot hold the source payload (",
+                    dstTensor->get_byte_size(),
+                    " < ",
+                    srcTensor->get_byte_size(),
+                    " bytes)");
+    intel_npu::zeroUtils::copyPayloadInDeviceBitOrder(dstTensor->get_element_type(),
+                                                      dstTensor->data(),
+                                                      srcTensor->data(),
+                                                      srcTensor->get_byte_size());
+}
+
 void copy_tensor_with_optional_shape_view(const std::shared_ptr<ov::ITensor>& srcTensor,
                                           const std::shared_ptr<ov::ITensor>& dstTensor,
                                           bool srcTensorIsUserTensor,
@@ -57,7 +98,7 @@ void copy_tensor_with_optional_shape_view(const std::shared_ptr<ov::ITensor>& sr
             auto viewTensor = ov::make_tensor(dstTensor->get_element_type(),
                                               srcTensor->get_shape(),
                                               static_cast<unsigned char*>(dstTensor->data()));
-            srcTensor->copy_to(viewTensor);
+            copy_payload(srcTensor, viewTensor);
             return;
         }
 
@@ -67,11 +108,11 @@ void copy_tensor_with_optional_shape_view(const std::shared_ptr<ov::ITensor>& sr
         auto viewTensor = ov::make_tensor(srcTensor->get_element_type(),
                                           dstTensor->get_shape(),
                                           static_cast<unsigned char*>(srcTensor->data()));
-        viewTensor->copy_to(dstTensor);
+        copy_payload(viewTensor, dstTensor);
         return;
     }
 
-    srcTensor->copy_to(dstTensor);
+    copy_payload(srcTensor, dstTensor);
 }
 
 }  // namespace
@@ -1018,7 +1059,7 @@ void ZeroInferRequest::prepare_inputs() {
                             userTensorPtr->get_byte_size(),
                             levelZeroTensor->get_byte_size());
                         OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
-                        userTensorPtr->copy_to(levelZeroTensor);
+                        copy_payload(userTensorPtr, levelZeroTensor);
                     }
                 }
             } else {
@@ -1037,7 +1078,7 @@ void ZeroInferRequest::prepare_inputs() {
                         userTensor.at(i)->get_shape(),
                         static_cast<unsigned char*>(levelZeroTensor->data()) + (i * userTensor.at(i)->get_byte_size()));
 
-                    userTensor.at(i)->copy_to(viewTensor);
+                    copy_payload(userTensor.at(i), viewTensor);
                     copied_bytes_from_user += userTensor.at(i)->get_byte_size();
                 }
                 OPENVINO_ASSERT(levelZeroTensor->get_byte_size() == copied_bytes_from_user,
@@ -1387,6 +1428,8 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
         break;
     case ov::element::Type_t::u2:
         break;
+    case ov::element::Type_t::u1:
+        break;
     case ov::element::Type_t::u4:
         break;
     case ov::element::Type_t::i4:
@@ -1413,7 +1456,7 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
         break;
     default:
         OPENVINO_THROW("Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
-                       "! Supported precisions: FP32, FP16, BF16, FP8, FP4, NF4, I2, U2, U4, I4, U8, I8, "
+                       "! Supported precisions: FP32, FP16, BF16, FP8, FP4, NF4, I2, U2, U1, U4, I4, U8, I8, "
                        "U16, I16, U32, I32, U64, I64, FP64, BOOLEAN");
     }
 }

@@ -25,6 +25,11 @@ class LLMCompiledModel;
 class CompiledModel;
 namespace weights {
 
+// Copy a weight into a device allocation in the bit order the device reads. `u1` is the one sub-byte spelling
+// OpenVINO packs MSB-first, while the device's sub-byte consumers index a payload LSB-first, so only `u1` is
+// reversed here; every other type is copied as is.
+void fill_device_tensor(const ov::Tensor& src, ov::Tensor& dst);
+
 class Bank {
 public:
     static constexpr ov::npuw::orc::TypeId kOrcType =

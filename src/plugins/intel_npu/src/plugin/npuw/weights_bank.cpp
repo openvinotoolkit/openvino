@@ -4,13 +4,42 @@
 
 #include "weights_bank.hpp"
 
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "serialization.hpp"
 #include "util.hpp"
 
 using ov::npuw::weights::Bank;
 using ov::npuw::weights::LazyTensor;
+
+namespace ov {
+namespace npuw {
+namespace weights {
+
+// A banked weight the device reads carries its payload in the device's bit order: `u1` is the one sub-byte
+// spelling OpenVINO packs MSB-first, while the device's sub-byte consumers index it LSB-first. The plugin's
+// `copy_payload` owns the order for the tensors it copies; this one-shot fill is the writer for the ones it does
+// not (the allocations the graph reads in place). It is applied once, at load.
+void fill_device_tensor(const ov::Tensor& src, ov::Tensor& dst) {
+    // The destination is allocated from the same meta as the source, so a size mismatch is a bug, not a shape view.
+    NPUW_ASSERT(src.get_byte_size() == dst.get_byte_size());
+
+    if (ov::element::is_lsb_packed(src.get_element_type())) {
+        src.copy_to(dst);
+        return;
+    }
+
+    ov::Tensor staged(src.get_element_type(), src.get_shape());
+    src.copy_to(staged);
+    intel_npu::zeroUtils::reverseBitsPerByte(static_cast<uint8_t*>(staged.data()), staged.get_byte_size());
+    staged.copy_to(dst);
+}
+
+}  // namespace weights
+}  // namespace npuw
+}  // namespace ov
 
 class BankManager {
 public:
@@ -172,7 +201,7 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         auto& stored_tensor = device_bank.storage.at(allocated.uid);
 
         auto transformed = stored_tensor.lt.eval();
-        transformed.copy_to(allocated.allocated_tensor);
+        fill_device_tensor(transformed, allocated.allocated_tensor);
         stored_tensor.tensor = std::move(allocated.allocated_tensor);
 
         // Detach the evaluated LazyTensor from its memory here - when it is 100%
