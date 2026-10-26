@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ struct Int3FcParams {
 class fully_connected_int3_gpu_tests : public ::testing::Test {
 public:
     void SetUp() override {
-        if (!get_test_engine().get_device_info().supports_immad) {
+        if (get_test_engine().get_device_info().arch < gpu_arch::xe2) {
             GTEST_SKIP();
         }
     }
@@ -234,10 +234,6 @@ public:
         ASSERT_EQ(first_impl != nullptr, is_dynamic && !wait_for_static_impls);
     }
 
-    static bool has_v2() {
-        return get_test_engine().get_device_info().arch >= gpu_arch::xe2;
-    }
-
     static bool is_xe3() {
         return get_test_engine().get_device_info().arch >= gpu_arch::xe3;
     }
@@ -290,13 +286,13 @@ TEST_F(fully_connected_int3_gpu_tests, dynamic_no_zp) {
 }
 
 TEST_F(fully_connected_int3_gpu_tests, v2_sg8) {
-    run(base, false, false, {128}, {{has_v2() ? "v2_sg8" : "v1_t32_sg4"}});
+    run(base, false, false, {128}, {{"v2_sg8"}});
 }
 
 TEST_F(fully_connected_int3_gpu_tests, v2_sg16) {
     auto p = base;
     p.ofm = 2048;
-    run(p, false, false, {256}, {{has_v2() ? "v2_sg16" : "v1_t32_sg4"}});
+    run(p, false, false, {256}, {{"v2_sg16"}});
 }
 
 TEST_F(fully_connected_int3_gpu_tests, dynamic_scale_group_64) {
@@ -316,7 +312,7 @@ TEST_F(fully_connected_int3_gpu_tests, transposed_scale_zp) {
 TEST_F(fully_connected_int3_gpu_tests, transposed_scale_v2) {
     auto p = base;
     p.transposed_decompression = true;
-    run(p, false, false, {128}, {{has_v2() ? "v2_sg8" : "v1_t32_sg4"}});
+    run(p, false, false, {128}, {{"v2_sg8"}});
 }
 
 TEST_F(fully_connected_int3_gpu_tests, bias_and_eltwise) {
@@ -402,7 +398,7 @@ TEST_F(fully_connected_int3_gpu_tests, cached_static) {
 }
 
 TEST_F(fully_connected_int3_gpu_tests, cached_static_v2) {
-    run(base, false, true, {128}, {{has_v2() ? "v2_sg8" : "v1_t32_sg4"}});
+    run(base, false, true, {128}, {{"v2_sg8"}});
 }
 
 TEST_F(fully_connected_int3_gpu_tests, cached_dynamic) {

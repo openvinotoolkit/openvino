@@ -442,6 +442,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan,
                                             ::testing::Values(2.0f)),   // Note: this is because of potential cldnn accuracy issue
                          MatmulWeightsDecompression::get_test_case_name);
 
+// The int3 FC reads plain [N, K] weights. Non-transposed u3 weights fold a Transpose, and core
+// Transpose does not evaluate u3 yet, so these cases use the transposed layout (transpose_weights=0 is skipped).
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_u3_dyn_quan,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 1024}, {{1, 1, 1024}, {16, 1, 1024}}},
@@ -449,7 +451,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_u3_dyn_quan,
                                             ::testing::Values(ov::element::u3),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(ov::element::f16),
-                                            ::testing::Values(false),
+                                            ::testing::Values(true),
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
                                             ::testing::Values(true),
                                             ::testing::Values(false),
@@ -465,7 +467,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_u3_dyn_quan_opt_out,
                                             ::testing::Values(ov::element::u3),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(ov::element::f16),
-                                            ::testing::Values(false),
+                                            ::testing::Values(true),
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
                                             ::testing::Values(true),
                                             ::testing::Values(false),

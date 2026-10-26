@@ -892,6 +892,36 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed24_mxfp4e2m1) {
     }
 }
 
+// u3 zero points are widened to u8, same as u4 and u2. Weights stay u3.
+TEST_F(TransformationTestsF, ConvertFCToCompressed25_u3ZpConvertedToU8) {
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+        auto weights_const = ov::op::v0::Constant::create(ov::element::u3, ov::Shape{32, 16}, {1});
+        auto convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f16);
+        auto zp_const = ov::op::v0::Constant::create(ov::element::u3, ov::Shape{32, 1}, {1});
+        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_const, ov::element::f16);
+        auto sub = std::make_shared<ov::op::v1::Subtract>(convert, zp_convert);
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{32, 1}, {1});
+        auto scale = std::make_shared<ov::op::v1::Multiply>(sub, scale_const);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input1, scale, no_bias);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+        auto weights_const = ov::op::v0::Constant::create(ov::element::u3, ov::Shape{32, 16}, {1});
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{32, 1}, {1});
+        auto zp_const = ov::op::v0::Constant::create(ov::element::u3, ov::Shape{32, 1}, {1});
+        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_const, ov::element::u8);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input1, weights_const, no_bias, scale_const, zp_convert);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1});
+    }
+}
+
 }  // namespace intel_gpu
 }  // namespace test
 }  // namespace ov
