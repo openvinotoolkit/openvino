@@ -11,7 +11,6 @@
 #include "graph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
-#include "intel_npu/common/option_support_cache.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -21,44 +20,19 @@
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/make_tensor.hpp"
-#include "openvino/util/file_util.hpp"
-#include "openvino/util/shared_object.hpp"
 #include "weightless_graph.hpp"
 #include "weightless_utils.hpp"
 
 namespace intel_npu {
 
-namespace {
-constexpr OptionSupportCache::CacheKey pluginOptionSupportKey =
-    static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN);
-}
-
 PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                             const std::shared_ptr<OptionSupportCache>& optionSupportCache,
-                                             const std::optional<IDevice::DeviceProperties>& deviceProperties)
+                                             std::shared_ptr<IVCLCompiler> compiler)
     : _zeroInitStruct(zeroInitStruct),
+      _compiler(std::move(compiler)),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize PluginCompilerAdapter start");
 
-    _logger.info("Loading PLUGIN compiler");
-    try {
-        auto ovLibPath = ov::util::path_to_string(ov::util::get_ov_lib_path());
-        auto vclLoader = VCLLoader::getInstance(ovLibPath);
-        OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
-        auto vclCompilerPtr =
-            std::make_shared<VCLCompilerImpl>(vclLoader->sharedFunctions(),
-                                              deviceProperties,
-                                              ScopedOptionSupportCache{optionSupportCache, pluginOptionSupportKey});
-        OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
-        // Pair the compiler with the library so the .so cannot be unloaded while the compiler
-        // dispatches into it. The compiler itself no longer knows a library is involved.
-        auto vclLib = vclLoader->getLibrary();
-        _logger.info("PLUGIN VCL compiler is loading");
-        OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
-        _compiler = ov::SoPtr<VCLCompilerImpl>(vclCompilerPtr, vclLib);
-    } catch (const std::exception& vclException) {
-        OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
-    }
+    OPENVINO_ASSERT(_compiler != nullptr, "PluginCompilerAdapter requires a non-null compiler");
 
     if (_zeroInitStruct == nullptr) {
         return;
@@ -85,11 +59,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("compile end");
 
     const auto& compilationMode = config.get<COMPILATION_MODE>();
-    const bool isHostCompile = compilationMode.find("HostCompile") != std::string::npos;
-    const BlobType blobType =
-        isHostCompile ? (compilationMode.find("HostCompile_Interpreter") != std::string::npos ? BlobType::BYTECODE
-                                                                                              : BlobType::LLVM)
-                      : BlobType::ELF;
+    const bool isHostCompile = compilationMode.find("HostCompile_Interpreter") != std::string::npos;
+    const BlobType blobType = isHostCompile ? BlobType::BYTECODE : BlobType::ELF;
+
     if (blobType != BlobType::ELF) {
         _logger.debug("HostCompile mode is detected from NPU_COMPILATION_MODE, use internal function to get metadata!");
         NPUVMRuntimeApi::initializeFromBlob(tensor.data(), tensor.get_byte_size());
