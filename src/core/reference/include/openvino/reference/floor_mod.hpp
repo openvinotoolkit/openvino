@@ -34,7 +34,7 @@ constexpr T floor_mod(const T x, const T y) {
     }
     const T rem = static_cast<T>(x % y);
     // When signs differ, |rem| < |y|, so rem + y stays between y and zero and cannot overflow.
-    return rem != T{0} && rem < T{0} != y < T{0} ? static_cast<T>(rem + y) : rem;
+    return rem != T{0} && (rem < T{0}) != (y < T{0}) ? static_cast<T>(rem + y) : rem;
 }
 
 template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
