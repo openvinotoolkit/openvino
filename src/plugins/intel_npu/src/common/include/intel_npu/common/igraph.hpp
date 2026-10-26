@@ -102,6 +102,12 @@ public:
     virtual std::optional<bool> is_profiling_blob() const = 0;
 
     /**
+     * @brief Tells whether the graph was loaded from the driver (UMD) cache instead of being compiled.
+     * @return std::nullopt if this cannot be determined (e.g. the graph type or the driver does not support it).
+     */
+    virtual std::optional<bool> is_loaded_from_driver_cache() const;
+
+    /**
      * @brief Returns the compatibility descriptor of this graph, if any.
      * @details The descriptor is determined when the graph is created (imported from blob metadata,
      *          returned by the VCL/plugin compiler, or fetched from the driver on the

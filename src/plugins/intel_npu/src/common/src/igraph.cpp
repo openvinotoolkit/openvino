@@ -28,6 +28,10 @@ std::optional<std::string_view> IGraph::get_compatibility_descriptor() const {
     OPENVINO_THROW("get_compatibility_descriptor not implemented");
 }
 
+std::optional<bool> IGraph::is_loaded_from_driver_cache() const {
+    return std::nullopt;
+}
+
 void IGraph::initialize(const Config& config) {
     std::lock_guard<std::mutex> lock(_initialize_mutex);
 

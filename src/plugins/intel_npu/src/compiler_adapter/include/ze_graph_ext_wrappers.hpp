@@ -102,6 +102,12 @@ public:
      */
     std::optional<bool> isProfilingEnabled(const GraphDescriptor& graphDescriptor) const;
 
+    /**
+     * @brief Tells whether the graph object was loaded from the driver (UMD) cache instead of being compiled.
+     * @return `std::nullopt` if the driver is too old to answer.
+     */
+    std::optional<bool> isLoadedFromDriverCache(const GraphDescriptor& graphDescriptor) const;
+
     void evict_memory(const GraphDescriptor& graphDescriptor) const;
 
     /**
