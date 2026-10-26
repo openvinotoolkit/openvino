@@ -257,7 +257,7 @@ jobs:
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pip install \
             -r ${INSTALL_TEST_DIR}/requirements_pytorch \
-            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope.txt
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/transformations_actual.txt
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py -m "precommit and not transformations_legacy" --html=${INSTALL_TEST_DIR}/TEST-torch_rope_tests.html --self-contained-html -v --tb=short -n 2
         env:
           TEST_DEVICE: CPU

@@ -1,2 +1,0 @@
-# RoPE tests run on the default transformation-test stack; add RoPE-specific pins here only if needed.
--r transformations_actual.txt
