@@ -55,10 +55,10 @@
 /* This macro is intended to fix C++20 [=] lambda
 warning. Although C++20 identifier is 202002L,
 some compilers supporting C++20, or their drafts like
-C++2a, producing the warning, are using 201402L value.
+C++2a (e.g. GCC 10 reports 201709L), producing the warning, are using values greater than C++17's 201703L.
 Also, MSVC requires a special check due to the
 __cplusplus value compatibility issues.*/
-#if (defined(_MSVC_LANG) && (_MSVC_LANG >= 202002L)) || (__cplusplus >= 202002L)
+#if (defined(_MSVC_LANG) && (_MSVC_LANG >= 202002L)) || (__cplusplus > 201703L)
 #    define OV_CAPTURE_CPY_AND_THIS =, this
 #else
 #    define OV_CAPTURE_CPY_AND_THIS =
