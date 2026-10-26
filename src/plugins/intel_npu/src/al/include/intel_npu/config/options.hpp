@@ -641,20 +641,6 @@ struct STEPPING final : OptionBase<STEPPING, int64_t> {
     }
 };
 
-struct BACKEND_COMPILATION_PARAMS final : OptionBase<BACKEND_COMPILATION_PARAMS, std::string> {
-    static std::string_view key() {
-        return ov::intel_npu::backend_compilation_params.name();
-    }
-
-    static std::string defaultValue() {
-        return {};
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
 struct COMPILATION_NUM_THREADS final : OptionBase<COMPILATION_NUM_THREADS, int32_t> {
     static std::string_view key() {
         return ov::compilation_num_threads.name();

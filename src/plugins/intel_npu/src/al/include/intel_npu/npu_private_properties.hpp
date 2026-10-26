@@ -405,16 +405,6 @@ static constexpr ov::Property<int64_t> create_executor{"NPU_CREATE_EXECUTOR"};
 static constexpr ov::Property<std::string, ov::PropertyMutability::RO> backend_name{"NPU_BACKEND_NAME"};
 
 /**
- * @brief [Only for NPU compiler]
- * Type: std::string, default is empty.
- * Config for Backend pipeline
-
- * Available values: enable-memory-side-cache=true/false
- * Available values: enable-partial-workload-management=true/false
- */
-static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKEND_COMPILATION_PARAMS"};
-
-/**
  * @brief [Only for NPU Plugin]
  * Type: boolean, default is false.
  * This option allows to skip the blob version check

@@ -165,7 +165,6 @@ void CompiledModelPropertyManager::registerProperties() {
     registerConfigProperty(PERFORMANCE_HINT_NUM_REQUESTS{}, true, false);
     registerConfigProperty(NUM_STREAMS{}, true, false);
 
-    registerConfigProperty(BACKEND_COMPILATION_PARAMS{}, true, true);
     registerConfigProperty(BYPASS_UMD_CACHING{}, true, true);
     registerConfigProperty(CACHE_DIR{}, true, true);
     registerConfigProperty(CACHE_MODE{}, true, true);

@@ -529,7 +529,6 @@ void PluginPropertyManager::registerProperties() {
     registerCompilerProperty(QDQ_OPTIMIZATION_AGGRESSIVE{}, true);
     registerCompilerProperty(TILES{}, true);
 
-    registerCompilerProperty(BACKEND_COMPILATION_PARAMS{}, false);
     registerCompilerProperty(BATCH_MODE{}, false);
     registerCompilerProperty(COMPILATION_MODE{}, false);
     registerCompilerProperty(DYNAMIC_SHAPE_TO_STATIC{}, false);

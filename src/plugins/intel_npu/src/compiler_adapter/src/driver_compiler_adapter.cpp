@@ -51,7 +51,6 @@ const std::vector<PropertySupportInfo> _supportedPropertiesWithVersions = {
     {ov::hint::performance_mode.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::log::level.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::intel_npu::batch_mode.name(), ONEAPI_MAKE_VERSION(5, 5)},
-    {ov::intel_npu::backend_compilation_params.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::intel_npu::compilation_mode.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::intel_npu::compilation_mode_params.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::intel_npu::compiler_dynamic_quantization.name(), ONEAPI_MAKE_VERSION(7, 1)},
