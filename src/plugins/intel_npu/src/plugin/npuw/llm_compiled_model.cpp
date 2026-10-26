@@ -1170,6 +1170,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         if (prefill_config_addition) {
             read_host_mask(prefill_config_addition->as<ov::AnyMap>());
         }
+        // TEMP (measurement only): env override, wins over config.
+        if (const char* env = std::getenv("NPUW_ATTN_HFA_HOST_MASK")) {
+            const std::string v(env);
+            host_mask = (v == "1" || v == "YES" || v == "yes" || v == "TRUE" || v == "true");
+            LOG_INFO("NPUW_ATTN_HFA_HOST_MASK env override: " << v << " -> " << (host_mask ? "YES" : "NO"));
+        }
         ov::npuw::replace_hfa_host_mask(prefill_model, host_mask);
     }
 
