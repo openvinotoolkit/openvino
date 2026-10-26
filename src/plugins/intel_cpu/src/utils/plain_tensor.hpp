@@ -402,13 +402,9 @@ struct PlainTensor {
     }
 
     [[nodiscard]] size_t sub_byte_data_type_multiplier() const {
-        if (any_of(m_dt, ov::element::i4, ov::element::u4)) {
-            return 2;
-        }
-        if (m_dt == ov::element::u2) {
-            return 4;
-        }
-        return 1;
+        // A byte holds 8 / bitwidth codes for a byte-divisible packed type; every other type holds one value.
+        const auto bitwidth = ov::element::Type(m_dt).bitwidth();
+        return bitwidth != 0 && bitwidth < 8 && 8 % bitwidth == 0 ? 8 / bitwidth : 1;
     }
 
     template <int dim>
