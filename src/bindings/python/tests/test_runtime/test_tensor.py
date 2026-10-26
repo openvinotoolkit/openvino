@@ -684,6 +684,18 @@ def test_tensor_from_pillow(numpy_dtype, shape):
     assert tensor.data.shape == shape
 
 
+@pytest.mark.parametrize("pillow_available", [True, False])
+@pytest.mark.parametrize("value", [object(), np.float32(1.0), {"a": 1}])
+def test_tensor_from_unsupported_object(monkeypatch, pillow_available, value):
+    if not pillow_available:
+        # Simulate an environment without Pillow, which is not a runtime dependency
+        monkeypatch.setitem(sys.modules, "PIL", None)
+        monkeypatch.setitem(sys.modules, "PIL.Image", None)
+
+    with pytest.raises(TypeError, match="Input argument must be a PIL.Image.Image"):
+        ov.Tensor(value)
+
+
 def test_pack_unpack_u3_numerical():
     """Test u3 packing/unpacking with known numerical values."""
     # 8 values packed into 3 bytes, linear LSB-first bit-stream (value i at bits [3i, 3i+3))
