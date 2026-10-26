@@ -243,13 +243,13 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
         OPENVINO_ASSERT(draft_block_size > 1 && lilicorr_heads > 0 && lilicorr_hidden % lilicorr_heads == 0 &&
                             lilicorr_top_k > 0 && lilicorr_layers > 0 && lilicorr_layers <= n_layer &&
                             lilicorr_factor > 0 && lilicorr_mlp > 0 && draft_selector_top_k == 0 &&
-                            int64_t(lilicorr_top_k) * (lilicorr_top_k + 1) <= n_embd,
+                            int64_t(lilicorr_top_k) * (int64_t(lilicorr_top_k) + 1) <= n_embd,
                         "[GGUF] invalid LiLiCorr geometry");
     }
     if (weights.count("selector_hidden.weight")) {
         OPENVINO_ASSERT(draft_block_size > 0 && draft_selector_rank > 0 && draft_selector_top_k > 0 &&
                             draft_conv_kernel > 0 && draft_conv_group > 0 &&
-                            int64_t(draft_selector_top_k) * (draft_selector_top_k + 1) <= n_embd,
+                            int64_t(draft_selector_top_k) * (int64_t(draft_selector_top_k) + 1) <= n_embd,
                         "[GGUF] invalid DFlash selector geometry");
     }
     OPENVINO_ASSERT(draft_conv_kernel >= 0 && draft_conv_group >= 0 &&

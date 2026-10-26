@@ -1108,6 +1108,13 @@ double dynamic_accuracy_limit(const std::string& family) {
 }
 
 TEST_P(GGUFMMProjDynamicAccuracy, ReusesCompiledModelAcrossGrids) {
+    const std::string family = GetParam();
+    if (family == "gemma3nv" || family == "gemma3nv_uir" || family == "gemma3nv_attention") {
+        const auto& first = array("0.pixel_values");
+        const auto& second = array("1.pixel_values");
+        ASSERT_EQ(first.shape, second.shape);
+        EXPECT_FALSE(std::equal(first.data<float>(), first.data<float>() + first.num_vals, second.data<float>()));
+    }
     for (bool adapt : {false, true}) {
         auto current = model->clone();
         const bool audio = model->has_rt_info({"gguf_mmproj", "audio.projector"});

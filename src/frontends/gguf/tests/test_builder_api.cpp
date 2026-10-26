@@ -306,6 +306,68 @@ TEST(GGUFBuilderAPI, RejectsInvalidRopeScalingFactors) {
     }
 }
 
+TEST(GGUFBuilderAPI, RejectsOverflowingLiLiCorrTopKGeometry) {
+    const auto expect_geometry_error = [](const Environment& env) {
+        try {
+            (void)DecoderConfig(decoder_config_from_meta(env.metadata), env.weights);
+            FAIL() << "Expected invalid LiLiCorr geometry";
+        } catch (const ov::Exception& error) {
+            EXPECT_NE(std::string(error.what()).find("invalid LiLiCorr geometry"), std::string::npos);
+        }
+    };
+
+    Environment valid;
+    valid.decoder();
+    valid.integer("test.block_size", 2);
+    valid.integer("lilicorr.hidden_size", 4);
+    valid.integer("lilicorr.candidate_topk", 5);
+    valid.integer("lilicorr.num_heads", 2);
+    valid.integer("lilicorr.num_layers", 1);
+    valid.integer("lilicorr.factor_dim", 1);
+    valid.integer("lilicorr.mlp_hidden_size", 1);
+    EXPECT_NO_THROW(DecoderConfig(decoder_config_from_meta(valid.metadata), valid.weights));
+
+    Environment overflowing;
+    overflowing.decoder();
+    overflowing.integer("test.block_size", 2);
+    overflowing.integer("lilicorr.hidden_size", 4);
+    overflowing.integer("lilicorr.candidate_topk", std::numeric_limits<int>::max());
+    overflowing.integer("lilicorr.num_heads", 2);
+    overflowing.integer("lilicorr.num_layers", 1);
+    overflowing.integer("lilicorr.factor_dim", 1);
+    overflowing.integer("lilicorr.mlp_hidden_size", 1);
+    expect_geometry_error(overflowing);
+}
+
+TEST(GGUFBuilderAPI, RejectsOverflowingDFlashSelectorTopKGeometry) {
+    const auto configure = [](Environment& env, uint32_t top_k) {
+        env.decoder();
+        env.architecture("dflash");
+        env.integer("dflash.block_size", 2);
+        env.integer("dflash.selector_rank", 1);
+        env.integer("dflash.selector_top_k", top_k);
+        env.integer("dflash.conv_kernel_size", 1);
+        env.integer("dflash.conv_group_size", 1);
+        env.weights["selector_hidden.weight"] = ov::Tensor(ov::element::f32, {1});
+    };
+    const auto expect_geometry_error = [](const Environment& env) {
+        try {
+            (void)DecoderConfig(decoder_config_from_meta(env.metadata), env.weights);
+            FAIL() << "Expected invalid DFlash selector geometry";
+        } catch (const ov::Exception& error) {
+            EXPECT_NE(std::string(error.what()).find("invalid DFlash selector geometry"), std::string::npos);
+        }
+    };
+
+    Environment valid;
+    configure(valid, 5);
+    EXPECT_NO_THROW(DecoderConfig(decoder_config_from_meta(valid.metadata), valid.weights));
+
+    Environment overflowing;
+    configure(overflowing, std::numeric_limits<int>::max());
+    expect_geometry_error(overflowing);
+}
+
 TEST(GGUFBuilderAPI, RecurrentStateDeclarationReachesMakeStateful) {
     Environment env;
     GgufGraphContext graph(env.context);

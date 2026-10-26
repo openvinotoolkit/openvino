@@ -26,6 +26,7 @@ SINGLE_GRID = ("gemma3", "gemma3_fused", "gemma3_legacy", "idefics3", "janus_pro
                "voxtral_odd", "resampler", "resampler_v2", "resampler_v4")
 # Single-grid models rerun here on two grids with different token counts.
 REGRIDDED = ("qwen2.5vl_merger_grids", "resampler_grids")
+GEMMA3NV_FAMILIES = ("gemma3nv", "gemma3nv_uir", "gemma3nv_attention")
 TWO_GRID = ("muse-glimmer", "pixtral", "pixtral_merge", "phi4", "lfm2", "lfm2_no_norm", "lfm2a", "gemma4v", "gemma4uv", "gemma4uv_low_contrast",
             "gemma4ua", "gemma4v_one_sided", "minicpmv4_6", "minicpmv4_7", "minicpmv4_7_4x", "qwen3a", "qwen3tts_spkenc", "gemma3nv", "gemma4a", "deepseekocr", "deepseekocr2",
             "deepseekocr_resize", "deepseekocr_overview", "deepseekocr2_overview", "gemma3nv_attention",
@@ -647,7 +648,7 @@ def write_speaker_model(path):
     return 8
 
 
-def grid_inputs(family, width, height):
+def grid_inputs(family, width, height, seed=42):
     if family == "lfm2a":
         raw = np.random.default_rng(42).normal(.1, .4, (height, width)).astype(np.float32)
         return raw, {"features": raw.reshape(1, 1, height, width),
@@ -661,7 +662,7 @@ def grid_inputs(family, width, height):
         return raw, {"pixel_values": raw.transpose(2, 0, 1)[None], **muse_glimmer_indices(height // 2, width // 2, 3)}
     family, variants = split_variants(family, *VARIANTS)
     overview = "_overview" in variants
-    raw = np.random.default_rng(42).normal(.1, .4, (height, width) if family in {"gemma4ua", "gemma4a", "qwen3a", "qwen3tts_spkenc"} else (height, width, 3)).astype(np.float32)
+    raw = np.random.default_rng(seed).normal(.1, .4, (height, width) if family in {"gemma4ua", "gemma4a", "qwen3a", "qwen3tts_spkenc"} else (height, width, 3)).astype(np.float32)
     if "_low_contrast" in variants:
         raw[:] = np.array([27, 29, 32], np.float32) / 255
     if family == "gemma4ua":
@@ -774,7 +775,10 @@ def two_grid_fixture(oracle, family):
                 values = {"pixel_values": pixels, **values}
                 embeddings = run_encoder_oracle(oracle, path, projector, width, height, raw, second)
             else:
-                raw, values = grid_inputs(family, width, height)
+                if family in GEMMA3NV_FAMILIES and step == 1:
+                    raw, values = grid_inputs(family, width, height, seed=43)
+                else:
+                    raw, values = grid_inputs(family, width, height)
                 embeddings = run_encoder_oracle(oracle, path, family, width, height, raw, env=environment)
             values["embeddings"] = embeddings.reshape(1, 1, -1, width_out)
             fixtures.update({f"{step}.{k}": np.ascontiguousarray(v) for k, v in values.items()})
