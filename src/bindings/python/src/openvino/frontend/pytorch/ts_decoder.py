@@ -131,8 +131,14 @@ class TorchScriptPythonDecoder(TorchDecoderBase):
             compressed_types = [torch.int8, torch.uint8,
                                 torch.float16, torch.bfloat16]
             if hasattr(module, "weight") and getattr(module.weight, "dtype", None) in compressed_types:
-                preserved_attributes.append(name)
-        return preserved_attributes
+                preserved_attributes.append(name if name else "weight")
+            for attr in list(module._parameters.keys()) + list(module._buffers.keys()):
+                if attr.startswith(patch_model._ORIG_WEIGHT_ATTR_PREFIX):
+                    public_attr = attr[len(patch_model._ORIG_WEIGHT_ATTR_PREFIX):]
+                    if hasattr(module, public_attr):
+                        prefix = name + "." if name else ""
+                        preserved_attributes.extend([prefix + public_attr, prefix + attr])
+        return list(dict.fromkeys(preserved_attributes))
 
     def _get_scripted_model(self, pt_module, example_inputs=None, skip_freeze=False, trace_kwargs=None):
         freeze_by_default = False
@@ -185,9 +191,15 @@ class TorchScriptPythonDecoder(TorchDecoderBase):
                 if trace_kwargs is None:
                     trace_kwargs = {}
                 try:
-                    with FunctionsPatcher():
-                        scripted = torch.jit.trace(
-                            pt_module, **input_parameters, strict=False, **trace_kwargs)
+                    while True:
+                        try:
+                            with FunctionsPatcher():
+                                scripted = torch.jit.trace(
+                                    pt_module, **input_parameters, strict=False, **trace_kwargs)
+                            break
+                        except patch_model._ParameterPlaceholderTraceError as error:
+                            if not patch_model._materialize_parameters(pt_module, error.parameters):
+                                raise
                 finally:
                     if patched:
                         quantized.unpatch_quantized(pt_module)
