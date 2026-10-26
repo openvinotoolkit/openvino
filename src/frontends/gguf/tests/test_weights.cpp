@@ -13,10 +13,13 @@
 
 #include <cmath>
 #include <cstring>
+#include <fstream>
 #include <vector>
 
+#include "common_test_utils/file_utils.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/op/constant.hpp"
+#include "quant/gguf.hpp"
 #include "quant/weights.hpp"
 
 using namespace ov_gguf_test;
@@ -354,4 +357,140 @@ TEST(GGUFWeight, UsesIntegerZeroPointForRequantizedMatmulWeights) {
     EXPECT_EQ(gguf_zero_point_type("token_embd.weight", GGUF_TYPE_Q4_K), ov::element::f16);
     EXPECT_EQ(gguf_zero_point_type("output.weight", GGUF_TYPE_Q5_K), ov::element::f16);
     EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_Q2_0), ov::element::u8);
+}
+
+class GGUFQ5KNative : public ::testing::Test {
+protected:
+    void SetUp() override {
+        path = ov::test::utils::generateTestFilePrefix() + ".gguf";
+    }
+    void TearDown() override {
+        ov::test::utils::removeFile(path);
+    }
+    void write_tensor(const std::string& name, const std::vector<uint8_t>& bytes) {
+        std::ofstream out(path, std::ios::binary);
+        ASSERT_TRUE(out);
+        const auto put = [&out](auto value) {
+            out.write(reinterpret_cast<const char*>(&value), sizeof(value));
+        };
+        put(uint32_t{0x46554747});
+        put(uint32_t{3});
+        put(uint64_t{1});
+        put(uint64_t{0});
+        put(uint64_t{name.size()});
+        out.write(name.data(), name.size());
+        put(uint32_t{3});
+        put(uint64_t{kCols});
+        put(uint64_t{2});
+        put(uint64_t{2});
+        put(uint32_t{ov::frontend::gguf::GGUF_TYPE_Q5_K});
+        put(uint64_t{0});
+        while (static_cast<size_t>(out.tellp()) % 32 != 0)
+            out.put('\0');
+        out.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+        ASSERT_TRUE(out);
+    }
+    std::string path;
+};
+
+TEST_F(GGUFQ5KNative, KeepsDiskTypeAndUsesSymmetricStorageForMatrices) {
+    using namespace ov::frontend::gguf;
+    const auto bytes = load_npy<uint8_t>("q5_k_qbytes");
+    for (const std::string name : {"blk.0.ffn_up", "token_embd", "output", "blk.0.attn_q.bias"}) {
+        SCOPED_TRACE(name);
+        const auto full_name = name == "blk.0.attn_q.bias" ? name : name + ".weight";
+        const bool symmetric = name == "blk.0.ffn_up";
+        ASSERT_NO_FATAL_FAILURE(write_tensor(full_name, bytes));
+        const auto loaded = get_gguf_data(path);
+        const auto& arrays = std::get<1>(loaded);
+        const auto& prefix = name;
+        EXPECT_EQ(std::get<2>(loaded).at(prefix + ".qtype"), GGUF_TYPE_Q5_K);
+        WeightTensors tensors{arrays.at(full_name), arrays.at(prefix + ".scales"), {}};
+        if (auto zp = arrays.find(prefix + ".zp"); zp != arrays.end())
+            tensors.zero_point = zp->second;
+        EXPECT_EQ(tensors.weight.get_element_type(), symmetric ? ov::element::i8 : ov::element::u8);
+        EXPECT_EQ(tensors.scales.get_shape(), (ov::Shape{2, 2, kCols / 32}));
+        EXPECT_EQ(static_cast<bool>(tensors.zero_point), !symmetric);
+        EXPECT_NO_THROW(make_weight_node(tensors, GGUF_TYPE_Q5_K, full_name));
+        if (!symmetric) {
+            EXPECT_EQ(tensors.zero_point.get_element_type(),
+                      name == "blk.0.attn_q.bias" ? ov::element::u8 : ov::element::f16);
+        }
+    }
+}
+
+TEST(GGUFQ5KRequant, FusedSplitsKeepSymmetricStorage) {
+    using namespace ov::frontend::gguf;
+    const auto bytes = load_npy<uint8_t>("q5_k_qbytes");
+    GgufTensor source{};
+    source.type = GGUF_TYPE_Q5_K;
+    source.num_weights = kRows * kCols;
+    source.bsize = bytes.size();
+    source.weights_data = bytes.data();
+    WeightTensors tensors{ov::Tensor(ov::element::i8, {kRows, kCols}),
+                          ov::Tensor(ov::element::f16, {kRows, kCols / 32}),
+                          {}};
+    gguf_fill_q5_k_i8(source, tensors.weight, tensors.scales);
+    const std::unordered_map<std::string, ov::Tensor> weights{{"fused.weight", tensors.weight},
+                                                              {"fused.scales", tensors.scales}};
+    const std::unordered_map<std::string, GgufTensorType> qtypes{{"fused.qtype", GGUF_TYPE_Q5_K}};
+    const auto qkv = split_fused_qkv_extracted("fused", weights, qtypes, 2, 1, 1);
+    const auto q_gate = split_interleaved_q_gate("fused", weights, qtypes, 1);
+    for (const auto& part : qkv) {
+        EXPECT_FALSE(part.tensors.zero_point);
+        EXPECT_NO_THROW(make_weight_node(part.tensors, part.qtype));
+    }
+    for (size_t part = 0; part < q_gate.size(); ++part) {
+        EXPECT_FALSE(q_gate[part].tensors.zero_point);
+        EXPECT_NO_THROW(make_weight_node(q_gate[part].tensors, q_gate[part].qtype));
+        for (size_t row = 0; row < 2; ++row) {
+            const size_t source_row = row * 2 + part;
+            EXPECT_EQ(std::memcmp(q_gate[part].tensors.weight.data<int8_t>() + row * kCols,
+                                  tensors.weight.data<int8_t>() + source_row * kCols,
+                                  kCols),
+                      0);
+            EXPECT_EQ(std::memcmp(q_gate[part].tensors.scales.data<ov::float16>() + row * (kCols / 32),
+                                  tensors.scales.data<ov::float16>() + source_row * (kCols / 32),
+                                  (kCols / 32) * sizeof(ov::float16)),
+                      0);
+        }
+    }
+}
+
+TEST(GGUFQ5KRequant, RejectsMalformedSymmetricGraphTensors) {
+    using namespace ov::frontend::gguf;
+    WeightTensors tensors{ov::Tensor(ov::element::i8, {2, 256}), ov::Tensor(ov::element::f16, {2, 8}), {}};
+    for (const ov::Shape& shape : {ov::Shape{1, 8}, ov::Shape{2, 2}, ov::Shape{2, 0}, ov::Shape{2, 8, 1}}) {
+        tensors.scales = ov::Tensor(ov::element::f16, shape);
+        EXPECT_THROW(make_weight_node(tensors, GGUF_TYPE_Q5_K), ov::Exception);
+    }
+    tensors.scales = ov::Tensor(ov::element::f32, {2, 8});
+    EXPECT_THROW(make_weight_node(tensors, GGUF_TYPE_Q5_K), ov::Exception);
+    tensors.weight = ov::Tensor(ov::element::u8, {2, 256});
+    tensors.scales = ov::Tensor(ov::element::f16, {2, 8});
+    EXPECT_THROW(make_weight_node(tensors, GGUF_TYPE_Q5_K), ov::Exception);
+}
+
+TEST(GGUFQ5KRequant, RejectsUnsupportedStorageLayouts) {
+    using namespace ov::frontend::gguf;
+    const std::unordered_map<std::string, GgufTensorType> qtypes{{"fused.qtype", GGUF_TYPE_Q5_K}};
+    for (const auto& type : {ov::element::i8, ov::element::u8, ov::element::f16}) {
+        for (const auto& zp_type : {ov::element::dynamic, ov::element::u8, ov::element::f16}) {
+            if ((type == ov::element::i8 && zp_type == ov::element::dynamic) ||
+                (type == ov::element::u8 && zp_type != ov::element::dynamic))
+                continue;
+            SCOPED_TRACE(type.get_type_name());
+            SCOPED_TRACE(zp_type.get_type_name());
+            WeightTensors tensors{ov::Tensor(type, {4, 256}), ov::Tensor(ov::element::f16, {4, 8}), {}};
+            std::unordered_map<std::string, ov::Tensor> weights{{"fused.weight", tensors.weight},
+                                                                {"fused.scales", tensors.scales}};
+            if (zp_type != ov::element::dynamic) {
+                tensors.zero_point = ov::Tensor(zp_type, {4, 8});
+                weights.emplace("fused.zp", tensors.zero_point);
+            }
+            EXPECT_THROW(make_weight_node(tensors, GGUF_TYPE_Q5_K), ov::Exception);
+            EXPECT_THROW(split_fused_qkv_extracted("fused", weights, qtypes, 2, 1, 1), ov::Exception);
+            EXPECT_THROW(split_interleaved_q_gate("fused", weights, qtypes, 1), ov::Exception);
+        }
+    }
 }
