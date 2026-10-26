@@ -58,19 +58,24 @@ bool is_hadamard_1024(const std::shared_ptr<ov::op::v0::Constant>& c) {
 bool supports_hadamard_fc(const std::shared_ptr<op::FullyConnectedCompressed>& fc) {
     if (fc->get_input_size() != 5 || fc->get_input_element_type(0) != ov::element::f16 || fc->get_input_element_type(1) != ov::element::u2 ||
         fc->get_input_element_type(3) != ov::element::f16 || !fc->get_transpose_b() || !ov::is_type<op::Placeholder>(fc->get_input_node_shared_ptr(2)) ||
-        (fc->get_output_element_type(0) != ov::element::f16 && fc->get_output_element_type(0) != ov::element::f32))
+        (fc->get_output_element_type(0) != ov::element::f16 && fc->get_output_element_type(0) != ov::element::f32)) {
         return false;
+    }
     const auto weights = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
     const auto zp = constant_behind(fc->input_value(4));
-    if (!weights || !zp || ov::shape_size(zp->get_shape()) != 1 || zp->cast_vector<float>() != std::vector<float>{1.f})
+    if (!weights || !zp || ov::shape_size(zp->get_shape()) != 1 || zp->cast_vector<float>() != std::vector<float>{1.f}) {
         return false;
+    }
     const auto& shape = weights->get_shape();
     const auto& scales = fc->get_input_partial_shape(3);
-    if (shape.size() != 2 || !shape[0] || !shape[1] || shape[0] % 16 || shape[1] % 128 || !scales.is_static() || scales.size() < 2)
+    if (shape.size() != 2 || shape[0] == 0 || shape[1] == 0 || shape[0] % 16 != 0 || shape[1] % 128 != 0 || !scales.is_static() || scales.size() < 2) {
         return false;
-    for (size_t i = 2; i < scales.size(); ++i)
-        if (scales[i] != 1)
+    }
+    for (size_t i = 2; i < scales.size(); ++i) {
+        if (scales[i] != 1) {
             return false;
+        }
+    }
     return fc->get_transpose_b_scale() ? scales[0] == shape[0] && scales[1] == shape[1] / 128 : scales[0] == shape[1] / 128 && scales[1] == shape[0];
 }
 

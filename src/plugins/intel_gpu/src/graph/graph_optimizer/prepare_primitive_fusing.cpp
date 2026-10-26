@@ -616,19 +616,19 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     candidate.get_output_layout().get_partial_shape() != node.get_output_layout().get_partial_shape() ||
                     (candidate.get_output_layout().data_type != data_types::f16 && candidate.get_output_layout().data_type != data_types::f32))
                     return false;
-                if (swish && (swish->get_dependencies().size() != 1 || swish->as<activation>().get_primitive()->additional_params.a != 1.0f ||
-                              swish->get_output_layout().data_padding || swish->get_output_layout().format != format::bfyx ||
-                              swish->get_output_layout().get_partial_shape() != node.get_output_layout().get_partial_shape()))
+                if (swish != nullptr && (swish->get_dependencies().size() != 1 || swish->as<activation>().get_primitive()->additional_params.a != 1.0f ||
+                                         swish->get_output_layout().data_padding || swish->get_output_layout().format != format::bfyx ||
+                                         swish->get_output_layout().get_partial_shape() != node.get_output_layout().get_partial_shape()))
                     return false;
                 auto chain = fused_prims;
-                if (swish)
+                if (swish != nullptr)
                     chain.emplace_back(swish->get_primitive());
                 chain.emplace_back(candidate.get_primitive());
                 const auto postop = ocl::ternocl_int2_postop(chain, node.get_primitive()->bias.is_valid());
                 if (!postop)
                     return false;
                 if (ocl::ternocl_postop_reads_other(*postop)) {
-                    auto* input = swish ? swish : &node;
+                    auto* input = swish != nullptr ? swish : &node;
                     if (candidate.get_dependencies().size() != 2)
                         return false;
                     const auto& peer = candidate.get_dependency(&candidate.get_dependency(0) == input ? 1 : 0);
