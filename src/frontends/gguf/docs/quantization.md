@@ -29,7 +29,7 @@ Q4_1/Q4_K are backing buffers for eight nibbles per word; their graph Constants 
 Unpacking into `u2` or `i4` therefore does not mean allocating one byte per weight.
 
 The usual graph is `Convert -> [Subtract] -> Multiply -> Reshape -> Convert(F32)`. Decompression
-uses the scale's element type, normally F16. Q6_K and formats with fractional F16 zero points
+uses the scale's element type, normally F16. Q6_K, Q8_1 and formats with fractional F16 zero points
 and code widths of at least four bits instead perform subtraction/multiplication in F32.
 Q8_K uses F32 scales and thus F32 arithmetic. MXFP4 uses an F16 multiply. A final F32 output
 does not undo rounding in earlier F16 operations, and does not imply that a full F32 weight
@@ -70,6 +70,7 @@ The type columns describe stored Constants; their decompression or Convert outpu
 | Q5_K, fractional zero point | 256 | 176 | `u8` | `f16` | `f16` | `256 + 16 + 16` = 288 | +63.6% |
 | Q6_K | 256 | 210 | `i8` | `f16` | — | `256 + 32` = 288 | +37.1% |
 | Q8_0 | 32 | 34 | `i8` | `f16` | — | `32 + 2` = 34 | 0% |
+| Q8_1 | 32 | 36 | `i8` | `f16` | — | `32 + 2` = 34 | -5.6% |
 | Q8_K | 256 | 292 | `i8` | `f32` | — | `256 + 4` = 260 | -11.0% |
 | MXFP4 | 32 | 17 | `f4e2m1` | `f8e8m0` | — | `16 + 1` = 17 | 0% |
 
@@ -213,10 +214,24 @@ Code values are preserved, but widening to eight bits and expanding sub-scales i
 F32 graph arithmetic avoids an F16 multiply, but the combined scales have already been rounded
 to F16 at import.
 
-### Q8_0 and Q8_K
+### Q8_0, Q8_1 and Q8_K
 
 Q8_0 directly copies 32 `i8` codes and one F16 scale per block. There is no code expansion,
 requantization or extra metadata; its usual decompression multiply is F16.
+
+Q8_1 (type 9) uses the current ggml layout `F16 d | F16 s | 32 i8 codes`, totaling 36 bytes.
+Import copies `d` and the codes unchanged and omits `s`, a precomputed `d * sum(codes)` used
+by ggml dot-product kernels. It is not an additive weight offset or zero point. OpenVINO
+stores 34 bytes per block, 5.6% less than the GGUF payload. Legacy 40-byte blocks with F32
+`d` and `s` are not supported; the frontend does not infer that layout from padded tensor spans.
+
+Both input paths keep the original per-32 F16 scales for every Q8_1 weight name, including
+embedding/output tensors. The graph converts codes and scales to F32 before multiplying,
+preserving finite reconstructed weight values exactly without F16 multiplication rounding or
+requantization. The stored Constants remain i8 and F16; no full F32 weight Constant is required
+at import. Device compilation can still expand the weights or select different execution
+precision, so the compact payload and exact graph reconstruction do not guarantee runtime
+memory usage or bit-exact inference.
 
 Q8_K copies 256 `i8` codes and an F32 scale unchanged. Each GGUF block contains 256 code bytes,
 four scale bytes and 32 bytes of precomputed sums (`16` values of type `i16`), totaling 292
@@ -228,7 +243,7 @@ or precision is lost by omitting them: reconstruction remains `weight[i] = scale
 in F32, without requantization. The sums can be regenerated exactly from the retained codes
 if a future kernel or GGUF exporter needs them. Preserving them would add unused storage to
 the current representation. OpenVINO does not reproduce GGML's partial-sum kernel through
-this representation. Q8_1 has no implemented native weight unpacking path.
+this representation.
 
 ## Affine K formats
 
@@ -299,7 +314,8 @@ currently differs as follows:
 |---|---|---|
 | Q4_1, Q5_1 | Full F32 Constant decoded with `d*q + m` before other format handling | 128 bytes per 32 weights: +540% for Q4_1, +433.3% for Q5_1 |
 | Q1_0, including embedding/output | Packed `u1` plus per-128 F16 scales, as in native loading | Requires plugin binary decompression support to remain packed at execution |
-| Quantized `token_embd.weight` / `output.weight`, except Q1_0 and the Q4_1/Q5_1 cases above | Channel-wise Q8_0_C: `i8` codes with one F16 scale per row | Additional lossy quantization; low-bit sources usually expand |
+| Q8_1, including embedding/output | Original `i8` codes plus per-32 F16 scales, with F32 graph multiplication, as in native loading | Device compilation determines execution storage and precision |
+| Quantized `token_embd.weight` / `output.weight`, except Q1_0/Q8_1 and the Q4_1/Q5_1 cases above | Channel-wise Q8_0_C: `i8` codes with one F16 scale per row | Additional lossy quantization; low-bit sources usually expand |
 | Q5_K ordinary matrices | The same channel-wise Q8_0_C representation | Additional lossy quantization; different scale grouping from native Q5_K |
 | Q4_K/Q5_K/Q6_K selected for Q8_0_C | Stream original F32-dequantized rows directly into channel-wise quantization | Per-worker F32 row scratch; avoids allocating a full temporary F32 matrix |
 | Rank greater than two MXFP4 experts | Packed `u8` blocks retaining scale/code interleaving; expert selection and decompression happen on the graph | Different graph layout; device fusion and temporary storage depend on expert execution |
