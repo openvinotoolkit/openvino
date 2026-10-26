@@ -119,8 +119,8 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeNotAppliedForLastAxisWithAd
   if (device_name == ov::test::utils::DEVICE_GPU)
     config.insert(ov::hint::inference_precision(ov::element::f32));
   const auto compiled_model = core.compile_model(model, device_name, config);
+  ASSERT_TRUE(model->get_ops().size() < compiled_model.get_runtime_model()->get_ops().size()); // decomposition not applied
 
-  ASSERT_TRUE(model->get_ops().size() >= compiled_model.get_runtime_model()->get_ops().size()); // decomposition not applied
 }
 
 } // namespace ExecutionGraphTests
