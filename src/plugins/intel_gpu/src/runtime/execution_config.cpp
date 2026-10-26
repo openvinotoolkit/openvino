@@ -373,7 +373,6 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
         // Auto-enable profiling when OneDNN verbose profiling is enabled.
         m_enable_profiling = true;
     }
-#    endif
 #endif
 
     // Enable dynamic quantization by default for non-systolic platforms
