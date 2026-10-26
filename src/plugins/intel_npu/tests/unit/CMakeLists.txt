@@ -17,6 +17,23 @@ set(MANDATORY_UNIT_TESTS_LIBS
         "openvino::npu_ops"
         "openvino_npu_vm_utils"
         "openvino_npu_compiler_adapter"
+        "openvino::intel_npu_bytecode_utils"
+        "openvino::intel_npu_vm_runtime"
+
+)
+
+include(${PROJECT_SOURCE_DIR}/cmake/bytecode/embed_bytecode_artifacts_header.cmake)
+
+set(BYTECODE_ARTIFACTS_TARGET "generateBytecodeArtifactsHeader")
+set(BYTECODE_ARTIFACTS_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/vm/compatibility/bytecode_artifacts.hpp.inc")
+set(BYTECODE_ARTIFACTS_HEADER "${CMAKE_CURRENT_BINARY_DIR}/vm/compatibility/bytecode_artifacts.hpp")
+set(BYTECODE_BINARY_ARTIFACTS_DIR "${PROJECT_SOURCE_DIR}/tests/artifacts/bytecode/binary")  # Directory containing the bytecode artifact files
+
+npu_embed_bytecode_artifacts_header(
+        TARGET ${BYTECODE_ARTIFACTS_TARGET}
+        TEMPLATE_FILE ${BYTECODE_ARTIFACTS_TEMPLATE}
+        OUTPUT_HEADER ${BYTECODE_ARTIFACTS_HEADER}
+        BINARY_ARTIFACTS_DIR ${BYTECODE_BINARY_ARTIFACTS_DIR}
 )
 
 ov_add_test_target(
@@ -30,6 +47,7 @@ ov_add_test_target(
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${CMAKE_CURRENT_SOURCE_DIR}/npuw
+            ${CMAKE_CURRENT_SOURCE_DIR}/vm
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/pipelines
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/utils/include
@@ -40,6 +58,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/include/
             ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero
             ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero/include
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/vm_runtime/vm_runtime/src/utils
         OBJECT_FILES
             # plugin/src
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/executor.cpp
@@ -174,6 +193,12 @@ install(TARGETS ${TARGET_NAME}
         EXCLUDE_FROM_ALL
 )
 
+if(CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT ENABLE_DEVELOPER_BUILD)
+    target_compile_options(${TARGET_NAME} PRIVATE -DBUILD_LOG_LEVEL=4)
+else()
+    target_compile_options(${TARGET_NAME} PRIVATE -DBUILD_LOG_LEVEL=6)
+endif()
+
 target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/executor_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/should_use_host_compile_interpreter_test.cpp
@@ -232,4 +257,5 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_infer_utils_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/make_tensor_slice_bounds_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_topology_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/vm/buffer.cpp
 )
