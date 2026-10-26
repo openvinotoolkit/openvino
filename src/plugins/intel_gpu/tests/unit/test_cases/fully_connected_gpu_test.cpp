@@ -7077,7 +7077,9 @@ TEST_P(fully_connected_onednn_int4_alignment, compare_with_host_reference) {
     auto outputs = net.execute();
 
     if (p.expect_onednn) {
-        EXPECT_TRUE(net.get_primitive("fc")->get_impl()->is_onednn());
+        const auto impl = net.get_primitive("fc")->get_impl();
+        ASSERT_TRUE(impl->is_onednn());
+        EXPECT_EQ(impl->get_kernel_name().find("ref"), std::string::npos) << "oneDNN kernel: " << impl->get_kernel_name();
     }
 
     auto output_mem = outputs.at("fc").get_memory();
