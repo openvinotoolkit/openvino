@@ -1,0 +1,39 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_conditional_assignment.bin
+
+type_section:
+  - id: i64
+    kind: integer
+    width: 64
+    is_signed: true
+  - id: fn_main_select
+    kind: function
+    params: []
+    results: [i64, i64]
+
+function_section:
+  - name: main_select
+    type: fn_main_select
+    # Register mapping: 0=cond_true, 1=cond_false, 2=lhs, 3=rhs, 4=sel_true, 5=sel_false
+    instructions:
+      - op: set_imm
+        args: [0, 1]
+      - op: set_imm
+        args: [1, 0]
+      - op: set_imm
+        args: [2, 10]
+      - op: set_imm
+        args: [3, 3]
+
+      - op: select
+        args: [4, 0, 2, 3]
+      - op: select
+        args: [5, 1, 2, 3]
+
+      - op: retv
+        args: [4, 5]

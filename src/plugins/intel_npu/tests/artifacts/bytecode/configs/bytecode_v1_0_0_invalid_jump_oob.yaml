@@ -1,0 +1,31 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_invalid_jump_oob.bin
+
+type_section:
+  - id: i64
+    kind: integer
+    width: 64
+    is_signed: true
+  - id: fn_main_invalid_jump
+    kind: function
+    params: []
+    results: [i64]
+
+function_section:
+  - name: main_invalid_jump
+    type: fn_main_invalid_jump
+    # Register mapping: 0=value
+    instructions:
+      - op: set_imm
+        args: [0, 123]
+      # Deliberately out of bounds: function body is much smaller than this offset.
+      - op: jmp
+        args: [4096]
+      # Unreachable if VM correctly halts on invalid jump target.
+      - op: retv
+        args: [0]

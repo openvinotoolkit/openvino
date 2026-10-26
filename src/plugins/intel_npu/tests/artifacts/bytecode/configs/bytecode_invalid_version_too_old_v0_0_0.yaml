@@ -1,0 +1,20 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [0, 0, 0]
+output: bytecode_invalid_version_too_old_v0_0_0.bin
+
+type_section:
+  - id: fn_type
+    kind: function
+    params: []
+    results: []
+
+function_section:
+  - name: main
+    type: fn_type
+    instructions:
+      - op: ret
+        args: []
