@@ -116,7 +116,7 @@ Keep registration, structural conversion, numerical agreement, and application f
 as separate evidence. A new architecture needs a nonzero oracle fixture and a real-checkpoint
 comparison; exercise relevant positions, sizes, cache appends/resets, and adaptation paths.
 
-For the families enabled in PR #39000, a working F32/F16 reference path establishes
+For each model architecture, a working F32/F16 reference path establishes
 architecture support. Implemented quantized formats remain enabled even when their
 checkpoint comparison falls below the numerical or greedy agreement thresholds.
 Record those failed comparisons as accuracy limitations; do not relabel them as
