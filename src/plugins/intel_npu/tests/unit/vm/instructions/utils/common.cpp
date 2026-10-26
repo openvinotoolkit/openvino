@@ -8,8 +8,6 @@
 #include "vm_runtime/virtual_machine.h"
 #include "vm_value_helpers.hpp"
 
-#include <llvm/Support/FormatVariadic.h>
-
 #include <gtest/gtest.h>
 
 #include <climits>
@@ -47,16 +45,14 @@ std::string expectedToString(const std::variant<int64_t, double>& expected) {
 namespace utils {
 
 std::ostream& operator<<(std::ostream& os, const TwoOperandInstructionParams& params) {
-    os << llvm::formatv("{ opcode={0}, src={1}, expected={2} }", static_cast<uint16_t>(params.opcode), params.src,
-                        expectedToString(params.expected))
-                    .str();
+    os << "{ opcode=" << static_cast<uint16_t>(params.opcode) << ", src=" << params.src
+       << ", expected=" << expectedToString(params.expected) << " }";
     return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const ThreeOperandInstructionParams& params) {
-    os << llvm::formatv("{ opcode={0}, lhs={1}, rhs={2}, expected={3} }", static_cast<uint16_t>(params.opcode),
-                        params.lhs, params.rhs, expectedToString(params.expected))
-                    .str();
+    os << "{ opcode=" << static_cast<uint16_t>(params.opcode) << ", lhs=" << params.lhs << ", rhs=" << params.rhs
+       << ", expected=" << expectedToString(params.expected) << " }";
     return os;
 }
 
@@ -106,7 +102,7 @@ void utils::expectF32Eq(float actual, float expected) {
 
 npu_vm_result utils::VirtualMachineInstructionTest::loadEntrypoint(const std::vector<uint8_t>& bytecode,
                                                                    const char* funcName) {
-    if (const auto status = npu_vm_parse_module(bytecode.data(), bytecode.size(), &module); status != NPU_VM_SUCCESS) {
+    if (const auto status = npu_vm_parse_module(bytecode.data(), static_cast<uint32_t>(bytecode.size()), &module); status != NPU_VM_SUCCESS) {
         return status;
     }
     if (const auto status = npu_vm_get_function_info(module, funcName, &funcInfo); status != NPU_VM_SUCCESS) {

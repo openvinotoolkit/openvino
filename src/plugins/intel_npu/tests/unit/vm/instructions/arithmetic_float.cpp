@@ -8,8 +8,6 @@
 #include "vm_runtime/virtual_machine.h"
 #include "vm_value_helpers.hpp"
 
-#include <llvm/Support/FormatVariadic.h>
-
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 #include <common_test_utils/test_common.hpp>
@@ -35,9 +33,8 @@ struct RoundF64Params {
     double expected;
 
     [[maybe_unused]] friend std::ostream& operator<<(std::ostream& os, const RoundF64Params& params) {
-        os << llvm::formatv("{ src={0}, flag={1}, expected={2} }", params.src, static_cast<int16_t>(params.flag),
-                            params.expected)
-                        .str();
+        os << "{ src=" << params.src << ", flag=" << static_cast<int16_t>(params.flag)
+           << ", expected=" << params.expected << " }";
         return os;
     }
 };
