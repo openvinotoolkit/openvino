@@ -1,0 +1,71 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_arithmetic_integers.bin
+
+type_section:
+  - id: i64
+    kind: integer
+    width: 64
+    is_signed: true
+  - id: u64
+    kind: integer
+    width: 64
+    is_signed: false
+  - id: fn_main_int
+    kind: function
+    params: []
+    results: [i64, i64, i64, i64, i64, i64, i64, i64, u64, u64, u64, u64, u64, u64, u64]
+
+function_section:
+  - name: main_int_arith
+    type: fn_main_int
+    # Register mapping:
+    # 0=cst(ten), 1=cst(three), 2=cst(neg_ten),
+    # 3=add, 4=sub, 5=mul, 6=div, 7=min, 8=max, 9=rem, 10=abs,
+    # 11=add_u, 12=sub_u, 13=mul_u, 14=div_u, 15=min_u, 16=max_u, 17=rem_u
+    instructions:
+      - op: set_imm
+        args: [0, 10]
+      - op: set_imm
+        args: [1, 3]
+      - op: set_imm
+        args: [2, -10]
+
+      - op: add_i64
+        args: [3, 0, 1]
+      - op: sub_i64
+        args: [4, 0, 1]
+      - op: mul_i64
+        args: [5, 0, 1]
+      - op: div_i64
+        args: [6, 0, 1]
+      - op: min_i64
+        args: [7, 0, 1]
+      - op: max_i64
+        args: [8, 0, 1]
+      - op: rem_i64
+        args: [9, 0, 1]
+      - op: abs_i64
+        args: [10, 2]
+
+      - op: add_u64
+        args: [11, 0, 1]
+      - op: sub_u64
+        args: [12, 0, 1]
+      - op: mul_u64
+        args: [13, 0, 1]
+      - op: div_u64
+        args: [14, 0, 1]
+      - op: min_u64
+        args: [15, 0, 1]
+      - op: max_u64
+        args: [16, 0, 1]
+      - op: rem_u64
+        args: [17, 0, 1]
+
+      - op: retv
+        args: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]

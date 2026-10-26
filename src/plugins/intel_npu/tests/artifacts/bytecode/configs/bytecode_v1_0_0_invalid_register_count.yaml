@@ -1,0 +1,35 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_invalid_register_count.bin
+
+type_section:
+  - id: i64
+    kind: integer
+    width: 64
+    is_signed: true
+  - id: fn_main_invalid_reg_count
+    kind: function
+    params: []
+    results: [i64]
+
+function_section:
+  - name: main_invalid_reg_count
+    type: fn_main_invalid_reg_count
+    # Declare only 1 register while instructions reference registers 0, 1, and 2.
+    # The declared register count is intentionally less than what the body requires.
+    num_registers: 1
+    force_num_registers: true
+    # Register mapping: 0=a, 1=b, 2=result (register 2 exceeds the declared count)
+    instructions:
+      - op: set_imm
+        args: [0, 10]
+      - op: set_imm
+        args: [1, 20]
+      - op: add_i64
+        args: [2, 0, 1]
+      - op: retv
+        args: [2]

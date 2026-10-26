@@ -1,0 +1,75 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_stack_accurate_deep_recursion.bin
+
+type_section:
+  - id: i64
+    kind: integer
+    width: 64
+    is_signed: true
+  - id: fn_recursive_sum
+    kind: function
+    params: [i64, i64]
+    results: [i64]
+  - id: fn_main_recursion
+    kind: function
+    params: []
+    results: [i64]
+
+function_section:
+  # Recursive function: accumulates sum while decrementing counter
+  # fn_recursive_sum(counter, accumulator) -> accumulator
+  - name: recursive_sum
+    type: fn_recursive_sum
+    # Register mapping:
+    #   Scratch (G=3): 0=zero, 1=one, 2=tmp(func_idx/result)
+    #   Params  (P=2): 3=counter, 4=accumulator
+    instructions:
+      # Initialize constants
+      - op: set_imm
+        args: [0, 0]
+      - op: set_imm
+        args: [1, 1]
+      # Base case: if counter == 0, jump to the base-case retv at body offset 86.
+      # je is at body offset 24, so the PC-relative jump distance is 86 - 24 = 62.
+      - op: je
+        args: [62, 3, 0]
+      # Recursive case: add counter to accumulator, decrement counter, call recursively
+      - op: add_i64
+        args: [4, 4, 3]
+      - op: sub_i64
+        args: [3, 3, 1]
+      - op: set_imm
+        args: [2, 0]
+      - op: call
+        func_idx_reg: 2
+        dst_registers: [2]
+        arg_registers: [3, 4]
+      - op: retv
+        args: [2]
+      # ^base case label (body offset 86)
+      - op: retv
+        args: [4]
+
+  # Entry point: calls recursive_sum with counter=256, accumulator=0
+  # Expected result: 256 + 255 + ... + 1 + 0 = 256*257/2 = 32896
+  - name: main_recursion
+    type: fn_main_recursion
+    # Register mapping: 0=counter, 1=accum, 2=func_idx, 3=result
+    instructions:
+      - op: set_imm
+        args: [0, 256]
+      - op: set_imm
+        args: [1, 0]
+      - op: set_imm
+        args: [2, 0]
+      - op: call
+        func_idx_reg: 2
+        dst_registers: [3]
+        arg_registers: [0, 1]
+      - op: retv
+        args: [3]

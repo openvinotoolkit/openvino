@@ -1,0 +1,21 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+magic_number: "BADMAGC!"
+output: bytecode_invalid_magic_number.bin
+
+type_section:
+  - id: fn_type
+    kind: function
+    params: []
+    results: []
+
+function_section:
+  - name: main
+    type: fn_type
+    instructions:
+      - op: ret
+        args: []

@@ -1,0 +1,24 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_invalid_empty_section.bin
+
+type_section:
+  - id: fn_type
+    kind: function
+    params: []
+    results: []
+
+function_section:
+  - name: main_invalid_empty_section
+    type: fn_type
+    instructions:
+      - op: ret
+        args: []
+
+# Explicitly create STRING section but leave it empty (no entries).
+# This produces a zero-byte section payload with valid section metadata.
+string_section: []

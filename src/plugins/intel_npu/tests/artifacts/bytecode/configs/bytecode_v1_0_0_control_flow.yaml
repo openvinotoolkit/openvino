@@ -1,0 +1,63 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_control_flow.bin
+
+type_section:
+  - id: i64
+    kind: integer
+    width: 64
+    is_signed: true
+  - id: fn_add_helper
+    kind: function
+    params: [i64, i64]
+    results: [i64]
+  - id: fn_main_control
+    kind: function
+    params: []
+    results: [i64]
+
+function_section:
+  - name: add_helper
+    type: fn_add_helper
+    # Register mapping: 0=dst, 1=lhs, 2=rhs
+    instructions:
+      - op: add_i64
+        args: [0, 1, 2]
+      - op: retv
+        args: [0]
+
+  - name: main_control
+    type: fn_main_control
+    # Register mapping: 0=counter, 1=limit, 2=one, 3=sum, 4=add_func_idx
+    instructions:
+      - op: set_imm
+        args: [0, 0]
+      - op: set_imm
+        args: [1, 3]
+      - op: set_imm
+        args: [2, 1]
+      - op: set_imm
+        args: [3, 0]
+      - op: set_imm
+        args: [4, 0]
+      - op: jmp
+        args: [10]
+      # ^loop label (offset 10)
+      - op: add_i64
+        args: [0, 0, 2]
+      - op: call
+        func_idx_reg: 4
+        dst_registers: [3]
+        arg_registers: [3, 0]
+      - op: je
+        args: [28, 0, 1]
+      # ^cont label
+      - op: jne
+        args: [-36, 0, 1]
+      # ^exit label
+      - op: retv
+        args: [3]

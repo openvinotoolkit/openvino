@@ -1,0 +1,68 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_all_sections.bin
+
+type_section:
+  - id: f32
+    kind: float
+    width: 32
+    format: ieee754
+  - id: fn_sections
+    kind: function
+    params: []
+    results: []
+
+constant_section:
+  - "0x01000000000000001000000000000000"
+  - "0x0123456789abcdef"
+
+kernel_section:
+  - "0x00010203"
+  - "0x0405060708090a0b0c0d0e0f"
+
+metadata_section:
+  - kind: network
+    name: compatibility_network
+    num_streams: 1
+    num_cmdlists: 1
+
+  - kind: input
+    name: input0
+    precision_type: f32
+    shape: 0
+    index_used_by_driver: 0
+    has_dynamic_strides: false
+    output_tensor_names: [output0]
+    shape_from_ir_model: 0
+    node_friendly_name: input_node
+
+  - kind: output
+    name: output0
+    precision_type: f32
+    shape: 0
+    index_used_by_driver: 0
+    has_dynamic_strides: false
+    output_tensor_names: []
+    shape_from_ir_model: 0
+    node_friendly_name: output_node
+
+  - kind: profiling_output
+    name: profiling0
+    precision_type: f32
+    shape: 1
+    index_used_by_driver: 1
+    has_dynamic_strides: false
+    output_tensor_names: []
+    shape_from_ir_model: 1
+    node_friendly_name: profiling_node
+
+function_section:
+  - name: sections
+    type: fn_sections
+    instructions:
+      - op: ret
+        args: []

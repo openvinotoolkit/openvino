@@ -1,0 +1,35 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_invalid_truncated_mid_function.bin
+# Truncate the binary mid-way through the function body section to test
+# that the parser handles unexpected EOF gracefully.
+truncate_bytes_from_end:
+  section: function
+  bytes: 5
+
+type_section:
+  - id: i64
+    kind: integer
+    width: 64
+    is_signed: true
+  - id: fn_type
+    kind: function
+    params: []
+    results: [i64, i64, i64]
+
+function_section:
+  - name: main
+    type: fn_type
+    instructions:
+      - op: set_imm
+        args: [0, 1]
+      - op: set_imm
+        args: [1, 2]
+      - op: add_i64
+        args: [2, 0, 1]
+      - op: retv
+        args: [0, 1, 2]

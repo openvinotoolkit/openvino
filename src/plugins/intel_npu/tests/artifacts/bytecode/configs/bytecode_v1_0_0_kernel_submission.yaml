@@ -1,0 +1,41 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_kernel_submission.bin
+
+type_section:
+  - id: fn_kernel_submission
+    kind: function
+    params: []
+    results: []
+
+kernel_section:
+  - "0x00010203"
+
+function_section:
+  - name: kernel_submission
+    type: fn_kernel_submission
+    # Register mapping: 0=kernel, 1=in_buf, 2=out_buf, 3=cmd_list, 4=signal, 5=wait
+    instructions:
+      - op: kernel_create
+        dst: 0
+        kernel_index: 0
+        kernel_name_index: 0
+        input_registers: [1]
+        output_registers: [2]
+      - op: cmd_list_create
+        args: [3]
+      - op: cmd_list_add_kernel
+        cmd_list: 3
+        kernel: 0
+        signal_events: [4]
+        wait_events: [5]
+      - op: cmd_list_close
+        args: [3]
+      - op: cmd_list_exec
+        args: [3, 0]
+      - op: ret
+        args: []

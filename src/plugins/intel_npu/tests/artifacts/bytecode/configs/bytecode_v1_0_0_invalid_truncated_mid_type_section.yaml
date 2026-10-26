@@ -1,0 +1,33 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_invalid_truncated_mid_type_section.bin
+# Truncate the binary mid-way through the type section to test that the
+# parser handles unexpected EOF gracefully.
+truncate_bytes_from_end:
+  section: type
+  bytes: 3
+
+type_section:
+  - id: i64
+    kind: integer
+    width: 64
+    is_signed: true
+  - id: f64
+    kind: float
+    width: 64
+    format: ieee754
+  - id: fn_type
+    kind: function
+    params: [i64, f64]
+    results: [i64]
+
+function_section:
+  - name: main
+    type: fn_type
+    instructions:
+      - op: ret
+        args: []
