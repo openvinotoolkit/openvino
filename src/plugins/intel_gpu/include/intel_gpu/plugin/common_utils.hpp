@@ -14,7 +14,6 @@
 #include "intel_gpu/runtime/shape_predictor.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/device_info.hpp"
-#include "openvino/core/layout.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 

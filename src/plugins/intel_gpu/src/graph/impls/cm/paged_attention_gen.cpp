@@ -78,7 +78,7 @@ size_t get_max_context_len(const kernel_impl_params& params) {
     return paged_attention_max_len;
 }
 
-size_t get_batch_size_in_sequences(const std::vector<cldnn::layout>& input_layouts) {
+size_t get_batch_size_in_sequences(const std::vector<layout>& input_layouts) {
     const auto past_lens_shape = input_layouts[PagedAttentionInputIdx::PAST_LENS].get_shape();
     OPENVINO_ASSERT(!past_lens_shape.empty(), "PAST_LENS layout must have at least 1 dimension");
     return past_lens_shape[0];
