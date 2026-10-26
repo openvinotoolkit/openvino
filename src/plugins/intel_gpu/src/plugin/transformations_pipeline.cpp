@@ -80,6 +80,7 @@
 #include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/core/constant_folding_prefetch.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_vlsdpa.hpp"
 #include "ov_ops/gather_matmul_compressed.hpp"
@@ -453,6 +454,9 @@ extern bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig&
 namespace ov::intel_gpu {
 
 namespace {
+// Byte budget limiting mmap-backed weights prefetched but not yet consumed or evicted during constant folding.
+constexpr size_t cf_weights_prefetch_budget_bytes = 128UL * 1024 * 1024;
+
 // Detect whether the model contains a linear-attention (Mamba2 / Gated DeltaNet)
 // block. Such hybrid-attention models have an SSM gated output whose activation
 // has a wide dynamic range and is unstable under per-token INT8 dyn-quant; we
@@ -641,6 +645,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager("Plugin:GPU");
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
+
+        const size_t weights_prefetch_budget = config.get_offload_ratio() == 0 ? cf_weights_prefetch_budget_bytes : 0;
+        auto folding_prefetch = std::make_shared<ov::util::ConstantFoldingWeightsPrefetch>(weights_prefetch_budget);
+        if (weights_prefetch_budget > 0) {
+            pass_config->set_pass_extension<ov::pass::ConstantFolding, ov::pass::ConstantFolding::Observer>(folding_prefetch);
+        }
 
         // Transformation of SDPA to VLSDPA for QWen2.x-VL,
         // Note: this should be applied before TransposeFusion.
@@ -1410,6 +1420,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         manager.run_passes(func);
+        folding_prefetch->finish();
     }
 
     if (enableInt8) {
