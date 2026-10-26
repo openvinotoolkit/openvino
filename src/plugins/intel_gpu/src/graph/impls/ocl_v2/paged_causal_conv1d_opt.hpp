@@ -22,6 +22,11 @@ struct PagedCausalConv1DOpt : public ImplementationManager {
 
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         assert(node.is_type<paged_causal_conv1d>());
+        // The opt kernel uses the state window as the tap count; dilated convolutions fall back to the ref kernel.
+        if (node.as<paged_causal_conv1d>().get_primitive()->dilation != 1) {
+            return false;
+        }
+
         static constexpr std::array supported_fmts = {
             format::bfyx,
         };
