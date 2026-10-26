@@ -122,6 +122,7 @@
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
 #include "plugin/transformations/stateless_kv_fusion.hpp"
+#include "plugin/transformations/swoosh_fusion.hpp"
 #include "intel_gpu/op/fully_connected.hpp"
 #include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
@@ -1657,6 +1658,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (device_info.supports_immad && config.get_use_onednn() && !disable_gated_mlp_fusion) {
             manager.register_pass<ov::intel_gpu::FuseGatedMLP>();
         }
+        manager.register_pass<ov::intel_gpu::SwooshFusion>();
         manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
