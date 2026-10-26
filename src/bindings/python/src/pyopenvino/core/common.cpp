@@ -463,7 +463,7 @@ ov::op::v0::Constant create_copied(py::array& array) {
     }
     // Special case with string data type of kind "S"(bytes_) or "U"(str_).
     // Numpy stores fixed-width characters, so they have to be converted to std::string elements first.
-    if (type_helpers::get_ov_type(array) == ov::element::string) {
+    if (type == ov::element::string) {
         auto tensor = ov::Tensor(ov::element::string, array_helpers::get_shape(array));
         string_helpers::fill_string_tensor_data(tensor, array);
         return ov::op::v0::Constant(tensor);
