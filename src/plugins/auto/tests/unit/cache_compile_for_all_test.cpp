@@ -289,6 +289,77 @@ TEST_F(AutoCacheWarmupTest, customBlobIdDoesNotPruneCpuFallback) {
     std::filesystem::remove_all(cache_dir);
 }
 
+TEST_F(AutoCacheWarmupTest, retainedProfilingRequestDoesNotPinCpuHelperRequests) {
+    set_global_cache("test_cache_dir");
+    set_devices({cpu_device, "GPU.0", actual_device});
+    use_default_startup_compilation();
+    std::vector<ov::PropertyName> supported_props = {ov::compilation_num_threads, ov::enable_profiling};
+    ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
+        .WillByDefault(Return(ov::Any(supported_props)));
+    std::mutex requests_mutex;
+    std::vector<std::weak_ptr<ov::IAsyncInferRequest>> cpu_requests;
+    ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault([&]() {
+        auto request = mockIExeNet->ICompiledModel::create_infer_request();
+        std::lock_guard<std::mutex> lock(requests_mutex);
+        cpu_requests.push_back(request);
+        return request;
+    });
+    ov::ProfilingInfo profiling_info;
+    profiling_info.node_name = "relu";
+    ON_CALL(*inferReqInternal, get_profiling_info())
+        .WillByDefault(Return(std::vector<ov::ProfilingInfo>{profiling_info}));
+    std::atomic<int> warmup_count{0};
+    auto warmup_compiled_model = make_compiled_model();
+    on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        warmup_count++;
+        return {warmup_compiled_model, {}};
+    });
+    config.insert(ov::enable_profiling(true));
+    config.insert(ov::intel_auto::compile_for_all(true));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    // Runs on CPU_HELP, the only device ready at this point.
+    auto request = compiled_model->create_infer_request();
+    OV_ASSERT_NO_THROW(request->infer());
+    ASSERT_TRUE(wait_until([&] {
+        return warmup_count.load() == 1;
+    }));
+    // Backend requests of CPU_HELP must be released while this request is still held.
+    {
+        std::lock_guard<std::mutex> lock(requests_mutex);
+        ASSERT_FALSE(cpu_requests.empty());
+        for (const auto& weak_request : cpu_requests) {
+            EXPECT_TRUE(weak_request.expired());
+        }
+    }
+    const auto info = request->get_profiling_info();
+    ASSERT_EQ(info.size(), 1u);
+    EXPECT_EQ(info.front().node_name, "relu");
+}
+
+TEST_F(AutoCacheWarmupTest, profilingFailureSurfacesOnReadNotOnInfer) {
+    set_global_cache("test_cache_dir");
+    set_devices({cpu_device, "GPU.0", actual_device});
+    use_default_startup_compilation();
+    std::vector<ov::PropertyName> supported_props = {ov::compilation_num_threads, ov::enable_profiling};
+    ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
+        .WillByDefault(Return(ov::Any(supported_props)));
+    ON_CALL(*inferReqInternal, get_profiling_info()).WillByDefault(ov::Throw("profiling is not available"));
+    config.insert(ov::enable_profiling(true));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    auto request = compiled_model->create_infer_request();
+    OV_ASSERT_NO_THROW(request->infer());
+    try {
+        request->get_profiling_info();
+        FAIL() << "get_profiling_info() should rethrow the device error";
+    } catch (const ov::Exception& ex) {
+        EXPECT_NE(std::string(ex.what()).find("profiling is not available"), std::string::npos);
+    }
+}
+
 class AutoCacheWarmupSharedManagerTest : public AutoCacheWarmupTestBase, public ::testing::Test {
 protected:
     std::promise<void> gate;
