@@ -2182,6 +2182,18 @@ void Partitioner::optimize(const std::string& func_name) {
         }
     };
 
+    auto do_scale = [&](const std::map<ov::npuw::patterns::opt::Context::PPtr, float>& closures) {
+        for (auto&& p : closures) {
+            auto param_idx = f._model->get_parameter_index(p.first);
+            NPUW_ASSERT(param_idx != -1);
+            auto closure_idx = param_idx - f._param_offset;
+            ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+                auto& funcall = func_group.refs[f_idx].get();
+                funcall._lazy_closure[closure_idx] = funcall._lazy_closure[closure_idx].scale(p.second);
+            });
+        }
+    };
+
     // Regardless of DQ setting, run this first
     {
         ov::npuw::patterns::opt::Context ctx;
@@ -2496,6 +2508,7 @@ void Partitioner::optimize(const std::string& func_name) {
     // widening is a transform on the banked tensor, so the cached blob keeps its weightless record and the host
     // widens the codes once, at load.
     do_convert(ctx.closures_to_i4, ov::element::i4);
+    do_scale(ctx.closures_to_scale);
 
     LOG_VERB("Done");
 }

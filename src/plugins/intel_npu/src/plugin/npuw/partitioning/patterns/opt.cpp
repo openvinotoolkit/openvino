@@ -72,6 +72,17 @@ void Context::to_i4(const PPtr& orig_param) {
     orig_param->validate_and_infer_types();
 }
 
+void Context::scale(const PPtr& orig_param, float factor) {
+    auto it = closures_to_scale.find(orig_param);
+    if (it != closures_to_scale.end()) {
+        // One closure carries one scalar multiply per parameter: a second, different factor would compose onto the
+        // first and only the last would reach the bank, so refuse it here.
+        NPUW_ASSERT(it->second == factor);
+        return;
+    }
+    closures_to_scale[orig_param] = factor;
+}
+
 void Context::register_parallel_matmul(const O& multiply, std::size_t axis, DQParMM&& mm) {
     par_dq_mms[std::make_pair(multiply, axis)].push_back(std::move(mm));
 }
@@ -542,7 +553,12 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
-    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
+    // The sign grid's zero point is a scalar constant under the Convert; the compiler folds
+    // Convert -> Subtract(0.5) into the weight's two-entry table at import. Only a one-bit export emits it,
+    // and an admitted chain of any width keeps it: the unrolled paths re-insert it under each split, and the
+    // presentation path leaves the graph's own Subtract in place.
+    auto qsub = opp::optional<ov::op::v1::Subtract>({qcvtw, opp::wrap_type<ov::op::v0::Constant>()});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
     auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls->output(0)});
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qcvtm, opp::any_input()});
     auto qcvtr = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
@@ -556,6 +572,10 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
         auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
         auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
         auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
+        const auto qsubIt = node_to_output.find(qsub);
+        const bool has_zero_point = qsubIt != node_to_output.end();
+        const auto zero_point =
+            has_zero_point ? qsubIt->second.get_node_shared_ptr()->input_value(1) : ov::Output<ov::Node>();
         std::shared_ptr<Node> matched_node_qcvtm = nullptr;
         if (node_to_output.count(qcvtm)) {
             matched_node_qcvtm = node_to_output.at(qcvtm).get_node_shared_ptr();
@@ -579,7 +599,8 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
         // is unrolled per group, so the device passes over it several times per token. `GQi`/`GQiP` stay
         // `i4`-only: their layout needs a bit-level host transpose that `util::permute` does not implement for
         // sub-byte codes.
-        if ((ov::element::i2 == matched_qweight->get_element_type() ||
+        if ((ov::element::u1 == matched_qweight->get_element_type() ||
+             ov::element::i2 == matched_qweight->get_element_type() ||
              ov::element::i4 == matched_qweight->get_element_type()) &&
             qweight_shape.size() == 3 &&
             // The presentation's swap is a host byte-row copy, so the innermost dimension has to be
@@ -634,7 +655,11 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
             std::vector<std::shared_ptr<ov::Node>> to_concat;
             for (std::size_t i = 0; i < NSPLIT; i++) {
                 auto a_f16 = std::make_shared<ov::op::v0::Convert>(split_a->output(i), ov::element::f16);
-                auto w_f16 = std::make_shared<ov::op::v0::Convert>(split_w->output(i), ov::element::f16);
+                std::shared_ptr<ov::Node> w_f16 =
+                    std::make_shared<ov::op::v0::Convert>(split_w->output(i), ov::element::f16);
+                if (has_zero_point) {
+                    w_f16 = std::make_shared<ov::op::v1::Subtract>(w_f16, zero_point);
+                }
                 auto m_f16 = std::make_shared<ov::op::v0::MatMul>(a_f16, w_f16, false, true);
                 to_concat.push_back(m_f16);
             }
@@ -838,7 +863,12 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
-    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
+    // The sign grid's zero point is a scalar constant under the Convert; the compiler folds
+    // Convert -> Subtract(0.5) into the weight's two-entry table at import. Only a one-bit export emits it,
+    // and an admitted chain of any width keeps it: the unrolled paths re-insert it under each split, and the
+    // presentation path leaves the graph's own Subtract in place.
+    auto qsub = opp::optional<ov::op::v1::Subtract>({qcvtw, opp::wrap_type<ov::op::v0::Constant>()});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
     auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls->output(0)});
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qcvtm, opp::any_input()});
     auto qcvtr = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
@@ -852,6 +882,10 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
         auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
         auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
         auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
+        const auto qsubIt = node_to_output.find(qsub);
+        const bool has_zero_point = qsubIt != node_to_output.end();
+        const auto zero_point =
+            has_zero_point ? qsubIt->second.get_node_shared_ptr()->input_value(1) : ov::Output<ov::Node>();
         std::shared_ptr<Node> matched_node_qcvtm = nullptr;
         if (node_to_output.count(qcvtm)) {
             matched_node_qcvtm = node_to_output.at(qcvtm).get_node_shared_ptr();
@@ -873,7 +907,8 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
         };
 
         // As in DQMatMulGQ2i: the multi-token case of the same grouped signed 2-bit presentation.
-        if ((ov::element::i2 == matched_qweight->get_element_type() ||
+        if ((ov::element::u1 == matched_qweight->get_element_type() ||
+             ov::element::i2 == matched_qweight->get_element_type() ||
              ov::element::i4 == matched_qweight->get_element_type()) &&
             qweight_shape.size() == 3 && qweight_shape[2] % (8 / matched_qweight->get_element_type().bitwidth()) == 0 &&
             ov::element::f16 == matched_qcoeff->get_element_type() && qcoeff_shape.size() == 3 &&
@@ -889,8 +924,27 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
                 // convolutions, because the device's whole-group dequantization decodes `i4`, `i8` and `u2`
                 // codes only, and that plan is ~2x the 4-bit one. Presenting the weight in `i4` keeps the values
                 // (see widen_subbyte_to_i4); the single-token consumer keeps its stored width.
-                if (util::needsWholeGroupWidening(matched_qweight->get_element_type())) {
+                //
+                // `sign_grid` is the one case where the widening changes the coding: the codes become -1/+1.
+                const bool sign_grid = has_zero_point && matched_qweight->get_element_type() == ov::element::u1 &&
+                                       qsubIt->second.get_target_inputs().size() == 1;
+                // A one-bit weight outside the sign grid - no zero point, or a zero point another consumer still
+                // reads - keeps its stored codes: -1/+1 would change what they decode to without the halving.
+                if (util::needsWholeGroupWidening(matched_qweight->get_element_type()) &&
+                    (sign_grid || matched_qweight->get_element_type() != ov::element::u1)) {
                     ctx.get().to_i4(matched_qweight);
+                }
+                if (sign_grid) {
+                    // `(code - 0.5) * 2s` is `code * s` with the widened -1/+1 codes: the sign travels in the
+                    // payload and the group scale is halved in the bank, so the Subtract is dropped here and the
+                    // compiler sees the plain `Convert(i4) -> Multiply(s)` the other widths have.
+                    ctx.get().scale(matched_qcoeff, 0.5f);
+                    auto convert = qsubIt->second.get_node_shared_ptr()->input_value(0).get_node_shared_ptr();
+                    // The presentation above permuted the weight's shape, so the Convert's output shape is still
+                    // the export's: refresh it before the Multiply is re-inferred against the new chain.
+                    convert->validate_and_infer_types();
+                    matched_node_qmuls->input(0).replace_source_output(convert->output(0));
+                    matched_node_qmuls->validate_and_infer_types();
                 }
 
                 // Add Transpose and insert it
@@ -943,7 +997,11 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
             for (std::size_t i = 0; i < NSPLIT; i++) {
                 auto a_f16 = std::make_shared<ov::op::v0::Convert>(split_a->output(i), ov::element::f16);
                 auto r_f16 = std::make_shared<ov::op::v1::Reshape>(a_f16, r_a_c, false);
-                auto w_f16 = std::make_shared<ov::op::v0::Convert>(split_w->output(i), ov::element::f16);
+                std::shared_ptr<ov::Node> w_f16 =
+                    std::make_shared<ov::op::v0::Convert>(split_w->output(i), ov::element::f16);
+                if (has_zero_point) {
+                    w_f16 = std::make_shared<ov::op::v1::Subtract>(w_f16, zero_point);
+                }
                 auto m_f16 = std::make_shared<ov::op::v0::MatMul>(r_f16, w_f16, false, true);
                 auto s_f16 = std::make_shared<ov::op::v1::Multiply>(m_f16, split_s->output(i));
                 to_concat.push_back(s_f16);

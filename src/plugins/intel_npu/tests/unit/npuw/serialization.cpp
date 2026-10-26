@@ -1854,6 +1854,37 @@ TEST(SerializationTest, OVTypes_LazyTensor_gather_roundtrip) {
     EXPECT_EQ(var.eval_meta().type, res.eval_meta().type);
 }
 
+TEST(SerializationTest, OVTypes_LazyTensor_scale_roundtrip) {
+    using namespace ov::npuw::s11n;
+
+    auto w = make_weightless_constant<ov::float16>(ov::element::f16,
+                                                   ov::Shape{2, 2},
+                                                   std::vector<ov::float16>{1.0f, 2.0f, 3.0f, 4.0f},
+                                                   0);
+    auto var = ov::npuw::weights::LazyTensor(w).scale(0.5f);
+    ov::npuw::weights::LazyTensor res;
+
+    std::stringstream ss;
+    write(ss, var);
+    read(ss, res);
+    res.read_weight(WeightsContext(nullptr, "", make_consts_cache({w}), {}));
+
+    expect_lazy_tensor_transform_types_equal(var, res);
+    EXPECT_EQ(var.get_hash(), res.get_hash());
+    EXPECT_EQ(var.eval_meta().shape, res.eval_meta().shape);
+    EXPECT_EQ(var.eval_meta().type, res.eval_meta().type);
+
+    const auto expected = var.eval();
+    const auto actual = res.eval();
+    expect_tensors_equal(expected, actual);
+
+    // The restore drops the factor when the record is read back in the wrong order, which shows here first.
+    const auto* values = actual.data<ov::float16>();
+    ASSERT_EQ(actual.get_size(), 4u);
+    EXPECT_EQ(values[0], ov::float16(0.5f));
+    EXPECT_EQ(values[3], ov::float16(2.0f));
+}
+
 TEST(SerializationTest, OVTypes_WeightsBank_cpu_roundtrip) {
     using namespace ov::npuw::s11n;
 

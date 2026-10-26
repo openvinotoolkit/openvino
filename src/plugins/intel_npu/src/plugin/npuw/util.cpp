@@ -87,7 +87,7 @@ bool ov::npuw::util::deviceDecodesWholeGroup(const ov::element::Type& type) {
 }
 
 bool ov::npuw::util::needsWholeGroupWidening(const ov::element::Type& type) {
-    return type == ov::element::i2 && !deviceDecodesWholeGroup(type);
+    return (type == ov::element::i2 || type == ov::element::u1) && !deviceDecodesWholeGroup(type);
 }
 
 namespace {
@@ -108,15 +108,24 @@ ov::Tensor ov::npuw::util::widen_subbyte_to_i4(const ov::Tensor& src) {
     const auto* in = static_cast<const uint8_t*>(src.data());
     auto* out = static_cast<uint8_t*>(dst.data());
 
-    // OpenVINO packs i2 four codes per byte, low bits first; the reader decodes the source and the unpack
-    // suite's unpack_i4f16 decodes the result.
+    // The packings are OpenVINO's own: i2 four codes per byte low bits first, i4 two, and u1 is the one
+    // spelling packed MSB-first inside a byte. A u1 payload is the sign grid, so its widened codes are -1/+1:
+    // the sign travels in the container while the group scale is halved in the bank, so no zero-point Subtract
+    // reaches the graph. WidenSubbyteTests pins the widened payload and the sign-grid case pins one known byte's
+    // nibbles.
+    const auto code_at = [&](std::size_t idx) {
+        if (type == ov::element::u1) {
+            return ((in[idx / 8] >> (7 - (idx % 8))) & 0x1) ? 1 : -1;
+        }
+        return i2_code(in, idx);
+    };
 
     // Each destination byte is written by one iteration; a packed buffer can hold any element count, so the
     // last pair may take only its low code and leave the high nibble zero.
     ov::parallel_for(dst.get_byte_size(), [&](std::size_t byte_idx) {
         const std::size_t first = byte_idx * 2;
-        const int lo = i2_code(in, first);
-        const int hi = first + 1 < elements ? i2_code(in, first + 1) : 0;
+        const int lo = code_at(first);
+        const int hi = first + 1 < elements ? code_at(first + 1) : 0;
         out[byte_idx] = static_cast<uint8_t>((lo & 0xF) | ((hi & 0xF) << 4));
     });
     return dst;
@@ -865,7 +874,7 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
         return tnew;
     } else if (axes[0] == 1 && axes[1] == 0 && axes[2] == 2) {
         NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::i2 ||
-                    t.get_element_type() == ov::element::f16);
+                    t.get_element_type() == ov::element::u1 || t.get_element_type() == ov::element::f16);
         ov::Shape tshape = {shape[1], shape[0], shape[2]};
         ov::Tensor tnew(t.get_element_type(), tshape);
         switch (t.get_element_type()) {
@@ -891,6 +900,19 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
                 const size_t src_off = (p * shape[1] + r) * shape[2] / 4;
                 const size_t dst_off = (r * shape[0] + p) * shape[2] / 4;
                 std::copy_n(src + src_off, shape[2] / 4, dst + dst_off);
+            });
+            break;
+        }
+        case ov::element::u1: {
+            // Eight codes per byte, MSB-first: a row is a byte copy while the innermost dimension is
+            // byte-aligned.
+            NPUW_ASSERT(shape[2] % 8 == 0);
+            const uint8_t* src = static_cast<const uint8_t*>(t.data());
+            uint8_t* dst = static_cast<uint8_t*>(tnew.data());
+            ov::parallel_for2d(shape[0], shape[1], [&](size_t p, size_t r) {
+                const size_t src_off = (p * shape[1] + r) * shape[2] / 8;
+                const size_t dst_off = (r * shape[0] + p) * shape[2] / 8;
+                std::copy_n(src + src_off, shape[2] / 8, dst + dst_off);
             });
             break;
         }

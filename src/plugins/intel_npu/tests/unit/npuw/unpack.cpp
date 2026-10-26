@@ -5,7 +5,6 @@
 #ifdef HAVE_AVX2
 #    include "unpack.hpp"
 
-
 namespace {
 
 const auto TestCases = ::testing::Combine(
@@ -54,7 +53,8 @@ INSTANTIATE_TEST_SUITE_P(UnpackTestsU4, UnpackTestsU4, TestCasesU4, UnpackTestsU
 
 // The widening: every sub-byte storage the host presents in an i4 container decodes to the same values there.
 const auto TestCasesWidenSubbyte = ::testing::Combine(
-        ::testing::ValuesIn({ov::element::Type_t::i2}),
+        ::testing::ValuesIn({ov::element::Type_t::i2,
+                             ov::element::Type_t::u1}),
         ::testing::ValuesIn({ov::element::Type_t::i4}),
         ::testing::ValuesIn({ov::element::Type_t::dynamic}),  // no used in this test
         ::testing::ValuesIn({ov::element::Type_t::dynamic}),  // no used in this test
@@ -63,7 +63,10 @@ const auto TestCasesWidenSubbyte = ::testing::Combine(
         ::testing::Values(true),
         ::testing::Values(true));
 
-INSTANTIATE_TEST_SUITE_P(WidenSubbyteTests, WidenSubbyteTests, TestCasesWidenSubbyte, WidenSubbyteTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(WidenSubbyteTests,
+                         WidenSubbyteTests,
+                         TestCasesWidenSubbyte,
+                         WidenSubbyteTests::getTestCaseName);
 
 TEST_P(WidenSubbyteTests, widen) {
     ov::Tensor subbyte(fromType, input_shape, input.data());
@@ -76,7 +79,8 @@ TEST_P(WidenSubbyteTests, widen) {
     ASSERT_TRUE(std::equal(ref_output.begin(), ref_output.end(), actual)) << "the widened payload differs";
 
     // The invariant the change rests on: the readers decode the same values from both containers. The codes are
-    // small enough for f16 to hold exactly, so the comparison needs no tolerance.
+    // small enough for f16 to hold exactly, so the comparison needs no tolerance. The suite has no unsigned
+    // readers, so u1 rests on the byte-level check above.
     if (fromType == ov::element::i2) {
         const auto elements = static_cast<int>(shape_size(input_shape));
         std::vector<int8_t> source_values(elements * sizeof(uint16_t));
@@ -110,6 +114,24 @@ TEST(WidenSubbyteOddTail, decodes_theLastCodes) {
     ASSERT_EQ(widened_values, expected) << "the widened tail differs";
 }
 
+// The sign coding, pinned by hand: 0b1000_0001 is element 0 = 1 and element 7 = 1 (MSB-first), and the widened
+// container holds two codes per byte with the low nibble first, so the first byte is 0xF1 (+1 low, -1 high) and
+// the last is 0x1F.
+TEST(WidenSubbyteSignGrid, widensAKnownByte) {
+    const ov::Shape shape{1, 8};
+    const std::vector<uint8_t> data{0x81};
+    ov::Tensor subbyte(ov::element::u1, shape, const_cast<uint8_t*>(data.data()));
+
+    const auto widened = ov::npuw::util::widen_subbyte_to_i4(subbyte);
+    ASSERT_EQ(widened.get_element_type(), ov::element::i4);
+    ASSERT_EQ(widened.get_byte_size(), 4u);
+
+    const auto* actual = static_cast<const uint8_t*>(widened.data());
+    EXPECT_EQ(actual[0], 0xF1) << "the first pair's codes";
+    EXPECT_EQ(actual[1], 0xFF);
+    EXPECT_EQ(actual[2], 0xFF);
+    EXPECT_EQ(actual[3], 0x1F) << "the last pair's codes";
+}
 const auto TestCasesScale = ::testing::Combine(
         ::testing::ValuesIn({ov::element::Type_t::i2,
                              ov::element::Type_t::i4}), // TODO: add i8 as input for test

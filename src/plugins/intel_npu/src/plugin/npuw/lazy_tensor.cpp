@@ -330,6 +330,50 @@ void Convert::detach() {
     tensor.detach();
 }
 
+std::size_t Scale::hash() const {
+    std::size_t seed = tensor.get_hash() + 0x9e3779b9;
+    seed ^= std::hash<float>()(factor) + 0x9e3779b9;
+    return seed;
+}
+
+bool Scale::operator==(const Scale& other) const {
+    return (factor == other.factor && tensor == other.tensor);
+}
+
+ov::Tensor Scale::eval() const {
+    const auto src = tensor.eval();
+    const auto type = src.get_element_type();
+    NPUW_ASSERT(type == ov::element::f16 || type == ov::element::f32);
+    ov::Tensor dst(type, src.get_shape());
+    const auto size = src.get_size();
+    if (type == ov::element::f16) {
+        const auto* in = src.data<ov::float16>();
+        auto* out = dst.data<ov::float16>();
+        for (std::size_t i = 0; i < size; ++i) {
+            out[i] = ov::float16(static_cast<float>(in[i]) * factor);
+        }
+    } else {
+        const auto* in = src.data<float>();
+        auto* out = dst.data<float>();
+        for (std::size_t i = 0; i < size; ++i) {
+            out[i] = in[i] * factor;
+        }
+    }
+    return dst;
+}
+
+LazyTensor::Meta Scale::eval_meta() const {
+    return tensor.eval_meta();
+}
+
+void Scale::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
+    tensor.read_weight(ctx);
+}
+
+void Scale::detach() {
+    tensor.detach();
+}
+
 std::size_t Subtract128::hash() const {
     return tensor.get_hash() ^ (ov::element::i8.hash() + 0x9e3779b9);
 }
@@ -433,6 +477,7 @@ enum class TransformType : std::uint16_t {
     CONVERT = 5,
     GATHER = 6,
     SUBTRACT_128 = 7,
+    SCALE = 8,
 };
 
 struct LazyTensorImpl {
@@ -499,6 +544,10 @@ ov::npuw::weights::TransformType get_transform_type(const ov::npuw::weights::op:
     return ov::npuw::weights::TransformType::SUBTRACT_128;
 }
 
+ov::npuw::weights::TransformType get_transform_type(const ov::npuw::weights::op::Scale&) {
+    return ov::npuw::weights::TransformType::SCALE;
+}
+
 }  // namespace
 
 namespace ov {
@@ -562,6 +611,10 @@ void Subtract128::serialize(ov::npuw::orc::Stream& stream) {
     stream & tensor;
 }
 
+void Scale::serialize(ov::npuw::orc::Stream& stream) {
+    stream & factor & tensor;
+}
+
 void Gather::serialize(ov::npuw::orc::Stream& stream) {
     std::string type_str;
     if (stream.output()) {
@@ -612,6 +665,9 @@ void LazyTensorImpl::serialize(ov::npuw::orc::Stream& stream) {
         break;
     case TransformType::SUBTRACT_128:
         m_transform.emplace<op::Subtract128>(ov::npuw::orc::load_versioned_payload<op::Subtract128>(section));
+        break;
+    case TransformType::SCALE:
+        m_transform.emplace<op::Scale>(ov::npuw::orc::load_versioned_payload<op::Scale>(section));
         break;
     default:
         OPENVINO_THROW("ORC LazyTensor: unknown op_type ", section.type, " — please upgrade NPUW");
@@ -713,6 +769,10 @@ void LazyTensorImpl::get_transformations(std::vector<LazyTensor::Transform>& vec
                        auto next_tr = op.tensor.get_transformations();
                        vec.insert(vec.end(), next_tr.begin(), next_tr.end());
                    },
+                   [&vec](const op::Scale& op) {
+                       auto next_tr = op.tensor.get_transformations();
+                       vec.insert(vec.end(), next_tr.begin(), next_tr.end());
+                   },
                    [&vec](const op::Permute& op) {
                        auto next_tr = op.tensor.get_transformations();
                        vec.insert(vec.end(), next_tr.begin(), next_tr.end());
@@ -771,6 +831,12 @@ LazyTensor LazyTensor::convert(const ov::element::Type& type) {
 LazyTensor LazyTensor::subtract_128() {
     LazyTensor new_lt;
     new_lt.m_impl = std::make_shared<LazyTensorImpl>(op::Subtract128(*this));
+    return new_lt;
+}
+
+LazyTensor LazyTensor::scale(float factor) {
+    LazyTensor new_lt;
+    new_lt.m_impl = std::make_shared<LazyTensorImpl>(op::Scale(*this, factor));
     return new_lt;
 }
 

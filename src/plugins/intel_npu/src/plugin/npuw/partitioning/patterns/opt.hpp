@@ -44,6 +44,11 @@ struct Context {
     std::set<PPtr> closures_to_i4;
     void to_i4(const PPtr& orig_param);
 
+    // A one-bit weight's group scale, halved when the sign grid is presented in the widened `i4` container: with
+    // the payload's -1/+1 codes, `(code - 0.5) * 2s` is `code * s`, so no Subtract travels.
+    std::map<PPtr, float> closures_to_scale;
+    void scale(const PPtr& orig_param, float factor);
+
     using O = ov::Output<ov::Node>;
     struct DQParMM {
         PPtr w, s;

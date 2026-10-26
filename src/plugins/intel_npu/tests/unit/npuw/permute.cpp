@@ -81,6 +81,16 @@ inline void set_i2(uint8_t* out, size_t idx, uint8_t value) {
     out[idx / 4] = static_cast<uint8_t>((out[idx / 4] & ~(0x3 << shift)) | (value << shift));
 }
 
+/*u1: one code per bit, MSB-first*/
+inline uint8_t get_u1(const uint8_t* in, size_t idx) {
+    return (in[idx / 8] >> (7 - idx % 8)) & 0x1;
+}
+
+inline void set_u1(uint8_t* out, size_t idx, uint8_t value) {
+    const size_t shift = 7 - idx % 8;
+    out[idx / 8] = static_cast<uint8_t>((out[idx / 8] & ~(1 << shift)) | (value << shift));
+}
+
 }  // namespace details
 
 namespace {
@@ -163,6 +173,13 @@ void PermuteTestsBase::make_ref_output() {
                                 reinterpret_cast<float*>(ref_output.data()),
                                 dims,
                                 axes);
+    } else if (type == ov::element::u1) {
+        details::permute_fields(reinterpret_cast<const uint8_t*>(input.data()),
+                                reinterpret_cast<uint8_t*>(ref_output.data()),
+                                dims,
+                                axes,
+                                details::get_u1,
+                                details::set_u1);
     } else if (type == ov::element::i2) {
         details::permute_fields(reinterpret_cast<const uint8_t*>(input.data()),
                                 reinterpret_cast<uint8_t*>(ref_output.data()),
@@ -258,6 +275,27 @@ const auto TestCases102 = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(PermuteTests102, PermuteTests, TestCases102, PermuteTests::getTestCaseName);
+
+// The one-bit weight's innermost dimension has to be byte-aligned - eight codes per byte.
+const auto TestCases102u1 = ::testing::Combine(
+        ::testing::ValuesIn({ov::element::Type_t::u1}),
+        ::details::ShapesIn({Tensors{input={1, 10, 16};
+}
+, Tensors {
+    input = {1, 10, 128};
+}
+, Tensors {
+    input = {1, 16, 256};
+}
+}),
+::testing::ValuesIn(
+    {
+    std::vector<std::size_t>({1, 0, 2})
+}
+)
+);
+
+INSTANTIATE_TEST_SUITE_P(PermuteTests102u1, PermuteTests, TestCases102u1, PermuteTests::getTestCaseName);
 
 const auto TestCases120 = ::testing::Combine(
         ::testing::ValuesIn({ov::element::Type_t::f16, ov::element::Type_t::f32}),

@@ -127,6 +127,16 @@ void widen_i2_to_i4(const int8_t* in, int8_t* out, int size) {
     }
 }
 
+/*u1 -> i4: one bit per element, MSB-first, as the sign grid's -1/+1, two per byte, low nibble first*/
+void widen_u1_to_i4(const int8_t* in, int8_t* out, int size) {
+    for (int i = 0; i < size; i++) {
+        const int code = ((static_cast<uint8_t>(in[i / 8]) >> (7 - (i % 8))) & 0x1) ? 1 : -1;
+        const uint8_t nibble = static_cast<uint8_t>(code & 0xF);
+        out[i / 2] = static_cast<int8_t>(i % 2 == 0 ? (static_cast<uint8_t>(out[i / 2]) & 0xF0) | nibble
+                                                    : (static_cast<uint8_t>(out[i / 2]) & 0x0F) | (nibble << 4));
+    }
+}
+
 /*u4 order*/
 void unpack_u4f32(const int8_t* in, float* out, int size) {
     for (int i = 0; i < size / 2; i++) {
@@ -784,6 +794,8 @@ protected:
     void make_ref_output() override {
         if (fromType == ov::element::i2) {
             details::widen_i2_to_i4(input.data(), ref_output.data(), static_cast<int>(from->get_size()));
+        } else if (fromType == ov::element::u1) {
+            details::widen_u1_to_i4(input.data(), ref_output.data(), static_cast<int>(from->get_size()));
         } else {
             FAIL() << fromType;
         }
