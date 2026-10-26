@@ -3,6 +3,7 @@
 //
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
+#include "transformations/rt_info/nonconvertible_divide.hpp"
 
 namespace ov::frontend::paddle::op {
 NamedOutputs softplus(const NodeContext& node) {
@@ -29,7 +30,6 @@ NamedOutputs softplus(const NodeContext& node) {
         return default_opset::Constant::create(ov::element::f32, ov::Shape{}, {value});
     };
     const auto beta_c = std::make_shared<default_opset::ConvertLike>(f32_scalar(beta), data);
-    const auto inv_beta_c = std::make_shared<default_opset::ConvertLike>(f32_scalar(1.0f / beta), data);
     const auto threshold_c = std::make_shared<default_opset::ConvertLike>(f32_scalar(threshold), data);
 
     auto scaled = std::make_shared<default_opset::Multiply>(data, beta_c);
@@ -37,7 +37,10 @@ NamedOutputs softplus(const NodeContext& node) {
     // elements are replaced by `x` below and never consume this value.
     auto clamped = std::make_shared<default_opset::Minimum>(scaled, threshold_c);
     auto sp = std::make_shared<default_opset::SoftPlus>(clamped);
-    auto out = std::make_shared<default_opset::Multiply>(sp, inv_beta_c);
+    auto out = std::make_shared<default_opset::Divide>(sp, beta_c);
+    // Keep the division from being rewritten into a reciprocal multiplication,
+    // which can overflow for f16 when 1 / beta is not representable.
+    disable_divide_conversion(out);
     auto saturated = std::make_shared<default_opset::Greater>(scaled, threshold_c);
     auto result = std::make_shared<default_opset::Select>(saturated, data, out);
     return node.default_single_output_mapping({result}, {"Out"});

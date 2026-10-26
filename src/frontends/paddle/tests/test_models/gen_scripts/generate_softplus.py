@@ -14,7 +14,7 @@ def softplus(name: str, x, beta, threshold):
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
-        node_x = paddle.static.data(name='x', shape=x.shape, dtype='float32')
+        node_x = paddle.static.data(name='x', shape=x.shape, dtype=x.dtype)
         out = paddle.nn.functional.softplus(x=node_x, beta=beta, threshold=threshold)
 
         cpu = paddle.static.cpu_places(1)
@@ -22,9 +22,21 @@ def softplus(name: str, x, beta, threshold):
         # startup program will call initializer to initialize the parameters.
         exe.run(paddle.static.default_startup_program())
 
-        outs = exe.run(
-            feed={'x': x},
-            fetch_list=[out])
+        if x.dtype == np.float16:
+            # Paddle CPU has no float16 Softplus kernel. Serialize the f16 model
+            # without executing it and calculate the reference output with NumPy.
+            x_f32 = x.astype(np.float32)
+            scaled = beta * x_f32
+            reference = np.where(
+                scaled > threshold,
+                x_f32,
+                np.log1p(np.exp(np.minimum(scaled, threshold))) / beta,
+            )
+            outs = [reference.astype(x.dtype)]
+        else:
+            outs = exe.run(
+                feed={'x': x},
+                fetch_list=[out])
 
         saveModel(name, exe, feed_vars=[node_x], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
@@ -51,6 +63,9 @@ def main():
     # tolerance, so ignoring or hard-coding the threshold cannot pass.
     x_low_threshold = np.array([-2.0, -0.5, 0.5, 0.9, 1.0, 1.1, 2.0, 3.0]).astype(np.float32)
     softplus("softplus_beta2_threshold2", x_low_threshold, beta=2, threshold=2)
+    # f16 regression: 1 / beta overflows f16, but softplus(0) / beta is finite.
+    x_f16 = np.array([0.0], dtype=np.float16)
+    softplus("softplus_f16_small_beta", x_f16, beta=2.0**-16, threshold=20)
 
 if __name__ == "__main__":
     main()
