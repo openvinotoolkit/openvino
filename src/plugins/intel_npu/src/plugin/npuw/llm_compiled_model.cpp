@@ -825,6 +825,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     refine_dynamic_props(npuw_llm_props, npudesc);
     m_cfg.update(any_copy(npuw_llm_props));
 
+    // TEMP (measurement only): force 8K prompt, ignore the passed value.
+    LOG_INFO("TEMP: NPUW_LLM_MAX_PROMPT_LEN " << m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>() << " -> 8192");
+    m_cfg.update({{"NPUW_LLM_MAX_PROMPT_LEN", "8192"}});
+
     resolve_hfa_fused_attention(m_cfg, other_props, npudesc);
 
     m_is_whisper = m_cfg.get<::intel_npu::NPUW_WHISPER>();
