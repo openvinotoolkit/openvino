@@ -23,7 +23,7 @@ void NormalizeLoopIDs::update_linear_ir(lowered::LinearIR& linear_ir, const IDMa
     for (const auto& expr : linear_ir) {
         if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node())) {
             const auto current_id = loop_end->get_id();
-            OPENVINO_ASSERT(loop_id_map.count(current_id) > 0, "ID of the LoopEnd has not been found in the map!");
+            OPENVINO_ASSERT(loop_id_map.contains(current_id), "ID of the LoopEnd has not been found in the map!");
             loop_end->set_id(loop_id_map.at(current_id));
         }
 
@@ -38,7 +38,7 @@ void NormalizeLoopIDs::update_linear_ir(lowered::LinearIR& linear_ir, const IDMa
 
         previous_loop_ids.first = expr_loop_ids;
         std::for_each(expr_loop_ids.begin(), expr_loop_ids.end(), [&loop_id_map](size_t& id) {
-            OPENVINO_ASSERT(loop_id_map.count(id) > 0,
+            OPENVINO_ASSERT(loop_id_map.contains(id),
                             "Expression is marked by LoopID that has not been found in the map!");
             id = loop_id_map.at(id);
         });
@@ -56,7 +56,7 @@ bool NormalizeLoopIDs::run(lowered::LinearIR& linear_ir) {
         const auto& node = expr->get_node();
         if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(node)) {
             const auto old_id = loop_end->get_id();
-            if (loop_id_map.count(old_id) == 0) {
+            if (!loop_id_map.contains(old_id)) {
                 const auto new_id = loop_id_map.size();
                 loop_id_map[old_id] = new_id;
                 continue;

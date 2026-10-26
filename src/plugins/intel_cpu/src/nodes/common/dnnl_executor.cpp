@@ -48,7 +48,7 @@ void DnnlExecutorLegacy::exec(const std::unordered_map<int, dnnl::memory>& primA
 
 void DnnlExecutorLegacy::reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, const dnnl::stream& strm) {
     for (auto& inReorder : inputReorders) {
-        if (primArgs.count(inReorder.first)) {
+        if (primArgs.contains(inReorder.first)) {
             dnnl::memory memDst(inReorder.second.getDstDesc(), strm.get_engine());
             inReorder.second.exec(primArgs[inReorder.first], memDst, strm);
             primArgs[inReorder.first] = memDst;
@@ -58,7 +58,7 @@ void DnnlExecutorLegacy::reorder_exec(std::unordered_map<int, dnnl::memory> prim
     }
     std::unordered_map<int, dnnl::memory> outputMem;
     for (auto& outReorder : outputReorders) {
-        if (primArgs.count(outReorder.first)) {
+        if (primArgs.contains(outReorder.first)) {
             dnnl::memory memSrc(outReorder.second.getSrcDesc(), strm.get_engine());
             outputMem[outReorder.first] = primArgs[outReorder.first];
             primArgs[outReorder.first] = memSrc;

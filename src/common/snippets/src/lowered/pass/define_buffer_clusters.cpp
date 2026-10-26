@@ -53,7 +53,7 @@ using LoopPortInfo = UnifiedLoopInfo::LoopPortInfo;
 DefineBufferClusters::BufferClusters::iterator DefineBufferClusters::find_cluster_by_expr(
     const BufferExpressionPtr& target) {
     return std::find_if(m_clusters.begin(), m_clusters.end(), [&target](const BufferCluster& cluster) {
-        return cluster.count(target) > 0;
+        return cluster.contains(target);
     });
 }
 
@@ -104,7 +104,7 @@ std::pair<DefineBufferClusters::BufferMap, DefineBufferClusters::BufferMap> Defi
         if (!is_direct_buffer(buffer_expr, loop_expr)) {
             continue;
         }
-        if (input_buffers.count(buffer_expr) > 0) {
+        if (input_buffers.contains(buffer_expr)) {
             const auto& port_desc = port_info.desc;
             OPENVINO_ASSERT(input_buffers[buffer_expr].desc == port_desc,
                             "Invalid data pointer shifts: If Buffer has several consumers, this consumers must have "
@@ -123,7 +123,7 @@ std::pair<DefineBufferClusters::BufferMap, DefineBufferClusters::BufferMap> Defi
             if (!is_direct_buffer(buffer_expr, loop_expr)) {
                 continue;
             }
-            OPENVINO_ASSERT(output_buffers.count(buffer_expr) == 0, "Only one Buffer can be on node output!");
+            OPENVINO_ASSERT(!output_buffers.contains(buffer_expr), "Only one Buffer can be on node output!");
             output_buffers[buffer_expr] = port_info;
         }
     }
@@ -151,7 +151,7 @@ void DefineBufferClusters::parse_loop(const LoopManagerPtr& loop_manager, const 
         for (const auto& in : input_buffers) {
             const auto& input_buffer_expr = in.first;
             const auto& input_buffer_port_info = in.second;
-            if (visited_buffers.count(input_buffer_expr) > 0) {
+            if (visited_buffers.contains(input_buffer_expr)) {
                 continue;
             }
 

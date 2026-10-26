@@ -67,7 +67,7 @@ bool AdjustCopyBLoopPorts::run(const snippets::lowered::LinearIR& linear_ir) {
             if (!uni_loop) {
                 uni_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(loop)->get_unified_loop_info();
             }
-            if (!m_affected_loops.count(uni_loop) && update_loop_info_impl(uni_loop)) {
+            if (!m_affected_loops.contains(uni_loop) && update_loop_info_impl(uni_loop)) {
                 m_affected_loops.insert(uni_loop);
                 modified = true;
             }

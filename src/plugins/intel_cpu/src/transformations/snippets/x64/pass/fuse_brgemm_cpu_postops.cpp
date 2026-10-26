@@ -171,7 +171,7 @@ pass::FuseUnaryEltwise::FuseUnaryEltwise() {
             brgemm->add_scalar_eltwise_postop(alg_kind, 0.F, 0.F);
         };
 
-        if (pattern_map.count(m_round)) {
+        if (pattern_map.contains(m_round)) {
             const auto round = ov::as_type_ptr<ov::op::v5::Round>(post_op);
             switch (round->get_mode()) {
             case ov::op::v5::Round::RoundMode::HALF_TO_EVEN:
@@ -183,7 +183,7 @@ pass::FuseUnaryEltwise::FuseUnaryEltwise() {
             default:
                 OPENVINO_THROW("Unsupported round mode");
             }
-        } else if (pattern_map.count(m_relu)) {
+        } else if (pattern_map.contains(m_relu)) {
             append_eltwise(alg_kind_t::dnnl_eltwise_relu);
         } else {
             OPENVINO_THROW("Unsupported unary operation: ", post_op);
@@ -263,15 +263,15 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
             brgemm->add_scalar_eltwise_postop(alg_kind, alpha, beta);
         };
 
-        if (pattern_map.count(m_mul)) {
+        if (pattern_map.contains(m_mul)) {
             append_eltwise(alg_kind_t::dnnl_eltwise_linear, scalar_value, 0.F);
-        } else if (pattern_map.count(m_add)) {
+        } else if (pattern_map.contains(m_add)) {
             append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.F, scalar_value);
-        } else if (pattern_map.count(m_sub)) {
+        } else if (pattern_map.contains(m_sub)) {
             append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.F, -scalar_value);
-        } else if (pattern_map.count(m_max)) {
+        } else if (pattern_map.contains(m_max)) {
             append_eltwise(alg_kind_t::dnnl_eltwise_clip, scalar_value, std::numeric_limits<float>::max());
-        } else if (pattern_map.count(m_min)) {
+        } else if (pattern_map.contains(m_min)) {
             append_eltwise(alg_kind_t::dnnl_eltwise_clip, -std::numeric_limits<float>::max(), scalar_value);
         } else {
             OPENVINO_THROW("Unexpected postop: ", post_op);
@@ -338,21 +338,21 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
         const size_t OC = brgemm->get_output_partial_shape(0).rbegin()->get_length();
         const DnnlBlockedMemoryDesc memory_desc(ov::element::f32, Shape({1, OC}));
         const auto& parameter_out = pattern_map.at(m_postop_input);
-        const auto& postop_input = pattern_map.count(m_rank_norm) ? pattern_map.at(m_rank_norm) : parameter_out;
+        const auto& postop_input = pattern_map.contains(m_rank_norm) ? pattern_map.at(m_rank_norm) : parameter_out;
 
         auto append_binary = [&](alg_kind_t alg_kind) {
             brgemm->add_binary_eltwise_postop(alg_kind, memory_desc.getDnnlDesc(), postop_input, m_fused_postops_count);
         };
 
-        if (pattern_map.count(m_mul)) {
+        if (pattern_map.contains(m_mul)) {
             append_binary(alg_kind_t::dnnl_binary_mul);
-        } else if (pattern_map.count(m_add)) {
+        } else if (pattern_map.contains(m_add)) {
             append_binary(alg_kind_t::dnnl_binary_add);
-        } else if (pattern_map.count(m_sub)) {
+        } else if (pattern_map.contains(m_sub)) {
             append_binary(alg_kind_t::dnnl_binary_sub);
-        } else if (pattern_map.count(m_max)) {
+        } else if (pattern_map.contains(m_max)) {
             append_binary(alg_kind_t::dnnl_binary_max);
-        } else if (pattern_map.count(m_min)) {
+        } else if (pattern_map.contains(m_min)) {
             append_binary(alg_kind_t::dnnl_binary_min);
         } else {
             OPENVINO_THROW("Unexpected postop: ", post_op);
@@ -367,7 +367,7 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
         // and will be handled by the brgemm kernel itself
         PortDescriptorUtils::set_address_reg_type(brgemm->inputs().back());
         PortDescriptorUtils::set_address_reg_type(parameter_out);
-        if (pattern_map.count(m_rank_norm)) {
+        if (pattern_map.contains(m_rank_norm)) {
             const auto rank_norm = pattern_map.at(m_rank_norm).get_node_shared_ptr();
             PortDescriptorUtils::set_address_reg_type(rank_norm->input(0));
             PortDescriptorUtils::set_address_reg_type(rank_norm->output(0));

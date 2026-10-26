@@ -42,7 +42,7 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
         const auto& parent_output = loop_end_expr->get_input_expr_ptr(i);
         if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(parent_output)) {
             // If Buffer is missed in set, Just save - it's first meeting
-            if (buffers_groups.count(buffer_expr->get_reg_group()) == 0) {
+            if (!buffers_groups.contains(buffer_expr->get_reg_group())) {
                 buffers_groups.insert(buffer_expr->get_reg_group());
             } else {
                 // The Buffer with the same ID is in set - need to add this Buffer idx to set of Buffers for resetting
@@ -50,7 +50,7 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
             }
         } else {
             // Remember the current expression if missed
-            if (read_data_exprs.count(parent_output) == 0) {
+            if (!read_data_exprs.contains(parent_output)) {
                 read_data_exprs.insert(parent_output);
             } else {
                 // Otherwise we have several Load-semantic expressions which read from the same data.
@@ -70,7 +70,7 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
             if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(consumer)) {
                 buffer_count++;
                 // If Buffer is missed in set, Just save - it's first meeting
-                if (buffers_groups.count(buffer_expr->get_reg_group()) == 0) {
+                if (!buffers_groups.contains(buffer_expr->get_reg_group())) {
                     buffers_groups.insert(buffer_expr->get_reg_group());
                 } else {
                     // The Buffer with the same ID is in set - need to add this Buffer idx to set of Buffers for
@@ -109,7 +109,7 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
     size_t loop_port_idx = 0;
     loop_info->iterate_through_infos(
         [&resetting_data_indexes, &loop_port_idx](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& shifts) {
-            if (resetting_data_indexes.count(loop_port_idx) && loop_port.is_processed()) {
+            if (resetting_data_indexes.contains(loop_port_idx) && loop_port.is_processed()) {
                 shifts.ptr_increment = 0;
                 shifts.finalization_offset = 0;
                 loop_port.convert_to_type<LoopPort::Type::NotIncremented>();

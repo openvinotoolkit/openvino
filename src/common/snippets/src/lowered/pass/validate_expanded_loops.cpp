@@ -122,7 +122,7 @@ void ValidateExpandedLoops::validate_loop_expressions(const LinearIR& linear_ir)
     for (const auto& expr : linear_ir) {
         if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node())) {
             const auto loop_id = loop_end->get_id();
-            INFORMATIVE_ASSERT(unique_loop_ids.count(loop_id) == 0, "LoopEnd has duplicate loop ID: ", loop_id);
+            INFORMATIVE_ASSERT(!unique_loop_ids.contains(loop_id), "LoopEnd has duplicate loop ID: ", loop_id);
             unique_loop_ids.insert(loop_id);
 
             // At the moment, InnerSpliitedTail LoopEnd is not compatible with ExpandedLoopInfo
