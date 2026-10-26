@@ -98,7 +98,11 @@ inline std::vector<uint8_t> ocloc_compile_ocl_c(const std::string& source,
     // oclocInvoke drives process-wide IGC/FCL state and is not reentrant, so serialize the calls that
     // kernels_cache would otherwise make in parallel.
     static std::mutex ocloc_call_mutex;
-    std::lock_guard<std::mutex> call_lock(ocloc_call_mutex);
+    // TEMP (Phase 0 reentrancy check): OV_GPU_OCLOC_NO_LOCK=1 skips the lock.
+    static const bool no_lock = getenv_or_null("OV_GPU_OCLOC_NO_LOCK") != nullptr;
+    std::unique_lock<std::mutex> call_lock(ocloc_call_mutex, std::defer_lock);
+    if (!no_lock)
+        call_lock.lock();
 
     // argv: ocloc compile -device <id> [-options "<opts>"] -file kernel.cl
     std::vector<const char*> argv;
