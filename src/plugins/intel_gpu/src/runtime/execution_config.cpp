@@ -368,7 +368,6 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     if (m_use_onednn) {
         m_queue_type = QueueTypes::in_order;
     }
-#    if DNNL_VERSION_MAJOR > 3 || (DNNL_VERSION_MAJOR == 3 && DNNL_VERSION_MINOR >= 14)
     if (m_use_onednn && dnnl::verbose_profiling_enabled()) {
         // Auto-enable profiling when OneDNN verbose profiling is enabled.
         m_enable_profiling = true;

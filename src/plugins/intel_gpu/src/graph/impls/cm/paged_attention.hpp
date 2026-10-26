@@ -47,9 +47,8 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
             return false;
         }
 
-        if (!desc->has_xattention &&
-            (desc->sliding_window != 0 || desc->has_alibi || desc->has_sink_input || desc->has_rotated_blocks ||
-             desc->has_token_type_ids || desc->has_scores_output() || desc->has_score_aggregation || desc->has_adaptive_rkv)) {
+        if (!desc->has_xattention && (desc->sliding_window != 0 || desc->has_alibi || desc->has_sink_input || desc->has_rotated_blocks ||
+                                      desc->has_token_type_ids || desc->has_scores_output() || desc->has_score_aggregation || desc->has_adaptive_rkv)) {
             OPENVINO_ASSERT(!explicit_cm,
                             "[GPU] CM PagedAttention does not support sliding-window attention, ALiBi, attention sinks, "
                             "cache rotation, token-type inputs, scores output, score aggregation, or adaptive RKV. "
