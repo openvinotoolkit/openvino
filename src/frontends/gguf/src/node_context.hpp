@@ -18,8 +18,11 @@
 namespace ov::frontend::gguf {
 
 typedef std::map<std::string, Output<Node>> TensorMap;
-using ConstantCache =
-    std::map<std::tuple<ov::element::Type_t, ov::Shape, std::vector<int64_t>>, std::shared_ptr<ov::op::v0::Constant>>;
+struct ConstantCache {
+    std::map<std::tuple<ov::element::Type_t, ov::Shape, std::vector<int64_t>>, std::shared_ptr<ov::op::v0::Constant>>
+        constants;
+    std::map<ov::element::Type_t, std::shared_ptr<ov::op::v0::Constant>> hadamard_matrices;
+};
 
 class NodeContext : public frontend::NodeContext {
 public:
@@ -98,10 +101,32 @@ public:
                                                        const std::vector<int64_t>& values) const {
         if (!m_constant_cache)
             return ov::op::v0::Constant::create(type, shape, values);
-        auto& constant = (*m_constant_cache)[{static_cast<ov::element::Type_t>(type), shape, values}];
+        auto& constant = m_constant_cache->constants[{static_cast<ov::element::Type_t>(type), shape, values}];
         if (!constant)
             constant = ov::op::v0::Constant::create(type, shape, values);
         return constant;
+    }
+
+    std::shared_ptr<ov::op::v0::Constant> get_hadamard_matrix(const ov::element::Type& type) const {
+        const auto make_matrix = [&] {
+            constexpr size_t block = 1024;
+            std::vector<float> values(block * block);
+            for (size_t row = 0; row < block; ++row) {
+                for (size_t column = 0; column < block; ++column) {
+                    bool negative = false;
+                    for (auto bits = row & column; bits; bits &= bits - 1)
+                        negative = !negative;
+                    values[row * block + column] = negative ? -1.f / 32.f : 1.f / 32.f;
+                }
+            }
+            return ov::op::v0::Constant::create(type, {block, block}, values);
+        };
+        if (!m_constant_cache)
+            return make_matrix();
+        auto& matrix = m_constant_cache->hadamard_matrices[static_cast<ov::element::Type_t>(type)];
+        if (!matrix)
+            matrix = make_matrix();
+        return matrix;
     }
 
 private:

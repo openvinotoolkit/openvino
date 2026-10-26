@@ -326,7 +326,7 @@ TEST(GGUFHadamardTypes, ExplicitF32SignsFollowF16Activations) {
 
 class GGUFHadamardAccuracy : public ::testing::TestWithParam<std::tuple<int64_t, bool>> {};
 
-TEST_P(GGUFHadamardAccuracy, ButterflyPreservesSylvesterOrderSignsAndDynamicShapes) {
+TEST_P(GGUFHadamardAccuracy, PreservesSylvesterOrderSignsAndDynamicShapes) {
     const auto block = std::get<0>(GetParam());
     const auto inverse = std::get<1>(GetParam());
     const auto width = static_cast<size_t>(2 * block);
@@ -352,8 +352,9 @@ TEST_P(GGUFHadamardAccuracy, ButterflyPreservesSylvesterOrderSignsAndDynamicShap
     const auto model = std::make_shared<ov::Model>(ov::OutputVector{y}, ov::ParameterVector{x});
     size_t constant_bytes = 0;
     size_t stages = 0;
+    size_t matrices = 0;
     for (const auto& op : model->get_ordered_ops()) {
-        EXPECT_NE(op->get_type_name(), std::string("MatMul"));
+        matrices += op->get_type_name() == std::string("MatMul");
         EXPECT_NE(op->get_type_name(), std::string("Split"));
         EXPECT_NE(op->get_type_name(), std::string("Concat"));
         if (op->get_type_name() == std::string("Gather")) {
@@ -363,8 +364,9 @@ TEST_P(GGUFHadamardAccuracy, ButterflyPreservesSylvesterOrderSignsAndDynamicShap
         if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op))
             constant_bytes += constant->get_byte_size();
     }
-    EXPECT_EQ(stages, static_cast<size_t>(std::log2(block)));
-    EXPECT_LE(constant_bytes, signs.get_byte_size() + stages * block * 12 + 128);
+    EXPECT_EQ(matrices, block == 1024 ? 1 : 0);
+    EXPECT_EQ(stages, block == 1024 ? 0 : static_cast<size_t>(std::log2(block)));
+    EXPECT_LE(constant_bytes, signs.get_byte_size() + stages * block * 12 + matrices * block * block * 4 + 128);
     ov::Core core;
     auto compiled =
         core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32), ov::inference_num_threads(4));
@@ -423,8 +425,41 @@ TEST_P(GGUFHadamardAccuracy, ButterflyPreservesSylvesterOrderSignsAndDynamicShap
 INSTANTIATE_TEST_SUITE_P(
     BlockSizes,
     GGUFHadamardAccuracy,
-    ::testing::Combine(::testing::Values(int64_t{1}, int64_t{2}, int64_t{8}, int64_t{64}, int64_t{4096}),
+    ::testing::Combine(::testing::Values(int64_t{1}, int64_t{2}, int64_t{8}, int64_t{64}, int64_t{1024}, int64_t{4096}),
                        ::testing::Bool()));
+
+TEST(GGUFHadamardTypes, MatrixCacheIsScopedToConversionAndPrecision) {
+    using namespace ov::frontend::gguf;
+    const ov::PartialShape shape{1, -1, 2048};
+    const auto decoder = std::make_shared<ov_gguf_test::SingleOpDecoder>(
+        "GGML_OP_MUL_MAT",
+        std::vector<ov_gguf_test::TensorDesc>{{"x", ov::element::f32, shape}},
+        std::vector<ov_gguf_test::TensorDesc>{},
+        ov_gguf_test::TensorDesc{"y", ov::element::f32, shape},
+        std::map<std::string, ov::Any>{{"hadamard_block", int64_t{1024}}});
+    auto tensor_map = std::make_shared<TensorMap>();
+    const auto cache = std::make_shared<ConstantCache>();
+    const NodeContext first(decoder, tensor_map, cache);
+    const NodeContext second(decoder, tensor_map, cache);
+    const NodeContext separate(decoder, tensor_map, std::make_shared<ConstantCache>());
+    const auto f32 = first.get_hadamard_matrix(ov::element::f32);
+    EXPECT_EQ(f32, second.get_hadamard_matrix(ov::element::f32));
+    EXPECT_NE(f32, separate.get_hadamard_matrix(ov::element::f32));
+    const auto f16 = second.get_hadamard_matrix(ov::element::f16);
+    EXPECT_NE(f32, f16);
+    EXPECT_EQ(f32->get_shape(), (ov::Shape{1024, 1024}));
+    EXPECT_EQ(f16->get_element_type(), ov::element::f16);
+    EXPECT_EQ(f32->cast_vector<float>(), f16->cast_vector<float>());
+    for (const auto type : {ov::element::f32, ov::element::f16}) {
+        const auto x = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        const auto y = apply_hadamard(first, x);
+        const auto matmul = y.get_node_shared_ptr()->get_input_node_shared_ptr(0);
+        ASSERT_EQ(matmul->get_type_name(), std::string("MatMul"));
+        EXPECT_EQ(matmul->get_input_node_shared_ptr(1), first.get_hadamard_matrix(type));
+        EXPECT_EQ(y.get_partial_shape(), shape);
+        EXPECT_EQ(y.get_element_type(), type);
+    }
+}
 
 TEST(GGUFHadamardTypes, ConstantsAreSharedWithinEachConversion) {
     using namespace ov::frontend::gguf;

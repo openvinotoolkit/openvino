@@ -22,6 +22,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/maximum.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_sum.hpp"
@@ -72,21 +73,28 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
     if (signs && !inverse)
         input = std::make_shared<v1::Multiply>(input, sign_node);
     input = std::make_shared<v1::Reshape>(input, pattern({-1, block}), false);
-    const auto axis = context.get_constant(ov::element::i64, {}, {1});
-    for (int64_t stride = 1; stride < block; stride *= 2) {
-        std::vector<int64_t> indices(block), stage_signs(block);
-        for (int64_t i = 0; i < block; ++i) {
-            indices[i] = i ^ stride;
-            stage_signs[i] = (i & stride) == 0 ? 1 : -1;
+    if (block == 1024 &&
+        (input.get_element_type() == ov::element::f32 || input.get_element_type() == ov::element::f16)) {
+        input =
+            std::make_shared<v0::MatMul>(input, context.get_hadamard_matrix(input.get_element_type()), false, false);
+    } else {
+        const auto axis = context.get_constant(ov::element::i64, {}, {1});
+        for (int64_t stride = 1; stride < block; stride *= 2) {
+            std::vector<int64_t> indices(block), stage_signs(block);
+            for (int64_t i = 0; i < block; ++i) {
+                indices[i] = i ^ stride;
+                stage_signs[i] = (i & stride) == 0 ? 1 : -1;
+            }
+            const auto permuted = std::make_shared<v8::Gather>(input, pattern(indices), axis);
+            const auto signed_input = std::make_shared<v1::Multiply>(
+                input,
+                context.get_constant(input.get_element_type(), {static_cast<size_t>(block)}, stage_signs));
+            input = std::make_shared<v1::Add>(signed_input, permuted);
         }
-        const auto permuted = std::make_shared<v8::Gather>(input, pattern(indices), axis);
-        const auto signed_input = std::make_shared<v1::Multiply>(
-            input,
-            context.get_constant(input.get_element_type(), {static_cast<size_t>(block)}, stage_signs));
-        input = std::make_shared<v1::Add>(signed_input, permuted);
+        const auto scale =
+            v0::Constant::create(input.get_element_type(), {}, {1.f / std::sqrt(static_cast<float>(block))});
+        input = std::make_shared<v1::Multiply>(input, scale);
     }
-    const auto scale = v0::Constant::create(input.get_element_type(), {}, {1.f / std::sqrt(static_cast<float>(block))});
-    input = std::make_shared<v1::Multiply>(input, scale);
     input = std::make_shared<v1::Reshape>(input, original, false);
     if (signs && inverse)
         input = std::make_shared<v1::Multiply>(input, sign_node);

@@ -169,11 +169,13 @@ It also requires more import work than PQ2_0's direct copy.
 
 Bonsai-2's folded Hadamard weights require the model's `prism.hadamard.*` metadata for
 activation and inverse embedding transforms, even for F16 checkpoints. This is separate from
-unpacking. Each block uses a Walsh–Hadamard butterfly with `log2(block_size)` stages of
-rank-2 Gather, sign multiplication and addition, followed by normalization by `1/sqrt(block_size)`. This avoids a
-dense rotation Constant and reduces arithmetic from quadratic to `O(block_size * log2(block_size))`;
-Permutation, sign and reshape Constants are shared within each conversion, without global caches.
-Keeping the butterfly in rank 2 avoids high-rank intermediate buffers on the GPU. See
+unpacking. F32/F16 blocks of size 1024 use a normalized Walsh–Hadamard MatMul, sharing one
+rotation Constant per precision within each conversion. This exposes the input-rotation pattern
+that eligible TernOCL FullyConnected implementations can execute inside their compressed kernel.
+Other block sizes and types use a rank-2 butterfly with `log2(block_size)` Gather, sign
+multiplication and addition stages, followed by normalization by `1/sqrt(block_size)`.
+Permutation, sign and reshape Constants are also shared within each conversion, without global caches.
+Rank-2 transforms avoid high-rank intermediate buffers on the GPU. See
 [Bonsai and Bonsai-2](supported_models.md#bonsai-and-bonsai-2).
 
 Attention gates use rank-3 projections and elementwise gating, restoring rank 4 before
