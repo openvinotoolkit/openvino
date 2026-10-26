@@ -178,6 +178,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> RuntimeRequirementsS
     Logger logger("RuntimeRequirementsSection", Logger::global().level());
     OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::RUNTIME_REQUIREMENTS),
                     "Logic error: the decoder received a section of the wrong type");
+    OPENVINO_ASSERT(section.tag().is_pointer(), "Logic error: the payload is inline");
 
     // TODO make sure the inclusion of a runtime requirements section is optional
     const size_t section_length = section.size();

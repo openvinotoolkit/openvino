@@ -23,6 +23,10 @@ ov::runtime::hsm::ManifestEntry create_manifest_entry_of_type(const ::intel_npu:
     manifest_entry.device = static_cast<ov::runtime::hsm::DeviceId>(!any_device ? ov::runtime::hsm::Devices::npu
                                                                                 : ov::runtime::hsm::Devices::any);
 
+    if (!is_inline) {
+        manifest_entry.offset = 0;
+    }
+
     return manifest_entry;
 }
 

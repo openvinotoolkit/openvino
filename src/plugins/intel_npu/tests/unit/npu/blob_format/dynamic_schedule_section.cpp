@@ -146,6 +146,30 @@ TEST_F(DynamicScheduleSectionTest, ReadPaddingTooBig) {
     OV_EXPECT_THROW(DynamicScheduleSection::read(reader), ov::Exception, _);
 }
 
+TEST_F(DynamicScheduleSectionTest, WrongTagToDecoder) {
+    std::vector<uint8_t> payload(1, 0);
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE);
+    manifest_entry.size = payload.size();
+
+    OV_EXPECT_THROW(DynamicScheduleSection::decode(ov::runtime::hsm::Section(
+                        manifest_entry,
+                        ov::util::MemoryView(reinterpret_cast<const std::byte*>(payload.data()), payload.size()))),
+                    ov::Exception,
+                    testing::_);
+}
+
+TEST_F(DynamicScheduleSectionTest, InlineTagToDecoder) {
+    std::vector<uint8_t> payload(1, 0);
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::DYNAMIC_SCHEDULE, true);
+    std::memcpy(&manifest_entry.inline_bytes, payload.data(), payload.size());
+
+    OV_EXPECT_THROW(DynamicScheduleSection::decode(ov::runtime::hsm::Section(manifest_entry)),
+                    ov::Exception,
+                    testing::_);
+}
+
 class DynamicScheduleSectionReadTest : public testing::TestWithParam<std::tuple<size_t, bool, bool>> {
 public:
     DynamicScheduleSectionReadTest() : source(stream), reader(source, 0, 0, 0, 0) {}

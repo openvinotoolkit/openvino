@@ -64,6 +64,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> IOLayoutsSection::de
     const Logger logger("IOLayoutsSection", Logger::global().level());
     OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::IO_LAYOUTS),
                     "Logic error: the decoder received a section of the wrong type");
+    OPENVINO_ASSERT(section.tag().is_pointer(), "Logic error: the payload is inline");
 
     const size_t section_length = section.size();
     if (section_length < MINIMUM_LAYOUTS_SECTION_SIZE) {

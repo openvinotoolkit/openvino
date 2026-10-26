@@ -117,6 +117,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFMainScheduleSecti
     // TODO test these
     OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::ELF_MAIN_SCHEDULE),
                     "Logic error: the decoder received a section of the wrong type");
+    OPENVINO_ASSERT(section.tag().is_pointer(), "Logic error: the payload is inline");
 
     // TODO update the tests, there is a minimum size no more
     // TODO double check no "size_t" used for r/w sizes
@@ -247,6 +248,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFInitSchedulesSect
 
     OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::ELF_INIT_SCHEDULES),
                     "Logic error: the decoder received a section of the wrong type");
+    OPENVINO_ASSERT(section.tag().is_pointer(), "Logic error: the payload is inline");
     if (section.size() < MINIMUM_INIT_SCHEDULES_SECTION_SIZE) {
         logger.error(SECTION_TOO_SHORT_MESSAGE.data());
         return std::nullopt;
@@ -369,6 +371,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> DynamicScheduleSecti
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "DynamicScheduleSection::decode");
     OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::DYNAMIC_SCHEDULE),
                     "Logic error: the decoder received a section of the wrong type");
+    OPENVINO_ASSERT(section.tag().is_pointer(), "Logic error: the payload is inline");
     // TODO more logs
 
     const auto main_schedule_section = ELFMainScheduleSection::decode(section);

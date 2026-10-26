@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
@@ -41,13 +42,15 @@ TEST_P(ValidLayouts, WriteRead) {
     section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
 
     const std::string buffer = stream.str();
-    ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, stream.tellp(), 0, stream.tellp());
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
+    manifest_entry.size = buffer.size();
 
-    auto read_section = section->read(reader);
-
-    auto layouts_result = std::dynamic_pointer_cast<IOLayoutsSection>(read_section);
+    auto read_section = section->decode(ov::runtime::hsm::Section(
+        manifest_entry,
+        ov::util::MemoryView(reinterpret_cast<const std::byte*>(buffer.data()), buffer.size())));
+    ASSERT_TRUE(read_section);
+    auto layouts_result = std::dynamic_pointer_cast<IOLayoutsSection>(read_section.value());
     ASSERT_TRUE(layouts_result);
     EXPECT_EQ(layouts_result->get_input_layouts(), section->get_input_layouts());
     EXPECT_EQ(layouts_result->get_output_layouts(), section->get_output_layouts());
@@ -78,11 +81,37 @@ TEST_F(IOLayoutsSectionRead, NullIndividualReqs) {
 }
 
 TEST_F(IOLayoutsSectionRead, TooSmallSectionLength) {
-    std::vector<uint8_t> dummy(0xFFFF, 0xFF);
-    ov::Tensor tensor(ov::element::u8, ov::Shape{dummy.size()}, const_cast<uint8_t*>(dummy.data()));
-    BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size() - 1);
-    ASSERT_ANY_THROW(IOLayoutsSection::read(reader));
+    std::vector<uint8_t> payload(7, 0);
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
+    manifest_entry.size = payload.size();
+
+    auto read_section = IOLayoutsSection::decode(ov::runtime::hsm::Section(
+        manifest_entry,
+        ov::util::MemoryView(reinterpret_cast<const std::byte*>(payload.data()), payload.size())));
+    ASSERT_FALSE(read_section);
+}
+
+TEST_F(IOLayoutsSectionRead, WrongTagToDecoder) {
+    std::vector<uint8_t> payload(8, 0);
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE);
+    manifest_entry.size = payload.size();
+
+    OV_EXPECT_THROW(IOLayoutsSection::decode(ov::runtime::hsm::Section(
+                        manifest_entry,
+                        ov::util::MemoryView(reinterpret_cast<const std::byte*>(payload.data()), payload.size()))),
+                    ov::Exception,
+                    testing::_);
+}
+
+TEST_F(IOLayoutsSectionRead, InlineTagToDecoder) {
+    std::vector<uint8_t> payload(8, 0);
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS, true);
+    std::memcpy(&manifest_entry.inline_bytes, payload.data(), payload.size());
+
+    OV_EXPECT_THROW(IOLayoutsSection::decode(ov::runtime::hsm::Section(manifest_entry)), ov::Exception, testing::_);
 }
 
 TEST_F(IOLayoutsSectionRead, LessLayoutsThanExpected) {
