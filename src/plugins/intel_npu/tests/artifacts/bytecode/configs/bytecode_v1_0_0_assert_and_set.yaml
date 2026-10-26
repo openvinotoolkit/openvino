@@ -1,0 +1,33 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: [1, 0, 0]
+output: bytecode_v1_0_0_assert_and_set.bin
+
+type_section:
+  - id: i64
+    kind: integer
+    width: 64
+    is_signed: true
+  - id: fn_assert_and_set
+    kind: function
+    params: []
+    results: [i64]
+
+function_section:
+  - name: assert_and_set
+    type: fn_assert_and_set
+    # Register mapping: 0=cond, 1=src, 2=dst
+    instructions:
+      - op: set_imm
+        args: [0, 1]
+      - op: set_imm
+        args: [1, 42]
+      - op: set
+        args: [2, 1]
+      - op: assert
+        args: [0, 0]
+      - op: retv
+        args: [2]
