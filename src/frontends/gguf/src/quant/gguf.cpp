@@ -69,7 +69,7 @@ TypeTraits type_traits(uint32_t type) {
     case GGUF_TYPE_Q8_0:
         return {32, 34};
     case GGUF_TYPE_Q8_1:
-        return {32, 40};
+        return {32, 36};
     case GGUF_TYPE_Q2_K:
         return {256, 84};
     case GGUF_TYPE_Q2_0:
@@ -129,6 +129,7 @@ std::optional<QuantLayout> quant_layout(uint32_t type) {
         return QuantLayout{ov::element::i4, 1, ov::element::f16, 16, symmetric};
     case GGUF_TYPE_Q5_0:
     case GGUF_TYPE_Q8_0:
+    case GGUF_TYPE_Q8_1:
         return QuantLayout{ov::element::i8, 1, ov::element::f16, 32, symmetric};
     case GGUF_TYPE_Q6_K:
         return QuantLayout{ov::element::i8, 1, ov::element::f16, 16, symmetric};
