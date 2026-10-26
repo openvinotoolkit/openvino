@@ -53,6 +53,14 @@ protected:
     void check_results(); 
 
 };
+
+// MoESubgraphTest with inputs in a small range, as MoECompressedWeightsSubgraphTest uses. With the default
+// [1, 10) inputs and integer weights the activations grow to about 1e8, and over a sequence of a thousand rows
+// a bf16 inference no longer meets the 10% tolerance against the f32 reference at every element.
+class MoESubgraphSmallInputsTest : public MoESubgraphTest {
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+};
 class MoECompressedWeightsSubgraphTest : public testing::WithParamInterface<MoeCompressedWeightsTestParams>,
                                          virtual public SubgraphBaseTest,
                                          public CpuTestWithFusing {

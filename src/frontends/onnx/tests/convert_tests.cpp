@@ -41,6 +41,12 @@ TEST(ONNXFeConvertException, exception_if_other_translation_exception) {
                     testing::HasSubstr("only 'DCR' and 'CRD' modes are supported"));
 }
 
+TEST(ONNXFeConvertException, exception_if_unsupported_recurrent_layout) {
+    OV_EXPECT_THROW(convert_model("rnn_layout_invalid.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("Unsupported value of the 'layout' attribute: 2"));
+}
+
 TEST(ONNXFeConvertException, exception_if_both_unsupported_and_other_translation_exception) {
     OV_EXPECT_THROW(convert_model("unsupported_ops/unsupported_add_and_incorrect_dts.onnx"),
                     ov::AssertFailure,
