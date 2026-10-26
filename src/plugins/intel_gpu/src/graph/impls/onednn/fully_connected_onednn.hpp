@@ -102,7 +102,7 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             }
         }
 
-        return true;
+        return is_supported_post_ops(node);
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {
