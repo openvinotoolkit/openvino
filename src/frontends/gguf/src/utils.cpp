@@ -50,7 +50,7 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
     FRONT_END_OP_CONVERSION_CHECK(block > 0 && block <= 4096 && (block & (block - 1)) == 0 && width % block == 0,
                                   "Invalid Hadamard block size/width");
     const auto pattern = [&](const std::vector<int64_t>& dims) {
-        return context.get_constant(ov::element::i64, {dims.size()}, dims);
+        return v0::Constant::create(ov::element::i64, {dims.size()}, dims);
     };
     const auto original = std::make_shared<v3::ShapeOf>(input, ov::element::i64);
     const auto heads = context.get_attribute<std::vector<int64_t>>("hadamard_gdn_heads", {});
@@ -71,19 +71,13 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
     }
     if (signs && !inverse)
         input = std::make_shared<v1::Multiply>(input, sign_node);
-    input = std::make_shared<v1::Reshape>(input, pattern({-1, block}), false);
-    const auto axis = context.get_constant(ov::element::i64, {}, {1});
+    const auto axis = v0::Constant::create(ov::element::i64, {}, {2});
     for (int64_t stride = 1; stride < block; stride *= 2) {
-        std::vector<int64_t> indices(block), stage_signs(block);
-        for (int64_t i = 0; i < block; ++i) {
-            indices[i] = i ^ stride;
-            stage_signs[i] = (i & stride) == 0 ? 1 : -1;
-        }
-        const auto permuted = std::make_shared<v8::Gather>(input, pattern(indices), axis);
-        const auto signed_input = std::make_shared<v1::Multiply>(
-            input,
-            context.get_constant(input.get_element_type(), {static_cast<size_t>(block)}, stage_signs));
-        input = std::make_shared<v1::Add>(signed_input, permuted);
+        auto grouped = std::make_shared<v1::Reshape>(input, pattern({-1, block / (2 * stride), 2, stride}), false);
+        auto halves = std::make_shared<v1::Split>(grouped, axis, 2);
+        auto sum = std::make_shared<v1::Add>(halves->output(0), halves->output(1));
+        auto difference = std::make_shared<v1::Subtract>(halves->output(0), halves->output(1));
+        input = std::make_shared<v0::Concat>(ov::OutputVector{sum, difference}, 2);
     }
     const auto scale = v0::Constant::create(input.get_element_type(), {}, {1.f / std::sqrt(static_cast<float>(block))});
     input = std::make_shared<v1::Multiply>(input, scale);

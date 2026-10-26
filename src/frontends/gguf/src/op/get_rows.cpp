@@ -18,7 +18,6 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "quant/weights.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -134,7 +133,8 @@ OutputVector translate_get_rows(const NodeContext& context) {
             res = std::make_shared<ov::op::v8::Gather>(data, indices, axis, 1);
         }
     } else {
-        res = gather_weight_rows(data, indices);
+        auto axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
+        res = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
     }
 
     // The two Squeezes above dropped the leading axes; restore ggml's rank-4 form.

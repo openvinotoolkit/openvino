@@ -34,16 +34,6 @@ OutputVector translate_mulmat(const NodeContext& context) {
     ov::Output<ov::Node> B = context.get_input(0);
     ov::Output<ov::Node> A = context.get_input(1);
     A = apply_hadamard(context, A);
-    if (context.get_attribute<int>("activation_rank", 4) == 3) {
-        const auto& shape = A.get_partial_shape();
-        FRONT_END_OP_CONVERSION_CHECK(shape.rank() == 4 && shape[1] == 1 && shape[3].is_static(),
-                                      "Rank-3 projection requires [batch, 1, tokens, features] activations");
-        const auto width = shape[3].get_length();
-        A = std::make_shared<ov::op::v1::Reshape>(
-            A,
-            ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{0, -1, width}),
-            true);
-    }
 
     bool transpose_b = true;
     if (op_case == 2) {

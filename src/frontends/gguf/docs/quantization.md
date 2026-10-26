@@ -28,13 +28,6 @@ with the first element in the least significant bits. The loader's `u32` tensors
 Q4_1/Q4_K are backing buffers for eight nibbles per word; their graph Constants use `u4`.
 Unpacking into `u2` or `i4` therefore does not mean allocating one byte per weight.
 
-For ternary embedding row lookups, the frontend views the same `u2` buffer as `u8` bytes,
-with four codes in each byte. It gathers the requested code bytes and scales before
-unpacking the selected rows with integer shifts and masks. The dictionary keeps its
-original two-bit storage; it does not expand to an entire floating-point table. The
-selected codes use I32 arithmetic for shifts, then the original F16 dequantization.
-Matrix multiplication consumers keep their `u2` representation, including tied weights.
-
 The usual graph is `Convert -> [Subtract] -> Multiply -> Reshape -> Convert(F32)`. Decompression
 uses the scale's element type, normally F16. Q6_K and formats with fractional F16 zero points
 and code widths of at least four bits instead perform subtraction/multiplication in F32.
@@ -54,7 +47,7 @@ the weight values and adds quantization error.
 but exclude object metadata, shape Constants, allocator alignment and file padding. Each row
 compares the same number of logical weights; a negative change means smaller storage.
 
-The type columns describe extracted tensors; their decompression or Convert outputs are F32.
+The type columns describe stored Constants; their decompression or Convert outputs are F32.
 
 | Format | Weights per GGUF block | GGUF bytes | Weight type (`W`) | Scale type (`S`) | Zero-point type (`Z`) | Native OpenVINO bytes (`W + S + Z`) | Change |
 |---|---:|---:|---|---|---|---:|---:|
@@ -90,12 +83,7 @@ The frontend prints an accuracy notice once per process for each requantization 
 For example, PQ2_0 adds one byte per 128 weights. PTQ1_0 adds six code bytes plus one zero-point
 byte per 128 weights. Their native storage is identical, at `35/128` bytes per weight
 (2.1875 bits per weight including metadata). The repeated zero point is currently allocated
-per group. For `u2` weights containing only codes 0, 1 and 2, the frontend emits one scalar
-zero-point Constant of 1 instead of a grouped Constant. The table includes the extracted
-per-group tensor storage. Code 3 retains the grouped Constant and the existing GPU fallback.
-Projections sharing an activation input retain grouped zero points if any projection needs
-that fallback, including a singleton group. This keeps their layouts compatible with
-horizontal fusion without changing plugins; all-ternary projection groups remain scalar.
+per group; the table does not assume that a later pass replaces it with a scalar.
 
 ## Floating-point formats
 
@@ -134,9 +122,6 @@ one `u8` zero point of 1 is written per group. Reconstruction is `(code - 1) * s
 codes 0, 1 and 2 represent -1, 0 and +1. A code of 3 reconstructs +2.
 
 No code or scale requantization is introduced. The extra storage is the repeated zero point.
-For PQ2_0 and PTQ1_0 with strictly ternary codes, the scalar zero point allows the GPU's
-TernOCL FullyConnected implementation to match. It additionally requires an OpenCL runtime,
-Xe2 or newer, f16 activations, 128-weight scale groups and compatible matrix layouts.
 Older Bonsai files also use type 42 (`Q2_0`) for per-128 blocks. Native loading identifies
 that layout using dimensions and aligned tensor spans and maps it to PQ2_0. Raw-byte callers
 must provide the actual format because they do not supply those descriptor spans.
@@ -170,16 +155,10 @@ It also requires more import work than PQ2_0's direct copy.
 Bonsai-2's folded Hadamard weights require the model's `prism.hadamard.*` metadata for
 activation and inverse embedding transforms, even for F16 checkpoints. This is separate from
 unpacking. Each block uses a Walsh–Hadamard butterfly with `log2(block_size)` stages of
-rank-2 Gather, sign multiplication and addition, followed by normalization by `1/sqrt(block_size)`. This avoids a
+sum/difference operations and a final normalization by `1/sqrt(block_size)`. This avoids a
 dense rotation Constant and reduces arithmetic from quadratic to `O(block_size * log2(block_size))`;
-Permutation, sign and reshape Constants are shared within each conversion, without global caches.
-Keeping the butterfly in rank 2 avoids high-rank intermediate buffers on the GPU. See
+intermediate activation buffers still depend on device compilation. See
 [Bonsai and Bonsai-2](supported_models.md#bonsai-and-bonsai-2).
-
-Attention gates use rank-3 projections and elementwise gating, restoring rank 4 before
-the attention output projection. This keeps a supported dynamic GPU FC fallback when the gate's
-fused post-ops are outside TernOCL's epilogues. The reshape follows the Hadamard transform so its
-activation work can still be shared with Q/K/V; weight codes, scales and arithmetic are unchanged.
 
 ## Integer formats
 

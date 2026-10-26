@@ -5,31 +5,21 @@
 #pragma once
 
 #include <cstdint>
-#include <map>
-#include <memory>
 #include <string>
-#include <tuple>
-#include <vector>
 
 #include "openvino/frontend/gguf/decoder.hpp"
 #include "openvino/frontend/node_context.hpp"
-#include "openvino/op/constant.hpp"
 
 namespace ov::frontend::gguf {
 
 typedef std::map<std::string, Output<Node>> TensorMap;
-using ConstantCache =
-    std::map<std::tuple<ov::element::Type_t, ov::Shape, std::vector<int64_t>>, std::shared_ptr<ov::op::v0::Constant>>;
 
 class NodeContext : public frontend::NodeContext {
 public:
-    NodeContext(const std::shared_ptr<GgufDecoder>& decoder,
-                std::shared_ptr<TensorMap>& tensor_map,
-                const std::shared_ptr<ConstantCache>& constant_cache = {})
+    NodeContext(const std::shared_ptr<GgufDecoder>& decoder, std::shared_ptr<TensorMap>& tensor_map)
         : ov::frontend::NodeContext(decoder->get_op_type()),
           m_decoder(decoder),
-          m_tensor_map(tensor_map),
-          m_constant_cache(constant_cache) {
+          m_tensor_map(tensor_map) {
         m_input_names = decoder->get_input_names();
         m_output_names = decoder->get_output_names();
     }
@@ -93,21 +83,9 @@ public:
         return m_decoder->get_attribute(name);
     }
 
-    std::shared_ptr<ov::op::v0::Constant> get_constant(const ov::element::Type& type,
-                                                       const ov::Shape& shape,
-                                                       const std::vector<int64_t>& values) const {
-        if (!m_constant_cache)
-            return ov::op::v0::Constant::create(type, shape, values);
-        auto& constant = (*m_constant_cache)[{static_cast<ov::element::Type_t>(type), shape, values}];
-        if (!constant)
-            constant = ov::op::v0::Constant::create(type, shape, values);
-        return constant;
-    }
-
 private:
     std::shared_ptr<GgufDecoder> m_decoder;
     std::shared_ptr<TensorMap>& m_tensor_map;
-    std::shared_ptr<ConstantCache> m_constant_cache;
     std::vector<std::string> m_input_names;
     std::vector<std::string> m_output_names;
 };

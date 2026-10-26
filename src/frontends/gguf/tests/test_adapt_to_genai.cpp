@@ -18,7 +18,6 @@
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "gtest/gtest.h"
-#include "node_context.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/core/visibility.hpp"
@@ -54,7 +53,6 @@
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "quant/weights.hpp"
 #include "utils.hpp"
 
 using namespace ov_gguf_test;
@@ -525,42 +523,6 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeMapsGenAIMultimodalPositionsToGGML) {
 // translate_get_rows's embedding lookup restores ggml's rank-4 form with Unsqueeze(axis=0),
 // pinning the leading axis to a literal 1. AdaptToGenAI moves it to axis 1 so it instead mirrors
 // input_ids' own (backend-dependent) leading dim -- see FixEmbdAxis in adapt_to_genai.cpp.
-TEST(GGUFAdaptToGenAI, PackedTernaryEmbeddingAdaptsForBatchedLookup) {
-    constexpr size_t vocab = 4;
-    constexpr size_t hidden = 256;
-    auto m = build_minimal_gguf_model(vocab, hidden);
-    const auto bytes = load_npy<uint8_t>("pq2_0_qbytes");
-    ov::Tensor payload(ov::element::u8, {bytes.size()});
-    std::memcpy(payload.data(), bytes.data(), bytes.size());
-    auto weight = make_weight_node(payload, "PQ2_0", {vocab, hidden});
-    auto decoder = SingleOpBuilder()
-                       .op("GGML_OP_GET_ROWS")
-                       .input("weight", ov::element::f32, {vocab, hidden})
-                       .input("inp_tokens", ov::element::i32, {1, 1, 1, -1})
-                       .output("embd", ov::element::f32, {1, 1, -1, hidden})
-                       .decoder();
-    auto tensors = std::make_shared<TensorMap>();
-    (*tensors)["weight"] = weight;
-    (*tensors)["inp_tokens"] = m.inp_tokens;
-    NodeContext context(decoder, tensors);
-    auto embedding = op::translate_get_rows(context)[0].get_node_shared_ptr();
-    embedding->set_friendly_name(m.embd->get_friendly_name());
-    embedding->get_rt_info()["gguf.token_embedding"] = true;
-    m.embd->output(0).replace(embedding);
-    AdaptToGenAI pass(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
-    ASSERT_TRUE(pass.run_on_model(m.model));
-    const auto lookup = pass.get_embedding_model();
-    ASSERT_TRUE(lookup);
-    const auto reference = load_npy<float>("pq2_0_deq");
-    const auto ids = make_i64_tensor({2, 3}, {3, 0, 1, 2, 1, 3});
-    auto output = run_on_cpu(lookup, {{lookup->input().get_any_name(), ids}});
-    ASSERT_EQ(output.get_shape(), (ov::Shape{2, 3, hidden}));
-    for (size_t i = 0; i < ids.get_size(); ++i) {
-        for (size_t j = 0; j < hidden; ++j)
-            EXPECT_FLOAT_EQ(output.data<float>()[i * hidden + j], reference[ids.data<const int64_t>()[i] * hidden + j]);
-    }
-}
-
 TEST(GGUFAdaptToGenAI, FixesEmbdAxisStructurally) {
     auto m = build_minimal_gguf_model();
     auto embd_gather_input = m.embd->input_value(0);  // survives the Unsqueeze replacement
@@ -1102,42 +1064,6 @@ std::shared_ptr<v0::MatMul> find_genai_lm_head(const std::shared_ptr<ov::Model>&
 }
 
 }  // namespace
-
-TEST(GGUFAdaptToGenAI, PackedTernaryEmbeddingSurvivesPagedAttentionPrefill) {
-    constexpr size_t vocab = 4;
-    constexpr size_t hidden = 256;
-    auto model = build_attention_gguf_model(vocab, hidden);
-    const auto bytes = load_npy<uint8_t>("pq2_0_qbytes");
-    ov::Tensor payload(ov::element::u8, {bytes.size()});
-    std::memcpy(payload.data(), bytes.data(), bytes.size());
-    auto weight = make_weight_node(payload, "PQ2_0", {vocab, hidden});
-    std::shared_ptr<ov::Node> old_embedding;
-    for (const auto& node : model->get_ops()) {
-        if (node->get_friendly_name() == "embd")
-            old_embedding = node;
-    }
-    ASSERT_TRUE(old_embedding);
-    const auto indices = old_embedding->input_value(0).get_node_shared_ptr()->input_value(1);
-    auto embedding = std::make_shared<v0::Unsqueeze>(gather_weight_rows(weight, indices),
-                                                     v0::Constant::create(ov::element::i64, {1}, {0}));
-    embedding->set_friendly_name("embd");
-    embedding->get_rt_info()["gguf.token_embedding"] = true;
-    old_embedding->output(0).replace(embedding);
-    ASSERT_TRUE(AdaptToGenAI().run_on_model(model));
-    ASSERT_TRUE(ov::pass::SDPAToPagedAttention().run_on_model(model));
-    auto ids = find_parameter(model, "input_ids");
-    ASSERT_TRUE(ids);
-    ids->set_partial_shape({3});
-    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
-    size_t attention_count = 0;
-    for (const auto& node : model->get_ops()) {
-        if (auto attention = ov::as_type_ptr<PagedAttentionExtension>(node)) {
-            ++attention_count;
-            EXPECT_EQ(attention->get_input_partial_shape(0), (ov::PartialShape{3, hidden}));
-        }
-    }
-    EXPECT_EQ(attention_count, 1);
-}
 
 TEST(GGUFAdaptToGenAI, SurvivesSDPAToPagedAttentionWithRealAttentionBlock) {
     const int64_t vocab = 8;
