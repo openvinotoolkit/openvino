@@ -46,8 +46,9 @@ OutputVector translate_pad_common(const NodeContext& context,
         PYTORCH_OP_CONVERSION_CHECK(input_rank.is_static(),
                                     "aten::pad conversion for circular mode requires a statically known input rank");
         const auto rank = static_cast<size_t>(input_rank.get_length());
-        PYTORCH_OP_CONVERSION_CHECK(pad_size_half <= rank,
-                                    "aten::pad conversion for circular mode received more padding dimensions than input rank");
+        PYTORCH_OP_CONVERSION_CHECK(
+            pad_size_half <= rank,
+            "aten::pad conversion for circular mode received more padding dimensions than input rank");
         auto cur = data;
         const auto step = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
         const auto zero_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
@@ -56,9 +57,8 @@ OutputVector translate_pad_common(const NodeContext& context,
             pad_r = paddings_data[pad_last_id - (2 * i + 1)];
             pad_l = paddings_data[pad_last_id - (2 * i + 2)];
             const auto axis = rank - pad_size_half + i;
-            const auto axes = context.mark_node(v0::Constant::create(element::i32,
-                                                                      Shape{1},
-                                                                      {static_cast<int32_t>(axis)}));
+            const auto axes =
+                context.mark_node(v0::Constant::create(element::i32, Shape{1}, {static_cast<int32_t>(axis)}));
             if (pad_l > 0) {
                 const auto start = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-pad_l}));
                 const auto end = context.mark_node(std::make_shared<v8::Gather>(shape, axes, zero_1d));

@@ -57,7 +57,7 @@ class TestPad(PytorchLayerTest):
     @pytest.mark.precommit
     def test_pad4d(self, pads, mode, value, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(pads, mode, value), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"ndim": 4, "dtype": dtype})
+                   kwargs_to_prepare_input={"ndim": 4, "dtype": dtype}, trace_model=mode == "circular")
 
     @pytest.mark.parametrize("pads,mode,value,dtype", [
         ((1, 2, 3, 4, 5, 6), "reflect", None, "float32"),
