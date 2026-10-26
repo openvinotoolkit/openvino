@@ -8,7 +8,7 @@ openvino.properties.intel_gpu submodule that simulates ov::intel_gpu
 """
 __all__: list[str] = ['CapabilityGPU', 'KernelSelection', 'MemoryType', 'device_max_alloc_mem_size', 'device_total_mem_size', 'disable_winograd_convolution', 'enable_loop_unrolling', 'execution_units_count', 'hint', 'kernel_selection', 'memory_statistics', 'uarch_version']
 class KernelSelection:
-    PA_CM: typing.ClassVar[KernelSelection]
+    PA_KERNEL_AUTO: typing.ClassVar[KernelSelection]
     __members__: typing.ClassVar[dict[str, KernelSelection]]
 
     @property

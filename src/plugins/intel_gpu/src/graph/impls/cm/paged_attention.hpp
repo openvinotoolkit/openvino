@@ -45,7 +45,7 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
         // PA CM kernel requires kv_head_size divisible by 16
         if (desc->k_head_size % 16 != 0 && desc->v_head_size % 16 != 0) {
             OPENVINO_ASSERT(!explicit_cm,
-                            "[GPU] ov::intel_gpu::kernel_selection=PA_CM requested, but the CM paged attention kernel "
+                            "[GPU] ov::intel_gpu::kernel_selection=PA_KERNEL_AUTO selected CM, but the CM paged attention kernel "
                             "requires k_head_size or v_head_size to be divisible by 16. Observed k_head_size=",
                             desc->k_head_size,
                             ", v_head_size=",
@@ -55,12 +55,9 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
             return false;
         }
 
-        auto& engine = node.get_program().get_engine();
-        const auto& info = engine.get_device_info();
-        // CM optimized for systolic-array architectures
-        if (!check_cm_jit_support(engine, config) || !info.supports_immad || !config.get_use_cm()) {
+        if (!config.is_cm_available()) {
             OPENVINO_ASSERT(!explicit_cm,
-                            "[GPU] ov::intel_gpu::kernel_selection=PA_CM requested, but the CM paged attention kernel "
+                            "[GPU] ov::intel_gpu::kernel_selection=PA_KERNEL_AUTO selected CM, but the CM paged attention kernel "
                             "is not supported on this GPU architecture. The CM kernel requires a systolic-array "
                             "GPU with immad support and CM JIT enabled. "
                             "Set ov::intel_gpu::kernel_selection to an empty list to allow automatic fallback to a supported kernel.");
@@ -74,7 +71,7 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
         const auto& out_layout = node.get_output_layout(0);
         if (!everyone_is(format::bfyx, q_layout.format, k_layout.format, v_layout.format, out_layout.format)) {
             OPENVINO_ASSERT(!explicit_cm,
-                            "[GPU] ov::intel_gpu::kernel_selection=PA_CM requested, but the CM paged attention kernel "
+                            "[GPU] ov::intel_gpu::kernel_selection=PA_KERNEL_AUTO selected CM, but the CM paged attention kernel "
                             "requires bfyx layout for Q/K/V/output. Observed formats: q=",
                             q_layout.format,
                             ", k=",
@@ -90,7 +87,7 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
 
         if (!one_of(k_layout.data_type, supported_q_types) || !one_of(v_layout.data_type, supported_q_types)) {
             OPENVINO_ASSERT(!explicit_cm,
-                            "[GPU] ov::intel_gpu::kernel_selection=PA_CM requested, but the CM paged attention kernel "
+                            "[GPU] ov::intel_gpu::kernel_selection=PA_KERNEL_AUTO selected CM, but the CM paged attention kernel "
                             "only supports K/V data types {f16}. Observed: k=",
                             k_layout.data_type,
                             ", v=",
@@ -102,7 +99,7 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
 
         if (!one_of(q_layout.data_type, supported_q_types) || !one_of(out_layout.data_type, supported_q_types)) {
             OPENVINO_ASSERT(!explicit_cm,
-                            "[GPU] ov::intel_gpu::kernel_selection=PA_CM requested, but the CM paged attention kernel "
+                            "[GPU] ov::intel_gpu::kernel_selection=PA_KERNEL_AUTO selected CM, but the CM paged attention kernel "
                             "only supports Q/output data types {f16}. Observed: q=",
                             q_layout.data_type,
                             ", out=",
@@ -116,7 +113,7 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
         const auto& vcache_layout = node.get_input_layout(PagedAttentionInputIdx::VALUE_CACHE);
         if (!one_of(kcache_layout.data_type, supported_kv_types) || !one_of(vcache_layout.data_type, supported_kv_types)) {
             OPENVINO_ASSERT(!explicit_cm,
-                            "[GPU] ov::intel_gpu::kernel_selection=PA_CM requested, but the CM paged attention kernel "
+                            "[GPU] ov::intel_gpu::kernel_selection=PA_KERNEL_AUTO selected CM, but the CM paged attention kernel "
                             "only supports KV cache data types {f16, i8}. Observed: k_cache=",
                             kcache_layout.data_type,
                             ", v_cache=",

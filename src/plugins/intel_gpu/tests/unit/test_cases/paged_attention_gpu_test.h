@@ -683,7 +683,7 @@ struct PagedAttentionManager {
                             // logical shape: [num_blocks, num_kv_heads, block_size, adjusted_head_size], dt=i8 (adjusted_head_size=head_size+4).
                             // Per (block, head): data at block_base_i8 + t*head_size; scale/zp are fp16 arrays at scale_base_i8/zp_base_i8
                             // (fp16 element offsets: scale_base_i8/2 + t, zp_base_i8/2 + t).
-                            // CM uses unsigned [0..255] quantization for both XAttention and explicitly selected PA_CM.
+                            // CM uses unsigned [0..255] quantization for XAttention and when PA_KERNEL_AUTO selects CM.
                             const bool uses_cm_cache_format = has_xattention || use_cm_kernel;
                             auto [qdata, scale, zp] = quantize_data(src_ptr, head_size, false, uses_cm_cache_format);
                             int8_t* qptr = reinterpret_cast<int8_t*>(qdata.data());
@@ -2180,7 +2180,7 @@ public:
         config.set_property(ov::internal::key_cache_quant_mode(p.key_cache_quant_mode));
         if (p.use_cm_kernel) {
             config.set_property(ov::intel_gpu::kernel_selection(
-                std::vector<ov::intel_gpu::KernelSelection>{ov::intel_gpu::KernelSelection::PA_CM}));
+                std::vector<ov::intel_gpu::KernelSelection>{ov::intel_gpu::KernelSelection::PA_KERNEL_AUTO}));
         }
         if (kv_cache_precision != ov::element::dynamic) {
             config.set_property(ov::hint::kv_cache_precision(kv_cache_precision));
@@ -3007,7 +3007,7 @@ struct paged_attention_test_params {
     // Replaces generated Key inputs with zeros and validates BY_CHANNEL cache scales.
     bool zero_key_data = false;
 
-    // Uses PA_CM with legacy block_size=16, which requires the CM token-major key-cache layout.
+    // Uses PA_KERNEL_AUTO with legacy block_size=16 on CM-capable devices, requiring the CM token-major key-cache layout.
     bool use_cm_kernel = false;
 };
 

@@ -44,13 +44,12 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
         prim.has_xattention = true;
     }
     // The KEY cache Parameter's dim ordering is [N, K, B, H] (token-major, head_size at index 3)
-    // whenever CM kernels consume it: either the runtime is doing XAttention, or the user
-    // explicitly requested kernel_selection=PA_CM. Otherwise (OCL/micro-SDPA) the ordering is
+    // whenever CM kernels consume it: either the runtime is doing XAttention, or AUTO selects CM.
+    // Otherwise (OCL/micro-SDPA) the ordering is
     // [N, K, H, B] with head_size at index 2. Kept in sync with transformations_pipeline.cpp's
     // keyCacheDimOrder selection.
-    const auto& kernel_selections = p.get_config().get_kernel_selection();
-    const bool use_cm_kernel_layout =
-        std::find(kernel_selections.begin(), kernel_selections.end(), ov::intel_gpu::KernelSelection::PA_CM) != kernel_selections.end();
+    const auto& config = p.get_config();
+    const bool use_cm_kernel_layout = cldnn::paged_attention::should_use_cm_kernel(config);
     const bool key_cache_token_major = prim.has_xattention || use_cm_kernel_layout;
     const auto k_head_size_idx = key_cache_token_major ? 3 : 2;
 
@@ -137,9 +136,9 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     if (qq_bias_input && qq_bias_input->get_output_partial_shape(0).is_dynamic()) {
         prim.has_qq_bias = true;
     }
-    prim.is_key_by_channel = p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
+    prim.is_key_by_channel = config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
     prim.write_kv_cache = op->get_write_kv_cache();
-    prim.use_cm_kernel = std::find(kernel_selections.begin(), kernel_selections.end(), ov::intel_gpu::KernelSelection::PA_CM) != kernel_selections.end();
+    prim.use_cm_kernel = use_cm_kernel_layout;
     prim.num_outputs = 1;
 
     if (op->get_output_size() > 1) {

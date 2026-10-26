@@ -26,29 +26,29 @@ namespace ov {
 namespace intel_gpu {
 
 /**
- * @brief Available attention kernel backends.
+ * @brief Available kernel selection policies.
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
 enum class KernelSelection {
-    PA_CM = 0,  //!< Enable CM PagedAttention kernel backend
+    PA_KERNEL_AUTO = 0,  //!< Select CM PagedAttention when available, otherwise use OCL
 };
 
 inline std::ostream& operator<<(std::ostream& os, const KernelSelection& selection) {
     switch (selection) {
-    case KernelSelection::PA_CM:
-        return os << "PA_CM";
+    case KernelSelection::PA_KERNEL_AUTO:
+        return os << "PA_KERNEL_AUTO";
     default:
-        OPENVINO_THROW("Unsupported attention mode");
+        OPENVINO_THROW("Unsupported kernel selection");
     }
 }
 
 inline std::istream& operator>>(std::istream& is, KernelSelection& selection) {
     std::string str;
     is >> str;
-    if (str == "PA_CM") {
-        selection = KernelSelection::PA_CM;
+    if (str == "PA_KERNEL_AUTO") {
+        selection = KernelSelection::PA_KERNEL_AUTO;
     } else {
-        OPENVINO_THROW("Unsupported attention mode: ", str);
+        OPENVINO_THROW("Unsupported kernel selection: ", str);
     }
     return is;
 }

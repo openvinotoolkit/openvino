@@ -266,7 +266,7 @@ void fill_value_cache(memory::ptr value_cache_mem,
 // ---------------------------------------------------------------------------------------------
 // CM kernel path (impls/cm/pa_kv_cache_reorder_ref.cm).
 //
-// The CM kernel is selected when XAttention is enabled or PA_CM attention kernel mode is requested.
+// The CM kernel is selected when XAttention is enabled or PA_KERNEL_AUTO selects CM.
 // In both cases OCL rejects the primitive, so no force_implementations setting is needed.
 //
 // CM uses its own cache layout, different from the OCL one the helpers above describe:
@@ -1268,7 +1268,7 @@ void cm_run_by_channel_reorder(const std::vector<uint8_t>& key_ref,
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::kernel_selection(
-        std::vector<ov::intel_gpu::KernelSelection>{ov::intel_gpu::KernelSelection::PA_CM}));
+        std::vector<ov::intel_gpu::KernelSelection>{ov::intel_gpu::KernelSelection::PA_KERNEL_AUTO}));
     auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
 
     network->set_input_data("block_indices", block_indices_mem);

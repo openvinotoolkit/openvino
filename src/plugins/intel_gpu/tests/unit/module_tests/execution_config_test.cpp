@@ -5,6 +5,7 @@
 #include "test_utils.h"
 
 #include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 
@@ -164,17 +165,30 @@ TEST(execution_config, kv_cache_u4_weights_auto_detect_u4) {
     ASSERT_EQ(config.get_kv_cache_precision(), ov::element::u4);
 }
 
-TEST(execution_config, kv_cache_u4_weights_with_pa_cm_uses_i8) {
+TEST(execution_config, kv_cache_u4_weights_with_pa_kernel_auto_uses_i8) {
     auto& engine = get_test_engine();
     auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
     auto model = make_pa_matmul_model(ov::element::u4);
 
     ExecutionConfig config;
     config.set_user_property(ov::intel_gpu::kernel_selection(
-        std::vector<ov::intel_gpu::KernelSelection>{ov::intel_gpu::KernelSelection::PA_CM}));
+        std::vector<ov::intel_gpu::KernelSelection>{ov::intel_gpu::KernelSelection::PA_KERNEL_AUTO}));
     config.finalize(ctx.get(), model.get());
 
     ASSERT_EQ(config.get_kv_cache_precision(), ov::element::i8);
+    EXPECT_EQ(paged_attention::should_use_cm_kernel(config), config.is_cm_available());
+}
+
+TEST(execution_config, kernel_selection_without_pa_kernel_auto_uses_ocl) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto model = make_pa_matmul_model(ov::element::u4);
+
+    ExecutionConfig config;
+    config.set_user_property(ov::hint::kv_cache_precision(ov::element::f16));
+    config.finalize(ctx.get(), model.get());
+
+    EXPECT_FALSE(paged_attention::should_use_cm_kernel(config));
 }
 
 TEST(execution_config, kv_cache_i4_weights_auto_detect_u4) {
@@ -259,17 +273,18 @@ TEST(execution_config, kv_cache_4bit_by_token_throws) {
     ASSERT_ANY_THROW(config.finalize(ctx.get(), model.get()));
 }
 
-TEST(execution_config, kv_cache_4bit_with_pa_cm_throws) {
+TEST(execution_config, kv_cache_4bit_with_pa_kernel_auto_allows_fallback) {
     auto& engine = get_test_engine();
     auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
     auto model = make_pa_matmul_model(ov::element::u4);
 
     ExecutionConfig config;
     config.set_user_property(ov::intel_gpu::kernel_selection(
-        std::vector<ov::intel_gpu::KernelSelection>{ov::intel_gpu::KernelSelection::PA_CM}));
+        std::vector<ov::intel_gpu::KernelSelection>{ov::intel_gpu::KernelSelection::PA_KERNEL_AUTO}));
     config.set_user_property(ov::hint::kv_cache_precision(ov::element::u4));
 
-    ASSERT_ANY_THROW(config.finalize(ctx.get(), model.get()));
+    ASSERT_NO_THROW(config.finalize(ctx.get(), model.get()));
+    EXPECT_FALSE(paged_attention::should_use_cm_kernel(config));
 }
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl.hpp>

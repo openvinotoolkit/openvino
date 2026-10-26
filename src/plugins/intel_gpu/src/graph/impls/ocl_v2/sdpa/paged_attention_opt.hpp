@@ -54,10 +54,10 @@ struct PagedAttentionOpt : public ImplementationManager {
             return false;
         }
 
-        // When kernel_selection contains PA_CM via YAML/compile_model, bow out of
+        // When kernel_selection contains PA_KERNEL_AUTO and CM is selected, bow out of
         // OCL so the CM paged attention implementation is selected instead.
         if (desc->use_cm_kernel) {
-            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because kernel_selection=PA_CM requested. " << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because kernel_selection selected CM. " << std::endl;
             return false;
         }
 

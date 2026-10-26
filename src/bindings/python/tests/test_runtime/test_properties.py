@@ -89,7 +89,7 @@ def test_properties_rw_base():
         (
             intel_gpu.KernelSelection,
             (
-                (intel_gpu.KernelSelection.PA_CM, "KernelSelection.PA_CM", 0),
+                (intel_gpu.KernelSelection.PA_KERNEL_AUTO, "KernelSelection.PA_KERNEL_AUTO", 0),
             ),
         ),
         (
@@ -312,7 +312,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             intel_gpu.kernel_selection,
             "KERNEL_SELECTION",
-            (([intel_gpu.KernelSelection.PA_CM], [intel_gpu.KernelSelection.PA_CM]),),
+            (([intel_gpu.KernelSelection.PA_KERNEL_AUTO], [intel_gpu.KernelSelection.PA_KERNEL_AUTO]),),
         ),
         (
             hints.enable_cpu_pinning,

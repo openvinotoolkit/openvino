@@ -34,6 +34,7 @@ struct ExecutionConfig : public ov::PluginConfig {
     using ov::PluginConfig::finalize;
 
     const ov::AnyMap& get_user_properties() const { return m_user_properties; }
+    bool is_cm_available() const { return m_cm_available; }
 
 protected:
     void finalize_impl(const IRemoteContext* context) override;
@@ -45,6 +46,8 @@ protected:
     void apply_execution_hints(const cldnn::device_info& info);
     void apply_performance_hints(const cldnn::device_info& info);
     void apply_priority_hints(const cldnn::device_info& info);
+
+    bool m_cm_available = false;
 
     #include "intel_gpu/runtime/options.inl"
 };

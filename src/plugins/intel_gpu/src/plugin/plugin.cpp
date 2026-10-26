@@ -790,9 +790,9 @@ std::vector<ov::PropertyName> Plugin::get_caching_properties() const {
         ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
-        // kernel_selection changes implementation selection when PA_CM is enabled and therefore
+        // kernel_selection changes implementation selection when PA_KERNEL_AUTO selects CM and therefore
         // changes the compiled blob. It must participate in the cache key so AUTO- and
-        // PA_CM-compiled blobs are not silently reused for each other.
+        // CM-selected and OCL-selected compiled blobs are not silently reused for each other.
         ov::PropertyName{ov::intel_gpu::kernel_selection.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::runtime_type.name(), PropertyMutability::RO},

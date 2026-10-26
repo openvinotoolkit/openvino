@@ -6,6 +6,7 @@
 #include "primitive.hpp"
 #include "intel_gpu/graph/program.hpp"
 
+#include <algorithm>
 #include <vector>
 
 namespace cldnn {
@@ -46,6 +47,14 @@ struct paged_attention : public primitive_base<paged_attention> {
 
     static constexpr size_t block_size = 16;
     static constexpr size_t block_size_xattn = 256;
+
+    static bool should_use_cm_kernel(const ExecutionConfig& config) {
+        const auto& kernel_selections = config.get_kernel_selection();
+        const auto kv_cache_precision = config.get_kv_cache_precision();
+        return config.is_cm_available() &&
+               std::find(kernel_selections.begin(), kernel_selections.end(), ov::intel_gpu::KernelSelection::PA_KERNEL_AUTO) != kernel_selections.end() &&
+               (kv_cache_precision == ov::element::f16 || kv_cache_precision == ov::element::i8);
+    }
 
     paged_attention() : primitive_base("", {}) {}
 
@@ -184,6 +193,6 @@ struct paged_attention : public primitive_base<paged_attention> {
     bool is_key_by_channel = false;
     bool has_qq_bias = false;
     bool write_kv_cache = true;
-    bool use_cm_kernel = false;  // set when kernel_selection contains PA_CM
+    bool use_cm_kernel = false;  // set when PA_KERNEL_AUTO selects the CM implementation
 };
 }  // namespace cldnn

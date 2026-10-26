@@ -133,7 +133,7 @@ void regmodule_properties(py::module m) {
         m_properties.def_submodule("intel_gpu", "openvino.properties.intel_gpu submodule that simulates ov::intel_gpu");
 
     py::enum_<ov::intel_gpu::KernelSelection>(m_intel_gpu, "KernelSelection", py::arithmetic())
-        .value("PA_CM", ov::intel_gpu::KernelSelection::PA_CM);
+        .value("PA_KERNEL_AUTO", ov::intel_gpu::KernelSelection::PA_KERNEL_AUTO);
     wrap_property_RW(m_intel_gpu, ov::intel_gpu::kernel_selection, "kernel_selection");
 
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::device_total_mem_size, "device_total_mem_size");
