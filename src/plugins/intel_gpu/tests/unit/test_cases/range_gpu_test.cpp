@@ -260,18 +260,21 @@ TEST(range_gpu_test, constant_folding) {
     }
 }
 
-TEST(range_gpu_test, dynamic_all) {
+class range_gpu_dynamic_all_test : public ::testing::TestWithParam<format::type> {};
+
+TEST_P(range_gpu_dynamic_all_test, dynamic_all) {
     auto& engine = get_test_engine();
+    const auto fmt = GetParam();
 
     int32_t start_val = 0;
     int32_t step_val = 1;
     int32_t expected_dim = 25;
 
-    auto dynamic_input_layout = layout{ ov::PartialShape::dynamic(0), data_types::i32, format::bfyx };
+    auto dynamic_input_layout = layout{ ov::PartialShape::dynamic(0), data_types::i32, fmt };
 
-    auto input0 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
-    auto input1 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
-    auto input2 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
+    auto input0 = engine.allocate_memory({ {}, data_types::i32, fmt });
+    auto input1 = engine.allocate_memory({ {}, data_types::i32, fmt });
+    auto input2 = engine.allocate_memory({ {}, data_types::i32, fmt });
 
     set_values<int32_t>(input0, { start_val });
     set_values<int32_t>(input1, { expected_dim });
@@ -305,6 +308,13 @@ TEST(range_gpu_test, dynamic_all) {
         ASSERT_EQ(start_val + i * step_val, output_ptr[i]);
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(range_gpu_test,
+                         range_gpu_dynamic_all_test,
+                         ::testing::Values(format::bfyx, format::byxf),
+                         [](const ::testing::TestParamInfo<format::type>& info) {
+                             return format(info.param).to_string();
+                         });
 
 TEST(range_gpu_test, dynamic_stop) {
     auto& engine = get_test_engine();

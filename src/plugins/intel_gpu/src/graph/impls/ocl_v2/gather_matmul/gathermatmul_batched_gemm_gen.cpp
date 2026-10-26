@@ -34,6 +34,7 @@ static size_t get_subgroup_size(gpu_arch arch) {
         return 8;
     case gpu_arch::xe2:
     case gpu_arch::xe3:
+    case gpu_arch::xe3p:
         return 16;
     default:
         return 0;
