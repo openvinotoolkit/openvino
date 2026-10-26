@@ -260,6 +260,40 @@ TEST_F(TypePropSparseAttentionTest, single_element_key_length_applies_to_all_seq
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 24, 1, 32}));
 }
 
+TEST_F(TypePropSparseAttentionTest, zero_selection_heads) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{2, 24, 5, 64}),
+                                          param(element::f32, PartialShape{2, 2, 12, 64}),
+                                          param(element::f32, PartialShape{2, 2, 12, 32}),
+                                          param(element::i32, PartialShape{2, 0, 5, 4}),
+                                          param(element::i32, PartialShape{2, 0, 5}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The number of selection heads must be a positive integer."));
+}
+
+TEST_F(TypePropSparseAttentionTest, zero_key_heads) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{2, 24, 5, 64}),
+                                          param(element::f32, PartialShape{2, 0, 12, 64}),
+                                          param(element::f32, PartialShape{2, 0, 12, 32}),
+                                          param(element::i32, PartialShape{2, 1, 5, 4}),
+                                          param(element::i32, PartialShape{2, 1, 5}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The number of key and value heads must be a positive integer."));
+}
+
+TEST_F(TypePropSparseAttentionTest, selection_heads_taken_from_block_count) {
+    // Hs is dynamic in block_indices, so the divisibility is checked against the merged dimension.
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{2, 24, 5, 64}),
+                                          param(element::f32, PartialShape{2, 2, 12, 64}),
+                                          param(element::f32, PartialShape{2, 2, 12, 32}),
+                                          param(element::i32, PartialShape{2, -1, 5, 4}),
+                                          param(element::i32, PartialShape{2, 5, 5}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The number of query heads must be divisible by the number of selection heads."));
+}
+
 TEST_F(TypePropSparseAttentionTest, symbols_propagation) {
     auto query_shape = PartialShape{-1, -1, -1, 64};
     auto value_shape = PartialShape{-1, 2, 12, -1};

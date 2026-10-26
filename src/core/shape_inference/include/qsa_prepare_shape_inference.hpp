@@ -138,12 +138,12 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
         if (merged.is_static()) {
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
-                                   merged.get_length() % 2 == 0,
-                                   "The number of rotated dimensions must be even. Got: ",
+                                   merged.get_length() > 0 && merged.get_length() % 2 == 0,
+                                   "The number of rotated dimensions must be a positive even integer. Got: ",
                                    merged);
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
-                                   !head_size.is_static() || merged.get_length() <= head_size.get_length(),
+                                   head_size.is_dynamic() || merged.get_length() <= head_size.get_length(),
                                    "The number of rotated dimensions must not exceed the head size of "
                                    "raw_index_keys.");
         }

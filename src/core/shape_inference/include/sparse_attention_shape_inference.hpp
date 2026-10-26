@@ -94,7 +94,12 @@ std::vector<TRShape> shape_infer(const SparseAttention* op,
                                input_shapes,
                                TDim::merge(merged, query_shape[3], key_shape[3]),
                                "The head size of query and key must be the same.");
-        if (query_shape[1].is_static() && key_shape[1].is_static() && key_shape[1].get_length() > 0) {
+        if (query_shape[1].is_static() && key_shape[1].is_static()) {
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   key_shape[1].get_length() > 0,
+                                   "The number of key and value heads must be a positive integer. Got: ",
+                                   key_shape[1]);
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
                                    query_shape[1].get_length() % key_shape[1].get_length() == 0,
@@ -109,6 +114,13 @@ std::vector<TRShape> shape_infer(const SparseAttention* op,
         }
     }
 
+    TDim selection_heads{};
+    TDim query_rows{};
+    if (block_indices_shape.rank().is_static()) {
+        selection_heads = block_indices_shape[1];
+        query_rows = block_indices_shape[2];
+    }
+
     if (block_indices_shape.rank().is_static() && block_count_shape.rank().is_static()) {
         TDim merged;
         NODE_SHAPE_INFER_CHECK(op,
@@ -117,31 +129,36 @@ std::vector<TRShape> shape_infer(const SparseAttention* op,
                                "The batch dimension of all the inputs must be the same.");
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
-                               TDim::merge(merged, block_indices_shape[1], block_count_shape[1]),
+                               TDim::merge(selection_heads, selection_heads, block_count_shape[1]),
                                "The number of selection heads of block_indices and block_count must be the same.");
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
-                               TDim::merge(merged, block_indices_shape[2], block_count_shape[2]),
+                               TDim::merge(query_rows, query_rows, block_count_shape[2]),
                                "The number of query rows of block_indices and block_count must be the same.");
     }
 
-    if (query_shape.rank().is_static() && block_indices_shape.rank().is_static()) {
-        if (query_shape[1].is_static() && block_indices_shape[1].is_static() &&
-            block_indices_shape[1].get_length() > 0) {
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           selection_heads.is_dynamic() || selection_heads.get_length() > 0,
+                           "The number of selection heads must be a positive integer. Got: ",
+                           selection_heads);
+
+    if (query_shape.rank().is_static()) {
+        if (query_shape[1].is_static() && selection_heads.is_static()) {
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
-                                   query_shape[1].get_length() % block_indices_shape[1].get_length() == 0,
+                                   query_shape[1].get_length() % selection_heads.get_length() == 0,
                                    "The number of query heads must be divisible by the number of selection heads.");
         }
-        if (query_shape[2].is_static() && block_indices_shape[2].is_static()) {
+        if (query_shape[2].is_static() && query_rows.is_static()) {
             const auto expected_rows = ov::util::ceil_div(query_shape[2].get_length(), query_block_size);
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
-                                   block_indices_shape[2].get_length() == expected_rows,
+                                   query_rows.get_length() == expected_rows,
                                    "The number of query rows must be ceil(L / query_block_size), expected: ",
                                    expected_rows,
                                    ", got: ",
-                                   block_indices_shape[2]);
+                                   query_rows);
         }
     }
 

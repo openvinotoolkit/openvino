@@ -224,7 +224,22 @@ TEST_F(TypePropQSAPrepareTest, odd_number_of_rotated_dimensions) {
                                           param(element::f32, PartialShape{1, 130}),
                                           4),
                     NodeValidationFailure,
-                    HasSubstr("The number of rotated dimensions must be even."));
+                    HasSubstr("The number of rotated dimensions must be a positive even integer."));
+}
+
+TEST_F(TypePropQSAPrepareTest, zero_rotated_dimensions) {
+    // An enabled rotation of zero dimensions would be indistinguishable from a disabled one.
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                                          param(element::f32, PartialShape{1, 0, 128}),
+                                          param(element::i32, PartialShape{1}),
+                                          param(element::f32, PartialShape{1, 8, 0}),
+                                          param(element::f32, PartialShape{1, 8, 0}),
+                                          param(element::f32, PartialShape{128}),
+                                          param(element::f32, PartialShape{1, 3, 128}),
+                                          param(element::f32, PartialShape{1, 0}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The number of rotated dimensions must be a positive even integer."));
 }
 
 TEST_F(TypePropQSAPrepareTest, too_many_rotated_dimensions) {
