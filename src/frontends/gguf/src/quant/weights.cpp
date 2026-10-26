@@ -100,6 +100,21 @@ WeightFormat get_weight_format(GgufTensorType qtype) {
     }
 }
 
+WeightFormat get_weight_format(GgufTensorType qtype,
+                               const ov::Tensor& weight,
+                               const ov::Tensor& zero_point,
+                               const std::string& name) {
+    const auto format = get_weight_format(qtype);
+    if (qtype != GGUF_TYPE_Q5_K) {
+        return format;
+    }
+    const auto et = weight.get_element_type();
+    OPENVINO_ASSERT((et == ov::element::u8 && zero_point) || (et == ov::element::i8 && !zero_point),
+                    "[GGUF] unsupported Q5_K storage layout: ",
+                    name);
+    return et == ov::element::i8 ? WeightFormat{FillKind::SYMMETRIC, 32, ov::element::i8} : format;
+}
+
 const ov::Tensor& get(const std::unordered_map<std::string, ov::Tensor>& weights, const std::string& key) {
     auto it = weights.find(key);
     OPENVINO_ASSERT(it != weights.end(), "[GGUF] missing weight tensor: ", key);
@@ -448,13 +463,9 @@ std::shared_ptr<ov::Node> make_weight_node(const WeightTensors& tensors,
                                            GgufTensorType qtype,
                                            const std::string& name) {
     OPENVINO_ASSERT(tensors.weight, "[GGUF] missing weight tensor: ", name);
-    const auto format = get_weight_format(qtype);
+    const auto format = get_weight_format(qtype, tensors.weight, tensors.zero_point, name);
     OPENVINO_ASSERT(!format.has_scales() || tensors.scales, "[GGUF] missing scales tensor: ", name);
-    const bool q5_k_i8 =
-        qtype == GGUF_TYPE_Q5_K && tensors.weight.get_element_type() == ov::element::i8 && !tensors.zero_point;
-    OPENVINO_ASSERT(!format.has_zero_point() || tensors.zero_point || q5_k_i8,
-                    "[GGUF] missing zero-point tensor: ",
-                    name);
+    OPENVINO_ASSERT(!format.has_zero_point() || tensors.zero_point, "[GGUF] missing zero-point tensor: ", name);
 
     std::shared_ptr<ov::Node> node;
     if (format.is_plain()) {
@@ -464,7 +475,7 @@ std::shared_ptr<ov::Node> make_weight_node(const WeightTensors& tensors,
         node = (w.get_element_type() == ov::element::f32)
                    ? std::static_pointer_cast<ov::Node>(cnst)
                    : std::make_shared<ov::op::v0::Convert>(cnst, ov::element::f32);
-    } else if (q5_k_i8) {
+    } else if (qtype == GGUF_TYPE_Q5_K && format.fill == FillKind::SYMMETRIC) {
         const auto& shape = tensors.weight.get_shape();
         const auto& scale_shape = tensors.scales.get_shape();
         OPENVINO_ASSERT(!shape.empty() && scale_shape.size() == shape.size() && shape.back() != 0 &&
@@ -475,7 +486,7 @@ std::shared_ptr<ov::Node> make_weight_node(const WeightTensors& tensors,
         OPENVINO_ASSERT(tensors.scales.get_element_type() == ov::element::f16,
                         "[GGUF] Q5_K symmetric scales must be f16: ",
                         name);
-        node = make_compressed(tensors, ov::element::i8, false);
+        node = make_compressed(tensors, format.node_element_type(), false);
     } else if (format.fill == FillKind::MXFP4) {
         node = make_mxfp4(tensors);
     } else {
@@ -532,25 +543,21 @@ GgufTensorType lookup_qtype(const std::string& base, const std::unordered_map<st
 // the weight and, if present for this qtype's format, the scales and zero-point.
 template <typename SliceFn>
 FusedQkvPart make_split_part(GgufTensorType qtype,
-                             const WeightFormat& format,
                              const std::unordered_map<std::string, ov::Tensor>& weights,
                              const std::string& base,
                              const SliceFn& slice) {
+    const auto& weight = get(weights, base + ".weight");
+    const auto zp = weights.find(base + ".zp");
+    const ov::Tensor zero_point = zp != weights.end() ? zp->second : ov::Tensor{};
+    const auto format = get_weight_format(qtype, weight, zero_point, base);
     FusedQkvPart part;
     part.qtype = qtype;
-    part.tensors.weight = slice(get(weights, base + ".weight"));
+    part.tensors.weight = slice(weight);
     if (format.has_scales()) {
         part.tensors.scales = slice(get(weights, base + ".scales"));
     }
     if (format.has_zero_point()) {
-        const auto zp = weights.find(base + ".zp");
-        if (zp != weights.end()) {
-            part.tensors.zero_point = slice(zp->second);
-        } else {
-            OPENVINO_ASSERT(qtype == GGUF_TYPE_Q5_K && part.tensors.weight.get_element_type() == ov::element::i8,
-                            "[GGUF] missing zero-point tensor: ",
-                            base);
-        }
+        part.tensors.zero_point = slice(get(weights, base + ".zp"));
     }
     return part;
 }
@@ -562,7 +569,6 @@ std::array<FusedQkvPart, 3> split_fused_qkv_extracted(const std::string& base,
                                                       size_t n_k,
                                                       size_t n_v) {
     const GgufTensorType qtype = lookup_qtype(base, qtypes);
-    const auto format = get_weight_format(qtype);
 
     const size_t total_rows = get(weights, base + ".weight").get_shape()[0];
     OPENVINO_ASSERT(n_q + n_k + n_v == total_rows, "[GGUF] fused qkv row mismatch for ", base);
@@ -574,7 +580,7 @@ std::array<FusedQkvPart, 3> split_fused_qkv_extracted(const std::string& base,
     for (size_t i = 0; i < 3; ++i) {
         const size_t r0 = ranges[i].first;
         const size_t r1 = ranges[i].second;
-        out[i] = make_split_part(qtype, format, weights, base, [&](const ov::Tensor& t) {
+        out[i] = make_split_part(qtype, weights, base, [&](const ov::Tensor& t) {
             return slice_leading(t, r0, r1);
         });
     }
@@ -601,7 +607,6 @@ std::array<FusedQkvPart, 2> split_interleaved_q_gate(const std::string& base,
                                                      const std::unordered_map<std::string, GgufTensorType>& qtypes,
                                                      size_t head_dim) {
     const GgufTensorType qtype = lookup_qtype(base, qtypes);
-    const auto format = get_weight_format(qtype);
 
     const size_t block = 2 * head_dim;
     OPENVINO_ASSERT(get(weights, base + ".weight").get_shape()[0] % block == 0,
@@ -612,7 +617,7 @@ std::array<FusedQkvPart, 2> split_interleaved_q_gate(const std::string& base,
 
     std::array<FusedQkvPart, 2> out;
     for (size_t i = 0; i < 2; ++i) {
-        out[i] = make_split_part(qtype, format, weights, base, [&](const ov::Tensor& t) {
+        out[i] = make_split_part(qtype, weights, base, [&](const ov::Tensor& t) {
             return gather_rows_strided(t, block, head_dim, offsets[i]);
         });
     }

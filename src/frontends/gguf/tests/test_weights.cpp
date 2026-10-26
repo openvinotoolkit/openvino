@@ -470,3 +470,27 @@ TEST(GGUFQ5KRequant, RejectsMalformedSymmetricGraphTensors) {
     tensors.scales = ov::Tensor(ov::element::f16, {2, 8});
     EXPECT_THROW(make_weight_node(tensors, GGUF_TYPE_Q5_K), ov::Exception);
 }
+
+TEST(GGUFQ5KRequant, RejectsUnsupportedStorageLayouts) {
+    using namespace ov::frontend::gguf;
+    const std::unordered_map<std::string, GgufTensorType> qtypes{{"fused.qtype", GGUF_TYPE_Q5_K}};
+    for (const auto& type : {ov::element::i8, ov::element::u8, ov::element::f16}) {
+        for (const auto& zp_type : {ov::element::dynamic, ov::element::u8, ov::element::f16}) {
+            if ((type == ov::element::i8 && zp_type == ov::element::dynamic) ||
+                (type == ov::element::u8 && zp_type != ov::element::dynamic))
+                continue;
+            SCOPED_TRACE(type.get_type_name());
+            SCOPED_TRACE(zp_type.get_type_name());
+            WeightTensors tensors{ov::Tensor(type, {4, 256}), ov::Tensor(ov::element::f16, {4, 8}), {}};
+            std::unordered_map<std::string, ov::Tensor> weights{{"fused.weight", tensors.weight},
+                                                                {"fused.scales", tensors.scales}};
+            if (zp_type != ov::element::dynamic) {
+                tensors.zero_point = ov::Tensor(zp_type, {4, 8});
+                weights.emplace("fused.zp", tensors.zero_point);
+            }
+            EXPECT_THROW(make_weight_node(tensors, GGUF_TYPE_Q5_K), ov::Exception);
+            EXPECT_THROW(split_fused_qkv_extracted("fused", weights, qtypes, 2, 1, 1), ov::Exception);
+            EXPECT_THROW(split_interleaved_q_gate("fused", weights, qtypes, 1), ov::Exception);
+        }
+    }
+}
