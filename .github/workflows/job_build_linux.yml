@@ -261,7 +261,7 @@ jobs:
 
       - name: Cmake build - OpenVINO
         id: cmake_build_openvino
-        run: cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+        run: cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
