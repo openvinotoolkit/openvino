@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "error: must use 'struct' tag to refer to type 'layout' in this scope; struct 'layout' is hidden by a non-type declaration of 'layout' (namespace ov::layout in core/layout.hpp) when compiling intel_gpu ocl_v2/msda_opt.hpp lambda parameters const layout& l|Code Issue",
+  "signature_hash": "1a3dac07bf0e893a",
+  "title": "GPU MSDAOpt build fails with 'must use struct tag' for ov::layout vs ::layout name clash",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-10-26T00:42:05Z",
+  "last_seen": "2026-10-26T00:42:05Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/39883798354"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38701"
+  ],
+  "recent_timestamps": [
+    "2026-10-26T00:42:05Z"
+  ],
+  "rerun_search_string": null
+}

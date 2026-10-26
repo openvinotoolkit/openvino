@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-26-00-42-05-000-39883798354",
+  "timestamp": "2026-10-26T00:42:05Z",
+  "run_id": "39883798354",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39883798354",
+  "workflow_name": "Android ARM64",
+  "pr_number": "38701",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38701",
+  "author": "ahnyoung-paul",
+  "category": "Code Issue",
+  "title": "GPU MSDAOpt build fails with 'must use struct tag' for ov::layout vs ::layout name clash",
+  "signature": "error: must use 'struct' tag to refer to type 'layout' in this scope; struct 'layout' is hidden by a non-type declaration of 'layout' (namespace ov::layout in core/layout.hpp) when compiling intel_gpu ocl_v2/msda_opt.hpp lambda parameters const layout& l|Code Issue",
+  "signature_hash": "1a3dac07bf0e893a",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build arm64",
+      "conclusion": "failure",
+      "symptom": "CMake - build OpenVINO step fails compiling src/plugins/intel_gpu/src/graph/registry/msda_impls.cpp (via msda_opt.hpp) with clang errors about 'layout' name lookup"
+    },
+    {
+      "name": "Build x64",
+      "conclusion": "failure",
+      "symptom": "Identical msda_opt.hpp compile failure as Build arm64, same two errors at lines 38 and 41"
+    },
+    {
+      "name": "ci/gha_overall_status_android",
+      "conclusion": "failure",
+      "symptom": "Aggregate status gate fails because the arm64/x64 build jobs it depends on failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] src/plugins/intel_gpu/graph/CMakeFiles/openvino_intel_gpu_graph.dir/registry/msda_impls.cpp.o",
+    "/__w/openvino/openvino/openvino/src/plugins/intel_gpu/src/graph/impls/ocl_v2/msda_opt.hpp:38:37: error: must use 'struct' tag to refer to type 'layout' in this scope",
+    "38 |         const auto plain = [](const layout& l) {",
+    "/__w/openvino/openvino/openvino/src/core/include/openvino/core/layout.hpp:109:11: note: struct 'layout' is hidden by a non-type declaration of 'layout' here",
+    "109 | namespace layout {",
+    "/__w/openvino/openvino/openvino/src/plugins/intel_gpu/src/graph/impls/ocl_v2/msda_opt.hpp:41:42: error: must use 'struct' tag to refer to type 'layout' in this scope",
+    "41 |         const auto fits_int32 = [](const layout& l) {",
+    "ninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "The new file src/plugins/intel_gpu/src/graph/impls/ocl_v2/msda_opt.hpp (added by PR #37749, 'Support ShapeOf derived MHA Broadcast and Reshape', merged just before this queue run at commit fde316cf) has `using namespace cldnn;` at file scope and then declares lambdas with parameter type `const layout& l`. cldnn::layout is a struct, but `openvino/core/layout.hpp` (included transitively) also declares a namespace `ov::layout` that is pulled in via `using namespace ov;`/ADL in the same translation unit, so plain `layout` becomes ambiguous between the struct and the namespace; clang requires an explicit `struct layout` tag to disambiguate in that scope. This bug is pre-existing in the newly merged ocl_v2/msda_opt.hpp and is unrelated to the content of PR #38701 (GPU VariableState::set_state() optimization), whose changed files do not touch msda_opt.hpp/msda_impls.cpp at all. The merge-queue run for #38701 simply rebuilds on top of the already-broken master HEAD (fde316cf), so both the arm64 and x64 Android builds fail identically regardless of #38701's own changes.",
+  "reproduction_steps": "1. Checkout commit fde316cf48b371dd495e2e0ce840056a6f8a8356 (or later, until fixed) on master.\n2. Configure an Android (NDK clang) build of OpenVINO with ENABLE_CM_FOR_GPU, as the CI 'Build arm64'/'Build x64' Android jobs do.\n3. Run `ninja openvino_intel_gpu_graph` (or the full build).\n4. Observe the same two 'must use struct tag' errors compiling src/plugins/intel_gpu/src/graph/registry/msda_impls.cpp via msda_opt.hpp.",
+  "recommended_actions": [
+    "In src/plugins/intel_gpu/src/graph/impls/ocl_v2/msda_opt.hpp, qualify the lambda parameter types explicitly as `struct layout` (i.e. `[](const struct layout& l)`) at lines 38 and 41, or better, use `const cldnn::layout&` explicitly and drop the broad `using namespace cldnn;` reliance for this symbol.",
+    "Audit other new files under src/plugins/intel_gpu/src/graph/impls/ocl_v2/ introduced by PR #37749 for the same `using namespace cldnn;` + bare `layout` pattern, since cldnn::layout vs ov::layout (namespace) collisions can recur wherever both headers are visible.",
+    "Re-run the failed CMake/ninja build jobs on the merge-queue run once the fix lands on master; this is unrelated to PR #38701 itself, so #38701 can be safely re-added to the queue after the fix merges."
+  ],
+  "prevention_strategies": "Add a CI/code-review check (or clang-tidy rule) flagging bare un-prefixed `layout` identifiers in intel_gpu ocl_v2/ files that rely on `using namespace cldnn;`, since ov::layout (a namespace) and cldnn::layout (a struct) share the same unqualified name and silently compile on compilers/flag combinations that don't hit the ambiguity, making it easy to miss in local x86/Linux clang builds that behave differently from the Android NDK clang toolchain used in CI.",
+  "historical_context": "No prior occurrence of this specific 'layout' name-clash signature found in the pattern database (first occurrence). The bug was introduced by PR #37749 merged just before this run (commit fde316cf) and is unrelated to the PR (#38701) that triggered this merge-queue run."
+}
