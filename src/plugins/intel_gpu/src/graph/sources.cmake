@@ -168,6 +168,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/moe_mask_gen_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/moe_router_fused_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/moe_scatter_reduction_inst.h
+    ${CMAKE_CURRENT_LIST_DIR}/include/msda_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/multiclass_nms_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/multinomial_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/mutable_data_inst.h
@@ -254,6 +255,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/moe_mask_gen.cpp
     ${CMAKE_CURRENT_LIST_DIR}/moe_router_fused.cpp
     ${CMAKE_CURRENT_LIST_DIR}/moe_scatter_reduction.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/msda.cpp
     ${CMAKE_CURRENT_LIST_DIR}/multiclass_nms.cpp
     ${CMAKE_CURRENT_LIST_DIR}/multinomial.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mutable_data.cpp
@@ -322,6 +324,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/registry/moe_mask_gen_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/moe_router_fused_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/moe_scatter_reduction_impls.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/registry/msda_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/mvn_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/non_max_suppression_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/pa_kv_reorder_impls.cpp
@@ -382,6 +385,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/stft.cpp
     ${CMAKE_CURRENT_LIST_DIR}/strided_slice.cpp
     ${CMAKE_CURRENT_LIST_DIR}/swiglu.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tensor_conversion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tile.cpp
     ${CMAKE_CURRENT_LIST_DIR}/topology.cpp
     ${CMAKE_CURRENT_LIST_DIR}/unique.cpp

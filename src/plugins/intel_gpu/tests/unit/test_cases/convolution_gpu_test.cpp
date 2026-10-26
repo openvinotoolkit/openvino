@@ -5994,7 +5994,9 @@ struct convolution_gpu_fs_byx_fsv32_crop : public ::testing::TestWithParam<TestP
 INSTANTIATE_TEST_SUITE_P(convolution_gpu_with_crop,
     convolution_gpu_fs_byx_fsv32_crop,
     ::testing::Values(
-        TestParamType_convolution_gpu_with_crop(1, 14, 24, 1, 0, true)
+        TestParamType_convolution_gpu_with_crop(1, 14, 24, 1, 0, true),
+        TestParamType_convolution_gpu_with_crop(1, 13, 32, 1, 0, false),
+        TestParamType_convolution_gpu_with_crop(3, 16, 40, 1, 0, true)
     ),
     convolution_gpu_fs_byx_fsv32_crop::PrintToStringParamName);
 
