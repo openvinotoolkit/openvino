@@ -20,6 +20,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/math_util.hpp"
 
 namespace ov::test {
 
@@ -659,7 +660,7 @@ TEST_F(HintPrefetchAsyncTest, returned_future_makes_region_resident) {
 
     const size_t page = static_cast<size_t>(util::get_system_page_size());
     EXPECT_EQ(utils::count_resident_pages(mapped->data_as<char>() + prefetch_offset, prefetch_size),
-              (prefetch_size + page - 1) / page);
+              util::ceil_div(prefetch_size, page));
     EXPECT_EQ(read_mapped(*mapped), data);
 }
 

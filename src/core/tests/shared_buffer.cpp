@@ -634,7 +634,7 @@ static std::vector<std::shared_ptr<ov::Node>> make_mapped_constants(const std::s
                                                                     size_t count,
                                                                     size_t size) {
     // hint_prefetch_async must return a handle PrefetchScheduler::acquire() can wait on without blocking.
-    ON_CALL(*mock, hint_prefetch_async(::testing::_, ::testing::_)).WillByDefault(::testing::Invoke([](size_t, size_t) {
+    ON_CALL(*mock, hint_prefetch_async(::testing::_, ::testing::_)).WillByDefault(::testing::Invoke([](auto, auto) {
         std::promise<void> ready;
         ready.set_value();
         return ready.get_future().share();

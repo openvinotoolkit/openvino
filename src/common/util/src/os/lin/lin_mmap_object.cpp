@@ -118,21 +118,20 @@ class MapHolder final : public MappedMemory {
     std::vector<std::shared_future<void>> m_pending_prefetch;
 
     void adopt_pending_prefetch(std::shared_future<void> task) {
-        if (!task.valid()) {
-            return;
+        if (task.valid()) {
+            std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
+            // Reap already-finished handles so the vector doesn't grow without bound across repeated
+            // hint_prefetch_async() calls over this mapping's lifetime.
+            m_pending_prefetch.erase(std::remove_if(m_pending_prefetch.begin(),
+                                                    m_pending_prefetch.end(),
+                                                    [](std::shared_future<void>& pending) {
+                                                        return !pending.valid() ||
+                                                               pending.wait_for(std::chrono::seconds(0)) ==
+                                                                   std::future_status::ready;
+                                                    }),
+                                     m_pending_prefetch.end());
+            m_pending_prefetch.push_back(std::move(task));
         }
-        std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
-        // Reap already-finished handles so the vector doesn't grow without bound across repeated
-        // hint_prefetch_async() calls over this mapping's lifetime.
-        m_pending_prefetch.erase(std::remove_if(m_pending_prefetch.begin(),
-                                                m_pending_prefetch.end(),
-                                                [](std::shared_future<void>& pending) {
-                                                    return !pending.valid() ||
-                                                           pending.wait_for(std::chrono::seconds(0)) ==
-                                                               std::future_status::ready;
-                                                }),
-                                 m_pending_prefetch.end());
-        m_pending_prefetch.push_back(std::move(task));
     }
 
     void wait_for_pending_prefetch() noexcept {
@@ -241,8 +240,9 @@ public:
                                                   util::prefetch_thread_count(region.m_length));
             adopt_pending_prefetch(future);
             return future;
+        } else {
+            return {};
         }
-        return {};
     }
 };
 

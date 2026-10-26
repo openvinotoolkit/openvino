@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <future>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -46,24 +47,28 @@ public:
      */
     explicit OrderedPrefetchScheduler(const std::vector<std::shared_ptr<ov::Node>>& ops,
                                       size_t lookahead = 2,
-                                      size_t min_bytes = 100UL * 1024 * 1024);
+                                      size_t min_bytes = 100 * one_mib);
 
     void acquire(const ov::Node& node) noexcept override;
     void release(const ov::Node& node) noexcept override;
 
 private:
-    enum class State { pending, prefetched, released };
+    // pending: not yet prefetched. prefetch_requested: hint_prefetch() was called, m_futures may still be
+    // running. released: hint_evict() was called; terminal, never re-prefetched.
+    enum class State { pending, prefetch_requested, released };
 
     void prefetch_ahead() noexcept;
+    std::optional<size_t> index_of(const ov::Node& node) const noexcept;
 
-    std::vector<std::shared_ptr<ov::op::v0::Constant>> m_constants;
-    std::vector<State> m_states;
-    std::vector<std::shared_future<void>> m_futures;
-    std::unordered_map<const ov::Node*, size_t> m_indices;
-    size_t m_lookahead;
-    size_t m_min_bytes;
-    size_t m_next = 0;
-    size_t m_in_flight = 0;
-    size_t m_in_flight_bytes = 0;
+    std::vector<std::weak_ptr<ov::op::v0::Constant>> m_constants;  // Does not keep constants alive.
+    std::vector<size_t> m_sizes;                                   // Byte size, cached since weak_ptr may expire.
+    std::vector<State> m_states;                                   // Indexed like m_constants.
+    std::vector<std::shared_future<void>> m_futures;               // Indexed like m_constants.
+    std::unordered_map<const ov::Node*, size_t> m_indices;  // Constant address -> index into the vectors above.
+    size_t m_lookahead;            // Minimum number of constants kept prefetched and not released.
+    size_t m_min_bytes;            // Minimum number of prefetched-and-not-released bytes.
+    size_t m_next;                 // Index of the next constant to prefetch.
+    size_t m_in_flight;            // Number of constants currently prefetched and not released.
+    size_t m_in_flight_bytes;      // Bytes of the m_in_flight constants.
 };
 }  // namespace ov::util

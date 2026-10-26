@@ -65,7 +65,7 @@ std::shared_future<void> AlignedBuffer::hint_prefetch_async() const {
     return {};
 }
 
-std::shared_future<void> AlignedBuffer::hint_prefetch_async(size_t offset, size_t size) const {
+std::shared_future<void> AlignedBuffer::hint_prefetch_async(size_t, size_t) const {
     return {};
 }
 
