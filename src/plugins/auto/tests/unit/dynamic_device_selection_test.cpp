@@ -236,6 +236,32 @@ TEST_F(AutoDynamicDeviceSelectionTest, each_device_is_compiled_only_once_when_sw
     run_inferences(compiled_model, 4);
 }
 
+TEST_F(AutoDynamicDeviceSelectionTest, fallback_onto_a_cached_device_does_not_compile_it_again) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0,GPU.1"));
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                          _))
+        .WillByDefault(ov::Throw("mock compile failure"));
+    // initial device, the device picked for the first inference, then the fallback after GPU.1 fails to compile
+    expect_selected_devices({"GPU.0", "GPU.1", "GPU.0"});
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("GPU.0")),
+                              ::testing::Matcher<const ov::AnyMap&>(_)))
+        .Times(1);
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                              ::testing::Matcher<const ov::AnyMap&>(_)))
+        .Times(1);
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, 1);
+}
+
 // A single worker per device used to be forbidden because the classic schedule could stall, the execution gate
 // makes it safe again, so a long sequence of inferences must keep completing.
 TEST_F(AutoDynamicDeviceSelectionTest, repeated_inferences_with_a_single_worker_do_not_stall) {
@@ -771,7 +797,8 @@ TEST_F(AutoDynamicDeviceSelectionTest, exhausted_compile_cascade_releases_each_r
     gpu0_over_threshold->store(true);
     std::shared_ptr<ov::IAsyncInferRequest> infer_request;
     OV_ASSERT_NO_THROW(infer_request = compiled_model->create_infer_request());
-    EXPECT_THROW(infer_request->infer(), ov::Exception);
+    // GPU.1 and GPU.2 fail to compile, the cascade ends on the cached GPU.0 which must not be compiled again
+    OV_ASSERT_NO_THROW(infer_request->infer());
 
     // the model still runs on GPU.0, so a lower priority instance must keep getting GPU.1
     auto verification_devices = plugin->Plugin::parse_meta_devices("GPU.0,GPU.1", config);

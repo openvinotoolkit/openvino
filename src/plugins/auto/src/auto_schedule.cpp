@@ -452,6 +452,14 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     }
     // select_device() registered the reselected device, so a failure on it has to unregister it again
     context.m_priority_released = false;
+    if (m_context->m_dynamic_device_selection) {
+        const auto cached = m_dynamic_compiled_models.find(context.m_device_info.device_name);
+        if (cached != m_dynamic_compiled_models.end()) {
+            context.m_compiled_model = cached->second;
+            context.m_is_load_success = true;
+            return;
+        }
+    }
     // if the select device is CPU, need to check the config of m_compile_context[CPU]
     // if they are same, do not need to compile again
     cur_dev_is_cpu = (context.m_device_info.device_name.find("CPU") != std::string::npos);

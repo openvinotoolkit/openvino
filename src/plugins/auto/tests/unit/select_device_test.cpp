@@ -833,6 +833,17 @@ TEST_F(SelectDeviceWithLowPowerDevicePrecedenceTest, lowPowerDeviceSelectedEvenW
     EXPECT_EQ(result.unique_name, "NPU_01");
 }
 
+TEST_F(SelectDeviceWithLowPowerDevicePrecedenceTest, lowPowerDeviceSelectedWhenPriorityFilteringRemovesAllCandidates) {
+    std::vector<DeviceInformation> cpuOnly = {{"CPU", {}, -1, "01", "CPU_01", 0}};
+    // a higher priority model holds the only candidate
+    plugin->register_priority(0, "CPU_01");
+    EXPECT_CALL(*plugin, get_low_power_mode()).WillOnce(Return(true));
+    auto result = plugin->select_device(cpuOnly, netPrecision, 2, {thresholds, {}}, devices[1]);
+    EXPECT_EQ(result.unique_name, "NPU_01");
+    plugin->unregister_priority(2, result.unique_name);
+    plugin->unregister_priority(0, "CPU_01");
+}
+
 TEST_F(SelectDeviceWithLowPowerDevicePrecedenceTest, fallsBackToThresholdWhenNotInLowPowerMode) {
     EXPECT_CALL(*plugin, get_low_power_mode()).WillOnce(Return(false));
     auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, {}}, devices[1]);

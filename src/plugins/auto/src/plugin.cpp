@@ -855,12 +855,12 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         });
         return it != valid_devices.end() ? &(*it) : &low_power_device.value();
     };
-    if (valid_devices.empty()) {
+    if (auto* low_power_selected = find_low_power_device()) {
+        ptr_select_device = low_power_selected;
+    } else if (valid_devices.empty()) {
         // after remove higher priority device,but the available devices is null,
         // so select the last device of all available Devices.
         ptr_select_device = &last_device;
-    } else if (auto* low_power_selected = find_low_power_device()) {
-        ptr_select_device = low_power_selected;
     } else {
         std::unordered_map<std::string, float> device_utilizations;
         if (!utilization_thresholds.empty() || !perf_curve_table.empty()) {
