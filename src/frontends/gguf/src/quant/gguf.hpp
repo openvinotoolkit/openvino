@@ -11,59 +11,11 @@
 #include <variant>
 #include <vector>
 
+#include "openvino/frontend/gguf/parser.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov::frontend::gguf {
-
-// GGUF tensor (quantization) type ids, matching the on-disk GGUF format numbering.
-// Only the subset the frontend handles is enumerated explicitly; others are accepted
-// numerically but rejected at dequant time.
-enum GgufTensorType {
-    GGUF_TYPE_F32 = 0,
-    GGUF_TYPE_F16 = 1,
-    GGUF_TYPE_Q4_0 = 2,
-    GGUF_TYPE_Q4_1 = 3,
-    GGUF_TYPE_Q5_0 = 6,
-    GGUF_TYPE_Q5_1 = 7,
-    GGUF_TYPE_Q8_0 = 8,
-    GGUF_TYPE_Q8_1 = 9,
-    GGUF_TYPE_Q2_K = 10,
-    GGUF_TYPE_Q3_K = 11,
-    GGUF_TYPE_Q4_K = 12,
-    GGUF_TYPE_Q5_K = 13,
-    GGUF_TYPE_Q6_K = 14,
-    GGUF_TYPE_Q8_K = 15,
-    GGUF_TYPE_I8 = 24,
-    GGUF_TYPE_I16 = 25,
-    GGUF_TYPE_I32 = 26,
-    GGUF_TYPE_I64 = 27,
-    GGUF_TYPE_F64 = 28,
-    GGUF_TYPE_BF16 = 30,
-    GGUF_TYPE_MXFP4 = 39,  // 4-bit microscaling (gpt-oss): 1-byte E8M0 scale + 32x E2M1
-    GGUF_TYPE_Q1_0 = 41,   // binary: f16 scale + 128x 1-bit codes, value = bit ? +scale : -scale
-    GGUF_TYPE_Q2_0 = 42,   // ternary: f16 scale + 64x 2-bit codes, value = (code - 1) * scale
-    GGUF_TYPE_PQ2_0 = 142,
-    GGUF_TYPE_PTQ1_0 = 143,
-    GGUF_TYPE_COUNT,
-};
-
-// GGUF metadata value type ids (the kv-pair value encoding).
-enum GgufValueType {
-    GGUF_VALUE_TYPE_UINT8 = 0,
-    GGUF_VALUE_TYPE_INT8 = 1,
-    GGUF_VALUE_TYPE_UINT16 = 2,
-    GGUF_VALUE_TYPE_INT16 = 3,
-    GGUF_VALUE_TYPE_UINT32 = 4,
-    GGUF_VALUE_TYPE_INT32 = 5,
-    GGUF_VALUE_TYPE_FLOAT32 = 6,
-    GGUF_VALUE_TYPE_BOOL = 7,
-    GGUF_VALUE_TYPE_STRING = 8,
-    GGUF_VALUE_TYPE_ARRAY = 9,
-    GGUF_VALUE_TYPE_UINT64 = 10,
-    GGUF_VALUE_TYPE_INT64 = 11,
-    GGUF_VALUE_TYPE_FLOAT64 = 12,
-};
 
 // A single tensor descriptor parsed from the GGUF file. `weights_data` points directly
 // into the memory-mapped file (zero-copy); the owning reader keeps the mapping alive.
@@ -80,18 +32,6 @@ struct GgufTensor {
     uint64_t num_weights = 0;  // total number of elements
     const uint8_t* weights_data = nullptr;
 };
-
-// A metadata value: scalars are stored as an ov::Tensor of shape {} (so that numeric
-// metadata round-trips through ov::element types), strings as std::string, and arrays as
-// an ov::Tensor of shape {n} or a vector<std::string>.
-using GGUFMetaData =
-    std::variant<std::monostate, float, int, ov::Tensor, std::string, std::vector<std::string>, std::vector<int32_t>>;
-
-// Parsed arrays own repacked quantized buffers and keep non-quantized mmap views alive.
-using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
-                            std::unordered_map<std::string, ov::Tensor>,
-                            std::unordered_map<std::string, GgufTensorType>,
-                            std::shared_ptr<ov::MappedMemory>>;
 
 // Fill pre-allocated weights and f16 scales from a symmetric GGUF tensor
 // (Q8_0/Q5_0/Q6_K: i8 weights; Q4_0/Q3_K: i4 weights; Q1_0: u1 weights).
@@ -130,9 +70,6 @@ bool requantize_q8_0_channelwise_faithful(const GgufTensor& tensor,
 void dequant_row_q4_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q5_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
-
-// Parse GGUF metadata and tensors. Each repacked quantized tensor owns its buffer.
-GGUFLoad get_gguf_data(const std::string& file);
 
 // Extract the DECODER-family architecture config (architecture, layer_num, head_num, head_size,
 // head_num_kv, hidden_size, max_position_embeddings, rms_norm_eps, rope_freq_base, file_type, ...)

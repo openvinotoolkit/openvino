@@ -34,7 +34,7 @@ Projector files convert to encoder models; see [multimodal conversion](docs/mmpr
 | Location | Purpose |
 | --- | --- |
 | [include](include/openvino/frontend/gguf/) | Frontend, decoder, tokenizer metadata and conversion-pass interfaces |
-| [dev_api](dev_api/openvino/frontend/gguf/) | Builder, architecture and projector extension APIs; no cross-release compatibility |
+| [dev_api](dev_api/openvino/frontend/gguf/) | Container parser, builder, architecture and projector extension APIs; no cross-release compatibility |
 | [src/builder](src/builder/) | Registries, native model builders and graph construction |
 | [src/quant](src/quant/) | GGUF parsing, weight loading and quantization |
 | [src/op](src/op/) and [op_table.cpp](src/op_table.cpp) | Operation translators and their registration |

@@ -431,7 +431,7 @@ ov::Shape get_shape(const GgufTensor& tensor) {
     return shape;
 }
 
-GGUFLoad get_gguf_data(const std::string& file) {
+GGUFLoad get_gguf_data(const std::string& file, bool load_weights) {
     std::unordered_map<std::string, GGUFMetaData> metadata;
     std::unordered_map<std::string, ov::Tensor> arrays;
     std::unordered_map<std::string, GgufTensorType> qtype;
@@ -457,6 +457,10 @@ GGUFLoad get_gguf_data(const std::string& file) {
         uint32_t vtype = cur.read<uint32_t>();
         auto& slot = metadata.insert({key, GGUFMetaData{}}).first->second;
         read_metadata_value(cur, vtype, slot);
+    }
+
+    if (!load_weights) {
+        return {std::move(metadata), {}, {}, std::move(mapped)};
     }
 
     uint64_t alignment = GGUF_DEFAULT_ALIGNMENT;
