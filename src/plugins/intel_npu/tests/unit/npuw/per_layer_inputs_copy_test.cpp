@@ -217,4 +217,13 @@ TEST(NPUWInferRequestUtils, CopyByPlanesAcceptsNonContiguousDestinationSlice) {
     EXPECT_NO_THROW(ov::npuw::util::copy_by_planes(src, dst_slice));
 }
 
+TEST(NPUWInferRequestUtils, CopyByPlanesRejectsSourceSlicedOnLastAxis) {
+    auto parent = make_tensor({1, 1, 1, 8});
+    auto dst_slice = ov::npuw::util::make_tensor_slice(parent, 3, 7u, 8u);
+    auto src = make_tensor({1, 1, 8, 1});
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::util::copy_by_planes(src, dst_slice),
+                                  ov::AssertFailure,
+                                  "destination plane is not densely laid out");
+}
+
 }  // namespace

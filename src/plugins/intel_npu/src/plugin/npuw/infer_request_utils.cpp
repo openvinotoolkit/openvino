@@ -67,6 +67,8 @@ void ov::npuw::util::copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr
 
     OPENVINO_ASSERT(num_planes == 0u || plane_size_in_bytes <= dst_plane_size_in_bytes,
                     "copy_by_planes: source plane size exceeds destination plane capacity");
+    OPENVINO_ASSERT(dst_tensor->get_strides()[S] == src_tensor->get_strides()[S],
+                    "copy_by_planes: destination plane is not densely laid out at the sequence dimension");
 
     for (size_t i = 0; i < num_planes; ++i) {
         std::copy_n(src_tensor_data, plane_size_in_bytes, dst_tensor_data);
