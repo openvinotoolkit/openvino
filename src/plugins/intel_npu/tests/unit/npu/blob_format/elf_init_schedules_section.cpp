@@ -6,10 +6,10 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "compiler_schedules_sections.hpp"
-#include "intel_npu/common/blob_reader_interface.hpp"
-#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/section_type.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "openvino/runtime/hsm_deferred_writer.hpp"
+#include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/util/codec_xor.hpp"
 #include "utils.hpp"
 
@@ -108,9 +108,8 @@ TEST_F(ELFInitSchedulesSectionTest, CompatibilityReqsSubexpression) {
 TEST_F(ELFInitSchedulesSectionTest, InvalidStateWrite) {
     const std::shared_ptr<ELFInitSchedulesSection> section = create_section_using_dummy_content();
     std::ostringstream stream;
-    BlobWriterInterface writer(stream, 0);
     // Invalid state. The attribute should have been a graph
-    OV_EXPECT_THROW(section->write(writer), ov::Exception, _);
+    section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
 }
 
 TEST_F(ELFInitSchedulesSectionTest, DecryptThrowsIfMissingCallback) {

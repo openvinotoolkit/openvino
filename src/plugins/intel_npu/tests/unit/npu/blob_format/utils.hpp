@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include "intel_npu/common/blob_writer.hpp"
+#include "openvino/runtime/hsm_writer.hpp"
 
 namespace ov {
 namespace unit_test {
 namespace intel_npu {
 
-::intel_npu::BlobWriterInterface create_default_writer_interface(std::ostream& stream);
+ov::runtime::hsm::SectionSink create_generic_section_sink(std::ostream& stream);
 
 }  // namespace intel_npu
 }  // namespace unit_test

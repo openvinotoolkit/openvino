@@ -6,9 +6,9 @@
 
 #include <gtest/gtest.h>
 
-#include "intel_npu/common/blob_reader.hpp"
-#include "intel_npu/common/blob_writer.hpp"
 #include "openvino/core/layout.hpp"
+#include "openvino/runtime/hsm_deferred_writer.hpp"
+#include "openvino/runtime/hsm_reader.hpp"
 #include "utils.hpp"
 
 namespace {
@@ -38,8 +38,7 @@ protected:
 using ValidLayouts = IOLayoutsSectionTest;
 
 TEST_P(ValidLayouts, WriteRead) {
-    BlobWriterInterface writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
-    section->write(writer);
+    section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
 
     const std::string buffer = stream.str();
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
@@ -89,8 +88,7 @@ TEST_F(IOLayoutsSectionRead, TooSmallSectionLength) {
 TEST_F(IOLayoutsSectionRead, LessLayoutsThanExpected) {
     IOLayoutsSection real_section({ov::Layout("NCHW"), ov::Layout("NHWC")}, {ov::Layout("NCHW"), ov::Layout("NHWC")});
     std::stringstream stream;
-    auto writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
-    real_section.write(writer);
+    real_section.encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
     std::string buffer = stream.str();
 
     // overwrite both numbers of layouts
@@ -107,8 +105,7 @@ TEST_F(IOLayoutsSectionRead, LessLayoutsThanExpected) {
 TEST_F(IOLayoutsSectionRead, MoreLayoutsThanExpected) {
     IOLayoutsSection real_section({ov::Layout("NCHW"), ov::Layout("NHWC")}, {ov::Layout("NCHW"), ov::Layout("NHWC")});
     std::stringstream stream;
-    auto writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
-    real_section.write(writer);
+    real_section.encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
     std::string buffer = stream.str();
 
     // overwrite both numbers of layouts
@@ -125,8 +122,7 @@ TEST_F(IOLayoutsSectionRead, MoreLayoutsThanExpected) {
 TEST_F(IOLayoutsSectionRead, InvalidLayoutNoThrow) {
     IOLayoutsSection valid_section({ov::Layout("N")}, {});
     std::stringstream stream;
-    auto writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
-    valid_section.write(writer);
+    valid_section.encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
     std::string buffer = stream.str();
 
     // overwrite input layout '[N]' with '[%]'
@@ -153,8 +149,7 @@ TEST_F(IOLayoutsSectionRead, InvalidLayoutNoThrow) {
 TEST_F(IOLayoutsSectionRead, AlteredLayoutSizeTooBig) {
     IOLayoutsSection real_section({ov::Layout("NCHW")}, {});
     std::stringstream stream;
-    auto writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
-    real_section.write(writer);
+    real_section.encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
     std::string buffer = stream.str();
 
     // overwrite both numbers of layouts

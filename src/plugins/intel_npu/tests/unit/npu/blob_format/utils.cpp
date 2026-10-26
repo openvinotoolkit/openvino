@@ -8,8 +8,11 @@ namespace ov {
 namespace unit_test {
 namespace intel_npu {
 
-::intel_npu::BlobWriterInterface create_default_writer_interface(std::ostream& stream) {
-    return ::intel_npu::BlobWriterInterface(stream, stream.tellp());
+ov::runtime::hsm::SectionSink create_generic_section_sink(std::ostream& stream) {
+    return [&stream](ov::util::MemoryView data) {
+        stream.write(reinterpret_cast<const char*>(data.data()), data.size());
+        OPENVINO_ASSERT(stream, "Stream invalidated during writing");
+    };
 }
 
 }  // namespace intel_npu

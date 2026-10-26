@@ -6,9 +6,9 @@
 
 #include <gtest/gtest.h>
 
-#include "intel_npu/common/blob_reader_interface.hpp"
-#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/section_type.hpp"
+#include "openvino/runtime/hsm_deferred_writer.hpp"
+#include "openvino/runtime/hsm_reader.hpp"
 #include "utils.hpp"
 
 using namespace intel_npu;
@@ -42,8 +42,7 @@ TEST_F(CompilerVersionSectionTest, NullIndividualReqs) {
 }
 
 TEST_F(CompilerVersionSectionTest, Write) {
-    BlobWriterInterface writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
-    section->write(writer);
+    section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
 
     int32_t parsed_compiler_version;
     ASSERT_TRUE(stream.good());
@@ -64,8 +63,7 @@ TEST_F(CompilerVersionSectionTest, Read) {
 }
 
 TEST_F(CompilerVersionSectionTest, WriteRead) {
-    BlobWriterInterface writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
-    section->write(writer);
+    section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
 
     const std::string buffer = stream.str();
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
