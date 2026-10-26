@@ -171,6 +171,48 @@ Without a matching `compilation_config` the plugin's gate
 (`compilation_config.backend == "openvino"`) returns False, and vLLM runs its
 normal CPU path; OV is not engaged.
 
+### NNCF int4 checkpoints
+
+Export: compress the HF model with NNCF, save it, and add a
+`quantization_config` to its `config.json`:
+
+```python
+import json, nncf
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+model_id = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+out_dir = "tinyllama_int4"
+
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+model = AutoModelForCausalLM.from_pretrained(model_id)
+# One example input: NNCF traces the model with it.
+example = dict(tokenizer("Hello", return_tensors="pt"))
+model = nncf.compress_weights(model, mode=nncf.CompressWeightsMode.INT4_SYM,
+                              group_size=128, ratio=1.0,
+                              dataset=nncf.Dataset([example]))
+model.save_pretrained(out_dir)
+tokenizer.save_pretrained(out_dir)
+
+with open(f"{out_dir}/config.json") as f:
+    config = json.load(f)
+config["quantization_config"] = {
+    "quant_method": "nncf",
+    "bits": 4,
+    "sym": True,
+    "group_size": 128,
+    "scale_dtype": "float16",
+}
+with open(f"{out_dir}/config.json", "w") as f:
+    json.dump(config, f, indent=2)
+```
+
+Load: pass `load_format="nncf_hooks"` to `LLM`, with the same
+`compilation_config` as above:
+
+```python
+llm = LLM(model="tinyllama_int4", load_format="nncf_hooks", ...)
+```
+
 ### Precision
 
 You do not configure precision. The backend reads the model's own float dtype
