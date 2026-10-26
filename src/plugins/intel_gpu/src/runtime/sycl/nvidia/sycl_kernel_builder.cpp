@@ -1,0 +1,170 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2026 FUJITSU LIMITED
+//
+
+#include "sycl_kernel_builder.hpp"
+#include "sycl_ptx_kernel.hpp"
+#include "ocl/ocl_kernel_builder.hpp"
+#include "ocl/ocl_device_detector.hpp"
+#include "openvino/core/except.hpp"
+
+#include <regex>
+#include <string>
+#include <vector>
+
+namespace cldnn {
+namespace sycl {
+namespace nvidia {
+
+namespace {
+
+std::vector<std::string> extract_ptx_entry_points(const std::string& ptx) {
+    static const std::regex entry_pattern(R"((?:\.visible\s+)?\.entry\s+([\w.$]+)\s*\()");
+    std::vector<std::string> names;
+    for (std::sregex_iterator it(ptx.begin(), ptx.end(), entry_pattern), end; it != end; ++it) {
+        std::string name = (*it)[1].str();
+        if (name.size() > 12 && name.substr(name.size() - 12) == "_with_offset")
+            continue;
+        names.push_back(std::move(name));
+    }
+    return names;
+}
+
+// Build sycl_ptx_kernel objects from a compiled PTX string, one per entry point.
+void create_ptx_kernels(const std::string& ptx, std::vector<kernel::ptr>& out) {
+    const auto entry_points = extract_ptx_entry_points(ptx);
+    if (entry_points.empty())
+        OPENVINO_THROW("[GPU][NVIDIA] No entry points found in PTX");
+
+    for (const auto& ep : entry_points)
+        out.push_back(std::make_shared<sycl_ptx_kernel>(ptx, ep, ep));
+}
+
+}  // namespace
+
+// ---------------------------------------------------------------------------
+// PTX post-processing helpers
+// ---------------------------------------------------------------------------
+namespace {
+
+// Apply PTX text-level patches to fix incompatibilities between the NVIDIA OCL
+// compiler output and the CUDA driver API (cuModuleLoadData / cuLaunchKernel).
+//
+// (1) '.param .u64 .ptr .shared .align N' parameters
+//     The NVIDIA OCL compiler (NVVM) emits this decoration for __local pointer
+//     arguments.  cuModuleLoadData rejects modules that contain it with
+//     CUDA_ERROR_INVALID_IMAGE.  Strip the '.ptr .shared .align N' part so the
+//     parameter becomes a plain .u64.  The host-side launch code already passes
+//     the correct byte offset into dynamic shared memory as the argument value.
+//
+// (2) '%envreg[0-8]' special registers
+//     The NVIDIA OCL compiler (NVVM) maps OpenCL work-item functions to a set
+//     of '%envreg' special registers that the OpenCL runtime initialises before
+//     the kernel launch.  cuLaunchKernel never sets these registers, so they
+//     hold garbage when kernels are driven via the CUDA driver API.
+//
+//     NVVM encoding (confirmed by inspecting NVVM-generated PTX):
+//       %envreg0-2  global_work_offset[0-2]  (get_global_id offset addend)
+//       %envreg3-5  global_work_offset[0-2]  (get_group_id  offset addend)
+//       %envreg6    num_groups[0] == %nctaid.x  (get_global_size / get_num_groups)
+//       %envreg7    num_groups[1] == %nctaid.y
+//       %envreg8    num_groups[2] == %nctaid.z
+//
+//     Patches applied when launching via CUDA:
+//       %envreg[0-5] → 0         (global_work_offset is always 0 in OpenVINO)
+//       %envreg6     → %nctaid.x (grid X dimension set by cuLaunchKernel)
+//       %envreg7     → %nctaid.y
+//       %envreg8     → %nctaid.z
+// Strip '.ptr .shared .align N' — cuModuleLoadData rejects it (CUDA_ERROR_INVALID_IMAGE).
+// NVVM emits it for __local pointer parameters.
+static void patch_ptx_local(std::string& ptx) {
+    static const std::regex shared_param_re(
+        R"(\.param \.u64 \.ptr \.shared \.align \d+)");
+    ptx = std::regex_replace(ptx, shared_param_re, ".param .u64");
+}
+
+// Replace '%envreg[0-5]' with 0 and '%envreg[6-8]' with the corresponding
+// %nctaid register.  NVVM emits these for get_global_id/get_global_size;
+// cuLaunchKernel never writes %envreg so they hold garbage without this patch.
+static void patch_ptx_envreg(std::string& ptx) {
+    // global_work_offset registers (always 0 in OpenVINO)
+    static const std::regex envreg_offset_re(R"(%envreg[0-5](?!\d))");
+    ptx = std::regex_replace(ptx, envreg_offset_re, "0");
+    // num_groups registers: replace with the %nctaid.{x,y,z} registers that
+    // cuLaunchKernel correctly populates from the grid dimensions.
+    static const std::regex envreg6_re(R"(%envreg6(?!\d))");
+    static const std::regex envreg7_re(R"(%envreg7(?!\d))");
+    static const std::regex envreg8_re(R"(%envreg8(?!\d))");
+    ptx = std::regex_replace(ptx, envreg6_re, "%nctaid.x");
+    ptx = std::regex_replace(ptx, envreg7_re, "%nctaid.y");
+    ptx = std::regex_replace(ptx, envreg8_re, "%nctaid.z");
+}
+
+}  // namespace (patch_ptx)
+
+// ---------------------------------------------------------------------------
+// Constructor
+// ---------------------------------------------------------------------------
+sycl_kernel_builder::sycl_kernel_builder(const sycl_device& device)
+    : _device(device) {}
+
+// ---------------------------------------------------------------------------
+// OCL builder lazy initialisation
+// ---------------------------------------------------------------------------
+void sycl_kernel_builder::init_ocl_builder() const {
+    using namespace ::cldnn::ocl;
+    ocl_device_detector ocl_detector;
+    auto devices = ocl_detector.get_available_devices(nullptr, nullptr);
+    const auto& dev_info = _device.get_info();
+    _ocl_device = nullptr;
+    for (const auto& [key, dev] : devices) {
+        auto ocl_dev = std::dynamic_pointer_cast<ocl_device>(dev);
+        OPENVINO_ASSERT(ocl_dev != nullptr, "[GPU][NVIDIA] Unexpected null OCL device");
+        if (ocl_dev->get_info().uuid.uuid == dev_info.uuid.uuid) {
+            _ocl_device = ocl_dev;
+            break;
+        }
+    }
+    OPENVINO_ASSERT(_ocl_device != nullptr,
+        "[GPU][NVIDIA] Could not find a matching OCL device for the NVIDIA SYCL device");
+    if (!_ocl_device->is_initialized())
+        _ocl_device->initialize();
+    _ocl_builder = std::make_shared<ocl_kernel_builder>(*_ocl_device);
+}
+
+// ---------------------------------------------------------------------------
+// build_kernels
+// ---------------------------------------------------------------------------
+void sycl_kernel_builder::build_kernels(
+        const void* src, size_t src_bytes, KernelFormat src_format,
+        const std::string& options,
+        std::vector<kernel::ptr>& out) const {
+    if (!src || src_bytes == 0)
+        OPENVINO_THROW("[GPU][NVIDIA] sycl::nvidia::sycl_kernel_builder: empty kernel source");
+
+    if (src_format == KernelFormat::NATIVE_BIN) {
+        create_ptx_kernels(std::string(static_cast<const char*>(src), src_bytes), out);
+        return;
+    }
+
+    {
+        std::lock_guard lock(_mutex);
+        if (!_ocl_builder)
+            init_ocl_builder();
+    }
+    std::vector<kernel::ptr> tmp;
+    _ocl_builder->build_kernels(src, src_bytes, src_format, options, tmp);
+    OPENVINO_ASSERT(!tmp.empty(), "[GPU][NVIDIA] OCL builder returned no kernels");
+    // NVIDIA OCL runtime returns PTX as the device binary
+    const auto binary = tmp[0]->get_binary();
+    std::string ptx_str(binary.begin(), binary.end());
+    patch_ptx_envreg(ptx_str);
+    patch_ptx_local(ptx_str);
+    create_ptx_kernels(ptx_str, out);
+}
+
+}  // namespace nvidia
+}  // namespace sycl
+}  // namespace cldnn

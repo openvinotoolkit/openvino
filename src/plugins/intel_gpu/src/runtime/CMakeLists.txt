@@ -22,6 +22,8 @@ set(LIBRARY_SOURCES_ZE ${GPU_RUNTIME_ZE_SOURCES} ${GPU_RUNTIME_ZE_COMPUTE_RUNTIM
 set(LIBRARY_SOURCES_SYCL ${GPU_RUNTIME_SYCL_SOURCES})
 if(GPU_VENDOR STREQUAL "INTEL")
     list(APPEND LIBRARY_SOURCES_SYCL ${GPU_RUNTIME_SYCL_INTEL_SOURCES})
+elseif(GPU_VENDOR STREQUAL "NVIDIA")
+    list(APPEND LIBRARY_SOURCES_SYCL ${GPU_RUNTIME_SYCL_NVIDIA_SOURCES})
 endif()
 set(OCL_SYCL_SOURCES ${GPU_RUNTIME_OCL_SYCL_SOURCES})
 
@@ -46,6 +48,12 @@ endif()
 if(OV_GPU_RT STREQUAL "SYCL")
     list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_SYCL})
     set(SYCL_SOURCES ${LIBRARY_SOURCES_SYCL})
+    if(GPU_VENDOR STREQUAL "NVIDIA")
+        # The NVIDIA kernel builder compiles OpenCL C with clBuildProgram on the NVIDIA OpenCL runtime,
+        # so the OCL runtime is built in as well. Its ocl/sycl_* sources need the SYCL compiler.
+        list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_OCL})
+        list(APPEND SYCL_SOURCES ${OCL_SYCL_SOURCES})
+    endif()
 endif()
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SOURCES_ALL})
@@ -77,6 +85,12 @@ endif()
 if(GPU_RT_TYPE STREQUAL "SYCL" AND GPU_VENDOR STREQUAL "INTEL")
     find_path(OCLOC_API_INCLUDE_DIR NAMES ocloc_api.h REQUIRED)
     target_include_directories(${TARGET_NAME} PRIVATE ${OCLOC_API_INCLUDE_DIR})
+endif()
+
+if(GPU_RT_TYPE STREQUAL "SYCL" AND GPU_VENDOR STREQUAL "NVIDIA")
+    # sycl/nvidia/sycl_ptx_kernel.cpp loads and launches the PTX through the CUDA driver API.
+    find_package(CUDAToolkit REQUIRED)
+    target_link_libraries(${TARGET_NAME} PRIVATE CUDA::cuda_driver)
 endif()
 
 if(ENABLE_ONEDNN_FOR_GPU)

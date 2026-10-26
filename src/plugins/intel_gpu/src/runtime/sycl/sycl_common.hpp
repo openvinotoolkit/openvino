@@ -37,5 +37,14 @@ inline bool is_device_available(const device_info& info) {
     return false;
 }
 
+template <typename HandlerT, typename FnT>
+void host_task(HandlerT &cgh, const FnT &task) {
+#ifdef SYCL_EXT_ONEAPI_ENQUEUE_NATIVE_COMMAND
+    cgh.ext_codeplay_enqueue_native_command(task);
+#else
+    cgh.host_task(task);
+#endif
+}
+
 }  // namespace sycl
 }  // namespace cldnn
