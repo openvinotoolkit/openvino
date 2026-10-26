@@ -237,7 +237,7 @@ struct NPUWStringEnumOptionTraits<::intel_npu::npuw::llm::AttentionHint> {
 
 struct PrefillAttentionHintOptionTraits : NPUWStringEnumOptionTraits<::intel_npu::npuw::llm::AttentionHint> {
     static ValueType defaultValue() {
-        return ValueType::PYRAMID;
+        return ValueType::HFA;
     }
 };
 
