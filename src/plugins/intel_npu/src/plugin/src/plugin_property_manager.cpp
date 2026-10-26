@@ -14,6 +14,7 @@
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/string_map_utils.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
 
@@ -153,7 +154,7 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
         const auto propertyDescriptorIt = _properties.find(value.first);
         if (propertyDescriptorIt == _properties.end()) {
             // if compiler reports it supported > registering as internal
-            _config.addOrUpdateInternal(value.first, value.second.as<std::string>());
+            _internalCompilerProperties.insert_or_assign(value.first, value.second.as<std::string>());
         } else {
             propertyDescriptorIt->second.set(value.second);
         }
@@ -177,12 +178,13 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
         return propertyDescriptorIt->second.get(arguments);
     }
 
-    if (_config.hasInternal(name)) {
+    const auto internalPropertyIt = _internalCompilerProperties.find(name);
+    if (internalPropertyIt != _internalCompilerProperties.end()) {
         auto resolvedCompilerType = resolveCompilerType(arguments);
         OPENVINO_ASSERT(resolvedCompilerType.has_value(), "Unsupported configuration key: ", name);
         try {
             if (_compilerOptionSupportHelper->isOptionSupported(resolvedCompilerType.value(), name)) {
-                return _config.getInternal(name);
+                return internalPropertyIt->second;
             }
         } catch (...) {
         }
@@ -206,8 +208,118 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
     return propertyDescriptorIt->second.isPublic && propertyDescriptorIt->second.isSupported(arguments);
 }
 
-std::pair<Config, ov::AnyMap> PluginPropertyManager::getMergedConfigAndUnknownProperties(const ov::AnyMap& properties,
-                                                                                         ConfigMergeMode mergeMode) {
+MergedConfig PluginPropertyManager::getMergedConfigForCompilation(const ov::AnyMap& properties,
+                                                                  ConfigMergeMode mergeMode) {
+    OPENVINO_ASSERT(mergeMode != ConfigMergeMode::Import,
+                    "getMergedConfigForCompilation can't be used on the import path, use getMergedConfigForImport");
+
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    auto merged = mergeConfig(properties, mergeMode);
+    auto& runtimeConfig = merged.runtimeConfig;
+    auto& compilerProperties = merged.compilerProperties;
+
+    // Collect the compiler options from the merged config, so the values set through set_property and environment
+    // variables are sent to the compiler as well, not only the ones passed to the current call.
+    const auto resolvedCompilerType = resolveCompilerType(properties);
+    const auto isSupportedByCompiler = [&](const std::string& key) {
+        if (!resolvedCompilerType.has_value()) {
+            return false;
+        }
+        try {
+            return _compilerOptionSupportHelper->isOptionSupported(resolvedCompilerType.value(), key);
+        } catch (...) {
+            // ignore any exceptions from the compiler and treat the property as unsupported
+            return false;
+        }
+    };
+
+    // The internal compiler options stored through set_property were checked against the compiler type configured at
+    // that time, check them again against the one resolved for the current call.
+    for (const auto& [key, value] : compilerProperties) {
+        OPENVINO_ASSERT(isSupportedByCompiler(key),
+                        "[ NOT_FOUND ] Option '",
+                        key,
+                        "' is not supported for current configuration");
+    }
+
+    // Compile-time-only options are moved out of the runtime config, the compiler must support them.
+    runtimeConfig.extractTo(compilerProperties, [&](std::string_view key) {
+        if (runtimeConfig.getOpt(key).mode() != OptionMode::CompileTime) {
+            return false;
+        }
+
+        OPENVINO_ASSERT(isSupportedByCompiler(std::string(key)),
+                        "[ NOT_FOUND ] Option '",
+                        key,
+                        "' is not supported for current configuration");
+        return true;
+    });
+
+    // Both-mode options are used at runtime as well, they are kept in the runtime config and copied to the compiler
+    // properties only when the compiler supports them.
+    runtimeConfig.copyTo(compilerProperties, [&](std::string_view key) {
+        return runtimeConfig.getOpt(key).mode() == OptionMode::Both && isSupportedByCompiler(std::string(key));
+    });
+
+    applyCompilerOnlyOverrides(runtimeConfig, compilerProperties, isSupportedByCompiler);
+
+    return merged;
+}
+
+void PluginPropertyManager::applyCompilerOnlyOverrides(
+    const Config& runtimeConfig,
+    CompilerProperties& compilerProperties,
+    const std::function<bool(const std::string&)>& isSupportedByCompiler) const {
+    // The compiler understands only the LOG_LEVEL key. When NPU_COMPILE_LOG_LEVEL is set, its value overrides the
+    // plugin LOG_LEVEL for the compiler only, otherwise the compiler inherits the plugin LOG_LEVEL copied with the
+    // both-mode options.
+    if (runtimeConfig.has<COMPILE_LOG_LEVEL>() && isSupportedByCompiler(std::string(ov::log::level.name()))) {
+        string_map::set(compilerProperties,
+                        ov::log::level.name(),
+                        LOG_LEVEL::toString(COMPILE_LOG_LEVEL::resolve(runtimeConfig)));
+    }
+
+    // With PROFILING_TYPE=INFER the profiling is done at runtime, the compiler must not enable it. PERF_COUNT is found
+    // in the compiler properties only if the compiler supports it.
+    if (runtimeConfig.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER && runtimeConfig.get<PERF_COUNT>() &&
+        string_map::has(compilerProperties, ov::enable_profiling.name())) {
+        _logger.info(
+            "%s=INFER: overriding compiler-only PERF_COUNT from YES to NO; runtime configuration remains unchanged",
+            ov::intel_npu::profiling_type.name());
+        string_map::set(compilerProperties, ov::enable_profiling.name(), PERF_COUNT::toString(false));
+    }
+}
+
+MergedConfig PluginPropertyManager::getMergedConfigForImport(const ov::AnyMap& properties) {
+    ov::AnyMap propertyArguments = properties;
+    // Mark the compiler type as unavailable in the property arguments when importing a model with both
+    // compile-time and runtime options to check only runtime availability. An empty value is used instead of
+    // erasing the key, otherwise the support predicates would fall back to the configured compiler type.
+    if (propertyArguments.find(ov::intel_npu::compiler_type.name()) != propertyArguments.end()) {
+        _logger.warning("Property '%s' is used to specify the compiler type, will not be used for current "
+                        "configuration.",
+                        ov::intel_npu::compiler_type.name());
+    }
+    propertyArguments[ov::intel_npu::compiler_type.name()] = ov::Any();
+
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    auto merged = mergeConfig(propertyArguments, ConfigMergeMode::Import);
+    auto& runtimeConfig = merged.runtimeConfig;
+
+    // Remove the compiler type from the updated configuration as it has been resolved and applied on the import path.
+    // Shouldn't be used further in the stack.
+    runtimeConfig.remove(ov::intel_npu::compiler_type.name());
+    // Remove all compile-time-only configurations as they are not relevant for the import path. The internal compiler
+    // options returned in the compiler properties are dropped for the same reason.
+    runtimeConfig.removeCompileTimeConfigs();
+    merged.compilerProperties.clear();
+
+    return merged;
+}
+
+MergedConfig PluginPropertyManager::mergeConfig(const ov::AnyMap& properties, ConfigMergeMode mergeMode) {
     bool loadedFromCache = false;
     if (mergeMode == ConfigMergeMode::Import) {
         // In case of importing a model, the loaded_from_cache property is used to determine whether the model was
@@ -217,25 +329,13 @@ std::pair<Config, ov::AnyMap> PluginPropertyManager::getMergedConfigAndUnknownPr
         loadedFromCache = loadedFromCacheIt == properties.end() ? false : loadedFromCacheIt->second.as<bool>();
     }
 
-    std::lock_guard<std::mutex> lock(_mutex);
-
     if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
         logCpuPinningDeprecationWarning(_logger);
     }
 
-    ov::AnyMap propertyArguments = properties;
-    if (mergeMode == ConfigMergeMode::Import) {
-        // Mark the compiler type as unavailable in the property arguments when importing a model with both
-        // compile-time and runtime options to check only runtime availability. An empty value is used instead of
-        // erasing the key, otherwise the support predicates would fall back to the configured compiler type.
-        if (propertyArguments.find(ov::intel_npu::compiler_type.name()) != propertyArguments.end()) {
-            _logger.warning("Property '%s' is used to specify the compiler type, will not be used for current "
-                            "configuration.",
-                            ov::intel_npu::compiler_type.name());
-        }
-        propertyArguments[ov::intel_npu::compiler_type.name()] = ov::Any();
-    }
-
+    // Start from the internal compiler options stored through set_property, the ones passed to the current call
+    // override them.
+    CompilerProperties compilerProperties = _internalCompilerProperties;
     ov::AnyMap unknownProperties;
     auto updatedConfig = _config;
     for (auto&& value : properties) {
@@ -267,7 +367,7 @@ std::pair<Config, ov::AnyMap> PluginPropertyManager::getMergedConfigAndUnknownPr
                         continue;
                     }
                     // Compiler supports this option, add it as an internal property.
-                    updatedConfig.addOrUpdateInternal(key, value.second.as<std::string>());
+                    compilerProperties[key] = value.second.as<std::string>();
                     continue;
                 }
 
@@ -288,7 +388,7 @@ std::pair<Config, ov::AnyMap> PluginPropertyManager::getMergedConfigAndUnknownPr
                         key);
 
         if (!updatedConfig.hasOpt(key)) {
-            OPENVINO_ASSERT(propertyDescriptorIt->second.isSupported(propertyArguments),
+            OPENVINO_ASSERT(propertyDescriptorIt->second.isSupported(properties),
                             "[ NOT_FOUND ] Option '",
                             key,
                             "' is not supported for current configuration");
@@ -302,7 +402,7 @@ std::pair<Config, ov::AnyMap> PluginPropertyManager::getMergedConfigAndUnknownPr
             continue;
         }
 
-        if (!propertyDescriptorIt->second.isSupported(propertyArguments)) {
+        if (!propertyDescriptorIt->second.isSupported(properties)) {
             // In case of both property is import to not throw an error if they are not supported by the device but may
             // be by the compiler.
             if (mergeMode == ConfigMergeMode::Import && updatedConfig.getOpt(key).mode() == OptionMode::Both) {
@@ -323,15 +423,7 @@ std::pair<Config, ov::AnyMap> PluginPropertyManager::getMergedConfigAndUnknownPr
         }
     }
 
-    if (mergeMode == ConfigMergeMode::Import) {
-        // Remove the compiler type from the updated configuration as it has been resolved and applied on the import
-        // path. Shouldn't be used further in the stack.
-        updatedConfig.remove(ov::intel_npu::compiler_type.name());
-        // Remove all compile-time-only configurations as they are not relevant for the import path.
-        updatedConfig.removeCompileTimeConfigs();
-    }
-
-    return {std::move(updatedConfig), std::move(unknownProperties)};
+    return {std::move(updatedConfig), std::move(compilerProperties), std::move(unknownProperties)};
 }
 
 std::string PluginPropertyManager::determinePlatform(const ov::AnyMap& properties) const {
@@ -347,7 +439,7 @@ std::string PluginPropertyManager::determineDeviceId(const ov::AnyMap& propertie
 ov::intel_npu::CompilerType PluginPropertyManager::determineCompilerType(const ov::AnyMap& properties) const {
     auto it = properties.find(ov::intel_npu::compiler_type.name());
     if (it != properties.end()) {
-        return COMPILER_TYPE::parse(it->second.as<std::string>());
+        return it->second.as<ov::intel_npu::CompilerType>();
     }
     std::lock_guard<std::mutex> lock(_mutex);
     return _config.get<COMPILER_TYPE>();
@@ -375,9 +467,6 @@ std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::getCompilerTyp
         return std::nullopt;
     }
 
-    if (compilerTypeIt->second.is<std::string>()) {
-        return COMPILER_TYPE::parse(compilerTypeIt->second.as<std::string>());
-    }
     return compilerTypeIt->second.as<ov::intel_npu::CompilerType>();
 }
 

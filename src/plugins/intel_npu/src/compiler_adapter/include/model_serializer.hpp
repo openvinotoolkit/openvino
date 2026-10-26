@@ -7,12 +7,13 @@
 
 #include <functional>
 #include <iostream>
+#include <map>
+#include <optional>
 #include <string>
 
-#include "intel_npu/config/config.hpp"
-#include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/string_map_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/pass/manager.hpp"
 
@@ -21,7 +22,7 @@ namespace intel_npu {
 struct SerializedIR {
     std::shared_ptr<uint8_t> buffer = nullptr;
     size_t size = 0;
-    ov::intel_npu::ModelSerializerVersion serializerVersion = MODEL_SERIALIZER_VERSION::defaultValue();
+    ov::intel_npu::ModelSerializerVersion serializerVersion = ov::intel_npu::ModelSerializerVersion::AUTO;
     std::optional<uint64_t> hash = std::nullopt;
 };
 
@@ -59,6 +60,13 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          const bool storeWeightlessCacheAttribute = false);
 
 /**
+ * @brief Reads the model serializer version from the compiler properties.
+ * @return The version found in the compiler properties, or the option's default value if none was set.
+ */
+ov::intel_npu::ModelSerializerVersion getModelSerializerVersion(
+    const CompilerProperties& compilerProperties);
+
+/**
  * @brief Serialize input / output information to string format.
  * @details Format:
  * --inputs_precisions="0:<input1Precision> [1:<input2Precision>]"
@@ -74,9 +82,14 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
  */
 std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
 
-std::string serializeConfig(const Config& config,
-                            const ze_graph_compiler_version_info_t& compilerVersion,
-                            const std::function<bool(const std::string&)>& isOptionSupportedByCompiler);
+/**
+ * @brief Serializes the compiler properties to the build flags format: --config KEY1="VALUE1" KEY2="VALUE2".
+ * @param compilerProperties The compiler options, values stored as strings. They are expected to be already filtered
+ * by the compiler support, all of them are serialized.
+ * @param compilerVersion The compiler version, used for applying the backward compatibility conversions.
+ */
+std::string serializeConfig(const CompilerProperties& compilerProperties,
+                            const ze_graph_compiler_version_info_t& compilerVersion);
 
 }  // namespace compiler_utils
 }  // namespace intel_npu
