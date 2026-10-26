@@ -482,6 +482,61 @@ INSTANTIATE_TEST_SUITE_P(mem_test,
                                                               mem_test_params{100, 79, 381}),
                                             ::testing::Values(false, true)));
 
+class subbuffer_lifetime : public BaseUSMTest {};
+TEST_P(subbuffer_lifetime, keeps_parent_allocation_alive_after_parent_release) {
+    auto p = GetParam();
+    if (!_engine->supports_allocation(p.type)) {
+        GTEST_SKIP() << "Allocation type is not supported";
+    }
+
+    constexpr size_t parent_size = 512;
+    constexpr size_t sub_offset = 96;
+    constexpr size_t sub_size = 256;
+    const layout parent_layout = {{static_cast<int64_t>(parent_size)}, data_types::u8, format::bfyx};
+    const layout sub_layout = {{static_cast<int64_t>(sub_size)}, data_types::u8, format::bfyx};
+
+    auto stream = _engine->create_stream({});
+    const auto& usm_helper = _engine->get_usm_helper();
+
+    std::vector<uint8_t> src(parent_size);
+    for (size_t i = 0; i < parent_size; i++) {
+        src[i] = static_cast<uint8_t>((i * 13 + 7) % 251);
+    }
+
+    auto parent_mem = _engine->allocate_memory(parent_layout, p.type);
+    ASSERT_NE(parent_mem, nullptr);
+    OV_ASSERT_NO_THROW(parent_mem->copy_from(*stream, src.data(), true));
+
+    auto sub_mem = _engine->create_subbuffer(*parent_mem, sub_layout, sub_offset);
+    ASSERT_NE(sub_mem, nullptr);
+
+    auto* sub_ptr = downcast<ocl::gpu_usm>(sub_mem.get())->get_buffer().get();
+    ASSERT_NE(usm_helper.get_usm_allocation_type(sub_ptr), CL_MEM_TYPE_UNKNOWN_INTEL);
+
+    parent_mem.reset();
+
+    // Once the parent is released, the driver must still recognize sub-buffer's pointer as a live USM allocation.
+    ASSERT_NE(usm_helper.get_usm_allocation_type(sub_ptr), CL_MEM_TYPE_UNKNOWN_INTEL)
+        << "Parent USM allocation was freed while sub-buffer is still alive";
+
+    // Stress allocator reuse paths to make use-after-free visible in data as well.
+    for (size_t i = 0; i < 4; i++) {
+        auto tmp = _engine->allocate_memory(parent_layout, p.type);
+        OV_ASSERT_NO_THROW(tmp->fill(*stream, static_cast<unsigned char>(i + 1), {}, true));
+    }
+
+    std::vector<uint8_t> actual(sub_size, 0);
+    OV_ASSERT_NO_THROW(sub_mem->copy_to(*stream, actual.data(), true));
+    for (size_t i = 0; i < sub_size; i++) {
+        ASSERT_EQ(src[sub_offset + i], actual[i]) << "at index " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(cldnn_usm, subbuffer_lifetime, ::testing::ValuesIn(std::vector<usm_test_params>{
+    usm_test_params{ allocation_type::usm_host},
+    usm_test_params{ allocation_type::usm_device},
+}));
+
 TEST(mem_test, copy_small_buf_to_large_with_out_of_bound_access) {
     auto& ocl_engine = dynamic_cast<ocl::ocl_engine&>(get_test_engine());
     auto& stream = get_test_stream();

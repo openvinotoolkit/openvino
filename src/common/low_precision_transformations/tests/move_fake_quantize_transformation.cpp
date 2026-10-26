@@ -131,7 +131,6 @@ public:
                                                                           {ov::PrecisionPreservedAttribute(true),
                                                                            ov::IntervalsAlignmentAttribute(interval, 256),
                                                                            ov::QuantizationAlignmentAttribute(false)},
-                                                                          ov::element::dynamic,
                                                                           testValues.axis,
                                                                           oneInputWithSplit);
 
@@ -175,7 +174,6 @@ public:
                                                              {ov::PrecisionPreservedAttribute(true),
                                                               ov::IntervalsAlignmentAttribute(interval, 256),
                                                               ov::QuantizationAlignmentAttribute(false)},
-                                                             testValues.result.precisionAfterOperation,
                                                              testValues.axis,
                                                              oneInputWithSplit);
     }
@@ -340,6 +338,30 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
          {{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
          {ov::element::u8},
          {{element::f16}, {0.01f}, {0.01f}},
+         "",
+         {},
+         {},
+         {},
+     }},
+    // Q/DQ concat by the last axis with rank-2 dequantization constants
+    {LayerTransformation::createParamsU8I8(),
+     false,
+     3,
+     {
+         2,
+         {},
+         {},
+         {},
+         "",
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+         {ov::element::u8},
+         {{element::f32}, {{0.01f}, element::f32, {1, 1}}, {{0.01f}, element::f32, {1, 1}}},
+     },
+     {
+         2,
+         {{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
+         {ov::element::u8},
+         {{element::f32}, {{0.01f}, element::f32, {1, 1}}, {{0.01f}, element::f32, {1, 1}}},
          "",
          {},
          {},

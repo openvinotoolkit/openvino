@@ -2,58 +2,45 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "openvino_intel_gpu_runtime")
+# OV_GPU_SUFFIX (empty for single-RT builds) distinguishes the per-runtime target names of a
+# COMBINED build; OV_GPU_RT is this pass's runtime (defaults to the global GPU_RT_TYPE).
+set(TARGET_NAME "openvino_intel_gpu_runtime${OV_GPU_SUFFIX}")
+if(NOT DEFINED OV_GPU_RT)
+    # Reachable only if this directory is added outside ov_gpu_build_stack(), which always sets a
+    # single runtime; COMBINED names two, so a stack built from it would belong to neither.
+    if(GPU_RT_TYPE STREQUAL "COMBINED")
+        message(FATAL_ERROR "OV_GPU_RT must be set to a single runtime before adding this directory; got COMBINED")
+    endif()
+    set(OV_GPU_RT "${GPU_RT_TYPE}")
+endif()
 
-file(GLOB LIBRARY_SOURCES_MAIN
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
-  )
+include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
 
-file(GLOB LIBRARY_SOURCES_OCL
-    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.cpp"
-)
+set(LIBRARY_SOURCES_MAIN ${GPU_RUNTIME_MAIN_SOURCES})
+set(LIBRARY_SOURCES_OCL ${GPU_RUNTIME_OCL_SOURCES})
+set(LIBRARY_SOURCES_ZE ${GPU_RUNTIME_ZE_SOURCES} ${GPU_RUNTIME_ZE_COMPUTE_RUNTIME_HEADERS})
+set(LIBRARY_SOURCES_SYCL ${GPU_RUNTIME_SYCL_SOURCES})
+set(OCL_SYCL_SOURCES ${GPU_RUNTIME_OCL_SYCL_SOURCES})
 
-file(GLOB LIBRARY_SOURCES_ZE
-    "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/ze/compute_runtime/*.h"
-)
-
-file(GLOB LIBRARY_SOURCES_SYCL
-    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.cpp"
-)
-
-file(GLOB LIBRARY_SOURCES_SYCL_INTEL
-    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/intel/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/intel/*.cpp"
-)
-list(APPEND LIBRARY_SOURCES_SYCL ${LIBRARY_SOURCES_SYCL_INTEL})
-
-file(GLOB_RECURSE OCL_SYCL_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ocl/sycl_*.[ch]pp")
-
-if(NOT OV_GPU_WITH_SYCL)
-    list(REMOVE_ITEM LIBRARY_SOURCES_OCL ${OCL_SYCL_SOURCES})
+# ocl/sycl_*.{h,hpp,cpp} require the SYCL compiler, so they are only part of the
+# OCL runtime's source set when SYCL support is enabled.
+if(OV_GPU_WITH_SYCL)
+    list(APPEND LIBRARY_SOURCES_OCL ${OCL_SYCL_SOURCES})
 endif()
 
 set(LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_MAIN})
 
-if(GPU_RT_TYPE STREQUAL "OCL")
+if(OV_GPU_RT STREQUAL "OCL")
     list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_OCL})
     set(SYCL_SOURCES ${OCL_SYCL_SOURCES})
 endif()
 
-if(GPU_RT_TYPE STREQUAL "ZE")
+if(OV_GPU_RT STREQUAL "ZE")
     list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_OCL})
     list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_ZE})
 endif()
 
-if(GPU_RT_TYPE STREQUAL "SYCL")
+if(OV_GPU_RT STREQUAL "SYCL")
     list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_SYCL})
     set(SYCL_SOURCES ${LIBRARY_SOURCES_SYCL})
 endif()
@@ -90,11 +77,11 @@ if(GPU_RT_TYPE STREQUAL "SYCL")
 endif()
 
 if(ENABLE_ONEDNN_FOR_GPU)
-  ov_target_link_libraries_as_system(${TARGET_NAME} PUBLIC onednn_gpu_tgt)
+  ov_target_link_libraries_as_system(${TARGET_NAME} PUBLIC onednn_gpu_tgt${OV_GPU_SUFFIX})
 endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})
-ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${OV_GPU_RT})
 
 # Requires OpenCL even for Level Zero builds because of kernel builder and OneDNN
 target_link_libraries(${TARGET_NAME} PRIVATE

@@ -78,8 +78,9 @@ inline std::string toVectorMulString(const std::vector<std::string>& vec) {
     ss << "(";
     for (size_t i = 0; i < vec.size(); i++) {
         ss << vec[i];
-        if (i != vec.size() - 1)
+        if (i != vec.size() - 1) {
             ss << "*";
+        }
     }
     ss << ")";
     return ss.str();
@@ -119,10 +120,12 @@ inline std::string toVectorInitString(const VecT& vec,
                                       Func fetchFunc) {
     std::stringstream ss;
     ss << "{ ";
-    for (size_t i = 0; i < vec.size(); i++)
+    for (size_t i = 0; i < vec.size(); i++) {
         ss << toCodeString(fetchFunc(vec[i])) << ",";
-    for (size_t i = vec.size(); i < maxDim; i++)
+    }
+    for (size_t i = vec.size(); i < maxDim; i++) {
         ss << padFillingVal << ",";
+    }
     ss << " } ";
     return ss.str();
 }
@@ -134,8 +137,9 @@ inline std::string toVectorString(const VecT& vec,
                                   ValT padFillingVal,
                                   Func fetchFunc) {
     std::stringstream ss;
-    if (!vectorType.empty())
+    if (!vectorType.empty()) {
         ss << "(" << vectorType << " [])";
+    }
     ss << toVectorInitString(vec, vectorType, maxDim, padFillingVal, fetchFunc);
     return ss.str();
 }
@@ -393,7 +397,7 @@ public:
 
     std::string GetTypeStr() const;
     std::string GetInputTensorName(size_t input_id) const;
-    std::string GetOutputTensorName() const;
+    std::string GetOutputTensorName(size_t idx = 0) const;
     std::string GetInputTypeName(size_t input_id, size_t vec_size) const;
     std::string GetJitLoad(const FusedOpsConfiguration& conf, size_t input_id, const DataTensor prim_output,
                            bool reuse_index = false, std::string reused_idx = "") const;
@@ -402,13 +406,13 @@ public:
     std::string GetInputVarName(size_t input_id, bool is_shuffled = false, std::string shuffle_var = "") const;
     std::string GetDecodedInputVarName(size_t input_id, bool is_shuffled = false, std::string shuffle_var = "", size_t vec_size = 1) const;
     std::string GetOutputVarName(std::string input_var_name, size_t op_id) const;
-    std::string ConvertToOutputType(std::string var, size_t vec_size = 1) const;
+    std::string ConvertToOutputType(std::string var, size_t vec_size = 1, size_t idx = 0) const;
     std::string DecodeComputeType(std::string var, Datatype dt, size_t vec_size = 1) const;
     std::string ConvertToType(std::string var, Datatype dt, size_t vec_size = 1) const;
     std::string CastToType(std::string var, Datatype dt, size_t vec_size = 1) const;
     std::string Broadcast(std::string var,  Datatype dt, size_t vec_size = 1) const;
-    std::string ConvertToOutputTypeSat(std::string var, size_t vec_size = 1) const;
-    std::string GetOutputType(size_t vec_size = 1) const;
+    std::string ConvertToOutputTypeSat(std::string var, size_t vec_size = 1, size_t idx = 0) const;
+    std::string GetOutputType(size_t vec_size = 1, size_t idx = 0) const;
     std::string GetType(Datatype dt, size_t vec_size = 1) const;
 
 private:

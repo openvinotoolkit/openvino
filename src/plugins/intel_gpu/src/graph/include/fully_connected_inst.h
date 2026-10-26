@@ -30,8 +30,9 @@ public:
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
         auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
         params->weights_layout = optional_layout(weights().get_output_layout());
-        if (bias_term())
+        if (bias_term()) {
             params->bias_layout = optional_layout(bias().get_output_layout());
+        }
         return params;
     }
 };
@@ -48,6 +49,7 @@ public:
     static std::vector<layout> calc_output_layouts(fully_connected_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(fully_connected_node const& node, kernel_impl_params const& impl_param);
     static kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param);
+    static bool has_fake_alignment() { return true; }
     static std::string to_string(fully_connected_node const& node);
     static bool can_apply_single_batch_optimization(const kernel_impl_params& impl_param);
 

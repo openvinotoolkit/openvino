@@ -169,7 +169,7 @@ std::shared_ptr<RemoteContextImpl> RemoteContextImpl::get_this_shared_ptr() {
 
 ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {
     OPENVINO_ASSERT(m_is_initialized, "[GPU] create_host_tensor() called on uninitialized context. Please initialize the context before use");
-    if (m_engine->use_unified_shared_memory()) {
+    if (type != ov::element::string && m_engine->use_unified_shared_memory()) {
         return { std::make_shared<USMHostTensor>(get_this_shared_ptr(), type, shape), nullptr };
     }
     return {ov::make_tensor(type, shape), nullptr};
@@ -267,7 +267,8 @@ cldnn::memory::ptr RemoteContextImpl::try_get_cached_memory(size_t hash) {
     if (!m_memory_cache.has(hash))
         return nullptr;
 
-    if (auto memory = m_memory_cache.get(hash).lock())
+    auto cached_memory = m_memory_cache.get(hash);
+    if (auto memory = cached_memory.lock())
         return memory;
 
     // The last tensor which wrapped that memory is gone, so the entry is erased instead of being kept as the most recently used one

@@ -657,6 +657,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                 if (new_input.first) {
                     p.add_intermediate(new_input.first, conv_node, 0, !new_input.second);
                     p.get_or_create(new_input.first).recalc_output_layouts(true);
+                    conv_node.recalc_output_layouts();
                 }
             }
 
@@ -689,9 +690,9 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
         // When the conv node is of onednn impl type and eltwise sum with full tensor is fused,
         // changes the input format of eltwise sum post-op to use binary add.
         if (conv_node.get_preferred_impl_type() == impl_types::onednn) {
-            onednn_add_fusing_helpers::for_eltwise(conv_node, eltwise_mode::sum,
+            onednn_eltwise_fusing_helpers::for_eltwise(conv_node, eltwise_mode::sum,
                 [&](const program_node& p_node, const fused_primitive_desc& desc) {
-                    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(p_node, desc);
+                    auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(p_node, desc);
                     if (fusing_type == add_fusing_type::binary_per_tensor && desc.has_outer_dep()) {
                         auto& dep_node = p_node.get_dependency(desc.outer_dep_start_idx);
                         auto d_layout = dep_node.get_output_layout();
@@ -699,15 +700,17 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                         auto expected_format = format::any;
 
                         if (data_type_traits::is_i8_u8(d_layout.data_type)) {
-                            if (d_format == format::b_fs_yx_fsv16)
+                            if (d_format == format::b_fs_yx_fsv16) {
                                 expected_format = format::b_fs_yx_fsv32;
-                            else if (d_format == format::bs_fs_yx_bsv32_fsv16)
+                            } else if (d_format == format::bs_fs_yx_bsv32_fsv16) {
                                 expected_format = format::bs_fs_yx_bsv32_fsv32;
+                            }
                         } else if (data_type_traits::is_floating_point(d_layout.data_type)) {
-                            if (d_format == format::b_fs_yx_fsv32)
+                            if (d_format == format::b_fs_yx_fsv32) {
                                 expected_format = format::b_fs_yx_fsv16;
-                            else if (d_format == format::bs_fs_yx_bsv32_fsv32)
+                            } else if (d_format == format::bs_fs_yx_bsv32_fsv32) {
                                 expected_format = format::bs_fs_yx_bsv32_fsv16;
+                            }
                         }
 
                         if (expected_format != format::any && d_layout.format != expected_format) {

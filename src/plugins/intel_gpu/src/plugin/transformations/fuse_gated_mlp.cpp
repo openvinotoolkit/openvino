@@ -17,6 +17,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <cmath>
@@ -40,7 +41,7 @@ FuseGatedMLP::FuseGatedMLP() {
     auto mul = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_0, mul_1});
     auto mm_down = wrap_type<ov::op::v0::MatMul>({mul, w_down});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
         auto down = ov::as_type_ptr<ov::op::v0::MatMul>(pm.at(mm_down).get_node_shared_ptr());
         auto up = ov::as_type_ptr<ov::op::v0::MatMul>(pm.at(mm_up).get_node_shared_ptr());
@@ -48,26 +49,32 @@ FuseGatedMLP::FuseGatedMLP() {
         auto sw = ov::as_type_ptr<ov::op::v4::Swish>(pm.at(swish).get_node_shared_ptr());
         ov::NodeVector new_ops;
 
-        if (!down || !up || !gate || !sw || transformation_callback(down))
+        if (!down || !up || !gate || !sw || transformation_callback(down)) {
             return false;
+        }
 
-        if (down->get_transpose_a() || up->get_transpose_a() || gate->get_transpose_a())
+        if (down->get_transpose_a() || up->get_transpose_a() || gate->get_transpose_a()) {
             return false;
+        }
 
-        if (up->input_value(0) != gate->input_value(0))
+        if (up->input_value(0) != gate->input_value(0)) {
             return false;
+        }
 
         // Swish can be represented as 1-input(default beta=1.0) or 2-input(beta tensor).
-        if (sw->get_input_size() != 1 && sw->get_input_size() != 2)
+        if (sw->get_input_size() != 1 && sw->get_input_size() != 2) {
             return false;
+        }
 
         if (sw->get_input_size() == 2) {
             auto beta_const = ov::as_type_ptr<ov::op::v0::Constant>(sw->get_input_node_shared_ptr(1));
-            if (!beta_const)
+            if (!beta_const) {
                 return false;
+            }
             auto beta = beta_const->cast_vector<float>();
-            if (beta.empty() || std::fabs(beta[0] - 1.0f) > 1e-6f)
+            if (beta.empty() || std::fabs(beta[0] - 1.0f) > 1e-6f) {
                 return false;
+            }
         }
 
         auto create_transpose = [&](const ov::Output<ov::Node>& node, const std::string& transpose_name) -> ov::Output<ov::Node> {

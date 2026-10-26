@@ -17,11 +17,12 @@ class Node;
 
 namespace ov::frontend::gguf {
 
-// Element type of the zero-point constant for an asymmetric quantized weight. Both ingest
-// paths must agree on this: it decides whether the CPU folds the dequant into the MatMul.
-// Q4_K defaults to an integer (u8) zero-point (faster, lossy); set the environment variable
-// OV_GGUF_Q4_K_ZP_F16=1 to use a faithful f16 zero-point instead (llama.cpp's test-backend-ops
-// CI does this to meet its accuracy tolerance).
+// Element type of the zero-point constant for an asymmetric quantized weight.
+// Q2_0 always uses u8. The raw-byte Q8_0_C requantization path separately uses temporary f16
+// zero-points for its host dequantizer, including Q2_0 embedding/output tensors.
+// Q4_K and Q4_1 matmul weights are faithfully decoded and requantized to u4 with an integer
+// zero-point, which keeps the compressed-FullyConnected path available on CPU and GPU. Q5_K matmul
+// weights are requantized the same way to an 8-bit u8 grid. token_embd/output keep an f16 zero-point.
 ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType qtype);
 
 // A lossy weight approximation the frontend deliberately makes, reported to the user once so a
@@ -29,9 +30,10 @@ ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType q
 enum class LossyWeightApproximation {
     // token_embd / output / Q6_K / Q5_K tensors requantized channel-wise to Q8_0_C.
     Q8_0_C_REQUANT,
-    // Q4_K asymmetric weights expressed with an INTEGER (u8) zero-point, which forces each
-    // sub-block's min to a multiple of its scale.
-    INTEGER_ZERO_POINT,
+    // Q4_K / Q4_1 asymmetric weights faithfully decoded and requantized group-wise to OpenVINO u4.
+    Q4_REQUANT,
+    // Q5_K asymmetric weights faithfully decoded and requantized group-wise to OpenVINO u8.
+    Q5_K_REQUANT,
 };
 
 // Warn -- ONCE per process and per approximation kind -- that weights are being converted with a
@@ -50,6 +52,9 @@ struct WeightTensors {
     ov::Tensor scales;
     ov::Tensor zero_point;
 };
+
+// Quant type recorded for a weight as "<base>.qtype"; F16 when absent.
+GgufTensorType lookup_qtype(const std::string& base, const std::unordered_map<std::string, GgufTensorType>& qtypes);
 
 // Build the OpenVINO node for one extracted GGUF weight. Quantized weights become a
 // low-bitness compressed subgraph (u4/u8 weights + zero-point + f16 scale, Convert ->
