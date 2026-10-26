@@ -138,7 +138,7 @@ const ov::element::Type& ZeroTensor::get_element_type() const {
 
 void ZeroTensor::set_element_type(const ov::element::Type& element_type) {
     OPENVINO_ASSERT(zeroUtils::isSameStorageSpelling(_element_type, element_type),
-                    "set_element_type should be used only for special case of boolean and u8 types!");
+                    "set_element_type should be used only for a same-storage re-spelling (boolean/u8, i2/u2)!");
     _element_type = element_type;
 }
 
