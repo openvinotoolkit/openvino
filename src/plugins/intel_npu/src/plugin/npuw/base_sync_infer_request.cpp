@@ -534,11 +534,11 @@ void ov::npuw::IBaseInferRequest::alloc_quant_gather_tensors(std::size_t idx) {
         const auto& wport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_w_idx];
 
         auto ids_shape = lport.get_shape();
-        // the lookup/token-ids input must be rank-2/batch-1/i64 (ov::npuw::util::gather()'s own contract);
-        // get_gathered_shape() below also reads ids_shape[1] unchecked.
+        // The lookup/token-ids input must be rank-2/batch-1/i64 (ov::npuw::util::gather()'s own contract)
         NPUW_ASSERT(lport.get_element_type() == ov::element::i64 && ids_shape.size() == 2 && ids_shape[0] == 1);
 
         auto get_gathered_shape = [&ids_shape](const ov::Shape& shape) {
+            NPUW_ASSERT(shape.size() == 2 || shape.size() == 3);
             return ov::Shape{1, ids_shape[1], shape.size() == 3 ? shape[1] * shape[2] : shape[1]};
         };
 

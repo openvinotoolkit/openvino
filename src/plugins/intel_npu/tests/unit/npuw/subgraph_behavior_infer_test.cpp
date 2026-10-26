@@ -19,10 +19,9 @@
 
 // Parse OpenVINO's exported classes before the private-access test shim;
 // changing Constant's access specifiers changes imported symbol names on MSVC.
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
-
-#include "common_test_utils/test_assertions.hpp"
 
 #define private public
 #include "compiled_model.hpp"
@@ -958,6 +957,61 @@ TEST_F(SubgraphBehaviorInferTest, QuantUnpackGatherRejectsNonI64LookupTensor) {
     }
     ASSERT_TRUE(mutated) << "No compiled submodel with a non-i64 input was available to inject "
                             "quant_unpack_gather.idx_idx into";
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(compiled->create_infer_request(), ov::Exception, "ids_shape[0] == 1");
+}
+
+bool append_malformed_lookup_input(std::shared_ptr<ov::npuw::CompiledModel>& compiled,
+                                   const std::shared_ptr<TestPlugin>& plugin,
+                                   const ov::element::Type& type,
+                                   const ov::Shape& shape) {
+    for (auto& desc : compiled->m_compiled_submodels) {
+        if (!desc.compiled_model) {
+            continue;
+        }
+        auto submodel_clone = desc.compiled_model->get_runtime_model()->clone();
+        auto malformed_lookup = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        auto malformed_result = std::make_shared<ov::op::v0::Result>(malformed_lookup);
+        submodel_clone->add_parameters({malformed_lookup});
+        submodel_clone->add_results({malformed_result});
+        const auto new_idx = submodel_clone->inputs().size() - 1;
+
+        desc.compiled_model =
+            ov::SoPtr<ov::ICompiledModel>{std::make_shared<FakeSubCompiledModel>(submodel_clone, plugin)};
+        desc.quant_unpack_gather.dst_idx = 0;
+        desc.quant_unpack_gather.src_w_idx = 0;
+        desc.quant_unpack_gather.src_z_idx = -1;
+        desc.quant_unpack_gather.src_s_idx = -1;
+        desc.quant_unpack_gather.idx_idx = static_cast<int64_t>(new_idx);
+        return true;
+    }
+    return false;
+}
+
+TEST_F(SubgraphBehaviorInferTest, QuantUnpackGatherRejectsRankBelowTwoLookupTensor) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto model = build_static_llm_model();
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props());
+
+    ASSERT_TRUE(append_malformed_lookup_input(compiled, plugin, ov::element::i64, ov::Shape{kSeqLen}))
+        << "No compiled submodel was available to append a malformed lookup input to";
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(compiled->create_infer_request(), ov::Exception, "ids_shape.size() == 2");
+}
+
+TEST_F(SubgraphBehaviorInferTest, QuantUnpackGatherRejectsBatchOtherThanOneLookupTensor) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto model = build_static_llm_model();
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props());
+
+    ASSERT_TRUE(append_malformed_lookup_input(compiled, plugin, ov::element::i64, ov::Shape{2, kSeqLen}))
+        << "No compiled submodel was available to append a malformed lookup input to";
 
     OV_EXPECT_THROW_HAS_SUBSTRING(compiled->create_infer_request(), ov::Exception, "ids_shape[0] == 1");
 }
