@@ -540,7 +540,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
         }
         // The actual device may be the CPU, so one non-CPU candidate is enough as long as another device exists.
         // A user blob ID does not identify a device, so blobs warmed up for other devices would overwrite each other.
-        const bool has_blob_id = full_property.count(ov::cache_blob_id.name()) != 0;
+        const bool has_blob_id =
+            full_property.count(ov::cache_blob_id.name()) != 0 ||
+            std::any_of(auto_s_context->m_device_priorities_initial.begin(),
+                        auto_s_context->m_device_priorities_initial.end(),
+                        [](const DeviceInformation& device) {
+                            return device.config.count(ov::cache_blob_id.name()) != 0;
+                        });
         if (is_cumulative || has_blob_id || warmup_candidates.empty() ||
             auto_s_context->m_device_priorities_initial.size() < 2) {
             LOG_WARNING_TAG("compile_for_all is ignored: %s",
@@ -1077,9 +1083,8 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
         std::vector<std::string> devices_to_be_merged =
             m_plugin_config.parse_priorities_devices(priorities.as<std::string>());
         std::size_t num_blob_files = 0;
-        const auto cache_location = CacheWarmupManager::get_cache_location(*get_core(), properties);
         bool if_need_cache_check = !is_cumulative_tput && enable_startup_cpu && (model || !model_path.empty()) &&
-                                   !cache_location.empty() && properties.count(ov::cache_blob_id.name()) == 0;
+                                   properties.count(ov::cache_blob_id.name()) == 0;
         if (if_need_cache_check) {
             for (auto&& device : devices_to_be_merged) {
                 // Skip the excluded device
@@ -1088,10 +1093,16 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                 ov::DeviceIDParser parsed{device};
                 if (parsed.get_device_name().find("CPU") != std::string::npos)
                     continue;
+                // Device-scoped settings take precedence over the global ones.
+                const auto device_config = get_core()->get_supported_property(device, properties);
+                const auto cache_location =
+                    CacheWarmupManager::get_cache_location(*get_core(), device_config, device);
+                if (cache_location.empty() || device_config.count(ov::cache_blob_id.name()))
+                    continue;
                 // check if cached model exists for other devices
                 const bool is_blob_file_exist = CacheWarmupManager::is_blob_cached(*get_core(),
                                                                                    parsed.get_device_name(),
-                                                                                   properties,
+                                                                                   device_config,
                                                                                    model,
                                                                                    model_path,
                                                                                    cache_location);

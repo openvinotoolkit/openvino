@@ -273,6 +273,25 @@ TEST_F(AutoCacheWarmupTest, excludedDeviceIsNotProbedForCachedBlob) {
     std::filesystem::remove_all(cache_dir);
 }
 
+TEST_F(AutoCacheWarmupTest, deviceWithCachingDisabledIsNotProbedForCachedBlob) {
+    const auto cache_dir = std::filesystem::temp_directory_path() /
+                           ("ov_auto_cache_device_disabled_" +
+                            std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(cache_dir);
+    // The mocked core returns an empty compile config, so the blob id only depends on the model.
+    std::ofstream(cache_dir / (ov::ModelCache::compute_hash(model, ov::AnyMap{}) + ".blob")) << "blob";
+    // The matching blob sits in the global cache, but caching is disabled for GPU itself.
+    ov::AnyMap properties = {ov::device::priorities("CPU,GPU"),
+                             ov::cache_path(cache_dir),
+                             ov::device::properties(ov::AnyMap{{"GPU", ov::AnyMap{{ov::cache_path.name(), std::string{}}}}})};
+    std::string devices;
+    OV_ASSERT_NO_THROW(devices = plugin->Plugin::get_device_list(properties, model, {}));
+    EXPECT_NE(devices.find(cpu_device), std::string::npos);
+    EXPECT_EQ(properties.count(ov::intel_auto::enable_startup_fallback.name()), 0u);
+    EXPECT_EQ(properties.count(ov::intel_auto::enable_runtime_fallback.name()), 0u);
+    std::filesystem::remove_all(cache_dir);
+}
+
 TEST_F(AutoCacheWarmupTest, customBlobIdDoesNotPruneCpuFallback) {
     const auto cache_dir = std::filesystem::temp_directory_path() /
                            ("ov_auto_cache_blob_id_prune_" +
@@ -289,39 +308,70 @@ TEST_F(AutoCacheWarmupTest, customBlobIdDoesNotPruneCpuFallback) {
     std::filesystem::remove_all(cache_dir);
 }
 
-TEST_F(AutoCacheWarmupTest, retainedProfilingRequestDoesNotPinCpuHelperRequests) {
-    set_global_cache("test_cache_dir");
-    set_devices({cpu_device, "GPU.0", actual_device});
-    use_default_startup_compilation();
-    std::vector<ov::PropertyName> supported_props = {ov::compilation_num_threads, ov::enable_profiling};
-    ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
-        .WillByDefault(Return(ov::Any(supported_props)));
+// The actual device stays pending until open_gate(), so CPU_HELP serves the first inference.
+class AutoCacheWarmupGatedActualTest : public AutoCacheWarmupTestBase, public ::testing::Test {
+protected:
+    std::promise<void> gate;
+    std::shared_future<void> gate_future = gate.get_future().share();
+    std::once_flag gate_opened;
     std::mutex requests_mutex;
     std::vector<std::weak_ptr<ov::IAsyncInferRequest>> cpu_requests;
-    ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault([&]() {
-        auto request = mockIExeNet->ICompiledModel::create_infer_request();
+    std::atomic<int> warmup_count{0};
+    std::shared_ptr<NiceMock<ov::MockICompiledModel>> warmup_compiled_model;
+    // Must be destroyed after the gate is opened, otherwise CacheWarmup::stop() blocks.
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    std::shared_ptr<ov::IAsyncInferRequest> request;
+
+    void SetUp() override {
+        set_global_cache("test_cache_dir");
+        set_devices({cpu_device, "GPU.0", actual_device});
+        on_compile(cpu_device, [this]() -> ov::SoPtr<ov::ICompiledModel> {
+            return {mockIExeNet, {}};
+        });
+        on_compile(actual_device, [this]() -> ov::SoPtr<ov::ICompiledModel> {
+            gate_future.wait();
+            return {mockIExeNetActual, {}};
+        });
+        std::vector<ov::PropertyName> supported_props = {ov::compilation_num_threads, ov::enable_profiling};
+        ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
+            .WillByDefault(Return(ov::Any(supported_props)));
+        warmup_compiled_model = make_compiled_model();
+        on_compile("GPU.0", [this]() -> ov::SoPtr<ov::ICompiledModel> {
+            warmup_count++;
+            return {warmup_compiled_model, {}};
+        });
+        config.insert(ov::enable_profiling(true));
+    }
+
+    void open_gate() {
+        std::call_once(gate_opened, [this] {
+            gate.set_value();
+        });
+    }
+
+    void TearDown() override {
+        open_gate();
+    }
+};
+
+TEST_F(AutoCacheWarmupGatedActualTest, retainedProfilingRequestDoesNotPinCpuHelperRequests) {
+    ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault([this]() {
+        auto cpu_request = mockIExeNet->ICompiledModel::create_infer_request();
         std::lock_guard<std::mutex> lock(requests_mutex);
-        cpu_requests.push_back(request);
-        return request;
+        cpu_requests.push_back(cpu_request);
+        return cpu_request;
     });
     ov::ProfilingInfo profiling_info;
     profiling_info.node_name = "relu";
     ON_CALL(*inferReqInternal, get_profiling_info())
         .WillByDefault(Return(std::vector<ov::ProfilingInfo>{profiling_info}));
-    std::atomic<int> warmup_count{0};
-    auto warmup_compiled_model = make_compiled_model();
-    on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
-        warmup_count++;
-        return {warmup_compiled_model, {}};
-    });
-    config.insert(ov::enable_profiling(true));
     config.insert(ov::intel_auto::compile_for_all(true));
 
-    std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
-    // Runs on CPU_HELP, the only device ready at this point.
-    auto request = compiled_model->create_infer_request();
+    request = compiled_model->create_infer_request();
+    // The gate is still closed, so this inference runs on CPU_HELP.
     OV_ASSERT_NO_THROW(request->infer());
+    open_gate();
     ASSERT_TRUE(wait_until([&] {
         return warmup_count.load() == 1;
     }));
@@ -338,19 +388,11 @@ TEST_F(AutoCacheWarmupTest, retainedProfilingRequestDoesNotPinCpuHelperRequests)
     EXPECT_EQ(info.front().node_name, "relu");
 }
 
-TEST_F(AutoCacheWarmupTest, profilingFailureSurfacesOnReadNotOnInfer) {
-    set_global_cache("test_cache_dir");
-    set_devices({cpu_device, "GPU.0", actual_device});
-    use_default_startup_compilation();
-    std::vector<ov::PropertyName> supported_props = {ov::compilation_num_threads, ov::enable_profiling};
-    ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
-        .WillByDefault(Return(ov::Any(supported_props)));
+TEST_F(AutoCacheWarmupGatedActualTest, profilingFailureSurfacesOnReadNotOnInfer) {
     ON_CALL(*inferReqInternal, get_profiling_info()).WillByDefault(ov::Throw("profiling is not available"));
-    config.insert(ov::enable_profiling(true));
 
-    std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
-    auto request = compiled_model->create_infer_request();
+    request = compiled_model->create_infer_request();
     OV_ASSERT_NO_THROW(request->infer());
     try {
         request->get_profiling_info();
@@ -370,7 +412,7 @@ protected:
     std::atomic<int> in_flight{0};
     std::atomic<int> max_in_flight{0};
     std::shared_ptr<NiceMock<ov::MockICompiledModel>> warmup_compiled_model;
-    // Declared last so they are destroyed first; TearDown() opens the gate before that, even after a fatal assertion.
+    // Must be destroyed after the gate is opened, otherwise CacheWarmup::stop() blocks.
     std::shared_ptr<ov::ICompiledModel> first;
     std::shared_ptr<ov::ICompiledModel> second;
 
@@ -595,6 +637,27 @@ TEST_F(AutoCacheWarmupTest, ignoredWhenCacheBlobIdIsSet) {
     });
     config.insert(ov::intel_auto::compile_for_all(true));
     config.insert(ov::cache_blob_id(746352));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    EXPECT_FALSE(wait_until([&] {
+        return warmup_count.load() > 0;
+    }, std::chrono::milliseconds(500)));
+}
+
+TEST_F(AutoCacheWarmupTest, ignoredWhenCandidateHasCacheBlobId) {
+    set_global_cache("test_cache_dir");
+    set_devices({cpu_device, "GPU.0", actual_device});
+    metaDevices[1].config = ov::AnyMap{{ov::cache_blob_id.name(), std::string{"746352"}}};
+    ON_CALL(*plugin, parse_meta_devices(_, _)).WillByDefault(Return(metaDevices));
+    use_default_startup_compilation();
+    std::atomic<int> warmup_count{0};
+    auto warmup_compiled_model = make_compiled_model();
+    on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        warmup_count++;
+        return {warmup_compiled_model, {}};
+    });
+    config.insert(ov::intel_auto::compile_for_all(true));
 
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
