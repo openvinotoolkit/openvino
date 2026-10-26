@@ -324,7 +324,8 @@ def test_pack_data_matches_core_layout(ov_type, high, num_elements):
 def test_pack_unpack_data_match_core_layout(ov_type, low, high, dtype, shape):
     # The core packs element 0 into the most significant bit for u1
     # and into the least significant bits for u2, u4, i4 and nf4.
-    data = (np.arange(np.prod(shape)) % (high - low) + low).astype(dtype).reshape(shape)
+    values = np.arange(np.prod(shape)) % (high - low) + low
+    data = values.astype(dtype).reshape(shape)
 
     ov_const = ops.constant(data, dtype=ov_type)
 
@@ -335,7 +336,8 @@ def test_pack_unpack_data_match_core_layout(ov_type, low, high, dtype, shape):
 @pytest.mark.parametrize("num_elements", [7, 16])
 def test_pack_data_f4e2m1_matches_core_layout(num_elements):
     codes = np.arange(16, dtype=np.uint8)[:num_elements]
-    values = np.array([0, 0.5, 1, 1.5, 2, 3, 4, 6, -0.0, -0.5, -1, -1.5, -2, -3, -4, -6], dtype=np.float32)[:num_elements]
+    all_values = np.array([0, 0.5, 1, 1.5, 2, 3, 4, 6, -0.0, -0.5, -1, -1.5, -2, -3, -4, -6], dtype=np.float32)
+    values = all_values[:num_elements]
 
     ov_const = ops.constant(values, dtype=Type.f4e2m1)
 
