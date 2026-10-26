@@ -134,6 +134,8 @@ std::string case_name(const testing::TestParamInfo<WoqU2Param>& info) {
 bool cm_woq_u2_supported(engine& e) {
     const auto& info = e.get_device_info();
     auto config = get_test_default_config(e);
+    // The FC registry dereferences the legacy OCL impls, which exist only after this call; a test that runs first in its process would crash.
+    program::init_primitives();
     // The device can run CM while this build has no CM backend (ENABLE_CM_FOR_GPU=OFF).
     const auto& impls = fully_connected::type_id()->get_all_implementations();
     const bool cm_registered = std::any_of(impls.begin(), impls.end(), [](const auto& impl) {
