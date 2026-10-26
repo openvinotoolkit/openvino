@@ -114,7 +114,7 @@ def _check_range(array: np.ndarray, type: Type) -> None:
 
     nf4 and f4e2m1 values are 4-bit codes. u1 is left out: the core stores any non-zero value as 1.
     """
-    if type not in [Type.u2, Type.u3, Type.u4, Type.u6, Type.i4, Type.nf4, Type.f4e2m1] or array.size == 0:
+    if type not in [Type.u2, Type.u3, Type.u4, Type.u6, Type.i4, Type.nf4, Type.f4e2m1]:
         return
     if type == Type.i4:
         low, high = -8, 7

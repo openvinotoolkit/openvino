@@ -508,13 +508,17 @@ def test_pack_data_range_error_reports_summary_not_values():
         pack_data(data, ov.Type.u4)
     message = str(e.value)
     assert len(message) < 300
-    assert "uint8" in message and "(100000,)" in message and "min 0" in message and "max 16" in message
+    assert "uint8" in message
+    assert "(100000,)" in message
+    assert "min 0" in message
+    assert "max 16" in message
 
 
 def test_pack_data_range_error_ignores_nan_in_summary():
     with pytest.raises(RuntimeError) as e:
         pack_data(np.array([np.nan, 1.0, 64.0], dtype=np.float32), ov.Type.u6)
-    assert "min 1.0" in str(e.value) and "max 64.0" in str(e.value)
+    assert "min 1.0" in str(e.value)
+    assert "max 64.0" in str(e.value)
 
 
 @pytest.mark.parametrize(
