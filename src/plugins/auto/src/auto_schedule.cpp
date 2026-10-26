@@ -138,8 +138,8 @@ void AutoSchedule::init() {
         LOG_INFO_TAG("bind buffer supported only under cumulative mode, ignoring");
     }
     if (m_context->m_dynamic_device_selection) {
-        // the model has to stay alive to be compiled on demand once the target device changes
-        m_dynamic_model = m_context->m_model;
+        // snapshot of the graph for on-demand compilation
+        m_dynamic_model = m_context->m_model->clone();
         m_dynamic_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
             ov::threading::IStreamsExecutor::Config{"AutoDynamicSchedule", 1, 0});
         LOG_INFO_TAG("[dynamic] device is re-selected for every inference, inference is serialized per compiled model");
