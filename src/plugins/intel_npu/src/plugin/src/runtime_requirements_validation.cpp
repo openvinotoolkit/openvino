@@ -5,7 +5,6 @@
 #include "runtime_requirements_validation.hpp"
 
 #include "compiler_schedule_instance_evaluator.hpp"
-#include "intel_npu/common/blob_reader_interface.hpp"
 #include "intel_npu/common/blob_source.hpp"
 #include "intel_npu/common/runtime_requirements.hpp"
 #include "intel_npu/common/supported_section_type_evaluator.hpp"

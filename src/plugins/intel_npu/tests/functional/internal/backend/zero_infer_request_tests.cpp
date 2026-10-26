@@ -241,8 +241,7 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         copy_model = batchedModel;
     }
 
-    const auto blob_sections_registry =
-        std::make_shared<::intel_npu::BlobSectionsRegistry>(npu_config->get<::intel_npu::LOG_LEVEL>());
+    intel_npu::BlobSectionsRegistry blob_sections_registry;
     auto graph = compiler->compile(copy_model, *npu_config, ::intel_npu::AdapterDescriptor{}, blob_sections_registry);
     if (batch) {
         graph->set_batch_size(batch.value());
@@ -254,7 +253,7 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         std::make_shared<ov::test::utils::MockPlugin>(),  // MockPlugin needed only to avoid throw for nullptr
         device,
         graph,
-        blob_sections_registry,
+        std::move(blob_sections_registry),
         *npu_config,
         unknownProperties);
     OPENVINO_ASSERT(compiledModel->inputs()[0].get_element_type() == element_type);

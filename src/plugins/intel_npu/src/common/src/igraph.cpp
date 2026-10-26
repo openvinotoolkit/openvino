@@ -8,7 +8,7 @@
 
 namespace intel_npu {
 
-uint64_t IGraph::export_main_blob(std::ostream&) const {
+uint64_t IGraph::export_main_blob(const ov::runtime::hsm::SectionSink&) const {
     OPENVINO_THROW("export_blob not implemented");
 }
 

@@ -190,9 +190,17 @@ public:
         m_main_schedule = compiler_main_schedule.create_roi_tensor(blob_size);
     }
 
-    std::optional<BlobSectionsRegistry> get_blob_sections_registry() override {
+    BlobSectionsRegistry get_blob_sections_registry() override {
+        OPENVINO_ASSERT(m_graph, "Invalid state");
+        OPENVINO_ASSERT(m_graph->get_kind() == GraphKind::Weightful,
+                        "Only standard, weightful compiler schedules are supported as \"raw blobs\"");
+        auto graph = std::dynamic_pointer_cast<Graph>(m_graph);
+        OPENVINO_ASSERT(graph, GRAPH_CLASS_MISMATCH_MESSAGE);
+
+        BlobSectionsRegistry blob_sections_registry;
+        blob_sections_registry.register_section(std::make_shared<ELFMainScheduleSection>(graph));
         // TODO comment
-        return std::nullopt;
+        return blob_sections_registry;
     }
 
 private:
@@ -262,8 +270,8 @@ public:
                               backend,
                               config,
                               Logger("BlobFormatV1Importer", config.get<LOG_LEVEL>())) {
-        // Read only the metadata from the source and check if the blob is compatible. Load the blob into memory only if
-        // it passes the compatibility checks.
+        // Read only the metadata from the source and check if the blob is compatible. Load the blob into memory
+        // only if it passes the compatibility checks.
         m_metadata = read_metadata_from(npu_formatted_blob);
 
         const size_t compiler_payload_size = m_metadata->get_compiler_payload_size();
@@ -284,7 +292,7 @@ public:
      * @brief Constructs a blob writer that can be used to re-export the blob.
      * @details The sections are built using the content found within the V1 format.
      */
-    std::optional<BlobSectionsRegistry> get_blob_sections_registry() override {
+    BlobSectionsRegistry get_blob_sections_registry() override {
         OPENVINO_ASSERT(m_graph, "Invalid state");
 
         BlobSectionsRegistry blob_sections_registry;
@@ -300,21 +308,21 @@ public:
             auto dynamic_graph = std::dynamic_pointer_cast<DynamicGraph>(m_graph);
             OPENVINO_ASSERT(dynamic_graph, GRAPH_CLASS_MISMATCH_MESSAGE);
             blob_sections_registry.register_section(
-                std::make_shared<DynamicScheduleSection>(dynamic_graph, encryption_callback, m_logger.level()));
+                std::make_shared<DynamicScheduleSection>(dynamic_graph, encryption_callback));
             break;
         }
         case GraphKind::Weightless: {
             auto weightless_graph = std::dynamic_pointer_cast<WeightlessGraph>(m_graph);
             OPENVINO_ASSERT(weightless_graph, GRAPH_CLASS_MISMATCH_MESSAGE);
             blob_sections_registry.register_section(
-                std::make_shared<ELFInitSchedulesSection>(weightless_graph, encryption_callback, m_logger.level()));
+                std::make_shared<ELFInitSchedulesSection>(weightless_graph, encryption_callback));
             // break omitted on purpose, since in the weightless case we also need to register a main schedule
         }
         case GraphKind::Weightful: {
             auto graph = std::dynamic_pointer_cast<Graph>(m_graph);
             OPENVINO_ASSERT(graph, GRAPH_CLASS_MISMATCH_MESSAGE);
             blob_sections_registry.register_section(
-                std::make_shared<ELFMainScheduleSection>(graph, encryption_callback, m_logger.level()));
+                std::make_shared<ELFMainScheduleSection>(graph, encryption_callback));
             break;
         }
         default: {
@@ -324,25 +332,23 @@ public:
 
         // Miscellaneous
         if (m_batch_size.has_value()) {
-            blob_sections_registry.register_section(
-                std::make_shared<BatchSizeSection>(m_batch_size.value(), m_logger.level()));
+            blob_sections_registry.register_section(std::make_shared<BatchSizeSection>(m_batch_size.value()));
         }
 
         const auto layouts = extract_layouts();
         if (layouts.has_value()) {
             blob_sections_registry.register_section(
-                std::make_shared<IOLayoutsSection>(layouts->first, layouts->second, m_logger.level()));
+                std::make_shared<IOLayoutsSection>(layouts->first, layouts->second));
         }
 
         const auto compiler_version = extract_compiler_version();
         if (compiler_version.has_value()) {
-            blob_sections_registry.register_section(
-                std::make_shared<CompilerVersionSection>(compiler_version.value(), m_logger.level()));
+            blob_sections_registry.register_section(std::make_shared<CompilerVersionSection>(compiler_version.value()));
         }
 
         if (encryption_enabled) {
             blob_sections_registry.register_section(
-                std::make_shared<EncryptedSchedulesFlagSection>(encryption_enabled, m_logger.level()));
+                std::make_shared<EncryptedSchedulesFlagSection>(encryption_enabled));
         }
 
         return blob_sections_registry;
@@ -463,7 +469,9 @@ public:
         verify_valid_sections();
     }
 
-    std::optional<BlobSectionsRegistry> get_blob_sections_registry() override {
+    BlobSectionsRegistry get_blob_sections_registry() override {
+        OPENVINO_ASSERT(m_graph, "Invalid state");
+
         // Moving forward, the "Graph" object will manage the ownership of the compiler schedules
         auto elf_main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
             m_blob_sections_registry.retrieve_any_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
@@ -488,7 +496,8 @@ public:
 private:
     // /**
     //  * @brief Registers all blob sections readers known to the plugin.
-    //  * @note The runtime requirements & manifest sections should have been already registered (e.g. in the BlobReader
+    //  * @note The runtime requirements & manifest sections should have been already registered (e.g. in the
+    //  BlobReader
     //  * ctor) since these sections are a core part of the format.
     //  */
 
@@ -651,8 +660,8 @@ private:
             return std::nullopt;
         }
 
-        // Look for the runtime requirements of the ELF main/dynamic schedule. The checks performed previously should
-        // already guarantee that only one instance of these section types exists
+        // Look for the runtime requirements of the ELF main/dynamic schedule. The checks performed previously
+        // should already guarantee that only one instance of these section types exists
         const RuntimeRequirements runtime_requirements = runtime_requirements_section->get_runtime_requirements();
         const std::map<SectionID, std::string> sections_requirements = runtime_requirements.get_sections_requirements();
         const std::unordered_map<SectionID, SectionType> section_id_to_type_mapping =
@@ -683,7 +692,6 @@ private:
 }  // namespace
 
 namespace intel_npu {
-
 IBlobFormatImporter::IBlobFormatImporter(const std::shared_ptr<const ov::Model>& original_model,
                                          const ov::SoPtr<IEngineBackend>& backend,
                                          const Config& config,
@@ -796,7 +804,7 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& blob_source,
                         "The raw blob flag was set, but the container to be imported follows the HSM format");
 
         logger.debug("Creating a blob format v2 import handler using the factory");
-        return std::make_unique<BlobFormatV2Importer>(reader, original_model, backend, option_helper, config);
+        return std::make_unique<BlobFormatV2Importer>(reader.value(), original_model, backend, option_helper, config);
     }
 
     if (is_raw_blob) {

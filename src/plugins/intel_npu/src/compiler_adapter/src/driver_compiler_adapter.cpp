@@ -155,8 +155,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     // Tell the blob writer to store the main schedule in the blob at export time
     blobSectionsRegistry.register_section(std::make_shared<ELFMainScheduleSection>(
         graph,
-        adapterDesc.secureCompile ? updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt : nullptr,
-        _logger.level()));
+        adapterDesc.secureCompile ? updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt : nullptr));
 
     return graph;
 }
@@ -292,9 +291,9 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
     // At export time, all schedules (main + inits) shall be stored in the blob.
     blobSectionsRegistry.register_section(
-        std::make_shared<ELFMainScheduleSection>(weightlessGraph, encryptionCallback, _logger.level()));
+        std::make_shared<ELFMainScheduleSection>(weightlessGraph, encryptionCallback));
     blobSectionsRegistry.register_section(
-        std::make_shared<ELFInitSchedulesSection>(weightlessGraph, encryptionCallback, _logger.level()));
+        std::make_shared<ELFInitSchedulesSection>(weightlessGraph, encryptionCallback));
 
     return weightlessGraph;
 }

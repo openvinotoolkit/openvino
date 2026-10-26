@@ -130,7 +130,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFMainScheduleSecti
         section.read(main_schedule.data());
 
         logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data(), main_schedule_size);
-        result = std::make_shared<ELFMainScheduleSection>(std::move(main_schedule), nullptr, logger.level());
+        result = std::make_shared<ELFMainScheduleSection>(std::move(main_schedule), nullptr);
     } else {
         result = std::make_shared<ELFMainScheduleSection>(
             ov::Tensor(ov::element::Type_t::u8, ov::Shape({content_view.size()}), content_view.data()),
@@ -271,7 +271,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFInitSchedulesSect
             logger.error("Failed to read the whole content of the section");
             return std::nullopt;
         }
-        return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules), nullptr, logger.level());
+        return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules), nullptr);
     }
 
     // TODO comment

@@ -131,8 +131,7 @@ TEST_F(ELFMainScheduleSectionTest, ReadingATooSmallSection) {
     ASSERT_FALSE(read_section);
 
     std::istringstream stream(section_content);
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE);
+    manifest_entry = ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE);
     manifest_entry.size = section_content.size();
 
     read_section = ELFMainScheduleSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
@@ -153,8 +152,7 @@ TEST_F(ELFMainScheduleSectionTest, ReadPaddingTooBig) {
     ASSERT_FALSE(read_section);
 
     std::istringstream stream(section_content);
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE);
+    manifest_entry = ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE);
     manifest_entry.size = section_content.size();
 
     read_section = ELFMainScheduleSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));

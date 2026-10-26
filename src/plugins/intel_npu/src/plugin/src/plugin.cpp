@@ -490,7 +490,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             graph->set_batch_size(batch.value());
         }
 
-        blobSectionsRegistry.register_section(std::make_shared<BatchSizeSection>(batch.value(), _logger.level()));
+        blobSectionsRegistry.register_section(std::make_shared<BatchSizeSection>(batch.value()));
     }
 
     if (localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
@@ -501,7 +501,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     blobSectionsRegistry.register_section(
-        std::make_shared<CompilerVersionSection>(localConfig.get<COMPILER_VERSION>(), _logger.level()));
+        std::make_shared<CompilerVersionSection>(localConfig.get<COMPILER_VERSION>()));
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
@@ -509,7 +509,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                         shared_from_this(),
                                                         device,
                                                         graph,
-                                                        std::make_optional(std::move(blobSectionsRegistry)),
+                                                        std::move(blobSectionsRegistry),
                                                         localConfig,
                                                         unknownProperties);
     } catch (const std::exception& ex) {

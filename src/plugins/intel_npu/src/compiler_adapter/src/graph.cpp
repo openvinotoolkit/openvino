@@ -129,7 +129,7 @@ std::tuple<uint64_t, uint64_t, std::optional<uint32_t>> Graph::write_blob(
     if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
         OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
     }
-    sink(reinterpret_cast<const std::byte*>(blobRawPtr), blobSize);
+    sink(ov::util::MemoryView(reinterpret_cast<const std::byte*>(blobRawPtr), blobSize));
 
     std::optional<uint32_t> blobHash = std::nullopt;
     if (computeHash) {
@@ -142,9 +142,8 @@ std::tuple<uint64_t, uint64_t, std::optional<uint32_t>> Graph::write_blob(
     size_t sizeWithPadding = utils::align_size_to_standard_page_size(blobSize);
     size_t paddingSize = sizeWithPadding - blobSize;
     if (paddingSize > 0) {
-        std::array<std::byte, paddingSize> padding;
-        std::memset(padding.data(), 0, paddingSize);
-        sink(padding.data(), padding.size());
+        const std::vector<uint8_t> padding(paddingSize, 0);
+        sink(ov::util::MemoryView(reinterpret_cast<const std::byte*>(padding.data()), padding.size()));
     }
 
     return {blobSize, sizeWithPadding, blobHash};

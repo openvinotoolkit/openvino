@@ -131,11 +131,10 @@ TEST_F(DynamicScheduleSectionTest, ReadingATooSmallSection) {
     ASSERT_FALSE(read_section);
 
     std::istringstream stream(section_content);
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
+    manifest_entry = ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
     manifest_entry.size = section_content.size();
 
-    auto read_section = DynamicScheduleSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
+    read_section = DynamicScheduleSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
     ASSERT_FALSE(read_section);
 }
 
@@ -153,11 +152,10 @@ TEST_F(DynamicScheduleSectionTest, ReadPaddingTooBig) {
     ASSERT_FALSE(read_section);
 
     std::istringstream stream(section_content);
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
+    manifest_entry = ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
     manifest_entry.size = section_content.size();
 
-    auto read_section = DynamicScheduleSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
+    read_section = DynamicScheduleSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
     ASSERT_FALSE(read_section);
 }
 

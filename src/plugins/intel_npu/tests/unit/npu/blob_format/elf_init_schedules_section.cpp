@@ -156,11 +156,10 @@ TEST_F(ELFInitSchedulesSectionTest, ReadingATooSmallSection) {
     ASSERT_FALSE(read_section);
 
     std::istringstream stream(section_content);
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
+    manifest_entry = ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
     manifest_entry.size = section_content.size();
 
-    auto read_section = ELFInitSchedulesSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
+    read_section = ELFInitSchedulesSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
     ASSERT_FALSE(read_section);
 }
 
@@ -180,11 +179,10 @@ TEST_F(ELFInitSchedulesSectionTest, ReadNumberOfInitsTooBig) {
     ASSERT_FALSE(read_section);
 
     std::istringstream stream(section_content);
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
+    manifest_entry = ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
     manifest_entry.size = section_content.size();
 
-    auto read_section = ELFInitSchedulesSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
+    read_section = ELFInitSchedulesSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
     ASSERT_FALSE(read_section);
 }
 
@@ -204,11 +202,10 @@ TEST_F(ELFInitSchedulesSectionTest, ReadNumberOfInitsTooSmall) {
     ASSERT_FALSE(read_section);
 
     std::istringstream stream(section_content);
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
+    manifest_entry = ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
     manifest_entry.size = section_content.size();
 
-    auto read_section = ELFInitSchedulesSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
+    read_section = ELFInitSchedulesSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
     ASSERT_FALSE(read_section);
 }
 
@@ -228,11 +225,10 @@ TEST_F(ELFInitSchedulesSectionTest, ReadInitSizeTooBig) {
     ASSERT_FALSE(read_section);
 
     std::istringstream stream(section_content);
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
+    manifest_entry = ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
     manifest_entry.size = section_content.size();
 
-    auto read_section = ELFInitSchedulesSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
+    read_section = ELFInitSchedulesSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
     ASSERT_FALSE(read_section);
 }
 
@@ -254,11 +250,10 @@ TEST_F(ELFInitSchedulesSectionTest, ReadIntegerOverflow) {
     ASSERT_FALSE(read_section);
 
     std::istringstream stream(section_content);
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
+    manifest_entry = ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
     manifest_entry.size = section_content.size();
 
-    auto read_section = ELFInitSchedulesSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
+    read_section = ELFInitSchedulesSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
     ASSERT_FALSE(read_section);
 }
 
@@ -283,8 +278,7 @@ TEST_F(ELFInitSchedulesSectionTest, ReadEmptySchedule) {
     ASSERT_EQ(casted_section->get_schedules().at(0).get_byte_size(), 0);
 
     std::istringstream stream(section_content);
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
+    manifest_entry = ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
     manifest_entry.size = section_content.size();
 
     read_section = ELFInitSchedulesSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
@@ -311,11 +305,10 @@ TEST_F(ELFInitSchedulesSectionTest, ReadPaddingTooBig) {
     ASSERT_FALSE(read_section);
 
     std::istringstream stream(section_content);
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
+    manifest_entry = ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
     manifest_entry.size = section_content.size();
 
-    auto read_section = ELFInitSchedulesSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
+    read_section = ELFInitSchedulesSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
     ASSERT_FALSE(read_section);
 }
 

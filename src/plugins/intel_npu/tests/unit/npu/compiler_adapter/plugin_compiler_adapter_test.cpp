@@ -52,6 +52,7 @@ std::shared_ptr<ov::Model> makeWeightlessModel() {
 
 struct PluginCompilerAdapterTest : public ::testing::Test {
     std::shared_ptr<FakeVCLCompiler> compiler = std::make_shared<FakeVCLCompiler>();
+    BlobSectionsRegistry registry;
 
     // The adapter is built with a null ZeroInitStructsHolder throughout: that is the no-driver path,
     // which is the only one reachable without an NPU.
@@ -101,8 +102,7 @@ TEST_F(PluginCompilerAdapterTest, CompileProducesAGraphEvenWithoutADriver) {
     auto adapter = makeAdapter();
     auto config = makeConfig();
 
-    const auto graph =
-        adapter->compile(makeModel(), config, AdapterDescriptor{}, std::make_shared<BlobSectionsRegistry>());
+    const auto graph = adapter->compile(makeModel(), config, AdapterDescriptor{}, registry);
 
     ASSERT_NE(graph, nullptr);
     EXPECT_EQ(compiler->compileCalls, 1);
@@ -115,8 +115,7 @@ TEST_F(PluginCompilerAdapterTest, CompilePropagatesCompilerFailures) {
     auto adapter = makeAdapter();
     auto config = makeConfig();
 
-    EXPECT_THROW(adapter->compile(makeModel(), config, AdapterDescriptor{}, std::make_shared<BlobSectionsRegistry>()),
-                 ov::Exception);
+    EXPECT_THROW(adapter->compile(makeModel(), config, AdapterDescriptor{}, registry), ov::Exception);
 }
 
 TEST_F(PluginCompilerAdapterTest, CompileDefaultsToTheElfBlobType) {
@@ -124,8 +123,7 @@ TEST_F(PluginCompilerAdapterTest, CompileDefaultsToTheElfBlobType) {
     auto adapter = makeAdapter();
     auto config = makeConfig(std::string("DefaultHW"));
 
-    const auto graph =
-        adapter->compile(makeModel(), config, AdapterDescriptor{}, std::make_shared<BlobSectionsRegistry>());
+    const auto graph = adapter->compile(makeModel(), config, AdapterDescriptor{}, registry);
     ASSERT_NE(graph, nullptr);
 }
 
@@ -135,10 +133,7 @@ TEST_F(PluginCompilerAdapterTest, CompileWSDefaultsToOneShotWhenTheVersionIsUnse
     auto config = makeConfig();
     ASSERT_FALSE(config.has<::intel_npu::SEPARATE_WEIGHTS_VERSION>());
 
-    const auto graph = adapter->compileWS(makeWeightlessModel(),
-                                          config,
-                                          AdapterDescriptor{},
-                                          std::make_shared<BlobSectionsRegistry>());
+    const auto graph = adapter->compileWS(makeWeightlessModel(), config, AdapterDescriptor{}, registry);
 
     ASSERT_NE(graph, nullptr);
     EXPECT_EQ(compiler->compileWsOneShotCalls, 1);
@@ -153,10 +148,7 @@ TEST_F(PluginCompilerAdapterTest, CompileWSOneShotSplitsMainOffTheBack) {
     auto adapter = makeAdapter();
     auto config = makeConfig(std::nullopt, std::string("ONE_SHOT"));
 
-    const auto graph = adapter->compileWS(makeWeightlessModel(),
-                                          config,
-                                          AdapterDescriptor{},
-                                          std::make_shared<BlobSectionsRegistry>());
+    const auto graph = adapter->compileWS(makeWeightlessModel(), config, AdapterDescriptor{}, registry);
 
     ASSERT_NE(graph, nullptr);
     EXPECT_EQ(compiler->compileWsOneShotCalls, 1);
@@ -168,10 +160,7 @@ TEST_F(PluginCompilerAdapterTest, CompileWSOneShotToleratesASingleTensor) {
     auto adapter = makeAdapter();
     auto config = makeConfig(std::nullopt, std::string("ONE_SHOT"));
 
-    const auto graph = adapter->compileWS(makeWeightlessModel(),
-                                          config,
-                                          AdapterDescriptor{},
-                                          std::make_shared<BlobSectionsRegistry>());
+    const auto graph = adapter->compileWS(makeWeightlessModel(), config, AdapterDescriptor{}, registry);
 
     ASSERT_NE(graph, nullptr);
     EXPECT_EQ(compiler->compileWsOneShotCalls, 1);
@@ -183,10 +172,7 @@ TEST_F(PluginCompilerAdapterTest, CompileWSIterativeRequiresAGraphHandle) {
 
     // The iterative flow cannot work without a Level Zero graph handle.
     try {
-        adapter->compileWS(makeWeightlessModel(),
-                           config,
-                           AdapterDescriptor{},
-                           std::make_shared<BlobSectionsRegistry>());
+        adapter->compileWS(makeWeightlessModel(), config, AdapterDescriptor{}, registry);
         FAIL() << "Expected compileWS(ITERATIVE) to throw without a graph handle";
     } catch (const ov::Exception& error) {
         EXPECT_NE(std::string(error.what()).find("weights separation"), std::string::npos) << error.what();

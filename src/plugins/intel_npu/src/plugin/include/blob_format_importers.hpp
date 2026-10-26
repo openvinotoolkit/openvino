@@ -9,7 +9,6 @@
 
 #include "compiler_option_support_helper.hpp"
 #include "intel_npu/common/blob_source.hpp"
-#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
@@ -73,9 +72,9 @@ public:
      * @brief Creates a new BlobSectionsRegistry using the data parsed from the blob. The BlobSectionsRegistry can later
      * be used to re-export the blob.
      *
-     * @return The BlobSectionsRegistry if the imported compiled model is not a "raw blob". "nullopt" otherwise.
+     * @return TODO
      */
-    virtual std::optional<BlobSectionsRegistry> get_blob_sections_registry() = 0;
+    virtual BlobSectionsRegistry get_blob_sections_registry() = 0;
 
     Config get_config() const;
 

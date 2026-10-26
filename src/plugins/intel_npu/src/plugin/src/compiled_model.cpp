@@ -71,7 +71,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<IDevice>& device,
                              const std::shared_ptr<IGraph>& graph,
-                             std::optional<BlobSectionsRegistry>&& blobSectionsRegistry,
+                             BlobSectionsRegistry&& blobSectionsRegistry,
                              const Config& config,
                              const ov::AnyMap& properties)
     : ICompiledModel(model, plugin, nullptr, nullptr),
@@ -90,23 +90,21 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
     _logger.info("The current compiled model is a %s one", to_string(_graph->get_kind()));
 
-    if (_blobSectionsRegistry.has_value()) {
-        // Registed the IO layouts section
-        std::vector<ov::Layout> inputLayouts;
-        std::vector<ov::Layout> outputLayouts;
+    // Registed the IO layouts section
+    std::vector<ov::Layout> inputLayouts;
+    std::vector<ov::Layout> outputLayouts;
 
-        for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
-            inputLayouts.push_back(
-                std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
-        }
-        for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
-            outputLayouts.push_back(
-                std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
-        }
-
-        blobSectionsRegistry->register_section(
-            std::make_shared<IOLayoutsSection>(std::move(inputLayouts), std::move(outputLayouts), _logger.level()));
+    for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
+        inputLayouts.push_back(
+            std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
     }
+    for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
+        outputLayouts.push_back(
+            std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+    }
+
+    _blobSectionsRegistry.register_section(
+        std::make_shared<IOLayoutsSection>(std::move(inputLayouts), std::move(outputLayouts)));
 
     // Immediate-init path: when weights load is not deferred, initialize the graph now.
     // The deferred path (CREATE_EXECUTOR off or DEFER_WEIGHTS_LOAD on) is handled in create_infer_request().
@@ -160,14 +158,12 @@ void CompiledModel::export_model(std::ostream& stream) const {
 
     const Config config = _propertiesManager->getConfig();
     if (!config.get<EXPORT_RAW_BLOB>()) {
-        OPENVINO_ASSERT(_blobSectionsRegistry.has_value(),
-                        "Cannot export non-raw blobs without a BlobSectionsRegistry");
-        sync_encryption_callbacks(_blobSectionsRegistry.value(), config);
-        hsm::write_to(stream, _blobSectionsRegistry.value());
+        sync_encryption_callbacks(_blobSectionsRegistry, config);
+        hsm::write_to(stream, _blobSectionsRegistry);
         return;
     }
 
-    if (_blobSectionsRegistry.has_value() && !blob_contains_only_main_schedule(_blobSectionsRegistry.value())) {
+    if (!blob_contains_only_main_schedule(_blobSectionsRegistry)) {
         OPENVINO_THROW("Received a request to export the compiled model using the raw format, but multiple compiler "
                        "schedules have been found. The raw format supports only a single compiler schedule.");
     }

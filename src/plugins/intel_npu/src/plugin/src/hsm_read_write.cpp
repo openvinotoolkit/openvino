@@ -30,7 +30,10 @@ ov::runtime::hsm::SectionTagReserved build_section_tag(const std::shared_ptr<ISe
 
     const ov::runtime::hsm::SectionTag tag =
         ov::runtime::hsm::SectionTag::make(static_cast<uint32_t>(section->get_type().get_code()), section->is_inline());
-    std::array<uint8_t, 4> reserved_bytes{id.get_id() & 0xFF, id.get_id() >> 8 & 0xFF, 0, 0};
+    std::array<uint8_t, 4> reserved_bytes{static_cast<uint8_t>(static_cast<uint8_t>(id.get_id()) & 0xFF),
+                                          static_cast<uint8_t>(static_cast<uint8_t>(id.get_id() >> 8) & 0xFF),
+                                          0,
+                                          0};
     return ov::runtime::hsm::SectionTagReserved(tag, reserved_bytes);
 }
 
@@ -44,7 +47,7 @@ RuntimeRequirements parse_and_evaluate_runtime_requirements(
                     "No reader found for the runtime requirements section");
     const auto decode_result =
         base_reader.decode(static_cast<ov::runtime::hsm::DeviceId>(ov::runtime::hsm::Devices::npu),
-                           RUNTIME_REQUIREMENTS_TAG,
+                           RUNTIME_REQUIREMENTS_TAG.id(),
                            section_readers.at(SectionTypeCode::RUNTIME_REQUIREMENTS));
     OPENVINO_ASSERT(decode_result.has_value());
     const auto runtime_requirements_section =
@@ -76,7 +79,7 @@ BlobSectionsRegistry read_from(
     std::optional<RuntimeRequirements> runtime_requirements;
     const size_t n_runtime_requirements =
         base_reader.count(static_cast<ov::runtime::hsm::DeviceId>(ov::runtime::hsm::Devices::npu),
-                          RUNTIME_REQUIREMENTS_TAG);
+                          RUNTIME_REQUIREMENTS_TAG.id());
     OPENVINO_ASSERT(n_runtime_requirements < 2, "Found more than one runtime requirements section");
 
     if (n_runtime_requirements) {
@@ -112,7 +115,7 @@ BlobSectionsRegistry read_from(
             OPENVINO_ASSERT(section_readers.count(section_type), MANDATORY_READER_MISSING_MESSAGE, debug_name);
 
             const std::optional<std::shared_ptr<ISection>> parsed_section =
-                base_reader.decode(manifest_entry.device, manifest_entry.tag, section_readers.at(section_type));
+                base_reader.decode(manifest_entry.device, manifest_entry.tag.id(), section_readers.at(section_type));
             OPENVINO_ASSERT(parsed_section.has_value(), PARSE_FAILURE_MESSAGE, debug_name);
             registry.register_section(parsed_section.value(), section_id);
             continue;
@@ -135,7 +138,7 @@ BlobSectionsRegistry read_from(
             runtime_requirements->get_instance_evaluation_result(section_id);
 
         const std::optional<std::shared_ptr<ISection>> parsed_section =
-            base_reader.decode(manifest_entry.device, manifest_entry.tag, section_readers.at(section_type));
+            base_reader.decode(manifest_entry.device, manifest_entry.tag.id(), section_readers.at(section_type));
         if (parsed_section.has_value()) {
             registry.register_section(parsed_section.value(), section_id);
         }
@@ -147,7 +150,9 @@ BlobSectionsRegistry read_from(
                 OPENVINO_ASSERT(section_readers.count(section_type), MANDATORY_READER_MISSING_MESSAGE, debug_name);
 
                 const std::optional<std::shared_ptr<ISection>> parsed_section =
-                    base_reader.decode(manifest_entry.device, manifest_entry.tag, section_readers.at(section_type));
+                    base_reader.decode(manifest_entry.device,
+                                       manifest_entry.tag.id(),
+                                       section_readers.at(section_type));
                 OPENVINO_ASSERT(parsed_section.has_value(), PARSE_FAILURE_MESSAGE, debug_name);
                 registry.register_section(parsed_section.value(), section_id);
             } else if (instance_evaluation_result.has_value() && !instance_evaluation_result.value()) {
@@ -165,7 +170,9 @@ BlobSectionsRegistry read_from(
                 }
 
                 const std::optional<std::shared_ptr<ISection>> parsed_section =
-                    base_reader.decode(manifest_entry.device, manifest_entry.tag, section_readers.at(section_type));
+                    base_reader.decode(manifest_entry.device,
+                                       manifest_entry.tag.id(),
+                                       section_readers.at(section_type));
                 if (parsed_section.has_value()) {
                     registry.register_section(parsed_section.value(), section_id);
                 } else {
@@ -189,7 +196,7 @@ BlobSectionsRegistry read_from(
             }
 
             const std::optional<std::shared_ptr<ISection>> parsed_section =
-                base_reader.decode(manifest_entry.device, manifest_entry.tag, section_readers.at(section_type));
+                base_reader.decode(manifest_entry.device, manifest_entry.tag.id(), section_readers.at(section_type));
             if (parsed_section.has_value()) {
                 registry.register_section(parsed_section.value(), section_id);
             } else {
@@ -197,6 +204,8 @@ BlobSectionsRegistry read_from(
             }
         }
     }
+
+    return registry;
 }
 
 void write_to(std::ostream& stream, const BlobSectionsRegistry& blob_sections_registry) {

@@ -82,8 +82,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         const auto graph = std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), blobType);
 
         // Tell the blob writer to store the dynamic schedule in the blob at export time
-        blobSectionsRegistry.register_section(
-            std::make_shared<DynamicScheduleSection>(graph, encryptionCallback, _logger.level()));
+        blobSectionsRegistry.register_section(std::make_shared<DynamicScheduleSection>(graph, encryptionCallback));
         return graph;
     }
 
@@ -116,8 +115,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 
     // Tell the blob writer to store the main schedule in the blob at export time
-    blobSectionsRegistry.register_section(
-        std::make_shared<ELFMainScheduleSection>(graph, encryptionCallback, _logger.level()));
+    blobSectionsRegistry.register_section(std::make_shared<ELFMainScheduleSection>(graph, encryptionCallback));
 
     return graph;
 }
@@ -288,9 +286,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
     // At export time, all schedules (main + inits) shall be stored in the blob
     blobSectionsRegistry.register_section(
-        std::make_shared<ELFMainScheduleSection>(weightlessGraph, encryptionCallback, _logger.level()));
+        std::make_shared<ELFMainScheduleSection>(weightlessGraph, encryptionCallback));
     blobSectionsRegistry.register_section(
-        std::make_shared<ELFInitSchedulesSection>(weightlessGraph, encryptionCallback, _logger.level()));
+        std::make_shared<ELFInitSchedulesSection>(weightlessGraph, encryptionCallback));
 
     return weightlessGraph;
 }
