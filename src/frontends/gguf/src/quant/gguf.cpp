@@ -739,7 +739,20 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // Mirrors llama.cpp: hparams.rope_freq_scale_train = 1/ropescale; ext_factor = (yarn?1:0).
     {
         const float ropescale = metadata_to_float_or(metadata, arch + ".rope.scaling.factor", 0.0f);
-        config["rope_freq_scale"] = ropescale == 0.0f ? 1.0f : 1.0f / ropescale;
+        float freq_scale = 1.0f;
+        if (ropescale != 0.0f) {
+            OPENVINO_ASSERT(std::isfinite(ropescale) && ropescale > 0.0f,
+                            "[GGUF] '",
+                            arch,
+                            ".rope.scaling.factor' must be finite and positive");
+            const double inverse = 1.0 / static_cast<double>(ropescale);
+            OPENVINO_ASSERT(inverse <= std::numeric_limits<float>::max(),
+                            "[GGUF] '",
+                            arch,
+                            ".rope.scaling.factor' reciprocal exceeds the float range");
+            freq_scale = static_cast<float>(inverse);
+        }
+        config["rope_freq_scale"] = freq_scale;
 
         const bool is_yarn = metadata.count(arch + ".rope.scaling.type") &&
                              std::get<std::string>(metadata.at(arch + ".rope.scaling.type")) == "yarn";
