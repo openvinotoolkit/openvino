@@ -9,8 +9,6 @@
 #include "vm_runtime/virtual_machine.h"
 #include "vm_value_helpers.hpp"
 
-#include <llvm/Support/FormatVariadic.h>
-
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 #include <common_test_utils/test_common.hpp>
@@ -89,10 +87,9 @@ struct ConvertInstructionParams {
     npu_vm_value expected;
 
     [[maybe_unused]] friend std::ostream& operator<<(std::ostream& os, const ConvertInstructionParams& params) {
-        os << llvm::formatv("{ opcode={0}, srcType={1}, dstType={2}, src={3}, expected={4} }",
-                            static_cast<uint16_t>(params.opcode), typeToStr(params.srcType), typeToStr(params.dstType),
-                            valueToStr(params.src, params.srcType), valueToStr(params.expected, params.dstType))
-                        .str();
+        os << "{ opcode=" << static_cast<uint16_t>(params.opcode) << ", srcType=" << typeToStr(params.srcType)
+           << ", dstType=" << typeToStr(params.dstType) << ", src=" << valueToStr(params.src, params.srcType)
+           << ", expected=" << valueToStr(params.expected, params.dstType) << " }";
         return os;
     }
 };

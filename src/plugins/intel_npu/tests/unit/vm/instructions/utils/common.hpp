@@ -8,8 +8,6 @@
 #include "npu_bytecode_utils/type_section.hpp"
 #include "vm_runtime/virtual_machine.h"
 
-#include <llvm/Support/FormatVariadic.h>
-
 #include <gtest/gtest.h>
 
 #include <climits>

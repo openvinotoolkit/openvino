@@ -8,8 +8,6 @@
 #include "vm_runtime/virtual_machine.h"
 #include "vm_value_helpers.hpp"
 
-#include <llvm/Support/FormatVariadic.h>
-
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 #include <common_test_utils/test_common.hpp>
@@ -47,7 +45,7 @@ struct JmpSelectTestParams {
     int64_t expected;
 
     [[maybe_unused]] friend std::ostream& operator<<(std::ostream& os, const JmpSelectTestParams& params) {
-        os << llvm::formatv("{ input={0}, expected={1} }", params.input, params.expected).str();
+        os << "{ input=" << params.input << ", expected=" << params.expected << " }";
         return os;
     }
 };
@@ -99,10 +97,10 @@ struct AssertInstructionParams {
     std::optional<int64_t> expectedResult;
 
     [[maybe_unused]] friend std::ostream& operator<<(std::ostream& os, const AssertInstructionParams& params) {
-        os << llvm::formatv("{ condition={0}, messageIndex={1}, expectedStatus={2}, expectedResult={3} }",
-                            params.condition, params.messageIndex, static_cast<uint32_t>(params.expectedStatus),
-                            params.expectedResult.has_value() ? std::to_string(*params.expectedResult) : "none")
-                        .str();
+        os << "{ condition=" << params.condition << ", messageIndex=" << params.messageIndex
+           << ", expectedStatus=" << static_cast<uint32_t>(params.expectedStatus) << ", expectedResult="
+           << (params.expectedResult.has_value() ? std::to_string(*params.expectedResult) : "none")
+           << " }";
         return os;
     }
 };
