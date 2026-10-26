@@ -380,6 +380,17 @@ def test_infer_list_input_matches_input_type(device, ov_type, data, share_inputs
         assert np.array_equal(result[index], expected)
 
 
+@pytest.mark.parametrize("data", [[None, 1], ["1", "2"], [1, "2"]])
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_infer_non_numeric_list_input_raises(device, data, share_inputs):
+    # Only lists of numbers are converted to a numeric input's type, anything else must not be cast silently
+    param = ops.parameter([2], Type.f32)
+    request = Core().compile_model(Model([param], [param]), device).create_infer_request()
+
+    with pytest.raises(RuntimeError):
+        request.infer({0: data}, share_inputs=share_inputs)
+
+
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
     (Type.f32, np.float32),
     (Type.f64, np.float64),

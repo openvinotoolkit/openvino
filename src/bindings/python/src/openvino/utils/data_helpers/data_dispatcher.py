@@ -133,8 +133,11 @@ def _(
     # String edge-case -- Tensor class converts the list itself.
     if get_request_tensor(request, key).get_element_type() == Type.string:
         return Tensor(value)
-    # Numeric lists take the numpy path, so they are converted to the input's type.
-    return value_to_tensor(np.array(value), request, is_shared=False, key=key)
+    array = np.array(value)
+    # Only lists of numbers are converted to the input's type, others (None, str) keep failing on type mismatch.
+    if array.dtype.kind not in "biuf":
+        return Tensor(value)
+    return value_to_tensor(array, request, is_shared=False, key=key)
 
 
 @value_to_tensor.register(np.number)
