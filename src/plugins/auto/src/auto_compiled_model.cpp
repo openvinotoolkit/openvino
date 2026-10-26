@@ -208,6 +208,12 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {real};
     } else if (name == ov::execution_devices) {
+        if (m_context->m_dynamic_device_selection) {
+            const auto active_device = m_scheduler->get_dynamic_active_device();
+            if (!active_device.empty()) {
+                return decltype(ov::execution_devices)::value_type{active_device};
+            }
+        }
         ov::Any execution_devices;
         auto get_execution_devices = [&execution_devices](std::string exe_devices_string) {
             std::vector<std::string> exe_devices = {};

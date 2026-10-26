@@ -225,20 +225,26 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                             return nullptr;
                         }
                         const auto name = remote_tensor->get_device_name();
-                        const auto res = std::find_if(
-                            m_context->m_device_priorities_initial.cbegin(),
-                            m_context->m_device_priorities_initial.cend(),
-                            [&name](const DeviceInformation& d) {
-                                return (d.default_device_id.empty() ? d.device_name
-                                                                    : (d.device_name + "." + d.default_device_id)) == name;
-                            });
-                        if (m_context->m_device_priorities_initial.cend() == res) {
-                            OPENVINO_THROW("None of the devices supports a remote tensor created on the device named ",
-                                           name);
+                        auto matches = [&name](const DeviceInformation& d) {
+                            return (d.default_device_id.empty() ? d.device_name
+                                                                : (d.device_name + "." + d.default_device_id)) == name;
+                        };
+                        const auto res = std::find_if(m_context->m_device_priorities_initial.cbegin(),
+                                                      m_context->m_device_priorities_initial.cend(),
+                                                      matches);
+                        if (res != m_context->m_device_priorities_initial.cend()) {
+                            // it is ok to take the c_str() here (as pointed in the schedule.hpp we need to use
+                            // const char*) as the original strings are from the "persistent" vector (with the right
+                            // lifetime)
+                            return res->device_name.c_str();
                         }
-                        // it is ok to take the c_str() here (as pointed in the schedule.hpp we need to use const char*)
-                        // as the original strings are from the "persistent" vector (with the right lifetime)
-                        return res->device_name.c_str();
+                        // the low power device can sit outside the candidates, it is only used when a tensor pins it
+                        const auto& low_power = m_context->m_low_power_device;
+                        if (low_power && !m_context->m_low_power_device_unavailable && matches(*low_power)) {
+                            return low_power->device_name.c_str();
+                        }
+                        OPENVINO_THROW("None of the devices supports a remote tensor created on the device named ",
+                                       name);
                     };
                     // if any input is remote (e.g. was set with set_tensor), let's use the corresponding device
                     for (const auto& it : compiled_model->inputs()) {

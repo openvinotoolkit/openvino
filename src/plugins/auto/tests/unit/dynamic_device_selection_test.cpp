@@ -5,6 +5,7 @@
 #include "include/auto_unit_test.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/runtime/auto/properties.hpp"
+#include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
 
 #include <atomic>
@@ -53,6 +54,40 @@ public:
 
 private:
     std::shared_ptr<std::atomic<int>> m_failures;
+};
+
+// Carries nothing but the name of the device it was created on.
+class DeviceTaggedRemoteTensor : public ov::IRemoteTensor {
+public:
+    DeviceTaggedRemoteTensor(const std::string& device_name, const ov::element::Type& type, const ov::Shape& shape)
+        : m_device_name(device_name),
+          m_element_type(type),
+          m_shape(shape) {}
+
+    const ov::AnyMap& get_properties() const override {
+        return m_properties;
+    }
+    const std::string& get_device_name() const override {
+        return m_device_name;
+    }
+    void set_shape(ov::Shape) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+    const ov::element::Type& get_element_type() const override {
+        return m_element_type;
+    }
+    const ov::Shape& get_shape() const override {
+        return m_shape;
+    }
+    const ov::Strides& get_strides() const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+private:
+    ov::AnyMap m_properties;
+    std::string m_device_name;
+    ov::element::Type m_element_type;
+    ov::Shape m_shape;
 };
 }  // namespace
 
@@ -673,4 +708,147 @@ TEST_F(AutoDynamicDeviceSelectionTest, priority_registration_is_released_on_dest
     OV_ASSERT_NO_THROW(result = plugin->Plugin::select_device(verification_devices, "FP32", 2, empty_policy, {}));
     EXPECT_EQ(result.device_name, "GPU.1");
     plugin->unregister_priority(2, result.unique_name);
+}
+
+// Every candidate fails to compile in turn, so the cascade runs out of devices: the registration of the last one
+// must be released once, not twice, or the model's own registration of that device is taken away.
+TEST_F(AutoDynamicDeviceSelectionTest, exhausted_compile_cascade_releases_each_registration_once) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0,GPU.1,GPU.2"));
+    config.insert(ov::hint::model_priority(ov::hint::Priority::HIGH));
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    auto gpu0_compile_fails = std::make_shared<std::atomic<bool>>(false);
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.0")),
+                          _))
+        .WillByDefault([this, gpu0_compile_fails](const std::shared_ptr<const ov::Model>&,
+                                                  const std::string&,
+                                                  const ov::AnyMap&) -> ov::SoPtr<ov::ICompiledModel> {
+            if (gpu0_compile_fails->load()) {
+                OPENVINO_THROW("mock compile failure on GPU.0");
+            }
+            return mockExeNetworkActual;
+        });
+    for (const auto* device : {"GPU.1", "GPU.2"}) {
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(device)),
+                              _))
+            .WillByDefault(ov::Throw("mock compile failure"));
+    }
+    auto gpu0_over_threshold = std::make_shared<std::atomic<bool>>(false);
+    mock_gpu0_over_threshold(gpu0_over_threshold);
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+
+    gpu0_compile_fails->store(true);
+    gpu0_over_threshold->store(true);
+    std::shared_ptr<ov::IAsyncInferRequest> infer_request;
+    OV_ASSERT_NO_THROW(infer_request = compiled_model->create_infer_request());
+    EXPECT_THROW(infer_request->infer(), ov::Exception);
+
+    // the model still runs on GPU.0, so a lower priority instance must keep getting GPU.1
+    auto verification_devices = plugin->Plugin::parse_meta_devices("GPU.0,GPU.1", config);
+    ov::auto_plugin::DeviceSelectionPolicy empty_policy;
+    DeviceInformation result;
+    OV_ASSERT_NO_THROW(result = plugin->Plugin::select_device(verification_devices, "FP32", 2, empty_policy, {}));
+    EXPECT_EQ(result.device_name, "GPU.1");
+    plugin->unregister_priority(2, result.unique_name);
+}
+
+TEST_F(AutoDynamicDeviceSelectionTest, execution_devices_follows_the_active_device) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0,GPU.1,CPU"));
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                          _))
+        .WillByDefault(Return(mockExeNetworkActual));
+    auto gpu0_over_threshold = std::make_shared<std::atomic<bool>>(false);
+    mock_gpu0_over_threshold(gpu0_over_threshold);
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    const auto execution_devices = [&compiled_model] {
+        return compiled_model->get_property(ov::execution_devices.name()).as<std::vector<std::string>>();
+    };
+    EXPECT_EQ(execution_devices(), std::vector<std::string>{"GPU.0"});
+
+    gpu0_over_threshold->store(true);
+    run_inferences(compiled_model, 1);
+    EXPECT_EQ(execution_devices(), std::vector<std::string>{"GPU.1"});
+}
+
+// The low power device may sit outside the candidates: a tensor created on it still has to pin the request there.
+TEST_F(AutoDynamicDeviceSelectionTest, remote_tensor_of_an_out_of_list_low_power_device_is_accepted) {
+    config.insert(ov::intel_auto::low_power_device("GPU.1"));
+    ON_CALL(*plugin, get_low_power_mode()).WillByDefault(Return(true));
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                          _))
+        .WillByDefault(Return(mockExeNetworkActual));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+
+    const auto input = compiled_model->inputs().at(0);
+    auto remote_tensor = std::make_shared<DeviceTaggedRemoteTensor>("GPU.1", input.get_element_type(), input.get_shape());
+    std::shared_ptr<ov::IAsyncInferRequest> infer_request;
+    OV_ASSERT_NO_THROW(infer_request = compiled_model->create_infer_request());
+    OV_ASSERT_NO_THROW(infer_request->set_tensor(input, ov::SoPtr<ov::ITensor>{remote_tensor, nullptr}));
+    OV_ASSERT_NO_THROW(infer_request->start_async());
+    OV_ASSERT_NO_THROW(infer_request->wait());
+}
+
+// A remote output tensor pins the request to its device, the same way a remote input does.
+TEST_F(AutoDynamicDeviceSelectionTest, remote_output_tensor_pins_the_request_to_its_device) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0,GPU.1"));
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                          _))
+        .WillByDefault(Return(mockExeNetworkActual));
+    // only the selection done while compiling the model: a pinned request skips the per inference selection
+    EXPECT_CALL(*plugin, select_device).Times(1);
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+
+    const auto output = compiled_model->outputs().at(0);
+    auto remote_tensor =
+        std::make_shared<DeviceTaggedRemoteTensor>("GPU.1", output.get_element_type(), output.get_shape());
+    std::shared_ptr<ov::IAsyncInferRequest> infer_request;
+    OV_ASSERT_NO_THROW(infer_request = compiled_model->create_infer_request());
+    OV_ASSERT_NO_THROW(infer_request->set_tensor(output, ov::SoPtr<ov::ITensor>{remote_tensor, nullptr}));
+    OV_ASSERT_NO_THROW(infer_request->start_async());
+    OV_ASSERT_NO_THROW(infer_request->wait());
+}
+
+// The request can only run on one device, so remote tensors from different devices cannot be mixed.
+TEST_F(AutoDynamicDeviceSelectionTest, remote_input_and_output_tensors_of_different_devices_are_rejected) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0,GPU.1"));
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+
+    const auto input = compiled_model->inputs().at(0);
+    const auto output = compiled_model->outputs().at(0);
+    auto remote_input =
+        std::make_shared<DeviceTaggedRemoteTensor>("GPU.0", input.get_element_type(), input.get_shape());
+    auto remote_output =
+        std::make_shared<DeviceTaggedRemoteTensor>("GPU.1", output.get_element_type(), output.get_shape());
+    std::shared_ptr<ov::IAsyncInferRequest> infer_request;
+    OV_ASSERT_NO_THROW(infer_request = compiled_model->create_infer_request());
+    OV_ASSERT_NO_THROW(infer_request->set_tensor(input, ov::SoPtr<ov::ITensor>{remote_input, nullptr}));
+    OV_ASSERT_NO_THROW(infer_request->set_tensor(output, ov::SoPtr<ov::ITensor>{remote_output, nullptr}));
+    OV_ASSERT_NO_THROW(infer_request->start_async());
+    EXPECT_THROW(infer_request->wait(), ov::Exception);
 }

@@ -127,6 +127,11 @@ void AutoSchedule::transfer_priority_registration(const std::string& unique_name
     m_registered_unique_name = unique_name;
 }
 
+DeviceName AutoSchedule::get_dynamic_active_device() {
+    std::lock_guard<std::mutex> lock(m_gate_mutex);
+    return m_gate_current_device;
+}
+
 void AutoSchedule::init() {
     if (m_context->m_bind_buffer) {
         LOG_INFO_TAG("bind buffer supported only under cumulative mode, ignoring");
@@ -424,6 +429,7 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     // maybe 0 is compiled to NPU, 1 is compiled to iGPU
     if (!context.m_priority_released) {
         m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
+        context.m_priority_released = true;
     }
     // remove the current device from device_list
     auto erase_device = deviceChecker().check_and_return_if_device_in_list(device, device_list, true);
@@ -601,9 +607,16 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task pipeline_task, cons
             std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
             const auto iter = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(
                 preferred_device, m_context->m_device_priorities, true);
-            OPENVINO_ASSERT(iter != m_context->m_device_priorities.end(),
-                            "The preferred device should be one of the candidate devices");
-            device = *iter;
+            if (iter != m_context->m_device_priorities.end()) {
+                device = *iter;
+            } else {
+                // a remote tensor of the low power device pins it even though it is not a candidate
+                const auto& low_power = m_context->m_low_power_device;
+                OPENVINO_ASSERT(low_power && !m_context->m_low_power_device_unavailable &&
+                                    low_power->device_name == preferred_device,
+                                "The preferred device should be one of the candidate devices or the low power device");
+                device = *low_power;
+            }
             LOG_DEBUG_TAG("[dynamic] request is pinned to device:%s by a remote tensor, skip device re-selection",
                           device.device_name.c_str());
         } else {
@@ -710,13 +723,9 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
                             requested_device_name.c_str());
         }
     }
-    if (fell_back_to_other_device) {
-        // try_to_compile_model() internally reselected and registered a fallback device on compile
-        // failure; drop that registration right away, same as the primary per inference selection above,
-        // regardless of whether that fallback device itself ended up compiling successfully. Doing this
-        // before the early return below matters: some fallback paths (e.g. reusing an already loaded CPU
-        // context) leave m_is_load_success false without ever retrying, and skipping the cleanup would
-        // leak the registration and keep the device reserved for this schedule indefinitely.
+    if (fell_back_to_other_device && !context.m_priority_released) {
+        // the fallback device chosen inside try_to_compile_model() is still registered, unless a failed cascade
+        // already released it; this runs even when it never compiled, e.g. when an already loaded CPU context is reused
         m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
     }
     if (!context.m_is_load_success) {

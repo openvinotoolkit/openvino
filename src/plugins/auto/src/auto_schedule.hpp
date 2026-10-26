@@ -18,6 +18,8 @@ public:
     using Ptr = std::shared_ptr<AutoSchedule>;
     virtual ~AutoSchedule();
     AutoCompileContext                                                     m_compile_context[CONTEXTNUM];
+    // device the latest dynamic inference was dispatched to, empty until one has been dispatched
+    DeviceName get_dynamic_active_device();
 
 private:
     void init() override;
