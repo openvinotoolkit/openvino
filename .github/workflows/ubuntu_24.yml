@@ -105,7 +105,7 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
       os: 'ubuntu_24_04'
-      sccache-key-prefix: 'ubuntu_24_04_lld_x86_64_Release_2'
+      sccache-key-prefix: 'ubuntu_24_04_lld_x86_64_Release_3'
       build-rpm-packages: false
       build-js: false
       build-debian-packages: true
