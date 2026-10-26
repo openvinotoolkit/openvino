@@ -7007,3 +7007,105 @@ TEST(fully_connected_gpu_ternocl_int2_dynamic, non_ternary_zero_point_falls_back
     net->execute();
     ASSERT_NE(net->get_primitive("fc_prim")->get_impl()->get_kernel_name(), "ternocl_int2");
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+namespace {
+struct onednn_int4_fc_params {
+    size_t k;
+    bool is_3d;
+    bool is_u4;
+    bool expect_onednn;
+};
+
+class fully_connected_onednn_int4_alignment : public ::testing::TestWithParam<onednn_int4_fc_params> {
+public:
+    static std::string GetTestCaseName(const testing::TestParamInfo<onednn_int4_fc_params>& obj) {
+        const auto& p = obj.param;
+        return std::string(p.is_u4 ? "u4" : "i4") + "_k" + std::to_string(p.k) + (p.is_3d ? "_3d" : "_2d");
+    }
+};
+
+TEST_P(fully_connected_onednn_int4_alignment, compare_with_host_reference) {
+    const auto p = GetParam();
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "oneDNN INT4 FC requires XMX";
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    constexpr size_t rows = 32;
+    constexpr size_t ofm = 32;
+    const size_t k = p.k;
+    const int zero_point = p.is_u4 ? 8 : 0;
+    const float scale_value = 1.0f / 16;
+
+    const auto in_shape = p.is_3d ? ov::PartialShape{2, static_cast<int64_t>(rows / 2), static_cast<int64_t>(k)}
+                                  : ov::PartialShape{static_cast<int64_t>(rows), static_cast<int64_t>(k)};
+    auto input_mem = engine.allocate_memory({in_shape, data_types::f16, format::bfyx});
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{static_cast<int64_t>(ofm), static_cast<int64_t>(k)},
+                                               p.is_u4 ? data_types::u4 : data_types::i4, format::bfyx});
+    auto scale_mem = engine.allocate_memory({ov::PartialShape{static_cast<int64_t>(ofm), 1}, data_types::f16, format::bfyx});
+
+    auto input = rg.generate_random_1d<ov::float16>(rows * k, -1.0f, 1.0f);
+    std::vector<uint8_t> weights((ofm * k + 1) / 2);
+    for (size_t i = 0; i < weights.size(); ++i)
+        weights[i] = static_cast<uint8_t>((i * 5 + 3) % 16 | ((i * 7 + 1) % 16) << 4);
+    set_values(input_mem, input);
+    set_values(weights_mem, weights);
+    set_values(scale_mem, std::vector<ov::float16>(ofm, ov::float16(scale_value)));
+
+    topology topo;
+    topo.add(input_layout("input", input_mem->get_layout()));
+    topo.add(data("weights", weights_mem));
+    topo.add(data("scale", scale_mem));
+    if (p.is_u4) {
+        auto zp_mem = engine.allocate_memory({ov::PartialShape{1, 1}, data_types::u8, format::bfyx});
+        set_values<uint8_t>(zp_mem, {static_cast<uint8_t>(zero_point)});
+        topo.add(data("zp", zp_mem));
+    }
+    auto fc = fully_connected("fc", input_info("input"), "weights", "", "scale", p.is_u4 ? "zp" : "", data_types::f16,
+                              in_shape.size(), 2);
+    if (p.is_u4)
+        fc.decompression_zero_point_scalar = zero_point;
+    topo.add(fc);
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"fc", {format::bfyx, "", impl_types::onednn}}}));
+    network net(engine, topo, config);
+    net.set_input_data("input", input_mem);
+    auto outputs = net.execute();
+
+    if (p.expect_onednn) {
+        EXPECT_TRUE(net.get_primitive("fc")->get_impl()->is_onednn());
+    }
+
+    auto output_mem = outputs.at("fc").get_memory();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output(output_mem, get_test_stream());
+    ASSERT_EQ(output.size(), rows * ofm);
+    for (size_t r = 0; r < rows; ++r) {
+        for (size_t n = 0; n < ofm; ++n) {
+            float expected = 0.0f;
+            for (size_t c = 0; c < k; ++c) {
+                const auto index = n * k + c;
+                int w = (weights[index / 2] >> (4 * (index % 2))) & 0xf;
+                if (!p.is_u4 && w >= 8)
+                    w -= 16;
+                expected += static_cast<float>(input[r * k + c]) * static_cast<float>(w - zero_point) * scale_value;
+            }
+            ASSERT_NEAR(static_cast<float>(output[r * ofm + n]), expected, 0.1f) << "row=" << r << ", ofm=" << n;
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         fully_connected_onednn_int4_alignment,
+                         ::testing::Values(onednn_int4_fc_params{9, false, true, true},
+                                           onednn_int4_fc_params{9, false, false, true},
+                                           onednn_int4_fc_params{33, false, true, true},
+                                           onednn_int4_fc_params{33, false, false, true},
+                                           onednn_int4_fc_params{9, true, true, false},
+                                           onednn_int4_fc_params{33, true, false, false}),
+                         fully_connected_onednn_int4_alignment::GetTestCaseName);
+}  // namespace
+#endif
