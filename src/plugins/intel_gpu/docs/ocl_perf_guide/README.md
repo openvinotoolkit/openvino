@@ -27,6 +27,7 @@ Entry skill: [`ocl-gpu-kernel-perf`](../../../../../.claude/skills/ocl-gpu-kerne
 | DPAS (`intel_sub_group_*_matrix_mad_k16`), VNNI, SG8 vs SG16 | 01 |
 | subgroup/workgroup block assignment (`sg_per_wg`, `kq_sg_tile_keys`, `wgTQ/wgTK`, `V_TILES`) | 01 |
 | decode `SG_PER_WG` x M choice, wave model, rounding M up past the kv group | 01 (§8.3) |
+| decode M held down by registers: low-register layout (Q in SLM, per-read comp, V comp in SLM, u4 V twin pairing), bit-identical | 01 (§8.4), 04 (D), 06 (§6.10), 09 (§9.3 #22-23) |
 | 256 GRF mode and tile size | 01, 04 |
 | PA PREFILL tile per head size (mirror micro's workgroup), d_max 512 candidates, 256GRF work-group limit | 01 (§6.6) |
 | long-prompt TTFT: prompt-length sweep, llm_bench MD5 output oracle, mixed-head cliloader parsing | 05 (§5.5.1, E17-E19), 07 |
@@ -34,6 +35,7 @@ Entry skill: [`ocl-gpu-kernel-perf`](../../../../../.claude/skills/ocl-gpu-kerne
 | software prefetch (V_PREFETCH), split barrier | 02 |
 | prefetch cost = cache-line requests (256 B line on B70), L3-only address prefetch (`PREFETCH_V_L3`), declaring `__builtin_IB_lsc_prefetch_*` in a kernel file | 02 (§7.6) |
 | ratio drifting with problem size: clock throttling (PL2) vs a cache-size knee, fixed-clock length sweep, time / keys^2 | 05 (E20, §5.5.1), 06 (§6.7), 07 (§7.8) |
+| decode gap growing with the prompt: per-decode-token kernel time (cliloader `-ic` subtraction), decode probe as a calibrated bench | 06 (§6.10), 07 (§7.1, §7.2) |
 | VTune on B70 / xe driver (permissions, quoted arguments, bytes-per-call cross-check) | 07 (§7.3) |
 | K d-major scalar gather → token-major relayout | 02 |
 | block-reading a sub-64 B-row (d-major f16) page: wider-pitch surface + 32b transpose (`32r8x1c` layout probed), permuted contraction axis | 02 (§4.5) |
