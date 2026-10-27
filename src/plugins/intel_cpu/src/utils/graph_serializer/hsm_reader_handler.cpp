@@ -14,6 +14,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/hsm_format.hpp"
+#include "openvino/runtime/hsm_model_id_codec.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "utils/graph_serializer/hsm_common.hpp"
@@ -68,6 +69,12 @@ const std::map<uint32_t, HsmReaderHandler::Decoder> HsmReaderHandler::s_decoders
                          ", current: ",
                          build_runtime_requirements());
          store_unique_section(handler.runtime_requirements, std::move(requirements), "runtime requirements");
+     }},
+    {hsm::section_key(hsm::model_id),
+     [](HsmReaderHandler& handler, const runtime::hsm::Section& section) {
+         if (const auto id = runtime::hsm::decode_model_id(section)) {
+             store_unique_section(handler.model_id, *id, "model id");
+         }
      }},
     {hsm::section_key(hsm::model_struct),
      [](HsmReaderHandler& handler, const runtime::hsm::Section& section) {

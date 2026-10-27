@@ -5,6 +5,7 @@
 #include "utils/graph_serializer/hsm_writer_handler.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <ios>
 #include <memory>
@@ -134,6 +135,9 @@ void HsmWriterHandler::handle_section(runtime::hsm::IWriter& writer) const {
     add(hsm::runtime_requirements,
         ov::util::MemoryView{reinterpret_cast<const std::byte*>(m_runtime_requirements.data()),
                              m_runtime_requirements.size()});
+    if (m_model_id) {
+        add(hsm::model_id, ov::util::as_memory_view(*m_model_id));
+    }
     // The weights are encoded before the model, see HsmModelSerialization.
     add(hsm::weights, m_weights_encoder, section_alignment);
     add(hsm::model_struct, m_model_encoder, section_alignment);

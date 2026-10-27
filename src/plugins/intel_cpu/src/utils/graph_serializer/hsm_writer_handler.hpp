@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "openvino/core/model.hpp"
@@ -25,6 +27,7 @@ public:
 
 private:
     std::string m_runtime_requirements;
+    std::optional<uint64_t> m_model_id{};
     runtime::hsm::SectionEncoderPtr m_weights_encoder;
     runtime::hsm::SectionEncoderPtr m_model_encoder;
 };

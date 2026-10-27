@@ -44,12 +44,14 @@ constexpr uint32_t section_key(const SectionId& id) noexcept {
 /// Core-owned: the string checked by is_runtime_requirements_compatible() on import.
 // TODO CVS-196454: use the common Runtime Requirements codec instead of the plain string.
 inline constexpr SectionId runtime_requirements{runtime::hsm::any_device_id, runtime::hsm::runtime_requirements_tag};
+/// Core-owned, inline.
+// The id algorithm is not defined yet, the writer stores a placeholder and the reader does not use it.
+inline constexpr SectionId model_id{runtime::hsm::any_device_id, runtime::hsm::model_id_tag};
 /// The compiled model's IR XML (encrypted when cache encryption is on), without constants.
-// TODO CVS-196450: replace with the common Model Struct section once its payload is defined.
-// TODO CVS-196456, CVS-196452: add the common Model Id and Compiled Options sections; CPU keeps its options in the
-// model rt_info until then.
+// CVS-196450: replace with the common Model Struct section once its payload is defined.
+// CVS-196452: add the common Compiled Options section; CPU keeps its options in the model rt_info until then.
 inline constexpr SectionId model_struct{device_id, runtime::hsm::model_tag};
-// TODO CVS-196451: replace with the common Weights section once its payload is defined.
+// CVS-196451: replace with the common Weights section once its payload is defined.
 inline constexpr SectionId weights{device_id, runtime::hsm::weights_tag};
 
 }  // namespace ov::intel_cpu::hsm

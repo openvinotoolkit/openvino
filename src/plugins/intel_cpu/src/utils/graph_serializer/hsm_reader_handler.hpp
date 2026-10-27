@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <optional>
@@ -26,6 +27,7 @@ public:
     void check_mandatory_sections() const;
 
     std::optional<std::string> runtime_requirements;
+    std::optional<uint64_t> model_id;                 //!< See hsm::model_id;
     std::shared_ptr<ov::AlignedBuffer> model_struct;  //!< See hsm::model_struct.
     std::shared_ptr<ov::AlignedBuffer> weights;       //!< See hsm::weights; null if it is absent or empty.
 

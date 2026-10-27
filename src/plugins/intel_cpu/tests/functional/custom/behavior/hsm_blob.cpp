@@ -102,6 +102,19 @@ protected:
         });
     }
 
+    // The writer does not produce a model id yet, so tests add the section themselves.
+    std::string export_blob_with_model_ids(size_t count) {
+        return hsm_repack(export_blob(model), [&](std::vector<HsmEntry>& entries) {
+            const uint64_t id = 0x1234567890ABCDEFull;
+            const auto view = util::as_memory_view(id);
+            for (size_t i = 0; i < count; ++i) {
+                entries.push_back({hsm::model_id.device,
+                                   {hsm::model_id.tag, {}},
+                                   std::vector<std::byte>(view.begin(), view.end())});
+            }
+        });
+    }
+
     void expect_import_rejected(const std::string& blob) {
         std::stringstream stream(blob);
         EXPECT_THROW((void)core.import_model(stream, utils::DEVICE_CPU), Exception);
@@ -122,6 +135,7 @@ TEST_F(CpuHsmBlobTest, exported_blob_is_hsm_with_cpu_sections) {
     const auto reader = runtime::hsm::Reader::open(reinterpret_cast<const std::byte*>(blob.data()), blob.size());
     ASSERT_TRUE(reader.has_value());
     EXPECT_EQ(reader->count(hsm::runtime_requirements.device, hsm::runtime_requirements.tag.id()), 1u);
+    EXPECT_EQ(reader->count(hsm::model_id.device, hsm::model_id.tag.id()), 0u);
     EXPECT_EQ(reader->count(hsm::model_struct.device, hsm::model_struct.tag.id()), 1u);
     EXPECT_EQ(reader->count(hsm::weights.device, hsm::weights.tag.id()), 1u);
 
@@ -217,6 +231,15 @@ TEST_F(CpuHsmBlobTest, import_rejects_blob_without_model_struct) {
 
 TEST_F(CpuHsmBlobTest, import_rejects_blob_without_the_weights_of_a_model_with_constants) {
     expect_import_rejected(export_blob_without(hsm::weights));
+}
+
+TEST_F(CpuHsmBlobTest, import_accepts_blob_with_model_id) {
+    std::stringstream stream(export_blob_with_model_ids(1));
+    EXPECT_NO_THROW(std::ignore = core.import_model(stream, utils::DEVICE_CPU));
+}
+
+TEST_F(CpuHsmBlobTest, import_rejects_duplicated_model_id) {
+    expect_import_rejected(export_blob_with_model_ids(2));
 }
 
 TEST_F(CpuHsmBlobTest, import_rejects_duplicated_model_struct) {
