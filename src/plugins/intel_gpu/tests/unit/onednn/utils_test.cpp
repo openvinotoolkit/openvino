@@ -493,6 +493,32 @@ TEST_F(test_layout_to_memory_desc, get_conv_memory_descs_query_formats) {
     EXPECT_EQ(get_format_tag_from_desc(output_desc), dnnl::memory::format_tag::undef);
 }
 
+TEST_F(test_layout_to_memory_desc, get_conv_memory_descs_query_formats_3d_keep_rank) {
+    layout input_layout = layout{ov::PartialShape{1, 32, 20}, data_types::f16, format::bfyx};
+    layout weights_layout = layout{ov::PartialShape{16, 32, 4}, data_types::f16, format::oiyx};
+    layout output_layout = layout{ov::PartialShape{1, 16, 42}, data_types::f16, format::bfyx};
+
+    // Without keep_rank, a 3D query is pinned to the plain tag of the current format.
+    auto [input_desc_3d, weights_desc_3d, output_desc_3d] = get_conv_memory_descs(
+        input_layout, weights_layout, output_layout, dnnl::memory::format_tag::any);
+    EXPECT_EQ(input_desc_3d.get_ndims(), 3);
+    EXPECT_EQ(output_desc_3d.get_ndims(), 3);
+    EXPECT_EQ(get_format_tag_from_desc(input_desc_3d), dnnl::memory::format_tag::abc);
+    EXPECT_EQ(get_format_tag_from_desc(output_desc_3d), dnnl::memory::format_tag::abc);
+
+    // With keep_rank, descriptors stay 4D and format_tag::any is preserved for the query.
+    auto [input_desc, weights_desc, output_desc] = get_conv_memory_descs(
+        input_layout, weights_layout, output_layout, dnnl::memory::format_tag::any, true);
+    EXPECT_EQ(input_desc.get_ndims(), 4);
+    EXPECT_EQ(weights_desc.get_ndims(), 4);
+    EXPECT_EQ(output_desc.get_ndims(), 4);
+    EXPECT_EQ(input_desc.get_dims()[2], 20);
+    EXPECT_EQ(output_desc.get_dims()[2], 42);
+    EXPECT_EQ(get_format_tag_from_desc(input_desc), dnnl::memory::format_tag::undef);
+    EXPECT_EQ(get_format_tag_from_desc(weights_desc), dnnl::memory::format_tag::undef);
+    EXPECT_EQ(get_format_tag_from_desc(output_desc), dnnl::memory::format_tag::undef);
+}
+
 TEST_F(test_layout_to_memory_desc, get_conv_memory_descs_blocked_format) {
     layout input_layout = layout{ov::PartialShape{1, 64, 56, 56}, data_types::f16, format::b_fs_yx_fsv16};
     layout weights_layout = layout{ov::PartialShape{128, 64, 3, 3}, data_types::f16, format::os_is_yx_osv16_isv16};

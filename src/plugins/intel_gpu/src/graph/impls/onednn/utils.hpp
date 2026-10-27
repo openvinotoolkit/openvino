@@ -54,10 +54,13 @@ dnnl::memory::desc layout_to_memory_desc_blocked(
 ///  - For other primitives: use blocked format if output is blocked, otherwise use undef
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, bool use_default_format, bool is_output_blocked = false);
 
+/// keep_rank forces rank-preserving (4D+) descriptors for 3D tensors, e.g. so that format_tag::any is not replaced
+/// by the plain 3D tag derived from the current cldnn format.
 std::tuple<dnnl::memory::desc, dnnl::memory::desc, dnnl::memory::desc> get_conv_memory_descs(cldnn::layout input_layout,
                                                                  cldnn::layout weights_layout,
                                                                  cldnn::layout output_layout,
-                                                                 dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef);
+                                                                 dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef,
+                                                                 bool keep_rank = false);
 dnnl::algorithm convert_activation_func(cldnn::activation_func func);
 std::vector<std::vector<size_t>> get_candidate_orders(dnnl::memory::desc desc);
 cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped = false);
