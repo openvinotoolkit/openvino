@@ -29,6 +29,7 @@ constexpr uint32_t TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION = ZE_MUTABLE_COMMA
 constexpr uint32_t TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION = ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION_1_0;
 constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION = ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION_1_0;
 constexpr uint32_t TARGET_ZE_DEVICE_LUID_EXT_VERSION = ZE_DEVICE_LUID_EXT_VERSION_1_0;
+constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_QOS_EXT_VERSION = ZE_COMMAND_QUEUE_QOS_EXT_VERSION_1_0;
 
 constexpr ze_driver_uuid_t uuid = ze_intel_npu_driver_uuid;
 
@@ -444,6 +445,21 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     _log.debug("Device LUID extension version %d.%d",
                ZE_MAJOR_VERSION(device_luid_ext_version),
                ZE_MINOR_VERSION(device_luid_ext_version));
+
+    uint32_t command_queue_qos_ext_version = 0;
+    std::tie(command_queue_qos_ext_version, std::ignore) =
+        queryDriverExtensionVersion(ZE_COMMAND_QUEUE_QOS_EXT_NAME,
+                                    TARGET_ZE_COMMAND_QUEUE_QOS_EXT_VERSION,
+                                    extProps,
+                                    count);
+    saveSupportedExtension(_supported_extensions,
+                           ZE_COMMAND_QUEUE_QOS_EXT_NAME,
+                           command_queue_qos_ext_version,
+                           TARGET_ZE_COMMAND_QUEUE_QOS_EXT_VERSION);
+
+    _log.debug("Command queue QoS extension version %d.%d",
+               ZE_MAJOR_VERSION(command_queue_qos_ext_version),
+               ZE_MINOR_VERSION(command_queue_qos_ext_version));
 
     _command_queue_group_ordinal =
         zeroUtils::findCommandQueueGroupOrdinal(_device_handle, ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
