@@ -271,6 +271,9 @@ TEST_F(GGUFMMProj, ArbitraryProjectorCallbacksOverrideRecipesAndDefinitions) {
                             selection == 0   ? 6.f
                             : selection == 1 ? 10.f
                                              : 2.f);
+        // Release the memory-mapped IR before rewriting its weights on Windows.
+        baseline = ov::InferRequest{};
+        restored.reset();
         EXPECT_NO_THROW(ov::serialize(model, path + ".xml", path + ".bin"));
     }
 }
