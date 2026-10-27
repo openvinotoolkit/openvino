@@ -207,10 +207,10 @@ size_t get_max_context_len(const kernel_impl_params& params) {
     return paged_attention_max_len;
 }
 
-size_t get_partitioning_size(const kernel_impl_params& params, size_t head_size, PagedAttentionStage stage, size_t k_head_size) {
+size_t get_partitioning_size(const kernel_impl_params& params, size_t head_size, PagedAttentionStage stage) {
     size_t partition_size = 0;
     if (stage == PagedAttentionStage::PREFILL) {
-        partition_size = head_size * get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS, k_head_size);
+        partition_size = head_size * get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS);
     } else {
         partition_size = seq_len_partition_size;
     }
@@ -614,6 +614,9 @@ public:
         jit.make("HEADS_PER_WI", 1);
 
         const auto desc = params.typed_desc<paged_attention>();
+        if (desc->has_token_type_ids) {
+            jit.make("HAS_TOKEN_TYPE_IDS", 1);
+        }
         const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
         const auto has_qq_bias = desc->has_qq_bias;
         const auto has_scale_input = !desc->scale_val.has_value();
@@ -648,6 +651,11 @@ public:
             jit.make("QQ_BIAS_BEGINS_DATA_T", to_ocl_type(qq_begins_layout.data_type));
         }
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
+        if (desc->has_token_type_ids) {
+            // the kernel checks the runtime size: an empty token_type_ids input disables the bidirectional masking
+            const size_t tensor_id = PagedAttentionInputIdx::TOKEN_TYPE_IDS;
+            jit.add(make_layout_jit_constants("TOKEN_TYPE_IDS", params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+        }
 
         return jit;
     }
@@ -689,6 +697,9 @@ public:
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});         // qq_bias
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins
         }
+        if (desc->has_token_type_ids) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
+        }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         add_intermediate_inputs(args, has_scores_output, true, desc->has_score_aggregation);
         return args;
@@ -722,6 +733,10 @@ public:
         jit.make("SDPA_STAGE_1", 1);
         jit.make("MULTI_TOKENS_PROCESSING", 1);
         jit.make("HEADS_PER_WI", 1);
+        const bool has_token_type_ids = params.typed_desc<paged_attention>()->has_token_type_ids;
+        if (has_token_type_ids) {
+            jit.make("HAS_TOKEN_TYPE_IDS", 1);
+        }
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         const auto& out_offsets_map = params.out_port_to_shape_info_offset;
@@ -729,6 +744,10 @@ public:
         jit.add(make_layout_jit_constants("INPUT3", params.input_layouts[5], in_offsets_map.at(5)));
         jit.add(make_layout_jit_constants("INPUT6", params.input_layouts[6], in_offsets_map.at(6)));
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
+        if (has_token_type_ids) {
+            const size_t tensor_id = PagedAttentionInputIdx::TOKEN_TYPE_IDS;
+            jit.add(make_layout_jit_constants("TOKEN_TYPE_IDS", params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+        }
 
         return jit;
     }
@@ -737,8 +756,14 @@ public:
         Arguments args;
         const auto desc = params.typed_desc<paged_attention>();
 
+        if (params.is_dynamic() && desc->has_token_type_ids) {
+            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});  // to read the runtime size of token_type_ids
+        }
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});           // past_lens
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});  // subsequence_begins
+        if (desc->has_token_type_ids) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
+        }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         const auto has_scores_output = desc->has_scores_output();
@@ -768,6 +793,50 @@ public:
 
             scalars[0].t = ScalarDescriptor::Types::UINT32;
             scalars[0].v.u32 = static_cast<uint32_t>(rtp->num_of_partitions);
+        }};
+    }
+};
+
+// Precomputes, for every token, the first/last index of its bidirectional (token_type_ids == 1) run,
+// so that sdpa_micro (USE_TT_BOUNDS) compares indices instead of scanning token_type_ids between q and k.
+class PagedAttentionGeneratorTTBounds : public PagedAttentionGeneratorBase {
+public:
+    PagedAttentionGeneratorTTBounds() : PagedAttentionGeneratorBase("_tt_bounds") {}
+    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
+        auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
+        jit.make("TT_BOUNDS_STAGE", 1);
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override {
+        Arguments args;
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // tt_bounds
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});           // num_seqs
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});           // token_type_ids element count (0 = empty input)
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+            assert(!params.is_dynamic());
+            auto& wgs = kd.params.workGroups;
+            auto& scalars = kd.params.scalars;
+            scalars.resize(2);
+
+            constexpr size_t wg_size = 256;  // TT_BOUNDS_WG
+            const size_t num_seqs = params.input_layouts[PagedAttentionInputIdx::SUBSEQUENCE_BEGINS].get_partial_shape()[0].get_length() - 1;
+            const auto& tt_layout = params.input_layouts[PagedAttentionInputIdx::TOKEN_TYPE_IDS];
+            const size_t tt_count = tt_layout.is_static() ? ov::shape_size(tt_layout.get_shape()) : 0;
+
+            wgs.global = {num_seqs * wg_size, 1, 1};
+            wgs.local = {wg_size, 1, 1};
+
+            scalars[0].t = ScalarDescriptor::Types::UINT32;
+            scalars[0].v.u32 = static_cast<uint32_t>(num_seqs);
+            scalars[1].t = ScalarDescriptor::Types::UINT32;
+            scalars[1].v.u32 = static_cast<uint32_t>(tt_count);
         }};
     }
 };
@@ -1305,7 +1374,7 @@ public:
             const size_t heads_num = desc->heads_num;
             const size_t head_size = desc->v_head_size;
 
-            const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS, desc->k_head_size);
+            const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS);
 
             wgs.global = {heads_num, ceil_div(rtp->paged_attention_aligned_seq_len, get_target_seq_len_block_size()), head_size * sg_num_scale};
             wgs.local = {1, 1, head_size * sg_num_scale};
@@ -1341,6 +1410,7 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
     Stage::Ptr pa_sdpa_micro_mixed = make_stage<SDPAMicroGenerator>(false);
+    Stage::Ptr pa_tt_bounds = make_stage<PagedAttentionGeneratorTTBounds>();
 #endif
 
     PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
@@ -1355,6 +1425,9 @@ public:
         if (use_micro_sdpa) {
             add_stage(pa_sdpa_micro, params);
             add_stage(pa_sdpa_micro_mixed, params);
+            if (pa_micro_uses_tt_bounds(*desc)) {
+                add_stage(pa_tt_bounds, params);
+            }
         }
 #endif
 
@@ -1388,9 +1461,7 @@ public:
         return false;
     }
 
-    // MIXED may use micro SDPA regardless of token_type_ids: bidirectional masking is implemented
-    // only in the PREFILL kernels, and in MIXED neither micro SDPA nor paged_attention_opt.cl consumes token_type_ids.
-    // TODO: implement bidirectional attention for MIXED with token_type_ids
+    // token_type_ids does not change the choice: micro and OCL kernels both support it.
     bool can_use_micro_sdpa_for(const kernel_impl_params& params, const PagedAttentionStage& stage) const {
         const auto can_use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(stage);
         GPU_DEBUG_TRACE_DETAIL << "can_use_micro_sdpa_for: stage = " << static_cast<size_t>(stage)
@@ -1487,7 +1558,7 @@ public:
         auto stage = get_paged_attention_stage(params);
         rt_params->max_context_len = get_max_context_len(params);
         rt_params->stage = stage;
-        rt_params->partition_size = get_partitioning_size(params, desc->v_head_size, rt_params->stage, desc->k_head_size);
+        rt_params->partition_size = get_partitioning_size(params, desc->v_head_size, rt_params->stage);
 
         auto effective_context_len = rt_params->max_context_len;
         // scores_output is only used in SnapKV path, and it doesn't yet handle the SWA block skip offset
@@ -1505,8 +1576,7 @@ public:
         if ((rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) && !params.is_dynamic())
             rt_params->paged_attention_aligned_seq_len = static_cast<size_t>(get_aligned_seq_len(params, rt_params->stage));
 
-        rt_params->sdpa_opt_seq_len_partition_size =
-            get_seq_len_partition_size(params.get_device_info(), desc->v_head_size, SDPAStage::MULTI_TOKENS, desc->k_head_size);
+        rt_params->sdpa_opt_seq_len_partition_size = get_seq_len_partition_size(params.get_device_info(), desc->v_head_size, SDPAStage::MULTI_TOKENS);
 
         if (desc->has_score_aggregation) {
             const auto& input_mem = params.memory_deps;
@@ -1573,6 +1643,9 @@ public:
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
             if (rt_params->use_micro_sdpa) {
+                if (pa_micro_uses_tt_bounds(*desc)) {
+                    res_event = {execute_stage(res_event, instance, pa_tt_bounds)};
+                }
                 res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
             } else
 #endif
@@ -1587,6 +1660,9 @@ public:
             } else {
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 if (multi_tokens_mode && rt_params->use_micro_sdpa) {
+                    if (pa_micro_uses_tt_bounds(*desc)) {
+                        res_event = {execute_stage(res_event, instance, pa_tt_bounds)};
+                    }
                     res_event = {execute_stage(res_event, instance, pa_sdpa_micro_mixed)};
                 } else
 #endif
@@ -1695,7 +1771,7 @@ public:
             num_of_partitions = rt_params->num_of_partitions;
         } else {
             stage = get_paged_attention_stage(params);
-            partition_size = get_partitioning_size(params, desc->v_head_size, stage, desc->k_head_size);
+            partition_size = get_partitioning_size(params, desc->v_head_size, stage);
             const auto max_context_len = get_max_context_len(params);
             num_of_partitions = ceil_div(max_context_len, partition_size);
         }
@@ -1798,6 +1874,11 @@ public:
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
             const auto indexes_buf_size = ceil_div(target_seq_len, wg_tile_q) * 2;
             internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable, not_shareable);
+            if (pa_micro_uses_tt_bounds(*desc)) {
+                // 4: per-token [first, last] index of the token_type_ids == 1 run, filled by pa_tt_bounds.
+                // Not lockable: only kernels access it, so it stays in device memory.
+                internal_buffers.emplace_back(total_tokens * 2 * sizeof(int32_t), indexes_dt);
+            }
         }
 #endif
 
