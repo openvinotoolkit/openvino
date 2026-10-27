@@ -239,8 +239,8 @@ TEST(basic_memory_dependencies, optimized_resample_to_onednn_sum_reuse_correctne
 }
 
 // oneDNN FC with a fused eltwise prod uses binary_mul_inplace: the FC dst aliases the buffer of the
-// prod input ("mul_data"). "x" runs between the FC and its last user ("sum"), so if that buffer
-// stays shareable in the memory pool, "x" may get it and overwrite the FC result before "sum" reads it.
+// prod input ("mul_data"). "x" runs between the FC and its last user ("sum"), so unless "x" is restricted
+// against "mul_data" as well as the FC, the pool may give it that buffer and overwrite the FC result before "sum" reads it.
 class basic_memory_dependencies_mul_inplace : public ::testing::TestWithParam<bool> {};
 TEST_P(basic_memory_dependencies_mul_inplace, fc_output_is_not_reused) {
     auto& engine = get_test_engine();
@@ -290,6 +290,9 @@ TEST_P(basic_memory_dependencies_mul_inplace, fc_output_is_not_reused) {
     const auto reused_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(fc_node);
     ASSERT_NE(reused_idx, -1) << "eltwise prod is expected to be fused into the oneDNN FC as binary_mul_inplace";
     ASSERT_EQ(fc_node.get_dependency(reused_idx).id(), "mul_data");
+    ASSERT_TRUE(fc_node.get_dependency(reused_idx).can_share_buffer()) << "the aliased buffer is expected to stay in the memory pool";
+    const auto mul_data_id = static_cast<uint32_t>(fc_node.get_dependency(reused_idx).get_unique_id());
+    ASSERT_TRUE(net.get_program()->get_node("x").has_memory_dependency(mul_data_id));
 
     for (const auto batch : batches) {
         auto input_mem = engine.allocate_memory(layout{ov::PartialShape{batch, ifm}, data_types::f16, format::bfyx});

@@ -37,12 +37,6 @@ void basic_memory_dependencies::run(program& p) {
             }
             add_memory_dependency(node, deps[i].first);
             add_memory_dependency(deps[i].first, node);
-
-            if (auto alias_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*deps[i].first); alias_idx != -1) {
-                auto& alias = deps[i].first->get_dependency(alias_idx);
-                node->add_memory_dependency(alias);
-                alias.add_memory_dependency(*node);
-            }
         }
 
         if (inplace_kv) {
@@ -64,20 +58,33 @@ void basic_memory_dependencies::run(program& p) {
             }
         }
 
-        // In-place post-op (sum or binary_mul_inplace): dst aliases the eltwise input buffer.
-        if (auto eltw_dep = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*node); eltw_dep != -1) {
-            auto& eltw_node = node->get_dependency(eltw_dep);
-            node->can_share_buffer(false);
-            // Walk up the in-place chain to mark the root buffer owner as non-shareable.
-            auto* root = &eltw_node;
-            while (root->can_be_optimized() && !root->get_dependencies().empty()) {
-                root = &root->get_dependency(0);
-            }
-            root->can_share_buffer(false);
+        if (node->get_preferred_impl_type() == impl_types::onednn) {
+            size_t eltw_dep = 0;
+            for (auto& fused_op : node->get_fused_primitives()) {
+                if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
+                    // If it is first sum, reuse the buffer
+                    auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(*node, fused_op);
+                    if (fusing_type != add_fusing_type::sum || eltw_dep != 0) {
+                        continue;
+                    }
+                    if (!fused_op.has_outer_dep()) {
+                        continue;
+                    }
+                    eltw_dep = fused_op.outer_dep_start_idx;
+                    auto& eltw_node = node->get_dependency(eltw_dep);
+                    node->can_share_buffer(false);
+                    // Walk up the in-place chain to mark the root buffer owner as non-shareable.
+                    auto* root = &eltw_node;
+                    while (root->can_be_optimized() && !root->get_dependencies().empty()) {
+                        root = &root->get_dependency(0);
+                    }
+                    root->can_share_buffer(false);
 
-            for (const auto& user : node->get_users()) {
-                add_memory_dependency(user, &eltw_node);
-                add_memory_dependency(user, node);
+                    for (const auto& user : node->get_users()) {
+                        add_memory_dependency(user, &eltw_node);
+                        add_memory_dependency(user, node);
+                    }
+                }
             }
         }
 
