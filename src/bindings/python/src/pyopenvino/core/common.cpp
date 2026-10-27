@@ -138,10 +138,10 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
     }
     auto data = t.data<std::string>();
 
-    auto max_element = std::max_element(data, data + t.get_size(), [](const std::string& x, const std::string& y) {
-        return x.length() < y.length();
-    });
-    auto max_stride = max_element->length();
+    size_t max_stride = 1;
+    for (size_t i = 0; i < t.get_size(); ++i) {
+        max_stride = std::max(max_stride, data[i].length());
+    }
     auto dtype = py::dtype("|S" + std::to_string(max_stride));
 
     // Adjusting strides to follow the numpy convention:
@@ -156,15 +156,9 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
         return new_strides;
     };
 
-    if (max_stride == 0) {
-        auto array = py::array(py::dtype("S1"), t.get_shape(), py_array_strides());
-        *reinterpret_cast<char*>(array.mutable_data()) = '\0';
-        return array;
-    }
-
     // Create an empty array and populate it with utf-8 encoded strings:
     auto array = py::array(dtype, t.get_shape(), py_array_strides());
-    auto ptr = reinterpret_cast<char*>(array.mutable_data());
+    auto ptr = static_cast<char*>(array.mutable_data());
     for (size_t i = 0; i < t.get_size(); ++i) {
         const auto length = data[i].length();
         ptr = std::copy_n(data[i].begin(), length, ptr);

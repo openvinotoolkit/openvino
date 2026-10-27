@@ -89,13 +89,24 @@ def test_zero_sized_string_tensor_data(shape):
     assert data.shape == shape
     assert data.dtype.kind == "S"
 
+    round_trip = ov.Tensor(bytes_data, shared_memory=False)
+    assert round_trip.shape == shape
+    assert round_trip.bytes_data.shape == shape
+    assert round_trip.bytes_data.size == 0
+
 
 def test_bytes_data_with_empty_strings():
     tensor = ov.Tensor(type=ov.Type.string, shape=[2])
 
     bytes_data = tensor.bytes_data
     assert bytes_data.tolist() == [b"", b""]
-    assert bytes_data.strides == (0,)
+    bytes_data[0] = b"x"
+    assert bytes_data.tolist() == [b"x", b""]
+    bytes_data[1] = b"y"
+    assert bytes_data.tolist() == [b"x", b"y"]
+
+    round_trip = ov.Tensor(bytes_data, shared_memory=False)
+    assert round_trip.bytes_data.tolist() == [b"x", b"y"]
 
 
 @pytest.mark.parametrize(
