@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <limits>
 #include <mutex>
 #include <vector>
 
@@ -73,6 +74,7 @@ WeightFormat get_weight_format(GgufTensorType qtype) {
         return {FillKind::SYMMETRIC, 16, ov::element::i4};
     case GGUF_TYPE_Q5_0:
     case GGUF_TYPE_Q8_0:
+    case GGUF_TYPE_Q8_1:
         return {FillKind::SYMMETRIC, 32, ov::element::i8};
     case GGUF_TYPE_Q6_K:
         return {FillKind::SYMMETRIC, 16, ov::element::i8};
@@ -369,7 +371,8 @@ bool is_embedding_or_output(const std::string& name) {
 // Decide whether a weight is requantized to Q8_0_C, mirroring llama.cpp's
 // ggml_openvino_get_requant_type for the CPU/GPU (non-NPU) path.
 bool needs_q8_0_c_requant(const std::string& name, GgufTensorType qtype) {
-    return qtype != GGUF_TYPE_Q1_0 && (is_embedding_or_output(name) || qtype == GGUF_TYPE_Q5_K);
+    return qtype != GGUF_TYPE_Q1_0 && qtype != GGUF_TYPE_Q8_1 &&
+           (is_embedding_or_output(name) || qtype == GGUF_TYPE_Q5_K);
 }
 
 // Keep an exact-decode escape hatch for strict validation against ggml's original Q4_K / Q4_1 values.
@@ -492,12 +495,13 @@ std::shared_ptr<ov::Node> make_weight_node(const WeightTensors& tensors,
     } else {
         const auto node_et = format.node_element_type();
         // Explicit f32 arithmetic instead of the low-precision decomposition when:
-        //  - Q6_K, to preserve the reference dequantization accuracy; or
+        //  - Q6_K/Q8_1, to preserve the reference dequantization accuracy; or
         //  - a 4-/8-bit weight carries a FRACTIONAL f16 zero-point, which cannot fold into a
         //    compressed FullyConnected anyway, so the exact f32 form costs nothing.
         // The 2-bit formats (Q2_K/Q2_0) always stay on the decomposition.
         const bool fractional_zp = tensors.zero_point && tensors.zero_point.get_element_type() == ov::element::f16;
-        const bool explicit_f32 = qtype == GGUF_TYPE_Q6_K || (fractional_zp && node_et.bitwidth() >= 4);
+        const bool explicit_f32 =
+            qtype == GGUF_TYPE_Q6_K || qtype == GGUF_TYPE_Q8_1 || (fractional_zp && node_et.bitwidth() >= 4);
         node = make_compressed(tensors, node_et, explicit_f32);
     }
     node->set_friendly_name(name);
@@ -505,25 +509,12 @@ std::shared_ptr<ov::Node> make_weight_node(const WeightTensors& tensors,
 }
 
 GgufTensorType gguf_type_from_name(const std::string& quant_type) {
-    static const std::unordered_map<std::string, GgufTensorType> names = {{"F32", GGUF_TYPE_F32},
-                                                                          {"F16", GGUF_TYPE_F16},
-                                                                          {"BF16", GGUF_TYPE_BF16},
-                                                                          {"Q4_0", GGUF_TYPE_Q4_0},
-                                                                          {"Q4_1", GGUF_TYPE_Q4_1},
-                                                                          {"Q5_0", GGUF_TYPE_Q5_0},
-                                                                          {"Q5_1", GGUF_TYPE_Q5_1},
-                                                                          {"Q8_0", GGUF_TYPE_Q8_0},
-                                                                          {"Q2_K", GGUF_TYPE_Q2_K},
-                                                                          {"Q3_K", GGUF_TYPE_Q3_K},
-                                                                          {"Q4_K", GGUF_TYPE_Q4_K},
-                                                                          {"Q5_K", GGUF_TYPE_Q5_K},
-                                                                          {"Q6_K", GGUF_TYPE_Q6_K},
-                                                                          {"Q8_K", GGUF_TYPE_Q8_K},
-                                                                          {"MXFP4", GGUF_TYPE_MXFP4},
-                                                                          {"Q1_0", GGUF_TYPE_Q1_0},
-                                                                          {"Q2_0", GGUF_TYPE_Q2_0},
-                                                                          {"PQ2_0", GGUF_TYPE_PQ2_0},
-                                                                          {"PTQ1_0", GGUF_TYPE_PTQ1_0}};
+    static const std::unordered_map<std::string, GgufTensorType> names = {
+        {"F32", GGUF_TYPE_F32},   {"F16", GGUF_TYPE_F16},   {"BF16", GGUF_TYPE_BF16},   {"Q4_0", GGUF_TYPE_Q4_0},
+        {"Q4_1", GGUF_TYPE_Q4_1}, {"Q5_0", GGUF_TYPE_Q5_0}, {"Q5_1", GGUF_TYPE_Q5_1},   {"Q8_0", GGUF_TYPE_Q8_0},
+        {"Q8_1", GGUF_TYPE_Q8_1}, {"Q2_K", GGUF_TYPE_Q2_K}, {"Q3_K", GGUF_TYPE_Q3_K},   {"Q4_K", GGUF_TYPE_Q4_K},
+        {"Q5_K", GGUF_TYPE_Q5_K}, {"Q6_K", GGUF_TYPE_Q6_K}, {"Q8_K", GGUF_TYPE_Q8_K},   {"MXFP4", GGUF_TYPE_MXFP4},
+        {"Q1_0", GGUF_TYPE_Q1_0}, {"Q2_0", GGUF_TYPE_Q2_0}, {"PQ2_0", GGUF_TYPE_PQ2_0}, {"PTQ1_0", GGUF_TYPE_PTQ1_0}};
     // Accept ggml's lowercase type names ("q4_0", "q6_K", "f16", ...) as well as the
     // canonical uppercase form.
     auto it = names.find(ov::util::to_upper(quant_type));
@@ -634,6 +625,14 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
     const size_t rows = logical_shape[0];
     const size_t cols = logical_shape[1];
     const GgufTensorType qtype = gguf_type_from_name(quant_type);
+
+    if (qtype == GGUF_TYPE_Q8_1) {
+        OPENVINO_ASSERT(cols != 0 && cols % 32 == 0, "[GGUF] Q8_1 columns must be a nonzero multiple of 32");
+        OPENVINO_ASSERT(rows <= std::numeric_limits<size_t>::max() / cols, "[GGUF] Q8_1 weight count overflow");
+        const size_t blocks = rows * (cols / 32);
+        OPENVINO_ASSERT(blocks <= std::numeric_limits<size_t>::max() / 36, "[GGUF] Q8_1 payload size overflow");
+        OPENVINO_ASSERT(data.get_byte_size() == blocks * 36, "[GGUF] invalid Q8_1 payload size");
+    }
 
     if (qtype == GGUF_TYPE_Q4_1 || qtype == GGUF_TYPE_Q5_1) {
         ov::Tensor decoded(ov::element::f32, logical_shape);
