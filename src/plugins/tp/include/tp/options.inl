@@ -19,7 +19,7 @@
 
 // Namespace, property name, default value, [validator], description
 OV_CONFIG_RELEASE_OPTION(ov::device, priorities, "", "Rank devices, one rank per entry in rank order; set through the device name, e.g. \"TP:GPU.0,GPU.1\"")
-OV_CONFIG_RELEASE_OPTION(ov::tp, communication_timeout_ms, 5000u, "Milliseconds a rank waits inside a collective before the whole group is aborted. 0 waits indefinitely")
+OV_CONFIG_RELEASE_OPTION(ov::tp::internal, communication_timeout_ms, 5000, "Milliseconds a rank waits inside a collective before the whole group is aborted. 0 waits indefinitely", [](int v) { return v >= 0; })
 
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::tp, enable_halving, true, "Use recursive halving/doubling instead of the ring for small payloads on power-of-two world sizes")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::tp, halving_max_bytes, uint64_t{256 * 1024}, "Payload ceiling in bytes above which halving falls back to the ring")

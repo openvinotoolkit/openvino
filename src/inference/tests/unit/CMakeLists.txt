@@ -43,6 +43,7 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}/single_file_storage.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/thread_affinity_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/tlv_format.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/tp_collective_contract_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/variable_state_test.cpp
         DEPENDENCIES
             openvino_template_extension
