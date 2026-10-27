@@ -450,8 +450,9 @@ bool ov::is_config_applicable(const std::string& user_device_name, const std::st
 }
 
 bool ov::is_virtual_device(const std::string& device_name) {
+    // TP is matched exactly or with its device list, so that a device such as TPU is not taken for it.
     return (device_name.find("AUTO") == 0 || device_name.find("MULTI") == 0 || device_name.find("HETERO") == 0 ||
-            device_name.find("BATCH") == 0);
+            device_name.find("BATCH") == 0 || device_name == "TP" || device_name.find("TP:") == 0);
 };
 
 namespace {

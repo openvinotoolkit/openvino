@@ -337,6 +337,15 @@ TEST(CoreTests, check_if_virtual_device) {
     ASSERT_EQ(ov::is_virtual_device("BATCH:DEVICE.MULTI_DETECT"), true);
     ASSERT_EQ(ov::is_virtual_device("BATCH:DEVICE.HETERO_DETECT"), true);
     ASSERT_EQ(ov::is_virtual_device("BATCH:DEVICE.BATCH_DETECT"), true);
+
+    // TP: the exact name or a TP: prefix only
+    ASSERT_EQ(ov::is_virtual_device("TP"), true);
+    ASSERT_EQ(ov::is_virtual_device("TP:DEVICE.x"), true);
+    ASSERT_EQ(ov::is_virtual_device("TP:DEVICE.x,DEVICE.y"), true);
+    ASSERT_EQ(ov::is_virtual_device("TPU"), false);
+    ASSERT_EQ(ov::is_virtual_device("TPU.0"), false);
+    ASSERT_EQ(ov::is_virtual_device("TP.0"), false);
+    ASSERT_EQ(ov::is_virtual_device("DEVICE:TP"), false);
 }
 
 TEST(CoreTests_parse_device_config, get_device_config) {
@@ -523,6 +532,21 @@ TEST(CoreTests_parse_device_config, get_device_config) {
         "HETERO",
         ov::AnyMap{ov::device::priorities("MULTI,DEVICE"),
                    ov::device::properties(ov::AnyMap{{"MULTI", ov::AnyMap{ov::device::priorities("DEVICE")}}})});
+
+    // TP: the device list becomes the priorities, device properties are kept for the ranks, core properties stay
+    check_parsed_config("TP:DEVICE.0,DEVICE.1",
+                        ov::AnyMap{},
+                        "TP",
+                        ov::AnyMap{ov::device::priorities("DEVICE.0,DEVICE.1")});
+    check_parsed_config(
+        "TP:DEVICE.0,DEVICE.1",
+        ov::AnyMap{ov::cache_dir("cache"), ov::device::properties("DEVICE", ov::log::level(ov::log::Level::ERR))},
+        "TP",
+        ov::AnyMap{ov::cache_dir("cache"),
+                   ov::device::priorities("DEVICE.0,DEVICE.1"),
+                   ov::device::properties(ov::AnyMap{{"DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::ERR)}}})});
+    // TPU is a hardware device: no priorities, core properties removed
+    check_parsed_config("TPU.0", ov::AnyMap{ov::cache_dir("cache")}, "TPU", ov::AnyMap{ov::device::id("0")});
 
     // invalid device name with characters after parenthesis except comma
     EXPECT_THROW(ov::parse_device_name_into_config("DEVICE(0)ov", ov::AnyMap{}), ov::Exception);
