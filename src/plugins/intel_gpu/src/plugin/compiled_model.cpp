@@ -3,6 +3,7 @@
 //
 
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/plugin_config.hpp"
@@ -197,6 +198,12 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
         }
     }
 
+    ib.set_model_reader([core = plugin->get_core()](const std::string& xml) {
+        OPENVINO_ASSERT(core, "[GPU] Importing Core is not available");
+        // The cached operation already has its compilation-time precision contract.
+        // Read it without frontend post-processing or GPU model transformations.
+        return core->read_model(xml, ov::Tensor{}, true);
+    });
     auto graph_base = std::make_shared<Graph>(ib, context, m_config, 0);
     // Graph serialization already preserves its finalized ExecutionConfig. Propagate resolved
     // compilation options to the compiled-model config so get_property() reflects the imported graph.
