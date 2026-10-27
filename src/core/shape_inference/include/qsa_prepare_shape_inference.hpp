@@ -198,6 +198,25 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
             longest = blocks > longest ? blocks : longest;
         }
         num_blocks = TDim(longest);
+
+        if (is_raw_keys_rank_static && raw_index_keys_shape[1].is_static() &&
+            past_block_index_keys_shape.rank().is_static() && past_block_index_keys_shape[1].is_static()) {
+            const auto new_tokens = raw_index_keys_shape[1].get_length();
+            int64_t cached = 0;
+            for (const auto& length : *key_lengths) {
+                const auto past = length - new_tokens;
+                const auto blocks = past > 0 ? past / key_block_size : 0;
+                cached = blocks > cached ? blocks : cached;
+            }
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   past_block_index_keys_shape[1].get_length() >= cached,
+                                   "The second dimension of past_block_index_keys must cover the complete "
+                                   "blocks of the past tokens, at least: ",
+                                   cached,
+                                   ", got: ",
+                                   past_block_index_keys_shape[1]);
+        }
     }
 
     return {TRShape{batch, std::move(num_blocks), head_size},
