@@ -48,6 +48,11 @@ TEST_USE_SDPA_OCL_HPG=1 PA_PERF_DEVICE_MEM=1 PA_PERF_ITERS=10 \
   truncated/overwritten by a second process of the same llm_bench run, while the "Device Performance Timing" block printed to stderr was
   complete. `test/longctx/kern_an.py` (per kernel family, ms per prefill, `LAYERS=`), `sdpa_an.py` (per-call us + REG/SLM/SPILL/GWS/LWS),
   `g4_an.py` (splits a mixed-head model's sdpa lines by heads = GWS1/LWS1 and per-hash call counts).
+- **Per decode token, every kernel** (2026-10-28): run the same prompt twice under `cliloader -d -dv`, `-ic 1` and `-ic 129`
+  (`-n 1` = warm-up + 1 iteration per prompt), subtract the per-family totals and divide by runs x 128. Prefill cancels exactly,
+  so the result is the decode step split by kernel family, plus the decode-attention lines with per-call averages
+  (`test/g4dec/cli_pair.sh`, `dec_an.py`, `RUNS=` for multi-prompt files). Comparing master and branch this way located the
+  gemma-4-26b long-context gap in one kernel within one round of runs (chapter 06 §6.10).
 
 ### Kernel source/binary dump (getting the reference kernel exactly)
 
@@ -86,6 +91,14 @@ Traps the harness created (each one actually happened):
 | `--prepass-src` runs the pre-pass only once and AB-measures only the kernel | Misread `prepass avg 0.000` as the "included time" | Measure the pipeline including the pre-pass separately |
 | micro.bin is specific to rung-1 (h128, 32/8) | Used on other shapes it gives wrong/invalid results | Get a new final-linked binary from the product for each shape |
 | Times of failed variants | A wrong kernel gets "benchmarked" as fast | Discard the times of accuracy-FAIL variants and keep only the log |
+
+**The decode probe as a bench** (2026-10-28, `test/g4dec/probe_g4.cpp`, a copy of the lfm2 decode probe): it compiles the live
+`sdpa_ocl_decode.cl` with a jit prelude, checks it against a CPU reference with NaN-poisoned page tails, and adds `PROBE_FILTER`,
+`PROBE_OPTS` / `PROBE_BYCHAN_OPTS` / `PROBE_I8TOK_OPTS` / `PROBE_F16_OPTS` (per cache type), `PROBE_TWIN`, `PROBE_KDIR` (kernel
+directory, e.g. a `git show HEAD` copy), `PROBE_DUMP` (raw outputs for `cmp`) and `PROBE_BENCH=<n>` (event timing with a 256 MB
+fill before each launch, plus `CL_KERNEL_SPILL_MEM_SIZE_INTEL`). Calibrated against cliloader on gemma-4-26b at 33K keys: 679 vs
+714 us (M = 1), 398 vs 422 (M = 2), 630 vs 624 (M = 8). At short context the real KV is L2-resident while the probe flushes it, so
+confirm short-context conclusions on the model. Inputs live in device memory (`clCreateBuffer`), unlike the unit tests' usm_host.
 
 **Verify accuracy before timing.** Poison the output with NaN, compare against a CPU double reference for every row/head/channel (`maxabs < 1e-2`, no relaxing the tolerance), and separately check whether the result is **bit-identical** to the previous OCL variant (a change with the same math must be bit-identical). Use two input distributions: ordinary (Q/K/V std 1) and sharp (Q/K std √1.28, V std 0.1, scale 1/√head — matches the logit distribution of the product gtest's N(0,0.1)×gain128). Smooth data hides softmax/mask errors (chapter 03, chapter 05).
 

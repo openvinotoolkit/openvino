@@ -18,6 +18,7 @@ Full guide: `src/plugins/intel_gpu/docs/ocl_perf_guide/README.md`
 | Ratio vs a reference drifting with prompt length/size, suspected clock throttling, prefetch that costs more than it saves | `ocl-kernel-performance-investigation`, `xe-profiling-tools-cookbook`, `xe-block-io-prefetch-barrier` | 06 §6.7, 07 §7.8, 02 §7.6 |
 | Fewer/larger reads (`WIDE_READS`), choosing a per-tiling default, a gain that flips sign on another model or variant | `xe-block-io-prefetch-barrier`, `ocl-kernel-ab-methodology` | 02 §5.4, 05 5.2.6, 09 §9.3 #14 |
 | A layout a block read cannot take (sub-64 B rows, d-major page), permuting the contraction axis, exact dequant with a non-integer zp | `xe-block-io-prefetch-barrier`, `xe-dpas-kernel-design`, `ocl-quant-softmax-numerics` | 02 §4.5, 01, 03 §4.8 |
+| Decode gap to the reference growing with the prompt, decode M held down by registers (low-register layout) | `ocl-kernel-performance-investigation`, `xe-dpas-kernel-design`, `xe-spill-isa-profiling` | 01 §8.4, 06 §6.10, 07 §7.1-7.2 |
 | Same utilisation as the reference but slower (redundant work), skips that win short and lose long | `ocl-kernel-performance-investigation`, `ocl-kernel-dev-lessons` | 06 §6.8, 09 §9.3 #16-19 |
 | spill/TPM, 256GRF, ISA dump, VTune source-analysis/GTPin, ocloc splice | `xe-spill-isa-profiling` | 04 |
 | A kernel slower after a driver/IGC upgrade, `TPM=` on every shape, the KV-cache writer (`pa_kv_cache_update_ref`) | `xe-spill-isa-profiling`, `ocl-kernel-ab-methodology` | 02 §10.3, 04 §4.9-A, 05 H, 06 §6.9 |
