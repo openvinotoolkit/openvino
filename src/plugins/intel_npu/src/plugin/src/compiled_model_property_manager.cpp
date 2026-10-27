@@ -8,6 +8,9 @@
 
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "metadata.hpp"
 
 namespace {
@@ -268,6 +271,32 @@ void CompiledModelPropertyManager::registerProperties() {
         [this](const ov::Any& value) {
             _config.update(ov::cache_encryption_callbacks.name(), value);
         }
+    );
+    register_property(ov::qos.name(), true, ov::PropertyMutability::WO,
+        [this](const ov::AnyMap&) {
+            return _config.hasOpt(ov::qos.name());
+        },
+        [](const ov::AnyMap&) -> ov::Any {
+            OPENVINO_THROW("WRITE-ONLY configuration key: ", ov::qos.name());
+        },
+        [this](const ov::Any& value) {
+            _config.update(ov::qos.name(), value);
+            if (_graph != nullptr) {
+                _graph->set_qos(value.as<ov::QoS>());
+            }
+        }
+    );
+
+    register_property(ov::qos_info.name(), true, ov::PropertyMutability::RO,
+        [this](const ov::AnyMap&) {
+            // The QOS option is registered only when the driver supports the command queue QoS extension
+            return _config.hasOpt(ov::qos.name()) && _device != nullptr && _graph != nullptr;
+        },
+        [this](const ov::AnyMap&) -> ov::Any {
+            OPENVINO_ASSERT(_graph != nullptr, "QOS info is not available because the graph was not created");
+            return _graph->get_qos_info(CommandQueueParams::from_config(_config));
+        },
+        readOnlySetter
     );
     register_property(ov::hint::model.name(), true, ov::PropertyMutability::RO,
         [](const ov::AnyMap&) {
