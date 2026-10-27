@@ -103,9 +103,17 @@ std::optional<ExpertSlotLease> OffloadExpertWeightProvider::try_acquire_simultan
                                                                                      cldnn::stream& stream) {
     reset_cache_if_slots_changed(slot_buffers);
 
-    // Deduplicate to check capacity
+    // Check capacity before touching the cache: a lease that cannot fit must not load
+    // (and then lose) experts the caller's per-expert fallback is about to stream anyway.
     std::unordered_map<uint32_t, size_t> expert_to_slot;
     expert_to_slot.reserve(experts.size());
+    for (const uint32_t expert : experts) {
+        expert_to_slot.emplace(expert, 0);
+        if (expert_to_slot.size() > _capacity) {
+            return std::nullopt;
+        }
+    }
+    expert_to_slot.clear();
 
     std::vector<size_t> slots(experts.size());
     auto* perf = moe_otd::get_perf_counters();
@@ -116,11 +124,6 @@ std::optional<ExpertSlotLease> OffloadExpertWeightProvider::try_acquire_simultan
         if (it != expert_to_slot.end()) {
             slots[i] = it->second;
             continue;
-        }
-
-        // Check if we would exceed capacity
-        if (expert_to_slot.size() >= _capacity) {
-            return std::nullopt;
         }
 
         const auto item = _cache->get_lru_item(expert);
