@@ -1115,12 +1115,9 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
 
     // Update output layout with respect to FC's fake alignment
     auto updated_layouts = actual_layouts;
-    // A skipped node takes its input's memory right below and returns, so the sizing would be thrown away; its FC users
-    // then run update_shape() themselves.
-    const bool reuses_input_memory =
-        !get_node().is_type<concatenation>() && (get_node().is_runtime_skippable() || get_node().is_type<crop>()) && can_be_optimized();
+    // FC users also need their fused-input layouts refreshed when this node reuses its input memory.
     std::vector<cldnn::primitive_inst*> user_insts;
-    if (!reuses_input_memory) {
+    {
         const auto& user_insts_origin = get_user_insts();
         for (const auto& user : user_insts_origin) {
             auto uid = user->id();

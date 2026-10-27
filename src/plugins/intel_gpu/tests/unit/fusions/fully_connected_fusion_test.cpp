@@ -2,20 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "fusion_test_common.hpp"
-#include "primitive_inst.h"
-
-#include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/quantize.hpp>
+#include <algorithm>
+#include <cmath>
+#include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/dynamic_quantize.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/permute.hpp>
+#include <intel_gpu/primitives/quantize.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/swiglu.hpp>
-#include <intel_gpu/primitives/data.hpp>
-#include <intel_gpu/primitives/crop.hpp>
-#include <intel_gpu/primitives/dynamic_quantize.hpp>
 
-#include <cmath>
+#include "fusion_test_common.hpp"
+#include "primitive_inst.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -1289,6 +1291,71 @@ TEST_P(fc_fp16_eltwise_prod_mul_mul_inplace, matches_unfused_reference) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod_mul_mul_inplace, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ CASE_FC_FP16_3, 4, 6 },
 }));
+
+TEST(fully_connected_fusion, dynamic_optimized_reshape_updates_fused_input) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    constexpr int64_t features = 64;
+    const auto dynamic_layout = layout{ov::PartialShape{1, -1, features}, data_types::f16, format::bfyx};
+    auto weights = engine.allocate_memory(layout{ov::PartialShape{features, features}, data_types::f16, format::oiyx});
+    std::vector<ov::float16> weights_values(features * features, ov::float16(0.f));
+    for (int64_t i = 0; i < features; ++i) {
+        weights_values[i * features + i] = ov::float16(1.f);
+    }
+    set_values(weights, weights_values);
+
+    topology topology(input_layout("input", dynamic_layout),
+                      data("weights", weights),
+                      activation("norm", input_info("input"), activation_func::relu),
+                      permute("permute", input_info("norm"), {0, 2, 1}),
+                      reshape("reshape", input_info("permute"), false, {1, -1, features}, dynamic_layout.get_partial_shape()),
+                      fully_connected("fc", input_info("norm"), "weights", "", 3),
+                      activation("sigmoid", input_info("fc"), activation_func::logistic),
+                      eltwise("mul", {input_info("sigmoid"), input_info("reshape")}, eltwise_mode::prod),
+                      fully_connected("o_proj", input_info("mul"), "weights", "", 3),
+                      reorder("output", input_info("o_proj"), format::bfyx, data_types::f32));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", {format::bfyx, "", impl_types::onednn}}}));
+    network network(engine, topology, config);
+    auto fc = network.get_primitive("fc");
+    const auto& fused_primitives = fc->get_node().get_fused_primitives();
+    auto fused_mul = std::find_if(fused_primitives.begin(), fused_primitives.end(), [](const auto& desc) {
+        return desc.template is_type<eltwise>();
+    });
+    ASSERT_NE(fused_mul, fused_primitives.end());
+    ASSERT_EQ(fused_mul->desc->id, "mul");
+    const auto fused_dep_idx = fused_mul->outer_dep_start_idx;
+
+    for (int64_t tokens : {4, 1, 8}) {
+        SCOPED_TRACE(tokens);
+        auto input = engine.allocate_memory(layout{ov::PartialShape{1, tokens, features}, data_types::f16, format::bfyx});
+        std::vector<ov::float16> values(tokens * features);
+        for (size_t i = 0; i < values.size(); ++i) {
+            values[i] = ov::float16((static_cast<int>(i % 17) - 8) * 0.0625f);
+        }
+        set_values(input, values);
+        network.set_input_data("input", input);
+        auto outputs = network.execute();
+
+        auto reshape = network.get_primitive("reshape");
+        ASSERT_TRUE(reshape->can_be_optimized());
+        EXPECT_EQ(fc->get_impl_params()->get_input_layout(fused_dep_idx), reshape->get_impl_params()->get_output_layout());
+        auto output = outputs.at("output").get_memory();
+        ASSERT_EQ(outputs.at("output").get_layout().get_partial_shape(), (ov::PartialShape{1, tokens, features}));
+        mem_lock<float> result(output, network.get_stream());
+        for (size_t i = 0; i < values.size(); ++i) {
+            const auto gate = std::max(static_cast<float>(values[i]), 0.f);
+            const auto permuted_idx = (i % tokens) * features + i / tokens;
+            const auto side = std::max(static_cast<float>(values[permuted_idx]), 0.f);
+            ASSERT_NEAR(result[i], side / (1.f + std::exp(-gate)), 1e-3f) << i;
+        }
+    }
+}
 #endif
 
 class fc_fp16_eltwise_add_ocl_dynamic : public FullyConnectedFusingTest {
