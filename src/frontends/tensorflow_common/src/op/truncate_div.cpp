@@ -21,7 +21,7 @@ OutputVector translate_truncate_div_op(const NodeContext& node) {
     auto x = node.get_input(0);
     auto y = node.get_input(1);
 
-    auto res = make_shared<v1::Divide>(x, y);
+    auto res = make_shared<v1::Divide>(x, y, false);
     // Multiplying by the reciprocal can land just short of a whole quotient, which Floor or Ceiling then
     // rounds toward zero.
     disable_divide_conversion(res);
