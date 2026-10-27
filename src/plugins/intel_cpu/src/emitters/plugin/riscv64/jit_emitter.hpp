@@ -69,7 +69,7 @@ public:
                            const std::vector<size_t>& out_idxs,
                            const std::vector<size_t>& pool_vec_idxs,
                            const std::vector<size_t>& pool_gpr_idxs,
-                           const std::vector<size_t>& pool_fp_gpr_idxs) const {
+                           const std::vector<size_t>& pool_fp_gpr_idxs = {}) const {
         emit_code_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, pool_fp_gpr_idxs);
     }
 

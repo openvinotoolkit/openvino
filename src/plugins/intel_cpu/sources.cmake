@@ -47,6 +47,7 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/emitters/snippets/brgemm_generic.hpp
     ${CPU_SRC_DIR}/emitters/snippets/common/compiled_snippet_cpu.hpp
     ${CPU_SRC_DIR}/emitters/snippets/common/emitter_factory.hpp
+    ${CPU_SRC_DIR}/emitters/snippets/common/jit_kernel_emitter_utils.hpp
     ${CPU_SRC_DIR}/emitters/snippets/common/jit_debug_emitter_base.hpp
     ${CPU_SRC_DIR}/emitters/snippets/common/jit_segfault_detector_emitter_base.hpp
     ${CPU_SRC_DIR}/emitters/snippets/common/verbose_utils.hpp
