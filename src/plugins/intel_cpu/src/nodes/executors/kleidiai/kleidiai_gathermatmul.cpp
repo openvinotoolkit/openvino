@@ -31,7 +31,8 @@ static bool useDynamicQuantizationImpl(const MemoryDescPtr& weightDesc) {
     if (!hasArmISASupport(ArmISA::DOTPROD) && !hasArmISASupport(ArmISA::I8MM)) {
         return false;
     }
-    return weightDesc->getPrecision() == element::i8 || weightDesc->getPrecision() == element::i4 || weightDesc->getPrecision() == element::u4;
+    return weightDesc->getPrecision() == element::i8 || weightDesc->getPrecision() == element::i4 ||
+           weightDesc->getPrecision() == element::u4;
 }
 
 bool GatherMatMulKleidiAIExecutor::supports(const GatherMatmulConfig& config) {
@@ -77,19 +78,18 @@ GatherMatMulKleidiAIExecutor::GatherMatMulKleidiAIExecutor([[maybe_unused]] cons
     bool isCompressedOp = weiMemoryDesc->getPrecision().is_integral();
     if (isCompressedOp) {
         const auto& scales = memory.at(ARG_SRC_3);
-        OPENVINO_ASSERT(scales && !scales->getDesc().empty(),
-        "Scales cannot be empty for GatherMatmulCompressed op");
+        OPENVINO_ASSERT(scales && !scales->getDesc().empty(), "Scales cannot be empty for GatherMatmulCompressed op");
         OPENVINO_ASSERT(scales->getPrecision() == ov::element::f32,
                         "KleidiAI GatherMatmul expects f32 scales, got ",
                         scales->getPrecision());
         // Scales arrive as [E, N, 1] (channel-wise) or [E, N, G] (group-wise).
         const auto& fullScalesShape = scales->getDesc().getShape().getStaticDims();
-        OPENVINO_ASSERT(fullScalesShape.size() >= 2 && fullScalesShape[0] == gather_axis_size &&
-                            fullScalesShape[1] == N,
-                        "Unexpected scales shape for GatherMatmulCompressed op");
+        OPENVINO_ASSERT(
+            fullScalesShape.size() >= 2 && fullScalesShape[0] == gather_axis_size && fullScalesShape[1] == N,
+            "Unexpected scales shape for GatherMatmulCompressed op");
         size_t numGroups = 1;
         for (size_t d = 2; d < fullScalesShape.size(); ++d) {
-                numGroups *= fullScalesShape[d];
+            numGroups *= fullScalesShape[d];
         }
         m_scalesMemory = scales;
         const Shape paramShape = numGroups > 1 ? Shape({N, numGroups}) : Shape({N});
