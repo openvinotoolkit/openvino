@@ -195,16 +195,7 @@ void regclass_CompiledModel(py::module m) {
             )");
 
     cls.def_property_readonly("inputs",
-                              [](const ov::CompiledModel& self) {
-                                  py::list ports;
-                                  auto owner = py::cast(ov::CompiledModel(self));
-                                  for (const auto& port : self.inputs()) {
-                                      auto value = py::cast(port);
-                                      py::detail::keep_alive_impl(value, owner);
-                                      ports.append(value);
-                                  }
-                                  return ports;
-                              },
+                              &ov::CompiledModel::inputs,
                               R"(
                                 Gets all inputs of a compiled model.
 
@@ -250,16 +241,7 @@ void regclass_CompiledModel(py::module m) {
             )");
 
     cls.def_property_readonly("outputs",
-                              [](const ov::CompiledModel& self) {
-                                  py::list ports;
-                                  auto owner = py::cast(ov::CompiledModel(self));
-                                  for (const auto& port : self.outputs()) {
-                                      auto value = py::cast(port);
-                                      py::detail::keep_alive_impl(value, owner);
-                                      ports.append(value);
-                                  }
-                                  return ports;
-                              },
+                              &ov::CompiledModel::outputs,
                               R"(
                                 Gets all outputs of a compiled model.
 
