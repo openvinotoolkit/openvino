@@ -75,43 +75,15 @@ KERNEL (reorder_data_bfyx_to_blocked_format)(
     const uint f = fsv + fs * FSV_ALIGNMENT;
 
 #if DOUBLE_BLOCKED_FORMAT
-    const uint bs = b / BSV_ALIGNMENT;
-    const uint bsv = b % BSV_ALIGNMENT;
     const uint x_pitch = BSV_ALIGNMENT * FSV_ALIGNMENT;
 #else
     const uint x_pitch = FSV_ALIGNMENT;
 #endif
-    const uint y_pitch = x_pitch * (OUTPUT_SIZE_X);
 
 #if INPUT0_DIMS == 4
-    #if DOUBLE_BLOCKED_FORMAT
-        const uint bsv_pitch = FSV_ALIGNMENT;
-        const uint fs_pitch = y_pitch * (OUTPUT_SIZE_Y);
-        const uint bs_pitch = fs_pitch * (INPUT0_FEATURE_SLICE_NUM);
-        const uint output_idx_tile = (bs * bs_pitch) + (fs * fs_pitch) + (y * y_pitch) + (x * x_pitch) + (bsv * bsv_pitch) + (fsv);
-    #else
-        #if FS_B_YX_FSV
-        const uint b_pitch = y_pitch * (OUTPUT_SIZE_Y);
-        const uint fs_pitch = b_pitch * (INPUT0_BATCH_NUM);
-        #else
-        const uint fs_pitch = y_pitch * (OUTPUT_SIZE_Y);
-        const uint b_pitch = fs_pitch * (INPUT0_FEATURE_SLICE_NUM);
-        #endif
-        const uint output_idx_tile = (b * b_pitch) + (fs * fs_pitch) + (y * y_pitch) + (x * x_pitch) + (fsv);
-    #endif
+    const uint output_idx_tile = OUTPUT_GET_INDEX(b, f, y, x);
 #elif INPUT0_DIMS == 5
-     #if DOUBLE_BLOCKED_FORMAT
-        const uint bsv_pitch = FSV_ALIGNMENT;
-        const uint z_pitch = y_pitch * (OUTPUT_SIZE_Y);
-        const uint fs_pitch = z_pitch * (OUTPUT_SIZE_Z);
-        const uint bs_pitch = fs_pitch * (INPUT0_FEATURE_SLICE_NUM);
-        const uint output_idx_tile = (bs * bs_pitch) + (fs * fs_pitch) + (z * z_pitch) + (y * y_pitch) + (x * x_pitch) + (bsv * bsv_pitch) + (fsv);
-    #else
-        const uint z_pitch = y_pitch * (OUTPUT_SIZE_Y);
-        const uint fs_pitch = z_pitch * (OUTPUT_SIZE_Z);
-        const uint b_pitch = fs_pitch * (INPUT0_FEATURE_SLICE_NUM);
-        const uint output_idx_tile = (b * b_pitch) + (fs * fs_pitch) + (z * z_pitch) + (y * y_pitch) + (x * x_pitch) + (fsv);
-    #endif
+    const uint output_idx_tile = OUTPUT_GET_INDEX(b, f, z, y, x);
 #endif
 
     // get local buf offset

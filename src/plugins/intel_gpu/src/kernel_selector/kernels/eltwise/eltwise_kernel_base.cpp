@@ -138,6 +138,19 @@ Datatype EltwiseKernelBase::GetAccumulatorType(const eltwise_params& params) con
         return Datatype::INT32;
     }
 
+    if (params.operations[0].mode == EltwiseMode::DIV && params.operations[0].m_pythondiv && !params.inputs.empty()) {
+        bool all_inputs_are_int16 = true;
+        for (const auto& input : params.inputs) {
+            if (input.GetDType() != Datatype::INT16) {
+                all_inputs_are_int16 = false;
+                break;
+            }
+        }
+        if (all_inputs_are_int16) {
+            return Datatype::INT16;
+        }
+    }
+
     Datatype types[] = {Datatype::F32, Datatype::BF16, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
 
     for (Datatype type : types) {
@@ -276,9 +289,25 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
         case EltwiseMode::MUL:
             op += input0_str + " * " + input1_str;
             break;
-        case EltwiseMode::DIV:
-            op += input0_str + " / " + input1_str;
+        case EltwiseMode::DIV: {
+            auto is_signed_integer_type = [](kernel_selector::Datatype type) {
+                return type == kernel_selector::Datatype::INT8 || type == kernel_selector::Datatype::INT16 || type == kernel_selector::Datatype::INT32 ||
+                       type == kernel_selector::Datatype::INT64;
+            };
+
+            if (ew.m_pythondiv && is_signed_integer_type(GetAccumulatorType(params))) {
+                op += "(" + input0_str + " / " + input1_str +
+                      ") - "
+                      "(((" +
+                      input0_str + " % " + input1_str +
+                      ") != 0 && "
+                      "((" +
+                      input0_str + " < 0) != (" + input1_str + " < 0))) ? 1 : 0)";
+            } else {
+                op += input0_str + " / " + input1_str;
+            }
             break;
+        }
         case EltwiseMode::MODULU:
         case EltwiseMode::MIN:
         case EltwiseMode::MAX: {
@@ -310,7 +339,37 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 op += cast_type + "f" + mode + "(" + input0_str + ", convert_float(" + input1_str + "))";
             } else {
                 // input_0 != int && input_1 != int
-                op += cast_type + "f" + mode + "(" + input0_str + ", " + input1_str + ")";
+                if (ew.mode == EltwiseMode::MODULU) {
+                    op += cast_type + "fmod(" + input0_str + ", " + input1_str + ")";
+                } else {
+                    // Match the OpenVINO reference implementation (std::max/std::min)
+                    // instead of OpenCL fmax/fmin, which return the non-NaN operand
+                    // and therefore silently drop NaN:
+                    //   std::max(a, b) == ((a < b) ? b : a)
+                    //   std::min(a, b) == ((b < a) ? b : a)
+                    // A NaN first operand wins, a NaN second operand loses to the
+                    // finite first operand - exactly the reference behavior.
+                    // The ternary operator is used rather than select(): select()
+                    // requires the condition to be a signed integer of the same
+                    // width as the operands (short for half), while a comparison
+                    // on half yields int, so f16 kernels fail to build with
+                    // CL_BUILD_PROGRAM_FAILURE. A vector condition is valid in the
+                    // ternary operator for the vectorized (block/vload) variants.
+                    // The isnan() guard on the first operand makes the expression
+                    // immune to compiler folding: the GPU compiler recognizes the
+                    // bare comparison form as the hardware fmin/fmax instruction
+                    // (which returns the non-NaN operand, the exact bug being
+                    // fixed) and rewrites the ternary back to it. With a
+                    // data-dependent isnan branch it cannot fold, and the guard is
+                    // semantically identical to the reference: for a NaN first
+                    // operand the reference already returns it unchanged, and for a
+                    // finite first operand fmax/fmin and the comparison agree.
+                    const std::string cmp =
+                        (ew.mode == EltwiseMode::MIN)
+                            ? ("(" + input1_str + " < " + input0_str + ")")
+                            : ("(" + input0_str + " < " + input1_str + ")");
+                    op += cast_type + "(isnan(" + input0_str + ") ? " + input0_str + " : (" + cmp + " ? " + input1_str + " : " + input0_str + "))";
+                }
             }
         } break;
         case EltwiseMode::POW:
@@ -411,6 +470,10 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
     return jit;
 }
 
+std::string EltwiseKernelBase::GetVload8InputIndex(const eltwise_params& /*params*/, size_t /*input_idx*/) const {
+    return "global_id";
+}
+
 JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& params, bool useVload8) const {
     JitConstants jit = {};
     std::string vload_decls;
@@ -464,7 +527,7 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
             if (params.inputs[i].PhysicalSize() == 1) {  // Scalar case
                 vload_decls += " = (" + toCLType(params.inputs[i].GetDType()) + "8)(input" + toCodeString(i) + "[0]";
             } else {  // Buffer case
-                vload_decls += " = vload8(global_id, input" + toCodeString(i);
+                vload_decls += " = vload8(" + GetVload8InputIndex(params, i) + ", input" + toCodeString(i);
             }
             vload_decls += ");";
         }

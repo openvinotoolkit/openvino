@@ -39,7 +39,6 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
                                    size_t& lru_expert_num) {
     using input_idx = cldnn::moe_3gemm_fused_compressed::input_index;
     const auto& config = op->get_config();
-    const auto& model = p.get_model();
     const size_t otd_ratio = p.get_config().get_offload_ratio();
     // ratio=0  → all resident, no offload
     // ratio=100 → all on disk, cannot run → treat as disabled

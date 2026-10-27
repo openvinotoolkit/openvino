@@ -107,6 +107,10 @@ public:
                        ov::element::Type exec_prc = ov::element::f32);
     jit_divide_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                        dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                       bool pythondiv,
+                       ov::element::Type exec_prc = ov::element::f32);
+    jit_divide_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
+                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                        const std::shared_ptr<ov::Node>& n,
                        ov::element::Type exec_prc = ov::element::f32);
 
@@ -119,6 +123,8 @@ private:
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    bool m_pythondiv = true;
     size_t aux_vecs_count() const override;
 };
 
@@ -183,6 +189,8 @@ private:
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    bool m_pythondiv = true;
     size_t aux_vecs_count() const override;
 };
 
@@ -205,6 +213,8 @@ private:
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    bool m_pythondiv = true;
     size_t aux_vecs_count() const override;
 };
 
@@ -774,22 +784,19 @@ private:
 class jit_is_inf_emitter : public jit_emitter {
 public:
     jit_is_inf_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
-                       dnnl::impl::cpu::x64::cpu_isa_t hostIsa,
-                       ov::element::Type execPrc = ov::element::f32,
+                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                       ov::element::Type exec_prc = ov::element::f32,
                        bool detect_negative = true,
                        bool detect_positive = true)
-        : jit_emitter(host, hostIsa, execPrc),
+        : jit_emitter(host, host_isa, exec_prc),
           detect_negative(detect_negative),
           detect_positive(detect_positive) {
         prepare_table();
     }
     jit_is_inf_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
-                       dnnl::impl::cpu::x64::cpu_isa_t hostIsa,
-                       [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
-                       ov::element::Type execPrc = ov::element::f32)
-        : jit_emitter(host, hostIsa, execPrc) {
-        prepare_table();
-    }
+                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                       const std::shared_ptr<ov::Node>& node,
+                       ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_num() const override {
         return 1;
@@ -997,7 +1004,6 @@ public:
         const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
-    void prepare_min_max(double alpha, double beta);
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>

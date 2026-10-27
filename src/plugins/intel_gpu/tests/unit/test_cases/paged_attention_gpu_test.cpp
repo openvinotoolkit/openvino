@@ -64,6 +64,80 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         paged_attention_test_params{{{25, 34}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
         paged_attention_test_params{{{25, 128}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}));
+
+
+class paged_attention_h256_mixed_qtile64_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_h256_mixed_qtile64_test, matches_cpu_reference) {
+    const auto& device_info = tests::get_test_engine().get_device_info();
+    if (!(device_info.supports_immad && (device_info.arch == cldnn::gpu_arch::xe2 || device_info.arch == cldnn::gpu_arch::xe3)))
+        GTEST_SKIP() << "xe2_h256_pa_mixed (q tile 64) applies to Xe2/Xe3 with DPAS only";
+
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+
+    auto result = run_gpu_inference(pam, p);
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    auto* impl = pa_inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+    const auto dump_info = impl->get_kernels_dump_info(*pa_inst->get_impl_params());
+    ASSERT_NE(dump_info.get_entries().find("sdpa_micro"), std::string::npos)
+        << "Cases must run micro SDPA to cover the h256 MIXED q tile 64 config: " << dump_info.get_entries();
+
+    // 8-bit caches keep the tolerance the fixture already uses for 8-bit compression
+    // (run_gpu_inference in paged_attention_gpu_test.h: 25e-3 for i8/u8, 75e-3 for int4);
+    // int4 keeps 5e-2 here, which is tighter than the fixture default and already met by the
+    // existing cases. This keeps the pre-existing cases at exactly 5e-2 while guarding the
+    // new 8-bit rows with the tighter, precision-appropriate bound.
+    const bool is_8bit_kv_cache =
+        p.kv_cache_compression && (p.kv_cache_precision == ov::element::i8 || p.kv_cache_precision == ov::element::u8);
+    this->tolerance = is_8bit_kv_cache ? 25e-3f : 5e-2f;
+    const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
+    compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
+}
+
+static paged_attention_test_params make_h256_mixed_qtile64_params(std::vector<SubsequenceDescriptor> subsequences,
+                                                                   ov::element::Type kv_cache_precision,
+                                                                   ov::internal::CacheQuantMode key_cache_quant_mode) {
+    paged_attention_test_params p{subsequences,
+                                  8,
+                                  2,
+                                  256,
+                                  256,
+                                  16,
+                                  0,
+                                  ENABLE_CACHE_COMPRESSION,
+                                  key_cache_quant_mode,
+                                  DYNAMIC_INPUT_PAD,
+                                  DISABLE_SCORES,
+                                  DISABLE_ROTATION,
+                                  DISABLE_FA_V2};
+    p.kv_cache_precision = kv_cache_precision;
+    return p;
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    paged_attention_h256_mixed_qtile64,
+    paged_attention_h256_mixed_qtile64_test,
+    ::testing::Values(
+        // u4 BY_CHANNEL, GQA 8/2, MIXED with q_len 100 (1 full q tile 64 + 36 leftover tokens)
+        paged_attention_test_params{{{100, 300}}, 8, 2, 256, 256, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
+        // multi-subsequence MIXED: q_len 130 and 65 over different past_lens
+        paged_attention_test_params{{{130, 70}, {65, 400}}, 8, 2, 256, 256, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
+        // f16 KV cache (no compression) variant of the first case
+        paged_attention_test_params{{{100, 300}}, 8, 2, 256, 256, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false},
+        // i8/u8 KV cache, both quant modes, BY_CHANNEL and BY_TOKEN
+        make_h256_mixed_qtile64_params({{100, 300}}, ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL),
+        make_h256_mixed_qtile64_params({{100, 300}}, ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN),
+        make_h256_mixed_qtile64_params({{100, 300}}, ov::element::u8, ov::internal::CacheQuantMode::BY_CHANNEL),
+        make_h256_mixed_qtile64_params({{100, 300}}, ov::element::u8, ov::internal::CacheQuantMode::BY_TOKEN),
+        make_h256_mixed_qtile64_params({{100, 8}}, ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL),
+        make_h256_mixed_qtile64_params({{65, 1}}, ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN),
+        make_h256_mixed_qtile64_params({{128, 300}}, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL),
+        make_h256_mixed_qtile64_params({{63, 200}}, ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL),
+        make_h256_mixed_qtile64_params({{65, 200}}, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL)));
 #endif
 
 class paged_attention_u4_swa_tail_test : public PagedAttentionTest<paged_attention_test_params> {};

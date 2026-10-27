@@ -3,7 +3,7 @@
 
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestUnsqueeze(PytorchLayerTest):
@@ -28,13 +28,14 @@ class TestUnsqueeze(PytorchLayerTest):
                 self.dim = dim
 
             def forward(self, x):
+                x = x.clone()
                 return x, x.unsqueeze_(self.dim)
 
         model_class, op = (aten_unsqueeze, "aten::unsqueeze") if not inplace else (aten_unsqueeze_, "aten::unsqueeze_")
 
         return model_class(dim), op
 
-    @pytest.mark.parametrize("inplace", [False, skip_if_export(True)])
+    @pytest.mark.parametrize("inplace", [False, True])
     @pytest.mark.parametrize("dim", [0, 1, -1])
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -100,7 +101,7 @@ class TestUnsqueezeWithComplex(PytorchLayerTest):
 
         return model_class(dim), op
 
-    @pytest.mark.parametrize("inplace", [False, skip_if_export(True)])
+    @pytest.mark.parametrize("inplace", [False, True])
     @pytest.mark.parametrize("dim", [0, 1, -1, -2])
     @pytest.mark.nightly
     @pytest.mark.precommit

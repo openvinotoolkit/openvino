@@ -17,6 +17,13 @@ using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::ocl {
 
+// sdpa_micro reads the per-token token_type_ids group bounds precomputed by the pa_tt_bounds stage
+// (internal buffer 4, right after the micro-kernel buffer 3). Not used with scores output or adaptive RKV,
+// which add internal buffers before that index.
+inline bool pa_micro_uses_tt_bounds(const paged_attention& desc) {
+    return desc.has_token_type_ids && !desc.has_scores_output() && !desc.has_adaptive_rkv;
+}
+
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 
 // Kernel used for MIXED stage with few query tokens per subsequence (speculative decoding)

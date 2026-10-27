@@ -13,8 +13,15 @@
 
 #include <cmath>
 #include <cstring>
+#include <fstream>
+#include <vector>
 
+#include "common_test_utils/file_utils.hpp"
 #include "op_test_utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "quant/gguf.hpp"
 #include "quant/weights.hpp"
 
 using namespace ov_gguf_test;
@@ -71,6 +78,11 @@ TEST_P(GGUFWeight, MatchesGgmlToFloat) {
     float max_diff = 0.f;
     for (size_t i = 0; i < ref.size(); ++i)
         max_diff = std::max(max_diff, std::fabs(a[i] - ref[i]));
+    if (c.tol == 0.f) {
+        for (size_t i = 0; i < ref.size(); ++i)
+            EXPECT_EQ(a[i], ref[i]) << "element " << i;
+        return;
+    }
     EXPECT_LE(max_diff, c.tol) << c.stem << ": frontend weight dequant diverges from ggml to_float";
 }
 
@@ -81,38 +93,193 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                                            WeightCase{"q5_0", "Q5_0", kTolFaithful},
                                            WeightCase{"q5_1", "Q5_1", kTolFaithful},
                                            WeightCase{"q8_0", "Q8_0", kTolFaithful},
+                                           WeightCase{"q8_1", "Q8_1", 0.f},
                                            WeightCase{"q2_k", "Q2_K", kTolFaithful},
                                            WeightCase{"q3_k", "Q3_K", kTolFaithful},
                                            WeightCase{"q4_k", "Q4_K", kTolU4Requant},
                                            WeightCase{"q5_k", "Q5_K", kTolRequant},
                                            WeightCase{"q6_k", "Q6_K", kTolRequant},
-                                           WeightCase{"q2_0", "Q2_0", kTolFaithful}),
+                                           WeightCase{"q2_0", "Q2_0", kTolFaithful},
+                                           WeightCase{"q1_0", "Q1_0", kTolFaithful},
+                                           WeightCase{"pq2_0", "PQ2_0", 0.f},
+                                           WeightCase{"ptq1_0", "PTQ1_0", 0.f}),
                          [](const ::testing::TestParamInfo<WeightCase>& i) {
                              return std::string(i.param.stem);
                          });
 
+TEST(GGUFWeight, Q8_1KeepsCodesAndScaleBitsForAllWeightNames) {
+    const auto bytes = load_npy<uint8_t>("q8_1_qbytes");
+    ASSERT_EQ(bytes.size(), kRows * kCols / 32 * 36);
+    for (const std::string name : {"blk.0.attn_q.weight", "token_embd.weight", "output.weight"}) {
+        SCOPED_TRACE(name);
+        const auto node = make_weight_node(bytes_to_u8_tensor(bytes), "Q8_1", {kRows, kCols}, name);
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+        size_t payload_bytes = 0;
+        size_t weight_constants = 0;
+        size_t scale_constants = 0;
+        for (const auto& op : model->get_ordered_ops()) {
+            EXPECT_STRNE(op->get_type_name(), "Subtract");
+            if (std::string(op->get_type_name()) == "Multiply") {
+                EXPECT_EQ(op->get_output_element_type(0), ov::element::f32);
+            }
+            const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op);
+            if (!constant || constant->get_element_type() == ov::element::i64)
+                continue;
+            payload_bytes += constant->get_byte_size();
+            if (constant->get_element_type() == ov::element::i8) {
+                ++weight_constants;
+                ASSERT_EQ(ov::shape_size(constant->get_shape()), kRows * kCols);
+                for (size_t i = 0; i < ov::shape_size(constant->get_shape()); ++i) {
+                    int8_t code;
+                    std::memcpy(&code, bytes.data() + (i / 32) * 36 + 4 + i % 32, sizeof(code));
+                    EXPECT_EQ(constant->get_data_ptr<int8_t>()[i], code);
+                }
+            } else {
+                ASSERT_EQ(constant->get_element_type(), ov::element::f16);
+                ++scale_constants;
+                ASSERT_EQ(ov::shape_size(constant->get_shape()), kRows * kCols / 32);
+                for (size_t group = 0; group < ov::shape_size(constant->get_shape()); ++group) {
+                    uint16_t bits;
+                    std::memcpy(&bits, bytes.data() + group * 36, sizeof(bits));
+                    EXPECT_EQ(constant->get_data_ptr<ov::float16>()[group].to_bits(), bits);
+                }
+            }
+        }
+        EXPECT_EQ(weight_constants, 1);
+        EXPECT_EQ(scale_constants, 1);
+        EXPECT_EQ(payload_bytes, kRows * kCols / 32 * 34);
+    }
+}
+
+TEST(GGUFWeight, Q8_1SuppliedDecoderPreservesHigherRankShape) {
+    const auto bytes = load_npy<uint8_t>("q8_1_qbytes");
+    const auto reference = load_npy<float>("q8_1_deq");
+    std::vector<uint8_t> storage(bytes.size() + 1);
+    std::memcpy(storage.data() + 1, bytes.data(), bytes.size());
+    const ov::Tensor unaligned(ov::element::u8, {bytes.size()}, storage.data() + 1);
+    const auto model = SingleOpBuilder()
+                           .op("GGML_OP_NONE")
+                           .output("output.weight", ov::element::f32, {2, 2, kCols})
+                           .attr<ov::Tensor>("data", unaligned)
+                           .attr<std::string>("quant_type", "q8_1")
+                           .build();
+    EXPECT_EQ(model->get_output_shape(0), (ov::Shape{2, 2, kCols}));
+    const auto output = run_on_cpu(model, {});
+    ASSERT_EQ(output.get_size(), reference.size());
+    for (size_t i = 0; i < reference.size(); ++i)
+        EXPECT_EQ(output.data<const float>()[i], reference[i]);
+}
+
+TEST(GGUFWeight, Q8_1CpuMatmulAndGatherMatchRepresentedWeights) {
+    const auto bytes = load_npy<uint8_t>("q8_1_qbytes");
+    const auto reference = load_npy<float>("q8_1_deq");
+    ASSERT_EQ(reference.size(), kRows * kCols);
+    const std::vector<int64_t> selected_rows{3, 0, 2, 1};
+    ov::Tensor one_hot(ov::element::f32, {kCols, kCols});
+    std::fill_n(one_hot.data<float>(), one_hot.get_size(), 0.f);
+    for (size_t i = 0; i < kCols; ++i)
+        one_hot.data<float>()[i * kCols + i] = 1.f;
+    ov::Core core;
+    for (const std::string name : {"blk.0.attn_q.weight", "token_embd.weight", "output.weight"}) {
+        SCOPED_TRACE(name);
+        const auto weight = make_weight_node(bytes_to_u8_tensor(bytes), "Q8_1", {kRows, kCols}, name);
+        const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{kCols, kCols});
+        const auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{kRows});
+        const auto matmul = std::make_shared<ov::op::v0::MatMul>(input, weight, false, true);
+        const auto gather =
+            std::make_shared<ov::op::v8::Gather>(weight,
+                                                 indices,
+                                                 ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
+        const auto model =
+            std::make_shared<ov::Model>(ov::OutputVector{matmul, gather}, ov::ParameterVector{input, indices});
+        auto request = core.compile_model(model,
+                                          "CPU",
+                                          ov::hint::inference_precision(ov::element::f32),
+                                          ov::hint::dynamic_quantization_group_size(0))
+                           .create_infer_request();
+        request.set_input_tensor(0, one_hot);
+        request.set_input_tensor(1, make_i64_tensor({kRows}, selected_rows));
+        request.infer();
+        const auto products = request.get_output_tensor(0);
+        const auto embeddings = request.get_output_tensor(1);
+        ASSERT_EQ(products.get_shape(), (ov::Shape{kCols, kRows}));
+        ASSERT_EQ(embeddings.get_shape(), (ov::Shape{kRows, kCols}));
+        for (size_t row = 0; row < kRows; ++row) {
+            for (size_t col = 0; col < kCols; ++col) {
+                EXPECT_EQ(products.data<const float>()[col * kRows + row], reference[row * kCols + col]);
+                EXPECT_EQ(embeddings.data<const float>()[row * kCols + col],
+                          reference[selected_rows[row] * kCols + col]);
+            }
+        }
+    }
+}
+
+TEST(GGUFWeight, Q1_0KeepsBinaryCodesForAllWeightNames) {
+    const auto bytes = load_npy<uint8_t>("q1_0_qbytes");
+    const auto reference = load_npy<float>("q1_0_deq");
+    for (const std::string name : {"blk.0.attn_q.weight", "token_embd.weight", "output.weight"}) {
+        SCOPED_TRACE(name);
+        const auto node = make_weight_node(bytes_to_u8_tensor(bytes), "Q1_0", {kRows, kCols}, name);
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+        size_t binary_bytes = 0;
+        for (const auto& op : model->get_ordered_ops()) {
+            if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op)) {
+                EXPECT_NE(constant->get_element_type(), ov::element::i4);
+                EXPECT_NE(constant->get_element_type(), ov::element::i8);
+                if (constant->get_element_type() == ov::element::u1)
+                    binary_bytes += constant->get_byte_size();
+            }
+        }
+        EXPECT_EQ(binary_bytes, kRows * kCols / 8);
+        const auto output = run_on_cpu(model, {});
+        ASSERT_EQ(output.get_size(), reference.size());
+        for (size_t i = 0; i < reference.size(); ++i)
+            EXPECT_FLOAT_EQ(output.data<const float>()[i], reference[i]);
+    }
+}
+
+TEST(GGUFWeight, Q1_0PreservesFiniteScaleRange) {
+    const std::vector<ov::float16> scales{65504.f, -65504.f, 0.f, ov::float16::from_bits(1)};
+    std::vector<uint8_t> bytes(scales.size() * 18);
+    for (size_t group = 0; group < scales.size(); ++group) {
+        const auto bits = scales[group].to_bits();
+        std::memcpy(bytes.data() + group * 18, &bits, sizeof(bits));
+        std::fill_n(bytes.data() + group * 18 + 2, 16, 0x55);
+    }
+    const auto node = make_weight_node(bytes_to_u8_tensor(bytes), "Q1_0", {1, scales.size() * 128});
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+    const auto output = run_on_cpu(model, {});
+    for (size_t i = 0; i < output.get_size(); ++i) {
+        const float scale = static_cast<float>(scales[i / 128]);
+        EXPECT_FLOAT_EQ(output.data<const float>()[i], i % 2 == 0 ? scale : -scale);
+    }
+}
+
 // token_embd / output are requantized to channel-wise Q8_0_C, and that path reads the zero-point
 // as f16 -- Q2_0 used to hard-code u8 here, which threw for every ternary model.
-TEST(GGUFWeightRequant, Q2_0AsTokenEmbd) {
+TEST(GGUFWeightRequant, Q2_0AsTokenEmbdAndOutput) {
     const auto qbytes = load_npy<uint8_t>("q2_0_qbytes");
     const auto ref = load_npy<float>("q2_0_deq");
     ASSERT_EQ(ref.size(), kRows * kCols);
 
-    auto model = SingleOpBuilder()
-                     .op("GGML_OP_NONE")
-                     .output("token_embd.weight", ov::element::f32, {kRows, kCols})
-                     .attr<ov::Tensor>("data", bytes_to_u8_tensor(qbytes))
-                     .attr<std::string>("quant_type", "Q2_0")
-                     .build();
+    for (const std::string name : {"token_embd.weight", "output.weight"}) {
+        SCOPED_TRACE(name);
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_NONE")
+                         .output(name, ov::element::f32, {kRows, kCols})
+                         .attr<ov::Tensor>("data", bytes_to_u8_tensor(qbytes))
+                         .attr<std::string>("quant_type", "Q2_0")
+                         .build();
 
-    auto out = run_on_cpu(model, {});
-    ASSERT_EQ(out.get_size(), ref.size());
+        auto out = run_on_cpu(model, {});
+        ASSERT_EQ(out.get_size(), ref.size());
 
-    const float* a = out.data<float>();
-    float max_diff = 0.f;
-    for (size_t i = 0; i < ref.size(); ++i)
-        max_diff = std::max(max_diff, std::fabs(a[i] - ref[i]));
-    EXPECT_LE(max_diff, kTolRequant) << "Q2_0 token_embd requant diverges from ggml to_float";
+        const float* a = out.data<float>();
+        float max_diff = 0.f;
+        for (size_t i = 0; i < ref.size(); ++i)
+            max_diff = std::max(max_diff, std::fabs(a[i] - ref[i]));
+        EXPECT_LE(max_diff, kTolRequant) << "Q2_0 requant diverges from ggml to_float";
+    }
 }
 
 // An F16 weight is wrapped directly as a constant (no dequant); round-trips the raw bytes.
@@ -255,7 +422,7 @@ TEST(GGUFFusedQkvBias, SplitsIntoExpectedRanges) {
     }
 }
 
-TEST(GGUFFusedQkvWeight, PreservesScalesForMxfp4AndQ8K) {
+TEST(GGUFFusedQkvWeight, PreservesScalesForGroupedFormats) {
     const auto check = [](ov::frontend::gguf::GgufTensorType qtype,
                           const ov::element::Type& weight_type,
                           const ov::element::Type& scale_type,
@@ -282,6 +449,8 @@ TEST(GGUFFusedQkvWeight, PreservesScalesForMxfp4AndQ8K) {
     };
 
     check(ov::frontend::gguf::GGUF_TYPE_MXFP4, ov::element::f4e2m1, ov::element::f8e8m0, 8);
+    check(ov::frontend::gguf::GGUF_TYPE_Q1_0, ov::element::u1, ov::element::f16, 2);
+    check(ov::frontend::gguf::GGUF_TYPE_Q8_1, ov::element::i8, ov::element::f16, 8);
     check(ov::frontend::gguf::GGUF_TYPE_Q8_K, ov::element::i8, ov::element::f32, 1);
 }
 
@@ -295,10 +464,149 @@ TEST(GGUFWeight, RejectsMissingAuxiliaryTensors) {
     EXPECT_THROW(make_weight_node(without_zero_point, GGUF_TYPE_Q4_K), ov::Exception);
 }
 
-TEST(GGUFWeight, UsesIntegerZeroPointForQ4KMatmulWeights) {
+TEST(GGUFWeight, UsesIntegerZeroPointForRequantizedMatmulWeights) {
     using namespace ov::frontend::gguf;
 
     EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_Q4_K), ov::element::u8);
+    EXPECT_EQ(gguf_zero_point_type("blk.0.ffn_down.weight", GGUF_TYPE_Q4_1), ov::element::u8);
+    EXPECT_EQ(gguf_zero_point_type("blk.0.ssm_out.weight", GGUF_TYPE_Q5_K), ov::element::u8);
     EXPECT_EQ(gguf_zero_point_type("token_embd.weight", GGUF_TYPE_Q4_K), ov::element::f16);
+    EXPECT_EQ(gguf_zero_point_type("output.weight", GGUF_TYPE_Q5_K), ov::element::f16);
     EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_Q2_0), ov::element::u8);
+}
+
+class GGUFQ5KNative : public ::testing::Test {
+protected:
+    void SetUp() override {
+        path = ov::test::utils::generateTestFilePrefix() + ".gguf";
+    }
+    void TearDown() override {
+        ov::test::utils::removeFile(path);
+    }
+    void write_tensor(const std::string& name, const std::vector<uint8_t>& bytes) {
+        std::ofstream out(path, std::ios::binary);
+        ASSERT_TRUE(out);
+        const auto put = [&out](auto value) {
+            out.write(reinterpret_cast<const char*>(&value), sizeof(value));
+        };
+        put(uint32_t{0x46554747});
+        put(uint32_t{3});
+        put(uint64_t{1});
+        put(uint64_t{0});
+        put(uint64_t{name.size()});
+        out.write(name.data(), name.size());
+        put(uint32_t{3});
+        put(uint64_t{kCols});
+        put(uint64_t{2});
+        put(uint64_t{2});
+        put(uint32_t{ov::frontend::gguf::GGUF_TYPE_Q5_K});
+        put(uint64_t{0});
+        while (static_cast<size_t>(out.tellp()) % 32 != 0)
+            out.put('\0');
+        out.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+        ASSERT_TRUE(out);
+    }
+    std::string path;
+};
+
+TEST_F(GGUFQ5KNative, KeepsDiskTypeAndUsesSymmetricStorageForMatrices) {
+    using namespace ov::frontend::gguf;
+    const auto bytes = load_npy<uint8_t>("q5_k_qbytes");
+    for (const std::string name : {"blk.0.ffn_up", "token_embd", "output", "blk.0.attn_q.bias"}) {
+        SCOPED_TRACE(name);
+        const auto full_name = name == "blk.0.attn_q.bias" ? name : name + ".weight";
+        const bool symmetric = name == "blk.0.ffn_up";
+        ASSERT_NO_FATAL_FAILURE(write_tensor(full_name, bytes));
+        const auto loaded = get_gguf_data(path);
+        const auto& arrays = std::get<1>(loaded);
+        const auto& prefix = name;
+        EXPECT_EQ(std::get<2>(loaded).at(prefix + ".qtype"), GGUF_TYPE_Q5_K);
+        WeightTensors tensors{arrays.at(full_name), arrays.at(prefix + ".scales"), {}};
+        if (auto zp = arrays.find(prefix + ".zp"); zp != arrays.end())
+            tensors.zero_point = zp->second;
+        EXPECT_EQ(tensors.weight.get_element_type(), symmetric ? ov::element::i8 : ov::element::u8);
+        EXPECT_EQ(tensors.scales.get_shape(), (ov::Shape{2, 2, kCols / 32}));
+        EXPECT_EQ(static_cast<bool>(tensors.zero_point), !symmetric);
+        EXPECT_NO_THROW(make_weight_node(tensors, GGUF_TYPE_Q5_K, full_name));
+        if (!symmetric) {
+            EXPECT_EQ(tensors.zero_point.get_element_type(),
+                      name == "blk.0.attn_q.bias" ? ov::element::u8 : ov::element::f16);
+        }
+    }
+}
+
+TEST(GGUFQ5KRequant, FusedSplitsKeepSymmetricStorage) {
+    using namespace ov::frontend::gguf;
+    const auto bytes = load_npy<uint8_t>("q5_k_qbytes");
+    GgufTensor source{};
+    source.type = GGUF_TYPE_Q5_K;
+    source.num_weights = kRows * kCols;
+    source.bsize = bytes.size();
+    source.weights_data = bytes.data();
+    WeightTensors tensors{ov::Tensor(ov::element::i8, {kRows, kCols}),
+                          ov::Tensor(ov::element::f16, {kRows, kCols / 32}),
+                          {}};
+    gguf_fill_q5_k_i8(source, tensors.weight, tensors.scales);
+    const std::unordered_map<std::string, ov::Tensor> weights{{"fused.weight", tensors.weight},
+                                                              {"fused.scales", tensors.scales}};
+    const std::unordered_map<std::string, GgufTensorType> qtypes{{"fused.qtype", GGUF_TYPE_Q5_K}};
+    const auto qkv = split_fused_qkv_extracted("fused", weights, qtypes, 2, 1, 1);
+    const auto q_gate = split_interleaved_q_gate("fused", weights, qtypes, 1);
+    for (const auto& part : qkv) {
+        EXPECT_FALSE(part.tensors.zero_point);
+        EXPECT_NO_THROW(make_weight_node(part.tensors, part.qtype));
+    }
+    for (size_t part = 0; part < q_gate.size(); ++part) {
+        EXPECT_FALSE(q_gate[part].tensors.zero_point);
+        EXPECT_NO_THROW(make_weight_node(q_gate[part].tensors, q_gate[part].qtype));
+        for (size_t row = 0; row < 2; ++row) {
+            const size_t source_row = row * 2 + part;
+            EXPECT_EQ(std::memcmp(q_gate[part].tensors.weight.data<int8_t>() + row * kCols,
+                                  tensors.weight.data<int8_t>() + source_row * kCols,
+                                  kCols),
+                      0);
+            EXPECT_EQ(std::memcmp(q_gate[part].tensors.scales.data<ov::float16>() + row * (kCols / 32),
+                                  tensors.scales.data<ov::float16>() + source_row * (kCols / 32),
+                                  (kCols / 32) * sizeof(ov::float16)),
+                      0);
+        }
+    }
+}
+
+TEST(GGUFQ5KRequant, RejectsMalformedSymmetricGraphTensors) {
+    using namespace ov::frontend::gguf;
+    WeightTensors tensors{ov::Tensor(ov::element::i8, {2, 256}), ov::Tensor(ov::element::f16, {2, 8}), {}};
+    for (const ov::Shape& shape : {ov::Shape{1, 8}, ov::Shape{2, 2}, ov::Shape{2, 0}, ov::Shape{2, 8, 1}}) {
+        tensors.scales = ov::Tensor(ov::element::f16, shape);
+        EXPECT_THROW(make_weight_node(tensors, GGUF_TYPE_Q5_K), ov::Exception);
+    }
+    tensors.scales = ov::Tensor(ov::element::f32, {2, 8});
+    EXPECT_THROW(make_weight_node(tensors, GGUF_TYPE_Q5_K), ov::Exception);
+    tensors.weight = ov::Tensor(ov::element::u8, {2, 256});
+    tensors.scales = ov::Tensor(ov::element::f16, {2, 8});
+    EXPECT_THROW(make_weight_node(tensors, GGUF_TYPE_Q5_K), ov::Exception);
+}
+
+TEST(GGUFQ5KRequant, RejectsUnsupportedStorageLayouts) {
+    using namespace ov::frontend::gguf;
+    const std::unordered_map<std::string, GgufTensorType> qtypes{{"fused.qtype", GGUF_TYPE_Q5_K}};
+    for (const auto& type : {ov::element::i8, ov::element::u8, ov::element::f16}) {
+        for (const auto& zp_type : {ov::element::dynamic, ov::element::u8, ov::element::f16}) {
+            if ((type == ov::element::i8 && zp_type == ov::element::dynamic) ||
+                (type == ov::element::u8 && zp_type != ov::element::dynamic))
+                continue;
+            SCOPED_TRACE(type.get_type_name());
+            SCOPED_TRACE(zp_type.get_type_name());
+            WeightTensors tensors{ov::Tensor(type, {4, 256}), ov::Tensor(ov::element::f16, {4, 8}), {}};
+            std::unordered_map<std::string, ov::Tensor> weights{{"fused.weight", tensors.weight},
+                                                                {"fused.scales", tensors.scales}};
+            if (zp_type != ov::element::dynamic) {
+                tensors.zero_point = ov::Tensor(zp_type, {4, 8});
+                weights.emplace("fused.zp", tensors.zero_point);
+            }
+            EXPECT_THROW(make_weight_node(tensors, GGUF_TYPE_Q5_K), ov::Exception);
+            EXPECT_THROW(split_fused_qkv_extracted("fused", weights, qtypes, 2, 1, 1), ov::Exception);
+            EXPECT_THROW(split_interleaved_q_gate("fused", weights, qtypes, 1), ov::Exception);
+        }
+    }
 }
