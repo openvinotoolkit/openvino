@@ -137,12 +137,12 @@ class OVDict(Mapping):
         return tuple(self._names.values())
 
     def to_dict(self) -> dict[ConstOutput, np.ndarray]:
-        """Return underlaying native dictionary.
+        """Return a shallow copy of the underlying native dictionary.
 
         Function performs shallow copy, thus any modifications to
         returned values may affect this class as well.
         """
-        return self._dict
+        return dict(self._dict)
 
     def to_tuple(self) -> tuple:
         """Convert values of this dictionary to a tuple."""
