@@ -66,6 +66,67 @@ protected:
     }
 };
 
+TEST_F(ModelUtilTest, retained_shared_objects_preserve_previous_ownership_and_clones) {
+    auto first = std::make_shared<int>(1);
+    auto second = std::make_shared<int>(2);
+    std::weak_ptr<void> first_owner = first;
+    std::weak_ptr<void> second_owner = second;
+    auto model = make_model_without_tensor_names();
+    const auto original = model.get();
+    util::add_model_shared_objects(*model, {first});
+    util::add_model_shared_objects(*model, {second});
+    EXPECT_EQ(model.get(), original);
+    auto clone = model->clone();
+    first.reset();
+    second.reset();
+    model.reset();
+    EXPECT_FALSE(first_owner.expired());
+    EXPECT_FALSE(second_owner.expired());
+    clone.reset();
+    EXPECT_TRUE(first_owner.expired());
+    EXPECT_TRUE(second_owner.expired());
+}
+
+TEST_F(ModelUtilTest, copied_model_retains_graph_and_ownership_through_shared_from_this) {
+    auto parameter = std::make_shared<Parameter>(element::f32, Shape{1});
+    std::weak_ptr<Node> node = parameter;
+    bool released = false;
+    std::shared_ptr<void> library(new int(1), [node, &released](void* value) {
+        EXPECT_TRUE(node.expired());
+        released = true;
+        delete static_cast<int*>(value);
+    });
+    std::weak_ptr<void> owner = library;
+    auto model =
+        std::shared_ptr<Model>(new Model(OutputVector{parameter}, ParameterVector{parameter}), [owner](Model* value) {
+            EXPECT_FALSE(owner.expired());
+            delete value;
+            EXPECT_FALSE(owner.expired());
+        });
+    util::add_model_shared_objects(*model, {library});
+    model->set_friendly_name("retained");
+    model->set_rt_info(7, "custom");
+    auto copy = util::copy_model_with_shared_objects(*model, {});
+    EXPECT_EQ(copy->get_friendly_name(), "retained");
+    EXPECT_EQ(copy->get_rt_info<int>("custom"), 7);
+    EXPECT_EQ(copy->get_results(), model->get_results());
+    EXPECT_EQ(copy->get_parameters(), model->get_parameters());
+    auto self = copy->shared_from_this();
+    auto weak = copy->weak_from_this();
+    EXPECT_FALSE(copy.owner_before(self));
+    EXPECT_FALSE(self.owner_before(copy));
+    parameter.reset();
+    library.reset();
+    EXPECT_FALSE(released);
+    model.reset();
+    copy.reset();
+    EXPECT_FALSE(released);
+    self.reset();
+    EXPECT_TRUE(released);
+    EXPECT_TRUE(weak.expired());
+    weak.reset();
+}
+
 TEST_F(ModelUtilTest, manual_set_all_input_tensors_names) {
     const auto inputs_names = TensorNamesMap{{0, {"input_1"}}, {1, {"input_2"}}, {2, {"input_3"}}};
 

@@ -25,6 +25,18 @@ using TensorNamesMap = std::unordered_map<size_t, TensorNames>;
 
 namespace ov::util {
 
+/** @brief Retain additional library handles through graph destruction, preserving existing
+ * model ownership and propagating it to clones.
+ */
+OPENVINO_API void add_model_shared_objects(Model& model, const std::vector<std::shared_ptr<void>>& shared_objects);
+
+/** @brief Recreate a Model in the runtime, sharing its graph and retaining library handles.
+ * The copy's shared_from_this and weak_from_this use a runtime-owned control block.
+ */
+OPENVINO_API std::shared_ptr<Model> copy_model_with_shared_objects(
+    const Model& model,
+    const std::vector<std::shared_ptr<void>>& shared_objects);
+
 /** @brief Set input tensors names for the model
  *
  * Sets only tensors defined in the input map.

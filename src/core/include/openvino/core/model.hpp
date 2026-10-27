@@ -30,6 +30,13 @@ class Model;
 class CompiledModel;
 class ICompiledModel;
 
+namespace util {
+OPENVINO_API void add_model_shared_objects(Model& model, const std::vector<std::shared_ptr<void>>& shared_objects);
+OPENVINO_API std::shared_ptr<Model> copy_model_with_shared_objects(
+    const Model& model,
+    const std::vector<std::shared_ptr<void>>& shared_objects);
+}  // namespace util
+
 std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
 
 namespace frontend {
@@ -46,6 +53,10 @@ class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
     friend class frontend::FrontEnd;
     friend class ov::CompiledModel;
     friend class ov::ICompiledModel;
+    friend void util::add_model_shared_objects(Model& model, const std::vector<std::shared_ptr<void>>& shared_objects);
+    friend std::shared_ptr<Model> util::copy_model_with_shared_objects(
+        const Model& model,
+        const std::vector<std::shared_ptr<void>>& shared_objects);
     friend std::shared_ptr<Model> clone_ov_model(const Model& func,
                                                  std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
     std::shared_ptr<void> m_shared_object;  // plugin shared object handle.

@@ -27,6 +27,28 @@ void set_tensor_names(OutputVector&& outputs, const TensorNamesMap& tensor_names
 }
 }  // namespace
 
+void add_model_shared_objects(Model& model, const std::vector<std::shared_ptr<void>>& shared_objects) {
+    if (shared_objects.empty())
+        return;
+    auto ownership = std::make_shared<std::vector<std::shared_ptr<void>>>(shared_objects);
+    if (model.m_shared_object)
+        ownership->push_back(model.m_shared_object);
+    model.m_shared_object = std::move(ownership);
+}
+
+std::shared_ptr<Model> copy_model_with_shared_objects(const Model& model,
+                                                      const std::vector<std::shared_ptr<void>>& shared_objects) {
+    auto copy = std::make_shared<Model>(model.get_results(),
+                                        model.get_sinks(),
+                                        model.get_parameters(),
+                                        model.get_variables(),
+                                        model.get_friendly_name());
+    copy->m_shared_object = model.m_shared_object;
+    add_model_shared_objects(*copy, shared_objects);
+    copy->get_rt_info() = model.get_rt_info();
+    return copy;
+}
+
 void set_input_tensors_names(Model& model, const TensorNamesMap& inputs_names) {
     set_tensor_names(model.inputs(), inputs_names);
 }
