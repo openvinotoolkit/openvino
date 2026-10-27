@@ -1072,6 +1072,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing:
     // and a sharp softmax, under which the online-softmax rescale dominates the error.
     paged_attention_test_params{ {{300, 0}, {457, 0}}, 8, 2, 512, 512, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
     sharp_softmax(paged_attention_test_params{ {{600, 0}}, 8, 1, 512, 512, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }), // 1st token
+    // u4 MIXED tilings (sdpa_ocl solve_pa_mixed_tiling()): d_max 256 with 8 heads (256-key x 32-query workgroup) and with 16
+    // (128 x 64), d_max 512 and d_max 128; past lengths over several key tiles, query counts ending inside a query block. Only
+    // the sharp rows catch a misread K or V nibble (the near-uniform softmax of the plain rows averages it away).
+    paged_attention_test_params{ {{100, 300}}, 8, 2, 256, 256, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // mixed u4, head 256, 8 heads
+    sharp_softmax(paged_attention_test_params{ {{100, 300}}, 8, 2, 256, 256, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }),
+    paged_attention_test_params{ {{130, 70}, {65, 400}}, 16, 4, 256, 256, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // mixed u4, head 256, 16 heads
+    sharp_softmax(paged_attention_test_params{ {{130, 70}, {65, 400}}, 16, 4, 256, 256, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }),
+    paged_attention_test_params{ {{100, 300}}, 8, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // mixed u4, head 512
+    sharp_softmax(paged_attention_test_params{ {{100, 300}}, 8, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }),
+    sharp_softmax(paged_attention_test_params{ {{90, 520}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }), // mixed u4, head 128
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{

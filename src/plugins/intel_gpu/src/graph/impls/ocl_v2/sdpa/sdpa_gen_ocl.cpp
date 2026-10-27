@@ -39,6 +39,8 @@ struct sdpa_ocl_config_t {
     bool v_prefetch_l3 = false;     // PA PREFILL V tile L3 prefetch measured with this tiling (add_tensor_block_io_jit())
     bool micro_math = true;         // PA PREFILL f16 sdpa_micro rounding with this tiling (add_micro_math_jit())
     int wide_reads = 0;             // PA PREFILL wide K (1) / V (2) / Q_slm (4) reads measured with this tiling (add_tensor_block_io_jit())
+    bool mixed_prefetch_v = false;  // PA MIXED u4 V page prefetch measured with this tiling (add_pa_page_read_jit())
+    bool mixed_prefetch_k = false;  // PA MIXED u4 K page prefetch measured with this tiling (add_pa_page_read_jit())
 
     int sg_per_wg() const {
         return kq_sg_per_wg_keys * kq_sg_per_wg_queries;
@@ -318,11 +320,54 @@ bool solve_pa_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_oc
     return true;
 }
 
+// PA MIXED on Xe2 at d_max 128 / 256 / 512: 16-key x 32-query subgroup tiles with 256 GRF, so each K / V cache tile
+// the subgroup dequantizes serves 32 queries instead of the table's 16, as sdpa_micro's xe2_h256_pa_mixed does at head
+// 256. The workgroup is 8 x 2 subgroups (128 keys x 64 queries); at d_max 512 it is 16 x 1 (256 x 32), the 8 x 2 tile
+// spills 14 KB there. With few heads (few_heads) d_max 256 also takes 16 x 1: twice the threads per query block, where
+// 8 x 2 leaves half of the device idle ("Paged-attention MIXED tiling" in the docs). False: keep the table tiling.
+bool solve_pa_mixed_tiling(gpu_arch arch, size_t d_max, size_t vd_max, bool few_heads, sdpa_ocl_config_t& config) {
+    if (arch != gpu_arch::xe2) {
+        return false;
+    }
+    sdpa_ocl_config_t mixed;
+    mixed.subgroup_size = static_cast<int>(get_subgroup_size(arch));
+    mixed.kq_sg_tile_keys = 16;
+    mixed.kq_sg_tile_queries = 32;
+    mixed.large_grf = true;
+    bool found = true;
+    if (d_max == 128 || (d_max == 256 && !few_heads)) {
+        mixed.kq_sg_per_wg_keys = 8;
+        mixed.kq_sg_per_wg_queries = 2;
+    } else if (d_max == 256 || d_max == 512) {
+        mixed.kq_sg_per_wg_keys = 16;
+        mixed.kq_sg_per_wg_queries = 1;
+    } else {
+        found = false;
+    }
+    // The u4 page prefetches: V on every one of these tilings, K where two query subgroups read each K page (8 x 2).
+    mixed.mixed_prefetch_v = true;
+    mixed.mixed_prefetch_k = mixed.kq_sg_per_wg_queries > 1;
+    if (!found || !solve_sv_split(mixed, vd_max) || !tiling_fits_device(arch, d_max, mixed)) {
+        return false;
+    }
+    config = mixed;
+    return true;
+}
+
 // The tuned tiling for d_max, with the S*V split re-derived for vd_max when they differ. Tier 2 (a 64 x 64
 // KQ workgroup tile) covers the pairs the tuned query tile cannot split, e.g. k >= 72 with v <= 32; it is
 // unreachable for k_head_size == v_head_size, so the tuned tilings stay as they are. False: no tiling.
-bool solve_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_ocl_config_t& config, bool pa_prefill = false) {
+bool solve_tiling(gpu_arch arch,
+                  size_t d_max,
+                  size_t vd_max,
+                  sdpa_ocl_config_t& config,
+                  bool pa_prefill = false,
+                  bool pa_mixed = false,
+                  bool few_heads = false) {
     if (pa_prefill && solve_pa_prefill_tiling(arch, d_max, vd_max, config)) {
+        return true;
+    }
+    if (pa_mixed && solve_pa_mixed_tiling(arch, d_max, vd_max, few_heads, config)) {
         return true;
     }
     config = choose_config_kq_only(arch, d_max);
@@ -352,6 +397,8 @@ void read_kq_override(sdpa_ocl_config_t& config) {
     config.v_prefetch_l3 = false;
     config.micro_math = true;
     config.wide_reads = 0;
+    config.mixed_prefetch_v = false;
+    config.mixed_prefetch_k = false;
     config.kq_sg_tile_keys = env_int("SDPA_OCL_KQ_TILE_KEYS", config.kq_sg_tile_keys);
     config.kq_sg_tile_queries = env_int("SDPA_OCL_KQ_TILE_QUERIES", config.kq_sg_tile_queries);
     config.kq_sg_per_wg_keys = env_int("SDPA_OCL_KQ_PER_WG_KEYS", config.kq_sg_per_wg_keys);
@@ -372,11 +419,11 @@ bool resolve_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_ocl_config_
 }
 
 // d_max drives the KQ side (the Q/K contraction depth, hence DKS and the query tile), vd_max the S*V side.
-sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max, size_t vd_max, bool pa_prefill) {
+sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max, size_t vd_max, bool pa_prefill, bool pa_mixed, bool few_heads) {
     OPENVINO_ASSERT(vd_max <= 512, "[GPU] sdpa_ocl: unsupported value head size (vd_max=", vd_max, "); the tiling table covers vd_max <= 512 only");
 
     sdpa_ocl_config_t config;
-    const bool solved = solve_tiling(arch, d_max, vd_max, config, pa_prefill);
+    const bool solved = solve_tiling(arch, d_max, vd_max, config, pa_prefill, pa_mixed, few_heads);
     OPENVINO_ASSERT(solved,
                     "[GPU] sdpa_ocl: no valid S*V split for d_max=",
                     d_max,
@@ -631,7 +678,12 @@ sdpa_ocl_problem make_problem(const kernel_impl_params& params, bool is_prefill)
     p.v_head_size = qkv_head_size(params, 2);
     p.d_max = get_d_max(p.k_head_size);
     p.vd_max = get_d_max(p.v_head_size);
-    p.tiling = choose_config(params.get_device_info().arch, p.d_max, p.vd_max, params.is_type<paged_attention>() && is_prefill);
+    const bool is_pa = params.is_type<paged_attention>();
+    // A 256-token MIXED chunk in 256-key x 32-query workgroups of 16 subgroups is one wave of 256 GRF threads (4 per EU)
+    // up to this many heads.
+    const auto& info = params.get_device_info();
+    const bool few_heads = is_pa && !is_prefill && qkv_heads_num(params, 0) * (256 / 32) * 16 <= static_cast<size_t>(info.execution_units_count) * 4;
+    p.tiling = choose_config(info.arch, p.d_max, p.vd_max, is_pa && is_prefill, is_pa && !is_prefill, few_heads);
     return p;
 }
 
@@ -941,6 +993,12 @@ void add_pa_page_read_jit(JitConstants& jit, const jit_inputs& in) {
     jit.make("USE_1D_BLOCK_IO_K_PA_U4", block2d_env_int("SDPA_OCL_K_PA_1D", k_pa_1d, allowed));
     const int v_pa_1d = (c.u4_by_channel_tm && !v_pa_2d_i8 && pa_1d_page_ok(c.v_row_elems, sg, block)) ? 1 : 0;
     jit.make("USE_1D_BLOCK_IO_V_PA_U4", block2d_env_int("SDPA_OCL_V_PA_1D", v_pa_1d, allowed));
+
+    // u4 prefetches of the pages the 8-bit reads above take, on by default with the MIXED tilings they were measured with
+    // (solve_pa_mixed_tiling()); SDPA_OCL_MIXED_PREFETCH_V / _K=0/1 force each off / on. A prefetch changes no value.
+    const bool u4_mixed = in.is_pa && !in.is_prefill && c.u4_by_channel_tm;
+    jit.make("PA_MIXED_PREFETCH_V", (u4_mixed && v_pa_2d_i8) ? env_int("SDPA_OCL_MIXED_PREFETCH_V", p.tiling.mixed_prefetch_v ? 1 : 0) : 0);
+    jit.make("PA_MIXED_PREFETCH_K", (u4_mixed && k_pa_2d_i8) ? env_int("SDPA_OCL_MIXED_PREFETCH_K", p.tiling.mixed_prefetch_k ? 1 : 0) : 0);
 }
 
 // MIXED reads the new keys [past_len, k) from the raw K/V inputs (Kc/Vc), not from the pages they were just
