@@ -85,14 +85,11 @@ protected:
         return stream.str();
     }
 
-    static ov::util::MemoryView view_of(const void* data, size_t size) {
-        return {static_cast<const std::byte*>(data), size};
-    }
     static ov::util::MemoryView view_of(const std::string& data) {
-        return view_of(data.data(), data.size());
+        return {reinterpret_cast<const std::byte*>(data.data()), data.size()};
     }
     static ov::util::MemoryView view_of(const ov::AlignedBuffer& data) {
-        return view_of(data.get_ptr(), data.size());
+        return {reinterpret_cast<const std::byte*>(data.get_ptr()), data.size()};
     }
 
     static SerializedModel serialize_model(const std::shared_ptr<ov::Model>& model) {
@@ -130,12 +127,12 @@ protected:
             sections.push_back([&] {
                 OPENVINO_ASSERT(writer->add_section(spec.model_id_device,
                                                     hsm::model_id_tag,
-                                                    view_of(&model_id_value, sizeof(model_id_value))));
+                                                    ov::util::as_memory_view(model_id_value)));
             });
         }
         sections.push_back([&] {
             OPENVINO_ASSERT(
-                writer->add_section(template_device_id, blob_info_tag, view_of(&blob_info, sizeof(blob_info))));
+                writer->add_section(template_device_id, blob_info_tag, ov::util::as_memory_view(blob_info)));
         });
 
         if (spec.reverse_order) {
