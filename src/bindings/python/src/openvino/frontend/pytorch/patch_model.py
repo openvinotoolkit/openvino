@@ -162,6 +162,65 @@ def _set_placeholder_parameters(value, parameters):
     return value
 
 
+def _optional_functions(*names):
+    functions = []
+    for name in names:
+        target = torch
+        for part in name.split("."):
+            target = getattr(target, part, None)
+        if target is not None:
+            functions.append(target)
+    return tuple(functions)
+
+
+_LIKE_FACTORIES = (torch.empty_like, torch.zeros_like, torch.ones_like, torch.full_like)
+
+# Functions that fail or change behavior when evaluated on zero-valued placeholders.
+_VALUE_DEPENDENT_FUNCTIONS = _optional_functions(
+    "inverse", "Tensor.inverse", "linalg.inv", "linalg.inv_ex", "linalg.solve", "linalg.solve_ex",
+    "linalg.cholesky", "linalg.cholesky_ex", "cholesky", "Tensor.cholesky", "cholesky_inverse",
+    "Tensor.cholesky_inverse", "cholesky_solve", "Tensor.cholesky_solve")
+
+# Functions whose output size depends on the values of the given arguments: (positional index, keyword).
+_SIZE_DETERMINING_ARGUMENTS = {
+    **dict.fromkeys(_optional_functions("repeat_interleave", "Tensor.repeat_interleave"), (1, "repeats")),
+    **dict.fromkeys(_optional_functions("bincount", "Tensor.bincount"), (0, "input")),
+}
+
+
+def _has_expanded_layout(tensor):
+    if not isinstance(tensor, torch.Tensor):
+        return False
+    with torch._C.DisableTorchFunctionSubclass():
+        return any(size > 1 and stride == 0 for size, stride in zip(tensor.shape, tensor.stride()))
+
+
+def _has_contiguous_original(tensor):
+    original = getattr(tensor, "_openvino_orig_tensor", None)
+    return original is not None and original.is_contiguous()
+
+
+def _is_mask(value):
+    return isinstance(value, torch.Tensor) and value.dtype in (torch.bool, torch.uint8)
+
+
+def _value_determining_arguments(func, args, kwargs):
+    """Return parameters that determine the output size of ``func`` through values."""
+    if func is torch.Tensor.__getitem__:
+        index = args[1] if len(args) > 1 else ()
+        masks = [item for item in (index if isinstance(index, tuple) else (index,)) if _is_mask(item)]
+        return _placeholder_parameters(masks)
+    if func in _SIZE_DETERMINING_ARGUMENTS:
+        position, keyword = _SIZE_DETERMINING_ARGUMENTS[func]
+        if len(args) > position:
+            return _placeholder_parameters(args[position])
+        if keyword in kwargs:
+            return _placeholder_parameters(kwargs[keyword])
+        # torch.repeat_interleave(repeats) uses its only argument as repeats.
+        return _placeholder_parameters(args[:1]) if func is torch.repeat_interleave else {}
+    return {}
+
+
 class _FP32ParameterPlaceholder(torch.Tensor):
     @classmethod
     def __torch_function__(cls, func, types, args=(), kwargs=None):
@@ -172,10 +231,14 @@ class _FP32ParameterPlaceholder(torch.Tensor):
                     torch.Tensor.new_ones, torch.Tensor.new_full, torch.empty_like, torch.zeros_like,
                     torch.ones_like, torch.full_like):
             factory_kwargs = dict(kwargs or {})
-            factory_kwargs.pop("input", None)
+            prototype = factory_kwargs.pop("input", args[0] if args else None)
             factory_parameters = _placeholder_parameters((args[1:], factory_kwargs))
             if torch.jit.is_tracing() and factory_parameters:
                 raise _ParameterPlaceholderTraceError(factory_parameters)
+            if (torch.jit.is_tracing() and func in _LIKE_FACTORIES and _has_expanded_layout(prototype)
+                    and factory_kwargs.get("memory_format", torch.preserve_format) is torch.preserve_format
+                    and not _has_contiguous_original(prototype)):
+                raise _ParameterPlaceholderTraceError(_placeholder_parameters(prototype))
             with torch._C.DisableTorchFunctionSubclass():
                 return func(*args, **(kwargs or {}))
         parameters = _placeholder_parameters((args, kwargs or {}))
@@ -186,10 +249,14 @@ class _FP32ParameterPlaceholder(torch.Tensor):
             torch.Tensor.equal, torch.Tensor.allclose, torch.Tensor.stride, torch.Tensor.storage_offset,
             torch.Tensor.is_contiguous, torch.nonzero, torch.Tensor.nonzero, torch.argwhere,
             torch.unique, torch.Tensor.unique, torch.unique_consecutive, torch.Tensor.unique_consecutive,
-            torch.masked_select, torch.Tensor.masked_select)
+            torch.masked_select, torch.Tensor.masked_select, torch.Tensor.copy_, *_VALUE_DEPENDENT_FUNCTIONS)
         requires_values |= func is torch.where and len(args) + len(kwargs or {}) == 1
         if torch.jit.is_tracing() and parameters and requires_values:
             raise _ParameterPlaceholderTraceError(parameters)
+        if torch.jit.is_tracing():
+            determining = _value_determining_arguments(func, args, kwargs or {})
+            if determining:
+                raise _ParameterPlaceholderTraceError(determining)
         if func is torch.view_as_complex:
             result = _view_as_complex(args[0] if args else kwargs["input"])
         else:

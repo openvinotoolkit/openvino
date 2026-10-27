@@ -1488,6 +1488,125 @@ def test_make_16bit_traceable_data_dependent_shape_fallback(dtype, operation):
         patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
 
 
+def _convert_and_check_16bit_traceable(model, example, expected=None):
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch import patch_model
+
+    if expected is None:
+        expected = model(example)
+    try:
+        patch_model.__make_16bit_traceable(model)
+        converted = convert_model(model, example_input=(example,))
+        result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
+        np.testing.assert_allclose(result, expected.numpy())
+    finally:
+        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("layout", ["transposed", "contiguous"])
+def test_make_16bit_traceable_like_factory_layout(dtype, layout):
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            weight = torch.ones(2, 3, dtype=dtype)
+            self.weight = torch.nn.Parameter(weight.t() if layout == "transposed" else weight,
+                                             requires_grad=False)
+
+        def forward(self, value):
+            return value * (2 if torch.zeros_like(self.weight).is_contiguous() else 3)
+
+    _convert_and_check_16bit_traceable(Model().eval(), torch.ones(2))
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("destination", ["buffer", "parameter"])
+def test_make_16bit_traceable_copy_from_parameter(dtype, destination):
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.scales = torch.nn.Parameter(torch.tensor([2, 3], dtype=dtype), requires_grad=False)
+            if destination == "buffer":
+                self.register_buffer("cache", torch.zeros(2))
+            else:
+                self.cache = torch.nn.Parameter(torch.zeros(2, dtype=dtype), requires_grad=False)
+
+        def forward(self, value):
+            self.cache.copy_(self.scales)
+            return value * float(self.cache.sum().item())
+
+    _convert_and_check_16bit_traceable(Model().eval(), torch.ones(2))
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("operation", ["linalg_inv", "inverse", "method_inverse"])
+def test_make_16bit_traceable_inverse(dtype, operation):
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.weight = torch.nn.Parameter(torch.eye(2, dtype=dtype) * 4, requires_grad=False)
+
+        def forward(self, value):
+            weight = self.weight.float()
+            if operation == "linalg_inv":
+                inverse = torch.linalg.inv(weight)
+            elif operation == "inverse":
+                inverse = torch.inverse(weight)
+            else:
+                inverse = weight.inverse()
+            return value * inverse.sum().item()
+
+    _convert_and_check_16bit_traceable(Model().eval(), torch.ones(2))
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("operation", ["repeat_interleave", "method_repeat_interleave", "bincount", "method_bincount"])
+def test_make_16bit_traceable_size_determining_input(dtype, operation):
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.scales = torch.nn.Parameter(torch.tensor([2, 3], dtype=dtype), requires_grad=False)
+
+        def forward(self, value):
+            counts = self.scales.long()
+            if operation == "repeat_interleave":
+                size = torch.repeat_interleave(value, counts).numel()
+            elif operation == "method_repeat_interleave":
+                size = value.repeat_interleave(counts).numel()
+            elif operation == "bincount":
+                size = torch.bincount(counts).numel()
+            else:
+                size = counts.bincount().numel()
+            return value * (2 if size in (4, 5) else 3)
+
+    _convert_and_check_16bit_traceable(Model().eval(), torch.ones(2))
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("index", ["mask", "tuple_mask", "mask_in_tuple_with_slice"])
+def test_make_16bit_traceable_boolean_index_shape(dtype, index):
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.scales = torch.nn.Parameter(torch.tensor([[2, 3], [4, 5]], dtype=dtype), requires_grad=False)
+
+        def forward(self, value):
+            if index == "mask":
+                selected = self.scales[self.scales > 0]
+            elif index == "tuple_mask":
+                selected = self.scales[(self.scales > 0,)]
+            else:
+                selected = self.scales[:, self.scales[0] > 0]
+            return value * (2 if selected.numel() > 1 else 3)
+
+    _convert_and_check_16bit_traceable(Model().eval(), torch.ones(2))
+
+
 @pytest.mark.precommit
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("nested", [False, True])
