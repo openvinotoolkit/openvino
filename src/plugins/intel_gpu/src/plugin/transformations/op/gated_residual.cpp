@@ -15,7 +15,8 @@ bool last_dim_matches(const ov::PartialShape& ps, size_t expected) {
 
 /// Rank-2 weight [rows, cols] where each static dimension must match.
 bool matrix_matches(const ov::PartialShape& ps, size_t rows, size_t cols) {
-    return ps.rank().is_dynamic() || (ps.rank().get_length() == 2 && ps[0].compatible(static_cast<int64_t>(rows)) && ps[1].compatible(static_cast<int64_t>(cols)));
+    return ps.rank().is_dynamic() ||
+           (ps.rank().get_length() == 2 && ps[0].compatible(static_cast<int64_t>(rows)) && ps[1].compatible(static_cast<int64_t>(cols)));
 }
 
 }  // namespace
@@ -84,9 +85,10 @@ void GatedResidual::validate_and_infer_types() {
                               "GatedResidual (WRITE) write gate last dimension must be C = ",
                               m_hc_count);
         for (size_t i = 1; i < input_size; ++i) {
-            NODE_VALIDATION_CHECK(this,
-                                  get_input_element_type(i).is_dynamic() || get_input_element_type(0).is_dynamic() || get_input_element_type(i) == get_input_element_type(0),
-                                  "GatedResidual (WRITE) inputs must share the residual element type.");
+            NODE_VALIDATION_CHECK(
+                this,
+                get_input_element_type(i).is_dynamic() || get_input_element_type(0).is_dynamic() || get_input_element_type(i) == get_input_element_type(0),
+                "GatedResidual (WRITE) inputs must share the residual element type.");
         }
         // R' has exactly the residual layout.
         set_output_size(1);
@@ -167,4 +169,3 @@ std::shared_ptr<Node> GatedResidual::clone_with_new_inputs(const ov::OutputVecto
 }
 
 }  // namespace ov::intel_gpu::op
-
