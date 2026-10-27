@@ -3,6 +3,7 @@
 //
 
 #include <array>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <tuple>
@@ -37,7 +38,8 @@ protected:
                       uint64_t cols,
                       uint64_t rows,
                       const std::vector<uint8_t>& data = {},
-                      const std::string& architecture = {}) {
+                      const std::string& architecture = {},
+                      const std::vector<uint64_t>& extra_dims = {}) {
         std::ofstream out(m_path, std::ios::binary);
         ASSERT_TRUE(out);
         const auto put = [&out](auto value) {
@@ -57,9 +59,11 @@ protected:
         }
         put(uint64_t{name.size()});
         out.write(name.data(), name.size());
-        put(uint32_t{2});
+        put(static_cast<uint32_t>(2 + extra_dims.size()));
         put(cols);
         put(rows);
+        for (const auto dim : extra_dims)
+            put(dim);
         put(static_cast<uint32_t>(type));
         put(uint64_t{0});  // tensor offset
         while (static_cast<size_t>(out.tellp()) % 32 != 0) {
@@ -73,6 +77,114 @@ protected:
 
     std::string m_path;
 };
+
+TEST_F(GGUFParser, Q8_1PreservesCodesScalesAndIgnoresSumForAllWeightNames) {
+    auto bytes = load_npy<uint8_t>("q8_1_qbytes");
+    const auto reference = load_npy<float>("q8_1_deq");
+    ASSERT_EQ(bytes.size(), 4 * 256 / 32 * 36);
+    ASSERT_EQ(reference.size(), 4 * 256);
+    for (size_t group = 0; group < bytes.size() / 36; ++group) {
+        const uint16_t sum_bits = 0x7c00;
+        std::memcpy(bytes.data() + group * 36 + 2, &sum_bits, sizeof(sum_bits));
+    }
+    for (const std::string name : {"blk.0.attn_q", "token_embd", "output"}) {
+        SCOPED_TRACE(name);
+        ASSERT_NO_FATAL_FAILURE(write_tensor(name + ".weight", GGUF_TYPE_Q8_1, 256, 4, bytes));
+        const auto loaded = get_gguf_data(m_path);
+        const auto& arrays = std::get<1>(loaded);
+        EXPECT_EQ(std::get<2>(loaded).at(name + ".qtype"), GGUF_TYPE_Q8_1);
+        const auto& weights = arrays.at(name + ".weight");
+        const auto& scales = arrays.at(name + ".scales");
+        ASSERT_EQ(weights.get_element_type(), ov::element::i8);
+        ASSERT_EQ(scales.get_element_type(), ov::element::f16);
+        EXPECT_EQ(weights.get_shape(), (ov::Shape{4, 256}));
+        EXPECT_EQ(scales.get_shape(), (ov::Shape{4, 8}));
+        EXPECT_EQ(weights.get_byte_size() + scales.get_byte_size(), 4 * 256 / 32 * 34);
+        EXPECT_EQ(arrays.count(name + ".zp"), 0);
+        for (size_t group = 0; group < scales.get_size(); ++group) {
+            uint16_t bits;
+            std::memcpy(&bits, bytes.data() + group * 36, sizeof(bits));
+            EXPECT_EQ(scales.data<const ov::float16>()[group].to_bits(), bits);
+            EXPECT_EQ(std::memcmp(weights.data<const int8_t>() + group * 32, bytes.data() + group * 36 + 4, 32), 0);
+        }
+        const auto node = make_weight_node({weights, scales, {}}, GGUF_TYPE_Q8_1, name + ".weight");
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+        const auto output = run_on_cpu(model, {});
+        ASSERT_EQ(output.get_size(), reference.size());
+        for (size_t i = 0; i < reference.size(); ++i)
+            EXPECT_EQ(output.data<const float>()[i], reference[i]);
+    }
+}
+
+TEST_F(GGUFParser, Q8_1KeepsHigherRankGroups) {
+    const auto bytes = load_npy<uint8_t>("q8_1_qbytes");
+    const auto reference = load_npy<float>("q8_1_deq");
+    ASSERT_NO_FATAL_FAILURE(write_tensor("experts.weight", GGUF_TYPE_Q8_1, 256, 2, bytes, {}, {2}));
+    const auto loaded = get_gguf_data(m_path);
+    const auto& arrays = std::get<1>(loaded);
+    const auto& weights = arrays.at("experts.weight");
+    const auto& scales = arrays.at("experts.scales");
+    EXPECT_EQ(weights.get_shape(), (ov::Shape{2, 2, 256}));
+    EXPECT_EQ(scales.get_shape(), (ov::Shape{2, 2, 8}));
+    const auto node = make_weight_node({weights, scales, {}}, GGUF_TYPE_Q8_1, "experts.weight");
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+    const auto output = run_on_cpu(model, {});
+    EXPECT_EQ(output.get_shape(), (ov::Shape{2, 2, 256}));
+    ASSERT_EQ(output.get_size(), reference.size());
+    for (size_t i = 0; i < reference.size(); ++i)
+        EXPECT_EQ(output.data<const float>()[i], reference[i]);
+}
+
+TEST_F(GGUFParser, Q8_1ExtractedBuffersPreserveFiniteScaleRangeAfterParserRelease) {
+    const std::array<uint16_t, 6> scale_bits{0, 0x8000, 0xbc00, 1, 0x7bff, 0x3555};
+    std::vector<uint8_t> bytes(scale_bits.size() * 36);
+    std::vector<float> reference(scale_bits.size() * 32);
+    for (size_t group = 0; group < scale_bits.size(); ++group) {
+        std::memcpy(bytes.data() + group * 36, &scale_bits[group], sizeof(uint16_t));
+        const uint16_t sum_bits = 0x7c00;
+        std::memcpy(bytes.data() + group * 36 + 2, &sum_bits, sizeof(sum_bits));
+        const float scale = static_cast<float>(ov::float16::from_bits(scale_bits[group]));
+        for (size_t k = 0; k < 32; ++k) {
+            const int8_t code = k % 2 == 0 ? -128 : 127;
+            std::memcpy(bytes.data() + group * 36 + 4 + k, &code, sizeof(code));
+            reference[group * 32 + k] = static_cast<float>(code) * scale;
+        }
+    }
+    ASSERT_NO_FATAL_FAILURE(write_tensor("output.weight", GGUF_TYPE_Q8_1, reference.size(), 1, bytes));
+    WeightTensors tensors;
+    {
+        const auto loaded = get_gguf_data(m_path);
+        const auto& arrays = std::get<1>(loaded);
+        tensors = {arrays.at("output.weight"), arrays.at("output.scales"), {}};
+        ASSERT_EQ(tensors.scales.get_size(), scale_bits.size());
+        for (size_t group = 0; group < scale_bits.size(); ++group)
+            EXPECT_EQ(tensors.scales.data<const ov::float16>()[group].to_bits(), scale_bits[group]);
+    }
+    const auto node = make_weight_node(tensors, GGUF_TYPE_Q8_1, "output.weight");
+    tensors = {};
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+    const auto output = run_on_cpu(model, {});
+    ASSERT_EQ(output.get_size(), reference.size());
+    for (size_t i = 0; i < reference.size(); ++i) {
+        EXPECT_TRUE(std::isfinite(output.data<const float>()[i]));
+        EXPECT_EQ(output.data<const float>()[i], reference[i]);
+    }
+    EXPECT_NE(reference.back(), static_cast<float>(ov::float16(reference.back())));
+}
+
+TEST_F(GGUFParser, Q8_1RejectsInvalidDimensionsAndTruncatedPayload) {
+    for (const uint64_t cols : {31, 33}) {
+        SCOPED_TRACE(cols);
+        ASSERT_NO_FATAL_FAILURE(write_tensor("invalid.weight", GGUF_TYPE_Q8_1, cols, 1, std::vector<uint8_t>(36)));
+        EXPECT_THROW(get_gguf_data(m_path), ov::Exception);
+    }
+    for (const uint64_t rows : {1, 2}) {
+        SCOPED_TRACE(rows);
+        ASSERT_NO_FATAL_FAILURE(
+            write_tensor("truncated.weight", GGUF_TYPE_Q8_1, 32, rows, std::vector<uint8_t>(rows * 36 - 1)));
+        EXPECT_THROW(get_gguf_data(m_path), ov::Exception);
+    }
+}
 
 TEST_F(GGUFParser, Q1_0PreservesBinaryStorageAndScaleValues) {
     const auto bytes = load_npy<uint8_t>("q1_0_qbytes");
@@ -234,6 +346,7 @@ TEST_F(GGUFParser, AcceptsEmptyQuantizedTensors) {
         std::pair{"Q5_0", GGUF_TYPE_Q5_0},
         std::pair{"Q5_1", GGUF_TYPE_Q5_1},
         std::pair{"Q8_0", GGUF_TYPE_Q8_0},
+        std::pair{"Q8_1", GGUF_TYPE_Q8_1},
         std::pair{"Q2_K", GGUF_TYPE_Q2_K},
         std::pair{"Q2_0", GGUF_TYPE_Q2_0},
         std::pair{"Q3_K", GGUF_TYPE_Q3_K},
