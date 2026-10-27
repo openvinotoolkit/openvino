@@ -81,7 +81,13 @@
 // add zero. Bounds the KQ depth loop and the Q staging. D_MAX itself must stay: the S*V split and
 // the alpha[] nesting are derived from it (see choose_config()).
 #define DKS_FULL ((K_HEAD_SIZE + DPAS_K - 1) / DPAS_K)
-#if IS_PA_K_U4
+// The KQ depth axis is permuted (PA_K_U4_CHANNEL below) for the u4 K page and for the f16 d-major K page that
+// USE_2D_BLOCK_IO_K_PA_DT reads with a 32-bit transpose.
+#ifndef USE_2D_BLOCK_IO_K_PA_DT
+#  define USE_2D_BLOCK_IO_K_PA_DT 0
+#endif
+#define PA_K_PERMUTED (IS_PA_K_U4 || USE_2D_BLOCK_IO_K_PA_DT)
+#if PA_K_PERMUTED
 // The u4 depth permutation pairs tiles (2g, 2g+1) over one 32-channel window, so an odd active
 // count would leave the last pair half-formed. Round up; DKS is even (D_MAX is a power of two
 // >= 32) and DKS_FULL <= DKS, so the rounded value still fits.
@@ -162,8 +168,13 @@
 // Paged attention's MIXED stage: K/V come from the paged cache (plus the raw current tokens).
 #define IS_PA_MIXED (IS_PAGED_ATTENTION && !IS_PREFILL)
 
-// MIXED u4 cache page prefetches, set by the host with the MIXED tilings (add_pa_page_read_jit()): they warm up the
-// 8-bit page reads.
+// Skip the KQ of a subgroup whose keys are all masked for its queries, and the S*V blocks whose scores are all 0 for
+// a subgroup's rows (the causal triangle of the diagonal tile, and keys past k); set by add_prefill_pipeline_jit().
+#ifndef CAUSAL_TILE_SKIP
+#  define CAUSAL_TILE_SKIP 0
+#endif
+
+// MIXED u4 / i8 cache page prefetches, set by the host (add_pa_page_read_jit()): they warm up the 8-bit page reads.
 #ifndef PA_MIXED_PREFETCH_V
 #  define PA_MIXED_PREFETCH_V 0
 #endif
@@ -292,6 +303,9 @@
 // subtraction gives (half)n bit for bit. 16-bit integer ops on a word of the read keep each key in one packed
 // 16-bit lane; converting an extracted dword lands the half strided and costs a repack move (docs/sdpa_ocl.md).
 #define U4_TO_HALF(w16, sh) (as_half((ushort)((((w16) >> (sh)) & (ushort)0xF) | (ushort)0x6400)) - (half)1024.0h)
+// The signed byte at bit `sh` of a 16-bit word, as half, the same way: 0x6480 ^ b is 0x6400 | (b ^ 0x80) and b ^ 0x80
+// is (char)b + 128, so the subtraction gives (half)(char)b bit for bit (and +0 for 0).
+#define I8_TO_HALF(w16, sh) (as_half((ushort)((((w16) >> (sh)) & (ushort)0xFF) ^ (ushort)0x6480)) - (half)1152.0h)
 // Offset of the (depth tile db, query block qb) Q tile in Q_slm.
 #define Q_SLM_OFF(db, qb) (((db) * q_blocks + (qb)) * Q_DWORDS * SUBGROUP_SIZE)
 
@@ -309,8 +323,9 @@
 // L a channel PAIR, never the contiguous (base + L) a DPAS tile wants. Depth is a contraction axis,
 // so K and Q both adopt this labelling instead; Q pays for it once, in the SLM staging:
 //     PA_K_U4_CHANNEL(db, L) = win + 2L + (db & 1),  win = (db >> 1) * 32,  byte = win/2 + L
-// Derivation and per-path consequences: docs/sdpa_ocl.md.
-#if IS_PA_K_U4
+// Derivation and per-path consequences: docs/sdpa_ocl.md. The f16 d-major page read (USE_2D_BLOCK_IO_K_PA_DT) lands the
+// same labelling: its surface row r holds channels 2r and 2r + 1.
+#if PA_K_PERMUTED
 #  define PA_K_U4_WIN(db)        (((db) >> 1) * (2 * DPAS_K))
 #  define PA_K_U4_PAR(db)        ((db) & 1)
 #  define PA_K_U4_CHANNEL(db, l) (PA_K_U4_WIN(db) + 2 * (int)(l) + PA_K_U4_PAR(db))
@@ -374,6 +389,23 @@
 #    if DPAS_K != 16 || SUBGROUP_SIZE != 16
 #      error "sdpa_ocl.cl: the u4 Kc dword read is 16 dwords wide; DPAS_K and SUBGROUP_SIZE must be 16"
 #    endif
+#  endif
+#endif
+
+#if USE_2D_BLOCK_IO_K_PA_DT
+#  if !IS_PA_MIXED || IS_PA_KV_COMPRESSED || IS_PA_K_TOKEN_MAJOR || IS_PA_K_U4
+#    error "sdpa_ocl.cl: USE_2D_BLOCK_IO_K_PA_DT reads the MIXED f16 d-major K page only"
+#  endif
+#  if (K_HEAD_SIZE % (2 * DPAS_K)) != 0 || (DKS_ACTIVE % 2) != 0
+// The tile pairs (2g, 2g+1) share 16 surface rows; a head size that ends inside a window would leave half a pair.
+#    error "sdpa_ocl.cl: USE_2D_BLOCK_IO_K_PA_DT needs K_HEAD_SIZE to be a multiple of 2 * DPAS_K"
+#  endif
+#  if DPAS_K != 16 || SUBGROUP_SIZE != 16 || DPAS_ROWS != 8 || PAGED_ATTENTION_BLOCK_SIZE != 16
+// The transpose_32b_16r8x1c geometry: 16 surface rows = 16 lanes = 32 channels, 8 dwords = one page of 16 keys.
+#    error "sdpa_ocl.cl: USE_2D_BLOCK_IO_K_PA_DT needs SG16, DPAS 8x16 and 16-token pages"
+#  endif
+#  if PA_K_DT_ROWS != 16 && PA_K_DT_ROWS != 32
+#    error "sdpa_ocl.cl: PA_K_DT_ROWS must be 16 or 32 (the transpose_32b_16r8x1c / 32r8x1c reads)"
 #  endif
 #endif
 
