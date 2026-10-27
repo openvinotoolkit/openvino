@@ -70,13 +70,15 @@ public:
 };
 
 // Parse KV-cache compression configuration string
-// Format: KEY:<SYM|ASYM>:<BY_TOKEN|BY_CHANNEL>,VALUE:<SYM|ASYM>:<BY_TOKEN|BY_CHANNEL>
+// Format: KEY:<SYM|ASYM>:BY_TOKEN,VALUE:<SYM|ASYM>:BY_TOKEN
 // Example: "KEY:SYM:BY_TOKEN,VALUE:SYM:BY_TOKEN"
 // Default: "KEY:SYM:BY_TOKEN,VALUE:SYM:BY_TOKEN"
+// Only per-token quantization is implemented (the quantizer reduces the embedding axis), so BY_CHANNEL
+// is rejected instead of being silently treated as BY_TOKEN.
 struct KVCacheCompressionSetting {
     ov::npuw::KVCacheCompressionConfig::QuantizationType key_type =
         ov::npuw::KVCacheCompressionConfig::QuantizationType::Symmetric;
-    std::string key_granularity = "BY_TOKEN";  // future: BY_CHANNEL, etc.
+    std::string key_granularity = "BY_TOKEN";
     ov::npuw::KVCacheCompressionConfig::QuantizationType value_type =
         ov::npuw::KVCacheCompressionConfig::QuantizationType::Symmetric;
     std::string value_granularity = "BY_TOKEN";
@@ -96,7 +98,7 @@ KVCacheCompressionSetting parse_kv_cache_compression_config(const std::string& c
     const std::string value_part = (comma_pos != std::string::npos) ? config_str.substr(comma_pos + 1) : "";
 
     auto parse_part = [](const std::string& part, const char* what) {
-        // Format: KEY:SYM:BY_TOKEN or VALUE:ASYM:BY_CHANNEL
+        // Format: KEY:SYM:BY_TOKEN or VALUE:ASYM:BY_TOKEN
         const size_t first_colon = part.find(':');
         const size_t second_colon = part.find(':', first_colon + 1);
 
@@ -105,7 +107,7 @@ KVCacheCompressionSetting parse_kv_cache_compression_config(const std::string& c
                         what,
                         ": ",
                         part,
-                        " (expected format: <KEY|VALUE>:<SYM|ASYM>:<BY_TOKEN|BY_CHANNEL>)");
+                        " (expected format: <KEY|VALUE>:<SYM|ASYM>:BY_TOKEN)");
 
         const std::string label = part.substr(0, first_colon);
         const std::string quant_type = part.substr(first_colon + 1, second_colon - first_colon - 1);
@@ -118,12 +120,16 @@ KVCacheCompressionSetting parse_kv_cache_compression_config(const std::string& c
                         "' for ",
                         what,
                         " (must be SYM or ASYM)");
-        OPENVINO_ASSERT(granularity == "BY_TOKEN" || granularity == "BY_CHANNEL",
+        OPENVINO_ASSERT(granularity != "BY_CHANNEL",
+                        "Granularity BY_CHANNEL for ",
+                        what,
+                        " is not supported yet in KV-cache compression config (use BY_TOKEN)");
+        OPENVINO_ASSERT(granularity == "BY_TOKEN",
                         "Invalid granularity '",
                         granularity,
                         "' for ",
                         what,
-                        " (must be BY_TOKEN or BY_CHANNEL)");
+                        " (must be BY_TOKEN)");
 
         return std::make_pair(quant_type == "SYM" ? ov::npuw::KVCacheCompressionConfig::QuantizationType::Symmetric
                                                   : ov::npuw::KVCacheCompressionConfig::QuantizationType::Asymmetric,
@@ -197,9 +203,18 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
     if (use_integer_kv_storage) {
         const auto compression_config = parse_kv_cache_compression_config(kv_cache_compression_config);
 
+        // A u8 key is decomposed only as asymmetric (DynamicQuantizeLinear style, DecomposeDynamicQuantize2);
+        // there is no symmetric u8 decomposition, so the KEY quantization type applies to an i8 key only.
+        auto key_type = compression_config.key_type;
+        if (key_storage_type == ov::element::u8 &&
+            key_type != ov::npuw::KVCacheCompressionConfig::QuantizationType::Asymmetric) {
+            LOG_INFO("u8 KV-cache key supports only asymmetric quantization, using KEY:ASYM");
+            key_type = ov::npuw::KVCacheCompressionConfig::QuantizationType::Asymmetric;
+        }
+
         ov::npuw::KVCacheCompressionParams dq_params;
         dq_params.key.quantization_dt = key_storage_type;
-        dq_params.key.quantization_type = compression_config.key_type;
+        dq_params.key.quantization_type = key_type;
         dq_params.value.quantization_dt = value_storage_type;
         dq_params.value.quantization_type = compression_config.value_type;
 

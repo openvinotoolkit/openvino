@@ -943,7 +943,8 @@ static PastKVLayout analyze_past_kv_layout(const std::shared_ptr<ov::Node>& conc
 // ============================================================================
 // Helper function: Build SDPA parameter index mapping
 // ============================================================================
-static void build_sdpa_param_mapping(HostFlashAttention& hfa,
+// Returns false when the past KV blocks of a Concat are compressed inconsistently (HFA cannot handle them).
+static bool build_sdpa_param_mapping(HostFlashAttention& hfa,
                                      const std::shared_ptr<ov::Model>& model,
                                      const ov::npuw::util::SDPAPatternNodes& pattern_nodes) {
     LOG_INFO("Building SDPA input parameter index mapping...");
@@ -966,9 +967,9 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
                                  std::vector<std::size_t>& scale_indices,
                                  std::vector<std::size_t>& zp_indices,
                                  std::size_t& present_idx_out,
-                                 const char* kv_name) {
+                                 const char* kv_name) -> bool {
         if (!concat_node)
-            return;
+            return true;
         const size_t n = concat_node->get_input_size();
         block_indices.clear();
         scale_indices.clear();
@@ -1001,29 +1002,30 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
             (zp_indices.empty() || (zp_indices.size() == block_indices.size() && !scale_indices.empty())) &&
             (scale_indices.empty() || block_indices.size() == n - 1);
         if (!consistent) {
-            LOG_WARN("Inconsistent compression of the past " << kv_name << " blocks, ignoring them");
-            block_indices.clear();
-            scale_indices.clear();
-            zp_indices.clear();
+            LOG_WARN("Inconsistent compression of the past " << kv_name << " blocks, HFA is not applicable");
+            return false;
         }
         if (auto param = extract_param(concat_node->get_input_node_shared_ptr(n - 1))) {
             present_idx_out = model->get_parameter_index(param);
             LOG_DEBUG("  Found " << kv_name << "_present at parameter index " << present_idx_out);
         }
+        return true;
     };
 
-    extract_kv_params(pattern_nodes.past_key_concat_node,
-                      hfa._past_key_block_indices,
-                      hfa._past_key_scale_indices,
-                      hfa._past_key_zp_indices,
-                      hfa._present_key_param_idx,
-                      "past_key");
-    extract_kv_params(pattern_nodes.past_value_concat_node,
-                      hfa._past_value_block_indices,
-                      hfa._past_value_scale_indices,
-                      hfa._past_value_zp_indices,
-                      hfa._present_value_param_idx,
-                      "past_value");
+    if (!extract_kv_params(pattern_nodes.past_key_concat_node,
+                           hfa._past_key_block_indices,
+                           hfa._past_key_scale_indices,
+                           hfa._past_key_zp_indices,
+                           hfa._present_key_param_idx,
+                           "past_key") ||
+        !extract_kv_params(pattern_nodes.past_value_concat_node,
+                           hfa._past_value_block_indices,
+                           hfa._past_value_scale_indices,
+                           hfa._past_value_zp_indices,
+                           hfa._present_value_param_idx,
+                           "past_value")) {
+        return false;
+    }
 
     // Extract mask parameter - input 1 of add_node
     if (auto add_param = extract_param(pattern_nodes.add_node->get_input_node_shared_ptr(1))) {
@@ -1048,6 +1050,7 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
     }
 
     LOG_DEBUG("=============================================");
+    return true;
 }
 
 // ============================================================================
@@ -1430,7 +1433,8 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     }
     // int8-compressed past KV: the regular tile gets scale (and zero-point) tiles and dequantizes in front of
     // the attention. The scale / zero-point tensors have the sequence dimension of the data, so their tiles
-    // are cut at the same positions.
+    // are cut at the same positions and have the length of the K/V tile (past_tile_size, which is shorter
+    // than query_size for a single short past, e.g. after the SWA KV-cache shrink).
     KVDequantSpec dequant_spec;
     if (kv_quantized) {
         auto make_quantizer = [&](const PastKVLayout& layout,
@@ -1440,7 +1444,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                     shape[seq_dim] != layout.data_shape[seq_dim]) {
                     return std::nullopt;
                 }
-                shape[seq_dim] = query_size;
+                shape[seq_dim] = past_tile_size;
                 return shape;
             };
             KVDequantSpec::Quantizer quantizer;
@@ -1522,7 +1526,11 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // ========================================================================
     // Step 7: Build SDPA parameter index mapping
     // ========================================================================
-    build_sdpa_param_mapping(hfa, model, pattern_nodes);
+    // A mix of compressed and plain past blocks would leave HFA with no past blocks at all: fall back to the
+    // regular attention path instead.
+    if (!build_sdpa_param_mapping(hfa, model, pattern_nodes)) {
+        return std::nullopt;
+    }
 
     // ========================================================================
     // Step 8: Build tile model parameter index mapping

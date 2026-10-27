@@ -595,6 +595,10 @@ void expect_host_flash_attention_equal(const ov::npuw::compiled::HostFlashAttent
     EXPECT_EQ(lhs._sdpa_indices.present_key, rhs._sdpa_indices.present_key);
     EXPECT_EQ(lhs._sdpa_indices.present_value, rhs._sdpa_indices.present_value);
     EXPECT_EQ(lhs._sdpa_indices.attention_mask, rhs._sdpa_indices.attention_mask);
+    EXPECT_EQ(lhs._sdpa_indices.past_key_scale_blocks, rhs._sdpa_indices.past_key_scale_blocks);
+    EXPECT_EQ(lhs._sdpa_indices.past_key_zp_blocks, rhs._sdpa_indices.past_key_zp_blocks);
+    EXPECT_EQ(lhs._sdpa_indices.past_value_scale_blocks, rhs._sdpa_indices.past_value_scale_blocks);
+    EXPECT_EQ(lhs._sdpa_indices.past_value_zp_blocks, rhs._sdpa_indices.past_value_zp_blocks);
     EXPECT_EQ(lhs._tile_input_indices.q, rhs._tile_input_indices.q);
     EXPECT_EQ(lhs._tile_input_indices.k, rhs._tile_input_indices.k);
     EXPECT_EQ(lhs._tile_input_indices.v, rhs._tile_input_indices.v);
@@ -602,6 +606,10 @@ void expect_host_flash_attention_equal(const ov::npuw::compiled::HostFlashAttent
     EXPECT_EQ(lhs._tile_input_indices.acc, rhs._tile_input_indices.acc);
     EXPECT_EQ(lhs._tile_input_indices.max, rhs._tile_input_indices.max);
     EXPECT_EQ(lhs._tile_input_indices.d, rhs._tile_input_indices.d);
+    EXPECT_EQ(lhs._tile_input_indices.k_scale, rhs._tile_input_indices.k_scale);
+    EXPECT_EQ(lhs._tile_input_indices.k_zp, rhs._tile_input_indices.k_zp);
+    EXPECT_EQ(lhs._tile_input_indices.v_scale, rhs._tile_input_indices.v_scale);
+    EXPECT_EQ(lhs._tile_input_indices.v_zp, rhs._tile_input_indices.v_zp);
     EXPECT_EQ(lhs._tile_output_indices.acc, rhs._tile_output_indices.acc);
     EXPECT_EQ(lhs._tile_output_indices.max, rhs._tile_output_indices.max);
     EXPECT_EQ(lhs._tile_output_indices.d, rhs._tile_output_indices.d);
@@ -1173,6 +1181,42 @@ TEST(SerializationTest, OVTypes_HostFlashAttention) {
     read(ss, res);
 
     expect_host_flash_attention_equal(var, res);
+}
+
+// int8-compressed past KV: the scale / zero-point block indices and the dequantization inputs of the regular
+// tile survive the round trip, including the kNoInput marker of an absent (symmetric) zero-point.
+TEST(SerializationTest, OVTypes_HostFlashAttention_CompressedKV) {
+    using namespace ov::npuw::s11n;
+
+    ov::npuw::compiled::HostFlashAttention var;
+    var._sdpa_attention_info._query_size = 8;
+    var._sdpa_attention_info._context_size = 32;
+    var._sdpa_attention_info._k_seq_dim = 2;
+    var._sdpa_attention_info._v_seq_dim = 3;
+    var._sdpa_attention_info._sdpa_indices = {3, {4, 5}, {6, 7}, 8, 9, 10};
+    var._sdpa_attention_info._sdpa_indices.past_key_scale_blocks = {11, 12};
+    var._sdpa_attention_info._sdpa_indices.past_key_zp_blocks = {13, 14};
+    var._sdpa_attention_info._sdpa_indices.past_value_scale_blocks = {15, 16};
+    var._sdpa_attention_info._tile_input_indices = {0, 1, 2, 3, 4, 5, 6};
+    var._sdpa_attention_info._tile_input_indices.k_scale = 7;
+    var._sdpa_attention_info._tile_input_indices.k_zp = 8;
+    var._sdpa_attention_info._tile_input_indices.v_scale = 9;
+    var._sdpa_attention_info._tile_output_indices = {0, 1, 2};
+    var._past_tile_size = 8;
+    var._final_tile_size = 8;
+    var._can_use_tensor_view = true;
+
+    ov::npuw::compiled::HostFlashAttention res;
+
+    std::stringstream ss;
+
+    write(ss, var);
+    read(ss, res);
+
+    expect_host_flash_attention_equal(var, res);
+    EXPECT_EQ(res._sdpa_attention_info._tile_input_indices.v_zp, ov::npuw::compiled::HostFlashAttentionInfo::kNoInput);
+    EXPECT_TRUE(res._sdpa_attention_info._sdpa_indices.past_value_zp_blocks.empty());
+    EXPECT_EQ(res._sdpa_attention_info.quant_input_count(), 3u);
 }
 
 /**
