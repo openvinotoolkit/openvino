@@ -915,9 +915,9 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
                             " op!");
         }
         const bool has_zero_dim = std::find(shape.begin(), shape.end(), 0) != shape.end();
-        const auto required_size =
-            has_zero_dim ? std::optional<size_t>{0}
-                         : ov::util::get_memory_size_safe(el_type, ov::Shape(shape.begin(), shape.end()));
+        const auto required_size = has_zero_dim
+                                       ? std::optional<size_t>{0}
+                                       : ov::util::get_memory_size_safe(el_type, ov::Shape(shape.begin(), shape.end()));
         OPENVINO_ASSERT(required_size, "Const shape size overflow for ", node_type, " op!");
         if (size < *required_size) {
             OPENVINO_THROW("Attribute and shape size are inconsistent for ",
