@@ -28,7 +28,7 @@ struct Options {
     bool allow_xattention;
     bool allow_adaptive_rkv;
     bool allow_qq_bias;
-    bool is_draft_model;
+    bool is_draft_model; // Gemma4 MTP draft model
 };
 
 template <typename NodeT, typename VectorT>
