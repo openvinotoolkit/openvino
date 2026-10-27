@@ -10,10 +10,17 @@
 #include <intel_gpu/primitives/mutable_data.hpp>
 #include <arg_max_min_inst.h>
 #include "arg_max_min/arg_max_min_kernel_axis.h"
+#include "arg_max_min/arg_max_min_kernel_topk_radix.h"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "test_utils.h"
 
 #include "program_wrapper.h"
+
+#include <cmath>
+#include <cstring>
+#include <functional>
+#include <limits>
+#include <numeric>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -1124,7 +1131,7 @@ TEST(arg_max_min_test, check_second_output_data_type) {
 
 // =============================================================================
 // Tests for arg_max_min_topk_radix kernel
-// Conditions: f16/f32 input, SORT_VALUES, N >= 2, N <= 65535, SLM fits
+// Conditions: f16/f32 input, N >= 2, SLM fits
 // =============================================================================
 
 inline ExecutionConfig get_radix_topk_config(const cldnn::engine& engine, format::type fmt = format::bfyx) {
@@ -1140,6 +1147,79 @@ inline void assert_radix_topk_selected(const cldnn::network& net) {
     auto info = net.get_primitive_info("arg_max");
     ASSERT_TRUE(info.find("arg_max_min_topk_radix") != std::string::npos)
         << "Expected arg_max_min_topk_radix, got: " << info;
+}
+
+TEST(arg_max_gpu_topk_radix, dynamic_f32_dflash_shape_transitions_use_radix) {
+    constexpr int32_t batch_num = 1;
+    constexpr int32_t vocab_size = 248320;
+    constexpr int32_t top_k = 16;
+    auto& engine = get_test_engine();
+
+    auto input_layout_dynamic = layout{
+        ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), vocab_size, 1},
+        data_types::f32,
+        format::bfyx};
+    const std::vector<float> sorted_values = {
+        4.4388075f,
+        4.3951770f,
+        4.2429514f,
+        4.2423444f,
+        4.2085915f,
+        4.1768341f,
+        4.0288038f,
+        3.9938712f,
+        3.9857004f,
+        3.9501023f,
+        3.9219890f,
+        3.8840609f,
+        3.8789275f,
+        3.8753984f,
+        3.7988553f,
+        3.7939982f,
+    };
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(arg_max_min("arg_max",
+                             {input_info("input")},
+                             ov::op::TopKMode::MAX,
+                             top_k,
+                             2,
+                             ov::op::TopKSortType::SORT_VALUES,
+                             true,
+                             false,
+                             data_types::f32,
+                             2));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    ASSERT_NO_FATAL_FAILURE(assert_radix_topk_selected(network));
+
+    for (const int32_t feature_num : {1, 7, 15, 7, 1}) {
+        auto input_layout_static =
+            layout{ov::PartialShape{batch_num, feature_num, vocab_size, 1}, data_types::f32, format::bfyx};
+        auto input = engine.allocate_memory(input_layout_static);
+        std::vector<float> input_values(batch_num * feature_num * vocab_size, -1.0f);
+        for (int32_t feature = 0; feature < feature_num; ++feature) {
+            for (int32_t rank = 0; rank < top_k; ++rank) {
+                input_values[feature * vocab_size + rank * 7919] = sorted_values[rank] + feature;
+            }
+        }
+        set_values(input, input_values);
+
+        network.set_input_data("input", input);
+        auto outputs = network.execute();
+        auto output = outputs.at("arg_max").get_memory();
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        for (int32_t feature = 0; feature < feature_num; ++feature) {
+            for (int32_t rank = 0; rank < top_k; ++rank) {
+                EXPECT_FLOAT_EQ(output_ptr[feature * top_k + rank],
+                                sorted_values[rank] + feature)
+                    << "value mismatch at feature_num=" << feature_num << ", feature=" << feature << ", rank=" << rank;
+            }
+        }
+    }
 }
 
 namespace {
@@ -1618,6 +1698,493 @@ TYPED_TEST(arg_max_gpu_topk_radix, byxf_matches_bfyx_reference) {
                         << "value mismatch at b=" << b << " y=" << y << " x=" << x << " k=" << k;
                 }
             }
+        }
+    }
+}
+
+namespace {
+// Ordering key of the GPU TopK kernels: -0.0 equals +0.0 and NaN ranks above +inf, as in PyTorch.
+uint32_t topk_radix_order_key(float value) {
+    if (std::isnan(value)) {
+        return 0xFFFFFFFFu;
+    }
+    uint32_t bits = 0;
+    if (value != 0.0f) {
+        std::memcpy(&bits, &value, sizeof(bits));
+    }
+    return (bits >> 31) ? ~bits : (bits | 0x80000000u);
+}
+
+// Rows are contiguous in `values`; equal values are ordered by the smallest index. Without
+// SORT_VALUES the selected indices are expected in ascending order.
+std::vector<int32_t> topk_radix_reference_indices(const std::vector<float>& values,
+                                                  size_t rows,
+                                                  size_t row_size,
+                                                  size_t top_k,
+                                                  ov::op::TopKMode mode,
+                                                  ov::op::TopKSortType sort) {
+    std::vector<int32_t> result;
+    result.reserve(rows * top_k);
+    std::vector<uint32_t> keys(row_size);
+    std::vector<int32_t> order(row_size);
+    for (size_t row = 0; row < rows; ++row) {
+        for (size_t i = 0; i < row_size; ++i) {
+            keys[i] = topk_radix_order_key(values[row * row_size + i]);
+        }
+        std::iota(order.begin(), order.end(), 0);
+        std::stable_sort(order.begin(), order.end(), [&](int32_t a, int32_t b) {
+            return mode == ov::op::TopKMode::MAX ? keys[a] > keys[b] : keys[a] < keys[b];
+        });
+        if (sort != ov::op::TopKSortType::SORT_VALUES) {
+            std::sort(order.begin(), order.begin() + top_k);
+        }
+        result.insert(result.end(), order.begin(), order.begin() + top_k);
+    }
+    return result;
+}
+
+// TopK copies its values from the input, so they must keep their bits, including the sign of zero.
+bool topk_radix_same_value(float expected, float actual) {
+    if (std::isnan(expected)) {
+        return std::isnan(actual);
+    }
+    return expected == actual && std::signbit(expected) == std::signbit(actual);
+}
+
+template <typename T>
+std::vector<float> topk_radix_rounded(const std::vector<float>& values) {
+    std::vector<float> rounded(values.size());
+    for (size_t i = 0; i < values.size(); ++i) {
+        rounded[i] = static_cast<float>(static_cast<T>(values[i]));
+    }
+    return rounded;
+}
+
+// Runs TopK on `shapes` one after another, with networks built for `network_shape`, and checks that
+// `kernel` ran, that the indices match the reference and that every value is the input element at
+// its index. The kernel is forced unless `force_kernel` is false, which checks the default choice.
+template <typename T>
+void run_topk_radix_case(const ov::PartialShape& network_shape,
+                         const std::vector<ov::PartialShape>& shapes,
+                         int64_t axis,
+                         ov::op::TopKMode mode,
+                         int32_t top_k,
+                         const std::function<std::vector<float>(size_t rows, size_t row_size)>& generate,
+                         ov::op::TopKSortType sort = ov::op::TopKSortType::SORT_VALUES,
+                         const std::string& kernel = "arg_max_min_topk_radix",
+                         bool force_kernel = true) {
+    auto& engine = get_test_engine();
+    const data_types dt = ov::element::from<T>();
+
+    auto config = get_test_default_config(engine);
+    if (force_kernel) {
+        ov::intel_gpu::ImplementationDesc impl = {format::bfyx, kernel, impl_types::ocl};
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"arg_max", impl}}));
+    }
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    // A single-output TopK returns either the values or the indices.
+    auto make_network = [&](bool values) {
+        topology topology;
+        topology.add(input_layout("input", layout{network_shape, dt, format::bfyx}));
+        topology.add(arg_max_min("arg_max",
+                                 {input_info("input")},
+                                 mode,
+                                 top_k,
+                                 axis,
+                                 sort,
+                                 values,
+                                 false,
+                                 values ? dt : data_types::i32));
+        return std::make_shared<cldnn::network>(engine, topology, config);
+    };
+    auto indices_network = make_network(false);
+    auto values_network = make_network(true);
+
+    for (const auto& shape : shapes) {
+        const size_t row_size = static_cast<size_t>(shape[static_cast<size_t>(axis)].get_length());
+        const size_t rows = ov::shape_size(shape.to_shape()) / row_size;
+        const auto values = topk_radix_rounded<T>(generate(rows, row_size));
+        const auto expected = topk_radix_reference_indices(values, rows, row_size, top_k, mode, sort);
+
+        auto input = engine.allocate_memory(layout{shape, dt, format::bfyx});
+        set_values(input, topk_radix_typed_vec<T>(values));
+        indices_network->set_input_data("input", input);
+        values_network->set_input_data("input", input);
+        auto indices_outputs = indices_network->execute();
+        auto values_outputs = values_network->execute();
+        for (const auto& net : {indices_network, values_network}) {
+            const auto info = net->get_primitive_info("arg_max");
+            ASSERT_NE(info.find(kernel), std::string::npos) << "Expected " << kernel << ", got: " << info;
+        }
+
+        auto indices = indices_outputs.at("arg_max").get_memory();
+        auto out_values = values_outputs.at("arg_max").get_memory();
+        ASSERT_EQ(indices->get_layout().count(), expected.size());
+        ASSERT_EQ(out_values->get_layout().count(), expected.size());
+        cldnn::mem_lock<int32_t, mem_lock_type::read> indices_ptr(indices, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> values_ptr(out_values, get_test_stream());
+        for (size_t i = 0; i < expected.size(); ++i) {
+            ASSERT_EQ(indices_ptr[i], expected[i])
+                << "index mismatch for shape " << shape << " at row=" << i / top_k << ", rank=" << i % top_k;
+            const float expected_value = values[(i / top_k) * row_size + static_cast<size_t>(expected[i])];
+            ASSERT_TRUE(topk_radix_same_value(expected_value, static_cast<float>(values_ptr[i])))
+                << "value mismatch for shape " << shape << " at row=" << i / top_k << ", rank=" << i % top_k
+                << ": expected " << expected_value << ", got " << static_cast<float>(values_ptr[i]);
+        }
+    }
+}
+
+// Few distinct levels, so many equal values compete for the last top-K slots.
+std::vector<float> topk_radix_tied_values(size_t rows, size_t row_size, int levels, uint32_t seed) {
+    std::mt19937 rng(seed);
+    std::uniform_int_distribution<int> dist(0, levels - 1);
+    std::vector<float> values(rows * row_size);
+    for (auto& value : values) {
+        value = static_cast<float>(dist(rng)) * 0.25f;
+    }
+    return values;
+}
+
+std::vector<float> topk_radix_random_values(size_t rows, size_t row_size, uint32_t seed) {
+    std::mt19937 rng(seed);
+    std::normal_distribution<float> dist(0.f, 2.5f);
+    std::vector<float> values(rows * row_size);
+    for (auto& value : values) {
+        value = dist(rng);
+    }
+    return values;
+}
+
+// Every row of at least 64 values holds NaNs of both signs, both infinities and a block of
+// alternating -0.0 and +0.0. The other values lie on the losing side of zero, so the top-K
+// reaches into the zeros.
+std::vector<float> topk_radix_special_values(size_t rows, size_t row_size, ov::op::TopKMode mode) {
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const float inf = std::numeric_limits<float>::infinity();
+    const float losing_sign = mode == ov::op::TopKMode::MAX ? -1.f : 1.f;
+    const size_t zeros_begin = std::max<size_t>(16, row_size / 8);
+    const size_t zeros_end = zeros_begin + std::min<size_t>(40, row_size / 4);
+    auto values = topk_radix_random_values(rows, row_size, 17);
+    for (size_t row = 0; row < rows; ++row) {
+        float* row_values = values.data() + row * row_size;
+        for (size_t i = 0; i < row_size; ++i) {
+            row_values[i] = losing_sign * (1.f + std::fabs(row_values[i]));
+        }
+        for (size_t i = zeros_begin; i < zeros_end; ++i) {
+            row_values[i] = std::copysign(0.f, i % 2 ? 1.f : -1.f);
+        }
+        row_values[5] = nan;
+        row_values[row_size * 3 / 4] = std::copysign(nan, -1.f);
+        row_values[row_size - 1] = nan;
+        row_values[7] = inf;
+        row_values[9] = -inf;
+    }
+    return values;
+}
+}  // namespace
+
+// Chunked mode with dynamic rows: the maximum level repeats in every chunk, so the first
+// top-K indices come from equal values spread over several chunks.
+TYPED_TEST(arg_max_gpu_topk_radix, chunked_dynamic_rows_tied_indices) {
+    using T = TypeParam;
+    constexpr int32_t vocab_size = 248320;
+    run_topk_radix_case<T>(
+        ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), vocab_size, 1},
+        {{1, 1, vocab_size, 1}, {1, 7, vocab_size, 1}, {1, 3, vocab_size, 1}},
+        2,
+        ov::op::TopKMode::MAX,
+        16,
+        [](size_t rows, size_t row_size) {
+            return topk_radix_tied_values(rows, row_size, 2000, 7);
+        });
+}
+
+// Chunked mode with distinct random values, checked against the exact reference order.
+TYPED_TEST(arg_max_gpu_topk_radix, chunked_dynamic_rows_random_indices) {
+    using T = TypeParam;
+    constexpr int32_t vocab_size = 248320;
+    run_topk_radix_case<T>(
+        ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), vocab_size, 1},
+        {{1, 7, vocab_size, 1}, {1, 15, vocab_size, 1}},
+        2,
+        ov::op::TopKMode::MAX,
+        16,
+        [](size_t rows, size_t row_size) {
+            return topk_radix_random_values(rows, row_size, 11);
+        });
+}
+
+// Chunked MIN mode on the feature axis, where the last chunk is shorter than the others.
+TYPED_TEST(arg_max_gpu_topk_radix, chunked_static_min_tied_indices) {
+    using T = TypeParam;
+    constexpr int32_t sort_size = 40001;
+    run_topk_radix_case<T>(
+        ov::PartialShape{2, sort_size, 1, 1},
+        {{2, sort_size, 1, 1}},
+        1,
+        ov::op::TopKMode::MIN,
+        20,
+        [](size_t rows, size_t row_size) {
+            return topk_radix_tied_values(rows, row_size, 64, 3);
+        });
+}
+
+// Single-stage mode where the threshold value overflows the remaining slots in many blocks.
+TYPED_TEST(arg_max_gpu_topk_radix, single_stage_ordered_ties) {
+    using T = TypeParam;
+    constexpr int32_t sort_size = 10000;
+    run_topk_radix_case<T>(
+        ov::PartialShape{3, sort_size, 1, 1},
+        {{3, sort_size, 1, 1}},
+        1,
+        ov::op::TopKMode::MAX,
+        64,
+        [](size_t rows, size_t row_size) {
+            return topk_radix_tied_values(rows, row_size, 8, 5);
+        });
+}
+
+// NaN ranks above +inf and -0.0 ties with +0.0, in single-stage, chunked and dynamic-rows mode.
+TYPED_TEST(arg_max_gpu_topk_radix, nan_and_signed_zero_order) {
+    using T = TypeParam;
+    constexpr int32_t vocab_size = 248320;
+    for (const auto mode : {ov::op::TopKMode::MAX, ov::op::TopKMode::MIN}) {
+        SCOPED_TRACE(mode == ov::op::TopKMode::MAX ? "MAX" : "MIN");
+        const auto generate = [mode](size_t rows, size_t row_size) {
+            return topk_radix_special_values(rows, row_size, mode);
+        };
+        ASSERT_NO_FATAL_FAILURE(
+            run_topk_radix_case<T>(ov::PartialShape{2, 4096, 1, 1}, {{2, 4096, 1, 1}}, 1, mode, 16, generate));
+        ASSERT_NO_FATAL_FAILURE(
+            run_topk_radix_case<T>(ov::PartialShape{1, 40000, 1, 1}, {{1, 40000, 1, 1}}, 1, mode, 16, generate));
+        ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(ov::PartialShape{ov::Dimension::dynamic(), vocab_size, 1, 1},
+                                                       {{3, vocab_size, 1, 1}},
+                                                       1,
+                                                       mode,
+                                                       16,
+                                                       generate));
+    }
+}
+
+// The axis kernel orders NaN and signed zeros like radix in all of its sorting paths.
+TYPED_TEST(arg_max_gpu_topk_radix, axis_kernel_nan_and_signed_zero_order) {
+    using T = TypeParam;
+    const std::string axis_kernel = "arg_max_min_axis";
+    for (const auto mode : {ov::op::TopKMode::MAX, ov::op::TopKMode::MIN}) {
+        SCOPED_TRACE(mode == ov::op::TopKMode::MAX ? "MAX" : "MIN");
+        const auto generate = [mode](size_t rows, size_t row_size) {
+            return topk_radix_special_values(rows, row_size, mode);
+        };
+        for (const auto sort : {ov::op::TopKSortType::SORT_VALUES, ov::op::TopKSortType::SORT_INDICES}) {
+            SCOPED_TRACE(sort == ov::op::TopKSortType::SORT_VALUES ? "SORT_VALUES" : "SORT_INDICES");
+            // Rank-based, partial and merge sorting, the k=1 search, and K=N, where MIN also selects the NaNs
+            for (const auto& [row_size, top_k] :
+                 std::vector<std::pair<int32_t, int32_t>>{{4096, 16}, {64, 40}, {4096, 1}, {64, 64}}) {
+                ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(ov::PartialShape{2, row_size, 1, 1},
+                                                               {{2, row_size, 1, 1}},
+                                                               1,
+                                                               mode,
+                                                               top_k,
+                                                               generate,
+                                                               sort,
+                                                               axis_kernel));
+            }
+        }
+        // Short MoE router rows keep the axis kernel by default
+        ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(ov::PartialShape{ov::Dimension::dynamic(), 128, 1, 1},
+                                                       {{64, 128, 1, 1}},
+                                                       1,
+                                                       mode,
+                                                       8,
+                                                       generate,
+                                                       ov::op::TopKSortType::SORT_VALUES,
+                                                       axis_kernel,
+                                                       false));
+    }
+}
+
+// Without SORT_VALUES the selected elements come out in index order. SORT_NONE is treated as SORT_INDICES.
+TYPED_TEST(arg_max_gpu_topk_radix, sort_by_indices) {
+    using T = TypeParam;
+    constexpr int32_t vocab_size = 248320;
+    for (const auto sort : {ov::op::TopKSortType::SORT_INDICES, ov::op::TopKSortType::NONE}) {
+        SCOPED_TRACE(sort == ov::op::TopKSortType::NONE ? "NONE" : "SORT_INDICES");
+        ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(
+            ov::PartialShape{3, 10000, 1, 1}, {{3, 10000, 1, 1}}, 1, ov::op::TopKMode::MAX, 64,
+            [](size_t rows, size_t row_size) { return topk_radix_tied_values(rows, row_size, 8, 5); },
+            sort));
+        ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(
+            ov::PartialShape{2, 40001, 1, 1}, {{2, 40001, 1, 1}}, 1, ov::op::TopKMode::MIN, 20,
+            [](size_t rows, size_t row_size) { return topk_radix_tied_values(rows, row_size, 64, 3); },
+            sort));
+        ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(
+            ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), vocab_size, 1},
+            {{1, 1, vocab_size, 1}, {1, 7, vocab_size, 1}},
+            2,
+            ov::op::TopKMode::MAX,
+            16,
+            [](size_t rows, size_t row_size) { return topk_radix_tied_values(rows, row_size, 2000, 7); },
+            sort));
+    }
+}
+
+// Index-ordered output when 30 values tie at the K-th value ahead of 18 better values in the middle of
+// the row: every better value is selected, and only the ties with the smallest indices fill the rest.
+TYPED_TEST(arg_max_gpu_topk_radix, sort_by_indices_ties_before_better_values) {
+    using T = TypeParam;
+    for (const auto mode : {ov::op::TopKMode::MAX, ov::op::TopKMode::MIN}) {
+        SCOPED_TRACE(mode == ov::op::TopKMode::MAX ? "MAX" : "MIN");
+        const float sign = mode == ov::op::TopKMode::MAX ? 1.f : -1.f;
+        const auto generate = [sign](size_t rows, size_t row_size) {
+            std::vector<float> values(rows * row_size, -2.f * sign);
+            for (size_t row = 0; row < rows; ++row) {
+                float* row_values = values.data() + row * row_size;
+                std::fill_n(row_values, 30, sign);
+                std::fill_n(row_values + row_size / 2, 18, 2.f * sign);
+            }
+            return values;
+        };
+        for (const auto sort : {ov::op::TopKSortType::SORT_INDICES, ov::op::TopKSortType::NONE}) {
+            SCOPED_TRACE(sort == ov::op::TopKSortType::NONE ? "NONE" : "SORT_INDICES");
+            ASSERT_NO_FATAL_FAILURE(
+                run_topk_radix_case<T>(ov::PartialShape{2, 1000, 1, 1}, {{2, 1000, 1, 1}}, 1, mode, 20, generate, sort));
+            ASSERT_NO_FATAL_FAILURE(
+                run_topk_radix_case<T>(ov::PartialShape{1, 40000, 1, 1}, {{1, 40000, 1, 1}}, 1, mode, 20, generate, sort));
+            ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(
+                ov::PartialShape{ov::Dimension::dynamic(), 40000, 1, 1}, {{3, 40000, 1, 1}}, 1, mode, 20, generate, sort));
+        }
+    }
+}
+
+// Index-ordered output when 30 ties at indices 0..29 come before 18 better zeros at 500..517, K=20. The
+// 20000-value row is chunked on every device, with the ties and the zeros in its first chunk; the
+// 1000-value row runs in a single stage.
+TYPED_TEST(arg_max_gpu_topk_radix, sort_by_indices_ties_before_better_zeros) {
+    using T = TypeParam;
+    for (const auto mode : {ov::op::TopKMode::MAX, ov::op::TopKMode::MIN}) {
+        SCOPED_TRACE(mode == ov::op::TopKMode::MAX ? "MAX" : "MIN");
+        const auto generate = [mode](size_t rows, size_t row_size) {
+            const float sign = mode == ov::op::TopKMode::MAX ? -1.0f : 1.0f;
+            std::vector<float> values(rows * row_size, sign);
+            for (size_t row = 0; row < rows; ++row) {
+                std::fill_n(values.begin() + row * row_size, 30, 0.25f * sign);
+                std::fill_n(values.begin() + row * row_size + 500, 18, 0.0f);
+            }
+            return values;
+        };
+        for (const auto sort : {ov::op::TopKSortType::SORT_INDICES, ov::op::TopKSortType::NONE}) {
+            SCOPED_TRACE(sort == ov::op::TopKSortType::NONE ? "NONE" : "SORT_INDICES");
+            for (const int32_t row_size : {1000, 20000}) {
+                ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(ov::PartialShape{2, row_size, 1, 1},
+                                                               {{2, row_size, 1, 1}},
+                                                               1,
+                                                               mode,
+                                                               20,
+                                                               generate,
+                                                               sort));
+            }
+        }
+    }
+}
+
+// Rows of 1024 values or more use radix for k=1 by default, with equal maxima resolved to the smallest index.
+TYPED_TEST(arg_max_gpu_topk_radix, topk1_selects_radix_from_1024_values) {
+    using T = TypeParam;
+    constexpr int32_t vocab_size = 248320;
+    const std::string radix_kernel = "arg_max_min_topk_radix";
+    ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(
+        ov::PartialShape{3, 32000, 1, 1}, {{3, 32000, 1, 1}}, 1, ov::op::TopKMode::MAX, 1,
+        [](size_t rows, size_t row_size) { return topk_radix_tied_values(rows, row_size, 3, 9); },
+        ov::op::TopKSortType::SORT_VALUES, radix_kernel, false));
+    ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(
+        ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), vocab_size, 1},
+        {{1, 1, vocab_size, 1}, {1, 4, vocab_size, 1}},
+        2,
+        ov::op::TopKMode::MIN,
+        1,
+        [](size_t rows, size_t row_size) { return topk_radix_random_values(rows, row_size, 13); },
+        ov::op::TopKSortType::SORT_VALUES, radix_kernel, false));
+    ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(
+        ov::PartialShape{4, 1024, 1, 1}, {{4, 1024, 1, 1}}, 1, ov::op::TopKMode::MAX, 1,
+        [](size_t rows, size_t row_size) { return topk_radix_random_values(rows, row_size, 15); },
+        ov::op::TopKSortType::SORT_VALUES, radix_kernel, false));
+    ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(
+        ov::PartialShape{4, 1023, 1, 1}, {{4, 1023, 1, 1}}, 1, ov::op::TopKMode::MAX, 1,
+        [](size_t rows, size_t row_size) { return topk_radix_random_values(rows, row_size, 15); },
+        ov::op::TopKSortType::SORT_VALUES, "arg_max_min_axis", false));
+}
+
+// Static shapes whose chunk count depends on the device and the row count, plus large K where
+// the merge stage needs long chunks.
+TYPED_TEST(arg_max_gpu_topk_radix, static_chunk_configs) {
+    using T = TypeParam;
+    const auto random = [](size_t rows, size_t row_size) { return topk_radix_random_values(rows, row_size, 21); };
+    const auto tied = [](size_t rows, size_t row_size) { return topk_radix_tied_values(rows, row_size, 40, 23); };
+    ASSERT_NO_FATAL_FAILURE(
+        run_topk_radix_case<T>(ov::PartialShape{1, 8192, 1, 1}, {{1, 8192, 1, 1}}, 1, ov::op::TopKMode::MAX, 16, random));
+    ASSERT_NO_FATAL_FAILURE(
+        run_topk_radix_case<T>(ov::PartialShape{1, 16383, 1, 1}, {{1, 16383, 1, 1}}, 1, ov::op::TopKMode::MAX, 16, tied));
+    ASSERT_NO_FATAL_FAILURE(
+        run_topk_radix_case<T>(ov::PartialShape{2, 5000, 1, 1}, {{2, 5000, 1, 1}}, 1, ov::op::TopKMode::MIN, 32, tied));
+    ASSERT_NO_FATAL_FAILURE(
+        run_topk_radix_case<T>(ov::PartialShape{2, 81900, 1, 1}, {{2, 81900, 1, 1}}, 1, ov::op::TopKMode::MAX, 300, tied));
+    ASSERT_NO_FATAL_FAILURE(
+        run_topk_radix_case<T>(ov::PartialShape{1, 262144, 1, 1}, {{1, 262144, 1, 1}}, 1, ov::op::TopKMode::MAX, 2048, random));
+    ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(ov::PartialShape{ov::Dimension::dynamic(), 81900, 1, 1},
+                                                   {{2, 81900, 1, 1}, {5, 81900, 1, 1}},
+                                                   1,
+                                                   ov::op::TopKMode::MAX,
+                                                   300,
+                                                   tied));
+}
+
+// The chunk count follows the device size and a static row count, and large K limits it.
+TEST(arg_max_gpu_topk_radix, chunk_config_follows_device_rows_and_k) {
+    struct chunk_case {
+        size_t rows;
+        size_t sort_size;
+        size_t top_k;
+        uint32_t threads;
+        size_t chunks;
+    };
+    // 960 threads keep 60 work-groups of 256 SIMD16 work-items resident, as on a 96-EU Xe3 iGPU
+    const std::vector<chunk_case> cases = {
+        {1, 8192, 16, 960, 8},       // a single row is split to fill the device, down to 1024 values per chunk
+        {1, 8192, 16, 0, 1},         // unknown device size: below the default chunking threshold
+        {64, 8192, 16, 960, 1},      // the rows alone fill the device
+        {1, 4000, 16, 960, 1},       // too short to split
+        {1, 8192, 1024, 960, 1},     // chunks could not hold 8 * K values
+        {1, 262144, 2048, 960, 8},   // the merge input of chunks * K candidates stays within half a chunk
+        {1, 248320, 16, 0, 31},      // default chunks of about 8192 values
+    };
+    for (const auto& c : cases) {
+        SCOPED_TRACE(std::to_string(c.rows) + "x" + std::to_string(c.sort_size) + " k=" + std::to_string(c.top_k) +
+                     " threads=" + std::to_string(c.threads));
+        kernel_selector::arg_max_min_params params;
+        params.inputs[0] = kernel_selector::DataTensor(std::vector<size_t>{c.sort_size, c.rows, 1, 1},
+                                                       kernel_selector::Datatype::F32,
+                                                       kernel_selector::DataLayout::bfyx);
+        params.outputs[0] = kernel_selector::DataTensor(std::vector<size_t>{c.top_k, c.rows, 1, 1},
+                                                        kernel_selector::Datatype::F32,
+                                                        kernel_selector::DataLayout::bfyx);
+        params.argMaxMinAxis = kernel_selector::ArgMaxMinAxis::X;
+        params.argMaxMinOut = kernel_selector::ArgMaxMinOut::MAX;
+        params.argMaxMinSortType = kernel_selector::ArgMaxMinSortType::VALUE;
+        params.topK = static_cast<uint32_t>(c.top_k);
+        params.outputs_num = 1;
+        params.engineInfo.maxWorkGroupSize = 256;
+        params.engineInfo.maxLocalMemSize = 65536;
+        params.engineInfo.maxThreadsPerDevice = c.threads;
+
+        kernel_selector::ArgMaxMinKernelTopKRadix kernel;
+        auto kernels_data = kernel.GetKernelsData(params);
+        ASSERT_EQ(kernels_data.size(), size_t(1));
+        const auto& kd = kernels_data[0];
+        ASSERT_EQ(kd.kernels.size(), c.chunks > 1 ? size_t(2) : size_t(1));
+        if (c.chunks > 1) {
+            ASSERT_EQ(kd.internalBuffers.size(), size_t(3));
+            ASSERT_EQ(kd.internalBuffers[1].byte_count, sizeof(uint32_t) * c.chunks * c.top_k * c.rows);
         }
     }
 }

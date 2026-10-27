@@ -29,13 +29,32 @@ Multi-configuration generators can add a configuration subdirectory.
 | mmproj | `GGUFMMProj`, `GGUFMMProjAccuracy`, `GGUFMMProjDynamicAccuracy`; relevant real-checkpoint tests |
 | Extension API or packaging | Builder/extension tests plus the separate architecture-library binary and actual shipped plugin |
 | Weight conversion | Weight/dequantization tests and checkpoint comparisons with recorded precision settings |
+| GGUF parsing or shard discovery | `GGUFParser`, `GGUFShards`, then the full frontend binary |
 
 Use `--gtest_list_tests` for exact parameterized names; filter while iterating, for example
 `--gtest_filter='GGUFOps.Scale*'`. A narrowed filter skips the operation-coverage gate. That gate
 runs in environment teardown, so inspect the process exit status even if no individual test failed.
 Shared changes require the affected architecture/projector numerical and structural regressions.
 
+`GGUFShards` covers discovery from either shard, unordered explicit lists, renamed files in
+different directories, metadata-only first shards, mapping lifetime, invalid or incomplete
+shard sets, repeated scalar/array metadata, and conversion equivalence with a single-file model,
+including Unicode filenames. Its generated fixtures use
+the standard `split.no` (u16), `split.count` (u16) and `split.tensors.count` (i32) metadata.
+
 ## Fixtures and oracles
+
+Regenerate the Q8_1 weight fixtures with a clean llama.cpp checkout at
+`476c01efe88aad7880a8132d5d3a415f2ca75139` and its freshly built `libggml-base`:
+
+```sh
+python3 src/frontends/gguf/tests/gen_q8_1_accuracy.py \
+  --llama-cpp /path/to/llama.cpp --library /path/to/libggml-base.so
+```
+
+The generator calls ggml's Q8_1 reference quantizer, then copies each block's F16 scale
+and signed codes into Q8_0 blocks for real ggml dequantization. Q8_1 has no `to_float`
+callback. The committed arrays and provenance JSON require no ggml dependency in unit tests.
 
 Small NPZ/NPY numerical references are committed and work offline. Missing numerical references
 fail their tests. Architecture header fixtures are generated separately; if none are present,

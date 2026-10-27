@@ -35,6 +35,10 @@ namespace cldnn {
                    _grouped == rhs._grouped;
         }
 
+        bool operator!=(const WeightsReorderParams& rhs) const {
+            return !(*this == rhs);
+        }
+
         layout get_input_layout() const { return _in_layout; }
         layout get_output_layout() const { return _out_layout; }
         bool should_be_transposed() const { return _transposed; }
