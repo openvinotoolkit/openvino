@@ -361,10 +361,9 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_q_b2d)(__private ushort8 *k_raw, __private u
     for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
         const int kg_key0 = key_base + kg * SUBGROUP_SIZE;
         const int kg_mb = kg * (SUBGROUP_SIZE / DPAS_ROWS);
-        #pragma unroll
-        for (int mb = 0; mb < SUBGROUP_SIZE / DPAS_ROWS; ++mb)
-            k_raw[kg_mb + mb] = (ushort8)0;
         const int kp_rows = PA_PAGE_ROWS(k, kg_key0);
+        // Zeroed in the else branch only: the dequant below writes every row, and a zero fill ahead of the
+        // read cost 128 moves per key tile at head 256.
         if (kp_rows > 0) {
             #if IS_PA_K_U4
             // u4: the row is PA_K_ROW_ELEMS bytes and a byte column is a channel pair, so one read at
@@ -390,6 +389,13 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_q_b2d)(__private ushort8 *k_raw, __private u
             #pragma unroll
             for (int u = 0; u < SUBGROUP_SIZE / 4; ++u) {
                 const uint w = kt[u];
+                #if IS_PA_K_U4
+                // Byte bb of w is key u * 4 + bb, i.e. the low or high byte of word bb / 2. The nibble select
+                // is lane-UNIFORM (the parity is the tile's, not the lane's), so it folds into the shift.
+                // Unsigned by construction: the int4 quantizer clamps to [0, 15] with zp = -min*scale.
+                const ushort2 w2 = as_ushort2(w);
+                const ushort nsh = (ushort)(PA_K_U4_PAR(db) * 4);
+                #endif
                 #pragma unroll
                 for (int bb = 0; bb < 4; ++bb) {
                     const int krel = kg * SUBGROUP_SIZE + u * 4 + bb;
@@ -398,19 +404,37 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_q_b2d)(__private ushort8 *k_raw, __private u
                     const half k_zp = sub_group_broadcast(k_pa_zp_lane[kg], u * 4 + bb);
                     #endif
                     #if IS_PA_K_U4
-                    // The nibble select is lane-UNIFORM (the parity is the tile's, not the lane's), so
-                    // it folds into the shift amount rather than a per-lane sel. Unsigned by
-                    // construction: the int4 quantizer clamps to [0, 15] with zp = -min*scale, so
-                    // there is no CHAR_MIN and no sign extension.
-                    const uint kb_ = (w >> (bb * 8)) & 0xFFu;
                     const half deq_k =
-                        PA_DEQ((half)U4_NIBBLE_SEL(kb_, PA_K_U4_PAR(db)), k_zp, k_sc);
+                        PA_DEQ(U4_TO_HALF((bb < 2) ? w2.s0 : w2.s1, (ushort)((bb & 1) * 8) + nsh), k_zp, k_sc);
                     #else
                     const half deq_k = PA_DEQ((half)(char)((w >> (bb * 8)) & 0xFFu), k_zp, k_sc);
                     #endif
                     k_raw[krel / DPAS_ROWS][krel % DPAS_ROWS] = as_ushort(deq_k);
                 }
             }
+        } else {
+            #pragma unroll
+            for (int mb = 0; mb < SUBGROUP_SIZE / DPAS_ROWS; ++mb)
+                k_raw[kg_mb + mb] = (ushort8)0;
+        }
+    }
+}
+#endif
+
+#if PA_MIXED_PREFETCH_K
+// The subgroup's K cache pages, whole data rows, prefetched when the key tile starts: pa_k_tile_q_b2d() reads a page in
+// 16-byte windows, one per depth-tile pair, and only the first window of each 64-byte line missed L1 otherwise.
+SDPA_OCL_INLINE void FUNC(pa_k_page_prefetch)(const __global KEY_DATA_T *K, const __private uint *k_page, const size_t b0_kv,
+                                              const int key_base, const int k) {
+    #pragma unroll
+    for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
+        const int kp_rows = PA_PAGE_ROWS(k, key_base + kg * SUBGROUP_SIZE);
+        if (kp_rows > 0) {
+            #pragma unroll
+            for (int x = 0; x < PA_K_ROW_ELEMS; x += 64)
+                intel_sub_group_2d_block_prefetch_8b_16r16x4c(
+                    (global void *)(K + PA_K_PAGE_OFF(k_page[kg * (SUBGROUP_SIZE / DPAS_ROWS)], b0_kv)), PA_K_ROW_ELEMS,
+                    kp_rows, PA_K_ROW_ELEMS, (int2)(x, 0));
         }
     }
 }
