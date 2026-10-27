@@ -387,6 +387,14 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
     // the shuffle version it replaces. Hence the it/npo/np formulation with uniform tails. Lane-
     // varying ADDRESSES are fine -- those are just gathers; it is lane-varying array INDICES and
     // loop bounds that must be avoided.
+    //
+    // Uniform is not enough either: every index into token_vals[] must be a COMPILE-TIME constant.
+    // IGC 2.41 no longer promotes a private array indexed by a runtime value (even a uniform one)
+    // to registers; it leaves it in scratch memory (cliloader TPM=576 = 2 x 9 halves x 16 lanes), and
+    // the same happened to quantize_and_save_by_channel_prefill's input_data[], which made the PREFILL
+    // dispatch 1.4x slower than master's d-major writer (qwen3-8b 8K, B70: 322 vs 224 us; 172 us
+    // with constant indices). So the loops run over the whole slot range under a uniform guard, and a
+    // value whose slot is only known at run time is written / read through a select over every slot.
     const uint half_sg = SUBGROUP_SIZE / U4_ELEMS_PER_BYTE;
     const uint col = sglid % half_sg;                          // byte column inside the group
     const uint par = sglid / half_sg;                          // token parity owned by this lane
@@ -418,19 +426,23 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
         }
         // Slot t >> 1 holds the value of token t, and this lane only ever touches tokens of its own
         // parity, so the slot index is the uniform loop counter. One extra slot for the odd tail.
-        INPUT0_TYPE token_vals[U4_ELEMS_PER_BYTE][PAGED_ATTENTION_BLOCK_SIZE / U4_ELEMS_PER_BYTE + 1];
+        #define TM_PAIRS (PAGED_ATTENTION_BLOCK_SIZE / U4_ELEMS_PER_BYTE)
+        #define TM_SLOTS (TM_PAIRS + 1)
+        INPUT0_TYPE token_vals[U4_ELEMS_PER_BYTE][TM_SLOTS];
 
         // Previously quantized tokens: one byte carries BOTH of this lane's channels, so a pair of
         // token rows is consumed per iteration and no cross-lane traffic is needed.
-        for (uint it = 0; it < npo; ++it) {
-            const uchar packed_byte = (uchar)out_data[data_off + (U4_ELEMS_PER_BYTE * it + par) * BC_TOKEN_STRIDE];
-            unroll_for (uint n = 0; n < U4_ELEMS_PER_BYTE; n++) {
-                // The shift must be on an UNSIGNED byte or the high nibble sign-extends.
-                const char u4_val = (char)((packed_byte >> (4 * n)) & 0x0F);
-                const INPUT0_TYPE v = ((INPUT0_TYPE)u4_val - orig_zp[n]) * orig_scale[n];
-                token_vals[n][it] = v;
-                max_value[n] = fmax(max_value[n], v);
-                min_value[n] = fmin(min_value[n], v);
+        unroll_for (uint it = 0; it < TM_PAIRS; ++it) {
+            if (it < npo) {
+                const uchar packed_byte = (uchar)out_data[data_off + (U4_ELEMS_PER_BYTE * it + par) * BC_TOKEN_STRIDE];
+                unroll_for (uint n = 0; n < U4_ELEMS_PER_BYTE; n++) {
+                    // The shift must be on an UNSIGNED byte or the high nibble sign-extends.
+                    const char u4_val = (char)((packed_byte >> (4 * n)) & 0x0F);
+                    const INPUT0_TYPE v = ((INPUT0_TYPE)u4_val - orig_zp[n]) * orig_scale[n];
+                    token_vals[n][it] = v;
+                    max_value[n] = fmax(max_value[n], v);
+                    min_value[n] = fmin(min_value[n], v);
+                }
             }
         }
         if (token_pos_in_block % U4_ELEMS_PER_BYTE) {
@@ -442,7 +454,10 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
             unroll_for (uint n = 0; n < U4_ELEMS_PER_BYTE; n++) {
                 const char u4_val = (char)((packed_byte >> (4 * n)) & 0x0F);
                 const INPUT0_TYPE v = ((INPUT0_TYPE)u4_val - orig_zp[n]) * orig_scale[n];
-                token_vals[n][npo] = v;
+                unroll_for (uint s = 0; s < TM_SLOTS; ++s) {
+                    if (s == npo)
+                        token_vals[n][s] = v;
+                }
                 max_value[n] = fmax(max_value[n], v);
                 min_value[n] = fmin(min_value[n], v);
             }
@@ -457,7 +472,10 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
             const bool mine = ((t % U4_ELEMS_PER_BYTE) == par) || (odd_tail && t == total - 1);
             unroll_for (uint n = 0; n < U4_ELEMS_PER_BYTE; n++) {
                 const INPUT0_TYPE v = (n == 0) ? nv.s0 : nv.s1;
-                token_vals[n][t / U4_ELEMS_PER_BYTE] = mine ? v : token_vals[n][t / U4_ELEMS_PER_BYTE];
+                unroll_for (uint s = 0; s < TM_SLOTS; ++s) {
+                    if (mine && s == t / U4_ELEMS_PER_BYTE)
+                        token_vals[n][s] = v;
+                }
                 max_value[n] = fmax(max_value[n], v);
                 min_value[n] = fmin(min_value[n], v);
             }
@@ -493,22 +511,61 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
             comp_ptr[2 * n] = 1.0 / (INPUT0_TYPE)q_scale[n];
             comp_ptr[2 * n + 1] = (INPUT0_TYPE)q_zp[n];
         }
-        for (uint it = 0; it < np; ++it) {
+#if NUM_HEAD_SIZE_GROUPS == NUM_K_HEAD_SIZE_PARTITIONS && BC_TOKEN_STRIDE >= 128 && TM_PAIRS == 8
+        // In GENERATE the NUM_K_HEAD_SIZE_PARTITIONS workgroups of one kv head each own 8 bytes of
+        // every token row. With one channel group per workgroup and rows of a whole 128-byte line or
+        // more (head 256: 16 partitions writing the same line), stores issued in row order by every
+        // partition at once queue on the same lines. So each partition starts at pair
+        // (partition % 8): at head 256 that took a generate dispatch from 5.75 to 5.03 us with 8 kv
+        // heads (B70, 1800 MHz, standalone probe; 4 kv heads 5.45 -> 5.00, 16 kv heads 5.89 -> 5.11;
+        // gemma-4-26b in cliloader 9.5 us per call against 10.1 before this change and 9.2 d-major).
+        // Elsewhere it does not pay (head 128: +3..8%, head 512: +5%): the rotated read costs a few
+        // hundred ns and fewer writers share a line, so those shapes keep the plain loop below.
+        // The rotated pair is read through a uchar8 with a uniform index (one indirect register
+        // read per store); selects or a switch over static orders were slower. PREFILL runs this on
+        // group 0 only, where the rotation is 0.
+        uchar8 qb;
+        unroll_for (uint it = 0; it < TM_PAIRS; ++it) {
             char q[U4_ELEMS_PER_BYTE];
             unroll_for (uint n = 0; n < U4_ELEMS_PER_BYTE; n++) {
                 q[n] = (char)clamp(convert_int_rte((float)(token_vals[n][it] * q_scale[n] + q_zp[n])), 0, UINT4_RANGE);
             }
             char2 res_vec = {q[0], q[1]};
-            out_data[data_off + (U4_ELEMS_PER_BYTE * it + par) * BC_TOKEN_STRIDE] = cvt_int8x2_to_uint4x2(res_vec);
+            qb[it] = cvt_int8x2_to_uint4x2(res_vec);
         }
+        const uint rot = get_group_id(2) % TM_PAIRS;
+        unroll_for (uint k = 0; k < TM_PAIRS; ++k) {
+            const uint itr = (k + rot) % TM_PAIRS;
+            if (itr < np)
+                out_data[data_off + (U4_ELEMS_PER_BYTE * itr + par) * BC_TOKEN_STRIDE] = qb[itr];
+        }
+#else
+        unroll_for (uint it = 0; it < TM_PAIRS; ++it) {
+            if (it < np) {
+                char q[U4_ELEMS_PER_BYTE];
+                unroll_for (uint n = 0; n < U4_ELEMS_PER_BYTE; n++) {
+                    q[n] = (char)clamp(convert_int_rte((float)(token_vals[n][it] * q_scale[n] + q_zp[n])), 0, UINT4_RANGE);
+                }
+                char2 res_vec = {q[0], q[1]};
+                out_data[data_off + (U4_ELEMS_PER_BYTE * it + par) * BC_TOKEN_STRIDE] = cvt_int8x2_to_uint4x2(res_vec);
+            }
+        }
+#endif
         if (odd_tail) {
             char q[U4_ELEMS_PER_BYTE];
             unroll_for (uint n = 0; n < U4_ELEMS_PER_BYTE; n++) {
-                q[n] = (char)clamp(convert_int_rte((float)(token_vals[n][np] * q_scale[n] + q_zp[n])), 0, UINT4_RANGE);
+                INPUT0_TYPE tail_val = token_vals[n][0];
+                unroll_for (uint s = 1; s < TM_SLOTS; ++s) {
+                    if (s == np)
+                        tail_val = token_vals[n][s];
+                }
+                q[n] = (char)clamp(convert_int_rte((float)(tail_val * q_scale[n] + q_zp[n])), 0, UINT4_RANGE);
             }
             char2 res_vec = {q[0], q[1]};
             out_data[data_off + (total - 1) * BC_TOKEN_STRIDE] = cvt_int8x2_to_uint4x2(res_vec);
         }
+        #undef TM_SLOTS
+        #undef TM_PAIRS
     }
 #else
     // INT4 BY_CHANNEL with token-axis packing:
@@ -627,9 +684,10 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
 #if IS_INT4_COMPRESSED && IS_KEY_BY_CHANNEL_TOKEN_MAJOR
     // Same byte-column x token-parity lane mapping as
     // quantize_and_save_by_channel_block_with_requantize_int4; see the long comment there for why a
-    // BYTE and not a channel is the unit a lane can own, and why every loop bound must be subgroup-
-    // uniform. This path has no previously quantized tokens to fold in, so it is just
-    // read / range / requantize / store.
+    // BYTE and not a channel is the unit a lane can own, why every loop bound must be subgroup-
+    // uniform, and why every index into input_data[] must be a compile-time constant (hence the
+    // guarded full-range loops and the odd tail kept in its own variable). This path has no
+    // previously quantized tokens to fold in, so it is just read / range / requantize / store.
     //
     // The arithmetic below deliberately mirrors THIS function's d-major arm, not the requantize
     // one's: prefill narrows scale/zp to INPUT0_TYPE before using them, so quantization happens in
@@ -644,7 +702,8 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
         const uint data_off = BC_DATA_OFF(out_data_offset, c_lo);
         INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*)(&out_data[BC_COMP_OFF(out_data_offset, c_lo)]);
 
-        INPUT0_TYPE input_data[U4_ELEMS_PER_BYTE][PAGED_ATTENTION_BLOCK_SIZE / U4_ELEMS_PER_BYTE + 1];
+        INPUT0_TYPE input_data[U4_ELEMS_PER_BYTE][PAGED_ATTENTION_BLOCK_SIZE / U4_ELEMS_PER_BYTE];
+        INPUT0_TYPE tail_val[U4_ELEMS_PER_BYTE];
         INPUT0_TYPE max_value[U4_ELEMS_PER_BYTE], min_value[U4_ELEMS_PER_BYTE];
         unroll_for (uint n = 0; n < U4_ELEMS_PER_BYTE; n++) {
             max_value[n] = INPUT0_VAL_MIN;
@@ -652,14 +711,16 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
         }
         // One half2 of in_data is exactly this lane's channel pair (U4_ELEMS_PER_BYTE is 2 by
         // definition). vload2 needs only 16-bit alignment, which a half pointer always has.
-        for (uint it = 0; it < np; ++it) {
-            const MAKE_VECTOR_TYPE(INPUT0_TYPE, 2) nv =
-                vload2(0, in_data + in_data_offset + (U4_ELEMS_PER_BYTE * it + par) * in_data_pitch + c_lo);
-            unroll_for (uint n = 0; n < U4_ELEMS_PER_BYTE; n++) {
-                const INPUT0_TYPE v = (n == 0) ? nv.s0 : nv.s1;
-                input_data[n][it] = v;
-                max_value[n] = fmax(max_value[n], v);
-                min_value[n] = fmin(min_value[n], v);
+        unroll_for (uint it = 0; it < PAGED_ATTENTION_BLOCK_SIZE / U4_ELEMS_PER_BYTE; ++it) {
+            if (it < np) {
+                const MAKE_VECTOR_TYPE(INPUT0_TYPE, 2) nv =
+                    vload2(0, in_data + in_data_offset + (U4_ELEMS_PER_BYTE * it + par) * in_data_pitch + c_lo);
+                unroll_for (uint n = 0; n < U4_ELEMS_PER_BYTE; n++) {
+                    const INPUT0_TYPE v = (n == 0) ? nv.s0 : nv.s1;
+                    input_data[n][it] = v;
+                    max_value[n] = fmax(max_value[n], v);
+                    min_value[n] = fmin(min_value[n], v);
+                }
             }
         }
         if (odd_tail) {
@@ -670,7 +731,7 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
                 vload2(0, in_data + in_data_offset + (tokens_num - 1) * in_data_pitch + c_lo);
             unroll_for (uint n = 0; n < U4_ELEMS_PER_BYTE; n++) {
                 const INPUT0_TYPE v = (n == 0) ? nv.s0 : nv.s1;
-                input_data[n][np] = v;
+                tail_val[n] = v;
                 max_value[n] = fmax(max_value[n], v);
                 min_value[n] = fmin(min_value[n], v);
             }
@@ -703,18 +764,20 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
             comp_ptr[2 * n] = 1.0 / scale[n];
             comp_ptr[2 * n + 1] = zp[n];
         }
-        for (uint it = 0; it < np; ++it) {
-            char q[U4_ELEMS_PER_BYTE];
-            unroll_for (uint n = 0; n < U4_ELEMS_PER_BYTE; n++) {
-                q[n] = (char)clamp(convert_int_rte((float)(input_data[n][it] * scale[n] + zp[n])), 0, UINT4_RANGE);
+        unroll_for (uint it = 0; it < PAGED_ATTENTION_BLOCK_SIZE / U4_ELEMS_PER_BYTE; ++it) {
+            if (it < np) {
+                char q[U4_ELEMS_PER_BYTE];
+                unroll_for (uint n = 0; n < U4_ELEMS_PER_BYTE; n++) {
+                    q[n] = (char)clamp(convert_int_rte((float)(input_data[n][it] * scale[n] + zp[n])), 0, UINT4_RANGE);
+                }
+                char2 res_vec = {q[0], q[1]};
+                out_data[data_off + (U4_ELEMS_PER_BYTE * it + par) * BC_TOKEN_STRIDE] = cvt_int8x2_to_uint4x2(res_vec);
             }
-            char2 res_vec = {q[0], q[1]};
-            out_data[data_off + (U4_ELEMS_PER_BYTE * it + par) * BC_TOKEN_STRIDE] = cvt_int8x2_to_uint4x2(res_vec);
         }
         if (odd_tail) {
             char q[U4_ELEMS_PER_BYTE];
             unroll_for (uint n = 0; n < U4_ELEMS_PER_BYTE; n++) {
-                q[n] = (char)clamp(convert_int_rte((float)(input_data[n][np] * scale[n] + zp[n])), 0, UINT4_RANGE);
+                q[n] = (char)clamp(convert_int_rte((float)(tail_val[n] * scale[n] + zp[n])), 0, UINT4_RANGE);
             }
             char2 res_vec = {q[0], q[1]};
             out_data[data_off + (tokens_num - 1) * BC_TOKEN_STRIDE] = cvt_int8x2_to_uint4x2(res_vec);
