@@ -100,23 +100,40 @@ struct CPUStreamsExecutor::Impl {
         }
 
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
-        custom::core_type_id map_proc_kind_to_tbb_core_type(const std::vector<custom::core_type_id>& sys_core_types,
-                                                            const int proc_kind) {
+        std::vector<custom::core_type_id> map_proc_kind_to_tbb_core_types(
+            const std::vector<custom::core_type_id>& sys_core_types,
+            const std::vector<int>& core_type_counts,
+            const int proc_kind) {
             if (sys_core_types.empty()) {
-                return custom::task_arena::automatic;
+                return {};
             }
 
+            const auto get_count = [&](const int core_type) -> std::size_t {
+                if (core_type_counts.empty() || static_cast<std::size_t>(core_type) >= core_type_counts.size()) {
+                    return 1;
+                }
+                return static_cast<std::size_t>(std::max(0, core_type_counts[core_type]));
+            };
+            const auto pcore_count = std::min(get_count(MAIN_CORE_PROC), sys_core_types.size());
+            std::size_t end = sys_core_types.size();
+            std::size_t count = 0;
             switch (proc_kind) {
             case MAIN_CORE_PROC:
             case HYPER_THREADING_PROC:
-                return sys_core_types.back();
+                count = pcore_count;
+                break;
             case EFFICIENT_CORE_PROC:
-                return sys_core_types.size() >= 2 ? *(sys_core_types.end() - 2) : sys_core_types.back();
+                end -= pcore_count;
+                count = std::min(get_count(EFFICIENT_CORE_PROC), end);
+                break;
             case LP_EFFICIENT_CORE_PROC:
-                return sys_core_types.front();
+                count = std::min(get_count(LP_EFFICIENT_CORE_PROC), end);
+                end = count;
+                break;
             default:
-                return sys_core_types.back();
+                return {sys_core_types.back()};
             }
+            return {sys_core_types.begin() + (end - count), sys_core_types.begin() + end};
         }
 
         std::vector<custom::core_type_id> map_proc_kinds_to_tbb_core_types(
@@ -125,12 +142,15 @@ struct CPUStreamsExecutor::Impl {
             std::vector<custom::core_type_id> mapped_core_types;
             mapped_core_types.reserve(proc_kinds.size());
 
+            const auto core_type_counts = get_core_type_count();
+
             for (const auto proc_kind : proc_kinds) {
-                const auto core_type = map_proc_kind_to_tbb_core_type(sys_core_types, proc_kind);
-                if (core_type != custom::task_arena::automatic &&
-                    std::find(mapped_core_types.begin(), mapped_core_types.end(), core_type) ==
-                        mapped_core_types.end()) {
-                    mapped_core_types.push_back(core_type);
+                for (const auto core_type : map_proc_kind_to_tbb_core_types(sys_core_types, core_type_counts, proc_kind)) {
+                    if (core_type != custom::task_arena::automatic &&
+                        std::find(mapped_core_types.begin(), mapped_core_types.end(), core_type) ==
+                            mapped_core_types.end()) {
+                        mapped_core_types.push_back(core_type);
+                    }
                 }
             }
 
@@ -205,7 +225,7 @@ struct CPUStreamsExecutor::Impl {
                                                                 .set_max_threads_per_core(max_threads_per_core)});
                 }
             } else if (_stream_type == STREAM_WITH_CORE_TYPE) {
-                // sys_core_types = [LPECore, Ecore, Pcore]
+                // sys_core_types = [LPECore, Ecore, Pcore] or [LPECore, Ecore, Pcore1, Pcore2]
                 const auto sys_core_types = custom::info::core_types();
                 const auto mapped_core_types = map_proc_kinds_to_tbb_core_types(sys_core_types, core_types);
                 auto constraints = custom::task_arena::constraints{}
