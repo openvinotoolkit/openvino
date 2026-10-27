@@ -142,10 +142,11 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(
                                   proc_type_table[0][LP_EFFICIENT_CORE_PROC] / threads_per_stream;
                 if (streams_num >= streamConfig._streams) {
                     break;
+                } else if (threads_per_stream > 1) {
+                    threads_per_stream--;
                 } else {
-                    if (threads_per_stream > 1) {
-                        threads_per_stream--;
-                    }
+                    // No further reduction can increase the number of streams.
+                    break;
                 }
             }
         }
