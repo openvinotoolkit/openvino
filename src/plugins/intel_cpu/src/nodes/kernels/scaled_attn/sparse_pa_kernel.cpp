@@ -9,9 +9,11 @@
 #include <cstdint>
 #include <limits>
 #include <numeric>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
+#include "nodes/kernels/scaled_attn/attn_quant_kernel.hpp"
 #include "nodes/kernels/scaled_attn/common.hpp"
 #include "nodes/kernels/scaled_attn/paged_attn_kernel.hpp"
 #include "openvino/core/except.hpp"
@@ -49,6 +51,133 @@ void store_row_f32(const PlainTensor& t, size_t len, const float* src, Idx... id
     } else {
         cvt_copy(reinterpret_cast<float*>(t.ptr_v(idx...)), src, 1, len, 0, 0);
     }
+}
+
+// ---- quantized (u8/u4) paged cache access, same layouts as PagedAttention (see SparsePAQuant) ----
+
+// Calls fn(std::integral_constant<PREC>) for the u8 or u4 cache precision.
+template <typename Fn>
+void dispatch_quant_prec(ov::element::Type prec, Fn&& fn) {
+    if (prec == ov::element::u4) {
+        fn(std::integral_constant<ov::element::Type_t, ov::element::u4>{});
+    } else {
+        fn(std::integral_constant<ov::element::Type_t, ov::element::u8>{});
+    }
+}
+
+// Dequantizes `n` consecutive by-token rows [slot0, slot0 + n) of one (physical block, kv head) into dst[n, D].
+template <typename TDST, ov::element::Type_t PREC>
+void dequant_rows_by_token(const PlainTensor& cache,
+                           size_t phys_block,
+                           size_t kv,
+                           size_t slot0,
+                           size_t n,
+                           size_t D,
+                           size_t group_size,
+                           TDST* dst) {
+    constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(PREC);
+    constexpr size_t params_offset = sizeof(float) * 2;
+    const size_t gs = group_size ? group_size : D;
+    const auto* s = cache.ptr<uint8_t, PREC>(phys_block, kv, slot0);
+    for (size_t r = 0; r < n; r++) {
+        size_t src_offset = 0;
+        for (size_t d = 0; d < D; d += gs) {
+            const auto* params = reinterpret_cast<const float*>(s + src_offset);
+            attn_dequant_kernel<TDST, PREC>(s + src_offset + params_offset, dst + d, gs, params);
+            src_offset += gs / sub_byte_multiplier + params_offset;
+        }
+        s += src_offset;
+        dst += D;
+    }
+}
+
+// Dequantizes `n` consecutive rows [slot0, slot0 + n) of a by-channel key page: the page head holds the
+// per-channel scales and zero points, followed by the quantized [block_size, S] rows.
+template <typename TDST, ov::element::Type_t PREC>
+void dequant_key_rows_by_channel(const PlainTensor& cache,
+                                 size_t phys_block,
+                                 size_t kv,
+                                 size_t slot0,
+                                 size_t n,
+                                 size_t S,
+                                 TDST* dst) {
+    constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(PREC);
+    const auto* page = cache.ptr<uint8_t, PREC>(phys_block, kv);
+    const auto* scales = reinterpret_cast<const float*>(page);
+    const float* zps = scales + S;
+    const uint8_t* data = page + sizeof(float) * 2 * S;
+    const size_t row_stride = S / sub_byte_multiplier;
+    attn_dequant_by_channel_kernel<TDST, PREC>(data + slot0 * row_stride, dst, n, S, row_stride, S, scales, zps);
+}
+
+template <typename TDST>
+void dequant_k_rows(const SparsePAQuant& quant,
+                    const PlainTensor& cache,
+                    size_t phys_block,
+                    size_t kv,
+                    size_t slot0,
+                    size_t n,
+                    size_t S,
+                    TDST* dst) {
+    dispatch_quant_prec(quant.key_prec, [&](auto prec) {
+        constexpr auto PREC = decltype(prec)::value;
+        if (quant.key_bychannel) {
+            dequant_key_rows_by_channel<TDST, PREC>(cache, phys_block, kv, slot0, n, S, dst);
+        } else {
+            dequant_rows_by_token<TDST, PREC>(cache, phys_block, kv, slot0, n, S, quant.key_group_size, dst);
+        }
+    });
+}
+
+template <typename TDST>
+void dequant_v_rows(const SparsePAQuant& quant,
+                    const PlainTensor& cache,
+                    size_t phys_block,
+                    size_t kv,
+                    size_t slot0,
+                    size_t n,
+                    size_t Sv,
+                    TDST* dst) {
+    dispatch_quant_prec(quant.value_prec, [&](auto prec) {
+        constexpr auto PREC = decltype(prec)::value;
+        dequant_rows_by_token<TDST, PREC>(cache, phys_block, kv, slot0, n, Sv, quant.value_group_size, dst);
+    });
+}
+
+// scores[j] = dot(q, key row slot0 + j) for by-token key rows, straight from the quantized cache.
+void dot_key_rows_by_token(const SparsePAQuant& quant,
+                           const PlainTensor& cache,
+                           size_t phys_block,
+                           size_t kv,
+                           size_t slot0,
+                           size_t rows,
+                           size_t S,
+                           float* q,
+                           float* scores) {
+    dispatch_quant_prec(quant.key_prec, [&](auto prec) {
+        constexpr auto PREC = decltype(prec)::value;
+        auto* k = cache.ptr<uint8_t, PREC>(phys_block, kv, slot0);
+        const size_t gs = quant.key_group_size ? quant.key_group_size : S;
+        dot_product_block_quantized<float, PREC>(q, k, scores, S, false, rows, gs);
+    });
+}
+
+// out += sum_j weights[j] * (value row slot0 + j), straight from the quantized cache (value is always by-token).
+void acc_value_rows_by_token(const SparsePAQuant& quant,
+                             const PlainTensor& cache,
+                             size_t phys_block,
+                             size_t kv,
+                             size_t slot0,
+                             size_t rows,
+                             size_t Sv,
+                             float* weights,
+                             float* out) {
+    dispatch_quant_prec(quant.value_prec, [&](auto prec) {
+        constexpr auto PREC = decltype(prec)::value;
+        auto* v = cache.ptr<uint8_t, PREC>(phys_block, kv, slot0);
+        const size_t gs = quant.value_group_size ? quant.value_group_size : Sv;
+        attn_acc_value_block_quantized<float, PREC>(out, weights, v, Sv, false, rows, gs);
+    });
 }
 
 #ifdef OPENVINO_ARCH_X86_64
@@ -143,6 +272,9 @@ void run_amx_qk_chunks_paged(const PlainTensor& query,
                              float scale,
                              const DecomposedRuns& runs,
                              const TokenPhysFn& token_phys,
+                             const SparsePAQuant& quant,
+                             AmxT* k_dq,
+                             AmxT* v_dq,
                              float* acc,
                              float* raw_buf,
                              float& running_max,
@@ -160,7 +292,18 @@ void run_amx_qk_chunks_paged(const PlainTensor& query,
         const size_t n_units = static_cast<size_t>(runs.chunk_n_units[idx]);
         const size_t chunk_len = n_units * unit_rows;
         const auto [phys_block, slot_start] = token_phys(block_start);
-        const auto* k_amx = key_cache.ptr<AmxT>(phys_block, kv, slot_start);
+        // Quantized caches are dequantized chunk by chunk into AmxT scratch; plain caches are read in place.
+        const AmxT* k_amx = nullptr;
+        AmxT* v_amx = nullptr;
+        if (quant.enabled()) {
+            dequant_k_rows<AmxT>(quant, key_cache, phys_block, kv, slot_start, chunk_len, Dh, k_dq);
+            dequant_v_rows<AmxT>(quant, value_cache, phys_block, kv, slot_start, chunk_len, Dv, v_dq);
+            k_amx = k_dq;
+            v_amx = v_dq;
+        } else {
+            k_amx = key_cache.ptr<AmxT>(phys_block, kv, slot_start);
+            v_amx = value_cache.ptr<AmxT>(phys_block, kv, slot_start);
+        }
         auto& kernel = n_units == 4 ? gemv4 : gemv1;
         kernel(q_amx, k_amx, raw_buf);
 
@@ -189,7 +332,6 @@ void run_amx_qk_chunks_paged(const PlainTensor& query,
             raw_buf[r] = p;
             running_sum += p;
         }
-        auto* v_amx = value_cache.ptr<AmxT>(phys_block, kv, slot_start);
         if constexpr (std::is_same_v<AmxT, ov::bfloat16>) {
             attn_acc_value_block<ov::bfloat16, ov::element::bf16>(acc, raw_buf, v_amx, Dv, chunk_len, 0);
         } else {
@@ -224,6 +366,7 @@ void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
                        size_t H_sel,
                        bool causal,
                        float scale,
+                       const SparsePAQuant& quant,
                        ov::element::Type amx_prec,
                        void* gemv_qk1_ptr,
                        void* gemv_qk4_ptr,
@@ -233,8 +376,9 @@ void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
     auto* gemv_qk4 = static_cast<ov::Extensions::Cpu::JitMatMulVecAMX*>(gemv_qk4_ptr);
     const size_t q_per_sel = Hq / H_sel;
     const size_t group = Hq / Hkv;
-    // The physical page size is KEY_CACHE's dim 2 (the op has no separate block_size attribute).
-    const size_t block_size_sz = key_cache.size(2);
+    // The physical page size: KEY_CACHE's dim 2 for plain caches; for quantized caches the node passes the real
+    // size, since by-channel key pages carry extra parameter rows in dim 2.
+    const size_t block_size_sz = quant.block_size ? quant.block_size : key_cache.size(2);
     const auto block_size = static_cast<int64_t>(block_size_sz);
     const auto Bk = static_cast<int64_t>(Bk_sz);
 
@@ -275,8 +419,11 @@ void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
         };
 
         // ---- Q0: in-place write of the current-step K/V into the paged main-KV cache ----
-        std::vector<float> kv_buf(std::max(Dh, Dv));
-        for (int32_t token = token_begin; token < token_end; token++) {
+        // Quantized caches were already written by the node (paged_attn_quantkv), so only plain caches are written
+        // here.
+        std::vector<float> kv_buf(quant.enabled() ? 0 : std::max(Dh, Dv));
+        const int32_t q0_end = quant.enabled() ? token_begin : token_end;
+        for (int32_t token = token_begin; token < q0_end; token++) {
             const size_t token_u = static_cast<size_t>(token);
             const int64_t logical_pos = seq_past_len + (token - token_begin);
             const auto [phys_block, slot] = token_phys(logical_pos);
@@ -348,8 +495,24 @@ void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
         std::vector<int64_t> chunk_block_start_buf;
         std::vector<int64_t> chunk_n_units_buf;
         std::vector<int64_t> leftover_block_start_buf;
+        // Quantized caches: per-run scores and by-channel key dequant scratch (a run is at most key_block_size rows),
+        // and AmxT dequant scratch for AMX chunks (2-byte bf16/f16 elements).
+        std::vector<float> run_scores;
+        std::vector<float> k_run;
+        std::vector<uint16_t> k_dq_buf;
+        std::vector<uint16_t> v_dq_buf;
+        if (quant.enabled()) {
+            run_scores.resize(Bk_sz);
+            if (quant.key_bychannel) {
+                k_run.resize(Bk_sz * Dh);
+            }
+        }
 #ifdef OPENVINO_ARCH_X86_64
         if (amx_prec != ov::element::dynamic) {
+            if (quant.enabled()) {
+                k_dq_buf.resize(4 * amx_unit_blocks * Bk_sz * Dh);
+                v_dq_buf.resize(4 * amx_unit_blocks * Bk_sz * Dv);
+            }
             raw_buf.resize(4 * amx_unit_blocks * Bk_sz);
             const size_t K_max = sel_indices.size(2);
             chunk_block_start_buf.resize(K_max);
@@ -401,20 +564,86 @@ void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
                     running_max = new_max;
                 };
 
+                // Quantized caches: attends to up to `n` consecutive logical positions [kpos0, kpos0 + n), all inside
+                // one physical page (a selected block or the causal tail), with one online-softmax update for the run.
+                // By-token rows are consumed straight from the quantized cache by PagedAttention's block kernels;
+                // by-channel key rows are dequantized to f32 first, since those kernels walk a whole page from its
+                // head.
+                auto consume_run_quant = [&](int64_t kpos0, int64_t n) {
+                    const int64_t limit = causal ? std::min(valid_max, token_pos + 1) : valid_max;
+                    n = std::min(n, limit - kpos0);
+                    if (kpos0 < 0 || n <= 0) {
+                        return;
+                    }
+                    const auto [p_phys_block, p_slot] = token_phys(kpos0);
+                    const auto rows = static_cast<size_t>(n);
+                    float* scores = run_scores.data();
+                    if (quant.key_bychannel) {
+                        dequant_k_rows<float>(quant, key_cache, p_phys_block, kv, p_slot, rows, Dh, k_run.data());
+                        for (size_t r = 0; r < rows; r++) {
+                            const float* k_row = k_run.data() + r * Dh;
+                            float dot = 0.0F;
+                            for (size_t d = 0; d < Dh; d++) {
+                                dot += q_buf[d] * k_row[d];
+                            }
+                            scores[r] = dot;
+                        }
+                    } else {
+                        dot_key_rows_by_token(quant,
+                                              key_cache,
+                                              p_phys_block,
+                                              kv,
+                                              p_slot,
+                                              rows,
+                                              Dh,
+                                              q_buf.data(),
+                                              scores);
+                    }
+                    float run_max = -std::numeric_limits<float>::infinity();
+                    for (size_t r = 0; r < rows; r++) {
+                        scores[r] *= scale;
+                        run_max = std::max(run_max, scores[r]);
+                    }
+                    const float new_max = std::max(running_max, run_max);
+                    const float corr = std::exp(running_max - new_max);
+                    running_sum *= corr;
+                    for (size_t d = 0; d < Dv; d++) {
+                        acc[d] *= corr;
+                    }
+                    for (size_t r = 0; r < rows; r++) {
+                        scores[r] = std::exp(scores[r] - new_max);
+                        running_sum += scores[r];
+                    }
+                    acc_value_rows_by_token(quant, value_cache, p_phys_block, kv, p_slot, rows, Dv, scores, acc.data());
+                    running_max = new_max;
+                };
+                // Attends to the `Bk`-wide block starting at `block_start` through whichever consume path fits the
+                // cache.
+                auto consume_block = [&](int64_t block_start) {
+                    if (quant.enabled()) {
+                        consume_run_quant(block_start, Bk);
+                        return;
+                    }
+                    for (int64_t p = block_start; p < block_start + Bk; p++) {
+                        consume(p);
+                    }
+                };
+
                 // Selected complete blocks: idx*Bk is the block's own starting logical KV
                 // position, so token_phys() resolves each of its Bk tokens directly.
                 const auto nblocks = static_cast<size_t>(*sel_count.ptr<int32_t>(row, sh));
                 auto consume_blocks_scalar = [&]() {
                     for (size_t i = 0; i < nblocks; i++) {
                         const auto block_id = static_cast<int64_t>(*sel_indices.ptr<int32_t>(row, sh, i));
-                        const int64_t block_start = block_id * Bk;
-                        for (int64_t p = block_start; p < block_start + Bk; p++) {
-                            consume(p);
-                        }
+                        consume_block(block_id * Bk);
                     }
                 };
 #ifdef OPENVINO_ARCH_X86_64
-                if (amx_prec != ov::element::dynamic && nblocks > 0) {
+                // Decode (one query token) reads quantized caches with the run-based kernels above; prefill dequantizes
+                // chunks into AMX scratch. Plain caches use AMX for both.
+                const bool use_amx =
+                    amx_prec != ov::element::dynamic && nblocks > 0 && (!quant.enabled() || chunk_len > 1);
+                if (use_amx) {
                     DecomposedRuns decomposed;
                     decomposed.chunk_block_start = chunk_block_start_buf.data();
                     decomposed.chunk_n_units = chunk_n_units_buf.data();
@@ -445,6 +674,9 @@ void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
                                                               scale,
                                                               decomposed,
                                                               token_phys,
+                                                              quant,
+                                                              reinterpret_cast<ov::bfloat16*>(k_dq_buf.data()),
+                                                              reinterpret_cast<ov::bfloat16*>(v_dq_buf.data()),
                                                               acc.data(),
                                                               raw_buf.data(),
                                                               running_max,
@@ -467,6 +699,9 @@ void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
                                                              scale,
                                                              decomposed,
                                                              token_phys,
+                                                             quant,
+                                                             reinterpret_cast<ov::float16*>(k_dq_buf.data()),
+                                                             reinterpret_cast<ov::float16*>(v_dq_buf.data()),
                                                              acc.data(),
                                                              raw_buf.data(),
                                                              running_max,
@@ -477,10 +712,7 @@ void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
                     // or one capped at a physical-page boundary) still need to contribute -- fall
                     // back to the scalar per-token path for just those blocks.
                     for (size_t li = 0; li < decomposed.leftover_count; li++) {
-                        const int64_t block_start = decomposed.leftover_block_start[li];
-                        for (int64_t p = block_start; p < block_start + Bk; p++) {
-                            consume(p);
-                        }
+                        consume_block(decomposed.leftover_block_start[li]);
                     }
                 } else {
                     consume_blocks_scalar();
@@ -495,8 +727,12 @@ void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
                 // logical position; it is empty at a block boundary.
                 if (causal) {
                     const int64_t tail_start = ((token_pos + 1) / Bk) * Bk;
-                    for (int64_t p = tail_start; p <= token_pos; p++) {
-                        consume(p);
+                    if (quant.enabled()) {
+                        consume_run_quant(tail_start, token_pos - tail_start + 1);
+                    } else {
+                        for (int64_t p = tail_start; p <= token_pos; p++) {
+                            consume(p);
+                        }
                     }
                 }
 

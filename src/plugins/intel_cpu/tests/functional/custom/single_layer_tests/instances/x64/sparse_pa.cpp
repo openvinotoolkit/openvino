@@ -11,6 +11,9 @@ namespace test {
 
 namespace {
 constexpr size_t kU = 1;  // readability helper for the size_t Values() lists below
+constexpr size_t kNoGroup = 0;  // by-token quantization with one group per row
+constexpr size_t kDecode = 1;   // one new token per sequence: the decode path
+constexpr size_t kPrefill = 8;  // several new tokens per sequence: the prefill path
 }  // namespace
 
 // num_selection_heads == 1: a single selection head shared by every query head. page_size 4 is a
@@ -23,7 +26,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_Hsel1,
                                           testing::Values(kU, static_cast<size_t>(3)),
                                           testing::Values(static_cast<size_t>(16)),
                                           testing::Values(static_cast<size_t>(2)),
-                                          testing::Values(static_cast<size_t>(4))),
+                                          testing::Values(static_cast<size_t>(4)),
+                                          testing::Values(ov::element::dynamic),
+                                          testing::Values(false),
+                                          testing::Values(kNoGroup),
+                                          testing::Values(kPrefill)),
                          SparsePALayerCPUTest::getTestCaseName);
 
 // num_selection_heads == num_kv_heads: exercises the sh = h / (Hq/num_selection_heads) grouping path.
@@ -35,7 +42,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_HselEqualsHkv,
                                           testing::Values(static_cast<size_t>(3)),
                                           testing::Values(static_cast<size_t>(16)),
                                           testing::Values(static_cast<size_t>(2)),
-                                          testing::Values(static_cast<size_t>(8))),
+                                          testing::Values(static_cast<size_t>(8)),
+                                          testing::Values(ov::element::dynamic),
+                                          testing::Values(false),
+                                          testing::Values(kNoGroup),
+                                          testing::Values(kPrefill)),
                          SparsePALayerCPUTest::getTestCaseName);
 
 // AMX QK^T fast path: bf16 end-to-end, k_head_size % 32 == 0, key_block_size == 4 (the Qwen4
@@ -50,7 +61,29 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_AMX,
                                           testing::Values(static_cast<size_t>(3)),
                                           testing::Values(static_cast<size_t>(32)),
                                           testing::Values(static_cast<size_t>(4)),
-                                          testing::Values(static_cast<size_t>(16), static_cast<size_t>(64))),
+                                          testing::Values(static_cast<size_t>(16), static_cast<size_t>(64)),
+                                          testing::Values(ov::element::dynamic),
+                                          testing::Values(false),
+                                          testing::Values(kNoGroup),
+                                          testing::Values(kPrefill)),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+// Quantized (u8/u4) KV caches, as produced by ConvertPagedAttnInputs: by-token or by-channel keys, by-token values,
+// with one group per row or several, for the decode (1 new token) and prefill (several new tokens) paths. past_len
+// values that are not a multiple of the page size make by-channel keys requantize a partially filled leading page.
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_QuantizedCache,
+                         SparsePALayerCPUTest,
+                         testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
+                                          testing::Values(ov::element::f32, ov::element::bf16),
+                                          testing::Values(kU, static_cast<size_t>(2)),
+                                          testing::Values(static_cast<size_t>(3)),
+                                          testing::Values(static_cast<size_t>(32)),
+                                          testing::Values(static_cast<size_t>(4)),
+                                          testing::Values(static_cast<size_t>(32)),
+                                          testing::Values(ov::element::u8, ov::element::u4),
+                                          testing::Values(false, true),
+                                          testing::Values(kNoGroup, static_cast<size_t>(16)),
+                                          testing::Values(kDecode, kPrefill)),
                          SparsePALayerCPUTest::getTestCaseName);
 
 }  // namespace test

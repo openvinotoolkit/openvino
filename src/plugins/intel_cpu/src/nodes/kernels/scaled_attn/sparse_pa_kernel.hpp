@@ -14,6 +14,30 @@
 #    include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #endif
 
+// Defined outside XARCH, like QuantizeParam, so the cross-compiled dispatcher can name it in the signature.
+namespace ov::Extensions::Cpu {
+
+/// @brief Layout of quantized (u8/u4) paged KV caches, matching PagedAttention (see executor_pa.cpp):
+///  - by-token (key or value): each row is a sequence of groups `[scale f32][zp f32][group data]`, so the row
+///    holds `S + 8 * groups` elements (u8) or `S + 16 * groups` (u4); `*_group_size == 0` means one group per row.
+///  - by-channel (key only): each page is `f32 scale[S] | f32 zp[S] | data[block_size, S]`.
+/// The caches are either both quantized (`enabled()`) or both plain f32/f16/bf16. The node writes the current-step
+/// K/V into quantized caches before calling the kernel, so the kernel only reads them.
+struct SparsePAQuant {
+    ov::element::Type key_prec = ov::element::dynamic;  ///< u8/u4 if the key cache is quantized, else dynamic
+    ov::element::Type value_prec = ov::element::dynamic;
+    size_t key_group_size = 0;
+    size_t value_group_size = 0;
+    bool key_bychannel = false;
+    size_t block_size = 0;  ///< tokens per page, without by-channel parameter rows; 0 means key_cache dim 2
+
+    [[nodiscard]] bool enabled() const {
+        return key_prec != ov::element::dynamic;
+    }
+};
+
+}  // namespace ov::Extensions::Cpu
+
 namespace ov::Extensions::Cpu::XARCH {
 
 // Single cross-compiled entry point for ov::intel_cpu::node::SparsePA (see sparse_pa.h for the
@@ -47,6 +71,7 @@ void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
                        size_t num_selection_heads,
                        bool causal,
                        float scale,
+                       const SparsePAQuant& quant,
                        ov::element::Type amx_prec,
                        void* gemv_qk1,
                        void* gemv_qk4,

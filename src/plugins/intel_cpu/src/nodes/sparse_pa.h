@@ -13,9 +13,11 @@
 #include "graph_context.h"
 #include "node.h"
 #include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
+#include "nodes/kernels/scaled_attn/sparse_pa_kernel.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/paged_sparse_attention.hpp"
+#include "utils/plain_tensor.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -92,8 +94,16 @@ private:
         bool causal = true;
     };
     static bool deriveConfig(const ov::op::internal::PagedSparseAttention& op, Config& config, std::string& reason);
+    /// @brief Validates the cache layout against the plugin's KV-cache quantization settings and fills m_quant. The
+    /// quantized cache shapes (padded head size or page size) follow PagedAttention, see SparsePAQuant.
+    bool deriveQuant(std::string& reason);
+    /// @brief Quantizes the current-step K/V into u8/u4 caches (the kernel only reads quantized caches).
+    void writeQuantizedKV();
 
     Config m_config{};
+    ov::Extensions::Cpu::SparsePAQuant m_quant{};
+    ov::intel_cpu::PlainTensor m_slot_mapping;  // [tokens], physical slot of every new token
+    ov::intel_cpu::PlainTensor m_temp_buffer;   // by-channel requantization scratch of paged_attn_quantkv
 
     // AMX QK^T fast path: ov::element::dynamic means "not eligible" (decided once in
     // createPrimitive(), never re-checked per call). Only activates when QUERY/KEY_CACHE are
