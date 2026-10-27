@@ -25,6 +25,8 @@ protected:
         bool conv = d->history > 0;
         j.make("INPLACE_STAGE", m_stage);
         j.make("HISTORY", d->history);
+        if (conv)
+            j.make("FUSED_CONV", p.input_layouts.size() == 9 ? 1 : 0);
         if (!conv) {
             auto q = p.get_input_layout(0).get_partial_shape(), v = p.get_input_layout(2).get_partial_shape();
             j.make("K_HEAD_NUM", q[2].get_length());

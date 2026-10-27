@@ -24,7 +24,6 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
-#include "openvino/op/recurrent_cache.hpp"
 #include "openvino/op/recurrent_cache_update.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/search_sorted.hpp"
@@ -81,8 +80,7 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     }
 
     if (ov::is_type<ov::op::internal::GatedDeltaNet>(op) || ov::is_type<ov::op::internal::SelectiveSSM>(op) ||
-        ov::is_type<ov::op::internal::PagedSelectiveSSM>(op) || ov::is_type<ov::op::internal::RecurrentStateGather>(op) ||
-        ov::is_type<ov::op::internal::RecurrentConvCache>(op) || ov::is_type<ov::op::internal::RecurrentStateUpdate>(op) ||
+        ov::is_type<ov::op::internal::PagedSelectiveSSM>(op) ||
         ov::is_type<ov::op::internal::RecurrentConvCacheUpdate>(op) ||
         ov::is_type<ov::op::internal::RecurrentGatedDeltaNetUpdate>(op)) {
         return true;

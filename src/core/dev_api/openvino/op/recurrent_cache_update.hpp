@@ -4,10 +4,12 @@
 #include "openvino/op/op.hpp"
 namespace ov::op::internal {
 /// Qwen3.5/Qwen3.6 llama.cpp convolution and generic cache_r maintenance.
-/// Inputs match the nine-input RecurrentConvCache: original cache, active rows,
-/// extra rows, reset begin/length, extra offsets, QKV, windows, depthwise weights.
-/// Outputs are convolution [1,B,T,C] and the complete updated [1,1,S,C*history] cache.
-/// GPU execution may reuse a caller's identical input/output device allocation only
+/// Inputs: original cache, active rows, extra rows, reset begin/length,
+/// extra offsets, QKV [1,B,C,T], windows and optional depthwise weights.
+/// With nine inputs output 0 is convolution [1,B,T,C]; with eight it is
+/// history plus QKV [1,B,C,history+T] for a separate GroupConvolution.
+/// Output 1 is the complete updated [1,1,S,C*history] cache.
+/// GPU execution may reuse a caller's identical input/output USM allocation only
 /// when it is the exclusive cache reader. Required original rows are gathered into
 /// device scratch before any reset, reorder or window write, preserving cycles,
 /// duplicate sources and later-window precedence. Other bindings retain immutable
@@ -30,7 +32,7 @@ private:
     int64_t m_history = 0;
 };
 /// Qwen3.5/Qwen3.6 llama.cpp GDN and generic cache_s maintenance.
-/// Inputs match the twelve-input RecurrentGatedDeltaNet: Q/K/V, cache, gate/beta,
+/// Twelve inputs: Q/K/V, cache, gate/beta,
 /// active/extra rows, reset begin/length, extra offsets, ordered write control.
 /// Outputs are attention [B,T,H,V] and the complete [1,1,S,H*V*K] updated cache.
 /// snapshot_count saves only the newest min(T,count) states, newest first.

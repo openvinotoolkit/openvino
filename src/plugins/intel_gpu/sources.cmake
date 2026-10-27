@@ -100,7 +100,6 @@ set(GPU_PLUGIN_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/random_uniform.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/range.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/reduce.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/recurrent_cache.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/recurrent_cache_update.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/region_yolo.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/reorg_yolo.cpp

@@ -55,9 +55,8 @@ protected:
         jit.make("Q_L2_NORM_EPS", desc->q_l2_norm_eps);
         jit.make("K_L2_NORM_EPS", desc->k_l2_norm_eps);
         jit.make("SCALE_FACTOR", scale_factor);
-        jit.make("CACHE_MODE", desc->recurrent_cache_mode ? 1 : 0);
-        jit.make("OUTPUT_STATE", !desc->recurrent_cache_mode ? output_state : 0);
-        jit.make("OUTPUT_SNAPSHOTS", desc->snapshot_count > 1 && !desc->recurrent_cache_mode ? 1 : 0);
+        jit.make("OUTPUT_STATE", output_state);
+        jit.make("OUTPUT_SNAPSHOTS", desc->snapshot_count > 1 ? 1 : 0);
         jit.make("SNAPSHOT_COUNT", desc->snapshot_count);
 
         return jit;
@@ -121,9 +120,7 @@ protected:
             const int32_t v_t_stride =
                 v_pitches.size() > 1 ? static_cast<int32_t>(v_pitches[1]) : static_cast<int32_t>(v_shape[2].get_length() * v_shape[3].get_length());
 
-            const size_t cache_rows =
-                params.typed_desc<gated_delta_net>()->recurrent_cache_mode ? params.get_input_layout(3).get_partial_shape()[2].get_length() : 0;
-            wgs.global = {batch + cache_rows, head_nums, v_blocks * subgroup_size};
+            wgs.global = {batch, head_nums, v_blocks * subgroup_size};
             wgs.local = {1, 1, subgroup_size};
 
             kd.params.scalars.clear();

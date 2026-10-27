@@ -53,7 +53,6 @@
 #include "read_value_inst.h"
 #include "registry/implementation_manager.hpp"
 #include "registry/registry.hpp"
-#include "recurrent_cache_inst.h"
 #include "recurrent_cache_update_inst.h"
 #include "reorder_inst.h"
 #include "resample_inst.h"
@@ -836,12 +835,8 @@ bool primitive_inst::try_bind_remote_permute_output(const layout& actual_layout)
 }
 
 bool primitive_inst::try_bind_recurrent_cache_output(const layout& actual_layout, size_t idx) {
-    // Qwen3.5 llama.cpp binds caller-owned full-cache Results. Existing fused ops
-    // require disjoint input/output banks; Update ops additionally permit exact
-    // exclusive cache aliases. The ordinary forward probe only handles port 0.
-    const bool cache_port =
-        idx == 1 && (get_node().is_type<recurrent_cache_update>() || (get_node().is_type<gated_delta_net>() && get_node().as<gated_delta_net>().get_primitive()->recurrent_cache_mode) ||
-                     (get_node().is_type<recurrent_cache>() && get_node().as<recurrent_cache>().get_primitive()->history > 0 && dependencies().size() == 9));
+    // Qwen3.5 llama.cpp Update ops permit exact, exclusive cache aliases on port 1.
+    const bool cache_port = idx == 1 && get_node().is_type<recurrent_cache_update>();
     if (!cache_port || !is_dynamic())
         return false;
 
@@ -863,9 +858,8 @@ bool primitive_inst::try_bind_recurrent_cache_output(const layout& actual_layout
             actual_layout.get_pitches() != target_layout.get_pitches() || actual_layout.get_linear_offset() != target_layout.get_linear_offset() ||
             actual_layout.bytes_count() > remote->size())
             continue;
-        const bool staged_update = get_node().is_type<recurrent_cache_update>();
-        const size_t cache_input = staged_update && get_node().as<recurrent_cache_update>().get_primitive()->history == 0 ? 3 : 0;
-        bool alias_cache = staged_update && get_network().get_engine().is_the_same_buffer(*input_memory_ptr(cache_input), *remote);
+        const size_t cache_input = get_node().as<recurrent_cache_update>().get_primitive()->history == 0 ? 3 : 0;
+        bool alias_cache = get_network().get_engine().is_the_same_buffer(*input_memory_ptr(cache_input), *remote);
         const primitive_inst* cache_root = dependencies().at(cache_input).first;
         if (alias_cache) {
             const auto& source_layout = input_memory_ptr(cache_input)->get_layout();
@@ -922,9 +916,7 @@ bool primitive_inst::try_bind_recurrent_cache_output(const layout& actual_layout
                 }
             }
         }
-        // Existing ops retain private staging and a final copy for aliases.
-        // Update ops gather original rows before writing and can reuse an
-        // exclusive, exactly matching cache allocation, including cyclic maps.
+        // Rejected aliases retain private output and a final Result copy.
         if (overlap)
             continue;
         auto& engine = get_network().get_engine();
@@ -3270,9 +3262,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     // ordinary iGPU output policy picks host USM, causing a full host-USM->device
     // cache copy even when the caller binds device USM. Keep the private cache
     // staging allocation on device; CPU consumers still require lockable memory.
-    const bool recurrent_cache_output =
-        idx == 1 && (node.is_type<recurrent_cache_update>() || (node.is_type<gated_delta_net>() && node.as<gated_delta_net>().get_primitive()->recurrent_cache_mode) ||
-                     (node.is_type<recurrent_cache>() && node.as<recurrent_cache>().get_primitive()->history > 0 && node.get_dependencies().size() == 9));
+    const bool recurrent_cache_output = idx == 1 && node.is_type<recurrent_cache_update>();
     auto use_lockable_memory = (is_output_buffer && !recurrent_cache_output && ov::intel_gpu::can_use_usm_host(_engine, total_output_bytes)) || is_cpu ||
                                has_any_cpu_user_not_shape_of(node.get_users()) || !_engine.supports_allocation(allocation_type::usm_device) ||
                                (node.is_shape_infer_dep() && device_info.dev_type == device_type::integrated_gpu);

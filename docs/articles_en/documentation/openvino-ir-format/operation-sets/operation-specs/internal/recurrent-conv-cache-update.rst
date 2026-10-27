@@ -10,8 +10,8 @@ RecurrentConvCacheUpdate
 Added for Qwen3.5/Qwen3.6 (GGML ``qwen35`` and ``qwen35moe``) in llama.cpp's
 OpenVINO GPU backend. This independent operation combines depthwise causal
 convolution with generic ``cache_r`` reset, reorder, and history writeback.
-It supports in-place execution without changing the existing convolution or
-recurrent-cache operations.
+It supports in-place execution and an optional separate GroupConvolution
+without changing the existing convolution operation.
 
 **Inputs (zero-based)**
 
@@ -21,13 +21,15 @@ recurrent-cache operations.
 * 5 extra_offsets: ``i32/i64 [1,1,1,2]``, ``(destination_begin,source_begin)``.
 * 6 QKV: ``f16/f32 [1,B,C,T]``, where ``B`` equals the active-row count.
 * 7 windows: ``i32/i64 [1,1,W,2]``, ordered ``(start_column,destination_row)`` pairs.
-* 8 depthwise weights: QKV precision, ``[1,1,C,H+1]``.
+* 8 optional depthwise weights: ``f16/f32 [1,1,C,H+1]``.
+  Omit this input to produce history plus QKV for a separate convolution.
 
 **Attribute**: positive ``history=H``.
 
 **Outputs**
 
-* 0 convolution: ``[1,B,T,C]`` in QKV precision, accumulated in FP32.
+* 0 with weights: convolution ``[1,B,T,C]`` in QKV precision, accumulated in FP32.
+  Without weights: concatenated history/QKV ``[1,B,C,H+T]`` in QKV precision.
 * 1 the complete updated cache: same shape and precision as input 0.
 
 **Semantics**

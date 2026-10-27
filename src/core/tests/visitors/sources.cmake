@@ -161,7 +161,6 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/reduce_mean.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/reduce_min.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/reduce_prod.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/op/recurrent_cache.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/recurrent_cache_update.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/reduce_sum.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/region_yolo.cpp

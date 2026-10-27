@@ -37,11 +37,7 @@ std::vector<layout> gated_delta_net_inst::calc_output_layouts(const gated_delta_
         impl_param.get_input_layout(4).get<ShapeType>(),
         impl_param.get_input_layout(5).get<ShapeType>(),
     };
-    if (desc->recurrent_cache_mode)
-        input_shapes[3] = ShapeType{input_shapes[0][0], input_shapes[2][2], input_shapes[0][3], input_shapes[2][3]};
     auto output_shapes = ov::op::internal::shape_infer(&op, input_shapes);
-    if (desc->recurrent_cache_mode)
-        output_shapes[1] = impl_param.get_input_layout(3).get<ShapeType>();
     OPENVINO_ASSERT(num_outputs <= output_shapes.size(),
                     "gated_delta_net shape infer produced fewer outputs than requested: ",
                     output_shapes.size(),
@@ -55,7 +51,7 @@ std::vector<layout> gated_delta_net_inst::calc_output_layouts(const gated_delta_
     if (num_outputs >= 2) {
         output_layouts.emplace_back(output_shapes[1],
                                     state_layout.data_type,
-                                    desc->snapshot_count > 1 && !desc->recurrent_cache_mode ? format(format::bfzyx) : state_layout.format);
+                                    desc->snapshot_count > 1 ? format(format::bfzyx) : state_layout.format);
     }
     return output_layouts;
 }

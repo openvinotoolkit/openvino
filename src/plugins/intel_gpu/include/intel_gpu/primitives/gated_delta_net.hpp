@@ -53,7 +53,6 @@ struct gated_delta_net : public primitive_base<gated_delta_net> {
         seed = hash_combine(seed, q_l2_norm_eps);
         seed = hash_combine(seed, k_l2_norm_eps);
         seed = hash_combine(seed, snapshot_count);
-        seed = hash_combine(seed, recurrent_cache_mode);
         return seed;
     }
 
@@ -66,8 +65,7 @@ struct gated_delta_net : public primitive_base<gated_delta_net> {
         return k_head_size == rhs_casted.k_head_size && v_head_size == rhs_casted.v_head_size &&
                k_heads_num == rhs_casted.k_heads_num && v_heads_num == rhs_casted.v_heads_num &&
                fuse_qk_l2norm == rhs_casted.fuse_qk_l2norm && q_l2_norm_eps == rhs_casted.q_l2_norm_eps &&
-               k_l2_norm_eps == rhs_casted.k_l2_norm_eps && snapshot_count == rhs_casted.snapshot_count &&
-               recurrent_cache_mode == rhs_casted.recurrent_cache_mode;
+               k_l2_norm_eps == rhs_casted.k_l2_norm_eps && snapshot_count == rhs_casted.snapshot_count;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -80,7 +78,6 @@ struct gated_delta_net : public primitive_base<gated_delta_net> {
         ob << q_l2_norm_eps;
         ob << k_l2_norm_eps;
         ob << snapshot_count;
-        ob << recurrent_cache_mode;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -93,7 +90,6 @@ struct gated_delta_net : public primitive_base<gated_delta_net> {
         ib >> q_l2_norm_eps;
         ib >> k_l2_norm_eps;
         ib >> snapshot_count;
-        ib >> recurrent_cache_mode;
     }
 
     size_t k_head_size = 0;
@@ -104,7 +100,6 @@ struct gated_delta_net : public primitive_base<gated_delta_net> {
     float q_l2_norm_eps = 1e-6f;
     float k_l2_norm_eps = 1e-6f;
     int64_t snapshot_count = 1;
-    bool recurrent_cache_mode = false;
 };
 
 }  // namespace cldnn

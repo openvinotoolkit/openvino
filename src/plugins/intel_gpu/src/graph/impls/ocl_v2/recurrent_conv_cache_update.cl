@@ -14,7 +14,9 @@ KERNEL(recurrent_cache_update_stage)(OPTIONAL_SHAPE_INFO_ARG const __global INPU
                                      const __global INPUT5_TYPE* offsets,
                                      const __global INPUT6_TYPE* qkv,
                                      const __global INPUT7_TYPE* windows,
+#if FUSED_CONV
                                      const __global INPUT8_TYPE* weights,
+#endif
                                      __global OUTPUT_TYPE* output,
                                      __global OUTPUT1_TYPE* cache,
                                      __global float* staged,
@@ -52,7 +54,9 @@ KERNEL(recurrent_conv_cache_update)
  const __global INPUT5_TYPE* extra_begin,
  const __global INPUT6_TYPE* qkv,
  const __global INPUT7_TYPE* windows,
+#if FUSED_CONV
  const __global INPUT8_TYPE* weights,
+#endif
  __global OUTPUT_TYPE* active,
  __global OUTPUT1_TYPE* updated,
  __global float* staged,
@@ -69,6 +73,7 @@ KERNEL(recurrent_conv_cache_update)
     const int C = INPUT6_SIZE_Y;
     const int T = INPUT6_SIZE_X;
     const int L = T + HISTORY;
+#if FUSED_CONV
     if (i < (size_t)B * C * T) {
         // Prefill QKV is channel-major: adjacent lanes must read adjacent tokens.
         // Short decode batches favor contiguous [token,channel] output stores.
@@ -88,6 +93,18 @@ KERNEL(recurrent_conv_cache_update)
         }
         active[OUTPUT_GET_INDEX(0, b, t, c)] = TO_OUTPUT_TYPE(sum);
     }
+#else
+    if (i < (size_t)B * C * L) {
+        const int t = i % L, c = (i / L) % C, b = i / (C * L);
+        const int row = active_rows[INPUT1_GET_INDEX(0, 0, 0, b)];
+        const float value = t < HISTORY
+                                ? (row >= rb && row < re ? 0.0f :
+                                   (inplace ? staged[b * F + c * HISTORY + t] :
+                                    convert_float(old_cache[INPUT0_GET_INDEX(0, 0, row, c * HISTORY + t)])))
+                                : convert_float(qkv[INPUT6_GET_INDEX(0, b, c, t - HISTORY)]);
+        active[OUTPUT_GET_INDEX(0, b, c, t)] = TO_OUTPUT_TYPE(value);
+    }
+#endif
     if (i < (size_t)S * F) {
         const int f = i % F, dst = i / F;
         int row = dst;

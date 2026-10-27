@@ -3,7 +3,6 @@
 //
 
 #include "openvino/op/gated_delta_net.hpp"
-#include "openvino/op/recurrent_cache.hpp"
 
 #include <intel_gpu/primitives/gated_delta_net.hpp>
 
@@ -21,7 +20,7 @@ using GatedDeltaNet = ov::op::internal::GatedDeltaNet;
 namespace ov::intel_gpu {
 
 static void CreateGatedDeltaNetOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::GatedDeltaNet>& op) {
-    validate_inputs_count(op, {6, 12});
+    validate_inputs_count(op, {6});
 
     auto inputs = p.GetInputInfo(op);
 
@@ -63,15 +62,10 @@ static void CreateGatedDeltaNetOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         }
     }
 
-    gated_delta_net_prim.recurrent_cache_mode = op->get_input_size() == 12;
     gated_delta_net_prim.num_outputs = op->get_output_size();
     p.add_primitive(*op, gated_delta_net_prim);
 }
 
-static void CreateRecurrentGatedDeltaNetOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::RecurrentGatedDeltaNet>& op) {
-    CreateGatedDeltaNetOp(p, op);
-}
 REGISTER_FACTORY_IMPL(internal, GatedDeltaNet);
-REGISTER_FACTORY_IMPL(internal, RecurrentGatedDeltaNet);
 
 }  // namespace ov::intel_gpu

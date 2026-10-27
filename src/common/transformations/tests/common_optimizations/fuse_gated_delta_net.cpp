@@ -23,7 +23,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gated_delta_net.hpp"
-#include "openvino/op/recurrent_cache.hpp"
+#include "openvino/op/recurrent_cache_update.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/multiply.hpp"
@@ -569,7 +569,7 @@ TEST(TransformationTests, FuseL2NormIntoGDN_PreservesSnapshots) {
     EXPECT_EQ(model->get_results().at(1)->input_value(0), fused->output(1));
 }
 
-// Derived cache-aware GDN nodes must retain all llama.cpp Qwen3.5 runtime controls.
+// Independent cache-aware GDN nodes must retain all llama.cpp Qwen3.5 runtime controls.
 TEST(TransformationTests, GDNArithmeticFusionsPreserveRecurrentCacheContract) {
     using namespace ov;
     auto q = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2, 8});
@@ -590,7 +590,7 @@ TEST(TransformationTests, GDNArithmeticFusionsPreserveRecurrentCacheContract) {
     auto rows = op::v0::Constant::create(element::i32, {1, 1, 1, 1}, {0});
     auto offsets = op::v0::Constant::create(element::i32, {1, 1, 1, 2}, {0, 1});
     auto control = op::v0::Constant::create(element::i32, {1, 1, 1, 4}, {0, 1, 4, 0});
-    auto original = std::make_shared<op::internal::RecurrentGatedDeltaNet>(
+    auto original = std::make_shared<op::internal::RecurrentGatedDeltaNetUpdate>(
         OutputVector{normalize(q), normalize(k), v, cache, gate, beta, rows, rows, rows, rows, offsets, control},
         false,
         1e-6f,

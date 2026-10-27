@@ -13,15 +13,28 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/recurrent_cache.hpp"
+#include "openvino/op/gated_delta_net.hpp"
+#include <cmath>
 #include "openvino/op/reshape.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace {
-// Keep the reference in a separate graph: sharing its cache Parameter with the
-// Update op would correctly forbid mutation and only exercise the copy fallback.
+float get_value(const ov::Tensor& t, size_t i) {
+    return t.get_element_type() == ov::element::f16 ? float(t.data<ov::float16>()[i]) : t.data<float>()[i];
+}
+void set_value(ov::Tensor& t, size_t i, float value) {
+    if (t.get_element_type() == ov::element::f16)
+        t.data<ov::float16>()[i] = ov::float16(value);
+    else
+        t.data<float>()[i] = value;
+}
+float round_value(float value, ov::element::Type type) {
+    return type == ov::element::f16 ? float(ov::float16(value)) : value;
+}
+// Arithmetic is checked against a host convolution or ordinary GDN. Reset,
+// gather, reorder and ordered cache writes are calculated independently on host.
 void run_update_case(bool conv,
                      ov::element::Type type,
                      ov::element::Type indices,
@@ -32,7 +45,8 @@ void run_update_case(bool conv,
                      bool unrelated_overlap = false,
                      ov::element::Type cache_type = ov::element::f32,
                      bool cache_view = false,
-                     bool host_usm = false) {
+                     bool host_usm = false,
+                     bool separate_conv = false) {
     constexpr int S = 12, H = 2, C = 7, history = 3;
     const int F = conv ? C * history : H * K * V;
     const size_t cache_port = conv ? 0 : 3;
@@ -52,7 +66,8 @@ void run_update_case(bool conv,
         add(indices, {1, 1, 1, 2});
         add(type, {1, -1, C, -1});
         add(indices, {1, 1, -1, 2});
-        add(type, {1, 1, C, history + 1});
+        if (!separate_conv)
+            add(type, {1, 1, C, history + 1});
     } else {
         add(type, {-1, -1, H, K});
         add(type, {-1, -1, H, K});
@@ -71,17 +86,20 @@ void run_update_case(bool conv,
         auto pattern = ov::op::v0::Constant::create(ov::element::i64, {4}, {1, 1, -1, F});
         args[cache_port] = std::make_shared<ov::op::v1::Reshape>(params[cache_port], pattern, false);
     }
-    std::shared_ptr<ov::Node> reference, update;
-    if (conv) {
-        reference = std::make_shared<ov::op::internal::RecurrentConvCache>(args, history);
-        update = std::make_shared<ov::op::internal::RecurrentConvCacheUpdate>(args, history);
-    } else {
-        reference = std::make_shared<ov::op::internal::RecurrentGatedDeltaNet>(args, true, 1e-6f, 1e-6f, snapshots);
-        update = std::make_shared<ov::op::internal::RecurrentGatedDeltaNetUpdate>(args, true, 1e-6f, 1e-6f, snapshots);
-    }
+    std::shared_ptr<ov::Node> update;
     ov::Core core;
     const auto hint = ov::hint::inference_precision(ov::element::dynamic);
-    auto ref = core.compile_model(std::make_shared<ov::Model>(ov::OutputVector{reference->output(0), reference->output(1)}, params), "GPU", hint);
+    ov::CompiledModel ref;
+    if (conv) {
+        update = std::make_shared<ov::op::internal::RecurrentConvCacheUpdate>(args, history);
+    } else {
+        update = std::make_shared<ov::op::internal::RecurrentGatedDeltaNetUpdate>(args, true, 1e-6f, 1e-6f, snapshots);
+        auto state = std::make_shared<ov::op::v0::Parameter>(type, ov::PartialShape{-1, H, K, V});
+        auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(
+            ov::OutputVector{args[0], args[1], args[2], state, args[4], args[5]}, true, 1e-6f, 1e-6f, snapshots);
+        ref = core.compile_model(std::make_shared<ov::Model>(gdn->outputs(),
+            ov::ParameterVector{params[0], params[1], params[2], state, params[4], params[5]}), "GPU", hint);
+    }
     ov::OutputVector outputs{update->output(0), update->output(1)};
     if (other_reader)
         outputs.push_back(params[cache_port]);
@@ -97,7 +115,10 @@ void run_update_case(bool conv,
     auto imported = core.import_model(blob, "GPU", hint);
     auto context = core.get_default_context("GPU").as<ov::intel_gpu::ocl::ClContext>();
     for (auto model : {compiled, imported}) {
-        auto req = model.create_infer_request(), expected_req = ref.create_infer_request();
+        auto req = model.create_infer_request();
+        ov::InferRequest expected_req;
+        if (!conv)
+            expected_req = ref.create_infer_request();
         for (int step = 0; step < 9; ++step) {
             const size_t B = step % 4 + 1, T = step == 8 ? 17 : step % 4 + 1;
             std::vector<ov::Tensor> inputs;
@@ -145,7 +166,8 @@ void run_update_case(bool conv,
                 // Later windows overwrite earlier windows at overlapping destinations.
                 const std::vector<int> windows = step == 7 ? std::vector<int>{} : std::vector<int>{0, 0, int(T), 4, int(T), 2};
                 ints({1, 1, windows.size() / 2, 2}, windows);
-                data(8, {1, 1, C, history + 1});
+                if (!separate_conv)
+                    data(8, {1, 1, C, history + 1});
             } else {
                 data(0, {B, T, H, size_t(K)});
                 data(1, {B, T, H, size_t(K)});
@@ -160,12 +182,75 @@ void run_update_case(bool conv,
                 ints({1, 1, 1, 2}, {0, int(suffix)});
                 ints({1, 1, 1, 4}, {0, int(B), step % 2 ? int(B) : 0, step % 2});
             }
+            auto integer = [&](size_t port, size_t i = 0) {
+                return indices == ov::element::i32 ? int(inputs[port].data<int32_t>()[i]) : int(inputs[port].data<int64_t>()[i]);
+            };
+            const int rb = integer(conv ? 3 : 8), re = rb + integer(conv ? 4 : 9);
+            auto old = [&](int row, int f) {
+                return row >= rb && row < re ? 0.f : round_value(get_value(inputs[cache_port], row * F + f), type);
+            };
+            std::vector<ov::Tensor> expected;
+            expected.emplace_back(type, conv ? (separate_conv ? ov::Shape{1, B, C, T + history} : ov::Shape{1, B, T, C})
+                                             : ov::Shape{B, T, H, size_t(V)});
+            expected.emplace_back(cache_type, ov::Shape{1, 1, S, size_t(F)});
+            const int eb = integer(conv ? 5 : 10), es = integer(conv ? 5 : 10, 1);
+            for (int row = 0; row < S; ++row) {
+                const int src = row >= eb && row < eb + int(extra.size()) - es
+                                    ? integer(conv ? 2 : 7, row - eb + es) : row;
+                for (int f = 0; f < F; ++f)
+                    set_value(expected[1], row * F + f, old(src, f));
+            }
+            if (conv) {
+                auto x = [&](int b, int c, int t) {
+                    return t < history ? old(active[b], c * history + t) : get_value(inputs[6], (b * C + c) * T + t - history);
+                };
+                for (size_t b = 0; b < B; ++b)
+                    for (int c = 0; c < C; ++c) {
+                        if (separate_conv) {
+                            for (size_t t = 0; t < T + history; ++t)
+                                set_value(expected[0], (b * C + c) * (T + history) + t, x(b, c, t));
+                        } else {
+                            for (size_t t = 0; t < T; ++t) {
+                                float value = 0;
+                                for (int j = 0; j <= history; ++j)
+                                    value = std::fma(x(b, c, t + j), get_value(inputs[8], c * (history + 1) + j), value);
+                                set_value(expected[0], (b * T + t) * C + c, value);
+                            }
+                        }
+                    }
+                for (size_t w = 0; w < inputs[7].get_size() / 2; ++w) {
+                    const int start = integer(7, 2 * w), dest = integer(7, 2 * w + 1);
+                    for (size_t b = 0; b < B; ++b)
+                        for (int f = 0; f < F; ++f)
+                            set_value(expected[1], (dest + b) * F + f, x(b, f / history, start + f % history));
+                }
+            } else {
+                ov::Tensor state(type, {B, H, size_t(K), size_t(V)});
+                for (size_t b = 0; b < B; ++b)
+                    for (int h = 0; h < H; ++h)
+                        for (int k = 0; k < K; ++k)
+                            for (int v = 0; v < V; ++v)
+                                set_value(state, ((b * H + h) * K + k) * V + v, old(active[b], (h * V + v) * K + k));
+                for (size_t port = 0; port < 6; ++port)
+                    expected_req.set_input_tensor(port, port == 3 ? state : inputs[port]);
+                expected_req.infer();
+                expected[0] = expected_req.get_output_tensor(0);
+                auto states = expected_req.get_output_tensor(1);
+                const int begin = integer(11), sequences = integer(11, 1), stride = integer(11, 2), source = integer(11, 3);
+                const int count = std::min<int>(T, snapshots) * B;
+                for (int r = source; r < count; ++r) {
+                    const int dst = begin + ((r - source) / sequences) * stride + (r - source) % sequences;
+                    for (int h = 0; h < H; ++h)
+                        for (int k = 0; k < K; ++k)
+                            for (int v = 0; v < V; ++v)
+                                set_value(expected[1], dst * F + (h * V + v) * K + k,
+                                          get_value(states, ((r * H + h) * K + k) * V + v));
+                }
+            }
             for (size_t port = 0; port < inputs.size(); ++port) {
-                expected_req.set_input_tensor(port, inputs[port]);
                 if (port != cache_port)
                     req.set_input_tensor(port, inputs[port]);
             }
-            expected_req.infer();
             auto remote = host_usm ? context.create_usm_host_tensor(cache_type, inputs[cache_port].get_shape())
                                    : context.create_usm_device_tensor(cache_type, inputs[cache_port].get_shape());
             inputs[cache_port].copy_to(remote);
@@ -179,15 +264,15 @@ void run_update_case(bool conv,
             req.set_output_tensor(1, unrelated_overlap ? other : step % 3 == 2 ? context.create_usm_device_tensor(cache_type, remote.get_shape()) : remote);
             req.infer();
             for (size_t port = 0; port < 2; ++port) {
-                auto out = req.get_output_tensor(port), expected = expected_req.get_output_tensor(port);
+                auto out = req.get_output_tensor(port), reference = expected[port];
                 ov::Tensor actual(out.get_element_type(), out.get_shape());
                 out.copy_to(actual);
-                ASSERT_EQ(actual.get_shape(), expected.get_shape());
+                ASSERT_EQ(actual.get_shape(), reference.get_shape());
                 for (size_t i = 0; i < actual.get_size(); ++i) {
                     const auto get = [i](const ov::Tensor& t) {
                         return t.get_element_type() == ov::element::f16 ? float(t.data<ov::float16>()[i]) : t.data<float>()[i];
                     };
-                    ASSERT_EQ(get(actual), get(expected)) << "conv=" << conv << " step=" << step << " port=" << port << " element=" << i;
+                    ASSERT_NEAR(get(actual), get(reference), conv ? 1e-6f : type == ov::element::f16 ? 0.002f : 1e-6f) << "conv=" << conv << " step=" << step << " port=" << port << " element=" << i;
                 }
             }
             if (other_reader) {
@@ -293,4 +378,10 @@ TEST(RecurrentCacheUpdateNative, Fp16InferencePreservesReshapedCachePrecision) {
 TEST(RecurrentCacheUpdateNative, HostUsmExclusiveCacheAlias) {
     run_update_case(true, ov::element::f16, ov::element::i32, 0, 0, 1, false, false, ov::element::f32, true, true);
     run_update_case(false, ov::element::f16, ov::element::i32, 128, 8, 3, false, false, ov::element::f32, true, true);
+}
+
+TEST(RecurrentCacheUpdateNative, HistoryOnlyCyclesWindowsAndExport) {
+    for (auto type : {ov::element::f16, ov::element::f32})
+        for (auto indices : {ov::element::i32, ov::element::i64})
+            run_update_case(true, type, indices, 0, 0, 1, false, false, ov::element::f32, true, true, true);
 }
