@@ -25,7 +25,9 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "ov_ops/msda.hpp"
@@ -433,4 +435,191 @@ TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, LocationsTypeDiffersFromVal
     PatternParams p;
     p.locations_type = element::f16;
     model = getModel(p);
+}
+
+namespace {
+
+struct SingleScaleParams {
+    size_t batch = 1;
+    size_t queries = 6;
+    size_t heads = 2;
+    size_t embed = 4;
+    size_t points = 2;
+    size_t h = 3;
+    size_t w = 5;
+    element::Type data_type = element::f32;
+    // GridSample coordinates scale * x + offset; MSDA needs 2 * x - 1, anything else is rescaled.
+    float scale = 2.f;
+    float offset = -1.f;
+    // The form the GPU low-precision pipeline leaves: Transpose, then (x - 0.5) * 2 in f32, then Convert.
+    bool int8_gpu_form = false;
+    bool pooled_sum = false;
+    bool dynamic_value = false;
+    bool align_corners = false;
+    bool wrong_weights_order = false;
+};
+
+// Single-level deformable attention as exported by RF-DETR: no VariadicSplit and no level Concat.
+// Parameters: [0] value [B, S, H*D], [1] locations [B, Q, H, P, 2], [2] weights [B, Q, H, P].
+std::shared_ptr<ov::Model> getSingleScaleModel(const SingleScaleParams& p) {
+    const auto B = int64_t(p.batch), Q = int64_t(p.queries), H = int64_t(p.heads), D = int64_t(p.embed),
+               P = int64_t(p.points), h = int64_t(p.h), w = int64_t(p.w);
+    PartialShape value_ps(Shape{p.batch, p.h * p.w, p.heads * p.embed});
+    if (p.dynamic_value)
+        value_ps[0] = Dimension::dynamic();
+    auto value = std::make_shared<v0::Parameter>(p.data_type, value_ps);
+    const auto loc_type = p.int8_gpu_form ? element::f32 : p.data_type;
+    auto locations = std::make_shared<v0::Parameter>(loc_type, Shape{p.batch, p.queries, p.heads, p.points, 2});
+    auto weights = std::make_shared<v0::Parameter>(p.data_type, Shape{p.batch, p.queries, p.heads, p.points});
+
+    auto value_t = std::make_shared<v1::Transpose>(value, i64_const({0, 2, 1}));
+    auto value_heads = std::make_shared<v1::Reshape>(value_t, i64_const({B, H, D, h * w}), false);
+    auto image = std::make_shared<v1::Reshape>(value_heads, i64_const({B * H, D, h, w}), false);
+
+    std::shared_ptr<ov::Node> coords;
+    if (p.int8_gpu_form) {
+        auto t = std::make_shared<v1::Transpose>(locations, i64_const({0, 2, 1, 3, 4}));
+        auto sub = std::make_shared<v1::Subtract>(t, v0::Constant::create(element::f32, Shape{1}, {0.5f}));
+        auto mul = std::make_shared<v1::Multiply>(sub, v0::Constant::create(element::f32, Shape{1}, {2.f}));
+        coords = std::make_shared<v0::Convert>(mul, p.data_type);
+    } else {
+        auto mul = std::make_shared<v1::Multiply>(locations, v0::Constant::create(p.data_type, Shape{1}, {p.scale}));
+        auto norm = std::make_shared<v1::Add>(mul, v0::Constant::create(p.data_type, Shape{1}, {p.offset}));
+        // The level slice of a single level keeps every point.
+        auto slice = std::make_shared<v8::Slice>(norm, i64_const({0}), i64_const({P}), i64_const({1}), i64_const({3}));
+        coords = std::make_shared<v1::Transpose>(slice, i64_const({0, 2, 1, 3, 4}));
+    }
+    auto grid_coords = std::make_shared<v1::Reshape>(coords, i64_const({B * H, Q, P, 2}), false);
+
+    v9::GridSample::Attributes attributes{p.align_corners,
+                                          v9::GridSample::InterpolationMode::BILINEAR,
+                                          v9::GridSample::PaddingMode::ZEROS};
+    auto grid = std::make_shared<v9::GridSample>(image, grid_coords, attributes);
+
+    auto weights_t = std::make_shared<v1::Transpose>(
+        weights,
+        i64_const(p.wrong_weights_order ? std::vector<int64_t>{0, 1, 2, 3} : std::vector<int64_t>{0, 2, 1, 3}));
+    auto weights_r = std::make_shared<v1::Reshape>(weights_t, i64_const({B * H, 1, Q, P}), false);
+    auto mul = std::make_shared<v1::Multiply>(grid, weights_r);
+
+    std::shared_ptr<ov::Node> sum;
+    if (p.pooled_sum) {
+        auto pool = std::make_shared<v1::AvgPool>(mul,
+                                                  Strides{1, 1},
+                                                  Shape{0, 0},
+                                                  Shape{0, 0},
+                                                  Shape{1, p.points},
+                                                  true,
+                                                  ov::op::RoundingType::FLOOR);
+        sum =
+            std::make_shared<v1::Multiply>(pool,
+                                           v0::Constant::create(p.data_type, Shape{1}, {static_cast<float>(p.points)}));
+    } else {
+        sum = std::make_shared<v1::ReduceSum>(mul, i64_const({-1}), false);
+    }
+    auto output = std::make_shared<v1::Reshape>(sum, i64_const({B, H * D, Q}), false);
+    return std::make_shared<ov::Model>(OutputVector{output},
+                                       ParameterVector{value, locations, weights},
+                                       "SingleScaleMSDAPattern");
+}
+
+// The MSDA with one level that the fusion produces for getSingleScaleModel(p), transposed back to [B, H*D, Q].
+std::shared_ptr<ov::Model> getSingleScaleModelRef(const SingleScaleParams& p) {
+    const auto B = int64_t(p.batch), Q = int64_t(p.queries), H = int64_t(p.heads), D = int64_t(p.embed),
+               P = int64_t(p.points);
+    auto value = std::make_shared<v0::Parameter>(p.data_type, Shape{p.batch, p.h * p.w, p.heads * p.embed});
+    const auto loc_type = p.int8_gpu_form ? element::f32 : p.data_type;
+    auto locations = std::make_shared<v0::Parameter>(loc_type, Shape{p.batch, p.queries, p.heads, p.points, 2});
+    auto weights = std::make_shared<v0::Parameter>(p.data_type, Shape{p.batch, p.queries, p.heads, p.points});
+
+    std::shared_ptr<ov::Node> loc = locations;
+    if (loc_type != p.data_type)
+        loc = std::make_shared<v0::Convert>(loc, p.data_type);
+    if (!p.int8_gpu_form && p.scale != 2.f)
+        loc = std::make_shared<v1::Multiply>(loc, v0::Constant::create(p.data_type, Shape{}, {p.scale / 2.f}));
+    if (!p.int8_gpu_form && p.offset != -1.f)
+        loc = std::make_shared<v1::Add>(loc, v0::Constant::create(p.data_type, Shape{}, {(p.offset + 1.f) / 2.f}));
+
+    auto msda = std::make_shared<ov::op::internal::MSDA>(
+        std::make_shared<v1::Reshape>(value, i64_const({B, int64_t(p.h * p.w), H, D}), false),
+        v0::Constant::create(element::i32, Shape{1, 2}, std::vector<int32_t>{int32_t(p.h), int32_t(p.w)}),
+        v0::Constant::create(element::i32, Shape{1}, std::vector<int32_t>{0}),
+        std::make_shared<v1::Reshape>(loc, i64_const({B, Q, H, 1, P, 2}), false),
+        std::make_shared<v1::Reshape>(weights, i64_const({B, Q, H, 1, P}), false));
+    auto output = std::make_shared<v1::Transpose>(msda, i64_const({0, 2, 1}));
+    return std::make_shared<ov::Model>(OutputVector{output}, ParameterVector{value, locations, weights});
+}
+
+}  // namespace
+
+class SingleScaleDeformableAttnGridSampleFusionTest : public TransformationTestsF {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<ov::pass::SingleScaleDeformableAttnGridSampleFusion>();
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+    }
+
+    void expect_fused(const SingleScaleParams& p) {
+        model = getSingleScaleModel(p);
+        model_ref = getSingleScaleModelRef(p);
+    }
+};
+
+TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, Fused) {
+    expect_fused(SingleScaleParams{});
+}
+
+TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, FusedF16) {
+    SingleScaleParams p;
+    p.data_type = element::f16;
+    expect_fused(p);
+}
+
+TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, FusedBatchAndHeads) {
+    SingleScaleParams p;
+    p.batch = 2;
+    p.heads = 4;
+    p.points = 4;
+    expect_fused(p);
+}
+
+TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, Int8GpuForm) {
+    // f32 locations normalized after the Transpose as (x - 0.5) * 2 are converted to the value type.
+    SingleScaleParams p;
+    p.data_type = element::f16;
+    p.int8_gpu_form = true;
+    expect_fused(p);
+}
+
+TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, PooledSum) {
+    SingleScaleParams p;
+    p.pooled_sum = true;
+    expect_fused(p);
+}
+
+TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, RescaledCoordinates) {
+    // 3 * x - 0.5 samples at MSDA location 1.5 * x + 0.25.
+    SingleScaleParams p;
+    p.scale = 3.f;
+    p.offset = -0.5f;
+    expect_fused(p);
+}
+
+TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, DynamicValue) {
+    SingleScaleParams p;
+    p.dynamic_value = true;
+    model = getSingleScaleModel(p);
+}
+
+TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, AlignCorners) {
+    SingleScaleParams p;
+    p.align_corners = true;
+    model = getSingleScaleModel(p);
+}
+
+TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, WrongWeightsOrder) {
+    SingleScaleParams p;
+    p.wrong_weights_order = true;
+    model = getSingleScaleModel(p);
 }
