@@ -464,7 +464,10 @@ public:
                                       rt.eventHandles.empty() ? nullptr : rt.eventHandles.data(),
                                       static_cast<uint32_t>(rt.eventHandles.size()));
         if (rt.error) {
-            rt.stream().finish();
+            try {
+                rt.stream().finish();
+            } catch (...) {
+            }
             std::rethrow_exception(rt.error);
         }
         // Copy the completions out; do not wait(). OV owns the events after this.

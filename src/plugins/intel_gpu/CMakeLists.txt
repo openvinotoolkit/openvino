@@ -137,9 +137,9 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Werror)
 endif()
 
-# Directory-wide on purpuse: the macro guards virtual methods in
-# include/intel_gpu/runtime, so ENABLE_MLIR_FOR_GPU must be defined consistently in all targets
-# sharing those headers.
+# Directory-wide on purpose: the macro guards cldnn::network data members in
+# include/intel_gpu/graph/network.hpp, so ENABLE_MLIR_FOR_GPU must be defined consistently in all
+# targets sharing that header.
 if(ENABLE_MLIR_FOR_GPU)
     add_compile_definitions(ENABLE_MLIR_FOR_GPU)
 endif()
