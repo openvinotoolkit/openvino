@@ -8,16 +8,12 @@
 #include <string_view>
 
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/hsm_model_id_codec.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 
 namespace ov::template_plugin {
 
 namespace {
-std::optional<uint64_t> decode_model_id(const runtime::hsm::Section& section) {
-    uint64_t id = 0;
-    return section.size() >= sizeof(id) && section.read(0, sizeof(id), &id) ? std::optional(id) : std::nullopt;
-}
-
 std::optional<std::string> decode_string(const runtime::hsm::Section& section) {
     std::string value(section.size(), '\0');
     return section.read(value.data()) ? std::optional(std::move(value)) : std::nullopt;
@@ -59,7 +55,7 @@ ov::AnyMap decode_compiled_options(std::string_view encoded) {
 }
 
 void set_model_id(HsmReaderHandler& handler, const runtime::hsm::Section& section) {
-    handler.model_id = decode_model_id(section);
+    handler.model_id = runtime::hsm::decode_model_id(section);
 }
 
 void set_runtime_requirements(HsmReaderHandler& handler, const runtime::hsm::Section& section) {
