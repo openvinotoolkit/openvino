@@ -59,7 +59,8 @@ TEST_F(TypePropSparseAttentionIndexerTest, batch_mismatch_with_dynamic_rank_inde
                                           4,
                                           2048),
                     NodeValidationFailure,
-                    HasSubstr("The batch dimension of index_query and index_weights must be the same."));
+                    HasSubstr("The batch dimension of index_query, block_index_keys and index_weights "
+                              "must be compatible."));
 }
 
 TEST_F(TypePropSparseAttentionIndexerTest, key_length_size_checked_against_block_index_keys) {
@@ -141,14 +142,74 @@ TEST_F(TypePropSparseAttentionIndexerTest, interval_dimensions) {
 }
 
 TEST_F(TypePropSparseAttentionIndexerTest, dynamic_rank_index_query) {
+    // The batch is still known, from block_index_keys, which does not broadcast.
     const auto op = make_op(param(element::f32, PartialShape::dynamic()),
+                            param(element::f32, PartialShape{2, 2500, 128}),
+                            param(element::i32, PartialShape{2}),
+                            4,
+                            2048);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 1, -1, 512}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{2, 1, -1}));
+}
+
+TEST_F(TypePropSparseAttentionIndexerTest, size_one_batch_resolves_dynamic_batch) {
+    // Batch dimension is defined as 1 based on the second input - no broadcast.
+    const auto op = make_op(param(element::f32, PartialShape{-1, 4, 7, 128}),
                             param(element::f32, PartialShape{1, 2500, 128}),
                             param(element::i32, PartialShape{1}),
                             4,
                             2048);
 
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 1, 7, 512}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 1, 7}));
+}
+
+TEST_F(TypePropSparseAttentionIndexerTest, size_one_batch_against_static_batch) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{4, 4, 7, 128}),
+                                          param(element::f32, PartialShape{1, 2500, 128}),
+                                          param(element::i32, PartialShape{4}),
+                                          4,
+                                          2048),
+                    NodeValidationFailure,
+                    HasSubstr("The batch dimension of index_query and block_index_keys must be the same."));
+}
+
+TEST_F(TypePropSparseAttentionIndexerTest, all_dynamic_batch) {
+    const auto op = make_op(param(element::f32, PartialShape{-1, 4, -1, 128}),
+                            param(element::f32, PartialShape{-1, -1, 128}),
+                            param(element::i32, PartialShape{-1}),
+                            param(element::f32, PartialShape{-1, -1, 4}),
+                            4,
+                            2048);
+
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 1, -1, 512}));
     EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{-1, 1, -1}));
+}
+
+TEST_F(TypePropSparseAttentionIndexerTest, interval_dimensions_with_index_weights) {
+    const auto op = make_op(param(element::f32, PartialShape{Dimension(1, 4), 4, Dimension(2, 8), 128}),
+                            param(element::f32, PartialShape{Dimension(2, 6), -1, 128}),
+                            param(element::i32, PartialShape{-1}),
+                            param(element::f32, PartialShape{Dimension(3, 10), Dimension(4, 16), 4}),
+                            4,
+                            2048);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension(3, 4), 1, Dimension(4, 8), 512}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{Dimension(3, 4), 1, Dimension(4, 8)}));
+}
+
+TEST_F(TypePropSparseAttentionIndexerTest, dynamic_rank_index_query_with_index_weights) {
+    // index_weights is the only source of the query token count once index_query has a dynamic rank.
+    const auto op = make_op(param(element::f32, PartialShape::dynamic()),
+                            param(element::f32, PartialShape{2, 2500, 128}),
+                            param(element::i32, PartialShape{2}),
+                            param(element::f32, PartialShape{2, 7, 4}),
+                            4,
+                            2048);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 1, 7, 512}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{2, 1, 7}));
 }
 
 TEST_F(TypePropSparseAttentionIndexerTest, symbols_propagation) {
