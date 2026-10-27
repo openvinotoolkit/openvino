@@ -282,6 +282,30 @@ TEST(GGUFBuilderAPI, DecoderOptionsAreResolvedBeforeRopePlans) {
     EXPECT_THROW(other.configure_decoder(RopeMode::Neox, invalid), ov::Exception);
 }
 
+TEST(GGUFBuilderAPI, RopeScalingDefaultsAndPositiveFactors) {
+    Environment env;
+    env.decoder();
+    EXPECT_FLOAT_EQ(std::get<float>(decoder_config_from_meta(env.metadata).at("rope_freq_scale")), 1.0f);
+    for (const float factor : {0.0f, 1.0f, 4.0f}) {
+        env.real("test.rope.scaling.factor", factor);
+        EXPECT_FLOAT_EQ(std::get<float>(decoder_config_from_meta(env.metadata).at("rope_freq_scale")),
+                        factor == 0.0f ? 1.0f : 1.0f / factor);
+    }
+}
+
+TEST(GGUFBuilderAPI, RejectsInvalidRopeScalingFactors) {
+    for (const float factor : {-1.0f,
+                               std::numeric_limits<float>::infinity(),
+                               std::numeric_limits<float>::quiet_NaN(),
+                               std::numeric_limits<float>::denorm_min()}) {
+        SCOPED_TRACE(factor);
+        Environment env;
+        env.decoder();
+        env.real("test.rope.scaling.factor", factor);
+        EXPECT_THROW(decoder_config_from_meta(env.metadata), ov::Exception);
+    }
+}
+
 TEST(GGUFBuilderAPI, RecurrentStateDeclarationReachesMakeStateful) {
     Environment env;
     GgufGraphContext graph(env.context);

@@ -1213,4 +1213,97 @@ TEST_F(MoETransformationTest, Gemma4Expert_PrefillDoesNotIsolateReduceSum) {
     }
 }
 
+// Build a Gemma4-style expert subgraph where the Tile's repeats has more elements than
+// its input's rank (repeats=[num_experts,1,1] over a rank-2 [token_count,hidden_dim] input).
+// Per the Tile-1 op spec, the input is implicitly promoted by prepending singleton dims
+// before tiling, so Tile alone produces [num_experts, token_count, hidden_dim] with no
+// Reshape1 needed. Mirrors create_gemma4_expert_graph_no_optional() but keeps Tile's input
+// at its natural rank-2 shape instead of pre-expanding it to rank 3.
+static std::shared_ptr<Model> create_gemma4_expert_graph_rank_promoting_tile(size_t num_experts,
+                                                                             size_t hidden_dim = 64,
+                                                                             size_t intermediate_dim = 128,
+                                                                             size_t token_count = 1) {
+    ov::ParameterVector params;
+
+    // Expert input stays rank-2: [token_count, hidden_dim]
+    auto expert_input = std::make_shared<op::v0::Parameter>(element::f32, Shape{token_count, hidden_dim});
+    expert_input->set_friendly_name("expert_input");
+    params.push_back(expert_input);
+
+    // Tile: repeats has 3 elements over a rank-2 input, promoting it to
+    // [num_experts, token_count, hidden_dim] in one step.
+    auto repeats =
+        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{static_cast<int64_t>(num_experts), 1, 1});
+    auto tile = std::make_shared<op::v0::Tile>(expert_input, repeats);
+    tile->set_friendly_name("expert_tile");
+
+    auto make_dq_weight = [&](const std::string& name, const Shape& weight_shape) -> std::shared_ptr<Node> {
+        auto w_nf4 = std::make_shared<op::v0::Parameter>(element::nf4, weight_shape);
+        w_nf4->set_friendly_name(name + "_nf4");
+        params.push_back(w_nf4);
+        auto w_fp32 = std::make_shared<op::v0::Convert>(w_nf4, element::f32);
+        w_fp32->set_friendly_name(name + "_fp32");
+        Shape scale_shape{weight_shape[0], weight_shape[1], 1};
+        auto scale = std::make_shared<op::v0::Parameter>(element::f32, scale_shape);
+        scale->set_friendly_name(name + "_scale");
+        params.push_back(scale);
+        auto w_scaled = std::make_shared<op::v1::Multiply>(w_fp32, scale);
+        w_scaled->set_friendly_name(name + "_multiply");
+        return w_scaled;
+    };
+
+    // Gate projection: MatMul1(tile, DQ_gate) -> Gelu
+    auto gate_dq = make_dq_weight("gate_weights", Shape{num_experts, intermediate_dim, hidden_dim});
+    auto matmul1 = std::make_shared<op::v0::MatMul>(tile, gate_dq, false, true);
+    matmul1->set_friendly_name("expert_matmul1_gate");
+    auto gelu = std::make_shared<op::v7::Gelu>(matmul1);
+    gelu->set_friendly_name("expert_gelu");
+
+    // Up projection: MatMul2(tile, DQ_up)
+    auto up_dq = make_dq_weight("up_weights", Shape{num_experts, intermediate_dim, hidden_dim});
+    auto matmul2 = std::make_shared<op::v0::MatMul>(tile, up_dq, false, true);
+    matmul2->set_friendly_name("expert_matmul2_up");
+
+    // SwiGLU merge: Gelu(gate) * up
+    auto multiply1 = std::make_shared<op::v1::Multiply>(gelu, matmul2);
+    multiply1->set_friendly_name("expert_multiply1_swiglu");
+
+    // Down projection: MatMul3(merge, DQ_down); output is already [num_experts, token_count,
+    // hidden_dim], matching the router-score Multiply directly.
+    auto down_dq = make_dq_weight("down_weights", Shape{num_experts, hidden_dim, intermediate_dim});
+    auto matmul3 = std::make_shared<op::v0::MatMul>(multiply1, down_dq, false, true);
+    matmul3->set_friendly_name("expert_matmul3_down");
+
+    auto router_scores = std::make_shared<op::v0::Parameter>(element::f32, Shape{num_experts, token_count, 1});
+    router_scores->set_friendly_name("router_scores");
+    params.push_back(router_scores);
+    auto output_multiply = std::make_shared<op::v1::Multiply>(matmul3, router_scores);
+    output_multiply->set_friendly_name("output_multiply");
+
+    auto result = std::make_shared<op::v0::Result>(output_multiply);
+    auto model = std::make_shared<Model>(ResultVector{result}, params);
+    model->set_friendly_name("gemma4_expert_rank_promoting_tile_" + std::to_string(num_experts));
+    return model;
+}
+
+// Regression test: analyze_moe_structure() must accept a Tile whose repeats rank exceeds
+// its input's rank (e.g. repeats=[E,1,1] over a rank-2 input), since that is standard
+// Tile-1 broadcast semantics and the expert pattern matchers already accept this shape
+// unconditionally.
+TEST_F(MoETransformationTest, AnalyzeMoEStructure_AcceptsRankPromotingTileRepeats) {
+    constexpr size_t num_experts = 8;
+    constexpr size_t hidden_dim = 64;
+    constexpr size_t token_count = 1;
+    auto model = create_gemma4_expert_graph_rank_promoting_tile(num_experts,
+                                                                hidden_dim,
+                                                                /*intermediate_dim=*/128,
+                                                                token_count);
+
+    auto structure_info = analyze_moe_structure(model);
+    ASSERT_TRUE(structure_info.has_value()) << "analyze_moe_structure must accept repeats=[E,1,1] over a rank-2 input";
+    EXPECT_EQ(structure_info->num_experts, num_experts);
+    EXPECT_EQ(structure_info->expert_hidden_dim, hidden_dim);
+    EXPECT_EQ(structure_info->input_token_count, token_count);
+}
+
 }  // namespace
