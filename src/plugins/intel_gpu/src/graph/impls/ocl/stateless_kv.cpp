@@ -113,11 +113,7 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
         can_reuse_memory = kernels_data.front().can_reuse_memory;
     }
 
-    stateless_kv_impl(const stateless_kv_impl& other)
-        : parent(other),
-          _stages(other._stages),
-          _runtime_state(other._runtime_state),
-          _is_inplace(other._is_inplace) {}
+    stateless_kv_impl(const stateless_kv_impl& other) = default;
 
     std::unique_ptr<primitive_impl> clone() const override {
         auto cloned = std::make_unique<stateless_kv_impl>(*this);
@@ -295,7 +291,7 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
             auto input_shape = stage_input_layout.get_partial_shape();
             input_shape[concat_axis] = ov::Dimension::dynamic();
             stage_input_layout.set_partial_shape(input_shape);
-            stage_input_layout.data_padding._dynamic_dims_mask[concat_axis] = 1;
+            stage_input_layout.data_padding._dynamic_dims_mask[concat_axis] = true;
         }
         params.axis = convert_concat_axis(primitive->concat_axis, output_layout.get_rank());
         params.inputs.resize(1);
@@ -359,7 +355,7 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
             auto past_view_shape = past_view_layout.get_partial_shape();
             past_view_shape[primitive->concat_axis] = ov::Dimension::dynamic();
             past_view_layout.set_partial_shape(past_view_shape);
-            past_view_layout.data_padding._dynamic_dims_mask[primitive->concat_axis] = 1;
+            past_view_layout.data_padding._dynamic_dims_mask[primitive->concat_axis] = true;
             auto concat_to_sdpa_params = get_concat2_to1_kernel_params(params, past_view_layout, 3, 1, 1, true);
             concat_to_sdpa_params.stage_id = stages.size();
             auto concat_to_sdpa_data = kernel_selector.get_best_kernel(concat_to_sdpa_params);
@@ -380,7 +376,7 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
             auto input0_shape = input0_layout.get_partial_shape();
             input0_shape[primitive->concat_axis] = ov::Dimension::dynamic();
             input0_layout.set_partial_shape(input0_shape);
-            input0_layout.data_padding._dynamic_dims_mask[primitive->concat_axis] = 1;
+            input0_layout.data_padding._dynamic_dims_mask[primitive->concat_axis] = true;
             auto kernel_params = get_concat2_to1_kernel_params(params, input0_layout, 0, 1, 0, true);
             kernel_params.stage_id = stages.size();
             kernel_params.is_shape_agnostic = kernel_params.has_dynamic_tensors();
