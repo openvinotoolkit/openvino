@@ -688,8 +688,28 @@ public:
     int _gate_up_group_size;
     int _down_group_size;
     std::shared_ptr<IExpertWeightProvider> _weight_provider;
+    // Owned by the impl: kernels reading it may still be in flight after execute() returns.
+    memory::ptr _otd_expert_index_buffer;
 
     // --- OTD helper methods (used when _weight_provider->is_offloaded()) ---
+
+    void write_otd_expert_slots(cldnn::stream& stream,
+                                typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                scratch_buffers& scratch,
+                                const std::vector<size_t>& lease) {
+        const size_t topk_bytes = lease.size() * sizeof(uint32_t);
+        if (!_otd_expert_index_buffer || _otd_expert_index_buffer->size() < topk_bytes) {
+            auto& engine = instance.get_network().get_engine();
+            auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(topk_bytes)}, ov::element::i8, cldnn::format::bfyx);
+            _otd_expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
+        }
+        std::vector<uint32_t> slots_u32(lease.size());
+        for (size_t i = 0; i < lease.size(); i++) {
+            slots_u32[i] = static_cast<uint32_t>(lease[i]);
+        }
+        _otd_expert_index_buffer->copy_from(stream, slots_u32.data(), 0, 0, topk_bytes, true);
+        scratch._expert_index_buffer = _otd_expert_index_buffer;
+    }
 
     void set_otd_weight_pointers(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch) {
         const auto& w = instance._weights;
@@ -783,19 +803,7 @@ public:
             return;
         }
 
-        // Write remapped slot IDs to GPU buffer
-        auto& engine = instance.get_network().get_engine();
-        const size_t topk_bytes = topk_count * sizeof(uint32_t);
-        if (!scratch._expert_index_buffer || scratch._expert_index_buffer->size() < topk_bytes) {
-            auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(topk_bytes)}, ov::element::i8, cldnn::format::bfyx);
-            scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
-        }
-        std::vector<uint32_t> slots_u32(lease->size());
-        for (size_t i = 0; i < lease->size(); i++) {
-            slots_u32[i] = static_cast<uint32_t>((*lease)[i]);
-        }
-        scratch._expert_index_buffer->copy_from(stream, slots_u32.data(), 0, 0, topk_bytes, true);
-
+        write_otd_expert_slots(stream, instance, scratch, *lease);
         set_otd_weight_pointers(instance, scratch);
         needs_fallback = false;
     }
@@ -823,18 +831,7 @@ public:
             return;
         }
 
-        // Write remapped slot IDs to GPU buffer
-        auto& engine = instance.get_network().get_engine();
-        const size_t topk_bytes = topk_count * sizeof(uint32_t);
-        if (!scratch._expert_index_buffer || scratch._expert_index_buffer->size() < topk_bytes) {
-            auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(topk_bytes)}, ov::element::i8, cldnn::format::bfyx);
-            scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
-        }
-        std::vector<uint32_t> slots_u32(lease->size());
-        for (size_t i = 0; i < lease->size(); i++) {
-            slots_u32[i] = static_cast<uint32_t>((*lease)[i]);
-        }
-        scratch._expert_index_buffer->copy_from(stream, slots_u32.data(), 0, 0, topk_bytes, true);
+        write_otd_expert_slots(stream, instance, scratch, *lease);
         batch_mem_ptr = scratch._expert_index_buffer;
         needs_fallback = false;
     }
