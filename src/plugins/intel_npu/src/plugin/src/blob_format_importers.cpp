@@ -807,20 +807,17 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& blob_source,
     const size_t input_size = blob_source.get_remaining_size();
     OPENVINO_ASSERT(input_size > 0, EMPTY_BLOB_MESSAGE);
 
-    std::optional<ov::runtime::hsm::Reader> reader = open_hsm_reader(blob_source);
-    if (reader.has_value()) {
-        OPENVINO_ASSERT(!is_raw_blob,
-                        "The raw blob flag was set, but the container to be imported follows the HSM format");
-
-        logger.debug("Creating a blob format v2 import handler using the factory");
-        return std::make_unique<BlobFormatV2Importer>(reader.value(), original_model, backend, option_helper, config);
-    }
-
     if (is_raw_blob) {
         logger.info(BLOB_COMPATIBILITY_SKIPPED_MESSAGE.data());
 
         logger.debug("Creating a raw blob format import handler using the factory");
         return std::make_unique<RawBlobImporter>(blob_source, original_model, backend, config);
+    }
+
+    std::optional<ov::runtime::hsm::Reader> reader = open_hsm_reader(blob_source);
+    if (reader.has_value()) {
+        logger.debug("Creating a blob format v2 import handler using the factory");
+        return std::make_unique<BlobFormatV2Importer>(reader.value(), original_model, backend, option_helper, config);
     }
 
     // The V1 format is identified by some magic bytes at the end of the input

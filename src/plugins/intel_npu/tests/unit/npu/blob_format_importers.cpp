@@ -15,6 +15,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/runtime/hsm_deferred_writer.hpp"
 
 using namespace intel_npu;
 
@@ -155,6 +156,26 @@ TEST_F(BlobFormatImportersTest, FactoryCanCreateImporterForBlobFormatV1) {
         blob_format_importer_factory::create(stream_source, false, create_simple_model(), {nullptr}, nullptr, config));
     OV_ASSERT_NO_THROW(
         blob_format_importer_factory::create(tensor_source, false, create_simple_model(), {nullptr}, nullptr, config));
+}
+
+TEST_F(BlobFormatImportersTest, BlobFormatV2MissingBackendAndOptionHelper) {
+    std::stringstream input_stream;
+    auto writer = ov::runtime::hsm::DeferredWriter::open(input_stream);
+    ASSERT_TRUE(writer);
+    writer->finalize();
+
+    input_stream.seekg(0);
+    const std::string blob = input_stream.str();
+    const ov::Tensor input_tensor(ov::element::Type_t::u8, ov::Shape({blob.size()}), blob.data());
+    BlobSource stream_source(input_stream);
+    BlobSource tensor_source(input_tensor);
+
+    OV_EXPECT_THROW(blob_format_importer_factory::create(stream_source, false, nullptr, {nullptr}, nullptr, config),
+                    ov::Exception,
+                    _);
+    OV_EXPECT_THROW(blob_format_importer_factory::create(tensor_source, false, nullptr, {nullptr}, nullptr, config),
+                    ov::Exception,
+                    _);
 }
 
 /**
