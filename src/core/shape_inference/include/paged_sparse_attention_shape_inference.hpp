@@ -110,7 +110,7 @@ std::vector<TRShape> shape_infer(const PagedSparseAttention* op, const std::vect
             op,
             input_shapes,
             !groups.is_static() || !value[1].is_static() ||
-                (groups.get_length() <= (std::numeric_limits<int64_t>::max() / value[1].get_length())));
+                (groups.get_length() <= ((std::numeric_limits<int64_t>::max() - 1) / value[1].get_length())));
         output_width = groups * value[1];
     }
     // Output is `[T, H*Sv]`; cache layout and logical head counts are validated by the backend.
