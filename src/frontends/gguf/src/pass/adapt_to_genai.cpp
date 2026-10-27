@@ -250,11 +250,13 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     const bool has_recurrent_states = model->get_rt_info().count(gguf_recurrent_states_key()) != 0;
     const auto operations = model->get_ops();
     const auto contract = read_model_contract(model);
-    const bool batchable_recurrent =
-        has_recurrent_states &&
-        contract.batchable_recurrent.value_or(std::any_of(operations.begin(), operations.end(), [](const auto& node) {
+    const auto has_gated_delta_net = [&] {
+        return std::any_of(operations.begin(), operations.end(), [](const auto& node) {
             return ov::is_type<internal::GatedDeltaNet>(node);
-        }));
+        });
+    };
+    const bool batchable_recurrent =
+        has_recurrent_states && (contract.batchable_recurrent ? *contract.batchable_recurrent : has_gated_delta_net());
     const bool recurrent_only = !inp_pos && !self_kq_mask && has_recurrent_states;
     if (!inp_tokens || (!recurrent_only && !self_kq_mask)) {
         return false;

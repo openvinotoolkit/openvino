@@ -46,14 +46,7 @@ DecoderDimensions GgufGraphContext::configure_decoder(const DecoderParameters& p
     m_impl->check_open();
     OPENVINO_ASSERT(!m_impl->decoder, "[GGUF] decoder is already configured");
     auto config = std::make_unique<DecoderConfig>(parameters, m_impl->build_ctx.weights->weights);
-    m_impl->emitter.configure_hadamard(
-        decoder_weight_transform_metadata(metadata(), config->ssm_dt_rank, config->ssm_group_count));
-    auto& graph = *m_impl->emitter.graph();
-    graph.has_rope = true;
-    graph.rope_config = config->rope_config;
-    graph.use_per_op_rope = config->use_per_op_rope;
-    graph.swa_window_size = config->swa_window_size;
-    graph.model_contract = config->model_contract;
+    config->configure_graph(m_impl->emitter, metadata());
     const DecoderDimensions dimensions{config->n_layer, config->n_embd, config->rms_eps};
     m_impl->kv = blocks::KvCachePlan::build(*config);
     m_impl->decoder = std::move(config);

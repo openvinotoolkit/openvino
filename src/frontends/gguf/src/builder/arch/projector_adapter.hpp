@@ -16,6 +16,8 @@ namespace ov::frontend::gguf {
 using ProjectorModels = std::map<std::string, std::shared_ptr<ov::Model>>;
 
 std::string projector_layout_name(ProjectorLayout layout);
+// Vision GenAI layout of a built-in projector type; Unsupported for other types.
+ProjectorLayout builtin_projector_layout(const std::string& projector_type);
 void require_projector_layout(const std::shared_ptr<ov::Model>& model);
 ProjectorModels adapt_projector_layout(const std::shared_ptr<ov::Model>& model);
 

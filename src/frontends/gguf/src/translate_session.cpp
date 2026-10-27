@@ -304,7 +304,7 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
         OPENVINO_ASSERT(adapter && adapter->transform, "[GGUF] invalid model adapter for ", output);
         bool found = false;
         for (const auto& result : resulting_model->get_results()) {
-            if (!result->input_value(0).get_names().count(output))
+            if (!result->input_value(0).get_tensor().get_names().count(output))
                 continue;
             result->get_rt_info()[ModelAdapterAttribute::get_type_info_static()] = ModelAdapterAttribute(adapter);
             found = true;

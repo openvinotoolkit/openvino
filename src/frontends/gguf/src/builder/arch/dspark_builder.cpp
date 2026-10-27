@@ -12,6 +12,7 @@
 #include "builder/blocks/common.hpp"
 #include "builder/blocks/ffn.hpp"
 #include "builder/decoder_config.hpp"
+#include "builder/metadata_checks.hpp"
 
 namespace ov::frontend::gguf {
 namespace {
@@ -26,9 +27,7 @@ public:
         using ov::element::f32;
         using ov::element::i32;
         const auto required_int = [&](const std::string& name) {
-            const auto value = m_metadata.get_int("dspark.dspark." + name);
-            OPENVINO_ASSERT(value && *value > 0, "[GGUF] invalid DSpark ", name);
-            return *value;
+            return require_positive_int(m_metadata, "dspark.dspark." + name, "DSpark");
         };
         const auto block = required_int("block_size");
         OPENVINO_ASSERT(block <= 4096, "[GGUF] DSpark block_size exceeds the supported maximum of 4096");
@@ -43,12 +42,7 @@ public:
         OPENVINO_ASSERT(!m_metadata.get_bool("dspark.dspark.hidden_correction").value_or(false),
                         "[GGUF] DSpark hidden correction is not supported");
         auto& e = m_emitter;
-        auto& graph = *e.graph();
-        graph.has_rope = true;
-        graph.rope_config = m_config.rope_config;
-        graph.model_contract = m_config.model_contract;
-        e.configure_hadamard(
-            decoder_weight_transform_metadata(m_metadata, m_config.ssm_dt_rank, m_config.ssm_group_count));
+        m_config.configure_graph(e, m_metadata);
         const auto kv = blocks::KvCachePlan::build(m_config);
         e.add_input("inp_tokens", i32, ps({1, 1, 1, block}));
         e.add_input("inp_pos", i32, ps({1, 1, 1, -1}));
@@ -119,6 +113,7 @@ public:
         logits_value.set_names({"logits"});
         auto hidden_value = e.value(hidden);
         hidden_value.set_names({"dspark.hidden"});
+        auto& graph = *e.graph();
         graph.model_output_names.insert(graph.model_output_names.begin(), {logits, hidden});
         std::string latent;
         if (markov_rank > 0) {

@@ -14,13 +14,9 @@ DecoderParameters resolve_decoder_parameters(const GgufMetadata& metadata,
                                              RopeMode rope,
                                              const DecoderOptions& options = {});
 void apply_decoder_options(DecoderParameters& parameters, const DecoderOptions& options);
-DecoderParameters decoder_parameters_from_config(const std::map<std::string, GGUFMetaData>& config);
-std::map<std::string, GGUFMetaData> decoder_config_from_parameters(const DecoderParameters& parameters);
 std::map<std::string, GGUFMetaData> decoder_weight_transform_metadata(const GgufMetadata& metadata,
                                                                       int value_heads,
                                                                       int key_heads);
-std::map<std::string, GGUFMetaData> decoder_config_from_meta(
-    const std::unordered_map<std::string, GGUFMetaData>& metadata);
 ArchitectureDefinition::BuilderFactory decoder_builder_factory(RopeMode rope, DecoderOptionsFn options);
 ArchitectureDefinition::BuilderFactory decoder_builder_factory(DecoderParametersFn parameters);
 

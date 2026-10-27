@@ -150,7 +150,12 @@ TEST(GGUFHadamardMetadata, MissingAndMistypedFieldsNameTheInvalidKey) {
     const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/bonsai2-hadamard.npz");
     const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
     auto loaded = get_gguf_data(temporary.path);
-    const auto config = decoder_config_from_meta(std::get<0>(loaded));
+    auto& metadata = std::get<0>(loaded);
+    detail::MetadataStore store{metadata};
+    const GgufMetadata view(store);
+    const auto parameters = resolve_decoder_parameters(view, RopeMode::Normal);
+    const auto config =
+        decoder_weight_transform_metadata(view, parameters.hybrid.time_step_rank, parameters.hybrid.group_count);
     GraphEmitter valid(std::get<1>(loaded), std::get<2>(loaded), "qwen35");
     EXPECT_NO_THROW(valid.configure_hadamard(config));
     for (const std::string key : {"prism.hadamard.version",

@@ -27,7 +27,6 @@ struct GGUF_FRONTEND_API ProjectorResult {
 
 struct GGUF_FRONTEND_API ProjectorDefinition {
     using BuildFn = std::function<ProjectorResult(GgufGraphContext&)>;
-    using AdapterFn = ModelAdapterFn;
 
     std::string id;
     std::string architecture;
@@ -36,7 +35,7 @@ struct GGUF_FRONTEND_API ProjectorDefinition {
     BuildFn build;
     ArchitectureDefinition::MatchFn match;
     std::optional<ProjectorLayout> genai_layout;
-    AdapterFn genai_adapter;
+    ModelAdapterFn genai_adapter;
 };
 
 class GGUF_FRONTEND_API ProjectorExtension : public ArchitectureExtension {

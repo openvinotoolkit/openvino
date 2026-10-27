@@ -6,6 +6,7 @@
 
 #include <limits>
 #include <stdexcept>
+#include <utility>
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/add.hpp"
@@ -52,11 +53,20 @@ Value range(const Value& count) {
 }
 
 std::shared_ptr<v0::Parameter> parameter(const std::shared_ptr<ov::Model>& model, const std::string& name) {
-    for (const auto& candidate : model->get_parameters()) {
-        if (candidate->get_friendly_name() == name)
-            return candidate;
-    }
-    OPENVINO_THROW("[GGUF] mmproj vision encoder has no input ", name);
+    auto candidate = find_parameter(model, name);
+    OPENVINO_ASSERT(candidate, "[GGUF] mmproj vision encoder has no input ", name);
+    return candidate;
+}
+
+Value flat_index(const Value& value) {
+    auto index_shape = v0::Constant::create(ov::element::i64, {4}, {1, 1, 1, -1});
+    return std::make_shared<v1::Reshape>(value, index_shape, false);
+}
+
+void require_square_fits(int64_t value, int64_t factor, const char* key) {
+    OPENVINO_ASSERT(value <= std::numeric_limits<int64_t>::max() / factor / value,
+                    "[GGUF] out-of-range mmproj metadata ",
+                    key);
 }
 
 void replace_input(const std::shared_ptr<ov::Model>& model, const std::string& name, Value value) {
@@ -95,29 +105,6 @@ Value require_weight(const std::shared_ptr<ov::Model>& model, const std::string&
     return value;
 }
 
-int64_t metadata(const std::shared_ptr<ov::Model>& model, const std::string& key, int64_t minimum = 1) {
-    OPENVINO_ASSERT(model->has_rt_info({"gguf_mmproj", key}), "[GGUF] missing mmproj metadata ", key);
-    const auto& attribute = model->get_rt_info<ov::Any>({"gguf_mmproj", key});
-    OPENVINO_ASSERT(attribute.is<std::string>(), "[GGUF] mmproj metadata must be a string: ", key);
-    const auto& text = attribute.as<std::string>();
-    int64_t value;
-    size_t end;
-    try {
-        value = std::stoll(text, &end);
-    } catch (const std::invalid_argument&) {
-        OPENVINO_THROW("[GGUF] invalid integer mmproj metadata ", key, ": '", text, "'");
-    } catch (const std::out_of_range&) {
-        OPENVINO_THROW("[GGUF] out-of-range integer mmproj metadata ", key, ": '", text, "'");
-    }
-    OPENVINO_ASSERT(end == text.size() && value >= minimum,
-                    "[GGUF] invalid integer mmproj metadata ",
-                    key,
-                    ": '",
-                    text,
-                    "'");
-    return value;
-}
-
 Value image_from_patches(const Value& patches,
                          const Value& rows,
                          const Value& cols,
@@ -152,8 +139,7 @@ void squeeze_output(const std::shared_ptr<ov::Model>& model) {
 
 // Patches fill the leading rows in raster order; padding rows have position -1.
 void padded_patch_layout(const std::shared_ptr<ov::Model>& model, int64_t patch) {
-    OPENVINO_ASSERT(patch <= std::numeric_limits<int64_t>::max() / 3 / patch,
-                    "[GGUF] out-of-range mmproj metadata vision.patch_size");
+    require_square_fits(patch, 3, "vision.patch_size");
     auto pixels = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, 3 * patch * patch});
     auto positions = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1, 2});
     auto zero_axis = v0::Constant::create(ov::element::i64, {1}, {0});
@@ -174,9 +160,8 @@ void padded_patch_layout(const std::shared_ptr<ov::Model>& model, int64_t patch)
     auto valid_x = std::make_shared<v8::Slice>(x, zero_axis, count, one_step, zero_axis);
     auto valid_y = std::make_shared<v8::Slice>(y, zero_axis, count, one_step, zero_axis);
     auto image = image_from_patches(valid_pixels, rows, cols, patch, true);
-    auto index_shape = v0::Constant::create(ov::element::i64, {4}, {1, 1, 1, -1});
-    auto position_x = std::make_shared<v1::Reshape>(valid_x, index_shape, false);
-    auto position_y = std::make_shared<v1::Reshape>(valid_y, index_shape, false);
+    auto position_x = flat_index(valid_x);
+    auto position_y = flat_index(valid_y);
     replace_input(model, "pixel_values", image);
     replace_input(model, "position_x", position_x);
     replace_input(model, "position_y", position_y);
@@ -184,12 +169,9 @@ void padded_patch_layout(const std::shared_ptr<ov::Model>& model, int64_t patch)
 }
 
 void windowed_patch_layout(const std::shared_ptr<ov::Model>& model, int64_t patch, int64_t window, int64_t merge) {
-    OPENVINO_ASSERT(patch <= std::numeric_limits<int64_t>::max() / 3 / patch,
-                    "[GGUF] out-of-range mmproj metadata vision.patch_size");
-    OPENVINO_ASSERT(window <= std::numeric_limits<int64_t>::max() / window,
-                    "[GGUF] out-of-range mmproj metadata vision.window_size");
-    OPENVINO_ASSERT(merge <= std::numeric_limits<int64_t>::max() / merge,
-                    "[GGUF] out-of-range mmproj metadata vision.merge");
+    require_square_fits(patch, 3, "vision.patch_size");
+    require_square_fits(window, 1, "vision.window_size");
+    require_square_fits(merge, 1, "vision.merge");
     auto pixels = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 3 * patch * patch});
     auto grid = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1, 3});
     auto zero_axis = v0::Constant::create(ov::element::i64, {1}, {0});
@@ -233,14 +215,13 @@ void windowed_patch_layout(const std::shared_ptr<ov::Model>& model, int64_t patc
     auto top_offset = std::make_shared<v1::Multiply>(top, cols);
     auto first_patch = std::make_shared<v1::Add>(top_offset, left);
     auto index = std::make_shared<v1::Select>(inside, patch_index, first_patch);
-    auto index_shape = v0::Constant::create(ov::element::i64, {4}, {1, 1, 1, -1});
-    auto patch_indices = std::make_shared<v1::Reshape>(index, index_shape, false);
+    auto patch_indices = flat_index(index);
     auto patch_x = std::make_shared<v1::FloorMod>(index, cols);
     auto patch_y = std::make_shared<v1::Divide>(index, cols);
     auto offset_x = std::make_shared<v1::Add>(patch_x, one);
     auto offset_y = std::make_shared<v1::Add>(patch_y, one);
-    auto position_x = std::make_shared<v1::Reshape>(offset_x, index_shape, false);
-    auto position_y = std::make_shared<v1::Reshape>(offset_y, index_shape, false);
+    auto position_x = flat_index(offset_x);
+    auto position_y = flat_index(offset_y);
     replace_input(model, "patch_indices", patch_indices);
     replace_input(model, "position_x", position_x);
     replace_input(model, "position_y", position_y);
@@ -265,7 +246,7 @@ void windowed_patch_layout(const std::shared_ptr<ov::Model>& model, int64_t patc
     auto raster_row_offset = std::make_shared<v1::Multiply>(raster_row_in_window, window_size);
     auto raster_index_in_window = std::make_shared<v1::Add>(raster_row_offset, raster_col_in_window);
     auto slot_of = std::make_shared<v1::Add>(raster_slot_offset, raster_index_in_window);
-    auto output_indices = std::make_shared<v1::Reshape>(slot_of, index_shape, false);
+    auto output_indices = flat_index(slot_of);
     replace_input(model, "output_indices", output_indices);
     auto merge_size = v0::Constant::create(ov::element::i64, {}, {merge});
     auto merge_slots = v0::Constant::create(ov::element::i64, {}, {merge * merge});
@@ -282,7 +263,7 @@ void windowed_patch_layout(const std::shared_ptr<ov::Model>& model, int64_t patc
     auto merged_col = std::make_shared<v1::Add>(block_left, col_in_block);
     auto merged_row_offset = std::make_shared<v1::Multiply>(merged_row, cols);
     auto merged = std::make_shared<v1::Add>(merged_row_offset, merged_col);
-    auto merge_indices = std::make_shared<v1::Reshape>(merged, index_shape, false);
+    auto merge_indices = flat_index(merged);
     replace_input(model, "merge_indices", merge_indices);
     add_inputs(model, {{"pixel_values", pixels}, {"image_grid_thw", grid}});
     squeeze_output(model);
@@ -345,8 +326,8 @@ Models split_merger_layout(const std::shared_ptr<ov::Model>& model) {
     model->remove_parameter(parameter(model, "patch_indices"));
 
     // The first column of each rotary half has frequency 1, so it holds the row or column.
-    const auto width_metadata = metadata(model, "clip.vision.embedding_length");
-    const auto heads = metadata(model, "clip.vision.attention.head_count");
+    const auto width_metadata = mmproj_int_metadata(model, "clip.vision.embedding_length");
+    const auto heads = mmproj_int_metadata(model, "clip.vision.attention.head_count");
     OPENVINO_ASSERT(width_metadata == width && width_metadata % heads == 0 && width_metadata / heads % 4 == 0,
                     "[GGUF] incompatible mmproj metadata clip.vision.embedding_length and "
                     "clip.vision.attention.head_count");
@@ -358,8 +339,7 @@ Models split_merger_layout(const std::shared_ptr<ov::Model>& model) {
     auto col = std::make_shared<v8::Gather>(rotary, col_index, one);
     auto coordinates = std::make_shared<v0::Concat>(ov::OutputVector{row, col, row, col}, 0);
     auto positions = std::make_shared<v5::Round>(coordinates, v5::Round::RoundMode::HALF_TO_EVEN);
-    auto index_shape = v0::Constant::create(ov::element::i64, {4}, {1, 1, 1, -1});
-    auto position_ids = std::make_shared<v1::Reshape>(positions, index_shape, false);
+    auto position_ids = flat_index(positions);
     replace_input(model, "position_ids", position_ids);
 
     auto mask = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, -1});
@@ -395,48 +375,53 @@ Models split_merger_layout(const std::shared_ptr<ov::Model>& model) {
     models["vision_embeddings_merger"] = model;
     return models;
 }
+constexpr std::pair<ProjectorLayout, const char*> layout_names[] = {
+    {ProjectorLayout::Unsupported, "unsupported"},
+    {ProjectorLayout::Image, "image"},
+    {ProjectorLayout::PaddedPatches, "padded_patches"},
+    {ProjectorLayout::WindowedPatches, "windowed_patches"},
+    {ProjectorLayout::SplitMerger, "split_merger"},
+};
+
 ProjectorLayout read_projector_layout(const std::shared_ptr<ov::Model>& model) {
     if (!model->has_rt_info({"gguf_mmproj", "vision.genai_layout"})) {
         OPENVINO_ASSERT(model->has_rt_info({"gguf_mmproj", "vision.projector"}),
                         "[GGUF] no GenAI vision layout contract");
         const auto projector = model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"});
-        if (projector == "gemma3" || projector == "lfm2")
-            return ProjectorLayout::Image;
-        if (projector == "gemma4v" || projector == "gemma4uv")
-            return ProjectorLayout::PaddedPatches;
-        if (projector == "muse-glimmer")
-            return ProjectorLayout::WindowedPatches;
-        if (projector == "qwen3vl_merger")
-            return ProjectorLayout::SplitMerger;
-        OPENVINO_THROW("[GGUF] no GenAI vision layout for mmproj projector '", projector, "'");
+        const auto layout = builtin_projector_layout(projector);
+        OPENVINO_ASSERT(layout != ProjectorLayout::Unsupported,
+                        "[GGUF] no GenAI vision layout for mmproj projector '",
+                        projector,
+                        "'");
+        return layout;
     }
-    const auto layout = model->get_rt_info<std::string>({"gguf_mmproj", "vision.genai_layout"});
-    if (layout == "image")
-        return ProjectorLayout::Image;
-    if (layout == "padded_patches")
-        return ProjectorLayout::PaddedPatches;
-    if (layout == "windowed_patches")
-        return ProjectorLayout::WindowedPatches;
-    if (layout == "split_merger")
-        return ProjectorLayout::SplitMerger;
-    OPENVINO_THROW("[GGUF] no GenAI vision layout for mmproj contract '", layout, "'");
+    const auto name = model->get_rt_info<std::string>({"gguf_mmproj", "vision.genai_layout"});
+    for (const auto& [layout, layout_name] : layout_names) {
+        if (layout != ProjectorLayout::Unsupported && name == layout_name)
+            return layout;
+    }
+    OPENVINO_THROW("[GGUF] no GenAI vision layout for mmproj contract '", name, "'");
 }
 }  // namespace
 
 std::string projector_layout_name(ProjectorLayout layout) {
-    switch (layout) {
-    case ProjectorLayout::Unsupported:
-        return "unsupported";
-    case ProjectorLayout::Image:
-        return "image";
-    case ProjectorLayout::PaddedPatches:
-        return "padded_patches";
-    case ProjectorLayout::WindowedPatches:
-        return "windowed_patches";
-    case ProjectorLayout::SplitMerger:
-        return "split_merger";
+    for (const auto& [candidate, name] : layout_names) {
+        if (candidate == layout)
+            return name;
     }
     OPENVINO_THROW("[GGUF] invalid GenAI projector layout contract");
+}
+
+ProjectorLayout builtin_projector_layout(const std::string& projector_type) {
+    if (projector_type == "gemma3" || projector_type == "lfm2")
+        return ProjectorLayout::Image;
+    if (projector_type == "gemma4v" || projector_type == "gemma4uv")
+        return ProjectorLayout::PaddedPatches;
+    if (projector_type == "muse-glimmer")
+        return ProjectorLayout::WindowedPatches;
+    if (projector_type == "qwen3vl_merger")
+        return ProjectorLayout::SplitMerger;
+    return ProjectorLayout::Unsupported;
 }
 
 void require_projector_layout(const std::shared_ptr<ov::Model>& model) {
@@ -448,13 +433,13 @@ ProjectorModels adapt_projector_layout(const std::shared_ptr<ov::Model>& model) 
     case ProjectorLayout::Image:
         break;
     case ProjectorLayout::PaddedPatches:
-        padded_patch_layout(model, metadata(model, "vision.patch_size"));
+        padded_patch_layout(model, mmproj_int_metadata(model, "vision.patch_size"));
         break;
     case ProjectorLayout::WindowedPatches:
         windowed_patch_layout(model,
-                              metadata(model, "vision.patch_size"),
-                              metadata(model, "vision.window_size"),
-                              metadata(model, "vision.merge"));
+                              mmproj_int_metadata(model, "vision.patch_size"),
+                              mmproj_int_metadata(model, "vision.window_size"),
+                              mmproj_int_metadata(model, "vision.merge"));
         break;
     case ProjectorLayout::SplitMerger:
         return split_merger_layout(model);

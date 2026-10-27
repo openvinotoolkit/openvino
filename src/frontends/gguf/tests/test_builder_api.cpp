@@ -45,6 +45,9 @@ struct Environment {
         *t.data<float>() = value;
         metadata[key] = t;
     }
+    DecoderParameters parameters(RopeMode rope = RopeMode::Normal, const DecoderOptions& options = {}) const {
+        return resolve_decoder_parameters(context.metadata, rope, options);
+    }
     void architecture(const std::string& name) {
         std::unordered_map<std::string, GGUFMetaData> renamed;
         for (const auto& entry : metadata)
@@ -285,11 +288,10 @@ TEST(GGUFBuilderAPI, DecoderOptionsAreResolvedBeforeRopePlans) {
 TEST(GGUFBuilderAPI, RopeScalingDefaultsAndPositiveFactors) {
     Environment env;
     env.decoder();
-    EXPECT_FLOAT_EQ(std::get<float>(decoder_config_from_meta(env.metadata).at("rope_freq_scale")), 1.0f);
+    EXPECT_FLOAT_EQ(env.parameters().attention.rope.freq_scale, 1.0f);
     for (const float factor : {0.0f, 1.0f, 4.0f}) {
         env.real("test.rope.scaling.factor", factor);
-        EXPECT_FLOAT_EQ(std::get<float>(decoder_config_from_meta(env.metadata).at("rope_freq_scale")),
-                        factor == 0.0f ? 1.0f : 1.0f / factor);
+        EXPECT_FLOAT_EQ(env.parameters().attention.rope.freq_scale, factor == 0.0f ? 1.0f : 1.0f / factor);
     }
 }
 
@@ -302,7 +304,7 @@ TEST(GGUFBuilderAPI, RejectsInvalidRopeScalingFactors) {
         Environment env;
         env.decoder();
         env.real("test.rope.scaling.factor", factor);
-        EXPECT_THROW(decoder_config_from_meta(env.metadata), ov::Exception);
+        EXPECT_THROW(env.parameters(), ov::Exception);
     }
 }
 
@@ -494,7 +496,7 @@ TEST(GGUFBuilderAPI, Gemma2DefaultsIncludeSlidingWindowAnd27BAttentionScale) {
     env.integer("test.attention.head_count", 32);
     env.integer("test.attention.key_length", 128);
     env.architecture("gemma2");
-    DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights);
+    DecoderConfig config(env.parameters(), env.weights);
     EXPECT_EQ(config.swa_window_size, 4096);
     EXPECT_TRUE(config.layer_is_swa(0));
     EXPECT_FALSE(config.layer_is_swa(1));
@@ -512,7 +514,7 @@ TEST(GGUFBuilderAPI, Gemma2RejectsZeroAttentionHeadsWithOrWithoutKeyLength) {
             env.integer("test.attention.key_length", 128);
         }
         env.architecture("gemma2");
-        EXPECT_THROW(decoder_config_from_meta(env.metadata), ov::Exception);
+        EXPECT_THROW(env.parameters(), ov::Exception);
     }
 }
 
@@ -581,7 +583,7 @@ TEST(GGUFBuilderAPI, SlidingWindowDefaultsMatchExaoneMoeAndPlamo3) {
         env.integer("test.attention.sliding_window", 128);
         env.real("test.rope.freq_base", 1000000.f);
         env.architecture(family);
-        DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights);
+        DecoderConfig config(env.parameters(), env.weights);
         const bool exaone = std::string(family) == "exaone-moe";
         EXPECT_EQ(config.swa_layer_pattern, exaone ? 4 : 8);
         EXPECT_TRUE(config.layer_is_swa(0));
@@ -595,11 +597,11 @@ TEST(GGUFBuilderAPI, Glm4MoeDefaultsToSigmoidRouting) {
     Environment env;
     env.decoder();
     env.architecture("glm4moe");
-    EXPECT_TRUE(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights).moe_sigmoid_gating);
+    EXPECT_TRUE(DecoderConfig(env.parameters(), env.weights).moe_sigmoid_gating);
     env.integer("glm4moe.expert_gating_func", 0);
-    EXPECT_TRUE(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights).moe_sigmoid_gating);
+    EXPECT_TRUE(DecoderConfig(env.parameters(), env.weights).moe_sigmoid_gating);
     env.integer("glm4moe.expert_gating_func", 1);
-    EXPECT_FALSE(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights).moe_sigmoid_gating);
+    EXPECT_FALSE(DecoderConfig(env.parameters(), env.weights).moe_sigmoid_gating);
 }
 
 TEST(GGUFBuilderAPI, ErnieInterleavesDenseAndExpertLayers) {
@@ -626,7 +628,7 @@ TEST(GGUFBuilderAPI, ErnieInterleavesDenseAndExpertLayers) {
     for (uint32_t dense_lead : {0u, 1u}) {
         SCOPED_TRACE(dense_lead);
         env.integer("ernie4_5-moe.leading_dense_block_count", dense_lead);
-        DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights);
+        DecoderConfig config(env.parameters(), env.weights);
         EXPECT_FALSE(config.layer_is_moe(0));
         EXPECT_TRUE(config.layer_is_moe(1));
         EXPECT_FALSE(config.layer_is_moe(2));
@@ -649,7 +651,7 @@ TEST(GGUFBuilderAPI, Exaone64LayerDefaultsIncludeLocalRopeAndSlidingWindow) {
     env.decoder();
     env.integer("test.block_count", 64);
     env.architecture("exaone4");
-    DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights);
+    DecoderConfig config(env.parameters(), env.weights);
     EXPECT_TRUE(config.post_norm_only);
     EXPECT_TRUE(config.rope_on_swa_only);
     EXPECT_EQ(config.swa_window_size, 4096);
@@ -667,14 +669,13 @@ TEST(GGUFBuilderAPI, ArchitectureOptionsOverrideAmbiguousTensorSemantics) {
     options.post_norm_only = true;
     options.normalize_expert_weights = true;
     options.rope_skip_period = 4;
-    DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights, RopeMode::Neox, options);
+    DecoderConfig config(env.parameters(RopeMode::Neox, options), env.weights);
     EXPECT_TRUE(config.qk_norm_after_rope);
     EXPECT_TRUE(config.post_norm_only);
     EXPECT_TRUE(config.expert_weights_norm);
     EXPECT_EQ(config.rope_skip_period, 4);
     options.rope_skip_period = -1;
-    EXPECT_THROW(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights, RopeMode::Neox, options),
-                 ov::Exception);
+    EXPECT_THROW(DecoderConfig(env.parameters(RopeMode::Neox, options), env.weights), ov::Exception);
 }
 
 TEST(GGUFBuilderAPI, DevstralReadsYarnAndAttentionTemperatureMetadata) {
@@ -688,13 +689,13 @@ TEST(GGUFBuilderAPI, DevstralReadsYarnAndAttentionTemperatureMetadata) {
     env.integer("test.rope.scaling.original_context_length", 8192);
     env.real("test.attention.temperature_scale", 0.1f);
     env.architecture("mistral3");
-    DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights);
+    DecoderConfig config(env.parameters(), env.weights);
     EXPECT_FLOAT_EQ(config.rope_config.beta_fast, 4.0f);
     EXPECT_FLOAT_EQ(config.rope_config.beta_slow, 1.0f);
     EXPECT_FLOAT_EQ(config.rope_config.attn_factor, 1.0f / (1.0f + 0.1f * std::log(48.0f)));
     EXPECT_FLOAT_EQ(config.attention_temperature_scale, 0.1f);
     env.integer("mistral3.rope.scaling.original_context_length", 0);
-    EXPECT_THROW(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights), ov::Exception);
+    EXPECT_THROW(DecoderConfig(env.parameters(), env.weights), ov::Exception);
 }
 
 TEST(GGUFBuilderAPI, BroadcastAndConcatShapesComeFromOpenVINO) {

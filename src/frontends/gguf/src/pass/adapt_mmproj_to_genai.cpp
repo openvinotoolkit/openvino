@@ -32,29 +32,6 @@ std::shared_ptr<ov::op::v0::Result> embedding_result(const std::shared_ptr<ov::M
     return selected;
 }
 
-int64_t metadata(const std::shared_ptr<ov::Model>& model, const std::string& key, int64_t minimum = 1) {
-    OPENVINO_ASSERT(model->has_rt_info({"gguf_mmproj", key}), "[GGUF] missing mmproj metadata ", key);
-    const auto& attribute = model->get_rt_info<ov::Any>({"gguf_mmproj", key});
-    OPENVINO_ASSERT(attribute.is<std::string>(), "[GGUF] mmproj metadata must be a string: ", key);
-    const auto& text = attribute.as<std::string>();
-    int64_t value;
-    size_t end;
-    try {
-        value = std::stoll(text, &end);
-    } catch (const std::invalid_argument&) {
-        OPENVINO_THROW("[GGUF] invalid integer mmproj metadata ", key, ": '", text, "'");
-    } catch (const std::out_of_range&) {
-        OPENVINO_THROW("[GGUF] out-of-range integer mmproj metadata ", key, ": '", text, "'");
-    }
-    OPENVINO_ASSERT(end == text.size() && value >= minimum,
-                    "[GGUF] invalid integer mmproj metadata ",
-                    key,
-                    ": '",
-                    text,
-                    "'");
-    return value;
-}
-
 ModelAdapterResult adapt_mmproj(const std::shared_ptr<ov::Model>& model,
                                 AdaptMmprojToGenAI::Modality modality,
                                 AdaptMmprojToGenAI::Layout layout) {
@@ -77,7 +54,7 @@ ModelAdapterResult adapt_mmproj(const std::shared_ptr<ov::Model>& model,
                                                             ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
     size_t auxiliary_count = 0;
     if (modality == Modality::VISION && model->has_rt_info({"gguf_mmproj", "vision.auxiliary_count"}))
-        auxiliary_count = size_t(metadata(model, "vision.auxiliary_count", 0));
+        auxiliary_count = size_t(mmproj_int_metadata(model, "vision.auxiliary_count", 0));
     if (auxiliary_count) {
         auto split = std::make_shared<ov::op::v1::Split>(embeddings,
                                                          ov::op::v0::Constant::create(ov::element::i64, {}, {2}),

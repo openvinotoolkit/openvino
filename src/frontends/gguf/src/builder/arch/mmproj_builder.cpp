@@ -13,6 +13,7 @@
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/gguf_graph.hpp"
+#include "builder/metadata_checks.hpp"
 #include "builder/projector_registry.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "projector_adapter.hpp"
@@ -111,12 +112,7 @@ bool rms_encoder(const EncoderConfig& c) {
 }
 
 int64_t positive(const GgufMetadata& meta, const std::string& key) {
-    const auto value = meta.get_int(key);
-    OPENVINO_ASSERT(value && *value > 0 && *value <= std::numeric_limits<int>::max(),
-                    "[GGUF] mmproj requires a positive integer '",
-                    key,
-                    "'");
-    return *value;
+    return require_positive_int(meta, key, "mmproj");
 }
 
 EncoderConfig config(const GgufMetadata& meta, const std::string& modality, const std::string& projector) {
@@ -157,9 +153,8 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality, cons
                                             : *std::max_element(c.feature_layers.begin(), c.feature_layers.end());
     }
     OPENVINO_ASSERT(c.width % c.heads == 0, "[GGUF] mmproj embedding width must be divisible by head count");
-    const auto eps = meta.get_float(key + "attention.layer_norm_epsilon");
-    OPENVINO_ASSERT(eps && std::isfinite(*eps) && *eps > 0, "[GGUF] invalid ", key, "attention.layer_norm_epsilon");
-    c.eps = c.topology == EncoderTopology::GEMMA4_AUDIO ? 1e-6f : static_cast<float>(*eps);
+    const float eps = require_positive_float(meta, key + "attention.layer_norm_epsilon", "mmproj");
+    c.eps = c.topology == EncoderTopology::GEMMA4_AUDIO ? 1e-6f : eps;
     const bool gelu = meta.get_bool("clip.use_gelu").value_or(false);
     const bool silu = meta.get_bool("clip.use_silu").value_or(false);
     OPENVINO_ASSERT(!(gelu && silu), "[GGUF] mmproj cannot enable both GELU and SiLU");
@@ -1277,14 +1272,9 @@ ProjectorResult build_builtin_projector(GgufGraphContext& graph,
                                         const std::string& projector_type) {
     auto result = BuiltinProjectorBuilder(graph).build(modality, projector_type);
     if (modality == "vision") {
-        if (projector_type == "gemma3" || projector_type == "lfm2")
-            result.genai_layout = ProjectorLayout::Image;
-        else if (projector_type == "gemma4v" || projector_type == "gemma4uv")
-            result.genai_layout = ProjectorLayout::PaddedPatches;
-        else if (projector_type == "muse-glimmer")
-            result.genai_layout = ProjectorLayout::WindowedPatches;
-        else if (projector_type == "qwen3vl_merger")
-            result.genai_layout = ProjectorLayout::SplitMerger;
+        const auto layout = builtin_projector_layout(projector_type);
+        if (layout != ProjectorLayout::Unsupported)
+            result.genai_layout = layout;
     }
     return result;
 }

@@ -37,6 +37,9 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> get_glu_inputs(const NodeC
 /// Returns nullptr if the model has no such Parameter.
 std::shared_ptr<ov::op::v0::Parameter> find_parameter(const std::shared_ptr<ov::Model>& model, const std::string& name);
 
+/// \brief Read an integer string attribute from the model's `gguf_mmproj` rt_info; must be >= `minimum`.
+int64_t mmproj_int_metadata(const std::shared_ptr<ov::Model>& model, const std::string& key, int64_t minimum = 1);
+
 int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb);
 
 template <typename T>

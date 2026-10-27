@@ -8,6 +8,7 @@
 #include <limits>
 
 #include "builder/decoder_metadata.hpp"
+#include "builder/metadata_checks.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 
 namespace ov::frontend::gguf {
@@ -22,13 +23,7 @@ public:
 
     std::shared_ptr<GgufGraph> build() override {
         const auto positive = [&](const std::string& suffix) {
-            const auto key = g.arch() + "." + suffix;
-            const auto value = g.metadata().get_int(key);
-            OPENVINO_ASSERT(value && *value > 0 && *value <= std::numeric_limits<int>::max(),
-                            "[GGUF] Mamba2 requires positive metadata '",
-                            key,
-                            "'");
-            return *value;
+            return require_positive_int(g.metadata(), g.arch() + "." + suffix, "Mamba2");
         };
         const auto layers = positive("block_count");
         const auto inner = positive("ssm.inner_size");
@@ -41,10 +36,7 @@ public:
                         "and conv_kernel > 1");
         const auto head_dim = inner / heads;
         const auto conv_dim = inner + 2 * groups * state_size;
-        const auto eps_value = g.metadata().get_float(g.arch() + ".attention.layer_norm_rms_epsilon");
-        OPENVINO_ASSERT(eps_value && std::isfinite(*eps_value) && *eps_value > 0,
-                        "[GGUF] Mamba2 requires a positive RMS normalization epsilon");
-        const auto eps = static_cast<float>(*eps_value);
+        const auto eps = require_positive_float(g.metadata(), g.arch() + ".attention.layer_norm_rms_epsilon", "Mamba2");
         auto weights = g.tensors();
         const bool hybrid = g.arch() == "nemotron_h";
         if (hybrid) {

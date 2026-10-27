@@ -44,32 +44,7 @@ DecoderBuilder::DecoderBuilder(const BuildContext& context, const DecoderParamet
     : m_cfg(parameters, context.weights->weights),
       m_emit(context.weights->weights, context.weights->qtypes, context.arch, context.weights->translators),
       m_kv(blocks::KvCachePlan::build(m_cfg)) {
-    m_emit.configure_hadamard(
-        decoder_weight_transform_metadata(context.metadata, m_cfg.ssm_dt_rank, m_cfg.ssm_group_count));
-    auto& graph = *m_emit.graph();
-    graph.has_rope = true;
-    graph.rope_config = m_cfg.rope_config;
-    graph.use_per_op_rope = m_cfg.use_per_op_rope;
-    graph.swa_window_size = m_cfg.swa_window_size;
-    graph.model_contract = m_cfg.model_contract;
-}
-
-DecoderBuilder::DecoderBuilder(const std::map<std::string, GGUFMetaData>& config,
-                               std::unordered_map<std::string, ov::Tensor>& weights,
-                               std::unordered_map<std::string, GgufTensorType>& qtypes,
-                               std::optional<RopeMode> rope,
-                               const DecoderOptions& options,
-                               const std::unordered_map<std::string, CreatorFunction>* translators)
-    : m_cfg(config, weights, rope, options),
-      m_emit(weights, qtypes, m_cfg.arch, translators),
-      m_kv(blocks::KvCachePlan::build(m_cfg)) {
-    m_emit.configure_hadamard(config);
-    auto& graph = *m_emit.graph();
-    graph.has_rope = true;
-    graph.rope_config = m_cfg.rope_config;
-    graph.use_per_op_rope = m_cfg.use_per_op_rope;
-    graph.swa_window_size = m_cfg.swa_window_size;
-    graph.model_contract = m_cfg.model_contract;
+    m_cfg.configure_graph(m_emit, context.metadata);
 }
 
 void DecoderBuilder::build_inputs() {

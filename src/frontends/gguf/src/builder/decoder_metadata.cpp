@@ -10,6 +10,7 @@
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/arch/decoder_builder.hpp"
+#include "builder/metadata_checks.hpp"
 #include "openvino/core/except.hpp"
 
 namespace ov::frontend::gguf {
@@ -51,6 +52,7 @@ std::vector<int32_t> integers(const GgufMetadata& m, const std::string& key) {
     const auto values = m.get_int_array(key);
     OPENVINO_ASSERT(!values.empty(), "[GGUF] invalid integer array metadata key '", key, "'");
     std::vector<int32_t> result;
+    result.reserve(values.size());
     for (const auto value : values) {
         OPENVINO_ASSERT(value >= std::numeric_limits<int32_t>::min() && value <= std::numeric_limits<int32_t>::max(),
                         "[GGUF] integer array metadata key '",
@@ -185,7 +187,9 @@ DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParamete
     e.layer_step = integer(m, key("interleave_moe_layer_step"), e.layer_step);
     e.groups = integer(m, key("expert_group_count"), e.groups);
     e.groups_used = integer(m, key("expert_group_used_count"), e.groups_used);
-    e.routing = static_cast<ExpertRouting>(integer(m, key("expert_gating_func"), static_cast<int>(e.routing)));
+    // Zero is llama.cpp's "unspecified" gating function; keep the family default.
+    if (const int gating = integer(m, key("expert_gating_func"), 0))
+        e.routing = static_cast<ExpertRouting>(gating);
     e.weights_scale = real(m, key("expert_weights_scale"), e.weights_scale);
     e.normalize_weights = flag(m, key("expert_weights_norm"), false) || e.normalize_weights;
     auto& scales = p.scales;
@@ -250,175 +254,31 @@ void apply_decoder_options(DecoderParameters& p, const DecoderOptions& o) {
         p.normalization.embedding_norm = *o.embedding_norm;
     if (o.rope_on_swa_only)
         p.attention.rope_on_sliding_only = *o.rope_on_swa_only;
-    if (o.post_norm_epsilon)
-        p.normalization.post_epsilon = *o.post_norm_epsilon;
-    if (o.swa_rope_frequency_base)
-        p.attention.sliding_rope.freq_base = *o.swa_rope_frequency_base;
-    if (o.swa_rope_dimensions)
-        p.attention.sliding_rope.n_dims = *o.swa_rope_dimensions;
-    if (o.sliding_window)
-        p.attention.window_size = *o.sliding_window;
     if (o.rope_skip_period)
         p.attention.rope_skip_period = *o.rope_skip_period;
     if (o.geglu)
         p.activation = *o.geglu ? FfnActivation::GeGlu : FfnActivation::SwiGlu;
+    if (o.post_norm_epsilon) {
+        require_positive_finite(*o.post_norm_epsilon, "post-norm epsilon");
+        p.normalization.post_epsilon = *o.post_norm_epsilon;
+    }
+    if (o.swa_rope_frequency_base) {
+        require_positive_finite(*o.swa_rope_frequency_base, "SWA RoPE frequency base");
+        p.attention.sliding_rope.freq_base = *o.swa_rope_frequency_base;
+    }
+    if (o.swa_rope_dimensions) {
+        const int head_size =
+            p.attention.sliding_head_size > 0 ? p.attention.sliding_head_size : p.dimensions.head_size;
+        OPENVINO_ASSERT(
+            *o.swa_rope_dimensions > 0 && *o.swa_rope_dimensions % 2 == 0 && *o.swa_rope_dimensions <= head_size,
+            "[GGUF] SWA RoPE dimensions must be positive, even and fit the attention head");
+        p.attention.sliding_rope.n_dims = *o.swa_rope_dimensions;
+    }
     if (o.sliding_window) {
         OPENVINO_ASSERT(*o.sliding_window > 0, "[GGUF] sliding window must be positive");
+        p.attention.window_size = *o.sliding_window;
         p.attention.sliding_window = true;
     }
-    if (o.swa_rope_dimensions)
-        OPENVINO_ASSERT(*o.swa_rope_dimensions > 0 && *o.swa_rope_dimensions % 2 == 0 &&
-                            *o.swa_rope_dimensions <= (p.attention.sliding_head_size > 0 ? p.attention.sliding_head_size
-                                                                                         : p.dimensions.head_size),
-                        "[GGUF] SWA RoPE dimensions must be positive, even and fit the attention head");
-    if (o.post_norm_epsilon)
-        OPENVINO_ASSERT(std::isfinite(*o.post_norm_epsilon) && *o.post_norm_epsilon > 0,
-                        "[GGUF] post-norm epsilon must be finite and positive");
-    if (o.swa_rope_frequency_base)
-        OPENVINO_ASSERT(std::isfinite(*o.swa_rope_frequency_base) && *o.swa_rope_frequency_base > 0,
-                        "[GGUF] SWA RoPE frequency base must be finite and positive");
-}
-
-std::map<std::string, GGUFMetaData> decoder_config_from_parameters(const DecoderParameters& p) {
-    std::map<std::string, GGUFMetaData> result;
-    result["architecture"] = p.architecture;
-    result["layer_num"] = p.dimensions.layers;
-    result["head_num"] = p.dimensions.query_heads;
-    result["head_num_kv"] = p.dimensions.kv_heads;
-    result["head_size"] = p.dimensions.head_size;
-    result["hidden_size"] = p.dimensions.embedding;
-    result["rms_norm_eps"] = p.normalization.epsilon;
-    result["n_layer_dense_lead"] = p.experts.dense_lead;
-    result["moe_layer_step"] = p.experts.layer_step;
-    result["expert_count"] = p.experts.count;
-    result["expert_used_count"] = p.experts.used;
-    result["expert_groups"] = p.experts.groups;
-    result["expert_groups_used"] = p.experts.groups_used;
-    result["ssm_conv_kernel"] = p.hybrid.conv_kernel;
-    result["ssm_state_size"] = p.hybrid.state_size;
-    result["ssm_group_count"] = p.hybrid.group_count;
-    result["ssm_time_step_rank"] = p.hybrid.time_step_rank;
-    result["ssm_inner_size"] = p.hybrid.inner_size;
-    result["full_attention_interval"] = p.hybrid.full_attention_interval;
-    result["nextn_predict_layers"] = p.hybrid.nextn_layers;
-    result["embedding_scale"] = p.scales.embedding;
-    result["residual_scale"] = p.scales.residual;
-    result["logit_scale"] = p.scales.logits;
-    result["attention_scale"] = p.scales.attention;
-    result["expert_weights_scale"] = p.experts.weights_scale;
-    result["rope_freq_base_swa"] = p.attention.sliding_rope.freq_base;
-    result["swa_layer_pattern"] = p.attention.sliding_period;
-    result["attn_logit_softcapping"] = p.scales.attention_soft_cap;
-    result["final_logit_softcapping"] = p.scales.logits_soft_cap;
-    result["n_embd_per_layer"] = p.dimensions.per_layer_embedding;
-    result["shared_kv_layers"] = p.dimensions.shared_kv_layers;
-    result["head_size_swa"] = p.attention.sliding_head_size;
-    result["rope_dimension_count_swa"] = p.attention.sliding_rope.n_dims;
-    result["swa_window_size"] = p.attention.window_size;
-    result["rope_dimension_count"] = p.attention.rope.n_dims;
-    result["rope_n_ctx_orig"] = p.attention.rope.n_ctx_orig;
-    result["rope_freq_base"] = p.attention.rope.freq_base;
-    result["rope_freq_scale"] = p.attention.rope.freq_scale;
-    result["rope_ext_factor"] = p.attention.rope.ext_factor;
-    result["rope_yarn_beta_fast"] = p.attention.rope.beta_fast;
-    result["rope_yarn_beta_slow"] = p.attention.rope.beta_slow;
-    result["rope_yarn_log_mul"] = p.attention.yarn_log_multiplier;
-    result["attention_temperature_scale"] = p.scales.attention_temperature;
-    result["pooling_type"] = p.pooling_type;
-    result["causal_attention"] = p.causal_attention ? 1 : 0;
-    result["expert_weights_norm"] = p.experts.normalize_weights ? 1 : 0;
-    result["expert_gating_func"] = static_cast<int>(p.experts.routing);
-    result["has_swa"] = p.attention.sliding_window ? 1 : 0;
-    result["swa_layer_flags"] = p.attention.sliding_layers;
-    result["recurrent_layer_flags"] = p.hybrid.recurrent_layers;
-    result["rope_sections"] = std::vector<int32_t>(p.attention.rope.sections.begin(), p.attention.rope.sections.end());
-    if (!p.dimensions.kv_heads_per_layer.empty()) {
-        ov::Tensor counts(ov::element::u32, {p.dimensions.kv_heads_per_layer.size()});
-        std::copy(p.dimensions.kv_heads_per_layer.begin(),
-                  p.dimensions.kv_heads_per_layer.end(),
-                  counts.data<uint32_t>());
-        result["head_num_kv_per_layer"] = counts;
-    }
-    return result;
-}
-
-DecoderParameters decoder_parameters_from_config(const std::map<std::string, GGUFMetaData>& c) {
-    const auto i = [&](const std::string& key) {
-        return std::get<int>(c.at(key));
-    };
-    const auto f = [&](const std::string& key) {
-        return std::get<float>(c.at(key));
-    };
-    auto p = decoder_family_defaults(std::get<std::string>(c.at("architecture")),
-                                     i("layer_num"),
-                                     i("hidden_size"),
-                                     i("head_num"));
-    p.dimensions.layers = i("layer_num");
-    p.dimensions.query_heads = i("head_num");
-    p.dimensions.kv_heads = i("head_num_kv");
-    p.dimensions.head_size = i("head_size");
-    p.dimensions.embedding = i("hidden_size");
-    p.normalization.epsilon = f("rms_norm_eps");
-    p.experts.dense_lead = i("n_layer_dense_lead");
-    p.experts.layer_step = i("moe_layer_step");
-    p.experts.count = i("expert_count");
-    p.experts.used = i("expert_used_count");
-    p.experts.groups = i("expert_groups");
-    p.experts.groups_used = i("expert_groups_used");
-    p.hybrid.conv_kernel = i("ssm_conv_kernel");
-    p.hybrid.state_size = i("ssm_state_size");
-    p.hybrid.group_count = i("ssm_group_count");
-    p.hybrid.time_step_rank = i("ssm_time_step_rank");
-    p.hybrid.inner_size = i("ssm_inner_size");
-    p.hybrid.full_attention_interval = i("full_attention_interval");
-    p.hybrid.nextn_layers = i("nextn_predict_layers");
-    p.scales.embedding = f("embedding_scale");
-    p.scales.residual = f("residual_scale");
-    p.scales.logits = f("logit_scale");
-    p.scales.attention = f("attention_scale");
-    p.experts.weights_scale = f("expert_weights_scale");
-    p.attention.sliding_rope.freq_base = f("rope_freq_base_swa");
-    p.attention.sliding_period = i("swa_layer_pattern");
-    p.scales.attention_soft_cap = f("attn_logit_softcapping");
-    p.scales.logits_soft_cap = f("final_logit_softcapping");
-    p.dimensions.per_layer_embedding = i("n_embd_per_layer");
-    p.dimensions.shared_kv_layers = i("shared_kv_layers");
-    p.attention.sliding_head_size = i("head_size_swa");
-    p.attention.sliding_rope.n_dims = i("rope_dimension_count_swa");
-    p.attention.window_size = i("swa_window_size");
-    p.attention.rope.n_dims = i("rope_dimension_count");
-    p.attention.rope.n_ctx_orig = i("rope_n_ctx_orig");
-    p.attention.rope.freq_base = f("rope_freq_base");
-    p.attention.rope.freq_scale = f("rope_freq_scale");
-    p.attention.rope.ext_factor = f("rope_ext_factor");
-    p.attention.rope.beta_fast = f("rope_yarn_beta_fast");
-    p.attention.rope.beta_slow = f("rope_yarn_beta_slow");
-    p.attention.yarn_log_multiplier = f("rope_yarn_log_mul");
-    p.scales.attention_temperature = f("attention_temperature_scale");
-    p.pooling_type = i("pooling_type");
-    p.causal_attention = i("causal_attention") != 0;
-    p.experts.normalize_weights = i("expert_weights_norm") != 0;
-    p.experts.routing = static_cast<ExpertRouting>(i("expert_gating_func"));
-    p.attention.sliding_window = i("has_swa") != 0;
-    p.attention.sliding_layers = std::get<std::vector<int32_t>>(c.at("swa_layer_flags"));
-    p.hybrid.recurrent_layers = std::get<std::vector<int32_t>>(c.at("recurrent_layer_flags"));
-    p.attention.rope.attn_factor = 1.0f;
-    const auto& sections = std::get<std::vector<int32_t>>(c.at("rope_sections"));
-    OPENVINO_ASSERT(sections.size() <= p.attention.rope.sections.size(), "[GGUF] too many M-RoPE sections");
-    std::copy(sections.begin(), sections.end(), p.attention.rope.sections.begin());
-    p.attention.sliding_rope.n_ctx_orig = p.attention.rope.n_ctx_orig;
-    p.attention.sliding_rope.ext_factor = p.attention.rope.ext_factor;
-    p.attention.sliding_rope.attn_factor = p.attention.rope.attn_factor;
-    p.attention.sliding_rope.beta_fast = p.attention.rope.beta_fast;
-    p.attention.sliding_rope.beta_slow = p.attention.rope.beta_slow;
-    if (p.attention.sliding_rope.freq_scale == 0.0f)
-        p.attention.sliding_rope.freq_scale = p.attention.rope.freq_scale;
-    if (c.count("head_num_kv_per_layer")) {
-        const auto& t = std::get<ov::Tensor>(c.at("head_num_kv_per_layer"));
-        const auto* data = t.data<const uint32_t>();
-        p.dimensions.kv_heads_per_layer.assign(data, data + t.get_size());
-    }
-    return p;
 }
 
 std::map<std::string, GGUFMetaData> decoder_weight_transform_metadata(const GgufMetadata& metadata,
@@ -433,39 +293,18 @@ std::map<std::string, GGUFMetaData> decoder_weight_transform_metadata(const Gguf
     return result;
 }
 
-std::map<std::string, GGUFMetaData> decoder_config_from_meta(
-    const std::unordered_map<std::string, GGUFMetaData>& metadata) {
-    detail::MetadataStore store{metadata};
-    const GgufMetadata view(store);
-    const auto p = resolve_decoder_parameters(view, RopeMode::Normal);
-    auto result = decoder_config_from_parameters(p);
-    const auto transforms = decoder_weight_transform_metadata(view, p.hybrid.time_step_rank, p.hybrid.group_count);
-    result.insert(transforms.begin(), transforms.end());
-    result["max_position_embeddings"] = integer(view, p.architecture + ".context_length", 2048);
-    result["file_type"] = integer(view, "general.file_type", 0);
-    result["expert_feed_forward_length"] = integer(view, p.architecture + ".expert_feed_forward_length", 0);
-    result["expert_shared_count"] = integer(view, p.architecture + ".expert_shared_count", 0);
-    return result;
-}
-
-ArchitectureDefinition::BuilderFactory decoder_builder_factory(RopeMode rope, DecoderOptionsFn options) {
-    return [rope, options = std::move(options)](const BuildContext& ctx) {
-        OPENVINO_ASSERT(ctx.weights, "[GGUF] decoder builder requires a weight table");
-        const auto overrides = options ? options(ctx.metadata) : DecoderOptions{};
-        const auto parameters = resolve_decoder_parameters(ctx.metadata, rope, overrides);
-        const auto builder = std::make_shared<DecoderBuilder>(ctx, parameters);
-        return builder;
-    };
-}
-
 ArchitectureDefinition::BuilderFactory decoder_builder_factory(DecoderParametersFn parameters) {
     OPENVINO_ASSERT(parameters, "[GGUF] decoder architecture requires a parameter factory");
     return [parameters = std::move(parameters)](const BuildContext& ctx) {
         OPENVINO_ASSERT(ctx.weights, "[GGUF] decoder builder requires a weight table");
-        const auto decoder_parameters = parameters(ctx);
-        const auto builder = std::make_shared<DecoderBuilder>(ctx, decoder_parameters);
-        return builder;
+        return std::make_shared<DecoderBuilder>(ctx, parameters(ctx));
     };
+}
+
+ArchitectureDefinition::BuilderFactory decoder_builder_factory(RopeMode rope, DecoderOptionsFn options) {
+    return decoder_builder_factory(DecoderParametersFn([rope, options = std::move(options)](const BuildContext& ctx) {
+        return resolve_decoder_parameters(ctx.metadata, rope, options ? options(ctx.metadata) : DecoderOptions{});
+    }));
 }
 
 }  // namespace ov::frontend::gguf

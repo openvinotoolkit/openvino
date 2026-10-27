@@ -23,13 +23,6 @@ class DecoderBuilder : public ModelBuilder {
 public:
     DecoderBuilder(const BuildContext& context, const DecoderParameters& parameters);
 
-    DecoderBuilder(const std::map<std::string, GGUFMetaData>& config,
-                   std::unordered_map<std::string, ov::Tensor>& weights,
-                   std::unordered_map<std::string, GgufTensorType>& qtypes,
-                   std::optional<RopeMode> rope = {},
-                   const DecoderOptions& options = {},
-                   const std::unordered_map<std::string, CreatorFunction>* translators = nullptr);
-
     std::shared_ptr<GgufGraph> build() override;
 
 private:

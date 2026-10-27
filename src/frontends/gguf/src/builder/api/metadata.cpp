@@ -28,8 +28,8 @@ std::vector<T> tensor_values(const ov::Tensor& tensor) {
         return {};
     if constexpr (std::is_integral_v<T>) {
         if (type == ov::element::u64) {
-            const auto values = ov::op::v0::Constant(tensor).cast_vector<uint64_t>();
-            if (std::any_of(values.begin(), values.end(), [](uint64_t value) {
+            const auto* data = tensor.data<const uint64_t>();
+            if (std::any_of(data, data + tensor.get_size(), [](uint64_t value) {
                     return value > static_cast<uint64_t>(std::numeric_limits<T>::max());
                 }))
                 return {};
