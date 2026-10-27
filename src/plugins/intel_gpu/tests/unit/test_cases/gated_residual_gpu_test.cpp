@@ -1109,7 +1109,9 @@ TEST(gated_residual_gpu_test, decomposed_read_graph_fuses_and_matches_reference)
     for (const auto& op : compiled.get_runtime_model()->get_ops()) {
         const auto it = op->get_rt_info().find("layerType");
         const auto layer_type = it != op->get_rt_info().end() ? it->second.as<std::string>() : std::string("?");
-        fused_nodes += layer_type == "GatedResidual";
+        // Fused nodes whose primitive id differs from the op name are recorded with the primitive
+        // type string ("gated_residual") instead of the op type name ("GatedResidual").
+        fused_nodes += layer_type == "GatedResidual" || layer_type == "gated_residual";
         runtime_layers += layer_type + " ";
     }
     EXPECT_EQ(fused_nodes, 1u) << "decomposed READ graph was not fused into gated_residual; runtime layers: " << runtime_layers;

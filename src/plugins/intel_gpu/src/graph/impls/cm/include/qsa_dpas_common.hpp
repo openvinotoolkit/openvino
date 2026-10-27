@@ -31,7 +31,7 @@
 #ifndef QSA_DPAS_COMMON_HPP
 #    define QSA_DPAS_COMMON_HPP
 
-#include "qsa_common.hpp"
+#    include "qsa_common.hpp"
 
 namespace qsa_dpas {
 
@@ -184,7 +184,7 @@ constexpr uint TOKEN_GEMM_K = 2 * QSA_REG_K;
 template <int TML, int NL>
 CM_INLINE void token_gemm_load_a(matrix_ref<half, NL, 2 * TML * QSA_REG_K> a, lsc::block_2d_desc<half, 2, TML, QSA_REG_K>& desc, uint y0, uint k) {
     desc.set_block_x(k);
-#    pragma unroll
+#        pragma unroll
     for (int i = 0; i < NL; ++i) {
         cm_load<lsc::Normal>(a.row(i), desc.set_block_y(y0 + i * TML));
     }
@@ -196,10 +196,10 @@ CM_INLINE void token_gemm_load_b(matrix_ref<uint, 2 * NB, QSA_REG_K / 2 * QSA_RE
                                  uint y0,
                                  uint y_stride,
                                  uint k) {
-#    pragma unroll
+#        pragma unroll
     for (int j = 0; j < NB; ++j) {
         desc.set_block_y(y0 + j * y_stride);
-#    pragma unroll
+#        pragma unroll
         for (int h = 0; h < 2; ++h) {
             cm_load<lsc::Transpose>(b.row(2 * j + h), desc.set_block_x((k + h * QSA_REG_K) / 2));
         }
@@ -210,13 +210,13 @@ template <int TML, int NL, int MT, int NB>
 CM_INLINE void token_gemm_mma(matrix_ref<float, NB * MT, 8 * QSA_REG_N> acc,
                               matrix_ref<half, NL, 2 * TML * QSA_REG_K> a,
                               matrix_ref<uint, 2 * NB, QSA_REG_K / 2 * QSA_REG_N> b) {
-#    pragma unroll
+#        pragma unroll
     for (int h = 0; h < 2; ++h) {
-#    pragma unroll
+#        pragma unroll
         for (int m = 0; m < MT; ++m) {
             const int li = (m * 8) / TML;
             const int off = h * TML * QSA_REG_K + ((m * 8) % TML) * QSA_REG_K;
-#    pragma unroll
+#        pragma unroll
             for (int j = 0; j < NB; ++j) {
                 acc.row(j * MT + m) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, QSA_SYSTOLIC_DEPTH, 8, float>(
                     acc.row(j * MT + m),

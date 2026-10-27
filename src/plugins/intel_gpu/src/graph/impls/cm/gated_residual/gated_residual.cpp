@@ -25,10 +25,10 @@ using namespace cldnn;
 namespace {
 
 constexpr size_t gr_wg_size = 16;
-constexpr size_t gr_dpas_k_step = 32;         // K consumed per dpas loop step (two K16 slices)
-constexpr size_t gr_dpas_n = 16;              // dpas N axis == GRF width on Xe2
-constexpr size_t gr_down_tn = 32;             // low-rank columns per down-projection thread
-constexpr size_t gr_decode_rows = 32;         // up to here both GEMMs use decode tiling
+constexpr size_t gr_dpas_k_step = 32;  // K consumed per dpas loop step (two K16 slices)
+constexpr size_t gr_dpas_n = 16;       // dpas N axis == GRF width on Xe2
+constexpr size_t gr_down_tn = 32;      // low-rank columns per down-projection thread
+constexpr size_t gr_decode_rows = 32;  // up to here both GEMMs use decode tiling
 
 constexpr auto get_gr_build_options() {
     return " -cmc -Qxcm_register_file_size=256";
@@ -200,9 +200,7 @@ bool can_use_dpas_gr_read(const gated_residual& desc, const cldnn::device_info& 
 // ---------------------------------------------------------------------------
 class GatedResidualReadGenerator : public KernelGenerator {
 public:
-    explicit GatedResidualReadGenerator(bool decode = false)
-        : KernelGenerator("gr_read", decode ? "_decode_cm" : "_cm"),
-          m_decode(decode) {}
+    explicit GatedResidualReadGenerator(bool decode = false) : KernelGenerator("gr_read", decode ? "_decode_cm" : "_cm"), m_decode(decode) {}
 
 protected:
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
@@ -435,9 +433,7 @@ protected:
 // ---------------------------------------------------------------------------
 class GatedResidualDownProjDpasGenerator : public KernelGenerator {
 public:
-    explicit GatedResidualDownProjDpasGenerator(GrTier tier = GrTier::wide)
-        : KernelGenerator("gr_down_proj_dpas", gr_tier_suffix(tier)),
-          m_tier(tier) {}
+    explicit GatedResidualDownProjDpasGenerator(GrTier tier = GrTier::wide) : KernelGenerator("gr_down_proj_dpas", gr_tier_suffix(tier)), m_tier(tier) {}
 
 protected:
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
@@ -504,9 +500,7 @@ private:
 // ---------------------------------------------------------------------------
 class GatedResidualUpProjDpasGenerator : public KernelGenerator {
 public:
-    explicit GatedResidualUpProjDpasGenerator(GrTier tier = GrTier::wide)
-        : KernelGenerator("gr_up_proj_dpas", gr_tier_suffix(tier)),
-          m_tier(tier) {}
+    explicit GatedResidualUpProjDpasGenerator(GrTier tier = GrTier::wide) : KernelGenerator("gr_up_proj_dpas", gr_tier_suffix(tier)), m_tier(tier) {}
 
 protected:
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
@@ -592,7 +586,8 @@ public:
             // Producer/consumer order through the RBAR/T scratch buffers is enforced by
             // execute(); static shapes only build what their row count needs.
             if (params.is_dynamic()) {
-                for (auto* stage : {&gr_rbar_dpas, &gr_down_proj_dpas_decode, &gr_down_proj_dpas_mid, &gr_down_proj_dpas, &gr_up_proj_dpas_decode, &gr_up_proj_dpas}) {
+                for (auto* stage :
+                     {&gr_rbar_dpas, &gr_down_proj_dpas_decode, &gr_down_proj_dpas_mid, &gr_down_proj_dpas, &gr_up_proj_dpas_decode, &gr_up_proj_dpas}) {
                     add_stage(*stage, params);
                 }
                 if (desc->hidden_size % 32 == 0) {
@@ -657,7 +652,10 @@ public:
             }
             auto& down = down_stage(gr_down_tier(rows, params.get_device_info()));
             auto& up = up_stage(gr_up_tier(rows));
-            OPENVINO_ASSERT(has_stage(gr_rbar_dpas) && has_stage(down) && has_stage(up), "[GPU][CM] gated_residual: dpas stage for ", rows, " rows was not built");
+            OPENVINO_ASSERT(has_stage(gr_rbar_dpas) && has_stage(down) && has_stage(up),
+                            "[GPU][CM] gated_residual: dpas stage for ",
+                            rows,
+                            " rows was not built");
 
             auto ev_rbar = execute_stage(events, instance, gr_rbar_dpas);
             record_stage_event("RBAR", ev_rbar);
