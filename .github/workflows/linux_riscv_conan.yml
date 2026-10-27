@@ -113,10 +113,10 @@ jobs:
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       CONAN_USER_HOME: /mount/caches/ccache/ubuntu24_riscv64_master_release/.conan
-      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu24_riscv64/${{ needs.Smart_CI.outputs.target_branch }}
-      CCACHE_DIR: /__w/openvino/openvino/ccache
-      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 2G
+      CCACHE_SECONDARY_STORAGE: "file:///mount/caches/ccache/shared/ubuntu24/riscv64/gnu|umask=002|update-mtime=true"
+      CCACHE_MAXSIZE: 10G
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_COMPILERCHECK: content
       PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
       PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
       # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
