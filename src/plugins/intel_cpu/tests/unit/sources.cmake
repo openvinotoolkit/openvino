@@ -212,6 +212,7 @@ set(CPU_UNIT_TESTS_ARM_SRCS
 )
 
 set(CPU_UNIT_TESTS_AARCH64_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/softmax_kernel_fp16_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/aarch64/snipptes_mark_skipped.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/aarch64/lowered/adjust_gemm_copy_b_loop_ports.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/aarch64/lowered/gemm_blocking.cpp
