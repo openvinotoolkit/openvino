@@ -317,3 +317,51 @@ The shipped head 512 PA PREFILL kernel was 0.644x `sdpa_micro` at 8K keys but 0.
    user's decision.
 7. **Verify cheaply because nothing changes value.** 173 PA gtest outputs bit-identical with the switch forced on and off at every
    head size; the two suites' failure sets unchanged. A 4K TTFT +0.8% was arm order (reversed: +0.4% / 0.0%; kernel -1.2%).
+
+## 6.8 Case: short-prompt PA PREFILL and f16 MIXED (B70 1800 MHz, 2026-10-27)
+
+Two gaps of the same session, each closed by reading what the profiler counted rather than how busy the GPU was.
+
+**Short-prompt PA PREFILL** (qwen3-8b, `d_max` 128, same workgroup as `sdpa_micro`): 24.7 against 12.6 us per call at 32 tokens,
+253 against 214 at 1K, level from 4K. The handoff called it a fixed cost.
+1. **VTune overview at 1K, both kernels**: XVE active 63.3 / 63.7%, XMX busy 57.8 / 59.1%, the same stall mix, but **XMX
+   instructions 2.49 G against 1.85 G (+35%)** and ALU instructions +37%. Equal efficiency, more work: the kernel computed
+   something `sdpa_micro` skips.
+2. **Count the work by hand**: at 1K with 128-query x 256-key workgroups, the diagonal tile is computed whole and masked
+   afterwards; keys past the workgroup's last query are 1.25x the needed key rows, the triangle inside it more.
+3. **First cut, workgroup bound** (skip KQ of subgroups past `causal_k`, S*V blocks past it): 32 tokens 24.4 -> 16.9 us, 1K
+   unchanged (253 -> 247). **Second cut, subgroup bound** (each KQ subgroup's last query, each S*V subgroup's last score row):
+   14.1 / 216 us. Both skip exactly-zero work: 186 PA rows bit-identical; a bound 16 keys early fails exactly the 11 PREFILL rows
+   at `d_max` >= 128.
+4. **Breadth before the default**: the same skip cost `d_max` 64 6.8% at 4K and MIXED f16 4.7% at 8K (the uniform branch costs
+   every tile, the saving is on one), so it ships for PA PREFILL at `d_max` 128 / 256 / 512 only.
+
+**f16 MIXED** (qwen3.5-9b, d-major K page): 1,465 against 522 us per call. The ISA showed the per-key gather; the token-major page
+(441 us) bounded what a block read could give. The d-major page read through a 64 B pitch surface and a 32b transpose
+(chapter 02 §4.5) reached 508 us; VTune against token-major then showed **Send stall 7.8% vs 2.4%** and more L3 misses, i.e.
+the transpose messages, and the 32-row transpose (one message for two depth tiles) took it to 460. A control that removed the Kc
+branch from both arms (`SDPA_OCL_PA_CUR_F16=0`) moved both by ~10% (406 / 401): part of the "transpose gap" had been the Kc
+code, which an f16 cache does not need at all.
+
+Lessons: equal utilisation with more instructions of one type means redundant work, not scheduling; compare per-type totals
+(XMX, ALU, Send) against the reference first. Bound a candidate with the ideal layout (token-major here) before tuning, and
+remove a shared confound from both arms before attributing the remaining gap.
+
+## 6.9 Case: a compiler upgrade regressed the KV-cache writer (B70 1800 MHz, 2026-10-27)
+
+After the IGC 2.36 -> 2.41 upgrade the u4 token-major `pa_kv_cache_update_ref` PREFILL went from 0.75-0.86x master's writer to
+1.3-1.6x (qwen3-8b 8K 322 vs 224 us), with `TPM=576` on every head size; master's kernel had none.
+1. **Re-measure the baseline under the installed driver** (same numbers as the day before: the task was still needed).
+2. **Name the memory**: runtime IGC dump of the kernel (`NEO_CACHE_PERSISTENT=0`, it sits in a batch with other kernels):
+   `//.private memory size 576`, no `//.spill size`; `*_optimized.ll` keeps one `alloca [2 x [9 x half]]`. A private array, not
+   register pressure, so 256 GRF and IGC knobs were tried once and changed nothing.
+3. **Attribute with variants** (offline splice + ocloc, no build): reshaping one array split the slot into two (1216 B), dropping one
+   helper left the other's 576 -> two helpers, one merged slot. Static indices in both removed it.
+4. **Calibrate the probe before trusting it**: a 512-block PREFILL dispatch in the standalone probe matched cliloader (313 vs 322 us
+   before, 168 vs 172 after); its GENERATE times are about half the real ones and small ratios did not carry over.
+5. **Sweep every shape after the fix**: head-256 GENERATE got 7% slower than with the scratch. A TIMING-ONLY ablation (stores
+   removed) put the cost on the store tail: 16 partitions writing the same 128 B rows in the same order. Rotating the start row per
+   partition fixed it; the same rotation cost 3-8% at head 128 / 512, so it is gated to head 256.
+6. **Prove bytes, not tolerance**: the basic gtest passed two deliberately broken writers; the per-row cache dump comparison caught
+   both and showed the fix identical (chapter 05 H).
+Result: PREFILL 0.49-0.77x master, GENERATE at or below master except head 256 (+3-4%, the store-sector floor of chapter 02 §10.2).
