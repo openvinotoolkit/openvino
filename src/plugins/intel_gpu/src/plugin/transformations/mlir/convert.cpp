@@ -56,10 +56,6 @@
 #include "subgraph_tracker.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
-namespace ov::intel_gpu::mlir {
-std::shared_ptr<MLIRGpuProgram> create_gpu_program(::mlir::OwningOpRef<::mlir::ModuleOp> module, uint32_t device_id);
-}  // namespace ov::intel_gpu::mlir
-
 namespace {
 
 using namespace mlir;

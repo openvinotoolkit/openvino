@@ -40,7 +40,7 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
 
     event::ptr execute_impl(const std::vector<event::ptr>& dependent_events, mlir_primitive_inst& instance) override {
         const auto& prim = instance.node->get_primitive();
-        auto* mlir_op = ov::as_type<ov::intel_gpu::op::MLIROp>(prim->op.get());
+        const auto& mlir_op = prim->op;
         OPENVINO_ASSERT(mlir_op != nullptr, "[GPU] MLIROp is not set for mlir_primitive '", prim->id, "'");
         const auto& program = mlir_op->get_program();
         auto* runtime = instance.get_network().gc_runtime();
