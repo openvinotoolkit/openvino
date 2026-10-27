@@ -59,6 +59,8 @@ IGC_ShaderDumpEnable=1 IGC_DumpToCustomDir=/abs/dir <run>
 
 `test/sdpa_ocl_xe_hpg/s7a/perf/opt/` (untracked): `sdpa_bench` (arm `name=src:file.cl[:options]` / `name=bin:file:micro`, `--verify --rows N`/`--all-rows`, `--shape seq,heads,kvheads,head`), `assemble.py` (product `.cl` + JIT header → runnable kernel), `mkvar.py`/`tile.py`/`sweep.py`/`reparam.py`, `vt*.sh`, `isa.sh`/`isasum.py`, `mb/`. Traps: a `#define` in a variant source overrides the harness `-D` (`#ifndef` guard), `--rows` is sampling with replacement (exhaustive is `--all-rows`), a wrong kernel also benchmarks fast (look at the verify line), micro.bin is shape-specific.
 
+Decode (2026-10-28, `test/g4dec/`): `probe_g4` (the lfm2 decode probe + `PROBE_FILTER`, `PROBE_OPTS`/`_BYCHAN_OPTS`/`_I8TOK_OPTS`/`_F16_OPTS`, `PROBE_TWIN`, `PROBE_KDIR`, `PROBE_DUMP`, `PROBE_BENCH=<n>` with a 256 MB fill per launch and a spill readout) matched cliloader within ~5% at 33K keys on gemma-4; at short context the real KV is L2-resident, so confirm short prompts on the model. Per-decode-token kernel time on a real model: `cli_pair.sh` (`-ic 1` and `-ic 129` under cliloader) + `dec_an.py` (subtracts per family, `RUNS=` for multi-prompt files). E2E mirroring the daily command: `e2e_daily.sh` / `e2e_model.sh` (`EXTRA=--disable_prompt_permutation`) + `e2e_an.py`; offline ISA identity: `isa_ab.sh`.
+
 ## A770 (DG2) ceilings (MEASURED)
 
 dpas.8x8 f16: 1 in-flight per thread (~30 ns), saturates at ≥4 threads per EU (128 GRF 104 TFLOPS, 256 GRF 116). dpasw = dpas speed. L1-hit block read 64 B 2.84 msg/clk, 256 B 0.93 msg/clk, L1 latency ~137 ns, L3 ~4.1 TB/s, SLM 12.4 TB/s, GDDR 2–3 TB/s. 256 GRF = 4 threads/EU, 128 GRF = 8. Occupancy halves at SLM 47.7 KB/WG.

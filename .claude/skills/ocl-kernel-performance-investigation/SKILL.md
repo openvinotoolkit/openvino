@@ -49,6 +49,14 @@ For VTune, record version, driver, Metrics Discovery version, device BDF, result
 4. Falsify with value-preserving changes, so a bit-identical output check covers correctness: a workgroup reorder (no effect -> not reuse), an existing prefetch (knee gone -> miss latency), then the prefetch's cost model (stride 64/128/256 B -> cost = line requests).
 5. Adopt the narrow form and measure where it does not apply (here: 1-5% slower at head <= 256, kept off).
 
+## When the gap to the reference grows with the prompt in decode (chapter 06 §6.10)
+
+1. Reproduce both arms under one pinned clock, interleaved, with the load logged; then split the decode step per kernel: two cliloader runs with `-ic 1` and `-ic 129`, per-family totals subtracted and divided by runs x 128 (`test/g4dec/cli_pair.sh`, `dec_an.py`). gemma-4-26b at 32K: everything matched except the head-512 decode call (712.8 vs 441.9 us).
+2. Read the configuration off the dispatch line before theorising: `GWS dim 1 / LWS dim 1` = head groups -> M = 1 at kv group 8, so each page was read and dequantized 8 times per kv head (the reference: 2).
+3. Sweep the existing env knobs (M, 256 GRF) before writing code: larger M won even while spilling -> registers were the limit.
+4. Iterate in the standalone probe once it reproduces the in-model per-call time (679 vs 714 us, 630 vs 624), and keep every step bitwise against the baseline.
+5. Bench every shape the new rule reaches (all capped decode shapes of the daily models, u4 and i8) before shipping it; that found and excluded the head-64 / i8 short-context loss.
+
 ## When utilisation matches but time does not (chapter 06 §6.8)
 
 - Compare per-type instruction totals with the reference (VTune overview csv: `XVE Instructions:XMX instructions`, ALU0/ALU1). Short-prompt PA PREFILL: XVE active 63% / 64%, XMX busy 58% / 59%, but XMX instructions 2.49 G vs 1.85 G = redundant work (the masked causal triangle), fixed by a per-subgroup skip (qwen3-8b 1K 253 -> 216 us, micro 214).

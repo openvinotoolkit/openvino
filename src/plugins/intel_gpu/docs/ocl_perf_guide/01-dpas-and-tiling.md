@@ -403,6 +403,7 @@ d_max 512 sweep (gemma-4-e2b 8/1 heads, 7 global layers; per call, micro 680 us 
 - **M (=Q_PER_WG) is limited by the register budget**: the `q_reg[M][K_TILES]` halves alone fill all 128 GRF at head512 M=8 → **SPILL=34432, 3.14x slower than pa_opt**.
   `live_grf_estimate()` budget 112 (`sdpa_gen_ocl_decode.cpp:~70-100`). Calibration table (u4 BY_CHANNEL): h512 s8 M=8/4/2/1 = estimated 332/220/164/136 → measured spill 34432/15936/6400/0;
   h512 s16 M=2/1 = 126/100 → 640/0; h256 s16 M=2 = 94 → 0. **Differences below about 15 GRF cannot be resolved** (136 has spill 0, 126 has spill 640) → it is only a coarse gate. The model is conservative (h256 sg8 M=2 = 116 is rejected even though it has spill 0).
+  (2026-10-28: accepting M = 1 here was the cause of gemma-4's long-context decode gap; the cap now triggers a low-register layout instead, §8.4.)
 - `SDPA_OCL_DECODE_M` bypasses the register cap but not the SLM clamp (`SDPA_OCL_DECODE_M=8` is silently ignored if `kv_group_size < 8` → it may not "reproduce the old default").
 - **Why the diagnosis needed no rebuild**: M / SG_PER_WG / 256GRF / K_2D are exposed as env. 13 configs were diagnosed with 0 rebuilds.
 - Trap: without `-lc '{"ATTENTION_BACKEND" : "PA"}'` in llm_bench, gemma-4 takes the stateful SDPA path, `sdpa_ocl_decode` is never dispatched, and every env config measures byte-identical (5 sweeps wasted).
@@ -436,6 +437,26 @@ d_max 512 sweep (gemma-4-e2b 8/1 heads, 7 global layers; per call, micro 680 us 
 - **Result** (new / old GENERATE device time): u4 llama 0.821 / 0.792 (32/1024 prompts / 4K), qwen3 8K 0.767, phi-4-mini 0.818 / 0.823; i8 phi-4-mini 1.003 / 0.904; i8 lfm2.5 1.105 / 0.801 (back to the original 8 subgroups); unchanged configs 1.00. The M round-up alone (u4 phi-4-mini S16M2 -> S16M4) at 4K: 228.4 -> 160.0 (0.70x). End-to-end 2nd token: llama -0.9/-0.8% (4K -2.1%), qwen3 -0.9/-1.6%, phi-4-mini -1.7/-1.3% (4K -1.9%); 8B-class decode is dominated by the FC weights.
 - **Correctness oracle**: heads are independent DPAS rows, so a change of M alone must be bit-identical (i8 phi-4-mini M2 -> M4 and u4 phi-4-mini S16M2 -> S16M4: identical generated-text MD5); a change of SG reorders the reductions and may change the MD5 (chapter 03 §9.3, bit-preserving vs order-changing). The standalone probe gained 12 M > G cases (G3/M4 for f16, i8, i8 BY_CHANNEL and u4; G5/6/7 with M8; up to 17 partitions; sliding window; sinks), all passing.
 - **Open**: the best SG depends on the partition count, but a compiled kernel has one value; two compiled variants chosen per dispatch from `num_of_partitions` would keep the i8 short-context gain (0.85-0.89x) without the 4K loss.
+
+### 8.4 decode: when the register cap holds M below the kv group, move data out of registers (B70 at 1800 MHz, 2026-10-28, `sdpa-ocl-decode-low-reg-layout`)
+
+- **Symptom**: gemma-4-26b-a4b-it 2nd token against master rose with the prompt, 0.99x at 278 tokens to 1.13x at 133K (llm_bench, daily prompts). A ratio that grows with the context is a cost that grows with the keys.
+- **Attribution** (chapter 07 §7.1, per-decode-token subtraction of two cliloader runs): at 32K only the 5 global layers (head 512, 2 kv heads, kv group 8, u4) differed, `sdpa_ocl_decode` 712.8 us/call against `pa_gqa_single_token` 441.9. `GWS[16 x 256 x 131] LWS[16 x 16]` = 16 head groups = **M = 1**: every page was read and u4-dequantized 8 times per kv head (`pa_gqa`: twice, `HEADS_PER_WI` 4). The 25 SWA layers were already faster (22.7 vs 29.4 us). At short context M = 1 wins by parallelism; once the GPU is full the redundant work dominates, hence the growth.
+- **Env sweep first** (no rebuild): at 128 GRF M2/M4/M8 spilled 640/7552/17408 B; at 256 GRF M8 took 269 us/call even with an 8.6 KB spill. Amortization wins, so the register file is the limit, not the idea.
+- **What filled the registers was invariant data**: `q_reg[M][K_TILES]` (128 GRF at M = 8) and the BY_CHANNEL comp `k_sc/k_zp[KEY_GROUPS][K_TILES]`. Four jit paths move data only, so the output is **bit-identical** at any M (each head is its own DPAS row; every product, fma and reduce keeps its order):
+
+| path | what moves | probe, head 512 M = 8, 33.4K keys |
+|---|---|---|
+| (plain layout) | – | 630 us, spill 17.7 KB (17,408 B in the model) |
+| `K_COMP_PER_READ` | BY_CHANNEL (scale, zp) of one K read loaded with it; `k_corr` accumulated in the KQ loop, same t order | 394 us |
+| `+ Q_IN_SLM` | scaled Q in SLM as one `Q_PER_WG`-wide vector per (tile, lane), read back per A operand | 191 us, spill 0 |
+| `+ V_TWIN_PAIR` | u4 V tiles cd / cd + V_READS share one read (legal only with V_TILES >= 2 SG, so no reduction) | 177 us |
+| `+ V_COMP_IN_SLM` | V (scale, zp) loaded once per page by the KQ subgroup that owns it; scale folded into `slm_p` (same f16 multiply), zp staged | **161 us** |
+
+  `V_COMP_IN_SLM` is the large one at short context (M = 8, 300 keys: 38 -> 24 us): every S*V subgroup used to load every page's pair inside the chunk loop and wait for it, and the V prefetch covers only the data rows. Instruction counts do not show such a serialized load.
+- **Rule** (`q_tiling_for()`): when `live_grf_estimate()` caps M below the rounded-up kv group, take M from `low_reg_grf_estimate()` (no `K_TILES` term; budget 160 between 148 spill-free and 184 = 896 B spill) with the four paths where each applies; not at head 64 once the plain M is 4 (a page is read at most twice there; i8 gpt-oss / minicpm4-0.5b lost 6-15% up to 2K). Unchanged configs compile to the identical ISA (only IGC's source-hash `mov null` lines differ).
+- **Result**: probe head 512 per call 28/36/74/122/205/362/679 -> 24/25/27/34/48/94/161 us (300 ... 33.4K keys, L2 flushed). Real 32K: 161.5 us/call, decode device time 13.02 -> 10.20 ms/token (master 11.81). End to end new/master: 0.986, 0.961, 0.952, 0.963, 0.945, 0.931, 0.888, 0.843 (278, 1K, 2K, 4K, 8K, 16K, 32K, 128K). The other shapes that switch (gemma-4-e2b global + SWA, minicpm4-8b, qwen3.5-9b, qwen3.6-35b-a3b, qwen3.8-27b): kernel 0.46-0.97x, end to end 0.99-1.00x short and 0.80-0.96x long.
+- **Lessons**: (1) a host cap on the amortization factor trades a fixed register problem for traffic that grows with the context; look at what fills the registers before accepting it. (2) Keep data-movement changes bit-identical so the bitwise oracle (chapter 05) carries the whole correctness argument. (3) The standalone probe with an L2 flush reproduced the in-model per-call times (M1 679 vs 714 us, M8 630 vs 624), so all of the above ran without a plugin rebuild; at short context the real KV is cache-resident, so confirm short prompts on the model.
 
 ---
 

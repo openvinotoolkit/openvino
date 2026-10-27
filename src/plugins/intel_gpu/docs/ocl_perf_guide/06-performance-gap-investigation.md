@@ -11,6 +11,7 @@ Per-tool commands and interpretation limits are in [chapter 07 tool cookbook](07
 | Xe2 Arc Pro B70 | On some heads/paths sdpa_ocl was up to 8.11x slower than sdpa_micro. The default f16 prefill configuration was also 13% slower on the representative case | The head-72 path became 9.28x faster, 1.14x faster than micro. The best f16 prefill setting is 7% faster than micro. The two recorded u4 MIXED workloads are 1.5% and 6.3% faster than micro | A guarantee that the same tile is best for every shape and model |
 | Xe-HPG Arc A770/DG2 | PA PREFILL head 128, seq 4096: initial OCL 110–113 ms, micro about 4.62 ms | A standalone kernel matrix that uses vISA inline assembly and reads and packs the original K/V inside attention passed the approved 3% gate: 32 block-16 head sizes, 2,642 PASS records matching the current policy/source hash, 2,434 unique conditions, worst paired ratio +2.6234% | OpenVINO product raw-kernel integration, end-to-end performance, every head-count/padding/feature combination, Xe2/B70 regressions |
 | head 512 PA PREFILL ratio drifting with prompt length (gemma-4, B70, 2026-10-24) | 0.644x micro at 8K, 0.694x at 32K, every tile alike | the 2800 MHz pin is overridden by PL2 in long prefills (slows both kernels); at a fixed 1800 MHz `sdpa_ocl` alone had a knee at 16K-20K = one KV head's K/V outgrowing L3, V miss latency. One-request-per-line V L3 prefetch: -11% at 32K, flat ratio 0.61-0.63x (§6.7) | other Xe2 devices; why micro hides its misses |
+| gemma-4-26b decode gap growing with prompt length (B70 1800 MHz, 2026-10-28) | 2nd token vs master 0.99x at 278 tokens -> 1.13x at 133K | head-512 decode register-capped to M = 1 at kv group 8 (pages read 8x per kv head); a bit-identical low-register layout runs M = 8: 712.8 -> 161.5 us/call at 32K, e2e 0.84-0.99x master (§6.10) | i8-cache shapes measured on the probe only |
 | lfm2.5-1.2b decode, branch vs reference build (B70, 2026-10-22) | branch 2nd token +3.5%/+2.7% on Linux (+20% reported on Windows) | two causes, each with both controls: the missing upstream RMS+RoPE fusion (+12 kernels and +2 flushes per token) and `sdpa_ocl_decode` at 8 subgroups for head 64; after the rebase and 16 subgroups the branch is 1.3-1.8% faster | the Windows magnitude (host-bound emulation on E-cores gave only +1%) |
 
 The DG2 result is a kernel-only experiment gate. It does not mean that the work of replacing sdpa_micro in the product is complete. Product raw-kernel integration, confirmation of the actual dispatch, the product accuracy gate, end-to-end measurement, and the S6 and SG16/B70 regressions remain as separate steps. The raw data is in the 2026-10-03/04 records under `test/sdpa_ocl_xe_hpg/s7a/perf/`; this chapter summarizes, self-contained, the key evidence and limits worth reusing.
@@ -365,3 +366,27 @@ After the IGC 2.36 -> 2.41 upgrade the u4 token-major `pa_kv_cache_update_ref` P
 6. **Prove bytes, not tolerance**: the basic gtest passed two deliberately broken writers; the per-row cache dump comparison caught
    both and showed the fix identical (chapter 05 H).
 Result: PREFILL 0.49-0.77x master, GENERATE at or below master except head 256 (+3-4%, the store-sector floor of chapter 02 §10.2).
+
+## 6.10 Case: decode gap growing with the prompt (gemma-4-26b, B70 1800 MHz, 2026-10-28)
+
+The daily logs showed gemma-4-26b's 2nd token at 0.99x master for 278 tokens and 1.13x for 133K. Details and numbers: chapter 01
+§8.4 and `docs/sdpa_ocl.md` "sdpa_ocl_decode". The steps, each with the evidence it produced:
+
+1. **Reproduce the trend with both arms under one clock** (daily command, interleaved, load logged): dev/master 0.985 -> 1.126.
+2. **Per-decode-token kernel time** (chapter 07 §7.1): two cliloader runs at 32K, `-ic 1` and `-ic 129`, subtracted per kernel
+   family and divided by runs x 128. Everything matched except the head-512 decode call (712.8 vs 441.9 us); the SWA layers were
+   faster than master. The dispatch line gave the cause directly: `GWS dim 1 / LWS dim 1` = 16 head groups = M = 1.
+3. **Env sweep before code**: larger M at 128 / 256 GRF (spill and all) -> amortization wins, registers are the limit.
+4. **Standalone probe as the bench**: with a 256 MB fill between launches it reproduced the in-model per-call times (679 vs 714 us
+   at M = 1, 630 vs 624 at M = 8), so every kernel variant was timed and checked bitwise (`PROBE_KDIR` = a `git show HEAD` copy,
+   `PROBE_DUMP`, `cmp`) without rebuilding the plugin.
+5. **Data-movement-only changes, one at a time**, each bitwise-identical to the baseline on all 177 probe cases (and with sinks):
+   spill 17.7 KB -> 0, then the unprefetched per-chunk V comp load turned out to be the short-context latency item.
+6. **Every shape the rule touches**: the probe benched all capped decode shapes of the daily models (u4 and i8), which is how the
+   head-64 / i8 short-context loss was found and excluded; unchanged shapes were proven ISA-identical with ocloc.
+7. **Model checks with a valid oracle**: e2e on all switched models, with `--disable_prompt_permutation` and only prompts whose MD5 is
+   stable inside each arm (chapter 05); one +1% short-prompt reading (e2b) went away when re-measured interleaved with `-n 5`.
+8. **Tests that can fail**: new u4 GENERATE rows plus a negative-control build (twin store swapped, zp bias dropped): only the
+   `sharp_softmax` rows failed, so those are the ones that guard the path.
+Result: 2nd token 0.84-0.99x master over 278-133K tokens (was 0.99-1.13x); the other switched models 0.99-1.00x at short and
+0.80-0.96x at long prompts against the branch before.
