@@ -12,6 +12,7 @@ set(OV_TENSORFLOW_LITE_TESTS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/library_extension.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_extension.cpp
     ${CMAKE_CURRENT_LIST_DIR}/quantization.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/skip_tests_config.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sparsity_info_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/telemetry.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tf_utils.cpp

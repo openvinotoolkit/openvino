@@ -20,8 +20,8 @@ using namespace cldnn;
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<convolution>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
         OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::ConvolutionImplementationManager, shape_types::static_shape)
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::ConvolutionImplementationManager, shape_types::static_shape)
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::ConvolutionImplementationManager, shape_types::dynamic_shape,
+        OV_GPU_CREATE_INSTANCE_OCL(cldnn::ocl::ConvolutionImplementationManager, shape_types::static_shape)
+        OV_GPU_CREATE_INSTANCE_OCL(cldnn::ocl::ConvolutionImplementationManager, shape_types::dynamic_shape,
             [](const cldnn::program_node& node){
                 if (node.can_use(impl_types::onednn))
                     return false;

@@ -188,7 +188,7 @@ bool pass::SwitchMergeResolver::run_on_model(const shared_ptr<Model>& m) {
         ParameterVector then_params, else_params;
         ResultVector then_results, else_results;
         OutputVector if_inputs, if_outputs;
-        vector<unordered_set<string>> if_outputs_names;
+        vector<unordered_set<std::string>> if_outputs_names;
 
         for (const auto& switch_node : switch_nodes) {
             if_inputs.push_back(switch_node->input_value(0));

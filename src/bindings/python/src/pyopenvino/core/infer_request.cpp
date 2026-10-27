@@ -16,7 +16,7 @@
 
 namespace py = pybind11;
 
-PYBIND11_MAKE_OPAQUE(ov::TensorVector);
+#include "pyopenvino/utils/opaque_tensor_vector.hpp"
 
 inline py::object run_sync_infer(InferRequestWrapper& self, bool share_outputs, bool decode_strings) {
     {

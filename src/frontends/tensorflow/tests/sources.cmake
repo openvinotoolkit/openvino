@@ -13,6 +13,7 @@ set(OV_TENSORFLOW_TESTS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/library_extension.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_extension.cpp
     ${CMAKE_CURRENT_LIST_DIR}/parse_output_index_tests.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/skip_tests_config.cpp
     ${CMAKE_CURRENT_LIST_DIR}/telemetry.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tf_utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tf_utils.hpp

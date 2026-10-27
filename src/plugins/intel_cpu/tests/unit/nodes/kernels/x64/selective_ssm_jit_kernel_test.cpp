@@ -22,8 +22,8 @@ namespace {
 class SelectiveSSMJitKernel : public testing::Test {
 protected:
     void SetUp() override {
-        using namespace dnnl::impl::cpu::x64;
-        if (!mayiuse(avx2)) {
+        using dnnl::impl::cpu::x64::mayiuse;
+        if (!mayiuse(dnnl::impl::cpu::x64::avx2)) {
             GTEST_SKIP() << "SelectiveSSM JIT requires AVX2 or AVX-512.";
         }
     }
@@ -60,11 +60,11 @@ void verify_bounded_generated_code_size() {
 
 TEST_F(SelectiveSSMJitKernel, RuntimeVectorLoopBoundsGeneratedCodeSize) {
     // Match the factory dispatch: shared conversion emitters also use the active host ISA.
-    using namespace dnnl::impl::cpu::x64;
-    if (mayiuse(avx512_core)) {
-        verify_bounded_generated_code_size<avx512_core>();
+    using dnnl::impl::cpu::x64::mayiuse;
+    if (mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+        verify_bounded_generated_code_size<dnnl::impl::cpu::x64::avx512_core>();
     } else {
-        verify_bounded_generated_code_size<avx2>();
+        verify_bounded_generated_code_size<dnnl::impl::cpu::x64::avx2>();
     }
 }
 

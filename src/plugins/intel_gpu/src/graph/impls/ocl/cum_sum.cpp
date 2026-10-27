@@ -12,7 +12,7 @@ namespace cldnn {
 namespace ocl {
 
 namespace {
-kernel_selector::cum_sum_axis convert_axis(int64_t axis, size_t rank) {
+kernel_selector::cum_sum_axis convert_cum_sum_axis(int64_t axis, size_t rank) {
     if (axis < 0) {
         axis += rank;
     }
@@ -74,7 +74,7 @@ public:
         auto params = get_default_params<kernel_selector::cum_sum_params>(impl_param, is_shape_agnostic);
 
         size_t rank = impl_param.get_output_layout().get_rank();
-        params.axis = convert_axis(primitive->axis, rank);
+        params.axis = convert_cum_sum_axis(primitive->axis, rank);
         params.exclusive = primitive->exclusive;
         params.reverse = primitive->reverse;
         return params;

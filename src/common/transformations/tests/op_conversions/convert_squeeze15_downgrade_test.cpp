@@ -21,9 +21,9 @@ namespace {
 
 enum class IndicesMode { NONE, CONST, PARAM };
 
-std::shared_ptr<ov::Model> create_v15_model(const IndicesMode indices_mode,
-                                            const std::vector<int> indices_const_val,
-                                            const bool allow_axis_skip) {
+std::shared_ptr<ov::Model> create_squeeze_v15_model(const IndicesMode indices_mode,
+                                                    const std::vector<int> indices_const_val,
+                                                    const bool allow_axis_skip) {
     const PartialShape data_shape{-1, {2, 5}, 1, {1, 5}, 4};
     const auto& data = std::make_shared<ov::opset15::Parameter>(ov::element::f32, data_shape);
     ov::ParameterVector params = {data};
@@ -44,7 +44,8 @@ std::shared_ptr<ov::Model> create_v15_model(const IndicesMode indices_mode,
     return std::make_shared<ov::Model>(squeeze->outputs(), params);
 }
 
-std::shared_ptr<ov::Model> create_v1_model(const IndicesMode indices_mode, const std::vector<int> indices_const_val) {
+std::shared_ptr<ov::Model> create_squeeze_v1_model(const IndicesMode indices_mode,
+                                                   const std::vector<int> indices_const_val) {
     const PartialShape data_shape{-1, {2, 5}, 1, {1, 5}, 4};
     const auto& data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, data_shape);
     ov::ParameterVector params = {data};
@@ -69,8 +70,8 @@ std::shared_ptr<ov::Model> create_v1_model(const IndicesMode indices_mode, const
 
 TEST_F(TransformationTestsF, ConvertSqueeze15ToSqueeze1_no_indices_no_skip) {
     manager.register_pass<ov::pass::ConvertSqueeze15ToSqueeze0>();
-    model = create_v15_model(IndicesMode::NONE, {}, false);
-    model_ref = create_v1_model(IndicesMode::NONE, {});
+    model = create_squeeze_v15_model(IndicesMode::NONE, {}, false);
+    model_ref = create_squeeze_v1_model(IndicesMode::NONE, {});
     EXPECT_EQ(model->output(0).get_partial_shape(), model_ref->output(0).get_partial_shape());
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
@@ -79,8 +80,8 @@ TEST_F(TransformationTestsF, ConvertSqueeze15ToSqueeze1_no_indices_no_skip) {
 
 TEST_F(TransformationTestsF, ConvertSqueeze15ToSqueeze1_no_indices_skip) {
     manager.register_pass<ov::pass::ConvertSqueeze15ToSqueeze0>();
-    model = create_v15_model(IndicesMode::NONE, {}, true);
-    model_ref = create_v1_model(IndicesMode::NONE, {});
+    model = create_squeeze_v15_model(IndicesMode::NONE, {}, true);
+    model_ref = create_squeeze_v1_model(IndicesMode::NONE, {});
     EXPECT_EQ(model->output(0).get_partial_shape(), model_ref->output(0).get_partial_shape());
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
@@ -89,8 +90,8 @@ TEST_F(TransformationTestsF, ConvertSqueeze15ToSqueeze1_no_indices_skip) {
 
 TEST_F(TransformationTestsF, ConvertSqueeze15ToSqueeze1_const_indices_no_skip) {
     manager.register_pass<ov::pass::ConvertSqueeze15ToSqueeze0>();
-    model = create_v15_model(IndicesMode::CONST, {0, -4, 3}, false);
-    model_ref = create_v1_model(IndicesMode::CONST, {0, -4, 3});
+    model = create_squeeze_v15_model(IndicesMode::CONST, {0, -4, 3}, false);
+    model_ref = create_squeeze_v1_model(IndicesMode::CONST, {0, -4, 3});
     EXPECT_EQ(model->output(0).get_partial_shape(), model_ref->output(0).get_partial_shape());
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
@@ -99,8 +100,8 @@ TEST_F(TransformationTestsF, ConvertSqueeze15ToSqueeze1_const_indices_no_skip) {
 
 TEST_F(TransformationTestsF, ConvertSqueeze15ToSqueeze1_dynamic_indices_no_skip) {
     manager.register_pass<ov::pass::ConvertSqueeze15ToSqueeze0>();
-    model = create_v15_model(IndicesMode::PARAM, {}, false);
-    model_ref = create_v1_model(IndicesMode::PARAM, {});
+    model = create_squeeze_v15_model(IndicesMode::PARAM, {}, false);
+    model_ref = create_squeeze_v1_model(IndicesMode::PARAM, {});
     EXPECT_EQ(model->output(0).get_partial_shape(), model_ref->output(0).get_partial_shape());
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
@@ -109,5 +110,5 @@ TEST_F(TransformationTestsF, ConvertSqueeze15ToSqueeze1_dynamic_indices_no_skip)
 
 TEST_F(TransformationTestsF, ConvertSqueeze15ToSqueeze1_unsupported_skip) {
     manager.register_pass<ov::pass::ConvertSqueeze15ToSqueeze0>();
-    model = create_v15_model(IndicesMode::PARAM, {}, true);
+    model = create_squeeze_v15_model(IndicesMode::PARAM, {}, true);
 }

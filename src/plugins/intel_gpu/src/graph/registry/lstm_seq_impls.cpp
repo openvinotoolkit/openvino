@@ -26,7 +26,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<lstm_
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
         OV_GPU_CREATE_INSTANCE_CM(cm::LSTMSeqImplementationManager, shape_types::static_shape)
         OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::LSTMSeqImplementationManager, shape_types::static_shape)
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::RNNSeqImplementationManager, shape_types::static_shape)
+        OV_GPU_CREATE_INSTANCE_OCL(cldnn::ocl::RNNSeqImplementationManager, shape_types::static_shape)
     };
 
     return impls;

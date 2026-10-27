@@ -26,7 +26,7 @@ namespace py = pybind11;
 
 using PyRTMap = ov::RTMap;
 
-PYBIND11_MAKE_OPAQUE(PyRTMap);
+#include "pyopenvino/utils/opaque_rt_map.hpp"
 
 // Create our custom iterator to return python object not OVAny itself.
 class PyRTMapIterator {

@@ -12,7 +12,7 @@
 
 namespace ov::intel_gpu {
 
-static void CreatePadOpInternal(ProgramBuilder& p, const std::shared_ptr<op::util::PadBase>& op, bool allow_negative_pad) {
+static void CreatePadOpInternal(ProgramBuilder& p, const std::shared_ptr<ov::op::util::PadBase>& op, bool allow_negative_pad) {
     validate_inputs_count(op, {3, 4});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);

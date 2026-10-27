@@ -37,7 +37,7 @@ static std::vector<ov::element::Type_t> supported_out_types = {
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<non_max_suppression>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::NMSImplementationManager, shape_types::static_shape,
+        OV_GPU_CREATE_INSTANCE_OCL(cldnn::ocl::NMSImplementationManager, shape_types::static_shape,
             [](const program_node& node) {
                 const auto& boxes_layout = node.get_input_layout(0);
                 const auto& scores_layout = node.get_input_layout(1);

@@ -36,7 +36,7 @@ using ov::element::i64;
 
 namespace {
 // Dynamic token length, used for model-input Parameters only.
-constexpr int64_t D = -1;
+constexpr int64_t kDynamicDim = -1;
 }  // namespace
 
 DecoderBuilder::DecoderBuilder(const std::map<std::string, GGUFMetaData>& config,
@@ -59,15 +59,15 @@ DecoderBuilder::DecoderBuilder(const std::map<std::string, GGUFMetaData>& config
 void DecoderBuilder::build_inputs() {
     // Names match the cgraph decoder's get_graph_input_ov_name; gguf uses i32 for token/position/
     // index inputs.
-    m_emit.add_input("inp_tokens", i32, ps({1, 1, 1, D}));
-    m_emit.add_input("inp_pos", i32, ps({1, 1, 1, D}));
+    m_emit.add_input("inp_tokens", i32, ps({1, 1, 1, kDynamicDim}));
+    m_emit.add_input("inp_pos", i32, ps({1, 1, 1, kDynamicDim}));
     if (!m_cfg.embedding_model)
-        m_emit.add_input("inp_out_ids", i32, ps({1, 1, 1, D}));
-    m_emit.add_input("self_kq_mask", f32, ps({1, 1, D, D}));
+        m_emit.add_input("inp_out_ids", i32, ps({1, 1, 1, kDynamicDim}));
+    m_emit.add_input("self_kq_mask", f32, ps({1, 1, kDynamicDim, kDynamicDim}));
     // gpt-oss alternates sliding-window / full attention; the windowed mask is a separate
     // input. Only added when the model uses SWA.
     if (m_cfg.has_swa) {
-        m_emit.add_input("self_kq_mask_swa", f32, ps({1, 1, D, D}));
+        m_emit.add_input("self_kq_mask_swa", f32, ps({1, 1, kDynamicDim, kDynamicDim}));
     }
     // No beam_idx here. It is a beam-search cache-reorder index for an OpenVINO STATEFUL cache,
     // which ggml has no equivalent of -- so the cgraph decoder does not produce one either, and a
@@ -77,7 +77,7 @@ void DecoderBuilder::build_inputs() {
 
     // KV-cache update index (consumed by SET_ROWS; unused in the stateful Concat branch).
     if (!m_cfg.embedding_model)
-        m_emit.add_input("inp_kv_idx", i32, ps({1, 1, 1, D}));
+        m_emit.add_input("inp_kv_idx", i32, ps({1, 1, 1, kDynamicDim}));
 
     // token_len_per_seq: number of new tokens per sequence; used by TranslateSession's mask
     // slicing (add_sliced_mask) to build KQ_mask_sliced. An extra (Parameter) input.

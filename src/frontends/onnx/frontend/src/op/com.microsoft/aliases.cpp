@@ -16,7 +16,7 @@ extern ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node);
 }  // namespace ov::frontend::onnx::ai_onnx::opset_13
 
 namespace ov::frontend::onnx::com_microsoft::opset_1 {
-bool register_multiple_translators(void) {
+bool register_com_microsoft_aliases_translators(void) {
     ONNX_OP_M("DequantizeLinear", OPSET_SINCE(1), ai_onnx::opset_13::dequantize_linear, MICROSOFT_DOMAIN);
     ONNX_OP_M("GatherND", OPSET_SINCE(1), ai_onnx::opset_1::gather_nd, MICROSOFT_DOMAIN);
     ONNX_OP_M("Gelu", OPSET_SINCE(1), ai_onnx::opset_1::gelu, MICROSOFT_DOMAIN);
@@ -25,5 +25,5 @@ bool register_multiple_translators(void) {
     return true;
 }
 
-static bool registered = register_multiple_translators();
+static bool com_microsoft_aliases_registered = register_com_microsoft_aliases_translators();
 }  // namespace ov::frontend::onnx::com_microsoft::opset_1

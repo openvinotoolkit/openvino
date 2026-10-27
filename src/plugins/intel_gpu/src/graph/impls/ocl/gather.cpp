@@ -11,7 +11,7 @@
 
 namespace cldnn {
 namespace ocl {
-static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
+static kernel_selector::gather_axis convert_gather_axis(int64_t axis, size_t rank) {
     if (axis == 0) {
         return kernel_selector::gather_axis::BATCH;
     }
@@ -100,7 +100,7 @@ public:
         auto params = get_default_params<kernel_selector::gather_params>(impl_param, is_shape_agnostic);
 
         auto input_layout = impl_param.get_input_layout(0);
-        params.axis = convert_axis(primitive->axis, input_layout.get_rank());
+        params.axis = convert_gather_axis(primitive->axis, input_layout.get_rank());
         params.batch_dim = size_t(primitive->batch_dim);
         params.support_neg_ind = primitive->support_neg_ind;
 

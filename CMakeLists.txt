@@ -189,14 +189,16 @@ if(ENABLE_TESTS)
     include(cmake/test_model_zoo.cmake)
 endif()
 
-# Unity (jumbo) builds reduce repeated header parsing. Third-party code is batched
-# more aggressively than OpenVINO sources, which are kept at a smaller batch size.
-if(NOT DEFINED CMAKE_UNITY_BUILD)
-    set(CMAKE_UNITY_BUILD OFF)
-endif()
-
+# Unity (jumbo) builds (-DCMAKE_UNITY_BUILD=ON) reduce repeated header parsing. Third-party code
+# is batched more aggressively than OpenVINO sources, which are kept at a smaller batch size.
+# Validated on Linux x86_64 with GCC; exceptions are listed in cmake/unity_build.cmake.
 if(CMAKE_UNITY_BUILD)
     set(CMAKE_UNITY_BUILD_BATCH_SIZE 24)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        # In a unity source the merged .cpp files are not the main file, so GCC reports
+        # every anonymous-namespace type used as a base or member of another type.
+        add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-subobject-linkage>)
+    endif()
 endif()
 include(thirdparty/dependencies.cmake)
 
@@ -224,6 +226,9 @@ if(ENABLE_TESTS)
     # layers and other more high-level / e2e tests
     add_subdirectory(tests)
 endif()
+
+# unity build exceptions; must be included after all targets are created
+include(cmake/unity_build.cmake)
 
 #
 # CPack

@@ -155,7 +155,7 @@ public:
     std::string model_string() const;
 
     /// \brief     Converts an edited ONNX model to an OpenVINO Model representation.
-    std::shared_ptr<Model> get_function() const;
+    std::shared_ptr<ov::Model> get_function() const;
 
     /// \brief Returns a list of all inputs of the in-memory model.
     ///        The returned value might depend on the previous operations executed on an
@@ -290,7 +290,7 @@ public:
     /// \brief Returns an OpenVINO Model based on the edited model
     ///        decoded to framework nodes
     ///
-    std::shared_ptr<Model> decode();
+    std::shared_ptr<ov::Model> decode();
 
     /// \brief     Adds output to provided OutputEdge.
     ///

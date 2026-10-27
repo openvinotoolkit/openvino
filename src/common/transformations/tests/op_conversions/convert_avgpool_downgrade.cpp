@@ -23,7 +23,8 @@ namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace {
 
-std::shared_ptr<ov::Model> create_v14_model(const ov::op::RoundingType rounding_type, const bool exclude_pad = true) {
+std::shared_ptr<ov::Model> create_avgpool_v14_model(const ov::op::RoundingType rounding_type,
+                                                    const bool exclude_pad = true) {
     const auto input = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
     const ov::Strides strides{1, 1}, dilations{1, 1};
     const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
@@ -42,7 +43,7 @@ std::shared_ptr<ov::Model> create_v14_model(const ov::op::RoundingType rounding_
     return std::make_shared<ov::Model>(avg_pool_v14->outputs(), ov::ParameterVector{input});
 }
 
-std::shared_ptr<ov::Model> create_v1_model(const ov::op::RoundingType rounding_type) {
+std::shared_ptr<ov::Model> create_avgpool_v1_model(const ov::op::RoundingType rounding_type) {
     const auto input = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
     const ov::Strides strides{1, 1}, dilations{1, 1};
     const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
@@ -110,30 +111,30 @@ std::shared_ptr<ov::Model> create_exclude_pad_workaround_model() {
 
 TEST_F(TransformationTestsF, ConvertAvgPool14ToAvgPool1_ceil_torch_to_ceil) {
     manager.register_pass<ov::pass::ConvertAvgPool14ToAvgPool1>();
-    model = create_v14_model(ov::op::RoundingType::CEIL_TORCH);
-    model_ref = create_v1_model(ov::op::RoundingType::CEIL);
+    model = create_avgpool_v14_model(ov::op::RoundingType::CEIL_TORCH);
+    model_ref = create_avgpool_v1_model(ov::op::RoundingType::CEIL);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertAvgPool14ToAvgPool1_ceil_to_ceil) {
     manager.register_pass<ov::pass::ConvertAvgPool14ToAvgPool1>();
-    model = create_v14_model(ov::op::RoundingType::CEIL);
-    model_ref = create_v1_model(ov::op::RoundingType::CEIL);
+    model = create_avgpool_v14_model(ov::op::RoundingType::CEIL);
+    model_ref = create_avgpool_v1_model(ov::op::RoundingType::CEIL);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertAvgPool14ToAvgPool1_floor_to_floor) {
     manager.register_pass<ov::pass::ConvertAvgPool14ToAvgPool1>();
-    model = create_v14_model(ov::op::RoundingType::FLOOR);
-    model_ref = create_v1_model(ov::op::RoundingType::FLOOR);
+    model = create_avgpool_v14_model(ov::op::RoundingType::FLOOR);
+    model_ref = create_avgpool_v1_model(ov::op::RoundingType::FLOOR);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertAvgPool14ToAvgPool1_ceil_torch_to_ceil_no_exclude_pad) {
     manager.register_pass<ov::pass::ConvertAvgPool14ToAvgPool1>();
-    model = create_v14_model(ov::op::RoundingType::CEIL_TORCH, false);
+    model = create_avgpool_v14_model(ov::op::RoundingType::CEIL_TORCH, false);
     model_ref = create_exclude_pad_workaround_model();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
@@ -141,13 +142,13 @@ TEST_F(TransformationTestsF, ConvertAvgPool14ToAvgPool1_ceil_torch_to_ceil_no_ex
 
 TEST_F(TransformationTestsF, ConvertAvgPool14ToAvgPool1_ceil_torch_to_ceil_exclude_pad) {
     manager.register_pass<ov::pass::ConvertAvgPool14ToAvgPool1>();
-    model = create_v14_model(ov::op::RoundingType::CEIL_TORCH, true);
-    model_ref = create_v1_model(ov::op::RoundingType::CEIL);
+    model = create_avgpool_v14_model(ov::op::RoundingType::CEIL_TORCH, true);
+    model_ref = create_avgpool_v1_model(ov::op::RoundingType::CEIL);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertAvgPool14ToAvgPool1_incorrect_version) {
     manager.register_pass<ov::pass::ConvertAvgPool14ToAvgPool1>();
-    model = create_v1_model(ov::op::RoundingType::CEIL);
+    model = create_avgpool_v1_model(ov::op::RoundingType::CEIL);
 }

@@ -18,8 +18,8 @@ using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<scatter_update>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::ScatterUpdateImplementationManager, shape_types::static_shape, not_in_shape_flow())
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::ScatterUpdateImplementationManager, shape_types::dynamic_shape, not_in_shape_flow())
+        OV_GPU_CREATE_INSTANCE_OCL(cldnn::ocl::ScatterUpdateImplementationManager, shape_types::static_shape, not_in_shape_flow())
+        OV_GPU_CREATE_INSTANCE_OCL(cldnn::ocl::ScatterUpdateImplementationManager, shape_types::dynamic_shape, not_in_shape_flow())
         OV_GPU_GET_INSTANCE_CPU(scatter_update, shape_types::static_shape, in_shape_flow())
         OV_GPU_GET_INSTANCE_CPU(scatter_update, shape_types::dynamic_shape, in_shape_flow())
     };

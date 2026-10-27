@@ -14,7 +14,7 @@ namespace cldnn {
 namespace ocl {
 
 namespace {
-kernel_selector::scatter_update_axis convert_axis(int64_t axis, size_t rank) {
+kernel_selector::scatter_update_axis convert_scatter_elements_update_axis(int64_t axis, size_t rank) {
     if (axis < 0) {
         axis += rank;
     }
@@ -84,7 +84,7 @@ struct scatter_elements_update_impl : typed_primitive_impl_ocl<scatter_elements_
         const auto& primitive = impl_param.typed_desc<scatter_elements_update>();
         auto params = get_default_params<kernel_selector::scatter_elements_update_params>(impl_param, is_shape_agnostic);
 
-        params.axis = convert_axis(primitive->axis, impl_param.get_input_layout(0).get_rank());
+        params.axis = convert_scatter_elements_update_axis(primitive->axis, impl_param.get_input_layout(0).get_rank());
         params.mode = convert_reduction_mode(primitive->mode);
         params.use_init_val = primitive->use_init_val;
 
