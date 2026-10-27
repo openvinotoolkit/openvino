@@ -40,8 +40,8 @@ namespace ov::intel_gpu {
 
 namespace {
 
-// The matcher recognizes an N-way replicated camera pipeline: N static
-// branches, each reducing a shared 5D [B, cameras, C, H, W]-style tensor via
+// The matcher recognizes an N-way replicated branch pipeline: N static
+// branches, each reducing a shared 5D [B, replicas, C, H, W]-style tensor via
 // a single Gather, that feed into one Concat. Neither N, the spatial/channel
 // sizes, nor the concat axis are fixed: they are derived from the matched
 // graph so the pass generalizes across models instead of one fixed topology.
@@ -190,7 +190,11 @@ bool operation_attributes_equal(const NodePtr& lhs, const NodePtr& rhs) {
     if (ov::is_type<ov::op::v0::Convert>(lhs)) {
         return attributes_equal_as<ov::op::v0::Convert>(lhs, rhs);
     }
-    return true;
+    if (ov::is_type<ov::op::v1::Add>(lhs) || ov::is_type<ov::op::v0::Relu>(lhs)) {
+        return true;
+    }
+    OPENVINO_ASSERT(false, "Unexpected operation type in branch attribute comparison");
+    return false;
 }
 
 bool is_batch_safe_operation(const NodePtr& node, size_t replica_count) {
@@ -240,31 +244,26 @@ bool gather_attributes_equal(const std::shared_ptr<ov::op::v8::Gather>& lhs,
     // checked against the final Concat input position by the caller. The
     // axis input only needs to be self-consistent with each Gather's own
     // normalized axis, not a global constant, so the pass is not tied to one
-    // fixed camera-axis position.
+    // fixed replica-axis position.
     return lhs->get_axis() == rhs->get_axis() && lhs->get_batch_dims() == rhs->get_batch_dims() &&
            lhs->input_value(0) == rhs->input_value(0) &&
            scalar_i64_constant(lhs->input_value(2), lhs->get_axis()) &&
            scalar_i64_constant(rhs->input_value(2), rhs->get_axis()) && output_shapes_equal(lhs, rhs);
 }
 
-void collect_branch_nodes(const NodePtr& node, size_t replica_count, NodeSet& nodes, NodeSet& visiting) {
-    if (!node || nodes.count(node.get()) != 0) {
-        return;
-    }
-    OPENVINO_ASSERT(visiting.count(node.get()) == 0, "Camera branch unexpectedly contains a cycle");
-    visiting.insert(node.get());
-    nodes.insert(node.get());
-
-    // Gather is the semantic boundary. Its data input is the shared camera
-    // tensor and its index/axis inputs are not part of a replica branch.
-    if (ov::is_type<ov::op::v8::Gather>(node) || !is_batch_safe_operation(node, replica_count)) {
-        visiting.erase(node.get());
-        return;
-    }
-    for (const auto& input : node->input_values()) {
-        collect_branch_nodes(input.get_node_shared_ptr(), replica_count, nodes, visiting);
-    }
-    visiting.erase(node.get());
+void collect_branch_nodes(const NodePtr& node, size_t replica_count, NodeSet& nodes) {
+    ov::op::util::visit_path(
+        node.get(),
+        nodes,
+        [](ov::Node*) {},
+        [replica_count](ov::Node* raw_node) {
+            const auto current_node = raw_node->shared_from_this();
+            // Gather is the semantic boundary. Its data input is the shared
+            // replicated input tensor and its index/axis inputs are not part of a
+            // replica branch.
+            return ov::is_type<ov::op::v8::Gather>(current_node) ||
+                   !is_batch_safe_operation(current_node, replica_count);
+        });
 }
 
 template <typename... Types>
@@ -444,7 +443,7 @@ bool get_branch_info(const ov::Output<ov::Node>& endpoint_output,
         return false;
     }
     const auto endpoint = endpoint_output.get_node_shared_ptr();
-    if (!endpoint || endpoint->get_output_size() == 0 || !is_static_node(endpoint)) {
+    if (!is_static_node(endpoint)) {
         return false;
     }
 
@@ -456,12 +455,9 @@ bool get_branch_info(const ov::Output<ov::Node>& endpoint_output,
         return false;
     }
 
-    NodeSet visiting;
-    collect_branch_nodes(endpoint, replica_count, info.nodes, visiting);
+    collect_branch_nodes(endpoint, replica_count, info.nodes);
 
     std::vector<std::shared_ptr<ov::op::v8::Gather>> gathers;
-    bool has_convolution = false;
-    bool has_relu = false;
     for (auto* raw_node : info.nodes) {
         const auto node = raw_node->shared_from_this();
         if (!node->get_control_dependencies().empty() || !node->get_control_dependents().empty()) {
@@ -474,45 +470,40 @@ bool get_branch_info(const ov::Output<ov::Node>& endpoint_output,
         } else if (!max_pool_indices_are_unused(node)) {
             return false;
         }
-        has_convolution |= ov::is_type<ov::op::v1::Convolution>(node);
-        has_relu |= ov::is_type<ov::op::v0::Relu>(node);
-    }
-    if (has_relu && !has_convolution) {
-        return false;
     }
     if (gathers.size() != 1) {
         return false;
     }
 
     info.gather = gathers.front();
-    if (info.gather->get_input_size() != 3 || info.gather->get_output_size() == 0 ||
-        info.gather->get_batch_dims() != 0 || !scalar_i64_constant(info.gather->input_value(1), expected_index) ||
+    if (info.gather->get_batch_dims() != 0 ||
+        !scalar_i64_constant(info.gather->input_value(1), expected_index) ||
         !is_static_node(info.gather)) {
         return false;
     }
 
     // A scalar-indexed Gather removes exactly the axis dimension from its
-    // data input. That dimension must hold exactly `replica_count` camera
+    // data input. That dimension must hold exactly `replica_count` replica
     // slots (not a fixed literal), and removing it must reproduce the
     // Gather's own output shape dimension-for-dimension.
-    const auto camera_input_shape = info.gather->get_input_partial_shape(0);
-    const auto camera_output_shape = info.gather->get_output_partial_shape(0);
+    const auto gather_input_shape = info.gather->get_input_partial_shape(0);
+    const auto gather_output_shape = info.gather->get_output_partial_shape(0);
     const auto axis = info.gather->get_axis();
-    if (!camera_input_shape.is_static() || !camera_output_shape.is_static() || axis < 0 ||
-        camera_input_shape.rank().get_length() != camera_output_shape.rank().get_length() + 1 ||
-        axis >= camera_input_shape.rank().get_length() ||
-        static_cast<size_t>(camera_input_shape[axis].get_length()) != replica_count ||
+    if (!gather_input_shape.is_static() || !gather_output_shape.is_static() || axis < 0 ||
+        gather_input_shape.rank().get_length() != gather_output_shape.rank().get_length() + 1 ||
+        axis >= gather_input_shape.rank().get_length() ||
+        static_cast<size_t>(gather_input_shape[axis].get_length()) != replica_count ||
         !scalar_i64_constant(info.gather->input_value(2), axis)) {
         return false;
     }
     std::vector<ov::Dimension> expected_output_dims;
-    expected_output_dims.reserve(camera_output_shape.rank().get_length());
-    for (int64_t i = 0; i < camera_input_shape.rank().get_length(); ++i) {
+    expected_output_dims.reserve(gather_output_shape.rank().get_length());
+    for (int64_t i = 0; i < gather_input_shape.rank().get_length(); ++i) {
         if (i != axis) {
-            expected_output_dims.push_back(camera_input_shape[i]);
+            expected_output_dims.push_back(gather_input_shape[i]);
         }
     }
-    return ov::PartialShape(expected_output_dims) == camera_output_shape;
+    return ov::PartialShape(expected_output_dims) == gather_output_shape;
 }
 
 bool has_external_consumers(const BranchInfo& branch, const NodePtr& output_concat) {
@@ -554,6 +545,32 @@ bool branch_nodes_are_disjoint(const std::vector<BranchInfo>& branches) {
         }
     }
     return disjoint;
+}
+
+bool branch_nodes_have_name_collisions(const std::vector<BranchInfo>& branches) {
+    std::unordered_map<std::string, const ov::Node*> friendly_names;
+    std::unordered_map<std::string, std::pair<const ov::Node*, size_t>> tensor_names;
+    for (const auto& branch : branches) {
+        for (auto* raw_node : branch.nodes) {
+            const auto node = raw_node->shared_from_this();
+            const auto [friendly_it, friendly_inserted] =
+                friendly_names.emplace(node->get_friendly_name(), node.get());
+            if (!friendly_inserted && friendly_it->second != node.get()) {
+                return true;
+            }
+            for (size_t output = 0; output < node->get_output_size(); ++output) {
+                for (const auto& name : node->output(output).get_names()) {
+                    const auto [tensor_it, tensor_inserted] =
+                        tensor_names.emplace(name, std::make_pair(node.get(), output));
+                    if (!tensor_inserted &&
+                        (tensor_it->second.first != node.get() || tensor_it->second.second != output)) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
 }
 
 void copy_node_metadata_common(const NodePtr& original, const NodePtr& replacement) {
@@ -612,9 +629,8 @@ void merge_fused_names(const NodePtr& source,
     }
 }
 
-bool transform_camera_branches(const std::shared_ptr<ov::op::v0::Concat>& output_concat) {
-    if (!output_concat || is_type_relaxed(output_concat) || output_concat->get_output_size() == 0 ||
-        !is_static_node(output_concat)) {
+bool transform_replicated_branches(const std::shared_ptr<ov::op::v0::Concat>& output_concat) {
+    if (is_type_relaxed(output_concat)) {
         return false;
     }
 
@@ -626,10 +642,9 @@ bool transform_camera_branches(const std::shared_ptr<ov::op::v0::Concat>& output
         return false;
     }
 
-    // The rewrite replaces only the replica Concat. Original branch nodes
-    // remain available to other consumers, so an endpoint name or an
-    // intermediate branch value used elsewhere does not make this rewrite
-    // unsafe.
+    // The rewrite replaces only the replica Concat. Branches with external
+    // data consumers are rejected below because those consumers would retain
+    // dependencies on the original per-replica computation.
     std::vector<BranchInfo> branches(replica_count);
     for (size_t i = 0; i < replica_count; ++i) {
         if (!get_branch_info(output_concat->input_value(i), static_cast<int64_t>(i), replica_count, branches[i])) {
@@ -640,6 +655,9 @@ bool transform_camera_branches(const std::shared_ptr<ov::op::v0::Concat>& output
         }
     }
     if (!branch_nodes_are_disjoint(branches)) {
+        return false;
+    }
+    if (branch_nodes_have_name_collisions(branches)) {
         return false;
     }
 
@@ -673,32 +691,32 @@ bool transform_camera_branches(const std::shared_ptr<ov::op::v0::Concat>& output
         }
     }
 
-    const auto shared_camera_input = reference.gather->input_value(0);
+    const auto shared_input = reference.gather->input_value(0);
     for (size_t i = 1; i < replica_count; ++i) {
-        if (branches[i].gather->input_value(0) != shared_camera_input) {
+        if (branches[i].gather->input_value(0) != shared_input) {
             return false;
         }
     }
 
-    ov::OutputVector camera_inputs;
-    camera_inputs.reserve(replica_count);
+    ov::OutputVector replica_inputs;
+    replica_inputs.reserve(replica_count);
     for (const auto& branch : branches) {
-        camera_inputs.push_back(branch.gather->output(0));
+        replica_inputs.push_back(branch.gather->output(0));
     }
-    auto batched_camera = std::make_shared<ov::op::v0::Concat>(camera_inputs, 0);
-    batched_camera->set_friendly_name(output_concat->get_friendly_name() + "/camera_batch");
-    ov::copy_runtime_info({output_concat, reference.gather}, batched_camera);
+    auto batched_replicas = std::make_shared<ov::op::v0::Concat>(replica_inputs, 0);
+    batched_replicas->set_friendly_name(output_concat->get_friendly_name() + "/replica_batch");
+    ov::copy_runtime_info({output_concat, reference.gather}, batched_replicas);
     std::vector<NodePtr> corresponding_gathers;
     corresponding_gathers.reserve(replica_count - 1);
     for (size_t i = 1; i < replica_count; ++i) {
         corresponding_gathers.push_back(branches[i].gather);
     }
-    merge_fused_names(reference.gather, corresponding_gathers, batched_camera);
+    merge_fused_names(reference.gather, corresponding_gathers, batched_replicas);
 
     NodeMap cloned_nodes;
     std::function<NodePtr(const NodePtr&)> clone_node = [&](const NodePtr& original) -> NodePtr {
         if (original == reference.gather) {
-            return batched_camera;
+            return batched_replicas;
         }
         if (is_constant(original)) {
             if (const auto found = cloned_nodes.find(original.get()); found != cloned_nodes.end()) {
@@ -766,7 +784,7 @@ bool transform_camera_branches(const std::shared_ptr<ov::op::v0::Concat>& output
 
     auto transpose_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, transpose_order_values);
     auto repack_transpose = std::make_shared<ov::op::v1::Transpose>(batched_branch, transpose_order);
-    repack_transpose->set_friendly_name(output_concat->get_friendly_name() + "/camera_repack_transpose");
+    repack_transpose->set_friendly_name(output_concat->get_friendly_name() + "/replica_repack_transpose");
     ov::copy_runtime_info(output_concat, repack_transpose);
 
     std::vector<int64_t> reshape_shape_values;
@@ -793,13 +811,14 @@ bool transform_camera_branches(const std::shared_ptr<ov::op::v0::Concat>& output
 BatchReplicatedBranches::BatchReplicatedBranches() {
     using namespace ov::pass::pattern;
 
-    auto output_concat = wrap_type<ov::op::v0::Concat>();
+    auto output_concat = wrap_type<ov::op::v0::Concat>(has_static_shape());
     auto callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& matcher) {
-        const auto output_concat_node = ov::as_type_ptr<ov::op::v0::Concat>(matcher.get_match_root());
-        if (!output_concat_node || transformation_callback(output_concat_node)) {
+        const auto output_concat_node =
+            std::static_pointer_cast<ov::op::v0::Concat>(matcher.get_match_root());
+        if (transformation_callback(output_concat_node)) {
             return false;
         }
-        return transform_camera_branches(output_concat_node);
+        return transform_replicated_branches(output_concat_node);
     };
 
     auto matcher = std::make_shared<ov::pass::pattern::Matcher>(output_concat, "BatchReplicatedBranches");
