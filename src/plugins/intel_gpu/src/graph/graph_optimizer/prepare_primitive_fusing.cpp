@@ -624,6 +624,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 if (candidate.has_fused_primitives() || !is_plain_like_fc(candidate.get_output_layout()) ||
                     (candidate_dt != data_types::f16 && candidate_dt != data_types::f32))
                     return false;
+                if (candidate.is_type<eltwise>()) {
+                    const auto& eltwise = candidate.as<cldnn::eltwise>().get_primitive();
+                    if (eltwise->mode == eltwise_mode::sum && std::any_of(eltwise->coefficients.begin(), eltwise->coefficients.end(), [](float value) {
+                            return value != 1.0f;
+                        }))
+                        return false;
+                }
                 if (swish != nullptr && (swish->get_dependencies().size() != 1 || swish->as<activation>().get_primitive()->additional_params.a != 1.0f ||
                                          !is_plain_like_fc(swish->get_output_layout())))
                     return false;
@@ -1474,8 +1481,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (is_hadamard_fc(*fused_node) && !fc_supports_fusings(fused_node->as<fully_connected>(), node, deferred_swish))
                 return;
 
-            if (p.get_processing_order().get_processing_number(fused_node) <
-                p.get_processing_order().get_processing_number(peer_node))
+            if (swish_parents[0] != nullptr || swish_parents[1] != nullptr ||
+                p.get_processing_order().get_processing_number(fused_node) < p.get_processing_order().get_processing_number(peer_node))
                 recalc_processing_order = true;
 
             // [WA]: Resample + Eltwise fusing causes accuracy issues without processing order update.

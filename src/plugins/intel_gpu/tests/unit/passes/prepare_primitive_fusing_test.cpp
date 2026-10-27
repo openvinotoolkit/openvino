@@ -113,6 +113,7 @@ TEST(prepare_primitive_fusing, preserve_hadamard_fc_epilogues) {
         bool f32_peer;
         size_t fused_count;
         float beta = 1.0f;
+        std::vector<float> coefficients;
     };
     const std::vector<test_case> cases = {
         {activation_func::relu, {}, {}, false, false, false, false, false, 0},
@@ -131,6 +132,10 @@ TEST(prepare_primitive_fusing, preserve_hadamard_fc_epilogues) {
         {activation_func::swish, eltwise_mode::prod, {}, false, false, false, false, true, 0},
         {activation_func::none, eltwise_mode::sum, {}, false, false, false, true, false, 0},
         {activation_func::none, eltwise_mode::sum, {}, false, false, false, false, true, 0},
+        {activation_func::none, eltwise_mode::sum, {}, false, false, false, false, false, 0, 1.0f, {0.5f, 0.5f}},
+        {activation_func::none, eltwise_mode::sum, {}, false, false, false, false, false, 0, 1.0f, {1.0f, 0.5f}},
+        {activation_func::none, eltwise_mode::sum, {}, false, false, false, false, false, 0, 1.0f, {0.5f, 1.0f}},
+        {activation_func::none, eltwise_mode::sum, {}, false, false, false, false, false, 1, 1.0f, {1.0f, 1.0f}},
     };
     auto& engine = get_test_engine();
     for (bool dynamic : {false, true}) {
@@ -157,7 +162,7 @@ TEST(prepare_primitive_fusing, preserve_hadamard_fc_epilogues) {
             if (c.shared_swish)
                 topology.add(reorder("swish_output", input_info("act"), format::bfyx, data_types::f32));
             if (c.first) {
-                topology.add(eltwise("first", {input_info(output), input_info("other")}, *c.first));
+                topology.add(eltwise("first", {input_info(output), input_info("other")}, *c.first, c.coefficients, data_types::f16));
                 output = "first";
             }
             if (c.second) {
@@ -236,6 +241,42 @@ TEST(prepare_primitive_fusing, fuse_hadamard_swish_product_with_late_gemm) {
     EXPECT_EQ(fused.back().typed_desc<eltwise>()->mode, eltwise_mode::prod);
     for (const auto& dependency : fused_fc.get_dependencies()) {
         EXPECT_LT(order.get_processing_number(dependency.first), order.get_processing_number(&fused_fc));
+    }
+}
+
+TEST(prepare_primitive_fusing, fuse_hadamard_swish_product_with_two_swishes) {
+    auto& engine = get_test_engine();
+    auto weights = engine.allocate_memory({ov::PartialShape{16, 1024}, data_types::u2, format::bfyx});
+    auto scales = engine.allocate_memory({ov::PartialShape{16, 8}, data_types::f16, format::bfyx});
+    topology topology(input_layout("input", {ov::PartialShape{1, 2, 1024}, data_types::f16, format::bfyx}), data("weights", weights), data("scales", scales));
+    for (const auto* id : {"fc_a", "fc_b"}) {
+        auto fc = fully_connected(id, input_info("input"), "weights", "", "scales", "", data_types::f16, 3);
+        fc.decompression_zero_point_scalar = 1.0f;
+        fc.hadamard_block = 1024;
+        topology.add(fc);
+    }
+    topology.add(activation("act_a", input_info("fc_a"), activation_func::swish, {1.0f, 0.0f}));
+    topology.add(activation("act_b", input_info("fc_b"), activation_func::swish, {1.0f, 0.0f}));
+    topology.add(eltwise("prod", {input_info("act_a"), input_info("act_b")}, eltwise_mode::prod));
+    topology.add(reorder("output", input_info("prod"), format::bfyx, data_types::f32));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true), ov::intel_gpu::enable_ternocl_int2(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    auto& order = prog->get_processing_order();
+    auto* fc_b = &prog->get_node("fc_b");
+    auto* act_b = &prog->get_node("act_b");
+    order.erase(fc_b);
+    order.insert_next(&prog->get_node("fc_a"), fc_b);
+    order.erase(act_b);
+    order.insert_next(&prog->get_node("act_a"), act_b);
+    ASSERT_LT(order.get_processing_number(fc_b), order.get_processing_number(&prog->get_node("act_a")));
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+    EXPECT_TRUE(has_node(*prog, "act_a"));
+    EXPECT_FALSE(has_node(*prog, "act_b"));
+    EXPECT_FALSE(has_node(*prog, "prod"));
+    ASSERT_EQ(fc_b->get_fused_primitives().size(), 2);
+    for (const auto& dependency : fc_b->get_dependencies()) {
+        EXPECT_LT(order.get_processing_number(dependency.first), order.get_processing_number(fc_b));
     }
 }
 
