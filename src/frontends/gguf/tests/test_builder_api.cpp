@@ -942,6 +942,21 @@ TEST(GGUFBuilderAPI, CastAndIm2colRequireExplicitDestinationType) {
     }
 }
 
+TEST(GGUFBuilderAPI, MiniCpmLogitScaleUsesDivisorWithAndWithoutMetadata) {
+    Environment env;
+    env.decoder();
+    env.integer("test.embedding_length", 2304);
+    env.architecture("minicpm");
+    EXPECT_FLOAT_EQ(env.parameters().scales.logits, 1.0f / 9.0f);
+    env.real("minicpm.logit_scale", 9.0f);
+    EXPECT_FLOAT_EQ(env.parameters().scales.logits, 1.0f / 9.0f);
+    env.real("minicpm.logit_scale", 4.0f);
+    EXPECT_FLOAT_EQ(env.parameters().scales.logits, 0.25f);
+    DecoderOptions options;
+    options.logit_scale = 0.75f;
+    EXPECT_FLOAT_EQ(env.parameters(RopeMode::Normal, options).scales.logits, 0.75f);
+}
+
 TEST(GGUFBuilderAPI, TypedCustomLayerNormScalesAndLayerSettingsAreResolvedTogether) {
     Environment env;
     env.decoder();
@@ -1105,4 +1120,20 @@ TEST(GGUFBuilderAPI, QueryHeadArraysDescribeHybridAndVariableWidthLayers) {
     env.integer("test.attention.recurrent_layers", 1);
     parameters = read_decoder_parameters(env.context.metadata);
     EXPECT_NO_THROW(DecoderConfig(parameters, env.weights));
+}
+
+TEST(GGUFBuilderAPI, ZeroQueryAndKvHeadsDescribeLayersWithoutAttention) {
+    Environment env;
+    env.decoder();
+    ov::Tensor query_heads(ov::element::u32, {2});
+    query_heads.data<uint32_t>()[0] = 2;
+    query_heads.data<uint32_t>()[1] = 0;
+    ov::Tensor kv_heads(ov::element::u32, {2});
+    kv_heads.data<uint32_t>()[0] = 1;
+    kv_heads.data<uint32_t>()[1] = 0;
+    env.metadata["test.attention.head_count"] = query_heads;
+    env.metadata["test.attention.head_count_kv"] = kv_heads;
+    EXPECT_NO_THROW(DecoderConfig(read_decoder_parameters(env.context.metadata), env.weights));
+    kv_heads.data<uint32_t>()[1] = 1;
+    EXPECT_THROW(read_decoder_parameters(env.context.metadata), ov::Exception);
 }

@@ -944,7 +944,8 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     const auto directory = override_dir ? std::filesystem::path(override_dir)
                                         : std::filesystem::path(ov_gguf_test::test_data_dir()) / "arch_accuracy";
     ASSERT_TRUE(std::filesystem::exists(directory)) << "Missing architecture reference data: " << directory;
-    const auto base = directory / GetParam();
+    const bool minicpm_default = std::string(GetParam()) == "minicpm-default";
+    const auto base = directory / (minicpm_default ? "minicpm" : GetParam());
     const bool real_checkpoint = override_dir && !std::filesystem::exists(base.string() + ".npz");
     std::vector<std::vector<int64_t>> schedule{{1, 2, 3}, {4}, {5, 6}};
     std::vector<float> reference;
@@ -986,6 +987,18 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         const auto* values = logits.data<float>();
         reference.assign(values, values + 3 * vocab);
         temporary = std::make_unique<ov_gguf_test::TemporaryGguf>(array("model"));
+        if (minicpm_default) {
+            const auto& original = array("model");
+            cnpy::NpyArray patched({original.num_vals}, sizeof(uint8_t), false);
+            std::copy_n(original.data<const uint8_t>(), original.num_vals, patched.data<uint8_t>());
+            const std::string key = "minicpm.logit_scale";
+            const auto begin = patched.data<uint8_t>();
+            const auto end = begin + patched.num_vals;
+            const auto at = std::search(begin, end, key.begin(), key.end());
+            ASSERT_NE(at, end);
+            at[key.size() - 1] = 'X';
+            temporary = std::make_unique<ov_gguf_test::TemporaryGguf>(patched);
+        }
         model_path = temporary->path;
     }
     ov::frontend::gguf::FrontEnd fe;
@@ -1100,6 +1113,7 @@ INSTANTIATE_TEST_SUITE_P(Architectures,
                                            "qwen3",
                                            "phi3",
                                            "minicpm",
+                                           "minicpm-default",
                                            "olmoe",
                                            "hunyuan-dense",
                                            "hunyuan-moe",

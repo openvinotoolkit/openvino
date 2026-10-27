@@ -88,8 +88,9 @@ def write_mamba2_model(path, opts, arch="mamba2"):
     w.add_context_length(128)
     w.add_embedding_length(d)
     w.add_block_count(4 if hybrid else 2)
-    w.add_head_count(4 if hybrid else 0)
+    w.add_head_count([4, 4, 0, 0] if hybrid else 0)
     if hybrid:
+        w.add_layer_norm_eps(1e-5)
         w.add_head_count_kv([0, 2, 0, 0])
         w.add_feed_forward_length([0, 0, 48, 0])
         w.add_key_length(8)
@@ -414,6 +415,8 @@ def write_model(path, arch, opts):
         w.add_final_logit_softcapping(3.0)
     if arch == "muse-glimmer":
         w.add_logit_scale(1.0)
+    if arch == "minicpm":
+        w.add_logit_scale(d / 256.0)
     if opts.get("moe"):
         w.add_expert_count(4)
         w.add_expert_used_count(2)

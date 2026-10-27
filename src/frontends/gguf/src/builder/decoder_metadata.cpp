@@ -219,8 +219,9 @@ DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParamete
     }
     for (size_t layer = 0; layer < query_heads.size(); ++layer)
         OPENVINO_ASSERT(query_heads[layer] > 0 ||
-                            (hybrid.recurrent_layers.size() == query_heads.size() && hybrid.recurrent_layers[layer]),
-                        "[GGUF] zero query head count requires a recurrent layer");
+                            (hybrid.recurrent_layers.size() == query_heads.size() && hybrid.recurrent_layers[layer]) ||
+                            (d.kv_heads_per_layer.size() == query_heads.size() && d.kv_heads_per_layer[layer] == 0),
+                        "[GGUF] zero query head count requires a layer without attention");
     if (m.has(key("rope.dimension_sections"))) {
         const auto sections = integers(m, key("rope.dimension_sections"));
         OPENVINO_ASSERT(sections.size() <= a.rope.sections.size(), "[GGUF] too many M-RoPE sections");

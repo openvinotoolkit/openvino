@@ -36,7 +36,7 @@ DecoderParameters decoder_family_defaults(const std::string& arch, int layers, i
     if (arch.rfind("minicpm", 0) == 0) {
         p.scales.embedding = 12.0f;
         p.scales.residual = 1.4f / std::sqrt(static_cast<float>(layers));
-        p.scales.logits = 256.0f / static_cast<float>(embedding);
+        p.scales.logits = static_cast<float>(embedding) / 256.0f;
     }
     p.normalization.qk_after_rope = is_one_of(arch, {"hunyuan-dense", "hunyuan-moe", "maincoder"});
     p.normalization.post_only = arch == "exaone4";
