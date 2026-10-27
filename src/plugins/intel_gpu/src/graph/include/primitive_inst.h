@@ -82,6 +82,14 @@ struct primitive_impl {
     virtual bool is_cpu() const { return true; }
     virtual bool is_onednn() const { return false; }
 
+    // Recording captures GPU API calls made during execute()
+    // Implementation supports replay only when captured calls remain valid and host side logic can be skipped.
+    // This function should return false when:
+    //  * Kernel dispatch logic depends on the tensor data instead of tensor shape
+    //  * Results are calculated on the CPU
+    // By default non-cpu implementations are considered to support replay.
+    virtual bool supports_replay() const { return !is_cpu(); }
+
     // Whether this impl needs its inputs to be in host-accessible (lockable) memory.
     // Defaults to is_cpu(), because CPU impls typically read/write tensor data from the host.
     // Impls whose execute path only performs GPU-side USM operations (e.g. an enqueue_memcpy
@@ -303,7 +311,8 @@ public:
     // Defers output memory invalidation until prepare_primitive(), after runtime shapes are known.
     void request_output_reallocation() { _output_reallocation_requested = true; }
 
-    void reset_events();
+    void clear_events();
+    void reset_out_event();
 
     void prepare_primitive();
     void execute();
@@ -381,6 +390,8 @@ public:
 
     virtual void update_output_memory() {}
     void clear_output_memory();
+    // Unlike clear_output_memory(), also returns pool-owned output memory so the next allocation can reuse it.
+    void release_and_clear_output_memory();
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
@@ -619,6 +630,9 @@ public:
     static kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
         return std::move(orig_impl_param);
     }
+    // Must return true in every type that overrides get_fake_aligned_params(), otherwise realloc_outputs() allocates
+    // its outputs without the fake alignment
+    static bool has_fake_alignment() { return false; }
 
     typed_primitive_inst_base(network& network, typed_node const& node)
         : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
