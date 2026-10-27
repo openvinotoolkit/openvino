@@ -148,7 +148,10 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                 param_names.emplace(name);
             }
 
-            auto new_param = std::make_shared<ov::op::v0::Parameter>(param_element_type, param_shape);
+            // Allocate public port nodes and their shared-pointer control blocks in
+            // the core runtime, so copied ports do not require the GPU library.
+            auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(
+                ov::op::v0::Parameter(param_element_type, param_shape).clone_with_new_inputs({}));
             new_param->set_friendly_name(param_name);
             new_param->set_element_type(param_element_type);
             new_param->output(0).get_tensor().set_names(param_names);
@@ -186,11 +189,11 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                 param_names.emplace(name);
             }
 
-            auto fake_param = std::make_shared<ov::op::v0::Parameter>(fake_element_type, fake_shape);
+            auto fake_param = ov::op::v0::Parameter(fake_element_type, fake_shape).clone_with_new_inputs({});
             fake_param->set_friendly_name(fake_name);
             fake_param->validate_and_infer_types();
 
-            auto new_result = std::make_shared<ov::op::v0::Result>(fake_param);
+            auto new_result = ov::op::v0::Result(fake_param).clone_with_new_inputs({fake_param});
             new_result->set_friendly_name(param_name);
             new_result->output(0).get_tensor().set_names(param_names);
             new_result->validate_and_infer_types();
