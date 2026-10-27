@@ -208,6 +208,28 @@ protected:
         });
     }
 
+    // Inserts the node made by `make` between the updated state and the back edge of every recurrence Loop.
+    template <class Make>
+    static void insert_op_before_back_edge(const std::shared_ptr<ov::Model>& model, const Make& make) {
+        for (const auto& node : model->get_ordered_ops()) {
+            const auto loop = ov::as_type_ptr<ov::op::v5::Loop>(node);
+            if (!loop) {
+                continue;
+            }
+            const auto body = loop->get_function();
+            for (const auto& desc : loop->get_input_descriptions()) {
+                const auto merged = ov::as_type_ptr<ov::op::util::SubGraphOp::MergedInputDescription>(desc);
+                if (!merged || loop->get_input_partial_shape(desc->m_input_index).size() != 4) {
+                    continue;
+                }
+                const auto result = body->get_results().at(merged->m_body_value_index);
+                result->input(0).replace_source_output(make(result->input_value(0)));
+            }
+            body->validate_nodes_and_infer_types();
+        }
+        model->validate_nodes_and_infer_types();
+    }
+
     // Number of distinct tensors the masked g / beta Loop inputs are multiplied with.
     static size_t count_ssm_masks(const std::shared_ptr<ov::Model>& model) {
         std::set<ov::Output<ov::Node>> masks;
@@ -386,6 +408,29 @@ TEST_F(MaskLinearAttentionPaddingTest, DecayNotAppliedToCarriedStateLeavesModelU
     const auto ops_before = model->get_ops().size();
     EXPECT_FALSE(ov::npuw::MaskLinearAttentionPadding().run_on_model(model));
     EXPECT_EQ(model->get_ops().size(), ops_before);
+}
+
+// Something else updates the state after the delta is added.
+TEST_F(MaskLinearAttentionPaddingTest, UpdateAfterTheDeltaAddLeavesModelUntouched) {
+    auto model = make_static(stateless(ov::test::npuw::build_hybrid_llm_test_model()), 8u);
+    insert_op_before_back_edge(model, [](const ov::Output<ov::Node>& state) {
+        return std::make_shared<ov::op::v0::Negative>(state);
+    });
+
+    const auto ops_before = model->get_ops().size();
+    EXPECT_FALSE(ov::npuw::MaskLinearAttentionPadding().run_on_model(model));
+    EXPECT_EQ(model->get_ops().size(), ops_before);
+}
+
+TEST_F(MaskLinearAttentionPaddingTest, ConvertOnTheBackEdgeIsRecognized) {
+    auto model = make_static(stateless(ov::test::npuw::build_hybrid_llm_test_model()), 8u);
+    const auto n_ssm = count_inputs(model, "cache_params.past.ssm");
+    insert_op_before_back_edge(model, [](const ov::Output<ov::Node>& state) {
+        return std::make_shared<ov::op::v0::Convert>(state, state.get_element_type());
+    });
+
+    ASSERT_TRUE(ov::npuw::MaskLinearAttentionPadding().run_on_model(model));
+    EXPECT_EQ(count_masked_loop_inputs(model), 2u * n_ssm);
 }
 
 TEST_F(MaskLinearAttentionPaddingTest, DynamicShapesAreLeftUntouched) {

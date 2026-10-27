@@ -39,8 +39,9 @@ namespace npuw {
 //
 // The pass is all-or-nothing: if any conv or ssm state of the model is not recognized, the model
 // is left unchanged and false is returned. A recurrence Loop is recognized by its body: g feeds
-// [Convert] -> Exp -> Unsqueeze -> Multiply with the carried state, and beta only scales the delta that is
-// added to that decayed state (the GatedDeltaNet layout), so a zero g and beta is an identity step.
+// [Convert] -> Exp -> Unsqueeze -> Multiply with the carried state, beta only scales the delta that is
+// added to that decayed state, and the sum (optionally converted) is what the next iteration starts from
+// (the GatedDeltaNet layout), so a zero g and beta is an identity step.
 class MaskLinearAttentionPadding : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::MaskLinearAttentionPadding");

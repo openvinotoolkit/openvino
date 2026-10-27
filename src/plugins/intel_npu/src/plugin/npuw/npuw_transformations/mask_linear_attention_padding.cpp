@@ -120,6 +120,11 @@ std::shared_ptr<ov::Node> skip_convert(const std::shared_ptr<ov::Node>& node) {
     return node;
 }
 
+// Skips an optional Convert that produces the value, looking at the node that feeds it.
+std::shared_ptr<ov::Node> skip_convert_producer(const std::shared_ptr<ov::Node>& node) {
+    return ov::is_type<opv0::Convert>(node) ? node->input_value(0).get_node_shared_ptr() : node;
+}
+
 // g: [Convert] -> Exp -> Unsqueeze -> Multiply(state, .). Returns that Multiply, the decayed state.
 std::shared_ptr<ov::Node> match_gate(const std::shared_ptr<opv0::Parameter>& gate) {
     auto node = sole_consumer<opv0::Exp>(skip_convert(gate)->output(0));
@@ -128,17 +133,20 @@ std::shared_ptr<ov::Node> match_gate(const std::shared_ptr<opv0::Parameter>& gat
 }
 
 // beta: [Convert] -> Multiply(delta, .) -> Unsqueeze -> Multiply(key, .) -> Add(decayed_state, .).
-bool feeds_delta_update(const std::shared_ptr<opv0::Parameter>& beta, const std::shared_ptr<ov::Node>& decayed_state) {
+// Returns that Add, the updated state.
+std::shared_ptr<ov::Node> match_beta(const std::shared_ptr<opv0::Parameter>& beta,
+                                     const std::shared_ptr<ov::Node>& decayed_state) {
     auto node = sole_consumer<opv1::Multiply>(skip_convert(beta)->output(0));
     node = node ? sole_consumer<opv0::Unsqueeze>(node->output(0)) : nullptr;
     node = node ? sole_consumer<opv1::Multiply>(node->output(0)) : nullptr;
     node = node ? sole_consumer<opv1::Add>(node->output(0)) : nullptr;
-    return node && (node->input_value(0).get_node() == decayed_state.get() ||
-                    node->input_value(1).get_node() == decayed_state.get());
+    const bool adds_to_decayed_state = node && (node->input_value(0).get_node() == decayed_state.get() ||
+                                                node->input_value(1).get_node() == decayed_state.get());
+    return adds_to_decayed_state ? node : nullptr;
 }
 
 // The recurrence Loop of GatedDeltaNet: q, k, v are sliced as [B,H,L,D] and the two per-token scalars
-// g and beta as [B,H,L]. g and beta are identified by the body, see match_gate and feeds_delta_update.
+// g and beta as [B,H,L]. g and beta are identified by the body, see match_gate and match_beta.
 std::optional<SsmSite> match_ssm(const std::shared_ptr<ov::Node>& node) {
     const auto loop = ov::as_type_ptr<ov::op::v5::Loop>(node);
     if (!loop) {
@@ -166,10 +174,12 @@ std::optional<SsmSite> match_ssm(const std::shared_ptr<ov::Node>& node) {
     size_t gate = 0;
     size_t beta = 0;
     std::shared_ptr<ov::Node> decayed_state;
+    std::shared_ptr<ov::Node> updated_state;
     bool found = false;
     for (const auto& [gate_candidate, beta_candidate] : {std::pair{0u, 1u}, std::pair{1u, 0u}}) {
         decayed_state = match_gate(per_token_scalars[gate_candidate].second);
-        if (decayed_state && feeds_delta_update(per_token_scalars[beta_candidate].second, decayed_state)) {
+        updated_state = decayed_state ? match_beta(per_token_scalars[beta_candidate].second, decayed_state) : nullptr;
+        if (updated_state) {
             gate = per_token_scalars[gate_candidate].first;
             beta = per_token_scalars[beta_candidate].first;
             found = true;
@@ -186,6 +196,7 @@ std::optional<SsmSite> match_ssm(const std::shared_ptr<ov::Node>& node) {
 
     std::shared_ptr<opv0::Parameter> state;
     std::shared_ptr<opv0::Parameter> state_in;
+    std::shared_ptr<ov::op::util::SubGraphOp::MergedInputDescription> state_merge;
     for (const auto& desc : loop->get_input_descriptions()) {
         auto source = loop->input_value(desc->m_input_index);
         if (ov::is_type<opv0::Convert>(source.get_node())) {
@@ -197,9 +208,17 @@ std::optional<SsmSite> match_ssm(const std::shared_ptr<ov::Node>& node) {
             }
             state = ov::as_type_ptr<opv0::Parameter>(source.get_node_shared_ptr());
             state_in = body->get_parameters().at(desc->m_body_parameter_index);
+            state_merge = ov::as_type_ptr<ov::op::util::SubGraphOp::MergedInputDescription>(desc);
         }
     }
-    if (!state) {
+    if (!state || !state_merge) {
+        return std::nullopt;
+    }
+
+    // Nothing else updates the state after the delta is added: the Add (optionally converted back) is
+    // what the next iteration starts from.
+    const auto carried = body->get_results().at(state_merge->m_body_value_index)->input_value(0).get_node_shared_ptr();
+    if (skip_convert_producer(carried) != updated_state) {
         return std::nullopt;
     }
 
@@ -289,9 +308,10 @@ bool ov::npuw::MaskLinearAttentionPadding::run_on_model(const std::shared_ptr<ov
         }
     }
     if (!covers_all_states(model, "conv", conv_sites) || !covers_all_states(model, "ssm", ssm_sites)) {
-        LOG_DEBUG("MaskLinearAttentionPadding: " << conv_sites.size() << " conv and " << ssm_sites.size()
-                                                 << " ssm sites do not cover all " << past_conv_count << " conv and "
-                                                 << past_ssm_count << " ssm states, model left unchanged");
+        LOG_WARN("MaskLinearAttentionPadding: "
+                 << conv_sites.size() << " conv and " << ssm_sites.size() << " ssm sites do not cover all "
+                 << past_conv_count << " conv and " << past_ssm_count
+                 << " ssm states, model left unchanged: a partial prefill chunk may corrupt them");
         return false;
     }
 
@@ -306,13 +326,15 @@ bool ov::npuw::MaskLinearAttentionPadding::run_on_model(const std::shared_ptr<ov
     };
     for (const auto& site : conv_sites) {
         if (!accept_seq_len(site.seq_len)) {
-            LOG_DEBUG("MaskLinearAttentionPadding: conv sequence length differs between layers");
+            LOG_WARN("MaskLinearAttentionPadding: conv sequence length differs between layers, model left unchanged: a "
+                     "partial prefill chunk may corrupt the states");
             return false;
         }
     }
     for (const auto& site : ssm_sites) {
         if (!accept_seq_len(site.seq_len)) {
-            LOG_DEBUG("MaskLinearAttentionPadding: ssm sequence length differs between layers");
+            LOG_WARN("MaskLinearAttentionPadding: ssm sequence length differs between layers, model left unchanged: a "
+                     "partial prefill chunk may corrupt the states");
             return false;
         }
     }
@@ -321,7 +343,9 @@ bool ov::npuw::MaskLinearAttentionPadding::run_on_model(const std::shared_ptr<ov
     if (!attention_mask || attention_mask->get_partial_shape().is_dynamic() ||
         attention_mask->get_partial_shape().size() != 2 ||
         static_cast<size_t>(attention_mask->get_partial_shape()[1].get_length()) < *seq_len) {
-        LOG_DEBUG("MaskLinearAttentionPadding: static rank-2 attention_mask is not found, model left unchanged");
+        LOG_WARN(
+            "MaskLinearAttentionPadding: static rank-2 attention_mask is not found, model left unchanged: a partial "
+            "prefill chunk may corrupt the states");
         return false;
     }
 
