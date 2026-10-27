@@ -87,7 +87,7 @@ public:
         return isExtensionSupported(ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_NAME);
     }
     inline bool isCommandQueueQosSupported() const {
-        return isExtensionSupported(std::string(ZE_COMMAND_QUEUE_QOS_EXT_NAME), ZE_COMMAND_QUEUE_QOS_EXT_VERSION_1_0);
+        return isExtensionSupported(ZE_COMMAND_QUEUE_QOS_EXT_NAME);
     }
     inline uint32_t getCommandQueueGroupOrdinal() const {
         return _command_queue_group_ordinal;
