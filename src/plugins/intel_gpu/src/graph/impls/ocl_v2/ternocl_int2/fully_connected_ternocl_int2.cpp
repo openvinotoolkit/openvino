@@ -86,6 +86,11 @@ GemvTile gemv_tile(size_t K, size_t N, bool integrated) {
         {25600, 5120, {16, 6, 1}},
         {5120, 10240, {16, 8, 1}},
         {8192, 5120, {32, 6, 1}},
+        // Bonsai 2 2B / 4B / 9B, where they differ from the Bonsai 1 shapes above
+        {2048, 5120, {32, 6, 1}},    // 2B qkv
+        {2560, 18432, {128, 1, 1}},  // 4B gate_up (merged)
+        {9216, 2560, {32, 8, 1}},    // 4B down
+        {4096, 248320, {16, 1, 1}},  // 9B lm_head
     };
     // Arc 140V (Lunar Lake), M = 1, paced sweep (select decode).
     static const Entry igpu[] = {
@@ -102,7 +107,7 @@ GemvTile gemv_tile(size_t K, size_t N, bool integrated) {
         {6144, 2048, {32, 4, 1}},
         {2048, 151680, {32, 4, 1}},
         {2560, 6144, {16, 1, 1}},
-        {4096, 2560, {32, 2, 1}},
+        {4096, 2560, {32, 6, 1}},
         {2560, 19456, {16, 2, 1}},
         {9728, 2560, {32, 2, 2}},
         {2560, 151680, {32, 4, 1}},
@@ -115,6 +120,13 @@ GemvTile gemv_tile(size_t K, size_t N, bool integrated) {
         {8192, 5120, {64, 1, 1}},
         {5120, 51200, {16, 2, 1}},
         {25600, 5120, {32, 1, 1}},
+        // Bonsai 2 2B / 4B / 9B. Shapes with an Arc Pro B70 entry are listed even where the default wins, so that entry does not apply.
+        {2048, 8192, {16, 1, 1}},
+        {2048, 5120, {16, 1, 1}},
+        {2560, 10240, {16, 4, 1}},
+        {2560, 18432, {32, 2, 1}},
+        {9216, 2560, {32, 6, 1}},
+        {4096, 248320, {32, 2, 1}},
     };
     if (integrated) {
         for (const auto& e : igpu) {
@@ -161,6 +173,9 @@ MtTile mt_tile(size_t K, size_t N, size_t cls, bool integrated) {
         {6144, 5120, {64, 16, 1, 8}},
         {5120, 14336, {64, 32, 4, 4}},
         {5120, 248320, {64, 32, 4, 4}},
+        // Bonsai 2 4B
+        {4096, 2560, {32, 16, 2, 2}},  // 4B out_proj / o_proj
+        {9216, 2560, {32, 16, 1, 4}},  // 4B down
     };
     // Arc 140V (Lunar Lake), M = 512.
     static const Entry igpu[] = {
@@ -170,6 +185,23 @@ MtTile mt_tile(size_t K, size_t N, size_t cls, bool integrated) {
         {6144, 5120, {128, 16, 2, 4}},
         {5120, 14336, {128, 16, 2, 4}},
         {5120, 248320, {128, 16, 2, 2}},
+        // Bonsai 2 2B / 4B / 9B, also used by Bonsai 8B (same gate_up, down and o_proj shapes as 9B)
+        {2048, 12288, {64, 16, 2, 4}},
+        {2048, 8192, {32, 16, 1, 4}},
+        {2048, 5120, {32, 16, 1, 4}},
+        {2048, 2048, {32, 16, 2, 2}},
+        {6144, 2048, {32, 16, 1, 4}},
+        {2560, 10240, {64, 16, 1, 4}},
+        {2560, 12288, {64, 16, 2, 4}},
+        {2560, 18432, {64, 16, 2, 4}},
+        {4096, 2560, {64, 16, 1, 4}},
+        {9216, 2560, {64, 16, 1, 8}},
+        {2560, 248320, {64, 16, 4, 4}},
+        {4096, 10240, {64, 16, 2, 4}},
+        {4096, 12288, {64, 16, 2, 4}},
+        {4096, 24576, {64, 16, 2, 4}},
+        {12288, 4096, {32, 32, 1, 4}},
+        {4096, 4096, {32, 16, 2, 1}},
     };
     if (integrated) {
         for (const auto& e : igpu) {

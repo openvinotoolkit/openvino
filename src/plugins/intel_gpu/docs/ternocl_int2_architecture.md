@@ -242,8 +242,12 @@ TernOCL's benchmark sweeps (`bench.sh`, `sweep_midm.sh`):
 
 - **up-convert**: one set of tables for discrete Xe2 and one for integrated Xe2
   (selected from the device type). The decode GEMV (M = 1) has entries for the
-  layer shapes of Bonsai 1.7B / 4B / 8B / 27B and CAT-Q 32B on both (CAT-Q 1.7B
-  and 8B share the Bonsai shapes); the M-tiled GEMM is tuned on the 27B shapes;
+  layer shapes of Bonsai 1.7B / 4B / 8B / 27B, Bonsai 2 2B / 4B / 9B / 27B and
+  CAT-Q 32B on both (CAT-Q 1.7B and 8B share the Bonsai shapes). The M-tiled GEMM
+  is tuned on the 27B shapes and on the Bonsai 2 2B / 4B / 9B shapes, keeping the
+  sweep winners that also sped up the model. For the GEMV, an integrated GPU without
+  an entry of its own uses the discrete entry, so a shape tuned only on discrete Xe2
+  lists the integrated default explicitly;
 - **int8 prefill**: one table, with entries for the Bonsai 27B layer shapes,
   tuned on discrete Xe2;
 - any other shape uses a default tile per launch class: it runs correctly, but
