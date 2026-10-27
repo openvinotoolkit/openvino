@@ -14,8 +14,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "tp/op/tp_all_reduce.hpp"
-#include "tp/op/tp_gather.hpp"
+#include "ov_ops/tp_collective.hpp"
 #include "tp/tp_debug.hpp"
 #include "tp/tp_device_coordinator.hpp"
 #include "openvino/op/ops.hpp"
@@ -1327,7 +1326,7 @@ uint32_t row_parallel_count(const ShardingPlan& plan) {
 /// Step 7: put a TPAllReduce on every row-parallel projection, whose output is
 /// a partial sum across ranks.
 void insert_all_reduce(const RewriteContext& ctx) {
-    uint32_t collective_id = 0;
+    uint32_t inserted = 0;
     size_t missing = 0;
 
     for (const auto& desc : ctx.plan.linears) {
@@ -1341,10 +1340,12 @@ void insert_all_reduce(const RewriteContext& ctx) {
         }
         auto matmul = it->second;
 
-        auto ar = std::make_shared<ov::tp::op::TPAllReduce>(matmul->output(0),
-                                                                collective_id++,
-                                                                ctx.rank,
-                                                                ctx.tp_degree);
+        auto ar = std::make_shared<ov::op::internal::TPAllReduce>(matmul->output(0),
+                                                                  static_cast<int>(ctx.rank),
+                                                                  static_cast<int>(ctx.tp_degree),
+                                                                  /*group_id=*/0,
+                                                                  ov::op::internal::ReduceOp::SUM);
+        ++inserted;
         ar->set_friendly_name("tp_allreduce/" + desc.matmul_name);
 
         auto targets = matmul->output(0).get_target_inputs();
@@ -1356,7 +1357,7 @@ void insert_all_reduce(const RewriteContext& ctx) {
     }
 
     std::ostringstream outcome;
-    outcome << "inserted " << collective_id << " collectives";
+    outcome << "inserted " << inserted << " collectives";
     if (missing != 0)
         outcome << " -- " << missing << " row-parallel projections NOT FOUND";
     log_step("all-reduce", outcome.str());
@@ -1399,12 +1400,11 @@ void shard_vocabulary_projection(const RewriteContext& ctx, const TPConfig& conf
     }
     matmul->validate_and_infer_types();
 
-    const uint32_t gather_id = row_parallel_count(ctx.plan);
-    auto gather = std::make_shared<ov::tp::op::TPGather>(matmul->output(0),
-                                                             gather_id,
-                                                             ctx.rank,
-                                                             ctx.tp_degree,
-                                                             /*axis=*/-1);
+    auto gather = std::make_shared<ov::op::internal::TPGather>(matmul->output(0),
+                                                               static_cast<int>(ctx.rank),
+                                                               static_cast<int>(ctx.tp_degree),
+                                                               /*group_id=*/0,
+                                                               /*axis=*/-1);
     gather->set_friendly_name(matmul->get_friendly_name() + "/tp_gather");
 
     auto targets = matmul->output(0).get_target_inputs();
@@ -1416,8 +1416,7 @@ void shard_vocabulary_projection(const RewriteContext& ctx, const TPConfig& conf
 
     std::ostringstream outcome;
     outcome << "split " << vocab << " -> " << band << " rows ("
-            << (pre_sliced ? "pre-sliced" : "runtime slice") << "), gathered by collective "
-            << gather_id;
+            << (pre_sliced ? "pre-sliced" : "runtime slice") << "), gathered to rank 0";
     log_step("vocabulary split", outcome.str());
 }
 

@@ -239,7 +239,7 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
             ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
     if(ENABLE_TP)
-        target_link_libraries(${MODULE_NAME} PRIVATE openvino_tp_ops)
+        target_link_libraries(${MODULE_NAME} PRIVATE openvino_tp_coordinator_api)
     endif()
 
     ov_set_threading_interface_for(${MODULE_NAME})

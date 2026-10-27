@@ -40,10 +40,10 @@ silent garbage rather than a link error.
 
 The plugin links against `openvino::runtime::dev`, `openvino::zero_loader`,
 an OpenCL ICD (used to compile the embedded kernel into a native binary at
-runtime), and `openvino::tp_ops` -- the small static library holding the
-collective op definitions. That library is separate precisely because
-intel_gpu links it too: its op factory casts to those types and needs their
-typeinfo. The plugin also reads intel_gpu's public headers, to inject the
+runtime), and `openvino_tp_coordinator_api` -- an interface target with the
+coordinator headers, which intel_gpu uses too until the communicator moves
+there. The collective ops (`ov::op::internal::TPAllReduce`, `TPGather`) live
+in `src/common/transformations/include/ov_ops/tp_collective.hpp`. The plugin also reads intel_gpu's public headers, to inject the
 collective registry into each rank's compiled model.
 
 ## Source Layout
@@ -403,15 +403,17 @@ To support a new pattern:
 The plugin defines exactly two ops, `TPAllReduce` and `TPGather`, and
 both are emitted by the rewriter. To add a third:
 
-1. Header in `include/tp/op/`, source in `src/op/`.
-2. Inherit `ov::op::Op`, declare with
-   `OPENVINO_OP("TPMyOp", "tp_gpu", Op)`.
+1. Declare it in `src/common/transformations/include/ov_ops/tp_collective.hpp`
+   (source in `src/common/transformations/src/ov_ops/tp_collective.cpp`) and
+   add it to `ov_ops/opset_private_tbl.hpp`.
+2. Inherit `ov::op::internal::TPCollectiveBase`, declare with
+   `OPENVINO_OP("TPMyOp", "ie_internal_opset", TPCollectiveBase)`.
 3. Implement constructors, `validate_and_infer_types`,
    `clone_with_new_inputs`, `visit_attributes`. The two existing ops
    are good templates.
 4. Add an OCL primitive in
    `src/plugins/intel_gpu/src/graph/impls/ocl/`. Keep the primitive POD:
-   carry `collective_id` / `rank` as attributes and resolve
+   carry `collective_id` (from `ProgramBuilder::next_tp_collective_ordinal()`) / `rank` as attributes and resolve
    the coordinator at execution time via
    `instance.get_network().get_collective_comm_registry()->coordinator()`.
 5. Register it from `src/plugins/intel_gpu/src/graph/registry/tp_*_impls.cpp`,

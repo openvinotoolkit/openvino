@@ -206,8 +206,6 @@ src/plugins/tp/
 ├── CMakeLists.txt
 ├── docs/                                   ← this directory
 ├── include/tp/
-│   ├── op/                                 ← TPAllReduce, TPGather op headers,
-│   │                                         registered in a private "tp_gpu"
 │   ├── options.inl                         ← the option table (X-macro)
 │   ├── internal_properties.hpp             ← property keys for those options
 │   ├── tp_config.hpp                       ← TPConfig: typed getters, validation
@@ -374,8 +372,10 @@ The TP plugin contributes two OCL primitives to intel_gpu,
 Both:
 - Have `is_cpu() == false`, which forces intel_gpu to allocate inputs and
   outputs in `usm_device`. This is required for cross-PCIe peer copies.
-- During `execute()`, read the immutable `collective_id` / `rank` carried by
-  the primitive, resolve the coordinator from the owning network's
+- During `execute()`, read the `collective_id` / `rank` carried by the
+  primitive (`collective_id` is the op's position among the TP collectives of
+  the program, assigned by the GPU `ProgramBuilder`; transitional until calls
+  carry a sequence number), resolve the coordinator from the owning network's
   `CollectiveCommRegistry`, and hand it the model's own command list so the
   recording is spliced there. Because the primitive stores only PODs, it
   serializes cleanly and the registry can be re-injected after `import_model`.

@@ -31,7 +31,7 @@ target_include_directories(${TARGET_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src)
 
 target_link_libraries(${TARGET_NAME} PRIVATE
-    openvino::tp_ops
+    openvino_tp_coordinator_api
     openvino::runtime::dev
     common_test_utils
     gtest_main)

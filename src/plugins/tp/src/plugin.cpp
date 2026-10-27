@@ -17,8 +17,7 @@
 #include "tp_blob.hpp"
 #include "tp_l0_shared_context.hpp"
 #include "tp_ze_throw.hpp"
-#include "tp/op/tp_all_reduce.hpp"
-#include "tp/op/tp_gather.hpp"
+#include "ov_ops/tp_collective.hpp"
 #include "tp/tp_config.hpp"
 #include "tp/tp_debug.hpp"
 #include "tp/tp_device_coordinator.hpp"
@@ -52,7 +51,7 @@ void strip_collectives(const std::shared_ptr<ov::Model>& shard) {
     size_t dropped = 0;
     size_t widened = 0;
     for (const auto& node : shard->get_ordered_ops()) {
-        if (!ov::is_type_any_of<op::TPAllReduce, op::TPGather>(node)) {
+        if (!ov::is_type<ov::op::internal::TPCollectiveBase>(node)) {
             continue;
         }
         OPENVINO_ASSERT(node->get_input_size() == 1 && node->get_output_size() == 1,

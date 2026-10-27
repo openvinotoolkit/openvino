@@ -10,4 +10,6 @@
 _OPENVINO_OP_REG(AUGRUCell, ov::op::internal)
 _OPENVINO_OP_REG(AUGRUSequence, ov::op::internal)
 _OPENVINO_OP_REG(RMS, ov::op::internal)
+_OPENVINO_OP_REG(TPAllReduce, ov::op::internal)
+_OPENVINO_OP_REG(TPGather, ov::op::internal)
 _OPENVINO_OP_REG(PagedAttentionExtension, ov::op)

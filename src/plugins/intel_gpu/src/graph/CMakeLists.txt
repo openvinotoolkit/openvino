@@ -45,7 +45,7 @@ set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
 )
 
 if(ENABLE_TP)
-    list(APPEND COMMON_LINK_LIBRARIES openvino_tp_ops)
+    list(APPEND COMMON_LINK_LIBRARIES openvino_tp_coordinator_api)
 endif()
 
 if(OV_GPU_RT STREQUAL "ZE")

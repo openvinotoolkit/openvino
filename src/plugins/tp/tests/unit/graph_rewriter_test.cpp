@@ -11,8 +11,7 @@
 #include "graph_rewriter.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/opsets/opset13.hpp"
-#include "tp/op/tp_all_reduce.hpp"
-#include "tp/op/tp_gather.hpp"
+#include "ov_ops/tp_collective.hpp"
 #include "tp_test_models.hpp"
 
 namespace ov::tp::tests {
@@ -189,7 +188,7 @@ TEST_P(TPGraphRewriterSharding, GivesEveryRankOneBandOfTheVocabulary) {
 
     for (const auto& rank_model : rewrite_all_ranks(model, plan, world_size)) {
         EXPECT_EQ(lm_head_rows(rank_model), static_cast<int64_t>(vocab / world_size));
-        EXPECT_EQ(count_ops_of_type(rank_model, ov::tp::op::TPGather::get_type_info_static()), 1u);
+        EXPECT_EQ(count_ops_of_type(rank_model, ov::op::internal::TPGather::get_type_info_static()), 1u);
         // The band is cut out of the stored weight, not out of the decompressed
         // one: a Slice left in the graph would be read at every token.
         EXPECT_EQ(count_ops_of_type(rank_model, ov::op::v8::Slice::get_type_info_static()), 0u);
@@ -220,7 +219,7 @@ TEST_P(TPGraphRewriterSharding, LeavesTheVocabularyProjectionAloneWhenThereIsNon
     auto plan = GraphRewriter::analyze(model);
 
     for (const auto& rank_model : rewrite_all_ranks(model, plan, world_size))
-        EXPECT_EQ(count_ops_of_type(rank_model, ov::tp::op::TPGather::get_type_info_static()), 0u);
+        EXPECT_EQ(count_ops_of_type(rank_model, ov::op::internal::TPGather::get_type_info_static()), 0u);
 }
 
 TEST_P(TPGraphRewriterSharding, ProducesValidModelsForEveryRank) {
@@ -256,7 +255,7 @@ TEST_P(TPGraphRewriterSharding, InsertsOneCollectivePerRowParallelProjection) {
     auto plan = GraphRewriter::analyze(model);
 
     for (const auto& rank_model : rewrite_all_ranks(model, plan, world_size))
-        EXPECT_EQ(count_ops_of_type(rank_model, ov::tp::op::TPAllReduce::get_type_info_static()), 2u);
+        EXPECT_EQ(count_ops_of_type(rank_model, ov::op::internal::TPAllReduce::get_type_info_static()), 2u);
 }
 
 INSTANTIATE_TEST_SUITE_P(TPGraphRewriter,
@@ -459,7 +458,7 @@ TEST_P(TPGraphRewriterSharding, InsertsCollectivesOnPagedAttentionModel) {
     // formulation does not change where the sums have to be reduced.
     EXPECT_EQ(GraphRewriter::count_collectives(plan, 2), 2);
     for (const auto& rank_model : rewrite_all_ranks(model, plan, world_size))
-        EXPECT_EQ(count_ops_of_type(rank_model, ov::tp::op::TPAllReduce::get_type_info_static()), 2u);
+        EXPECT_EQ(count_ops_of_type(rank_model, ov::op::internal::TPAllReduce::get_type_info_static()), 2u);
 }
 
 TEST(TPGraphRewriterPagedAttention, ReportsNoShardedStatesForPagedAttention) {

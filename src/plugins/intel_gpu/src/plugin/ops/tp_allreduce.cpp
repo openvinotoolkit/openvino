@@ -8,33 +8,27 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/tp_allreduce.hpp"
 
-#include "tp/op/tp_all_reduce.hpp"
-
-namespace ov {
-namespace op {
-namespace tp {
-using TPAllReduce = ov::tp::op::TPAllReduce;
-}  // namespace tp
-}  // namespace op
-}  // namespace ov
+#include "ov_ops/tp_collective.hpp"
 
 namespace ov::intel_gpu {
 
 static void CreateTPAllReduceOp(ProgramBuilder& p,
-                                const std::shared_ptr<ov::tp::op::TPAllReduce>& op) {
+                                const std::shared_ptr<ov::op::internal::TPAllReduce>& op) {
     validate_inputs_count(op, {1});
+    OPENVINO_ASSERT(op->get_reduce_op() == ov::op::internal::ReduceOp::SUM,
+                    "TPAllReduce ", op->get_friendly_name(), ": only SUM is supported");
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto prim = cldnn::tp_allreduce(layerName,
                                     inputs[0],
-                                    op->get_collective_id(),
-                                    op->get_rank());
+                                    p.next_tp_collective_ordinal(),
+                                    static_cast<uint32_t>(op->get_rank()));
 
     p.add_primitive(*op, prim);
 }
 
-REGISTER_FACTORY_IMPL(tp, TPAllReduce);
+REGISTER_FACTORY_IMPL(internal, TPAllReduce);
 
 }  // namespace ov::intel_gpu
 

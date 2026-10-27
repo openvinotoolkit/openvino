@@ -344,6 +344,6 @@ REGISTER_FACTORY(internal, SparseSDPA);
 
 // ------------------------- Tensor Parallel ops ----------------------------- //
 #ifdef ENABLE_TP
-REGISTER_FACTORY(tp, TPAllReduce);
-REGISTER_FACTORY(tp, TPGather);
+REGISTER_FACTORY(internal, TPAllReduce);
+REGISTER_FACTORY(internal, TPGather);
 #endif
