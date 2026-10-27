@@ -130,3 +130,58 @@ TEST(moe_expert_weight_provider, offload_acquire_one_basic) {
     auto slot = provider.acquire_one(5, get_test_stream());
     ASSERT_EQ(slot, slot0);
 }
+
+TEST(moe_expert_weight_provider, offload_try_acquire_simultaneous_overflow_leaves_cache_unchanged) {
+    // A lease that cannot fit must fail before it touches the cache: no expert is
+    // loaded (the weights file does not exist, so a load would throw) and the
+    // resident experts stay resident for the caller's per-expert fallback.
+    MOECompressed::Config config{};
+    OffloadExpertWeightProvider provider(/*capacity=*/2, config, {0, 100, 200, 300}, "/nonexistent");
+
+    cldnn::moe_weights resident{};
+    provider.bind(resident);
+
+    auto& cache = provider.cache();
+    cache.set_filled(cache.get_lru_item(0).first);
+    cache.set_filled(cache.get_lru_item(1).first);
+
+    // 3 unique experts, the first two not resident
+    std::vector<uint32_t> experts = {2, 3, 4, 2};
+    std::optional<std::vector<size_t>> lease;
+    ASSERT_NO_THROW(lease = provider.try_acquire_simultaneous(experts, get_test_stream()));
+    ASSERT_FALSE(lease.has_value());
+
+    ASSERT_TRUE(provider.is_resident(0));
+    ASSERT_TRUE(provider.is_resident(1));
+    ASSERT_FALSE(provider.is_resident(2));
+    ASSERT_FALSE(provider.is_resident(3));
+}
+
+TEST(moe_expert_weight_provider, offload_is_resident_does_not_change_eviction_order) {
+    MOECompressed::Config config{};
+    OffloadExpertWeightProvider provider(/*capacity=*/2, config, {0, 100, 200, 300}, "/nonexistent");
+
+    cldnn::moe_weights resident{};
+    provider.bind(resident);
+
+    auto& cache = provider.cache();
+    cache.set_filled(cache.get_lru_item(0).first);  // least recently used
+    cache.set_filled(cache.get_lru_item(1).first);
+
+    // Querying expert 0 must not refresh it: the next new expert still evicts 0, not 1.
+    ASSERT_TRUE(provider.is_resident(0));
+    const auto slot_of_0 = cache.get_lru_item(0).first;
+    cache.get_lru_item(1);  // 1 becomes most recent again; 0 is least recent
+    ASSERT_TRUE(provider.is_resident(0));
+    const auto [slot, hit] = cache.get_lru_item(7);
+    ASSERT_FALSE(hit);
+    ASSERT_EQ(slot, slot_of_0);
+    ASSERT_FALSE(provider.is_resident(0));
+    ASSERT_TRUE(provider.is_resident(1));
+}
+
+TEST(moe_expert_weight_provider, resident_is_resident_always) {
+    ResidentExpertWeightProvider provider;
+    ASSERT_TRUE(provider.is_resident(0));
+    ASSERT_TRUE(provider.is_resident(127));
+}
