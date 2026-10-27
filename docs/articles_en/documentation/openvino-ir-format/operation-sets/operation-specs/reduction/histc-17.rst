@@ -29,13 +29,7 @@ The operation is performed in the following steps:
 3. Counting: Each input element ``x`` contributes ``1`` to exactly one bin, or is ignored:
 
    * Elements with ``x < lo``, ``x > hi``, and ``NaN`` elements are ignored.
-   * Any other element goes to the bin with the index
-
-     .. math::
-
-        idx = \left\lfloor \frac{(x - lo) \cdot bins}{hi - lo} \right\rfloor
-
-     where the result of the division is truncated toward zero. Bins are half-open ``[lo + i * w, lo + (i + 1) * w)``, where ``w = (hi - lo) / bins``, except for the last bin, which is closed and includes ``hi``. This is enforced by ``idx = bins - 1`` whenever ``x == hi``.
+   * Any other element goes to the bin with the index :math:`idx = \lfloor (x - lo) \cdot bins / (hi - lo) \rfloor`, where the result of the division is truncated toward zero. Bins are half-open ``[lo + i * w, lo + (i + 1) * w)``, where ``w = (hi - lo) / bins``, except for the last bin, which is closed and includes ``hi``. This is enforced by ``idx = bins - 1`` whenever ``x == hi``.
 
    * The bin index is computed in type *T*, so elements lying very close to a bin boundary may be assigned to a neighboring bin due to rounding. This matches the behavior of PyTorch, which does not guarantee consistency with exact bin boundaries.
 
