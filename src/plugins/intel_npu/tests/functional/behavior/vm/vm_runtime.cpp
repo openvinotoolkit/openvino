@@ -157,14 +157,7 @@ std::vector<std::filesystem::path> getBlobSearchPaths(const std::filesystem::pat
 
     std::vector<std::filesystem::path> candidates;
     candidates.push_back(blobPath);
-
-    if (const auto* skipCfg = std::getenv("OV_NPU_TESTS_SKIP_CONFIG_FILE"); skipCfg != nullptr) {
-        const std::filesystem::path skipCfgPath(skipCfg);
-        if (skipCfgPath.has_parent_path()) {
-            candidates.push_back(skipCfgPath.parent_path() / blobPath);
-        }
-    }
-
+    candidates.push_back(ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + blobPath.string());
     return candidates;
 }
 
