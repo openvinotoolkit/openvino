@@ -1100,12 +1100,18 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                 if (cache_location.empty() || device_config.count(ov::cache_blob_id.name()))
                     continue;
                 // check if cached model exists for other devices
-                const bool is_blob_file_exist = CacheWarmupManager::is_blob_cached(*get_core(),
-                                                                                   parsed.get_device_name(),
-                                                                                   device_config,
-                                                                                   model,
-                                                                                   model_path,
-                                                                                   cache_location);
+                bool is_blob_file_exist = false;
+                try {
+                    is_blob_file_exist = CacheWarmupManager::is_blob_cached(*get_core(),
+                                                                            parsed.get_device_name(),
+                                                                            device_config,
+                                                                            model,
+                                                                            model_path,
+                                                                            cache_location);
+                } catch (const ov::Exception& ex) {
+                    // The probe is an optimization only; a failing device must not break compilation.
+                    LOG_DEBUG_TAG("cache probe failed for %s: %s", device.c_str(), ex.what());
+                }
                 num_blob_files += is_blob_file_exist;
                 LOG_DEBUG_TAG("device: %s %s cached blob", device.c_str(), is_blob_file_exist ? "found" : "not found");
             }

@@ -292,6 +292,22 @@ TEST_F(AutoCacheWarmupTest, deviceWithCachingDisabledIsNotProbedForCachedBlob) {
     std::filesystem::remove_all(cache_dir);
 }
 
+TEST_F(AutoCacheWarmupTest, failingCacheProbeDoesNotBreakDeviceList) {
+    const auto cache_dir = std::filesystem::temp_directory_path() /
+                           ("ov_auto_cache_probe_failure_" +
+                            std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(cache_dir);
+    ON_CALL(*core, create_compile_config(_, _)).WillByDefault(::testing::Invoke([](const std::string&, const ov::AnyMap&) -> ov::AnyMap {
+        OPENVINO_THROW("no plugin");
+    }));
+    ov::AnyMap properties = {ov::device::priorities("CPU,GPU"), ov::cache_path(cache_dir)};
+    std::string devices;
+    OV_ASSERT_NO_THROW(devices = plugin->Plugin::get_device_list(properties, model, {}));
+    EXPECT_NE(devices.find(cpu_device), std::string::npos);
+    EXPECT_EQ(properties.count(ov::intel_auto::enable_startup_fallback.name()), 0u);
+    std::filesystem::remove_all(cache_dir);
+}
+
 TEST_F(AutoCacheWarmupTest, customBlobIdDoesNotPruneCpuFallback) {
     const auto cache_dir = std::filesystem::temp_directory_path() /
                            ("ov_auto_cache_blob_id_prune_" +
