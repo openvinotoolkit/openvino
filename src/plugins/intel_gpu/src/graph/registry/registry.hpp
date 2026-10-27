@@ -191,6 +191,7 @@ REGISTER_IMPLS(moe_mask_gen_reshape);
 REGISTER_IMPLS(moe_gemm);
 REGISTER_IMPLS(moe_scatter_reduction);
 REGISTER_IMPLS(moe_gather);
+REGISTER_IMPLS(gather_gguf);
 REGISTER_IMPLS(gather_matmul);
 REGISTER_IMPLS(grouped_matmul);
 

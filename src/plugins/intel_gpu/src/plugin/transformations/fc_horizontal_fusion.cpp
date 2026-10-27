@@ -11,6 +11,7 @@
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "transformations/utils/utils.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -26,7 +27,49 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/variadic_split.hpp"
 
+#include <cstring>
+
 namespace ov::intel_gpu {
+
+namespace {
+// Concatenate raw GGUF quant-block weight buffers along N (row-major [N, K] logical shape). Must NOT
+// use ov::op::v0::Concat: gguf_* element types report a bogus ~1-byte/element size from Type::size()
+// (a diagnostic average-bits-per-element value, not the true per-row block-aware byte size), so generic
+// Concat/ConstantFolding would compute wrong strides and corrupt the data. Q/K/V share the same K, and
+// each source Constant's raw (still-unshuffled) bytes are already `N_i * ceil(K/block_elems) *
+// block_bytes`, row-major, contiguous -- so a straight memcpy concatenation is byte-equivalent to what a
+// single native GGUF tensor with N = sum(N_i) would contain on disk, and the (unmodified)
+// RepackGGUFWeightsShuffle pass can shuffle the result exactly as it would any other tensor.
+std::shared_ptr<ov::op::v0::Constant> build_fused_gguf_weight_constant(const ov::NodeVector& weight_nodes,
+                                                                        const std::vector<int64_t>& orig_n_sizes,
+                                                                        size_t k_size,
+                                                                        const ov::element::Type& weight_dtype) {
+    const size_t block_elems = weight_dtype.block_elem_count();
+    const size_t block_bytes = weight_dtype.block_byte_size();
+    const size_t blocks_per_row = (k_size + block_elems - 1) / block_elems;
+
+    size_t total_n = 0;
+    size_t total_bytes = 0;
+    for (size_t i = 0; i < weight_nodes.size(); ++i) {
+        total_n += static_cast<size_t>(orig_n_sizes[i]);
+        total_bytes += static_cast<size_t>(orig_n_sizes[i]) * blocks_per_row * block_bytes;
+    }
+
+    auto dst_buf = std::make_shared<ov::AlignedBuffer>(total_bytes, 64);
+    auto* dst = static_cast<uint8_t*>(dst_buf->get_ptr());
+    size_t offset = 0;
+    for (const auto& wn : weight_nodes) {
+        auto w_const = ov::as_type_ptr<ov::op::v0::Constant>(wn);
+        OPENVINO_ASSERT(w_const, "GGUF QKV fusion expects a Constant weight input");
+        const size_t sz = w_const->get_byte_size();
+        std::memcpy(dst + offset, w_const->get_data_ptr(), sz);
+        offset += sz;
+    }
+    OPENVINO_ASSERT(offset == total_bytes, "GGUF QKV fusion: concatenated byte size mismatch");
+
+    return std::make_shared<ov::op::v0::Constant>(weight_dtype, ov::Shape{total_n, k_size}, dst_buf);
+}
+}  // namespace
 
 FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu) {
     using namespace ov::pass::pattern;
@@ -63,6 +106,14 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         const auto& input = fc->get_input_node_shared_ptr(0);
         if (!fc->get_input_partial_shape(0).is_dynamic())
             return false;
+        const auto& weight_et = fc->get_input_element_type(1);
+        // GGUF weights are opaque blocks of bytes; horizontally fusing them the normal way would Concat
+        // the raw block constants along N, which both corrupts block boundaries and crashes
+        // ConstantFolding when it tries to evaluate that Concat. gguf_q4_1 QKV groups are instead merged
+        // via a dedicated raw-byte-concat path below (never through ov::op::v0::Concat); other GGUF
+        // quant types (Q4_0/Q8_0/K-quant) and mixed-type groups aren't supported yet, and fall through to
+        // the ordinary Placeholder-zp bail-out further down.
+        const bool is_gguf_qkv_candidate = (weight_et == ov::element::gguf_q4_1);
         size_t user_fc_count = 0;
         int32_t nodes_with_bias = 0;
         int32_t nodes_with_zp = 0;
@@ -92,6 +143,11 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             }
             user_fc_count++;
         }
+        // GGUF QKV fusion only targets exact Q/K/V triples for now: don't fall into the 2-FC MLP
+        // gate/up grouping that fuse_mlp_swiglu enables for dense/compressed weights, since the
+        // downstream SwiGLU fusion path hasn't been validated against GGUF weights.
+        if (is_gguf_qkv_candidate && user_fc_count != 3)
+            return false;
         return (user_fc_count >= min_num_fcs_to_fuse) && (user_fc_count <= max_num_fcs_to_fuse) &&
                (nodes_with_bias == static_cast<int32_t>(user_fc_count) || nodes_with_bias == 0) &&
                (nodes_with_zp == static_cast<int32_t>(user_fc_count) || nodes_with_zp == 0);
@@ -149,11 +205,16 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 return false;
             orig_n_sizes.push_back(fc->get_input_shape(weight_idx)[n_axis]);
         }
-        ov::OutputVector weight_nodes_as_output_vector;
-        for (size_t i = 0; i < weight_nodes.size(); ++i) {
-            weight_nodes_as_output_vector.push_back(weight_nodes[i]->output(0));
+        std::shared_ptr<ov::Node> fused_weight;
+        if (weight_dtype.is_gguf_block()) {
+            fused_weight = build_fused_gguf_weight_constant(weight_nodes, orig_n_sizes, k_size, weight_dtype);
+        } else {
+            ov::OutputVector weight_nodes_as_output_vector;
+            for (size_t i = 0; i < weight_nodes.size(); ++i) {
+                weight_nodes_as_output_vector.push_back(weight_nodes[i]->output(0));
+            }
+            fused_weight = std::make_shared<ov::op::v0::Concat>(weight_nodes_as_output_vector, 0);
         }
-        auto fused_weight = std::make_shared<ov::op::v0::Concat>(weight_nodes_as_output_vector, 0);
         fused_weight->set_friendly_name(weight_nodes[0]->get_friendly_name() + "_fused_weight");
         ov::copy_runtime_info(weight_nodes, fused_weight);
 
@@ -240,7 +301,18 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         }
 
         std::shared_ptr<ov::Node> fused_zps;
-        if (zp_nodes.size() > 0) {
+        if (weight_dtype.is_gguf_block()) {
+            // GGUF's zero-point is always a fresh op::Placeholder, never a real per-channel Constant
+            // (see convert_gguf_fc_compressed.cpp) -- the numeric zp merge/scalar-compare logic below is
+            // written for NNCF-style compressed weights and doesn't apply; just carry a Placeholder
+            // through, matching the existing per-FC GGUF convention.
+            fused_zps = std::make_shared<op::Placeholder>();
+        } else if (zp_nodes.size() > 0) {
+            // GGUF-style FC nodes use Placeholder as the zero-point (no explicit zp).
+            // Skip horizontal fusion for this pattern since Placeholder has dynamic shape.
+            if (ov::as_type_ptr<op::Placeholder>(zp_nodes[0])) {
+                return false;
+            }
             // scalar zp
             auto zp_shape = zp_nodes[0]->get_output_shape(0);
             bool is_scalar = (ov::shape_size(zp_nodes[0]->get_output_shape(0)) == 1);
@@ -267,6 +339,10 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                         auto zp_const =
                             ov::as_type_ptr<ov::op::v0::Constant>(zp_convert->get_input_node_shared_ptr(0));
                         cur_zp_val = zp_const->cast_vector<int32_t>()[0];
+                    } else if (ov::as_type_ptr<op::Placeholder>(zp_nodes[i])) {
+                        // GGUF-style FC has a Placeholder (no explicit zero-point);
+                        // skip horizontal fusion for this pattern rather than throw.
+                        return false;
                     } else {
                         OPENVINO_THROW("Unsupported zp input node for FC horizontal fusion");
                     }

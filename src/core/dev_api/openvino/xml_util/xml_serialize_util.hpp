@@ -32,6 +32,13 @@ class OPENVINO_API XmlSerializer : public ov::AttributeVisitor {
     bool m_data_is_temporary;
     std::function<bool(pugi::xml_node& node, const ov::RuntimeAttribute& attribute)> m_custom_rt_info_append;
 
+    // When set (non-empty source), the current Const is a GGUF external weight: the serializer emits
+    // a `<data source=... offset=... size=...>` reference into the sibling GGUF file and skips writing
+    // the raw bytes into the model .bin.
+    std::string m_gguf_ext_source;
+    uint64_t m_gguf_ext_offset = 0;
+    uint64_t m_gguf_ext_size = 0;
+
     template <typename T>
     std::string create_attribute_list(ov::ValueAccessor<std::vector<T>>& adapter) {
         return util::join(adapter.get());
@@ -87,6 +94,13 @@ public:
                   bool compress_to_fp16 = false,
                   ov::element::Type output_element_type = ov::element::dynamic,
                   bool data_is_temporary = false);
+
+    // Marks the next serialized Const `value` as an external GGUF weight reference.
+    void set_gguf_external_weight(const std::string& source, uint64_t offset, uint64_t size) {
+        m_gguf_ext_source = source;
+        m_gguf_ext_offset = offset;
+        m_gguf_ext_size = size;
+    }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override;
     void on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) override;

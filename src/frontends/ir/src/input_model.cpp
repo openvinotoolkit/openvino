@@ -270,6 +270,10 @@ std::shared_ptr<ov::Model> InputModel::InputModelIRImpl::convert() {
     // Load default opsets
     size_t version = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(m_root, "version", 0));
     ov::util::XmlDeserializer visitor(m_root, m_weights, m_opsets, m_extensions, variables, version);
+    // Provide the model directory so external GGUF weight references (`<data source=...>`) can be
+    // resolved and memory-mapped from the sibling GGUF file during deserialization.
+    if (!m_weights_path.empty())
+        visitor.set_weights_path(m_weights_path);
     std::shared_ptr<ov::Model> model;
     visitor.on_attribute("net", model);
     model->get_rt_info()["version"] = int64_t(version);

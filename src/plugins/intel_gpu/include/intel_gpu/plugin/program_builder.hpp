@@ -100,6 +100,13 @@ public:
     using BlobCacheKey = std::tuple<const char*, ov::Shape, ov::element::Type>;
     std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
 
+    // Stable deduplication cache for GGUF external weight Constants.
+    // Uses (canonical source filename, byte offset, byte size, shape, element type) as key
+    // so that the same weight is deduplicated even when the raw data pointer differs
+    // between a direct GGUF load and an XML-cached reload (different mmap base).
+    using GGUFBlobCacheKey = std::tuple<std::string, uint64_t, uint64_t, ov::Shape, ov::element::Type>;
+    std::map<GGUFBlobCacheKey, cldnn::primitive_id> ggufBlobMemCache;
+
     std::shared_ptr<cldnn::program> get_compiled_program() const;
     std::shared_ptr<cldnn::topology> get_topology() const { return m_topology; }
 

@@ -41,25 +41,37 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
             return false;
         }
 
-        // Only support weight: u4, i4, u8, i8
+        // Only support weight: u4, i4, u8, i8 (existing transcoded low-bit path), or the GGUF
+        // baseline block types consumed natively by the MoE GGUF path.
         static constexpr std::array supported_wei_type = {
             ov::element::u4,
             ov::element::i4,
             ov::element::u8,
             ov::element::i8,
         };
+        static constexpr std::array supported_gguf_wei_type = {
+            ov::element::gguf_q4_0,
+            ov::element::gguf_q4_k,
+            ov::element::gguf_q5_k,
+            ov::element::gguf_q6_k,
+            ov::element::gguf_q8_0,
+        };
         const auto& wei_layout = node.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0));
-        if (!one_of(wei_layout.data_type, supported_wei_type)) {
+        const bool is_gguf_weight = one_of(wei_layout.data_type, supported_gguf_wei_type);
+        if (!one_of(wei_layout.data_type, supported_wei_type) && !is_gguf_weight) {
             return false;
         }
 
-        // Only support scale: f16
-        static constexpr std::array supported_scale_type = {
-            ov::element::f16,
-        };
-        const auto& scale_layout = node.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0));
-        if (!one_of(scale_layout.data_type, supported_scale_type)) {
-            return false;
+        // For GGUF block weights the scale/zp live inside each block and the op carries empty
+        // scale/zp placeholders, so skip the f16-scale layout check.
+        if (!is_gguf_weight) {
+            static constexpr std::array supported_scale_type = {
+                ov::element::f16,
+            };
+            const auto& scale_layout = node.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0));
+            if (!one_of(scale_layout.data_type, supported_scale_type)) {
+                return false;
+            }
         }
 
         // Only support zp: u4, i4, u8, i8 (skip check for symmetric quantization where ZP is element::dynamic placeholder)

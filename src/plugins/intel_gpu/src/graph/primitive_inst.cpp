@@ -2998,7 +2998,15 @@ bool primitive_inst::is_valid_fusion() const {
         // TODO: Only fc_bf_tiled_kernel & ref kernel are verified for fused eltwise. To support more fc kernels for eltwise fusion
         if (!get_node().get_selected_impl())
             LOG_AND_RETURN_FALSE(_node);
-        if (!data_type_traits::is_i8_u8(get_node().get_input_layout(0).data_type) &&
+        // The GGUF FC impl (FCGGUFOptImpl) natively supports SwiGLU/residual eltwise+activation
+        // fusion in BOTH paths: decode applies them via the OCL kernel's FUSED_OPS, and prefill
+        // maps them to dnnl::matmul post-ops (see extract_gguf_fused_ops in fc_gguf_opt.cpp).
+        // Allowlisting its kernels here avoids the unfused-subgraph fallback, which would allocate
+        // a fresh large activation buffer per FC per layer (O(N_layers) peak memory -> prefill OOM).
+        const auto& gguf_kernel_name = get_node().get_selected_impl()->get_kernel_name();
+        const bool is_gguf_fc = gguf_kernel_name.find("fc_gguf") != std::string::npos;
+        if (!is_gguf_fc &&
+            !data_type_traits::is_i8_u8(get_node().get_input_layout(0).data_type) &&
             (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") == std::string::npos) &&
             (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bfyx_ref") == std::string::npos)) {
             LOG_AND_RETURN_FALSE(_node);

@@ -1409,6 +1409,18 @@ static constexpr Property<int32_t, PropertyMutability::RW> compilation_num_threa
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> execution_devices{"EXECUTION_DEVICES"};
 
 /**
+ * @brief Read-only property listing the GGUF block weight formats a device can consume natively.
+ *
+ * The value is a list of upper-case GGUF format names (e.g. {"Q4_0", "Q4_K", "Q5_K", "Q6_K",
+ * "Q8_0"}). Tools that load `.gguf` models should query this before compiling to know whether a
+ * given quantisation recipe is supported, instead of hard-coding the list. Devices without native
+ * GGUF support return an empty list.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> supported_gguf_types{
+    "SUPPORTED_GGUF_TYPES"};
+
+/**
  * @brief Path to the file with model's weights.
  *
  * @note This property is used for weightless caching. Only used when ov::CacheMode Property is set to "OPTIMIZE_SIZE".

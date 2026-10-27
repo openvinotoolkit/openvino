@@ -111,6 +111,8 @@ static ov::test::utils::InputGenerateData get_range_by_type(
         CASE_C_TYPE(ov::element::Type_t::u32)
         CASE_C_TYPE(ov::element::Type_t::u64)
         break;
+    default:
+        break;
     }
 
     return inData;

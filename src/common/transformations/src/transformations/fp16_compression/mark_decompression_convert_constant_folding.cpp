@@ -94,6 +94,12 @@ KeepConstantsPrecisionAndAddConverts::KeepConstantsPrecisionAndAddConverts() {
 
         enable_keep_const_precision(const_node);
 
+        // GGUF block constants are opaque packed weights. Convert explicitly rejects GGUF
+        // input/output element types, so this pass must not inject Convert for them.
+        if (const_node->get_element_type().is_gguf_block()) {
+            return false;
+        }
+
         const auto& constant_target_inputs = const_node->get_output_target_inputs(0);
         const auto& next_node = constant_target_inputs.begin()->get_node()->shared_from_this();
         if (is_type<v0::Convert>(next_node)) {

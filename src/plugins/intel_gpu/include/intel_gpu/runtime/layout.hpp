@@ -4,25 +4,24 @@
 
 #pragma once
 
-#include "tensor.hpp"
-
-#include <cmath>
-#include <cstdlib>
-#include <vector>
 #include <algorithm>
-#include <limits>
-#include <string>
-#include <functional>
 #include <array>
 #include <bitset>
+#include <cmath>
+#include <cstdlib>
+#include <functional>
+#include <limits>
 #include <optional>
-
-#include "openvino/core/partial_shape.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/core/type/element_type_traits.hpp"
+#include <string>
+#include <vector>
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "openvino/core/memory_util.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "tensor.hpp"
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -38,7 +37,11 @@ using data_types = ov::element::Type_t;
 struct data_type_traits {
     static size_t size_of(data_types data_type) {
         auto et = ov::element::Type(data_type);
-        OPENVINO_ASSERT(et.bitwidth() >= 8, "[GPU] Unexpected data_type_traits::size_of call for type with bitwidth < 8 (", et.get_type_name(), ")");
+        OPENVINO_ASSERT(!et.is_gguf_block(),
+                        "[GPU] data_type_traits::size_of is not defined for opaque GGUF block types; "
+                        "use layout::bytes_count() / ov::util::get_memory_size() instead.");
+        OPENVINO_ASSERT(et.bitwidth() >= 8,
+                        "[GPU] Unexpected data_type_traits::size_of call for type with bitwidth < 8.");
         return et.size();
     }
 
@@ -53,7 +56,7 @@ struct data_type_traits {
 
     static bool is_i4_u4(data_types data_type) {
         auto et = ov::element::Type(data_type);
-        return et.bitwidth() == 4;
+        return !et.is_gguf_block() && et.bitwidth() == 4;
     }
 
     static ov::element::Type max_type(ov::element::Type t1, ov::element::Type t2) {
@@ -76,41 +79,41 @@ struct data_type_traits {
     template <typename T>
     static T max(data_types data_type) {
         switch (data_type) {
-            case data_types::i8:
-                return static_cast<T>(std::numeric_limits<int8_t>::max());
-            case data_types::u8:
-                return static_cast<T>(std::numeric_limits<uint8_t>::max());
-            case data_types::i32:
-                return static_cast<T>(std::numeric_limits<int32_t>::max());
-            case data_types::i64:
-                return static_cast<T>(std::numeric_limits<int64_t>::max());
-            case data_types::f16:
-                return static_cast<T>(std::numeric_limits<ov::float16>::max());
-            case data_types::f32:
-                return static_cast<T>(std::numeric_limits<float>::max());
-            default:
-                assert(0);
-                return static_cast<T>(0);
+        case data_types::i8:
+            return static_cast<T>(std::numeric_limits<int8_t>::max());
+        case data_types::u8:
+            return static_cast<T>(std::numeric_limits<uint8_t>::max());
+        case data_types::i32:
+            return static_cast<T>(std::numeric_limits<int32_t>::max());
+        case data_types::i64:
+            return static_cast<T>(std::numeric_limits<int64_t>::max());
+        case data_types::f16:
+            return static_cast<T>(std::numeric_limits<ov::float16>::max());
+        case data_types::f32:
+            return static_cast<T>(std::numeric_limits<float>::max());
+        default:
+            assert(0);
+            return static_cast<T>(0);
         }
     }
     template <typename T>
     static T min(data_types data_type) {
         switch (data_type) {
-            case data_types::i8:
-                return static_cast<T>(std::numeric_limits<int8_t>::lowest());
-            case data_types::u8:
-                return static_cast<T>(std::numeric_limits<uint8_t>::lowest());
-            case data_types::i32:
-                return static_cast<T>(std::numeric_limits<int32_t>::lowest());
-            case data_types::i64:
-                return static_cast<T>(std::numeric_limits<int64_t>::lowest());
-            case data_types::f16:
-                return static_cast<T>(std::numeric_limits<ov::float16>::lowest());
-            case data_types::f32:
-                return static_cast<T>(std::numeric_limits<float>::lowest());
-            default:
-                assert(0);
-                return static_cast<T>(0);
+        case data_types::i8:
+            return static_cast<T>(std::numeric_limits<int8_t>::lowest());
+        case data_types::u8:
+            return static_cast<T>(std::numeric_limits<uint8_t>::lowest());
+        case data_types::i32:
+            return static_cast<T>(std::numeric_limits<int32_t>::lowest());
+        case data_types::i64:
+            return static_cast<T>(std::numeric_limits<int64_t>::lowest());
+        case data_types::f16:
+            return static_cast<T>(std::numeric_limits<ov::float16>::lowest());
+        case data_types::f32:
+            return static_cast<T>(std::numeric_limits<float>::lowest());
+        default:
+            assert(0);
+            return static_cast<T>(0);
         }
     }
 };
@@ -130,7 +133,8 @@ inline data_types element_type_to_data_type(ov::element::Type t) {
         return cldnn::data_types::i32;
     case ov::element::Type_t::boolean:
         return cldnn::data_types::u8;
-    default: return t;
+    default:
+        return t;
     }
 }
 
@@ -141,9 +145,11 @@ struct padding {
     using DynamicDimsMask = std::bitset<SHAPE_RANK_MAX>;
     static constexpr DynamicDimsMask EMPTY_MASK{0x0};
 
-    std::array<ov::Dimension::value_type, SHAPE_RANK_MAX> _lower_size = {0};  ///< Lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
-    std::array<ov::Dimension::value_type, SHAPE_RANK_MAX> _upper_size = {0};  ///< Upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
-    DynamicDimsMask _dynamic_dims_mask = EMPTY_MASK;         ///< A mask saying which dimension has dynamic pad
+    std::array<ov::Dimension::value_type, SHAPE_RANK_MAX> _lower_size = {
+        0};  ///< Lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
+    std::array<ov::Dimension::value_type, SHAPE_RANK_MAX> _upper_size = {
+        0};                                           ///< Upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
+    DynamicDimsMask _dynamic_dims_mask = EMPTY_MASK;  ///< A mask saying which dimension has dynamic pad
 
     /// @brief
     /// @param lower_sizes Top-left padding sizes, in the same size and order as shape.
@@ -151,18 +157,17 @@ struct padding {
     padding(const std::vector<ov::Dimension::value_type>& lower_sizes,
             const std::vector<ov::Dimension::value_type>& upper_sizes,
             const DynamicDimsMask& dynamic_pad_dims = EMPTY_MASK) {
-            // paddings
-            OPENVINO_ASSERT(lower_sizes.size() <= SHAPE_RANK_MAX);
-            OPENVINO_ASSERT(upper_sizes.size() <= SHAPE_RANK_MAX);
-            std::copy_n(lower_sizes.begin(), lower_sizes.size(), _lower_size.begin());
-            std::copy_n(upper_sizes.begin(), upper_sizes.size(), _upper_size.begin());
-            _dynamic_dims_mask = dynamic_pad_dims;
-          }
+        // paddings
+        OPENVINO_ASSERT(lower_sizes.size() <= SHAPE_RANK_MAX);
+        OPENVINO_ASSERT(upper_sizes.size() <= SHAPE_RANK_MAX);
+        std::copy_n(lower_sizes.begin(), lower_sizes.size(), _lower_size.begin());
+        std::copy_n(upper_sizes.begin(), upper_sizes.size(), _upper_size.begin());
+        _dynamic_dims_mask = dynamic_pad_dims;
+    }
 
     /// @brief Constrcuts symmetric padding.
     /// @param sizes Top-left and bottom-right padding sizes, in the same size and order as shape.
-    explicit padding(const std::vector<ov::Dimension::value_type>& sizes,
-                     const DynamicDimsMask& dynamic_pad_dims = EMPTY_MASK)
+    explicit padding(const std::vector<ov::Dimension::value_type>& sizes, const DynamicDimsMask& dynamic_pad_dims = EMPTY_MASK)
         : padding(sizes, sizes, dynamic_pad_dims) {}
 
     /// @brief Constructs "zero-sized" padding.
@@ -170,8 +175,14 @@ struct padding {
 
     /// @brief Returns true if padding size is not zero.
     explicit operator bool() const {
-        return std::any_of(_lower_size.begin(), _lower_size.end(), [](ov::Dimension::value_type i){ return i > 0; }) ||
-               std::any_of(_upper_size.begin(), _upper_size.end(), [](ov::Dimension::value_type i){ return i > 0; });
+        return std::any_of(_lower_size.begin(),
+                           _lower_size.end(),
+                           [](ov::Dimension::value_type i) {
+                               return i > 0;
+                           }) ||
+               std::any_of(_upper_size.begin(), _upper_size.end(), [](ov::Dimension::value_type i) {
+                   return i > 0;
+               });
     }
 
     bool is_dynamic() const {
@@ -179,9 +190,7 @@ struct padding {
     }
 
     friend bool operator==(const padding& lhs, const padding& rhs) {
-        return lhs._dynamic_dims_mask == rhs._dynamic_dims_mask &&
-               lhs._lower_size == rhs._lower_size &&
-               lhs._upper_size == rhs._upper_size;
+        return lhs._dynamic_dims_mask == rhs._dynamic_dims_mask && lhs._lower_size == rhs._lower_size && lhs._upper_size == rhs._upper_size;
     }
 
     friend bool operator!=(const padding& lhs, const padding& rhs) {
@@ -190,13 +199,16 @@ struct padding {
 
     friend bool operator<(const padding& lhs, const padding& rhs) {
         // Compare only actual padding size not _dynamic_dims_mask
-        if (lhs._lower_size < rhs._lower_size) return true;
-        else if (lhs._lower_size > rhs._lower_size) return false;
-        if (lhs._upper_size < rhs._upper_size) return true;
+        if (lhs._lower_size < rhs._lower_size)
+            return true;
+        else if (lhs._lower_size > rhs._lower_size)
+            return false;
+        if (lhs._upper_size < rhs._upper_size)
+            return true;
         return false;
     }
 
-    static padding max(padding const& lhs, padding const& rhs, float filling_value = 0.0f) {
+    static padding max(const padding& lhs, const padding& rhs, float filling_value = 0.0f) {
         auto ret = lhs;
         for (size_t i = 0; i < SHAPE_RANK_MAX; ++i) {
             ret._lower_size[i] = std::max(ret._lower_size[i], rhs._lower_size[i]);
@@ -243,36 +255,28 @@ struct padding {
 /// @details Contains information about data stored in @ref memory.
 struct layout {
     struct Hasher {
-        size_t operator()(const layout &l) const {
+        size_t operator()(const layout& l) const {
             return l.hash();
         }
     };
 
     /// Constructs layout based on @p data_type and @p size information described by @ref tensor
-    layout(data_types data_type, cldnn::format fmt, tensor size, padding apadding = padding())
-        : data_type(data_type)
-        , format(fmt)
-        , data_padding(apadding) {
-            auto sizes = fmt == format::any ? size.sizes() : size.sizes(format::get_default_format(fmt.dimension(),
-                                                                                                   format::is_weights_format(fmt),
-                                                                                                   format::is_grouped(fmt)));
-            ov::Shape shape(sizes.begin(), sizes.end());
-            this->size = ov::PartialShape(shape);
-        }
+    layout(data_types data_type, cldnn::format fmt, tensor size, padding apadding = padding()) : data_type(data_type), format(fmt), data_padding(apadding) {
+        auto sizes = fmt == format::any ? size.sizes()
+                                        : size.sizes(format::get_default_format(fmt.dimension(), format::is_weights_format(fmt), format::is_grouped(fmt)));
+        ov::Shape shape(sizes.begin(), sizes.end());
+        this->size = ov::PartialShape(shape);
+    }
 
     layout(ov::PartialShape size, data_types data_type, cldnn::format fmt, padding apadding = padding())
-        : data_type(data_type)
-        , format(fmt)
-        , data_padding(apadding)
-        , size(size) {}
+        : data_type(data_type),
+          format(fmt),
+          data_padding(apadding),
+          size(size) {}
 
     layout(const layout& other) = default;
 
-    layout()
-        : data_type(cldnn::data_types::dynamic),
-          format(cldnn::format::any),
-          data_padding(padding()),
-          size(ov::PartialShape()) {}
+    layout() : data_type(cldnn::data_types::dynamic), format(cldnn::format::any), data_padding(padding()), size(ov::PartialShape()) {}
 
     layout& operator=(const layout& other) {
         if (this == &other)
@@ -291,7 +295,6 @@ struct layout {
     layout clone_with_other_shape(const ov::Shape& new_shape) const {
         return clone_with_other_shape(ov::PartialShape(new_shape));
     }
-
 
     friend bool operator==(const layout& lhs, const layout& rhs) {
         return lhs.data_type == rhs.data_type && lhs.format == rhs.format && lhs.size == rhs.size && lhs.data_padding == rhs.data_padding;
@@ -324,7 +327,7 @@ struct layout {
     size_t get_linear_size() const;
 
     /// Modify padding in layout
-    layout with_padding(padding const& padd) const;
+    layout with_padding(const padding& padd) const;
 
     /// Data type stored in @ref memory (see. @ref data_types)
     ov::element::Type_t data_type;
@@ -337,13 +340,17 @@ struct layout {
 
     /// Number of bytes needed to store this layout
     size_t bytes_count() const {
+        // GGUF block types pack a fixed number of logical elements into a fixed-size block of bytes.
+        // Their per-element bit-width is fractional/rounded, so the generic bitwidth formula below
+        // under-sizes the buffer. Route them through the block-aware ov::util::get_memory_size().
+        const auto bytes_of_layout = ov::element::is_gguf_block(data_type) ? ov::util::get_memory_size(ov::element::Type(data_type), get_linear_size())
+                                                                           : ((ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3);
         if (format == cldnn::format::custom) {
-            auto bytes_of_layout = (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
             auto desc_size = format.traits().desc_size;
             OPENVINO_ASSERT(desc_size > 0, "[GPU] Invalid layout descriptor size: ", desc_size);
             return desc_size > bytes_of_layout ? desc_size : bytes_of_layout;
         } else {
-            return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
+            return bytes_of_layout;
         }
     }
 
@@ -399,7 +406,7 @@ struct layout {
 
     tensor get_tensor() const;
 
-    template<typename T>
+    template <typename T>
     T get() const;
 
     void set_tensor(const tensor& size);
@@ -416,7 +423,9 @@ struct layout {
     // for smaller buffer which, currently, should always be performed
     bool identical(const layout& other) const;
 
-    static size_t max_rank() { return 8; }
+    static size_t max_rank() {
+        return 8;
+    }
     static ov::PartialShape transform(const ov::PartialShape& pshape, const cldnn::format& old_fmt, const cldnn::format& new_fmt);
 
     size_t hash() const {
@@ -445,8 +454,9 @@ struct layout {
     /// @param _sizes an array that supports operator[] and stores data in the same order as shape.
     /// e.g. it could be std::vector, std::array, or std::bitset, etc.
     template <class TArray>
-    inline static std::vector<ov::Dimension::value_type> format_sizes(const TArray _sizes, const cldnn::format &fmt,
-                                                               const ov::Dimension::value_type default_val = 1) {
+    inline static std::vector<ov::Dimension::value_type> format_sizes(const TArray _sizes,
+                                                                      const cldnn::format& fmt,
+                                                                      const ov::Dimension::value_type default_val = 1) {
         const auto& output_order = fmt.order();
         std::vector<ov::Dimension::value_type> sizes(output_order.size(), default_val);
 

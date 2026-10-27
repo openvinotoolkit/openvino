@@ -459,6 +459,29 @@ static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& consta
     case ov::element::Type_t::f8e5m2:
     case ov::element::Type_t::f4e2m1:
     case ov::element::Type_t::f8e8m0:
+    case ov::element::Type_t::gguf_q4_0:
+    case ov::element::Type_t::gguf_q4_1:
+    case ov::element::Type_t::gguf_q5_0:
+    case ov::element::Type_t::gguf_q5_1:
+    case ov::element::Type_t::gguf_q8_0:
+    case ov::element::Type_t::gguf_q8_1:
+    case ov::element::Type_t::gguf_q2_k:
+    case ov::element::Type_t::gguf_q3_k:
+    case ov::element::Type_t::gguf_q4_k:
+    case ov::element::Type_t::gguf_q5_k:
+    case ov::element::Type_t::gguf_q6_k:
+    case ov::element::Type_t::gguf_q8_k:
+    case ov::element::Type_t::gguf_iq2_xxs:
+    case ov::element::Type_t::gguf_iq2_xs:
+    case ov::element::Type_t::gguf_iq3_xxs:
+    case ov::element::Type_t::gguf_iq1_s:
+    case ov::element::Type_t::gguf_iq4_nl:
+    case ov::element::Type_t::gguf_iq3_s:
+    case ov::element::Type_t::gguf_iq2_s:
+    case ov::element::Type_t::gguf_iq4_xs:
+    case ov::element::Type_t::gguf_iq1_m:
+    case ov::element::Type_t::gguf_tq1_0:
+    case ov::element::Type_t::gguf_tq2_0:
         ss << constant->get_output_element_type(0).get_type_name() << " value";
         break;
     case ov::element::Type_t::bf16:

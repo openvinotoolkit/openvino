@@ -19,7 +19,18 @@ JitConstants KernelGenerator::make_tensors_jit_constants(const RuntimeParams& pa
     static std::map<size_t, JitConstants> tensors_jit_constants_cache;
     static std::mutex m;
 
-    size_t params_hash = params.hash();
+    // params.hash() hashes layout shape *values* only, so a dynamic-shape layout that has been
+    // fully resolved to concrete dims hashes identically to a statically-declared layout with the
+    // same dims -- even though this function emits different macros for the two (shape_info[N]
+    // indexing vs baked-in constants, see make_layout_jit_constants/LayoutJitter). Without folding
+    // is_dynamic() into the key, a dynamic-shape compile and a later static-shape compile of the
+    // same concrete shape collide in this cache, and whichever ran first "wins" for both -- silently
+    // handing out the wrong (dynamic vs static) macros to the second caller. That mismatch versus
+    // OPTIONAL_SHAPE_INFO_ARG (make_base_jit_constants, which is NOT cached and always reflects the
+    // current call's is_dynamic()) is what produced "use of undeclared identifier 'shape_info'"
+    // CL_BUILD_PROGRAM_FAILURE crashes on GGUF decode kernels once a dynamic and a static compile of
+    // the same shape had both occurred.
+    size_t params_hash = cldnn::hash_combine(params.hash(), params.is_dynamic());
 
     std::lock_guard<std::mutex> lock(m);
 
