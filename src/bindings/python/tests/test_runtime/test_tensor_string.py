@@ -101,7 +101,13 @@ def test_bytes_data_with_empty_strings():
     bytes_data = tensor.bytes_data
     assert bytes_data.tolist() == [b"", b""]
     bytes_data[0] = b"x"
+    assert bytes_data[1] == b""
     assert bytes_data.tolist() == [b"x", b""]
+
+    copy = ov.Tensor(tensor.bytes_data, shared_memory=False)
+    assert copy.bytes_data.tolist() == [b"", b""]
+    assert tensor.str_data.tolist() == ["", ""]
+
     bytes_data[1] = b"y"
     assert bytes_data.tolist() == [b"x", b"y"]
 
