@@ -41,6 +41,10 @@ bool ZeroEngineBackend::isContextExtSupported() const {
     return _initStruct->isContextExtSupported();
 }
 
+bool ZeroEngineBackend::isCommandQueueQosExtSupported() const {
+    return _initStruct->isCommandQueueQosSupported();
+}
+
 const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {
     if (_devices.empty()) {
         _logger.debug("ZeroEngineBackend - getDevice() returning empty list");

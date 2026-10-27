@@ -40,6 +40,8 @@ public:
     virtual bool isLUIDExtSupported() const = 0;
     /** @brief Backend has support for npu context dditable ext */
     virtual bool isContextExtSupported() const = 0;
+    /** @brief Backend has support for command queue QoS */
+    virtual bool isCommandQueueQosExtSupported() const;
     /** @brief Register backend-specific options */
     virtual void registerOptions(OptionsDesc& options) const;
     /** @brief Get Level Zero context*/
