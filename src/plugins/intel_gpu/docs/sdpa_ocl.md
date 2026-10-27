@@ -1073,6 +1073,38 @@ the offset is a whole number of elements, so `prem` is a multiple of the element
 builtins need); `prem % 16 == 0`, which a 32-bit transposed read would need, follows from
 `base = m * row_bytes` and the host's `row_bytes % 16 == 0` gate.
 
+### The u4 token-major K writer (IGC 2.41)
+
+With IGC 2.41.5 the u4 BY_CHANNEL token-major writer in `pa_kv_cache_update_ref.cl` reported `TPM=576` at every
+head size and its PREFILL dispatch became 1.3-1.6x master's d-major writer. IGC 2.41 no longer promotes a private array
+indexed by a runtime value, even a subgroup-uniform one, to registers: `token_vals[2][9]` (requantize helper) and
+`input_data[2][9]` (prefill helper) went to scratch (2 x 9 halves x 16 lanes = 576 B). 256 GRF did not change it.
+Both helpers now index those arrays only with unrolled constants: the loops run over all 8 token pairs under a uniform
+`it < n` guard, the PREFILL odd tail has its own variable, and a value whose slot is known only at run time (the
+leftover old token, a new token, the requantize odd tail) is written or read through a select over every slot.
+Storing the slots as a `half16` with a runtime subscript also avoids scratch, but its indirect register access made
+GENERATE 3-15% slower than before (standalone probe).
+
+In GENERATE the head-256 shape (16 partitions, each owning 8 bytes of the same 128-byte token rows) then queued the
+partitions' stores on the same lines (the old code's stores were spaced out by its scratch reloads). Under
+`NUM_HEAD_SIZE_GROUPS == NUM_K_HEAD_SIZE_PARTITIONS && BC_TOKEN_STRIDE >= 128` each partition starts its stores at
+pair `partition % 8`, reading the rotated byte from a `uchar8`. It does not pay at heads 128 / 512 (+3-8% / +5% in
+the standalone probe), so they keep the plain loop. Cache bytes are unchanged: the 186 basic paged-attention rows
+dump identical output, K cache and V cache bytes before and after.
+
+Per call (us, B70 at 1800 MHz, cliloader; prefill `-ic 1`, generate 2K prompt + 256 tokens), master (d-major) / before
+/ after:
+
+| | PREFILL 8K | PREFILL 32K | GENERATE |
+|---|---|---|---|
+| qwen3-8b (head 128, 8 kv heads) | 224 / 322 / 172 | 778 / 1219 / 570 | 8.3 / 8.9 / 8.1 |
+| llama-3.2-1b (head 64, 8 kv heads) | 121 / 156 / 82 | 437 / 621 / 318 | 7.7 / 8.4 / 7.6 |
+| gemma-4-26b head 256, 8 kv heads | 400 / 592 / 274 | 1483 / 2392 / 1032 | 9.2 / 10.1 / 9.5 |
+| gemma-4-26b head 512, 2 kv heads | 270 / 354 / 133 | 932 / 1279 / 574 | 11.9 / 11.9 / 11.9 |
+
+First-token latency after / before (llm_bench, 2 interleaved rounds, median of 6): qwen3-8b 0.995 / 0.997 at 8K / 32K
+(-5 / -23 ms), llama-3.2-1b 1.000 / 0.997, gemma-4-26b 0.993 / 0.992 (-9 / -38 ms).
+
 ## Dequantisation
 
 Paged-attention caches: `(q - zp) * scale`, in half. The cache writer stores `1 / scale`, so the
