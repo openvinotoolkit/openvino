@@ -339,8 +339,8 @@ void check_ort_mem_addr(const TensorProto& tensor) {
         bool is_zero_length = false;
         try {
             size_t pos = 0;
-            is_zero_length = length.find('-') == std::string::npos && std::stoull(length, &pos, 10) == 0 &&
-                             pos == length.size();
+            is_zero_length =
+                length.find('-') == std::string::npos && std::stoull(length, &pos, 10) == 0 && pos == length.size();
         } catch (const std::exception&) {
             is_zero_length = false;
         }
