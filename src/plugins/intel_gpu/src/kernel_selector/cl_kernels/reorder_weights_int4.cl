@@ -15,7 +15,9 @@ KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_
         const uint h = output_index / OUTPUT_INNERMOST_NUM;
         if (w < INPUT0_INNERMOST_NUM) {
             const uint in_elem_offset = h * INPUT0_INNERMOST_NUM + w;
-            out |= ((input[in_elem_offset / 4] >> ((in_elem_offset % 4) * 2)) & 0x3) << (j * 2);
+            const uint in_shift = (in_elem_offset % 4) * 2;
+            const uint val = (input[in_elem_offset / 4] >> in_shift) & 0x3;
+            out |= val << (j * 2);
         }
     }
     output[out_byte_offset] = out;
