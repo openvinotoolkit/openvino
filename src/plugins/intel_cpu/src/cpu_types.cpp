@@ -274,7 +274,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"SparseAttention", Type::SparseSDPA},
         {"SparseAttentionWithKVCache", Type::SparseSDPA},
         {"PagedQSAIndexer", Type::PagedQSAIndexer},
-        {"SparsePA", Type::SparsePA}};
+        {"PagedSparseAttention", Type::SparsePA}};
     return type_to_name_tbl;
 }
 

@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <numeric>
+#include <string>
 #include <vector>
 
 #include "cpu_memory.h"
@@ -19,8 +20,8 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/paged_sparse_attention.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "transformations/cpu_opset/x64/op/sparse_pa.hpp"
 #include "utils/plain_tensor.hpp"
 
 #ifdef OPENVINO_ARCH_X86_64
@@ -29,21 +30,45 @@
 
 namespace ov::intel_cpu::node {
 
-namespace {
-
-using InputIdx = ov::op::internal::SparsePA::InputIdx;
-
-}  // namespace
-
 SparsePA::SparsePA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    const auto sparse_pa = ov::as_type_ptr<const ov::op::internal::SparsePA>(op);
-    OPENVINO_ASSERT(sparse_pa, "Expected SparsePA node");
-    m_config = sparse_pa->get_config();
+    const auto sparse_pa = ov::as_type_ptr<const ov::op::internal::PagedSparseAttention>(op);
+    OPENVINO_ASSERT(sparse_pa, "Expected PagedSparseAttention node");
+    OPENVINO_ASSERT(deriveConfig(*sparse_pa, m_config, errorMessage), errorMessage);
+}
+
+bool SparsePA::deriveConfig(const ov::op::internal::PagedSparseAttention& op, Config& config, std::string& reason) {
+    const auto& query_ps = op.get_input_partial_shape(InputIdx::QUERY);
+    const auto& key_ps = op.get_input_partial_shape(InputIdx::KEY);
+    const auto& value_ps = op.get_input_partial_shape(InputIdx::VALUE);
+    const auto& key_cache_ps = op.get_input_partial_shape(InputIdx::KEY_CACHE);
+    const auto& selected_ps = op.get_input_partial_shape(InputIdx::SELECTED_BLOCK_INDICES);
+    const auto rank_is = [](const ov::PartialShape& ps, int64_t rank) {
+        return ps.rank().is_static() && ps.rank().get_length() == rank;
+    };
+    if (!rank_is(query_ps, 2) || !rank_is(key_ps, 2) || !rank_is(value_ps, 2) || !rank_is(key_cache_ps, 4) ||
+        !rank_is(selected_ps, 3) || !query_ps[1].is_static() || !key_ps[1].is_static() || !value_ps[1].is_static() ||
+        !key_cache_ps[1].is_static() || !selected_ps[1].is_static()) {
+        reason = "PagedSparseAttention CPU implementation requires static head dimensions.";
+        return false;
+    }
+    config.num_kv_heads = static_cast<size_t>(key_cache_ps[1].get_length());
+    config.num_selection_heads = static_cast<size_t>(selected_ps[1].get_length());
+    config.k_head_size = static_cast<size_t>(key_ps[1].get_length()) / config.num_kv_heads;
+    config.v_head_size = static_cast<size_t>(value_ps[1].get_length()) / config.num_kv_heads;
+    config.num_heads = static_cast<size_t>(query_ps[1].get_length()) / config.k_head_size;
+    config.key_block_size = static_cast<size_t>(op.get_key_block_size());
+    config.causal = true;
+    if (config.num_selection_heads != 1 && config.num_selection_heads != config.num_kv_heads &&
+        config.num_selection_heads != config.num_heads) {
+        reason = "PagedSparseAttention CPU implementation requires 1, num_kv_heads, or num_heads selection heads.";
+        return false;
+    }
+    return true;
 }
 
 void SparsePA::createPrimitive() {
@@ -107,8 +132,7 @@ void SparsePA::initSupportedPrimitiveDescriptors() {
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
         const bool is_i32_port = i == InputIdx::BLOCK_INDICES || i == InputIdx::BLOCK_INDICES_BEGINS ||
                                  i == InputIdx::SUBSEQUENCE_BEGINS || i == InputIdx::PAST_LENS ||
-                                 i == InputIdx::SELECTED_BLOCK_INDICES || i == InputIdx::SELECTED_BLOCK_COUNT ||
-                                 i == InputIdx::QB_START;
+                                 i == InputIdx::SELECTED_BLOCK_INDICES || i == InputIdx::SELECTED_BLOCK_COUNT;
         const bool is_f32_port = i == InputIdx::SCALE;
         const ov::element::Type precision = is_i32_port   ? ov::element::i32
                                             : is_f32_port ? ov::element::f32
@@ -134,10 +158,8 @@ void SparsePA::execute([[maybe_unused]] const dnnl::stream& strm) {
     PlainTensor past_lens(getSrcMemoryAtPort(InputIdx::PAST_LENS));
     PlainTensor sel_indices(getSrcMemoryAtPort(InputIdx::SELECTED_BLOCK_INDICES));
     PlainTensor sel_count(getSrcMemoryAtPort(InputIdx::SELECTED_BLOCK_COUNT));
-    // QB_START is optional: absent means one query block per token, i.e. subsequence_begins.
-    PlainTensor qb_start(getParentEdges().size() > InputIdx::QB_START
-                             ? getSrcMemoryAtPort(InputIdx::QB_START)
-                             : getSrcMemoryAtPort(InputIdx::SUBSEQUENCE_BEGINS));
+    // One query per selection row, so the rows of a sequence start at its first token.
+    PlainTensor qb_start(getSrcMemoryAtPort(InputIdx::SUBSEQUENCE_BEGINS));
     const float scale = *getSrcDataAtPortAs<const float>(InputIdx::SCALE);
     PlainTensor out(getDstMemoryAtPort(0));
 
@@ -173,9 +195,9 @@ void SparsePA::execute([[maybe_unused]] const dnnl::stream& strm) {
 
 bool SparsePA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto sparse_pa = ov::as_type_ptr<const ov::op::internal::SparsePA>(op);
+        const auto sparse_pa = ov::as_type_ptr<const ov::op::internal::PagedSparseAttention>(op);
         if (!sparse_pa) {
-            errorMessage = "Only SparsePA operation is supported";
+            errorMessage = "Only PagedSparseAttention operation is supported";
             return false;
         }
         static constexpr size_t float_ports[] = {InputIdx::QUERY,
@@ -190,6 +212,7 @@ bool SparsePA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
                 return false;
             }
         }
+        // The op already requires the page table and selection plan to be i32 (or dynamic).
         static constexpr size_t i32_ports[] = {InputIdx::BLOCK_INDICES,
                                                InputIdx::BLOCK_INDICES_BEGINS,
                                                InputIdx::SUBSEQUENCE_BEGINS,
@@ -202,28 +225,14 @@ bool SparsePA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
                 return false;
             }
         }
-        if (op->get_input_size() > InputIdx::QB_START &&
-            op->get_input_element_type(InputIdx::QB_START) != ov::element::i32) {
-            errorMessage = "SparsePA CPU implementation requires i32 index inputs.";
-            return false;
-        }
         // Sinks are not supported yet: SINKS must be an empty tensor.
         const auto& sinks_ps = op->get_input_partial_shape(InputIdx::SINKS);
         if (!sinks_ps.is_static() || ov::shape_size(sinks_ps.to_shape()) != 0) {
             errorMessage = "SparsePA CPU implementation does not support sinks.";
             return false;
         }
-        // Only the indices/count plan form is implemented: a non-empty SELECTED_BLOCK_MASK is not.
-        if (op->get_input_size() > InputIdx::SELECTED_BLOCK_MASK) {
-            const auto& mask_ps = op->get_input_partial_shape(InputIdx::SELECTED_BLOCK_MASK);
-            if (!mask_ps.is_static() || ov::shape_size(mask_ps.to_shape()) != 0) {
-                errorMessage = "SparsePA CPU implementation does not support selected_block_mask.";
-                return false;
-            }
-        }
-        std::string reason;
-        if (!ov::op::internal::SparsePA::validate_config(sparse_pa->get_config(), reason)) {
-            errorMessage = "SparsePA configuration is invalid: " + reason;
+        Config config;
+        if (!deriveConfig(*sparse_pa, config, errorMessage)) {
             return false;
         }
     } catch (...) {

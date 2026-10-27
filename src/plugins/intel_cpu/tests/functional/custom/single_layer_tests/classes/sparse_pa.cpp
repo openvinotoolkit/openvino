@@ -15,10 +15,10 @@
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "transformations/cpu_opset/x64/op/sparse_pa.hpp"
 
 namespace {
 
@@ -67,7 +67,6 @@ void fill_pseudo_random(std::vector<float>& v, uint32_t seed_base) {
 // [chunk_len, num_selection_heads, Kmax] / [chunk_len, num_selection_heads], addressed by this
 // sequence's own query row.
 std::vector<float> run_sparse_pa_reference(size_t h_sel,
-                                           bool causal,
                                            size_t k_head_size,
                                            size_t sel_block_size,
                                            float scale,
@@ -101,7 +100,7 @@ std::vector<float> run_sparse_pa_reference(size_t h_sel,
                 if (kpos < 0 || kpos >= history_len) {
                     return;
                 }
-                if (causal && kpos > token_pos) {
+                if (kpos > token_pos) {
                     return;
                 }
                 const float* k = key_at(kv_head, kpos);
@@ -131,14 +130,12 @@ std::vector<float> run_sparse_pa_reference(size_t h_sel,
             }
 
             // sel_indices/sel_count only ever carry *complete* selected blocks -- the current
-            // (possibly incomplete) block is never in them. When causal, the consumer derives
-            // and attends that tail itself from the query's own logical position.
-            if (causal) {
-                const int64_t tail_start =
-                    ((token_pos + 1) / static_cast<int64_t>(sel_block_size)) * static_cast<int64_t>(sel_block_size);
-                for (int64_t p = tail_start; p <= token_pos; p++) {
-                    consume(p);
-                }
+            // (possibly incomplete) block is never in them. The consumer derives and attends that
+            // tail itself from the query's own logical position.
+            const int64_t tail_start =
+                ((token_pos + 1) / static_cast<int64_t>(sel_block_size)) * static_cast<int64_t>(sel_block_size);
+            for (int64_t p = tail_start; p <= token_pos; p++) {
+                consume(p);
             }
 
             const float inv_sum = running_sum > 0.0F ? 1.0F / running_sum : 0.0F;
@@ -156,44 +153,28 @@ namespace ov {
 namespace test {
 
 std::string SparsePALayerCPUTest::getTestCaseName(const testing::TestParamInfo<SparsePALayerTestParams>& obj) {
-    const auto& [device,
-                 data_precision,
-                 h_sel,
-                 causal,
-                 num_sequences,
-                 k_head_size,
-                 key_block_size,
-                 page_size,
-                 with_qb_start] = obj.param;
+    const auto& [device, data_precision, h_sel, num_sequences, k_head_size, key_block_size, page_size] = obj.param;
     return "Target=" + device + "_DataPrecision=" + data_precision.get_type_name() + "_Hsel=" + std::to_string(h_sel) +
-           "_Causal=" + std::to_string(causal) + "_NumSeq=" + std::to_string(num_sequences) +
-           "_Dh=" + std::to_string(k_head_size) + "_Bk=" + std::to_string(key_block_size) +
-           "_PageSize=" + std::to_string(page_size) + "_QbStart=" + std::to_string(with_qb_start);
+           "_NumSeq=" + std::to_string(num_sequences) + "_Dh=" + std::to_string(k_head_size) +
+           "_Bk=" + std::to_string(key_block_size) + "_PageSize=" + std::to_string(page_size);
 }
 
 void SparsePALayerCPUTest::SetUp() {
-    const auto& [device,
-                 data_precision,
-                 h_sel,
-                 causal,
-                 num_sequences,
-                 k_head_size,
-                 key_block_size,
-                 page_size,
-                 with_qb_start] = GetParam();
+    const auto& [device, data_precision, h_sel, num_sequences, k_head_size, key_block_size, page_size] = GetParam();
     targetDevice = device;
     m_data_precision = data_precision;
     m_num_selection_heads = h_sel;
-    m_causal = causal;
     m_num_sequences = num_sequences;
     m_k_head_size = k_head_size;
     m_key_block_size = key_block_size;
     m_page_size = page_size;
-    m_with_qb_start = with_qb_start;
     m_seq_blocks = seq_blocks_for(m_page_size);
     m_scale = 1.0F / std::sqrt(static_cast<float>(m_k_head_size));
     rel_threshold = 1e-3F;
     abs_threshold = 1e-4F;
+    // ConvertPagedAttnInputs applies the KV cache precision (u8 by default) to the cache inputs, but this node only
+    // reads plain f32/f16/bf16 caches, so the caches are kept at the data precision.
+    configuration.insert(ov::hint::kv_cache_precision(data_precision));
     if (data_precision == ov::element::bf16) {
         rel_threshold = 5e-2F;
         abs_threshold = 5e-2F;
@@ -224,10 +205,9 @@ void SparsePALayerCPUTest::SetUp() {
         std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{chunk_total, m_num_selection_heads, kKmax});
     auto p_sel_count =
         std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{chunk_total, m_num_selection_heads});
-    auto p_qb_start = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{m_num_sequences + 1});
 
-    // Input order follows ov::op::internal::SparsePA::InputIdx; SCALE and SINKS are constants
-    // (SINKS is an empty tensor: sinks are not supported yet), QB_START is optional.
+    // Input order follows ov::op::internal::PagedSparseAttention; SCALE and SINKS are constants
+    // (SINKS is an empty tensor: sinks are not supported yet).
     ov::ParameterVector parameters{p_query,
                                    p_key,
                                    p_value,
@@ -239,26 +219,13 @@ void SparsePALayerCPUTest::SetUp() {
                                    p_block_indices_begins,
                                    p_sel_indices,
                                    p_sel_count};
-    if (m_with_qb_start) {
-        parameters.push_back(p_qb_start);
-    }
     std::vector<ov::Shape> param_shapes;
     for (const auto& p : parameters) {
         param_shapes.push_back(p->get_shape());
     }
     init_input_shapes(static_shapes_to_test_representation(param_shapes));
 
-    ov::op::internal::SparsePA::Config config;
-    config.num_heads = kHq;
-    config.num_kv_heads = kHkv;
-    config.num_selection_heads = m_num_selection_heads;
-    config.k_head_size = m_k_head_size;
-    config.v_head_size = kDv;
-    config.key_block_size = m_key_block_size;
-    config.query_block_size = 1;
-    config.causal = m_causal;
-
-    auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {m_scale});
+    auto scale = ov::op::v0::Constant::create(data_precision, ov::Shape{}, {m_scale});
     auto sinks = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{0}, std::vector<float>{});
 
     ov::OutputVector args = {p_query,
@@ -274,10 +241,7 @@ void SparsePALayerCPUTest::SetUp() {
                              p_sel_count,
                              scale,
                              sinks};
-    if (m_with_qb_start) {
-        args.push_back(p_qb_start);
-    }
-    auto sparse_pa = std::make_shared<ov::op::internal::SparsePA>(args, config, data_precision);
+    auto sparse_pa = std::make_shared<ov::op::internal::PagedSparseAttention>(args, m_key_block_size);
 
     function =
         std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(sparse_pa)}, parameters);
@@ -478,9 +442,6 @@ void SparsePALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetI
         std::copy(sel_count_flat.begin(), sel_count_flat.end(), t.data<int32_t>());
         tensors[10] = t;
     }
-    if (m_with_qb_start) {
-        tensors[11] = make_i32(subsequence_begins);  // qb_start == subsequence_begins (query_block_size == 1)
-    }
 
     for (size_t i = 0; i < params.size(); i++) {
         host_inputs[params[i]] = tensors[i];
@@ -574,7 +535,6 @@ std::vector<ov::Tensor> SparsePALayerCPUTest::calculate_refs() {
             sel_count.begin() + static_cast<ptrdiff_t>((s + 1) * kChunkLen * m_num_selection_heads));
 
         auto out_s = run_sparse_pa_reference(m_num_selection_heads,
-                                             m_causal,
                                              m_k_head_size,
                                              m_key_block_size,
                                              m_scale,

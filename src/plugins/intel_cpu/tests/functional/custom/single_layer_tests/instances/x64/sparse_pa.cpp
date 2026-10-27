@@ -20,12 +20,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_Hsel1,
                          testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
                                           testing::Values(ov::element::f32, ov::element::f16, ov::element::bf16),
                                           testing::Values(kU),
-                                          testing::Values(true, false),
                                           testing::Values(kU, static_cast<size_t>(3)),
                                           testing::Values(static_cast<size_t>(16)),
                                           testing::Values(static_cast<size_t>(2)),
-                                          testing::Values(static_cast<size_t>(4)),
-                                          testing::Values(true)),
+                                          testing::Values(static_cast<size_t>(4))),
                          SparsePALayerCPUTest::getTestCaseName);
 
 // num_selection_heads == num_kv_heads: exercises the sh = h / (Hq/num_selection_heads) grouping path.
@@ -34,26 +32,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_HselEqualsHkv,
                          testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
                                           testing::Values(ov::element::f32, ov::element::bf16),
                                           testing::Values(static_cast<size_t>(2)),
-                                          testing::Values(true, false),
                                           testing::Values(static_cast<size_t>(3)),
                                           testing::Values(static_cast<size_t>(16)),
                                           testing::Values(static_cast<size_t>(2)),
-                                          testing::Values(static_cast<size_t>(8)),
-                                          testing::Values(true)),
-                         SparsePALayerCPUTest::getTestCaseName);
-
-// The optional QB_START input omitted (falls back to subsequence_begins).
-INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_NoQbStart,
-                         SparsePALayerCPUTest,
-                         testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
-                                          testing::Values(ov::element::f32, ov::element::bf16),
-                                          testing::Values(kU),
-                                          testing::Values(true, false),
-                                          testing::Values(static_cast<size_t>(3)),
-                                          testing::Values(static_cast<size_t>(16)),
-                                          testing::Values(static_cast<size_t>(2)),
-                                          testing::Values(static_cast<size_t>(4)),
-                                          testing::Values(false)),
+                                          testing::Values(static_cast<size_t>(8))),
                          SparsePALayerCPUTest::getTestCaseName);
 
 // AMX QK^T fast path: bf16 end-to-end, k_head_size % 32 == 0, key_block_size == 4 (the Qwen4
@@ -65,12 +47,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_AMX,
                          testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
                                           testing::Values(ov::element::bf16),
                                           testing::Values(kU),
-                                          testing::Values(true, false),
                                           testing::Values(static_cast<size_t>(3)),
                                           testing::Values(static_cast<size_t>(32)),
                                           testing::Values(static_cast<size_t>(4)),
-                                          testing::Values(static_cast<size_t>(16), static_cast<size_t>(64)),
-                                          testing::Values(true)),
+                                          testing::Values(static_cast<size_t>(16), static_cast<size_t>(64))),
                          SparsePALayerCPUTest::getTestCaseName);
 
 }  // namespace test

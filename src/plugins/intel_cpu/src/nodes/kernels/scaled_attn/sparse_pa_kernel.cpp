@@ -70,12 +70,12 @@ struct DecomposedRuns {
 // 4-unit / 1-unit / leftover greedy split, with one addition -- a run is also capped at a
 // physical-page boundary, since two logically-adjacent selected blocks are only guaranteed
 // memory-contiguous (and therefore safe to feed into one larger AMX call) when they land in the
-// same physical page. Because page_size % key_block_size == 0 is enforced by
-// SparsePA::validate_config, an absolute selected block id B always belongs to physical page
-// B / page_sel_blocks -- a pure arithmetic property of this sequence's own logical block-id space,
-// independent of the page-table permutation. The page-id comparison below MUST use sel_ids[...]
-// (this logical numbering), never the physical block number returned by token_phys() -- the two
-// numberings are unrelated, and mixing them would silently produce wrong merges.
+// same physical page. Because page_size % key_block_size == 0 is enforced by the PagedSparseAttention
+// shape inference (for the plain f32/f16/bf16 caches this node accepts), an absolute selected block id B
+// always belongs to physical page B / page_sel_blocks -- a pure arithmetic property of this sequence's own logical
+// block-id space, independent of the page-table permutation. The page-id comparison below MUST use sel_ids[...] (this
+// logical numbering), never the physical block number returned by token_phys() -- the two numberings are unrelated, and
+// mixing them would silently produce wrong merges.
 void decompose_runs_paged(const int32_t* sel_ids,
                           size_t nblocks,
                           size_t Bk,

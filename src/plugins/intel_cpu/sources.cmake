@@ -859,8 +859,6 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qsa_indexer.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qkv_proj.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qkv_proj.hpp
-    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/sparse_pa.cpp
-    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/sparse_pa.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/convert_to_interaction.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/convert_to_interaction.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/mlp_fusion.cpp

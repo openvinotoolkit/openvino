@@ -15,25 +15,42 @@
 #include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "transformations/cpu_opset/x64/op/sparse_pa.hpp"
+#include "openvino/op/paged_sparse_attention.hpp"
 
 namespace ov::intel_cpu::node {
 
-/// @brief F32 reference implementation of ov::op::internal::SparsePA (paged-cache sparse-
+/// @brief CPU implementation of ov::op::internal::PagedSparseAttention (paged-cache sparse-
 /// attention consumer for Qwen Sparse Attention).
 ///
 /// Writes the current-step K/V into the caller-owned paged main KV cache addressed through
 /// the shared PagedAttention page table, then performs the same scalar online-softmax
 /// selected-block + causal-tail attention as the dense SparseSDPA node, with every K/V read
 /// resolved through that same page table instead of a flat dense `[B, Hkv, S, D]` cache.
-/// SCALE is a runtime input; sinks are not supported yet (SINKS must be an empty tensor) and an absent
-/// QB_START means subsequence_begins. The optional SELECTED_BLOCK_MASK form is rejected.
+/// SCALE is a runtime input; sinks are not supported yet (SINKS must be an empty tensor). The op has one
+/// query per selection row, so the per-sequence selection row offsets are subsequence_begins.
 /// Selected-block QK^T has a bf16/f16 AMX fast path mirroring SparseSDPA's, adapted for the
 /// paged cache: merge runs are additionally capped at physical-page boundaries, since two
 /// logically-adjacent selected blocks are only guaranteed memory-contiguous within the same
 /// physical page.
 class SparsePA : public Node {
 public:
+    /// @brief Input order of ov::op::internal::PagedSparseAttention.
+    struct InputIdx {
+        static constexpr size_t QUERY = 0;                   ///< [tokens, num_heads*k_head_size]
+        static constexpr size_t KEY = 1;                     ///< [tokens, num_kv_heads*k_head_size], current step
+        static constexpr size_t VALUE = 2;                   ///< [tokens, num_kv_heads*v_head_size], current step
+        static constexpr size_t KEY_CACHE = 3;               ///< [num_blocks, num_kv_heads, page_size, k_head_size]
+        static constexpr size_t VALUE_CACHE = 4;             ///< [num_blocks, num_kv_heads, page_size, v_head_size]
+        static constexpr size_t PAST_LENS = 5;               ///< [num_sequences]
+        static constexpr size_t SUBSEQUENCE_BEGINS = 6;      ///< [num_sequences+1]
+        static constexpr size_t BLOCK_INDICES = 7;           ///< [total_logical_blocks]
+        static constexpr size_t BLOCK_INDICES_BEGINS = 8;    ///< [num_sequences+1]
+        static constexpr size_t SELECTED_BLOCK_INDICES = 9;  ///< [tokens, num_selection_heads, K_max]
+        static constexpr size_t SELECTED_BLOCK_COUNT = 10;   ///< [tokens, num_selection_heads]
+        static constexpr size_t SCALE = 11;                  ///< scalar
+        static constexpr size_t SINKS = 12;                  ///< [num_heads], or an empty tensor (no sinks)
+    };
+
     SparsePA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override {}
@@ -46,13 +63,11 @@ public:
     // Only the token-major inputs gate execution: SINKS (and the optional SELECTED_BLOCK_MASK) is an
     // empty tensor when unused, which must not make the node skip.
     [[nodiscard]] bool neverExecute() const override {
-        using InputIdx = ov::op::internal::SparsePA::InputIdx;
         const auto* pd = getSelectedPrimitiveDescriptor();
         return pd->hasZeroInputDimsAtPort(InputIdx::QUERY) || pd->hasZeroInputDimsAtPort(InputIdx::KEY) ||
                pd->hasZeroInputDimsAtPort(InputIdx::VALUE);
     }
     [[nodiscard]] bool isExecutable() const override {
-        using InputIdx = ov::op::internal::SparsePA::InputIdx;
         return !isInputTensorAtPortEmpty(InputIdx::QUERY) && !isInputTensorAtPortEmpty(InputIdx::KEY) &&
                !isInputTensorAtPortEmpty(InputIdx::VALUE);
     }
@@ -65,7 +80,20 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    ov::op::internal::SparsePA::Config m_config{};
+    /// @brief Kernel parameters derived from the static input shapes. The key/value widths are used for the head
+    /// sizes rather than the cache shapes, whose last two dims are padded when the caches are quantized.
+    struct Config {
+        size_t num_heads = 0;
+        size_t num_kv_heads = 0;
+        size_t num_selection_heads = 1;  ///< 1, num_kv_heads, or num_heads
+        size_t k_head_size = 0;
+        size_t v_head_size = 0;
+        size_t key_block_size = 0;
+        bool causal = true;
+    };
+    static bool deriveConfig(const ov::op::internal::PagedSparseAttention& op, Config& config, std::string& reason);
+
+    Config m_config{};
 
     // AMX QK^T fast path: ov::element::dynamic means "not eligible" (decided once in
     // createPrimitive(), never re-checked per call). Only activates when QUERY/KEY_CACHE are
