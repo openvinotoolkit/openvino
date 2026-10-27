@@ -65,6 +65,10 @@ public:
     // Acquires a single expert slot. Always succeeds (evicts LRU if needed).
     virtual size_t acquire_one(uint32_t expert, cldnn::stream& stream) = 0;
 
+    // True when the expert's weights are already in a device slot, so acquire_one()
+    // would not stream them. Does not change eviction order.
+    virtual bool is_resident(uint32_t expert) const = 0;
+
     // Binds device-resident weight buffers. Called once on first execution.
     virtual void bind(cldnn::moe_weights& resident) = 0;
 
