@@ -101,6 +101,7 @@ SLM/GRF/spill come from the `*.zeinfo` of `IGC_ShaderDumpEnable=1 IGC_DumpToCust
 | Host-only change | New `dump <tag>` -> `corpus` -> `pset r3 <tag>` (+`--l1`) + `gtests.sh diff r3/logs <tag>`; only the intended state transitions are allowed (T7: `USE_2D_BLOCK_IO_Q 1->0` exactly 105 configs) |
 | Adding a test | First check on the code **before** the fix that the negative control FAILs as predicted (T8: of 8, f16 4 PASS / bf16 4 FAIL) |
 | Behaviour change | A/B differing is expected. It is a subject of **measurement**, not of proof. Prove only that untouched configs are unchanged |
+| Value-preserving default change with a gate (e.g. `WIDE_READS` per `d_max`, off with a sliding window, `3ce689c359`) | Bitwise output dumps (`PA_DUMP_OUT` hook) identical for the switch off / the default / each bit forced on every head size; then a TEMP broken variant (K pair halves swapped) as a **two-sided** negative control: the default must change exactly the rows the default covers and none of the gated rows, and forcing the switch must change the gated rows too (proves the gate, not the path, kept them). Only 16 of the 32 changed rows failed the gtest tolerance (compressed-cache rows), so the tolerance is not the oracle (`test/longctx/fuA_proof.sh`, `fuA_judge.py`) |
 
 Reference corpus names: r0 (R0=`235639f1a2` binary), r1 (s1g), r3 (Phase 3), rT3/rT4/rT7/rT8 (issue stages), rS4/s5_* (xe_hpg).
 "identical to r3" always means `gtests.sh diff test/sdpa_ocl_corpus/r3/logs <tag>`. r3 baseline: U2 FAIL 2, F2 FAIL 15 SKIP 7, NEG_bidir FAIL 44, NEG_gate FAIL 11, everything else PASS.
@@ -136,6 +137,11 @@ The `NEG_*` groups are negative controls that **must FAIL** (`SDPA_OCL_BIDIR=0`,
 | E22 | **An env knob emitted for every kernel of a stage meets kernels it does not fit** | an `#error` guard for "needs 32-key tiles" fired in the head-256 PA PREFILL kernel of the same model: `CL_BUILD_PROGRAM_FAILURE`, every run "NO DATA" | for an experiment knob, downgrade (`#undef X` / `#define X 0`) where the kernel does not qualify; keep `#error` for the production flag, which the host sets only where it fits |
 | E23 | **Kernel-file macros do not survive to the next kernel of the batch** | the codegen appends `#undef` for every `#define` of a kernel file (`primitive_db_gen.py append_undefs`), and a batch holds several kernels of one file in one program, so a guard macro around a type definition does not guard: "redefinition of 'LSC_LDCC'" | no type definitions in kernel files; repeat compatible prototypes instead (a builtin's enum parameter as `uint`) |
 | E24 | **Arm order in e2e** | "new" ran after "HEAD" in every round: TTFT +0.8% at 4K twice, while the kernel was 1.2% faster and the other kernels unchanged; with the order reversed +0.4% / 0.0% | reverse the arm order in a repeat before reading a sub-1% e2e difference; check the kernel time of the same length |
+| E25 | **`env -` is an empty environment** (2026-10-26) | scripts used `env $E cmd` with `E=-` as the "no extra env" arm (`c7_check.sh`, `fuA_proof.sh`); `env -` = `env -i`, so the default arm ran with no PATH/LD_LIBRARY_PATH/HOME (it still worked: ICD from `/etc`, execvp default PATH) | use `env ${E:+$E} cmd` or a harmless placeholder (`E=X_UNUSED=1`); never `-` |
+| E26 | **Chunked prefill hides PREFILL changes** (2026-10-26) | with llm_bench `--cb_config '{"enable_prefix_caching":false}'` (GenAI's default scheduler, 256-token chunks) an 8K prompt ran PREFILL for the first chunk only (64 calls x 20 us) and MIXED for the rest (1,984 calls x 675 us): a PREFILL-only gain is ~0 there | the kit passes `max_num_batched_tokens` 99999999 (whole prompt = one PREFILL); state which scheduler a TTFT claim used, and check MIXED for serving-style claims |
+| E27 | **Another user builds on the same PC** (2026-10-27) | an e2e A/B (TTFT, interleaved) overlapped a colleague's compile (load average 15-18 for ~15 min); the user stopped it. The cliloader kernel times re-measured on an idle machine came out identical, the TTFT is not trustworthy | check `uptime` / foreign processes first; log the load during the run (`test/slower/e2e_fin.sh`: 5 s samples of load1 + the busiest foreign process to `/tmp/e2e_load.log`), match it to each pair's timestamps, rename overlapped result files `*.contaminated` and rerun them |
+| E28 | **A sweep script silently ran other sizes** (2026-10-27) | `test/mixed256/ab_daily.py 8K 32K` ran default..128K: importing `run_daily_bench.py` resets `sys.argv` before the script read its arguments (fixed) | check the first "Running:" / size header of the output a minute after launch, before waiting on an ETA |
+| E29 | **`grep` in the agent shell is a ugrep wrapper** (2026-10-27) | Claude Code defines `grep()` as `ugrep -G --ignore-files --hidden -I ...`; on IGC ShaderDump `.cl` files in `/tmp` it printed no match for patterns that `/usr/bin/grep` found (jit defines of the dumped kernel) | use `command grep` (or the full path) for dumps and kit scripts |
 
 ---
 
@@ -202,12 +208,18 @@ Figures dated before 2026-07-05 are B580, later ones B70 (definite only where th
 | decode gemma-4 (head 512 + SWA256 mix) | pa_opt 718.1M -> sdpa_ocl_decode **525.9M (0.73x)**; **e2e 11.43 -> 11.40 ms (effectively unchanged)** | 1024 tok prompt, 2040 decode tokens. SG_PER_WG beats M, V_TILES>=16 discriminator | MEASURED | memory:sdpa-ocl-decode-tiling-sg-per-wg |
 | `pa_kv_cache_update_ref` u4 token-major writer | total 303.5M (regressed) -> **237.1M (-21.9%)**, -14.1% vs upstream d-major 276.0M; prefill -52.2% (probe -52.1%) | llama-3.1-8b B70 head128, 8 kv heads. generate exactly tied with d-major (the probe prediction of -4.4% missed) | MEASURED | memory:pa-kvup-u4-token-major-writer |
 | Limit of the writer above | the token-major page dirties 16 sectors per thread vs 2 for d-major, +12%; 4 fix candidates **rejected after measurement**, ceiling 986 ns/dispatch, code unchanged | gemma-4 26b, 2040 tokens, B70. e2e net effect: decode attention -0.185 ms/token vs kvup +0.019 ms/token | MEASURED | memory:pa-kvup-token-major-store-sector-floor |
+| The same writer under IGC 2.41 (`TPM=576`): compile-time private array indices + head-256 store rotation | PREFILL per call vs master 1.30-1.61x -> 0.49-0.77x (qwen3-8b 8K 224 / 322 / 172 us master / before / after); GENERATE 8.9 -> 8.1 (qwen3-8b), 10.1 -> 9.5 (gemma-4 h256, master 9.2); TTFT 0.992-1.000 of before | B70 1800 MHz, cliloader N=3; llm_bench -n 3 -ic 32, 2 interleaved rounds | MEASURED, cache bytes bit-identical | `2721e30d44`, memory:pa-kvup-writer-igc241-spill-task, chapter 02 §10.3 |
 | int8 plain prefill (B580, **history**) | ocl/micro 1.69x -> Stage-1 1.45x -> Stage-2 1.23x (median 15.1 -> 12.8 us). V transform_8b alone was the first win; then a K-load geometry redesign | B580 head=64 prefill, MIN over 8 runs | MEASURED, **stale on B70** | memory:sdpa-ocl-int8-perf |
 | Refactor performance-neutral | R0 157,307 ns -> R2 157,580 ns (+0.17%, noise) | L4 measurement (6ac827ff6f build) | MEASURED | memory:sdpa-ocl-refactor-2026-09 |
 | VTune-guided f16 V-read merge | `16r16x2c`: 524.34 -> 521.01 ms (-0.64%), identical MD5; SDPA span 2.9%/5.2% shorter, SBID stall 43.9–45.5% -> 41.5–43.5% | B70 GPU Hotspots + same-workload benchmark. Some collections had 0 stall PCs, so per-instruction attribution is limited | MEASURED | B70 profiling session, 2026-07-31; details and caveats in chapter 04 §4.1.1 |
 | PA GENERATE head 64 (u4), `SG_PER_WG` 8 -> 16 | GENERATE device time 0.45-0.51x at 1-6 partitions, 0.83x at 17-18 (lfm2.5, llama-3.2-1b, minicpm4); lfm2.5 2nd token 2.132 -> 2.069 ms (32-token prompt) | B70 2800 MHz, cliloader total device time; llm_bench 12 iterations rotated, P-cores | MEASURED | memory:sdpa-ocl-decode-sg-m-rule |
 | PA GENERATE head 128 (u4), new SG x M rule + M round-up | device time llama-3.1-8b 0.821/0.792 (32/1024 prompts / 4K), qwen3-8b 8K 0.767, phi-4-mini 0.818/0.823; 2nd token -0.8..-2.1% | B70, cliloader; llm_bench 3 rotated rounds x 3 iterations | MEASURED (uncommitted) | memory:sdpa-ocl-decode-sg-m-rule |
 | lfm2.5-1.2b 2nd token, branch vs reference build | branch +3.5%/+2.7% -> -1.3%/-1.8% after the upstream RMS+RoPE fusion (rebase) and 16 subgroups at head 64 | B70 P-cores, 12 iterations rotated. The +20% reported on Windows was NOT reproduced (host-bound emulation on E-cores: +1%) | MEASURED | memory:lfm25-decode-gap-rms-rope-sg16 |
+| PA PREFILL wide reads (`WIDE_READS`), d_max 512 | per call vs sdpa_micro 1.08-1.16x -> 0.85x (e2b) / 0.77-0.80x (26b) at 8K-32K, bit-identical; gemma-4 TTFT 0.93-0.99x master (2K-32K) | B70, 1800 MHz, cliloader two rounds + llm_bench -n 3 -ic 32 | MEASURED | `532e4893fa`, memory:sdpa-ocl-d512-wide-reads |
+| PA MIXED i8 cache: exact widen `I8_TO_HALF` + V page prefetch on every tiling | per call vs sdpa_micro at 8K: qwen3.5-9b 1.12x -> 0.89x, llama-3.1-8b 0.97x -> 0.75x, gemma-3-4b 0.81x -> 0.65x, gpt-oss-20b 0.89x -> 0.71x; TTFT vs master 0.78-0.98 at 8K/32K | B70 1800 MHz, cliloader; e2e interleaved with a CPU-load log | MEASURED, bit-identical | memory:sdpa-ocl-slower-than-micro-task, chapter 03 §4.8 |
+| PA MIXED f16 cache: d-major K page by 32b transpose read + new tokens from the page | per call vs sdpa_micro at 8K: qwen3.5-9b 2.81x -> 0.78x, llama-3.1-8b 1.75x -> 0.59x, gemma-4-e2b d512 2.39x -> 0.67x; TTFT vs master 0.67-0.997 (2K-32K) | same | MEASURED, order-changing (permuted depth) | same, chapter 02 §4.5 |
+| PA PREFILL causal tile skip (`CAUSAL_TILE_SKIP`, d_max 128/256/512) | qwen3-8b 32 / 1K tokens 1.96x / 1.18x -> 1.12x / 1.01x of sdpa_micro, 4K 0.99x -> 0.96x; qwen3-8b 32-token TTFT 0.987 -> 0.957 of master | same | MEASURED, bit-identical | same, chapter 06 §6.8 |
+| PA PREFILL wide reads, d_max 64 / 128 / 256 (mask 5, 0 with a window / 1 / 1) | per call vs narrow: llama-3.2-1b -1.4..-5.6% (2K-32K), qwen3-8b -0.3..-1.0%, gemma-2-9b -3.7/-5.2% (1K/8K); TTFT vs the build before: llama-3.2-1b 0.961 at 32K, gemma-2-9b 0.989 at 8K, others 0.986-1.001 | B70, 1800 MHz, cliloader two rounds; llm_bench -n 3 -ic 32 two rounds interleaved | MEASURED, bit-identical | `3ce689c359`, memory:sdpa-ocl-wide-reads-other-heads-task, chapter 02 §5.4 |
 
 **Bounds of the DG2 performance results**: the standalone kernel gate of S7a PA PREFILL was measured. Integrating the raw-kernel policy into the product source and confirming it in OpenVINO dispatch/end-to-end has not been done. The DG2 S1 micro-lane Debug accuracy baseline is not a performance comparison. The S6/S7a product regression and ARL-H real-hardware verification also remain.
 
@@ -293,6 +305,31 @@ Format: number. Situation -> wrong hypothesis/mistake -> fact/cause -> rule.
 38. **"Fewer load messages will relieve the Send stalls"**: 32-row x 2-block reads (4x fewer messages, same lines) were 4-14% slower.
     VTune's Send stall pointed at the memory path, not at the message count.
 39. **"TTFT +0.8% at 4K is a regression"**: arm order (E24); the kernel was 1.2% faster at 4K.
+
+### G. Notes from 2026-10-27 (i8 / f16 MIXED, short-prompt PREFILL)
+
+40. **"The short-prompt PREFILL gap is fixed cost (prologue / epilogue)"**: VTune at 1K showed the same XVE activity and XMX-busy
+    share as `sdpa_micro` but 35% more XMX instructions: redundant work (the causal triangle of the diagonal tile), not schedule.
+    Compare per-type instruction totals against the reference before tuning (chapter 06 §6.8).
+41. **"The Kc branch only runs on the boundary tile, so it is free"**: dropping it for an f16 cache (same bits) was 5-14% faster per
+    call although the Kc tiles are ~3% of the iterations: cold code inside the hot loop is not free.
+42. **"A skip that wins at 32 / 1K is a safe default"**: the same uniform skip branches made `d_max` 64 6.8% slower at 4K and MIXED
+    f16 4.7% slower at 8K: the branch costs every tile, the saving exists on one. Sweep length and stage per tiling (`measure-other-cases-before-default`).
+43. **"The remaining f16 gap to the token-major page is the transpose read"**: with Kc on, 460 vs 441 us; with Kc off for both, 406 vs 401.
+    Two arms that differ in two things (layout and Kc code) misattribute (`attribution-needs-both-controls`).
+
+### H. Notes from 2026-10-27 (u4 KV-cache writer under IGC 2.41)
+
+44. **"`TPM=576` is register spill, try 256 GRF"**: no `//.spill size`, one `alloca [2 x [9 x half]]` left in `*_optimized.ll`:
+    a private array with a (uniform) runtime index, which IGC 2.41 no longer promotes. 256 GRF and IGC knobs left 576; static
+    indices removed it (chapter 04 §4.9-A).
+45. **"The basic PA gtest checks the writer"**: two broken writers changed the K cache of 13 and 10 rows (and the output of 8) and all
+    186 rows passed. For a writer change dump `.out/.kc/.vc` per row (`test/kvB/patch/pa_dump_kv_hook.diff`) and compare bytes,
+    after checking that two runs of the same binary dump identical bytes.
+46. **"Removing the scratch traffic can only help"**: head-256 GENERATE got 7% slower than with the scratch; the reloads had spaced out
+    16 partitions' stores to the same 128 B rows. Re-measure every shape after a fix (chapter 02 §10.3).
+47. **"The probe's GENERATE ratio predicts the model"** (again, cf. #14): head 128 probe -1% vs real -9%, head 512 -5% vs 0%; PREFILL
+    at 512 blocks matched cliloader within 3-10% in absolute time.
 
 ---
 
@@ -392,6 +429,7 @@ Many of the old hashes the memory points to (e.g. `235639f1a2`, `1706b74354..065
 | 2026-09-30 | `5af20d13f1` S3, `976fbf4b0c` S4 | xe_hpg plan: predicate split, SG16-neutral refactor + Xe2 invariance proof. S0/S1/S2 on the DG2 PC |
 | 2026-10-01 | `a0c60df997`, `1799d40f79`, `79b856f497`, `10e4f00b68`, `087d2bd171` | S5 (host jit, tier mask, TEMP routing), S6a (plain f16 SG8), S6b (bf16/mask/sink/dynamic) |
 | 2026-10-02 | `b739dc5881` S6c | plain i8 KV SG8. S7 performance guidance approved |
+| 2026-10-27 | `2721e30d44` | u4 token-major KV-cache writer under IGC 2.41: compile-time private array indices (scratch `TPM=576` gone), head-256 GENERATE store rotation; PREFILL 0.49-0.77x master |
 | 2026-10-23~24 | `d05e5f18ae`, `87c8972bee`, `39bdb18aeb` | PA PREFILL: `sdpa_micro`'s workgroup tiles for d_max 64-512 + pipelined loop (long-prompt TTFT), d_max 512 256 x 64 tile without `MICRO_MATH`, then the d512 knee: PL2 clock trap found, V L3 prefetch at one request per 256 B line (-11% at 32K) |
 | 2026-10-03~04 | S7a standalone PA PREFILL investigation | Initially OCL was 24–28x slower than micro. Separated the spill/reload, V gather/packing and loop-guard costs with VTune/GTPin/IGC ISA and matched source-injection A/B. The vISA inline-assembly raw K/V single attention kernel gate PASSed at 32 block-16 head sizes with +2.6234% worst. Kept distinct from the separate unverified `KV_TILED` prototype and from product raw-kernel integration; the product dispatch/end-to-end/regression gate is follow-up work |
 
