@@ -19,6 +19,8 @@
 #include "common_test_utils/file_utils.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
 #include "quant/gguf.hpp"
 #include "quant/weights.hpp"
 
@@ -76,6 +78,11 @@ TEST_P(GGUFWeight, MatchesGgmlToFloat) {
     float max_diff = 0.f;
     for (size_t i = 0; i < ref.size(); ++i)
         max_diff = std::max(max_diff, std::fabs(a[i] - ref[i]));
+    if (c.tol == 0.f) {
+        for (size_t i = 0; i < ref.size(); ++i)
+            EXPECT_EQ(a[i], ref[i]) << "element " << i;
+        return;
+    }
     EXPECT_LE(max_diff, c.tol) << c.stem << ": frontend weight dequant diverges from ggml to_float";
 }
 
@@ -86,6 +93,7 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                                            WeightCase{"q5_0", "Q5_0", kTolFaithful},
                                            WeightCase{"q5_1", "Q5_1", kTolFaithful},
                                            WeightCase{"q8_0", "Q8_0", kTolFaithful},
+                                           WeightCase{"q8_1", "Q8_1", 0.f},
                                            WeightCase{"q2_k", "Q2_K", kTolFaithful},
                                            WeightCase{"q3_k", "Q3_K", kTolFaithful},
                                            WeightCase{"q4_k", "Q4_K", kTolU4Requant},
@@ -98,6 +106,113 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                          [](const ::testing::TestParamInfo<WeightCase>& i) {
                              return std::string(i.param.stem);
                          });
+
+TEST(GGUFWeight, Q8_1KeepsCodesAndScaleBitsForAllWeightNames) {
+    const auto bytes = load_npy<uint8_t>("q8_1_qbytes");
+    ASSERT_EQ(bytes.size(), kRows * kCols / 32 * 36);
+    for (const std::string name : {"blk.0.attn_q.weight", "token_embd.weight", "output.weight"}) {
+        SCOPED_TRACE(name);
+        const auto node = make_weight_node(bytes_to_u8_tensor(bytes), "Q8_1", {kRows, kCols}, name);
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+        size_t payload_bytes = 0;
+        size_t weight_constants = 0;
+        size_t scale_constants = 0;
+        for (const auto& op : model->get_ordered_ops()) {
+            EXPECT_STRNE(op->get_type_name(), "Subtract");
+            if (std::string(op->get_type_name()) == "Multiply") {
+                EXPECT_EQ(op->get_output_element_type(0), ov::element::f32);
+            }
+            const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op);
+            if (!constant || constant->get_element_type() == ov::element::i64)
+                continue;
+            payload_bytes += constant->get_byte_size();
+            if (constant->get_element_type() == ov::element::i8) {
+                ++weight_constants;
+                ASSERT_EQ(ov::shape_size(constant->get_shape()), kRows * kCols);
+                for (size_t i = 0; i < ov::shape_size(constant->get_shape()); ++i) {
+                    int8_t code;
+                    std::memcpy(&code, bytes.data() + (i / 32) * 36 + 4 + i % 32, sizeof(code));
+                    EXPECT_EQ(constant->get_data_ptr<int8_t>()[i], code);
+                }
+            } else {
+                ASSERT_EQ(constant->get_element_type(), ov::element::f16);
+                ++scale_constants;
+                ASSERT_EQ(ov::shape_size(constant->get_shape()), kRows * kCols / 32);
+                for (size_t group = 0; group < ov::shape_size(constant->get_shape()); ++group) {
+                    uint16_t bits;
+                    std::memcpy(&bits, bytes.data() + group * 36, sizeof(bits));
+                    EXPECT_EQ(constant->get_data_ptr<ov::float16>()[group].to_bits(), bits);
+                }
+            }
+        }
+        EXPECT_EQ(weight_constants, 1);
+        EXPECT_EQ(scale_constants, 1);
+        EXPECT_EQ(payload_bytes, kRows * kCols / 32 * 34);
+    }
+}
+
+TEST(GGUFWeight, Q8_1SuppliedDecoderPreservesHigherRankShape) {
+    const auto bytes = load_npy<uint8_t>("q8_1_qbytes");
+    const auto reference = load_npy<float>("q8_1_deq");
+    std::vector<uint8_t> storage(bytes.size() + 1);
+    std::memcpy(storage.data() + 1, bytes.data(), bytes.size());
+    const ov::Tensor unaligned(ov::element::u8, {bytes.size()}, storage.data() + 1);
+    const auto model = SingleOpBuilder()
+                           .op("GGML_OP_NONE")
+                           .output("output.weight", ov::element::f32, {2, 2, kCols})
+                           .attr<ov::Tensor>("data", unaligned)
+                           .attr<std::string>("quant_type", "q8_1")
+                           .build();
+    EXPECT_EQ(model->get_output_shape(0), (ov::Shape{2, 2, kCols}));
+    const auto output = run_on_cpu(model, {});
+    ASSERT_EQ(output.get_size(), reference.size());
+    for (size_t i = 0; i < reference.size(); ++i)
+        EXPECT_EQ(output.data<const float>()[i], reference[i]);
+}
+
+TEST(GGUFWeight, Q8_1CpuMatmulAndGatherMatchRepresentedWeights) {
+    const auto bytes = load_npy<uint8_t>("q8_1_qbytes");
+    const auto reference = load_npy<float>("q8_1_deq");
+    ASSERT_EQ(reference.size(), kRows * kCols);
+    const std::vector<int64_t> selected_rows{3, 0, 2, 1};
+    ov::Tensor one_hot(ov::element::f32, {kCols, kCols});
+    std::fill_n(one_hot.data<float>(), one_hot.get_size(), 0.f);
+    for (size_t i = 0; i < kCols; ++i)
+        one_hot.data<float>()[i * kCols + i] = 1.f;
+    ov::Core core;
+    for (const std::string name : {"blk.0.attn_q.weight", "token_embd.weight", "output.weight"}) {
+        SCOPED_TRACE(name);
+        const auto weight = make_weight_node(bytes_to_u8_tensor(bytes), "Q8_1", {kRows, kCols}, name);
+        const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{kCols, kCols});
+        const auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{kRows});
+        const auto matmul = std::make_shared<ov::op::v0::MatMul>(input, weight, false, true);
+        const auto gather =
+            std::make_shared<ov::op::v8::Gather>(weight,
+                                                 indices,
+                                                 ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
+        const auto model =
+            std::make_shared<ov::Model>(ov::OutputVector{matmul, gather}, ov::ParameterVector{input, indices});
+        auto request = core.compile_model(model,
+                                          "CPU",
+                                          ov::hint::inference_precision(ov::element::f32),
+                                          ov::hint::dynamic_quantization_group_size(0))
+                           .create_infer_request();
+        request.set_input_tensor(0, one_hot);
+        request.set_input_tensor(1, make_i64_tensor({kRows}, selected_rows));
+        request.infer();
+        const auto products = request.get_output_tensor(0);
+        const auto embeddings = request.get_output_tensor(1);
+        ASSERT_EQ(products.get_shape(), (ov::Shape{kCols, kRows}));
+        ASSERT_EQ(embeddings.get_shape(), (ov::Shape{kRows, kCols}));
+        for (size_t row = 0; row < kRows; ++row) {
+            for (size_t col = 0; col < kCols; ++col) {
+                EXPECT_EQ(products.data<const float>()[col * kRows + row], reference[row * kCols + col]);
+                EXPECT_EQ(embeddings.data<const float>()[row * kCols + col],
+                          reference[selected_rows[row] * kCols + col]);
+            }
+        }
+    }
+}
 
 TEST(GGUFWeight, Q1_0KeepsBinaryCodesForAllWeightNames) {
     const auto bytes = load_npy<uint8_t>("q1_0_qbytes");
@@ -307,7 +422,7 @@ TEST(GGUFFusedQkvBias, SplitsIntoExpectedRanges) {
     }
 }
 
-TEST(GGUFFusedQkvWeight, PreservesScalesForMxfp4AndQ8K) {
+TEST(GGUFFusedQkvWeight, PreservesScalesForGroupedFormats) {
     const auto check = [](ov::frontend::gguf::GgufTensorType qtype,
                           const ov::element::Type& weight_type,
                           const ov::element::Type& scale_type,
@@ -335,6 +450,7 @@ TEST(GGUFFusedQkvWeight, PreservesScalesForMxfp4AndQ8K) {
 
     check(ov::frontend::gguf::GGUF_TYPE_MXFP4, ov::element::f4e2m1, ov::element::f8e8m0, 8);
     check(ov::frontend::gguf::GGUF_TYPE_Q1_0, ov::element::u1, ov::element::f16, 2);
+    check(ov::frontend::gguf::GGUF_TYPE_Q8_1, ov::element::i8, ov::element::f16, 8);
     check(ov::frontend::gguf::GGUF_TYPE_Q8_K, ov::element::i8, ov::element::f32, 1);
 }
 

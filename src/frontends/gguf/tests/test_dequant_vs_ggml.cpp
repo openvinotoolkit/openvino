@@ -87,6 +87,8 @@ const char* type_name(uint32_t type) {
         return "Q5_1";
     case GGUF_TYPE_Q8_0:
         return "Q8_0";
+    case GGUF_TYPE_Q8_1:
+        return "Q8_1";
     case GGUF_TYPE_Q2_K:
         return "Q2_K";
     case GGUF_TYPE_Q3_K:
@@ -167,6 +169,11 @@ TEST_P(DequantVsGGML, MatchesGgmlToFloat) {
     const auto ours = frontend_dequant(c.type, qbytes, kRows, kCols);
     ASSERT_EQ(ours.size(), ref.size());
 
+    if (c.tol == 0.f) {
+        for (size_t i = 0; i < ref.size(); ++i)
+            EXPECT_EQ(ours[i], ref[i]) << "element " << i;
+        return;
+    }
     EXPECT_LE(max_abs_diff(ours, ref), c.tol)
         << c.stem << ": frontend dequant diverges from ggml to_float beyond tolerance";
 }
@@ -238,6 +245,7 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                                            DeqCase{"q5_0", GGUF_TYPE_Q5_0, kTolFaithful},
                                            DeqCase{"q5_1", GGUF_TYPE_Q5_1, kTolFaithful},
                                            DeqCase{"q8_0", GGUF_TYPE_Q8_0, kTolFaithful},
+                                           DeqCase{"q8_1", GGUF_TYPE_Q8_1, kTolExact},
                                            DeqCase{"q2_k", GGUF_TYPE_Q2_K, kTolFaithful},
                                            DeqCase{"q3_k", GGUF_TYPE_Q3_K, kTolFaithful},
                                            DeqCase{"q4_k", GGUF_TYPE_Q4_K, kTolU4Requant},
@@ -335,6 +343,44 @@ TEST(GGUFDequant, IntegerZeroPointRequantizationTracksGgml) {
             for (size_t k = group * 32; k < group * 32 + 32; ++k)
                 ASSERT_LE(std::fabs(values[k] - reference[k]), range * (0.5f / levels + 1e-3f)) << "group " << group;
         }
+    }
+}
+
+TEST(DequantVsGGML, Q8_1PreservesFiniteScaleRangeAndIgnoresSum) {
+    const std::vector<uint16_t> scale_bits{0, 0x8000, 0xbc00, 1, 0x7bff, 0x3555};
+    std::vector<uint8_t> bytes(scale_bits.size() * 36);
+    std::vector<float> reference(scale_bits.size() * 32);
+    for (size_t group = 0; group < scale_bits.size(); ++group) {
+        std::memcpy(bytes.data() + group * 36, &scale_bits[group], sizeof(uint16_t));
+        const uint16_t sum_bits = group % 2 == 0 ? 0x7c00 : 0x7e00;
+        std::memcpy(bytes.data() + group * 36 + 2, &sum_bits, sizeof(sum_bits));
+        const float scale = static_cast<float>(ov::float16::from_bits(scale_bits[group]));
+        for (size_t k = 0; k < 32; ++k) {
+            const int8_t code = k == 0 ? -128 : k == 1 ? 127 : static_cast<int8_t>(static_cast<int>(k) - 16);
+            std::memcpy(bytes.data() + group * 36 + 4 + k, &code, sizeof(code));
+            reference[group * 32 + k] = static_cast<float>(code) * scale;
+        }
+    }
+    const auto values = frontend_dequant(GGUF_TYPE_Q8_1, bytes, 1, reference.size());
+    ASSERT_EQ(values.size(), reference.size());
+    for (size_t i = 0; i < reference.size(); ++i) {
+        EXPECT_TRUE(std::isfinite(values[i]));
+        EXPECT_EQ(values[i], reference[i]) << "element " << i;
+    }
+    const size_t rounding_trap = (scale_bits.size() - 1) * 32 + 1;
+    EXPECT_NE(reference[rounding_trap], static_cast<float>(ov::float16(reference[rounding_trap])));
+}
+
+TEST(DequantVsGGML, Q8_1RejectsInvalidDimensionsAndPayloadSizes) {
+    const std::vector<uint8_t> block(36);
+    for (const uint64_t cols : {0, 31, 33}) {
+        SCOPED_TRACE(cols);
+        EXPECT_THROW(frontend_dequant(GGUF_TYPE_Q8_1, block, 1, cols), ov::Exception);
+    }
+    for (const size_t size : {35, 37, 40, 71, 73, 80}) {
+        SCOPED_TRACE(size);
+        const uint64_t rows = size < 64 ? 1 : 2;
+        EXPECT_THROW(frontend_dequant(GGUF_TYPE_Q8_1, std::vector<uint8_t>(size), rows, 32), ov::Exception);
     }
 }
 
