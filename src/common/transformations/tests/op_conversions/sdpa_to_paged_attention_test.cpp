@@ -7512,14 +7512,16 @@ constexpr int sliding_head_size = 256;
 constexpr int full_head_size = 512;
 constexpr int sliding_window = 512;
 
-std::shared_ptr<Node> make_query(const std::shared_ptr<v0::Parameter>& inputs_embeds, int head_size) {
+std::shared_ptr<Node> make_query(const Output<Node>& inputs_embeds, int head_size) {
     auto weights = makeConst(element::f32, ov::Shape{size_t(num_heads * head_size), size_t(hidden_size)}, MOCK_VALUE);
     auto proj = makeOP<v0::MatMul>({inputs_embeds, weights}, {{"transpose_a", false}, {"transpose_b", true}});
     auto heads = makeOP<v1::Reshape>({proj, {0, 0, num_heads, head_size}}, {special_zero_true});
     return makeOP<v1::Transpose>({heads, {0, 2, 1, 3}});
 }
 
-std::shared_ptr<ov::Model> make_sdpa_model(int full_v_head_size = full_head_size) {
+std::shared_ptr<ov::Model> make_sdpa_model(int full_v_head_size = full_head_size,
+                                           bool include_scale_input = true,
+                                           bool is_scale_rank1 = false) {
     using ov::test::utils::make_param;
     auto inputs_embeds = make_param(element::f32, PartialShape{DYN, DYN, hidden_size}, "inputs_embeds");
     auto attention_mask = make_param(element::i64, PartialShape{DYN, DYN}, "attention_mask");
@@ -7564,60 +7566,41 @@ std::shared_ptr<ov::Model> make_sdpa_model(int full_v_head_size = full_head_size
     auto sliding_v = repeat_kv(sliding_value, sliding_head_size);
     auto full_k = repeat_kv(full_key, full_head_size);
     auto full_v = repeat_kv(full_value, full_v_head_size);
-    auto scale = makeConst(element::f32, ov::Shape{}, {1.0f});
+    auto scale =
+        is_scale_rank1 ? makeConst(element::f32, ov::Shape{1}, {1.0f}) : makeConst(element::f32, ov::Shape{}, {1.0f});
 
     OutputVector outputs;
     for (int layer = 0; layer < 3; ++layer) {
-        outputs.push_back(makeOP<v13::ScaledDotProductAttention>(
-            {make_query(inputs_embeds, sliding_head_size), sliding_k, sliding_v, sliding_mask, scale},
-            {{"causal", false}}));
+        auto query = make_query(inputs_embeds, sliding_head_size);
+        outputs.push_back(
+            include_scale_input
+                ? makeOP<v13::ScaledDotProductAttention>({query, sliding_k, sliding_v, sliding_mask, scale},
+                                                         {{"causal", false}})
+                : makeOP<v13::ScaledDotProductAttention>({query, sliding_k, sliding_v, sliding_mask},
+                                                         {{"causal", false}}));
     }
-    outputs.push_back(makeOP<v13::ScaledDotProductAttention>(
-        {make_query(inputs_embeds, full_head_size), full_k, full_v, full_mask, scale},
-        {{"causal", false}}));
+    auto full_query = make_query(inputs_embeds, full_head_size);
+    outputs.push_back(
+        include_scale_input
+            ? makeOP<v13::ScaledDotProductAttention>({full_query, full_k, full_v, full_mask, scale},
+                                                     {{"causal", false}})
+            : makeOP<v13::ScaledDotProductAttention>({full_query, full_k, full_v, full_mask}, {{"causal", false}}));
     return std::make_shared<ov::Model>(
         outputs,
         ParameterVector{inputs_embeds, attention_mask, full_key, full_value, sliding_key, sliding_value});
 }
 
-void run_pass(const std::shared_ptr<ov::Model>& model, const ov::pass::paged_attention::Options& options = {}) {
-    pass::paged_attention::PaParams pa_params{model->get_parameters()};
-    pa_params.add("max_context_len", element::i32, PartialShape{});
-    pa_params.add("past_lens", element::i32, PartialShape{DYN});
-    pa_params.add("subsequence_begins", element::i32, PartialShape{DYN});
-    pa_params.add("block_indices_begins", element::i32, PartialShape{DYN});
-    pa_params.add("block_indices", element::i32, PartialShape{DYN});
-    std::unordered_set<std::string> params_to_remove;
-
-    ov::pass::Manager pass_manager;
-    pass_manager.set_per_pass_validation(false);
-    pass_manager.register_pass<ov::pass::Gemma4MTPStateManagementPattern>(pa_params, params_to_remove, options);
-    pass_manager.run_passes(model);
-
-    // What SDPAToPagedAttention does once its patterns have run.
-    params_to_remove.insert("attention_mask");
-    for (const auto& name : params_to_remove) {
-        for (const auto& param : model->get_parameters()) {
-            if (param->get_friendly_name() == name) {
-                model->remove_parameter(param);
-                break;
-            }
-        }
-    }
-    model->add_parameters(pa_params.items());
-    model->validate_nodes_and_infer_types();
-}
-
-std::shared_ptr<ov::Model> make_pa_model(int full_v_head_size = full_head_size) {
-    using ov::test::utils::make_param;
-    auto inputs_embeds = make_param(element::f32, PartialShape{DYN, DYN, hidden_size}, "inputs_embeds");
-    auto max_context_len = make_param(element::i32, PartialShape{}, "max_context_len");
-    auto past_lens = make_param(element::i32, PartialShape{DYN}, "past_lens");
-    auto subsequence_begins = make_param(element::i32, PartialShape{DYN}, "subsequence_begins");
-    auto block_indices_begins = make_param(element::i32, PartialShape{DYN}, "block_indices_begins");
-    auto block_indices = make_param(element::i32, PartialShape{DYN}, "block_indices");
+std::shared_ptr<ov::Model> make_pa_model(int full_v_head_size = full_head_size, bool is_scale_rank1 = false) {
+    auto inputs_embeds = ov::test::utils::make_param(element::f32, PartialShape{DYN, DYN}, "inputs_embeds");
+    auto processed_inputs_embeds = makeOP<v0::Unsqueeze>({inputs_embeds, 1});
+    auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "position_ids");
+    auto max_context_len = ov::test::utils::make_param(element::i32, PartialShape{}, "max_context_len");
+    auto past_lens = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "past_lens");
+    auto subsequence_begins = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "subsequence_begins");
+    auto block_indices_begins = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "block_indices_begins");
+    auto block_indices = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "block_indices");
     auto make_cache = [](const std::string& name) {
-        auto cache = make_param(element::dynamic, PartialShape::dynamic(4), name);
+        auto cache = ov::test::utils::make_param(element::dynamic, PartialShape::dynamic(4), name);
         enable_keep_const_precision(cache);
         return cache;
     };
@@ -7625,7 +7608,9 @@ std::shared_ptr<ov::Model> make_pa_model(int full_v_head_size = full_head_size) 
     auto value_cache_0 = make_cache("value_cache.0");
     auto key_cache_3 = make_cache("key_cache.3");
     auto value_cache_3 = make_cache("value_cache.3");
-    auto scale = makeConst(element::f32, ov::Shape{}, {1.0f});
+    auto scale = is_scale_rank1 ? makeOP<v15::Squeeze>({makeConst(element::f32, ov::Shape{1}, {1.0f})},
+                                                       {{"allow_axis_skip", false}})
+                                : makeConst(element::f32, ov::Shape{}, {1.0f});
 
     auto alibi_slopes = makeConst(element::f32, ov::Shape({0}), MOCK_VALUE);
     auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
@@ -7715,14 +7700,14 @@ std::shared_ptr<ov::Model> make_pa_model(int full_v_head_size = full_head_size) 
 
     OutputVector outputs;
     for (int layer = 0; layer < 3; ++layer) {
-        outputs.push_back(make_pa(make_query(inputs_embeds, sliding_head_size),
+        outputs.push_back(make_pa(make_query(processed_inputs_embeds, sliding_head_size),
                                   key_cache_0,
                                   value_cache_0,
                                   sliding_head_size,
                                   sliding_head_size,
                                   sliding_window_i32()));
     }
-    outputs.push_back(make_pa(make_query(inputs_embeds, full_head_size),
+    outputs.push_back(make_pa(make_query(processed_inputs_embeds, full_head_size),
                               key_cache_3,
                               value_cache_3,
                               full_head_size,
@@ -7730,6 +7715,7 @@ std::shared_ptr<ov::Model> make_pa_model(int full_v_head_size = full_head_size) 
                               makeConst(element::i32, ov::Shape({}), MOCK_VALUE)));
     return std::make_shared<ov::Model>(outputs,
                                        ParameterVector{inputs_embeds,
+                                                       position_ids,
                                                        max_context_len,
                                                        past_lens,
                                                        subsequence_begins,
@@ -7745,7 +7731,16 @@ std::shared_ptr<ov::Model> make_pa_model(int full_v_head_size = full_head_size) 
 
 TEST_F(SDPAToPATest, SDPAToPA_Gemma4MTP_Gemma4MTPStateManagementPattern) {
     model = gemma4_mtp::make_sdpa_model();
-    gemma4_mtp::run_pass(model);
+    ov::pass::SDPAToPagedAttention(/*use_per_layer_block_indices_inputs*/ false,
+                                   /*use_score_outputs*/ false,
+                                   /*allow_score_aggregation*/ false,
+                                   /*allow_cache_rotation*/ false,
+                                   /*allow_xattention*/ false,
+                                   /*allow_adaptive_rkv*/ false,
+                                   /*allow_qq_bias*/ false,
+                                   /*is_draft_model*/ true)
+        .run_on_model(model);
+
     model_ref = gemma4_mtp::make_pa_model();
 
     comparator.disable(FunctionsComparator::PRECISIONS);
@@ -7755,8 +7750,52 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma4MTP_Gemma4MTPStateManagementPattern) {
 TEST_F(SDPAToPATest, SDPAToPA_Gemma4MTP_Gemma4MTPStateManagementPattern_DifferentKVHeadSizes) {
     constexpr int full_v_head_size = 256;
     model = gemma4_mtp::make_sdpa_model(full_v_head_size);
-    gemma4_mtp::run_pass(model);
+    ov::pass::SDPAToPagedAttention(/*use_per_layer_block_indices_inputs*/ false,
+                                   /*use_score_outputs*/ false,
+                                   /*allow_score_aggregation*/ false,
+                                   /*allow_cache_rotation*/ false,
+                                   /*allow_xattention*/ false,
+                                   /*allow_adaptive_rkv*/ false,
+                                   /*allow_qq_bias*/ false,
+                                   /*is_draft_model=*/true)
+        .run_on_model(model);
     model_ref = gemma4_mtp::make_pa_model(full_v_head_size);
+
+    comparator.disable(FunctionsComparator::PRECISIONS);
+    disable_rt_info_check();
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_Gemma4MTP_Gemma4MTPStateManagementPattern_DefaultScale) {
+    model = gemma4_mtp::make_sdpa_model(gemma4_mtp::full_head_size, /*include_scale_input=*/false);
+    ov::pass::SDPAToPagedAttention(/*use_per_layer_block_indices_inputs*/ false,
+                                   /*use_score_outputs*/ false,
+                                   /*allow_score_aggregation*/ false,
+                                   /*allow_cache_rotation*/ false,
+                                   /*allow_xattention*/ false,
+                                   /*allow_adaptive_rkv*/ false,
+                                   /*allow_qq_bias*/ false,
+                                   /*is_draft_model=*/true)
+        .run_on_model(model);
+    model_ref = gemma4_mtp::make_pa_model();
+
+    comparator.disable(FunctionsComparator::PRECISIONS);
+    disable_rt_info_check();
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_Gemma4MTP_Gemma4MTPStateManagementPattern_Rank1Scale) {
+    model = gemma4_mtp::make_sdpa_model(gemma4_mtp::full_head_size,
+                                        /*include_scale_input=*/true,
+                                        /*is_scale_rank1=*/true);
+    ov::pass::SDPAToPagedAttention(/*use_per_layer_block_indices_inputs*/ false,
+                                   /*use_score_outputs*/ false,
+                                   /*allow_score_aggregation*/ false,
+                                   /*allow_cache_rotation*/ false,
+                                   /*allow_xattention*/ false,
+                                   /*allow_adaptive_rkv*/ false,
+                                   /*allow_qq_bias*/ false,
+                                   /*is_draft_model=*/true)
+        .run_on_model(model);
+    model_ref = gemma4_mtp::make_pa_model(gemma4_mtp::full_head_size, /*is_scale_rank1=*/true);
 
     comparator.disable(FunctionsComparator::PRECISIONS);
     disable_rt_info_check();

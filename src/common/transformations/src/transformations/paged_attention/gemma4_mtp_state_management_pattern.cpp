@@ -37,7 +37,6 @@ namespace pattern = ov::pass::pattern;
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
 using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::op::Or;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -118,15 +117,9 @@ ov::pass::Gemma4MTPStateManagementPattern::Gemma4MTPStateManagementPattern(
                                              Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto sdpa_node = ov::as_type_ptr<v13::ScaledDotProductAttention>(m.get_match_root());
-        if (!sdpa_node) {
-            return false;
-        }
-
         auto k_src = ov::as_type_ptr<v0::Parameter>(pattern_map.at(k_param).get_node_shared_ptr());
         auto v_src = ov::as_type_ptr<v0::Parameter>(pattern_map.at(v_param).get_node_shared_ptr());
-        if (!k_src || !v_src) {
-            return false;
-        }
+        OPENVINO_ASSERT(sdpa_node && k_src && v_src);
 
         const auto& k_ps = k_src->get_partial_shape();
         const auto& v_ps = v_src->get_partial_shape();
