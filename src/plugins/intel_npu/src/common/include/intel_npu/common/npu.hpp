@@ -28,14 +28,26 @@ public:
     virtual const std::shared_ptr<IDevice> getDevice(const ov::AnyMap& paramMap) const;
     /** @brief Provide a list of names of all devices, with which user can work directly */
     virtual const std::vector<std::string> getDeviceNames() const;
+    /** @brief Provide driver version */
+    virtual uint32_t getDriverVersion() const;
+    /** @brief Provide driver extension version */
+    virtual uint32_t getGraphExtVersion() const;
     /** @brief Get name of backend */
     virtual const std::string getName() const = 0;
+    /** @brief Backend has support for workload type */
+    virtual bool isCommandQueueExtSupported() const = 0;
+    /** @brief Backend has support for LUID info */
+    virtual bool isLUIDExtSupported() const = 0;
+    /** @brief Backend has support for npu context dditable ext */
+    virtual bool isContextExtSupported() const = 0;
     /** @brief Register backend-specific options */
     virtual void registerOptions(OptionsDesc& options) const;
+    /** @brief Get Level Zero context*/
+    virtual void* getContext() const;
     /** @brief Update backend and device info */
     virtual void updateInfo(const ov::AnyMap& properties) = 0;
     /** @brief Get LevelZero structures */
-    virtual std::shared_ptr<ZeroInitStructsHolder> getInitStructs() const;
+    virtual const std::shared_ptr<ZeroInitStructsHolder> getInitStructs() const;
 
 protected:
     virtual ~IEngineBackend() = default;

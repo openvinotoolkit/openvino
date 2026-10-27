@@ -44,7 +44,7 @@ public:
         model = ov::test::utils::make_conv_pool_relu();
 
         auto backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
-        _supported = backend->getInitStructs()->isContextExtSupported();
+        _supported = backend->isContextExtSupported();
 
         // ov::Core::set_property only reaches the plugin once the plugin has been instantiated, otherwise the value is
         // merely cached inside the core. Query a property first so that every set_property below is really forwarded to

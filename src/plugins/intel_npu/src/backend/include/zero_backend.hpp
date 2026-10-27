@@ -23,10 +23,18 @@ public:
         return "LEVEL0";
     }
     const std::vector<std::string> getDeviceNames() const override;
+    uint32_t getDriverVersion() const override;
+    uint32_t getGraphExtVersion() const override;
+
+    bool isCommandQueueExtSupported() const override;
+    bool isLUIDExtSupported() const override;
+    bool isContextExtSupported() const override;
+
+    void* getContext() const override;
 
     void updateInfo(const ov::AnyMap& properties) override;
 
-    std::shared_ptr<ZeroInitStructsHolder> getInitStructs() const override;
+    const std::shared_ptr<ZeroInitStructsHolder> getInitStructs() const override;
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _initStruct;

@@ -25,9 +25,21 @@ const std::vector<std::string> IEngineBackend::getDeviceNames() const {
     OPENVINO_THROW("Get all device names not implemented");
 }
 
+uint32_t IEngineBackend::getDriverVersion() const {
+    OPENVINO_THROW("Get NPU driver version is not supported with this backend");
+}
+
+uint32_t IEngineBackend::getGraphExtVersion() const {
+    OPENVINO_THROW("Get NPU driver extension version is not supported with this backend");
+}
+
+void* IEngineBackend::getContext() const {
+    OPENVINO_THROW("Get NPU context is not supported with this backend");
+}
+
 void IEngineBackend::registerOptions(OptionsDesc&) const {}
 
-std::shared_ptr<ZeroInitStructsHolder> IEngineBackend::getInitStructs() const {
+const std::shared_ptr<ZeroInitStructsHolder> IEngineBackend::getInitStructs() const {
     return nullptr;
 }
 

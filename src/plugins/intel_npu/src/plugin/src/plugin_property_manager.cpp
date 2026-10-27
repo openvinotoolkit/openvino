@@ -414,7 +414,6 @@ void PluginPropertyManager::registerProperties() {
     _properties.clear();
 
     const bool hasBackend = _backend != nullptr;
-    const auto initStructs = hasBackend ? _backend->getInitStructs() : nullptr;
     const auto hasBackendPredicate = [hasBackend](const ov::AnyMap&) {
         return hasBackend;
     };
@@ -558,9 +557,9 @@ void PluginPropertyManager::registerProperties() {
         }
     );
     register_property(ov::intel_npu::disable_idle_memory_prunning.name(), true, ov::PropertyMutability::RW,
-        [this, initStructs](const ov::AnyMap&) {
-            return _config.hasOpt(ov::intel_npu::disable_idle_memory_prunning.name()) && initStructs != nullptr &&
-                   initStructs->isContextExtSupported();
+        [this](const ov::AnyMap&) {
+            return _config.hasOpt(ov::intel_npu::disable_idle_memory_prunning.name()) && _backend != nullptr &&
+                   _backend->isContextExtSupported();
         },
         [this](const ov::AnyMap&) {
             return _config.get<DISABLE_IDLE_MEMORY_PRUNING>();
@@ -627,9 +626,9 @@ void PluginPropertyManager::registerProperties() {
         }
     );
     register_property(ov::intel_npu::turbo.name(), true, ov::PropertyMutability::RW,
-        [this, initStructs, isCompilerOptionSupported](const ov::AnyMap& arguments) {
+        [this, isCompilerOptionSupported](const ov::AnyMap& arguments) {
             return _config.hasOpt(ov::intel_npu::turbo.name()) &&
-                   ((initStructs != nullptr && initStructs->isCommandQueueExtSupported()) ||
+                   ((_backend != nullptr && _backend->isCommandQueueExtSupported()) ||
                     isCompilerOptionSupported(ov::intel_npu::turbo.name(), arguments));
         },
         [this](const ov::AnyMap&) {
@@ -640,12 +639,12 @@ void PluginPropertyManager::registerProperties() {
         }
     );
     register_property(ov::intel_npu::enable_strides_for.name(), true, ov::PropertyMutability::RW,
-        [this, initStructs, isCompilerOptionSupported](const ov::AnyMap& arguments) {
+        [this, isCompilerOptionSupported](const ov::AnyMap& arguments) {
             if (!_config.hasOpt(ov::intel_npu::enable_strides_for.name()) ||
                 !isCompilerOptionSupported(ov::intel_npu::enable_strides_for.name(), arguments)) {
                 return false;
             }
-            if (initStructs != nullptr && initStructs->getGraphExtVersion() < ZE_MAKE_VERSION(1, 16)) {
+            if (_backend != nullptr && _backend->getGraphExtVersion() < ZE_MAKE_VERSION(1, 16)) {
                 _logger.info("Config option %s not supported by the driver! Requirements not met.", ov::intel_npu::enable_strides_for.name());
                 return false;
             }
@@ -875,9 +874,9 @@ void PluginPropertyManager::registerProperties() {
         return caching_props;
     }, readOnlySetter);
 
-    register_property(ov::intel_npu::driver_version.name(), true, ov::PropertyMutability::RO, hasBackendPredicate, [initStructs](const ov::AnyMap&) {
-        OPENVINO_ASSERT(initStructs != nullptr, "No available backend");
-        return initStructs->getDriverVersion();
+    register_property(ov::intel_npu::driver_version.name(), true, ov::PropertyMutability::RO, hasBackendPredicate, [this](const ov::AnyMap&) {
+        OPENVINO_ASSERT(_backend != nullptr, "No available backend");
+        return _backend->getDriverVersion();
     }, readOnlySetter);
     register_property(ov::device::pci_info.name(), true, ov::PropertyMutability::RO, hasBackendAndValidDevice, [this](const ov::AnyMap& arguments) {
         return utils::getPciInfo(_backend, getDeviceIdOrDefault(arguments));
@@ -904,7 +903,7 @@ void PluginPropertyManager::registerProperties() {
     register_property(ov::device::full_name.name(), true, ov::PropertyMutability::RO, hasBackendAndValidDevice, [this](const ov::AnyMap& arguments) {
         return utils::getFullDeviceName(_backend, getDeviceIdOrDefault(arguments));
     }, readOnlySetter);
-    register_property(ov::device::luid.name(), initStructs != nullptr && initStructs->isLUIDExtSupported(), ov::PropertyMutability::RO, hasBackendAndValidDevice, [this](const ov::AnyMap& arguments) {
+    register_property(ov::device::luid.name(), _backend != nullptr && _backend->isLUIDExtSupported(), ov::PropertyMutability::RO, hasBackendAndValidDevice, [this](const ov::AnyMap& arguments) {
         return utils::getDeviceLUID(_backend, getDeviceIdOrDefault(arguments));
     }, readOnlySetter);
     

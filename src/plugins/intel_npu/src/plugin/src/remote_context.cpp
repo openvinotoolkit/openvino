@@ -19,7 +19,7 @@ RemoteContextImpl::RemoteContextImpl(const ov::SoPtr<IEngineBackend>& engineBack
 
     _init_structs = engineBackend->getInitStructs();
 
-    _properties = {l0_context(_init_structs->getContext())};
+    _properties = {l0_context(engineBackend->getContext())};
 
     if (!remote_properties.empty()) {
         _mem_type_object = zeroUtils::extract_object(remote_properties, mem_type);
