@@ -295,10 +295,11 @@ SDPA_OCL_INLINE void FUNC(pa_v_tile_q_b2d)(__private int8 *vb, __private uint *v
             const half4 q4 = (half4)(U4_TO_HALF(w2.s0, nsh), U4_TO_HALF(w2.s0, (ushort)(8 + nsh)),
                                      U4_TO_HALF(w2.s1, nsh), U4_TO_HALF(w2.s1, (ushort)(8 + nsh)));
             #else
-            const half4 q4 = (half4)((half)(char)((w >>  0) & 0xFFu),
-                                     (half)(char)((w >>  8) & 0xFFu),
-                                     (half)(char)((w >> 16) & 0xFFu),
-                                     (half)(char)((w >> 24) & 0xFFu));
+            // Exact widen on 16-bit words, as for u4: converting the extracted byte cost a strided convert and a
+            // repack move per value.
+            const ushort2 w2 = as_ushort2(w);
+            const half4 q4 = (half4)(I8_TO_HALF(w2.s0, (ushort)0), I8_TO_HALF(w2.s0, (ushort)8),
+                                     I8_TO_HALF(w2.s1, (ushort)0), I8_TO_HALF(w2.s1, (ushort)8));
             #endif
             const half4 deq4 = q4 - vzp4[u];
             // f16 VNNI operand: vb[cd][key_pair] packs keys (2*kp, 2*kp+1), and deq4 already holds

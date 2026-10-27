@@ -8,11 +8,11 @@
 // the KQ B operand (8 dwords per lane, lane == query). q_pack is the caller's loop variable: the u4
 // variant writes it element-wise, and a helper-local vector would drop the loop-carried value SROA
 // keeps for it, which moved register allocation on the spill-bound u4 head-512 kernel.
-#if IS_PA_K_U4
-// u4: Q adopts the K page's permuted depth labelling (see PA_K_U4_CHANNEL), paid here once per
-// workgroup instead of per k0 tile. A chunk spans its 32-channel window, read as two halves w0/w1,
-// and q_pack dword j takes half `par` of dwords 2j and 2j+1, i.e. channels (win+4j+par,
-// win+4j+2+par).
+#if PA_K_PERMUTED
+// u4 and the f16 d-major page read (PA_K_PERMUTED): Q adopts the K page's permuted depth labelling (see
+// PA_K_U4_CHANNEL), paid here once per workgroup instead of per k0 tile. A chunk spans its 32-channel
+// window, read as two halves w0/w1, and q_pack dword j takes half `par` of dwords 2j and 2j+1, i.e.
+// channels (win+4j+par, win+4j+2+par).
 SDPA_OCL_INLINE void FUNC(q_chunk_u4)(__private uint8 *q_pack, const __global QRY_DATA_T *Q, const int QD_w,
                                       const int QD_h, const int QD_p, const uint ldq, const int q, const int d,
                                       const int query_base, const int db, const size_t lane) {
@@ -244,7 +244,7 @@ SDPA_OCL_INLINE void FUNC(pa_k_page_read_1d)(__private uchar16 (*k_pg)[PA_PAGE_R
 // own arrays with lifetime markers the inline code never had, which moved scratch allocation on a
 // spill-bound kernel.
 
-#if (USE_2D_BLOCK_IO_KV && !IS_PA_MIXED) || (PA_CUR_KV_F16 && !IS_PA_K_U4)
+#if (USE_2D_BLOCK_IO_KV && !IS_PA_MIXED) || (PA_CUR_KV_F16 && !PA_K_PERMUTED)
 // f16 [key, head] surface (the K input, or MIXED's Kc) whose row key - y_sub holds key. The _16r
 // builtin returns 16 key rows (2 row-blocks), so issue one read per 16-key group: with
 // kq_sg_tile_keys == 32 a single read would leave k_raw[2..3] uninitialised.
@@ -339,6 +339,53 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_b2d16)(__private ushort8 *k_raw, const __glo
 }
 #endif
 
+#if IS_PA_MIXED && USE_2D_BLOCK_IO_K_PA_DT
+// d-major f16 K page ([K_HEAD_SIZE, PAGED_ATTENTION_BLOCK_SIZE]): its 32-byte row is under the block2d minimum, so the
+// page is read as a 64-byte-pitch surface whose row r holds channels 2r and 2r + 1, each as 8 dwords of key pairs. A
+// 32-bit transpose read gives lane L surface row y + L with element i = dword column x + i; at x = PA_K_U4_PAR(db) * 8,
+// y = PA_K_U4_WIN(db) / 2 that is channel PA_K_U4_CHANNEL(db, L), the permuted depth Q_slm is staged in, with dword j =
+// keys (2j, 2j + 1), and the word halves are the k_raw rows. The 32-row form (PA_K_DT_ROWS 32, probed on the B70)
+// interleaves rows y + L and y + 16 + L dword by dword, i.e. tiles db and db + 2: it is issued for db % 4 in {0, 1} and
+// serves db + 2 from the odd dwords, half the messages (qwen3.5-9b 8K: 460 against 508 us per call), but keeps 16
+// dwords per parity live across the depth loop, which spills at 128 GRF. Keys at/past k were never written and a NaN
+// would survive the masked-out score, so each row is ANDed with its key's lane of key_ok (all ones below the page's
+// valid rows) by the instruction that extracts it, with no branch; a group entirely at/past k reads page 0 (see
+// pa_k_pages()) and is masked whole.
+SDPA_OCL_INLINE void FUNC(pa_k_tile_dt)(__private ushort8 *k_raw,
+                                        __private uint (*kt_dt)[PA_K_DT_ROWS / 16][PA_K_DT_ROWS / 2],
+                                        const __global KEY_DATA_T *K, const __private uint *k_page, const size_t b0_kv,
+                                        const int key_base, const int k, const int db, const int lane_i) {
+    const int par = PA_K_U4_PAR(db);
+    #pragma unroll
+    for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
+        const int kg_key0 = key_base + kg * SUBGROUP_SIZE;
+        const int kg_mb = kg * (SUBGROUP_SIZE / DPAS_ROWS);
+        const ushort key_ok = (lane_i < PA_PAGE_ROWS(k, kg_key0)) ? (ushort)0xFFFF : (ushort)0;
+        const global void *page = (const global void *)(K + PA_K_PAGE_OFF(k_page[kg_mb], b0_kv));
+        const int KP_w = 2 * PAGED_ATTENTION_BLOCK_SIZE * (int)sizeof(half);
+        const int2 xy = (int2)(par * (PAGED_ATTENTION_BLOCK_SIZE / 2), PA_K_U4_WIN(db) / 2);
+        #if PA_K_DT_ROWS == 32
+        const int hi = (db >> 1) & 1;
+        if (hi == 0)
+            intel_sub_group_2d_block_read_transpose_32b_32r8x1c((global void *)page, KP_w, K_HEAD_SIZE / 2, KP_w, xy,
+                                                                (private uint *)&kt_dt[kg][par][0]);
+        #else
+        const int hi = 0;
+        intel_sub_group_2d_block_read_transpose_32b_16r8x1c((global void *)page, KP_w, K_HEAD_SIZE / 2, KP_w, xy,
+                                                            (private uint *)&kt_dt[kg][0][0]);
+        #endif
+        #pragma unroll
+        for (int j = 0; j < PAGED_ATTENTION_BLOCK_SIZE / 2; ++j) {
+            const int krel = 2 * j;
+            const uint w = kt_dt[kg][(PA_K_DT_ROWS == 32) ? par : 0][(PA_K_DT_ROWS / 16) * j + hi];
+            k_raw[kg_mb + krel / DPAS_ROWS][krel % DPAS_ROWS] = (ushort)w & sub_group_broadcast(key_ok, krel);
+            k_raw[kg_mb + krel / DPAS_ROWS][krel % DPAS_ROWS + 1] =
+                (ushort)(w >> 16) & sub_group_broadcast(key_ok, krel + 1);
+        }
+    }
+}
+#endif
+
 #if IS_PA_MIXED && USE_2D_BLOCK_IO_K_PA_I8
 // Token-major i8/u4 K page, either quant mode (BY_CHANNEL's data region has BY_TOKEN's geometry; only
 // the comp and the dequant index differ): the data is a [PAGED_ATTENTION_BLOCK_SIZE, PA_K_ROW_ELEMS]
@@ -389,11 +436,11 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_q_b2d)(__private ushort8 *k_raw, __private u
             #pragma unroll
             for (int u = 0; u < SUBGROUP_SIZE / 4; ++u) {
                 const uint w = kt[u];
-                #if IS_PA_K_U4
-                // Byte bb of w is key u * 4 + bb, i.e. the low or high byte of word bb / 2. The nibble select
-                // is lane-UNIFORM (the parity is the tile's, not the lane's), so it folds into the shift.
-                // Unsigned by construction: the int4 quantizer clamps to [0, 15] with zp = -min*scale.
+                // Byte bb of w is key u * 4 + bb, i.e. the low or high byte of word bb / 2.
                 const ushort2 w2 = as_ushort2(w);
+                #if IS_PA_K_U4
+                // The nibble select is lane-UNIFORM (the parity is the tile's, not the lane's), so it folds into
+                // the shift. Unsigned by construction: the int4 quantizer clamps to [0, 15] with zp = -min*scale.
                 const ushort nsh = (ushort)(PA_K_U4_PAR(db) * 4);
                 #endif
                 #pragma unroll
@@ -407,7 +454,8 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_q_b2d)(__private ushort8 *k_raw, __private u
                     const half deq_k =
                         PA_DEQ(U4_TO_HALF((bb < 2) ? w2.s0 : w2.s1, (ushort)((bb & 1) * 8) + nsh), k_zp, k_sc);
                     #else
-                    const half deq_k = PA_DEQ((half)(char)((w >> (bb * 8)) & 0xFFu), k_zp, k_sc);
+                    const half deq_k =
+                        PA_DEQ(I8_TO_HALF((bb < 2) ? w2.s0 : w2.s1, (ushort)((bb & 1) * 8)), k_zp, k_sc);
                     #endif
                     k_raw[krel / DPAS_ROWS][krel % DPAS_ROWS] = as_ushort(deq_k);
                 }
@@ -476,11 +524,11 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_u4_1d)(__private ushort8 *k_raw,
 }
 #endif
 
-#if IS_PA_K_U4 && PA_CUR_KV_F16
-// u4 Kc: tile db needs lane L = channel PA_K_U4_WIN(db) + 2L + PA_K_U4_PAR(db) (the permuted depth
-// axis Q_slm is staged in), a stride-2 gather no 16b block read can do. Channels (win + 2L, win + 2L +
-// 1) are adjacent halves, i.e. one dword at dword column win/2 + L, so a 32b read over Kc as a DWORD
-// surface lands the pair in lane L and the parity is a half-select. Each window is read twice (once
+#if PA_K_PERMUTED && PA_CUR_KV_F16
+// u4 Kc (and the f16 d-major page read's, PA_K_PERMUTED): tile db needs lane L = channel PA_K_U4_WIN(db) + 2L +
+// PA_K_U4_PAR(db) (the permuted depth axis Q_slm is staged in), a stride-2 gather no 16b block read can do.
+// Channels (win + 2L, win + 2L + 1) are adjacent halves, i.e. one dword at dword column win/2 + L, so a 32b
+// read over Kc as a DWORD surface lands the pair in lane L and the parity is a half-select. Each window is read twice (once
 // per parity), still far cheaper than the page dequant. Width/pitch stay in bytes, x is in dwords.
 SDPA_OCL_INLINE void FUNC(kc_tile_u4_dword)(__private ushort8 *k_raw, __private uint *kw, const __global half *Kc_b2d,
                                             const int KcD_w_b2d, const int KcD_h, const int KcD_p, const int KcD_x0_dw,
@@ -715,7 +763,8 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_q_gather)(__private ushort8 *k_raw, const __
 }
 #endif
 
-#if IS_PA_MIXED && !USE_2D_BLOCK_IO_K_PA && !USE_2D_BLOCK_IO_K_PA_I8 && !USE_1D_BLOCK_IO_K_PA_U4 && !IS_PA_KV_COMPRESSED
+#if IS_PA_MIXED && !USE_2D_BLOCK_IO_K_PA && !USE_2D_BLOCK_IO_K_PA_DT && !USE_2D_BLOCK_IO_K_PA_I8 && \
+    !USE_1D_BLOCK_IO_K_PA_U4 && !IS_PA_KV_COMPRESSED
 // f16 K page (d-major, or token-major with a pitch the block2d rule rejects).
 SDPA_OCL_INLINE void FUNC(pa_k_tile_gather)(__private ushort8 *k_raw, const __global KEY_DATA_T *K,
                                             const __private uint *k_page, const size_t b0_kv, const int key_base,
@@ -741,7 +790,7 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_gather)(__private ushort8 *k_raw, const __gl
 }
 #endif
 
-#if IS_PA_K_U4 && PA_CUR_KV_F16
+#if PA_K_PERMUTED && PA_CUR_KV_F16
 // u4 Kc when the dword read cannot represent an odd half offset from the aligned surface origin: stay
 // on the exact Kc source and gather the permuted channels directly. Falling back to the cache here
 // would reintroduce quantization error and would use page addressing with a potentially

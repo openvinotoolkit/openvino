@@ -294,7 +294,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         VcD_x0 = (int)(vc_prem / sizeof(half));
     }
     #endif
-    #if IS_PA_K_U4
+    #if PA_K_PERMUTED
     // The u4 Kc read addresses Kc as a DWORD surface, so its x shift is in dwords. That is exact
     // only if this head's first channel is an even number of halves from the (64B-aligned,
     // fixup-forced) origin; otherwise a dword straddles a (2c, 2c+1) channel pair. That depends on
@@ -359,7 +359,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const int db      = tile % DKS_ACTIVE;   // 0..DKS_ACTIVE-1
         const int query_base = wg_j0 + q_block * SUBGROUP_SIZE;
         uint8 q_pack;
-#if IS_PA_K_U4
+#if PA_K_PERMUTED
         FUNC_CALL(q_chunk_u4)(&q_pack, Q, QD_w, QD_h, QD_p, ldq, q, d, query_base, db, lane);
 #else
         FUNC_CALL(q_chunk)(&q_pack, Q, QD_w, QD_h, QD_p, ldq, q, d, query_base, db, lane);
@@ -450,6 +450,24 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     }
 #endif
 
+#if CAUSAL_TILE_SKIP
+    // Per-subgroup causal ends (KEY coordinates): a KQ subgroup's queries end at sg_j0_kq + kq_sg_tile_queries, an S*V
+    // subgroup's score rows at sg_i0_sv + sv_sg_tile_scores, and a key past that is masked for all of them. An image
+    // group can reach past its query, so with BIDIR_MASK only the workgroup's causal_k (which includes it) is used.
+    #if IS_CAUSAL && !BIDIR_MASK
+        #if !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+    const int causal_base = causal_offset + (int)wg_j0;
+        #else
+    const int causal_base = query_position_offset + (int)wg_j0;
+        #endif
+    const int kq_sg_causal_k = min(causal_k, causal_base + (int)sg_j0_kq + kq_sg_tile_queries);
+    const int sv_sg_causal_k = min(causal_k, causal_base + (int)sg_i0_sv + sv_sg_tile_scores);
+    #else
+    const int kq_sg_causal_k = causal_k;
+    const int sv_sg_causal_k = causal_k;
+    #endif
+#endif
+
     // Sliding-window lower bound, the mirror of causal_k (sdpa_micro's window_k0_begin): the mask
     // keeps (query - SLIDING_WINDOW_SIZE, query], so the first key this workgroup needs is for its
     // first query. Rounded down to a k0 tile so key_base stays tile-aligned for the block reads and
@@ -524,6 +542,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #else
         const bool last = (k0 + kq_wg_tile_keys >= causal_k);
 #endif
+#if CAUSAL_TILE_SKIP
+        // Keys at/past k_tile_end are masked for every query of the workgroup.
+    #if PA_CUR_KV_F16
+        const int k_tile_end = k0 + k_chunk;
+    #else
+        const int k_tile_end = min(causal_k, k0 + kq_wg_tile_keys);
+    #endif
+#endif
 #if IS_PA_MIXED
     #if PA_CUR_KV_F16
         // The loop splits at past_len, so this decision is workgroup-uniform.
@@ -588,6 +614,16 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #if WIDE_K_READS
         ushort8 k_wide[2 * kq_key_blocks];
 #endif
+#if IS_PA_MIXED && USE_2D_BLOCK_IO_K_PA_DT
+        // pa_k_tile_dt()'s reads; the 32-row form's serve depth tiles db and db + 2.
+        uint kt_dt[kq_sg_tile_keys / SUBGROUP_SIZE][PA_K_DT_ROWS / 16][PA_K_DT_ROWS / 2];
+#endif
+#if CAUSAL_TILE_SKIP
+        // All of this subgroup's keys are masked for all of its queries: S_tile stays 0 and the mask below makes it
+        // -INFINITY (key >= causal_k by k_mask, a later key than the query by the causal predicate, which runs on the
+        // last tile, where these keys are). Uniform per subgroup.
+        if (key_base < min(k_tile_end, kq_sg_causal_k)) {
+#endif
         #pragma unroll
         for (int db = 0; db < DKS_ACTIVE; ++db) {
             int8 qB[kq_query_blocks];
@@ -612,6 +648,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             if (from_cache) {
     #if USE_2D_BLOCK_IO_K_PA
             FUNC_CALL(pa_k_tile_b2d16)(k_raw, K, k_page, b0_kv, key_base, k, d, db);
+    #elif USE_2D_BLOCK_IO_K_PA_DT
+            FUNC_CALL(pa_k_tile_dt)(k_raw, kt_dt, K, k_page, b0_kv, key_base, k, db, (int)lane);
     #elif USE_2D_BLOCK_IO_K_PA_I8
             uint kt[8];
         #if IS_PA_K_BY_CHANNEL
@@ -635,7 +673,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
     #if PA_CUR_KV_F16
             else {
-        #if IS_PA_K_U4
+        #if PA_K_PERMUTED
                 if (kc_dword_ok) {
                     uint kw[DPAS_ROWS];
                     FUNC_CALL(kc_tile_u4_dword)(k_raw, kw, Kc_b2d, KcD_w_b2d, KcD_h, KcD_p, KcD_x0_dw, key_base,
@@ -644,8 +682,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     FUNC_CALL(kc_tile_u4_gather)(k_raw, Kc, ldk, key_base, past_len, k0, k_chunk, d, db, (int)lane);
                 }
         #else
-                // f16 / i8 cache: no depth permutation, so this is the plain-SDPA [key, head] read
-                // pointed at Kc with a (key - past_len) row origin. Rows past q read as zero, which is
+                // No depth permutation (f16 / i8 caches other than the transpose read), so this is the
+                // plain-SDPA [key, head] read pointed at Kc with a (key - past_len) row origin. Rows past q read as zero, which is
                 // what the `key < k` masking already assumes.
                 FUNC_CALL(k_tile_b2d16)(k_raw, Kc_b2d, KcD_w_b2d, KcD_h, KcD_p, KcD_x0, db, key_base, past_len);
         #endif
@@ -697,6 +735,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #endif
             }
         }
+#if CAUSAL_TILE_SKIP
+        }
+#endif
 
         KMASK_HALF_T mask_tile;
         KMASK_FLOAT_T k_mask;
@@ -1014,6 +1055,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             // scores are zero) together with their SLM/V loads, dequant and DPAS. Uniform; the
             // barriers stay outside.
             if (cp * DPAS_K >= k_chunk)
+                continue;
+#elif CAUSAL_TILE_SKIP
+            // Every score of this block is exactly 0 (a masked key) for this subgroup's rows, so the block adds
+            // nothing: skip its S_slm / V reads and DPAS. Uniform; the barriers stay outside.
+            if (k0 + cp * DPAS_K >= min(k_tile_end, sv_sg_causal_k))
                 continue;
 #endif
             #if USE_2D_BLOCK_IO_V_I8
