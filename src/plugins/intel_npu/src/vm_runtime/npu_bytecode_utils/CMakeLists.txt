@@ -31,7 +31,7 @@ else()
 endif()
 
 target_link_libraries(${TARGET_NAME}
-    PRIVATE
+    PUBLIC
         openvino::runtime
 )
 
