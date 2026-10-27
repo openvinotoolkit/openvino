@@ -34,7 +34,7 @@
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/paged_qsa_indexer.hpp"
 #include "intel_gpu/op/qsa_indexer.hpp"
-#include "intel_gpu/op/sparse_pa.hpp"
+#include "openvino/op/paged_sparse_attention.hpp"
 #include "intel_gpu/op/sparse_sdpa.hpp"
 #include "openvino/pass/manager.hpp"
 #include "plugin/transformations/sparse_attention_fusion.hpp"
@@ -539,7 +539,7 @@ TEST(sparse_attention_fusion, paged_bails_out_without_reachable_paged_attention)
     run_fusion(g.model);
 
     EXPECT_EQ(count_ops<ov::op::internal::PagedQSAIndexer>(g.model), 0u);
-    EXPECT_EQ(count_ops<ov::intel_gpu::op::SparsePA>(g.model), 0u);
+    EXPECT_EQ(count_ops<ov::op::internal::PagedSparseAttention>(g.model), 0u);
     EXPECT_EQ(g.model->get_parameters().size(), params_before);
 }
 
@@ -547,7 +547,7 @@ TEST(sparse_attention_fusion, paged_bails_out_on_sliding_window) {
     auto g = build_paged_graph(/*include_paged_attention=*/true, /*sliding_window=*/8);
     run_fusion(g.model);
 
-    EXPECT_EQ(count_ops<ov::intel_gpu::op::SparsePA>(g.model), 0u);
+    EXPECT_EQ(count_ops<ov::op::internal::PagedSparseAttention>(g.model), 0u);
     EXPECT_EQ(count_ops<ov::op::PagedAttentionExtension>(g.model), 1u);
 }
 
@@ -558,7 +558,7 @@ TEST(sparse_attention_fusion, paged_replaces_with_proven_inputs) {
 
     ASSERT_EQ(count_ops<ov::op::PagedAttentionExtension>(g.model), 0u);
     auto indexer = find_op<ov::op::internal::PagedQSAIndexer>(g.model);
-    auto sparse_pa = find_op<ov::intel_gpu::op::SparsePA>(g.model);
+    auto sparse_pa = find_op<ov::op::internal::PagedSparseAttention>(g.model);
     ASSERT_NE(indexer, nullptr);
     ASSERT_NE(sparse_pa, nullptr);
     EXPECT_EQ(g.model->get_parameters().size(), params_before + 3);
@@ -581,17 +581,16 @@ TEST(sparse_attention_fusion, paged_replaces_with_proven_inputs) {
     EXPECT_EQ(indexer->get_input_partial_shape(In::INDEX_KEY_CACHE), (ov::PartialShape{-1, 1, page_size, Di}));
     EXPECT_EQ(indexer->get_input_partial_shape(In::INDEX_BLOCK_ROPE_CACHE), (ov::PartialShape{-1, page_size / r, 2 * Rd}));
 
-    const auto& attn_cfg = sparse_pa->get_config();
-    EXPECT_EQ(attn_cfg.num_heads, static_cast<size_t>(Hq));
-    EXPECT_EQ(attn_cfg.num_kv_heads, static_cast<size_t>(Hkv));
-    EXPECT_EQ(attn_cfg.key_block_size, static_cast<size_t>(r));
+    EXPECT_EQ(sparse_pa->get_key_block_size(), static_cast<int64_t>(r));
+    EXPECT_EQ(sparse_pa->get_input_size(), 13u);
+    EXPECT_EQ(sparse_pa->get_output_partial_shape(0), (ov::PartialShape{-1, Hq * Dh}));
 
-    using Attn = ov::intel_gpu::op::SparsePA::InputIdx;
-    auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(sparse_pa->get_input_node_shared_ptr(Attn::SCALE));
+    constexpr size_t scale_idx = 11;
+    constexpr size_t sinks_idx = 12;
+    auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(sparse_pa->get_input_node_shared_ptr(scale_idx));
     ASSERT_NE(scale_const, nullptr);
     EXPECT_FLOAT_EQ(scale_const->cast_vector<float>().at(0), 1.0f / std::sqrt(static_cast<float>(Dh)));
-    EXPECT_FALSE(sparse_pa->has_sinks());
-    EXPECT_EQ(sparse_pa->get_input_size(), Attn::COUNT_MIN);  // qb_start is omitted for query_block_size == 1
+    EXPECT_EQ(sparse_pa->get_input_partial_shape(sinks_idx), (ov::PartialShape{0}));  // empty = no sinks
 }
 
 // The indexer must compute RoPE(RMSNorm(Mean(K))); any other order or a dropped op computes a

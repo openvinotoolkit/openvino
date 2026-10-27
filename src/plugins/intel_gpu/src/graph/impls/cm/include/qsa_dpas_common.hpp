@@ -31,7 +31,10 @@
 #ifndef QSA_DPAS_COMMON_HPP
 #    define QSA_DPAS_COMMON_HPP
 
-#    include "qsa_common.hpp"
+// kernels_db_gen.py only inlines `#include` without whitespace after `#`.
+// clang-format off
+#include "qsa_common.hpp"
+// clang-format on
 
 namespace qsa_dpas {
 

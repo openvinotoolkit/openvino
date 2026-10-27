@@ -49,6 +49,7 @@
 #include <openvino/op/assign.hpp>
 #include <openvino/op/concat.hpp>
 #include <openvino/op/constant.hpp>
+#include <openvino/op/paged_sparse_attention.hpp>
 #include <openvino/op/parameter.hpp>
 #include <openvino/op/read_value.hpp>
 #include <openvino/op/result.hpp>
@@ -67,7 +68,7 @@ namespace {
 
 using PagedIn = ov::intel_gpu::op::PagedQSAIndexer::InputIdx;
 using DenseIdxIn = ov::intel_gpu::op::QSAIndexer::InputIdx;
-using SparsePAIn = ov::intel_gpu::op::SparsePA::InputIdx;
+using SparsePAIn = cldnn::sparse_pa::InputIdx;
 using SparseSDPAIn = ov::intel_gpu::op::SparseSDPA::InputIdx;
 
 bool cm_qsa_ops_available() {
@@ -725,7 +726,7 @@ std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs&
     }
 
     if (stage != Stage::IndexerOnly) {
-        ov::intel_gpu::op::SparsePA::Config cfg;
+        cldnn::sparse_pa::Config cfg;
         cfg.num_heads = d.Hq;
         cfg.num_kv_heads = d.Hkv;
         cfg.num_selection_heads = 1;
@@ -749,7 +750,7 @@ std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs&
             count = input_info("count");
         }
         // The primitive takes QUERY..SELECTED_BLOCK_COUNT only: scale is folded in, sinks are unsupported, qb_start is unused.
-        static_assert(SparsePAIn::SELECTED_BLOCK_COUNT == 10 && SparsePAIn::PAST_LENS == 5, "keep the test input order in sync with SparsePA::InputIdx");
+        static_assert(SparsePAIn::SELECTED_BLOCK_COUNT == 10 && SparsePAIn::PAST_LENS == 5, "keep the test input order in sync with PagedSparseAttention");
         topo.add(sparse_pa("attn",
                            {input_info("query"),
                             input_info("key"),
@@ -2422,8 +2423,8 @@ TEST(qsa_ops_gpu_test, dense_qsa_indexer_validates_state_rope_and_key_length) {
     EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "summary type";
 }
 
-ov::intel_gpu::op::SparsePA::Config make_sparse_pa_config(const split_dims& d) {
-    ov::intel_gpu::op::SparsePA::Config c;
+cldnn::sparse_pa::Config make_sparse_pa_config(const split_dims& d) {
+    cldnn::sparse_pa::Config c;
     c.num_heads = d.Hq;
     c.num_kv_heads = d.Hkv;
     c.num_selection_heads = 1;
@@ -2439,21 +2440,24 @@ TEST(qsa_ops_gpu_test, sparse_pa_config_validation_rejects_illegal_attributes) {
     std::string reason;
     split_dims d;
     auto base = make_sparse_pa_config(d);
-    ASSERT_TRUE(ov::intel_gpu::op::SparsePA::validate_config(base, reason)) << reason;
+    ASSERT_TRUE(cldnn::sparse_pa::validate_config(base, reason)) << reason;
 
     auto c = base;
     c.num_kv_heads = 2;
     c.num_heads = 3;  // not a multiple of num_kv_heads
-    ASSERT_FALSE(ov::intel_gpu::op::SparsePA::validate_config(c, reason));
+    ASSERT_FALSE(cldnn::sparse_pa::validate_config(c, reason));
 
     c = base;
     c.num_selection_heads = 3;  // not 1, num_kv_heads, or num_heads
-    ASSERT_FALSE(ov::intel_gpu::op::SparsePA::validate_config(c, reason));
+    ASSERT_FALSE(cldnn::sparse_pa::validate_config(c, reason));
 
     c = base;
     c.query_block_size = 2;  // not implemented in this pass
-    ASSERT_FALSE(ov::intel_gpu::op::SparsePA::validate_config(c, reason));
+    ASSERT_FALSE(cldnn::sparse_pa::validate_config(c, reason));
 }
+
+constexpr size_t paged_sparse_attention_scale_idx = 11;
+constexpr size_t paged_sparse_attention_sinks_idx = 12;
 
 ov::OutputVector make_sparse_pa_args(const split_dims& d, size_t num_pages) {
     return {make_param({-1, I(d.Hq * d.Dh)}),
@@ -2467,87 +2471,8 @@ ov::OutputVector make_sparse_pa_args(const split_dims& d, size_t num_pages) {
             make_param({-1}, ov::element::i32),
             make_param({-1, 1, I(d.block_topk)}, ov::element::i32),
             make_param({-1, 1}, ov::element::i32),
-            make_param({}),     // scale
-            make_param({0}),    // sinks: empty = none
-            make_param({-1}, ov::element::i32)};
-}
-
-TEST(qsa_ops_gpu_test, sparse_pa_sinks_input_reports_presence) {
-    split_dims d;
-    using In = ov::intel_gpu::op::SparsePA::InputIdx;
-    auto args = make_sparse_pa_args(d, 8);
-    EXPECT_FALSE(std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d))->has_sinks());
-
-    args[In::SINKS] = make_param({I(d.Hq)});
-    EXPECT_TRUE(std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d))->has_sinks());
-
-    args[In::SINKS] = make_param({I(d.Hq + 1)});
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception) << "sinks width";
-}
-
-TEST(qsa_ops_gpu_test, sparse_pa_qb_start_is_optional) {
-    split_dims d;
-    using In = ov::intel_gpu::op::SparsePA::InputIdx;
-    auto args = make_sparse_pa_args(d, 8);
-    ASSERT_EQ(args.size(), In::SELECTED_BLOCK_MASK);
-    args.pop_back();  // drop qb_start
-    std::shared_ptr<ov::intel_gpu::op::SparsePA> node;
-    ASSERT_NO_THROW(node = std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)));
-    ASSERT_EQ(node->get_input_size(), In::COUNT_MIN);
-
-    args.pop_back();  // sinks is positional and required
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception);
-}
-
-TEST(qsa_ops_gpu_test, sparse_pa_selected_block_mask_is_optional) {
-    split_dims d;
-    using In = ov::intel_gpu::op::SparsePA::InputIdx;
-    auto args = make_sparse_pa_args(d, 8);
-    ASSERT_EQ(args.size(), In::SELECTED_BLOCK_MASK);  // 14 inputs: qb_start present, no mask
-    EXPECT_FALSE(std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d))->has_selected_block_mask());
-
-    args.push_back(make_param({-1, 1, -1}, ov::element::boolean));
-    ASSERT_EQ(args.size(), In::COUNT_MAX);
-    EXPECT_TRUE(std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d))->has_selected_block_mask());
-
-    args[In::SELECTED_BLOCK_MASK] = make_param({0, 1, 0}, ov::element::boolean);  // empty = absent
-    EXPECT_FALSE(std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d))->has_selected_block_mask());
-
-    args[In::SELECTED_BLOCK_MASK] = make_param({-1, 1, -1}, ov::element::f16);
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception) << "mask type";
-}
-
-TEST(qsa_ops_gpu_test, sparse_pa_rejects_page_size_not_divisible_by_key_block_size) {
-    split_dims d;
-    using In = ov::intel_gpu::op::SparsePA::InputIdx;
-    auto args = make_sparse_pa_args(d, 8);
-    args[In::KEY_CACHE] = make_param({8, I(d.Hkv), I(d.page_size + 1), I(d.Dh)});
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception);
-}
-
-TEST(qsa_ops_gpu_test, sparse_pa_output_shape_and_clone) {
-    split_dims d;
-    auto node = std::make_shared<ov::intel_gpu::op::SparsePA>(make_sparse_pa_args(d, 8), make_sparse_pa_config(d));
-
-    const auto& out_ps = node->get_output_partial_shape(0);
-    ASSERT_EQ(out_ps.size(), 2u);
-    ASSERT_EQ(out_ps[1].get_length(), I(d.Hq * d.Dv));
-
-    auto clone = node->clone_with_new_inputs(node->input_values());
-    ASSERT_NE(std::dynamic_pointer_cast<ov::intel_gpu::op::SparsePA>(clone), nullptr);
-}
-
-TEST(qsa_ops_gpu_test, sparse_pa_requires_i32_integer_inputs) {
-    split_dims d;
-    using In = ov::intel_gpu::op::SparsePA::InputIdx;
-    for (size_t idx : {In::BLOCK_INDICES, In::BLOCK_INDICES_BEGINS, In::SUBSEQUENCE_BEGINS, In::PAST_LENS, In::QB_START}) {
-        auto args = make_sparse_pa_args(d, 8);
-        args[idx] = make_param({-1}, ov::element::i64);
-        EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception) << "input " << idx;
-    }
-    auto args = make_sparse_pa_args(d, 8);
-    args[In::SELECTED_BLOCK_INDICES] = make_param({-1, 1, I(d.block_topk)}, ov::element::i64);
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception);
+            make_param({}),   // scale
+            make_param({0})};  // sinks: empty = none
 }
 
 ov::intel_gpu::op::SparseSDPA::Config make_sparse_sdpa_config(const split_dims& d) {
@@ -2699,31 +2624,24 @@ TEST(qsa_ops_gpu_test, plugin_lowers_sparse_pa_scale_input_and_rejects_sinks) {
     if (!gpu_in_core(core)) {
         GTEST_SKIP() << "GPU plugin is not available in ov::Core";
     }
-    using In = ov::intel_gpu::op::SparsePA::InputIdx;
     split_dims d;
-    const auto cfg = ov::intel_gpu::op::SparsePA::Config(make_sparse_pa_config(d));
+    const auto key_block_size = static_cast<int64_t>(d.r);
 
     // A non-empty sinks input is rejected, a non-Constant scale input is rejected.
     auto args = make_sparse_pa_args(d, 8);
-    args.pop_back();  // qb_start is optional
-    args[In::SINKS] = make_param({I(d.Hq)});
-    expect_compile_error(core, std::make_shared<ov::intel_gpu::op::SparsePA>(args, cfg), {}, "sinks input is not supported");
+    args[paged_sparse_attention_sinks_idx] = make_param({I(d.Hq)});
+    expect_compile_error(core, std::make_shared<ov::op::internal::PagedSparseAttention>(args, key_block_size), {}, "sinks input is not supported");
 
     args = make_sparse_pa_args(d, 8);
-    args.push_back(make_param({-1, 1, -1}, ov::element::boolean));
-    expect_compile_error(core, std::make_shared<ov::intel_gpu::op::SparsePA>(args, cfg), {}, "selected_block_mask input is not supported");
+    args[paged_sparse_attention_sinks_idx] = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{0}, std::vector<float>{});
+    expect_compile_error(core, std::make_shared<ov::op::internal::PagedSparseAttention>(args, key_block_size), {}, "scale input must be a Constant");
 
-    args = make_sparse_pa_args(d, 8);
-    args.pop_back();
-    args[In::SINKS] = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{0}, std::vector<float>{});
-    expect_compile_error(core, std::make_shared<ov::intel_gpu::op::SparsePA>(args, cfg), {}, "scale input must be a Constant");
-
-    // Constant scale + empty sinks + no qb_start lowers (scale and sinks are not primitive inputs).
+    // Constant scale + empty sinks lowers (scale and sinks are not primitive inputs).
     if (!cm_qsa_ops_available()) {
         GTEST_SKIP() << "CM is not supported on this device";
     }
-    args[In::SCALE] = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.0625f});
-    auto op = std::make_shared<ov::intel_gpu::op::SparsePA>(args, cfg);
+    args[paged_sparse_attention_scale_idx] = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.0625f});
+    auto op = std::make_shared<ov::op::internal::PagedSparseAttention>(args, key_block_size);
     ov::ParameterVector params;
     for (const auto& input : op->input_values()) {
         if (auto p = ov::as_type_ptr<ov::op::v0::Parameter>(input.get_node_shared_ptr())) {

@@ -42,7 +42,10 @@
 #    include <cm/cm.h>
 #    include <cm/cmtl.h>
 
-#    include "qsa_gr_common.hpp"
+// kernels_db_gen.py only inlines `#include` without whitespace after `#`.
+// clang-format off
+#include "qsa_gr_common.hpp"
+// clang-format on
 
 namespace qsa {
 

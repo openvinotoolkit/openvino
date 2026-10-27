@@ -55,7 +55,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "intel_gpu/op/qsa_indexer.hpp"
 #include "openvino/op/paged_qsa_indexer.hpp"
-#include "intel_gpu/op/sparse_pa.hpp"
+#include "openvino/op/paged_sparse_attention.hpp"
 #include "intel_gpu/op/sparse_sdpa.hpp"
 #include "ov_ops/rms.hpp"
 
@@ -1116,7 +1116,7 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         if (!paged_attn) {
             continue;
         }
-        // PagedAttentionExtension has 3 outputs (query result, scores, diversity); SparsePA
+        // PagedAttentionExtension has 3 outputs (query result, scores, diversity); PagedSparseAttention
         // only produces one. Outputs 1/2 are advanced/optional features (score
         // aggregation, adaptive-RKV diversity) this pass does not attempt to reproduce --
         // bail out rather than silently drop a real consumer of either.
@@ -1135,7 +1135,7 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         const auto block_indices_begins_in = paged_attn->input_value(8);
         const auto scale_in = paged_attn->input_value(9);
 
-        // Optional PagedAttentionExtension features SparsePA does not reproduce must be
+        // Optional PagedAttentionExtension features PagedSparseAttention does not reproduce must be
         // provably disabled (statically empty / zero).
         auto input_empty = [&](size_t idx) {
             if (idx >= paged_attn->get_input_size()) {
@@ -1157,9 +1157,10 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
             !input_empty(sinks) || !input_empty(adaptive_rkv_evictable_sizes) || !input_empty(token_type_ids) || !input_empty(qq_bias)) {
             continue;
         }
-        // SparsePA reads/writes f16 pages only (no compressed KV cache, no f32 inference).
+        // The op and its GPU kernels read/write f16 pages only (no compressed KV cache, no f32 inference).
         if (key_cache_in.get_element_type() != ov::element::f16 || value_cache_in.get_element_type() != ov::element::f16 ||
-            query_in.get_element_type() != ov::element::f16 || facts.qk_proj_mm->get_output_element_type(0) != ov::element::f16) {
+            query_in.get_element_type() != ov::element::f16 || key_in.get_element_type() != ov::element::f16 ||
+            value_in.get_element_type() != ov::element::f16 || facts.qk_proj_mm->get_output_element_type(0) != ov::element::f16) {
             continue;
         }
 
@@ -1206,20 +1207,12 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         if (Di % 16 != 0 || !ov::op::internal::PagedQSAIndexer::validate_config(indexer_config, reason)) {
             continue;
         }
-        ov::intel_gpu::op::SparsePA::Config attn_config{};
-        attn_config.num_heads = Hq;
-        attn_config.num_kv_heads = Hkv;
-        attn_config.num_selection_heads = 1;
-        attn_config.k_head_size = Dh;
-        attn_config.v_head_size = Dv;
-        attn_config.key_block_size = r;
-        attn_config.query_block_size = 1;
-        attn_config.causal = true;
-        float attn_scale = 0.0f;
-        if (!get_scalar_f32(scale_in, attn_scale)) {
+        // GPU CM kernel constraints (not part of the op contract).
+        if (Hq == 0 || Hkv == 0 || Hq % Hkv != 0 || Dh % 16 != 0 || Dv == 0 || Dv % 16 != 0) {
             continue;
         }
-        if (!ov::intel_gpu::op::SparsePA::validate_config(attn_config, reason)) {
+        float attn_scale = 0.0f;
+        if (!get_scalar_f32(scale_in, attn_scale)) {
             continue;
         }
 
@@ -1276,26 +1269,26 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         auto paged_indexer = std::make_shared<ov::op::internal::PagedQSAIndexer>(indexer_args, indexer_config);
         new_ops.push_back(paged_indexer);
 
-        ov::OutputVector attn_args(ov::intel_gpu::op::SparsePA::InputIdx::COUNT_MIN);
-        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::QUERY] = query_in;
-        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::KEY] = key_in;
-        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::VALUE] = value_in;
-        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::KEY_CACHE] = key_cache_in;
-        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::VALUE_CACHE] = value_cache_in;
-        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::BLOCK_INDICES] = block_indices_in;
-        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::BLOCK_INDICES_BEGINS] = block_indices_begins_in;
-        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::SUBSEQUENCE_BEGINS] = subsequence_begins_in;
-        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::PAST_LENS] = past_lens_in;
-        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::SELECTED_BLOCK_INDICES] = paged_indexer->output(0);
-        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::SELECTED_BLOCK_COUNT] = paged_indexer->output(1);
-        const auto scale_et = scale_in.get_element_type().is_real() ? scale_in.get_element_type() : ov::element::f32;
-        auto scale_const = ov::op::v0::Constant::create(scale_et, ov::Shape{}, std::vector<float>{attn_scale});
-        auto sinks_const = ov::op::v0::Constant::create(query_in.get_element_type(), ov::Shape{0}, std::vector<float>{});  // empty = no sinks
+        // PagedSparseAttention takes query, key, value, scale all in one element type.
+        const auto attn_et = query_in.get_element_type();
+        auto scale_const = ov::op::v0::Constant::create(attn_et, ov::Shape{}, std::vector<float>{attn_scale});
+        auto sinks_const = ov::op::v0::Constant::create(attn_et, ov::Shape{0}, std::vector<float>{});  // empty = no sinks
         new_ops.push_back(scale_const);
         new_ops.push_back(sinks_const);
-        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::SCALE] = scale_const;
-        attn_args[ov::intel_gpu::op::SparsePA::InputIdx::SINKS] = sinks_const;
-        auto sparse_pa = std::make_shared<ov::intel_gpu::op::SparsePA>(attn_args, attn_config, paged_attn->get_out_type(0));
+        ov::OutputVector attn_args{query_in,
+                                   key_in,
+                                   value_in,
+                                   key_cache_in,
+                                   value_cache_in,
+                                   past_lens_in,
+                                   subsequence_begins_in,
+                                   block_indices_in,
+                                   block_indices_begins_in,
+                                   paged_indexer->output(0),
+                                   paged_indexer->output(1),
+                                   scale_const,
+                                   sinks_const};
+        auto sparse_pa = std::make_shared<ov::op::internal::PagedSparseAttention>(attn_args, static_cast<int64_t>(r));
         new_ops.push_back(sparse_pa);
 
         ov::copy_runtime_info(ov::NodeVector{root, paged_attn}, new_ops);

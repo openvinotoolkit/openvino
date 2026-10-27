@@ -49,7 +49,7 @@ inline ov::Dimension dim_at(const ov::PartialShape& ps, size_t axis) {
     return ps.rank().is_static() && ps.size() > axis ? ps[axis] : ov::Dimension::dynamic();
 }
 
-/// Config rules common to SparseSDPA::Config and SparsePA::Config.
+/// Config rules for SparseSDPA::Config.
 template <class Config>
 bool validate_sparse_attention_config(const Config& c, std::string& reason) {
     auto fail = [&reason](const char* msg) {

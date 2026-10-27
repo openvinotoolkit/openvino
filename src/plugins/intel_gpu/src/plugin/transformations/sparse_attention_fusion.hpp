@@ -42,7 +42,7 @@ public:
 
 /// @brief Recognizes a decomposed, paged (continuous-batching) QSA layer and replaces
 /// its indexer + attention sub-graph with `ov::op::internal::PagedQSAIndexer` +
-/// `ov::intel_gpu::op::SparsePA`.
+/// `ov::op::internal::PagedSparseAttention`.
 ///
 /// Reuses `DenseSparseAttentionFusion`'s indexer-score signature detection, but requires
 /// a reachable `ov::op::PagedAttentionExtension` downstream of the indexer's TopK output

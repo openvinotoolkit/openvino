@@ -23,7 +23,7 @@
 namespace ov::intel_gpu::cm {
 
 using namespace cldnn;
-using SparsePAIn = ov::intel_gpu::op::SparsePA::InputIdx;
+using SparsePAIn = cldnn::sparse_pa::InputIdx;
 
 namespace {
 
@@ -621,7 +621,7 @@ bool SparsePACMImplementationManager::validate_impl(const cldnn::program_node& n
 
     const auto desc = node.as<cldnn::sparse_pa>().get_primitive();
     std::string reason;
-    if (!ov::intel_gpu::op::SparsePA::validate_config(desc->get_config(), reason)) {
+    if (!cldnn::sparse_pa::validate_config(desc->get_config(), reason)) {
         return false;
     }
 

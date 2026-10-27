@@ -60,7 +60,7 @@ std::string sparse_pa_inst::to_string(const sparse_pa_node& node) {
 
 sparse_pa_inst::typed_primitive_inst(network& network, const sparse_pa_node& node) : parent(network, node) {
     std::string reason;
-    OPENVINO_ASSERT(ov::intel_gpu::op::SparsePA::validate_config(node.get_primitive()->get_config(), reason), "[GPU] Invalid sparse_pa primitive: ", reason);
+    OPENVINO_ASSERT(sparse_pa::validate_config(node.get_primitive()->get_config(), reason), "[GPU] Invalid sparse_pa primitive: ", reason);
 }
 
 }  // namespace cldnn
