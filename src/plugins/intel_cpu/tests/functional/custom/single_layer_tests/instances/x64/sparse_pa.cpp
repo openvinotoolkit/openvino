@@ -10,80 +10,134 @@ namespace ov {
 namespace test {
 
 namespace {
-constexpr size_t kU = 1;  // readability helper for the size_t Values() lists below
-constexpr size_t kNoGroup = 0;  // by-token quantization with one group per row
-constexpr size_t kDecode = 1;   // one new token per sequence: the decode path
-constexpr size_t kPrefill = 8;  // several new tokens per sequence: the prefill path
+
+constexpr size_t kNumHeads = 4;
+
+// Steps in the PagedAttention tests' [L, B, H, S] form: consecutive calls of the same B sequences with L new tokens
+// each.
+std::vector<InputShape> make_steps(size_t batch, size_t head_size, const std::vector<size_t>& lens) {
+    std::vector<ov::Shape> targets;
+    for (const auto len : lens) {
+        targets.push_back({len, batch, kNumHeads, head_size});
+    }
+    const auto b = static_cast<int64_t>(batch);
+    const auto s = static_cast<int64_t>(head_size);
+    return {{ov::PartialShape{-1, b, static_cast<int64_t>(kNumHeads), s}, targets}};
+}
+
+// Decode steps at the positions 3, 4, 5, ... after a 3-token prefill: the causal boundaries around key_block_size 2 and
+// 4 (the position ends a block, starts one, and is the second token of one), where the incomplete tail block of the
+// query is empty or not and a block becomes selectable.
+const std::vector<size_t> kBoundarySteps = {3, 1, 1, 1, 1, 1, 1, 5, 1};
+// A prefill that stops in the middle of a page, a chunked prefill that crosses a page boundary (29 + 8 > 32), decode
+// steps on the partially filled pages and another chunk: every call continues the caches the previous ones wrote.
+const std::vector<size_t> kChunkedSteps = {29, 8, 1, 1, 32, 1};
+
+std::vector<std::vector<InputShape>> make_shapes(size_t head_size) {
+    std::vector<std::vector<InputShape>> shapes;
+    for (const size_t batch : {1, 3}) {
+        shapes.push_back(make_steps(batch, head_size, kBoundarySteps));
+        shapes.push_back(make_steps(batch, head_size, kChunkedSteps));
+    }
+    return shapes;
+}
+
+SparsePAConfig plain_config(size_t num_selection_heads,
+                            size_t key_block_size,
+                            size_t page_size,
+                            size_t max_selected_blocks,
+                            SparsePASelection selection) {
+    SparsePAConfig cfg;
+    cfg.num_selection_heads = num_selection_heads;
+    cfg.key_block_size = key_block_size;
+    cfg.page_size = page_size;
+    cfg.max_selected_blocks = max_selected_blocks;
+    cfg.selection = selection;
+    return cfg;
+}
+
+SparsePAConfig quantized_config(ov::element::Type cache_precision,
+                                bool key_bychannel,
+                                size_t group_size,
+                                size_t num_selection_heads,
+                                SparsePASelection selection) {
+    SparsePAConfig cfg;
+    cfg.num_selection_heads = num_selection_heads;
+    cfg.key_block_size = 4;
+    cfg.page_size = 32;  // the page size ConvertPagedAttnInputs configures
+    cfg.max_selected_blocks = 8;
+    cfg.cache_precision = cache_precision;
+    cfg.key_bychannel = key_bychannel;
+    cfg.group_size = group_size;
+    cfg.selection = selection;
+    return cfg;
+}
+
+std::vector<SparsePAConfig> plain_configs() {
+    std::vector<SparsePAConfig> configs;
+    for (const auto selection : {SparsePASelection::kRecent, SparsePASelection::kRandom, SparsePASelection::kEmpty}) {
+        // A selection head shared by every query head, one per KV head, one per query head. A page of 4 or 8 tokens
+        // holds 2 key blocks, so selected blocks regularly straddle pages.
+        configs.push_back(plain_config(1, 2, 4, 4, selection));
+        configs.push_back(plain_config(2, 2, 8, 4, selection));
+        configs.push_back(plain_config(kNumHeads, 2, 8, 4, selection));
+    }
+    return configs;
+}
+
+// AMX QK^T fast path: bf16 end to end, head size a multiple of 32, key_block_size 4 (the Qwen production shape, smaller
+// than the JIT kernel's 16-row granularity, so block merging is exercised) with a page that fits 4 merged blocks and
+// one that only fits a single 16-row unit. Falls back to the scalar kernel transparently on non-AMX hardware.
+std::vector<SparsePAConfig> amx_configs() {
+    std::vector<SparsePAConfig> configs;
+    for (const auto selection : {SparsePASelection::kRecent, SparsePASelection::kRandom}) {
+        configs.push_back(plain_config(1, 4, 16, 4, selection));
+        configs.push_back(plain_config(1, 4, 64, 4, selection));
+        configs.push_back(plain_config(2, 4, 64, 16, selection));
+    }
+    return configs;
+}
+
+// Quantized (u8/u4) KV caches, as produced by ConvertPagedAttnInputs: by-token or by-channel keys, by-token values, one
+// group per row or several.
+std::vector<SparsePAConfig> quantized_configs() {
+    std::vector<SparsePAConfig> configs;
+    for (const auto precision : {ov::element::u8, ov::element::u4}) {
+        for (const bool key_bychannel : {false, true}) {
+            for (const size_t group_size : {0, 16}) {
+                for (const size_t num_selection_heads : {1, 2}) {
+                    for (const auto selection : {SparsePASelection::kRecent, SparsePASelection::kRandom}) {
+                        configs.push_back(
+                            quantized_config(precision, key_bychannel, group_size, num_selection_heads, selection));
+                    }
+                }
+            }
+        }
+    }
+    return configs;
+}
+
 }  // namespace
 
-// num_selection_heads == 1: a single selection head shared by every query head. page_size 4 is a
-// multiple of key_block_size 2, so a selected block never straddles two physical pages.
-INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_Hsel1,
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_Plain,
                          SparsePALayerCPUTest,
-                         testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
-                                          testing::Values(ov::element::f32, ov::element::f16, ov::element::bf16),
-                                          testing::Values(kU),
-                                          testing::Values(kU, static_cast<size_t>(3)),
-                                          testing::Values(static_cast<size_t>(16)),
-                                          testing::Values(static_cast<size_t>(2)),
-                                          testing::Values(static_cast<size_t>(4)),
-                                          testing::Values(ov::element::dynamic),
-                                          testing::Values(false),
-                                          testing::Values(kNoGroup),
-                                          testing::Values(kPrefill)),
+                         testing::Combine(testing::Values(ov::element::f32, ov::element::f16, ov::element::bf16),
+                                          testing::ValuesIn(make_shapes(16)),
+                                          testing::ValuesIn(plain_configs())),
                          SparsePALayerCPUTest::getTestCaseName);
 
-// num_selection_heads == num_kv_heads: exercises the sh = h / (Hq/num_selection_heads) grouping path.
-INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_HselEqualsHkv,
-                         SparsePALayerCPUTest,
-                         testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
-                                          testing::Values(ov::element::f32, ov::element::bf16),
-                                          testing::Values(static_cast<size_t>(2)),
-                                          testing::Values(static_cast<size_t>(3)),
-                                          testing::Values(static_cast<size_t>(16)),
-                                          testing::Values(static_cast<size_t>(2)),
-                                          testing::Values(static_cast<size_t>(8)),
-                                          testing::Values(ov::element::dynamic),
-                                          testing::Values(false),
-                                          testing::Values(kNoGroup),
-                                          testing::Values(kPrefill)),
-                         SparsePALayerCPUTest::getTestCaseName);
-
-// AMX QK^T fast path: bf16 end-to-end, k_head_size % 32 == 0, key_block_size == 4 (the Qwen4
-// production shape, smaller than the JIT kernel's 16-row granularity, so block merging is exercised)
-// with a page that fits 4 merged blocks and one that only fits a single 16-row unit. Falls back to
-// the scalar kernel transparently on non-AMX hardware.
 INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_AMX,
                          SparsePALayerCPUTest,
-                         testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
-                                          testing::Values(ov::element::bf16),
-                                          testing::Values(kU),
-                                          testing::Values(static_cast<size_t>(3)),
-                                          testing::Values(static_cast<size_t>(32)),
-                                          testing::Values(static_cast<size_t>(4)),
-                                          testing::Values(static_cast<size_t>(16), static_cast<size_t>(64)),
-                                          testing::Values(ov::element::dynamic),
-                                          testing::Values(false),
-                                          testing::Values(kNoGroup),
-                                          testing::Values(kPrefill)),
+                         testing::Combine(testing::Values(ov::element::bf16),
+                                          testing::ValuesIn(make_shapes(32)),
+                                          testing::ValuesIn(amx_configs())),
                          SparsePALayerCPUTest::getTestCaseName);
 
-// Quantized (u8/u4) KV caches, as produced by ConvertPagedAttnInputs: by-token or by-channel keys, by-token values,
-// with one group per row or several, for the decode (1 new token) and prefill (several new tokens) paths. past_len
-// values that are not a multiple of the page size make by-channel keys requantize a partially filled leading page.
 INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_QuantizedCache,
                          SparsePALayerCPUTest,
-                         testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
-                                          testing::Values(ov::element::f32, ov::element::bf16),
-                                          testing::Values(kU, static_cast<size_t>(2)),
-                                          testing::Values(static_cast<size_t>(3)),
-                                          testing::Values(static_cast<size_t>(32)),
-                                          testing::Values(static_cast<size_t>(4)),
-                                          testing::Values(static_cast<size_t>(32)),
-                                          testing::Values(ov::element::u8, ov::element::u4),
-                                          testing::Values(false, true),
-                                          testing::Values(kNoGroup, static_cast<size_t>(16)),
-                                          testing::Values(kDecode, kPrefill)),
+                         testing::Combine(testing::Values(ov::element::f32, ov::element::bf16),
+                                          testing::ValuesIn(make_shapes(32)),
+                                          testing::ValuesIn(quantized_configs())),
                          SparsePALayerCPUTest::getTestCaseName);
 
 }  // namespace test
