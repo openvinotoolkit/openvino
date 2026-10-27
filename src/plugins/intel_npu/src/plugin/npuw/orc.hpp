@@ -77,12 +77,14 @@ struct has_member_serialize<T, std::void_t<decltype(std::declval<T&>().serialize
 class Stream {
 public:
     static Stream reader(std::istream& stream);
+    static Stream bounded_reader(std::istream& stream, std::size_t size);
     static Stream memory_reader(const void* data, std::size_t size);
     static Stream writer(std::ostream& stream);
 
     bool input() const;
     bool output() const;
     bool memory() const;
+    bool has_remaining_limit() const;
     std::size_t remaining() const;
 
     // Dispatches to value.serialize(*this) when the type provides a member serialize,
@@ -109,6 +111,8 @@ private:
     const std::byte* m_memory = nullptr;
     std::size_t m_memory_size = 0u;
     std::size_t m_memory_offset = 0u;
+    std::size_t m_input_remaining = 0u;
+    bool m_input_bounded = false;
 };
 
 bool try_read_bytes(std::istream& stream, void* data, std::size_t size);

@@ -149,6 +149,14 @@ ov::npuw::orc::Stream ov::npuw::orc::Stream::reader(std::istream& stream) {
     return s;
 }
 
+ov::npuw::orc::Stream ov::npuw::orc::Stream::bounded_reader(std::istream& stream, const std::size_t size) {
+    Stream s;
+    s.m_input = &stream;
+    s.m_input_remaining = size;
+    s.m_input_bounded = true;
+    return s;
+}
+
 void ov::npuw::orc::serialize(Stream& stream, Section& section) {
     if (stream.output()) {
         write_section(stream, section);
@@ -198,11 +206,18 @@ bool ov::npuw::orc::Stream::memory() const {
     return m_memory != nullptr;
 }
 
+bool ov::npuw::orc::Stream::has_remaining_limit() const {
+    return memory() || m_input_bounded;
+}
+
 std::size_t ov::npuw::orc::Stream::remaining() const {
-    if (!memory()) {
-        OPENVINO_THROW("ORC remaining() is only available for memory-backed input streams");
+    if (memory()) {
+        return m_memory_size - m_memory_offset;
     }
-    return m_memory_size - m_memory_offset;
+    if (m_input_bounded) {
+        return m_input_remaining;
+    }
+    OPENVINO_THROW("ORC remaining() is unavailable for unbounded input streams");
 }
 
 void ov::npuw::orc::Stream::bytes(void* data, const std::size_t size) {
@@ -225,9 +240,16 @@ void ov::npuw::orc::Stream::bytes(void* data, const std::size_t size) {
         return;
     }
 
+    if (m_input_bounded && size > m_input_remaining) {
+        OPENVINO_THROW("ORC read exceeds bounded input stream");
+    }
+
     m_input->read(reinterpret_cast<char*>(data), checked_stream_size(size));
     if (!m_input->good()) {
         OPENVINO_THROW("Unexpected end of ORC input stream");
+    }
+    if (m_input_bounded) {
+        m_input_remaining -= size;
     }
 }
 
@@ -243,6 +265,9 @@ void ov::npuw::orc::serialize(Stream& stream, std::string& value) {
 
     std::size_t size = 0u;
     stream & size;
+    if (stream.has_remaining_limit() && size > stream.remaining()) {
+        OPENVINO_THROW("ORC string exceeds bounded input stream");
+    }
     value.resize(size);
     if (size != 0u) {
         stream.bytes(value.data(), value.size());
