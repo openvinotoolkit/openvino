@@ -1684,7 +1684,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         root.expect_end();
 
         const auto decrypt_fn = decrypt ? decrypt : get_decrypt_callback_or_throw(properties);
-        std::istringstream decrypted_stream(std::move(decrypt_fn(encrypted_payload)));
+        std::istringstream decrypted_stream(decrypt_fn(encrypted_payload));
         while (decrypted_stream.peek() != std::char_traits<char>::eof() &&
                peek_child_header(decrypted_stream).type == CompiledModelDesc::kOrcType) {
             consume_submodel(decrypted_stream);

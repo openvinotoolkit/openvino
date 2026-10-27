@@ -7,9 +7,12 @@
 #include <ze_intel_npu_uuid.h>
 
 #include <atomic>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <string>
+#include <string_view>
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -56,21 +59,23 @@ public:
     inline uint32_t getDriverVersion() const {
         return _driver_properties.driverVersion;
     }
+    inline uint32_t getGraphExtVersion() const {
+        return _graph_dditable_ext_decorator->version();
+    }
     inline uint32_t getMutableCommandListExtVersion() const {
-        return _mutable_command_list_ext_version;
+        return getExtensionVersion(ZE_MUTABLE_COMMAND_LIST_EXP_NAME);
     }
     inline ze_api_version_t getZeDrvApiVersion() const {
         return _ze_drv_api_version;
     }
-    // Helper function to check if extension with <ext_name> exists and its newer than <version>
-    inline bool isExtensionSupported(std::string ext_name, uint32_t version) const {
-        auto iter = _driver_extension_properties.find(ext_name);
-        if (iter == _driver_extension_properties.end()) {
-            return false;
-        } else if (iter->second >= version) {
-            return true;
-        }
-        return false;
+    inline bool isCommandQueueExtSupported() const {
+        return isExtensionSupported(ZE_COMMAND_QUEUE_NPU_EXT_NAME);
+    }
+    inline bool isLUIDExtSupported() const {
+        return isExtensionSupported(ZE_DEVICE_LUID_EXT_NAME);
+    }
+    inline bool isContextExtSupported() const {
+        return isExtensionSupported(ZE_CONTEXT_NPU_EXT_NAME);
     }
     inline bool isExternalMemoryStandardAllocationSupported() const {
         return _external_memory_standard_allocation_supported;
@@ -79,7 +84,7 @@ public:
         return _external_memory_fd_win32_supported;
     }
     inline bool isCommandQueueSetPrioritySupported() const {
-        return _command_queue_set_priority_supported;
+        return isExtensionSupported(ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_NAME);
     }
     inline uint32_t getCommandQueueGroupOrdinal() const {
         return _command_queue_group_ordinal;
@@ -108,6 +113,15 @@ private:
         return _zero_mem_pool;
     }
 
+    // Returns the version negotiated between plugin and driver for <ext_name>, or 0 if the extension is not supported
+    inline uint32_t getExtensionVersion(std::string_view ext_name) const {
+        auto iter = _supported_extensions.find(ext_name);
+        return iter == _supported_extensions.end() ? 0 : iter->second;
+    }
+    inline bool isExtensionSupported(std::string_view ext_name) const {
+        return getExtensionVersion(ext_name) != 0;
+    }
+
     // keep zero_api alive until context is destroyed
     std::shared_ptr<ZeroApi> _zero_api;
 
@@ -117,26 +131,24 @@ private:
     ze_driver_handle_t _driver_handle = nullptr;
     ze_device_handle_t _device_handle = nullptr;
 
-    std::map<std::string, uint32_t> _driver_extension_properties;
+    // Extensions supported by both plugin and driver, keyed by the canonical extension name (without version suffix).
+    // The value is the negotiated version: the plugin target version, or an older version if the driver doesn't
+    // support the target one. Extensions with a major version different from the plugin target are not stored.
+    std::map<std::string, uint32_t, std::less<>> _supported_extensions;
     std::unique_ptr<ze_graph_dditable_ext_decorator> _graph_dditable_ext_decorator;
     std::unique_ptr<ze_command_queue_npu_dditable_ext_decorator> _command_queue_npu_dditable_ext_decorator;
     std::unique_ptr<ze_graph_profiling_dditable_ext_decorator> _graph_profiling_npu_dditable_ext_decorator;
     std::unique_ptr<ze_driver_npu_dditable_ext_decorator> _driver_npu_dditable_ext_decorator;
     std::unique_ptr<ze_context_npu_dditable_ext_decorator> _context_npu_dditable_ext_decorator;
 
-    ze_driver_properties_t _driver_properties = {};
-    uint32_t _mutable_command_list_ext_version = 0;
-
     ze_api_version_t _ze_drv_api_version = {};
-
+    ze_driver_properties_t _driver_properties = {};
     std::optional<ze_device_graph_properties_t> _compiler_properties = std::nullopt;
 
     bool _external_memory_standard_allocation_supported = false;
     bool _external_memory_fd_win32_supported = false;
-    bool _command_queue_set_priority_supported = false;
 
     uint32_t _context_options = 0;
-
     uint32_t _command_queue_group_ordinal = 0;
 
     // Per-context global registry for ZeroMem tracking.

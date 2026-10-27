@@ -137,6 +137,20 @@ inline uint FUNC(calc_linear_offset)(uint b, uint f, uint y, uint x) {
     return index;
 }
 
+// Reads READ_OFFSET x positions starting at x. A partial last block of a row is read per x position:
+// a full block read would run into the next row and, for the last row, past the end of the buffer.
+inline INPUT_VEC FUNC(read_x_block)(const __global INPUT0_TYPE* data, uint offset, uint x) {
+    if (INPUT0_SIZE_X % READ_OFFSET != 0 && x + READ_OFFSET > INPUT0_SIZE_X) {
+        INPUT_VEC input = (INPUT_VEC)(INPUT_INIT_VAL);
+        unroll_for (uint i = 0; i < READ_OFFSET; ++i) {
+            if (x + i < INPUT0_SIZE_X)
+                input[i] = DT_INPUT_BLOCK_READ(data, offset + i * FSV);
+        }
+        return input;
+    }
+    return BLOCK_READ(data, offset);
+}
+
 REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(reduce_fsv16)(
     const __global INPUT0_TYPE* data,
@@ -340,13 +354,14 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
                     #if REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0) && !ZERO_INVARIANT_REDUCTION
                         INPUT_VEC input = (INPUT_VEC)(INPUT_INIT_VAL);
                         if (fi + FSV <= INPUT0_FEATURE_NUM)
-                            input = BLOCK_READ(data, offset);
+                            input = FUNC_CALL(read_x_block)(data, offset, xi);
                         else
                             if (fi + get_sub_group_local_id() < INPUT0_FEATURE_NUM)
                                 for (int i = 0; i < READ_OFFSET; ++i)
-                                    input[i] = data[offset + get_sub_group_local_id() + i * get_max_sub_group_size()];
+                                    if (xi + i < INPUT0_SIZE_X)
+                                        input[i] = data[offset + get_sub_group_local_id() + i * get_max_sub_group_size()];
                     #else
-                        INPUT_VEC input = BLOCK_READ(data, offset);
+                        INPUT_VEC input = FUNC_CALL(read_x_block)(data, offset, xi);
                     #endif
 
                     unroll_for (int i = 0; i < READ_OFFSET; ++i)
@@ -370,8 +385,18 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
     ACTIVATION_VEC reduce_result = TO_ACTIVATION_VEC(final_acc);
 
 #if HAS_FUSED_OPS
-    FUSED_OPS_VECTOR;
-    final_result = (OUTPUT_VEC)(FUSED_OPS_RESULT_VECTOR);
+    if (COMMON_OUTPUT_SIZE_X % READ_OFFSET == 0 || x + READ_OFFSET <= COMMON_OUTPUT_SIZE_X) {
+        FUSED_OPS_VECTOR;
+        final_result = (OUTPUT_VEC)(FUSED_OPS_RESULT_VECTOR);
+    } else {
+        // Fused inputs can have the output shape, so a vector load would also read past the row.
+        unroll_for (uint i = 0; i < READ_OFFSET; ++i) {
+            if (x + i < COMMON_OUTPUT_SIZE_X) {
+                FUSED_OPS_X_TAIL;
+                final_result[i] = FUSED_OPS_RESULT_X_TAIL;
+            }
+        }
+    }
 #else
     final_result = TO_OUTPUT_VEC(ACTIVATION(reduce_result, ACTIVATION_PARAMS));
 #endif

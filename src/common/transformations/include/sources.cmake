@@ -24,6 +24,7 @@ set(OV_OPS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/grouped_matmul_compressed.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/lora_subgraph.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/moe_compressed.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/msda.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/multiclass_nms_ie_internal.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/nms_ie_internal.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/nms_static_shape_ie.hpp
@@ -114,6 +115,7 @@ set(COMMON_OPTIMIZATIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/move_fc_reshape_to_weights.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mul_conv_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mul_fake_quantize_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/multi_scale_deformable_attn_grid_sample_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mvn_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nearest_neighbor_upsampling_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nonzero_horizontal_fusion.hpp
@@ -285,6 +287,7 @@ set(OPSET_CONVERSIONS_HEADERS
 set(PAGED_ATTENTION_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/convert_pagedattn_inputs.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/eliminate_conv_padding_mask_gating.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/gemma4_mtp_state_management_pattern.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_causal_conv1d_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_gated_delta_net_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/position_ids_replacer.hpp
