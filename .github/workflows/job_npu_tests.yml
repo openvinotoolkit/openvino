@@ -11,7 +11,12 @@ on:
         description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
         type: string
         required: false
-        default: '{"TF_FE":{"test":true},"JAX_FE":{"test":true},"PyTorch_FE":{"test":true}}'
+        default: '{"NPU":{"test":true},"TF_FE":{"test":true},"JAX_FE":{"test":true},"PyTorch_FE":{"test":true}}'
+      changed-components:
+        description: 'Components that have changed in the commit defined by the Smart CI Action'
+        type: string
+        required: false
+        default: '{}'
       npu-platforms:
         description: 'JSON list of NPU platforms to compile for (offline), each runs on its own runner. e.g. ["3720","4000","5010","5020","6010"]'
         type: string
