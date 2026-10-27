@@ -5,11 +5,9 @@
 #include "sparse_pa.hpp"
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <iostream>
 #include <limits>
 #include <numeric>
 #include <sstream>
@@ -252,7 +250,8 @@ std::string SparsePALayerCPUTest::getTestCaseName(const testing::TestParamInfo<S
            << "_Page=" << cfg.page_size << "_Kmax=" << cfg.max_selected_blocks
            << "_Sel=" << selection_name(cfg.selection)
            << "_Cache=" << (cfg.cache_precision == ov::element::dynamic ? "plain" : cfg.cache_precision.get_type_name())
-           << "_KeyByChannel=" << cfg.key_bychannel << "_Group=" << cfg.group_size << "_Mixed=" << cfg.mixed_lengths;
+           << "_KeyByChannel=" << cfg.key_bychannel << "_Group=" << cfg.group_size << "_Mixed=" << cfg.mixed_lengths
+           << "_Threads=" << cfg.num_threads;
     return result.str();
 }
 
@@ -711,33 +710,6 @@ void SparsePALayerCPUTest::compare(const std::vector<ov::Tensor>& expected, cons
 
 TEST_P(SparsePALayerCPUTest, CompareWithRefs) {
     run();
-}
-
-// Micro-benchmark, not run by default: --gtest_also_run_disabled_tests --gtest_filter='*SparsePA*Perf*'. Times the
-// compiled op on every step's inputs (the oracle is not evaluated), repeating each step on the same inputs: the plugin
-// rewrites the same cache slots, so the work per repetition stays the same.
-TEST_P(SparsePALayerCPUTest, DISABLED_Perf) {
-    constexpr size_t warmup = 3;
-    constexpr size_t repeats = 20;
-    compile_model();
-    for (size_t step = 0; step < targetStaticShapes.size(); step++) {
-        generate_inputs(targetStaticShapes[step]);
-        inferRequest = compiledModel.create_infer_request();
-        for (const auto& input : inputs) {
-            inferRequest.set_tensor(input.first, input.second);
-        }
-        for (size_t i = 0; i < warmup; i++) {
-            inferRequest.infer();
-        }
-        const auto start = std::chrono::steady_clock::now();
-        for (size_t i = 0; i < repeats; i++) {
-            inferRequest.infer();
-        }
-        const std::chrono::duration<double, std::milli> elapsed = std::chrono::steady_clock::now() - start;
-        std::cout << "[ PERF ] step " << step << " new tokens "
-                  << inputs.at(function->get_parameters()[0]).get_shape()[0] << ": " << elapsed.count() / repeats
-                  << " ms/call\n";
-    }
 }
 
 }  // namespace test

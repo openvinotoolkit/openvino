@@ -197,6 +197,9 @@ public:
     ov::element::Type m_amx_prec;
     TileConfiger m_tile_configer;
     TileConfig m_tile_cfg{};
+    // Largest supported head size: 16 B tiles, i.e. up to three K chunks (see generate()). Up to 192 (6 B tiles) the
+    // whole query stays in tile registers and there is no K loop.
+    static constexpr int kMaxHeadSize = 512;
     JitMatMulVecAMX(int head_size, int block_size, ov::element::Type amx_prec);
 
     void tile_config() {
@@ -213,6 +216,7 @@ public:
     Xbyak::Reg64 reg_dst_addr = abi_param3;
     Xbyak::Reg64 reg_stride_A = rax;
     Xbyak::Reg64 reg_stride_BC = r9;
+    Xbyak::Reg64 reg_k_base = r10;  // original key address, kept while reg_k_addr advances (more than one K chunk)
 
     Xbyak::Tmm tmmC = tmm0;
     Xbyak::Tmm tmmA = tmm1;

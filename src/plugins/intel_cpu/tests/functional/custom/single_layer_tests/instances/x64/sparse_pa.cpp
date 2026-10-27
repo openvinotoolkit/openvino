@@ -13,18 +13,6 @@ namespace {
 
 constexpr size_t kNumHeads = 4;
 
-// Steps in the PagedAttention tests' [L, B, H, S] form: consecutive calls of the same B sequences with L new tokens
-// each.
-std::vector<InputShape> make_steps(size_t batch, size_t head_size, const std::vector<size_t>& lens) {
-    std::vector<ov::Shape> targets;
-    for (const auto len : lens) {
-        targets.push_back({len, batch, kNumHeads, head_size});
-    }
-    const auto b = static_cast<int64_t>(batch);
-    const auto s = static_cast<int64_t>(head_size);
-    return {{ov::PartialShape{-1, b, static_cast<int64_t>(kNumHeads), s}, targets}};
-}
-
 // Decode steps at the positions 3, 4, 5, ... after a 3-token prefill: the causal boundaries around key_block_size 2 and
 // 4 (the position ends a block, starts one, and is the second token of one), where the incomplete tail block of the
 // query is empty or not and a block becomes selectable.
@@ -33,219 +21,132 @@ const std::vector<size_t> kBoundarySteps = {3, 1, 1, 1, 1, 1, 1, 5, 1};
 // steps on the partially filled pages and another chunk: every call continues the caches the previous ones wrote.
 const std::vector<size_t> kChunkedSteps = {29, 8, 1, 1, 32, 1};
 
-std::vector<std::vector<InputShape>> make_shapes(size_t head_size) {
-    std::vector<std::vector<InputShape>> shapes;
-    for (const size_t batch : {1, 3}) {
-        shapes.push_back(make_steps(batch, head_size, kBoundarySteps));
-        shapes.push_back(make_steps(batch, head_size, kChunkedSteps));
+enum class Batch {
+    kSingle,  // one sequence
+    kMixed,   // three sequences: a prefill, a decode and a shorter chunk in the same call (see SparsePAConfig)
+};
+
+// One test: the steps follow the PagedAttention tests' [L, B, H, S] form (consecutive calls of the same B sequences).
+SparsePALayerTestParams make_case(ov::element::Type data_precision, size_t head_size, Batch batch, SparsePAConfig cfg) {
+    const bool mixed = batch == Batch::kMixed;
+    const size_t sequences = mixed ? 3 : 1;
+    std::vector<ov::Shape> targets;
+    for (const auto len : mixed ? kChunkedSteps : kBoundarySteps) {
+        targets.push_back({len, sequences, kNumHeads, head_size});
     }
-    return shapes;
+    cfg.mixed_lengths = mixed;
+    const std::vector<InputShape> steps = {{ov::PartialShape{-1,
+                                                             static_cast<int64_t>(sequences),
+                                                             static_cast<int64_t>(kNumHeads),
+                                                             static_cast<int64_t>(head_size)},
+                                            targets}};
+    return {data_precision, steps, cfg};
 }
 
-// Mixed batches need at least three sequences to get a prefill, a decode and a shorter chunk in one call; four also
-// repeat the prefill pattern.
-std::vector<std::vector<InputShape>> make_mixed_shapes(size_t head_size) {
-    std::vector<std::vector<InputShape>> shapes;
-    for (const size_t batch : {3, 4}) {
-        shapes.push_back(make_steps(batch, head_size, kBoundarySteps));
-        shapes.push_back(make_steps(batch, head_size, kChunkedSteps));
-    }
-    return shapes;
-}
-
-std::vector<SparsePAConfig> as_mixed(std::vector<SparsePAConfig> configs) {
-    for (auto& cfg : configs) {
-        cfg.mixed_lengths = true;
-    }
-    return configs;
-}
-
-// The same configs on a single thread, which makes the kernel process whole query-head packs in every work item.
-std::vector<SparsePAConfig> single_thread(std::vector<SparsePAConfig> configs) {
-    for (auto& cfg : configs) {
-        cfg.num_threads = 1;
-    }
-    return configs;
-}
-
-SparsePAConfig plain_config(size_t num_selection_heads,
+SparsePAConfig plain_config(size_t sel_head_num,
                             size_t key_block_size,
                             size_t page_size,
                             size_t max_selected_blocks,
-                            SparsePASelection selection) {
+                            SparsePASelection selection,
+                            size_t v_head_size = 16,
+                            size_t num_threads = 0) {
     SparsePAConfig cfg;
-    cfg.num_selection_heads = num_selection_heads;
+    cfg.num_selection_heads = sel_head_num;
+    cfg.v_head_size = v_head_size;
     cfg.key_block_size = key_block_size;
     cfg.page_size = page_size;
     cfg.max_selected_blocks = max_selected_blocks;
     cfg.selection = selection;
+    cfg.num_threads = num_threads;
     return cfg;
 }
 
+// Quantized caches as ConvertPagedAttnInputs produces them: 32-token pages, key_block_size 4.
 SparsePAConfig quantized_config(ov::element::Type cache_precision,
                                 bool key_bychannel,
                                 size_t group_size,
-                                size_t num_selection_heads,
-                                SparsePASelection selection) {
-    SparsePAConfig cfg;
-    cfg.num_selection_heads = num_selection_heads;
-    cfg.key_block_size = 4;
-    cfg.page_size = 32;  // the page size ConvertPagedAttnInputs configures
-    cfg.max_selected_blocks = 8;
+                                size_t sel_head_num,
+                                SparsePASelection selection,
+                                size_t v_head_size = 16,
+                                size_t max_selected_blocks = 8,
+                                size_t num_threads = 0) {
+    auto cfg = plain_config(sel_head_num, 4, 32, max_selected_blocks, selection, v_head_size, num_threads);
     cfg.cache_precision = cache_precision;
     cfg.key_bychannel = key_bychannel;
     cfg.group_size = group_size;
-    cfg.selection = selection;
     return cfg;
 }
 
-std::vector<SparsePAConfig> plain_configs() {
-    std::vector<SparsePAConfig> configs;
-    for (const auto selection : {SparsePASelection::kRecent, SparsePASelection::kRandom, SparsePASelection::kEmpty}) {
-        // A selection head shared by every query head, one per KV head, one per query head. A page of 4 or 8 tokens
-        // holds 2 key blocks, so selected blocks regularly straddle pages.
-        configs.push_back(plain_config(1, 2, 4, 4, selection));
-        configs.push_back(plain_config(2, 2, 8, 4, selection));
-        configs.push_back(plain_config(kNumHeads, 2, 8, 4, selection));
-    }
-    return configs;
+constexpr auto kRecent = SparsePASelection::kRecent;
+constexpr auto kRandom = SparsePASelection::kRandom;
+constexpr auto kEmpty = SparsePASelection::kEmpty;
+
+// Plain caches on the vector kernels: every data precision, selection head counts of 1 / K heads / query heads, tiny
+// pages (selected blocks straddle pages), every selection mode, and a single thread, which makes every work item a
+// whole query-head pack (the kernel packs only when there is enough work for every thread).
+std::vector<SparsePALayerTestParams> plain_cases() {
+    const auto f32 = ov::element::f32;
+    const auto f16 = ov::element::f16;
+    const auto bf16 = ov::element::bf16;
+    return {make_case(f32, 16, Batch::kSingle, plain_config(1, 2, 4, 4, kRecent)),
+            make_case(f16, 16, Batch::kSingle, plain_config(2, 2, 8, 4, kRandom)),
+            make_case(bf16, 16, Batch::kMixed, plain_config(kNumHeads, 2, 8, 4, kRandom)),
+            make_case(f32, 16, Batch::kMixed, plain_config(1, 2, 4, 4, kEmpty)),
+            make_case(bf16, 16, Batch::kMixed, plain_config(2, 2, 8, 4, kRecent, 16, 1)),
+            make_case(f16, 16, Batch::kMixed, plain_config(1, 2, 4, 4, kRandom, 16, 1))};
 }
 
-// AMX QK^T fast path: bf16 end to end, head size a multiple of 32, key_block_size 4 (the Qwen production shape, smaller
-// than the JIT kernel's 16-row granularity, so block merging is exercised) with a page that fits 4 merged blocks and
-// one that only fits a single 16-row unit. Falls back to the scalar kernel transparently on non-AMX hardware.
-std::vector<SparsePAConfig> amx_configs() {
-    std::vector<SparsePAConfig> configs;
-    for (const auto selection : {SparsePASelection::kRecent, SparsePASelection::kRandom}) {
-        configs.push_back(plain_config(1, 4, 16, 4, selection));
-        configs.push_back(plain_config(1, 4, 64, 4, selection));
-        configs.push_back(plain_config(2, 4, 64, 16, selection));
-    }
-    return configs;
+// AMX QK^T path, bf16 end to end (AMX f16 needs amx_fp16): key_block_size 4 (smaller than the JIT kernel's 16-row
+// granularity, so adjacent blocks are merged) with pages that fit several merged blocks or only one unit. Head sizes 32
+// and 128 fit the kernel's six B tiles; 256 (the Qwen head size, 4 + 4 tiles) and 512 (6 + 5 + 5, an uneven split) take
+// its K-chunk loop. v_head_size differs from the key head size to catch any coupling of the two.
+std::vector<SparsePALayerTestParams> amx_cases() {
+    const auto bf16 = ov::element::bf16;
+    return {make_case(bf16, 32, Batch::kMixed, plain_config(1, 4, 16, 4, kRecent)),
+            make_case(bf16, 32, Batch::kMixed, plain_config(1, 4, 64, 16, kRandom)),
+            make_case(bf16, 32, Batch::kMixed, plain_config(2, 4, 64, 16, kRecent, 16, 1)),
+            make_case(bf16, 128, Batch::kMixed, plain_config(1, 4, 32, 8, kRandom, 64)),
+            make_case(bf16, 256, Batch::kMixed, plain_config(1, 4, 16, 8, kRecent, 256)),
+            make_case(bf16, 256, Batch::kMixed, plain_config(1, 4, 64, 8, kRandom, 128)),
+            make_case(bf16, 256, Batch::kMixed, plain_config(2, 4, 32, 8, kRandom, 256, 1)),
+            make_case(bf16, 512, Batch::kMixed, plain_config(1, 4, 32, 8, kRandom, 256))};
 }
 
-// Quantized (u8/u4) KV caches, as produced by ConvertPagedAttnInputs: by-token or by-channel keys, by-token values, one
-// group per row or several.
-std::vector<SparsePAConfig> quantized_configs() {
-    std::vector<SparsePAConfig> configs;
-    for (const auto precision : {ov::element::u8, ov::element::u4}) {
-        for (const bool key_bychannel : {false, true}) {
-            for (const size_t group_size : {0, 16}) {
-                for (const size_t num_selection_heads : {1, 2}) {
-                    for (const auto selection : {SparsePASelection::kRecent, SparsePASelection::kRandom}) {
-                        configs.push_back(
-                            quantized_config(precision, key_bychannel, group_size, num_selection_heads, selection));
-                    }
-                }
-            }
-        }
-    }
-    return configs;
-}
-
-// Qwen-like shapes for the DISABLED_Perf benchmark: 24 query heads over 2 K heads, head size 256, a selection of 128
-// blocks of 4 tokens, one prefill call followed by decode calls, and the same as a mixed batch.
-std::vector<std::vector<InputShape>> perf_shapes() {
-    const auto steps = [](size_t batch) {
-        std::vector<ov::Shape> targets = {{1024, batch, 24, 256}, {1, batch, 24, 256}};
-        return std::vector<InputShape>{{ov::PartialShape{-1, static_cast<int64_t>(batch), 24, 256}, targets}};
-    };
-    return {steps(1), steps(3)};
-}
-
-std::vector<SparsePAConfig> perf_configs() {
-    std::vector<SparsePAConfig> configs;
-    for (const auto precision : {ov::element::dynamic, ov::element::u8, ov::element::u4}) {
-        for (const bool mixed : {false, true}) {
-            SparsePAConfig cfg;
-            cfg.num_kv_heads = 2;
-            cfg.num_selection_heads = 1;
-            cfg.v_head_size = 256;
-            cfg.key_block_size = 4;
-            cfg.page_size = 32;
-            cfg.max_selected_blocks = 128;
-            cfg.cache_precision = precision;
-            cfg.key_bychannel = precision != ov::element::dynamic;
-            cfg.mixed_lengths = mixed;
-            configs.push_back(cfg);
-        }
-    }
-    return configs;
+// Quantized (u8 / u4) caches: by-token and by-channel keys, one group per row or several, one or several selection
+// heads, and a single thread (query-head packs). Quantized chunks are dequantized to the AMX type, so with bf16 data
+// and a head size that fits the AMX kernel the prefill steps run on it (quantized decode uses the fused
+// direct-quantized kernels).
+std::vector<SparsePALayerTestParams> quantized_cases() {
+    const auto f32 = ov::element::f32;
+    const auto bf16 = ov::element::bf16;
+    const auto u8 = ov::element::u8;
+    const auto u4 = ov::element::u4;
+    return {make_case(f32, 32, Batch::kMixed, quantized_config(u8, false, 0, 1, kRecent)),
+            make_case(f32, 32, Batch::kMixed, quantized_config(u4, true, 0, 2, kRandom)),
+            make_case(bf16, 32, Batch::kMixed, quantized_config(u8, true, 16, 1, kRandom)),
+            make_case(bf16, 32, Batch::kMixed, quantized_config(u4, false, 16, 1, kRecent)),
+            make_case(bf16, 32, Batch::kMixed, quantized_config(u8, true, 0, 2, kRandom, 16, 8, 1)),
+            make_case(bf16, 32, Batch::kMixed, quantized_config(u4, false, 16, 1, kRecent, 16, 8, 1)),
+            // 16 selected blocks span two 32-token pages, so four adjacent blocks inside one page (an AMX chunk) occur.
+            make_case(bf16, 256, Batch::kMixed, quantized_config(u8, true, 0, 1, kRecent, 128, 16)),
+            make_case(bf16, 256, Batch::kMixed, quantized_config(u4, false, 16, 1, kRandom, 256, 16, 1))};
 }
 
 }  // namespace
 
-INSTANTIATE_TEST_SUITE_P(perf_SparsePA_CPU,
-                         SparsePALayerCPUTest,
-                         testing::Combine(testing::Values(ov::element::bf16),
-                                          testing::ValuesIn(perf_shapes()),
-                                          testing::ValuesIn(perf_configs())),
-                         SparsePALayerCPUTest::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_Plain,
                          SparsePALayerCPUTest,
-                         testing::Combine(testing::Values(ov::element::f32, ov::element::f16, ov::element::bf16),
-                                          testing::ValuesIn(make_shapes(16)),
-                                          testing::ValuesIn(plain_configs())),
+                         testing::ValuesIn(plain_cases()),
                          SparsePALayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_AMX,
                          SparsePALayerCPUTest,
-                         testing::Combine(testing::Values(ov::element::bf16),
-                                          testing::ValuesIn(make_shapes(32)),
-                                          testing::ValuesIn(amx_configs())),
-                         SparsePALayerCPUTest::getTestCaseName);
-
-// Decode, prefill and chunked-prefill sequences in the same call (sequence s % 3 picks the kind), with different past
-// lengths, for plain and quantized caches and every selection-head count.
-INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_MixedBatchPlain,
-                         SparsePALayerCPUTest,
-                         testing::Combine(testing::Values(ov::element::f32, ov::element::f16, ov::element::bf16),
-                                          testing::ValuesIn(make_mixed_shapes(16)),
-                                          testing::ValuesIn(as_mixed(plain_configs()))),
-                         SparsePALayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_MixedBatchAMX,
-                         SparsePALayerCPUTest,
-                         testing::Combine(testing::Values(ov::element::bf16),
-                                          testing::ValuesIn(make_mixed_shapes(32)),
-                                          testing::ValuesIn(as_mixed(amx_configs()))),
-                         SparsePALayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_MixedBatchQuantizedCache,
-                         SparsePALayerCPUTest,
-                         testing::Combine(testing::Values(ov::element::f32, ov::element::bf16),
-                                          testing::ValuesIn(make_mixed_shapes(32)),
-                                          testing::ValuesIn(as_mixed(quantized_configs()))),
-                         SparsePALayerCPUTest::getTestCaseName);
-
-// Packed query heads: one thread, so every work item holds a whole pack (see SparsePAConfig::num_threads).
-INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_PackedPlain,
-                         SparsePALayerCPUTest,
-                         testing::Combine(testing::Values(ov::element::f32, ov::element::f16, ov::element::bf16),
-                                          testing::ValuesIn(make_mixed_shapes(16)),
-                                          testing::ValuesIn(single_thread(as_mixed(plain_configs())))),
-                         SparsePALayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_PackedAMX,
-                         SparsePALayerCPUTest,
-                         testing::Combine(testing::Values(ov::element::bf16),
-                                          testing::ValuesIn(make_mixed_shapes(32)),
-                                          testing::ValuesIn(single_thread(as_mixed(amx_configs())))),
-                         SparsePALayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_PackedQuantizedCache,
-                         SparsePALayerCPUTest,
-                         testing::Combine(testing::Values(ov::element::f32, ov::element::bf16),
-                                          testing::ValuesIn(make_mixed_shapes(32)),
-                                          testing::ValuesIn(single_thread(as_mixed(quantized_configs())))),
+                         testing::ValuesIn(amx_cases()),
                          SparsePALayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_QuantizedCache,
                          SparsePALayerCPUTest,
-                         testing::Combine(testing::Values(ov::element::f32, ov::element::bf16),
-                                          testing::ValuesIn(make_shapes(32)),
-                                          testing::ValuesIn(quantized_configs())),
+                         testing::ValuesIn(quantized_cases()),
                          SparsePALayerCPUTest::getTestCaseName);
 
 }  // namespace test

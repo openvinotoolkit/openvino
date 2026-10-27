@@ -104,6 +104,13 @@ private:
 
     Config m_config{};
     ov::Extensions::Cpu::SparsePAQuant m_quant{};
+#ifdef OPENVINO_ARCH_X86_64
+    // AMX matrix products of the prefill path, see SparsePABrgemm.
+    std::shared_ptr<ov::intel_cpu::BrgemmKernel> m_brgemm_qk;
+    std::shared_ptr<ov::intel_cpu::BrgemmKernel> m_brgemm_pv;
+    std::shared_ptr<ov::intel_cpu::BrgemmKernel> m_brgemm_pv_acc;
+#endif
+    ov::Extensions::Cpu::SparsePABrgemm m_brgemm_handles{};
     MemoryPtr m_scratch;  // per-worker-thread scratch of the kernel, see SparsePAScratchLayout
     size_t m_scratch_bytes_per_thread = 0;
     size_t m_max_run_rows = 0;                  // most key rows of one run, see SparsePAScratchLayout

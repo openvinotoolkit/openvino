@@ -220,11 +220,12 @@ void SparsePA::createPrimitive() {
     m_max_run_rows = page_size != Shape::UNDEFINED_DIM ? page_size : m_config.key_block_size;
 #ifdef OPENVINO_ARCH_X86_64
     const auto Bk = m_config.key_block_size;
-    // JIT kernel limits: head_size must be a whole number of 32-wide bf16/f16 B-tiles, capped at 6
-    // tiles. The JIT kernel's own block_size (rows per AMX call) must be a multiple of 16, but Bk
-    // itself need not be -- see m_amx_unit_blocks below, which merges adjacent selected blocks up
-    // to a valid 16-row-multiple chunk.
-    if (Dh % 32 == 0 && Dh <= 192 && Bk > 0 && page_size != Shape::UNDEFINED_DIM) {
+    // JIT kernel limits: head_size must be a whole number of 32-wide bf16/f16 B-tiles, up to kMaxHeadSize (sizes
+    // above 192 take the kernel's K-chunk loop). The JIT kernel's own block_size (rows per AMX call) must be a multiple
+    // of 16, but Bk itself need not be -- see m_amx_unit_blocks below, which merges adjacent selected blocks up to a
+    // valid 16-row-multiple chunk.
+    if (Dh % 32 == 0 && Dh <= ov::Extensions::Cpu::JitMatMulVecAMX::kMaxHeadSize && Bk > 0 &&
+        page_size != Shape::UNDEFINED_DIM) {
         const auto qprec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
         // The AMX path reads exclusively from KEY_CACHE/VALUE_CACHE (never the transient
         // current-step KEY/VALUE inputs), so those are the precisions that must match QUERY and
@@ -269,6 +270,49 @@ void SparsePA::createPrimitive() {
 #else
     const size_t amx_unit_blocks = 0;
 #endif
+#ifdef OPENVINO_ARCH_X86_64
+    // Prefill with AMX matrix products over the whole selection of a work item (see attend_rows_brgemm in the kernel):
+    // bf16 / f16 data on hardware with the matching AMX, a pack of several query heads (the M of the products; the
+    // kernel runs them as an M tail, so fewer than 32), and the causal selection.
+    {
+        const auto query_prec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
+        const bool amx =
+            (query_prec == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16)) ||
+            (query_prec == ov::element::f16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_fp16));
+        const size_t pack = ov::Extensions::Cpu::max_q_head_pack_size(m_config.num_heads,
+                                                                      m_config.num_kv_heads,
+                                                                      m_config.num_selection_heads);
+        if (amx && m_config.causal && pack > 1 && pack < ov::intel_cpu::BrgemmKernel::get_mblk_size()) {
+            constexpr size_t chunk_rows = 32;  // kBrgemmChunkRows in the kernel
+            // Rows of one item: the selected blocks and the causal tail (fewer than key_block_size rows).
+            const size_t stride =
+                ov::intel_cpu::rnd_up(m_config.max_selected_blocks * m_config.key_block_size + m_config.key_block_size,
+                                      chunk_rows);
+            const auto Dv = m_config.v_head_size;
+            m_brgemm_qk =
+                std::make_shared<ov::intel_cpu::BrgemmKernel>(pack, chunk_rows, Dh, Dh, Dh, stride, true, query_prec);
+            // The weights are stored in the data type over the f32 score rows, so the row stride doubles.
+            m_brgemm_pv = std::make_shared<ov::intel_cpu::BrgemmKernel>(pack,
+                                                                        Dv,
+                                                                        chunk_rows,
+                                                                        2 * stride,
+                                                                        Dv,
+                                                                        Dv,
+                                                                        false,
+                                                                        query_prec);
+            m_brgemm_pv_acc = std::make_shared<ov::intel_cpu::BrgemmKernel>(pack,
+                                                                            Dv,
+                                                                            chunk_rows,
+                                                                            2 * stride,
+                                                                            Dv,
+                                                                            Dv,
+                                                                            false,
+                                                                            query_prec,
+                                                                            true);
+            m_brgemm_handles = {m_brgemm_qk.get(), m_brgemm_pv.get(), m_brgemm_pv_acc.get(), stride};
+        }
+    }
+#endif
     const ov::Extensions::Cpu::SparsePAScratchLayout layout(
         Dh,
         m_config.v_head_size,
@@ -280,7 +324,8 @@ void SparsePA::createPrimitive() {
                                                   m_config.num_kv_heads,
                                                   m_config.num_selection_heads),
         getOriginalInputPrecisionAtPort(InputIdx::QUERY).size(),
-        m_quant);
+        m_quant,
+        ov::Extensions::Cpu::sparse_pa_brgemm_sizes(m_brgemm_handles));
     m_scratch_bytes_per_thread = layout.total;
     const auto num_worker_threads = context->getCpuParallel()->get_num_worker_threads();
     m_scratch = context->getScratchPad()->createScratchPadMem(std::make_shared<CpuBlockedMemoryDesc>(
@@ -372,6 +417,7 @@ void SparsePA::execute([[maybe_unused]] const dnnl::stream& strm) {
                                                   0,
 #endif
                                                   m_max_run_rows,
+                                                  m_brgemm_handles,
                                                   m_scratch->getDataAs<uint8_t>(),
                                                   m_scratch_bytes_per_thread,
                                                   context->getCpuParallel());

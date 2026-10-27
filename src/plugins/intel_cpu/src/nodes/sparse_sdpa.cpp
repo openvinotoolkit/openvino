@@ -150,11 +150,11 @@ void SparseSDPA::createPrimitive() {
     const auto Dh = static_cast<size_t>(getInputShapeAtPort(InputIdx::QUERY).getDims()[3]);
 #ifdef OPENVINO_ARCH_X86_64
     const auto Bk = m_key_block_size;
-    // JIT kernel limits: head_size must be a whole number of 32-wide bf16/f16 B-tiles, capped at 6
-    // tiles. The JIT kernel's own block_size (rows per AMX call) must be a multiple of 16, but Bk
-    // itself need not be -- see m_amx_unit_blocks below, which merges adjacent selected blocks up
-    // to a valid 16-row-multiple chunk.
-    if (Dh % 32 == 0 && Dh <= 192 && Bk > 0) {
+    // JIT kernel limits: head_size must be a whole number of 32-wide bf16/f16 B-tiles, up to kMaxHeadSize (sizes
+    // above 192 take the kernel's K-chunk loop). The JIT kernel's own block_size (rows per AMX call) must be a multiple
+    // of 16, but Bk itself need not be -- see m_amx_unit_blocks below, which merges adjacent selected blocks up to a
+    // valid 16-row-multiple chunk.
+    if (Dh % 32 == 0 && Dh <= ov::Extensions::Cpu::JitMatMulVecAMX::kMaxHeadSize && Bk > 0) {
         const auto qprec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
         // the cache of the stateful form is always kept in the query's precision
         const auto kprec = m_fuse_concat ? m_cache_prec : getOriginalInputPrecisionAtPort(InputIdx::KEY);

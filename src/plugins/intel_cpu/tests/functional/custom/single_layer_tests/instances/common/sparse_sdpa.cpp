@@ -45,7 +45,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparseSDPA_CPU_AMX,
                                           testing::Values(static_cast<size_t>(1)),
                                           testing::Values(true, false),
                                           testing::Values(static_cast<size_t>(1)),
-                                          testing::Values(static_cast<size_t>(32)),
+                                          // 256 (the Qwen head size) is above the 192 that fit the six B tiles of the
+                                          // AMX kernel and takes its K-chunk loop.
+                                          testing::Values(static_cast<size_t>(32), static_cast<size_t>(256)),
                                           testing::Values(static_cast<size_t>(4)),
                                           testing::Values(std::vector<size_t>{})),
                          SparseSDPALayerCPUTest::getTestCaseName);
