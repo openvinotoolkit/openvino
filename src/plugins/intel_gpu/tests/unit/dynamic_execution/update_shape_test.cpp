@@ -573,8 +573,9 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
 
     // Allocation-time and execution-time micro/non-micro decisions must agree; a mismatch shows up
     // as the wrong buffer count. token_type_ids no longer forces the non-micro path in MIXED.
+    // The micro path has one extra buffer for the token_type_ids group bounds.
     const bool micro_layout = engine.get_device_info().supports_immad;
-    ASSERT_EQ(intermediate_mems.size(), micro_layout ? 4u : 7u);
+    ASSERT_EQ(intermediate_mems.size(), micro_layout ? 5u : 7u);
 }
 TEST(update_shape_test, paged_attention_mixed_stage_h256_micro_qtile64_buffers) {
     tests::random_generator rg(GET_SUITE_NAME);
@@ -846,10 +847,9 @@ TEST(update_shape_test, paged_attention_mixed_stage_h256_micro_qtile64_buffers) 
         << "size matches the generic h256 PA config with q tile 32 (aligned_seq_len " << aligned_qtile32
         << "): " << dump_sizes();
     EXPECT_EQ(intermediate_mems[0]->size(), ((aligned_qtile64 + 15) / 16) * 4) << dump_sizes();
-    if (intermediate_mems.size() > 4) {
-        ASSERT_EQ(intermediate_mems[4]->size(), 16u) << dump_sizes();
-        ASSERT_EQ(intermediate_mems[5]->size(), 16u) << dump_sizes();
-    }
+    // [4]: token_type_ids group bounds for the micro kernel, two int32 values per token
+    ASSERT_EQ(intermediate_mems.size(), 5u) << dump_sizes();
+    ASSERT_EQ(intermediate_mems[4]->size(), 200u * 2 * sizeof(int32_t)) << dump_sizes();
 }
 
 }  // update_shape_test

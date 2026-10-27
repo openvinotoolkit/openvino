@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from openvino import PartialShape, Dimension, Model, Type
-from openvino.exceptions import UserInputError
+from openvino.exceptions import OVTypeError, UserInputError
 from openvino.utils.types import make_constant_node
 
 import openvino.opset1 as ov_opset1
@@ -1008,6 +1008,33 @@ def test_read_value():
     assert read_value_attributes["variable_type"] == "i32"
     assert read_value_attributes["variable_id"] == "var_id_667"
     assert read_value_attributes["variable_shape"] == [2, 2]
+
+
+@pytest.mark.parametrize(("variable_type", "expected_type"), [
+    ("i32", Type.i32),
+    ("f32", Type.f32),
+    ("boolean", Type.boolean),
+])
+def test_read_value_with_type_name(variable_type, expected_type):
+    init_value = ov.parameter([2, 2], name="init_value", dtype=expected_type)
+
+    node = ov.read_value(init_value, "var_id_667", variable_type, [2, 2])
+    assert node.get_output_element_type(0) == expected_type
+    assert node.get_attributes()["variable_type"] == variable_type
+
+    node = ov.read_value("var_id_668", variable_type, [2, 2])
+    assert node.get_output_element_type(0) == expected_type
+    assert node.get_attributes()["variable_type"] == variable_type
+
+
+@pytest.mark.parametrize("variable_type", ["nonsense", "real", "to_string"])
+def test_read_value_with_unknown_type_name(variable_type):
+    init_value = ov.parameter([2, 2], name="init_value", dtype=np.float32)
+
+    with pytest.raises(OVTypeError, match=f"Unidentified data type {variable_type}"):
+        ov.read_value(init_value, "var_id_667", variable_type, [2, 2])
+    with pytest.raises(OVTypeError, match=f"Unidentified data type {variable_type}"):
+        ov.read_value("var_id_668", variable_type, [2, 2])
 
 
 def test_read_value_ctors():
