@@ -1645,8 +1645,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // The fused QSA ops only have CM implementations: without them a fused node has no
         // impl and compile_model fails, so keep the generic graph on devices/builds lacking CM.
-        const bool fused_cm_ops_available =
-            device_info.supports_immad && config.get_use_cm() && cldnn::check_cm_jit_support(m_context->get_engine(), config);
+        const bool fused_cm_ops_available = device_info.supports_immad && config.get_use_cm() && cldnn::check_cm_jit_support(m_context->get_engine(), config);
 
         // Runs before RoPEFusion, which would otherwise absorb the indexer's RoPE table
         // gather that SparseAttentionFusion proves position_ids from.

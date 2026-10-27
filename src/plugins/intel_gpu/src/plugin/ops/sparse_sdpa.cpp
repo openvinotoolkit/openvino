@@ -3,10 +3,11 @@
 //
 
 #include "intel_gpu/op/sparse_sdpa.hpp"
-#include "openvino/op/constant.hpp"
+
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/sparse_sdpa.hpp"
+#include "openvino/op/constant.hpp"
 
 // Only the selected_block_indices/selected_block_count plan form is lowered. A SCALE input must be a Constant so
 // its value can be folded into the primitive's scale field, and attention sinks are not
@@ -26,10 +27,19 @@ static void CreateSparseSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::inte
 
     std::string reason;
     OPENVINO_ASSERT(ov::intel_gpu::op::SparseSDPA::validate_config(op->get_config(), reason), "[GPU] Cannot lower SparseSDPA op '", layer_name, "': ", reason);
-    OPENVINO_ASSERT(op->get_config().num_selection_heads == 1, "[GPU] SparseSDPA '", layer_name, "': only num_selection_heads == 1 is supported, got ", op->get_config().num_selection_heads);
+    OPENVINO_ASSERT(op->get_config().num_selection_heads == 1,
+                    "[GPU] SparseSDPA '",
+                    layer_name,
+                    "': only num_selection_heads == 1 is supported, got ",
+                    op->get_config().num_selection_heads);
     for (size_t idx : {In::QUERY, In::KEY, In::VALUE}) {
         OPENVINO_ASSERT(op->get_input_element_type(idx) == ov::element::f16,
-                        "[GPU] SparseSDPA '", layer_name, "': input ", idx, " must be f16, got ", op->get_input_element_type(idx));
+                        "[GPU] SparseSDPA '",
+                        layer_name,
+                        "': input ",
+                        idx,
+                        " must be f16, got ",
+                        op->get_input_element_type(idx));
     }
 
     float resolved_scale = 1.0f / std::sqrt(static_cast<float>(op->get_config().k_head_size));

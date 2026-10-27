@@ -2,12 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "plugin/transformations/sparse_attention_fusion.hpp"
+
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "intel_gpu/op/qsa_indexer.hpp"
+#include "intel_gpu/op/sparse_sdpa.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/assign.hpp"
@@ -19,6 +23,8 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_qsa_indexer.hpp"
+#include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reduce_mean.hpp"
@@ -32,30 +38,25 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/variable.hpp"
-#include "openvino/op/paged_qsa_indexer.hpp"
-#include "intel_gpu/op/qsa_indexer.hpp"
-#include "openvino/op/paged_sparse_attention.hpp"
-#include "intel_gpu/op/sparse_sdpa.hpp"
 #include "openvino/pass/manager.hpp"
-#include "plugin/transformations/sparse_attention_fusion.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
 
 namespace {
 
-constexpr int64_t Di = 16;    // indexer head dim
-constexpr int64_t Hidx = 2;   // indexer query heads
-constexpr int64_t D = 32;     // hidden size
-constexpr int64_t Hq = 4;     // main attention heads
-constexpr int64_t Hkv = 2;    // paged kv heads (GQA)
+constexpr int64_t Di = 16;              // indexer head dim
+constexpr int64_t Hidx = 2;             // indexer query heads
+constexpr int64_t D = 32;               // hidden size
+constexpr int64_t Hq = 4;               // main attention heads
+constexpr int64_t Hkv = 2;              // paged kv heads (GQA)
 constexpr int64_t dense_kv_heads = Hq;  // SDPA v13 needs K/V already expanded to Hq heads
-constexpr int64_t Dh = 16;    // main K/V head size
-constexpr int64_t r = 4;      // compress ratio
-constexpr int64_t Rd = 8;     // indexer rotary dim (partial: Rd < Di)
+constexpr int64_t Dh = 16;              // main K/V head size
+constexpr int64_t r = 4;                // compress ratio
+constexpr int64_t Rd = 8;               // indexer rotary dim (partial: Rd < Di)
 constexpr int64_t max_positions = 64;
 constexpr int64_t block_topk = 1;
-constexpr float eps = 1e-5f;  // deliberately not the 1e-6 default
+constexpr float eps = 1e-5f;      // deliberately not the 1e-6 default
 constexpr float q_gain_w = 0.5f;  // q leg uses an unfolded `1 + w` gain
 // The pass runs after ConvertPrecision, so the data path is already f16.
 const auto et = ov::element::f16;
@@ -141,11 +142,11 @@ struct IndexerGraph {
 /// Perturbations of the spec graph that the fusion must refuse.
 enum class IndexerVariant {
     Spec,
-    NormBeforePool,   // Mean(RMSNorm(K)): not equivalent to the spec
-    RopeBeforeNorm,   // RMSNorm(RoPE(Mean(K))): not equivalent to the spec
-    QueryBias,        // a bias between the projection and the Q norm would be dropped
-    NormOverHeads,    // the Q norm reduces over the head axis instead of Di
-    SwappedSlices,    // Q takes the last Di channels and K the first
+    NormBeforePool,  // Mean(RMSNorm(K)): not equivalent to the spec
+    RopeBeforeNorm,  // RMSNorm(RoPE(Mean(K))): not equivalent to the spec
+    QueryBias,       // a bias between the projection and the Q norm would be dropped
+    NormOverHeads,   // the Q norm reduces over the head axis instead of Di
+    SwappedSlices,   // Q takes the last Di channels and K the first
 };
 
 IndexerGraph build_indexer_graph(RopeLayout layout, IndexerVariant variant = IndexerVariant::Spec) {
@@ -153,7 +154,8 @@ IndexerGraph build_indexer_graph(RopeLayout layout, IndexerVariant variant = Ind
     g.mixed = std::make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{-1, -1, D});
     g.positions = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
 
-    auto qk_weight = ov::op::v0::Constant::create(et, ov::Shape{static_cast<size_t>((Hidx + 1) * Di), static_cast<size_t>(D)},
+    auto qk_weight = ov::op::v0::Constant::create(et,
+                                                  ov::Shape{static_cast<size_t>((Hidx + 1) * Di), static_cast<size_t>(D)},
                                                   std::vector<float>((Hidx + 1) * Di * D, 0.01f));
     auto qk_proj = std::make_shared<ov::op::v0::MatMul>(g.mixed, qk_weight, false, true);  // [B, L, (Hidx+1)*Di]
 
@@ -164,8 +166,9 @@ IndexerGraph build_indexer_graph(RopeLayout layout, IndexerVariant variant = Ind
         k_src = last_axis_slice(qk_proj, 0, Di);
     }
     if (variant == IndexerVariant::QueryBias) {
-        q_src = std::make_shared<ov::op::v1::Add>(q_src, ov::op::v0::Constant::create(et, ov::Shape{static_cast<size_t>(Hidx * Di)},
-                                                                                      std::vector<float>(Hidx * Di, 0.25f)));
+        q_src = std::make_shared<ov::op::v1::Add>(
+            q_src,
+            ov::op::v0::Constant::create(et, ov::Shape{static_cast<size_t>(Hidx * Di)}, std::vector<float>(Hidx * Di, 0.25f)));
     }
     auto q_heads = std::make_shared<ov::op::v1::Reshape>(q_src, i64_const({0, 0, Hidx, Di}), true);
     auto q_w = ov::op::v0::Constant::create(et, ov::Shape{static_cast<size_t>(Di)}, std::vector<float>(Di, q_gain_w));
@@ -200,8 +203,7 @@ IndexerGraph build_indexer_graph(RopeLayout layout, IndexerVariant variant = Ind
     };
     auto idx_q = std::make_shared<ov::op::v1::Add>(q_normed, std::make_shared<ov::op::v0::Unsqueeze>(rope_sum(), i64_const({2})));  // [B, L, Hidx, Di]
 
-    auto raw_k_variable =
-        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ov::PartialShape{-1, -1, Di}, et, "raw_k"});
+    auto raw_k_variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ov::PartialShape{-1, -1, Di}, et, "raw_k"});
     g.raw_k_read_value = std::make_shared<ov::op::v6::ReadValue>(raw_k_variable);
     ov::Output<ov::Node> k_tokens = k_raw;
     if (variant == IndexerVariant::NormBeforePool) {
@@ -211,7 +213,7 @@ IndexerGraph build_indexer_graph(RopeLayout layout, IndexerVariant variant = Ind
     auto raw_k_history = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{g.raw_k_read_value, new_k_flat}, 1);  // [B, ?, Di]
     g.raw_k_assign = std::make_shared<ov::op::v6::Assign>(raw_k_history, raw_k_variable);
 
-    auto pool_reshaped = std::make_shared<ov::op::v1::Reshape>(raw_k_history, i64_const({0, -1, r, Di}), true);  // [B, ?, r, Di]
+    auto pool_reshaped = std::make_shared<ov::op::v1::Reshape>(raw_k_history, i64_const({0, -1, r, Di}), true);       // [B, ?, r, Di]
     ov::Output<ov::Node> block_key = std::make_shared<ov::op::v1::ReduceMean>(pool_reshaped, i64_const({2}), false);  // [B, ?, Di]
     if (variant == IndexerVariant::RopeBeforeNorm) {
         block_key = rms_norm(std::make_shared<ov::op::v1::Add>(block_key, rope_sum()), k_gain);
@@ -224,8 +226,11 @@ IndexerGraph build_indexer_graph(RopeLayout layout, IndexerVariant variant = Ind
     auto relu = std::make_shared<ov::op::v0::Relu>(logits);
     auto reduced = std::make_shared<ov::op::v1::ReduceSum>(relu, i64_const({2}), false);  // [B, L, ?]
     auto scaled = std::make_shared<ov::op::v1::Multiply>(reduced, f32_scalar(1.0f / std::sqrt(static_cast<float>(Di))));
-    g.topk = std::make_shared<ov::op::v11::TopK>(scaled, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {block_topk}), 2,
-                                                 ov::op::v11::TopK::Mode::MAX, ov::op::v11::TopK::SortType::SORT_VALUES);
+    g.topk = std::make_shared<ov::op::v11::TopK>(scaled,
+                                                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {block_topk}),
+                                                 2,
+                                                 ov::op::v11::TopK::Mode::MAX,
+                                                 ov::op::v11::TopK::SortType::SORT_VALUES);
     return g;
 }
 
@@ -277,8 +282,7 @@ DenseGraph build_dense_graph(DenseAttn attn, RopeLayout layout = RopeLayout::Hal
     case DenseAttn::TopkMask:
     case DenseAttn::NonDefaultScale: {
         const float scale = attn == DenseAttn::TopkMask ? 1.0f / std::sqrt(static_cast<float>(Dh)) : 0.5f;
-        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_param, k_full, v_full, zero_from_topk(g.topk->output(0)), f32_scalar(scale),
-                                                                        false);
+        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_param, k_full, v_full, zero_from_topk(g.topk->output(0)), f32_scalar(scale), false);
         break;
     }
     }

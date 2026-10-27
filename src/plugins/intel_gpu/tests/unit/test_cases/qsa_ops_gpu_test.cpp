@@ -28,24 +28,18 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
-#include <iomanip>
-#include <iostream>
-#include <limits>
-#include <map>
-#include <memory>
-#include <numeric>
-#include <set>
-#include <sstream>
-#include <string>
-#include <tuple>
-#include <vector>
-
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/paged_qsa_indexer.hpp>
 #include <intel_gpu/primitives/qsa_indexer.hpp>
 #include <intel_gpu/primitives/sparse_pa.hpp>
 #include <intel_gpu/primitives/sparse_sdpa.hpp>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <map>
+#include <memory>
+#include <numeric>
 #include <openvino/op/assign.hpp>
 #include <openvino/op/concat.hpp>
 #include <openvino/op/constant.hpp>
@@ -54,6 +48,11 @@
 #include <openvino/op/read_value.hpp>
 #include <openvino/op/result.hpp>
 #include <openvino/op/util/variable.hpp>
+#include <set>
+#include <sstream>
+#include <string>
+#include <tuple>
+#include <vector>
 
 #include "impls/ocl/kernel_selector_helper.h"
 #include "openvino/runtime/core.hpp"
@@ -82,10 +81,10 @@ int64_t I(size_t v) {
 }
 
 struct split_dims {
-    size_t Hiq = 2;   // index-query heads (H_ik == 1 fixed in v1)
-    size_t Di = 16;   // indexer head dim
+    size_t Hiq = 2;  // index-query heads (H_ik == 1 fixed in v1)
+    size_t Di = 16;  // indexer head dim
     size_t rotary = 8;
-    size_t r = 4;      // key_block_size
+    size_t r = 4;  // key_block_size
     size_t block_topk = 2;
     size_t page_size = 16;
     size_t max_positions = 64;
@@ -295,14 +294,14 @@ struct split_reference {
     size_t past_len = 0;
     size_t q_len = 0;
 
-    std::vector<int32_t> positions;  // [total_len]
-    std::vector<float> raw_index_keys_all;    // [total_len, Di]
-    std::vector<float> index_query_cur;    // [q_len, Hiq, Di]
-    std::vector<float> key_all;      // [total_len, Hkv*Dh]
-    std::vector<float> value_all;    // [total_len, Hkv*Dv]
-    std::vector<float> query_cur;    // [q_len, Hq*Dh]
+    std::vector<int32_t> positions;         // [total_len]
+    std::vector<float> raw_index_keys_all;  // [total_len, Di]
+    std::vector<float> index_query_cur;     // [q_len, Hiq, Di]
+    std::vector<float> key_all;             // [total_len, Hkv*Dh]
+    std::vector<float> value_all;           // [total_len, Hkv*Dv]
+    std::vector<float> query_cur;           // [q_len, Hq*Dh]
     std::vector<float> q_norm, k_norm;
-    std::vector<float> rotary;       // [max_positions, rotary], interleaved (cos_j, sin_j)
+    std::vector<float> rotary;  // [max_positions, rotary], interleaved (cos_j, sin_j)
 
     mutable std::map<size_t, std::vector<float>> summary_memo;
 
@@ -426,8 +425,7 @@ std::vector<int32_t> make_positions(size_t total, Positions kind) {
     return pos;
 }
 
-split_reference make_split_reference(tests::random_generator& rg, const split_dims& dims, size_t past_len, size_t q_len, Positions kind,
-                                     float scale = 1.0f) {
+split_reference make_split_reference(tests::random_generator& rg, const split_dims& dims, size_t past_len, size_t q_len, Positions kind, float scale = 1.0f) {
     split_reference ref;
     ref.d = dims;
     ref.past_len = past_len;
@@ -661,8 +659,7 @@ void set_paged_inputs(engine& engine, network& net, const paged_inputs& in, Stag
         net.set_input_data("rope_sin", make_f16(engine, {q, I(d.rotary)}, rope_sin));
         net.set_input_data("block_index_keys_cache", make_f16(engine, {np, 1, I(in.spp), I(d.Di)}, in.block_index_keys_cache));
         net.set_input_data("raw_k_cache", make_f16(engine, {np, 1, I(d.page_size), I(d.Di)}, in.raw_k_cache));
-        net.set_input_data("rope_cache",
-                           make_f16(engine, {np, I(in.spp), I(2 * d.rotary)}, rope_cache_rows(in.rotary, d.rotary, in.position_cache)));
+        net.set_input_data("rope_cache", make_f16(engine, {np, I(in.spp), I(2 * d.rotary)}, rope_cache_rows(in.rotary, d.rotary, in.position_cache)));
     }
     if (stage != Stage::IndexerOnly) {
         net.set_input_data("query", make_f16(engine, {q, I(d.Hq * d.Dh)}, in.query));
@@ -797,8 +794,8 @@ struct dense_inputs {
     std::vector<int32_t> key_length;  // [B], valid tokens after the call
     std::vector<float> index_query, raw_index_keys, rope_cos, rope_sin, q_norm, k_norm;
     std::vector<float> block_index_keys_cache;  // [B, 1, summary_cap, Di]
-    std::vector<float> raw_state;      // [B, 1, r - 1, Di], slot p % r of the incomplete block
-    std::vector<float> rope_state;     // [B, 2 * rotary], first-token row of the incomplete block
+    std::vector<float> raw_state;               // [B, 1, r - 1, Di], slot p % r of the incomplete block
+    std::vector<float> rope_state;              // [B, 2 * rotary], first-token row of the incomplete block
     std::vector<float> query_bhld, key_bhsd, value_bhsd;
     selection_plan plan;  // only used when the attention runs without the indexer
 };
@@ -920,7 +917,15 @@ dense_inputs dense_inputs_synthetic(const split_dims& dims, size_t past_len, siz
     in.plan = synthetic_plan(d, past_len, q_len);
     // Every batch row repeats row 0's content (all tensors are batch-major).
     in.batch = batch;
-    for (auto* v : {&in.index_query, &in.raw_index_keys, &in.rope_cos, &in.rope_sin, &in.block_index_keys_cache, &in.raw_state, &in.rope_state, &in.query_bhld, &in.key_bhsd,
+    for (auto* v : {&in.index_query,
+                    &in.raw_index_keys,
+                    &in.rope_cos,
+                    &in.rope_sin,
+                    &in.block_index_keys_cache,
+                    &in.raw_state,
+                    &in.rope_state,
+                    &in.query_bhld,
+                    &in.key_bhsd,
                     &in.value_bhsd}) {
         const auto row = *v;
         v->reserve(row.size() * batch);
@@ -1046,8 +1051,8 @@ std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs&
 // ---------------------------------------------------------------------------
 
 struct pair_outputs {
-    selection_plan plan;     // GPU indexer outputs, flat
-    std::vector<float> attn; // token-major [q_len, Hq*Dv]
+    selection_plan plan;      // GPU indexer outputs, flat
+    std::vector<float> attn;  // token-major [q_len, Hq*Dv]
     std::vector<std::string> indexer_kernels, attention_kernels;
 };
 
@@ -1184,8 +1189,8 @@ error_stats compute_error_stats(const std::vector<float>& actual, const std::vec
 }
 
 void print_error_stats(const char* label, const error_stats& s) {
-    std::cout << "QSA_PRECISION " << label << " n=" << s.count << " non_finite=" << s.non_finite << " max_abs=" << s.max_abs
-              << " mean_abs=" << s.mean_abs << " max_rel=" << s.max_rel << std::endl;
+    std::cout << "QSA_PRECISION " << label << " n=" << s.count << " non_finite=" << s.non_finite << " max_abs=" << s.max_abs << " mean_abs=" << s.mean_abs
+              << " max_rel=" << s.max_rel << std::endl;
 }
 
 /// Checks the GPU plan against the reference scores (count exact; every selected block
@@ -1420,9 +1425,15 @@ paged_inputs pack_paged_inputs(const std::vector<split_reference>& refs) {
         in.past_lens.push_back(one.past_lens[0]);
         in.q_norm = one.q_norm;
         in.k_norm = one.k_norm;
-        for (auto [dst, src] : {std::pair{&in.index_query, &one.index_query}, {&in.raw_index_keys, &one.raw_index_keys}, {&in.query, &one.query}, {&in.key, &one.key},
-                                {&in.value, &one.value}, {&in.key_cache, &one.key_cache}, {&in.value_cache, &one.value_cache},
-                                {&in.raw_k_cache, &one.raw_k_cache}, {&in.block_index_keys_cache, &one.block_index_keys_cache}}) {
+        for (auto [dst, src] : {std::pair{&in.index_query, &one.index_query},
+                                {&in.raw_index_keys, &one.raw_index_keys},
+                                {&in.query, &one.query},
+                                {&in.key, &one.key},
+                                {&in.value, &one.value},
+                                {&in.key_cache, &one.key_cache},
+                                {&in.value_cache, &one.value_cache},
+                                {&in.raw_k_cache, &one.raw_k_cache},
+                                {&in.block_index_keys_cache, &one.block_index_keys_cache}}) {
             append(*dst, *src);
         }
         append(in.position_ids, one.position_ids);
@@ -2000,7 +2011,14 @@ std::vector<std::vector<size_t>> plan_selections(const selection_plan& plan, siz
     return out;
 }
 
-void run_padded_kv_attention_test(const split_dims& d, size_t past_len, size_t q_len, size_t k_pad, size_t v_pad, AttnPath path, float rtol, float atol = 2e-3f) {
+void run_padded_kv_attention_test(const split_dims& d,
+                                  size_t past_len,
+                                  size_t q_len,
+                                  size_t k_pad,
+                                  size_t v_pad,
+                                  AttnPath path,
+                                  float rtol,
+                                  float atol = 2e-3f) {
     if (!cm_qsa_ops_available()) {
         GTEST_SKIP() << "CM is not supported on this device";
     }
@@ -2471,7 +2489,7 @@ ov::OutputVector make_sparse_pa_args(const split_dims& d, size_t num_pages) {
             make_param({-1}, ov::element::i32),
             make_param({-1, 1, I(d.block_topk)}, ov::element::i32),
             make_param({-1, 1}, ov::element::i32),
-            make_param({}),   // scale
+            make_param({}),    // scale
             make_param({0})};  // sinks: empty = none
 }
 
@@ -2715,10 +2733,10 @@ double attention_bytes(const split_dims& d, size_t past_len, size_t q_len) {
 
 void print_perf(const char* op, const perf_case& c, const perf_timing& t, double bytes) {
     const double gbps = bytes / (t.avg_ms * 1e-3) / 1e9;
-    std::cout << "QSA_PERF " << std::left << std::setw(16) << op << " mode=" << std::setw(7) << (c.q_len == 1 ? "decode" : "prefill")
-              << " ctx=" << std::setw(6) << (c.past_len + c.q_len) << " q=" << std::setw(5) << c.q_len << std::right << std::fixed << std::setprecision(3)
-              << " avg_ms=" << std::setw(8) << t.avg_ms << " min_ms=" << std::setw(8) << t.min_ms << std::setprecision(1) << " est_MB=" << std::setw(7)
-              << bytes / 1e6 << " eff_GB/s=" << std::setw(6) << gbps << " (BMG peak 456)" << std::endl;
+    std::cout << "QSA_PERF " << std::left << std::setw(16) << op << " mode=" << std::setw(7) << (c.q_len == 1 ? "decode" : "prefill") << " ctx=" << std::setw(6)
+              << (c.past_len + c.q_len) << " q=" << std::setw(5) << c.q_len << std::right << std::fixed << std::setprecision(3) << " avg_ms=" << std::setw(8)
+              << t.avg_ms << " min_ms=" << std::setw(8) << t.min_ms << std::setprecision(1) << " est_MB=" << std::setw(7) << bytes / 1e6
+              << " eff_GB/s=" << std::setw(6) << gbps << " (BMG peak 456)" << std::endl;
 }
 
 class qsa_ops_perf : public ::testing::TestWithParam<perf_case> {};
@@ -2783,8 +2801,8 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_qsa_ops_perf,
                                            perf_case{false, 0, 4096, true}),
                          [](const ::testing::TestParamInfo<perf_case>& info) {
                              const auto& c = info.param;
-                             return std::string(c.paged ? "paged" : "dense") + "_ctx" + std::to_string(c.past_len + c.q_len) + "_q" +
-                                    std::to_string(c.q_len) + (c.no_dpas_score ? "_nodpasq2" : "");
+                             return std::string(c.paged ? "paged" : "dense") + "_ctx" + std::to_string(c.past_len + c.q_len) + "_q" + std::to_string(c.q_len) +
+                                    (c.no_dpas_score ? "_nodpasq2" : "");
                          });
 
 // Per-kernel sweep driver for external GPU tracing (e.g. onetrace -d): one dense (QSAIndexer +
@@ -2845,8 +2863,8 @@ TEST(qsa_ops_perf_sweep, DISABLED_pair) {
         total += ms;
         best = std::min(best, ms);
     }
-    std::cout << "QSA_SWEEP impl=" << impl << " phase=" << phase << " B=" << batch << " len=" << len << " calls=" << warmup + iterations << " wall_avg_ms=" << total / iterations
-              << " wall_min_ms=" << best << " flush_mb=" << flush_mb << std::endl;
+    std::cout << "QSA_SWEEP impl=" << impl << " phase=" << phase << " B=" << batch << " len=" << len << " calls=" << warmup + iterations
+              << " wall_avg_ms=" << total / iterations << " wall_min_ms=" << best << " flush_mb=" << flush_mb << std::endl;
 }
 
 }  // namespace

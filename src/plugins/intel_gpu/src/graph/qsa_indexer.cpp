@@ -23,16 +23,22 @@ template <typename ShapeType>
 std::vector<layout> qsa_indexer_inst::calc_output_layouts(const qsa_indexer_node& node, const kernel_impl_params& impl_param) {
     const auto& desc = impl_param.typed_desc<qsa_indexer>();
     const auto index_query_shape = impl_param.get_input_layout(qsa_indexer::InputIdx::INDEX_QUERY).get<ShapeType>();
-    OPENVINO_ASSERT(index_query_shape.rank().is_static() && index_query_shape.size() == 4, "[GPU] qsa_indexer expects a rank-4 [B, L, H_iq, D_idx] index_query input");
+    OPENVINO_ASSERT(index_query_shape.rank().is_static() && index_query_shape.size() == 4,
+                    "[GPU] qsa_indexer expects a rank-4 [B, L, H_iq, D_idx] index_query input");
 
     const auto num_selection_heads_dim = ov::Dimension(static_cast<int64_t>(desc->num_selection_heads));
-    ShapeType selected_block_indices_shape{index_query_shape[0], num_selection_heads_dim, index_query_shape[1], ov::Dimension(static_cast<int64_t>(desc->block_topk))};
+    ShapeType selected_block_indices_shape{index_query_shape[0],
+                                           num_selection_heads_dim,
+                                           index_query_shape[1],
+                                           ov::Dimension(static_cast<int64_t>(desc->block_topk))};
     ShapeType selected_block_count_shape{index_query_shape[0], num_selection_heads_dim, index_query_shape[1]};
 
-    std::vector<layout> layouts = {layout{selected_block_indices_shape, ov::element::i32, cldnn::format::get_default_format(selected_block_indices_shape.size())},
-                                   layout{selected_block_count_shape, ov::element::i32, cldnn::format::get_default_format(selected_block_count_shape.size())}};
+    std::vector<layout> layouts = {
+        layout{selected_block_indices_shape, ov::element::i32, cldnn::format::get_default_format(selected_block_indices_shape.size())},
+        layout{selected_block_count_shape, ov::element::i32, cldnn::format::get_default_format(selected_block_count_shape.size())}};
     // The updated state has the shape and type of the corresponding state input.
-    for (size_t in : {qsa_indexer::InputIdx::BLOCK_INDEX_KEYS_CACHE, qsa_indexer::InputIdx::PAST_INCOMPLETE_RAW_K, qsa_indexer::InputIdx::PAST_INCOMPLETE_ROPE}) {
+    for (size_t in :
+         {qsa_indexer::InputIdx::BLOCK_INDEX_KEYS_CACHE, qsa_indexer::InputIdx::PAST_INCOMPLETE_RAW_K, qsa_indexer::InputIdx::PAST_INCOMPLETE_ROPE}) {
         const auto& in_layout = impl_param.get_input_layout(in);
         const auto shape = in_layout.get<ShapeType>();
         layouts.emplace_back(shape, in_layout.data_type, cldnn::format::get_default_format(shape.size()));
@@ -62,7 +68,9 @@ std::string qsa_indexer_inst::to_string(const qsa_indexer_node& node) {
 
 qsa_indexer_inst::typed_primitive_inst(network& network, const qsa_indexer_node& node) : parent(network, node) {
     std::string reason;
-    OPENVINO_ASSERT(ov::intel_gpu::op::QSAIndexer::validate_config(node.get_primitive()->get_config(), reason), "[GPU] Invalid qsa_indexer primitive: ", reason);
+    OPENVINO_ASSERT(ov::intel_gpu::op::QSAIndexer::validate_config(node.get_primitive()->get_config(), reason),
+                    "[GPU] Invalid qsa_indexer primitive: ",
+                    reason);
 }
 
 }  // namespace cldnn

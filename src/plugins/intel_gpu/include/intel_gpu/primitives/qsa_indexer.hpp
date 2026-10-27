@@ -23,14 +23,11 @@ struct qsa_indexer : public primitive_base<qsa_indexer> {
     qsa_indexer() : primitive_base("", {}) {}
 
     qsa_indexer(const primitive_id& id, const std::vector<input_info>& inputs, const ov::intel_gpu::op::QSAIndexer::Config& config)
-        : primitive_base(id,
-                         inputs,
-                         OutputIdx::COUNT,
-                         {optional_data_type{ov::element::i32},
-                          optional_data_type{ov::element::i32},
-                          optional_data_type{},
-                          optional_data_type{},
-                          optional_data_type{}}),
+        : primitive_base(
+              id,
+              inputs,
+              OutputIdx::COUNT,
+              {optional_data_type{ov::element::i32}, optional_data_type{ov::element::i32}, optional_data_type{}, optional_data_type{}, optional_data_type{}}),
           key_block_size(config.key_block_size),
           block_topk(config.block_topk),
           num_selection_heads(config.num_selection_heads),
@@ -75,8 +72,8 @@ struct qsa_indexer : public primitive_base<qsa_indexer> {
         if (!compare_common_params(rhs))
             return false;
         auto r = downcast<const qsa_indexer>(rhs);
-        return key_block_size == r.key_block_size && block_topk == r.block_topk && num_selection_heads == r.num_selection_heads && indexer_rotary_dim == r.indexer_rotary_dim &&
-               indexer_head_dim == r.indexer_head_dim && epsilon == r.epsilon && scale == r.scale;
+        return key_block_size == r.key_block_size && block_topk == r.block_topk && num_selection_heads == r.num_selection_heads &&
+               indexer_rotary_dim == r.indexer_rotary_dim && indexer_head_dim == r.indexer_head_dim && epsilon == r.epsilon && scale == r.scale;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

@@ -81,13 +81,13 @@ void QSAIndexer::validate_and_infer_types() {
     const auto& index_query_ps = get_input_partial_shape(InputIdx::INDEX_QUERY);
     const auto& raw_index_keys_ps = get_input_partial_shape(InputIdx::RAW_INDEX_KEYS);
     NODE_VALIDATION_CHECK(this,
-                           index_query_ps.rank().is_dynamic() || index_query_ps.size() == 4,
-                           "QSAIndexer expects a rank-4 [B, L, H_iq, D_idx] index_query input, got ",
-                           index_query_ps);
+                          index_query_ps.rank().is_dynamic() || index_query_ps.size() == 4,
+                          "QSAIndexer expects a rank-4 [B, L, H_iq, D_idx] index_query input, got ",
+                          index_query_ps);
     NODE_VALIDATION_CHECK(this,
-                           raw_index_keys_ps.rank().is_dynamic() || raw_index_keys_ps.size() == 4,
-                           "QSAIndexer expects a rank-4 [B, L, H_ik, D_idx] raw_index_keys input, got ",
-                           raw_index_keys_ps);
+                          raw_index_keys_ps.rank().is_dynamic() || raw_index_keys_ps.size() == 4,
+                          "QSAIndexer expects a rank-4 [B, L, H_ik, D_idx] raw_index_keys input, got ",
+                          raw_index_keys_ps);
     check_float_inputs(this,
                        {InputIdx::INDEX_QUERY,
                         InputIdx::RAW_INDEX_KEYS,
@@ -124,11 +124,15 @@ void QSAIndexer::validate_and_infer_types() {
         const auto h_iq = static_cast<size_t>(index_query_ps[2].get_length());
         const auto h_ik_value = static_cast<size_t>(h_ik.get_length());
         NODE_VALIDATION_CHECK(this, h_ik_value != 0 && h_iq % h_ik_value == 0, "QSAIndexer: H_iq must be a positive multiple of H_ik.");
-        NODE_VALIDATION_CHECK(this, m_config.num_selection_heads == 1 || m_config.num_selection_heads == h_ik_value, "QSAIndexer: num_selection_heads must be 1 or H_ik.");
+        NODE_VALIDATION_CHECK(this,
+                              m_config.num_selection_heads == 1 || m_config.num_selection_heads == h_ik_value,
+                              "QSAIndexer: num_selection_heads must be 1 or H_ik.");
     }
 
-    const ov::PartialShape selected_block_indices_ps{batch, ov::Dimension(static_cast<int64_t>(m_config.num_selection_heads)), length,
-                                           ov::Dimension(static_cast<int64_t>(m_config.block_topk))};
+    const ov::PartialShape selected_block_indices_ps{batch,
+                                                     ov::Dimension(static_cast<int64_t>(m_config.num_selection_heads)),
+                                                     length,
+                                                     ov::Dimension(static_cast<int64_t>(m_config.block_topk))};
     const ov::PartialShape selected_block_count_ps{batch, ov::Dimension(static_cast<int64_t>(m_config.num_selection_heads)), length};
 
     set_output_size(OutputIdx::COUNT);

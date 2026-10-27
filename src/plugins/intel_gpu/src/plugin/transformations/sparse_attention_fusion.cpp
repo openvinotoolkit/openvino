@@ -4,8 +4,8 @@
 
 #include "sparse_attention_fusion.hpp"
 
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 #include <deque>
 #include <functional>
 #include <memory>
@@ -13,6 +13,8 @@
 #include <utility>
 #include <vector>
 
+#include "intel_gpu/op/qsa_indexer.hpp"
+#include "intel_gpu/op/sparse_sdpa.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
@@ -28,6 +30,8 @@
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_qsa_indexer.hpp"
+#include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/read_value.hpp"
@@ -38,6 +42,7 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/sink.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/sqrt.hpp"
@@ -49,14 +54,9 @@
 #include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/variadic_split.hpp"
-#include "openvino/op/sink.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "intel_gpu/op/qsa_indexer.hpp"
-#include "openvino/op/paged_qsa_indexer.hpp"
-#include "openvino/op/paged_sparse_attention.hpp"
-#include "intel_gpu/op/sparse_sdpa.hpp"
 #include "ov_ops/rms.hpp"
 
 namespace ov::intel_gpu {
@@ -180,10 +180,7 @@ std::shared_ptr<T> find_descendant(const ov::Output<ov::Node>& start, size_t max
     return nullptr;
 }
 
-std::shared_ptr<ov::Node> find_ancestor_if(const ov::Output<ov::Node>& start,
-                                            size_t max_depth,
-                                            ov::Node* stop_at,
-                                            const std::function<bool(ov::Node*)>& pred) {
+std::shared_ptr<ov::Node> find_ancestor_if(const ov::Output<ov::Node>& start, size_t max_depth, ov::Node* stop_at, const std::function<bool(ov::Node*)>& pred) {
     std::unordered_set<ov::Node*> visited;
     std::deque<std::pair<ov::Node*, size_t>> queue;
     queue.push_back({start.get_node(), 0});
@@ -243,9 +240,9 @@ struct IndexerSignature {
 };
 
 bool verify_indexer_signature(const ov::pass::pattern::PatternValueMap& pm,
-                               const IndexerPattern& p,
-                               const std::shared_ptr<ov::Node>& root,
-                               IndexerSignature& out) {
+                              const IndexerPattern& p,
+                              const std::shared_ptr<ov::Node>& root,
+                              IndexerSignature& out) {
     auto mm = ov::as_type_ptr<ov::op::v0::MatMul>(pm.at(p.logits).get_node_shared_ptr());
     if (!mm) {
         return false;
@@ -289,8 +286,8 @@ bool verify_indexer_signature(const ov::pass::pattern::PatternValueMap& pm,
 
 bool is_ancestor_of(const ov::Output<ov::Node>& start, const ov::Node* target, size_t max_depth) {
     return find_ancestor_if(start, max_depth, nullptr, [target](ov::Node* n) {
-        return n == target;
-    }) != nullptr;
+               return n == target;
+           }) != nullptr;
 }
 
 bool is_layout_only(const ov::Node* n) {
@@ -488,8 +485,7 @@ bool prove_rope(const ov::Output<ov::Node>& idx_q, ov::Node* stop_at, size_t Di,
         }
         auto table = ov::as_type_ptr<ov::op::v0::Constant>(resolve_constant_source(n->input_value(0)).get_node_shared_ptr());
         std::vector<int64_t> axis;
-        return table && table->get_output_partial_shape(0).size() == 2 && get_i64_vector(n->input_value(2), axis) && axis.size() == 1 &&
-               axis[0] == 0;
+        return table && table->get_output_partial_shape(0).size() == 2 && get_i64_vector(n->input_value(2), axis) && axis.size() == 1 && axis[0] == 0;
     });
     if (!gather_node) {
         return false;
@@ -584,9 +580,7 @@ bool prove_rope(const ov::Output<ov::Node>& idx_q, ov::Node* stop_at, size_t Di,
 }
 
 /// Per-token `(rope_cos, rope_sin)` rows for `positions` (any shape), each `[..., rd]`.
-std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> gather_rope_rows(const RopeFacts& rope,
-                                                                      const ov::Output<ov::Node>& positions,
-                                                                      ov::NodeVector& new_ops) {
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> gather_rope_rows(const RopeFacts& rope, const ov::Output<ov::Node>& positions, ov::NodeVector& new_ops) {
     auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
     auto cos_rows = std::make_shared<ov::op::v8::Gather>(rope.cos_table, positions, axis);
     auto sin_rows = std::make_shared<ov::op::v8::Gather>(rope.sin_table, positions, axis);
@@ -773,11 +767,11 @@ bool prove_shared_indexer_facts(const ov::Output<ov::Node>& idx_q, const ov::Out
 /// PagedQSAIndexer apply RMSNorm + RoPE internally; feeding the matched post-norm values
 /// would double-apply both.
 void split_qk_projection(const ov::Output<ov::Node>& proj,
-                          size_t Hidx,
-                          size_t Di,
-                          ov::NodeVector& new_ops,
-                          ov::Output<ov::Node>& q_raw,
-                          ov::Output<ov::Node>& k_raw) {
+                         size_t Hidx,
+                         size_t Di,
+                         ov::NodeVector& new_ops,
+                         ov::Output<ov::Node>& q_raw,
+                         ov::Output<ov::Node>& k_raw) {
     auto i64c = [&](std::vector<int64_t> v) {
         auto c = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{v.size()}, v);
         new_ops.push_back(c);
@@ -866,8 +860,8 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
             value_in.get_element_type() != ov::element::f16) {
             continue;
         }
-        if (q_ps.rank().is_dynamic() || q_ps.size() != 4 || k_ps.rank().is_dynamic() || k_ps.size() != 4 || v_ps.rank().is_dynamic() ||
-            v_ps.size() != 4 || q_ps[1].is_dynamic() || q_ps[3].is_dynamic() || k_ps[1].is_dynamic() || v_ps[3].is_dynamic()) {
+        if (q_ps.rank().is_dynamic() || q_ps.size() != 4 || k_ps.rank().is_dynamic() || k_ps.size() != 4 || v_ps.rank().is_dynamic() || v_ps.size() != 4 ||
+            q_ps[1].is_dynamic() || q_ps[3].is_dynamic() || k_ps[1].is_dynamic() || v_ps[3].is_dynamic()) {
             continue;
         }
         const size_t Hq = static_cast<size_t>(q_ps[1].get_length());
@@ -1243,9 +1237,8 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         const auto di = static_cast<int64_t>(Di);
         const auto rd = static_cast<int64_t>(facts.rope.rotary_dim);
         const auto& cache_prefix = paged_attn->get_friendly_name();
-        auto raw_k_cache = make_in_place_cache(ov::element::f16,
-                                               ov::PartialShape{num_blocks, 1, static_cast<int64_t>(page_size), di},
-                                               cache_prefix + "_index_key_cache");
+        auto raw_k_cache =
+            make_in_place_cache(ov::element::f16, ov::PartialShape{num_blocks, 1, static_cast<int64_t>(page_size), di}, cache_prefix + "_index_key_cache");
         auto block_index_keys_cache =
             make_in_place_cache(ov::element::f16, ov::PartialShape{num_blocks, 1, summaries_per_page, di}, cache_prefix + "_indexer_block_index_keys_cache");
         auto rope_cache =

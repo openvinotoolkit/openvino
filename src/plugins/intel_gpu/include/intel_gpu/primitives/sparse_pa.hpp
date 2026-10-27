@@ -126,8 +126,8 @@ struct sparse_pa : public primitive_base<sparse_pa> {
             return false;
         auto r = downcast<const sparse_pa>(rhs);
         return num_heads == r.num_heads && num_kv_heads == r.num_kv_heads && num_selection_heads == r.num_selection_heads && k_head_size == r.k_head_size &&
-               v_head_size == r.v_head_size && key_block_size == r.key_block_size && query_block_size == r.query_block_size &&
-               scale == r.scale && causal == r.causal;
+               v_head_size == r.v_head_size && key_block_size == r.key_block_size && query_block_size == r.query_block_size && scale == r.scale &&
+               causal == r.causal;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

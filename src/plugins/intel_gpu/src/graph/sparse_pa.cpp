@@ -27,12 +27,17 @@ std::vector<layout> sparse_pa_inst::calc_output_layouts(const sparse_pa_node& no
 
     auto out_shape = ShapeType{query_layout.get<ShapeType>()};
     OPENVINO_ASSERT(out_shape.rank().is_static() && out_shape.size() >= 2 &&
-                        std::all_of(out_shape.begin() + 2, out_shape.end(), [](const ov::Dimension& dim) { return dim.compatible(1); }),
+                        std::all_of(out_shape.begin() + 2,
+                                    out_shape.end(),
+                                    [](const ov::Dimension& dim) {
+                                        return dim.compatible(1);
+                                    }),
                     "[GPU] sparse_pa expects a rank-2 [tokens, num_heads*k_head_size] query input, got ",
                     query_layout.to_short_string());
     out_shape[1] = ov::Dimension(static_cast<int64_t>(desc->num_heads * desc->v_head_size));
 
-    const auto out_dt = desc->output_data_types.empty() || !desc->output_data_types[0].has_value() ? query_layout.data_type : desc->output_data_types[0].value();
+    const auto out_dt =
+        desc->output_data_types.empty() || !desc->output_data_types[0].has_value() ? query_layout.data_type : desc->output_data_types[0].value();
     return {layout{out_shape, out_dt, query_layout.format}};
 }
 

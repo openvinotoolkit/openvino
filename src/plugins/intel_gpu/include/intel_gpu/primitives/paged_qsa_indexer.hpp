@@ -67,8 +67,8 @@ struct paged_qsa_indexer : public primitive_base<paged_qsa_indexer> {
         if (!compare_common_params(rhs))
             return false;
         auto r = downcast<const paged_qsa_indexer>(rhs);
-        return key_block_size == r.key_block_size && block_topk == r.block_topk && num_selection_heads == r.num_selection_heads && indexer_rotary_dim == r.indexer_rotary_dim &&
-               indexer_head_dim == r.indexer_head_dim && epsilon == r.epsilon && scale == r.scale;
+        return key_block_size == r.key_block_size && block_topk == r.block_topk && num_selection_heads == r.num_selection_heads &&
+               indexer_rotary_dim == r.indexer_rotary_dim && indexer_head_dim == r.indexer_head_dim && epsilon == r.epsilon && scale == r.scale;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

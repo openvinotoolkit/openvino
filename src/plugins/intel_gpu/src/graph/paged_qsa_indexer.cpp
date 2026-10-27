@@ -35,7 +35,7 @@ std::vector<layout> paged_qsa_indexer_inst::calc_output_layouts(const paged_qsa_
 }
 
 template std::vector<layout> paged_qsa_indexer_inst::calc_output_layouts<ov::PartialShape>(const paged_qsa_indexer_node& node,
-                                                                                            const kernel_impl_params& impl_param);
+                                                                                           const kernel_impl_params& impl_param);
 
 std::string paged_qsa_indexer_inst::to_string(const paged_qsa_indexer_node& node) {
     auto node_info = node.desc_to_json();

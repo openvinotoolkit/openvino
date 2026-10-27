@@ -3,6 +3,7 @@
 //
 
 #include "openvino/op/paged_qsa_indexer.hpp"
+
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/paged_qsa_indexer.hpp"
@@ -28,9 +29,12 @@ static void CreatePagedQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov:
                     reason);
 
     using In = ov::op::internal::PagedQSAIndexer::InputIdx;
-    OPENVINO_ASSERT(op->get_config().num_selection_heads == 1, "[GPU] PagedQSAIndexer '", layer_name, "': only num_selection_heads == 1 is supported, got ", op->get_config().num_selection_heads);
-    OPENVINO_ASSERT(op->get_index_key_heads() == 1,
-                    "[GPU] PagedQSAIndexer '", layer_name, "': only H_ik == 1 is supported, got ", op->get_index_key_heads());
+    OPENVINO_ASSERT(op->get_config().num_selection_heads == 1,
+                    "[GPU] PagedQSAIndexer '",
+                    layer_name,
+                    "': only num_selection_heads == 1 is supported, got ",
+                    op->get_config().num_selection_heads);
+    OPENVINO_ASSERT(op->get_index_key_heads() == 1, "[GPU] PagedQSAIndexer '", layer_name, "': only H_ik == 1 is supported, got ", op->get_index_key_heads());
     for (size_t idx : {In::INDEX_QUERY,
                        In::RAW_INDEX_KEYS,
                        In::ROPE_COS,
@@ -41,7 +45,12 @@ static void CreatePagedQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov:
                        In::K_NORM_WEIGHT,
                        In::INDEX_BLOCK_ROPE_CACHE}) {
         OPENVINO_ASSERT(op->get_input_element_type(idx) == ov::element::f16,
-                        "[GPU] PagedQSAIndexer '", layer_name, "': input ", idx, " must be f16, got ", op->get_input_element_type(idx));
+                        "[GPU] PagedQSAIndexer '",
+                        layer_name,
+                        "': input ",
+                        idx,
+                        " must be f16, got ",
+                        op->get_input_element_type(idx));
     }
 
     cldnn::paged_qsa_indexer prim(layer_name, inputs, op->get_config());

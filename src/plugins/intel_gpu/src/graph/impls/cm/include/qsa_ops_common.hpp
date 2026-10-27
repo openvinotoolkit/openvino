@@ -13,11 +13,11 @@
 // whose length is not a multiple of `key_block_size` compiles and runs unchanged.
 
 #ifndef ATTR
-#    define ATTR [[type("svmptr_t")]]
+#define ATTR [[type("svmptr_t")]]
 #endif
 
 #ifndef QSA_OPS_COMMON_HPP
-#    define QSA_OPS_COMMON_HPP
+#define QSA_OPS_COMMON_HPP
 
 #include "qsa_common.hpp"
 
@@ -36,7 +36,11 @@ CM_INLINE uint num_complete_blocks(uint abs_pos) {
 /// Resolves a flattened paged token index to its sequence and absolute logical position.
 /// Returns false for rows past the last real token: the grids are sized from shapes, the
 /// real counts live only in GPU memory.
-CM_INLINE bool resolve_token_paged(const int32_t* subsequence_begins ATTR, const int32_t* past_lens ATTR, uint num_seqs, uint token_idx, uint& seq,
+CM_INLINE bool resolve_token_paged(const int32_t* subsequence_begins ATTR,
+                                   const int32_t* past_lens ATTR,
+                                   uint num_seqs,
+                                   uint token_idx,
+                                   uint& seq,
                                    uint& abs_pos) {
     seq = 0;
     abs_pos = 0;

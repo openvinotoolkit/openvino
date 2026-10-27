@@ -26,10 +26,13 @@ std::vector<layout> sparse_sdpa_inst::calc_output_layouts(const sparse_sdpa_node
     auto query_shape = query_layout.get<ShapeType>();
     OPENVINO_ASSERT(query_shape.rank().is_static() && query_shape.size() == 4, "[GPU] sparse_sdpa expects a rank-4 [B, Hq, L, Dh] query input");
 
-    ShapeType out_shape{query_shape[0], ov::Dimension(static_cast<int64_t>(desc->num_heads)), query_shape[2],
+    ShapeType out_shape{query_shape[0],
+                        ov::Dimension(static_cast<int64_t>(desc->num_heads)),
+                        query_shape[2],
                         ov::Dimension(static_cast<int64_t>(desc->v_head_size))};
 
-    const auto out_dt = desc->output_data_types.empty() || !desc->output_data_types[0].has_value() ? query_layout.data_type : desc->output_data_types[0].value();
+    const auto out_dt =
+        desc->output_data_types.empty() || !desc->output_data_types[0].has_value() ? query_layout.data_type : desc->output_data_types[0].value();
     return {layout{out_shape, out_dt, query_layout.format}};
 }
 
@@ -57,7 +60,9 @@ std::string sparse_sdpa_inst::to_string(const sparse_sdpa_node& node) {
 
 sparse_sdpa_inst::typed_primitive_inst(network& network, const sparse_sdpa_node& node) : parent(network, node) {
     std::string reason;
-    OPENVINO_ASSERT(ov::intel_gpu::op::SparseSDPA::validate_config(node.get_primitive()->get_config(), reason), "[GPU] Invalid sparse_sdpa primitive: ", reason);
+    OPENVINO_ASSERT(ov::intel_gpu::op::SparseSDPA::validate_config(node.get_primitive()->get_config(), reason),
+                    "[GPU] Invalid sparse_sdpa primitive: ",
+                    reason);
 }
 
 }  // namespace cldnn

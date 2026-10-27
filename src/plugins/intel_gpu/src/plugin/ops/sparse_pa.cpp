@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/sparse_pa.hpp"
+
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/primitives/sparse_pa.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/paged_sparse_attention.hpp"
 
@@ -27,7 +28,9 @@ static void CreatePagedSparseAttentionOp(ProgramBuilder& p, const std::shared_pt
     OPENVINO_ASSERT(query_ps.rank().is_static() && key_cache_ps.rank().is_static() && value_cache_ps.rank().is_static() && selected_ps.rank().is_static() &&
                         query_ps[1].is_static() && key_cache_ps[1].is_static() && key_cache_ps[3].is_static() && value_cache_ps[3].is_static() &&
                         selected_ps[1].is_static(),
-                    "[GPU] PagedSparseAttention '", layer_name, "': head counts and head sizes must be static");
+                    "[GPU] PagedSparseAttention '",
+                    layer_name,
+                    "': head counts and head sizes must be static");
 
     cldnn::sparse_pa::Config config;
     config.num_kv_heads = static_cast<size_t>(key_cache_ps[1].get_length());
@@ -40,10 +43,18 @@ static void CreatePagedSparseAttentionOp(ProgramBuilder& p, const std::shared_pt
     std::string reason;
     OPENVINO_ASSERT(cldnn::sparse_pa::validate_config(config, reason), "[GPU] Cannot lower PagedSparseAttention op '", layer_name, "': ", reason);
     OPENVINO_ASSERT(config.num_selection_heads == 1,
-                    "[GPU] PagedSparseAttention '", layer_name, "': only num_selection_heads == 1 is supported, got ", config.num_selection_heads);
+                    "[GPU] PagedSparseAttention '",
+                    layer_name,
+                    "': only num_selection_heads == 1 is supported, got ",
+                    config.num_selection_heads);
     for (size_t idx : {In::QUERY, In::KEY, In::VALUE, In::KEY_CACHE, In::VALUE_CACHE}) {
         OPENVINO_ASSERT(op->get_input_element_type(idx) == ov::element::f16,
-                        "[GPU] PagedSparseAttention '", layer_name, "': input ", idx, " must be f16, got ", op->get_input_element_type(idx));
+                        "[GPU] PagedSparseAttention '",
+                        layer_name,
+                        "': input ",
+                        idx,
+                        " must be f16, got ",
+                        op->get_input_element_type(idx));
     }
 
     // Attention sinks are not supported by the GPU kernels (explicit rejection, not a silent fallback).

@@ -32,13 +32,13 @@ bool SparseSDPA::visit_attributes(ov::AttributeVisitor& visitor) {
 
 void SparseSDPA::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
-                           get_input_size() >= InputIdx::COUNT_MIN && get_input_size() <= InputIdx::COUNT_MAX,
-                           "SparseSDPA expects ",
-                           InputIdx::COUNT_MIN,
-                           "..",
-                           InputIdx::COUNT_MAX,
-                           " inputs, got ",
-                           get_input_size());
+                          get_input_size() >= InputIdx::COUNT_MIN && get_input_size() <= InputIdx::COUNT_MAX,
+                          "SparseSDPA expects ",
+                          InputIdx::COUNT_MIN,
+                          "..",
+                          InputIdx::COUNT_MAX,
+                          " inputs, got ",
+                          get_input_size());
 
     std::string reason;
     NODE_VALIDATION_CHECK(this, validate_config(m_config, reason), "SparseSDPA configuration is invalid: ", reason);
@@ -63,7 +63,10 @@ void SparseSDPA::validate_and_infer_types() {
     // Q/K/V geometry must agree with the config the kernels are specialized for.
     const auto hkv = static_cast<int64_t>(m_config.num_kv_heads);
     const auto sel = static_cast<int64_t>(m_config.num_selection_heads);
-    check_shape(this, InputIdx::QUERY, "query", ov::PartialShape{batch, static_cast<int64_t>(m_config.num_heads), dim_at(query_ps, 2), static_cast<int64_t>(m_config.k_head_size)});
+    check_shape(this,
+                InputIdx::QUERY,
+                "query",
+                ov::PartialShape{batch, static_cast<int64_t>(m_config.num_heads), dim_at(query_ps, 2), static_cast<int64_t>(m_config.k_head_size)});
     const auto seq = dim_at(get_input_partial_shape(InputIdx::KEY), 2);
     check_shape(this, InputIdx::KEY, "key", ov::PartialShape{batch, hkv, seq, static_cast<int64_t>(m_config.k_head_size)});
     check_shape(this, InputIdx::VALUE, "value", ov::PartialShape{batch, hkv, seq, static_cast<int64_t>(m_config.v_head_size)});
