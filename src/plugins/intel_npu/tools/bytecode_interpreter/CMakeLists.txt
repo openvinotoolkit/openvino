@@ -13,7 +13,7 @@ ov_add_target(TYPE EXECUTABLE
               LINK_LIBRARIES
                   PRIVATE
                       openvino::runtime::dev
-                        openvino::gflags_nothreads_static
+                        gflags
                         openvino::intel_npu_vm_runtime
                         openvino::npu_zero_utils)
 
