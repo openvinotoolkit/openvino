@@ -13,9 +13,9 @@
 //  - FINAL_MIX: the model-tail mixer that replaces the usual final norm;
 //  - negative case: an unsupported branch count must not select the CM implementation.
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <algorithm>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/gated_residual.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -295,26 +295,26 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            // gr_up_proj_dpas[+branch mix] instead of gr_read.cm. Up to 32
                                            // rows the decode tiling is used, up to 4 rows per EU the mid
                                            // (split-K wide) tiling, above it the wide one.
-                                           gr_read_case{32, 64, 32, true},    // exact token-tile boundary
-                                           gr_read_case{37, 96, 32, false},   // partial last token tile, no write gate
-                                           gr_read_case{41, 48, 64, true},    // partial tile; D=48, split-K over 6 K steps
-                                           gr_read_case{16, 64, 32, true},    // exactly one N-tile
-                                           gr_read_case{48, 64, 32, false},   // three full N-tiles
-                                           gr_read_case{3, 32, 32, true},     // narrowest D
-                                           gr_read_case{5, 64, 16, true, true},   // scalar path, gain stored as w (1 + w)
-                                           gr_read_case{19, 64, 32, true, true},  // DPAS path, gain stored as w (1 + w)
-                                           gr_read_case{1, 640, 320, true},   // production width, decode
-                                           gr_read_case{17, 640, 320, true},  // production width, prefill with a partial tile
-                                           gr_read_case{193, 32, 32, true, true},  // mid tiling
-                                           gr_read_case{200, 64, 32, true},   // mid tiling, partial 32-token tile
-                                           gr_read_case{300, 48, 64, false},  // mid tiling, D=48 column tiles
-                                           gr_read_case{257, 640, 320, true},  // production-like width, mid tiling
-                                           gr_read_case{17, 2560, 320, true},   // real Qwen4-Exp width, decode tiling
-                                           gr_read_case{100, 2560, 320, true},  // real Qwen4-Exp width, mid tiling
-                                           gr_read_case{1000, 64, 32, true},  // wide tiling / single kernel (> 4 rows per EU)
-                                           gr_read_case{777, 48, 64, false},  // wide tiling, partial tiles (D % 32 != 0)
+                                           gr_read_case{32, 64, 32, true},           // exact token-tile boundary
+                                           gr_read_case{37, 96, 32, false},          // partial last token tile, no write gate
+                                           gr_read_case{41, 48, 64, true},           // partial tile; D=48, split-K over 6 K steps
+                                           gr_read_case{16, 64, 32, true},           // exactly one N-tile
+                                           gr_read_case{48, 64, 32, false},          // three full N-tiles
+                                           gr_read_case{3, 32, 32, true},            // narrowest D
+                                           gr_read_case{5, 64, 16, true, true},      // scalar path, gain stored as w (1 + w)
+                                           gr_read_case{19, 64, 32, true, true},     // DPAS path, gain stored as w (1 + w)
+                                           gr_read_case{1, 640, 320, true},          // production width, decode
+                                           gr_read_case{17, 640, 320, true},         // production width, prefill with a partial tile
+                                           gr_read_case{193, 32, 32, true, true},    // mid tiling
+                                           gr_read_case{200, 64, 32, true},          // mid tiling, partial 32-token tile
+                                           gr_read_case{300, 48, 64, false},         // mid tiling, D=48 column tiles
+                                           gr_read_case{257, 640, 320, true},        // production-like width, mid tiling
+                                           gr_read_case{17, 2560, 320, true},        // real Qwen4-Exp width, decode tiling
+                                           gr_read_case{100, 2560, 320, true},       // real Qwen4-Exp width, mid tiling
+                                           gr_read_case{1000, 64, 32, true},         // wide tiling / single kernel (> 4 rows per EU)
+                                           gr_read_case{777, 48, 64, false},         // wide tiling, partial tiles (D % 32 != 0)
                                            gr_read_case{1111, 128, 64, true, true},  // single kernel, partial 32-row tile
-                                           gr_read_case{700, 640, 320, false},      // single kernel, production-like width
+                                           gr_read_case{700, 640, 320, false},       // single kernel, production-like width
                                            // L=16 keeps these on gr_read.cm; above 32 rows one work-group owns
                                            // several rows, the last group only partially filled.
                                            gr_read_case{37, 64, 16, true},
@@ -384,9 +384,9 @@ TEST_P(gated_residual_final_mix_test, matches_read) {
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          gated_residual_final_mix_test,
-                         ::testing::Values(gr_read_case{4, 64, 16, false},      // scalar gr_read
-                                           gr_read_case{17, 64, 32, false},     // DPAS pipeline, decode tiling
-                                           gr_read_case{250, 64, 32, false},    // DPAS pipeline, mid tiling
+                         ::testing::Values(gr_read_case{4, 64, 16, false},       // scalar gr_read
+                                           gr_read_case{17, 64, 32, false},      // DPAS pipeline, decode tiling
+                                           gr_read_case{250, 64, 32, false},     // DPAS pipeline, mid tiling
                                            gr_read_case{1100, 64, 32, false}));  // DPAS pipeline, wide tiling
 
 TEST(gated_residual_gpu_test, write_combines_branches) {
@@ -538,7 +538,8 @@ TEST(gated_residual_gpu_test, ov_model_write_mode_direct_construction) {
     std::vector<std::string> available_devices;
     try {
         available_devices = core.get_available_devices();
-    } catch (...) {}
+    } catch (...) {
+    }
     const bool has_gpu = std::any_of(available_devices.begin(), available_devices.end(), [](const std::string& device) {
         return device.rfind("GPU", 0) == 0;
     });
@@ -556,14 +557,14 @@ TEST(gated_residual_gpu_test, ov_model_write_mode_direct_construction) {
     auto gate_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{rows, C});
 
     auto gr = std::make_shared<ov::intel_gpu::op::GatedResidual>(ov::OutputVector{residual_p, y_p, gate_p},
-                                                                  ov::intel_gpu::op::GatedResidual::Mode::WRITE,
-                                                                  C,
-                                                                  D,
-                                                                  /*lowrank=*/0,
-                                                                  /*epsilon=*/0.0f,
-                                                                  /*norm_gain_plus_one=*/false,
-                                                                  /*produce_write_gate=*/false,
-                                                                  ov::element::f16);
+                                                                 ov::intel_gpu::op::GatedResidual::Mode::WRITE,
+                                                                 C,
+                                                                 D,
+                                                                 /*lowrank=*/0,
+                                                                 /*epsilon=*/0.0f,
+                                                                 /*norm_gain_plus_one=*/false,
+                                                                 /*produce_write_gate=*/false,
+                                                                 ov::element::f16);
     auto result = std::make_shared<ov::op::v0::Result>(gr);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{residual_p, y_p, gate_p});
 
@@ -624,20 +625,19 @@ TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_reuses_dispatch_da
     auto w_up_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{CD, L});
     auto w_inject_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{C, CD});
 
-    auto gr = std::make_shared<ov::intel_gpu::op::GatedResidual>(
-        ov::OutputVector{residual_p, gain_p, w_down_p, w_up_p, w_inject_p},
-        ov::intel_gpu::op::GatedResidual::Mode::READ,
-        C,
-        D,
-        L,
-        1e-6f,
-        false,
-        true,
-        ov::element::f16);
+    auto gr = std::make_shared<ov::intel_gpu::op::GatedResidual>(ov::OutputVector{residual_p, gain_p, w_down_p, w_up_p, w_inject_p},
+                                                                 ov::intel_gpu::op::GatedResidual::Mode::READ,
+                                                                 C,
+                                                                 D,
+                                                                 L,
+                                                                 1e-6f,
+                                                                 false,
+                                                                 true,
+                                                                 ov::element::f16);
     auto mixed_result = std::make_shared<ov::op::v0::Result>(gr->output(0));
     auto gate_result = std::make_shared<ov::op::v0::Result>(gr->output(1));
-    auto model = std::make_shared<ov::Model>(ov::ResultVector{mixed_result, gate_result},
-                                              ov::ParameterVector{residual_p, gain_p, w_down_p, w_up_p, w_inject_p});
+    auto model =
+        std::make_shared<ov::Model>(ov::ResultVector{mixed_result, gate_result}, ov::ParameterVector{residual_p, gain_p, w_down_p, w_up_p, w_inject_p});
 
     ov::CompiledModel compiled;
     OV_ASSERT_NO_THROW(compiled = core.compile_model(model, "GPU"));
@@ -719,14 +719,14 @@ TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_scalar_kernel) {
     auto w_up_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{CD, L});
 
     auto gr = std::make_shared<ov::intel_gpu::op::GatedResidual>(ov::OutputVector{residual_p, gain_p, w_down_p, w_up_p},
-                                                                  ov::intel_gpu::op::GatedResidual::Mode::READ,
-                                                                  C,
-                                                                  D,
-                                                                  L,
-                                                                  1e-6f,
-                                                                  false,
-                                                                  false,
-                                                                  ov::element::f16);
+                                                                 ov::intel_gpu::op::GatedResidual::Mode::READ,
+                                                                 C,
+                                                                 D,
+                                                                 L,
+                                                                 1e-6f,
+                                                                 false,
+                                                                 false,
+                                                                 ov::element::f16);
     auto result = std::make_shared<ov::op::v0::Result>(gr);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{residual_p, gain_p, w_down_p, w_up_p});
 
@@ -796,14 +796,14 @@ TEST(gated_residual_gpu_test, ov_model_write_mode_dynamic_rows_reuses_dispatch_d
     auto gate_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, static_cast<int64_t>(C)});
 
     auto gr = std::make_shared<ov::intel_gpu::op::GatedResidual>(ov::OutputVector{residual_p, y_p, gate_p},
-                                                                  ov::intel_gpu::op::GatedResidual::Mode::WRITE,
-                                                                  C,
-                                                                  D,
-                                                                  /*lowrank=*/0,
-                                                                  /*epsilon=*/0.0f,
-                                                                  /*norm_gain_plus_one=*/false,
-                                                                  /*produce_write_gate=*/false,
-                                                                  ov::element::f16);
+                                                                 ov::intel_gpu::op::GatedResidual::Mode::WRITE,
+                                                                 C,
+                                                                 D,
+                                                                 /*lowrank=*/0,
+                                                                 /*epsilon=*/0.0f,
+                                                                 /*norm_gain_plus_one=*/false,
+                                                                 /*produce_write_gate=*/false,
+                                                                 ov::element::f16);
     auto result = std::make_shared<ov::op::v0::Result>(gr);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{residual_p, y_p, gate_p});
 
@@ -1097,8 +1097,8 @@ TEST(gated_residual_gpu_test, decomposed_read_graph_fuses_and_matches_reference)
     auto up = std::make_shared<ov::op::v0::MatMul>(act, w_up_p, false, true);
     auto weighted = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Sigmoid>(up), rbar);
     auto weighted3 = std::make_shared<ov::op::v1::Reshape>(weighted, i64({-1, static_cast<int64_t>(C), static_cast<int64_t>(D)}), false);
-    auto mixed = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::ReduceSum>(weighted3, i64({1}), false),
-                                                        scalar(1.0f / static_cast<float>(C)));
+    auto mixed =
+        std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::ReduceSum>(weighted3, i64({1}), false), scalar(1.0f / static_cast<float>(C)));
     auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual_p, gain_p, w_down_p, w_up_p});
 
     ov::Core core;

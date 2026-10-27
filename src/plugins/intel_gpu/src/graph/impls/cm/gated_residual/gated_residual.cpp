@@ -189,10 +189,8 @@ bool can_use_dpas_gr_read(const gated_residual& desc, const cldnn::device_info& 
     if (desc.lowrank < 32 || desc.lowrank % 32 != 0) {
         return false;  // 64B T surface, 32-wide down-projection column tiles
     }
-    if (desc.hc_count == 0 || desc.hc_count % 2 != 0 || desc.hc_count > gr_dpas_n) {
-        return false;  // the write gate is one N16 column tile stored in half pairs
-    }
-    return true;
+    // the write gate is one N16 column tile stored in half pairs
+    return desc.hc_count != 0 && desc.hc_count % 2 == 0 && desc.hc_count <= gr_dpas_n;
 }
 
 // ---------------------------------------------------------------------------

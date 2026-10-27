@@ -302,7 +302,7 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
         const float inv_c = 1.0f / static_cast<float>(C);
         // The kernel applies 1/C itself, so it needs the unscaled W_down.
         auto w_down = low_mm->input_value(1);
-        if (pm.count(low_scaled)) {
+        if (pm.count(low_scaled) != 0) {
             float low_scale = 0.0f;
             if (!get_scalar_f32(pm.at(low_scaled).get_node_shared_ptr()->input_value(1), low_scale) || !close(low_scale, inv_c)) {
                 return false;
@@ -390,7 +390,7 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
                 return false;
             }
             float numerator = 0.0f;
-            if (pm.count(inv_rms_div)) {
+            if (pm.count(inv_rms_div) != 0) {
                 if (!get_scalar_f32(pm.at(inv_rms_div).get_node_shared_ptr()->input_value(0), numerator) || !close(numerator, 1.0f)) {
                     return false;
                 }
@@ -496,8 +496,7 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
         if (gate_ps.rank().is_dynamic() || y_ps.rank().is_dynamic() || gate_ps.size() < 2 || y_ps.size() < 2) {
             return false;
         }
-        if (gate_ps[gate_ps.size() - 1].is_dynamic() || gate_ps[gate_ps.size() - 1].get_length() != 1 ||
-            gate_ps[gate_ps.size() - 2].is_dynamic()) {
+        if (gate_ps[gate_ps.size() - 1].is_dynamic() || gate_ps[gate_ps.size() - 1].get_length() != 1 || gate_ps[gate_ps.size() - 2].is_dynamic()) {
             return false;
         }
         if (y_ps[y_ps.size() - 2].is_dynamic() || y_ps[y_ps.size() - 2].get_length() != 1 || y_ps[y_ps.size() - 1].is_dynamic()) {
@@ -522,7 +521,7 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
         const ov::Output<ov::Node> y_out = pm.at(y_src);
         const ov::Output<ov::Node> gate_out = pm.at(write_gate);
 
-        if (pm.count(result_a)) {
+        if (pm.count(result_a) != 0) {
             // Case A: residual_3d's own split additionally proves the geometry matches
             // the one derived from gate/y above.
             size_t split_c = 0;
@@ -531,7 +530,7 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
                 return false;
             }
             residual_out = pm.at(residual_3d).get_node_shared_ptr()->input_value(0);
-        } else if (pm.count(updated_b)) {
+        } else if (pm.count(updated_b) != 0) {
             residual_out = pm.at(residual_flat);
         } else {
             return false;

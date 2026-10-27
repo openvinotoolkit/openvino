@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/op/gated_residual.hpp"
+
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/gated_residual.hpp"

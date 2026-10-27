@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "plugin/transformations/qsa_gr_fusion.hpp"
+
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -19,8 +21,8 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/power.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
@@ -31,7 +33,6 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/rms.hpp"
-#include "plugin/transformations/qsa_gr_fusion.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -50,13 +51,14 @@ std::shared_ptr<ov::op::v1::Reshape> reshape_to(const ov::Output<ov::Node>& src,
 }
 
 /// Builds the canonical GR READ sub-graph and returns the final `mixed` node.
-std::shared_ptr<ov::Node> build_gr_read(const std::shared_ptr<ov::op::v0::Parameter>& residual, float low_scale, float mix_scale, int64_t branches,
-                                       const ov::element::Type& et = ov::element::f16) {
+std::shared_ptr<ov::Node> build_gr_read(const std::shared_ptr<ov::op::v0::Parameter>& residual,
+                                        float low_scale,
+                                        float mix_scale,
+                                        int64_t branches,
+                                        const ov::element::Type& et = ov::element::f16) {
     auto r3 = reshape_to(residual, {-1, branches, D});
     // The gain is per (branch, channel): shape [C, D], i.e. C independent groups of width D.
-    auto gamma = ov::op::v0::Constant::create(et,
-                                              ov::Shape{static_cast<size_t>(branches), static_cast<size_t>(D)},
-                                              std::vector<float>(branches * D, 1.0f));
+    auto gamma = ov::op::v0::Constant::create(et, ov::Shape{static_cast<size_t>(branches), static_cast<size_t>(D)}, std::vector<float>(branches * D, 1.0f));
     auto rms = std::make_shared<ov::op::internal::RMS>(r3, gamma, EPS);
     auto rbar = reshape_to(rms, {-1, branches * D});
 
@@ -429,6 +431,3 @@ TEST(qsa_gr_fusion, gated_residual_write_rejects_f32) {
 
     ASSERT_EQ(count_gated_residual(model), 0u);
 }
-
-
-
