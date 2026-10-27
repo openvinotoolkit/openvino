@@ -173,7 +173,8 @@ inliner make that stricter than "it inlines":
   dropped (register allocation moved on u4 head 512). It is an out-parameter.
 - From the start: arguments keep the caller's types, unrolled trip counts are macros (a runtime or
   select-based bound, or an early `return` in a helper, lost the unroll in
-  `pa_kv_cache_update_ref.cl`), private arrays are indexed only by unrolled constants, pointer
+  `pa_kv_cache_update_ref.cl`), private arrays are indexed only by unrolled constants (IGC 2.41
+  keeps an array with a runtime index in scratch even when the index is subgroup-uniform), pointer
   parameters carry an explicit `__private` / `__global`, and there are no structs or globals.
 - Helpers that use a prelude macro which reads `shape_info` in dynamic-shape builds (`MSK_*`,
   `KEY_COMP_OFF`, `VAL_COMP_OFF`) take `OPTIONAL_SHAPE_INFO_ARG` and are called with
@@ -1090,7 +1091,8 @@ partitions' stores on the same lines (the old code's stores were spaced out by i
 `NUM_HEAD_SIZE_GROUPS == NUM_K_HEAD_SIZE_PARTITIONS && BC_TOKEN_STRIDE >= 128` each partition starts its stores at
 pair `partition % 8`, reading the rotated byte from a `uchar8`. It does not pay at heads 128 / 512 (+3-8% / +5% in
 the standalone probe), so they keep the plain loop. Cache bytes are unchanged: the 186 basic paged-attention rows
-dump identical output, K cache and V cache bytes before and after.
+dump identical output, K cache and V cache bytes before and after (the gtest tolerance alone cannot show this, see
+"Test coverage gaps").
 
 Per call (us, B70 at 1800 MHz, cliloader; prefill `-ic 1`, generate 2K prompt + 256 tokens), master (d-major) / before
 / after:
@@ -1392,6 +1394,11 @@ all-zero output from about 150 keys on (u4 from about 20). A missing output writ
 by the f16 tolerance (0.002) and by `paged_attention_swa_one_partition_test`, which poisons the
 output with NaN before a second run.
 
+The basic paged-attention rows do not observe the bytes the cache writer stores. Two deliberately broken
+`pa_kv_cache_update_ref.cl` variants (wrong nibble in the u4 token-major PREFILL helper; wrong slot for the requantize odd
+tail) changed the K cache of 13 and 10 rows (and the output of 8 rows in the second case), and all 186 rows still passed.
+A writer change needs a byte comparison of the dumped caches ("The u4 token-major K writer (IGC 2.41)").
+
 ### Performance opportunities
 
 Each needs its own measured change.
@@ -1427,6 +1434,9 @@ Each needs its own measured change.
 - MIXED sliding-window layers with a short window lose to `sdpa_micro` per call: gpt-oss-20b's 128-key window at `d_max`
   64 with every cache (f16 52 against 44 us, i8 61 against 55, u4 69 against 57; 8K, 256-token chunks) and gemma-4-e2b's
   512-key window at `d_max` 256 with f16 (63 against 61). Not investigated ("Paged-attention MIXED: i8 and f16 caches").
+- The u4 token-major K writer's head-256 GENERATE dispatch is still 3-4% slower than master's d-major writer
+  (gemma-4-26b 9.5 against 9.2 us per call): each thread writes 8 bytes into 16 token rows, i.e. 16 different 128 B
+  lines, where a d-major thread writes 2 ("The u4 token-major K writer (IGC 2.41)").
 - PA PREFILL at 32 tokens is still slower than `sdpa_micro` per call after the causal tile skip: qwen3-8b 14.1 against
   12.6 us (1.12x), phi-3.5-mini 15.8 against 12.8 (1.23x), and at `d_max` 64, where the skip is off, llama-3.2-1b 13.1
   against 9.2 (1.42x) ("Paged-attention PREFILL: short prompts"). From 1K they are level or faster.
