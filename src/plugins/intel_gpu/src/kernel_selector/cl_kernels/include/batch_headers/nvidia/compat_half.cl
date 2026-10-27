@@ -127,16 +127,59 @@ static inline half##w __attribute__((overloadable)) fn(half##w x){return __built
 static inline half __attribute__((overloadable)) fn(half x){return (half)fn((float)x);} \
 OV_NV_H_UNARY_VEC(fn,2) OV_NV_H_UNARY_VEC(fn,3) OV_NV_H_UNARY_VEC(fn,4) OV_NV_H_UNARY_VEC(fn,8) OV_NV_H_UNARY_VEC(fn,16)
 
-#define OV_NV_H_BINARY_VEC(fn,w) \
-static inline half##w __attribute__((overloadable)) fn(half##w a,half##w b){return __builtin_convertvector(fn(convert_float##w(a),convert_float##w(b)),half##w);}
+#define OV_NV_H_BINARY_VEC(fn,impl,w) \
+static inline half##w __attribute__((overloadable)) fn(half##w a,half##w b){return __builtin_convertvector(impl(convert_float##w(a),convert_float##w(b)),half##w);}
 // Mixed vector / scalar forms broadcast the scalar and reuse the vector overload.
 #define OV_NV_H_BINARY_BCAST(fn,w) \
 static inline half##w __attribute__((overloadable)) fn(half##w a,half b){return fn(a,(half##w)b);} \
 static inline half##w __attribute__((overloadable)) fn(half a,half##w b){return fn((half##w)a,b);}
-#define OV_NV_H_BINARY(fn) \
-static inline half __attribute__((overloadable)) fn(half a,half b){return (half)fn((float)a,(float)b);} \
-OV_NV_H_BINARY_VEC(fn,2) OV_NV_H_BINARY_VEC(fn,3) OV_NV_H_BINARY_VEC(fn,4) OV_NV_H_BINARY_VEC(fn,8) OV_NV_H_BINARY_VEC(fn,16) \
+// OV_NV_H_BINARY_IMPL defines the half overloads of fn on top of the float function impl; OV_NV_H_BINARY uses fn itself.
+#define OV_NV_H_BINARY_IMPL(fn,impl) \
+static inline half __attribute__((overloadable)) fn(half a,half b){return (half)impl((float)a,(float)b);} \
+OV_NV_H_BINARY_VEC(fn,impl,2) OV_NV_H_BINARY_VEC(fn,impl,3) OV_NV_H_BINARY_VEC(fn,impl,4) OV_NV_H_BINARY_VEC(fn,impl,8) \
+OV_NV_H_BINARY_VEC(fn,impl,16) \
 OV_NV_H_BINARY_BCAST(fn,2) OV_NV_H_BINARY_BCAST(fn,3) OV_NV_H_BINARY_BCAST(fn,4) OV_NV_H_BINARY_BCAST(fn,8) OV_NV_H_BINARY_BCAST(fn,16)
+#define OV_NV_H_BINARY(fn) OV_NV_H_BINARY_IMPL(fn,fn)
+
+// pow on the native NVIDIA compiler is not correctly rounded even when the exact result is representable in float:
+// pow(114.0f, 2.0f) returns 12996.001f on A100 (driver 590.48.01). Rounding to half turns that float ulp into a half
+// ulp whenever the exact result sits halfway between two halves (12996 -> 13000 instead of 12992), so half pow with an
+// integral exponent goes through pown, which gave the correctly rounded half for every finite half base and exponents
+// -3..6 on the same device. The bound keeps the int conversion defined and still covers every finite half exponent,
+// half pow being the only caller.
+// An exponent of 0.5 has the same problem (pow(15.992188f, 0.5f) rounds to 4 instead of 3.998047) and goes through
+// sqrt, which gave the correctly rounded half for every half base. fabs turns sqrt(-0) = -0 into the +0 pow returns,
+// and -inf is mapped to the +inf pow returns, where sqrt gives NaN.
+// Exponents of -1 and -0.5 are taken out for speed: pown(a, -1) is slower than pow, and both are about ten times
+// slower than 1 / a and rsqrt on the same device. Exponent -1 comes from every non-constant float Divide, which
+// ConvertDivide turns into a multiply by pow(b, -1); -0.5 comes from RMS / MVN patterns that are not fused. Both forms
+// gave the correctly rounded half for every half base; fabs turns rsqrt(-0) = -inf into the +inf pow returns, and -inf
+// is mapped to the +0 pow returns, where rsqrt gives NaN.
+// A constant exponent folds all these tests away at compile time.
+static inline float __attribute__((overloadable)) ov_nv_pow_f(float a, float b) {
+    if (b == 0.5f)
+        return (a == -INFINITY) ? INFINITY : fabs(sqrt(a));
+    if (b == -0.5f)
+        return (a == -INFINITY) ? 0.0f : fabs(rsqrt(a));
+    if (b == -1.0f)
+        return 1.0f / a;
+    return (b == rint(b) && fabs(b) <= 65504.0f) ? pown(a, (int)b) : pow(a, b);
+}
+// Exponents of -0.5 and -1 shared by every lane take the fast forms. Otherwise lanes with a non-integral exponent pass
+// 0 to pown and take the pow result through select, and lanes with an exponent of 0.5 then take the sqrt result.
+#define OV_NV_POW_F_VEC(w) \
+static inline float##w __attribute__((overloadable)) ov_nv_pow_f(float##w a, float##w b) { \
+    if (all(b == -0.5f)) \
+        return select(fabs(rsqrt(a)), (float##w)0.0f, isequal(a, (float##w)(-INFINITY))); \
+    if (all(b == -1.0f)) \
+        return 1.0f / a; \
+    int##w m = isequal(b, rint(b)) & islessequal(fabs(b), (float##w)65504.0f); \
+    float##w r = select(pow(a, b), pown(a, __builtin_convertvector(select((float##w)0.0f, b, m), int##w)), m); \
+    float##w s = select(fabs(sqrt(a)), (float##w)INFINITY, isequal(a, (float##w)(-INFINITY))); \
+    return select(r, s, isequal(b, (float##w)0.5f)); \
+}
+OV_NV_POW_F_VEC(2) OV_NV_POW_F_VEC(3) OV_NV_POW_F_VEC(4) OV_NV_POW_F_VEC(8) OV_NV_POW_F_VEC(16)
+#undef OV_NV_POW_F_VEC
 
 #define OV_NV_H_TERNARY_VEC(fn,w) \
 static inline half##w __attribute__((overloadable)) fn(half##w a,half##w b,half##w c){return __builtin_convertvector(fn(convert_float##w(a),convert_float##w(b),convert_float##w(c)),half##w);}
@@ -161,7 +204,7 @@ OV_NV_H_BINARY(atan2)     OV_NV_H_BINARY(copysign) OV_NV_H_BINARY(fdim)
 OV_NV_H_BINARY(fmax)      OV_NV_H_BINARY(fmin)     OV_NV_H_BINARY(fmod)
 OV_NV_H_BINARY(hypot)     OV_NV_H_BINARY(max)      OV_NV_H_BINARY(min)
 OV_NV_H_BINARY(maxmag)    OV_NV_H_BINARY(minmag)   OV_NV_H_BINARY(nextafter)
-OV_NV_H_BINARY(pow)       OV_NV_H_BINARY(powr)     OV_NV_H_BINARY(remainder)
+OV_NV_H_BINARY_IMPL(pow, ov_nv_pow_f) OV_NV_H_BINARY(powr) OV_NV_H_BINARY(remainder)
 OV_NV_H_BINARY(step)      OV_NV_H_BINARY(native_divide)
 OV_NV_H_TERNARY(mad)
 OV_NV_H_TERNARY(fma)
@@ -173,6 +216,7 @@ OV_NV_H_TERNARY(mix)
 #undef OV_NV_H_BINARY_VEC
 #undef OV_NV_H_BINARY_BCAST
 #undef OV_NV_H_BINARY
+#undef OV_NV_H_BINARY_IMPL
 #undef OV_NV_H_TERNARY_VEC
 #undef OV_NV_H_TERNARY
 
