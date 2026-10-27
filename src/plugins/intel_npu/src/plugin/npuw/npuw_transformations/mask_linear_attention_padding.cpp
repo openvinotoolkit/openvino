@@ -102,8 +102,43 @@ std::optional<ConvSite> match_conv(const std::shared_ptr<ov::Node>& node) {
                     state_param};
 }
 
+// The only consumer of `output`, when it is of type T.
+template <class T>
+std::shared_ptr<ov::Node> sole_consumer(const ov::Output<ov::Node>& output) {
+    const auto targets = output.get_target_inputs();
+    if (targets.size() != 1 || !ov::is_type<T>(targets.begin()->get_node())) {
+        return nullptr;
+    }
+    return targets.begin()->get_node()->shared_from_this();
+}
+
+// Skips an optional Convert (e.g. f16 -> f32) that is the only consumer of the node.
+std::shared_ptr<ov::Node> skip_convert(const std::shared_ptr<ov::Node>& node) {
+    if (const auto convert = sole_consumer<opv0::Convert>(node->output(0))) {
+        return convert;
+    }
+    return node;
+}
+
+// g: [Convert] -> Exp -> Unsqueeze -> Multiply(state, .). Returns that Multiply, the decayed state.
+std::shared_ptr<ov::Node> match_gate(const std::shared_ptr<opv0::Parameter>& gate) {
+    auto node = sole_consumer<opv0::Exp>(skip_convert(gate)->output(0));
+    node = node ? sole_consumer<opv0::Unsqueeze>(node->output(0)) : nullptr;
+    return node ? sole_consumer<opv1::Multiply>(node->output(0)) : nullptr;
+}
+
+// beta: [Convert] -> Multiply(delta, .) -> Unsqueeze -> Multiply(key, .) -> Add(decayed_state, .).
+bool feeds_delta_update(const std::shared_ptr<opv0::Parameter>& beta, const std::shared_ptr<ov::Node>& decayed_state) {
+    auto node = sole_consumer<opv1::Multiply>(skip_convert(beta)->output(0));
+    node = node ? sole_consumer<opv0::Unsqueeze>(node->output(0)) : nullptr;
+    node = node ? sole_consumer<opv1::Multiply>(node->output(0)) : nullptr;
+    node = node ? sole_consumer<opv1::Add>(node->output(0)) : nullptr;
+    return node && (node->input_value(0).get_node() == decayed_state.get() ||
+                    node->input_value(1).get_node() == decayed_state.get());
+}
+
 // The recurrence Loop of GatedDeltaNet: q, k, v are sliced as [B,H,L,D] and the two per-token scalars
-// g and beta as [B,H,L]. g is the one that goes through Exp (possibly after a Convert) inside the body.
+// g and beta as [B,H,L]. g and beta are identified by the body, see match_gate and feeds_delta_update.
 std::optional<SsmSite> match_ssm(const std::shared_ptr<ov::Node>& node) {
     const auto loop = ov::as_type_ptr<ov::op::v5::Loop>(node);
     if (!loop) {
@@ -126,35 +161,33 @@ std::optional<SsmSite> match_ssm(const std::shared_ptr<ov::Node>& node) {
         return std::nullopt;
     }
 
-    // The gate may be converted (e.g. f16 -> f32) right before Exp.
-    auto feeds_exp = [](const std::shared_ptr<opv0::Parameter>& param) {
-        const auto is_exp = [](const ov::Input<ov::Node>& target) {
-            return ov::is_type<opv0::Exp>(target.get_node());
-        };
-        const auto targets = param->output(0).get_target_inputs();
-        return std::any_of(targets.begin(), targets.end(), [&](const ov::Input<ov::Node>& target) {
-            if (ov::is_type<opv0::Convert>(target.get_node())) {
-                const auto converted = target.get_node()->output(0).get_target_inputs();
-                return std::any_of(converted.begin(), converted.end(), is_exp);
-            }
-            return is_exp(target);
-        });
-    };
-    const bool first_is_gate = feeds_exp(per_token_scalars[0].second);
-    const bool second_is_gate = feeds_exp(per_token_scalars[1].second);
-    if (first_is_gate == second_is_gate) {
+    // The scalars are told apart by how the body uses them, not by elimination: g decays the state and beta
+    // scales the delta that is added to the decayed state, so a zero g / beta is an identity step.
+    size_t gate = 0;
+    size_t beta = 0;
+    std::shared_ptr<ov::Node> decayed_state;
+    bool found = false;
+    for (const auto& [gate_candidate, beta_candidate] : {std::pair{0u, 1u}, std::pair{1u, 0u}}) {
+        decayed_state = match_gate(per_token_scalars[gate_candidate].second);
+        if (decayed_state && feeds_delta_update(per_token_scalars[beta_candidate].second, decayed_state)) {
+            gate = per_token_scalars[gate_candidate].first;
+            beta = per_token_scalars[beta_candidate].first;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
         return std::nullopt;
     }
-    const size_t gate = first_is_gate ? per_token_scalars[0].first : per_token_scalars[1].first;
-    const size_t beta = first_is_gate ? per_token_scalars[1].first : per_token_scalars[0].first;
     const auto& seq_dim = loop->get_input_partial_shape(gate)[kSeqAxis];
     if (seq_dim.is_dynamic()) {
         return std::nullopt;
     }
 
     std::shared_ptr<opv0::Parameter> state;
-    for (size_t i = 0; i < loop->get_input_size(); ++i) {
-        auto source = loop->input_value(i);
+    std::shared_ptr<opv0::Parameter> state_in;
+    for (const auto& desc : loop->get_input_descriptions()) {
+        auto source = loop->input_value(desc->m_input_index);
         if (ov::is_type<opv0::Convert>(source.get_node())) {
             source = source.get_node()->input_value(0);
         }
@@ -163,9 +196,20 @@ std::optional<SsmSite> match_ssm(const std::shared_ptr<ov::Node>& node) {
                 return std::nullopt;
             }
             state = ov::as_type_ptr<opv0::Parameter>(source.get_node_shared_ptr());
+            state_in = body->get_parameters().at(desc->m_body_parameter_index);
         }
     }
     if (!state) {
+        return std::nullopt;
+    }
+
+    // The decay is applied to the state the recurrence carries, not to some other tensor.
+    const auto is_state_in = [&](const ov::Output<ov::Node>& value) {
+        const auto node = ov::is_type<opv0::Convert>(value.get_node()) ? value.get_node()->input_value(0).get_node()
+                                                                       : value.get_node();
+        return node == state_in.get();
+    };
+    if (!is_state_in(decayed_state->input_value(0)) && !is_state_in(decayed_state->input_value(1))) {
         return std::nullopt;
     }
     return SsmSite{loop, gate, beta, static_cast<size_t>(seq_dim.get_length()), state};

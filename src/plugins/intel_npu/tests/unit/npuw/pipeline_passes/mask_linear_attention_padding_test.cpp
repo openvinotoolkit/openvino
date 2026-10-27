@@ -21,10 +21,12 @@
 #include "npuw_transformations/kv_axes_position.hpp"
 #include "npuw_transformations/optimize_lincache_layout.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/openvino.hpp"
@@ -163,6 +165,47 @@ protected:
             body->validate_nodes_and_infer_types();
         }
         model->validate_nodes_and_infer_types();
+    }
+
+    // Applies `edit` to the body of every recurrence Loop together with its per-token g and beta parameters.
+    template <class Edit>
+    static void edit_loop_bodies(const std::shared_ptr<ov::Model>& model, const Edit& edit) {
+        for (const auto& node : model->get_ordered_ops()) {
+            const auto loop = ov::as_type_ptr<ov::op::v5::Loop>(node);
+            if (!loop) {
+                continue;
+            }
+            const auto body = loop->get_function();
+            std::shared_ptr<ov::op::v0::Parameter> gate;
+            std::shared_ptr<ov::op::v0::Parameter> beta;
+            for (const auto& desc : loop->get_input_descriptions()) {
+                if (!ov::is_type<ov::op::util::SubGraphOp::SliceInputDescription>(desc) ||
+                    loop->get_input_partial_shape(desc->m_input_index).size() != 3) {
+                    continue;
+                }
+                const auto param = body->get_parameters().at(desc->m_body_parameter_index);
+                const auto targets = param->output(0).get_target_inputs();
+                const bool feeds_exp = std::any_of(targets.begin(), targets.end(), [](const ov::Input<ov::Node>& t) {
+                    return ov::is_type<ov::op::v0::Exp>(t.get_node());
+                });
+                (feeds_exp ? gate : beta) = param;
+            }
+            ASSERT_TRUE(gate && beta);
+            edit(body, gate, beta);
+            body->validate_nodes_and_infer_types();
+        }
+        model->validate_nodes_and_infer_types();
+    }
+
+    // beta is not consumed by the Multiply scaling the delta anymore, but by an unrelated operation.
+    static void insert_op_after_beta(const std::shared_ptr<ov::Model>& model) {
+        edit_loop_bodies(model, [](const auto&, const auto&, const auto& beta) {
+            const auto targets = beta->output(0).get_target_inputs();
+            const auto negated = std::make_shared<ov::op::v0::Negative>(beta);
+            for (auto target : targets) {
+                target.replace_source_output(negated);
+            }
+        });
     }
 
     // Number of distinct tensors the masked g / beta Loop inputs are multiplied with.
@@ -310,6 +353,35 @@ TEST_F(MaskLinearAttentionPaddingTest, SsmStateWithoutRecognizedSiteLeavesModelU
 
     state_consumer<ov::op::v5::Loop>(second).replace_source_output(first->output(0));
     ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+
+    const auto ops_before = model->get_ops().size();
+    EXPECT_FALSE(ov::npuw::MaskLinearAttentionPadding().run_on_model(model));
+    EXPECT_EQ(model->get_ops().size(), ops_before);
+}
+
+TEST_F(MaskLinearAttentionPaddingTest, BetaNotScalingTheDeltaLeavesModelUntouched) {
+    auto model = make_static(stateless(ov::test::npuw::build_hybrid_llm_test_model()), 8u);
+    insert_op_after_beta(model);
+
+    const auto ops_before = model->get_ops().size();
+    EXPECT_FALSE(ov::npuw::MaskLinearAttentionPadding().run_on_model(model));
+    EXPECT_EQ(model->get_ops().size(), ops_before);
+}
+
+// The decay is applied to a tensor which is not the state carried by the Loop.
+TEST_F(MaskLinearAttentionPaddingTest, DecayNotAppliedToCarriedStateLeavesModelUntouched) {
+    auto model = make_static(stateless(ov::test::npuw::build_hybrid_llm_test_model()), 8u);
+    edit_loop_bodies(model, [](const auto&, const auto& gate, const auto&) {
+        const auto exp = (*gate->output(0).get_target_inputs().begin()).get_node();
+        const auto unsqueeze = (*exp->output(0).get_target_inputs().begin()).get_node();
+        const auto decay = (*unsqueeze->output(0).get_target_inputs().begin()).get_node();
+        const size_t state_idx = decay->input_value(0).get_node() == unsqueeze ? 1 : 0;
+        const auto& state = decay->input_value(state_idx);
+        decay->input(state_idx).replace_source_output(
+            ov::op::v0::Constant::create(state.get_element_type(),
+                                         state.get_shape(),
+                                         std::vector<float>(ov::shape_size(state.get_shape()), 0.f)));
+    });
 
     const auto ops_before = model->get_ops().size();
     EXPECT_FALSE(ov::npuw::MaskLinearAttentionPadding().run_on_model(model));
