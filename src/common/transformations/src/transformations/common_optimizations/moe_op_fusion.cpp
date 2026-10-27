@@ -58,13 +58,13 @@ static size_t weight_logical_K(const ov::Shape& shape) {
 // A rank-0 zp is a folded per-tensor zero point. All-zero is symmetric and becomes the absent-zp constant. A non-zero
 // one is kept only if allow_nonzero: MOE validation exempts rank-0 inputs, and only the u2 kernels broadcast it.
 static bool normalize_scalar_zp(ov::Output<ov::Node>& zp, bool allow_nonzero) {
-    const auto& zp_shape = zp.get_partial_shape();
-    if (!zp_shape.is_static() || zp_shape.rank().get_length() != 0) {
-        return true;
-    }
     const auto zp_const = ov::as_type_ptr<v0::Constant>(zp.get_node_shared_ptr());
     if (!zp_const) {
-        return false;
+        const auto rank = zp.get_partial_shape().rank();
+        return rank.is_dynamic() || rank.get_length() != 0;
+    }
+    if (!zp_const->get_shape().empty()) {
+        return true;
     }
     // cast_vector is not meaningful on packed (u2/u4/i4) constants.
     const auto zp_et = zp_const->get_element_type();
@@ -307,20 +307,17 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
                 }
             }
 
-            const auto broadcast_per_channel_scale = [&](ov::Output<ov::Node>& scale, size_t K) {
-                return broadcast_per_channel(scale, K, group_size);
-            };
             if (group_size != std::numeric_limits<size_t>::max()) {
-                if ((gate_G == 1 && !broadcast_per_channel_scale(gate_scale, gate_K)) ||
-                    (up_G == 1 && !broadcast_per_channel_scale(up_scale, up_K)) ||
-                    (down_G == 1 && !broadcast_per_channel_scale(down_scale, down_K))) {
+                if ((gate_G == 1 && !broadcast_per_channel(gate_scale, gate_K, group_size)) ||
+                    (up_G == 1 && !broadcast_per_channel(up_scale, up_K, group_size)) ||
+                    (down_G == 1 && !broadcast_per_channel(down_scale, down_K, group_size))) {
                     return false;
                 }
                 // Per-channel zps get the same expansion as their scales so the shapes match; rank-0 zps are kept.
                 if (num_dynamic_zp == 0) {
-                    if ((gate_G == 1 && !broadcast_per_channel_scale(gate_zp, gate_K)) ||
-                        (up_G == 1 && !broadcast_per_channel_scale(up_zp, up_K)) ||
-                        (down_G == 1 && !broadcast_per_channel_scale(down_zp, down_K))) {
+                    if ((gate_G == 1 && !broadcast_per_channel(gate_zp, gate_K, group_size)) ||
+                        (up_G == 1 && !broadcast_per_channel(up_zp, up_K, group_size)) ||
+                        (down_G == 1 && !broadcast_per_channel(down_zp, down_K, group_size))) {
                         return false;
                     }
                 }
@@ -586,18 +583,15 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
                 }
             }
 
-            const auto broadcast_per_channel_scale = [&](ov::Output<ov::Node>& scale, size_t K) {
-                return broadcast_per_channel(scale, K, group_size);
-            };
             if (group_size != std::numeric_limits<size_t>::max()) {
-                if ((gate_up_G == 1 && !broadcast_per_channel_scale(gate_up_scale, hidden)) ||
-                    (down_G == 1 && !broadcast_per_channel_scale(down_scale, down_K))) {
+                if ((gate_up_G == 1 && !broadcast_per_channel(gate_up_scale, hidden, group_size)) ||
+                    (down_G == 1 && !broadcast_per_channel(down_scale, down_K, group_size))) {
                     return false;
                 }
                 // Per-channel zps get the same expansion as their scales so the shapes match; rank-0 zps are kept.
                 if (num_dynamic_zp == 0) {
-                    if ((gate_up_G == 1 && !broadcast_per_channel_scale(gate_up_zp, hidden)) ||
-                        (down_G == 1 && !broadcast_per_channel_scale(down_zp, down_K))) {
+                    if ((gate_up_G == 1 && !broadcast_per_channel(gate_up_zp, hidden, group_size)) ||
+                        (down_G == 1 && !broadcast_per_channel(down_zp, down_K, group_size))) {
                         return false;
                     }
                 }
