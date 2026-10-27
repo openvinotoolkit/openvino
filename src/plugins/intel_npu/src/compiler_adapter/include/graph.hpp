@@ -47,6 +47,8 @@ public:
 
     CommandQueueDesc get_command_queue_desc() const override;
     void set_workload_type(const ov::WorkloadType workloadType) override;
+    void set_qos(const ov::QoS qos) override;
+    ov::QoSInfo get_qos_info(const CommandQueueParams& commandQueueParams) const override;
     void set_model_priority(const ov::hint::Priority modelPriority) override;
 
     void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) override;
@@ -71,6 +73,8 @@ public:
 protected:
     void initialize_impl(const Config& config) override;
 
+    CommandQueueDesc create_command_queue_desc(const CommandQueueParams& commandQueueParams) const;
+
     bool release_blob(const Config& config);
     std::optional<size_t> determine_batch_size();
 
@@ -82,7 +86,7 @@ protected:
     NetworkMetadata _metadata;
 
     // Preserve previous behavior: when shared common queue is disabled and a new queue is created due to a priority
-    // change, keep the same workload type to avoid creating a queue with an unexpected workload.
+    // change, keep the same workload type and QoS to avoid creating a queue with an unexpected configuration.
     std::optional<ov::WorkloadType> _workloadType = std::nullopt;
     std::shared_ptr<CommandQueue> _commandQueue = nullptr;
 

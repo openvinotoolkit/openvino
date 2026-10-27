@@ -228,6 +228,49 @@ void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) {
     _commandQueueDesc.setWorkload(zeWorkloadType);
 }
 
+void DynamicGraph::set_qos(const ov::QoS qos) {
+    OPENVINO_ASSERT(_zeroInitStruct, "Driver is not initialized");
+
+    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+    auto zeQos = zeroUtils::toZeQueueQos(qos);
+
+    // If the graph already holds a command queue, that queue is the one used for execution,
+    // so the QoS must be applied directly on it.
+    if (_commandQueue) {
+        // When shared common queue is disabled, QoS is set per command queue.
+        // Update the existing queue if it has already been created.
+        _commandQueue->setQos(zeQos);
+        return;
+    }
+
+    // Otherwise, the command queue is not created yet. Update the command queue descriptor,
+    // since it will be used to create the command queue later.
+    _commandQueueDesc.setQos(zeQos);
+}
+
+ov::QoSInfo DynamicGraph::get_qos_info(const CommandQueueParams& commandQueueParams) const {
+    OPENVINO_ASSERT(_zeroInitStruct, "Driver is not initialized");
+
+    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+
+    std::shared_ptr<CommandQueue> commandQueue;
+    if (init_completed()) {
+        // If the graph already holds a command queue, that queue is the one used for execution, so query it directly.
+        // Otherwise, get the queue matching the current descriptor from the pool.
+        commandQueue = _commandQueue
+                           ? _commandQueue
+                           : ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
+    } else {
+        // The command queue descriptor is not built yet. Build it from the given parameters, the same way the graph
+        // initialization does, and get the matching queue from the pool (creating it if needed).
+        commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct,
+                                                                       create_command_queue_desc(commandQueueParams));
+    }
+
+    auto zeQosProperties = commandQueue->getQos();
+    return ov::QoSInfo{zeroUtils::toOVQos(zeQosProperties.qos), static_cast<bool>(zeQosProperties.isOverridden)};
+}
+
 void DynamicGraph::set_model_priority(const ov::hint::Priority modelPriority) {
     OPENVINO_ASSERT(_zeroInitStruct, "Driver is not initialized");
 
@@ -264,6 +307,33 @@ void* DynamicGraph::get_handle() const {
     return _engine;
 }
 
+CommandQueueDesc DynamicGraph::create_command_queue_desc(const CommandQueueParams& commandQueueParams) const {
+    uint32_t commandQueueOptions = 0;
+    if (commandQueueParams.turbo) {
+        OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0),
+                        "Turbo is not supported by the current driver");
+        _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+    }
+    if (commandQueueParams.runInferencesSequentially) {
+        OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
+                        "Running inferences sequentially is not supported by the current driver");
+        _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
+    }
+
+    return CommandQueueDesc{
+        zeroUtils::toZeQueuePriority(commandQueueParams.modelPriority),
+        commandQueueParams.workloadType.has_value()
+            ? zeroUtils::toZeQueueWorkloadType(commandQueueParams.workloadType.value())
+            : std::nullopt,
+        commandQueueParams.qos.has_value() ? std::optional(zeroUtils::toZeQueueQos(commandQueueParams.qos.value()))
+                                           : std::nullopt,
+        commandQueueOptions,
+        this,
+        commandQueueParams.sharedCommonQueue};
+}
+
 void DynamicGraph::initialize_impl(const Config& runtimeConfig) {
     _logger.debug("Graph initialize start");
 
@@ -275,32 +345,11 @@ void DynamicGraph::initialize_impl(const Config& runtimeConfig) {
     // initialize VM execution engine, metadata, input&output descriptors
     initialize_engine(runtimeConfig);
 
-    uint32_t commandQueueOptions = 0;
-    if (runtimeConfig.get<TURBO>()) {
-        OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0),
-                        "Turbo is not supported by the current driver");
-        _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
-        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
-    }
-    if (runtimeConfig.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
-                        "Running inferences sequentially is not supported by the current driver");
-        _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
-        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
-    }
-
-    bool sharedCommonQueue = runtimeConfig.get<SHARED_COMMON_QUEUE>();
     {
         std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
-        _commandQueueDesc = CommandQueueDesc{zeroUtils::toZeQueuePriority(runtimeConfig.get<MODEL_PRIORITY>()),
-                                             runtimeConfig.has<WORKLOAD_TYPE>()
-                                                 ? zeroUtils::toZeQueueWorkloadType(runtimeConfig.get<WORKLOAD_TYPE>())
-                                                 : std::nullopt,
-                                             commandQueueOptions,
-                                             this,
-                                             sharedCommonQueue};
+        _commandQueueDesc = create_command_queue_desc(CommandQueueParams::from_config(runtimeConfig));
 
-        if (!use_npu_vm_runtime_v2_api(_apiVersion) && sharedCommonQueue == false) {
+        if (!use_npu_vm_runtime_v2_api(_apiVersion) && _commandQueueDesc.sharedCommonQueue() == false) {
             // Keep it alive per compiled model when the shared common queue feature is disabled.
             _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
         }
