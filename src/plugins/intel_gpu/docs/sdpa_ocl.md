@@ -166,7 +166,7 @@ inliner make that stricter than "it inlines":
   read (+23 `sync`); passing `VcD_x0` and `sg_j0_sv` does not.
 - **No arrays inside helpers.** The inliner brackets a helper's own arrays with lifetime markers the
   inline code never had; on the spill-bound u4 head-512 MIXED kernel that moved scratch allocation
-  (7680 -> 7552 bytes). Scratch arrays (`kt`, `kw`, `vt_pa`, `vzp4`, `zpb4`, `v_pg`) are declared by
+  (7680 -> 7552 bytes). Scratch arrays (`kt`, `kw`, `kt_dt`, `vt_pa`, `vzp4`, `zpb4`, `v_pg`) are declared by
   the caller and passed as `__private` pointers.
 - **Loop-carried outputs belong to the caller.** `q_pack` is written element-wise by the u4 staging;
   as the caller's loop variable SROA keeps its previous value as a phi, which a helper-local vector
@@ -385,6 +385,35 @@ Measured and not adopted, at 8K: K-tile prefetch (next tile +0.2%, first tile +0
 `k_mask` add (0%), reversed workgroup order to start the long query blocks first (0% at 8K, +0.7%
 at 32K), a 32 values x 16 scores S*V split as `sdpa_micro`'s (+4.7%), one load per row for the
 epilogue sums (+2%, +6.6% at 2K).
+
+### Paged-attention PREFILL: short prompts (causal tile skip)
+
+With the same workgroup as `sdpa_micro` the short prompts still lost: qwen3-8b (`d_max` 128) 24.7 against 12.6 us per call
+at 32 tokens and 253 against 214 at 1K. VTune at 1K showed the same XVE activity (63%) and XMX-busy share (58% against 59%)
+but 35% more XMX instructions (2.49 G against 1.85 G): the diagonal key tile was computed whole and the triangle past each
+query masked afterwards. `CAUSAL_TILE_SKIP` skips that work per subgroup. A KQ subgroup whose keys all lie after its last
+query (or at/past `k`) skips its depth loop; its `S_tile` stays 0 and the mask makes it `-INFINITY`. An S*V subgroup skips
+the key blocks after its last score row, whose scores are exactly 0. Both conditions are uniform per subgroup and the skipped
+work adds exactly 0, so no result changes: the 186 `basic` PA rows are bit-identical, and a skip 16 keys too early fails the
+11 PREFILL rows at `d_max` >= 128 (`basic/93`-`96`, `98`-`101`, `145`, `171`, `172`). With image token types
+(`BIDIR_MASK`) a group can reach past its query, so only the workgroup's `causal_k` bounds the skip there.
+
+| PREFILL, us per call (32 / 1K / 4K tokens) | `sdpa_micro` | before | `CAUSAL_TILE_SKIP` |
+|---|---|---|---|
+| qwen3-8b, `d_max` 128 | 12.6 / 214 / 2,372 | 24.7 / 253 / 2,340 | 14.1 / 216 / 2,269 |
+| phi-3.5-mini, head 96 (`d_max` 128) | 12.8 / 249 / 2,745 | 24.7 / 264 / 2,389 | 15.8 / 224 / 2,229 |
+| gemma-3-4b, `d_max` 256, window / full layers | 19.8 / 165 / 759, 19.0 / 159 / 1,429 | 21.3 / 114 / 514, 20.0 / 117 / 1,084 | 15.0 / 115 / 517, 14.0 / 111 / 1,018 |
+| gemma-4-e2b, `d_max` 256 window / 512 (4K) | 684 / 1,947 | 550 / 1,690 | 539 / 1,679 |
+
+On at `d_max` 128 / 256 / 512 (the tilings above). At 64 the branches cost more than the skipped work from 4K on
+(llama-3.2-1b 1,283 to 1,371 us, gpt-oss-20b's full layers 2,362 to 2,457), although 32 and 1K gained (13.1 to 11.6, 131 to
+129), so it stays off there. In MIXED it was within 0.5% on qwen3.5-9b, llama-3.1-8b and gemma-3-4b at 8K except llama-3.1-8b
+with an f16 cache (+4.7%), so it is PREFILL only. `SDPA_OCL_CAUSAL_SKIP=0/1` forces it.
+
+End to end with the default (u4) cache and 256-token chunks, where PREFILL runs on the first chunk only, the 32-token first
+token went against master from 0.987x to 0.957x on qwen3-8b (16.30 to 15.93 ms; 36 layers x 10.6 us is 0.38 ms), 1.014x to
+0.985x on gemma-3-4b, 0.982x to 0.975x on llama-3.1-8b and 0.997x to 0.994x on phi-3.5-mini (same method as the MIXED
+runs, the "before" from the run of the same day); at 1K / 2K, which MIXED dominates, the ratios stayed within 0.01.
 
 ### Paged-attention PREFILL: the `d_max` 512 long-prompt knee
 
@@ -650,6 +679,9 @@ The block-level causal skip (`causal_block_clear`) is the counterpart of `sdpa_m
 (key x query) blocks are entirely inside the causal region; without the skip every one of them
 still paid 32 selects and 8 compares per (qb, k0) iteration, 16% of the loop body.
 
+Within the diagonal tile, PA PREFILL also skips the KQ of a subgroup whose keys all follow its queries and the S*V
+blocks after a subgroup's score rows (`CAUSAL_TILE_SKIP`, "Paged-attention PREFILL: short prompts").
+
 For `CAUSAL_MASK_LOWER_RIGHT` (plain SDPA) every query moves by `causal_offset = max(0, k - q)`,
 the shift `sdpa_micro` / reference / `sdpa_opt` apply. Without it a single new token (q == 1,
 k == 512) would only see the first tile of keys.
@@ -658,7 +690,8 @@ k == 512) would only see the first tile of keys.
 
 With `PA_CUR_KV_F16` the MIXED kernel reads keys `[0, past_len)` from the paged cache and the new
 keys `[past_len, k)` from the raw f16 K/V inputs (`Kc`/`Vc`). A compressed cache is a lossy round
-trip, so reading the new rows back from it is not equivalent. A key tile that crosses `past_len` is
+trip, so reading the new rows back from it is not equivalent. An f16 cache is not, and reads its new rows from the page
+by default ("Paged-attention MIXED: i8 and f16 caches"). A key tile that crosses `past_len` is
 shortened (`k_chunk`) so that every iteration reads one source, which is `sdpa_micro`'s boundary
 handling. For u4 two optimisations ride on this split: whole S*V blocks past `k_chunk` are skipped,
 and the Vc tiles are prefetched before the softmax.
@@ -743,10 +776,10 @@ qwen3.5 / 3.6 / 3.8 gain is smaller because a quarter or less of their layers is
 runs could not serve as the baseline: the build before this change measured again was about 1.2x slower on every model,
 the second token included, so they were taken under other clock conditions.
 
-The other caches take the tiling and the page indices but not the u4 dequant or the prefetches (not measured there). Per
-call at 8K against `sdpa_micro`: i8 qwen3.5-9b 1,232 to 894 (797), llama-3.1-8b 1,536 to 1,264 (1,299), gemma-3-4b
-1,070 to 593 (729); f16, whose K page stays d-major and is read by the per-key gather, qwen3.5-9b 1,679 to 1,465 (522),
-llama-3.1-8b 1,850 to 1,658 (950), gemma-3-4b 1,445 to 799 (454).
+The other caches took the tiling and the page indices here; per call at 8K against `sdpa_micro`: i8 qwen3.5-9b 1,232 to
+894 (797), llama-3.1-8b 1,536 to 1,264 (1,299), gemma-3-4b 1,070 to 593 (729); f16, whose K page stays d-major and was read
+by the per-key gather, qwen3.5-9b 1,679 to 1,465 (522), llama-3.1-8b 1,850 to 1,658 (950), gemma-3-4b 1,445 to 799 (454).
+Their own changes are in the next section.
 
 Measured and not used: reading each u4 K window once for its tile pair and one window ahead (double buffer), +17% (one read
 per window without the look-ahead +15%; the window re-read per depth tile is an L1 hit); a prefetch of the next tile's K
@@ -764,14 +797,88 @@ intended workgroups); swapping the V nibble or the K channel parity on purpose f
 178, 179) and none of the plain ones, whose near-uniform softmax averages the error away. The upstream
 `paged_attention_h256_mixed_qtile64` rows assert that `sdpa_micro` runs and fail on this branch for that reason alone.
 
+### Paged-attention MIXED: i8 and f16 caches
+
+**i8** (the default cache of models without 4-bit weights: BY_CHANNEL, token-major page) after the MIXED tiling above:
+
+- **Exact widen.** `I8_TO_HALF` forms the K and V page bytes as `as_half(0x6480 ^ b) - 1152` on 16-bit words of the
+  read, as `U4_TO_HALF` does for u4. `0x6480 ^ b` is `0x6400 | (b ^ 0x80)` and `b ^ 0x80` is the signed byte plus 128, so
+  the value is `(half)(char)b` bit for bit; the convert it replaces landed strided and took a repack move per value. The
+  `- 1152` stays separate: the zero point is not an integer. qwen3.5-9b's hot loop went from 7,690 to 5,842 instructions
+  (moves 5,147 to 2,003).
+- **V page prefetch** (`PA_MIXED_PREFETCH_V`) on every tiling, the `d_max` 64 table tiling included. The K prefetch stays
+  off for i8: from 0 to +1.6% on the models below.
+
+| i8 cache, 8K prompt, us per call | `sdpa_micro` | before | exact widen | + V prefetch |
+|---|---|---|---|---|
+| qwen3.5-9b, `d_max` 256 (16 heads) | 797 | 894 | 799 | 709 |
+| llama-3.1-8b, `d_max` 128 | 1,299 | 1,266 | 1,167 | 972 |
+| gemma-3-4b, `d_max` 256 full / 1024-key window | 751 / 168 | 609 / 157 | 563 / 146 | 490 / 129 |
+| gemma-4-e2b, `d_max` 512 / 256 with 512-key window | 1,012 / 86 | 1,010 / 99 | 955 / 94 | 902 / 82 |
+| llama-3.2-1b, `d_max` 64 (table) | 709 | 630 | 630 | 527 |
+| gpt-oss-20b, `d_max` 64 full / 128-key window | 1,345 / 55 | 1,197 / 67 | 1,171 / 66 | 961 / 61 |
+
+The 180 `basic` PA rows are bit-identical to the build before. An unsigned widen put in on purpose changes exactly the 18
+i8 MIXED rows (`basic/77`, `78`, `80`, `104`, `107`, `109`, `111`-`117`, `127`, `129`-`132`; 17 of them fail), so those rows
+run the new widen.
+
+**f16** (`OV_KV_CACHE_PRECISION=f16`, never a default): the K page is d-major, `[head_size, 16]`, a 32-byte row per
+channel under the block2d minimum, so MIXED gathered K one key per message (qwen3.5-9b: 1,465 us against `sdpa_micro`'s
+522). A token-major page (`OV_GPU_PA_K_TOKEN_MAJOR=1`) took 441 us, but changes the layout for every reader of the page
+("Paged-attention cache layouts"). `pa_k_tile_dt()` (`USE_2D_BLOCK_IO_K_PA_DT`) reads the d-major page in place instead:
+
+- Viewed as a 64-byte-pitch surface, row `r` holds channels `2r` and `2r + 1`, 16 keys each, as 8 dwords of key pairs.
+- A 32-bit transpose read gives lane `L` surface row `y + L` with element `i` at dword column `x + i` (probed on the B70:
+  `test/slower/probe/probe_t32.cpp`). At `x = 8 * (db & 1)`, `y = 16 * (db >> 1)` lane `L` holds channel
+  `32 * (db >> 1) + 2L + (db & 1)`, which is the u4 permuted depth (`PA_K_U4_CHANNEL`, "u4 K: the permuted depth axis"):
+  the u4 Q staging and Kc reads serve it unchanged (`PA_K_PERMUTED`).
+- The `k_raw` rows are the word halves of those dwords. The instruction that extracts a row also ANDs it with its key's
+  lane of a mask that is all ones below the page's valid rows, which keeps never-written slots (a NaN would survive the
+  masked score) out without a branch; a branch there cost 16 phi moves per depth tile (565 against 508 us).
+- The 32-row read (`PA_K_DT_ROWS` 32) interleaves rows `y + L` and `y + 16 + L` dword by dword, i.e. depth tiles `db` and
+  `db + 2`, in one message: 460 against 508 us. It keeps 16 dwords per parity live across the depth loop, which spilled
+  4 KB at 128 GRF (the `d_max` 64 table tiling: 497 against 413 us), so kernels compiled with 128 GRF take the 16-row read.
+- Gate: f16/bf16 d-major page, 16-token pages, `K_HEAD_SIZE % 32 == 0` (whole 32-channel windows; head 80 keeps the gather).
+
+An f16 cache also reads the new tokens from its pages rather than from Kc/Vc (`PA_CUR_KV_F16` 0): the page holds the same
+bits, and leaving the Kc branch out of the key loop was 5-14% faster per call.
+
+| f16 cache, 8K prompt, us per call | `sdpa_micro` | before (gather) | transpose read | + new tokens from the page | token-major page (Kc on) |
+|---|---|---|---|---|---|
+| qwen3.5-9b, `d_max` 256 | 522 | 1,464 | 459 | 407 | 441 |
+| llama-3.1-8b, `d_max` 128 | 949 | 1,657 | 652 | 562 | 605 |
+| gemma-3-4b, `d_max` 256 full / 1024-key window | 468 / 110 | 821 / 205 | 312 / 90 | 297 / 85 | 296 / 84 |
+| gemma-4-e2b, `d_max` 512 / 256 with 512-key window | 602 / 61 | 1,440 / 124 | 470 / 67 | 403 / 63 | 403 / 62 |
+| phi-3.5-mini, head 96 (`d_max` 128) | 882 | 1,389 | 661 | 588 | 604 |
+| llama-3.2-1b, `d_max` 64 (table, 16-row read) | 526 | 671 | 413 | 392 | 401 |
+| gpt-oss-20b, `d_max` 64 full / 128-key window | 972 / 44 | 1,202 / 67 | 732 / 54 | 684 / 52 | 694 / 48 |
+
+The permuted depth reorders the KQ sum, so an f16 MIXED output may change in rounding; the three f16 MIXED rows of the
+earlier set (`basic/37`, `38`, `103`, head 64) came out bit-identical anyway. `basic/180`-`185` are sharp-softmax f16
+MIXED rows (head 256 with 8 and 16 heads, 512, 128, 64 and 96, past lengths and totals that end inside a page), and
+reading the other parity on purpose fails all nine. The PA / sdpa / misc suites fail the same 13 / 60 / 0 tests as
+before.
+
+First-token latency of this branch against master end to end (`test/run_daily_bench.py` with `max_num_batched_tokens`
+256, master and this build back to back per model and size, alternating which goes first; B70 at 1800 MHz, CPU load
+logged with no other job running): i8 cache at 8K / 32K, gemma-3-4b 0.913 / 0.846, llama-3.1-8b 0.862 / 0.779, qwen3.5-9b
+0.984 / 0.955; f16 cache at 2K / 8K / 32K, gemma-3-4b 0.964 / 0.947 / 0.882, llama-3.1-8b 0.937 / 0.809 / 0.670, qwen3.5-9b
+0.997 / 0.980 / 0.931. Second-token latency 0.91-1.00 with i8 and 0.99-1.005 with f16 (GENERATE kernels unchanged). These
+compare the whole branch with master; the kernel tables above isolate the changes of this section.
+
+Still slower than `sdpa_micro` per call: the small sliding-window layers, gpt-oss-20b's 128-key window at `d_max` 64 with
+every cache (f16 52 against 44 us, i8 61 against 55, u4 69 against 57) and gemma-4-e2b's 512-key window at `d_max` 256
+with f16 (63 against 61).
+
 ## Paged-attention cache layouts
 
 A K cache page is either d-major (`[head_size, block_size]`, the upstream layout) or token-major
 (`[block_size, head_size]`, the same as V). Token-major is selected by
 `paged_attention::k_token_major_for()` (`OV_GPU_PA_K_TOKEN_MAJOR`) for f16 and i8 BY_TOKEN, and by
 the separate staging switch `paged_attention::k_by_channel_token_major_for()`
-(`OV_GPU_PA_BY_CHANNEL_TOKEN_MAJOR`, on by default) for i8/u4 BY_CHANNEL. The MIXED kernel reads
-d-major pages only through a per-key scalar gather; token-major pages can use block reads.
+(`OV_GPU_PA_BY_CHANNEL_TOKEN_MAJOR`, on by default) for i8/u4 BY_CHANNEL. The MIXED kernel reads a
+d-major f16 page with a 32-bit transpose read ("Paged-attention MIXED: i8 and f16 caches") and a d-major i8 BY_TOKEN page
+through a per-key scalar gather; token-major pages use block reads.
 `PA_K_TOKEN_STRIDE` / `PA_K_HIDDEN_STRIDE` let one gather path address both.
 
 The token-major BY_CHANNEL page has four readers: the cache writer, rotate, `sdpa_ocl` (MIXED) and
@@ -860,6 +967,9 @@ Every consumer falls out cheaply:
 - Q pays the whole cost once per workgroup in the SLM staging: a chunk spans 32 consecutive
   channels, read as two windows, and each output dword takes one half of two input dwords
   (three operations per dword). Q's staging traffic doubles, which is negligible next to K/V.
+
+The f16 d-major page lands the same labelling from a 32-bit transpose read (`PA_K_PERMUTED`, "Paged-attention MIXED: i8
+and f16 caches"), so it shares the Q staging and the Kc reads.
 
 V keeps the split convention instead (byte `b` holds dims `b` and `b + PA_V_ROW_ELEMS`), because V
 is the S*V B operand where `lane == head dim` as well: with adjacent packing a lane would own two
@@ -969,7 +1079,8 @@ Paged-attention caches: `(q - zp) * scale`, in half. The cache writer stores `1 
 value read back is already the multiplier. The block-read and scalar paths use exactly the same
 arithmetic, which makes the `*_PA_I8_2D` and `*_PA_1D` switches clean bisection toggles. The u4 block
 reads form `q` as `as_half(0x6400 | n) - 1024` (`U4_TO_HALF`), which equals `(half)n` exactly
-("Paged-attention MIXED tiling").
+("Paged-attention MIXED tiling"), and the i8 block reads as `as_half(0x6480 ^ b) - 1152` (`I8_TO_HALF`), which equals
+`(half)(char)b` exactly ("Paged-attention MIXED: i8 and f16 caches").
 
 Plain-SDPA i8 (the bias trick): `as_half(0x6480 ^ byte) == signed_byte + 1152` exactly, since
 `0x6480` is `1152.0h` and XOR-ing the byte into its mantissa maps the two's-complement range onto
@@ -1148,8 +1259,10 @@ All are read on the host when the kernel is compiled.
 | `OV_GPU_ARCH_OVERRIDE` | Debug caps only: report another arch (`xe_hpg`, `xe2`, ...) so its host code runs on this device (dump only) |
 | `SDPA_OCL_Q_2D`, `_KV_2D`, `_A_2D`, `_K_I8_2D`, `_V_I8_2D` | Plain-SDPA block IO paths |
 | `SDPA_OCL_K_PA_2D`, `_V_PA_2D`, `_K_PA_I8_2D`, `_V_PA_I8_2D`, `_K_PA_1D`, `_V_PA_1D` | Cache page read paths (`0` = scalar gather, same dequant) |
-| `SDPA_OCL_PA_CUR_F16` | MIXED current tokens from Kc/Vc (`0` = from the cache) |
-| `SDPA_OCL_MIXED_PREFETCH_V`, `_K` | u4 MIXED page prefetches ("Paged-attention MIXED tiling"): `0`/`1` forces each off/on where the 8-bit page read is on |
+| `SDPA_OCL_K_PA_DT` | MIXED f16 d-major K page transpose read: `16` / `32` rows per read (default 32 with 256 GRF, 16 with 128), `0` = per-key gather |
+| `SDPA_OCL_PA_CUR_F16` | MIXED current tokens from Kc/Vc (default for compressed caches only; `0` = from the cache) |
+| `SDPA_OCL_MIXED_PREFETCH_V`, `_K` | u4 / i8 MIXED page prefetches ("Paged-attention MIXED tiling", "... i8 and f16 caches"): `0`/`1` forces each off/on where the 8-bit page read is on |
+| `SDPA_OCL_CAUSAL_SKIP` | PA PREFILL causal tile skip ("Paged-attention PREFILL: short prompts"): `0`/`1` forces it off/on (default on at `d_max` 128 / 256 / 512) |
 | `SDPA_OCL_MICRO_MATH` | `0` / `1` forces `sdpa_micro` rounding off / on for PA prefill (default on except the `d_max` 512 tile) |
 | `SDPA_OCL_BIDIR`, `SDPA_OCL_BIDIR_GATE` | Negative controls for the image-group mask and its empty-buffer gate |
 | `SDPA_OCL_DECODE_M`, `_SG_PER_WG`, `_PREFETCH`, `_K_2D`, `_V_2D` | Decode tuning and block IO paths |
@@ -1279,10 +1392,9 @@ Each needs its own measured change.
   default scheduler (256-token chunks) every chunk after the first runs this kernel, so it carries the prefill there.
   Whether it spilled under IGC 2.36, and what the spill costs, were not measured. The `d_max` 512 MIXED tile spills
   1,920 B at 256 GRF.
-- MIXED with an i8 cache does not take the u4 page prefetches (unmeasured there) and is 1.12x `sdpa_micro` on qwen3.5-9b
-  at 8K; with an f16 cache the d-major K page is read by the per-key gather, 1.7-2.8x `sdpa_micro` ("Paged-attention MIXED
-  tiling").
-- The PA PREFILL tilings lose to `sdpa_micro` at short prompts: `d_max` 128 on qwen3-8b is 1.92x / 1.18x / 1.07x at 32 /
-  1K / 2K tokens (24.2 against 12.6 us per call at 32) and level at 4K (0.99x), phi-3.5-mini 1.88x / 1.06x at 32 / 1K;
-  at 32 tokens `d_max` 64 (llama-3.2-1b) is 1.38x and 256 (gemma-3-4b) 1.05x (B70, 1800 MHz, cliloader, 2026-10-26).
-  Per prefill that is about 1.4 ms of qwen3-8b's 102 ms first token at 1K.
+- MIXED sliding-window layers with a short window lose to `sdpa_micro` per call: gpt-oss-20b's 128-key window at `d_max`
+  64 with every cache (f16 52 against 44 us, i8 61 against 55, u4 69 against 57; 8K, 256-token chunks) and gemma-4-e2b's
+  512-key window at `d_max` 256 with f16 (63 against 61). Not investigated ("Paged-attention MIXED: i8 and f16 caches").
+- PA PREFILL at 32 tokens is still slower than `sdpa_micro` per call after the causal tile skip: qwen3-8b 14.1 against
+  12.6 us (1.12x), phi-3.5-mini 15.8 against 12.8 (1.23x), and at `d_max` 64, where the skip is off, llama-3.2-1b 13.1
+  against 9.2 (1.42x) ("Paged-attention PREFILL: short prompts"). From 1K they are level or faster.
