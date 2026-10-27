@@ -5,9 +5,11 @@
 #include "sparse_pa.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <iostream>
 #include <limits>
 #include <numeric>
 #include <sstream>
@@ -106,31 +108,29 @@ void fake_quant_by_token(ov::element::Type prec, size_t group_size, const float*
     }
 }
 
-// One scale and zero point per channel over `rows` rows of a key page.
+// One scale and zero point per channel over `rows` rows of a key page, evaluated like the plugin's
+// quantize_by_channel() (attn_quant_kernel.hpp): scale = (max - min) * (1 / levels), zp = -min / scale, x quantized as
+// fma(x, 1 / scale, zp) rounded to nearest even.
 void fake_quant_by_channel(ov::element::Type prec, const float* src, float* dst, size_t rows, size_t hidden) {
-    const bool u4 = prec == ov::element::u4;
-    const size_t row_bytes = u4 ? hidden / 2 : hidden;
-    std::vector<uint8_t> data(rows * row_bytes, 0);
-    std::vector<float> scales(hidden);
-    std::vector<float> zps(hidden);
-    if (u4) {
-        CPUTestUtils::scalar_quant_u4_by_channel(src, data.data(), rows, hidden, row_bytes, scales.data(), zps.data());
-        CPUTestUtils::scalar_dequant_u4_by_channel(data.data(),
-                                                   dst,
-                                                   rows,
-                                                   hidden,
-                                                   row_bytes,
-                                                   scales.data(),
-                                                   zps.data());
-    } else {
-        CPUTestUtils::scalar_quant_u8_by_channel(src, data.data(), rows, hidden, row_bytes, scales.data(), zps.data());
-        CPUTestUtils::scalar_dequant_u8_by_channel(data.data(),
-                                                   dst,
-                                                   rows,
-                                                   hidden,
-                                                   row_bytes,
-                                                   scales.data(),
-                                                   zps.data());
+    const float levels = prec == ov::element::u4 ? 15.0F : 255.0F;
+    for (size_t j = 0; j < hidden; j++) {
+        float max_val = -std::numeric_limits<float>::max();
+        float min_val = std::numeric_limits<float>::max();
+        for (size_t i = 0; i < rows; i++) {
+            max_val = std::max(max_val, src[i * hidden + j]);
+            min_val = std::min(min_val, src[i * hidden + j]);
+        }
+        float scale = (max_val - min_val) * (1.0F / levels);
+        if (scale == 0.0F) {
+            scale = 0.0001F;
+        }
+        const float zp = -min_val / scale;
+        const float inv_scale = 1.0F / scale;
+        for (size_t i = 0; i < rows; i++) {
+            const float q =
+                std::min(levels, std::max(0.0F, std::nearbyint(std::fma(src[i * hidden + j], inv_scale, zp))));
+            dst[i * hidden + j] = (q - zp) * scale;
+        }
     }
 }
 
@@ -252,8 +252,22 @@ std::string SparsePALayerCPUTest::getTestCaseName(const testing::TestParamInfo<S
            << "_Page=" << cfg.page_size << "_Kmax=" << cfg.max_selected_blocks
            << "_Sel=" << selection_name(cfg.selection)
            << "_Cache=" << (cfg.cache_precision == ov::element::dynamic ? "plain" : cfg.cache_precision.get_type_name())
-           << "_KeyByChannel=" << cfg.key_bychannel << "_Group=" << cfg.group_size;
+           << "_KeyByChannel=" << cfg.key_bychannel << "_Group=" << cfg.group_size << "_Mixed=" << cfg.mixed_lengths;
     return result.str();
+}
+
+size_t SparsePALayerCPUTest::sequence_len(size_t step_len, size_t sequence) const {
+    if (!m_cfg.mixed_lengths) {
+        return step_len;
+    }
+    switch (sequence % 3) {
+    case 0:
+        return step_len;  // (chunked) prefill
+    case 1:
+        return 1;  // decode
+    default:
+        return (step_len + 1) / 2;  // a shorter chunk
+    }
 }
 
 ov::Shape SparsePALayerCPUTest::cache_shape(bool is_key) const {
@@ -281,21 +295,29 @@ void SparsePALayerCPUTest::SetUp() {
     m_num_sequences = m_steps[0][1];
     m_num_heads = m_steps[0][2];
     m_k_head_size = m_steps[0][3];
-    size_t total_tokens = 0;
+    // Tokens every sequence holds after all the steps; the caches have room for the longest one.
+    std::vector<size_t> sequence_tokens(m_num_sequences, 0);
     for (const auto& step : m_steps) {
         ASSERT_EQ(step.size(), 4U) << "SparsePA test expects [L, B, H, S] step shapes";
         ASSERT_EQ(step[1], m_num_sequences) << "the number of sequences is fixed across the steps";
         ASSERT_EQ(step[2], m_num_heads);
         ASSERT_EQ(step[3], m_k_head_size);
-        total_tokens += step[0];
+        for (size_t s = 0; s < m_num_sequences; s++) {
+            sequence_tokens[s] += sequence_len(step[0], s);
+        }
     }
-    m_pages_per_sequence = (total_tokens + m_cfg.page_size - 1) / m_cfg.page_size;
+    const size_t max_tokens = *std::max_element(sequence_tokens.begin(), sequence_tokens.end());
+    m_pages_per_sequence = (max_tokens + m_cfg.page_size - 1) / m_cfg.page_size;
+    m_total_len.assign(m_num_sequences, 0);
     m_scale = 1.0F / std::sqrt(static_cast<float>(m_k_head_size));
 
     rel_threshold = 1e-3F;
     abs_threshold = 1e-4F;
     // Every floating-point input follows the data precision, which is also the inference precision.
     configuration.insert(ov::hint::inference_precision(data_precision));
+    if (m_cfg.num_threads != 0) {
+        configuration[ov::inference_num_threads.name()] = static_cast<int32_t>(m_cfg.num_threads);
+    }
     if (data_precision == ov::element::bf16) {
         rel_threshold = 5e-2F;
         abs_threshold = 5e-2F;
@@ -370,7 +392,10 @@ void SparsePALayerCPUTest::SetUp() {
         input_shapes.emplace_back(parameter->get_partial_shape(), std::vector<ov::Shape>{});
     }
     for (const auto& step : m_steps) {
-        const size_t tokens = step[0] * m_num_sequences;
+        size_t tokens = 0;
+        for (size_t s = 0; s < m_num_sequences; s++) {
+            tokens += sequence_len(step[0], s);
+        }
         const std::vector<ov::Shape> step_shapes = {{tokens, m_num_heads * m_k_head_size},
                                                     {tokens, Hkv * m_k_head_size},
                                                     {tokens, Hkv * Dv},
@@ -421,7 +446,6 @@ void SparsePALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetI
     host_inputs.clear();
 
     const size_t step = m_step++;
-    const size_t L = m_steps.at(step)[0];
     const size_t B = m_num_sequences;
     const size_t Hq = m_num_heads;
     const size_t Dh = m_k_head_size;
@@ -430,11 +454,17 @@ void SparsePALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetI
     const size_t Hs = m_cfg.num_selection_heads;
     const size_t K = m_cfg.max_selected_blocks;
     const size_t Bk = m_cfg.key_block_size;
-    const size_t tokens = B * L;
     const size_t n_phys = B * m_pages_per_sequence;
+    // New tokens of every sequence in this step and the first global token of each: sequences of a mixed batch differ.
+    std::vector<size_t> begins(B + 1, 0);
     m_cur_past = m_total_len;
-    m_cur_len = L;
-    m_total_len += L;
+    m_cur_len.resize(B);
+    for (size_t s = 0; s < B; s++) {
+        m_cur_len[s] = sequence_len(m_steps.at(step)[0], s);
+        begins[s + 1] = begins[s] + m_cur_len[s];
+        m_total_len[s] += m_cur_len[s];
+    }
+    const size_t tokens = begins[B];
 
     const auto assign_precision = [this](ov::Tensor& t, const std::vector<float>& data) {
         if (m_data_precision == ov::element::bf16) {
@@ -474,15 +504,16 @@ void SparsePALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetI
         std::vector<float> value_data(value.get_size());
         for (size_t s = 0; s < B; s++) {
             const uint32_t seed = static_cast<uint32_t>(step) * 101U + static_cast<uint32_t>(s) * 11U;
+            const size_t L = m_cur_len[s];
             std::vector<float> q_slot(L * Hq * Dh);
             std::vector<float> k_slot(L * Hkv * Dh);
             std::vector<float> v_slot(L * Hkv * Dv);
             fill_pseudo_random(q_slot, 1 + seed);
             fill_pseudo_random(k_slot, 2 + seed);
             fill_pseudo_random(v_slot, 3 + seed);
-            std::copy(q_slot.begin(), q_slot.end(), query_data.begin() + static_cast<ptrdiff_t>(s * q_slot.size()));
-            std::copy(k_slot.begin(), k_slot.end(), key_data.begin() + static_cast<ptrdiff_t>(s * k_slot.size()));
-            std::copy(v_slot.begin(), v_slot.end(), value_data.begin() + static_cast<ptrdiff_t>(s * v_slot.size()));
+            std::copy(q_slot.begin(), q_slot.end(), query_data.begin() + static_cast<ptrdiff_t>(begins[s] * Hq * Dh));
+            std::copy(k_slot.begin(), k_slot.end(), key_data.begin() + static_cast<ptrdiff_t>(begins[s] * Hkv * Dh));
+            std::copy(v_slot.begin(), v_slot.end(), value_data.begin() + static_cast<ptrdiff_t>(begins[s] * Hkv * Dv));
         }
         assign_precision(query, query_data);
         assign_precision(key, key_data);
@@ -501,9 +532,9 @@ void SparsePALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetI
     std::vector<int32_t> sel_count_flat(tokens * Hs, 0);
     uint32_t rng = 12345U + static_cast<uint32_t>(step);
     for (size_t s = 0; s < B; s++) {
-        for (size_t l = 0; l < L; l++) {
-            const size_t token = s * L + l;
-            const size_t num_complete = (m_cur_past + l + 1) / Bk;
+        for (size_t l = 0; l < m_cur_len[s]; l++) {
+            const size_t token = begins[s] + l;
+            const size_t num_complete = (m_cur_past[s] + l + 1) / Bk;
             for (size_t sh = 0; sh < Hs; sh++) {
                 const size_t row = token * Hs + sh;
                 make_selection(m_cfg.selection, K, num_complete, rng, &sel_indices_flat[row * K], sel_count_flat[row]);
@@ -519,11 +550,11 @@ void SparsePALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetI
     tensors[2] = value;
     tensors[3] = m_key_cache;
     tensors[4] = m_value_cache;
-    tensors[5] = make_i32(std::vector<int32_t>(B, static_cast<int32_t>(m_cur_past)));
+    tensors[5] = make_i32(std::vector<int32_t>(m_cur_past.begin(), m_cur_past.end()));
     std::vector<int32_t> subsequence_begins(B + 1);
     std::vector<int32_t> block_indices_begins(B + 1);
     for (size_t s = 0; s <= B; s++) {
-        subsequence_begins[s] = static_cast<int32_t>(s * L);
+        subsequence_begins[s] = static_cast<int32_t>(begins[s]);
         block_indices_begins[s] = static_cast<int32_t>(s * m_pages_per_sequence);
     }
     tensors[6] = make_i32(subsequence_begins);
@@ -570,9 +601,10 @@ std::vector<ov::Tensor> SparsePALayerCPUTest::calculate_refs() {
     };
 
     const size_t B = m_num_sequences;
-    const size_t L = m_cur_len;
-    const size_t past = m_cur_past;
-    const size_t total = past + L;
+    std::vector<size_t> begins(B + 1, 0);
+    for (size_t s = 0; s < B; s++) {
+        begins[s + 1] = begins[s] + m_cur_len[s];
+    }
     const size_t Hq = m_num_heads;
     const size_t Dh = m_k_head_size;
     const size_t Hkv = m_cfg.num_kv_heads;
@@ -598,13 +630,16 @@ std::vector<ov::Tensor> SparsePALayerCPUTest::calculate_refs() {
     // quantized by-token rows are quantized once when written; a by-channel key page is requantized as a whole (its
     // dequantized earlier rows plus the new ones) every time new rows land in it, so the rows chain across the steps.
     for (size_t s = 0; s < B; s++) {
+        const size_t L = m_cur_len[s];
+        const size_t past = m_cur_past[s];
+        const size_t total = past + L;
         for (size_t kv = 0; kv < Hkv; kv++) {
             auto& eff_key = m_eff_key[s][kv];
             auto& eff_value = m_eff_value[s][kv];
             eff_key.resize(total * Dh);
             eff_value.resize(total * Dv);
             for (size_t l = 0; l < L; l++) {
-                const size_t token = s * L + l;
+                const size_t token = begins[s] + l;
                 const float* k_src = &key[(token * Hkv + kv) * Dh];
                 const float* v_src = &value[(token * Hkv + kv) * Dv];
                 float* k_dst = &eff_key[(past + l) * Dh];
@@ -633,9 +668,11 @@ std::vector<ov::Tensor> SparsePALayerCPUTest::calculate_refs() {
         }
     }
 
-    ov::Tensor output(ov::element::f32, ov::Shape{B * L, Hq * Dv});
+    ov::Tensor output(ov::element::f32, ov::Shape{begins[B], Hq * Dv});
     auto* output_data = output.data<float>();
     for (size_t s = 0; s < B; s++) {
+        const size_t L = m_cur_len[s];
+        const size_t past = m_cur_past[s];
         // Full logical history of the sequence as [kv, total, S].
         std::vector<float> history_key;
         std::vector<float> history_value;
@@ -643,7 +680,7 @@ std::vector<ov::Tensor> SparsePALayerCPUTest::calculate_refs() {
             history_key.insert(history_key.end(), m_eff_key[s][kv].begin(), m_eff_key[s][kv].end());
             history_value.insert(history_value.end(), m_eff_value[s][kv].begin(), m_eff_value[s][kv].end());
         }
-        const auto first = static_cast<ptrdiff_t>(s * L);
+        const auto first = static_cast<ptrdiff_t>(begins[s]);
         const auto last = first + static_cast<ptrdiff_t>(L);
         const std::vector<float> query_s(query.begin() + first * static_cast<ptrdiff_t>(Hq * Dh),
                                          query.begin() + last * static_cast<ptrdiff_t>(Hq * Dh));
@@ -660,7 +697,7 @@ std::vector<ov::Tensor> SparsePALayerCPUTest::calculate_refs() {
                                                    history_value,
                                                    sel_indices_s,
                                                    sel_count_s);
-        std::copy(out_s.begin(), out_s.end(), output_data + s * L * Hq * Dv);
+        std::copy(out_s.begin(), out_s.end(), output_data + begins[s] * Hq * Dv);
     }
     return {output};
 }
@@ -674,6 +711,33 @@ void SparsePALayerCPUTest::compare(const std::vector<ov::Tensor>& expected, cons
 
 TEST_P(SparsePALayerCPUTest, CompareWithRefs) {
     run();
+}
+
+// Micro-benchmark, not run by default: --gtest_also_run_disabled_tests --gtest_filter='*SparsePA*Perf*'. Times the
+// compiled op on every step's inputs (the oracle is not evaluated), repeating each step on the same inputs: the plugin
+// rewrites the same cache slots, so the work per repetition stays the same.
+TEST_P(SparsePALayerCPUTest, DISABLED_Perf) {
+    constexpr size_t warmup = 3;
+    constexpr size_t repeats = 20;
+    compile_model();
+    for (size_t step = 0; step < targetStaticShapes.size(); step++) {
+        generate_inputs(targetStaticShapes[step]);
+        inferRequest = compiledModel.create_infer_request();
+        for (const auto& input : inputs) {
+            inferRequest.set_tensor(input.first, input.second);
+        }
+        for (size_t i = 0; i < warmup; i++) {
+            inferRequest.infer();
+        }
+        const auto start = std::chrono::steady_clock::now();
+        for (size_t i = 0; i < repeats; i++) {
+            inferRequest.infer();
+        }
+        const std::chrono::duration<double, std::milli> elapsed = std::chrono::steady_clock::now() - start;
+        std::cout << "[ PERF ] step " << step << " new tokens "
+                  << inputs.at(function->get_parameters()[0]).get_shape()[0] << ": " << elapsed.count() / repeats
+                  << " ms/call\n";
+    }
 }
 
 }  // namespace test

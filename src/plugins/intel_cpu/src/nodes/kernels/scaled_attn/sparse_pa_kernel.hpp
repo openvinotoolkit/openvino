@@ -5,9 +5,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <numeric>
 
 #include "cpu_parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 
 #ifdef OPENVINO_ARCH_X86_64
@@ -36,39 +38,98 @@ struct SparsePAQuant {
     }
 };
 
+/// @brief Query heads that share both K/V rows and the selected blocks, so a work item can process them together:
+/// q_head_pack_size = gcd(q_heads_per_k_head, q_heads_per_sel_head) with q_heads_per_k_head = q_head_num / k_head_num
+/// and q_heads_per_sel_head = q_head_num / sel_head_num (query head h reads K head h / q_heads_per_k_head and uses
+/// selection head h / q_heads_per_sel_head). sel_head_num of 1 or k_head_num gives the whole K-head group, q_head_num
+/// gives 1.
+inline size_t max_q_head_pack_size(size_t q_head_num, size_t k_head_num, size_t sel_head_num) {
+    return std::gcd(q_head_num / k_head_num, q_head_num / sel_head_num);
+}
+
+/// @brief Byte layout of the per-thread scratch of the sparse PA kernel. The node allocates one such block per worker
+/// thread (so nothing is allocated while computing) and the kernel carves it up with the same layout. Every part is
+/// 64-byte aligned. Sizes are for the largest query-head pack, max_q_head_pack_size().
+struct SparsePAScratchLayout {
+    size_t q = 0;            ///< float[pack, k_head_size]: query rows of the pack, f32
+    size_t acc = 0;          ///< float[pack, v_head_size]: attention accumulators
+    size_t running_max = 0;  ///< float[pack]: online-softmax maximum per query head
+    size_t running_sum = 0;  ///< float[pack]: online-softmax sum per query head
+    size_t scores = 0;       ///< float[pack, max_run_rows]: scores, then weights, of a run of key rows
+    size_t raw = 0;          ///< float[pack, 4 * amx_unit_blocks * key_block_size]: AMX chunk scores / weights
+    size_t runs = 0;         ///< 3 * int64[max_selected_blocks]: AMX run decomposition
+    size_t k_run = 0;        ///< quantized caches: float[max_run_rows, k_head_size] dequantized key run
+    size_t v_run = 0;        ///< quantized caches, pack > 1: float[max_run_rows, v_head_size] dequantized value run
+    size_t k_dq = 0;         ///< quantized + AMX: data-type[4 * amx_unit_blocks * key_block_size, k_head_size]
+    size_t v_dq = 0;         ///< quantized + AMX: data-type[4 * amx_unit_blocks * key_block_size, v_head_size]
+    size_t total = 0;        ///< bytes per thread
+
+    /// @param max_run_rows most key rows of one run: the page size when adjacent selected blocks are merged inside a
+    /// page, key_block_size when they are not
+    /// @param amx_unit_blocks 0 when the AMX path is not used
+    /// @param max_pack_size max_q_head_pack_size()
+    /// @param data_size size in bytes of the query/key/value data type (the AMX scratch holds that type)
+    SparsePAScratchLayout(size_t k_head_size,
+                          size_t v_head_size,
+                          size_t key_block_size,
+                          size_t max_run_rows,
+                          size_t max_selected_blocks,
+                          size_t amx_unit_blocks,
+                          size_t max_pack_size,
+                          size_t data_size,
+                          const SparsePAQuant& quant) {
+        const size_t amx_rows = amx_unit_blocks * 4 * key_block_size;  // 0 when AMX is not used
+        const bool amx_quant = amx_unit_blocks != 0 && quant.enabled();
+        // Quantized keys are dequantized to f32 for by-channel keys and for packs; values for packs.
+        const size_t k_run_rows = quant.enabled() && (quant.key_bychannel || max_pack_size > 1) ? max_run_rows : 0;
+        const size_t v_run_rows = quant.enabled() && max_pack_size > 1 ? max_run_rows : 0;
+        q = 0;
+        acc = q + aligned(max_pack_size * k_head_size * sizeof(float));
+        running_max = acc + aligned(max_pack_size * v_head_size * sizeof(float));
+        running_sum = running_max + aligned(max_pack_size * sizeof(float));
+        scores = running_sum + aligned(max_pack_size * sizeof(float));
+        raw = scores + aligned(max_pack_size * max_run_rows * sizeof(float));
+        runs = raw + aligned(max_pack_size * amx_rows * sizeof(float));
+        k_run = runs + aligned(amx_unit_blocks != 0 ? 3 * max_selected_blocks * sizeof(int64_t) : 0);
+        v_run = k_run + aligned(k_run_rows * k_head_size * sizeof(float));
+        k_dq = v_run + aligned(v_run_rows * v_head_size * sizeof(float));
+        v_dq = k_dq + aligned(amx_quant ? amx_rows * k_head_size * data_size : 0);
+        total = v_dq + aligned(amx_quant ? amx_rows * v_head_size * data_size : 0);
+    }
+
+private:
+    static constexpr size_t alignment = 64;
+    static size_t aligned(size_t bytes) {
+        return ov::intel_cpu::div_up(bytes, alignment) * alignment;
+    }
+};
+
 }  // namespace ov::Extensions::Cpu
 
 namespace ov::Extensions::Cpu::XARCH {
 
-// Single cross-compiled entry point for ov::intel_cpu::node::SparsePA (see sparse_pa.h for the
-// algorithm description). The node's execute() does nothing but marshal MemoryPtrs into
-// PlainTensors and call this once -- mirroring nodes/paged_gated_delta_net.cpp's
-// recurrent_linear_attn_paged() entry point. Every other compute step (Q0 in-place KV-cache write,
-// scalar online-softmax reference path, AMX-accelerated QK^T + vectorized P@V fast path, row
-// precision conversion) lives entirely inside sparse_pa_kernel.cpp, so it is genuinely vectorized
-// by cross_compiled_file()'s per-ISA clones instead of silently falling back to scalar code the way
-// calling header-only HAVE_AVX512F/HAVE_AVX2-guarded templates directly from a plain translation
-// unit would. key_cache/value_cache are mutated in place (Q0), so they are non-const refs; all
-// other tensors are read-only for this call. The physical page size is key_cache's dim 2.
+// Single cross-compiled entry point for ov::intel_cpu::node::SparsePA (see sparse_pa.h for the algorithm
+// description). The node writes the current-step K/V into the caches first (paged_attn_memcpy /
+// paged_attn_quantkv, parallel over token x kv head), so this reads them: it parallelizes the sparse attention over
+// (global query token, query head), with one preallocated scratch block per worker thread (SparsePAScratchLayout).
+// Query, output and plain caches share one floating-point type (f32/f16/bf16); quantized caches are described by
+// `quant`. The physical page size is quant.block_size, or the key cache's dim 2 for plain caches.
 void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
-                       const ov::intel_cpu::PlainTensor& key,
-                       const ov::intel_cpu::PlainTensor& value,
-                       ov::intel_cpu::PlainTensor& key_cache,
-                       ov::intel_cpu::PlainTensor& value_cache,
+                       const ov::intel_cpu::PlainTensor& key_cache,
+                       const ov::intel_cpu::PlainTensor& value_cache,
                        const ov::intel_cpu::PlainTensor& block_indices,
                        const ov::intel_cpu::PlainTensor& block_indices_begins,
                        const ov::intel_cpu::PlainTensor& subsequence_begins,
                        const ov::intel_cpu::PlainTensor& past_lens,
                        const ov::intel_cpu::PlainTensor& sel_indices,
                        const ov::intel_cpu::PlainTensor& sel_count,
-                       const ov::intel_cpu::PlainTensor& qb_start,
                        ov::intel_cpu::PlainTensor& out,
-                       size_t num_heads,
-                       size_t num_kv_heads,
+                       size_t q_head_num,
+                       size_t k_head_num,
                        size_t k_head_size,
                        size_t v_head_size,
                        size_t key_block_size,
-                       size_t num_selection_heads,
+                       size_t sel_head_num,
                        bool causal,
                        float scale,
                        const SparsePAQuant& quant,
@@ -76,6 +137,9 @@ void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
                        void* gemv_qk1,
                        void* gemv_qk4,
                        size_t amx_unit_blocks,
+                       size_t max_run_rows,
+                       uint8_t* scratch,
+                       size_t scratch_bytes_per_thread,
                        const ov::intel_cpu::CpuParallelPtr& cpu_parallel);
 
 }  // namespace ov::Extensions::Cpu::XARCH

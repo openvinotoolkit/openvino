@@ -42,6 +42,32 @@ std::vector<std::vector<InputShape>> make_shapes(size_t head_size) {
     return shapes;
 }
 
+// Mixed batches need at least three sequences to get a prefill, a decode and a shorter chunk in one call; four also
+// repeat the prefill pattern.
+std::vector<std::vector<InputShape>> make_mixed_shapes(size_t head_size) {
+    std::vector<std::vector<InputShape>> shapes;
+    for (const size_t batch : {3, 4}) {
+        shapes.push_back(make_steps(batch, head_size, kBoundarySteps));
+        shapes.push_back(make_steps(batch, head_size, kChunkedSteps));
+    }
+    return shapes;
+}
+
+std::vector<SparsePAConfig> as_mixed(std::vector<SparsePAConfig> configs) {
+    for (auto& cfg : configs) {
+        cfg.mixed_lengths = true;
+    }
+    return configs;
+}
+
+// The same configs on a single thread, which makes the kernel process whole query-head packs in every work item.
+std::vector<SparsePAConfig> single_thread(std::vector<SparsePAConfig> configs) {
+    for (auto& cfg : configs) {
+        cfg.num_threads = 1;
+    }
+    return configs;
+}
+
 SparsePAConfig plain_config(size_t num_selection_heads,
                             size_t key_block_size,
                             size_t page_size,
@@ -117,7 +143,44 @@ std::vector<SparsePAConfig> quantized_configs() {
     return configs;
 }
 
+// Qwen-like shapes for the DISABLED_Perf benchmark: 24 query heads over 2 K heads, head size 256, a selection of 128
+// blocks of 4 tokens, one prefill call followed by decode calls, and the same as a mixed batch.
+std::vector<std::vector<InputShape>> perf_shapes() {
+    const auto steps = [](size_t batch) {
+        std::vector<ov::Shape> targets = {{1024, batch, 24, 256}, {1, batch, 24, 256}};
+        return std::vector<InputShape>{{ov::PartialShape{-1, static_cast<int64_t>(batch), 24, 256}, targets}};
+    };
+    return {steps(1), steps(3)};
+}
+
+std::vector<SparsePAConfig> perf_configs() {
+    std::vector<SparsePAConfig> configs;
+    for (const auto precision : {ov::element::dynamic, ov::element::u8, ov::element::u4}) {
+        for (const bool mixed : {false, true}) {
+            SparsePAConfig cfg;
+            cfg.num_kv_heads = 2;
+            cfg.num_selection_heads = 1;
+            cfg.v_head_size = 256;
+            cfg.key_block_size = 4;
+            cfg.page_size = 32;
+            cfg.max_selected_blocks = 128;
+            cfg.cache_precision = precision;
+            cfg.key_bychannel = precision != ov::element::dynamic;
+            cfg.mixed_lengths = mixed;
+            configs.push_back(cfg);
+        }
+    }
+    return configs;
+}
+
 }  // namespace
+
+INSTANTIATE_TEST_SUITE_P(perf_SparsePA_CPU,
+                         SparsePALayerCPUTest,
+                         testing::Combine(testing::Values(ov::element::bf16),
+                                          testing::ValuesIn(perf_shapes()),
+                                          testing::ValuesIn(perf_configs())),
+                         SparsePALayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_Plain,
                          SparsePALayerCPUTest,
@@ -131,6 +194,51 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_AMX,
                          testing::Combine(testing::Values(ov::element::bf16),
                                           testing::ValuesIn(make_shapes(32)),
                                           testing::ValuesIn(amx_configs())),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+// Decode, prefill and chunked-prefill sequences in the same call (sequence s % 3 picks the kind), with different past
+// lengths, for plain and quantized caches and every selection-head count.
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_MixedBatchPlain,
+                         SparsePALayerCPUTest,
+                         testing::Combine(testing::Values(ov::element::f32, ov::element::f16, ov::element::bf16),
+                                          testing::ValuesIn(make_mixed_shapes(16)),
+                                          testing::ValuesIn(as_mixed(plain_configs()))),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_MixedBatchAMX,
+                         SparsePALayerCPUTest,
+                         testing::Combine(testing::Values(ov::element::bf16),
+                                          testing::ValuesIn(make_mixed_shapes(32)),
+                                          testing::ValuesIn(as_mixed(amx_configs()))),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_MixedBatchQuantizedCache,
+                         SparsePALayerCPUTest,
+                         testing::Combine(testing::Values(ov::element::f32, ov::element::bf16),
+                                          testing::ValuesIn(make_mixed_shapes(32)),
+                                          testing::ValuesIn(as_mixed(quantized_configs()))),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+// Packed query heads: one thread, so every work item holds a whole pack (see SparsePAConfig::num_threads).
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_PackedPlain,
+                         SparsePALayerCPUTest,
+                         testing::Combine(testing::Values(ov::element::f32, ov::element::f16, ov::element::bf16),
+                                          testing::ValuesIn(make_mixed_shapes(16)),
+                                          testing::ValuesIn(single_thread(as_mixed(plain_configs())))),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_PackedAMX,
+                         SparsePALayerCPUTest,
+                         testing::Combine(testing::Values(ov::element::bf16),
+                                          testing::ValuesIn(make_mixed_shapes(32)),
+                                          testing::ValuesIn(single_thread(as_mixed(amx_configs())))),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_PackedQuantizedCache,
+                         SparsePALayerCPUTest,
+                         testing::Combine(testing::Values(ov::element::f32, ov::element::bf16),
+                                          testing::ValuesIn(make_mixed_shapes(32)),
+                                          testing::ValuesIn(single_thread(as_mixed(quantized_configs())))),
                          SparsePALayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_QuantizedCache,

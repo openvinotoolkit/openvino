@@ -37,6 +37,14 @@ struct SparsePAConfig {
     bool key_bychannel = false;  // quantized key cache by channel, else by token (the value cache is always by token)
     size_t group_size = 0;       // by-token quantization group, 0: the whole row
     SparsePASelection selection = SparsePASelection::kRecent;
+    // false: every sequence of a step has the step's L new tokens. true: a mixed batch of decode and (chunked) prefill
+    // sequences in one call -- sequence s gets L tokens if s % 3 == 0, a single decode token if s % 3 == 1 and
+    // (L + 1) / 2 tokens if s % 3 == 2, so the sequences also have different past lengths.
+    bool mixed_lengths = false;
+    // Worker threads of the plugin, 0 for its default. The kernel packs the query heads of a K head into one work item
+    // only when there is enough work for every thread, so a single thread selects the packed path for every shape here
+    // while the default thread count selects it only for large batches.
+    size_t num_threads = 0;
 };
 
 // Data precision (query, key, value, scale, sinks, plain caches and the inference precision), the steps and the config.
@@ -61,6 +69,8 @@ private:
     [[nodiscard]] bool quantized() const {
         return m_cfg.cache_precision == ov::element::u8 || m_cfg.cache_precision == ov::element::u4;
     }
+    // New tokens of `sequence` in a step whose shape says `step_len`.
+    [[nodiscard]] size_t sequence_len(size_t step_len, size_t sequence) const;
     // Final key/value cache shapes: quantization parameters live inside the cache tensor (see SparsePAQuant).
     [[nodiscard]] ov::Shape cache_shape(bool is_key) const;
 
@@ -76,9 +86,9 @@ private:
 
     // Step bookkeeping. The caches are created by the first step and reused by the next ones.
     size_t m_step = 0;
-    size_t m_total_len = 0;  // tokens per sequence written by the steps generated so far
-    size_t m_cur_past = 0;   // tokens per sequence before the current step
-    size_t m_cur_len = 0;    // new tokens per sequence in the current step
+    std::vector<size_t> m_total_len;  // per sequence: tokens written by the steps generated so far
+    std::vector<size_t> m_cur_past;   // per sequence: tokens before the current step
+    std::vector<size_t> m_cur_len;    // per sequence: new tokens in the current step
     ov::Tensor m_key_cache;
     ov::Tensor m_value_cache;
     std::map<std::shared_ptr<ov::Node>, ov::Tensor> host_inputs;

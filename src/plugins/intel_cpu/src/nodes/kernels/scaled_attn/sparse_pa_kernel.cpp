@@ -17,6 +17,7 @@
 #include "nodes/kernels/scaled_attn/common.hpp"
 #include "nodes/kernels/scaled_attn/paged_attn_kernel.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -28,42 +29,7 @@ using ov::intel_cpu::PlainTensor;
 
 namespace {
 
-// load_row_f32 / store_row_f32: used in Q3 scalar reference path and dense cache reads
-template <typename... Idx>
-void load_row_f32(const PlainTensor& t, size_t len, float* dst, Idx... idx) {
-    const auto prec = t.get_precision();
-    if (prec == ov::element::bf16) {
-        cvt_copy(dst, reinterpret_cast<const ov::bfloat16*>(t.ptr_v(idx...)), 1, len, 0, 0);
-    } else if (prec == ov::element::f16) {
-        cvt_copy(dst, reinterpret_cast<const ov::float16*>(t.ptr_v(idx...)), 1, len, 0, 0);
-    } else {
-        cvt_copy(dst, reinterpret_cast<const float*>(t.ptr_v(idx...)), 1, len, 0, 0);
-    }
-}
-
-template <typename... Idx>
-void store_row_f32(const PlainTensor& t, size_t len, const float* src, Idx... idx) {
-    const auto prec = t.get_precision();
-    if (prec == ov::element::bf16) {
-        cvt_copy(reinterpret_cast<ov::bfloat16*>(t.ptr_v(idx...)), src, 1, len, 0, 0);
-    } else if (prec == ov::element::f16) {
-        cvt_copy(reinterpret_cast<ov::float16*>(t.ptr_v(idx...)), src, 1, len, 0, 0);
-    } else {
-        cvt_copy(reinterpret_cast<float*>(t.ptr_v(idx...)), src, 1, len, 0, 0);
-    }
-}
-
 // ---- quantized (u8/u4) paged cache access, same layouts as PagedAttention (see SparsePAQuant) ----
-
-// Calls fn(std::integral_constant<PREC>) for the u8 or u4 cache precision.
-template <typename Fn>
-void dispatch_quant_prec(ov::element::Type prec, Fn&& fn) {
-    if (prec == ov::element::u4) {
-        fn(std::integral_constant<ov::element::Type_t, ov::element::u4>{});
-    } else {
-        fn(std::integral_constant<ov::element::Type_t, ov::element::u8>{});
-    }
-}
 
 // Dequantizes `n` consecutive by-token rows [slot0, slot0 + n) of one (physical block, kv head) into dst[n, D].
 template <typename TDST, ov::element::Type_t PREC>
@@ -110,6 +76,24 @@ void dequant_key_rows_by_channel(const PlainTensor& cache,
     attn_dequant_by_channel_kernel<TDST, PREC>(data + slot0 * row_stride, dst, n, S, row_stride, S, scales, zps);
 }
 
+// The cache precision is a template parameter of the kernels below; each *_rows function picks u8 or u4 at runtime.
+
+template <typename TDST, ov::element::Type_t PREC>
+void dequant_k_rows_prec(const SparsePAQuant& quant,
+                         const PlainTensor& cache,
+                         size_t phys_block,
+                         size_t kv,
+                         size_t slot0,
+                         size_t n,
+                         size_t S,
+                         TDST* dst) {
+    if (quant.key_bychannel) {
+        dequant_key_rows_by_channel<TDST, PREC>(cache, phys_block, kv, slot0, n, S, dst);
+    } else {
+        dequant_rows_by_token<TDST, PREC>(cache, phys_block, kv, slot0, n, S, quant.key_group_size, dst);
+    }
+}
+
 template <typename TDST>
 void dequant_k_rows(const SparsePAQuant& quant,
                     const PlainTensor& cache,
@@ -119,14 +103,11 @@ void dequant_k_rows(const SparsePAQuant& quant,
                     size_t n,
                     size_t S,
                     TDST* dst) {
-    dispatch_quant_prec(quant.key_prec, [&](auto prec) {
-        constexpr auto PREC = decltype(prec)::value;
-        if (quant.key_bychannel) {
-            dequant_key_rows_by_channel<TDST, PREC>(cache, phys_block, kv, slot0, n, S, dst);
-        } else {
-            dequant_rows_by_token<TDST, PREC>(cache, phys_block, kv, slot0, n, S, quant.key_group_size, dst);
-        }
-    });
+    if (quant.key_prec == ov::element::u4) {
+        dequant_k_rows_prec<TDST, ov::element::u4>(quant, cache, phys_block, kv, slot0, n, S, dst);
+    } else {
+        dequant_k_rows_prec<TDST, ov::element::u8>(quant, cache, phys_block, kv, slot0, n, S, dst);
+    }
 }
 
 template <typename TDST>
@@ -138,10 +119,26 @@ void dequant_v_rows(const SparsePAQuant& quant,
                     size_t n,
                     size_t Sv,
                     TDST* dst) {
-    dispatch_quant_prec(quant.value_prec, [&](auto prec) {
-        constexpr auto PREC = decltype(prec)::value;
-        dequant_rows_by_token<TDST, PREC>(cache, phys_block, kv, slot0, n, Sv, quant.value_group_size, dst);
-    });
+    if (quant.value_prec == ov::element::u4) {
+        dequant_rows_by_token<TDST, ov::element::u4>(cache, phys_block, kv, slot0, n, Sv, quant.value_group_size, dst);
+    } else {
+        dequant_rows_by_token<TDST, ov::element::u8>(cache, phys_block, kv, slot0, n, Sv, quant.value_group_size, dst);
+    }
+}
+
+template <ov::element::Type_t PREC>
+void dot_key_rows_by_token_prec(const SparsePAQuant& quant,
+                                const PlainTensor& cache,
+                                size_t phys_block,
+                                size_t kv,
+                                size_t slot0,
+                                size_t rows,
+                                size_t S,
+                                float* q,
+                                float* scores) {
+    auto* k = cache.ptr<uint8_t, PREC>(phys_block, kv, slot0);
+    const size_t gs = quant.key_group_size ? quant.key_group_size : S;
+    dot_product_block_quantized<float, PREC>(q, k, scores, S, false, rows, gs);
 }
 
 // scores[j] = dot(q, key row slot0 + j) for by-token key rows, straight from the quantized cache.
@@ -154,12 +151,26 @@ void dot_key_rows_by_token(const SparsePAQuant& quant,
                            size_t S,
                            float* q,
                            float* scores) {
-    dispatch_quant_prec(quant.key_prec, [&](auto prec) {
-        constexpr auto PREC = decltype(prec)::value;
-        auto* k = cache.ptr<uint8_t, PREC>(phys_block, kv, slot0);
-        const size_t gs = quant.key_group_size ? quant.key_group_size : S;
-        dot_product_block_quantized<float, PREC>(q, k, scores, S, false, rows, gs);
-    });
+    if (quant.key_prec == ov::element::u4) {
+        dot_key_rows_by_token_prec<ov::element::u4>(quant, cache, phys_block, kv, slot0, rows, S, q, scores);
+    } else {
+        dot_key_rows_by_token_prec<ov::element::u8>(quant, cache, phys_block, kv, slot0, rows, S, q, scores);
+    }
+}
+
+template <ov::element::Type_t PREC>
+void acc_value_rows_by_token_prec(const SparsePAQuant& quant,
+                                  const PlainTensor& cache,
+                                  size_t phys_block,
+                                  size_t kv,
+                                  size_t slot0,
+                                  size_t rows,
+                                  size_t Sv,
+                                  float* weights,
+                                  float* out) {
+    auto* v = cache.ptr<uint8_t, PREC>(phys_block, kv, slot0);
+    const size_t gs = quant.value_group_size ? quant.value_group_size : Sv;
+    attn_acc_value_block_quantized<float, PREC>(out, weights, v, Sv, false, rows, gs);
 }
 
 // out += sum_j weights[j] * (value row slot0 + j), straight from the quantized cache (value is always by-token).
@@ -172,17 +183,234 @@ void acc_value_rows_by_token(const SparsePAQuant& quant,
                              size_t Sv,
                              float* weights,
                              float* out) {
-    dispatch_quant_prec(quant.value_prec, [&](auto prec) {
-        constexpr auto PREC = decltype(prec)::value;
-        auto* v = cache.ptr<uint8_t, PREC>(phys_block, kv, slot0);
-        const size_t gs = quant.value_group_size ? quant.value_group_size : Sv;
-        attn_acc_value_block_quantized<float, PREC>(out, weights, v, Sv, false, rows, gs);
-    });
+    if (quant.value_prec == ov::element::u4) {
+        acc_value_rows_by_token_prec<ov::element::u4>(quant, cache, phys_block, kv, slot0, rows, Sv, weights, out);
+    } else {
+        acc_value_rows_by_token_prec<ov::element::u8>(quant, cache, phys_block, kv, slot0, rows, Sv, weights, out);
+    }
+}
+
+// ---- everything the sparse attention work items read from the arguments, see sparse_pa_compute() ----
+
+struct SparsePAArgs {
+    const PlainTensor& query;
+    const PlainTensor& key_cache;
+    const PlainTensor& value_cache;
+    const PlainTensor& block_indices;
+    const PlainTensor& block_indices_begins;
+    const PlainTensor& subsequence_begins;
+    const PlainTensor& past_lens;
+    const PlainTensor& sel_indices;
+    const PlainTensor& sel_count;
+    PlainTensor& out;
+    size_t q_head_num;
+    size_t k_head_num;
+    size_t k_head_size;  // == q_head_size
+    size_t v_head_size;
+    size_t key_block_size;
+    size_t page_size;  // tokens per physical cache block
+    size_t sel_head_num;
+    bool causal;
+    float scale;
+    const SparsePAQuant& quant;
+    ov::element::Type amx_prec;
+    void* gemv_qk1;
+    void* gemv_qk4;
+    size_t amx_unit_blocks;
+    size_t max_run_rows;  // most key rows of one run, see SparsePAScratchLayout
+    uint8_t* scratch;
+    size_t scratch_bytes_per_thread;
+    size_t q_head_pack_size;  // query heads of one work item, chosen per call
+};
+
+// State of one work item: one query token and a pack of `pack_size` consecutive query heads that read the same K/V rows
+// and use the same selected blocks. It holds where the sequence lives in the caches, the pack's scratch and, per query
+// head, the running online-softmax state that the attend_* functions below accumulate into.
+struct PackWork {
+    const PlainTensor& key_cache;
+    const PlainTensor& value_cache;
+    const int32_t* block_table;  // physical block ids of the sequence
+    const SparsePAQuant& quant;
+    size_t k_head_size;
+    size_t v_head_size;
+    size_t k_head;     // the K/V head every query head of the pack reads
+    size_t pack_size;  // query heads of the pack
+    int64_t key_block_size;
+    int64_t page_size;
+    int64_t token_pos;  // logical position of the query token
+    int64_t valid_max;  // exclusive bound on the valid logical positions of the sequence
+    int64_t max_run_rows;
+    bool causal;
+    float scale;
+    const void* query;  // [pack_size, k_head_size] query rows in the data type of the query
+    float* q;           // the same rows in f32
+    float* acc;         // [pack_size, v_head_size] attention accumulators
+    float* running_max;
+    float* running_sum;
+    float* run_scores;  // [pack_size, max_run_rows] scores, then weights, of a run of key rows
+    float* k_run;       // quantized caches: [max_run_rows, k_head_size] dequantized key run
+    float* v_run;       // quantized caches: [max_run_rows, v_head_size] dequantized value run
+};
+
+// Index of the sequence whose tokens contain `token`.
+size_t find_sequence(const PlainTensor& subsequence_begins, size_t token) {
+    const auto* begins = subsequence_begins.ptr<int32_t>();
+    const auto* end = begins + subsequence_begins.size(0);
+    return static_cast<size_t>(std::upper_bound(begins, end, static_cast<int32_t>(token)) - begins) - 1;
+}
+
+// Maps a logical KV position of the sequence to the physical (block, slot) address in the caches through the shared
+// page table. A selected key_block_size-wide span never crosses a physical block boundary (page_size % key_block_size
+// == 0 is enforced by the op and the node).
+std::pair<size_t, size_t> physical_address(const PackWork& w, int64_t logical_pos) {
+    return {static_cast<size_t>(w.block_table[logical_pos / w.page_size]),
+            static_cast<size_t>(logical_pos % w.page_size)};
+}
+
+// Online-softmax step of query head `head` of the pack over its scores[0, rows) of one run of key rows: rescales the
+// head's state to the new maximum and turns the scores into weights in place. The caller accumulates the weighted
+// value rows into the head's accumulator.
+void softmax_update(PackWork& w, size_t head, size_t rows) {
+    float* scores = w.run_scores + head * static_cast<size_t>(w.max_run_rows);
+    float* acc = w.acc + head * w.v_head_size;
+    float run_max = -std::numeric_limits<float>::infinity();
+    for (size_t r = 0; r < rows; r++) {
+        scores[r] *= w.scale;
+        run_max = std::max(run_max, scores[r]);
+    }
+    const float new_max = std::max(w.running_max[head], run_max);
+    const float corr = std::exp(w.running_max[head] - new_max);
+    w.running_sum[head] *= corr;
+    for (size_t d = 0; d < w.v_head_size; d++) {
+        acc[d] *= corr;
+    }
+    for (size_t r = 0; r < rows; r++) {
+        scores[r] = std::exp(scores[r] - new_max);
+        w.running_sum[head] += scores[r];
+    }
+    w.running_max[head] = new_max;
+}
+
+// Plain caches: attends to up to `n` consecutive logical positions [kpos0, kpos0 + n), all inside one physical page,
+// with one online-softmax update per query head. The rows are contiguous in the cache, so PagedAttention's block
+// kernels read them in place for every query head of the pack: no per-row conversion and one page-table lookup.
+template <typename T>
+void attend_run_plain(PackWork& w, int64_t kpos0, int64_t n) {
+    constexpr auto prec = ov::intel_cpu::precision_of<T>::value;
+    const auto [phys_block, slot] = physical_address(w, kpos0);
+    const auto rows = static_cast<size_t>(n);
+    T* key_rows = w.key_cache.ptr<T>(phys_block, w.k_head, slot);
+    T* value_rows = w.value_cache.ptr<T>(phys_block, w.k_head, slot);
+    for (size_t head = 0; head < w.pack_size; head++) {
+        float* scores = w.run_scores + head * static_cast<size_t>(w.max_run_rows);
+        dot_product_block<T, prec>(const_cast<T*>(static_cast<const T*>(w.query)) + head * w.k_head_size,
+                                   key_rows,
+                                   scores,
+                                   w.k_head_size,
+                                   rows,
+                                   0);
+        softmax_update(w, head, rows);
+        attn_acc_value_block<T, prec>(w.acc + head * w.v_head_size, scores, value_rows, w.v_head_size, rows, 0);
+    }
+}
+
+// Quantized caches: the same for quantized rows. A pack of one query head consumes by-token rows straight from the
+// quantized cache with PagedAttention's fused block kernels (by-channel key rows are dequantized first, since those
+// kernels walk a whole page from its head). A pack of several query heads dequantizes the run's K and V rows to f32
+// once and reuses them for every query head of the pack.
+void attend_run_quant(PackWork& w, int64_t kpos0, int64_t n) {
+    const auto [phys_block, slot] = physical_address(w, kpos0);
+    const auto rows = static_cast<size_t>(n);
+    const bool fused_keys = w.pack_size == 1 && !w.quant.key_bychannel;
+    const bool fused_values = w.pack_size == 1;
+    if (!fused_keys) {
+        dequant_k_rows<float>(w.quant, w.key_cache, phys_block, w.k_head, slot, rows, w.k_head_size, w.k_run);
+    }
+    if (!fused_values) {
+        dequant_v_rows<float>(w.quant, w.value_cache, phys_block, w.k_head, slot, rows, w.v_head_size, w.v_run);
+    }
+    for (size_t head = 0; head < w.pack_size; head++) {
+        float* q = w.q + head * w.k_head_size;
+        float* scores = w.run_scores + head * static_cast<size_t>(w.max_run_rows);
+        float* acc = w.acc + head * w.v_head_size;
+        if (fused_keys) {
+            dot_key_rows_by_token(w.quant, w.key_cache, phys_block, w.k_head, slot, rows, w.k_head_size, q, scores);
+        } else {
+            dot_product_block<float, ov::element::f32>(q, w.k_run, scores, w.k_head_size, rows, 0);
+        }
+        softmax_update(w, head, rows);
+        if (fused_values) {
+            acc_value_rows_by_token(w.quant,
+                                    w.value_cache,
+                                    phys_block,
+                                    w.k_head,
+                                    slot,
+                                    rows,
+                                    w.v_head_size,
+                                    scores,
+                                    acc);
+        } else {
+            attn_acc_value_block<float, ov::element::f32>(acc, scores, w.v_run, w.v_head_size, rows, 0);
+        }
+    }
+}
+
+// Attends to up to `n` consecutive logical positions [kpos0, kpos0 + n) that lie inside one physical page and are
+// clamped to the positions the query may see.
+template <typename T>
+void attend_run(PackWork& w, int64_t kpos0, int64_t n) {
+    const int64_t limit = w.causal ? std::min(w.valid_max, w.token_pos + 1) : w.valid_max;
+    n = std::min(n, limit - kpos0);
+    if (kpos0 < 0 || n <= 0) {
+        return;
+    }
+    if (w.quant.enabled()) {
+        attend_run_quant(w, kpos0, n);
+    } else {
+        attend_run_plain<T>(w, kpos0, n);
+    }
+}
+
+// Attends to the key_block_size-wide block starting at `block_start`.
+template <typename T>
+void attend_block(PackWork& w, int64_t block_start) {
+    attend_run<T>(w, block_start, w.key_block_size);
+}
+
+// Selected complete blocks: adjacent blocks of the same physical page form one run (up to max_run_rows rows), so the
+// block kernels see as many rows per call as possible.
+template <typename T>
+void attend_selected_blocks_scalar(PackWork& w, const int32_t* block_ids, size_t nblocks) {
+    const int64_t page_blocks = w.page_size / w.key_block_size;
+    const int64_t max_run_blocks = std::max<int64_t>(w.max_run_rows / w.key_block_size, 1);
+    size_t i = 0;
+    while (i < nblocks) {
+        const int64_t first = block_ids[i];
+        int64_t run_blocks = 1;
+        while (i + run_blocks < nblocks && run_blocks < max_run_blocks &&
+               block_ids[i + run_blocks] == first + run_blocks &&
+               (first + run_blocks) / page_blocks == first / page_blocks) {
+            run_blocks++;
+        }
+        attend_run<T>(w, first * w.key_block_size, run_blocks * w.key_block_size);
+        i += static_cast<size_t>(run_blocks);
+    }
+}
+
+// sel_indices/sel_count only ever carry *complete* selected blocks -- the producer never encodes the current
+// incomplete trailing block. When causal, the consumer derives and attends that tail itself from the query's own
+// logical position; it is empty at a block boundary.
+template <typename T>
+void attend_causal_tail(PackWork& w) {
+    if (w.causal) {
+        const int64_t tail_start = ((w.token_pos + 1) / w.key_block_size) * w.key_block_size;
+        attend_run<T>(w, tail_start, w.token_pos - tail_start + 1);
+    }
 }
 
 #ifdef OPENVINO_ARCH_X86_64
 // Decomposition of one (seq, token, sh) row's selected blocks into AMX-mergeable chunks, backed
-// entirely by caller-owned scratch (see sparse_pa_compute() below) -- no heap vectors, no
+// entirely by caller-owned scratch (see SparsePAScratchLayout) -- no heap vectors, no
 // thread_local. Capacity of each array must be >= nblocks (bounded by selected_block_indices' K_max
 // dimension), enough room for the worst case of every block becoming its own chunk/leftover.
 // Duplicated from sparse_sdpa_kernel.cpp's identical struct rather than shared, matching this
@@ -245,505 +473,356 @@ void decompose_runs_paged(const int32_t* sel_ids,
     }
 }
 
-// Paged-cache counterpart of sparse_sdpa_kernel.cpp's run_amx_qk_chunks(): same flash-attention
-// block-wise online-softmax recurrence over AMX-eligible selected-block chunks, updating the same
-// running_max/running_sum/acc state so the scalar causal-tail block can continue it afterwards.
-// QUERY is read directly out of the flat [chunk_total, Hq*Dh] tensor at (token_u, h*Dh); KEY_CACHE
-// / VALUE_CACHE are read through `token_phys` -- resolved once per chunk (not per row), since
-// decompose_runs_paged() guarantees every row in a chunk lives in the same physical page. P@V uses
-// attn_acc_value_block()'s vectorized batched FMA (paged_attn_kernel.hpp, genuinely vectorized here
-// since this whole file is cross-compiled) instead of AMX (which would need V VNNI-repacked --
-// disproportionate for chunks this small), identical to sparse_sdpa_kernel's approach.
-template <typename AmxT, typename TokenPhysFn>
-void run_amx_qk_chunks_paged(const PlainTensor& query,
-                             const PlainTensor& key_cache,
-                             const PlainTensor& value_cache,
-                             ov::Extensions::Cpu::JitMatMulVecAMX& gemv1,
-                             ov::Extensions::Cpu::JitMatMulVecAMX& gemv4,
-                             size_t token_u,
-                             size_t h,
-                             size_t Dh,
-                             size_t kv,
-                             size_t Dv,
-                             size_t unit_rows,
-                             int64_t valid_max,
-                             bool causal,
-                             int64_t token_pos,
-                             float scale,
-                             const DecomposedRuns& runs,
-                             const TokenPhysFn& token_phys,
-                             const SparsePAQuant& quant,
-                             AmxT* k_dq,
-                             AmxT* v_dq,
-                             float* acc,
-                             float* raw_buf,
-                             float& running_max,
-                             float& running_sum) {
+// What the AMX path of one work item needs besides PackWork.
+template <typename AmxT>
+struct AmxWork {
+    ov::Extensions::Cpu::JitMatMulVecAMX* gemv1;  // one unit of rows
+    ov::Extensions::Cpu::JitMatMulVecAMX* gemv4;  // four units of rows
+    size_t unit_blocks;                           // key blocks per unit of 16-multiple rows
+    const AmxT* q;                                // [pack_size, k_head_size] query rows
+    AmxT* k_dq;                                   // quantized caches: dequantized key chunk
+    AmxT* v_dq;                                   // quantized caches: dequantized value chunk
+    float* raw;                                   // [pack_size, 4 * unit rows] chunk scores, then weights
+};
+
+// Online-softmax step of query head `head` for one AMX chunk whose raw scores are already computed: masks, scales and
+// accumulates the chunk's P@V with the vectorized batched FMA (AMX would need V VNNI-repacked, which is
+// disproportionate for chunks this small).
+template <typename AmxT>
+void update_amx_chunk(PackWork& w, size_t head, float* raw, int64_t block_start, size_t chunk_len, AmxT* v_amx) {
+    constexpr float neg_inf = -std::numeric_limits<float>::infinity();
+    float chunk_max = neg_inf;
+    for (size_t r = 0; r < chunk_len; r++) {
+        const int64_t kpos = block_start + static_cast<int64_t>(r);
+        const bool valid = kpos < w.valid_max && (!w.causal || kpos <= w.token_pos);
+        raw[r] = valid ? raw[r] * w.scale : neg_inf;
+        chunk_max = std::max(chunk_max, raw[r]);
+    }
+    if (chunk_max == neg_inf) {
+        return;  // fully-masked chunk (only the last chunk can be, under causal)
+    }
+    float* acc = w.acc + head * w.v_head_size;
+    const float new_max = std::max(w.running_max[head], chunk_max);
+    const float corr = std::exp(w.running_max[head] - new_max);
+    w.running_sum[head] *= corr;
+    for (size_t d = 0; d < w.v_head_size; d++) {
+        acc[d] *= corr;
+    }
+    // Turn raw into this chunk's post-softmax weights -- masked rows naturally collapse to weight 0, so the vectorized
+    // accumulation below needs no per-row branch.
+    for (size_t r = 0; r < chunk_len; r++) {
+        const float p = raw[r] == neg_inf ? 0.0F : std::exp(raw[r] - new_max);
+        raw[r] = p;
+        w.running_sum[head] += p;
+    }
+    if constexpr (std::is_same_v<AmxT, ov::bfloat16>) {
+        attn_acc_value_block<ov::bfloat16, ov::element::bf16>(acc, raw, v_amx, w.v_head_size, chunk_len, 0);
+    } else {
+        attn_acc_value_block<ov::float16, ov::element::f16>(acc, raw, v_amx, w.v_head_size, chunk_len, 0);
+    }
+    w.running_max[head] = new_max;
+}
+
+// Flash-attention block-wise online-softmax recurrence over the AMX-eligible selected-block chunks of one work item,
+// updating every query head's running state so the scalar causal tail can continue it afterwards. Plain caches are read
+// in place; quantized caches are dequantized once per chunk -- for the whole pack of query heads -- into AMX-typed
+// scratch. decompose_runs_paged() guarantees every row of a chunk lives in one physical page, so the page is resolved
+// once per chunk.
+template <typename AmxT>
+void attend_amx_chunks(PackWork& w, const AmxWork<AmxT>& amx, const DecomposedRuns& runs) {
     if (runs.chunk_count == 0) {
         return;
     }
-    constexpr float neg_inf = -std::numeric_limits<float>::infinity();
-    const auto* q_amx = query.ptr<AmxT>(token_u, h * Dh);
-    // Tile shape is derived from head_size only (identical for gemv1/gemv4), so one
-    // tile_config()/tile_release() bracket covers calls into either kernel below.
-    gemv1.tile_config();
+    const size_t unit_rows = amx.unit_blocks * static_cast<size_t>(w.key_block_size);
+    const size_t raw_stride = 4 * unit_rows;
+    // Tile shape is derived from head_size only (identical for gemv1/gemv4), so one tile_config()/tile_release()
+    // bracket covers calls into either kernel below.
+    amx.gemv1->tile_config();
     for (size_t idx = 0; idx < runs.chunk_count; idx++) {
         const int64_t block_start = runs.chunk_block_start[idx];
         const size_t n_units = static_cast<size_t>(runs.chunk_n_units[idx]);
         const size_t chunk_len = n_units * unit_rows;
-        const auto [phys_block, slot_start] = token_phys(block_start);
-        // Quantized caches are dequantized chunk by chunk into AmxT scratch; plain caches are read in place.
+        const auto [phys_block, slot_start] = physical_address(w, block_start);
         const AmxT* k_amx = nullptr;
         AmxT* v_amx = nullptr;
-        if (quant.enabled()) {
-            dequant_k_rows<AmxT>(quant, key_cache, phys_block, kv, slot_start, chunk_len, Dh, k_dq);
-            dequant_v_rows<AmxT>(quant, value_cache, phys_block, kv, slot_start, chunk_len, Dv, v_dq);
-            k_amx = k_dq;
-            v_amx = v_dq;
+        if (w.quant.enabled()) {
+            dequant_k_rows<AmxT>(w.quant,
+                                 w.key_cache,
+                                 phys_block,
+                                 w.k_head,
+                                 slot_start,
+                                 chunk_len,
+                                 w.k_head_size,
+                                 amx.k_dq);
+            dequant_v_rows<AmxT>(w.quant,
+                                 w.value_cache,
+                                 phys_block,
+                                 w.k_head,
+                                 slot_start,
+                                 chunk_len,
+                                 w.v_head_size,
+                                 amx.v_dq);
+            k_amx = amx.k_dq;
+            v_amx = amx.v_dq;
         } else {
-            k_amx = key_cache.ptr<AmxT>(phys_block, kv, slot_start);
-            v_amx = value_cache.ptr<AmxT>(phys_block, kv, slot_start);
+            k_amx = w.key_cache.ptr<AmxT>(phys_block, w.k_head, slot_start);
+            v_amx = w.value_cache.ptr<AmxT>(phys_block, w.k_head, slot_start);
         }
-        auto& kernel = n_units == 4 ? gemv4 : gemv1;
-        kernel(q_amx, k_amx, raw_buf);
-
-        float chunk_max = neg_inf;
-        for (size_t r = 0; r < chunk_len; r++) {
-            const int64_t kpos = block_start + static_cast<int64_t>(r);
-            const bool valid = kpos < valid_max && (!causal || kpos <= token_pos);
-            raw_buf[r] = valid ? raw_buf[r] * scale : neg_inf;
-            chunk_max = std::max(chunk_max, raw_buf[r]);
+        auto& kernel = n_units == 4 ? *amx.gemv4 : *amx.gemv1;
+        for (size_t head = 0; head < w.pack_size; head++) {
+            float* raw = amx.raw + head * raw_stride;
+            kernel(amx.q + head * w.k_head_size, k_amx, raw);
+            update_amx_chunk<AmxT>(w, head, raw, block_start, chunk_len, v_amx);
         }
-        if (chunk_max == neg_inf) {
-            continue;  // fully-masked chunk (only the last chunk can be, under causal)
-        }
-        const float new_max = std::max(running_max, chunk_max);
-        const float corr = std::exp(running_max - new_max);
-        running_sum *= corr;
-        for (size_t d = 0; d < Dv; d++) {
-            acc[d] *= corr;
-        }
-        // Turn raw_buf in place into this chunk's post-softmax weights -- masked rows naturally
-        // collapse to weight 0, so the vectorized accumulation below needs no per-row branch --
-        // then batch the whole chunk's P@V contribution through one vectorized FMA call instead
-        // of a per-row scalar loop.
-        for (size_t r = 0; r < chunk_len; r++) {
-            const float p = raw_buf[r] == neg_inf ? 0.0F : std::exp(raw_buf[r] - new_max);
-            raw_buf[r] = p;
-            running_sum += p;
-        }
-        if constexpr (std::is_same_v<AmxT, ov::bfloat16>) {
-            attn_acc_value_block<ov::bfloat16, ov::element::bf16>(acc, raw_buf, v_amx, Dv, chunk_len, 0);
-        } else {
-            attn_acc_value_block<ov::float16, ov::element::f16>(acc, raw_buf, v_amx, Dv, chunk_len, 0);
-        }
-        running_max = new_max;
     }
-    gemv1.tile_release();
+    amx.gemv1->tile_release();
+}
+
+// Selected blocks through AMX: merge adjacent blocks into chunks, then attend the blocks that could not be merged
+// (a too short run, the remainder after merging whole units, or a run capped at a page boundary) one by one.
+template <typename AmxT>
+void attend_selected_blocks_amx(PackWork& w,
+                                const AmxWork<AmxT>& amx,
+                                int64_t* runs_scratch,
+                                size_t max_blocks,
+                                const int32_t* block_ids,
+                                size_t nblocks) {
+    DecomposedRuns runs;
+    runs.chunk_block_start = runs_scratch;
+    runs.chunk_n_units = runs_scratch + max_blocks;
+    runs.leftover_block_start = runs_scratch + 2 * max_blocks;
+    const size_t page_sel_blocks = static_cast<size_t>(w.page_size / w.key_block_size);
+    decompose_runs_paged(block_ids,
+                         nblocks,
+                         static_cast<size_t>(w.key_block_size),
+                         amx.unit_blocks,
+                         page_sel_blocks,
+                         runs);
+    attend_amx_chunks<AmxT>(w, amx, runs);
+    for (size_t i = 0; i < runs.leftover_count; i++) {
+        attend_block<AmxT>(w, runs.leftover_block_start[i]);
+    }
 }
 #endif  // OPENVINO_ARCH_X86_64
+
+// Selected complete blocks of one work item, through AMX when it applies and run by run otherwise.
+template <typename T>
+void attend_selected_blocks(const SparsePAArgs& a,
+                            PackWork& w,
+                            [[maybe_unused]] uint8_t* ws,
+                            [[maybe_unused]] const SparsePAScratchLayout& layout,
+                            [[maybe_unused]] size_t token,
+                            [[maybe_unused]] size_t first_head,
+                            [[maybe_unused]] int64_t sequence_new_tokens,
+                            const int32_t* block_ids,
+                            size_t nblocks) {
+#ifdef OPENVINO_ARCH_X86_64
+    // AMX only exists for 16-bit data. Decode (one query token) reads quantized caches with the run-based kernels;
+    // prefill dequantizes chunks into AMX scratch. Plain caches use AMX for both.
+    if constexpr (!std::is_same_v<T, float>) {
+        const bool use_amx =
+            a.amx_prec != ov::element::dynamic && nblocks > 0 && (!w.quant.enabled() || sequence_new_tokens > 1);
+        if (use_amx) {
+            const AmxWork<T> amx{static_cast<ov::Extensions::Cpu::JitMatMulVecAMX*>(a.gemv_qk1),
+                                 static_cast<ov::Extensions::Cpu::JitMatMulVecAMX*>(a.gemv_qk4),
+                                 a.amx_unit_blocks,
+                                 a.query.ptr<T>(token, first_head * a.k_head_size),
+                                 reinterpret_cast<T*>(ws + layout.k_dq),
+                                 reinterpret_cast<T*>(ws + layout.v_dq),
+                                 reinterpret_cast<float*>(ws + layout.raw)};
+            attend_selected_blocks_amx<T>(w,
+                                          amx,
+                                          reinterpret_cast<int64_t*>(ws + layout.runs),
+                                          a.sel_indices.size(2),
+                                          block_ids,
+                                          nblocks);
+            return;
+        }
+    }
+#endif
+    attend_selected_blocks_scalar<T>(w, block_ids, nblocks);
+}
+
+// One work item: sparse attention of one query token and query head pack `pack`.
+template <typename T>
+void attend_pack(const SparsePAArgs& a, const SparsePAScratchLayout& layout, size_t token, size_t pack) {
+    const auto* subsequence_begins = a.subsequence_begins.ptr<int32_t>();
+    const size_t seq = find_sequence(a.subsequence_begins, token);
+    if (seq + 1 >= a.subsequence_begins.size(0)) {
+        return;  // not a token of any sequence
+    }
+    const int32_t token_begin = subsequence_begins[seq];
+    const int32_t token_end = subsequence_begins[seq + 1];
+    const int32_t block_begin = a.block_indices_begins.ptr<int32_t>()[seq];
+    OPENVINO_ASSERT(a.block_indices_begins.ptr<int32_t>()[seq + 1] > block_begin,
+                    "[CPU] sparse_pa: each sequence must have at least one cache block");
+    const int64_t past_len = a.past_lens.ptr<int32_t>()[seq];
+
+    // The query heads of a pack share the K head and the selection head of the pack's first query head.
+    const size_t first_head = pack * a.q_head_pack_size;
+    const size_t k_head = first_head / (a.q_head_num / a.k_head_num);
+    const size_t sel_head = first_head / (a.q_head_num / a.sel_head_num);
+
+    // Per-thread scratch, see SparsePAScratchLayout.
+    uint8_t* ws = a.scratch + static_cast<size_t>(parallel_get_thread_num()) * a.scratch_bytes_per_thread;
+    PackWork w{a.key_cache,
+               a.value_cache,
+               a.block_indices.ptr<int32_t>() + block_begin,
+               a.quant,
+               a.k_head_size,
+               a.v_head_size,
+               k_head,
+               a.q_head_pack_size,
+               static_cast<int64_t>(a.key_block_size),
+               static_cast<int64_t>(a.page_size),
+               past_len + (static_cast<int32_t>(token) - token_begin),
+               // Enforced unconditionally (not just under causal) so a non-causal gather never reads an unallocated
+               // or stale slot in the physical pages.
+               past_len + (token_end - token_begin),
+               static_cast<int64_t>(a.max_run_rows),
+               a.causal,
+               a.scale,
+               a.query.ptr<T>(token, first_head * a.k_head_size),
+               reinterpret_cast<float*>(ws + layout.q),
+               reinterpret_cast<float*>(ws + layout.acc),
+               reinterpret_cast<float*>(ws + layout.running_max),
+               reinterpret_cast<float*>(ws + layout.running_sum),
+               reinterpret_cast<float*>(ws + layout.scores),
+               reinterpret_cast<float*>(ws + layout.k_run),
+               reinterpret_cast<float*>(ws + layout.v_run)};
+    cvt_copy(w.q, a.query.ptr<T>(token, first_head * a.k_head_size), 1, w.pack_size * a.k_head_size, 0, 0);
+    std::fill_n(w.acc, w.pack_size * a.v_head_size, 0.0F);
+    std::fill_n(w.running_max, w.pack_size, -std::numeric_limits<float>::infinity());
+    std::fill_n(w.running_sum, w.pack_size, 0.0F);
+
+    // One query per selection row, so the row of a token is its global token index.
+    attend_selected_blocks<T>(a,
+                              w,
+                              ws,
+                              layout,
+                              token,
+                              first_head,
+                              token_end - token_begin,
+                              a.sel_indices.ptr<int32_t>(token, sel_head),
+                              static_cast<size_t>(*a.sel_count.ptr<int32_t>(token, sel_head)));
+    attend_causal_tail<T>(w);
+
+    for (size_t head = 0; head < w.pack_size; head++) {
+        float* acc = w.acc + head * a.v_head_size;
+        const float inv_sum = w.running_sum[head] > 0.0F ? 1.0F / w.running_sum[head] : 0.0F;
+        for (size_t d = 0; d < a.v_head_size; d++) {
+            acc[d] *= inv_sum;
+        }
+        cvt_copy(a.out.ptr<T>(token, (first_head + head) * a.v_head_size), acc, 1, a.v_head_size, 0, 0);
+    }
+}
+
+// Sparse attention of every (global query token, query head pack) pair, in parallel.
+template <typename T>
+void sparse_pa_impl(const SparsePAArgs& a, const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+    const SparsePAScratchLayout layout(a.k_head_size,
+                                       a.v_head_size,
+                                       a.key_block_size,
+                                       a.max_run_rows,
+                                       a.sel_indices.size(2),
+                                       a.amx_unit_blocks,
+                                       max_q_head_pack_size(a.q_head_num, a.k_head_num, a.sel_head_num),
+                                       sizeof(T),
+                                       a.quant);
+    OPENVINO_ASSERT(layout.total <= a.scratch_bytes_per_thread, "[CPU] sparse_pa: scratch is too small");
+    cpu_parallel->parallel_for2d(a.query.size(0), a.q_head_num / a.q_head_pack_size, [&](size_t token, size_t pack) {
+        attend_pack<T>(a, layout, token, pack);
+    });
+}
 
 }  // namespace
 
 void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
-                       const ov::intel_cpu::PlainTensor& key,
-                       const ov::intel_cpu::PlainTensor& value,
-                       ov::intel_cpu::PlainTensor& key_cache,
-                       ov::intel_cpu::PlainTensor& value_cache,
+                       const ov::intel_cpu::PlainTensor& key_cache,
+                       const ov::intel_cpu::PlainTensor& value_cache,
                        const ov::intel_cpu::PlainTensor& block_indices,
                        const ov::intel_cpu::PlainTensor& block_indices_begins,
                        const ov::intel_cpu::PlainTensor& subsequence_begins,
                        const ov::intel_cpu::PlainTensor& past_lens,
                        const ov::intel_cpu::PlainTensor& sel_indices,
                        const ov::intel_cpu::PlainTensor& sel_count,
-                       const ov::intel_cpu::PlainTensor& qb_start,
                        ov::intel_cpu::PlainTensor& out,
-                       size_t Hq,
-                       size_t Hkv,
-                       size_t Dh,
-                       size_t Dv,
-                       size_t Bk_sz,
-                       size_t H_sel,
+                       size_t q_head_num,
+                       size_t k_head_num,
+                       size_t k_head_size,
+                       size_t v_head_size,
+                       size_t key_block_size,
+                       size_t sel_head_num,
                        bool causal,
                        float scale,
                        const SparsePAQuant& quant,
                        ov::element::Type amx_prec,
-                       void* gemv_qk1_ptr,
-                       void* gemv_qk4_ptr,
+                       void* gemv_qk1,
+                       void* gemv_qk4,
                        size_t amx_unit_blocks,
+                       size_t max_run_rows,
+                       uint8_t* scratch,
+                       size_t scratch_bytes_per_thread,
                        const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
-    auto* gemv_qk1 = static_cast<ov::Extensions::Cpu::JitMatMulVecAMX*>(gemv_qk1_ptr);
-    auto* gemv_qk4 = static_cast<ov::Extensions::Cpu::JitMatMulVecAMX*>(gemv_qk4_ptr);
-    const size_t q_per_sel = Hq / H_sel;
-    const size_t group = Hq / Hkv;
-    // The physical page size: KEY_CACHE's dim 2 for plain caches; for quantized caches the node passes the real
+    const auto data_prc = query.get_precision();
+    OPENVINO_ASSERT(out.get_precision() == data_prc, "[CPU] sparse_pa: query/output precisions must match");
+    OPENVINO_ASSERT(
+        quant.enabled() || (key_cache.get_precision() == data_prc && value_cache.get_precision() == data_prc),
+        "[CPU] sparse_pa: plain caches must have the query precision");
+    OPENVINO_ASSERT(scratch != nullptr, "[CPU] sparse_pa: scratch must not be null");
+    OPENVINO_ASSERT(subsequence_begins.size(0) >= 1, "[CPU] sparse_pa: subsequence_begins must be non-empty");
+
+    // Query heads of one work item: all that share both K/V rows and the selected blocks (a pack), which lets K/V be
+    // dequantized or read once for the pack. A pack means fewer work items, so with too little work to keep every
+    // thread busy (e.g. decode of a few sequences) every query head is its own work item instead, like PagedAttention's
+    // loop_hk choice.
+    const size_t max_pack_size = max_q_head_pack_size(q_head_num, k_head_num, sel_head_num);
+    const size_t pack_items = query.size(0) * (q_head_num / max_pack_size);
+    const size_t q_head_pack_size =
+        pack_items >= 2 * static_cast<size_t>(cpu_parallel->get_num_worker_threads()) ? max_pack_size : 1;
+
+    // The physical page size: the key cache's dim 2 for plain caches; for quantized caches the node passes the real
     // size, since by-channel key pages carry extra parameter rows in dim 2.
-    const size_t block_size_sz = quant.block_size ? quant.block_size : key_cache.size(2);
-    const auto block_size = static_cast<int64_t>(block_size_sz);
-    const auto Bk = static_cast<int64_t>(Bk_sz);
+    const size_t page_size = quant.block_size ? quant.block_size : key_cache.size(2);
+    const SparsePAArgs args{query,
+                            key_cache,
+                            value_cache,
+                            block_indices,
+                            block_indices_begins,
+                            subsequence_begins,
+                            past_lens,
+                            sel_indices,
+                            sel_count,
+                            out,
+                            q_head_num,
+                            k_head_num,
+                            k_head_size,
+                            v_head_size,
+                            key_block_size,
+                            page_size,
+                            sel_head_num,
+                            causal,
+                            scale,
+                            quant,
+                            amx_prec,
+                            gemv_qk1,
+                            gemv_qk4,
+                            amx_unit_blocks,
+                            max_run_rows,
+                            scratch,
+                            scratch_bytes_per_thread,
+                            q_head_pack_size};
 
-    const auto* subsequence_begins_p = subsequence_begins.ptr<int32_t>();
-    const auto* block_indices_begins_p = block_indices_begins.ptr<int32_t>();
-    const auto* past_lens_p = past_lens.ptr<int32_t>();
-    const auto* qb_start_p = qb_start.ptr<int32_t>();
-
-    const auto seq_tensor_size = subsequence_begins.size(0);
-    OPENVINO_ASSERT(seq_tensor_size >= 1, "[CPU] sparse_pa: subsequence_begins must be non-empty");
-    const size_t num_sequences = seq_tensor_size - 1;
-
-    cpu_parallel->parallel_for(num_sequences, [&](size_t seq) {
-        const int32_t token_begin = subsequence_begins_p[seq];
-        const int32_t token_end = subsequence_begins_p[seq + 1];
-        const int32_t block_begin = block_indices_begins_p[seq];
-        const int32_t block_end = block_indices_begins_p[seq + 1];
-        const int32_t seq_blocks = std::max(block_end - block_begin, 0);
-        OPENVINO_ASSERT(seq_blocks > 0, "[CPU] sparse_pa: each sequence must have at least one cache block");
-        const int64_t seq_past_len = past_lens_p[seq];
-        const int64_t chunk_len = token_end - token_begin;
-        // Exclusive upper bound on valid logical KV positions for this sequence: enforced
-        // unconditionally (not just under causal) so a non-causal gather never reads an
-        // unallocated or stale slot in the physical pages.
-        const int64_t valid_max = seq_past_len + chunk_len;
-
-        // Maps a global logical KV position of this sequence to the physical (block, slot)
-        // address into KEY_CACHE / VALUE_CACHE through the shared page table. A selected
-        // key_block_size-wide span never crosses a physical block boundary (page_size %
-        // key_block_size == 0 is enforced by the op's config validation), so this same mapping
-        // is reused both for the per-token in-place write below and for reading tokens inside a
-        // selected block or the causal-tail span.
-        auto token_phys = [&](int64_t logical_pos) {
-            const int64_t phys_idx = block_begin + logical_pos / block_size;
-            const auto phys_block = static_cast<size_t>(*block_indices.ptr<int32_t>(static_cast<size_t>(phys_idx)));
-            const auto slot = static_cast<size_t>(logical_pos % block_size);
-            return std::make_pair(phys_block, slot);
-        };
-
-        // ---- Q0: in-place write of the current-step K/V into the paged main-KV cache ----
-        // Quantized caches were already written by the node (paged_attn_quantkv), so only plain caches are written
-        // here.
-        std::vector<float> kv_buf(quant.enabled() ? 0 : std::max(Dh, Dv));
-        const int32_t q0_end = quant.enabled() ? token_begin : token_end;
-        for (int32_t token = token_begin; token < q0_end; token++) {
-            const size_t token_u = static_cast<size_t>(token);
-            const int64_t logical_pos = seq_past_len + (token - token_begin);
-            const auto [phys_block, slot] = token_phys(logical_pos);
-            for (size_t kv = 0; kv < Hkv; kv++) {
-                // K: read -> convert to f32 -> write to cache
-                {
-                    const auto prec = key.get_precision();
-                    const void* src = key.ptr_v(token_u, kv * Dh);
-                    float* dst = kv_buf.data();
-                    if (prec == ov::element::bf16) {
-                        cvt_copy(dst, reinterpret_cast<const ov::bfloat16*>(src), 1, Dh, 0, 0);
-                    } else if (prec == ov::element::f16) {
-                        cvt_copy(dst, reinterpret_cast<const ov::float16*>(src), 1, Dh, 0, 0);
-                    } else {
-                        cvt_copy(dst, reinterpret_cast<const float*>(src), 1, Dh, 0, 0);
-                    }
-                }
-                {
-                    const auto prec = key_cache.get_precision();
-                    void* dst = key_cache.ptr_v(phys_block, kv, slot);
-                    const float* src = kv_buf.data();
-                    if (prec == ov::element::bf16) {
-                        cvt_copy(reinterpret_cast<ov::bfloat16*>(dst), src, 1, Dh, 0, 0);
-                    } else if (prec == ov::element::f16) {
-                        cvt_copy(reinterpret_cast<ov::float16*>(dst), src, 1, Dh, 0, 0);
-                    } else {
-                        cvt_copy(reinterpret_cast<float*>(dst), src, 1, Dh, 0, 0);
-                    }
-                }
-                // V: read -> convert to f32 -> write to cache
-                {
-                    const auto prec = value.get_precision();
-                    const void* src = value.ptr_v(token_u, kv * Dv);
-                    float* dst = kv_buf.data();
-                    if (prec == ov::element::bf16) {
-                        cvt_copy(dst, reinterpret_cast<const ov::bfloat16*>(src), 1, Dv, 0, 0);
-                    } else if (prec == ov::element::f16) {
-                        cvt_copy(dst, reinterpret_cast<const ov::float16*>(src), 1, Dv, 0, 0);
-                    } else {
-                        cvt_copy(dst, reinterpret_cast<const float*>(src), 1, Dv, 0, 0);
-                    }
-                }
-                {
-                    const auto prec = value_cache.get_precision();
-                    void* dst = value_cache.ptr_v(phys_block, kv, slot);
-                    const float* src = kv_buf.data();
-                    if (prec == ov::element::bf16) {
-                        cvt_copy(reinterpret_cast<ov::bfloat16*>(dst), src, 1, Dv, 0, 0);
-                    } else if (prec == ov::element::f16) {
-                        cvt_copy(reinterpret_cast<ov::float16*>(dst), src, 1, Dv, 0, 0);
-                    } else {
-                        cvt_copy(reinterpret_cast<float*>(dst), src, 1, Dv, 0, 0);
-                    }
-                }
-            }
-        }
-
-        // ---- Q3: selected-block + causal-tail online-softmax attention ----
-        std::vector<float> q_buf(Dh);
-        std::vector<float> k_buf(Dh);
-        std::vector<float> v_buf(Dv);
-        std::vector<float> acc(Dv);
-        // AMX run-decomposition + raw-score scratch, sized once per sequence (not per token/head,
-        // unlike sparse_sdpa's per-thread scratchpad -- this file already allocates its per-token
-        // buffers per sequence, so following the same convention here is negligible overhead and
-        // needs no DnnlScratchPad plumbing). K_max is selected_block_indices' runtime last dimension, the
-        // upper bound on nblocks for any (row, sh) in this call.
-        std::vector<float> raw_buf;
-        std::vector<int64_t> chunk_block_start_buf;
-        std::vector<int64_t> chunk_n_units_buf;
-        std::vector<int64_t> leftover_block_start_buf;
-        // Quantized caches: per-run scores and by-channel key dequant scratch (a run is at most key_block_size rows),
-        // and AmxT dequant scratch for AMX chunks (2-byte bf16/f16 elements).
-        std::vector<float> run_scores;
-        std::vector<float> k_run;
-        std::vector<uint16_t> k_dq_buf;
-        std::vector<uint16_t> v_dq_buf;
-        if (quant.enabled()) {
-            run_scores.resize(Bk_sz);
-            if (quant.key_bychannel) {
-                k_run.resize(Bk_sz * Dh);
-            }
-        }
-#ifdef OPENVINO_ARCH_X86_64
-        if (amx_prec != ov::element::dynamic) {
-            if (quant.enabled()) {
-                k_dq_buf.resize(4 * amx_unit_blocks * Bk_sz * Dh);
-                v_dq_buf.resize(4 * amx_unit_blocks * Bk_sz * Dv);
-            }
-            raw_buf.resize(4 * amx_unit_blocks * Bk_sz);
-            const size_t K_max = sel_indices.size(2);
-            chunk_block_start_buf.resize(K_max);
-            chunk_n_units_buf.resize(K_max);
-            leftover_block_start_buf.resize(K_max);
-        }
-#endif
-        for (int32_t token = token_begin; token < token_end; token++) {
-            const size_t token_u = static_cast<size_t>(token);
-            // Global logical position of this token (determines the causal truncation bound and
-            // the derived causal-tail span).
-            const int64_t token_pos = seq_past_len + (token - token_begin);
-            // Row into selected_block_indices/count: with query_block_size == 1 (the only value this
-            // implementation accepts), each token is its own query block.
-            const size_t row = static_cast<size_t>(qb_start_p[seq] + (token - token_begin));
-
-            for (size_t h = 0; h < Hq; h++) {
-                const size_t sh = h / q_per_sel;
-                const size_t kv = h / group;
-
-                load_row_f32(query, Dh, q_buf.data(), token_u, h * Dh);
-
-                std::fill(acc.begin(), acc.end(), 0.0F);
-                float running_max = -std::numeric_limits<float>::infinity();
-                float running_sum = 0.0F;
-
-                auto consume = [&](int64_t kpos) {
-                    if (kpos < 0 || kpos >= valid_max) {
-                        return;
-                    }
-                    if (causal && kpos > token_pos) {
-                        return;
-                    }
-                    const auto [p_phys_block, p_slot] = token_phys(kpos);
-                    load_row_f32(key_cache, Dh, k_buf.data(), p_phys_block, kv, p_slot);
-                    load_row_f32(value_cache, Dv, v_buf.data(), p_phys_block, kv, p_slot);
-                    float dot = 0.0F;
-                    for (size_t d = 0; d < Dh; d++) {
-                        dot += q_buf[d] * k_buf[d];
-                    }
-                    const float score = dot * scale;
-                    const float new_max = std::max(running_max, score);
-                    const float corr = std::exp(running_max - new_max);
-                    const float p = std::exp(score - new_max);
-                    running_sum = running_sum * corr + p;
-                    for (size_t d = 0; d < Dv; d++) {
-                        acc[d] = acc[d] * corr + p * v_buf[d];
-                    }
-                    running_max = new_max;
-                };
-
-                // Quantized caches: attends to up to `n` consecutive logical positions [kpos0, kpos0 + n), all inside
-                // one physical page (a selected block or the causal tail), with one online-softmax update for the run.
-                // By-token rows are consumed straight from the quantized cache by PagedAttention's block kernels;
-                // by-channel key rows are dequantized to f32 first, since those kernels walk a whole page from its
-                // head.
-                auto consume_run_quant = [&](int64_t kpos0, int64_t n) {
-                    const int64_t limit = causal ? std::min(valid_max, token_pos + 1) : valid_max;
-                    n = std::min(n, limit - kpos0);
-                    if (kpos0 < 0 || n <= 0) {
-                        return;
-                    }
-                    const auto [p_phys_block, p_slot] = token_phys(kpos0);
-                    const auto rows = static_cast<size_t>(n);
-                    float* scores = run_scores.data();
-                    if (quant.key_bychannel) {
-                        dequant_k_rows<float>(quant, key_cache, p_phys_block, kv, p_slot, rows, Dh, k_run.data());
-                        for (size_t r = 0; r < rows; r++) {
-                            const float* k_row = k_run.data() + r * Dh;
-                            float dot = 0.0F;
-                            for (size_t d = 0; d < Dh; d++) {
-                                dot += q_buf[d] * k_row[d];
-                            }
-                            scores[r] = dot;
-                        }
-                    } else {
-                        dot_key_rows_by_token(quant,
-                                              key_cache,
-                                              p_phys_block,
-                                              kv,
-                                              p_slot,
-                                              rows,
-                                              Dh,
-                                              q_buf.data(),
-                                              scores);
-                    }
-                    float run_max = -std::numeric_limits<float>::infinity();
-                    for (size_t r = 0; r < rows; r++) {
-                        scores[r] *= scale;
-                        run_max = std::max(run_max, scores[r]);
-                    }
-                    const float new_max = std::max(running_max, run_max);
-                    const float corr = std::exp(running_max - new_max);
-                    running_sum *= corr;
-                    for (size_t d = 0; d < Dv; d++) {
-                        acc[d] *= corr;
-                    }
-                    for (size_t r = 0; r < rows; r++) {
-                        scores[r] = std::exp(scores[r] - new_max);
-                        running_sum += scores[r];
-                    }
-                    acc_value_rows_by_token(quant, value_cache, p_phys_block, kv, p_slot, rows, Dv, scores, acc.data());
-                    running_max = new_max;
-                };
-                // Attends to the `Bk`-wide block starting at `block_start` through whichever consume path fits the
-                // cache.
-                auto consume_block = [&](int64_t block_start) {
-                    if (quant.enabled()) {
-                        consume_run_quant(block_start, Bk);
-                        return;
-                    }
-                    for (int64_t p = block_start; p < block_start + Bk; p++) {
-                        consume(p);
-                    }
-                };
-
-                // Selected complete blocks: idx*Bk is the block's own starting logical KV
-                // position, so token_phys() resolves each of its Bk tokens directly.
-                const auto nblocks = static_cast<size_t>(*sel_count.ptr<int32_t>(row, sh));
-                auto consume_blocks_scalar = [&]() {
-                    for (size_t i = 0; i < nblocks; i++) {
-                        const auto block_id = static_cast<int64_t>(*sel_indices.ptr<int32_t>(row, sh, i));
-                        consume_block(block_id * Bk);
-                    }
-                };
-#ifdef OPENVINO_ARCH_X86_64
-                // Decode (one query token) reads quantized caches with the run-based kernels above; prefill dequantizes
-                // chunks into AMX scratch. Plain caches use AMX for both.
-                const bool use_amx =
-                    amx_prec != ov::element::dynamic && nblocks > 0 && (!quant.enabled() || chunk_len > 1);
-                if (use_amx) {
-                    DecomposedRuns decomposed;
-                    decomposed.chunk_block_start = chunk_block_start_buf.data();
-                    decomposed.chunk_n_units = chunk_n_units_buf.data();
-                    decomposed.leftover_block_start = leftover_block_start_buf.data();
-                    const size_t page_sel_blocks = block_size_sz / Bk_sz;
-                    decompose_runs_paged(sel_indices.ptr<int32_t>(row, sh),
-                                         nblocks,
-                                         Bk_sz,
-                                         amx_unit_blocks,
-                                         page_sel_blocks,
-                                         decomposed);
-                    const auto unit_rows = amx_unit_blocks * Bk_sz;
-                    if (amx_prec == ov::element::bf16) {
-                        run_amx_qk_chunks_paged<ov::bfloat16>(query,
-                                                              key_cache,
-                                                              value_cache,
-                                                              *gemv_qk1,
-                                                              *gemv_qk4,
-                                                              token_u,
-                                                              h,
-                                                              Dh,
-                                                              kv,
-                                                              Dv,
-                                                              unit_rows,
-                                                              valid_max,
-                                                              causal,
-                                                              token_pos,
-                                                              scale,
-                                                              decomposed,
-                                                              token_phys,
-                                                              quant,
-                                                              reinterpret_cast<ov::bfloat16*>(k_dq_buf.data()),
-                                                              reinterpret_cast<ov::bfloat16*>(v_dq_buf.data()),
-                                                              acc.data(),
-                                                              raw_buf.data(),
-                                                              running_max,
-                                                              running_sum);
-                    } else {
-                        run_amx_qk_chunks_paged<ov::float16>(query,
-                                                             key_cache,
-                                                             value_cache,
-                                                             *gemv_qk1,
-                                                             *gemv_qk4,
-                                                             token_u,
-                                                             h,
-                                                             Dh,
-                                                             kv,
-                                                             Dv,
-                                                             unit_rows,
-                                                             valid_max,
-                                                             causal,
-                                                             token_pos,
-                                                             scale,
-                                                             decomposed,
-                                                             token_phys,
-                                                             quant,
-                                                             reinterpret_cast<ov::float16*>(k_dq_buf.data()),
-                                                             reinterpret_cast<ov::float16*>(v_dq_buf.data()),
-                                                             acc.data(),
-                                                             raw_buf.data(),
-                                                             running_max,
-                                                             running_sum);
-                    }
-                    // Blocks that couldn't be grouped into a complete 16-row-multiple AMX chunk
-                    // (too short a run, or the remainder after merging as many whole units as fit,
-                    // or one capped at a physical-page boundary) still need to contribute -- fall
-                    // back to the scalar per-token path for just those blocks.
-                    for (size_t li = 0; li < decomposed.leftover_count; li++) {
-                        consume_block(decomposed.leftover_block_start[li]);
-                    }
-                } else {
-                    consume_blocks_scalar();
-                }
-#else
-                consume_blocks_scalar();
-#endif
-
-                // sel_indices/sel_count only ever carry *complete* selected blocks -- the
-                // producer never encodes the current incomplete trailing block. When causal,
-                // this consumer must derive and attend that tail itself from the query's own
-                // logical position; it is empty at a block boundary.
-                if (causal) {
-                    const int64_t tail_start = ((token_pos + 1) / Bk) * Bk;
-                    if (quant.enabled()) {
-                        consume_run_quant(tail_start, token_pos - tail_start + 1);
-                    } else {
-                        for (int64_t p = tail_start; p <= token_pos; p++) {
-                            consume(p);
-                        }
-                    }
-                }
-
-                const float inv_sum = running_sum > 0.0F ? 1.0F / running_sum : 0.0F;
-                for (size_t d = 0; d < Dv; d++) {
-                    acc[d] *= inv_sum;
-                }
-                store_row_f32(out, Dv, acc.data(), token_u, h * Dv);
-            }
-        }
-    });
+    // The data type is dispatched once; everything below works on T.
+    if (data_prc == ov::element::f32) {
+        sparse_pa_impl<float>(args, cpu_parallel);
+    } else if (data_prc == ov::element::f16) {
+        sparse_pa_impl<ov::float16>(args, cpu_parallel);
+    } else if (data_prc == ov::element::bf16) {
+        sparse_pa_impl<ov::bfloat16>(args, cpu_parallel);
+    } else {
+        OPENVINO_THROW("[CPU] sparse_pa: unsupported precision ", data_prc);
+    }
 }
 
 }  // namespace ov::Extensions::Cpu::XARCH
