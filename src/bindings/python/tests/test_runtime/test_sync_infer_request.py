@@ -391,6 +391,69 @@ def test_infer_non_numeric_list_input_raises(device, data, share_inputs):
         request.infer({0: data}, share_inputs=share_inputs)
 
 
+@pytest.mark.parametrize(("ov_type", "data"), [
+    (Type.i32, [1.5, 2.5]),  # fractional values into an integer input
+    (Type.u8, [300, -1]),  # out of range, would wrap
+    (Type.i8, [128, 0]),
+    (Type.i32, [2**31, 0]),
+    (Type.boolean, [2, 0]),
+    (Type.f16, [70000.0, 1.0]),  # overflows to inf
+    (Type.f32, [1e40, 1.0]),
+    (Type.u64, [-1, 0]),  # 64-bit wrap-around, invisible to an int64 <-> uint64 round trip
+    (Type.i64, [2**63, 0]),  # saturates to INT64_MAX through float64
+    (Type.bf16, [3.4e38, 1.0]),  # fits float32, but rounds to inf in bf16
+])
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_infer_lossy_list_input_raises(device, ov_type, data, share_inputs):
+    # A list is only converted when the values survive the cast, otherwise it fails as before
+    param = ops.parameter([2], ov_type)
+    request = Core().compile_model(Model([param], [param]), device).create_infer_request()
+
+    with pytest.raises(RuntimeError):
+        request.infer({0: data}, share_inputs=share_inputs)
+
+
+@pytest.mark.parametrize(("ov_type", "data", "expected"), [
+    (Type.i32, [1.0, 2.0], [1, 2]),  # whole floats into an integer input
+    (Type.u8, [0, 255], [0, 255]),
+    (Type.i8, [127, -128], [127, -128]),
+    (Type.boolean, [0, 1], [False, True]),
+    (Type.u8, [True, False], [1, 0]),
+    (Type.f32, [0.1, 2.5], np.array([0.1, 2.5], dtype=np.float32)),  # float inputs round like numpy
+    (Type.f16, [0.1, 65504.0], np.array([0.1, 65504.0], dtype=np.float16)),
+    (Type.i64, [2**63 - 1, -(2**63)], [2**63 - 1, -(2**63)]),
+    (Type.u64, [2**64 - 1, 0], [2**64 - 1, 0]),
+    (Type.i32, [1, 2.0], [1, 2]),
+    (Type.i64, [2**53 + 1, 1.0], [2**53 + 1, 1]),  # exact although float64 could not hold 2**53 + 1
+    (Type.i64, [np.array([1, 2]), np.array([3, 4])], [[1, 2], [3, 4]]),  # list of arrays, worked on master
+    (Type.i32, [(1, 2), (3, 4)], [[1, 2], [3, 4]]),  # list of tuples
+])
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_infer_lossless_list_input_is_converted(device, ov_type, data, expected, share_inputs):
+    param = ops.parameter(list(np.array(expected).shape), ov_type)
+    request = Core().compile_model(Model([param], [param]), device).create_infer_request()
+
+    result = request.infer({0: data}, share_inputs=share_inputs)
+
+    assert np.array_equal(result[0], np.array(expected, dtype=ov_type.to_dtype()))
+
+
+@pytest.mark.parametrize(("data", "expected"), [
+    ([1, 2], [1.0, 2.0]),
+    ([True, False], [1.0, 0.0]),
+    ([0.5, -3.0], [0.5, -3.0]),
+])
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_infer_list_input_into_bf16(device, data, expected, share_inputs):
+    # Values exact in bf16, read back through a convert to f32
+    param = ops.parameter([2], Type.bf16)
+    request = Core().compile_model(Model([ops.convert(param, Type.f32)], [param]), device).create_infer_request()
+
+    result = request.infer({0: data}, share_inputs=share_inputs)
+
+    assert np.array_equal(result[0], np.array(expected, dtype=np.float32))
+
+
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
     (Type.f32, np.float32),
     (Type.f64, np.float64),
