@@ -102,11 +102,18 @@ inline void FUNC(dequant_key)(const __global INPUT1_TYPE* key_block, __local hal
 #endif
 }
 
-// Writes the V tile transposed to [head_dim][token] so each lane (head dim) reads a contiguous DPAS B operand
-inline void FUNC(dequant_value)(const __global INPUT2_TYPE* value_block, __local half* dst, uint lid, uint local_size) {
+// Writes the V tile transposed to [head_dim][token] so each lane (head dim) reads a contiguous DPAS B operand.
+// Rows at or beyond valid_tokens are zeroed: they may hold uninitialized data (NaN/Inf) and P.V would compute 0 * NaN.
+inline void FUNC(dequant_value)(const __global INPUT2_TYPE* value_block, __local half* dst, uint lid, uint local_size, uint valid_tokens) {
     for (uint slot = lid; slot < BLOCK * CHUNKS; slot += local_size) {
         const uint token = slot / CHUNKS;
         const uint dim_base = (slot % CHUNKS) * SUBGROUP_SIZE;
+        if (token >= valid_tokens) {
+            unroll_for (uint j = 0; j < SUBGROUP_SIZE; j++) {
+                dst[(dim_base + j) * BLOCK + token] = 0;
+            }
+            continue;
+        }
 #if !IS_KV_COMPRESSED
         const __global INPUT2_TYPE* row = value_block + token * HEAD_SIZE;
         unroll_for (uint j = 0; j < SUBGROUP_SIZE; j++) {
@@ -252,6 +259,7 @@ KERNEL(pa_small_q_opt)(
 
     for (uint tile = 0; tile < tile_count; tile++) {
         const uint key_start = tile_start + tile * BLOCK;
+        const uint valid_tokens = min((uint)BLOCK, context_len - key_start);
         const __global INPUT1_TYPE* key_block = key_cache + physical_block * KV_HEADS_NUM * K_BLOCK_ELEMS + kv_head_idx * K_BLOCK_ELEMS;
         const __global INPUT2_TYPE* value_block = value_cache + physical_block * KV_HEADS_NUM * V_BLOCK_ELEMS + kv_head_idx * V_BLOCK_ELEMS;
         if (tile + 1 < tile_count)
@@ -267,7 +275,7 @@ KERNEL(pa_small_q_opt)(
         __local half* k_cur = k_slm + (tile & 1) * (BLOCK * HEAD_SIZE);
         __local half* v_cur = v_slm + (tile & 1) * (HEAD_SIZE * BLOCK);
         FUNC_CALL(dequant_key)(key_block, k_cur, lid, local_size);
-        FUNC_CALL(dequant_value)(value_block, v_cur, lid, local_size);
+        FUNC_CALL(dequant_value)(value_block, v_cur, lid, local_size, valid_tokens);
 #endif
         barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -334,7 +342,7 @@ KERNEL(pa_small_q_opt)(
 
 #ifdef SINGLE_KV_SLM
         barrier(CLK_LOCAL_MEM_FENCE);
-        FUNC_CALL(dequant_value)(value_block, v_cur, lid, local_size);
+        FUNC_CALL(dequant_value)(value_block, v_cur, lid, local_size, valid_tokens);
         barrier(CLK_LOCAL_MEM_FENCE);
 #endif
 

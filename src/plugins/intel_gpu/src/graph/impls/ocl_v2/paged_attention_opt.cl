@@ -585,20 +585,24 @@ KERNEL(pa_sdpa_opt)(
         barrier(CLK_LOCAL_MEM_FENCE);
 
         {
-            // Save temporary exm_sums and max_logits values for each partition_num
+            // Save temporary exm_sums and max_logits values for each partition_num.
+            // Subgroups stride over heads: with small head sizes SUBGROUPS_PER_WG may be smaller than HEADS_PER_WI.
 #if HEADS_PER_WI > 1 && HEADS_LEFTOVERS_NUM > 0
-            if (seq_len > SEQ_LEN_PARTITION_SIZE && sgid < HEADS_PER_WI && sgid < iter_heads_num) {
+            const uint stats_heads_num = iter_heads_num;
 #else
-            if (seq_len > SEQ_LEN_PARTITION_SIZE && sgid < HEADS_PER_WI) {
+            const uint stats_heads_num = HEADS_PER_WI;
 #endif
-                const uint head_idx = GET_MULTIPLE_HEAD_IDX_OR_FIXED_VAL(sgid, 0);
-                const uint exp_sums_offset = seq_idx * HEADS_NUM * total_partitions_num +
-                                             (head_num_idx + head_idx) * total_partitions_num +
-                                             partition_idx;
-                exp_sums[exp_sums_offset] = GET_VECTOR_ELEMENT(exp_sum, head_idx);
+            if (seq_len > SEQ_LEN_PARTITION_SIZE) {
+                for (uint q_idx = sgid; q_idx < stats_heads_num; q_idx += SUBGROUPS_PER_WG) {
+                    const uint head_idx = GET_MULTIPLE_HEAD_IDX_OR_FIXED_VAL(q_idx, 0);
+                    const uint exp_sums_offset = seq_idx * HEADS_NUM * total_partitions_num +
+                                                 (head_num_idx + head_idx) * total_partitions_num +
+                                                 partition_idx;
+                    exp_sums[exp_sums_offset] = GET_VECTOR_ELEMENT(exp_sum, head_idx);
 
-                const uint max_logits_offset = exp_sums_offset;
-                max_logits[max_logits_offset] = GET_VECTOR_ELEMENT(qk_max, head_idx);
+                    const uint max_logits_offset = exp_sums_offset;
+                    max_logits[max_logits_offset] = GET_VECTOR_ELEMENT(qk_max, head_idx);
+                }
             }
 
 #if PAGED_ATTENTION_SCORES_OUTPUT
