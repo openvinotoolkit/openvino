@@ -53,16 +53,13 @@ def module_patcher(module, name, orig_forward_name, module_extensions):
                 patched_forward = module.forward
                 # set original forward for the module
                 module.forward = getattr(module, orig_forward_name)
-                try:
-                    return extension.evaluate(module, *args, **kwargs)
-                finally:
-                    module.forward = patched_forward
+                # call user code
+                results = extension.evaluate(module, *args, **kwargs)
+                module.forward = patched_forward  # return patched forward back
+                return results
 
         def new_forward(*args, **kwargs):
-            parameters = _placeholder_parameters((args, kwargs, tuple(module.parameters(recurse=False))))
-            if not parameters and extension.target_op in ("ov_ext::linear", "ov_ext::embedding", "ov_ext::conv1d"):
-                return getattr(module, orig_forward_name)(*args, **kwargs)
-            return _set_placeholder_parameters(extension.convert(module, Trampoline.apply, *args, **kwargs), parameters)
+            return extension.convert(module, Trampoline.apply, *args, **kwargs)
 
         # make signature of new_forward same as of forward
         new_forward = functools.wraps(module.forward)(new_forward)
@@ -96,19 +93,16 @@ def unpatch_model(model, orig_forward_name):
 
 def _create_function_wrapper(extension):
     """Create a wrapper for a torch function using the same Trampoline pattern as modules."""
+
+    class Trampoline(torch.autograd.Function):
+        target_extension = extension
+
+        @staticmethod
+        @torch.jit.ignore
+        def forward(ctx, *args, **kwargs):
+            return extension.evaluate(None, *args, **kwargs)
+
     def wrapper(*args, **kwargs):
-        parameters = _placeholder_parameters((args, kwargs))
-
-        class Trampoline(torch.autograd.Function):
-            target_extension = extension
-
-            @staticmethod
-            @torch.jit.ignore
-            def forward(ctx, *args, **kwargs):
-                # TorchScript replay loses dependency metadata on parameter views.
-                args = _set_placeholder_parameters(args, parameters)
-                return extension.evaluate(None, *args, **kwargs)
-
         return extension.convert(None, Trampoline.apply, *args, **kwargs)
 
     return wrapper
@@ -134,278 +128,20 @@ def _orig_weight(module, attr):
     return getattr(module, _ORIG_WEIGHT_ATTR_PREFIX + attr, getattr(module, attr, None))
 
 
-class _ParameterPlaceholderTraceError(RuntimeError):
-    def __init__(self, parameters):
-        super().__init__("Tracing requires real values or layout from parameters or derived activations.")
-        self.parameters = tuple(parameters.values())
-
-
-def _placeholder_parameters(value):
-    if isinstance(value, _FP32ParameterPlaceholder):
-        original = getattr(value, "_openvino_orig_tensor", None)
-        return {id(original): original} if original is not None else getattr(value, "_openvino_parameters", {})
-    parameters = {}
-    values = value.values() if isinstance(value, dict) else value if isinstance(value, (tuple, list)) else ()
-    for item in values:
-        parameters.update(_placeholder_parameters(item))
-    return parameters
-
-
-def _set_placeholder_parameters(value, parameters):
-    if isinstance(value, torch.Tensor) and parameters:
-        if not isinstance(value, _FP32ParameterPlaceholder):
-            value = value.as_subclass(_FP32ParameterPlaceholder)
-        value._openvino_parameters = parameters
-    elif isinstance(value, (tuple, list)) and parameters:
-        items = [_set_placeholder_parameters(item, parameters) for item in value]
-        value = type(value)(*items) if hasattr(value, "_fields") else type(value)(items)
-    return value
-
-
-_LIKE_FACTORIES = (torch.empty_like, torch.zeros_like, torch.ones_like, torch.full_like)
-
-# Calls that return Python values independent of tensor contents.
-_METADATA_FUNCTIONS = (
-    torch.Tensor.shape.__get__, torch.Tensor.size, torch.Tensor.numel, torch.numel, torch.Tensor.dim,
-    torch.Tensor.ndimension, torch.Tensor.nelement, torch.Tensor.element_size, torch.Tensor.is_floating_point,
-    torch.Tensor.is_complex, torch.Tensor.is_signed, torch.Tensor.__len__, torch.Tensor.get_device)
-
-# Results that cannot expose tensor values or layout to Python code.
-_VALUE_INDEPENDENT_TYPES = (torch.Tensor, type(None), str, torch.dtype, torch.device, torch.Size,
-                            torch.layout, torch.memory_format)
-
-_fake_mode = None
-_fake_mode_lock = threading.Lock()
-
-
-def _tensor_versions(args, kwargs):
-    """Snapshot version counters of ordinary tensor arguments to detect in-place writes."""
-    versions = []
-    for value in (*args, *kwargs.values()):
-        for tensor in value if isinstance(value, (tuple, list)) else (value,):
-            if isinstance(tensor, torch.Tensor) and not isinstance(tensor, _FP32ParameterPlaceholder):
-                with contextlib.suppress(RuntimeError):  # inference tensors do not track versions
-                    versions.append((tensor, tensor._version))
-    return versions
-
-
-def _has_expanded_layout(tensor):
-    if not isinstance(tensor, torch.Tensor):
-        return False
-    with torch._C.DisableTorchFunctionSubclass():
-        return any(size > 1 and stride == 0 for size, stride in zip(tensor.shape, tensor.stride()))
-
-
-def _has_contiguous_original(tensor):
-    original = getattr(tensor, "_openvino_orig_tensor", None)
-    return original is not None and original.is_contiguous()
-
-
-@contextlib.contextmanager
-def _tracing_suspended():
-    state = torch._C._get_tracing_state()
-    torch._C._set_tracing_state(None)
-    try:
-        yield
-    finally:
-        torch._C._set_tracing_state(state)
-
-
-_value_dependence_cache = {}
-
-
-def _value_dependence_key(func, args, kwargs):
-    """Key describing everything except tensor values that influences ``func`` evaluation."""
-    from torch.utils._pytree import tree_flatten
-    leaves, spec = tree_flatten((args, kwargs))
-    key = (func, spec, tuple(
-        (leaf.dtype, leaf.device, tuple(leaf.shape), leaf.stride()) if isinstance(leaf, torch.Tensor) else leaf
-        for leaf in leaves))
-    hash(key)
-    return key
-
-
-def _depends_on_values(func, args, kwargs):
-    """Check whether the output shape or a scalar read of ``func`` depends on tensor values.
-
-    ``func`` is evaluated on fake tensors, which is the same mechanism torch.export uses to
-    report data-dependent operations. Any failure to evaluate is treated as value dependence
-    because the placeholders cannot be trusted in that case.
-    """
-    global _fake_mode
-    from torch._subclasses.fake_tensor import FakeTensorMode
-    from torch.utils._pytree import tree_map
-
-    with _tracing_suspended(), torch._C.DisableTorchFunctionSubclass():
-        try:
-            key = _value_dependence_key(func, args, kwargs)
-        except TypeError:
-            key = None
-        if key in _value_dependence_cache:
-            return _value_dependence_cache[key]
-
-    with _fake_mode_lock:
-        if _fake_mode is None:
-            _fake_mode = FakeTensorMode(allow_non_fake_inputs=True)
-        mode = _fake_mode
-
-    def to_fake(value):
-        if not isinstance(value, torch.Tensor):
-            return value
-        meta = torch.empty_strided(value.shape, value.stride(), dtype=value.dtype, device="meta")
-        return mode.from_tensor(meta)
-
-    try:
-        with _tracing_suspended(), torch._C.DisableTorchFunctionSubclass():
-            fake_args, fake_kwargs = tree_map(to_fake, (args, kwargs))
-            with mode:
-                func(*fake_args, **fake_kwargs)
-        result = False
-    except Exception:
-        result = True
-    if key is not None:
-        _value_dependence_cache[key] = result
-    return result
-
-
-def _is_value_independent(func, result):
-    if func in _METADATA_FUNCTIONS or getattr(func, "__name__", None) == "__get__":
-        return True
-    if isinstance(result, dict):
-        result = tuple(result.values())
-    if isinstance(result, (tuple, list)) and not isinstance(result, torch.Size):
-        return all(_is_value_independent(None, item) for item in result)
-    return isinstance(result, _VALUE_INDEPENDENT_TYPES)
-
-
-# Tensors that received placeholder values through in-place writes keep their original class
-# only until tracing finishes; see ``_taint_in_place_destination``.
-_tainted_destinations = []
-
-
-def _taint_in_place_destination(tensor, parameters):
-    """Mark an ordinary tensor that was overwritten with placeholder-derived values."""
-    if isinstance(tensor, _FP32ParameterPlaceholder):
-        tensor._openvino_parameters = {**getattr(tensor, "_openvino_parameters", {}), **parameters}
-        return
-    _tainted_destinations.append((tensor, type(tensor)))
-    tensor.__class__ = _FP32ParameterPlaceholder
-    tensor._openvino_parameters = parameters
-
-
-def _reset_trace_state():
-    """Restore tensors tainted by in-place writes and drop per-trace caches."""
-    _value_dependence_cache.clear()
-    while _tainted_destinations:
-        tensor, original_class = _tainted_destinations.pop()
-        tensor.__class__ = original_class
-        tensor.__dict__.pop("_openvino_parameters", None)
-
-
-class _FP32ParameterPlaceholder(torch.Tensor):
-    @classmethod
-    def __torch_function__(cls, func, types, args=(), kwargs=None):
-        kwargs = kwargs or {}
-        if func in _METADATA_FUNCTIONS:
-            with torch._C.DisableTorchFunctionSubclass():
-                return func(*args, **kwargs)
-        if func in (torch.Tensor.new_tensor, torch.Tensor.new_empty, torch.Tensor.new_zeros,
-                    torch.Tensor.new_ones, torch.Tensor.new_full, torch.empty_like, torch.zeros_like,
-                    torch.ones_like, torch.full_like):
-            factory_kwargs = dict(kwargs)
-            prototype = factory_kwargs.pop("input", args[0] if args else None)
-            factory_parameters = _placeholder_parameters((args[1:], factory_kwargs))
-            if torch.jit.is_tracing() and factory_parameters:
-                raise _ParameterPlaceholderTraceError(factory_parameters)
-            if (torch.jit.is_tracing() and func in _LIKE_FACTORIES and _has_expanded_layout(prototype)
-                    and factory_kwargs.get("memory_format", torch.preserve_format) is torch.preserve_format
-                    and not _has_contiguous_original(prototype)):
-                raise _ParameterPlaceholderTraceError(_placeholder_parameters(prototype))
-            with torch._C.DisableTorchFunctionSubclass():
-                return func(*args, **kwargs)
-        parameters = _placeholder_parameters((args, kwargs))
-        tracing = torch.jit.is_tracing() and bool(parameters)
-        if tracing and _depends_on_values(func, args, kwargs):
-            raise _ParameterPlaceholderTraceError(parameters)
-        versions = _tensor_versions(args, kwargs) if tracing else ()
-        try:
-            if func is torch.view_as_complex:
-                result = _view_as_complex(args[0] if args else kwargs["input"])
-            else:
-                result = super().__torch_function__(func, types, args, kwargs)
-        except _ParameterPlaceholderTraceError:
-            raise
-        except Exception as error:
-            if tracing:
-                raise _ParameterPlaceholderTraceError(parameters) from error
-            raise
-        if tracing:
-            if not _is_value_independent(func, result):
-                raise _ParameterPlaceholderTraceError(parameters)
-            for tensor, version in versions:
-                if tensor._version != version:
-                    _taint_in_place_destination(tensor, parameters)
-        return _set_placeholder_parameters(result, parameters)
-
-
-def _fp32_parameter(original):
-    if original.is_contiguous() and original.storage_offset() == 0:
-        value = original.float()
-    else:
-        shape, strides, offset = original.shape, original.stride(), original.storage_offset()
-        storage_size = offset
-        if original.numel():
-            storage_size += 1 + sum((size - 1) * stride for size, stride in zip(shape, strides))
-        value = torch.empty(storage_size, dtype=torch.float32, device=original.device)
-        value = value.as_strided(shape, strides, offset)
-        destination, source = value, original
-        for dim, (size, stride) in enumerate(zip(shape, strides)):
-            if size > 1 and stride == 0:
-                destination, source = destination.narrow(dim, 0, 1), source.narrow(dim, 0, 1)
-        destination.copy_(source)
-    replacement = torch.nn.Parameter(value, requires_grad=False)
-    replacement._openvino_orig_tensor = original
-    return replacement
-
-
-def _materialize_parameters(model, parameters):
-    parameter_ids = {id(parameter) for parameter in parameters}
-    replacements = {}
-    for _, module in model.named_modules():
-        for attr, current in tuple(module._parameters.items()):
-            if attr.startswith(_ORIG_WEIGHT_ATTR_PREFIX) or not isinstance(current, _FP32ParameterPlaceholder):
-                continue
-            original = _orig_weight(module, attr)
-            if id(original) not in parameter_ids:
-                continue
-            if id(original) not in replacements:
-                replacements[id(original)] = _fp32_parameter(original)
-            setattr(module, attr, replacements[id(original)])
-    if replacements:
-        log.warning("Tracing requires parameter-derived values or layout; "
-                    "materializing %d parameters in FP32 (%d bytes).",
-                    len(replacements), sum(parameter.untyped_storage().nbytes() for parameter in replacements.values()))
-    return bool(replacements)
-
-
-def _stash_weights_as_fp32_placeholders(module, supported, weight_attrs=("weight", "bias"), placeholders=None):
+def _stash_weights_as_fp32_placeholders(module, supported, weight_attrs=("weight", "bias")):
     """Replace a module's 16-bit weight tensors with FP32 placeholders.
 
     The real 16-bit tensors are stashed under ``_openvino_orig_<attr>`` so the
     extension ``convert`` callback can still emit them as the graph constant
     (via ``_orig_weight``), while model code that reads ``module.weight.dtype``
-    (or ``.device``) during tracing sees an FP32 tensor. This prevents the
+    (or ``.device``) during tracing sees a plain FP32 tensor. This prevents the
     tracer from baking a 16-bit ``aten::to`` cast into the graph.
 
-    Parameter placeholders use single-element storage and preserve scalar values.
-    Buffers retain real FP32 storage for in-place updates and layout-sensitive ops.
-    The original device is preserved for dtype/device introspection while tracing.
-    Constant conversion resolves parameter placeholders to a deferred FP32
-    conversion of the original tensor through ``_openvino_orig_tensor``.
+    The placeholder shares a single-element storage (a broadcasted zero) so it
+    costs virtually no memory even for large weights, and it keeps the original
+    device so that ``x.to(module.weight.device)`` traces correctly.
     """
     for attr in weight_attrs:
-        if attr.startswith(_ORIG_WEIGHT_ATTR_PREFIX):
-            continue
         param = getattr(module, attr, None)
         if not isinstance(param, torch.Tensor) or param.dtype not in supported:
             continue
@@ -414,29 +150,30 @@ def _stash_weights_as_fp32_placeholders(module, supported, weight_attrs=("weight
             continue  # already stashed
         # Keep the real 16-bit tensor reachable for `convert` (registered so
         # tracing can resolve the prim::GetAttr for it).
-        if isinstance(module, torch.jit.ScriptModule):
-            object.__setattr__(module, stash_name, param)
-        else:
-            setattr(module, stash_name, param)
-        placeholder = placeholders.get(id(param)) if placeholders is not None else None
-        if placeholder is None:
-            if attr in module._buffers or param.numel() == 1:
-                placeholder = param.float()
-            else:
-                placeholder = torch.zeros((), dtype=torch.float32,
-                                          device=param.device).expand(param.shape)
-                placeholder = torch.Tensor._make_subclass(_FP32ParameterPlaceholder, placeholder)
-            if isinstance(param, torch.nn.Parameter):
-                placeholder = torch.nn.Parameter(placeholder, requires_grad=False)
-                placeholder._openvino_orig_tensor = param
-            if placeholders is not None:
-                placeholders[id(param)] = placeholder
+        setattr(module, stash_name, param)
+        placeholder = torch.zeros((), dtype=torch.float32,
+                                  device=param.device).expand(param.shape)
+        placeholder = torch.nn.Parameter(placeholder, requires_grad=False)
+        # Constant creation emits the original tensor for tracing placeholders (see torch_tensor_to_ov_const).
+        placeholder._openvino_orig_tensor = param
         setattr(module, attr, placeholder)
 
 
+# Packed expert weights of Transformers MoE modules, e.g. (num_experts, hidden, 2 * intermediate).
+_PACKED_EXPERT_WEIGHT_NAMES = ("gate_up_proj", "up_proj", "down_proj")
+
+
+def _packed_expert_weight_names(module, supported):
+    """Return names of packed 16-bit expert weights, which are too large to copy to FP32."""
+    num_experts = getattr(module, "num_experts", None)
+    return tuple(name for name, param in module.named_parameters(recurse=False)
+                 if name in _PACKED_EXPERT_WEIGHT_NAMES and param.dtype in supported
+                 and param.ndim == 3 and param.shape[0] == num_experts)
+
+
 def _restore_stashed_weights(module):
-    """Restore the original parameters and buffers for a single module."""
-    stash_names = [n for n in list(module._parameters.keys()) + list(module._buffers.keys()) + list(module.__dict__)
+    """Undo ``_stash_weights_as_fp32_placeholders`` for a single module."""
+    stash_names = [n for n in list(module._parameters.keys()) + list(module.__dict__)
                    if n.startswith(_ORIG_WEIGHT_ATTR_PREFIX)]
     for stash_name in stash_names:
         attr = stash_name[len(_ORIG_WEIGHT_ATTR_PREFIX):]
@@ -444,34 +181,13 @@ def _restore_stashed_weights(module):
         delattr(module, stash_name)
 
 
-def _evaluate_bmm(module, *args, **kwargs):
-    parameters = _placeholder_parameters((args, kwargs))
-    if parameters:
-        result = _fp32_tensor(args[0].shape[0], args[0].shape[1], args[1].shape[2], device=args[0].device)
-        return _set_placeholder_parameters(result, parameters)
-    return torch.ops.aten.bmm.default(*args, **kwargs)
-
-
 # Extension for torch.bmm: (b, n, m) @ (b, m, p) -> (b, n, p)
 _bmm_extension = ModuleExtension(
     None, "ov_ext::bmm",
     convert=lambda module, target_op, *args, **kwargs: target_op(*args),
-    evaluate=_evaluate_bmm
+    evaluate=lambda module, *args, **kwargs: _fp32_tensor(
+        args[0].shape[0], args[0].shape[1], args[1].shape[2], device=args[0].device)
 )
-
-
-def _evaluate_view_as_complex(module, input_tensor):
-    if input_tensor.ndim == 0 or input_tensor.shape[-1] != 2:
-        raise RuntimeError("Tensor must have a last dimension of size 2")
-    value = torch.view_as_complex(torch.zeros(2, dtype=input_tensor.dtype,
-                                              device=input_tensor.device)).expand(input_tensor.shape[:-1])
-    return torch.Tensor._make_subclass(_FP32ParameterPlaceholder, value)
-
-
-_view_as_complex = _create_function_wrapper(ModuleExtension(
-    None, "aten::view_as_complex",
-    convert=lambda module, target_op, input_tensor: target_op(input_tensor),
-    evaluate=_evaluate_view_as_complex))
 
 
 # Thread-safe, reference-counted storage for patched torch functions.
@@ -922,7 +638,7 @@ def __make_16bit_traceable(model: torch.nn.Module,
 
     - Replace known list of modules with ModuleExtension.
     - Patch torch functions (bmm, baddbmm, etc.) for MoE and similar models.
-    - Expose FP32 placeholders for other parameters and buffers.
+    - Convert other modules with weights to FP32.
 
     For extension-backed modules (Linear/Embedding/Conv1D) the real 16-bit
     weight is stashed aside and ``module.weight``/``module.bias`` are replaced
@@ -937,13 +653,6 @@ def __make_16bit_traceable(model: torch.nn.Module,
     _patch_torch_functions()
 
     extensions, supported = _get_16bit_extensions(patch_condition)
-    placeholders = {}
-    # Scripted code bypasses Python tensor hooks.
-    for module in model.modules():
-        if isinstance(module, torch.jit.ScriptModule):
-            for parameter in module.parameters(recurse=False):
-                if parameter.dtype in supported and id(parameter) not in placeholders:
-                    placeholders[id(parameter)] = _fp32_parameter(parameter)
     for name, module in model.named_modules():
         if has_been_patched(module, name, orig_forward_name):
             continue
@@ -951,8 +660,16 @@ def __make_16bit_traceable(model: torch.nn.Module,
             # Expose FP32 placeholders as .weight/.bias so dtype/device
             # introspection during tracing sees FP32; the real 16-bit tensor
             # is stashed and re-attached by the extension's convert callback.
-            _stash_weights_as_fp32_placeholders(module, supported, placeholders=placeholders)
+            _stash_weights_as_fp32_placeholders(module, supported)
             module_patcher(module, name, orig_forward_name, extensions)
         else:
-            weight_attrs = tuple(module._parameters.keys()) + tuple(module._buffers.keys())
-            _stash_weights_as_fp32_placeholders(module, supported, weight_attrs, placeholders)
+            # Memory-free placeholders for packed experts; they are only consumed by the patched torch.bmm.
+            _stash_weights_as_fp32_placeholders(module, supported, _packed_expert_weight_names(module, supported))
+            for attr, param in module._parameters.items():
+                if param is not None and param.dtype in supported and not attr.startswith(_ORIG_WEIGHT_ATTR_PREFIX):
+                    log.debug("Casting parameter of module %s to float32", name)
+                    param.data = param.data.float()
+            for buf in module.buffers(recurse=False):
+                if buf.dtype in supported:
+                    log.debug("Casting buffer of module %s to float32", name)
+                    buf.data = buf.data.float()

@@ -131,29 +131,14 @@ class TorchScriptPythonDecoder(TorchDecoderBase):
             compressed_types = [torch.int8, torch.uint8,
                                 torch.float16, torch.bfloat16]
             if hasattr(module, "weight") and getattr(module.weight, "dtype", None) in compressed_types:
-                preserved_attributes.append(name if name else "weight")
-            for attr in list(module._parameters.keys()) + list(module._buffers.keys()):
+                preserved_attributes.append(name)
+            for attr in module._parameters.keys():
                 if attr.startswith(patch_model._ORIG_WEIGHT_ATTR_PREFIX):
-                    public_attr = attr[len(patch_model._ORIG_WEIGHT_ATTR_PREFIX):]
-                    if hasattr(module, public_attr):
-                        prefix = name + "." if name else ""
-                        preserved_attributes.extend([prefix + public_attr, prefix + attr])
-        return list(dict.fromkeys(preserved_attributes))
-
-    @staticmethod
-    def _trace_model(pt_module, input_parameters, trace_kwargs):
-        """Trace with at most one retry per placeholder parameter."""
-        max_retries = sum(isinstance(parameter, patch_model._FP32ParameterPlaceholder)
-                          for parameter in pt_module.parameters())
-        for attempt in range(max_retries + 1):
-            try:
-                with FunctionsPatcher():
-                    return torch.jit.trace(pt_module, **input_parameters, strict=False, **trace_kwargs)
-            except patch_model._ParameterPlaceholderTraceError as error:
-                if attempt == max_retries or not patch_model._materialize_parameters(pt_module, error.parameters):
-                    raise
-            finally:
-                patch_model._reset_trace_state()
+                    # Freezing would fold the zero placeholder into a constant and drop the original weight.
+                    prefix = name + "." if name else ""
+                    preserved_attributes.extend([prefix + attr[len(patch_model._ORIG_WEIGHT_ATTR_PREFIX):],
+                                                 prefix + attr])
+        return preserved_attributes
 
     def _get_scripted_model(self, pt_module, example_inputs=None, skip_freeze=False, trace_kwargs=None):
         freeze_by_default = False
@@ -206,7 +191,9 @@ class TorchScriptPythonDecoder(TorchDecoderBase):
                 if trace_kwargs is None:
                     trace_kwargs = {}
                 try:
-                    scripted = self._trace_model(pt_module, input_parameters, trace_kwargs)
+                    with FunctionsPatcher():
+                        scripted = torch.jit.trace(
+                            pt_module, **input_parameters, strict=False, **trace_kwargs)
                 finally:
                     if patched:
                         quantized.unpatch_quantized(pt_module)

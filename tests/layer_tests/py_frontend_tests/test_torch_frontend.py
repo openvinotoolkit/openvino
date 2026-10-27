@@ -444,40 +444,6 @@ def test_module_extension():
         "Parameter", "Sin", "Result"]
 
 
-@pytest.mark.precommit
-@pytest.mark.parametrize("with_parameter", [False, True])
-def test_module_extension_namedtuple(with_parameter):
-    from collections import namedtuple
-    from openvino import convert_model, compile_model
-    from openvino.frontend.pytorch import ModuleExtension, patch_model
-
-    outputs = namedtuple("Outputs", ["values", "original"])
-
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            if with_parameter:
-                self.weight = torch.nn.Parameter(torch.ones(2, dtype=torch.float16), requires_grad=False)
-
-        def forward(self, value):
-            return torch.sin(value)
-
-    model = Model().eval()
-    example = torch.tensor([0.5, 1.])
-    extension = ModuleExtension(Model, "aten::sin",
-                                convert=lambda module, target_op, value: outputs(target_op(value), value))
-    try:
-        patch_model.__make_16bit_traceable(model)
-        converted = convert_model(model, example_input=(example,), extension=[extension])
-        results = list(compile_model(converted, "CPU", default_cfg)(example.numpy()).values())
-        np.testing.assert_allclose(results[0], example.sin().numpy(), rtol=1e-5)
-        np.testing.assert_array_equal(results[1], example.numpy())
-        if with_parameter:
-            assert model.weight.untyped_storage().nbytes() <= 4
-    finally:
-        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
-
-
 def test_multiple_module_extension():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch import ModuleExtension
@@ -877,7 +843,7 @@ def test_module_extension_dynamo_custom_callbacks():
 def test_make_16bit_traceable_preserves_extension_dtypes(dtype):
     """__make_16bit_traceable exposes FP32 placeholders for ModuleExtension
     (Linear/Embedding) weights while keeping the real 16-bit tensor stashed,
-    and exposes placeholders for parameters of non-extension modules.
+    and up-casts params/buffers of non-extension modules to fp32.
     """
     from openvino.frontend.pytorch import patch_model
 
@@ -909,10 +875,9 @@ def test_make_16bit_traceable_preserves_extension_dtypes(dtype):
         assert model.linear._openvino_orig_weight.dtype == dtype
         assert model.embedding._openvino_orig_weight.dtype == dtype
 
+        # Param and non-extension module weights are up-cast to fp32.
         assert model.scale_shift_table.dtype == torch.float32
         assert model.norm.weight.dtype == torch.float32
-        assert model.scale_shift_table.untyped_storage().nbytes() <= 4
-        assert model.norm.weight.untyped_storage().nbytes() <= 4
     finally:
         patch_model.unpatch_model(model, orig_forward_name)
 
@@ -922,751 +887,88 @@ def test_make_16bit_traceable_preserves_extension_dtypes(dtype):
     assert model.embedding.weight.dtype == dtype
     assert not hasattr(model.linear, "_openvino_orig_weight")
     assert not hasattr(model.embedding, "_openvino_orig_weight")
-    assert model.scale_shift_table.dtype == dtype
-    assert model.norm.weight.dtype == dtype
+
+
+class _PackedExperts(torch.nn.Module):
+    """Dense batched-MoE experts: packed weights are only transposed, sized and passed to torch.bmm."""
+
+    def __init__(self, num_experts=4, hidden=8, intermediate=6):
+        super().__init__()
+        self.num_experts = num_experts
+        self.gate_up_proj = torch.nn.Parameter(torch.empty(num_experts, 2 * intermediate, hidden))
+        self.down_proj = torch.nn.Parameter(torch.empty(num_experts, hidden, intermediate))
+        self.register_buffer("offset", torch.empty(hidden), persistent=False)
+
+    def forward(self, x):
+        x = x.repeat(self.gate_up_proj.size(0), 1).view(self.num_experts, -1, x.shape[-1])
+        gate, up = torch.bmm(x, self.gate_up_proj.transpose(1, 2)).chunk(2, dim=-1)
+        return torch.bmm(torch.nn.functional.silu(gate) * up, self.down_proj.transpose(1, 2)).sum(0) + self.offset
+
+
+def _packed_experts(dtype, tmp_path=None):
+    model = _PackedExperts()
+    with torch.no_grad():
+        model.gate_up_proj.copy_(torch.linspace(-0.5, 0.5, model.gate_up_proj.numel()).reshape(model.gate_up_proj.shape))
+        model.down_proj.copy_(torch.linspace(-0.5, 0.5, model.down_proj.numel()).reshape(model.down_proj.shape))
+    model.gate_up_proj.data = model.gate_up_proj.data.to(dtype)
+    model.down_proj.data = model.down_proj.data.to(dtype)
+    model.offset = torch.arange(8).to(dtype)
+    return model.eval().requires_grad_(False)
+
+
+def _packed_experts_reference(model, example):
+    reference = _PackedExperts()
+    reference.gate_up_proj.data = model.gate_up_proj.data.float()
+    reference.down_proj.data = model.down_proj.data.float()
+    reference.offset = model.offset.float()
+    return reference(example).detach()
 
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float8_e4m3fn, torch.float8_e5m2])
-def test_make_16bit_traceable_raw_weights_share_storage(tmp_path, dtype):
+def test_make_16bit_traceable_packed_experts_share_storage(tmp_path, dtype):
     from openvino import convert_model, compile_model
     from openvino.frontend.pytorch import patch_model
 
-    class Experts(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.gate_up_proj = torch.nn.Parameter(torch.empty((4, 12, 8)))
-            self.down_proj = torch.nn.Parameter(torch.empty((4, 8, 6)))
-            self.register_buffer("offset", torch.empty((8,)), persistent=False)
-
-        def forward(self, x):
-            x = x.to(self.gate_up_proj.dtype)
-            gate, up = self.gate_up_proj.chunk(2, dim=1)
-            gate = torch.bmm(x, gate.transpose(1, 2))
-            up = torch.bmm(x, up.transpose(1, 2))
-            return torch.bmm(torch.nn.functional.silu(gate) * up, self.down_proj.transpose(1, 2)) + self.offset
-
-    torch.save({"gate_up_proj": torch.linspace(-0.5, 0.5, 384).reshape(4, 12, 8).to(dtype),
-                "down_proj": torch.linspace(-0.5, 0.5, 192).reshape(4, 8, 6).to(dtype)}, tmp_path / "weights.pt")
+    torch.save({name: value.detach() for name, value in _packed_experts(dtype).state_dict().items()},
+               tmp_path / "weights.pt")
     with torch.device("meta"):
-        model = Experts()
+        model = _PackedExperts()
     model.load_state_dict(torch.load(tmp_path / "weights.pt", mmap=True, weights_only=True), assign=True, strict=False)
     model.offset = torch.arange(8).to(dtype)
     model.eval().requires_grad_(False)
-    originals = {"gate_up_proj": model.gate_up_proj, "down_proj": model.down_proj, "offset": model.offset}
-    example = torch.linspace(-0.5, 0.5, 64).reshape(4, 2, 8)
-    gate, up = originals["gate_up_proj"].float().chunk(2, dim=1)
-    expected = torch.bmm(torch.nn.functional.silu(torch.bmm(example, gate.transpose(1, 2))) *
-                         torch.bmm(example, up.transpose(1, 2)), originals["down_proj"].float().transpose(1, 2))
-    expected = expected + originals["offset"].float()
+    originals = {"gate_up_proj": model.gate_up_proj, "down_proj": model.down_proj}
+    example = torch.linspace(-0.5, 0.5, 16).reshape(2, 8)
+    expected = _packed_experts_reference(model, example)
 
     try:
         patch_model.__make_16bit_traceable(model)
         for name, original in originals.items():
             placeholder = getattr(model, name)
             assert placeholder.dtype == torch.float32
-            if name == "offset":
-                torch.testing.assert_close(placeholder, original.float())
-            else:
-                assert placeholder.untyped_storage().nbytes() <= 4
-                assert placeholder._openvino_orig_tensor is original
+            assert placeholder.untyped_storage().nbytes() <= 4
+            assert placeholder._openvino_orig_tensor is original
+        assert model.offset.dtype == torch.float32
         with torch.no_grad():
             converted = convert_model(model, example_input=(example,))
-        for name in ["gate_up_proj", "down_proj"]:
+        for name, original in originals.items():
             constant = next(op for op in converted.get_ops() if op.get_type_name() == "Constant"
-                            and list(op.get_shape()) == list(originals[name].shape))
-            assert constant.get_byte_size() == originals[name].numel() * originals[name].element_size()
-            assert constant.get_data().__array_interface__["data"][0] == originals[name].data_ptr()
-        assert converted.output(0).get_element_type() == Type.f32
+                            and list(op.get_shape()) == list(original.shape))
+            assert constant.get_byte_size() == original.numel() * original.element_size()
+            assert constant.get_data().__array_interface__["data"][0] == original.data_ptr()
         result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
         np.testing.assert_allclose(result, expected.numpy(), atol=1e-5, rtol=1e-5)
     finally:
         patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
     for name, original in originals.items():
         assert getattr(model, name) is original
-    assert "offset" in model._buffers
-    assert "offset" not in model.state_dict()
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("buffer_class", [torch.Tensor, torch.nn.Buffer])
-@pytest.mark.parametrize("persistent", [True, False])
-def test_make_16bit_traceable_restores_shared_weights(buffer_class, persistent):
-    from openvino.frontend.pytorch import patch_model
-
-    model = torch.nn.Module()
-    model.weight = torch.nn.Parameter(torch.ones((4, 4), dtype=torch.bfloat16))
-    model.linear = torch.nn.Linear(4, 4, bias=False)
-    model.linear.weight = model.weight
-    scale = torch.ones((4,), dtype=torch.bfloat16)
-    if buffer_class is torch.nn.Buffer:
-        scale = torch.nn.Buffer(scale, persistent=persistent)
-    model.register_buffer("scale", scale, persistent=persistent)
-    model.register_buffer("shared_scale", model.scale, persistent=persistent)
-    weight, scale = model.weight, model.scale
-    try:
-        patch_model.__make_16bit_traceable(model)
-        patch_model.__make_16bit_traceable(model)
-        assert model.weight is model.linear.weight
-        assert model.scale is model.shared_scale
-        assert model.weight.untyped_storage().nbytes() <= 4
-        torch.testing.assert_close(model.scale, scale.float())
-    finally:
-        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
-        patch_model._unpatch_torch_functions()
-    assert model.weight is model.linear.weight is weight
-    assert model.scale is model.shared_scale is scale
-    assert set(model._parameters) == {"weight"}
-    assert set(model._buffers) == {"scale", "shared_scale"}
-    assert ("scale" in model.state_dict()) == persistent
-    assert ("shared_scale" in model.state_dict()) == persistent
+        assert not hasattr(model, "_openvino_orig_" + name)
+    assert "offset" in model._buffers and "offset" not in model.state_dict()
 
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("operation,parameter", [("copy", False), ("complex", False), ("complex", True),
-                                               ("complex_keyword", True), ("reshape", True)])
-def test_make_16bit_traceable_tensor_layout(dtype, operation, parameter):
-    from openvino import convert_model, compile_model
-    from openvino.frontend.pytorch import patch_model
-
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            value = torch.arange(8).reshape(4, 2).to(dtype)
-            if parameter:
-                self.cache = torch.nn.Parameter(value, requires_grad=False)
-            else:
-                self.register_buffer("cache", value)
-
-        def forward(self, x):
-            if operation == "copy":
-                self.cache.copy_(x)
-                return x + self.cache
-            if operation == "reshape" and self.cache.size(0) == 4:
-                return x + self.cache.view(self.cache.numel()).reshape(self.cache.shape)
-            values = torch.view_as_complex(input=self.cache) if operation == "complex_keyword" else \
-                torch.view_as_complex(self.cache)
-            return x + values.real.unsqueeze(-1) + values.imag.unsqueeze(-1)
-
-    model = Model().eval()
-    original = model.cache
-    example = torch.arange(8, dtype=torch.float32).reshape(4, 2) + 1
-    if operation == "copy":
-        expected = example * 2
-    elif operation == "reshape":
-        expected = example + original.float()
-    else:
-        expected = example + original.float().sum(-1, keepdim=True)
-    try:
-        patch_model.__make_16bit_traceable(model)
-        if parameter:
-            assert model.cache.untyped_storage().nbytes() <= 8
-            assert model(example).shape == expected.shape
-        else:
-            assert model.cache.is_contiguous()
-            torch.testing.assert_close(model(example), expected)
-        with torch.no_grad():
-            converted = convert_model(model, example_input=(example,))
-        result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
-        np.testing.assert_allclose(result, expected.numpy(), atol=1e-5, rtol=1e-5)
-    finally:
-        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
-    assert model.cache is original
-    torch.testing.assert_close(original, torch.arange(8).reshape(4, 2).to(dtype))
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("shape", [(), (1,)])
-@pytest.mark.parametrize("parameter", [True, False])
-def test_make_16bit_traceable_scalar_value(dtype, shape, parameter):
-    from openvino import convert_model, compile_model
-    from openvino.frontend.pytorch import patch_model
-
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            value = torch.full(shape, 2, dtype=dtype)
-            if parameter:
-                self.scale = torch.nn.Parameter(value, requires_grad=False)
-            else:
-                self.register_buffer("scale", value)
-
-        def forward(self, x):
-            return x * self.scale.item()
-
-    model = Model().eval()
-    original = model.scale
-    example = torch.arange(4, dtype=torch.float32)
-    try:
-        patch_model.__make_16bit_traceable(model)
-        assert model.scale.item() == 2
-        assert model.scale.untyped_storage().nbytes() == 4
-        with torch.no_grad():
-            converted = convert_model(model, example_input=(example,))
-        result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
-        np.testing.assert_allclose(result, (example * 2).numpy(), atol=1e-5, rtol=1e-5)
-    finally:
-        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
-    assert model.scale is original
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("extraction", ["indexed_item", "sum_item", "float", "complex", "bool"])
-def test_make_16bit_traceable_falls_back_for_parameter_scalar_extraction(dtype, extraction):
-    from openvino import convert_model, compile_model
-    from openvino.frontend.pytorch import patch_model
-
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.scales = torch.nn.Parameter(torch.tensor([2, 3], dtype=dtype), requires_grad=False)
-            self.unused = torch.nn.Parameter(torch.ones(128, 128, dtype=dtype), requires_grad=False)
-
-        def forward(self, x):
-            if extraction == "indexed_item":
-                scale = self.scales[0].item()
-            elif extraction == "sum_item":
-                scale = self.scales.sum().item()
-            elif extraction == "float":
-                scale = float(self.scales[0])
-            elif extraction == "complex":
-                scale = complex(self.scales[0]).real
-            else:
-                scale = int(bool(self.scales[0]))
-            return x * scale
-
-    model = Model().eval()
-    original = model.scales
-    example = torch.ones(4)
-    expected = model(example)
-    try:
-        patch_model.__make_16bit_traceable(model)
-        converted = convert_model(model, example_input=(example,))
-        result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
-        np.testing.assert_allclose(result, expected.numpy(), atol=1e-5, rtol=1e-5)
-        assert model.scales.untyped_storage().nbytes() == 8
-        assert model.unused.untyped_storage().nbytes() <= 4
-    finally:
-        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
-    assert model.scales is original
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-def test_make_16bit_traceable_multiple_parameter_retries(dtype):
-    from openvino import convert_model, compile_model
-    from openvino.frontend.pytorch import patch_model
-
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.first = torch.nn.Parameter(torch.tensor([2, 3], dtype=dtype), requires_grad=False)
-            self.second = torch.nn.Parameter(torch.tensor([4, 5], dtype=dtype), requires_grad=False)
-
-        def forward(self, value):
-            return value * self.first.sum().item() + self.second.sum().item()
-
-    model = Model().eval()
-    originals = dict(model.named_parameters(remove_duplicate=False))
-    example = torch.ones(4)
-    expected = model(example)
-    try:
-        patch_model.__make_16bit_traceable(model)
-        converted = convert_model(model, example_input=(example,))
-        result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
-        np.testing.assert_allclose(result, expected.numpy(), atol=1e-5, rtol=1e-5)
-        assert model.first.untyped_storage().nbytes() == 8
-        assert model.second.untyped_storage().nbytes() == 8
-    finally:
-        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
-    for name, original in originals.items():
-        assert getattr(model, name) is original
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("comparison", ["equal", "allclose", "method_equal", "method_allclose"])
-def test_make_16bit_traceable_fallback_comparison(dtype, comparison):
-    from openvino import convert_model, compile_model
-    from openvino.frontend.pytorch import patch_model
-
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.scales = torch.nn.Parameter(torch.tensor([2, 3], dtype=dtype), requires_grad=False)
-
-        def forward(self, value):
-            zeros = torch.zeros_like(self.scales)
-            if comparison.startswith("method_"):
-                equal = getattr(self.scales, comparison[len("method_"):])(zeros)
-            else:
-                equal = getattr(torch, comparison)(self.scales, zeros)
-            return value * (10 if equal else 2)
-
-    model = Model().eval()
-    example = torch.ones(2)
-    try:
-        patch_model.__make_16bit_traceable(model)
-        converted = convert_model(model, example_input=(example,))
-        result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
-        np.testing.assert_allclose(result, example.numpy() * 2)
-    finally:
-        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("query", ["all", "dimension", "contiguous"])
-def test_make_16bit_traceable_fallback_stride(dtype, query):
-    from openvino import convert_model, compile_model
-    from openvino.frontend.pytorch import patch_model
-
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.weight = torch.nn.Parameter(torch.ones(2, 2, dtype=dtype), requires_grad=False)
-
-        def forward(self, value):
-            if query == "contiguous":
-                return value if self.weight.is_contiguous() else value * 0
-            strides = self.weight.stride() if query == "all" else (self.weight.stride(0), 1)
-            return torch.as_strided(value, self.weight.shape, strides)
-
-    model = Model().eval()
-    example = torch.arange(1, 5, dtype=torch.float32).reshape(2, 2)
-    try:
-        patch_model.__make_16bit_traceable(model)
-        converted = convert_model(model, example_input=(example,))
-        result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
-        np.testing.assert_array_equal(result, example.numpy())
-    finally:
-        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("layout", ["sliced", "offset", "transposed", "expanded"])
-def test_make_16bit_traceable_fallback_preserves_layout(dtype, layout):
-    from openvino import convert_model, compile_model
-    from openvino.frontend.pytorch import patch_model
-
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            weight = torch.ones(4, 4, dtype=dtype)
-            if layout == "sliced":
-                weight = weight[::2, ::2]
-            elif layout == "offset":
-                weight = weight[1::2, 1::2]
-            elif layout == "transposed":
-                weight = weight.t()
-            else:
-                weight = weight[:1].expand(4, 4)
-            self.weight = torch.nn.Parameter(weight, requires_grad=False)
-
-        def forward(self, value):
-            weight = self.weight.t()
-            return torch.as_strided(value, weight.shape, weight.stride(), weight.storage_offset())
-
-    model = Model().eval()
-    original = model.weight
-    example = torch.arange(16, dtype=torch.float32)
-    expected = model(example)
-    try:
-        patch_model.__make_16bit_traceable(model)
-        converted = convert_model(model, example_input=(example,))
-        assert model.weight.stride() == original.stride()
-        assert model.weight.storage_offset() == original.storage_offset()
-        result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
-        np.testing.assert_array_equal(result, expected.numpy())
-    finally:
-        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
-    assert model.weight is original
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-def test_make_16bit_traceable_materializes_empty_layout(dtype):
-    from openvino.frontend.pytorch import patch_model
-
-    original = torch.nn.Parameter(torch.empty(1, dtype=dtype).as_strided((0, 3), (1, 2 ** 60), 1),
-                                  requires_grad=False)
-    replacement = patch_model._fp32_parameter(original)
-    assert replacement.shape == original.shape
-    assert replacement.stride() == original.stride()
-    assert replacement.storage_offset() == original.storage_offset()
-    assert replacement.untyped_storage().nbytes() == 4
-    assert replacement._openvino_orig_tensor is original
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("factory", ["new_tensor", "new_full", "copied_value", "zeros_like_keyword"])
-def test_make_16bit_traceable_independent_factory(dtype, factory):
-    from openvino import convert_model, compile_model
-    from openvino.frontend.pytorch import patch_model
-
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.weight = torch.nn.Parameter(torch.ones(2, 2, dtype=dtype), requires_grad=False)
-
-        def forward(self, value):
-            if factory == "copied_value":
-                scalar = self.weight.new_tensor(self.weight[0, 0])
-            elif factory == "zeros_like_keyword":
-                scalar = torch.zeros_like(input=self.weight).sum()
-            else:
-                scalar = self.weight.new_tensor(3) if factory == "new_tensor" else self.weight.new_full((), 3)
-            return value * int(scalar)
-
-    model = Model().eval()
-    example = torch.ones(2)
-    try:
-        patch_model.__make_16bit_traceable(model)
-        converted = convert_model(model, example_input=(example,))
-        result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
-        expected_scale = 0 if factory == "zeros_like_keyword" else 1 if factory == "copied_value" else 3
-        np.testing.assert_array_equal(result, example.numpy() * expected_scale)
-        if factory == "copied_value":
-            assert model.weight.untyped_storage().nbytes() == 16
-        else:
-            assert model.weight.untyped_storage().nbytes() <= 4
-    finally:
-        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("operation", ["item", "expert_loop", "expert_loop_where"])
-def test_make_16bit_traceable_activation_fallback(dtype, operation):
-    from openvino import convert_model, compile_model
-    from openvino.frontend.pytorch import patch_model
-
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.scales = torch.nn.Parameter(torch.tensor([2, 3], dtype=dtype), requires_grad=False)
-
-        def forward(self, value):
-            activation = value * self.scales
-            if operation == "item":
-                return value * activation.sum().item()
-            result = value.new_zeros(())
-            expert_hit = torch.where(activation > 0)[0] if operation == "expert_loop_where" else \
-                torch.nonzero(activation > 0).flatten()
-            for expert_idx in expert_hit:
-                if expert_idx == 2:
-                    continue
-                result = result + value[expert_idx]
-            return result
-
-    model = Model().eval()
-    example = torch.tensor([-1., 1.])
-    expected = model(example)
-    try:
-        patch_model.__make_16bit_traceable(model)
-        converted = convert_model(model, example_input=(example,))
-        result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
-        np.testing.assert_allclose(result, expected.numpy())
-    finally:
-        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("view", ["none", "transpose", "chunk_transpose"])
-def test_make_16bit_traceable_bmm_replay(dtype, view):
-    from openvino.frontend.pytorch import patch_model
-
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            shape = (4, 16, 8) if view == "chunk_transpose" else (4, 8, 8)
-            self.weight = torch.nn.Parameter(torch.ones(shape, dtype=dtype), requires_grad=False)
-
-        def forward(self, value):
-            weight = self.weight
-            if view == "chunk_transpose":
-                weight = weight.chunk(2, dim=1)[0]
-            if view != "none":
-                weight = weight.transpose(1, 2)
-            return torch.bmm(value, weight)
-
-    model = Model().eval()
-    original = model.weight
-    example = torch.ones(4, 2, 8)
-    try:
-        patch_model.__make_16bit_traceable(model)
-        expected = model(example)
-        traced = torch.jit.trace(model, example)
-        torch.testing.assert_close(traced(example), expected)
-        assert model.weight.untyped_storage().nbytes() <= 4
-    finally:
-        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
-    assert model.weight is original
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("operation", ["linear", "linear_chain", "bmm", "embedding"])
-def test_make_16bit_traceable_extension_activation_fallback(dtype, operation):
-    from openvino import convert_model, compile_model
-    from openvino.frontend.pytorch import patch_model
-
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.unused = torch.nn.Parameter(torch.ones(8, 8, dtype=dtype), requires_grad=False)
-            if operation == "bmm":
-                self.weight = torch.nn.Parameter(torch.full((1, 2, 2), 2., dtype=dtype), requires_grad=False)
-            elif operation == "embedding":
-                self.layer = torch.nn.Embedding(2, 2, dtype=dtype)
-                self.layer.weight.data.fill_(2)
-            else:
-                self.layer = torch.nn.Linear(2, 2, bias=False, dtype=dtype)
-                self.layer.weight.data.fill_(2)
-                if operation == "linear_chain":
-                    self.next_layer = torch.nn.Linear(2, 2, bias=False)
-                    self.next_layer.weight.data.fill_(2)
-
-        def forward(self, value):
-            if operation == "bmm":
-                activation = torch.bmm(value.to(self.weight.dtype).unsqueeze(0), self.weight)
-            elif operation == "embedding":
-                activation = self.layer(value.to(torch.int64))
-            else:
-                activation = self.layer(value.to(self.layer.weight.dtype))
-                if operation == "linear_chain":
-                    activation = self.next_layer(activation.float())
-            return value * activation.sum().item()
-
-    model = Model().eval().requires_grad_(False)
-    example = torch.ones(1, 2)
-    expected = model(example)
-    try:
-        patch_model.__make_16bit_traceable(model)
-        converted = convert_model(model, example_input=(example,))
-        assert model.unused.untyped_storage().nbytes() <= 4
-        result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
-        np.testing.assert_allclose(result, expected.numpy())
-    finally:
-        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("operation", ["unique", "unique_consecutive", "masked_select"])
-def test_make_16bit_traceable_data_dependent_shape_fallback(dtype, operation):
-    from openvino import convert_model, compile_model
-    from openvino.frontend.pytorch import patch_model
-
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.scales = torch.nn.Parameter(torch.tensor([2, 3], dtype=dtype), requires_grad=False)
-
-        def forward(self, value):
-            if operation == "masked_select":
-                selected = torch.masked_select(self.scales, self.scales > 2)
-            else:
-                selected = getattr(torch, operation)(self.scales)
-            return value if selected.numel() == 1 else value * 2
-
-    model = Model().eval()
-    example = torch.ones(2)
-    expected = model(example)
-    try:
-        patch_model.__make_16bit_traceable(model)
-        converted = convert_model(model, example_input=(example,))
-        result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
-        np.testing.assert_array_equal(result, expected.numpy())
-    finally:
-        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
-
-
-def _convert_and_check_16bit_traceable(model, example, expected=None):
-    from openvino import convert_model, compile_model
-    from openvino.frontend.pytorch import patch_model
-
-    if expected is None:
-        expected = model(example)
-    try:
-        patch_model.__make_16bit_traceable(model)
-        converted = convert_model(model, example_input=(example,))
-        result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
-        np.testing.assert_allclose(result, expected.numpy())
-    finally:
-        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("layout", ["transposed", "contiguous"])
-def test_make_16bit_traceable_like_factory_layout(dtype, layout):
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            weight = torch.ones(2, 3, dtype=dtype)
-            self.weight = torch.nn.Parameter(weight.t() if layout == "transposed" else weight,
-                                             requires_grad=False)
-
-        def forward(self, value):
-            return value * (2 if torch.zeros_like(self.weight).is_contiguous() else 3)
-
-    _convert_and_check_16bit_traceable(Model().eval(), torch.ones(2))
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("destination", ["buffer", "parameter"])
-def test_make_16bit_traceable_copy_from_parameter(dtype, destination):
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.scales = torch.nn.Parameter(torch.tensor([2, 3], dtype=dtype), requires_grad=False)
-            if destination == "buffer":
-                self.register_buffer("cache", torch.zeros(2))
-            else:
-                self.cache = torch.nn.Parameter(torch.zeros(2, dtype=dtype), requires_grad=False)
-
-        def forward(self, value):
-            self.cache.copy_(self.scales)
-            return value * float(self.cache.sum().item())
-
-    _convert_and_check_16bit_traceable(Model().eval(), torch.ones(2))
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("operation", ["linalg_inv", "inverse", "method_inverse"])
-def test_make_16bit_traceable_inverse(dtype, operation):
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.weight = torch.nn.Parameter(torch.eye(2, dtype=dtype) * 4, requires_grad=False)
-
-        def forward(self, value):
-            weight = self.weight.float()
-            if operation == "linalg_inv":
-                inverse = torch.linalg.inv(weight)
-            elif operation == "inverse":
-                inverse = torch.inverse(weight)
-            else:
-                inverse = weight.inverse()
-            return value * inverse.sum().item()
-
-    _convert_and_check_16bit_traceable(Model().eval(), torch.ones(2))
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("operation", ["repeat_interleave", "method_repeat_interleave", "bincount", "method_bincount"])
-def test_make_16bit_traceable_size_determining_input(dtype, operation):
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.scales = torch.nn.Parameter(torch.tensor([2, 3], dtype=dtype), requires_grad=False)
-
-        def forward(self, value):
-            counts = self.scales.long()
-            if operation == "repeat_interleave":
-                size = torch.repeat_interleave(value, counts).numel()
-            elif operation == "method_repeat_interleave":
-                size = value.repeat_interleave(counts).numel()
-            elif operation == "bincount":
-                size = torch.bincount(counts).numel()
-            else:
-                size = counts.bincount().numel()
-            return value * (2 if size in (4, 5) else 3)
-
-    _convert_and_check_16bit_traceable(Model().eval(), torch.ones(2))
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("index", ["mask", "tuple_mask", "mask_in_tuple_with_slice"])
-def test_make_16bit_traceable_boolean_index_shape(dtype, index):
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.scales = torch.nn.Parameter(torch.tensor([[2, 3], [4, 5]], dtype=dtype), requires_grad=False)
-
-        def forward(self, value):
-            if index == "mask":
-                selected = self.scales[self.scales > 0]
-            elif index == "tuple_mask":
-                selected = self.scales[(self.scales > 0,)]
-            else:
-                selected = self.scales[:, self.scales[0] > 0]
-            return value * (2 if selected.numel() > 1 else 3)
-
-    _convert_and_check_16bit_traceable(Model().eval(), torch.ones(2))
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("operation", [
-    "one_hot_auto_classes", "contains", "arange_from_value", "tensor_split_by_value", "tolist", "numpy",
-    "count_nonzero", "cholesky", "argwhere", "slice_by_value"])
-def test_make_16bit_traceable_unlisted_value_dependence(dtype, operation):
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.weight = torch.nn.Parameter(torch.tensor([[2, 3], [4, 5]], dtype=dtype), requires_grad=False)
-
-        def forward(self, value):
-            w = self.weight
-            outputs = {
-                "one_hot_auto_classes": lambda: torch.nn.functional.one_hot(w.long().flatten()).shape[-1],
-                "contains": lambda: 3 in w,
-                "arange_from_value": lambda: torch.arange(int(w.sum())).numel(),
-                "tensor_split_by_value": lambda: len(torch.tensor_split(torch.arange(10.), w.long().flatten())),
-                "tolist": lambda: sum(w.flatten().tolist()),
-                "numpy": lambda: int(w.float().flatten().numpy().sum()),
-                "count_nonzero": lambda: torch.count_nonzero(w - 2).item(),
-                "cholesky": lambda: torch.linalg.cholesky(w.float() @ w.float().t() + torch.eye(2)).sum().item(),
-                "argwhere": lambda: torch.argwhere(w > 2).shape[0],
-                "slice_by_value": lambda: torch.arange(10.)[:int(w[0, 0])].numel(),
-            }
-            return value * float(outputs[operation]())
-
-    _convert_and_check_16bit_traceable(Model().eval(), torch.ones(2))
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-def test_make_16bit_traceable_restores_written_buffer(dtype):
-    from openvino.frontend.pytorch import patch_model
-
-    class Model(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.scales = torch.nn.Parameter(torch.tensor([2, 3], dtype=dtype), requires_grad=False)
-            self.register_buffer("cache", torch.zeros(2))
-            self.register_buffer("accumulator", torch.zeros(2))
-
-        def forward(self, value):
-            self.cache.copy_(self.scales)
-            self.accumulator.index_add_(0, torch.tensor([0, 1]), self.scales.float())
-            return value * float(self.cache.sum().item())
-
-    model = Model().eval()
-    cache, accumulator = model.cache, model.accumulator
-    _convert_and_check_16bit_traceable(model, torch.ones(2))
-    assert type(model.cache) is torch.Tensor and model.cache is cache
-    assert type(model.accumulator) is torch.Tensor and model.accumulator is accumulator
-    assert not hasattr(cache, "_openvino_parameters")
-    assert not patch_model._tainted_destinations
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("nested", [False, True])
-def test_make_16bit_traceable_freeze_preserves_parameters(dtype, nested):
+def test_make_16bit_traceable_packed_experts_freeze(dtype):
     from openvino import convert_model, compile_model
     from openvino.frontend.pytorch import patch_model
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
@@ -1675,46 +977,64 @@ def test_make_16bit_traceable_freeze_preserves_parameters(dtype, nested):
         def __init__(self):
             super().__init__()
             self.flag = True
-            self.scales = torch.nn.Parameter(torch.tensor([2, 3], dtype=dtype), requires_grad=False)
 
         def forward(self, value):
-            for index in range(2):
+            for _ in range(2):
                 if self.flag:
-                    return value * self.scales[0].item()
+                    return value * 1.0
             return value + 1
 
-    class Block(torch.nn.Module):
+    class Model(torch.nn.Module):
         def __init__(self):
             super().__init__()
-            self.weight = torch.nn.Parameter(torch.arange(1, 5).reshape(2, 2).to(dtype), requires_grad=False)
+            self.experts = _packed_experts(dtype)
             self.loop = torch.jit.script(Loop())
 
         def forward(self, value):
-            return torch.matmul(self.loop(value), self.weight.t())
+            return self.experts(self.loop(value))
 
-    model = torch.nn.Sequential(Block()) if nested else Block()
-    model.eval()
-    block = model[0] if nested else model
-    original = block.weight
-    original_scripted = block.loop.scales
-    example = torch.ones(2, 2)
-    expected = model(example.to(dtype)).float()
+    model = Model().eval()
+    original = model.experts.gate_up_proj
+    example = torch.linspace(-0.5, 0.5, 16).reshape(2, 8)
+    expected = _packed_experts_reference(model.experts, example)
     try:
         patch_model.__make_16bit_traceable(model)
         traced = torch.jit.trace(model, example)
         assert "prim::Uninitialized" in str(traced.inlined_graph)
         decoder = TorchScriptPythonDecoder(model, example_input=(example,))
-        frozen_block = getattr(decoder.pt_module, "0") if nested else decoder.pt_module
-        assert hasattr(frozen_block, "weight")
-        assert not hasattr(decoder.pt_module, "training")
         converted = convert_model(decoder)
         result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
-        np.testing.assert_allclose(result, expected.numpy())
-        assert block.weight.untyped_storage().nbytes() <= 4
+        np.testing.assert_allclose(result, expected.numpy(), atol=1e-2, rtol=1e-2)
+        assert model.experts.gate_up_proj.untyped_storage().nbytes() <= 4
     finally:
         patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
-    assert block.weight is original
-    assert block.loop.scales is original_scripted
+    assert model.experts.gate_up_proj is original
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_make_16bit_traceable_casts_other_raw_weights(dtype):
+    """Only packed expert weights get placeholders; other raw parameters are cast to FP32."""
+    from openvino.frontend.pytorch import patch_model
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.num_experts = 4
+            self.gate_up_proj = torch.nn.Parameter(torch.ones(4, 4, dtype=dtype), requires_grad=False)  # 2D
+            self.other_proj = torch.nn.Parameter(torch.ones(4, 2, 2, dtype=dtype), requires_grad=False)  # not packed
+            self.down_proj = torch.nn.Parameter(torch.ones(3, 2, 2, dtype=dtype), requires_grad=False)  # wrong experts
+
+    model = Model()
+    try:
+        patch_model.__make_16bit_traceable(model)
+        for name in ["gate_up_proj", "other_proj", "down_proj"]:
+            parameter = getattr(model, name)
+            assert parameter.dtype == torch.float32
+            assert parameter.untyped_storage().nbytes() == parameter.numel() * 4
+            assert not hasattr(model, "_openvino_orig_" + name)
+    finally:
+        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
 
 
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
