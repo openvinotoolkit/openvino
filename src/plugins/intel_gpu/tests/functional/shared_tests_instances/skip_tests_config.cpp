@@ -144,6 +144,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*compile_from_weightless_blob.*)"),
             // u3 Transpose reference implementation is not upstreamed yet (non-transposed u3 weights fold a Transpose)
             std::regex(R"(.*MatMulCompressedWeights.*weights_precision=u3_.*transpose_weights=0_.*)"),
+            // MoE expert offload does not support per-group u3 zero points: the weights file stores them packed, the graph has them as u8
+            std::regex(R"(.*smoke_MoE3GemmCompressedOffload.*WP=u3_DS=full.*)"),
 
 #if defined(_WIN32)
             // by calc abs_threshold with expected value

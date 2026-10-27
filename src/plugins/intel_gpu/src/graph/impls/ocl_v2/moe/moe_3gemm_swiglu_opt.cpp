@@ -595,6 +595,14 @@ static int64_t get_bytes_count(int64_t element_count, const cldnn::layout& layou
     return static_cast<int64_t>(ov::element::Type(layout.data_type).bitwidth()) * element_count / 8;
 }
 
+// A zero point shared by all the experts is not sliced per expert
+static dnnl::memory convert_zp2dnnl(const memory::ptr& zp, int64_t groups, int64_t oc, int64_t expert_slot) {
+    if (zp->get_layout().count() == 1) {
+        return convert2dnnl(zp, {1}, dnnl::memory::format_tag::a);
+    }
+    return convert2dnnl(zp, {groups, oc}, dnnl::memory::format_tag::ab, expert_slot * get_bytes_count(groups * oc, zp->get_layout()));
+}
+
 // A single zero point shared by all the experts, as a OneDNN host scalar
 static dnnl::memory make_host_scalar_zp(const memory::ptr& zp_mem, cldnn::stream& stream) {
     const auto dt = zp_mem->get_layout().data_type;
@@ -864,22 +872,20 @@ public:
         auto& dnnl_weights = _dnnl_weights[expert_no];
         auto lru_expert_no = static_cast<int64_t>(_weight_provider->acquire_one(static_cast<uint32_t>(expert_no), stream));
         auto& params = instance._weights;
+        const bool has_zp = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config.has_zp;
 
 #    define CONVERT_DNNL_OTD(name, i)                                                                                                                  \
         int64_t wei_offset##i = lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, params.name##_w->get_layout());               \
         int64_t scale_offset##i =                                                                                                                      \
             lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, params.name##_s->get_layout());   \
-        int64_t zp_offset##i =                                                                                                                         \
-            lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, params.name##_z->get_layout());   \
         dnnl_weights[i].weight = convert2dnnl(params.name##_w, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset##i); \
         dnnl_weights[i].scale = convert2dnnl(params.name##_s,                                                                                          \
                                              {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},                                 \
                                              dnnl::memory::format_tag::ab,                                                                             \
                                              scale_offset##i);                                                                                         \
-        dnnl_weights[i].zp = convert2dnnl(params.name##_z,                                                                                             \
-                                          {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},                                    \
-                                          dnnl::memory::format_tag::ab,                                                                                \
-                                          zp_offset##i);
+        if (has_zp) {                                                                                                                                  \
+            dnnl_weights[i].zp = convert_zp2dnnl(params.name##_z, dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc, lru_expert_no); \
+        }
         CONVERT_DNNL_OTD(gate, 0)
         CONVERT_DNNL_OTD(up, 1)
         CONVERT_DNNL_OTD(down, 2)
