@@ -384,6 +384,29 @@ def test_infer_bf16_input_from_int_array(device, numpy_dtype, share_inputs, as_d
     assert np.array_equal(result[0], data.astype(np.float32))
 
 
+@pytest.mark.parametrize("numpy_dtype", [np.int32, np.int64, np.uint8])
+@pytest.mark.parametrize("layout", ["contiguous", "transposed", "strided"])
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_infer_bf16_input_from_2d_int_array(device, numpy_dtype, layout, share_inputs):
+    base = np.arange(12, dtype=numpy_dtype).reshape(3, 4)
+    if layout == "transposed":
+        data = base.T  # shape (4, 3), Fortran order
+    elif layout == "strided":
+        data = np.arange(24, dtype=numpy_dtype).reshape(4, 6)[:, ::2]  # shape (4, 3), every other column
+    else:
+        data = base.T.copy()
+    assert data.shape == (4, 3)
+    assert data.flags["C_CONTIGUOUS"] == (layout == "contiguous")
+    param = ops.parameter([4, 3], Type.bf16)
+    model = Model([ops.convert(param, Type.f32)], [param])
+    request = Core().compile_model(model, device).create_infer_request()
+
+    result = request.infer({0: data}, share_inputs=share_inputs)
+
+    # Small integers are exact in bf16, so the model must return them unchanged and in the same order
+    assert np.array_equal(result[0], data.astype(np.float32))
+
+
 @pytest.mark.parametrize("data", [
     np.array([257, 65535, -129, 2**24 + 1], dtype=np.int32),
     np.array([2**32 + 2**24 + 1, -(2**63), 2**62 + 2**40 + 1, -(2**40) - 3], dtype=np.int64),
