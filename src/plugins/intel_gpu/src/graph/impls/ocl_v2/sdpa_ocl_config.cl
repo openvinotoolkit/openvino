@@ -162,6 +162,21 @@
 // Paged attention's MIXED stage: K/V come from the paged cache (plus the raw current tokens).
 #define IS_PA_MIXED (IS_PAGED_ATTENTION && !IS_PREFILL)
 
+// MIXED u4 cache page prefetches, set by the host with the MIXED tilings (add_pa_page_read_jit()): they warm up the
+// 8-bit page reads.
+#ifndef PA_MIXED_PREFETCH_V
+#  define PA_MIXED_PREFETCH_V 0
+#endif
+#ifndef PA_MIXED_PREFETCH_K
+#  define PA_MIXED_PREFETCH_K 0
+#endif
+#if PA_MIXED_PREFETCH_V && !(IS_PA_MIXED && IS_PA_KV_COMPRESSED && USE_2D_BLOCK_IO_V_PA_I8)
+#  error "sdpa_ocl.cl: PA_MIXED_PREFETCH_V needs the MIXED 8-bit V page read"
+#endif
+#if PA_MIXED_PREFETCH_K && !(IS_PA_MIXED && USE_2D_BLOCK_IO_K_PA_I8)
+#  error "sdpa_ocl.cl: PA_MIXED_PREFETCH_K needs the MIXED 8-bit K page read"
+#endif
+
 // Kc/Vc exist only in the MIXED signature, so PA_CUR_KV_F16 is forced off everywhere else: a stray
 // host define is a no-op rather than a build failure.
 #if !IS_PA_MIXED
@@ -273,6 +288,10 @@
 #define PA_DEQ(q, zp, sc) (((q) - (zp)) * (sc))
 // High (hi != 0) or low nibble of a u4 byte.
 #define U4_NIBBLE_SEL(b, hi) ((hi) ? ((b) >> 4) : ((b) & 0x0Fu))
+// The u4 nibble at bit `sh` of a 16-bit word, as half: as_half(0x6400 | n) is 1024 + n exactly, so the
+// subtraction gives (half)n bit for bit. 16-bit integer ops on a word of the read keep each key in one packed
+// 16-bit lane; converting an extracted dword lands the half strided and costs a repack move (docs/sdpa_ocl.md).
+#define U4_TO_HALF(w16, sh) (as_half((ushort)((((w16) >> (sh)) & (ushort)0xF) | (ushort)0x6400)) - (half)1024.0h)
 // Offset of the (depth tile db, query block qb) Q tile in Q_slm.
 #define Q_SLM_OFF(db, qb) (((db) * q_blocks + (qb)) * Q_DWORDS * SUBGROUP_SIZE)
 
