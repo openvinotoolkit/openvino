@@ -74,7 +74,7 @@ TEST(prepare_primitive_fusing, preserve_ternary_fc_sigmoid_epilogue) {
                     topology.add(data("weights", weights));
                     topology.add(data("scales", scales));
                     topology.add(fc);
-                    topology.add(activation("act", input_info("fc"), function));
+                    topology.add(activation("act", input_info("fc"), function, {1.0f, 0.0f}));
                     topology.add(eltwise("mul", {input_info("act"), input_info("other")}, eltwise_mode::prod));
                     topology.add(reorder("output", input_info("mul"), format::bfyx, data_types::f32));
 
@@ -101,6 +101,28 @@ TEST(prepare_primitive_fusing, preserve_ternary_fc_sigmoid_epilogue) {
 }
 
 #ifdef OV_GPU_WITH_OCL_RT
+TEST(prepare_primitive_fusing, preserve_ternary_fc_standalone_swish) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad || engine.get_device_info().arch < gpu_arch::xe2)
+        GTEST_SKIP();
+    auto weights = engine.allocate_memory({{16, 128}, data_types::u2, format::bfyx});
+    auto scales = engine.allocate_memory({{16, 1}, data_types::f16, format::bfyx});
+    auto fc = fully_connected("fc", input_info("input"), "weights", "", "scales", "", data_types::f16, 4);
+    fc.decompression_zero_point_scalar = 1.0f;
+    topology topology(input_layout("input", {{-1, 1, 1, 128}, data_types::f16, format::bfyx}),
+                      data("weights", weights),
+                      data("scales", scales),
+                      fc,
+                      activation("act", input_info("fc"), activation_func::swish, {1.0f, 0.0f}),
+                      reorder("output", input_info("act"), format::bfyx, data_types::f32));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true), ov::intel_gpu::enable_ternocl_int2(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+    EXPECT_TRUE(has_node(*prog, "act"));
+    EXPECT_TRUE(prog->get_node("fc").get_fused_primitives().empty());
+}
+
 TEST(prepare_primitive_fusing, preserve_hadamard_fc_epilogues) {
     struct test_case {
         activation_func before;

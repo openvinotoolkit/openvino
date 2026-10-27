@@ -102,8 +102,16 @@ static std::optional<size_t> find_eltwise_const_dep_idx(const eltwise_node& node
     return std::nullopt;
 }
 
-static bool is_hadamard_fc(const program_node& node) {
-    return node.is_type<fully_connected>() && node.as<fully_connected>().get_primitive()->hadamard_block != 0;
+static bool is_ternocl_fc(const program_node& node) {
+    if (!node.is_type<fully_connected>())
+        return false;
+    if (node.as<fully_connected>().get_primitive()->hadamard_block != 0)
+        return true;
+#ifdef OV_GPU_WITH_OCL_RT
+    return ocl::TernoclInt2FCImplementationManager(shape_types::any).validate_impl(node);
+#else
+    return false;
+#endif
 }
 
 void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
@@ -232,7 +240,7 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
         auto& dep_node = node->get_dependency(0);
 
         // FC + SwiGLU fusion (non-systolic platforms only)
-        if (!supports_immad && dep_node.is_type<fully_connected>() && !is_hadamard_fc(dep_node)) {
+        if (!supports_immad && dep_node.is_type<fully_connected>() && !is_ternocl_fc(dep_node)) {
             if (!dep_node.get_fused_primitives().empty())
                 continue;
             auto in_dt = dep_node.get_input_layout(0).data_type;
@@ -614,7 +622,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
         auto fc_supports_fusings = [&](fully_connected_node& node, program_node& candidate, program_node* swish = nullptr) -> bool {
             auto& fused_prims = node.get_fused_primitives();
-            if (node.get_primitive()->hadamard_block != 0) {
+            if (is_ternocl_fc(node)) {
 #ifdef OV_GPU_WITH_OCL_RT
                 const auto& out_shape = node.get_output_layout().get_partial_shape();
                 auto is_plain_like_fc = [&](const layout& l) {
@@ -654,13 +662,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return false;
 #endif
             }
-#ifdef OV_GPU_WITH_OCL_RT
-            // TernOCL folds sigmoid alone; further fusion would disable its FC kernel.
-            if (fused_prims.size() == 1 && fused_prims.front().is_type<activation>() &&
-                fused_prims.front().typed_desc<activation>()->activation_function == activation_func::logistic &&
-                ocl::TernoclInt2FCImplementationManager(shape_types::any).validate_impl(node))
-                return false;
-#endif
             if (std::any_of(fused_prims.begin(), fused_prims.end(), [](const fused_primitive_desc& f_desc) {
                     return f_desc.is_type<swiglu>();
                 })) {
@@ -929,7 +930,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             if (input.is_type<fully_connected>()) {
                 const bool supports_fusion = fc_supports_fusings(input.as<fully_connected>(), activation_node);
-                if (is_hadamard_fc(input) && !supports_fusion)
+                if (is_ternocl_fc(input) && !supports_fusion)
                     return;
                 should_fuse |= supports_fusion;
             }
@@ -1079,7 +1080,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
 
-            should_fuse |= input_data.is_type<fully_connected>() && !is_hadamard_fc(input_data) && quantize_node.get_scale_shift_opt();
+            should_fuse |= input_data.is_type<fully_connected>() && !is_ternocl_fc(input_data) && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 
@@ -1180,7 +1181,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     parent->has_fused_primitives() || parent->is_output() || parent->in_shape_of_subgraph || parent->get_users().size() != 1)
                     continue;
                 auto& fc = parent->get_dependency(0);
-                if (!is_hadamard_fc(fc) || fc.is_output() || fc.in_shape_of_subgraph || fc.get_users().size() != 1)
+                if (!is_ternocl_fc(fc) || fc.is_output() || fc.in_shape_of_subgraph || fc.get_users().size() != 1)
                     continue;
                 swish_parents[i] = parent;
                 parents[i].first = &fc;
@@ -1478,7 +1479,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 if (parents[i].first == fused_node)
                     deferred_swish = swish_parents[i];
             }
-            if (is_hadamard_fc(*fused_node) && !fc_supports_fusings(fused_node->as<fully_connected>(), node, deferred_swish))
+            if (is_ternocl_fc(*fused_node) && !fc_supports_fusings(fused_node->as<fully_connected>(), node, deferred_swish))
                 return;
 
             if (swish_parents[0] != nullptr || swish_parents[1] != nullptr ||
