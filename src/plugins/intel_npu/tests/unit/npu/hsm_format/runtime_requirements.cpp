@@ -18,4 +18,10 @@ using testing::_;
 
 using RuntimeRequirementsTest = testing::Test;
 
-TEST_F(RuntimeRequirementsTest, CtorAndBasicGetters) {}
+TEST_F(RuntimeRequirementsTest, CtorAndBasicGetters) {
+    // The empty case first
+    RuntimeRequirements runtime_requirements({}, CRE(), {});
+    ASSERT_TRUE(runtime_requirements.get_sections_requirements().empty());
+    ASSERT_TRUE(runtime_requirements.get_cre().empty());
+    ASSERT_TRUE(runtime_requirements.get_section_id_to_type_mapping().empty());
+}

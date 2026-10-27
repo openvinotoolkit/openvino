@@ -43,7 +43,7 @@ TEST_F(CompilerVersionSectionTest, NullIndividualReqs) {
 }
 
 TEST_F(CompilerVersionSectionTest, Write) {
-    section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
+    section->encode(create_generic_section_sink(stream));
 
     int32_t parsed_compiler_version;
     ASSERT_TRUE(stream.good());
@@ -54,7 +54,7 @@ TEST_F(CompilerVersionSectionTest, Write) {
 
 TEST_F(CompilerVersionSectionTest, Read) {
     ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::COMPILER_VERSION, true);
+        create_manifest_entry_of_type(SectionTypeCode::COMPILER_VERSION, true);
     std::memcpy(&manifest_entry.inline_bytes, &compiler_version, sizeof(compiler_version));
 
     auto read_section = CompilerVersionSection::decode(ov::runtime::hsm::Section(manifest_entry));
@@ -65,11 +65,11 @@ TEST_F(CompilerVersionSectionTest, Read) {
 }
 
 TEST_F(CompilerVersionSectionTest, WriteRead) {
-    section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
+    section->encode(create_generic_section_sink(stream));
 
     const std::string buffer = stream.str();
     ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::COMPILER_VERSION, true);
+        create_manifest_entry_of_type(SectionTypeCode::COMPILER_VERSION, true);
     std::memcpy(&manifest_entry.inline_bytes, buffer.data(), buffer.size());
 
     auto read_section = CompilerVersionSection::decode(ov::runtime::hsm::Section(manifest_entry));
@@ -80,8 +80,7 @@ TEST_F(CompilerVersionSectionTest, WriteRead) {
 }
 
 TEST_F(CompilerVersionSectionTest, WrongTagToDecoder) {
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, true);
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, true);
     std::memcpy(&manifest_entry.inline_bytes, &compiler_version, sizeof(compiler_version));
 
     OV_EXPECT_THROW(CompilerVersionSection::decode(ov::runtime::hsm::Section(manifest_entry)),
@@ -91,7 +90,7 @@ TEST_F(CompilerVersionSectionTest, WrongTagToDecoder) {
 
 TEST_F(CompilerVersionSectionTest, NotInline) {
     ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::COMPILER_VERSION, false);
+        create_manifest_entry_of_type(SectionTypeCode::COMPILER_VERSION, false);
     std::memcpy(&manifest_entry.inline_bytes, &compiler_version, sizeof(compiler_version));
 
     OV_EXPECT_THROW(CompilerVersionSection::decode(ov::runtime::hsm::Section(manifest_entry)),

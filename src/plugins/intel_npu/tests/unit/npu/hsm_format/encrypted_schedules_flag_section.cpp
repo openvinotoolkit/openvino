@@ -50,7 +50,7 @@ TEST_P(EncryptedSchedulesFlagSectionTest, NullIndividualReqs) {
 }
 
 TEST_P(EncryptedSchedulesFlagSectionTest, Write) {
-    section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
+    section->encode(create_generic_section_sink(stream));
 
     bool parsed_flag;
     ASSERT_TRUE(stream.good());
@@ -61,7 +61,7 @@ TEST_P(EncryptedSchedulesFlagSectionTest, Write) {
 
 TEST_P(EncryptedSchedulesFlagSectionTest, Read) {
     ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, true);
+        create_manifest_entry_of_type(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, true);
     std::memcpy(&manifest_entry.inline_bytes, &encrypted_flag, sizeof(encrypted_flag));
 
     auto read_section = EncryptedSchedulesFlagSection::decode(ov::runtime::hsm::Section(manifest_entry));
@@ -72,11 +72,11 @@ TEST_P(EncryptedSchedulesFlagSectionTest, Read) {
 }
 
 TEST_P(EncryptedSchedulesFlagSectionTest, WriteRead) {
-    section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
+    section->encode(create_generic_section_sink(stream));
 
     const std::string buffer = stream.str();
     ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, true);
+        create_manifest_entry_of_type(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, true);
     std::memcpy(&manifest_entry.inline_bytes, buffer.data(), buffer.size());
 
     auto read_section = EncryptedSchedulesFlagSection::decode(ov::runtime::hsm::Section(manifest_entry));
@@ -87,8 +87,7 @@ TEST_P(EncryptedSchedulesFlagSectionTest, WriteRead) {
 }
 
 TEST_P(EncryptedSchedulesFlagSectionTest, WrongTagToDecoder) {
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, true);
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, true);
     std::memcpy(&manifest_entry.inline_bytes, &encrypted_flag, sizeof(encrypted_flag));
 
     OV_EXPECT_THROW(EncryptedSchedulesFlagSection::decode(ov::runtime::hsm::Section(manifest_entry)),
@@ -98,7 +97,7 @@ TEST_P(EncryptedSchedulesFlagSectionTest, WrongTagToDecoder) {
 
 TEST_P(EncryptedSchedulesFlagSectionTest, NotInline) {
     ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, false);
+        create_manifest_entry_of_type(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, false);
     std::memcpy(&manifest_entry.inline_bytes, &encrypted_flag, sizeof(encrypted_flag));
 
     OV_EXPECT_THROW(EncryptedSchedulesFlagSection::decode(ov::runtime::hsm::Section(manifest_entry)),

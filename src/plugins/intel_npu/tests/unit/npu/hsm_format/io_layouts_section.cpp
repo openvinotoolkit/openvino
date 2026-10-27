@@ -39,11 +39,10 @@ protected:
 using ValidLayouts = IOLayoutsSectionTest;
 
 TEST_P(ValidLayouts, WriteRead) {
-    section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
+    section->encode(create_generic_section_sink(stream));
 
     const std::string buffer = stream.str();
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
     manifest_entry.size = buffer.size();
 
     auto read_section = section->decode(ov::runtime::hsm::Section(
@@ -82,8 +81,7 @@ TEST_F(IOLayoutsSectionRead, NullIndividualReqs) {
 
 TEST_F(IOLayoutsSectionRead, TooSmallSectionLength) {
     std::vector<uint8_t> payload(7, 0);
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
     manifest_entry.size = payload.size();
 
     auto read_section = IOLayoutsSection::decode(ov::runtime::hsm::Section(
@@ -94,8 +92,7 @@ TEST_F(IOLayoutsSectionRead, TooSmallSectionLength) {
 
 TEST_F(IOLayoutsSectionRead, WrongTagToDecoder) {
     std::vector<uint8_t> payload(8, 0);
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE);
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE);
     manifest_entry.size = payload.size();
 
     OV_EXPECT_THROW(IOLayoutsSection::decode(ov::runtime::hsm::Section(
@@ -107,8 +104,7 @@ TEST_F(IOLayoutsSectionRead, WrongTagToDecoder) {
 
 TEST_F(IOLayoutsSectionRead, InlineTagToDecoder) {
     std::vector<uint8_t> payload(8, 0);
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS, true);
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS, true);
     std::memcpy(&manifest_entry.inline_bytes, payload.data(), payload.size());
 
     OV_EXPECT_THROW(IOLayoutsSection::decode(ov::runtime::hsm::Section(manifest_entry)), ov::Exception, testing::_);
@@ -117,15 +113,14 @@ TEST_F(IOLayoutsSectionRead, InlineTagToDecoder) {
 TEST_F(IOLayoutsSectionRead, LessLayoutsThanExpected) {
     IOLayoutsSection real_section({ov::Layout("NCHW"), ov::Layout("NHWC")}, {ov::Layout("NCHW"), ov::Layout("NHWC")});
     std::stringstream stream;
-    real_section.encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
+    real_section.encode(create_generic_section_sink(stream));
     std::string buffer = stream.str();
 
     // overwrite only the numbers of input layouts
     const uint32_t fake_count = 20;
     std::memcpy(buffer.data(), &fake_count, sizeof(fake_count));
 
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
     manifest_entry.size = buffer.size();
 
     const ov::runtime::hsm::Section section(
@@ -146,15 +141,14 @@ TEST_F(IOLayoutsSectionRead, LessLayoutsThanExpected) {
 TEST_F(IOLayoutsSectionRead, MoreLayoutsThanExpected) {
     IOLayoutsSection real_section({ov::Layout("NCHW"), ov::Layout("NHWC")}, {ov::Layout("NCHW"), ov::Layout("NHWC")});
     std::stringstream stream;
-    real_section.encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
+    real_section.encode(create_generic_section_sink(stream));
     std::string buffer = stream.str();
 
     // overwrite only the numbers of input layouts
     const uint32_t fake_count = 1;
     std::memcpy(buffer.data(), &fake_count, sizeof(fake_count));
 
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
     manifest_entry.size = buffer.size();
 
     const ov::runtime::hsm::Section section(
@@ -175,7 +169,7 @@ TEST_F(IOLayoutsSectionRead, MoreLayoutsThanExpected) {
 TEST_F(IOLayoutsSectionRead, InvalidLayoutNoThrow) {
     IOLayoutsSection valid_section({ov::Layout("N")}, {});
     std::stringstream stream;
-    valid_section.encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
+    valid_section.encode(create_generic_section_sink(stream));
     std::string buffer = stream.str();
 
     // overwrite input layout '[N]' with '[%]'
@@ -185,8 +179,7 @@ TEST_F(IOLayoutsSectionRead, InvalidLayoutNoThrow) {
     buffer[layout_offset + 1] = '%';
     buffer[layout_offset + 2] = ']';
 
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
     manifest_entry.size = buffer.size();
 
     auto read_section = IOLayoutsSection::decode(ov::runtime::hsm::Section(
@@ -204,15 +197,14 @@ TEST_F(IOLayoutsSectionRead, InvalidLayoutNoThrow) {
 TEST_F(IOLayoutsSectionRead, AlteredLayoutSizeTooBig) {
     IOLayoutsSection real_section({ov::Layout("NCHW")}, {});
     std::stringstream stream;
-    real_section.encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
+    real_section.encode(create_generic_section_sink(stream));
     std::string buffer = stream.str();
 
     // overwrite both numbers of layouts
     const uint16_t fake_layout_size = 5;
     std::memcpy(buffer.data() + 2 * LAYOUTS_COUNT_SIZE, &fake_layout_size, sizeof(fake_layout_size));
 
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
     manifest_entry.size = buffer.size();
 
     auto read_section = IOLayoutsSection::decode(ov::runtime::hsm::Section(

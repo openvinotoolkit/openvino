@@ -13,6 +13,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "intel_npu/common/section_type.hpp"
 #include "intel_npu/common/supported_section_type_evaluator.hpp"
+#include "utils.hpp"
 
 using namespace intel_npu;
 using testing::_;
@@ -26,9 +27,6 @@ using CREParams = std::tuple<std::vector<std::shared_ptr<CREToken>>,
 
 namespace {
 
-constexpr std::string_view STRING_THAT_EVALUATES_TO_SUPPORTED = "1";
-constexpr std::string_view STRING_THAT_EVALUATES_TO_UNSUPPORTED = "";
-constexpr std::string_view STRING_THAT_EVALUATES_TO_UNKNOWN = "0";
 const std::string TEST_NAME_FIELDS_SEPARATOR = "__";
 constexpr char VALUES_SEPARATOR = ',';
 
@@ -51,32 +49,6 @@ constexpr SectionTypeCode RUNTIME_REQUIREMENTS_CODE = SectionTypeCode::RUNTIME_R
 constexpr SectionTypeCode ELF_MAIN_SCHEDULE_CODE = SectionTypeCode::ELF_MAIN_SCHEDULE;
 constexpr SectionTypeCode ELF_INIT_SCHEDULES_CODE = SectionTypeCode::ELF_INIT_SCHEDULES;
 constexpr SectionTypeCode BATCH_SIZE_CODE = SectionTypeCode::BATCH_SIZE;
-
-// TODO could use gtests "MOCK"
-class MockTypeEvaluator : public ISectionTypeEvaluator {
-public:
-    MockTypeEvaluator(const bool result) : ISectionTypeEvaluator(), m_result(result) {}
-
-private:
-    bool evaluate() const override {
-        return m_result;
-    }
-
-    bool m_result;
-};
-
-class MockInstanceEvaluator : public ISectionInstanceEvaluator {
-public:
-    ov::CompatibilityCheck evaluate(std::string_view runtime_requirements) const override {
-        if (runtime_requirements == STRING_THAT_EVALUATES_TO_SUPPORTED) {
-            return ov::CompatibilityCheck::SUPPORTED;
-        }
-        if (runtime_requirements == STRING_THAT_EVALUATES_TO_UNSUPPORTED) {
-            return ov::CompatibilityCheck::UNSUPPORTED;
-        }
-        return ov::CompatibilityCheck::NOT_APPLICABLE;
-    }
-};
 
 const auto MOCK_INSTANCE_EVALUATOR = std::make_shared<MockInstanceEvaluator>();
 

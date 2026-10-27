@@ -46,7 +46,7 @@ TEST_F(BatchSizeSectionTest, NullIndividualReqs) {
 }
 
 TEST_F(BatchSizeSectionTest, Write) {
-    section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
+    section->encode(create_generic_section_sink(stream));
 
     int64_t parsed_batch_size;
     ASSERT_TRUE(stream.good());
@@ -56,8 +56,7 @@ TEST_F(BatchSizeSectionTest, Write) {
 }
 
 TEST_F(BatchSizeSectionTest, Read) {
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, true);
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, true);
     std::memcpy(&manifest_entry.inline_bytes, &batch_size, sizeof(batch_size));
 
     auto read_section = BatchSizeSection::decode(ov::runtime::hsm::Section(manifest_entry));
@@ -68,11 +67,10 @@ TEST_F(BatchSizeSectionTest, Read) {
 }
 
 TEST_F(BatchSizeSectionTest, WriteRead) {
-    section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
+    section->encode(create_generic_section_sink(stream));
 
     const std::string buffer = stream.str();
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, true);
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, true);
     std::memcpy(&manifest_entry.inline_bytes, buffer.data(), buffer.size());
 
     auto read_section = BatchSizeSection::decode(ov::runtime::hsm::Section(manifest_entry));
@@ -84,15 +82,14 @@ TEST_F(BatchSizeSectionTest, WriteRead) {
 
 TEST_F(BatchSizeSectionTest, WrongTagToDecoder) {
     ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::COMPILER_VERSION, true);
+        create_manifest_entry_of_type(SectionTypeCode::COMPILER_VERSION, true);
     std::memcpy(&manifest_entry.inline_bytes, &batch_size, sizeof(batch_size));
 
     OV_EXPECT_THROW(BatchSizeSection::decode(ov::runtime::hsm::Section(manifest_entry)), ov::Exception, testing::_);
 }
 
 TEST_F(BatchSizeSectionTest, NotInline) {
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, false);
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, false);
     std::memcpy(&manifest_entry.inline_bytes, &batch_size, sizeof(batch_size));
 
     OV_EXPECT_THROW(BatchSizeSection::decode(ov::runtime::hsm::Section(manifest_entry)), ov::Exception, testing::_);

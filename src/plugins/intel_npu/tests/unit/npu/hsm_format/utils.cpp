@@ -4,8 +4,6 @@
 
 #include "utils.hpp"
 
-namespace ov {
-namespace unit_test {
 namespace intel_npu {
 
 ov::runtime::hsm::SectionSink create_generic_section_sink(std::ostream& stream) {
@@ -30,6 +28,20 @@ ov::runtime::hsm::ManifestEntry create_manifest_entry_of_type(const ::intel_npu:
     return manifest_entry;
 }
 
+MockTypeEvaluator::MockTypeEvaluator(const bool result) : ISectionTypeEvaluator(), m_result(result) {}
+
+bool MockTypeEvaluator::evaluate() const {
+    return m_result;
+}
+
+ov::CompatibilityCheck MockInstanceEvaluator::evaluate(std::string_view runtime_requirements) const {
+    if (runtime_requirements == STRING_THAT_EVALUATES_TO_SUPPORTED) {
+        return ov::CompatibilityCheck::SUPPORTED;
+    }
+    if (runtime_requirements == STRING_THAT_EVALUATES_TO_UNSUPPORTED) {
+        return ov::CompatibilityCheck::UNSUPPORTED;
+    }
+    return ov::CompatibilityCheck::NOT_APPLICABLE;
+}
+
 }  // namespace intel_npu
-}  // namespace unit_test
-}  // namespace ov

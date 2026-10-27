@@ -92,7 +92,7 @@ TEST_F(DynamicScheduleSectionTest, InvalidStateWrite) {
     std::ostringstream stream;
     // Invalid state. The attribute should have been a graph
     // TODO consider adding error messages to asserts
-    OV_EXPECT_THROW(section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream)), ov::Exception, _);
+    OV_EXPECT_THROW(section->encode(create_generic_section_sink(stream)), ov::Exception, _);
 }
 
 TEST_F(DynamicScheduleSectionTest, DecryptThrowsIfMissingCallback) {
@@ -121,8 +121,7 @@ TEST_F(DynamicScheduleSectionTest, WorkingDecryption) {
 
 TEST_F(DynamicScheduleSectionTest, WrongTagToDecoder) {
     std::vector<uint8_t> payload(1, 0);
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE);
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE);
     manifest_entry.size = payload.size();
 
     OV_EXPECT_THROW(DynamicScheduleSection::decode(ov::runtime::hsm::Section(
@@ -135,7 +134,7 @@ TEST_F(DynamicScheduleSectionTest, WrongTagToDecoder) {
 TEST_F(DynamicScheduleSectionTest, InlineTagToDecoder) {
     std::vector<uint8_t> payload(1, 0);
     ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::DYNAMIC_SCHEDULE, true);
+        create_manifest_entry_of_type(SectionTypeCode::DYNAMIC_SCHEDULE, true);
     std::memcpy(&manifest_entry.inline_bytes, payload.data(), payload.size());
 
     OV_EXPECT_THROW(DynamicScheduleSection::decode(ov::runtime::hsm::Section(manifest_entry)),
@@ -161,7 +160,7 @@ protected:
         section_content = empty_schedule ? "" : "dummy";
 
         ov::runtime::hsm::ManifestEntry manifest_entry =
-            ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
+            create_manifest_entry_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
         manifest_entry.size = section_content.size();
 
         if (is_tensor_source) {
