@@ -152,6 +152,8 @@ class TorchScriptPythonDecoder(TorchDecoderBase):
             except patch_model._ParameterPlaceholderTraceError as error:
                 if attempt == max_retries or not patch_model._materialize_parameters(pt_module, error.parameters):
                     raise
+            finally:
+                patch_model._reset_trace_state()
 
     def _get_scripted_model(self, pt_module, example_inputs=None, skip_freeze=False, trace_kwargs=None):
         freeze_by_default = False

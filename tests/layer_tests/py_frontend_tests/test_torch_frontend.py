@@ -1609,6 +1609,62 @@ def test_make_16bit_traceable_boolean_index_shape(dtype, index):
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("operation", [
+    "one_hot_auto_classes", "contains", "arange_from_value", "tensor_split_by_value", "tolist", "numpy",
+    "count_nonzero", "cholesky", "argwhere", "slice_by_value"])
+def test_make_16bit_traceable_unlisted_value_dependence(dtype, operation):
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.weight = torch.nn.Parameter(torch.tensor([[2, 3], [4, 5]], dtype=dtype), requires_grad=False)
+
+        def forward(self, value):
+            w = self.weight
+            outputs = {
+                "one_hot_auto_classes": lambda: torch.nn.functional.one_hot(w.long().flatten()).shape[-1],
+                "contains": lambda: 3 in w,
+                "arange_from_value": lambda: torch.arange(int(w.sum())).numel(),
+                "tensor_split_by_value": lambda: len(torch.tensor_split(torch.arange(10.), w.long().flatten())),
+                "tolist": lambda: sum(w.flatten().tolist()),
+                "numpy": lambda: int(w.float().flatten().numpy().sum()),
+                "count_nonzero": lambda: torch.count_nonzero(w - 2).item(),
+                "cholesky": lambda: torch.linalg.cholesky(w.float() @ w.float().t() + torch.eye(2)).sum().item(),
+                "argwhere": lambda: torch.argwhere(w > 2).shape[0],
+                "slice_by_value": lambda: torch.arange(10.)[:int(w[0, 0])].numel(),
+            }
+            return value * float(outputs[operation]())
+
+    _convert_and_check_16bit_traceable(Model().eval(), torch.ones(2))
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_make_16bit_traceable_restores_written_buffer(dtype):
+    from openvino.frontend.pytorch import patch_model
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.scales = torch.nn.Parameter(torch.tensor([2, 3], dtype=dtype), requires_grad=False)
+            self.register_buffer("cache", torch.zeros(2))
+            self.register_buffer("accumulator", torch.zeros(2))
+
+        def forward(self, value):
+            self.cache.copy_(self.scales)
+            self.accumulator.index_add_(0, torch.tensor([0, 1]), self.scales.float())
+            return value * float(self.cache.sum().item())
+
+    model = Model().eval()
+    cache, accumulator = model.cache, model.accumulator
+    _convert_and_check_16bit_traceable(model, torch.ones(2))
+    assert type(model.cache) is torch.Tensor and model.cache is cache
+    assert type(model.accumulator) is torch.Tensor and model.accumulator is accumulator
+    assert not hasattr(cache, "_openvino_parameters")
+    assert not patch_model._tainted_destinations
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("nested", [False, True])
 def test_make_16bit_traceable_freeze_preserves_parameters(dtype, nested):
     from openvino import convert_model, compile_model

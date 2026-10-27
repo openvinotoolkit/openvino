@@ -162,30 +162,31 @@ def _set_placeholder_parameters(value, parameters):
     return value
 
 
-def _optional_functions(*names):
-    functions = []
-    for name in names:
-        target = torch
-        for part in name.split("."):
-            target = getattr(target, part, None)
-        if target is not None:
-            functions.append(target)
-    return tuple(functions)
-
-
 _LIKE_FACTORIES = (torch.empty_like, torch.zeros_like, torch.ones_like, torch.full_like)
 
-# Functions that fail or change behavior when evaluated on zero-valued placeholders.
-_VALUE_DEPENDENT_FUNCTIONS = _optional_functions(
-    "inverse", "Tensor.inverse", "linalg.inv", "linalg.inv_ex", "linalg.solve", "linalg.solve_ex",
-    "linalg.cholesky", "linalg.cholesky_ex", "cholesky", "Tensor.cholesky", "cholesky_inverse",
-    "Tensor.cholesky_inverse", "cholesky_solve", "Tensor.cholesky_solve")
+# Calls that return Python values independent of tensor contents.
+_METADATA_FUNCTIONS = (
+    torch.Tensor.shape.__get__, torch.Tensor.size, torch.Tensor.numel, torch.numel, torch.Tensor.dim,
+    torch.Tensor.ndimension, torch.Tensor.nelement, torch.Tensor.element_size, torch.Tensor.is_floating_point,
+    torch.Tensor.is_complex, torch.Tensor.is_signed, torch.Tensor.__len__, torch.Tensor.get_device)
 
-# Functions whose output size depends on the values of the given arguments: (positional index, keyword).
-_SIZE_DETERMINING_ARGUMENTS = {
-    **dict.fromkeys(_optional_functions("repeat_interleave", "Tensor.repeat_interleave"), (1, "repeats")),
-    **dict.fromkeys(_optional_functions("bincount", "Tensor.bincount"), (0, "input")),
-}
+# Results that cannot expose tensor values or layout to Python code.
+_VALUE_INDEPENDENT_TYPES = (torch.Tensor, type(None), str, torch.dtype, torch.device, torch.Size,
+                            torch.layout, torch.memory_format)
+
+_fake_mode = None
+_fake_mode_lock = threading.Lock()
+
+
+def _tensor_versions(args, kwargs):
+    """Snapshot version counters of ordinary tensor arguments to detect in-place writes."""
+    versions = []
+    for value in (*args, *kwargs.values()):
+        for tensor in value if isinstance(value, (tuple, list)) else (value,):
+            if isinstance(tensor, torch.Tensor) and not isinstance(tensor, _FP32ParameterPlaceholder):
+                with contextlib.suppress(RuntimeError):  # inference tensors do not track versions
+                    versions.append((tensor, tensor._version))
+    return versions
 
 
 def _has_expanded_layout(tensor):
@@ -200,37 +201,118 @@ def _has_contiguous_original(tensor):
     return original is not None and original.is_contiguous()
 
 
-def _is_mask(value):
-    return isinstance(value, torch.Tensor) and value.dtype in (torch.bool, torch.uint8)
+@contextlib.contextmanager
+def _tracing_suspended():
+    state = torch._C._get_tracing_state()
+    torch._C._set_tracing_state(None)
+    try:
+        yield
+    finally:
+        torch._C._set_tracing_state(state)
 
 
-def _value_determining_arguments(func, args, kwargs):
-    """Return parameters that determine the output size of ``func`` through values."""
-    if func is torch.Tensor.__getitem__:
-        index = args[1] if len(args) > 1 else ()
-        masks = [item for item in (index if isinstance(index, tuple) else (index,)) if _is_mask(item)]
-        return _placeholder_parameters(masks)
-    if func in _SIZE_DETERMINING_ARGUMENTS:
-        position, keyword = _SIZE_DETERMINING_ARGUMENTS[func]
-        if len(args) > position:
-            return _placeholder_parameters(args[position])
-        if keyword in kwargs:
-            return _placeholder_parameters(kwargs[keyword])
-        # torch.repeat_interleave(repeats) uses its only argument as repeats.
-        return _placeholder_parameters(args[:1]) if func is torch.repeat_interleave else {}
-    return {}
+_value_dependence_cache = {}
+
+
+def _value_dependence_key(func, args, kwargs):
+    """Key describing everything except tensor values that influences ``func`` evaluation."""
+    from torch.utils._pytree import tree_flatten
+    leaves, spec = tree_flatten((args, kwargs))
+    key = (func, spec, tuple(
+        (leaf.dtype, leaf.device, tuple(leaf.shape), leaf.stride()) if isinstance(leaf, torch.Tensor) else leaf
+        for leaf in leaves))
+    hash(key)
+    return key
+
+
+def _depends_on_values(func, args, kwargs):
+    """Check whether the output shape or a scalar read of ``func`` depends on tensor values.
+
+    ``func`` is evaluated on fake tensors, which is the same mechanism torch.export uses to
+    report data-dependent operations. Any failure to evaluate is treated as value dependence
+    because the placeholders cannot be trusted in that case.
+    """
+    global _fake_mode
+    from torch._subclasses.fake_tensor import FakeTensorMode
+    from torch.utils._pytree import tree_map
+
+    with _tracing_suspended(), torch._C.DisableTorchFunctionSubclass():
+        try:
+            key = _value_dependence_key(func, args, kwargs)
+        except TypeError:
+            key = None
+        if key in _value_dependence_cache:
+            return _value_dependence_cache[key]
+
+    with _fake_mode_lock:
+        if _fake_mode is None:
+            _fake_mode = FakeTensorMode(allow_non_fake_inputs=True)
+        mode = _fake_mode
+
+    def to_fake(value):
+        if not isinstance(value, torch.Tensor):
+            return value
+        meta = torch.empty_strided(value.shape, value.stride(), dtype=value.dtype, device="meta")
+        return mode.from_tensor(meta)
+
+    try:
+        with _tracing_suspended(), torch._C.DisableTorchFunctionSubclass():
+            fake_args, fake_kwargs = tree_map(to_fake, (args, kwargs))
+            with mode:
+                func(*fake_args, **fake_kwargs)
+        result = False
+    except Exception:
+        result = True
+    if key is not None:
+        _value_dependence_cache[key] = result
+    return result
+
+
+def _is_value_independent(func, result):
+    if func in _METADATA_FUNCTIONS or getattr(func, "__name__", None) == "__get__":
+        return True
+    if isinstance(result, dict):
+        result = tuple(result.values())
+    if isinstance(result, (tuple, list)) and not isinstance(result, torch.Size):
+        return all(_is_value_independent(None, item) for item in result)
+    return isinstance(result, _VALUE_INDEPENDENT_TYPES)
+
+
+# Tensors that received placeholder values through in-place writes keep their original class
+# only until tracing finishes; see ``_taint_in_place_destination``.
+_tainted_destinations = []
+
+
+def _taint_in_place_destination(tensor, parameters):
+    """Mark an ordinary tensor that was overwritten with placeholder-derived values."""
+    if isinstance(tensor, _FP32ParameterPlaceholder):
+        tensor._openvino_parameters = {**getattr(tensor, "_openvino_parameters", {}), **parameters}
+        return
+    _tainted_destinations.append((tensor, type(tensor)))
+    tensor.__class__ = _FP32ParameterPlaceholder
+    tensor._openvino_parameters = parameters
+
+
+def _reset_trace_state():
+    """Restore tensors tainted by in-place writes and drop per-trace caches."""
+    _value_dependence_cache.clear()
+    while _tainted_destinations:
+        tensor, original_class = _tainted_destinations.pop()
+        tensor.__class__ = original_class
+        tensor.__dict__.pop("_openvino_parameters", None)
 
 
 class _FP32ParameterPlaceholder(torch.Tensor):
     @classmethod
     def __torch_function__(cls, func, types, args=(), kwargs=None):
-        if func in (torch.Tensor.shape.__get__, torch.Tensor.size, torch.Tensor.numel, torch.numel):
+        kwargs = kwargs or {}
+        if func in _METADATA_FUNCTIONS:
             with torch._C.DisableTorchFunctionSubclass():
-                return func(*args, **(kwargs or {}))
+                return func(*args, **kwargs)
         if func in (torch.Tensor.new_tensor, torch.Tensor.new_empty, torch.Tensor.new_zeros,
                     torch.Tensor.new_ones, torch.Tensor.new_full, torch.empty_like, torch.zeros_like,
                     torch.ones_like, torch.full_like):
-            factory_kwargs = dict(kwargs or {})
+            factory_kwargs = dict(kwargs)
             prototype = factory_kwargs.pop("input", args[0] if args else None)
             factory_parameters = _placeholder_parameters((args[1:], factory_kwargs))
             if torch.jit.is_tracing() and factory_parameters:
@@ -240,27 +322,29 @@ class _FP32ParameterPlaceholder(torch.Tensor):
                     and not _has_contiguous_original(prototype)):
                 raise _ParameterPlaceholderTraceError(_placeholder_parameters(prototype))
             with torch._C.DisableTorchFunctionSubclass():
-                return func(*args, **(kwargs or {}))
-        parameters = _placeholder_parameters((args, kwargs or {}))
-        requires_values = func in (
-            torch.Tensor.item, torch.Tensor.__float__, torch.Tensor.__int__, torch.Tensor.__complex__,
-            torch.Tensor.__index__, torch.Tensor.__bool__, torch.Tensor.tolist, torch.Tensor.numpy,
-            torch.Tensor.is_nonzero, torch.is_nonzero, torch.equal, torch.allclose,
-            torch.Tensor.equal, torch.Tensor.allclose, torch.Tensor.stride, torch.Tensor.storage_offset,
-            torch.Tensor.is_contiguous, torch.nonzero, torch.Tensor.nonzero, torch.argwhere,
-            torch.unique, torch.Tensor.unique, torch.unique_consecutive, torch.Tensor.unique_consecutive,
-            torch.masked_select, torch.Tensor.masked_select, torch.Tensor.copy_, *_VALUE_DEPENDENT_FUNCTIONS)
-        requires_values |= func is torch.where and len(args) + len(kwargs or {}) == 1
-        if torch.jit.is_tracing() and parameters and requires_values:
+                return func(*args, **kwargs)
+        parameters = _placeholder_parameters((args, kwargs))
+        tracing = torch.jit.is_tracing() and bool(parameters)
+        if tracing and _depends_on_values(func, args, kwargs):
             raise _ParameterPlaceholderTraceError(parameters)
-        if torch.jit.is_tracing():
-            determining = _value_determining_arguments(func, args, kwargs or {})
-            if determining:
-                raise _ParameterPlaceholderTraceError(determining)
-        if func is torch.view_as_complex:
-            result = _view_as_complex(args[0] if args else kwargs["input"])
-        else:
-            result = super().__torch_function__(func, types, args, kwargs)
+        versions = _tensor_versions(args, kwargs) if tracing else ()
+        try:
+            if func is torch.view_as_complex:
+                result = _view_as_complex(args[0] if args else kwargs["input"])
+            else:
+                result = super().__torch_function__(func, types, args, kwargs)
+        except _ParameterPlaceholderTraceError:
+            raise
+        except Exception as error:
+            if tracing:
+                raise _ParameterPlaceholderTraceError(parameters) from error
+            raise
+        if tracing:
+            if not _is_value_independent(func, result):
+                raise _ParameterPlaceholderTraceError(parameters)
+            for tensor, version in versions:
+                if tensor._version != version:
+                    _taint_in_place_destination(tensor, parameters)
         return _set_placeholder_parameters(result, parameters)
 
 
