@@ -11,6 +11,7 @@
 //     nvidia/compat_common.cl   this file
 //     nvidia/compat_half.cl     half limits, math, conversions, reinterprets, vload/vstore, relational
 //     nvidia/compat_sg.cl       sub-group emulation
+//     nvidia/compat_wg.cl       work-group collectives
 // Each file relies only on the ones before it.
 
 #ifdef __NV_CL_C_VERSION

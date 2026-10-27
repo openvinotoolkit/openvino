@@ -135,9 +135,9 @@ private:
         std::string prelude;
         std::string sg_overrides;
     };
-    // Selects the compatibility headers for a batch with the given sources. get_program_source() puts them into the
-    // batch's source ahead of hashing, so the cache key covers exactly the headers that get compiled.
-    nvidia_compat_headers get_nvidia_compat_headers(const source_code& sources) const;
+    // Returns the compatibility headers, the same for every batch. get_program_source() puts them into the batch's
+    // source ahead of hashing, so the cache key covers exactly the headers that get compiled.
+    nvidia_compat_headers get_nvidia_compat_headers() const;
 
     std::string get_cache_path() const;
     bool is_cache_enabled() const;
