@@ -64,6 +64,24 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         const std::shared_ptr<ov::Node> weights_key = pattern_map.count(weights_m) ? weights_m : std::shared_ptr<ov::Node>(weights_param_m);
         const auto weight_ptr = pattern_map.at(weights_key).get_node_shared_ptr();
         const bool weights_are_constant = ov::is_type<ov::op::v0::Constant>(weight_ptr);
+        if (has_transpose_before_reshape) {
+            if (weight_ptr->get_element_type() != ov::element::u2) {
+                return false;
+            }
+            if (!weights_are_constant) {
+                const auto& group_shape =
+                    pattern_map.at(transpose_before_reshape_input_m).get_node()->get_input_partial_shape(0);
+                if (!group_shape.is_static()) {
+                    return false;
+                }
+                const auto shape = group_shape.to_shape();
+                const ov::Shape group_dims(shape.begin() + 2, shape.end());
+                // The runtime UINT2 batch/feature swap processes groups of 64 elements.
+                if (ov::shape_size(group_dims) % 64 != 0) {
+                    return false;
+                }
+            }
+        }
         if (weight_ptr->get_element_type() == ov::element::u8 || weight_ptr->get_element_type() == ov::element::i8) {
             weight_u8 = true;
         }
