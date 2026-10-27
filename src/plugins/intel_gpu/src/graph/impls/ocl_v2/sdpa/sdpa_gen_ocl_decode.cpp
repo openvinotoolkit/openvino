@@ -89,49 +89,127 @@ size_t live_grf_estimate(size_t m, size_t sg_per_wg, size_t k_head_size, bool co
 // Below the 128-GRF file because the estimate omits compiler temporaries; brackets the measured optimum.
 constexpr size_t grf_budget = 112;
 
+// The same count for the low-register layout (Q_IN_SLM, K_COMP_PER_READ, V_COMP_IN_SLM, V_TWIN_PAIR in
+// sdpa_ocl_decode.cl): q_reg and the BY_CHANNEL comp arrays leave the register file, so nothing scales with
+// K_TILES any more, only with M and KEY_GROUPS. Same coarse role as live_grf_estimate(), with its own
+// budget: on B70 everything up to 148 measured spill-free (u4 head 128 at 8 subgroups and M = 8; head 512
+// at 16 and M = 8 with twin pairing scores 138) and 184 spilled 896 bytes (head 128, 4 subgroups, M = 8).
+size_t low_reg_grf_estimate(size_t m, size_t sg_per_wg, bool compressed, bool by_channel, size_t k_tiles_per_read, bool twin) {
+    const size_t key_groups = (pa_seq_len_partition_size / sg_per_wg) / subgroup_size;
+
+    size_t grf = key_groups * m;  // s[KEY_GROUPS], M floats each
+    if (by_channel) {
+        grf += key_groups * m;  // k_corr_acc[KEY_GROUPS], M floats each
+    } else if (compressed) {
+        grf += m;  // q_sum[M], float
+    }
+    if (compressed) {
+        grf += key_groups;  // v_sc_g + v_zp_g, [KEY_GROUPS] half each
+    }
+    grf += 5 * m;                     // m_sg, m_wg, l_sg, l_wg, inv_l
+    grf += (twin ? 2 : 1) * m;        // the S*V accumulators
+    grf += 8 + 8 * k_tiles_per_read;  // kt (uint8) and kb[K_TILES_PER_READ] (int8 each)
+    grf += m * k_tiles_per_read / 2;  // a[K_TILES_PER_READ], short M each
+    grf += m / 2 + k_tiles_per_read;  // the Q vector read back from local memory, kc[K_TILES_PER_READ]
+    grf += 2 * key_groups;            // k_page_off[KEY_GROUPS], 64-bit
+    return grf;
+}
+constexpr size_t low_reg_grf_budget = 160;
+
+// u4 V twin pairing (V_TWIN_PAIR): every V tile has a twin in the high nibbles of its byte column, and both
+// belong to the same subgroup.
+bool v_twin_pair_legal(const RuntimeParams& params, const decode_config& c, size_t sg_per_wg) {
+    const auto desc = params.typed_desc<paged_attention>();
+    const size_t v_tiles = desc->v_head_size / subgroup_size;
+    const size_t v_reads = c.v_row_bytes / subgroup_size;
+    return c.kv_u4 && c.v_2d && v_tiles == 2 * v_reads && v_reads % get_sv_dim_sgs(sg_per_wg, v_tiles) == 0;
+}
+
 // Local memory the kernel declares for a given M. The output staging term vanishes whenever one subgroup
-// per head-dim tile covers all the keys (v_tiles >= sg_per_wg).
-size_t slm_bytes_for(size_t m, size_t sg_per_wg, size_t v_head_size) {
+// per head-dim tile covers all the keys (v_tiles >= sg_per_wg). The low-register layout adds the query
+// (M halves per head dim) and, for a compressed cache, the staged V zero points.
+size_t slm_bytes_for(size_t m, size_t sg_per_wg, size_t k_head_size, size_t v_head_size, bool low_reg, bool compressed) {
     const size_t v_tiles = v_head_size / subgroup_size;
     const size_t key_sgs = sg_per_wg / get_sv_dim_sgs(sg_per_wg, v_tiles);
     const size_t slm_p = m * pa_seq_len_partition_size * sizeof(uint16_t);
     const size_t slm_out = (key_sgs > 1) ? key_sgs * m * v_head_size * sizeof(float) : 0;
     const size_t slm_max_sum = 2 * sg_per_wg * m * sizeof(float);
-    return slm_p + slm_out + slm_max_sum;
+    const size_t slm_q = low_reg ? m * k_head_size * sizeof(uint16_t) : 0;
+    const size_t slm_vzp = (low_reg && compressed) ? pa_seq_len_partition_size * sizeof(uint16_t) : 0;
+    return slm_p + slm_out + slm_max_sum + slm_q + slm_vzp;
 }
 
-size_t q_per_wg_for(const RuntimeParams& params, const decode_config& c, size_t sg_per_wg) {
+// M and the register layout that carries it.
+struct q_tiling {
+    size_t m = 1;
+    // The low-register layout. Bit-identical output: it only moves data out of registers.
+    bool low_reg = false;
+};
+
+q_tiling q_tiling_for(const RuntimeParams& params, const decode_config& c, size_t sg_per_wg) {
     const auto desc = params.typed_desc<paged_attention>();
     const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
+    const size_t k_tiles_per_read = (c.kv_u4 && c.k_2d) ? 4 : ((c.compressed && c.k_2d) ? 2 : 1);
+    const bool twin = v_twin_pair_legal(params, c, sg_per_wg);
 
     // M is the DPAS repeat count, which the ISA encodes only as 1/2/4/8. The kv group is rounded UP, so a
     // group that is not a power of two still fits one workgroup (kv group 3 -> M 4): the surplus row is a
     // masked leftover, and each K/V page is read once per kv head instead of once per half group.
-    size_t m = 1;
-    while (m < std::min<size_t>(8, kv_group_size)) {
-        m *= 2;
+    size_t target = 1;
+    while (target < std::min<size_t>(8, kv_group_size)) {
+        target *= 2;
     }
 
-    // The override bypasses the register cap, so configurations the heuristic rejects stay reachable, but
+    // The largest M the plain layout holds without spilling: every array live across the KQ loop scales with M.
+    size_t plain_m = target;
+    while (plain_m > 1 && live_grf_estimate(plain_m, sg_per_wg, desc->k_head_size, c.compressed, c.by_channel, k_tiles_per_read) > grf_budget) {
+        plain_m /= 2;
+    }
+
+    q_tiling q;
+    // The override bypasses the register caps, so configurations the heuristic rejects stay reachable, but
     // not the local-memory clamp, which guards the build.
     const auto requested = static_cast<size_t>(env_int("SDPA_OCL_DECODE_M", 0));
     const bool forced = requested >= 1 && requested <= 8 && (requested & (requested - 1)) == 0 && requested < 2 * kv_group_size;
     if (forced) {
-        m = requested;
+        q.m = requested;
+        q.low_reg = requested > plain_m;
     } else {
-        // The largest M that does not spill: every array live across the KQ loop scales with M.
-        const size_t k_tiles_per_read = (c.kv_u4 && c.k_2d) ? 4 : ((c.compressed && c.k_2d) ? 2 : 1);
-        while (m > 1 && live_grf_estimate(m, sg_per_wg, desc->k_head_size, c.compressed, c.by_channel, k_tiles_per_read) > grf_budget) {
-            m /= 2;
+        // When the plain layout caps M below the kv group, each K/V page is read and dequantized once per
+        // workgroup, i.e. target / M times per kv head -- decode is bandwidth bound and that redundancy
+        // grows with the context. The low-register layout keeps the whole group: gemma-4's head-512 layers
+        // (kv group 8) went from M = 1 to M = 8 at 0.23-0.85x the kernel time of the plain layout across
+        // 300 to 33K keys, and every other capped shape among the daily models measured 0.46-0.97x (B70;
+        // "sdpa_ocl_decode" in the docs). Not at head 64 once the plain M is 4: a page is read at most twice
+        // there, and halving the cheap workgroups' count lost up to 2K keys (i8 gpt-oss / minicpm4-0.5b,
+        // 1.06-1.15x).
+        q.m = plain_m;
+        if (plain_m < target && (plain_m < 4 || desc->k_head_size >= 128)) {
+            size_t m = target;
+            while (m > 1 && low_reg_grf_estimate(m, sg_per_wg, c.compressed, c.by_channel, k_tiles_per_read, twin) > low_reg_grf_budget) {
+                m /= 2;
+            }
+            if (m > plain_m) {
+                q.m = m;
+                q.low_reg = true;
+            }
         }
+    }
+    // Tuning / bisection override of the layout alone (0 or 1).
+    if (const int low_reg = env_int("SDPA_OCL_DECODE_LOW_REG", -1); low_reg == 0 || low_reg == 1) {
+        q.low_reg = low_reg == 1;
     }
 
     // An over-budget kernel does not build at all; half the arena keeps occupancy up as well.
     const size_t budget = params.get_device_info().max_local_mem_size / 2;
-    while (m > 1 && slm_bytes_for(m, sg_per_wg, desc->v_head_size) > budget) {
-        m /= 2;
+    while (q.m > 1 && slm_bytes_for(q.m, sg_per_wg, desc->k_head_size, desc->v_head_size, q.low_reg, c.compressed) > budget) {
+        q.m /= 2;
     }
-    return m;
+    return q;
+}
+
+size_t q_per_wg_for(const RuntimeParams& params, const decode_config& c, size_t sg_per_wg) {
+    return q_tiling_for(params, c, sg_per_wg).m;
 }
 
 size_t sg_per_wg_for(const RuntimeParams& params, const decode_config& c) {
@@ -256,10 +334,16 @@ JitConstants SDPAOclDecodeGenerator::get_jit_constants(const RuntimeParams& para
     jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention::block_size);
 
     const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
-    const size_t q_per_wg = q_per_wg_for(params, c, sg_per_wg);
-    jit.make("Q_PER_WG", q_per_wg);
-    jit.make("HEAD_ITERS", ceil_div(kv_group_size, q_per_wg));
+    const auto q = q_tiling_for(params, c, sg_per_wg);
+    jit.make("Q_PER_WG", q.m);
+    jit.make("HEAD_ITERS", ceil_div(kv_group_size, q.m));
     jit.make("SV_DIM_SGS", get_sv_dim_sgs(sg_per_wg, desc->v_head_size / subgroup_size));
+
+    // The low-register layout and the two S*V savings that ride with it, each where it applies.
+    jit.make("Q_IN_SLM", q.low_reg ? 1 : 0);
+    jit.make("K_COMP_PER_READ", (q.low_reg && c.by_channel) ? 1 : 0);
+    jit.make("V_COMP_IN_SLM", (q.low_reg && c.compressed) ? 1 : 0);
+    jit.make("V_TWIN_PAIR", (q.low_reg && v_twin_pair_legal(params, c, sg_per_wg)) ? 1 : 0);
 
     // V prefetch distance in loop iterations, 0 = off ("sdpa_ocl_decode" in the docs).
     jit.make("PREFETCH_DIST", std::max(0, env_int("SDPA_OCL_DECODE_PREFETCH", 4)));
