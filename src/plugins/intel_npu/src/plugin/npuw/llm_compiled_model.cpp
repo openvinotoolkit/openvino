@@ -1089,9 +1089,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
         // A partial chunk is left-padded. Keep the conv/ssm state of linear-attention layers
         // (hybrid models) unaffected by the padding that sits between two real chunks.
-        if (!m_is_embedding) {
-            ov::npuw::MaskLinearAttentionPadding().run_on_model(prefill_model);
-        }
+        ov::npuw::MaskLinearAttentionPadding().run_on_model(prefill_model);
     } else {
         ov::npuw::ReshapeToStatic(m_kvcache_desc.max_prompt_size,
                                   m_kvcache_desc.max_prompt_size,
