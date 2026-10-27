@@ -83,12 +83,15 @@ KERNEL(fc_gguf_q4_1_sg)(
     const uint bm   = (uint)get_global_id(1);          // activation row (BM)
     const uint sg   = (uint)get_local_id(2);           // sub-group / K-split index
 
-    // Per-sub-group activation SLM (double-buffered) + KSPLIT reduction scratch.
-    __local float slm_inp[KSPLIT * 2 * 256];
+    // Per-sub-group activation SLM (single-buffered -- see the end-of-iteration barrier below) +
+    // KSPLIT reduction scratch. Halves the SLM footprint vs the earlier double-buffered layout, which
+    // was the proven Peak-XVE-Threads-Occupancy limiter (SLM Use Limit == measured occupancy at
+    // 77.6-80%): fewer bytes/work-group lets more work-groups stay co-resident on one XVE.
+    __local float slm_inp[KSPLIT * 256];
 #if KSPLIT > 1
     __local float slm_red[KSPLIT * OPG];
 #endif
-    __local float* sbase = slm_inp + sg * (2 * 256);
+    __local float* sbase = slm_inp + sg * 256;
 
     const uint total_blk = (uint)N_SIZE * nbpr;
     const uint off_pqs = 0u;
@@ -105,7 +108,7 @@ KERNEL(fc_gguf_q4_1_sg)(
 
     // Each sub-group processes a strided subset of the K-blocks.
     for (uint bid = sg; bid < nbpr; bid += KSPLIT) {
-        __local float* sb = sbase + (bid & 1u) * 256;   // current buffer
+        __local float* sb = sbase;
 
         // --- Issue all long-latency global loads first (weights + scales) ---
         uint pe_u = (h * nbpr + bid) * (OPG * 128 / 4);   // uints
@@ -196,6 +199,11 @@ KERNEL(fc_gguf_q4_1_sg)(
         ACC_CHUNK(dot, w3.s4, 0, in); ACC_CHUNK(dot, w3.s5, 1, in);
         ACC_CHUNK(dot, w3.s6, 2, in); ACC_CHUNK(dot, w3.s7, 3, in);
         acc = fma(scale[7], dot, acc); acc = fma(minv[7], isum[7], acc);
+
+        // sb is single-buffered now: the NEXT iteration's activation writes (top of loop) must not
+        // race this iteration's reads above (isum / ACC_CHUNK) -- the double-buffered layout used to
+        // make this safe by construction (disjoint banks); this barrier replaces that guarantee.
+        sub_group_barrier(CLK_LOCAL_MEM_FENCE);
     }
 
     // --- Reduce KSPLIT partial sums; sub-group 0 writes the output. ---

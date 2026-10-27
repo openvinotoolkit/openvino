@@ -251,7 +251,7 @@ bool gguf_shuffle_applicable(element::Type_t t, size_t N, size_t K) {
     return (N % GGUF_GEMV_SG_SIZE == 0) && (K % 256 == 0);
 }
 
-// Opt-in f16 prefill (OV_GPU_GGUF_PREFILL_F16=1, default off). When on, the prefill transcode kernel
+// Opt-in f16 prefill (OV_GPU_GGUF_PREFILL_F16=1, default on). When on, the prefill transcode kernel
 // fully dequantises the GGUF weight into an f16 scratchpad and the direct dnnl::matmul runs as a plain
 // f16 x f16 GEMM (no WOQ scales) instead of the default i4/i8 weight-only-quantised path. This trades
 // ~2-4x more weight bandwidth for reference-precision compute; useful for numeric comparison against
@@ -261,7 +261,7 @@ bool gguf_prefill_f16_enabled() {
     if (const char* env = std::getenv("OV_GPU_GGUF_PREFILL_F16")) {
         return std::atol(env) != 0;
     }
-    return false;
+    return true;  // ON by default
 }
 
 // DQ-activation W4A8 prefill (default: ON). The transcode kernel produces i4/i8 weight + scale
@@ -273,6 +273,62 @@ bool gguf_prefill_dq_act_enabled() {
         return std::atol(env) != 0;
     }
     return true;  // ON by default
+}
+
+size_t gguf_act_dq_group_size(size_t K) {
+    if (const char* env = std::getenv("OV_GPU_GGUF_PREFILL_DQ_GROUP_SIZE")) {
+        const long v = std::atol(env);
+        if (v >= 32 && static_cast<size_t>(v) <= K && K % static_cast<size_t>(v) == 0)
+            return static_cast<size_t>(v);
+    }
+    return K;  // DynamicQuantize's UINT64_MAX/per-token layout: one group per row.
+}
+
+bool gguf_prefill_dq_act_asymmetric() {
+    if (const char* env = std::getenv("OV_GPU_GGUF_PREFILL_DQ_ASYMMETRIC"))
+        return std::atol(env) != 0;
+    return false;
+}
+
+void validate_gguf_act_dq_config(size_t K, size_t group, bool asymmetric) {
+    OPENVINO_ASSERT(group >= 32 && group <= K && K % group == 0,
+                    "[GPU] GGUF activation DQ requires group size >= 32 dividing K.");
+    // Asymmetric activation DQ is now supported per-group (group=32/64/128) as well as
+    // per-token (group=K): the fc_gguf_act_dq kernel emits one f16 scale + u8 ZP per
+    // [token, group] and the matmul binds them as grouped DNNL_ARG_SRC scales/zero-points.
+    (void)asymmetric;
+}
+
+// Returns the effective activation DQ group size for the W4A8 prefill path.
+//
+// Problem: when activation DQ is grouped (group < K) AND the weight is asymmetric (u4+ZP),
+// oneDNN's fast jit gemm_t requires precomputed B-group-sums — i.e.
+//
+//   gs[k_g, n] = sum_{k in group_k_g} W_q[k, n]   (per K-group, per N column)
+//
+// — to evaluate the ZP-weight cross term in the W4A8 expansion without a second pass.
+// We don't supply these sums, so gemm_t returns `unimplemented` and oneDNN silently falls
+// back to the sequential ref_t kernel, which is ~100x slower and appears as a hang.
+//
+// Root cause (gemmstone, pd.cpp):
+//   needsBGroupSums = aOffset(=Calc, weight has ZP) && quantized2DA(bScale2D=true)
+//   pd.cpp: if (needsBGroupSums && !hasGroupSumsB) return unimplemented;
+//
+// Fix: if the requested group < K would trigger this rejection, silently downgrade to
+// per-token (group = K). Per-token activation: bScale2D() is false (bqGroupK=K covers
+// the full K range), quantized2DA()=false, needsBGroupSums()=false → fast path accepted.
+// The per-token kernel variant is always compiled (it's the default when DQ_GROUP_SIZE
+// env is unset), so no extra compilation cost.
+size_t gguf_act_dq_safe_group_size(size_t K, element::Type_t et, size_t N) {
+    const size_t group = gguf_act_dq_group_size(K);
+    if (group < K && transcode_target(et, N).asymmetric) {
+        // Would trigger needsBGroupSums → auto-downgrade to per-token (group=K).
+        GPU_DEBUG_LOG << "[FCGGUFOpt] act_dq group=" << group
+                      << " + asymmetric weight would trigger oneDNN needsBGroupSums "
+                         "(ref_t fallback). Auto-downgrading to per-token (group=" << K << ").\n";
+        return K;
+    }
+    return group;
 }
 
 // Weight-shuffle GEMV K-split (occupancy) heuristic (fc_gguf_q4k_sg.cl / fc_gguf_q6k_sg.cl).
@@ -418,6 +474,7 @@ struct TranscodeScratch {
     cldnn::memory::ptr zp;        // u8  per-group zero-point [K/group, N]  (asymmetric, NEW)
     cldnn::memory::ptr act_int8;  // INT8 quantised activation [M_max, K]  (grow-only)
     cldnn::memory::ptr act_scale; // f16 per-token activation scale [M_max, 1]
+    cldnn::memory::ptr act_zp;    // u8 activation zero point [M_max, groups]
 };
 
 struct TranscodeArena {
@@ -622,7 +679,13 @@ public:
 protected:
     [[nodiscard]] std::string get_entry_point(const RuntimeParams& params) const override {
         const auto& in1 = params.input_layouts[1];
-        return get_kernel_name() + "_K" + std::to_string(in1.get_shape()[1]) + "_N" + std::to_string(in1.get_shape()[0]);
+        std::string name = get_kernel_name() + "_K" + std::to_string(in1.get_shape()[1]) + "_N" + std::to_string(in1.get_shape()[0]);
+        if (params.is_dynamic()) {
+            name += "__sa";  // shape-agnostic: distinguishes this from the static-shape kernel variant
+                              // below so the two never share a cached kernel slot with mismatched
+                              // OPTIONAL_SHAPE_INFO_ARG / argument bindings (see get_arguments_desc).
+        }
+        return name;
     }
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = make_base_jit_constants(params);
@@ -651,8 +714,12 @@ protected:
         }
         return jit;
     }
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams&) const override {
-        return {};
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+        if (params.is_dynamic()) {
+            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+        }
+        return args;
     }
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams&, KernelData&, ImplRuntimeParams*) {}};
@@ -692,9 +759,11 @@ public:
 };
 
 // =================================================================================================
-// Per-token INT8 activation DQ generator (fc_gguf_act_dq.cl).
-// Quantises FP16 activation [M, K] -> INT8 [M, K] + f16 scale [M, 1].
-// One work-group per token; WG size and K baked as JIT constants.
+// Per-token / per-group INT8|UINT8 activation DQ generator (fc_gguf_act_dq.cl).
+// Quantises FP16 activation [M, K] -> INT8/UINT8 [M, K] + f16 scale [M, groups] (+ u8 ZP [M, groups]
+// when asymmetric). Symmetric maps by max(|v|); asymmetric maps [min, max] -> [0, 255] per group,
+// matching DynamicQuantize (dynamic_quantize_gpu_opt). group == K reproduces the per-token contract.
+// The token dimension is dispatched as GWS.y, the group as GWS.x / ACT_DQ_WG_SIZE.
 // =================================================================================================
 constexpr int GGUF_ACT_DQ_WG_SIZE = 256;
 
@@ -705,15 +774,31 @@ public:
 protected:
     [[nodiscard]] std::string get_entry_point(const RuntimeParams& params) const override {
         const size_t K = params.input_layouts[1].get_shape()[1];
-        return get_kernel_name() + "_K" + std::to_string(K);
+        const size_t N = params.input_layouts[1].get_shape()[0];
+        const auto et = static_cast<element::Type_t>(params.input_layouts[1].data_type);
+        // Use the safe group size: downgraded to K when asymmetric weight would needsBGroupSums.
+        const size_t group = gguf_act_dq_safe_group_size(K, et, N);
+        // group size + sym/asym change the JIT body, so they must be part of the cache key.
+        return get_kernel_name() + "_K" + std::to_string(K) + "_G" + std::to_string(group) +
+               (gguf_prefill_dq_act_asymmetric() ? "_asym" : "_sym");
     }
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = make_base_jit_constants(params);
         const size_t K = params.input_layouts[1].get_shape()[1];
+        const size_t N = params.input_layouts[1].get_shape()[0];
+        const auto et = static_cast<element::Type_t>(params.input_layouts[1].data_type);
+        // Use the safe group size: downgraded to K when asymmetric weight would needsBGroupSums.
+        const size_t group = gguf_act_dq_safe_group_size(K, et, N);
+        validate_gguf_act_dq_config(K, group, gguf_prefill_dq_act_asymmetric());
         jit.add({
             make_jit_constant("K_SIZE",         static_cast<int>(K)),
             make_jit_constant("ACT_DQ_WG_SIZE", GGUF_ACT_DQ_WG_SIZE),
+            make_jit_constant("ACT_DQ_OUTPUT_VAL_MAX", 127.0f),
+            make_jit_constant("ACT_DQ_MIN_VAL", 0.003f),
+            make_jit_constant("ACT_DQ_GROUP_SIZE", static_cast<int>(group)),
+            make_jit_constant("ACT_DQ_NUM_GROUPS", static_cast<int>(K / group)),
+            make_jit_constant("ACT_DQ_ASYMMETRIC", gguf_prefill_dq_act_asymmetric() ? 1 : 0),
         });
         return jit;
     }
@@ -767,7 +852,7 @@ public:
     bool m_q4_1_shuffle = false;
     bool m_q8_0_shuffle = false;
 
-    // Opt-in f16 prefill (OV_GPU_GGUF_PREFILL_F16=1, default off): the prefill transcode fully
+    // Opt-in f16 prefill (OV_GPU_GGUF_PREFILL_F16=1, default on): the prefill transcode fully
     // dequantises the GGUF weight to an f16 scratchpad and the direct dnnl::matmul runs as a plain
     // f16 x f16 GEMM (no WOQ scales) instead of the i4/i8 weight-only-quantised path. Mirrors
     // gguf_prefill_f16_enabled() so the impl and the transcode generator agree.
@@ -790,9 +875,7 @@ public:
                 m_prefill_threshold = static_cast<size_t>(v);
             }
         }
-        if (const char* env = std::getenv("OV_GPU_GGUF_PREFILL_F16")) {
-            m_prefill_f16 = (std::atol(env) != 0);
-        }
+        m_prefill_f16 = gguf_prefill_f16_enabled();
         m_use_dq_act = !m_prefill_f16 && gguf_prefill_dq_act_enabled();
     }
     FCGGUFOptImpl(const program_node& node, const RuntimeParams& params) : FCGGUFOptImpl() {
@@ -1000,6 +1083,7 @@ private:
         dnnl::memory::desc dst_md;
         dnnl::memory::desc scale_md;      // weight scale [K/group, N]  — f16
         dnnl::memory::desc act_scale_md;  // activation scale [M, 1]    — f16, W4A8 mode only
+        dnnl::memory::desc act_zp_md;     // activation ZP [M, groups] — u8, asymmetric mode
         dnnl::memory::desc zp_md;         // weight zero-point [K/group, N] — u8, asymmetric mode
         // Per-binary-post-op src1 descriptor + its FC dependency index (parallel to the binary ops, in
         // post-op order). Empty when no fused ops. Used to bind DNNL_ARG_ATTR_MULTIPLE_POST_OP src1.
@@ -1015,9 +1099,11 @@ private:
         int dq;    // 1 = W4A8 DQ-activation mode, 0 = WOQ f16-activation mode
         int asym;  // 1 = asymmetric u4+ZP, 0 = symmetric s8 (no ZP)
         int rg;    // requant_group: 32 (non-shuffle small-block) or 128 (K-block / shuffled)
+        int ag;    // activation DQ group size
+        int aa;    // activation asymmetric
         bool operator==(const MmKey& o) const {
             return et == o.et && m == o.m && k == o.k && n == o.n &&
-                   fused_sig == o.fused_sig && f16 == o.f16 && dq == o.dq && asym == o.asym && rg == o.rg;
+                   fused_sig == o.fused_sig && f16 == o.f16 && dq == o.dq && asym == o.asym && rg == o.rg && ag == o.ag && aa == o.aa;
         }
     };
     struct MmKeyHash {
@@ -1031,6 +1117,8 @@ private:
             h = h * 31 + std::hash<int>()(k.dq);
             h = h * 31 + std::hash<int>()(k.asym);
             h = h * 31 + std::hash<int>()(k.rg);
+            h = h * 31 + std::hash<int>()(k.ag);
+            h = h * 31 + std::hash<int>()(k.aa);
             return h;
         }
     };
@@ -1047,9 +1135,11 @@ private:
                            bool use_f16,
                            bool use_dq_act,
                            bool use_asym,
-                           int requant_group) {
+                           int requant_group,
+                           int act_group,
+                           bool act_asym) {
         MmKey key{static_cast<int>(et), M, K, N, gguf_fused_signature(fused_ops),
-                  use_f16 ? 1 : 0, use_dq_act ? 1 : 0, use_asym ? 1 : 0, requant_group};
+                  use_f16 ? 1 : 0, use_dq_act ? 1 : 0, use_asym ? 1 : 0, requant_group, act_group, act_asym ? 1 : 0};
         if (m_matmul_cache.has(key)) {
             return *m_matmul_cache.get(key);
         }
@@ -1075,14 +1165,23 @@ private:
             const auto w_dt = !use_asym        ? dnnl::memory::data_type::s8   // s8 symmetric
                              : tgt_l.to_i4     ? dnnl::memory::data_type::u4   // u4 asymmetric 4-bit
                              : dnnl::memory::data_type::u8;                    // u8 asymmetric 8-bit
-            k->src_md = dnnl::memory::desc({M, K}, dnnl::memory::data_type::s8, dnnl::memory::format_tag::ab);
+            k->src_md = dnnl::memory::desc({M, K}, act_asym ? dnnl::memory::data_type::u8 : dnnl::memory::data_type::s8,
+                                            dnnl::memory::format_tag::ab);
             k->wei_md = dnnl::memory::desc({K, N}, w_dt, dnnl::memory::format_tag::ba);
             // Weight scale: per-REQUANT_GROUP x per-N f16.
             k->scale_md = dnnl::memory::desc({K / requant_group, N},
                                              dnnl::memory::data_type::f16, dnnl::memory::format_tag::ab);
-            // Activation scale: per-token [M, 1] f16.
-            k->act_scale_md = dnnl::memory::desc({M, 1}, dnnl::memory::data_type::f16, dnnl::memory::format_tag::ab);
-            attr.set_scales(DNNL_ARG_SRC,     grouped, dnnl::memory::dims{1, K},                 dnnl::memory::data_type::f16);
+            const int act_groups = K / act_group;
+            k->act_scale_md = dnnl::memory::desc({M, act_groups}, dnnl::memory::data_type::f16, dnnl::memory::format_tag::ab);
+            attr.set_scales(DNNL_ARG_SRC,     grouped, dnnl::memory::dims{1, act_group},         dnnl::memory::data_type::f16);
+            if (act_asym) {
+                k->act_zp_md = dnnl::memory::desc({M, act_groups}, dnnl::memory::data_type::u8, dnnl::memory::format_tag::ab);
+                attr.set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, act_group}, dnnl::memory::data_type::u8);
+            }
+            if (use_asym) {
+                // Weight zero point is independent from activation quantization.
+                // It is configured below together with the weight scale.
+            }
             attr.set_scales(DNNL_ARG_WEIGHTS, grouped, dnnl::memory::dims{requant_group, 1}, dnnl::memory::data_type::f16);
             if (use_asym) {
                 // Asymmetric u4: per-group u8 zero-point (same grouping as scale).
@@ -1251,15 +1350,26 @@ private:
         // LM Head must preserve f16 activation precision for logit accuracy; use WOQ (no INT8 DQ).
         const bool is_lm_head = (static_cast<size_t>(N) >= 50000);
         const bool run_dq = !use_f16 && m_use_dq_act && !is_lm_head;
+        const bool act_asym = gguf_prefill_dq_act_asymmetric();
+        // Use the safe group size: if the user-requested group < K AND the weight is
+        // asymmetric, the fast gemm_t would require precomputed B-group-sums (needsBGroupSums)
+        // that we don't supply, causing a silent ref_t fallback (~100x slower).
+        // gguf_act_dq_safe_group_size() detects this and returns K (per-token) instead.
+        const size_t act_group = gguf_act_dq_safe_group_size(static_cast<size_t>(K), et, static_cast<size_t>(N));
+        validate_gguf_act_dq_config(static_cast<size_t>(K), act_group, act_asym);
+        const size_t act_groups = static_cast<size_t>(K) / act_group;
 
-        // Optionally grow and fill activation scratch (INT8 [M, K] + f16 scale [M, 1]).
+        // Optionally grow and fill activation scratch (INT8/UINT8 [M, K] + scale/ZP [M, groups]).
         cldnn::memory::ptr act_q_scratch;   // INT8 activation
         cldnn::memory::ptr act_s_scratch;   // f16 per-token scale
+        cldnn::memory::ptr act_zp_scratch;  // u8 activation zero point
         if (run_dq) {
             const cldnn::layout aq_layout(ov::Shape{static_cast<size_t>(M), static_cast<size_t>(K)},
-                                          data_types::i8, cldnn::format::bfyx);
-            const cldnn::layout as_layout(ov::Shape{static_cast<size_t>(M), 1},
+                                          act_asym ? data_types::u8 : data_types::i8, cldnn::format::bfyx);
+            const cldnn::layout as_layout(ov::Shape{static_cast<size_t>(M), act_groups},
                                           data_types::f16, cldnn::format::bfyx);
+            const cldnn::layout az_layout(ov::Shape{static_cast<size_t>(M), act_groups},
+                                          data_types::u8, cldnn::format::bfyx);
             const auto alloc_type = engine.get_preferred_memory_allocation_type();
             {
                 std::lock_guard<std::mutex> lk(m_transcode_arena->mtx);
@@ -1272,22 +1382,31 @@ private:
                     if (slot.act_scale) stream.finish();
                     slot.act_scale = engine.allocate_memory(as_layout, alloc_type, /*reset=*/false);
                 }
+                if (act_asym && (!slot.act_zp || slot.act_zp->size() < az_layout.bytes_count())) {
+                    if (slot.act_zp) stream.finish();
+                    slot.act_zp = engine.allocate_memory(az_layout, alloc_type, /*reset=*/false);
+                }
                 act_q_scratch = engine.reinterpret_buffer(*slot.act_int8,  aq_layout);
                 act_s_scratch = engine.reinterpret_buffer(*slot.act_scale, as_layout);
+                if (act_asym)
+                    act_zp_scratch = engine.reinterpret_buffer(*slot.act_zp, az_layout);
             }
             // Activation DQ stage: FP16 [M, K] -> INT8 [M, K] + f16 scale [M, 1].
-            const size_t dq_global = static_cast<size_t>(M) * GGUF_ACT_DQ_WG_SIZE;
+            // Match dynamic_quantize_gpu_opt MODE_PER_TOKEN dispatch: one
+            // work-group per token, with tokens in the second grid dimension.
+            const size_t dq_global_x = GGUF_ACT_DQ_WG_SIZE;
             execute_stage({transcode_ev},
                           instance,
                           *act_dq_stage,
                           /*inputs=*/ {instance.dep_memory_ptr(0)},
-                          /*outputs=*/{act_q_scratch, act_s_scratch},
-                          /*global=*/ {dq_global, 1, 1},
+                          /*outputs=*/ act_asym ? std::vector<cldnn::memory::ptr>{act_q_scratch, act_s_scratch, act_zp_scratch}
+                                                : std::vector<cldnn::memory::ptr>{act_q_scratch, act_s_scratch},
+                          /*global=*/ {dq_global_x * act_groups, static_cast<size_t>(M), 1},
                           /*local=*/  {static_cast<size_t>(GGUF_ACT_DQ_WG_SIZE), 1, 1});
         }
 
         auto& mm = get_matmul(et, static_cast<int>(M), K, N, src_dt, dst_dt, dnn_engine, fused_ops,
-                              use_f16, run_dq, tgt.asymmetric, requant_group);
+                              use_f16, run_dq, tgt.asymmetric, requant_group, static_cast<int>(act_group), act_asym);
 
         // Select the activation source: INT8 scratch (W4A8) or original FP16 buffer (WOQ/f16).
         auto src_mem_ptr = run_dq ? act_q_scratch : instance.dep_memory_ptr(0);
@@ -1303,6 +1422,8 @@ private:
         if (run_dq) {
             // W4A8: bind activation scale + weight scale + optional weight ZP (asymmetric only).
             args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC_0,       act_s_scratch->get_onednn_memory(mm.act_scale_md)});
+            if (act_asym)
+                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC_0, act_zp_scratch->get_onednn_memory(mm.act_zp_md)});
             args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS,     s_scratch->get_onednn_memory(mm.scale_md)});
             if (tgt.asymmetric) {
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_scratch->get_onednn_memory(mm.zp_md)});

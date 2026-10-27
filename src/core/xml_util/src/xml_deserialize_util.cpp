@@ -27,6 +27,8 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
+#include "ov_ops/fully_connected_compressed.hpp"
+#include "ov_ops/gather_compressed.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
 namespace ov::util {
@@ -1314,6 +1316,22 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Out
     if (extensionIt != m_extensions.end()) {
         auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
         ovNode = (*extensionIt->second).create(inputs, *visitor).at(0).get_node_shared_ptr();
+    }
+
+    if (type_name == "GatherCompressed") {
+        ovNode = std::make_shared<ov::op::internal::GatherCompressed>();
+        ovNode->set_arguments(inputs);
+        auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
+        if (ovNode->visit_attributes(*visitor)) {
+            ovNode->constructor_validate_and_infer_types();
+        }
+    } else if (type_name == "FullyConnectedCompressed") {
+        ovNode = std::make_shared<ov::op::internal::FullyConnectedCompressed>();
+        ovNode->set_arguments(inputs);
+        auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
+        if (ovNode->visit_attributes(*visitor)) {
+            ovNode->constructor_validate_and_infer_types();
+        }
     }
 
     // Find registered opset
