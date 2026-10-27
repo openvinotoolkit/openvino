@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -390,4 +391,27 @@ TEST(HostGatherIdClamp, UtilGatherSaturatesOutOfRangeIds) {
             EXPECT_EQ(pdst[r * kCols + c], expected_rows[r]) << "row " << r << " col " << c;
         }
     }
+}
+
+TEST(HostGatherIdClamp, UtilGatherRejectsDestinationWithTooFewRows) {
+    constexpr size_t kCols = 4;
+
+    auto src = ov::Tensor(element::f32, Shape{1, kCols});
+    auto idx = ov::Tensor(element::i64, Shape{1, 2});
+    idx.data<int64_t>()[0] = 0;
+    idx.data<int64_t>()[1] = 0;
+
+    auto undersized_dst = ov::Tensor(element::f32, Shape{1, 1, kCols});
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::util::gather(ov::get_tensor_impl(src), ov::get_tensor_impl(idx), ov::get_tensor_impl(undersized_dst)),
+        ov::Exception,
+        "Assertion idx_shape[1] <= dst_shape[1] failed");
+
+    auto valid_dst = ov::Tensor(element::f32, Shape{1, 2, kCols});
+    EXPECT_NO_THROW(
+        ov::npuw::util::gather(ov::get_tensor_impl(src), ov::get_tensor_impl(idx), ov::get_tensor_impl(valid_dst)));
+
+    auto spare_dst = ov::Tensor(element::f32, Shape{1, 3, kCols});
+    EXPECT_NO_THROW(
+        ov::npuw::util::gather(ov::get_tensor_impl(src), ov::get_tensor_impl(idx), ov::get_tensor_impl(spare_dst)));
 }
