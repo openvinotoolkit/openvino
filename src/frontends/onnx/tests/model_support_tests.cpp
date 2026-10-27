@@ -5,8 +5,12 @@
 #include <gtest/gtest.h>
 
 #include <fstream>
+#include <sstream>
+#include <string>
 
 #include "common_test_utils/file_utils.hpp"
+#include "core/graph_iterator_proto.hpp"
+#include "onnx_common/onnx_model_validator.hpp"
 #include "openvino/runtime/core.hpp"
 
 namespace {
@@ -17,6 +21,33 @@ std::string model_path(const char* model) {
     return ov::test::utils::getModelFromTestModelZoo(path);
 }
 }  // namespace
+
+TEST(ONNXModelValidator, configuration_field_before_graph_common) {
+    // Field 26's length-delimited tag is the two-byte varint d2 01.
+    std::istringstream model(std::string("\xd2\x01\x00\x08\x09\x3a\x00", 7), std::ios::binary);
+    EXPECT_TRUE(ov::frontend::onnx::common::is_valid_model(model));
+}
+
+TEST(ONNXModelValidator, configuration_field_before_graph_iterator) {
+    std::istringstream model(std::string("\xd2\x01\x00\x08\x09\x3a\x00", 7), std::ios::binary);
+    EXPECT_TRUE(ov::frontend::onnx::is_valid_model(model));
+}
+
+TEST(ONNXModelValidator, truncated_multibyte_tag) {
+    std::istringstream common_model(std::string("\x08\x09\xd2", 3), std::ios::binary);
+    std::istringstream iterator_model(std::string("\x08\x09\xd2", 3), std::ios::binary);
+    EXPECT_FALSE(ov::frontend::onnx::common::is_valid_model(common_model));
+    EXPECT_FALSE(ov::frontend::onnx::is_valid_model(iterator_model));
+}
+
+TEST(ONNXModelValidator, int64_scalar_varint) {
+    // model_version (field 5) is an int64 and may use a ten-byte varint.
+    const std::string serialized_model("\x08\x09\x28\x80\x80\x80\x80\x10\x12\x00", 10);
+    std::istringstream common_model(serialized_model, std::ios::binary);
+    std::istringstream iterator_model(serialized_model, std::ios::binary);
+    EXPECT_TRUE(ov::frontend::onnx::common::is_valid_model(common_model));
+    EXPECT_TRUE(ov::frontend::onnx::is_valid_model(iterator_model));
+}
 
 TEST(ONNXReader_ModelSupported, basic_model) {
     // this model is a basic ONNX model taken from OpenVINO's unit test (add_abc.onnx)
