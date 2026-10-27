@@ -32,7 +32,7 @@ DisableBF16CompForLtxVideoRopePattern::DisableBF16CompForLtxVideoRopePattern() {
     auto reshape = wrap_type<v1::Reshape>({transpose, any_input()});
     auto sin_or_cos = wrap_type<v0::Sin, v0::Cos>({reshape});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         // disable_conversion tags each node with the shared "keep original precision" marker. This pass is
         // registered by the CPU plugin only under bf16, where EnforceInferencePrecision honors the tag and
