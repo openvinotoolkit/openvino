@@ -30,7 +30,7 @@ struct SparsePARuntimeParams : public ImplRuntimeParams {
     size_t num_tokens = 0;
     size_t num_seqs = 0;
     size_t tile_count = 0;
-    bool is_decode = false;        ///< one query token per sequence (num_tokens == num_seqs)
+    bool is_decode = false;  ///< one query token per sequence (num_tokens == num_seqs)
 };
 
 /// @brief CM implementation of the SparsePA primitive: Q0 (K/V cache write) + Q3

@@ -650,7 +650,7 @@ bool SparsePACMImplementationManager::validate_impl(const cldnn::program_node& n
 }
 
 std::unique_ptr<cldnn::primitive_impl> SparsePACMImplementationManager::create_impl(const cldnn::program_node& node,
-                                                                                     const cldnn::kernel_impl_params& params) const {
+                                                                                    const cldnn::kernel_impl_params& params) const {
     OPENVINO_ASSERT(node.is_type<cldnn::sparse_pa>());
     return std::make_unique<SparsePACmImpl>(params);
 }

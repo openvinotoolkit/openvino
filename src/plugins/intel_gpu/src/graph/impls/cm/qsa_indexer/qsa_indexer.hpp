@@ -18,8 +18,8 @@
 namespace ov::intel_gpu::cm {
 
 struct QSAIndexerInternalBufIdx {
-    static constexpr size_t INDEXER_Q = 0;      ///< f16 [tokens=B*L, H_iq, D_idx]
-    static constexpr size_t BLOCK_SCORES = 1;   ///< f32 [rows, max_blocks]; rows bounded by the score budget for decode
+    static constexpr size_t INDEXER_Q = 0;     ///< f16 [tokens=B*L, H_iq, D_idx]
+    static constexpr size_t BLOCK_SCORES = 1;  ///< f32 [rows, max_blocks]; rows bounded by the score budget for decode
 
     static constexpr size_t COUNT = 2;
 };
@@ -32,9 +32,9 @@ struct QSAIndexerRuntimeParams : public ImplRuntimeParams {
     size_t prepare_blocks_per_row = 1;  ///< upper bound of QSA blocks one batch row touches per call
     size_t prepare_wg_count = 0;
     size_t score_tile_count = 0;
-    size_t num_partitions = 1;  ///< decode-only score_partition block-range split factor
-    size_t chunk_rows = 1;      ///< query rows per bounded BLOCK_SCORES pass (decode)
-    size_t chunk_row_begin = 0; ///< current [begin, end) row window of the chunk being dispatched
+    size_t num_partitions = 1;   ///< decode-only score_partition block-range split factor
+    size_t chunk_rows = 1;       ///< query rows per bounded BLOCK_SCORES pass (decode)
+    size_t chunk_row_begin = 0;  ///< current [begin, end) row window of the chunk being dispatched
     size_t chunk_row_end = 0;
     size_t index_query_heads = 0;
     size_t index_key_heads = 0;

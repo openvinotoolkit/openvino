@@ -245,9 +245,7 @@ protected:
 // ===========================================================================
 class DenseTopkGenerator : public KernelGenerator {
 public:
-    explicit DenseTopkGenerator(bool decode = false)
-        : KernelGenerator("qsa_indexer_topk", decode ? "_decode_cm" : "_cm"),
-          m_decode(decode) {}
+    explicit DenseTopkGenerator(bool decode = false) : KernelGenerator("qsa_indexer_topk", decode ? "_decode_cm" : "_cm"), m_decode(decode) {}
 
 protected:
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
@@ -622,7 +620,7 @@ bool QSAIndexerCMImplementationManager::validate_impl(const cldnn::program_node&
 }
 
 std::unique_ptr<cldnn::primitive_impl> QSAIndexerCMImplementationManager::create_impl(const cldnn::program_node& node,
-                                                                                       const cldnn::kernel_impl_params& params) const {
+                                                                                      const cldnn::kernel_impl_params& params) const {
     OPENVINO_ASSERT(node.is_type<cldnn::qsa_indexer>());
     return std::make_unique<QSAIndexerCmImpl>(params);
 }
@@ -631,4 +629,3 @@ std::unique_ptr<cldnn::primitive_impl> QSAIndexerCMImplementationManager::create
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::qsa_indexer)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::cm::QSAIndexerCmImpl)
-

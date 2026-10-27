@@ -2299,7 +2299,7 @@ TEST(qsa_ops_gpu_test, paged_qsa_indexer_rejects_page_size_not_divisible_by_key_
     using In = ov::intel_gpu::op::PagedQSAIndexer::InputIdx;
     auto args = make_paged_indexer_args(d, 8, d.page_size / d.r);
     args[In::INDEX_KEY_CACHE] = make_param({8, 1, I(d.page_size + 1), I(d.Di)});  // page_size is read from this cache
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception);
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception);
 }
 
 TEST(qsa_ops_gpu_test, paged_qsa_indexer_output_shapes_and_clone) {
@@ -2334,7 +2334,7 @@ TEST(qsa_ops_gpu_test, paged_qsa_indexer_rejects_wrong_input_count) {
     split_dims d;
     auto args = make_paged_indexer_args(d, 8, d.page_size / d.r);
     args.pop_back();
-    ASSERT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception);
+    ASSERT_THROW((void)std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception);
 }
 
 TEST(qsa_ops_gpu_test, paged_qsa_indexer_rejects_bad_rope_shapes) {
@@ -2343,24 +2343,24 @@ TEST(qsa_ops_gpu_test, paged_qsa_indexer_rejects_bad_rope_shapes) {
     const size_t spp = d.page_size / d.r;
     auto args = make_paged_indexer_args(d, 8, spp);
     args[In::ROPE_COS] = make_param({-1, I(d.rotary / 2)});  // a half-width row, not rotary
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope_cos width";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope_cos width";
 
     args = make_paged_indexer_args(d, 8, spp);
     args[In::ROPE_SIN] = make_param({3, I(d.rotary)});
     args[In::INDEX_QUERY] = make_param({4, I(d.Hiq * d.Di)});
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope_sin tokens";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope_sin tokens";
 
     args = make_paged_indexer_args(d, 8, spp);
     args[In::INDEX_BLOCK_ROPE_CACHE] = make_param({8, I(spp), I(d.rotary)});
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache row width";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache row width";
 
     args = make_paged_indexer_args(d, 8, spp);
     args[In::INDEX_BLOCK_ROPE_CACHE] = make_param({9, I(spp), I(2 * d.rotary)});
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache num_blocks";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache num_blocks";
 
     args = make_paged_indexer_args(d, 8, spp);
     args[In::INDEX_BLOCK_ROPE_CACHE] = make_param({8, I(spp), I(2 * d.rotary)}, ov::element::f32);
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache type";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache type";
 }
 
 TEST(qsa_ops_gpu_test, paged_qsa_indexer_requires_i32_integer_inputs) {
@@ -2369,7 +2369,7 @@ TEST(qsa_ops_gpu_test, paged_qsa_indexer_requires_i32_integer_inputs) {
     for (size_t idx : {In::BLOCK_INDICES, In::BLOCK_INDICES_BEGINS, In::SUBSEQUENCE_BEGINS, In::PAST_LENS}) {
         auto args = make_paged_indexer_args(d, 8, d.page_size / d.r);
         args[idx] = make_param({-1}, ov::element::i64);
-        EXPECT_THROW(std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "input " << idx;
+        EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "input " << idx;
     }
 }
 
@@ -2391,35 +2391,35 @@ TEST(qsa_ops_gpu_test, dense_qsa_indexer_validates_state_rope_and_key_length) {
 
     auto args = make_dense_indexer_args(d);
     args[In::ROPE_COS] = make_param({1, -1, I(d.rotary)}, ov::element::f32);
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "rope_cos type";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "rope_cos type";
 
     args = make_dense_indexer_args(d);
     args[In::ROPE_COS] = make_param({1, -1, I(d.rotary / 2)});
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "half-width rope_cos";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "half-width rope_cos";
 
     args = make_dense_indexer_args(d);
     args[In::ROPE_COS] = make_param({-1, I(d.rotary)});
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "rank-2 rope_cos";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "rank-2 rope_cos";
 
     args = make_dense_indexer_args(d);
     args[In::ROPE_SIN] = make_param({2, -1, I(d.rotary)});
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "batch mismatch";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "batch mismatch";
 
     args = make_dense_indexer_args(d);
     args[In::KEY_LENGTH] = make_param({1}, ov::element::i64);
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "i64 key_length";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "i64 key_length";
 
     args = make_dense_indexer_args(d);
     args[In::PAST_INCOMPLETE_RAW_K] = make_param({1, 1, I(d.r), I(d.Di)});
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "r raw-key slots";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "r raw-key slots";
 
     args = make_dense_indexer_args(d);
     args[In::PAST_INCOMPLETE_ROPE] = make_param({1, I(d.rotary)});
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "non-interleaved rope state";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "non-interleaved rope state";
 
     args = make_dense_indexer_args(d);
     args[In::BLOCK_INDEX_KEYS_CACHE] = make_param({1, 1, -1, I(d.Di)}, ov::element::f32);
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "summary type";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "summary type";
 }
 
 ov::intel_gpu::op::SparsePA::Config make_sparse_pa_config(const split_dims& d) {
@@ -2482,7 +2482,7 @@ TEST(qsa_ops_gpu_test, sparse_pa_sinks_input_reports_presence) {
     EXPECT_TRUE(std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d))->has_sinks());
 
     args[In::SINKS] = make_param({I(d.Hq + 1)});
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception) << "sinks width";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception) << "sinks width";
 }
 
 TEST(qsa_ops_gpu_test, sparse_pa_qb_start_is_optional) {
@@ -2496,7 +2496,7 @@ TEST(qsa_ops_gpu_test, sparse_pa_qb_start_is_optional) {
     ASSERT_EQ(node->get_input_size(), In::COUNT_MIN);
 
     args.pop_back();  // sinks is positional and required
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception);
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception);
 }
 
 TEST(qsa_ops_gpu_test, sparse_pa_selected_block_mask_is_optional) {
@@ -2514,7 +2514,7 @@ TEST(qsa_ops_gpu_test, sparse_pa_selected_block_mask_is_optional) {
     EXPECT_FALSE(std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d))->has_selected_block_mask());
 
     args[In::SELECTED_BLOCK_MASK] = make_param({-1, 1, -1}, ov::element::f16);
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception) << "mask type";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception) << "mask type";
 }
 
 TEST(qsa_ops_gpu_test, sparse_pa_rejects_page_size_not_divisible_by_key_block_size) {
@@ -2522,7 +2522,7 @@ TEST(qsa_ops_gpu_test, sparse_pa_rejects_page_size_not_divisible_by_key_block_si
     using In = ov::intel_gpu::op::SparsePA::InputIdx;
     auto args = make_sparse_pa_args(d, 8);
     args[In::KEY_CACHE] = make_param({8, I(d.Hkv), I(d.page_size + 1), I(d.Dh)});
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception);
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception);
 }
 
 TEST(qsa_ops_gpu_test, sparse_pa_output_shape_and_clone) {
@@ -2543,11 +2543,11 @@ TEST(qsa_ops_gpu_test, sparse_pa_requires_i32_integer_inputs) {
     for (size_t idx : {In::BLOCK_INDICES, In::BLOCK_INDICES_BEGINS, In::SUBSEQUENCE_BEGINS, In::PAST_LENS, In::QB_START}) {
         auto args = make_sparse_pa_args(d, 8);
         args[idx] = make_param({-1}, ov::element::i64);
-        EXPECT_THROW(std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception) << "input " << idx;
+        EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception) << "input " << idx;
     }
     auto args = make_sparse_pa_args(d, 8);
     args[In::SELECTED_BLOCK_INDICES] = make_param({-1, 1, I(d.block_topk)}, ov::element::i64);
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception);
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::SparsePA>(args, make_sparse_pa_config(d)), ov::Exception);
 }
 
 ov::intel_gpu::op::SparseSDPA::Config make_sparse_sdpa_config(const split_dims& d) {
@@ -2613,19 +2613,19 @@ TEST(qsa_ops_gpu_test, sparse_sdpa_output_shape_and_optional_inputs) {
 
     args = make_sparse_sdpa_args(d);
     args[SparseSDPAIn::SELECTED_BLOCK_INDICES] = make_param({1, 1, -1, I(d.block_topk)}, ov::element::i64);
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::SparseSDPA>(args, make_sparse_sdpa_config(d)), ov::Exception);
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::SparseSDPA>(args, make_sparse_sdpa_config(d)), ov::Exception);
 
     args = make_sparse_sdpa_args(d);
     args[SparseSDPAIn::KEY_LENGTH] = make_param({1}, ov::element::i64);
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::SparseSDPA>(args, make_sparse_sdpa_config(d)), ov::Exception) << "i64 key_length";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::SparseSDPA>(args, make_sparse_sdpa_config(d)), ov::Exception) << "i64 key_length";
 
     args = make_sparse_sdpa_args(d);
     args[SparseSDPAIn::KEY_LENGTH] = make_param({2}, ov::element::i32);
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::SparseSDPA>(args, make_sparse_sdpa_config(d)), ov::Exception) << "key_length batch";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::SparseSDPA>(args, make_sparse_sdpa_config(d)), ov::Exception) << "key_length batch";
 
     args = make_sparse_sdpa_args(d);
     args.pop_back();
-    EXPECT_THROW(std::make_shared<ov::intel_gpu::op::SparseSDPA>(args, make_sparse_sdpa_config(d)), ov::Exception) << "key_length is required";
+    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::SparseSDPA>(args, make_sparse_sdpa_config(d)), ov::Exception) << "key_length is required";
 }
 
 // ---------------------------------------------------------------------------

@@ -72,7 +72,7 @@ constexpr auto get_qsa_indexer_build_options() {
 
 // qsa_indexer_topk's cooperative work-group size (see qsa_topk_radix_wg.cm's proven choice).
 
-constexpr size_t dpas_block_tile = 8;   // dpas RepeatCount (M axis)
+constexpr size_t dpas_block_tile = 8;  // dpas RepeatCount (M axis)
 constexpr size_t max_slm_bytes = 64 * 1024;
 constexpr size_t score_wg_size = 16;  // threads per query tile in the dpas Q2 score kernel
 
@@ -256,9 +256,7 @@ protected:
 // ===========================================================================
 class PagedTopkGenerator : public KernelGenerator {
 public:
-    explicit PagedTopkGenerator(bool decode = false)
-        : KernelGenerator("qsa_indexer_topk", decode ? "_decode_cm" : "_cm"),
-          m_decode(decode) {}
+    explicit PagedTopkGenerator(bool decode = false) : KernelGenerator("qsa_indexer_topk", decode ? "_decode_cm" : "_cm"), m_decode(decode) {}
 
 protected:
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
@@ -489,7 +487,7 @@ public:
 
         std::vector<BufferDescriptor> bufs;
         bufs.emplace_back(tokens * h_iq * desc->indexer_head_dim, ov::element::f16);  // INDEXER_Q
-        bufs.emplace_back(score_scratch_elems(params, *desc), ov::element::f32);  // BLOCK_SCORES
+        bufs.emplace_back(score_scratch_elems(params, *desc), ov::element::f32);      // BLOCK_SCORES
         return bufs;
     }
 
@@ -604,7 +602,7 @@ bool PagedQSAIndexerCMImplementationManager::validate_impl(const cldnn::program_
 }
 
 std::unique_ptr<cldnn::primitive_impl> PagedQSAIndexerCMImplementationManager::create_impl(const cldnn::program_node& node,
-                                                                                            const cldnn::kernel_impl_params& params) const {
+                                                                                           const cldnn::kernel_impl_params& params) const {
     OPENVINO_ASSERT(node.is_type<cldnn::paged_qsa_indexer>());
     return std::make_unique<PagedQSAIndexerCmImpl>(params);
 }

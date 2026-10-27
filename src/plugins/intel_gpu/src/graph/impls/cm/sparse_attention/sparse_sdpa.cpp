@@ -85,7 +85,10 @@ size_t seq_pitch(const layout& l, const char* name) {
     const auto& pad = l.data_padding;
     for (size_t axis : {size_t{0}, size_t{1}, size_t{3}}) {
         OPENVINO_ASSERT(pad._lower_size[axis] == 0 && pad._upper_size[axis] == 0,
-                        "[GPU][CM] sparse_sdpa: ", name, " padding is only supported on the sequence axis, got ", l.to_short_string());
+                        "[GPU][CM] sparse_sdpa: ",
+                        name,
+                        " padding is only supported on the sequence axis, got ",
+                        l.to_short_string());
     }
     OPENVINO_ASSERT(pad._lower_size[2] == 0, "[GPU][CM] sparse_sdpa: ", name, " lower sequence padding is not supported, got ", l.to_short_string());
     return l.get_shape()[2] + static_cast<size_t>(pad._upper_size[2]);
@@ -511,8 +514,7 @@ public:
         const auto& params = *instance.get_impl_params();
         const auto& query_shape = params.get_input_layout(SparseSDPAIn::QUERY).get_shape();
         const auto& key_shape = params.get_input_layout(SparseSDPAIn::KEY).get_shape();
-        OPENVINO_ASSERT(query_shape.size() == 4 && key_shape.size() == 4,
-                        "[GPU][CM] sparse_sdpa expects rank-4 [B,H,*,D] query/key inputs");
+        OPENVINO_ASSERT(query_shape.size() == 4 && key_shape.size() == 4, "[GPU][CM] sparse_sdpa expects rank-4 [B,H,*,D] query/key inputs");
 
         OPENVINO_ASSERT(!params.get_input_layout(SparseSDPAIn::QUERY).data_padding && !params.get_output_layout(0).data_padding,
                         "[GPU][CM] sparse_sdpa: padded query/output buffers are not supported");
@@ -572,7 +574,7 @@ bool SparseSDPACMImplementationManager::validate_impl(const cldnn::program_node&
 }
 
 std::unique_ptr<cldnn::primitive_impl> SparseSDPACMImplementationManager::create_impl(const cldnn::program_node& node,
-                                                                                       const cldnn::kernel_impl_params& params) const {
+                                                                                      const cldnn::kernel_impl_params& params) const {
     OPENVINO_ASSERT(node.is_type<cldnn::sparse_sdpa>());
     return std::make_unique<SparseSDPACmImpl>(params);
 }
