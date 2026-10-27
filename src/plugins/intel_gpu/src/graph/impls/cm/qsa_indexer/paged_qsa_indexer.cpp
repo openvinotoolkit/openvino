@@ -595,10 +595,8 @@ bool PagedQSAIndexerCMImplementationManager::validate_impl(const cldnn::program_
         return false;
     }
 
-    if (node.get_input_layout(QSAIn::INDEX_QUERY).data_type != ov::element::f16 || node.get_input_layout(QSAIn::RAW_INDEX_KEYS).data_type != ov::element::f16) {
-        return false;
-    }
-    return true;
+    return node.get_input_layout(QSAIn::INDEX_QUERY).data_type == ov::element::f16 &&
+           node.get_input_layout(QSAIn::RAW_INDEX_KEYS).data_type == ov::element::f16;
 }
 
 std::unique_ptr<cldnn::primitive_impl> PagedQSAIndexerCMImplementationManager::create_impl(const cldnn::program_node& node,

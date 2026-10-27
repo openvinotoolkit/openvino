@@ -138,10 +138,10 @@ std::shared_ptr<T> find_ancestor(const ov::Output<ov::Node>& start, size_t max_d
     while (!queue.empty()) {
         auto [node, depth] = queue.front();
         queue.pop_front();
-        if (!node || !visited.insert(node).second) {
+        if (node == nullptr || !visited.insert(node).second) {
             continue;
         }
-        if (auto match = ov::as_type<T>(node)) {
+        if (auto* match = ov::as_type<T>(node)) {
             return std::static_pointer_cast<T>(match->shared_from_this());
         }
         if (node == stop_at || depth >= max_depth) {
@@ -162,10 +162,10 @@ std::shared_ptr<T> find_descendant(const ov::Output<ov::Node>& start, size_t max
     while (!queue.empty()) {
         auto [node, depth] = queue.front();
         queue.pop_front();
-        if (!node || !visited.insert(node).second) {
+        if (node == nullptr || !visited.insert(node).second) {
             continue;
         }
-        if (auto match = ov::as_type<T>(node)) {
+        if (auto* match = ov::as_type<T>(node)) {
             return std::static_pointer_cast<T>(match->shared_from_this());
         }
         if (depth >= max_depth) {
@@ -187,7 +187,7 @@ std::shared_ptr<ov::Node> find_ancestor_if(const ov::Output<ov::Node>& start, si
     while (!queue.empty()) {
         auto [node, depth] = queue.front();
         queue.pop_front();
-        if (!node || !visited.insert(node).second) {
+        if (node == nullptr || !visited.insert(node).second) {
             continue;
         }
         if (pred(node)) {
@@ -419,17 +419,18 @@ public:
                 return false;
             }
             float exponent = 0.0f;
-            if (pm.count(sq_pow) && (!get_scalar_f32(pm.at(sq_pow).get_node_shared_ptr()->input_value(1), exponent) || !close(exponent, 2.0f))) {
+            if (pm.count(sq_pow) != 0 && (!get_scalar_f32(pm.at(sq_pow).get_node_shared_ptr()->input_value(1), exponent) || !close(exponent, 2.0f))) {
                 return false;
             }
             float numerator = 0.0f;
-            if (pm.count(inv_div) && (!get_scalar_f32(pm.at(inv_div).get_node_shared_ptr()->input_value(0), numerator) || !close(numerator, 1.0f))) {
+            if (pm.count(inv_div) != 0 && (!get_scalar_f32(pm.at(inv_div).get_node_shared_ptr()->input_value(0), numerator) || !close(numerator, 1.0f))) {
                 return false;
             }
-            if (pm.count(inv_pow) && (!get_scalar_f32(pm.at(inv_pow).get_node_shared_ptr()->input_value(1), exponent) || !close(exponent, -0.5f))) {
+            if (pm.count(inv_pow) != 0 && (!get_scalar_f32(pm.at(inv_pow).get_node_shared_ptr()->input_value(1), exponent) || !close(exponent, -0.5f))) {
                 return false;
             }
-            if (pm.count(inv_pow_root) && (!get_scalar_f32(pm.at(inv_pow_root).get_node_shared_ptr()->input_value(1), exponent) || !close(exponent, -1.0f))) {
+            if (pm.count(inv_pow_root) != 0 &&
+                (!get_scalar_f32(pm.at(inv_pow_root).get_node_shared_ptr()->input_value(1), exponent) || !close(exponent, -1.0f))) {
                 return false;
             }
             // epsilon is the non-mean operand of the Add that feeds the sqrt.
@@ -516,7 +517,7 @@ bool prove_rope(const ov::Output<ov::Node>& idx_q, ov::Node* stop_at, size_t Di,
             auto* n = consumer.get_node();
             if (is_layout_only(n)) {
                 queue.push_back(n);
-            } else if (auto slice = ov::as_type<ov::op::v8::Slice>(n)) {
+            } else if (auto* slice = ov::as_type<ov::op::v8::Slice>(n)) {
                 std::vector<int64_t> start, stop, step, axes;
                 if (!get_i64_vector(slice->input_value(1), start) || !get_i64_vector(slice->input_value(2), stop) ||
                     !get_i64_vector(slice->input_value(3), step) || start.empty()) {
@@ -537,13 +538,13 @@ bool prove_rope(const ov::Output<ov::Node>& idx_q, ov::Node* stop_at, size_t Di,
                 } else {
                     return false;
                 }
-            } else if (auto split = ov::as_type<ov::op::v1::Split>(n)) {
+            } else if (auto* split = ov::as_type<ov::op::v1::Split>(n)) {
                 std::vector<int64_t> axis;
                 if (split->get_num_splits() != 2 || !get_i64_vector(split->input_value(1), axis) || axis.size() != 1 || !last_axis(split, axis[0])) {
                     return false;
                 }
                 halves = true;
-            } else if (auto vsplit = ov::as_type<ov::op::v1::VariadicSplit>(n)) {
+            } else if (auto* vsplit = ov::as_type<ov::op::v1::VariadicSplit>(n)) {
                 std::vector<int64_t> axis, lengths;
                 if (!get_i64_vector(vsplit->input_value(1), axis) || axis.size() != 1 || !last_axis(vsplit, axis[0]) ||
                     !get_i64_vector(vsplit->input_value(2), lengths) || lengths != std::vector<int64_t>{half, half}) {
@@ -629,7 +630,7 @@ bool trace_to_projection(const ov::Output<ov::Node>& out, const ov::Node* proj, 
         const auto& rank = n->get_input_partial_shape(0).rank();
         return rank.is_static() && (axis == -1 || axis == rank.get_length() - 1);
     };
-    if (auto slice = ov::as_type<ov::op::v8::Slice>(node)) {
+    if (auto* slice = ov::as_type<ov::op::v8::Slice>(node)) {
         std::vector<int64_t> start, stop, step, axes;
         if (range.found || slice->get_input_size() < 5 || !get_i64_vector(slice->input_value(1), start) || !get_i64_vector(slice->input_value(2), stop) ||
             !get_i64_vector(slice->input_value(3), step) || !get_i64_vector(slice->input_value(4), axes) || start.size() != 1 || stop.size() != 1 ||
@@ -639,7 +640,7 @@ bool trace_to_projection(const ov::Output<ov::Node>& out, const ov::Node* proj, 
         range = {clamp_index(start[0]), clamp_index(stop[0]), true};
         return trace_to_projection(slice->input_value(0), proj, total, through_concat, range, depth - 1);
     }
-    if (auto vsplit = ov::as_type<ov::op::v1::VariadicSplit>(node)) {
+    if (auto* vsplit = ov::as_type<ov::op::v1::VariadicSplit>(node)) {
         std::vector<int64_t> axis, lengths;
         if (range.found || !get_i64_vector(vsplit->input_value(1), axis) || axis.size() != 1 || !last_axis(vsplit, axis[0]) ||
             !get_i64_vector(vsplit->input_value(2), lengths) || out.get_index() >= lengths.size()) {
@@ -898,8 +899,8 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
             continue;
         }
         auto kv_concat = find_ancestor_if(key_in, 40, nullptr, [&](ov::Node* n) {
-            auto concat = ov::as_type<ov::op::v0::Concat>(n);
-            return concat && concat->get_output_partial_shape(0).rank() == 4 && (concat->get_axis() == 2 || concat->get_axis() == -2) &&
+            auto* concat = ov::as_type<ov::op::v0::Concat>(n);
+            return concat != nullptr && concat->get_output_partial_shape(0).rank() == 4 && (concat->get_axis() == 2 || concat->get_axis() == -2) &&
                    is_ancestor_of(concat->output(0), key_read_value.get(), 4);
         });
         if (!kv_concat) {
@@ -1288,7 +1289,7 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         // paged_attn has 3 outputs vs. sparse_pa's 1 (checked above that 1/2 are unused),
         // so only output(0)'s consumers are rewired -- a plain ov::replace_node requires
         // matching output counts and would throw here.
-        for (auto& input : paged_attn->output(0).get_target_inputs()) {
+        for (const auto& input : paged_attn->output(0).get_target_inputs()) {
             input.replace_source_output(sparse_pa->output(0));
         }
         changed = true;

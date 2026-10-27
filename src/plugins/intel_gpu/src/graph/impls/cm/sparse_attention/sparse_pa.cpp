@@ -641,12 +641,8 @@ bool SparsePACMImplementationManager::validate_impl(const cldnn::program_node& n
             return false;
         }
     }
-    if (node.get_input_layout(SparsePAIn::SELECTED_BLOCK_INDICES).data_type != ov::element::i32 ||
-        node.get_input_layout(SparsePAIn::SELECTED_BLOCK_COUNT).data_type != ov::element::i32) {
-        return false;
-    }
-
-    return true;
+    return node.get_input_layout(SparsePAIn::SELECTED_BLOCK_INDICES).data_type == ov::element::i32 &&
+           node.get_input_layout(SparsePAIn::SELECTED_BLOCK_COUNT).data_type == ov::element::i32;
 }
 
 std::unique_ptr<cldnn::primitive_impl> SparsePACMImplementationManager::create_impl(const cldnn::program_node& node,

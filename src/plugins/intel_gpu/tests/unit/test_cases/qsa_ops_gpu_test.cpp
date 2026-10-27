@@ -1313,13 +1313,13 @@ void validate_dense_outputs(network& net, const dense_inputs& in, const std::vec
         SCOPED_TRACE("row " + std::to_string(b) + " past_len=" + std::to_string(ref.past_len) + " q_len=" + std::to_string(ref.q_len));
         size_t bad_padding = 0;
         for (size_t l = 0; l < pad; l++) {
-            bad_padding += all.plan.count[b * L + l] != 0;
+            bad_padding += static_cast<size_t>(all.plan.count[b * L + l] != 0);
             for (size_t i = 0; i < K; i++) {
-                bad_padding += all.plan.sel[(b * L + l) * K + i] != -1;
+                bad_padding += static_cast<size_t>(all.plan.sel[(b * L + l) * K + i] != -1);
             }
             for (size_t h = 0; h < d.Hq; h++) {
                 for (size_t j = 0; j < d.Dv; j++) {
-                    bad_padding += attn[((b * d.Hq + h) * L + l) * d.Dv + j] != 0.0f;
+                    bad_padding += static_cast<size_t>(attn[((b * d.Hq + h) * L + l) * d.Dv + j] != 0.0f);
                 }
             }
         }
@@ -2059,7 +2059,7 @@ void run_padded_kv_attention_test(const split_dims& d,
     net.set_input_data("value", value);
     auto outputs = net.execute();
 
-    const auto attn_params = net.get_primitive("attn")->get_impl_params();
+    const auto* const attn_params = net.get_primitive("attn")->get_impl_params();
     ASSERT_TRUE(static_cast<bool>(attn_params->get_input_layout(SparseSDPAIn::KEY).data_padding)) << "SparseSDPA must see the padded key buffer";
     EXPECT_EQ(executed_kernels(net, "attn"), expected_attention_kernels(false, route{IndexerPath::Decode, path}));
     const auto gpu = bhld_to_token_major(read_f16(outputs.at("attn").get_memory()), d, q_len);

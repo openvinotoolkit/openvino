@@ -478,9 +478,9 @@ TEST(sparse_attention_fusion, dense_dynamic_causal_replaces_with_proven_inputs) 
     // key_length [B] i32 is the main K length after the call, shared with SparseSDPA.
     EXPECT_EQ(indexer->get_input_element_type(In::KEY_LENGTH), ov::element::i32);
     EXPECT_EQ(indexer->input_value(In::KEY_LENGTH), sparse_sdpa->input_value(ov::intel_gpu::op::SparseSDPA::InputIdx::KEY_LENGTH));
-    auto broadcast = producer_through_layout(indexer->input_value(In::KEY_LENGTH));
-    auto gather = broadcast->get_input_node_ptr(0);
-    auto shape_of = ov::as_type<ov::op::v3::ShapeOf>(gather->get_input_node_ptr(0));
+    auto* broadcast = producer_through_layout(indexer->input_value(In::KEY_LENGTH));
+    auto* gather = broadcast->get_input_node_ptr(0);
+    auto* shape_of = ov::as_type<ov::op::v3::ShapeOf>(gather->get_input_node_ptr(0));
     ASSERT_NE(shape_of, nullptr);
     EXPECT_EQ(shape_of->get_input_node_ptr(0), g.k_full.get());
 
@@ -491,13 +491,13 @@ TEST(sparse_attention_fusion, dense_dynamic_causal_replaces_with_proven_inputs) 
             ASSERT_TRUE(ov::is_type<ov::op::v0::Concat>(producer));
             producer = producer->get_input_node_ptr(0);
         }
-        auto read = ov::as_type<ov::op::v6::ReadValue>(producer);
+        auto* read = ov::as_type<ov::op::v6::ReadValue>(producer);
         ASSERT_NE(read, nullptr);
         EXPECT_EQ(read->get_variable()->get_info().data_shape, shape);
         EXPECT_EQ(read->get_variable()->get_info().data_type, ov::element::f16);
         const auto consumers = indexer->output(out).get_target_inputs();
         ASSERT_EQ(consumers.size(), 1u);
-        auto assign = ov::as_type<ov::op::v6::Assign>(consumers.begin()->get_node());
+        auto* assign = ov::as_type<ov::op::v6::Assign>(consumers.begin()->get_node());
         ASSERT_NE(assign, nullptr);
         EXPECT_EQ(assign->get_variable_id(), read->get_variable_id());
     };
