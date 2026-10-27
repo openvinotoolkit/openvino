@@ -553,6 +553,18 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         uint k_page[kq_key_blocks];
         if (from_cache)
             FUNC_CALL(pa_k_pages)(k_page, block_indices, base_block_index, key_base, k);
+        // The S*V loop's V pages, loaded here so the index loads overlap the KQ loop.
+        uint v_blk[sv_key_blocks];
+        if (from_cache)
+            FUNC_CALL(pa_v_pages)(v_blk, block_indices, base_block_index, k0, k, (int)lane);
+    #if PA_MIXED_PREFETCH_V
+        if (from_cache)
+            FUNC_CALL(pa_v_tile_prefetch)(V, v_blk, k0, k, dv, sg_j0_sv, b0_kv);
+    #endif
+    #if PA_MIXED_PREFETCH_K
+        if (from_cache)
+            FUNC_CALL(pa_k_page_prefetch)(K, k_page, b0_kv, key_base, k);
+    #endif
     #if IS_PA_K_BY_CHANNEL
         half k_pa_sc_ch[kq_sg_tile_keys / SUBGROUP_SIZE][DKS_ACTIVE];
         half k_pa_zp_ch[kq_sg_tile_keys / SUBGROUP_SIZE][DKS_ACTIVE];
@@ -1042,7 +1054,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 // Cache tiles only: a PA_CUR_KV_F16 tile reads plain f16 Vc, so v_zp_c stays 0.
                 half v_zp_c = (half)0.0f;
                 if (from_cache)
-                    v_zp_c = FUNC_CALL(pa_v_comp_fold)(pA, V, block_indices, base_block_index, k0, cp, k, b0_kv, lane);
+                    v_zp_c = FUNC_CALL(pa_v_comp_fold)(pA, V, v_blk[cp], k0, cp, k, b0_kv, lane);
             #endif
 
             int8 vb[sv_value_blocks];
@@ -1052,8 +1064,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 // starting at a multiple of kq_wg_tile_keys, i.e. exactly one cache page, so the
                 // page lookup is hoisted out of the cd and key_pair loops.
                 const int cp_key0 = k0 + cp * DPAS_K;
-                const size_t v_page_base =
-                    FUNC_CALL(pa_v_page_base)(block_indices, base_block_index, cp_key0, k, b0_kv);
+                const size_t v_page_base = PA_V_PAGE_OFF(v_blk[cp], b0_kv);
                 #if IS_PA_KV_COMPRESSED
                     // Compressed V page: lane == token for the per-key comp and key_rel for the
                     // dequant. The scale is already folded into pA, so only the zp subtraction
