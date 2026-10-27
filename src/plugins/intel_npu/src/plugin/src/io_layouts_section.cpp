@@ -109,7 +109,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> IOLayoutsSection::de
 
             std::string layout_string(string_length, 0);
             section.read(offset, string_length, const_cast<char*>(layout_string.c_str()));
-            offset += sizeof(number_of_input_layouts);
+            offset += string_length;
 
             try {
                 layouts.push_back(ov::Layout(std::move(layout_string)));

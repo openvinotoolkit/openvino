@@ -86,7 +86,7 @@ TEST_P(EncryptedSchedulesFlagSectionTest, WriteRead) {
     EXPECT_EQ(casted_section->get_flag(), encrypted_flag);
 }
 
-TEST_F(EncryptedSchedulesFlagSectionTest, WrongTagToDecoder) {
+TEST_P(EncryptedSchedulesFlagSectionTest, WrongTagToDecoder) {
     ov::runtime::hsm::ManifestEntry manifest_entry =
         ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, true);
     std::memcpy(&manifest_entry.inline_bytes, &encrypted_flag, sizeof(encrypted_flag));
@@ -96,7 +96,7 @@ TEST_F(EncryptedSchedulesFlagSectionTest, WrongTagToDecoder) {
                     testing::_);
 }
 
-TEST_F(EncryptedSchedulesFlagSectionTest, NotInline) {
+TEST_P(EncryptedSchedulesFlagSectionTest, NotInline) {
     ov::runtime::hsm::ManifestEntry manifest_entry =
         ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, false);
     std::memcpy(&manifest_entry.inline_bytes, &encrypted_flag, sizeof(encrypted_flag));
