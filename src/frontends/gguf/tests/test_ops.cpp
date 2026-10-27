@@ -1241,7 +1241,7 @@ TEST_P(GGUFMulMatIdSkippedIds, MatchesReference) {
     const auto c = GetParam();
     const ov::Shape weights_shape{1, 3, 2, 2};
     const size_t activation_slots = c.per_expert_activations ? 2 : 1;
-    const ov::PartialShape activations_shape{1, -1, activation_slots, 2};
+    const ov::PartialShape activations_shape{1, -1, static_cast<int64_t>(activation_slots), 2};
     const ov::PartialShape ids_shape{1, 1, -1, 2};
     const std::vector<float> weights_data{1, 0, 0, 1, 2, 0, 0, 2, 3, 0, 0, 3};
     auto decoder = SingleOpBuilder()
