@@ -4,6 +4,7 @@
 
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -162,8 +163,12 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
     prepare_build();
     {
         GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
+        const std::vector<std::shared_ptr<ov::Node>> no_ops;
+        ov::util::OrderedPrefetchScheduler weights_prefetch(m_config.get_offload_ratio() == 0 ? ops : no_ops);
         for (const auto& op : ops) {
+            weights_prefetch.acquire(*op);
             CreateSingleLayerPrimitive(op);
+            weights_prefetch.release(*op);
         }
     }
 

@@ -20,6 +20,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/math_util.hpp"
 
 namespace ov::test {
 
@@ -636,6 +637,30 @@ TEST_F(HintPrefetchAsyncTest, partial_region_populated_and_correct) {
         wait_for_resident_pages(mapped->data_as<char>() + prefetch_offset, prefetch_size, region_pages);
     EXPECT_EQ(pages_resident, region_pages) << "Expected the requested region to be fully resident.";
 
+    EXPECT_EQ(read_mapped(*mapped), data);
+}
+
+TEST_F(HintPrefetchAsyncTest, returned_future_makes_region_resident) {
+#ifndef __linux__
+    GTEST_SKIP() << "utils::count_resident_pages is not implemented on this platform yet CVS-186579";
+#endif
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_explicit_wait.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;
+    constexpr size_t prefetch_offset = 1 * 1024 * 1024;
+    constexpr size_t prefetch_size = 5 * 1024 * 1024;
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    auto future = mapped->hint_prefetch_async(prefetch_offset, prefetch_size);
+    ASSERT_TRUE(future.valid());
+    future.wait();
+
+    const size_t page = static_cast<size_t>(util::get_system_page_size());
+    EXPECT_EQ(utils::count_resident_pages(mapped->data_as<char>() + prefetch_offset, prefetch_size),
+              util::ceil_div(prefetch_size, page));
     EXPECT_EQ(read_mapped(*mapped), data);
 }
 
