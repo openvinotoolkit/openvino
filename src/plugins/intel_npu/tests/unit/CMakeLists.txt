@@ -37,7 +37,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/al/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/include
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/unit/npu/blob_format/mocks
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/unit/npu/hsm_format/mocks
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/behavior/npuw/test_engine/models
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/include/
             ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero
@@ -51,7 +51,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/io_layouts_section.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_version_section.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/src/compiler_schedules_sections.cpp
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/blob_format_importers.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/hsm_format_importers.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_option_support_helper.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_schedule_instance_evaluator.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/transformations.cpp
@@ -184,23 +184,23 @@ install(TARGETS ${TARGET_NAME}
 )
 
 target_sources(${TARGET_NAME} PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/batch_size_section.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/io_layouts_section.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/encrypted_schedules_flag_section.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/compiler_version_section.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/section_type.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/section_id.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/cre_special_token.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/runtime_requirements.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/sections_string_conversions.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/isection_type_evaluator.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/supported_section_type_evaluator.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/single_section_instance_evaluator.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/compiler_schedule_instance_evaluator.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/elf_main_schedule_section.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/elf_init_schedules_section.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/dynamic_schedule_section.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/cre.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/batch_size_section.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/io_layouts_section.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/encrypted_schedules_flag_section.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/compiler_version_section.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/section_type.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/section_id.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/cre_special_token.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/runtime_requirements.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/sections_string_conversions.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/isection_type_evaluator.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/supported_section_type_evaluator.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/single_section_instance_evaluator.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/compiler_schedule_instance_evaluator.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/elf_main_schedule_section.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/elf_init_schedules_section.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/dynamic_schedule_section.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/cre.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/major_minor_version.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/executor_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/should_use_host_compile_interpreter_test.cpp
